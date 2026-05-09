@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// Extract the `### `vox ci …` section from the CLI reference doc (until the next `### ` heading).
 pub(crate) fn ref_cli_vox_ci_section(ref_text: &str) -> Option<&str> {

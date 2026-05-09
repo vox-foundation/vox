@@ -1,5 +1,6 @@
 [package]
 name = "vox-package"
+description = "Vox package manager: Vox.toml manifests, vox.lock, content-addressed artifact cache, registry client, dependency resolver."
 version.workspace = true
 edition.workspace = true
 
@@ -11,6 +12,7 @@ local = ["vox-db/local"]
 replication = ["vox-db/replication"]
 
 [dependencies]
+vox-package-types = { workspace = true }
 vox-db = { workspace = true }
 vox-compiler = { workspace = true }
 bincode = { workspace = true }

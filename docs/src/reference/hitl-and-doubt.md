@@ -29,13 +29,13 @@ Common triggers for doubt:
 
 1. **Detection**: The primary agent identifies ambiguity and invokes `vox_doubt_task`.
 2. **Suspension**: The orchestrator pauses the agent's active execution threads and transitions the task to `TaskStatus::Doubted`.
-3. **Resolution**: The `ResolutionAgent` (from the `vox-dei` crate) engages. It presents the context to the human operator using the `FreeAiClient` or editor overlays, asking for clarification.
+3. **Resolution**: The `ResolutionAgent` engages. It presents the context to the human operator using the `FreeAiClient` or editor overlays, asking for clarification.
 4. **Resumption**: Once the human provides the necessary context or authorization, the doubt is marked resolved, and the primary agent resumes execution with the new constraints.
 
 ## Rewarding Healthy Skepticism
 
 To combat AI obsequiousness (the tendency to always say "yes" even when wrong), the system actively rewards the choice to doubt. 
 
-When the `ResolutionAgent` concludes a doubt session, it submits an audit report. If the doubt was raised due to genuine ambiguity rather than simple capability failure, it triggers an `internal_affairs` achievement in the `vox-ludus` gamification engine. This reinforces a behavior model where safe, clarified execution is paramount.
+When the `ResolutionAgent` concludes a doubt session, it submits an audit report. If the doubt was raised due to genuine ambiguity rather than simple capability failure, it triggers an `internal_affairs` achievement in the `vox-gamify` gamification engine. This reinforces a behavior model where safe, clarified execution is paramount.
 
 

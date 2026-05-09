@@ -1,5 +1,6 @@
 [package]
 name = "vox-db-types"
+description = "Pure-data L0 leaf for vox-db: row types, IDs, schema descriptors."
 version.workspace = true
 edition.workspace = true
 

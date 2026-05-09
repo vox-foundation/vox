@@ -1,6 +1,6 @@
 [package]
 name = "vox-orchestrator"
-description = "Multi-agent file-affinity queue system for coordinating concurrent AI coding agents"
+description = "Glue crate for the multi-agent file-affinity router: dei_shim, planning, services, runtime glue. Core router lives in vox-orchestrator-core (boundary marker), queue/lock/oplog in vox-orchestrator-queue, MCP in vox-orchestrator-mcp."
 version.workspace = true
 edition.workspace = true
 

@@ -1,0 +1,5 @@
+[package]
+name = "vox-arch-check-fixture-missing-desc"
+version = "0.0.0"
+edition = "2024"
+# description intentionally missing

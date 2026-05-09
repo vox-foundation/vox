@@ -28,7 +28,7 @@ cargo run -p vox-cli --features stub-check -- stub-check crates/your-crate --sug
 cargo run -p vox-cli --features stub-check -- stub-check crates/your-crate --severity error
 
 # Full workspace CI scan (what CI runs)
-cargo run -p vox-toestub --bin toestub -- crates/
+cargo run -p vox-code-audit --bin toestub -- crates/
 ```
 
 Output is JSON when you need to pipe it: append `--format json`.
@@ -199,7 +199,7 @@ with a short reason comment.
 |---|---|
 | `vox-dei` (as large orchestrator) | `vox-orchestrator` |
 | `vox-ars` | `vox-ars-runtime` |
-| `vox-gamify` | `vox-ludus` |
+| `vox-ludus` | `vox-gamify` |
 | `recall()` | `recall_async()` |
 | `TURSO_URL` env var | `VOX_DB_URL` |
 

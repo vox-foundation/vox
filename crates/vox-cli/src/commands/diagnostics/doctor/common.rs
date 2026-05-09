@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::path::PathBuf;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
+use vox_bounded_fs::read_utf8_path_capped_async;
 
 /// One environment check row for human or JSON output.
 #[derive(Debug, Serialize)]

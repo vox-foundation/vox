@@ -1,5 +1,6 @@
 [package]
 name = "vox-orchestrator-types"
+description = "Pure-data L0 leaf for vox-orchestrator: agent/task IDs, file affinity, switch actions, provider catalogs."
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

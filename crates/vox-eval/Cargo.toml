@@ -1,5 +1,6 @@
 [package]
 name = "vox-eval"
+description = "Vox expression evaluator (interpreter for vox run --interp)."
 version.workspace = true
 edition.workspace = true
 

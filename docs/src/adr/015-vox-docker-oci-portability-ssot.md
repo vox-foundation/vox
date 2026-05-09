@@ -68,6 +68,8 @@ Adopt a **Docker/OCI-backed portability model** as the primary deployment portab
   - operator/runtime contract.
 - OCI ecosystem features such as multi-arch publication, annotations, SBOMs, provenance, signing, and registry storage become available without bespoke infrastructure.
 
+> Nomenclature note (2026-05-08): `vox-pm` was renamed to `vox-package`; references in this ADR are historical.
+
 ### Trade-offs
 
 - Portability claims must stay disciplined: containers do not erase kernel differences.
@@ -93,4 +95,5 @@ Adopt a **Docker/OCI-backed portability model** as the primary deployment portab
 - `crates/vox-container/src/deploy_target.rs`
 - `crates/vox-install-policy/src/lib.rs`
 
+> **Nomenclature note (2026-05-08):** `vox-pm` was renamed to `vox-package`; references in this ADR are historical.
 

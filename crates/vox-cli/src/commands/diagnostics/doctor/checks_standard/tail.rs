@@ -2,7 +2,7 @@
 
 use tokio::process::Command;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
+use vox_bounded_fs::read_utf8_path_capped_async;
 
 use super::super::common::{self, AuthRegistriesOnly, Check};
 use super::super::provider_policy::{ProviderPolicyEngine, ProviderSupportLevel};

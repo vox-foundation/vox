@@ -43,7 +43,7 @@ All notable changes to the Vox project are documented here.
 - **VoxDb**: Integration test for in-memory connection (B-068)
 - **AGENTS.md**: Phase 5 VoxPM roadmap merged from `PLAN.md` (B-076)
 - **Docs**: `vox-runtime/README.md` — actor model architecture (B-112)
-- **Docs**: `vox-pm/README.md` — CAS store architecture (B-113)
+- **Docs**: `vox-package/README.md` — CAS store architecture (B-113)
 - **Docs**: mdBook search enabled with full-text indexing (A-136)
 - **Docs**: Automated API reference pipeline `vox doc` (A-142)
 - **Docs**: Decorator and Keyword manifests in JSON format (B-121/B-122)

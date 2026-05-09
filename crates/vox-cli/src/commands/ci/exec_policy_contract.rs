@@ -12,7 +12,7 @@ use std::path::Path;
 use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use crate::commands::runtime::shell::check_terminal;
 
 /// Smoke payloads exercised by both the Rust-fallback and pwsh paths.

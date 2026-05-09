@@ -10755,6 +10755,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-cli-ci"
+version = "0.5.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-cli-core"
 version = "0.5.0"
 dependencies = [
@@ -10917,7 +10924,6 @@ dependencies = [
  "vox-bounded-fs",
  "vox-compiler",
  "vox-db",
- "vox-mcp-meta",
  "vox-mcp-registry",
  "vox-repository",
  "xxhash-rust",
@@ -11233,15 +11239,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-mcp-meta"
-version = "0.5.0"
-dependencies = [
- "strum",
- "vox-mcp-registry",
- "workspace-hack",
-]
-
-[[package]]
 name = "vox-mcp-registry"
 version = "0.5.0"
 dependencies = [
@@ -11464,6 +11461,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-orchestrator-core"
+version = "0.5.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-orchestrator-d"
 version = "0.5.0"
 dependencies = [
@@ -11616,7 +11620,20 @@ dependencies = [
  "turso",
  "vox-compiler",
  "vox-db",
+ "vox-package-types",
  "vox-reqwest-defaults",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-package-types"
+version = "0.5.0"
+dependencies = [
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "toml 0.8.23",
  "workspace-hack",
 ]
 
@@ -11975,7 +11992,7 @@ dependencies = [
  "anyhow",
  "serde",
  "tempfile",
- "vox-package",
+ "vox-package-types",
  "vox-repository",
  "workspace-hack",
 ]

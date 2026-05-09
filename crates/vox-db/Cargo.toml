@@ -1,5 +1,6 @@
 [package]
 name = "vox-db"
+description = "Codex / VoxDb facade: schema migrations, store ops, Turso/libSQL access for the Vox workspace."
 version.workspace = true
 edition.workspace = true
 

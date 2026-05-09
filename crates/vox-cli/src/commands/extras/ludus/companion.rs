@@ -5,7 +5,7 @@ use anyhow::Result;
 use owo_colors::OwoColorize;
 use vox_gamify::{Companion, FreeAiClient, companion::Mood, db, quest, sprite};
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// Show details for a single companion by name.
 pub async fn companion_show(name: &str) -> Result<()> {

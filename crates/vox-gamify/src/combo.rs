@@ -17,6 +17,7 @@
 //! | Scribe's Fury     | doc_added × 5                                  | 1 hr   | scribes_fury       |
 
 use anyhow::Result;
+use turso::params;
 use vox_db::Codex;
 
 // ── Combo definitions ─────────────────────────────────────────────────────────
@@ -181,7 +182,20 @@ async fn reset_combo(db: &Codex, user_id: &str, combo_id: &str) {
 /// Overwrite a daily counter to an exact value (used for resets and timestamps).
 async fn set_counter_exact(db: &Codex, user_id: &str, key: &str, value: i64) -> Result<()> {
     let day = crate::util::now_unix() / 86_400;
-    db.set_gamify_daily_counter_exact(user_id, key, day, value)
+    let user_id = user_id.to_string();
+    let key = key.to_string();
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "INSERT INTO gamify_daily_counters (user_id, event_type, day, count) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT (user_id, event_type, day) DO UPDATE SET count = excluded.count",
+                params![user_id.as_str(), key.as_str(), day, value],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
         .await
         .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())

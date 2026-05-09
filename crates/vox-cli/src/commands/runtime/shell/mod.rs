@@ -21,7 +21,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use tokio::process::Command;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
+use vox_bounded_fs::read_utf8_path_capped_async;
 
 pub use check_terminal::{DEFAULT_POLICY_REL, validate_policy_file};
 

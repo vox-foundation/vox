@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 pub(crate) use crate::command_registry_model::RegistryFile;
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 pub(crate) const REGISTRY_REL: &str = "contracts/cli/command-registry.yaml";
 pub(crate) const SCHEMA_REL: &str = "contracts/cli/command-registry.schema.json";

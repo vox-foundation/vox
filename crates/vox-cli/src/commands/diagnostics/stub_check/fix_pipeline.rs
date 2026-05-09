@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use vox_code_audit::Finding;
 
 /// Verify frontmatter parses and body is unchanged; restore original on failure.

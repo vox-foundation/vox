@@ -139,7 +139,7 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
             "How does the MCP server expose tools?",
             "MCP tool registration server",
             "crates/vox-mcp/src/server.rs",
-            "MCP tools are registered in `vox-mcp-meta` and served via Axum. Each `@mcp.tool` declaration in .vox becomes a handler function. Tool discovery is automatic via the dynamic registry.",
+            "MCP tools are registered in `vox-mcp-registry` and served via Axum. Each `@mcp.tool` declaration in .vox becomes a handler function. Tool discovery is automatic via the dynamic registry.",
         ),
         (
             "How does QLoRA training work with Vox Mens?",

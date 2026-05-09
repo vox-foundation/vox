@@ -1,14 +1,26 @@
 //! Teaching profiles and policy snapshots.
 
 use anyhow::Result;
+use turso::params;
 use vox_db::Codex;
 
 use crate::teaching::TeachingProfile;
 
 /// Load a teaching profile. Returns a fresh default if none exists yet.
 pub async fn get_teaching_profile(db: &Codex, user_id: &str) -> Result<TeachingProfile> {
-    let row = db.get_gamify_teaching_profile_row(user_id).await?;
-    if let Some((stage_str, silenced, counts_json, cooldowns_json)) = row {
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT stage, silenced, mistake_counts, cooldowns
+             FROM gamify_teaching_profiles WHERE user_id = ?1",
+            params![user_id],
+        )
+        .await?;
+    if let Some(row) = rows.next().await? {
+        let stage_str: String = row.get(0)?;
+        let silenced: i64 = row.get(1)?;
+        let counts_json: String = row.get(2)?;
+        let cooldowns_json: String = row.get(3)?;
         let stage = match stage_str.as_str() {
             "guided" => crate::teaching::TutorialStage::Guided,
             "independent" => crate::teaching::TutorialStage::Independent,
@@ -16,7 +28,6 @@ pub async fn get_teaching_profile(db: &Codex, user_id: &str) -> Result<TeachingP
         };
         let mistake_counts = serde_json::from_str(&counts_json).unwrap_or_default();
         let cooldowns = serde_json::from_str(&cooldowns_json).unwrap_or_default();
-
         Ok(TeachingProfile {
             user_id: user_id.to_string(),
             stage,
@@ -38,16 +49,35 @@ pub async fn upsert_teaching_profile(db: &Codex, profile: &TeachingProfile) -> R
     };
     let counts_json = serde_json::to_string(&profile.mistake_counts).unwrap_or_default();
     let cooldowns_json = serde_json::to_string(&profile.cooldowns).unwrap_or_default();
-
-    db.upsert_gamify_teaching_profile(
-        profile.user_id.as_str(),
-        stage_str,
-        profile.silenced,
-        counts_json.as_str(),
-        cooldowns_json.as_str(),
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let user_id = profile.user_id.clone();
+    let stage_str = stage_str.to_string();
+    let silenced_flag: i64 = if profile.silenced { 1 } else { 0 };
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "INSERT INTO gamify_teaching_profiles (user_id, stage, silenced, mistake_counts, cooldowns)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(user_id) DO UPDATE SET
+                    stage = excluded.stage,
+                    silenced = excluded.silenced,
+                    mistake_counts = excluded.mistake_counts,
+                    cooldowns = excluded.cooldowns,
+                    updated_at = datetime('now')",
+                params![
+                    user_id.as_str(),
+                    stage_str.as_str(),
+                    silenced_flag,
+                    counts_json.as_str(),
+                    cooldowns_json.as_str(),
+                ],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
 
@@ -68,21 +98,39 @@ pub async fn insert_policy_snapshot(
     lumens_awarded: i64,
     metadata: Option<&str>,
 ) -> Result<()> {
-    db.insert_gamify_policy_snapshot(
-        user_id,
-        event_type,
-        base_xp as i64,
-        base_crystals as i64,
-        mode,
-        effective_multiplier,
-        xp_awarded as i64,
-        crystals_awarded as i64,
-        streak_days as i64,
-        grind_capped,
-        lumens_awarded,
-        metadata,
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let user_id = user_id.to_string();
+    let event_type = event_type.to_string();
+    let mode = mode.to_string();
+    let metadata = metadata.map(|s| s.to_string());
+    let grind: i64 = if grind_capped { 1 } else { 0 };
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "INSERT INTO gamify_policy_snapshots
+                 (user_id, event_type, base_xp, base_crystals, mode_label, effective_multiplier,
+                  awarded_xp, awarded_crystals, streak_days, grind_capped, lumens, metadata)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                params![
+                    user_id.as_str(),
+                    event_type.as_str(),
+                    base_xp as i64,
+                    base_crystals as i64,
+                    mode.as_str(),
+                    effective_multiplier,
+                    xp_awarded as i64,
+                    crystals_awarded as i64,
+                    streak_days as i64,
+                    grind,
+                    lumens_awarded,
+                    metadata
+                ],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
