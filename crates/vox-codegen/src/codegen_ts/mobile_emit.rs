@@ -6,20 +6,42 @@ use vox_compiler::hir::nodes::HirModule;
 /// primitives declared in the module.  Returns `None` when no mobile
 /// primitives are present so the caller can skip creating the file.
 pub fn emit_mobile_setup(hir: &HirModule) -> Option<String> {
-    let mut parts: Vec<String> = vec![];
+    let has_back = hir.back_button.is_some();
+    let has_deep = hir.deep_link.is_some();
+    let has_push = hir.push.is_some();
+
+    if !has_back && !has_deep && !has_push {
+        return None;
+    }
+
+    // Collect imports once; deduplicated by construction.
+    let mut imports: Vec<&'static str> = vec!["import * as endpoints from './vox-client';"];
+    if has_back || has_deep {
+        imports.push("import { App } from '@capacitor/app';");
+    }
+    if has_deep {
+        imports.push("import { useEffect } from 'react';");
+        imports.push("import { useNavigate } from '@tanstack/react-router';");
+    }
+    if has_push {
+        imports.push("import { PushNotifications } from '@capacitor/push-notifications';");
+    }
+
+    let mut parts: Vec<String> = vec![imports.join("\n")];
 
     // ── D2: @back_button ──────────────────────────────────────────────────
     if let Some(back) = &hir.back_button {
         let on_press = &back.on_press;
-        let fallback_call = back
-            .fallback
-            .as_ref()
-            .map(|f| format!("await endpoints.{f}();"))
-            .unwrap_or_else(|| "App.exitApp();".into());
-        parts.push(format!(
-            "import {{ App }} from '@capacitor/app';
-import * as endpoints from './vox-client';
-let __backHandlerRegistered = false;
+        if on_press.is_empty() {
+            // Defensive: skip if required field missing (parser silent-ignore case).
+        } else {
+            let fallback_call = back
+                .fallback
+                .as_ref()
+                .map(|f| format!("await endpoints.{f}();"))
+                .unwrap_or_else(|| "App.exitApp();".into());
+            parts.push(format!(
+                "let __backHandlerRegistered = false;
 export function installBackButtonHandler() {{
   if (__backHandlerRegistered) return;
   __backHandlerRegistered = true;
@@ -30,12 +52,15 @@ export function installBackButtonHandler() {{
     }}
   }});
 }}"
-        ));
+            ));
+        }
     }
 
     // ── D3: @deep_link ────────────────────────────────────────────────────
     if let Some(dl) = &hir.deep_link {
         let on_link = &dl.on_link;
+        // Note: `scheme` and `universal_link` are parsed/stored for future URL-scheme
+        // validation; currently the on_link handler is responsible for scheme checks.
         parts.push(format!(
             "export function useDeepLinkRouting() {{
   const navigate = useNavigate();
@@ -55,10 +80,12 @@ export function installBackButtonHandler() {{
         let on_reg = push.on_register.as_deref().unwrap_or("");
         let on_notif = push.on_notification.as_deref().unwrap_or("");
         let on_action = push.on_action.as_deref().unwrap_or("");
-        let reg_call = if on_reg.is_empty() {
+
+        // Listeners must be registered BEFORE calling PushNotifications.register()
+        // so the `registration` event is not missed.
+        let reg_listener = if on_reg.is_empty() {
             String::new()
         } else {
-            // Listen for the `registration` event to capture the device push token.
             format!(
                 "  PushNotifications.addListener('registration', async (token) => {{ await endpoints.{on_reg}(token.value); }});\n"
             )
@@ -78,9 +105,8 @@ export function installBackButtonHandler() {{
             )
         };
         parts.push(format!(
-            "import {{ PushNotifications }} from '@capacitor/push-notifications';
-export async function installPushNotifications() {{
-{reg_call}{notif_listener}{action_listener}  const result = await PushNotifications.requestPermissions();
+            "export async function installPushNotifications() {{
+{reg_listener}{notif_listener}{action_listener}  const result = await PushNotifications.requestPermissions();
   if (result.receive === 'granted') {{
     await PushNotifications.register();
   }}
@@ -88,9 +114,5 @@ export async function installPushNotifications() {{
         ));
     }
 
-    if parts.is_empty() {
-        None
-    } else {
-        Some(parts.join("\n\n"))
-    }
+    Some(parts.join("\n\n"))
 }
