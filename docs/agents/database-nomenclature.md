@@ -111,3 +111,15 @@ Key examples:
 
 - `CostRecord`: canonical in `vox-ludus/src/db.rs`; `vox-ludus/src/cost.rs` re-exports it.
 - `CostSummary` in `vox-ludus/cost.rs` vs `vox-orchestrator/usage.rs`: different domains — keep separate.
+
+## When to depend on `vox-db-types` vs `vox-db`
+
+| You need... | Depend on |
+|---|---|
+| Row/param structs only (no async, no connection) | `vox-db-types` |
+| `VoxDb` connection, `.store(...)`, queries | `vox-db` |
+| The `DbAgentId`/`DbSessionId`/etc. newtypes | `vox-db-types` (re-exported from `vox-db`) |
+
+The mechanical lint `vox ci row-serde-lint` enforces that every row type derives
+`Serialize` + `Deserialize`; `vox ci string-id-lint` (report-only) flags new
+stringly-typed ID fields where a newtype exists.
