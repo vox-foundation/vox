@@ -43,7 +43,7 @@ jobs:
           - target: x86_64-pc-windows-msvc
             runs_on: '["windows-latest"]'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -51,7 +51,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Cache Cargo Registry & Target
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -96,7 +96,7 @@ jobs:
         shell: bash
 
       - name: Upload bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.bundle }}-${{ matrix.target }}
           path: bundle.tar.gz

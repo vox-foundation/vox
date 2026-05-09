@@ -1,0 +1,47 @@
+# act configuration — local GitHub Actions runner via Docker
+# https://github.com/nektos/act
+#
+# Run: act [event] [--workflows <path>] [--job <id>]
+# Opt-in via vox: vox ci pre-push --act
+#
+# IMAGE PINNING POLICY
+# --------------------
+# We pin to a tag, not a digest. Reason: the catthehacker images are rebuilt
+# regularly (security patches) and a frozen digest goes stale fast. Maintainers
+# should bump the tag here in lockstep with `actions-runner` upgrades on the
+# self-hosted fleet (see docs/src/ci/runner-contract.md).
+#
+# To convert tag -> digest pin for a specific contributor environment:
+#   docker pull catthehacker/ubuntu:act-24.04
+#   docker inspect --format='{{index .RepoDigests 0}}' catthehacker/ubuntu:act-24.04
+# then replace the tag in your local copy of this file.
+#
+# Image choice: catthehacker/ubuntu:act-24.04 mirrors `ubuntu-latest`
+# (currently ubuntu-24.04 on GitHub-hosted as of 2026-Q2).
+-P ubuntu-latest=catthehacker/ubuntu:act-24.04
+-P ubuntu-24.04=catthehacker/ubuntu:act-24.04
+-P ubuntu-22.04=catthehacker/ubuntu:act-22.04
+
+# Self-hosted labels — map to the catalog image for local smoke only.
+# These do NOT reproduce GPU, browser, or DinD capabilities; those lanes must
+# stay on the real self-hosted fleet (docs/src/ci/runner-contract.md).
+-P self-hosted=catthehacker/ubuntu:act-24.04
+
+# Cache directory (bind-mounted into act containers)
+--cache-server-path ~/.cache/act
+
+# Reuse containers between runs for faster iteration; disable with --reuse=false
+# if you suspect stale state.
+--reuse
+
+# Secrets file (never commit this file — it is in .gitignore)
+--secret-file .secrets
+
+# Artifact server — captures upload-artifact outputs locally.
+# On Windows, override to a writable path with --artifact-server-path
+# (e.g. %TEMP%\act-artifacts).
+--artifact-server-path /tmp/act-artifacts
+
+# Bind ~/.cargo into containers so cargo registry downloads are cached across runs.
+# Remove this line if your Docker daemon is on a remote host (bind-mounts won't work).
+--bind

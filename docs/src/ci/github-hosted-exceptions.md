@@ -18,6 +18,7 @@ The repository defaults to **self-hosted** runners for main Rust CI (see [runner
 | `docs-quality.yml` | `ubuntu-latest` | mdBook + `vox-doc-pipeline --check` + link/SUMMARY gates; no self-hosted pool dependency; matches other docs-advisory jobs. |
 | `link_checker.yml` | `ubuntu-latest` | External link checks; no secrets to self-hosted pool. |
 | `release-binaries.yml` | `windows-latest`, `macos-latest` (×2 targets: x86_64 and aarch64 macOS jobs) | Publish tagged Windows/macOS binaries; Linux **build** lane remains self-hosted; **publish** job runs on Linux self-hosted. |
+| `publish-ci-runner.yml` | `ubuntu-latest` | Chicken-and-egg: builds the self-hosted runner image itself; cannot run on the fleet it produces. Publishes to GHCR so contributors can `docker pull ghcr.io/<org>/vox-ci-runner:latest`. |
 
 Any new workflow using GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-latest`) must add a row here or switch to the self-hosted tuple.
 
