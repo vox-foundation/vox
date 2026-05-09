@@ -16,6 +16,8 @@ pub mod emitter;
 pub mod openapi_emit;
 /// `@form` declaration → React form components in `forms.tsx` (Task C3).
 pub mod form_emit;
+/// Mobile Capacitor primitive emit (`@back_button`, `@deep_link`, `@push`) → `mobile.ts` (Tasks D2-D4).
+pub mod mobile_emit;
 /// `fragment` declaration → typed React function components in `fragments.tsx`
 /// (Phase F of the Svelte-mineable features plan; per ADR-033).
 pub mod fragment_emit;

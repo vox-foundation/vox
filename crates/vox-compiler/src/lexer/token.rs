@@ -158,6 +158,12 @@ pub enum Token {
     AtCancellable,
     #[token("@form")]
     AtForm,
+    #[token("@back_button")]
+    AtBackButton,
+    #[token("@deep_link")]
+    AtDeepLink,
+    #[token("@push")]
+    AtPush,
 
     // ── Symbols ───────────────────────────────────────────────
     #[token("(")]
@@ -402,6 +408,9 @@ impl std::fmt::Display for Token {
             Token::AtAi => write!(f, "@ai"),
             Token::AtCancellable => write!(f, "@cancellable"),
             Token::AtForm => write!(f, "@form"),
+            Token::AtBackButton => write!(f, "@back_button"),
+            Token::AtDeepLink => write!(f, "@deep_link"),
+            Token::AtPush => write!(f, "@push"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBracket => write!(f, "["),

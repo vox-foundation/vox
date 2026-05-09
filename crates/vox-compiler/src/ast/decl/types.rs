@@ -143,6 +143,12 @@ pub enum Decl {
     Actor(ActorDecl),
     /// Form declaration — generates a React form component with validation.
     Form(FormDecl),
+    /// Mobile back-button handler (`@back_button`).
+    BackButton(mobile::BackButtonDecl),
+    /// Mobile deep-link / universal-link handler (`@deep_link`).
+    DeepLink(mobile::DeepLinkDecl),
+    /// Mobile push-notification wiring (`@push`).
+    Push(mobile::PushDecl),
 }
 impl Decl {
     /// Primary source span for this declaration (used for diagnostics).
@@ -185,6 +191,9 @@ impl Decl {
             Decl::Activity(a) => a.span,
             Decl::Actor(a) => a.span,
             Decl::Form(f) => f.span,
+            Decl::BackButton(b) => b.span,
+            Decl::DeepLink(d) => d.span,
+            Decl::Push(p) => p.span,
         }
     }
 }

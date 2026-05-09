@@ -241,6 +241,11 @@ pub fn generate_with_options(
         files.push(("forms.tsx".into(), format!("{header}\n{forms_content}")));
     }
 
+    // Emit mobile Capacitor setup (Tasks D2-D4: @back_button, @deep_link, @push).
+    if let Some(mobile_content) = super::mobile_emit::emit_mobile_setup(hir) {
+        files.push(("mobile.ts".into(), mobile_content));
+    }
+
     // Phase D: emit `<Name>Provider.tsx` per `.vox.ui` reactive module
     // (per ADR-032). Skipped when the module has none.
     for (filename, content) in crate::codegen_ts::reactive_module_emit::emit_reactive_modules(hir) {
