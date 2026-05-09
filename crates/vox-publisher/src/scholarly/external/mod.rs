@@ -17,6 +17,10 @@ pub fn resolve_scholarly_adapter_kind(adapter_override: Option<&str>) -> String 
         vox_config::scholarly::ScholarlyAdapterKind::OpenReview => "openreview".to_string(),
         vox_config::scholarly::ScholarlyAdapterKind::EchoLedger => "echo_ledger".to_string(),
         vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => "arxiv_assist".to_string(),
+        vox_config::scholarly::ScholarlyAdapterKind::Osf => "osf".to_string(),
+        vox_config::scholarly::ScholarlyAdapterKind::CrossrefDeposit => {
+            "crossref_deposit".to_string()
+        }
         vox_config::scholarly::ScholarlyAdapterKind::LocalLedger => "local_ledger".to_string(),
     }
 }

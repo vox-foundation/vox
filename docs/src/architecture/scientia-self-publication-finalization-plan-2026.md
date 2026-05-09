@@ -388,7 +388,9 @@ deposit.
   ([Nature AI policy](https://www.nature.com/nature-portfolio/editorial-policies/ai)). ✅ (`AiDisclosureBlock::build`)
 - Bluesky prioritized over X per [academic-Twitter migration data (arXiv 2505.24801)](https://arxiv.org/html/2505.24801v1). ✅ (X/Twitter absent from `PublicationPlatform`)
 
-### Phase 8 — Scholarly automation + venue strategy (3 wk)
+### Phase 8 — Scholarly automation + venue strategy (3 wk) ✅ COMPLETE (2026-05-09)
+
+> **Status: Complete** — venue catalog YAML + Rust types; JournalFitRecommender; ORCID PKCE OAuth state machine; F1000 peer review gate (SHA3 fingerprint, ≥2 approvals); ArxivAssist ScholarlyAdapter (staging-based); OSF v2 adapter; Crossref deposit adapter + XML builder; Zenodo new_version(); OpenReview revision flow. (2026-05-09)
 - arXiv API write adapter; OSF write adapter; Crossref deposit adapter; ORCID
   OAuth (PKCE); Zenodo versioning; OpenReview revision flow.
 - F1000-style publish-then-review track; gate "indexed in our curated track"
