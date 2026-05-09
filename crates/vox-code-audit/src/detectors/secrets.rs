@@ -1,12 +1,15 @@
+use crate::rule_pack_detector::pack_rule;
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile, rust_byte_is_comment};
-use regex::Regex;
+use vox_rule_pack::CompiledRule;
 
 /// Detects hardcoded secrets, API keys, and credentials.
+///
+/// Patterns sourced from embedded rule pack: `security/hardcoded-secret/{generic,aws-key,jwt}`.
+/// Skip logic (comment lines, placeholder strings, env-var reads) kept in Rust.
 pub struct SecretDetector {
-    generic_secret: Regex,
-    aws_key: Regex,
-    jwt_token: Regex,
-    supported_langs: Vec<Language>,
+    generic_secret: &'static CompiledRule,
+    aws_key: &'static CompiledRule,
+    jwt_token: &'static CompiledRule,
 }
 
 impl Default for SecretDetector {
@@ -16,45 +19,31 @@ impl Default for SecretDetector {
 }
 
 impl SecretDetector {
-    /// Builds generic secret, AWS key, and JWT heuristics for all supported [`Language`]s.
     pub fn new() -> Self {
         Self {
-            generic_secret: Regex::new(r#"(?i)(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|bearer)\s*[:=]\s*["'][^"']{8,}["']"#)
-                .expect("valid regex"),
-            aws_key: Regex::new(r#"\bAKIA[0-9A-Z]{16}\b"#).expect("valid regex"),
-            jwt_token: Regex::new(r#"\beyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+"#)
-                .expect("valid regex"),
-            supported_langs: vec![
-                Language::Rust,
-                Language::TypeScript,
-                Language::Python,
-                Language::GDScript,
-                Language::Vox,
-            ],
+            generic_secret: pack_rule("security/hardcoded-secret/generic"),
+            aws_key: pack_rule("security/hardcoded-secret/aws-key"),
+            jwt_token: pack_rule("security/hardcoded-secret/jwt"),
         }
     }
 
     fn make_finding(
-        &self,
+        rule: &'static CompiledRule,
         file: &SourceFile,
         line_num: usize,
         message: String,
-        severity: Severity,
     ) -> Finding {
         Finding {
-            rule_id: self.id().to_string(),
-            rule_name: self.name().to_string(),
-            severity,
+            rule_id: rule.id.clone(),
+            rule_name: rule.name.clone(),
+            severity: rule.severity.into(),
             file: file.path.clone(),
             line: line_num,
             column: 0,
             message,
-            suggestion: Some(
-                "Use environment variables or a secret manager instead of hardcoding credentials."
-                    .into(),
-            ),
+            suggestion: rule.suggestion.clone(),
             context: file.context_around(line_num, 1),
-            confidence: None,
+            confidence: rule.confidence.map(Into::into),
             evidence: None,
         }
     }
@@ -68,13 +57,13 @@ impl SecretDetector {
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        // Skip whole-line comments (non-Rust / obvious; Rust mixed lines handled below)
+        // Skip whole-line comments.
         let trimmed = line.trim();
         if trimmed.starts_with("//") || trimmed.starts_with('#') || trimmed.starts_with('*') {
             return findings;
         }
 
-        // Skip common test/example/placeholder patterns
+        // Skip common test/example/placeholder patterns.
         let upper = line.to_uppercase();
         if upper.contains("EXAMPLE")
             || upper.contains("PLACEHOLDER")
@@ -95,38 +84,38 @@ impl SecretDetector {
             file.language == Language::Rust && rust_byte_is_comment(file, line_num, col, rust_ctx)
         };
 
-        if let Some(m) = self.aws_key.find(line) {
+        if let Some(m) = self.aws_key.regex().find(line) {
             let key = m.as_str();
             if !skip_if_comment(m.start()) && !Self::aws_key_is_synthetic_placeholder(key) {
-                findings.push(self.make_finding(
+                findings.push(Self::make_finding(
+                    self.aws_key,
                     file,
                     line_num,
                     "Potential AWS Access Key ID detected.".to_string(),
-                    Severity::Critical,
                 ));
             }
         }
 
-        if let Some(m) = self.generic_secret.find(line)
-            && !skip_if_comment(m.start())
-        {
-            findings.push(self.make_finding(
-                file,
-                line_num,
-                "Potential hardcoded secret or API key detected.".to_string(),
-                Severity::Error,
-            ));
+        if let Some(m) = self.generic_secret.regex().find(line) {
+            if !skip_if_comment(m.start()) {
+                findings.push(Self::make_finding(
+                    self.generic_secret,
+                    file,
+                    line_num,
+                    "Potential hardcoded secret or API key detected.".to_string(),
+                ));
+            }
         }
 
-        if let Some(m) = self.jwt_token.find(line)
-            && !skip_if_comment(m.start())
-        {
-            findings.push(self.make_finding(
-                file,
-                line_num,
-                "Potential hardcoded JWT token detected.".to_string(),
-                Severity::Error,
-            ));
+        if let Some(m) = self.jwt_token.regex().find(line) {
+            if !skip_if_comment(m.start()) {
+                findings.push(Self::make_finding(
+                    self.jwt_token,
+                    file,
+                    line_num,
+                    "Potential hardcoded JWT token detected.".to_string(),
+                ));
+            }
         }
 
         findings
@@ -178,7 +167,14 @@ impl DetectionRule for SecretDetector {
     }
 
     fn languages(&self) -> &[Language] {
-        &self.supported_langs
+        const LANGS: &[Language] = &[
+            Language::Rust,
+            Language::TypeScript,
+            Language::Python,
+            Language::GDScript,
+            Language::Vox,
+        ];
+        LANGS
     }
 }
 
@@ -200,6 +196,7 @@ mod tests {
         let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
         assert!(findings[0].message.contains("AWS"));
+        assert_eq!(findings[0].rule_id, "security/hardcoded-secret/aws-key");
     }
 
     #[test]
@@ -211,12 +208,12 @@ mod tests {
         let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
         assert!(findings[0].message.contains("hardcoded secret"));
+        assert_eq!(findings[0].rule_id, "security/hardcoded-secret/generic");
     }
 
     #[test]
     fn ignores_example_key() {
         let d = SecretDetector::new();
-        // The word EXAMPLE in an AWS key is a common doc pattern — skip it
         let f = source("rs", r#"let k = "AKIAIOSFODNN7EXAMPLE";"#);
         let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "example key should be excluded");

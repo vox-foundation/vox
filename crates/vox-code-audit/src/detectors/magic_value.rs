@@ -1,19 +1,20 @@
+use crate::rule_pack_detector::pack_rule;
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
 use regex::Regex;
+use vox_rule_pack::CompiledRule;
 
 /// Detects hardcoded magic values: ports, IPs, filesystem paths, connection strings.
+///
+/// Detection patterns sourced from embedded rule pack (`magic-value/{port,ip,path,db-conn}`).
+/// Skip logic (comment/const/test filters) kept in Rust.
 ///
 /// Enforces AGENTS.md line 138:
 /// > "No magic values: Never hardcode ports, database paths, or file system paths."
 pub struct MagicValueDetector {
-    /// Common hardcoded port numbers.
-    port_re: Regex,
-    /// `localhost` or IP addresses.
-    ip_localhost_re: Regex,
-    /// Absolute file paths (Windows and Unix).
-    abs_path_re: Regex,
-    /// Database connection strings.
-    db_conn_re: Regex,
+    port_rule: &'static CompiledRule,
+    ip_rule: &'static CompiledRule,
+    path_rule: &'static CompiledRule,
+    db_conn_rule: &'static CompiledRule,
     /// Lines that are clearly comments or docs (to skip).
     comment_re: Regex,
     /// Lines that define constants (acceptable).
@@ -29,25 +30,12 @@ impl Default for MagicValueDetector {
 }
 
 impl MagicValueDetector {
-    /// Precompiles port/path/DB-string patterns; skips comments, `const` lines, and `#[test]` regions.
     pub fn new() -> Self {
         Self {
-            port_re: Regex::new(
-                r#"(?:"|')\s*(?:127\.0\.0\.1|0\.0\.0\.0|localhost)\s*:\s*\d+"#,
-            )
-            .expect("valid"),
-            ip_localhost_re: Regex::new(
-                r#"(?:"|')(?:127\.0\.0\.1|0\.0\.0\.0|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(?:"|')"#,
-            )
-            .expect("valid"),
-            abs_path_re: Regex::new(
-                r#"(?:"|')(?:C:\\|D:\\|/home/|/tmp/|/var/|/usr/|/etc/)[^"']*(?:"|')"#,
-            )
-            .expect("valid"),
-            db_conn_re: Regex::new(
-                r#"(?:"|')(?:postgres(?:ql)?://|mysql://|mongodb://|redis://|sqlite:)[^"']*(?:"|')"#,
-            )
-            .expect("valid"),
+            port_rule: pack_rule("magic-value/port"),
+            ip_rule: pack_rule("magic-value/ip"),
+            path_rule: pack_rule("magic-value/path"),
+            db_conn_rule: pack_rule("magic-value/db-conn"),
             comment_re: Regex::new(r"^\s*(?://|#|/\*|\*|--|\s*\*)").expect("valid"),
             const_def_re: Regex::new(
                 r"(?:const |static |pub const |pub static |DEFAULT_|ENV_|CONFIG_)",
@@ -59,19 +47,39 @@ impl MagicValueDetector {
 
     fn should_skip_line(&self, line: &str) -> bool {
         let trimmed = line.trim();
-        // Skip comments and documentation
         if self.comment_re.is_match(trimmed) {
             return true;
         }
-        // Skip constant definitions (that's where magic values *should* be)
         if self.const_def_re.is_match(trimmed) {
             return true;
         }
-        // Skip `use` and `import` statements
         if trimmed.starts_with("use ") || trimmed.starts_with("import ") {
             return true;
         }
         false
+    }
+
+    fn make_finding(
+        rule: &'static CompiledRule,
+        file: &SourceFile,
+        line_num: usize,
+        message: &str,
+        suggestion: &str,
+        severity: Severity,
+    ) -> Finding {
+        Finding {
+            rule_id: rule.id.clone(),
+            rule_name: rule.name.clone(),
+            severity,
+            file: file.path.clone(),
+            line: line_num,
+            column: 0,
+            message: message.to_string(),
+            suggestion: Some(suggestion.to_string()),
+            context: file.context_around(line_num, 1),
+            confidence: rule.confidence.map(Into::into),
+            evidence: None,
+        }
     }
 }
 
@@ -112,7 +120,7 @@ impl DetectionRule for MagicValueDetector {
             if self.test_attr_re.is_match(line) {
                 in_test_block = true;
             }
-            // Rough heuristic: test blocks end at next non-indented `fn` or `mod`
+            // Rough heuristic: test blocks end at next non-indented `fn` or `mod`.
             if in_test_block {
                 let trimmed = line.trim();
                 if (trimmed.starts_with("fn ") || trimmed.starts_with("mod "))
@@ -123,99 +131,63 @@ impl DetectionRule for MagicValueDetector {
                 }
             }
 
-            // Skip comments, consts, test blocks
             if self.should_skip_line(line) || in_test_block {
                 continue;
             }
 
-            // --- Port / localhost detection ---
-            if self.port_re.is_match(line)
+            if self.port_rule.regex().is_match(line)
                 && !line.contains("127.0.0.1:0")
                 && !line.contains("0.0.0.0:0")
                 && !line.contains("localhost:0")
             {
-                findings.push(Finding {
-                    rule_id: "magic-value/port".to_string(),
-                    rule_name: self.name().to_string(),
-                    severity: self.severity(),
-                    file: file.path.clone(),
-                    line: line_num,
-                    column: 0,
-                    message: "Hardcoded port/address — use an environment variable or constant"
-                        .to_string(),
-                    suggestion: Some(
-                        "Extract to a named constant or read from `std::env::var(\"PORT\")`."
-                            .to_string(),
-                    ),
-                    context: file.context_around(line_num, 1),
-                    confidence: None,
-                    evidence: None,
-                });
+                findings.push(Self::make_finding(
+                    self.port_rule,
+                    file,
+                    line_num,
+                    "Hardcoded port/address — use an environment variable or constant",
+                    "Extract to a named constant or read from `std::env::var(\"PORT\")`.",
+                    self.severity(),
+                ));
             }
 
-            // --- IP address detection ---
-            if self.ip_localhost_re.is_match(line)
+            if self.ip_rule.regex().is_match(line)
                 && !(line.contains("host ==") || line.contains("host=="))
             {
-                findings.push(Finding {
-                    rule_id: "magic-value/ip".to_string(),
-                    rule_name: self.name().to_string(),
-                    severity: self.severity(),
-                    file: file.path.clone(),
-                    line: line_num,
-                    column: 0,
-                    message: "Hardcoded IP address — use a configuration variable".to_string(),
-                    suggestion: Some("Move to a config file or environment variable.".to_string()),
-                    context: file.context_around(line_num, 1),
-                    confidence: None,
-                    evidence: None,
-                });
+                findings.push(Self::make_finding(
+                    self.ip_rule,
+                    file,
+                    line_num,
+                    "Hardcoded IP address — use a configuration variable",
+                    "Move to a config file or environment variable.",
+                    self.severity(),
+                ));
             }
 
-            // --- Absolute path detection ---
-            if self.abs_path_re.is_match(line)
+            if self.path_rule.regex().is_match(line)
                 && !(line.contains("starts_with(\"/usr/")
                     || line.contains("starts_with(\"/bin/")
                     || line.contains("starts_with('/usr/")
                     || line.contains("starts_with('/bin/"))
             {
-                findings.push(Finding {
-                    rule_id: "magic-value/path".to_string(),
-                    rule_name: self.name().to_string(),
-                    severity: self.severity(),
-                    file: file.path.clone(),
-                    line: line_num,
-                    column: 0,
-                    message: "Hardcoded filesystem path — use a config or env variable".to_string(),
-                    suggestion: Some(
-                        "Replace with a configurable path or use `dirs` / `std::env` for dynamic resolution."
-                            .to_string(),
-                    ),
-                    context: file.context_around(line_num, 1),
-                    confidence: None,
-                    evidence: None,
-                });
+                findings.push(Self::make_finding(
+                    self.path_rule,
+                    file,
+                    line_num,
+                    "Hardcoded filesystem path — use a config or env variable",
+                    "Replace with a configurable path or use `dirs` / `std::env` for dynamic resolution.",
+                    self.severity(),
+                ));
             }
 
-            // --- Database connection string detection ---
-            if self.db_conn_re.is_match(line) {
-                findings.push(Finding {
-                    rule_id: "magic-value/db-conn".to_string(),
-                    rule_name: self.name().to_string(),
-                    severity: Severity::Error,
-                    file: file.path.clone(),
-                    line: line_num,
-                    column: 0,
-                    message: "Hardcoded database connection string — use an env variable"
-                        .to_string(),
-                    suggestion: Some(
-                        "Move to `.env` and read via `std::env::var(\"DATABASE_URL\")`."
-                            .to_string(),
-                    ),
-                    context: file.context_around(line_num, 1),
-                    confidence: None,
-                    evidence: None,
-                });
+            if self.db_conn_rule.regex().is_match(line) {
+                findings.push(Self::make_finding(
+                    self.db_conn_rule,
+                    file,
+                    line_num,
+                    "Hardcoded database connection string — use an env variable",
+                    "Move to `.env` and read via `std::env::var(\"DATABASE_URL\")`.",
+                    Severity::Error,
+                ));
             }
         }
 
@@ -238,6 +210,7 @@ mod tests {
         let f = source("rs", r#"let addr = "127.0.0.1:3000";"#);
         let findings = d.detect(&f, None);
         assert!(!findings.is_empty(), "should detect hardcoded port");
+        assert_eq!(findings[0].rule_id, "magic-value/port");
     }
 
     #[test]
