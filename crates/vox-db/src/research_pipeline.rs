@@ -1,0 +1,340 @@
+//! Codex methods for the SCIENTIA research pipeline (Phase 0d).
+//!
+//! These implement the DB half of the stubs in `vox-orchestrator/src/dei_shim/research/orchestrator/pipeline.rs`.
+
+use crate::VoxDb;
+use crate::store::StoreError;
+use turso::params;
+
+impl VoxDb {
+    /// Create a new research session and return its row id.
+    pub async fn create_research_session(
+        &self,
+        session_key: &str,
+        query_text: &str,
+    ) -> Result<i64, StoreError> {
+        let now = now_ms();
+        let key = session_key.to_string();
+        let q = query_text.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO scientia_research_sessions \
+                     (session_key, status, started_at_ms, query_text) \
+                     VALUES (?1, 'active', ?2, ?3)",
+                    params![key.as_str(), now, q.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Update the status of a research session.
+    pub async fn update_research_session_status(
+        &self,
+        session_id: i64,
+        status: &str,
+    ) -> Result<(), StoreError> {
+        let now = now_ms();
+        let s = status.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE scientia_research_sessions \
+                     SET status = ?1, finished_at_ms = ?2 \
+                     WHERE id = ?3",
+                    params![s.as_str(), now, session_id],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Record a single research pipeline metric.
+    ///
+    /// Maps onto the existing `research_metrics` table (column `metric_value`, `created_at`).
+    pub async fn record_research_metric(
+        &self,
+        session_id: i64,
+        metric_type: &str,
+        value: f64,
+        metadata_json: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let sid = session_id.to_string();
+        let mt = metric_type.to_string();
+        let meta = metadata_json.map(|s| s.to_string());
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO research_metrics \
+                     (session_id, metric_type, metric_value, metadata_json) \
+                     VALUES (?1, ?2, ?3, ?4)",
+                    params![
+                        sid.as_str(),
+                        mt.as_str(),
+                        value,
+                        meta.as_deref().unwrap_or("{}")
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Store an extracted atomic claim.
+    pub async fn store_claim(
+        &self,
+        session_id: i64,
+        claim_id: u64,
+        text: &str,
+        is_numeric: bool,
+        is_recent: bool,
+        is_named_event: bool,
+    ) -> Result<(), StoreError> {
+        let now = now_ms();
+        let t = text.to_string();
+        let cid = claim_id as i64;
+        let num = is_numeric as i64;
+        let rec = is_recent as i64;
+        let named = is_named_event as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO scientia_claims \
+                     (claim_id, session_id, text, is_numeric, is_recent, is_named_event, created_at_ms) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    params![cid, session_id, t.as_str(), num, rec, named, now],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Store a claim verification verdict.
+    pub async fn store_claim_verdict(
+        &self,
+        claim_id: u64,
+        verdict: &str,
+        confidence: f64,
+        verifier_model: &str,
+    ) -> Result<(), StoreError> {
+        let now = now_ms();
+        let cid = claim_id as i64;
+        let v = verdict.to_string();
+        let vm = verifier_model.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO scientia_claim_verdicts \
+                     (claim_id, verdict, confidence, verifier_model, created_at_ms) \
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![cid, v.as_str(), confidence, vm.as_str(), now],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Store an evidence span for a claim verdict.
+    pub async fn store_evidence_span(
+        &self,
+        claim_id: u64,
+        span_start: usize,
+        span_end: usize,
+        span_text: &str,
+    ) -> Result<(), StoreError> {
+        let now = now_ms();
+        let cid = claim_id as i64;
+        let st = span_text.to_string();
+        let ss = span_start as i64;
+        let se = span_end as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO scientia_claim_verdicts \
+                     (claim_id, verdict, confidence, span_start, span_end, span_text, created_at_ms) \
+                     VALUES (?1, 'Unverified', 0.0, ?2, ?3, ?4, ?5)",
+                    params![cid, ss, se, st.as_str(), now],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Store a training pair (query + answer + quality score).
+    pub async fn store_training_pair(
+        &self,
+        session_id: i64,
+        query: &str,
+        answer: &str,
+        quality_score: i32,
+    ) -> Result<(), StoreError> {
+        let now = now_ms();
+        let q = query.to_string();
+        let a = answer.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO scientia_training_pairs \
+                     (session_id, query_text, answer_text, quality_score, created_at_ms) \
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![session_id, q.as_str(), a.as_str(), quality_score, now],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// List memory entries by type (uses `knowledge_nodes` table). Returns content strings.
+    pub async fn list_memories_by_type(
+        &self,
+        memory_type: &str,
+        limit: u32,
+    ) -> Result<Vec<String>, StoreError> {
+        let mt = memory_type.to_string();
+        let lim = limit as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        let rows = breaker
+            .call(|| async move {
+                let mut stmt = conn
+                    .query(
+                        "SELECT content FROM knowledge_nodes \
+                         WHERE node_type = ?1 \
+                         ORDER BY created_at DESC LIMIT ?2",
+                        params![mt.as_str(), lim],
+                    )
+                    .await?;
+                let mut results = Vec::new();
+                while let Some(row) = stmt.next().await? {
+                    if let Ok(content) = row.get::<String>(0) {
+                        results.push(content);
+                    }
+                }
+                Ok::<Vec<String>, StoreError>(results)
+            })
+            .await?;
+        Ok(rows)
+    }
+
+    /// Get the retrieval configuration from the DB (returns defaults if not configured).
+    ///
+    /// Phase 1 will persist this to a config table; for now a sensible static default is returned.
+    pub async fn get_retrieval_config(&self) -> Result<serde_json::Value, StoreError> {
+        Ok(serde_json::json!({
+            "max_sources": 10,
+            "min_score": 0.3,
+            "timeout_ms": 30000
+        }))
+    }
+
+    /// Start a provider search run within a session. Returns the new run row id.
+    pub async fn start_provider_run(
+        &self,
+        session_id: i64,
+        provider_name: &str,
+    ) -> Result<i64, StoreError> {
+        let now = now_ms();
+        let pn = provider_name.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO scientia_provider_runs \
+                     (session_id, provider_name, started_at_ms) \
+                     VALUES (?1, ?2, ?3)",
+                    params![session_id, pn.as_str(), now],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Record a research source URL found during a provider run.
+    ///
+    /// Uses `knowledge_nodes` with `node_type = 'research_source'`. Returns the last insert rowid.
+    pub async fn create_research_source(
+        &self,
+        session_id: i64,
+        url: &str,
+        title: Option<&str>,
+    ) -> Result<i64, StoreError> {
+        let u = url.to_string();
+        let label = title.unwrap_or(url).to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO knowledge_nodes \
+                     (id, label, content, node_type, metadata, created_at) \
+                     VALUES (?1, ?2, '', 'research_source', '{}', datetime('now'))",
+                    params![u.as_str(), label.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await?;
+        // session_id correlation handled at the provider_runs level
+        let _ = session_id;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Mark a provider search run as complete.
+    pub async fn finish_provider_run(
+        &self,
+        run_id: i64,
+        hit_count: u32,
+        elapsed_ms: u64,
+    ) -> Result<(), StoreError> {
+        let now = now_ms();
+        let hc = hit_count as i64;
+        let em = elapsed_ms as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE scientia_provider_runs \
+                     SET hit_count = ?1, elapsed_ms = ?2, finished_at_ms = ?3 \
+                     WHERE id = ?4",
+                    params![hc, em, now, run_id],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+}
+
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}

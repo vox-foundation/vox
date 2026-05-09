@@ -122,6 +122,7 @@ pub mod preferences;
 pub mod project_store;
 mod questioning_telemetry;
 mod research;
+pub mod research_pipeline;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
 pub mod retrieval;
 /// AST → [`crate::SchemaDigest`] for LLM context and codegen.
