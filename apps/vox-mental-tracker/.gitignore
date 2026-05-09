@@ -4,8 +4,12 @@ node_modules/
 /android/
 /ios/
 .DS_Store
+*.jks
 *.keystore
+.env.release
 *.aab
 *.apk
 *.ipa
 /test-results/
+ios/App/build/
+android/app/build/
