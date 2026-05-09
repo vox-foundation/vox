@@ -84,6 +84,8 @@ pub mod confidence_fusion;
 pub mod tier_cascade;
 /// Four-dimension risk scorer and HITL escalation matrix (D5 + D9).
 pub mod risk_matrix;
+/// Sensitivity classifier and privacy-level-aware routing (D8).
+pub mod privacy_classifier;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Orchestrator configuration load, merge, and validation.
