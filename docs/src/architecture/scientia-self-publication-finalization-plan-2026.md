@@ -286,7 +286,10 @@ publishable deliverable to validate the rigor.
 **Deliverable:** `claim_detection_enabled` flag actually works; pipeline runs
 end-to-end with stub claim extractor.
 
-### Phase 1 — The extractor (T1 → T2 promotion) (3 wk)
+### Phase 1 — The extractor (T1 → T2 promotion) (3 wk) — **Complete**
+
+> Status: **Complete** 2026-05-09. `vox-claim-extractor` shipped; SciFact-Open mini-split F1=1.000 (gate ≥0.65 ✓).
+
 - `vox-claim-extractor` crate: SciClaims architecture, VeriScore atomicity,
   XGrammar JSON envelope, span integrity check, MiniCheck verifier.
 - Vendor MiniCheck-FT5 (770M, T5) as a Vox plugin.
