@@ -221,7 +221,8 @@ pub fn validate_research_metric_row(
 pub enum TelemetryEvent {
     /// Wraps the existing research_metrics row. Passed through ResearchMetricsSink unchanged.
     ResearchMetric(ResearchMetricEvent),
-    // Phase B adds: ModelCall(ModelCallEvent)
+    /// Per-LLM-call record (Phase B).
+    ModelCall(ModelCallEvent),
     // Phase C adds: TaskRootSummary(TaskRootSummaryEvent)
     // Phase D adds: BuildSummary(BuildSummaryEvent), Error(ErrorEvent)
 }
@@ -233,6 +234,33 @@ pub struct ResearchMetricEvent {
     pub metric_type: String,
     pub metric_value: Option<f64>,
     pub metadata_json: Option<String>,
+}
+
+/// Per-LLM-call performance record. Persisted as `research_metrics` row with
+/// `metric_type = METRIC_TYPE_MODEL_CALL_EVENT`.
+///
+/// Unlocks (in aggregate): cache hit rate, cost-per-task, p95 latency by model and route,
+/// token efficiency. Sensitivity: **S1 (OperationalTracing)**.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ModelCallEvent {
+    pub model: String,
+    pub provider: String,
+    pub route_profile: Option<String>,
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    /// Anthropic prompt-cache: tokens read from cache (~10× cheaper than fresh input).
+    pub cache_read_input_tokens: Option<u32>,
+    /// Anthropic prompt-cache: tokens written to create the cache (~25% premium).
+    pub cache_creation_input_tokens: Option<u32>,
+    pub latency_ms: u64,
+    pub cost_usd: f64,
+    pub cost_source: String,
+    pub error_class: Option<String>,
+    pub retry_attempt: u32,
+    pub task_id: Option<u64>,
+    pub parent_task_id: Option<u64>,
+    pub trace_id: Option<String>,
+    pub caller_agent_id: Option<String>,
 }
 
 #[cfg(test)]
@@ -288,5 +316,36 @@ mod tests {
                 "{mt} failed validation"
             );
         }
+    }
+
+    #[test]
+    fn model_call_event_serialize_round_trip() {
+        let e = ModelCallEvent {
+            model: "claude-opus-4-7".into(),
+            provider: "anthropic".into(),
+            route_profile: Some("strong".into()),
+            prompt_tokens: 1234,
+            completion_tokens: 567,
+            cache_read_input_tokens: Some(800),
+            cache_creation_input_tokens: Some(50),
+            latency_ms: 2400,
+            cost_usd: 0.0152,
+            cost_source: "provider_reported".into(),
+            error_class: None,
+            retry_attempt: 0,
+            task_id: Some(42),
+            parent_task_id: None,
+            trace_id: Some("abc-123".into()),
+            caller_agent_id: None,
+        };
+        let event = TelemetryEvent::ModelCall(e.clone());
+        let json = serde_json::to_string(&event).expect("serialize");
+        let back: TelemetryEvent = serde_json::from_str(&json).expect("deserialize");
+        let TelemetryEvent::ModelCall(back) = back else {
+            panic!("variant lost in round trip")
+        };
+        assert_eq!(back.model, e.model);
+        assert_eq!(back.cache_read_input_tokens, e.cache_read_input_tokens);
+        assert_eq!(back.trace_id, e.trace_id);
     }
 }
