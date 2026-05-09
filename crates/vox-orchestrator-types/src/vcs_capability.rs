@@ -1,7 +1,20 @@
-//! VCS capability tokens. Holding one of these structs is proof that an
-//! authorized orchestrator path minted it. External crates cannot literally
-//! construct these — only call the `pub(crate)`-doc-hidden `mint_*` paths
-//! routed through `vox_orchestrator::authorize_*`.
+//! VCS capability tokens — `WorkingTreeWrite` and `BranchCreate`.
+//!
+//! Holding one of these structs is meant to be evidence that an authorized
+//! orchestrator code path minted it. The fields are private, so the only
+//! construction path is the `mint` associated function on each struct.
+//!
+//! In Phase 1 the `mint` methods are `pub` but `#[doc(hidden)]`. This is
+//! "soft-private": the methods are reachable from any crate that knows the
+//! path, but they are absent from rustdoc and are documented as for
+//! orchestrator use only. The convention is that only
+//! `vox_orchestrator::authorize_*` wrappers call them.
+//!
+//! Phase 4 of the agentic-VCS roadmap hardens this to genuine
+//! unforgeability via Vox `@vcs.*` decorators and possibly stricter
+//! Rust visibility (`pub(crate)` plus a sealed mint trait re-exported
+//! through a thin wrapper crate). Do NOT preemptively change the
+//! visibility in Phase 1.
 
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +35,13 @@ impl BranchName {
     /// Matches the subset of `git check-ref-format --branch` we care about for
     /// agent-generated names: ASCII, no spaces, no `..`, `:`, `?`, `*`, `[`, `\`,
     /// `^`, `~`, no leading `/` or `-`, length 1..=255.
+    ///
+    /// Known gaps (not currently rejected — caller may still see a `git`
+    /// error downstream): leading `.`, trailing `.`, `.lock` suffix,
+    /// trailing `/`, consecutive `//`. These are unlikely from agent-style
+    /// names like `agent/<slug>` and are deliberately not enforced in
+    /// Phase 1 to keep the validator small. Tighten if a real callsite
+    /// trips on them.
     pub fn parse(s: &str) -> Result<Self, BranchNameError> {
         if s.is_empty() || s.len() > 255 {
             return Err(BranchNameError::InvalidLength);
@@ -60,7 +80,7 @@ pub enum BranchNameError {
 pub struct RemoteId(pub u32);
 
 /// Capability: holder may stage and commit hunks against `branch` of `workspace`.
-/// Constructed only by `mint_working_tree_write`.
+/// Constructed only by `WorkingTreeWrite::mint`.
 #[derive(Debug, Clone)]
 pub struct WorkingTreeWrite {
     workspace: WorkspaceId,
@@ -69,7 +89,7 @@ pub struct WorkingTreeWrite {
 
 impl WorkingTreeWrite {
     /// Mint a `WorkingTreeWrite`. **Authorization is the caller's responsibility**;
-    /// orchestrator authorize_*` wrappers are the only callers we expect.
+    /// `vox_orchestrator::authorize_*` wrappers are the only callers we expect.
     #[doc(hidden)]
     pub fn mint(workspace: WorkspaceId, branch: BranchName) -> Self {
         Self { workspace, branch }
@@ -136,6 +156,18 @@ mod tests {
             BranchName::parse("foo:bar"),
             Err(BranchNameError::IllegalChar(':'))
         ));
+        assert!(matches!(
+            BranchName::parse("foo^bar"),
+            Err(BranchNameError::IllegalChar('^'))
+        ));
+        assert!(matches!(
+            BranchName::parse("foo~bar"),
+            Err(BranchNameError::IllegalChar('~'))
+        ));
+        assert!(matches!(
+            BranchName::parse("foo\\bar"),
+            Err(BranchNameError::IllegalChar('\\'))
+        ));
     }
 
     #[test]
@@ -143,5 +175,12 @@ mod tests {
         let cap = WorkingTreeWrite::mint(WorkspaceId(1), BranchName::parse("agent/x").unwrap());
         assert_eq!(cap.workspace(), WorkspaceId(1));
         assert_eq!(cap.branch().as_str(), "agent/x");
+    }
+
+    #[test]
+    fn branch_create_round_trip() {
+        let cap = BranchCreate::mint(WorkspaceId(2), BranchName::parse("main").unwrap());
+        assert_eq!(cap.workspace(), WorkspaceId(2));
+        assert_eq!(cap.parent().as_str(), "main");
     }
 }
