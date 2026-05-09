@@ -31,3 +31,14 @@ export const voxRoutes: VoxRoute[] = [
   component: Section,
 },
 ]
+
+// Phase C part 2: typed route URL surface.
+// Use `routePath["/users/:id"](userId)` instead of hand-formatting URLs.
+export type KnownRoute =
+  | "/"
+  | "/section";
+
+export const routePath = {
+  "/": (): string => "/",
+  "/section": (): string => "/section",
+} as const;

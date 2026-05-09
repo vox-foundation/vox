@@ -47,12 +47,16 @@ test("voice → parse round-trip", async ({ page }) => {
   });
 
   // Parse calls the @endpoint parse_voice via fetch through the generated
-  // vox-client.ts. The codegen-emitted handler calls it without `await`,
-  // so the result is a Promise and `p.kind` reads undefined. Verifying
-  // `Reset` works proves the rest of the click-handler dispatch chain.
-  // Awaiting fix is tracked compiler-side; once landed, restore the
-  // earlier assertions: KIND contains "mood_recorded", PAYLOAD contains
-  // "mood_score".
-  await page.getByRole("button", { name: /^Reset$/ }).click();
-  await expect(page.getByText(/RAW:/)).toContainText(/RAW:\s*$/);
+  // vox-client.ts. The compiler now emits `async` handlers with `await`
+  // for nested @endpoint calls, so the result is resolved before `p.kind`
+  // is read. These assertions require the Vox backend to be running.
+  if (process.env.VOX_BACKEND_URL) {
+    await page.getByRole("button", { name: /^Parse$/ }).click();
+    await expect(page.locator('[data-testid="kind"]')).toHaveText("mood_recorded", {
+      timeout: 5_000,
+    });
+    await expect(page.locator('[data-testid="payload"]')).toContainText("mood_score");
+    await page.getByRole("button", { name: /^Save$/ }).click();
+    await expect(page.locator('[data-testid="saved-counter"]')).toHaveText("1");
+  }
 });

@@ -100,7 +100,7 @@ where
         HirExpr::With(operand, options, _) => {
             super::with_emit::emit_with(emit, operand.as_ref(), options.as_ref())
         }
-        HirExpr::Lambda(params, _ret_ty, body, _) => {
+        HirExpr::Lambda(params, _ret_ty, body, _, _) => {
             let mut s = String::new();
             s.push('|');
             let param_strs: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
@@ -112,7 +112,7 @@ where
         HirExpr::Binary(vox_compiler::hir::HirBinOp::Pipe, left, right, _) => {
             format!("({})({})", emit(right), emit(left))
         }
-        HirExpr::For(name, _, iter, body, _) => {
+        HirExpr::For(name, _, iter, body, _, _) => {
             let mut s = format!("for {} in {} {{\n", name, emit(iter));
             if let HirExpr::Block(stmts, _) = &**body {
                 for stmt in stmts {

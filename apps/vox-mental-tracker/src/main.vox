@@ -321,6 +321,21 @@ fn test_csv_quote_inner_quotes() to Unit {
     return Ok("ok")
 }
 
+@endpoint(kind: mutation) fn save_mood(score: int, note: str) to Result[str] {
+    let payload = "{\"mood_score\":" + str(score) + ",\"note\":\"" + note.replace("\"", "'") + "\"}"
+    return record_health_event(
+        "mood_recorded", payload, str(std.time.now_ms()), "form", "", "", "UTC", 0
+    )
+}
+
+@form Mood {
+    field score: int range(1..10) required label("How are you feeling? (1–10)")
+    field note: str max_len(280) optional label("Anything to share?")
+    on_submit: save_mood
+    success_redirect: "/timeline"
+    error_message: "Couldn't save mood. Try again."
+}
+
 component NavBar() {
     view: row(raw_class="mh-nav") {
         link(href="/") { "Home" }
@@ -332,6 +347,8 @@ component NavBar() {
         link(href="/export") { "Export" }
         text(raw_class="mh-nav-dot") { " · " }
         link(href="/voice") { "Voice" }
+        text(raw_class="mh-nav-dot") { " · " }
+        link(href="/settings") { "Settings" }
     }
 }
 
@@ -515,10 +532,45 @@ component VoicePage() {
     }
 }
 
+@endpoint(kind: mutation) fn record_crash_report(json: str) to int { return 0 }
+
+@table type CrashReport {
+    id: int
+    error: str
+    stack: str
+    ts: str
+    route: str
+}
+
+@endpoint(kind: mutation) fn store_push_token(token: str) to int {
+    return record_push_token_internal(token)
+}
+
+@endpoint(kind: mutation) fn handle_push_payload(json: str) to int { return 0 }
+
+@endpoint(kind: mutation) fn handle_push_tap(json: str) to int { return 0 }
+
+@push {
+    on_register: store_push_token
+    on_notification: handle_push_payload
+    on_action: handle_push_tap
+}
+
+component SettingsPage() {
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=1) { "Settings" }
+        text(raw_class="mh-sub") { "Crash report opt-in and app preferences." }
+        link(href="/") { "← Home" }
+    }
+}
+
 routes {
     "/" to Home
+    "/mood" to Mood
     "/timeline" to TimelinePage
     "/weekly" to WeeklyPage
     "/export" to ExportPage
     "/voice" to VoicePage
+    "/settings" to SettingsPage
 }

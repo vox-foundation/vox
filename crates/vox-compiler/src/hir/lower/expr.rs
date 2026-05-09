@@ -218,18 +218,21 @@ impl LowerCtx {
                 index,
                 iterable,
                 body,
+                key,
                 span,
             } => HirExpr::For(
                 binding.clone(),
                 index.clone(),
                 Box::new(self.lower_expr(iterable)),
                 Box::new(self.lower_expr(body)),
+                key.as_ref().map(|k| Box::new(self.lower_expr(k))),
                 *span,
             ),
             Expr::Lambda {
                 params,
                 return_type,
                 body,
+                cancellable,
                 span,
             } => {
                 self.def_map.push_scope();
@@ -240,6 +243,7 @@ impl LowerCtx {
                     hir_params,
                     return_type.as_ref().map(|t| self.lower_type(t)),
                     Box::new(hir_body),
+                    *cancellable,
                     *span,
                 )
             }

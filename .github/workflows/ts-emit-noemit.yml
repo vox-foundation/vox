@@ -1,0 +1,36 @@
+name: TS emit typecheck
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/vox-codegen/**'
+      - 'crates/vox-compiler/**'
+      - 'examples/golden-ts/**'
+      - 'crates/vox-integration-tests/ts-noemit-scratch/**'
+  pull_request:
+    paths:
+      - 'crates/vox-codegen/**'
+      - 'crates/vox-compiler/**'
+      - 'examples/golden-ts/**'
+      - 'crates/vox-integration-tests/ts-noemit-scratch/**'
+
+jobs:
+  ts-noemit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'crates/vox-integration-tests/ts-noemit-scratch/pnpm-lock.yaml'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install scratch deps
+        run: pnpm install --frozen-lockfile
+        working-directory: crates/vox-integration-tests/ts-noemit-scratch
+      - name: Run TS emit typecheck
+        run: cargo test -p vox-integration-tests --test ts_emit_typecheck_test -- --ignored --nocapture

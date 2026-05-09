@@ -2,5 +2,11 @@
 //   vox run scripts/build.vox
 // Requires `vox` on PATH (see Vox docs: docs/src/how-to/external-app-bootstrap.md).
 
-println("Run: vox build src/main.vox -o dist");
-println("Then: pnpm install && npx cap sync");
+fn main() to int {
+    shell_exec("vox build src/main.vox -o dist")
+    shell_exec("node scripts/postbuild-fixup.mjs")
+    shell_exec("pnpm build:web")
+    shell_exec("vox run scripts/generate-icons.vox")
+    shell_exec("npx cap sync")
+    return 0
+}

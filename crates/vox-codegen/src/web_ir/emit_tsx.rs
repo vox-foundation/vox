@@ -122,13 +122,36 @@ fn emit_node(
                 .collect();
             format!("{pad}{{({predicate}) ? (\n{then_s}{pad}) : (\n{else_s}{pad})}}\n")
         }
-        DomNode::Loop { iterator, body, .. } => {
+        DomNode::Loop { iterator, key, body, .. } => {
             let body_s: String = body
                 .iter()
                 .map(|c| emit_node(module, *c, indent + 1, stats))
                 .collect();
-            format!("{pad}{{{iterator}.map(() => (\n{body_s}{pad}))}}\n")
+            // Inject the key attribute into the first JSX element in body if present.
+            let body_with_key = if let Some(k) = key {
+                let key_attr = format!(" key={{{k}}}");
+                inject_key_into_jsx(body_s, &key_attr)
+            } else {
+                body_s
+            };
+            format!("{pad}{{{iterator}.map(() => (\n{body_with_key}{pad}))}}\n")
         }
         DomNode::Expr { ts, .. } => format!("{pad}{{{ts}}}\n"),
     }
+}
+
+/// Inject a `key` attribute string into the first JSX element opening tag.
+///
+/// Looks for the first `<` and inserts `key_attr` before the first `>` or `/>`
+/// of that tag. Falls back to returning the original string if no suitable
+/// insertion point is found.
+fn inject_key_into_jsx(jsx: String, key_attr: &str) -> String {
+    if let Some(lt_pos) = jsx.find('<') {
+        let after_lt = &jsx[lt_pos..];
+        if let Some(rel_end) = after_lt.find(|c: char| c == '>' || c == '/') {
+            let insert_at = lt_pos + rel_end;
+            return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
+        }
+    }
+    jsx
 }

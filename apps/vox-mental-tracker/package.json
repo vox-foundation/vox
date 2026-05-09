@@ -13,6 +13,7 @@
     "@capacitor/ios": "^6.0.0",
     "@capacitor/share": "^6.0.0",
     "@capacitor/push-notifications": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "workbox-window": "^7.0.0",
@@ -29,6 +30,7 @@
     "vitest": "^2.1.0"
   },
   "scripts": {
+    "build": "pnpm build:web",
     "build:plugin": "tsc -p plugins/vox-sherpa-transcribe/tsconfig.json",
     "build:vox": "cargo run --release -q -p vox-cli --manifest-path ../../Cargo.toml -- build src/main.vox -o dist",
     "build:fixup": "node scripts/postbuild-fixup.mjs",
@@ -40,6 +42,7 @@
     "cap:open:ios": "cap open ios",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:android": "playwright test --project=android"
   }
 }

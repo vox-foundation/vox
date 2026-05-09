@@ -66,6 +66,9 @@ pub struct RouteEntry {
     /// Loading / pending component for this route.
     #[serde(default)]
     pub pending_component_name: Option<String>,
+    /// Error component for this route (shown on loader failure).
+    #[serde(default)]
+    pub error_component_name: Option<String>,
     pub span: Span,
 }
 
@@ -190,11 +193,14 @@ pub struct DerivedDecl {
     pub span: Span,
 }
 
-/// `effect: { body }`
+/// `effect: { body }` or `effect depends_on (a, b): { body }`
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EffectDecl {
     /// Effect body expression.
     pub body: crate::ast::expr::Expr,
+    /// Explicit dependency list from `effect depends_on (a, b):` clause.
+    /// When `Some`, the lint `lint.effect.unresolvable_deps` is suppressed.
+    pub explicit_deps: Option<Vec<String>>,
     /// Source span.
     pub span: Span,
 }

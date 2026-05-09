@@ -8,10 +8,10 @@ export function ChatWidget(): React.ReactElement {
     const [messages, set_messages] = useState([]);
     const [input, set_input] = useState("");
   return (
-<div className={"chat"}
+<div className={["flex", "flex-col", "chat"].filter(Boolean).join(" ")}
 >
-  <input value={input} onChange={(e) => set_input(e.target.value)} />
-  <button onClick={() => {
+  <input className={"chat-input"} value={input} onChange={(e) => set_input(e.target.value)} aria-label={"Chat message"} />
+  <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "send-btn"].filter(Boolean).join(" ")} onClick={() => {
     ((e) => (set_input("")));
 }}
 >

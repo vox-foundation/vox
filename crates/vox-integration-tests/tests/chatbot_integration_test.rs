@@ -51,9 +51,11 @@ http post "/api/chat" to str {
     );
 }
 
-/// `actor` keyword is tombstoned (TASK-2.6).
+/// `actor` keyword was tombstoned (TASK-2.6) but has since been un-tombstoned
+/// (Path A of TASK-2.6 re-enabled the construct). The parser now accepts `actor`
+/// declarations and produces a typed AST node — verify it parses cleanly.
 #[test]
-fn tombstoned_actor_keyword_produces_parse_error() {
+fn actor_keyword_parses_successfully() {
     let src = r#"
 actor Claude {
     on send(msg: str) to str {
@@ -62,7 +64,7 @@ actor Claude {
 }
 "#;
     assert!(
-        parse(lex(src)).is_err(),
-        "tombstoned `actor` keyword should produce a parse error"
+        parse(lex(src)).is_ok(),
+        "`actor` keyword should parse successfully now that it is no longer tombstoned"
     );
 }

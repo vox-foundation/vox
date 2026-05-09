@@ -488,7 +488,7 @@ impl<'a> Checker<'a> {
                 last_ty
             }
 
-            HirExpr::For(binding, index, iterable, body, _span) => {
+            HirExpr::For(binding, index, iterable, body, _, _span) => {
                 let iter_ty = self.check_expr(iterable, None);
                 let element_ty = self.extract_iterable_element(&iter_ty);
                 self.env.push_scope();
@@ -511,7 +511,7 @@ impl<'a> Checker<'a> {
                 Ty::Unit
             }
 
-            HirExpr::Lambda(params, ret_ann, body, _span) => {
+            HirExpr::Lambda(params, ret_ann, body, _cancellable, _span) => {
                 self.env.push_scope();
 
                 // If expected is a specific function type, distribute param types to arguments.

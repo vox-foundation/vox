@@ -167,7 +167,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 Ok(VoxValue::Null)
             }
         }
-        HirExpr::Lambda(params, _, body, _) => {
+        HirExpr::Lambda(params, _, body, _, _) => {
             let b = vec![crate::hir::nodes::HirStmt::Expr {
                 expr: *body.clone(),
                 span: crate::ast::span::Span::new(0, 0),
@@ -275,7 +275,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
             Err(EvalError::AssertionFailed("No match arm found".into()))
         }
-        HirExpr::For(binding, index, iterable, body, _) => {
+        HirExpr::For(binding, index, iterable, body, _, _) => {
             let c = eval_expr(interp, iterable)?;
             let mut results = Vec::new();
             if let VoxValue::List(ls) = c {

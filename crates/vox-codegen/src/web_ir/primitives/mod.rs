@@ -119,6 +119,7 @@ pub const UNIVERSAL_STYLE_KWARGS: &[&str] = &[
     "shadow",
     "opacity",
     "raw_class",
+    "safe_area",
 ];
 
 #[must_use]
@@ -763,9 +764,33 @@ pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> 
             .split_whitespace()
             .map(std::string::ToString::to_string)
             .collect(),
+        // Note: `safe_area` is listed in UNIVERSAL_STYLE_KWARGS (so it's consumed and
+        // doesn't leak as a raw HTML attr) but is NOT handled here — it emits inline
+        // CSS env() via `safe_area_to_style_props()` in the hir_emit path instead.
         _ => return None,
     };
     Some(out)
+}
+
+/// D1: Map a `safe_area` kwarg value to an inline React `style` object fragment string.
+///
+/// Returns a comma-separated list of `key: 'value'` pairs suitable for embedding inside
+/// `style={{ … }}`. Returns an empty string for unrecognised values.
+///
+/// CSS `env()` variables are not expressible as Tailwind utilities, so this bypasses the
+/// className path and writes a `style` attribute directly.
+#[must_use]
+pub fn safe_area_to_style_props(value: &str) -> String {
+    match value.trim_matches('"').trim_matches('\'') {
+        "top" => "paddingTop: 'env(safe-area-inset-top)'".into(),
+        "bottom" => "paddingBottom: 'env(safe-area-inset-bottom)'".into(),
+        "left" => "paddingLeft: 'env(safe-area-inset-left)'".into(),
+        "right" => "paddingRight: 'env(safe-area-inset-right)'".into(),
+        "all" => "paddingTop: 'env(safe-area-inset-top)', paddingRight: 'env(safe-area-inset-right)', paddingBottom: 'env(safe-area-inset-bottom)', paddingLeft: 'env(safe-area-inset-left)'".into(),
+        "horizontal" => "paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)'".into(),
+        "vertical" => "paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)'".into(),
+        _ => String::new(),
+    }
 }
 
 /// VUV-4: apply the universal style kwargs to the class list. Each kwarg maps to a Tailwind utility

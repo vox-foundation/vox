@@ -2,6 +2,7 @@
 
 use crate::ast::decl::fundecl::StyleBlock;
 use crate::ast::span::Span;
+use crate::hir::nodes::form::HirForm;
 
 use super::expr::HirExpr;
 use super::stmt::HirStmt;
@@ -82,6 +83,22 @@ pub struct HirModule {
     #[serde(default)]
     pub reactive_modules: Vec<HirReactiveModule>,
 
+    /// Form declarations lowered from `@form`.
+    #[serde(default)]
+    pub forms: Vec<HirForm>,
+
+    /// Back-button handler lowered from `@back_button` (at most one per module).
+    #[serde(default)]
+    pub back_button: Option<HirBackButton>,
+
+    /// Deep-link / universal-link handler lowered from `@deep_link` (at most one per module).
+    #[serde(default)]
+    pub deep_link: Option<HirDeepLink>,
+
+    /// Push-notification wiring lowered from `@push` (at most one per module).
+    #[serde(default)]
+    pub push: Option<HirPush>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 }
@@ -140,6 +157,7 @@ impl HirModule {
             ("url_decls", HirFieldOwnership::SemanticCore),
             ("fragments", HirFieldOwnership::SemanticCore),
             ("reactive_modules", HirFieldOwnership::SemanticCore),
+            ("forms", HirFieldOwnership::AppContract),
         ]
     }
 
@@ -584,6 +602,9 @@ pub struct HirDerived {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirEffect {
     pub body: HirExpr,
+    /// Explicit dependency list from `effect depends_on (a, b):` clause.
+    /// When `Some`, the lint `lint.effect.unresolvable_deps` is suppressed.
+    pub explicit_deps: Option<Vec<String>>,
     pub span: Span,
 }
 
@@ -753,6 +774,43 @@ pub struct HirSmTransition {
 pub enum HirSmFrom {
     Named(String),
     Any,
+}
+
+/// `@back_button` lowered to HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirBackButton {
+    /// Endpoint function called on back-press; should return bool (handled?).
+    pub on_press: String,
+    /// Optional fallback identifier.
+    pub fallback: Option<String>,
+    /// Source span.
+    pub span: Span,
+}
+
+/// `@deep_link` lowered to HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirDeepLink {
+    /// URL scheme string.
+    pub scheme: String,
+    /// Optional Apple universal link domain.
+    pub universal_link: Option<String>,
+    /// Endpoint function called with the opened URL.
+    pub on_link: String,
+    /// Source span.
+    pub span: Span,
+}
+
+/// `@push` lowered to HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirPush {
+    /// Endpoint called after push registration to store the token.
+    pub on_register: Option<String>,
+    /// Endpoint called when a notification is received in the foreground.
+    pub on_notification: Option<String>,
+    /// Endpoint called when the user taps a notification action.
+    pub on_action: Option<String>,
+    /// Source span.
+    pub span: Span,
 }
 
 #[cfg(test)]

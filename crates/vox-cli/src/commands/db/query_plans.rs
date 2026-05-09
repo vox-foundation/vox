@@ -86,11 +86,11 @@ fn collect_query_plans_expr(
                 }
             }
         }
-        HirExpr::For(_, _, it, body, _) => {
+        HirExpr::For(_, _, it, body, _, _) => {
             collect_query_plans_expr(it, out);
             collect_query_plans_expr(body, out);
         }
-        HirExpr::Lambda(_, _, body, _) => collect_query_plans_expr(body, out),
+        HirExpr::Lambda(_, _, body, _, _) => collect_query_plans_expr(body, out),
         HirExpr::Spawn(target, _) => collect_query_plans_expr(target, out),
         HirExpr::With(base, opts, _) => {
             collect_query_plans_expr(base, out);

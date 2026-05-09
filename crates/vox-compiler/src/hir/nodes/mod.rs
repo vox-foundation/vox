@@ -11,6 +11,7 @@ mod decl;
 pub mod durability;
 pub mod effect;
 mod expr;
+pub mod form;
 pub mod state_machine;
 mod stmt;
 mod stmt_expr;

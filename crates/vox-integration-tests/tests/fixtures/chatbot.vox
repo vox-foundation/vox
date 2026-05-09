@@ -13,14 +13,14 @@ component Chat() {
     let send = fn (_e) set_messages(messages.append({role: "user", text: input}))
     view: column(raw_class="chat_container") {
         column(raw_class="messages") {
-            for msg in messages {
+            for msg in messages key=msg.text {
                 column(raw_class="message") {
                     msg.text
                 }
             }
         }
         row(raw_class="input_area") {
-            input(raw_class="chat_input", bind=input, placeholder="Type a message...")
+            input(raw_class="chat_input", bind=input, placeholder="Type a message...", aria_label="Chat message")
             button(raw_class="send_btn", on_click=send) { "Send" }
         }
     }

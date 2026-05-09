@@ -164,13 +164,14 @@ impl Parser {
             self.parse_expr()
         }
     }
-    /// Optional `with loader: name` / `with pending: Name` / `with (loader: a, pending: b)` on a route line.
-    fn parse_optional_route_with_clause(&mut self) -> Result<(Option<String>, Option<String>), ()> {
+    /// Optional `with loader: name` / `with pending: Name` / `with (loader: a, pending: b, error: E)` on a route line.
+    fn parse_optional_route_with_clause(&mut self) -> Result<(Option<String>, Option<String>, Option<String>), ()> {
         if !self.eat(&Token::With) {
-            return Ok((None, None));
+            return Ok((None, None, None));
         }
         let mut loader_name = None;
         let mut pending_component_name = None;
+        let mut error_component_name = None;
         if self.eat(&Token::LParen) {
             if !matches!(self.peek(), Token::RParen) {
                 loop {
@@ -180,11 +181,12 @@ impl Parser {
                     match key.as_str() {
                         "loader" => loader_name = Some(_val),
                         "pending" => pending_component_name = Some(_val),
+                        "error" => error_component_name = Some(_val),
                         _ => {
                             self.errors.push(ParseError::classified(
                                 self.span(),
-                                "In `routes { ... }`, `with (...)` only supports `loader:` and `pending:` keys",
-                                vec!["loader".into(), "pending".into()],
+                                "In `routes { ... }`, `with (...)` only supports `loader:`, `pending:`, and `error:` keys",
+                                vec!["loader".into(), "pending".into(), "error".into()],
                                 Some(key),
                                 ParseErrorClass::Declaration,
                             ));
@@ -208,11 +210,12 @@ impl Parser {
             match key.as_str() {
                 "loader" => loader_name = Some(val),
                 "pending" => pending_component_name = Some(val),
+                "error" => error_component_name = Some(val),
                 _ => {
                     self.errors.push(ParseError::classified(
                         self.span(),
-                        "In `routes { ... }`, use `with loader: fnName` or `with pending: Spinner` (or `with (loader: a, pending: b)`)",
-                        vec!["loader".into(), "pending".into()],
+                        "In `routes { ... }`, use `with loader: fnName`, `with pending: Spinner`, or `with error: Err` (or `with (loader: a, pending: b, error: E)`)",
+                        vec!["loader".into(), "pending".into(), "error".into()],
                         Some(key),
                         ParseErrorClass::Declaration,
                     ));
@@ -220,7 +223,7 @@ impl Parser {
                 }
             }
         }
-        Ok((loader_name, pending_component_name))
+        Ok((loader_name, pending_component_name, error_component_name))
     }
 
     /// Parse child entries until `}` (consumes the closing brace).
@@ -279,7 +282,7 @@ impl Parser {
         }
         self.advance();
         let component_name = self.parse_ident_name()?;
-        let (loader_name, pending_component_name) = self.parse_optional_route_with_clause()?;
+        let (loader_name, pending_component_name, error_component_name) = self.parse_optional_route_with_clause()?;
         let children = if matches!(self.peek(), Token::LBrace) {
             self.advance();
             self.parse_nested_route_entries()?
@@ -294,6 +297,7 @@ impl Parser {
             is_wildcard: false,
             loader_name,
             pending_component_name,
+            error_component_name,
             span: entry_start.merge(self.span()),
         })
     }

@@ -2,7 +2,7 @@
 
 const PIPELINE_CLASSIC_BOX_STYLE_SRC: &str = r#"
 component Box() {
-    view: <div class="x">"a"</div>
+    view: column(raw_class="x") { "a" }
 }
 style {
     .x { color: "red" }
@@ -13,11 +13,11 @@ const PIPELINE_DUP_CLIENT_ROUTE_BLOCKS_SRC: &str = r#"
 import react.use_state
 component A() {
     state n: int = 0
-    view: <span>{n}</span>
+    view: column(raw_class="a") { n }
 }
 component B() {
     state n: int = 0
-    view: <span>{n}</span>
+    view: column(raw_class="b") { n }
 }
 routes {
     "/" to A
@@ -105,7 +105,7 @@ fn pipeline_reactive_view_whitespace_parity_legacy_vs_web_ir_env() {
     let src = r#"
 component T() {
     state n: int = 1
-    view: <span class="x" />
+    view: column(raw_class="x") { n }
 }
 "#;
     let tokens = lex(src);

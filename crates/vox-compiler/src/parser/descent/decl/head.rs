@@ -2,10 +2,10 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    Decl, EffectDecl, EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath,
-    ImportPathKind, LoadingDecl, McpResourceDecl, McpToolDecl, OnCleanupDecl,
-    OnMountDecl, PostCondition, ReactiveComponentDecl, ReactiveMemberDecl,
-    RustCrateImport, ScheduledDecl, TestDecl,
+    BackButtonDecl, Decl, DeepLinkDecl, EffectDecl, EndpointDecl, EndpointKind, FieldConstraint,
+    FnDecl, ForallDecl, FormDecl, FormField, ImportDecl, ImportPath, ImportPathKind, LoadingDecl,
+    McpResourceDecl, McpToolDecl, OnCleanupDecl, OnMountDecl, PostCondition, PushDecl,
+    ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport, ScheduledDecl, TestDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -409,9 +409,39 @@ impl Parser {
                 }
                 Token::Effect => {
                     let eff_start = self.span();
-                    let body = self.parse_reactive_block()?;
+                    self.advance(); // eat `effect`
+                    // Optional `depends_on (a, b)` clause.
+                    let explicit_deps =
+                        if matches!(self.peek(), Token::Ident(n) if n == "depends_on") {
+                            self.advance(); // eat `depends_on`
+                            self.expect(&Token::LParen)?;
+                            let mut deps = Vec::new();
+                            while !matches!(self.peek(), Token::RParen | Token::Eof) {
+                                deps.push(self.parse_ident_name()?);
+                                if !self.eat(&Token::Comma) {
+                                    break;
+                                }
+                            }
+                            self.expect(&Token::RParen)?;
+                            Some(deps)
+                        } else {
+                            None
+                        };
+                    self.expect(&Token::Colon)?;
+                    let body = if matches!(self.peek(), Token::LBrace) {
+                        let b_start = self.span();
+                        self.advance(); // eat `{`
+                        let stmts = self.parse_block()?;
+                        crate::ast::expr::Expr::Block {
+                            stmts,
+                            span: b_start.merge(self.span()),
+                        }
+                    } else {
+                        self.parse_expr()?
+                    };
                     members.push(ReactiveMemberDecl::Effect(EffectDecl {
                         body,
+                        explicit_deps,
                         span: eff_start.merge(self.span()),
                     }));
                 }
@@ -525,9 +555,39 @@ impl Parser {
                 }
                 Token::Effect => {
                     let eff_start = self.span();
-                    let body = self.parse_reactive_block()?;
+                    self.advance(); // eat `effect`
+                    // Optional `depends_on (a, b)` clause.
+                    let explicit_deps =
+                        if matches!(self.peek(), Token::Ident(n) if n == "depends_on") {
+                            self.advance(); // eat `depends_on`
+                            self.expect(&Token::LParen)?;
+                            let mut deps = Vec::new();
+                            while !matches!(self.peek(), Token::RParen | Token::Eof) {
+                                deps.push(self.parse_ident_name()?);
+                                if !self.eat(&Token::Comma) {
+                                    break;
+                                }
+                            }
+                            self.expect(&Token::RParen)?;
+                            Some(deps)
+                        } else {
+                            None
+                        };
+                    self.expect(&Token::Colon)?;
+                    let body = if matches!(self.peek(), Token::LBrace) {
+                        let b_start = self.span();
+                        self.advance(); // eat `{`
+                        let stmts = self.parse_block()?;
+                        crate::ast::expr::Expr::Block {
+                            stmts,
+                            span: b_start.merge(self.span()),
+                        }
+                    } else {
+                        self.parse_expr()?
+                    };
                     members.push(ReactiveMemberDecl::Effect(EffectDecl {
                         body,
+                        explicit_deps,
                         span: eff_start.merge(self.span()),
                     }));
                 }
@@ -1105,6 +1165,278 @@ impl Parser {
         }
     }
 
+    /// Parse a `@form Name { field ... on_submit: ... }` declaration.
+    pub(crate) fn parse_form_decl(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
+        self.advance(); // eat @form
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LBrace)?;
+
+        let mut fields: Vec<FormField> = Vec::new();
+        let mut on_submit: Option<String> = None;
+        let mut success_redirect: Option<String> = None;
+        let mut error_message: Option<String> = None;
+
+        loop {
+            self.skip_newlines();
+            match self.peek().clone() {
+                Token::RBrace | Token::Eof => break,
+                Token::Ident(ref kw) if kw == "field" => {
+                    self.advance(); // eat `field`
+                    fields.push(self.parse_form_field()?);
+                }
+                Token::Ident(ref kw) if kw == "on_submit" => {
+                    self.advance(); // eat `on_submit`
+                    self.expect(&Token::Colon)?;
+                    on_submit = Some(self.parse_ident_name()?);
+                }
+                Token::Ident(ref kw) if kw == "success_redirect" => {
+                    self.advance(); // eat `success_redirect`
+                    self.expect(&Token::Colon)?;
+                    match self.peek().clone() {
+                        Token::StringLit(s) => {
+                            self.advance();
+                            success_redirect = Some(s);
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected string literal for success_redirect",
+                                vec!["\"...\"".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                }
+                Token::Ident(ref kw) if kw == "error_message" => {
+                    self.advance(); // eat `error_message`
+                    self.expect(&Token::Colon)?;
+                    match self.peek().clone() {
+                        Token::StringLit(s) => {
+                            self.advance();
+                            error_message = Some(s);
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected string literal for error_message",
+                                vec!["\"...\"".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                }
+                other => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("Unexpected token inside @form block: {other}; expected `field`, `on_submit`, `success_redirect`, or `}}`"),
+                        vec!["field".into(), "on_submit".into(), "success_redirect".into(), "}".into()],
+                        Some(other.to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            }
+            self.skip_newlines();
+        }
+        self.expect(&Token::RBrace)?;
+
+        Ok(Decl::Form(FormDecl {
+            name,
+            fields,
+            on_submit,
+            success_redirect,
+            error_message,
+            span: start.merge(self.span()),
+        }))
+    }
+
+    /// Parse a single `field name: Type [constraints...] [required|optional] [hidden]` line
+    /// inside a `@form` block. Cursor is positioned after the `field` keyword.
+    fn parse_form_field(&mut self) -> Result<FormField, ()> {
+        let start = self.span();
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::Colon)?;
+        let ty = self.parse_type_expr()?;
+
+        let mut constraints: Vec<FieldConstraint> = Vec::new();
+        let mut required = false;
+        let mut hidden = false;
+        let mut label: Option<String> = None;
+        let mut default: Option<crate::ast::expr::Expr> = None;
+
+        // Parse optional modifiers on the same line until newline or `}`
+        loop {
+            match self.peek().clone() {
+                Token::Newline | Token::RBrace | Token::Eof => break,
+                Token::Ident(ref kw) if kw == "required" => {
+                    self.advance();
+                    required = true;
+                }
+                Token::Ident(ref kw) if kw == "optional" => {
+                    self.advance();
+                    required = false;
+                }
+                Token::Ident(ref kw) if kw == "hidden" => {
+                    self.advance();
+                    hidden = true;
+                }
+                Token::Ident(ref kw) if kw == "label" => {
+                    self.advance(); // eat `label`
+                    self.expect(&Token::LParen)?;
+                    match self.peek().clone() {
+                        Token::StringLit(s) => {
+                            self.advance();
+                            label = Some(s);
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected string literal inside label(...)",
+                                vec!["\"label text\"".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                    self.expect(&Token::RParen)?;
+                }
+                Token::Ident(ref kw) if kw == "range" => {
+                    self.advance(); // eat `range`
+                    self.expect(&Token::LParen)?;
+                    // Parse `lo..hi` — lexed as IntLit, Dot, Dot, IntLit
+                    let lo_span = self.span();
+                    let lo = match self.peek().clone() {
+                        Token::IntLit(v) => {
+                            let span = self.span();
+                            self.advance();
+                            crate::ast::expr::Expr::IntLit { value: v, span }
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected integer literal for range lower bound",
+                                vec!["1".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    };
+                    // Consume two dots: `..`
+                    self.expect(&Token::Dot)?;
+                    self.expect(&Token::Dot)?;
+                    let hi = match self.peek().clone() {
+                        Token::IntLit(v) => {
+                            let span = self.span();
+                            self.advance();
+                            crate::ast::expr::Expr::IntLit { value: v, span }
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected integer literal for range upper bound",
+                                vec!["10".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    };
+                    self.expect(&Token::RParen)?;
+                    let _ = lo_span;
+                    constraints.push(FieldConstraint::Range(lo, hi));
+                }
+                Token::Ident(ref kw) if kw == "max_len" => {
+                    self.advance(); // eat `max_len`
+                    self.expect(&Token::LParen)?;
+                    match self.peek().clone() {
+                        Token::IntLit(v) => {
+                            self.advance();
+                            constraints.push(FieldConstraint::MaxLen(v as usize));
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected integer literal inside max_len(...)",
+                                vec!["280".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                    self.expect(&Token::RParen)?;
+                }
+                Token::Ident(ref kw) if kw == "min_len" => {
+                    self.advance(); // eat `min_len`
+                    self.expect(&Token::LParen)?;
+                    match self.peek().clone() {
+                        Token::IntLit(v) => {
+                            self.advance();
+                            constraints.push(FieldConstraint::MinLen(v as usize));
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected integer literal inside min_len(...)",
+                                vec!["1".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                    self.expect(&Token::RParen)?;
+                }
+                Token::Ident(ref kw) if kw == "pattern" => {
+                    self.advance(); // eat `pattern`
+                    self.expect(&Token::LParen)?;
+                    match self.peek().clone() {
+                        Token::StringLit(s) => {
+                            self.advance();
+                            constraints.push(FieldConstraint::Pattern(s));
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected string literal inside pattern(...)",
+                                vec!["\"^[a-z]+$\"".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                    self.expect(&Token::RParen)?;
+                }
+                Token::Ident(ref kw) if kw == "default" => {
+                    self.advance(); // eat `default`
+                    self.expect(&Token::LParen)?;
+                    default = Some(self.parse_expr()?);
+                    self.expect(&Token::RParen)?;
+                }
+                _ => break,
+            }
+        }
+
+        Ok(FormField {
+            name,
+            ty,
+            label,
+            required,
+            hidden,
+            default,
+            constraints,
+            span: start.merge(self.span()),
+        })
+    }
+
     /// Parse an optional `uses <effect-list>` clause after `)` in a function signature.
     ///
     /// Grammar: `uses (<effect-name> | mcp(<tool-name>)) (',' (<effect-name> | mcp(<tool-name>)))*`
@@ -1186,5 +1518,153 @@ impl Parser {
             }
         }
         effects
+    }
+
+    // ── Mobile Capacitor primitives (Tasks D2-D4) ─────────────────────────
+
+    /// Parse `@back_button { on_press: handler [fallback: handler] }`.
+    pub(crate) fn parse_back_button_decl(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
+        self.advance(); // eat @back_button
+        self.expect(&Token::LBrace)?;
+        let mut on_press = String::new();
+        let mut fallback: Option<String> = None;
+        loop {
+            self.skip_newlines();
+            if matches!(self.peek(), Token::RBrace | Token::Eof) {
+                break;
+            }
+            let key = match self.peek().clone() {
+                Token::Ident(k) => { self.advance(); k }
+                other => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("Expected field name inside @back_button block, got `{other}`"),
+                        vec!["on_press".into(), "fallback".into()],
+                        Some(other.to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            };
+            self.expect(&Token::Colon)?;
+            let val = self.parse_ident_name()?;
+            match key.as_str() {
+                "on_press" => on_press = val,
+                "fallback" => fallback = Some(val),
+                _ => {}
+            }
+            self.skip_newlines();
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(Decl::BackButton(BackButtonDecl {
+            on_press,
+            fallback,
+            span: start.merge(self.span()),
+        }))
+    }
+
+    /// Parse `@deep_link { scheme: "…" on_link: handler [universal_link: "…"] }`.
+    pub(crate) fn parse_deep_link_decl(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
+        self.advance(); // eat @deep_link
+        self.expect(&Token::LBrace)?;
+        let mut scheme = String::new();
+        let mut universal_link: Option<String> = None;
+        let mut on_link = String::new();
+        loop {
+            self.skip_newlines();
+            if matches!(self.peek(), Token::RBrace | Token::Eof) {
+                break;
+            }
+            let key = match self.peek().clone() {
+                Token::Ident(k) => { self.advance(); k }
+                other => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("Expected field name inside @deep_link block, got `{other}`"),
+                        vec!["scheme".into(), "on_link".into(), "universal_link".into()],
+                        Some(other.to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            };
+            self.expect(&Token::Colon)?;
+            // Values are either string literals or identifiers.
+            let val = match self.peek().clone() {
+                Token::StringLit(s) => { self.advance(); s }
+                Token::Ident(_) | Token::TypeIdent(_) => self.parse_ident_name()?,
+                other => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("Expected string or identifier as value in @deep_link block, got `{other}`"),
+                        vec!["\"…\"".into(), "identifier".into()],
+                        Some(other.to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            };
+            match key.as_str() {
+                "scheme" => scheme = val,
+                "universal_link" => universal_link = Some(val),
+                "on_link" => on_link = val,
+                _ => {}
+            }
+            self.skip_newlines();
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(Decl::DeepLink(DeepLinkDecl {
+            scheme,
+            universal_link,
+            on_link,
+            span: start.merge(self.span()),
+        }))
+    }
+
+    /// Parse `@push { [on_register: handler] [on_notification: handler] [on_action: handler] }`.
+    pub(crate) fn parse_push_decl(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
+        self.advance(); // eat @push
+        self.expect(&Token::LBrace)?;
+        let mut on_register: Option<String> = None;
+        let mut on_notification: Option<String> = None;
+        let mut on_action: Option<String> = None;
+        loop {
+            self.skip_newlines();
+            if matches!(self.peek(), Token::RBrace | Token::Eof) {
+                break;
+            }
+            let key = match self.peek().clone() {
+                Token::Ident(k) => { self.advance(); k }
+                other => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("Expected field name inside @push block, got `{other}`"),
+                        vec!["on_register".into(), "on_notification".into(), "on_action".into()],
+                        Some(other.to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            };
+            self.expect(&Token::Colon)?;
+            let val = self.parse_ident_name()?;
+            match key.as_str() {
+                "on_register" => on_register = Some(val),
+                "on_notification" => on_notification = Some(val),
+                "on_action" => on_action = Some(val),
+                _ => {}
+            }
+            self.skip_newlines();
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(Decl::Push(PushDecl {
+            on_register,
+            on_notification,
+            on_action,
+            span: start.merge(self.span()),
+        }))
     }
 }

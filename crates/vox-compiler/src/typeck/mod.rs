@@ -13,6 +13,10 @@
 #![allow(clippy::collapsible_if)]
 
 mod ast_decl_lints;
+mod async_handler_lint;
+mod effect_deps_lint;
+pub mod form_check;
+mod stale_capture_lint;
 
 pub use ast_decl_lints::lint_ast_declarations;
 /// Automated fix suggestions for type-check diagnostics.
@@ -59,6 +63,10 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
     let mut diags = typecheck_hir(hir, &mut env, &builtins, source);
     diags.extend(effect_check::check_effect_compliance(hir, source));
     diags.extend(state_machine_check::check_state_machines(hir, source));
+    diags.extend(effect_deps_lint::check_effect_deps(hir, source));
+    diags.extend(stale_capture_lint::check_stale_captures(hir, source));
+    diags.extend(async_handler_lint::check_async_handlers(hir, source));
+    diags.extend(form_check::check_forms(hir, source));
     diags
 }
 

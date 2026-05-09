@@ -5,6 +5,8 @@
 
 /// Algebraic data types → TypeScript unions and helpers.
 pub mod adt;
+/// Single source of truth for Vox method/function/namespace → TypeScript lowering.
+pub mod builtin_registry;
 /// `@component` and related React component codegen.
 pub mod component;
 /// Main HIR → TypeScript emitter ([`generate`]).
@@ -12,6 +14,10 @@ pub mod emitter;
 /// OpenAPI 3.1 specification emit (driven by Contract IR; per Phase 2 of the
 /// external frontend interop plan).
 pub mod openapi_emit;
+/// `@form` declaration → React form components in `forms.tsx` (Task C3).
+pub mod form_emit;
+/// Mobile Capacitor primitive emit (`@back_button`, `@deep_link`, `@push`) → `mobile.ts` (Tasks D2-D4).
+pub mod mobile_emit;
 /// `fragment` declaration → typed React function components in `fragments.tsx`
 /// (Phase F of the Svelte-mineable features plan; per ADR-033).
 pub mod fragment_emit;

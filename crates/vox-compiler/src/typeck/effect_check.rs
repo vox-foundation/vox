@@ -253,11 +253,11 @@ fn check_expr(
                 check_stmt(s, caller_name, caller_set, cap_map, source, diags);
             }
         }
-        HirExpr::For(_, _, iterable, body, _) => {
+        HirExpr::For(_, _, iterable, body, _, _) => {
             check_expr(iterable, caller_name, caller_set, cap_map, source, diags);
             check_expr(body, caller_name, caller_set, cap_map, source, diags);
         }
-        HirExpr::Lambda(_, _, body, _) => {
+        HirExpr::Lambda(_, _, body, _, _) => {
             check_expr(body, caller_name, caller_set, cap_map, source, diags);
         }
         HirExpr::With(lhs, rhs, _) => {

@@ -153,6 +153,7 @@ mod tests {
                         is_wildcard: false,
                         loader_name: None,
                         pending_component_name: None,
+                        error_component_name: None,
                         span: dummy_span,
                     },
                     RouteEntry {
@@ -163,6 +164,7 @@ mod tests {
                         is_wildcard: false,
                         loader_name: None,
                         pending_component_name: None,
+                        error_component_name: None,
                         span: dummy_span,
                     },
                 ],

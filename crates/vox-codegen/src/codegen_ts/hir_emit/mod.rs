@@ -12,16 +12,24 @@
 //! mapping stay in [`compat`]; do not fork the matrix into JSX or Web IR without updating all three.
 
 pub mod compat;
+mod async_walker;
 mod state_deps;
 
 use vox_compiler::hir::*;
 use std::collections::HashSet;
 use std::sync::OnceLock;
+use async_walker::stmt_has_async_call;
 
 pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag, ts_string_literal};
 pub(crate) use state_deps::extract_state_deps_with_diagnostics;
+use crate::codegen_ts::builtin_registry::{BuiltinLowering, BuiltinRegistry};
 
 static EMPTY_ASYNC_FNS: OnceLock<HashSet<String>> = OnceLock::new();
+static BUILTIN_REGISTRY: OnceLock<BuiltinRegistry> = OnceLock::new();
+
+fn registry() -> &'static BuiltinRegistry {
+    BUILTIN_REGISTRY.get_or_init(BuiltinRegistry::standard)
+}
 
 /// Emission context threaded through HIR → TS lowering.
 ///
@@ -244,6 +252,9 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             if let Some(class_expr) = &view.class_expr {
                 attrs.push(format!("className={{{class_expr}}}"));
             }
+            if let Some(style_props) = &view.style_expr {
+                attrs.push(format!("style={{{{ {style_props} }}}}"));
+            }
             for attr in &view.passthrough {
                 if attr.name == "bind" {
                     let (value_str, onchange_str) =
@@ -274,6 +285,9 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             let mut attrs = Vec::new();
             if let Some(class_expr) = &view.class_expr {
                 attrs.push(format!("className={{{class_expr}}}"));
+            }
+            if let Some(style_props) = &view.style_expr {
+                attrs.push(format!("style={{{{ {style_props} }}}}"));
             }
             for attr in &view.passthrough {
                 if attr.name == "bind" {
@@ -335,13 +349,21 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             if let Some(replacement) = lower_std_namespace_call(obj, method, args, ctx) {
                 return replacement;
             }
-            let obj_str = emit_hir_expr(obj, ctx);
+            // §1.A.4: if the direct receiver is an async call (`fetch_user().trim()`),
+            // emit_hir_expr will produce `await fetch_user()`. Wrap in parens so the chain
+            // resolves the settled value: `(await fetch_user()).trim()`.
+            // Use HIR-level structural analysis (same logic as handler detection) rather than
+            // inspecting the emitted string — avoids fragile `starts_with("await ")` heuristic.
+            let needs_parens = async_walker::expr_has_async_call(obj, ctx.async_fn_names);
+            let raw_obj = emit_hir_expr(obj, ctx);
+            let obj_str = if needs_parens { format!("({raw_obj})") } else { raw_obj };
             let args_str: Vec<String> = args
                 .iter()
                 .map(|a| emit_hir_expr(&a.value, ctx))
                 .collect();
             // Map Vox snake_case Str methods to JS String.prototype names where they differ.
             // char_at/index_of return Optional in Vox; JS returns "" / -1, so we wrap.
+            // For other methods, consult the builtin registry (§A3: centralized lowering).
             let mut base = match method.as_str() {
                 "char_at" => format!(
                     "((__i) => {{ const __c = ({}).charAt(__i); return __c === \"\" ? null : __c; }})({})",
@@ -353,10 +375,21 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                     obj_str,
                     args_str.first().map(String::as_str).unwrap_or("\"\"")
                 ),
-                // §1.A.3: `length` is a property on JS strings/arrays, not a method.
-                // Vox `s.length()` must lower to `s.length` (no call parens).
-                "length" if args_str.is_empty() => format!("{obj_str}.length"),
-                _ => format!("{obj_str}.{method}({})", args_str.join(", ")),
+                _ => {
+                    // Consult the builtin registry. We pass "" as the type hint when no type
+                    // info is available; the registry falls back to a name-only scan.
+                    match registry().lookup_method("", method, args_str.len()) {
+                        Some(BuiltinLowering::Property(p)) => format!("{obj_str}.{p}"),
+                        Some(BuiltinLowering::MethodRename(m)) => {
+                            format!("{obj_str}.{m}({})", args_str.join(", "))
+                        }
+                        Some(BuiltinLowering::Inline(s)) => s.to_string(),
+                        Some(BuiltinLowering::FunctionRename(f)) => {
+                            format!("{f}({})", args_str.join(", "))
+                        }
+                        None => format!("{obj_str}.{method}({})", args_str.join(", ")),
+                    }
+                }
             };
             if let Some(p) = plan {
                 if p.capabilities.requires_sync {
@@ -408,18 +441,25 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             }
             format!("(({c}) ? (() => {{ {then_out} }})() : (() => {{ {else_out} }})())")
         }
-        HirExpr::For(name, index, iterable, body, _) => {
+        HirExpr::For(name, index, iterable, body, key_expr, _) => {
             let iter = emit_hir_expr(iterable, ctx);
-            let b = emit_hir_expr(body, ctx);
+            let mut b = emit_hir_expr(body, ctx);
             // Default index name when the user wrote `for x in arr` (no index binding).
             // The leading underscore signals "unused" by JS convention and avoids clashing
             // with a user-named `i` in an outer scope.
             let idx = index.as_deref().unwrap_or("_i");
+            // Inject the `key` prop into the first JSX element in the body.
+            if let Some(k) = key_expr {
+                let key_str = emit_hir_expr(k, ctx);
+                let key_attr = format!(" key={{{key_str}}}");
+                b = inject_key_into_jsx(b, &key_attr);
+            }
             format!("{iter}.map(({name}, {idx}) => ({b}))")
         }
-        HirExpr::Lambda(params, _, body, _) => {
+        HirExpr::Lambda(params, _, body, _, _) => {
             let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-            let b = emit_hir_expr(body, ctx);
+            let lambda_ctx = EmitCtx::new(ctx.state_names); // strip async context — lambda has its own scope
+            let b = emit_hir_expr(body, &lambda_ctx);
             format!("(({}) => ({}))", param_names.join(", "), b)
         }
         HirExpr::Match(subject, arms, _) => {
@@ -557,7 +597,7 @@ pub(crate) fn emit_hir_expr_attr_value(
             // §1.A.2: detect if any top-level stmt calls an @endpoint fn; if so, emit
             // `async () => {` and add `await` to those calls via the handler ctx.
             let needs_async = !ctx.async_fn_names.is_empty()
-                && stmts.iter().any(|s| stmt_calls_async_fn(s, ctx.async_fn_names));
+                && stmts.iter().any(|s| stmt_has_async_call(s, ctx.async_fn_names));
             let handler_ctx = if needs_async {
                 ctx.clone()
             } else {
@@ -572,22 +612,6 @@ pub(crate) fn emit_hir_expr_attr_value(
         }
     }
     emit_hir_expr(expr, ctx)
-}
-
-/// Returns true if `stmt` is a direct call to one of the named async fns (at the top level only).
-fn stmt_calls_async_fn(stmt: &HirStmt, async_fn_names: &HashSet<String>) -> bool {
-    let call_expr = match stmt {
-        HirStmt::Let { value, .. } => value,
-        HirStmt::Expr { expr, .. } => expr,
-        HirStmt::Assign { value, .. } => value,
-        _ => return false,
-    };
-    if let HirExpr::Call(callee, _, _, _) = call_expr {
-        if let HirExpr::Ident(name, _) = callee.as_ref() {
-            return async_fn_names.contains(name.as_str());
-        }
-    }
-    false
 }
 
 /// **Phase:** compat-legacy (OP-0138).
@@ -1010,7 +1034,6 @@ export const mobile = {
 #[cfg(test)]
 mod hir_emit_if_tests {
     use super::*;
-    use vox_compiler::hir::*;
 
     fn span() -> vox_compiler::ast::span::Span {
         vox_compiler::ast::span::Span { start: 0, end: 0 }
@@ -1073,6 +1096,166 @@ mod hir_emit_if_tests {
     }
 }
 
+#[cfg(test)]
+mod async_emit_tests {
+    use super::*;
+    use vox_compiler::hir::{HirArg, HirExpr, HirStmt, HirPattern};
+    use vox_compiler::ast::span::Span;
+
+    fn span() -> Span {
+        Span { start: 0, end: 0 }
+    }
+
+    fn ident(name: &str) -> HirExpr {
+        HirExpr::Ident(name.to_string(), span())
+    }
+
+    fn call(name: &str, args: Vec<HirExpr>) -> HirExpr {
+        HirExpr::Call(
+            Box::new(ident(name)),
+            args.into_iter()
+                .map(|v| HirArg { name: None, value: v })
+                .collect(),
+            false,
+            span(),
+        )
+    }
+
+    fn string_lit(s: &str) -> HirExpr {
+        HirExpr::StringLit(s.to_string(), span())
+    }
+
+    fn let_stmt(var: &str, value: HirExpr) -> HirStmt {
+        HirStmt::Let {
+            pattern: HirPattern::Ident(var.to_string(), span()),
+            type_ann: None,
+            value,
+            mutable: false,
+            span: span(),
+        }
+    }
+
+    fn expr_stmt(expr: HirExpr) -> HirStmt {
+        HirStmt::Expr { expr, span: span() }
+    }
+
+    fn assign_stmt(target: HirExpr, value: HirExpr) -> HirStmt {
+        HirStmt::Assign { target, value, span: span() }
+    }
+
+    fn async_names(names: &[&str]) -> HashSet<String> {
+        names.iter().map(|s| s.to_string()).collect()
+    }
+
+    fn handler_block(stmts: Vec<HirStmt>) -> HirExpr {
+        HirExpr::Block(stmts, span())
+    }
+
+    // Test 1: endpoint called in a let binding inside a handler gets `await`
+    #[test]
+    fn endpoint_called_in_let_binding_inside_handler_gets_await() {
+        let state_names: HashSet<String> = HashSet::new();
+        let async_fns = async_names(&["parse_voice"]);
+        let ctx = EmitCtx::with_async(&state_names, &async_fns);
+
+        // `let p = parse_voice("hi")`
+        let stmt = let_stmt("p", call("parse_voice", vec![string_lit("hi")]));
+        let block = handler_block(vec![stmt]);
+
+        let out = emit_hir_expr_attr_value(&block, &ctx, "onClick");
+        assert!(
+            out.contains("await parse_voice"),
+            "expected `await parse_voice` in let binding, got: {out}"
+        );
+        assert!(
+            out.starts_with("async "),
+            "handler should be async, got: {out}"
+        );
+    }
+
+    // Test 2: endpoint called as method chain receiver gets `(await …)`
+    #[test]
+    fn endpoint_called_as_method_chain_gets_await() {
+        let state_names: HashSet<String> = HashSet::new();
+        let async_fns = async_names(&["fetch_user"]);
+        let ctx = EmitCtx::with_async(&state_names, &async_fns);
+
+        // `fetch_user().trim()` as expression stmt
+        let method_call = HirExpr::MethodCall(
+            Box::new(call("fetch_user", vec![])),
+            "trim".to_string(),
+            vec![],
+            None,
+            span(),
+        );
+        let stmt = expr_stmt(method_call);
+        let block = handler_block(vec![stmt]);
+
+        let out = emit_hir_expr_attr_value(&block, &ctx, "onClick");
+        assert!(
+            out.contains("(await fetch_user())"),
+            "expected `(await fetch_user()).trim()`, got: {out}"
+        );
+        assert!(
+            out.starts_with("async "),
+            "handler should be async, got: {out}"
+        );
+    }
+
+    // Test 3: endpoint nested in assignment gets `await`
+    #[test]
+    fn nested_endpoint_in_assignment_gets_await() {
+        let state_names: HashSet<String> = HashSet::new();
+        let async_fns = async_names(&["save"]);
+        let ctx = EmitCtx::with_async(&state_names, &async_fns);
+
+        // `result = save("data")`
+        let stmt = assign_stmt(ident("result"), call("save", vec![string_lit("data")]));
+        let block = handler_block(vec![stmt]);
+
+        let out = emit_hir_expr_attr_value(&block, &ctx, "onClick");
+        assert!(
+            out.contains("await save("),
+            "expected `await save(` in assignment, got: {out}"
+        );
+        assert!(
+            out.starts_with("async "),
+            "handler should be async, got: {out}"
+        );
+    }
+
+    // Test 4: pure sync handler must NOT get `async`
+    #[test]
+    fn handler_with_no_async_call_is_not_async() {
+        let state_names: HashSet<String> = HashSet::new();
+        let async_fns = async_names(&["fetch_user", "save"]);
+        let ctx = EmitCtx::with_async(&state_names, &async_fns);
+
+        // `console.log("clicked")` — no async calls
+        let stmt = expr_stmt(HirExpr::MethodCall(
+            Box::new(ident("console")),
+            "log".to_string(),
+            vec![HirArg {
+                name: None,
+                value: string_lit("clicked"),
+            }],
+            None,
+            span(),
+        ));
+        let block = handler_block(vec![stmt]);
+
+        let out = emit_hir_expr_attr_value(&block, &ctx, "onClick");
+        assert!(
+            !out.starts_with("async "),
+            "pure sync handler must not be async, got: {out}"
+        );
+        assert!(
+            !out.contains("await "),
+            "no await in sync handler, got: {out}"
+        );
+    }
+}
+
 // ── VUV view-call lowering at HIR emit time ─────────────────────────────────
 //
 // The legacy reactive emit path (used when web_ir bridge falls back to parity-mismatch) sends
@@ -1083,6 +1266,9 @@ mod hir_emit_if_tests {
 pub(crate) struct ViewCallHir {
     pub(crate) html_tag: String,
     pub(crate) class_expr: Option<String>,
+    /// Inline React `style` object expression string (without outer `{{ }}`), e.g.
+    /// `"paddingTop: 'env(safe-area-inset-top)'"`. Present when `safe_area` kwarg is set.
+    pub(crate) style_expr: Option<String>,
     pub(crate) passthrough: Vec<HirJsxAttr>,
 }
 
@@ -1133,6 +1319,7 @@ pub(crate) fn transform_hir_view_kwargs(
         })
         .unwrap_or_default();
     let mut passthrough: Vec<HirJsxAttr> = Vec::with_capacity(attrs.len());
+    let mut safe_area_style: Option<String> = None;
 
     for attr in attrs {
         let name = attr.name.as_str();
@@ -1143,6 +1330,16 @@ pub(crate) fn transform_hir_view_kwargs(
         }
         if HIR_PRIMITIVE_CONSUMED_PROPS.contains(&name) {
             // Already folded into primitive_emission above.
+            continue;
+        }
+        // D1: safe_area kwarg → inline style CSS env() vars (not expressible as Tailwind classes).
+        if name == "safe_area" {
+            if let HirExpr::StringLit(v, _) = unwrap_inline_hir_block_expr(&attr.value) {
+                let props = crate::web_ir::primitives::safe_area_to_style_props(v);
+                if !props.is_empty() {
+                    safe_area_style = Some(props);
+                }
+            }
             continue;
         }
         if let Some(piece) = hir_kwarg_to_class_expr(name, &attr.value, ctx) {
@@ -1171,6 +1368,7 @@ pub(crate) fn transform_hir_view_kwargs(
     ViewCallHir {
         html_tag,
         class_expr,
+        style_expr: safe_area_style,
         passthrough,
     }
 }
@@ -1235,4 +1433,20 @@ fn single_trailing_hir_expr(body: &[HirStmt]) -> Option<&HirExpr> {
     } else {
         None
     }
+}
+
+/// Inject a `key` attribute string into the first JSX element opening tag in `jsx`.
+///
+/// Finds the first `<` and inserts `key_attr` (e.g. ` key={expr}`) before the
+/// first `>` or `/>`. Falls back to returning the original string if no
+/// suitable insertion point is found.
+fn inject_key_into_jsx(jsx: String, key_attr: &str) -> String {
+    if let Some(lt_pos) = jsx.find('<') {
+        let after_lt = &jsx[lt_pos..];
+        if let Some(rel_end) = after_lt.find(|c: char| c == '>' || c == '/') {
+            let insert_at = lt_pos + rel_end;
+            return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
+        }
+    }
+    jsx
 }

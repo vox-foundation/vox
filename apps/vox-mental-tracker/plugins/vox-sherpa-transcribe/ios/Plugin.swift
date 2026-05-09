@@ -1,11 +1,16 @@
-import Foundation
 import Capacitor
+import Foundation
 
-/// iOS: stub until Sherpa-ONNX (or Apple Speech) assets are packaged — keeps Capacitor contract stable for CI/simulator.
 @objc(VoxSherpaTranscribePlugin)
 public class VoxSherpaTranscribePlugin: CAPPlugin {
-
     @objc func transcribe(_ call: CAPPluginCall) {
-        call.reject("iOS on-device STT not bundled in this tree — add onnxruntime + sherpa assets or wire Apple Speech (see plugin README).")
+        AppleSpeechBackend.shared.transcribe { result in
+            switch result {
+            case .success(let (text, confidence)):
+                call.resolve(["text": text, "confidence": confidence])
+            case .failure(let err):
+                call.reject(err.localizedDescription)
+            }
+        }
     }
 }
