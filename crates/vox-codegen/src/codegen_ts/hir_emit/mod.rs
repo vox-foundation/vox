@@ -435,13 +435,19 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             }
             format!("(({c}) ? (() => {{ {then_out} }})() : (() => {{ {else_out} }})())")
         }
-        HirExpr::For(name, index, iterable, body, _) => {
+        HirExpr::For(name, index, iterable, body, key_expr, _) => {
             let iter = emit_hir_expr(iterable, ctx);
-            let b = emit_hir_expr(body, ctx);
+            let mut b = emit_hir_expr(body, ctx);
             // Default index name when the user wrote `for x in arr` (no index binding).
             // The leading underscore signals "unused" by JS convention and avoids clashing
             // with a user-named `i` in an outer scope.
             let idx = index.as_deref().unwrap_or("_i");
+            // Inject the `key` prop into the first JSX element in the body.
+            if let Some(k) = key_expr {
+                let key_str = emit_hir_expr(k, ctx);
+                let key_attr = format!(" key={{{key_str}}}");
+                b = inject_key_into_jsx(b, &key_attr);
+            }
             format!("{iter}.map(({name}, {idx}) => ({b}))")
         }
         HirExpr::Lambda(params, _, body, _) => {
@@ -1406,4 +1412,20 @@ fn single_trailing_hir_expr(body: &[HirStmt]) -> Option<&HirExpr> {
     } else {
         None
     }
+}
+
+/// Inject a `key` attribute string into the first JSX element opening tag in `jsx`.
+///
+/// Finds the first `<` and inserts `key_attr` (e.g. ` key={expr}`) before the
+/// first `>` or `/>`. Falls back to returning the original string if no
+/// suitable insertion point is found.
+fn inject_key_into_jsx(jsx: String, key_attr: &str) -> String {
+    if let Some(lt_pos) = jsx.find('<') {
+        let after_lt = &jsx[lt_pos..];
+        if let Some(rel_end) = after_lt.find(|c: char| c == '>' || c == '/') {
+            let insert_at = lt_pos + rel_end;
+            return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
+        }
+    }
+    jsx
 }

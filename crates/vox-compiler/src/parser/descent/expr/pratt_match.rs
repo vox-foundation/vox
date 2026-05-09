@@ -595,12 +595,21 @@ impl Parser {
         };
         self.expect(&Token::In)?;
         let iterable = self.parse_expr()?;
+        // Optional `key=expr` clause before the body.
+        let key = if matches!(self.peek(), Token::Ident(n) if n == "key") {
+            self.advance(); // eat 'key'
+            self.expect(&Token::Eq)?;
+            Some(Box::new(self.parse_expr()?))
+        } else {
+            None
+        };
         let body = self.parse_expr()?;
         Ok(Expr::For {
             binding,
             index,
             iterable: Box::new(iterable),
             body: Box::new(body),
+            key,
             span: start.merge(self.span()),
         })
     }

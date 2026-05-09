@@ -357,7 +357,7 @@ fn collect_deps_and_calls(
                 }
             }
         }
-        HirExpr::For(_, _, iterable, body, _) => {
+        HirExpr::For(_, _, iterable, body, _, _) => {
             collect_deps_and_calls(
                 iterable,
                 state_names,

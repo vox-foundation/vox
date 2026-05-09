@@ -349,14 +349,20 @@ fn emit_jsx_child(expr: &Expr, indent: usize) -> String {
             index,
             iterable,
             body,
+            key,
             ..
         } => {
             let iter_str = emit_expr(iterable);
-            let body_str = emit_jsx_child(body, indent + 1);
+            let mut body_str = emit_jsx_child(body, indent + 1);
             // Default index name when the user wrote `for x in arr` (no index binding).
             // The leading underscore signals "unused" by JS convention and avoids clashing
             // with a user-named `i` in an outer scope.
             let idx = index.as_deref().unwrap_or("_i");
+            // Inject `key={expr}` into the first JSX element in the body string.
+            if let Some(k) = key {
+                let key_attr = format!(" key={{{}}}", emit_expr(k));
+                body_str = inject_key_into_jsx(body_str, &key_attr);
+            }
             format!("{pad}{{{iter_str}.map(({binding}, {idx}) => (\n{body_str}{pad}))}}\n")
         }
         Expr::If {
@@ -598,16 +604,22 @@ pub fn emit_expr(expr: &Expr) -> String {
             index,
             iterable,
             body,
+            key,
             ..
         } => {
             // Default index name when the user wrote `for x in arr` (no index binding).
             // The leading underscore signals "unused" by JS convention and avoids clashing
             // with a user-named `i` in an outer scope.
             let idx = index.as_deref().unwrap_or("_i");
+            let mut body_str = emit_expr(body);
+            // Inject key prop into the body expression if present.
+            if let Some(k) = key {
+                let key_attr = format!(" key={{{}}}", emit_expr(k));
+                body_str = inject_key_into_jsx(body_str, &key_attr);
+            }
             format!(
-                "{}.map(({binding}, {idx}) => {})",
+                "{}.map(({binding}, {idx}) => {body_str})",
                 emit_expr(iterable),
-                emit_expr(body)
             )
         }
         Expr::If {
@@ -703,6 +715,25 @@ pub fn emit_stmt(stmt: &Stmt, indent: usize) -> String {
 }
 
 /// Emit a pattern as TypeScript destructuring.
+/// Inject a `key` attribute into the first JSX element tag in the given string.
+///
+/// Looks for the first `<Tag` sequence and inserts `key_attr` (e.g. ` key={expr}`)
+/// before the first `>` or `/>` of that opening tag. Falls back to returning the
+/// original string unchanged if no suitable insertion point is found.
+fn inject_key_into_jsx(jsx: String, key_attr: &str) -> String {
+    // Find the first '<' that starts a JSX element (skip '{' expression wrappers).
+    if let Some(lt_pos) = jsx.find('<') {
+        let after_lt = &jsx[lt_pos..];
+        // Find the end of the opening tag — first '>' or '/' before '>'.
+        // We want to insert before the first '>' or '/>' in the opening tag.
+        if let Some(rel_end) = after_lt.find(|c: char| c == '>' || c == '/') {
+            let insert_at = lt_pos + rel_end;
+            return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
+        }
+    }
+    jsx
+}
+
 fn emit_pattern(pattern: &vox_compiler::ast::pattern::Pattern) -> String {
     match pattern {
         vox_compiler::ast::pattern::Pattern::Ident { name, .. } => name.clone(),

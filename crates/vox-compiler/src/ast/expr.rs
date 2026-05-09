@@ -283,6 +283,8 @@ pub enum Expr {
         iterable: Box<Expr>,
         /// Body expression (often JSX).
         body: Box<Expr>,
+        /// Optional React key expression (`key=expr`). Required for list renders.
+        key: Option<Box<Expr>>,
         /// Span covering `for` … body.
         span: Span,
     },
