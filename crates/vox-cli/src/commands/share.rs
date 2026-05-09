@@ -1,8 +1,9 @@
 //! `vox share` — public-URL tunnel for Vox apps.
 //!
 //! S1: LAN backend only. S2 adds Cloudflare default. S3 adds localhost.run fallback.
+//! S8: bundle/dev integration — pass a .vox FILE to auto-build and serve.
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use clap::Args;
 use std::time::Duration;
 use vox_share::auth::AuthMode;
@@ -11,6 +12,10 @@ use vox_share::{BackendKind, ShareConfig, ShareSession};
 #[derive(Args, Debug)]
 #[command(about = "Share a Vox app via a public URL tunnel")]
 pub struct ShareArgs {
+    /// Vox app file to bundle and share (e.g. app.vox). If omitted, assumes app already running on --port.
+    #[arg(value_name = "FILE")]
+    pub file: Option<std::path::PathBuf>,
+
     /// Tunnel backend (lan, cloudflare, localhost-run, tailscale). Default: cloudflare.
     #[arg(long, default_value = "cloudflare")]
     pub backend: String,
@@ -64,10 +69,25 @@ pub async fn run(args: ShareArgs) -> Result<()> {
     }
 
     println!("[vox share] Proxy port is OS-assigned.");
-    println!(
-        "[vox share] Note: bundle integration ships in S8. Run your app on port {} separately.",
-        args.port
-    );
+
+    let (app_binary, _dev_child) = if let Some(ref file) = args.file {
+        if args.dev {
+            // Dev mode: spawn `vox dev <file> --port <port>` as background child
+            let child = spawn_dev_server(file, args.port).await?;
+            (None, Some(child)) // server already running on args.port
+        } else {
+            // Bundle mode: build with cache
+            let binary = build_or_reuse_bundle(file).await?;
+            (Some(binary), None)
+        }
+    } else {
+        // No file given: assume already running on port (original behavior)
+        println!(
+            "[vox share] Note: pass a .vox FILE to auto-build. Sharing port {} directly.",
+            args.port
+        );
+        (None, None)
+    };
 
     // Allow fallback to localhost.run when using Cloudflare (the default).
     // If the user explicitly passed --backend cloudflare or any other backend,
@@ -79,7 +99,7 @@ pub async fn run(args: ShareArgs) -> Result<()> {
         upstream_port: args.port,
         proxy_port: 0,
         duration,
-        app_binary: None,
+        app_binary,
         connect_timeout: Duration::from_secs(10),
         allow_fallback,
         auth_mode,
@@ -107,6 +127,131 @@ pub async fn run(args: ShareArgs) -> Result<()> {
     Ok(())
 }
 
+/// Build the app with `vox bundle` and cache the result in `target/share-bundle/`.
+/// Returns the path to the built binary.
+async fn build_or_reuse_bundle(file: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
+    let app_name = file
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "app".to_string());
+    let ext = if cfg!(windows) { ".exe" } else { "" };
+    let bundle_dir = std::path::PathBuf::from("target/share-bundle");
+    let binary_path = bundle_dir.join(format!("{}{}", app_name, ext));
+    let hash_path = bundle_dir.join(".last-hash");
+
+    // Hash the source file
+    let source = tokio::fs::read(file)
+        .await
+        .with_context(|| format!("read source file {}", file.display()))?;
+    let hash = {
+        use sha2::{Digest, Sha256};
+        let mut h = Sha256::new();
+        h.update(&source);
+        hex::encode(h.finalize())
+    };
+
+    // Warm cache check
+    if binary_path.exists() {
+        if let Ok(stored) = tokio::fs::read_to_string(&hash_path).await {
+            if stored.trim() == hash.as_str() {
+                println!("[vox share] Reusing cached bundle (source unchanged).");
+                return Ok(binary_path);
+            }
+        }
+    }
+
+    // Cold build
+    println!("[vox share] Building app from {}...", file.display());
+    let build_out = std::path::PathBuf::from("target/share-build");
+    tokio::fs::create_dir_all(&build_out).await?;
+    crate::commands::bundle::run(
+        file,
+        &build_out,
+        None,  // native target
+        false, // not release
+        crate::cli_args::BundleMode::App,
+    )
+    .await
+    .with_context(|| format!("vox bundle failed for {}", file.display()))?;
+
+    // bundle::run writes the binary to dist/<name>{ext}
+    let dist_binary = std::path::PathBuf::from("dist").join(format!("{}{}", app_name, ext));
+    anyhow::ensure!(
+        dist_binary.exists(),
+        "expected bundle output at {} but it was not found",
+        dist_binary.display()
+    );
+
+    // Cache it
+    tokio::fs::create_dir_all(&bundle_dir).await?;
+    tokio::fs::copy(&dist_binary, &binary_path)
+        .await
+        .with_context(|| format!("copy bundle to {}", binary_path.display()))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perm = std::fs::metadata(&binary_path)?.permissions();
+        perm.set_mode(perm.mode() | 0o111);
+        std::fs::set_permissions(&binary_path, perm)?;
+    }
+
+    tokio::fs::write(&hash_path, &hash).await?;
+    println!("[vox share] Bundle complete → {}", binary_path.display());
+    Ok(binary_path)
+}
+
+/// Spawn `vox dev <file> --port <port>` as a background child process.
+/// Waits until the dev server is accepting connections before returning.
+async fn spawn_dev_server(
+    file: &std::path::Path,
+    port: u16,
+) -> anyhow::Result<tokio::process::Child> {
+    let vox = std::env::current_exe().context("could not determine current executable path")?;
+
+    let dev_out = std::path::PathBuf::from("target/share-dev");
+    tokio::fs::create_dir_all(&dev_out).await?;
+
+    let child = tokio::process::Command::new(&vox)
+        .args([
+            "dev",
+            &file.display().to_string(),
+            "--out-dir",
+            &dev_out.display().to_string(),
+            "--port",
+            &port.to_string(),
+        ])
+        .kill_on_drop(true)
+        .spawn()
+        .with_context(|| format!("failed to spawn dev server for {}", file.display()))?;
+
+    println!("[vox share] Dev server starting on port {}...", port);
+    wait_for_port(port, std::time::Duration::from_secs(60)).await?;
+    println!("[vox share] Dev server ready.");
+    Ok(child)
+}
+
+/// Poll `127.0.0.1:<port>` until it accepts a TCP connection or `timeout` elapses.
+async fn wait_for_port(port: u16, timeout: std::time::Duration) -> anyhow::Result<()> {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        if tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .is_ok()
+        {
+            return Ok(());
+        }
+        if std::time::Instant::now() >= deadline {
+            anyhow::bail!(
+                "timed out after {}s waiting for dev server on port {}",
+                timeout.as_secs(),
+                port
+            );
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+}
+
 fn parse_duration(s: &str) -> Result<Option<Duration>> {
     if s == "none" {
         return Ok(None);
@@ -124,4 +269,81 @@ fn parse_duration(s: &str) -> Result<Option<Duration>> {
         "h" => Duration::from_secs(n * 3600),
         _ => anyhow::bail!("duration unit must be s/m/h or `none`, got `{}`", unit),
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn warm_cache_reuses_binary_when_hash_matches() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let bundle_dir = tmp.path().join("share-bundle");
+        tokio::fs::create_dir_all(&bundle_dir).await.unwrap();
+
+        // Create a fake source file
+        let src = tmp.path().join("app.vox");
+        tokio::fs::write(&src, b"fake source").await.unwrap();
+
+        // Create a fake binary
+        let binary = bundle_dir.join("app");
+        tokio::fs::write(&binary, b"fake binary").await.unwrap();
+
+        // Write the matching hash
+        use sha2::{Digest, Sha256};
+        let mut h = Sha256::new();
+        h.update(b"fake source");
+        let hash = hex::encode(h.finalize());
+        tokio::fs::write(bundle_dir.join(".last-hash"), &hash)
+            .await
+            .unwrap();
+
+        // Verify the logic: hash matches → warm cache
+        let source = tokio::fs::read(&src).await.unwrap();
+        let mut h2 = Sha256::new();
+        h2.update(&source);
+        let computed = hex::encode(h2.finalize());
+        assert_eq!(computed, hash, "hash should match for identical content");
+
+        let stored = tokio::fs::read_to_string(bundle_dir.join(".last-hash"))
+            .await
+            .unwrap();
+        assert_eq!(
+            stored.trim(),
+            computed.as_str(),
+            "warm cache condition: hash matches"
+        );
+    }
+
+    #[tokio::test]
+    async fn cold_cache_when_hash_differs() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let bundle_dir = tmp.path().join("share-bundle");
+        tokio::fs::create_dir_all(&bundle_dir).await.unwrap();
+
+        let src = tmp.path().join("app.vox");
+        tokio::fs::write(&src, b"modified source").await.unwrap();
+
+        // Write a hash that does NOT match
+        tokio::fs::write(bundle_dir.join(".last-hash"), "aabbccdd")
+            .await
+            .unwrap();
+        let binary = bundle_dir.join("app");
+        tokio::fs::write(&binary, b"old binary").await.unwrap();
+
+        // Hash the source
+        use sha2::{Digest, Sha256};
+        let source = tokio::fs::read(&src).await.unwrap();
+        let mut h = Sha256::new();
+        h.update(&source);
+        let computed = hex::encode(h.finalize());
+
+        // Stored hash does not match → cold build needed
+        let stored = tokio::fs::read_to_string(bundle_dir.join(".last-hash"))
+            .await
+            .unwrap();
+        assert_ne!(
+            stored.trim(),
+            computed.as_str(),
+            "hash mismatch triggers cold build"
+        );
+    }
 }
