@@ -34,7 +34,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 vox-forge = { path = "../vox-forge", features = ["github", "gitlab"] }
 quick-xml = { version = "0.31", features = ["serialize"] }
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["multipart"] }
 vox-reqwest-defaults = { workspace = true }
 mime_guess = "2.0"
 hex = { workspace = true }

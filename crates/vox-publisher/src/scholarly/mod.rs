@@ -1,11 +1,13 @@
 //! Scholarly repository adapters (Zenodo, OpenReview, local/echo ledger).
 
 mod arxiv_api;
+mod crossref_deposit;
 mod error;
 mod flags;
 mod idempotency;
 mod openreview;
 pub mod orcid_oauth;
+mod osf;
 mod zenodo;
 
 #[cfg(feature = "scholarly-external-jobs")]
@@ -177,6 +179,24 @@ async fn submit_for_adapter_normalized(
         vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => {
             arxiv_api::ArxivAssistAdapter.submit(manifest).await
         }
+        vox_config::scholarly::ScholarlyAdapterKind::Osf => {
+            if flags::scholarly_live_globally_disabled() {
+                return Err(ScholarlyError::Disabled {
+                    reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+                });
+            }
+            let adapter = osf::osf_from_secrets()?;
+            adapter.submit(manifest).await
+        }
+        vox_config::scholarly::ScholarlyAdapterKind::CrossrefDeposit => {
+            if flags::scholarly_live_globally_disabled() {
+                return Err(ScholarlyError::Disabled {
+                    reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+                });
+            }
+            let adapter = crossref_deposit::crossref_from_secrets()?;
+            adapter.submit(manifest).await
+        }
     }
 }
 
@@ -192,6 +212,8 @@ pub async fn submit_with_adapter(
         "openreview" => vox_config::scholarly::ScholarlyAdapterKind::OpenReview,
         "echo_ledger" | "echo" => vox_config::scholarly::ScholarlyAdapterKind::EchoLedger,
         "arxiv_assist" | "arxiv" => vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist,
+        "osf" => vox_config::scholarly::ScholarlyAdapterKind::Osf,
+        "crossref_deposit" | "crossref" => vox_config::scholarly::ScholarlyAdapterKind::CrossrefDeposit,
         _ => vox_config::scholarly::ScholarlyAdapterKind::LocalLedger,
     };
     submit_for_adapter_normalized(manifest, k).await
@@ -249,6 +271,19 @@ pub async fn fetch_status_with_configured_adapter(
             arxiv_api::ArxivAssistAdapter
                 .fetch_status(external_submission_id)
                 .await
+        }
+        vox_config::scholarly::ScholarlyAdapterKind::Osf => {
+            if flags::scholarly_live_globally_disabled() {
+                return Err(ScholarlyError::Disabled {
+                    reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+                });
+            }
+            let adapter = osf::osf_from_secrets()?;
+            adapter.fetch_status(external_submission_id).await
+        }
+        vox_config::scholarly::ScholarlyAdapterKind::CrossrefDeposit => {
+            let adapter = crossref_deposit::crossref_from_secrets()?;
+            adapter.fetch_status(external_submission_id).await
         }
     }
 }

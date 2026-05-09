@@ -16,6 +16,10 @@ pub enum ScholarlyAdapterKind {
     OpenReview,
     /// arXiv assist (staging).
     ArxivAssist,
+    /// OSF (Open Science Framework) REST v2.
+    Osf,
+    /// Crossref DOI deposit (metadata XML via doi.crossref.org).
+    CrossrefDeposit,
 }
 
 #[must_use]
@@ -28,6 +32,8 @@ pub fn scholarly_adapter_from_env() -> ScholarlyAdapterKind {
         Some("openreview") => ScholarlyAdapterKind::OpenReview,
         Some("echo_ledger") | Some("echo") => ScholarlyAdapterKind::EchoLedger,
         Some("arxiv_assist") | Some("arxiv") => ScholarlyAdapterKind::ArxivAssist,
+        Some("osf") => ScholarlyAdapterKind::Osf,
+        Some("crossref_deposit") | Some("crossref") => ScholarlyAdapterKind::CrossrefDeposit,
         Some("local_ledger") | Some("local") | None => ScholarlyAdapterKind::LocalLedger,
         _ => ScholarlyAdapterKind::LocalLedger,
     }
