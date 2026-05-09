@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 use super::docs_sync::{ref_cli_vox_ci_section, ref_cli_vox_codex_section};
 use super::mcp_wiring::{check_mcp_tool_wiring, extract_mcp_handler_tools};
@@ -193,7 +193,7 @@ fn mcp_read_role_governance_profile_matches_registry() {
 #[test]
 fn latin_alias_parity_with_catalog() {
     use super::validators::check_latin_alias_parity_with_catalog;
-    use crate::commands::ci::bounded_read::read_utf8_path_capped;
+    use vox_bounded_fs::read_utf8_path_capped;
 
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
@@ -209,7 +209,7 @@ fn latin_alias_parity_with_catalog() {
 /// This ensures clap correctly routes `vox <latin>` to the same handler as `vox <english>`.
 #[test]
 fn latin_english_alias_declared_in_lib() {
-    use crate::commands::ci::bounded_read::read_utf8_path_capped;
+    use vox_bounded_fs::read_utf8_path_capped;
 
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()

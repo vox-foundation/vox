@@ -33,6 +33,8 @@ Vox persisted data through `vox-db` (`VoxDb` / **Codex**), with related crates (
 ## Consequences
 
 - **Repository tenancy** — MCP and orchestration shard filesystem paths; coordination tables use `repository_id` where applicable (e.g. `a2a_messages`). The `agent_events` table does not currently include `repository_id` on the baseline DDL. Session rows carry tenant context in `agent_sessions.task_snapshot` JSON when MCP sets `SessionConfig::repository_id` in `vox-orchestrator`.
+
+> Nomenclature note (2026-05-08): `vox-pm` was renamed to `vox-package`; references in this ADR are historical.
 - `VoxDb` remains the stable Rust identifier for ABI/compatibility; prefer **Codex** in user-facing text and new modules.
 - Compatibility aliases **`VOX_TURSO_URL`** / **`VOX_TURSO_TOKEN`** map to the same remote resolution as `VOX_DB_URL` / `VOX_DB_TOKEN` in `vox_db::DbConfig::resolve_standalone` (after canonical env, before legacy Turso names).
 - Legacy env vars `TURSO_URL` / `TURSO_AUTH_TOKEN` are **deprecated**; they remain a last-resort shim in `resolve_standalone` alongside `VOX_TURSO_*`.
@@ -46,6 +48,8 @@ Vox persisted data through `vox-db` (`VoxDb` / **Codex**), with related crates (
 - [Codex BaaS scaffolding](../archive/research-2026-q1/codex-baas.md)
 - [Orphan surface inventory](../archive/research-2026-q1/orphan-surface-inventory.md)
 - Crate: `crates/vox-db`, `crates/vox-pm`
+
+> **Nomenclature note (2026-05-08):** `vox-pm` was renamed to `vox-package`; references in this ADR are historical.
 
 ## Status update — 2026-05
 

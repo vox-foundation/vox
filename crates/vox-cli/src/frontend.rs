@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::time::Duration;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use crate::config;
 use crate::fs_utils;
 use crate::templates;

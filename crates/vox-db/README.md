@@ -1,6 +1,6 @@
 # vox-db
 
-High-level database facade for the Vox ecosystem. Wraps `vox-pm::CodeStore` with connection management, retry logic, and transaction support.
+High-level database facade for the Vox ecosystem. Wraps `vox-package::CodeStore` with connection management, retry logic, and transaction support.
 
 ## Connection Modes
 

@@ -15,12 +15,14 @@ humans, CI systems, and the Orchestrator alike.
 
 ```
 crates/
-  vox-compiler/       ← Monolith: Lexer, Parser, AST, HIR, Typeck, Codegen, SSG, Fmt
+  vox-compiler/       ← Lexer, Parser, AST, HIR, Typeck, Fmt
+  vox-codegen/        ← Code generation (TypeScript / JS emit)
+  vox-ssg/            ← Static site generation
   vox-lsp/           ← Language Server (stdio)
-  vox-pm/            ← Package manager (vox add/remove/publish)
+  vox-package/       ← Package manager (vox add/remove/publish)
   vox-runtime/       ← Runtime builtins (hash, stdlib)
-  vox-tensor/        ← Burn-based ML training (feature-gated)
-  vox-toestub/       ← TOESTUB architectural analysis engine
+  vox-tensor/        ← Pure-CPU JSONL data loaders / training-pair types (Burn extracted 2026-05-08)
+  vox-code-audit/    ← TOESTUB architectural analysis engine
   vox-container/     ← Container/OCI build support
   vox-ssg/           ← Static site generation
   vox-eval/          ← Expression evaluator
@@ -43,7 +45,6 @@ crates/
 | `vox stub-check` | TOESTUB scan — **`cargo build -p vox-cli --features stub-check`** (see `docs/src/reference/cli.md`) |
 | `vox review` | AI code review |
 | `vox train` | Orchestrate fine-tuning |
-| `vox train --native` | Burn-based Rust training loop |
 | `vox learn` | Behavioral learning / dogfood export |
 | `vox mens corpus` | Training corpus (extract, validate, pairs, mix, eval) |
 | `vox generate` | LLM code generation |
@@ -74,7 +75,7 @@ crates/
 
 ## TOESTUB Self-Enforcement
 
-Canonical CI/agents path: **`bash scripts/quality/toestub_scoped.sh`** (or `cargo run -p vox-toestub --bin toestub -- <PATH>`).
+Canonical CI/agents path: **`bash scripts/quality/toestub_scoped.sh`** (or `cargo run -p vox-code-audit --bin toestub -- <PATH>`).
 
 With **`cargo build -p vox-cli --features stub-check`**, the same rules are available as:
 

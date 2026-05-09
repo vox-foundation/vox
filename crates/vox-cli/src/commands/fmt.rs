@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 fn parse_errors_lines(errors: &[vox_compiler::parser::ParseError]) -> String {
     errors

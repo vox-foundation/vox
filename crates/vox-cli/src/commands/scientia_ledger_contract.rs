@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow};
 use serde_json::Value as JsonValue;
 
-use super::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// Repo-relative path to finding candidate v1 JSON Schema.
 pub const FINDING_CANDIDATE_SCHEMA_REL: &str =

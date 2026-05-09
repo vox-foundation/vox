@@ -7,7 +7,7 @@
 //! Plain `println!` from subcommands may interleave with JSON lines; the CLI client treats
 //! non-JSON lines as human-readable output.
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use crate::config;
 use crate::dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 use crate::watcher;
@@ -217,7 +217,7 @@ async fn handle_check(req: &DispatchRequest) -> anyhow::Result<()> {
     let p: CheckParams = serde_json::from_value(req.params.clone())
         .context("params must be {{ \"file\": \"...\" }}")?;
 
-    let source = crate::commands::ci::bounded_read::read_utf8_path_capped(&p.file)
+    let source = read_utf8_path_capped(&p.file)
         .with_context(|| format!("Failed to read source file: {}", p.file.display()))?;
 
     let file_path = p.file.to_string_lossy();

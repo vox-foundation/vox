@@ -1,0 +1,17 @@
+[package]
+name = "vox-orchestrator-test-helpers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Test fixtures and mocks for vox-orchestrator. Not for production code."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+vox-orchestrator = { path = "../vox-orchestrator" }
+vox-orchestrator-types = { path = "../vox-orchestrator-types" }

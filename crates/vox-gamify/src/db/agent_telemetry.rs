@@ -1,6 +1,7 @@
 //! Agent events, cost records, sessions, metrics.
 
 use anyhow::Result;
+use turso::params;
 use vox_db::Codex;
 
 /// Persistent record of an agent lifecycle or state-change event.
@@ -27,16 +28,24 @@ pub async fn get_events(
     agent_id: &str,
     limit: Option<i64>,
 ) -> Result<Vec<AgentEventRecord>> {
-    let rows = db.list_gamify_events(agent_id, limit.unwrap_or(50)).await?;
+    let lim = limit.unwrap_or(50);
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT id, agent_id, event_type, payload_json, cli_version, timestamp
+             FROM agent_events WHERE agent_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
+            params![agent_id, lim],
+        )
+        .await?;
     let mut events = Vec::new();
-    for row in rows {
+    while let Some(row) = rows.next().await? {
         events.push(AgentEventRecord {
-            id: row.id,
-            agent_id: row.agent_id.into_string(),
-            event_type: row.event_type,
-            payload: row.payload_json,
-            cli_version: row.cli_version,
-            timestamp: row.timestamp,
+            id: row.get::<i64>(0)?,
+            agent_id: row.get::<String>(1)?,
+            event_type: row.get::<String>(2)?,
+            payload: row.get::<Option<String>>(3).unwrap_or(None),
+            cli_version: row.get::<Option<String>>(4).unwrap_or(None),
+            timestamp: row.get::<String>(5)?,
         });
     }
     Ok(events)
@@ -49,8 +58,29 @@ pub async fn insert_event(
     event_type: &str,
     payload: Option<&str>,
 ) -> Result<()> {
-    db.insert_gamify_event(agent_id, event_type, payload)
-        .await?;
+    let agent_id = agent_id.to_string();
+    let event_type = event_type.to_string();
+    let payload_json = payload.unwrap_or("{}").to_string();
+    let cli_version = env!("CARGO_PKG_VERSION").to_string();
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "INSERT INTO agent_events (agent_id, event_type, payload_json, cli_version, timestamp)
+                 VALUES (?1, ?2, ?3, ?4, datetime('now'))",
+                params![
+                    agent_id.as_str(),
+                    event_type.as_str(),
+                    payload_json.as_str(),
+                    cli_version.as_str(),
+                ],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
 
@@ -119,50 +149,74 @@ pub async fn insert_cost_record(
     output_tokens: i64,
     cost_usd: f64,
 ) -> Result<()> {
-    db.insert_gamify_cost_record(
-        agent_id,
-        session_id,
-        provider,
-        model,
-        input_tokens,
-        output_tokens,
-        cost_usd,
-    )
-    .await?;
+    let agent_id = agent_id.to_string();
+    let session_id = session_id.map(str::to_string);
+    let provider = provider.to_string();
+    let model = model.map(str::to_string);
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "INSERT INTO cost_records (agent_id, session_id, provider, model,
+                 input_tokens, output_tokens, cost_usd)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    agent_id.as_str(),
+                    session_id.as_deref(),
+                    provider.as_str(),
+                    model.as_deref(),
+                    input_tokens,
+                    output_tokens,
+                    cost_usd
+                ],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
 
 /// Get total cost for an agent.
 pub async fn get_agent_cost_usd(db: &Codex, agent_id: &str) -> Result<f64> {
-    Ok(db.get_gamify_agent_cost_usd(agent_id).await?)
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT COALESCE(SUM(cost_usd), 0.0) FROM cost_records WHERE agent_id = ?1",
+            params![agent_id],
+        )
+        .await?;
+    Ok(rows
+        .next()
+        .await?
+        .map(|r| r.get::<f64>(0).unwrap_or(0.0))
+        .unwrap_or(0.0))
 }
 
 /// Get cost records for an agent, most recent first.
 pub async fn list_cost_records(db: &Codex, agent_id: &str, limit: i64) -> Result<Vec<CostRecord>> {
-    let rows = db.list_gamify_cost_records(agent_id, limit).await?;
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT id, agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd, timestamp
+             FROM cost_records WHERE agent_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
+            params![agent_id, limit],
+        )
+        .await?;
     let mut records = Vec::new();
-    for (
-        id,
-        agent_id,
-        session_id,
-        provider,
-        model,
-        input_tokens,
-        output_tokens,
-        cost_usd,
-        timestamp,
-    ) in rows
-    {
+    while let Some(row) = rows.next().await? {
         records.push(CostRecord {
-            id,
-            agent_id,
-            session_id,
-            provider,
-            model,
-            input_tokens,
-            output_tokens,
-            cost_usd,
-            timestamp,
+            id: row.get::<i64>(0)?,
+            agent_id: row.get::<String>(1)?,
+            session_id: row.get::<Option<String>>(2)?,
+            provider: row.get::<String>(3)?,
+            model: row.get::<Option<String>>(4)?,
+            input_tokens: row.get::<i64>(5)?,
+            output_tokens: row.get::<i64>(6)?,
+            cost_usd: row.get::<f64>(7)?,
+            timestamp: row.get::<String>(8)?,
         });
     }
     Ok(records)
@@ -202,7 +256,22 @@ pub async fn insert_agent_session(
     agent_id: &str,
     agent_name: Option<&str>,
 ) -> Result<()> {
-    db.insert_gamify_session(id, agent_id, agent_name).await?;
+    let id = id.to_string();
+    let agent_id = agent_id.to_string();
+    let agent_name = agent_name.map(str::to_string);
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "INSERT OR IGNORE INTO agent_sessions (id, agent_id, agent_name) VALUES (?1, ?2, ?3)",
+                params![id.as_str(), agent_id.as_str(), agent_name.as_deref()],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
 
@@ -214,31 +283,72 @@ pub async fn update_agent_session(
     task_snapshot: Option<&str>,
     context_summary: Option<&str>,
 ) -> Result<()> {
-    db.update_gamify_session(id, status, task_snapshot, context_summary)
-        .await?;
+    let id = id.to_string();
+    let status = status.to_string();
+    let task_snapshot = task_snapshot.map(str::to_string);
+    let context_summary = context_summary.map(str::to_string);
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "UPDATE agent_sessions SET status=?1, task_snapshot=?2, context_summary=?3 WHERE id=?4",
+                params![
+                    status.as_str(),
+                    task_snapshot.as_deref(),
+                    context_summary.as_deref(),
+                    id.as_str(),
+                ],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
 
 /// End a session by setting ended_at and status.
 pub async fn end_agent_session(db: &Codex, id: &str, status: &str) -> Result<()> {
-    db.end_gamify_session(id, status).await?;
+    let id = id.to_string();
+    let status = status.to_string();
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "UPDATE agent_sessions SET status=?1, ended_at=datetime('now') WHERE id=?2",
+                params![status.as_str(), id.as_str()],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
 
 /// Get active sessions.
 pub async fn list_active_sessions(db: &Codex) -> Result<Vec<AgentSessionRecord>> {
-    let rows = db.list_gamify_active_sessions().await?;
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT id, agent_id, agent_name, started_at, ended_at, status, task_snapshot, context_summary
+             FROM agent_sessions WHERE status='active' ORDER BY started_at DESC",
+            (),
+        )
+        .await?;
     let mut sessions = Vec::new();
-    for row in rows {
+    while let Some(row) = rows.next().await? {
         sessions.push(AgentSessionRecord {
-            id: row.0,
-            agent_id: row.1,
-            agent_name: row.2,
-            started_at: row.3,
-            ended_at: row.4,
-            status: row.5,
-            task_snapshot: row.6,
-            context_summary: row.7,
+            id: row.get::<String>(0)?,
+            agent_id: row.get::<String>(1)?,
+            agent_name: row.get::<Option<String>>(2)?,
+            started_at: row.get::<String>(3)?,
+            ended_at: row.get::<Option<String>>(4)?,
+            status: row.get::<String>(5)?,
+            task_snapshot: row.get::<Option<String>>(6)?,
+            context_summary: row.get::<Option<String>>(7)?,
         });
     }
     Ok(sessions)
@@ -252,8 +362,30 @@ pub async fn upsert_agent_metric(
     metric_value: f64,
     period: &str,
 ) -> Result<()> {
-    db.upsert_gamify_agent_metric(agent_id, metric_name, metric_value, period)
-        .await?;
+    let agent_id = agent_id.to_string();
+    let metric_name = metric_name.to_string();
+    let period = period.to_string();
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "INSERT INTO agent_metrics (agent_id, metric_name, metric_value, period)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(agent_id, metric_name, period) DO UPDATE SET
+                   metric_value=excluded.metric_value, timestamp=datetime('now')",
+                params![
+                    agent_id.as_str(),
+                    metric_name.as_str(),
+                    metric_value,
+                    period.as_str(),
+                ],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
 
@@ -263,10 +395,17 @@ pub async fn get_agent_metrics(
     agent_id: &str,
     period: &str,
 ) -> Result<std::collections::HashMap<String, f64>> {
-    let metrics = db.get_gamify_agent_metrics(agent_id, period).await?;
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT metric_name, metric_value FROM agent_metrics
+             WHERE agent_id=?1 AND period=?2",
+            params![agent_id, period],
+        )
+        .await?;
     let mut map = std::collections::HashMap::new();
-    for (name, val) in metrics {
-        map.insert(name, val);
+    while let Some(row) = rows.next().await? {
+        map.insert(row.get::<String>(0)?, row.get::<f64>(1).unwrap_or(0.0));
     }
     Ok(map)
 }

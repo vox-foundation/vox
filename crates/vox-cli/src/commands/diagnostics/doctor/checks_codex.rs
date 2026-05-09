@@ -3,7 +3,7 @@
 use anyhow::Result;
 use tokio::process::Command;
 
-use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
+use vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_async};
 use std::path::Path;
 
 use super::common::Check;

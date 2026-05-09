@@ -1,5 +1,6 @@
 [package]
 name = "vox-grammar-export"
+description = "Exports the Vox grammar artifact for downstream tooling."
 version.workspace = true
 edition.workspace = true
 

@@ -131,10 +131,6 @@
       "role": "MCP server exposing the Vox orchestrator to coding agents",
       "path_pattern": "crates/vox-mcp/**/*.rs"
     },
-    "vox-mcp-meta": {
-      "role": "MCP registries, taxonomy structs, and enums for Corpus/MCP",
-      "path_pattern": "crates/vox-mcp-meta/**/*.rs"
-    },
     "vox-mcp-registry": {
       "role": "Compile-time MCP tool registry from contracts YAML (SSOT)",
       "path_pattern": "crates/vox-mcp-registry/**/*.rs"

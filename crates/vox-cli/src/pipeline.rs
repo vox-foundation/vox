@@ -15,7 +15,7 @@ use vox_compiler::pipeline::PipelineOptions;
 use vox_compiler::typeck::Diagnostic;
 use vox_compiler::typeck::diagnostics::TypeckSeverity;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 fn line_col_for_byte_offset(source: &str, byte_idx: usize) -> (usize, usize) {
     let (l0, c0) = vox_compiler::ast::span::byte_offset_to_line_col_zero_based(source, byte_idx);

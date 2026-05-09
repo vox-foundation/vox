@@ -127,6 +127,23 @@ pub enum AgentMessage {
     },
     /// A structured agent-to-agent message (Integrates A2A into Bulletin).
     A2A(A2AMessage),
+    /// Orchestrator policy escalated an action to HITL (D5+D9).
+    EscalationRequired {
+        session_id: String,
+        grade: String,
+        action_description: String,
+    },
+    /// A sub-agent was dispatched for a subtask (D4).
+    SubAgentDispatched {
+        parent_agent_id: AgentId,
+        child_task_description: String,
+        chain_depth: u32,
+    },
+    /// Agent spawn chain depth exceeded the safety limit (D4).
+    ChainDepthAlert {
+        current_depth: u32,
+        max_depth: u32,
+    },
 }
 
 /// Unique identifier for a message.

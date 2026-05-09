@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 
-use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
+use vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_async};
 use owo_colors::OwoColorize;
 use vox_code_audit::rules::{Language, Severity};
 use vox_code_audit::{Finding, OutputFormat, ToestubConfig, ToestubEngine};

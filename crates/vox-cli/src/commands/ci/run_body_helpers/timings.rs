@@ -4,7 +4,7 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use crate::commands::ci::{cargo_bin, nvcc_available};
 
 #[derive(serde::Serialize)]

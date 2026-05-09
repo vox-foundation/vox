@@ -20,11 +20,11 @@ GitHub Event
     │
     ▼
 sync_command()                          ← vox-cli/.../ludus/sync.rs
-    │  try_claim_processed_event()      ← vox-ludus/src/db/dedupe.rs
-    │  process_event_rewards()          ← vox-ludus/src/db/process_rewards.rs
-    │      apply_policy()               ← vox-ludus/src/reward_policy.rs
-    │      trust_tier_multiplier()      ← [NEW] vox-ludus/src/reward_policy.rs
-    │      insert_policy_snapshot()     ← vox-ludus/src/db/teaching.rs
+    │  try_claim_processed_event()      ← vox-gamify/src/db/dedupe.rs
+    │  process_event_rewards()          ← vox-gamify/src/db/process_rewards.rs
+    │      apply_policy()               ← vox-gamify/src/reward_policy.rs
+    │      trust_tier_multiplier()      ← [NEW] vox-gamify/src/reward_policy.rs
+    │      insert_policy_snapshot()     ← vox-gamify/src/db/teaching.rs
     ▼
 gamify_profiles (VoxDb)                 ← vox-db/store/ops_ludus/gamify_world.rs
     ├── trust_tier   (V21 migration)
@@ -32,24 +32,24 @@ gamify_profiles (VoxDb)                 ← vox-db/store/ops_ludus/gamify_world.
     └── [SUPPRESSED flag]               ← [NEW] V22 migration
 
 Dispute Lifecycle:
-  file_dispute()    → gamify_disputes table      ← [NEW] vox-ludus/src/db/disputes.rs
-  vote_on_dispute() → gamify_dispute_votes table ← [NEW] vox-ludus/src/db/disputes.rs
-  tally_verdict()   → apply/dismiss penalty      ← [NEW] vox-ludus/src/db/disputes.rs
-  appeal_dispute()  → re-opens, escalates        ← [NEW] vox-ludus/src/db/disputes.rs
+  file_dispute()    → gamify_disputes table      ← [NEW] vox-gamify/src/db/disputes.rs
+  vote_on_dispute() → gamify_dispute_votes table ← [NEW] vox-gamify/src/db/disputes.rs
+  tally_verdict()   → apply/dismiss penalty      ← [NEW] vox-gamify/src/db/disputes.rs
+  appeal_dispute()  → re-opens, escalates        ← [NEW] vox-gamify/src/db/disputes.rs
 ```
 
 ### Key Verified Files (do not modify paths)
 
 | Role | Path |
 |---|---|
-| TrustTier enum + LudusProfile | `crates/vox-ludus/src/profile.rs` |
-| Schema migrations | `crates/vox-ludus/src/schema.rs` |
-| DB profile get/upsert | `crates/vox-ludus/src/db/profile.rs` |
-| DB module re-exports | `crates/vox-ludus/src/db/mod.rs` |
-| Reward engine | `crates/vox-ludus/src/db/process_rewards.rs` |
-| Policy engine | `crates/vox-ludus/src/reward_policy.rs` |
-| Deduplication | `crates/vox-ludus/src/db/dedupe.rs` |
-| Snapshot persistence | `crates/vox-ludus/src/db/teaching.rs` |
+| TrustTier enum + LudusProfile | `crates/vox-gamify/src/profile.rs` |
+| Schema migrations | `crates/vox-gamify/src/schema.rs` |
+| DB profile get/upsert | `crates/vox-gamify/src/db/profile.rs` |
+| DB module re-exports | `crates/vox-gamify/src/db/mod.rs` |
+| Reward engine | `crates/vox-gamify/src/db/process_rewards.rs` |
+| Policy engine | `crates/vox-gamify/src/reward_policy.rs` |
+| Deduplication | `crates/vox-gamify/src/db/dedupe.rs` |
+| Snapshot persistence | `crates/vox-gamify/src/db/teaching.rs` |
 | GitHub sync CLI | `crates/vox-cli/src/commands/extras/ludus/sync.rs` |
 | Identity context | `crates/vox-cli/src/commands/extras/ludus/ctx.rs` |
 | Profile CLI commands | `crates/vox-cli/src/commands/extras/ludus/profile.rs` |
@@ -84,7 +84,7 @@ TrustTier::Master  = 3   (community-vouched — NOT YET AUTO-GRANTED)
 
 ### 1.1 V22: Suppression flag on profiles
 
-- [x] MODIFY `crates/vox-ludus/src/schema.rs`:
+- [x] MODIFY `crates/vox-gamify/src/schema.rs`:
   - Add after `SCHEMA_V21` constant:
   ```rust
   pub const SCHEMA_V22: &str = "
@@ -97,7 +97,7 @@ TrustTier::Master  = 3   (community-vouched — NOT YET AUTO-GRANTED)
 
 ### 1.2 V23: Dispute table
 
-- [x] MODIFY `crates/vox-ludus/src/schema.rs`:
+- [x] MODIFY `crates/vox-gamify/src/schema.rs`:
   - Add after `SCHEMA_V22`:
   ```rust
   pub const SCHEMA_V23: &str = "
@@ -124,7 +124,7 @@ TrustTier::Master  = 3   (community-vouched — NOT YET AUTO-GRANTED)
 
 ### 1.3 V24: Dispute votes table
 
-- [x] MODIFY `crates/vox-ludus/src/schema.rs`:
+- [x] MODIFY `crates/vox-gamify/src/schema.rs`:
   - Add after `SCHEMA_V23`:
   ```rust
   pub const SCHEMA_V24: &str = "
@@ -146,7 +146,7 @@ TrustTier::Master  = 3   (community-vouched — NOT YET AUTO-GRANTED)
 
 ### 1.4 V25: Juror pool assignment table
 
-- [x] MODIFY `crates/vox-ludus/src/schema.rs`:
+- [x] MODIFY `crates/vox-gamify/src/schema.rs`:
   - Add after `SCHEMA_V24`:
   ```rust
   pub const SCHEMA_V25: &str = "
@@ -164,19 +164,19 @@ TrustTier::Master  = 3   (community-vouched — NOT YET AUTO-GRANTED)
 
 ### 1.5 Export V22–V25 from lib.rs
 
-- [x] MODIFY `crates/vox-ludus/src/lib.rs`, line ~88-91:
+- [x] MODIFY `crates/vox-gamify/src/lib.rs`, line ~88-91:
   - Extend `pub use schema::{...}` to include `SCHEMA_V19, SCHEMA_V20, SCHEMA_V21, SCHEMA_V22, SCHEMA_V23, SCHEMA_V24, SCHEMA_V25`.
   - Also add `ALL_MIGRATIONS` if not already exported (currently it is NOT in lib.rs re-exports — verify before adding).
 
 ### 1.6 Verify build
 
-- [x] RUN: `cargo check -p vox-ludus`
+- [x] RUN: `cargo check -p vox-gamify`
 
 ---
 
 ## Phase 2 — Database Operations (Dispute CRUD)
 
-**Prerequisite:** Phase 1 complete. In this phase, we add the SQL operations to `vox-db` and the Rust wrappers to `vox-ludus/src/db/`.
+**Prerequisite:** Phase 1 complete. In this phase, we add the SQL operations to `vox-db` and the Rust wrappers to `vox-gamify/src/db/`.
 
 ### 2.1 VoxDb SQL Operations
 
@@ -190,19 +190,19 @@ TrustTier::Master  = 3   (community-vouched — NOT YET AUTO-GRANTED)
 
 ### 2.2 Ludus DB Wrappers
 
-- [x] CREATE `crates/vox-ludus/src/db/disputes.rs`:
+- [x] CREATE `crates/vox-gamify/src/db/disputes.rs`:
   - `file_dispute(db, accused, accuser, evidence)`
   - `cast_vote(db, dispute_id, juror, verdict, rationale)`
   - `assign_jury(db, dispute_id, juror_ids)`
-- [x] MODIFY `crates/vox-ludus/src/db/mod.rs`:
+- [x] MODIFY `crates/vox-gamify/src/db/mod.rs`:
   - `mod disputes;`
   - `pub use disputes::*;`
-- [x] MODIFY `crates/vox-ludus/src/db/profile.rs`:
+- [x] MODIFY `crates/vox-gamify/src/db/profile.rs`:
   - Update `get_profile` and `upsert_profile` to include the new suppression fields.
 
 ### 2.3 Verify Build
 
-- [x] RUN: `cargo check -p vox-ludus`
+- [x] RUN: `cargo check -p vox-gamify`
 
 ---
 
@@ -212,7 +212,7 @@ TrustTier::Master  = 3   (community-vouched — NOT YET AUTO-GRANTED)
 
 ### 3.1 Reward Policy Modifications
 
-- [x] MODIFY `crates/vox-ludus/src/reward_policy.rs`:
+- [x] MODIFY `crates/vox-gamify/src/reward_policy.rs`:
   - Add `pub fn trust_tier_multiplier(tier: TrustTier) -> f64`
     - `Novice` = 0.5
     - `Linked` = 1.0
@@ -223,13 +223,13 @@ TrustTier::Master  = 3   (community-vouched — NOT YET AUTO-GRANTED)
 
 ### 3.2 Reward Processing Hook
 
-- [x] MODIFY `crates/vox-ludus/src/db/process_rewards.rs`:
+- [x] MODIFY `crates/vox-gamify/src/db/process_rewards.rs`:
   - If `profile.reward_suppressed` is true, immediately return `Ok(RouteResult::default())` to skip all rewards for that event.
   - Pass `profile.trust_tier.clone()` into the updated `apply_policy(...)` call.
 
 ### 3.3 Verify Build
 
-- [x] RUN: `cargo check -p vox-ludus`
+- [x] RUN: `cargo check -p vox-gamify`
 
 ---
 

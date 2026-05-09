@@ -14,7 +14,7 @@ use regex::Regex;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 fn url_host_regex() -> &'static Regex {
     static URL_HOST: OnceLock<Regex> = OnceLock::new();

@@ -40,7 +40,15 @@ pub async fn run(
     let (code, valid, errors, warnings, attempts) = if legacy_direct {
         run_legacy_direct(&client, prompt, server_url, validate, retries).await?
     } else {
-        run_via_orchestrator(&client, prompt, validate, retries).await?
+        #[cfg(feature = "mcp-server")]
+        {
+            run_via_orchestrator(&client, prompt, validate, retries).await?
+        }
+        #[cfg(not(feature = "mcp-server"))]
+        {
+            eprintln!("ℹ️  Orchestrator mode requires the mcp-server feature. Falling back to --legacy-direct.");
+            run_legacy_direct(&client, prompt, server_url, validate, retries).await?
+        }
     };
 
     // Print status line
@@ -87,6 +95,7 @@ pub async fn run(
 
 type GenerateOutput = (String, Option<bool>, Vec<String>, Vec<String>, u64);
 
+#[cfg(feature = "mcp-server")]
 async fn run_via_orchestrator(
     client: &reqwest::Client,
     prompt: &str,

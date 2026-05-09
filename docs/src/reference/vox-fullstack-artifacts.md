@@ -17,8 +17,8 @@ This document names **every major output** of `vox build` / `vox run` / `vox bun
 | Layer | Artifact | Role |
 | ----- | -------- | ---- |
 | HTTP API | `target/generated/src/main.rs` (+ `lib.rs`, …) | **Axum** listens on `VOX_PORT` (default 3000). |
-| Browser client for `@server fn` | `dist/api.ts` (or `out_dir/api.ts` from `-o`) | **`fetch` POST** to `/api/<name>`; `API_BASE` is `''`; Vite dev proxy forwards `/api` to Axum. |
-| Typed web client (`vox-client.ts`) | `out_dir/vox-client.ts` (with `@query` / `@mutation` / `@server`) | **`GET`** + JSON query args for `@query`; **`POST`** + JSON body for `@mutation` / `@server` (matches Axum). |
+| Browser client for `@endpoint(kind: server) fn` | `dist/api.ts` (or `out_dir/api.ts` from `-o`) | **`fetch` POST** to `/api/<name>`; `API_BASE` is `''`; Vite dev proxy forwards `/api` to Axum. |
+| Typed web client (`vox-client.ts`) | `out_dir/vox-client.ts` (with `@endpoint(kind: query\|mutation\|server)`) | **`GET`** + JSON query args for `query`; **`POST`** + JSON body for `mutation` / `server` (matches Axum). |
 | Route manifest | `out_dir/routes.manifest.ts` | `voxRoutes` tree for SPA/Start adapters (`routes {` present). |
 | UI | `out_dir/*.tsx`, `out_dir/*.ts` | React components + router shell; SPA scaffold uses manifest when present. |
 | Static HTML shells | `target/generated/public/ssg-shells/**` | From [`vox-ssg`](../../../crates/vox-ssg/src/lib.rs): minimal shells for `routes {` / `@page` (hydration anchor, not a second UI runtime). |
@@ -30,7 +30,7 @@ This document names **every major output** of `vox build` / `vox run` / `vox bun
 
 [`vox-codegen-ts`](../../../crates/vox-compiler/src/codegen_ts/routes.rs) can emit **`server.ts`**, an **Express** app that duplicates `@server` and `http` route registration.
 
-- **Default:** emission is **off** unless **`VOX_EMIT_EXPRESS_SERVER=1`** is set in the environment when running codegen (e.g. `vox build`). The supported client for `@server fn` against Axum is **`api.ts`** from **Rust** codegen ([`emit_api_client`](../../../crates/vox-compiler/src/codegen_rust/emit/mod.rs)).
+- **Default:** emission is **off** unless **`VOX_EMIT_EXPRESS_SERVER=1`** is set in the environment when running codegen (e.g. `vox build`). The supported client for `@endpoint(kind: server) fn` against Axum is **`api.ts`** from **Rust** codegen ([`emit_api_client`](../../../crates/vox-compiler/src/codegen_rust/emit/mod.rs)).
 - **Use case for `VOX_EMIT_EXPRESS_SERVER=1`:** Node-only demos, tests, or containers that intentionally run `npx tsx server.ts` instead of the Rust binary.
 
 ## Container images

@@ -1,5 +1,7 @@
 # Naming & Anti-Entanglement Guards (2026-05-08)
 
+> **Naming note (2026-05-08):** The CI guard binary referenced as `vox-layer-check` in this narration was renamed to `vox-arch-check` later in the same series; references below are historical.
+
 Companion to [2026-05-08-workspace-reorg-outcome.md](./2026-05-08-workspace-reorg-outcome.md).
 The reorg's first half (Phases 0–9) bought build-time wins. This second half
 buys **navigation latency wins for LLM tool calls** and **drift prevention**

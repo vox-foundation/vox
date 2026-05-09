@@ -1,5 +1,6 @@
 [package]
 name = "vox-protocol"
+description = "Daemon wire-protocol pure-data types."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

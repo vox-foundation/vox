@@ -5,8 +5,64 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 08 May 2026 22:59:32 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 09 May 2026 04:12:05 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Where Things Live</title>
+    <link>https://vox-lang.org/architecture/where-things-live.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/where-things-live.html</guid>
+    <description>Where Things Live</description>
+    <pubDate>Sat, 09 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>ADR 004: Codex over Arca over Turso</title>
+    <link>https://vox-lang.org/adr/004-codex-arca-turso-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/004-codex-arca-turso-ssot.html</guid>
+    <description>Official documentation for ADR 004: Codex over Arca over Turso for the Vox language. Detailed technical reference, architecture guides, a</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>ADR 015: Vox Docker/OCI portability SSOT</title>
+    <link>https://vox-lang.org/adr/015-vox-docker-oci-portability-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/015-vox-docker-oci-portability-ssot.html</guid>
+    <description>Formalizes Docker/OCI-backed application portability, layered SSOT boundaries, and the rule against a portability god object.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Codebase Cleanup &amp; Signal Improvement Plan (2026-05-02)</title>
+    <link>https://vox-lang.org/architecture/2026-05-02-codebase-cleanup-and-signal-improvement.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/2026-05-02-codebase-cleanup-and-signal-improvement.html</guid>
+    <description>Six-phase plan to retire stale code, fix broken references, and converge on single sources of truth.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Crate Organization Follow-up — SSOT, Naming, and Sprawl</title>
+    <link>https://vox-lang.org/architecture/2026-05-08-crate-org-followup-design.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/2026-05-08-crate-org-followup-design.html</guid>
+    <description>Follow-up to the 2026-05-08 workspace reorg: closes SSOT/discoverability drift, picks up deferred Phase 3/6/7 extractions, and adds enforcement so the gains…</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Crate Org Follow-up — Implementation Plan</title>
+    <link>https://vox-lang.org/architecture/2026-05-08-crate-org-followup-plan.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/2026-05-08-crate-org-followup-plan.html</guid>
+    <description>Step-by-step plan to land the 6 PRs from 2026-05-08-crate-org-followup-design.md.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>Naming &amp; Anti-Entanglement Guards (2026-05-08)</title>
@@ -45,6 +101,15 @@
   </item>
 
   <item>
+    <title>Autonomous Orchestration Policy — Decision-Rule Research for Agent-to-Agent Behavior Switching (2026)</title>
+    <link>https://vox-lang.org/architecture/autonomous-orchestration-policy-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/autonomous-orchestration-policy-research-2026.html</guid>
+    <description>Research synthesis of when an orchestrator can autonomously change models, switch modes, enter planning, invoke research (Socrates), spawn sub-agents, escalate…</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
     <title>Build-Time Baseline (2026-05-08)</title>
     <link>https://vox-lang.org/architecture/build-time-baseline.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/build-time-baseline.html</guid>
@@ -63,12 +128,22 @@
   </item>
 
   <item>
-    <title>Crate Classification Audit (2026-05-08)</title>
-    <link>https://vox-lang.org/architecture/crate-classification-2026-05-08.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/crate-classification-2026-05-08.html</guid>
-    <description>Classification of every workspace crate as CORE, PLUGIN, SHARED, DEAD, or MISPLACED. Identifies extraction candidates and deletion candidates.</description>
+    <title>Classification Taxonomy SSoT</title>
+    <link>https://vox-lang.org/architecture/classification-ssot-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/classification-ssot-2026.html</guid>
+    <description>Single Source of Truth for Vox component classification and naming conventions.</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Comprehensive Vox audit and improvement plan (April 2026, v2)</title>
+    <link>https://vox-lang.org/architecture/comprehensive-audit-v2-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/comprehensive-audit-v2-2026.html</guid>
+    <description>Full-spectrum audit + ~90 prioritized improvements. Targets the &apos;premier LLM destination for web app code&apos; thesis.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>
@@ -103,6 +178,15 @@
     <link>https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</guid>
     <description>Replaces JSX-shaped view bodies and Tailwind class strings with typed function-call views. No tags, no class strings, no CSS files in user code. Lowers to…</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>ludus-adjudication-implementation-plan-2026</title>
+    <link>https://vox-lang.org/architecture/ludus-adjudication-implementation-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/ludus-adjudication-implementation-plan-2026.html</guid>
+    <description>ludus-adjudication-implementation-plan-2026</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -150,88 +234,6 @@
     <description>Step-by-step implementation plan for Sub-Project 1 of the plugin system redesign: plugin manifest schemas, the vox-plugin-catalog SSOT crate, hand-rolled and…</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Plugin System Redesign — SP2 Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp2-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp2-plan-2026.html</guid>
-    <description>Step-by-step implementation plan for Sub-Project 2: vox-plugin-api shared types, vox-plugin-host loader for both code and skill payloads, dual-payload…</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Plugin System Redesign — SP3 Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp3-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp3-plan-2026.html</guid>
-    <description>Step-by-step implementation plan for Sub-Project 3: define the MlBackend extension-point trait, extract candle-cuda from vox-populi into a standalone…</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Plugin System Redesign — SP4 Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp4-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp4-plan-2026.html</guid>
-    <description>Step-by-step implementation plan for Sub-Project 4: migrate the vox.compiler skill from vox-skills&apos;s compile-time builtins to a standalone skill-payload plugin…</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>vox-container vs WASM Sandbox (2026-05-08)</title>
-    <link>https://vox-lang.org/architecture/vox-container-vs-wasm-2026-05-08.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-container-vs-wasm-2026-05-08.html</guid>
-    <description>Audit of vox-container&apos;s two distinct roles (deployment-codegen vs runtime sandbox) and an evaluation of WASM as a replacement for the runtime path.</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Vox-Populi Extraction Follow-Up Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/vox-populi-extraction-followup-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-populi-extraction-followup-plan-2026.html</guid>
-    <description>Plan for the remaining code-motion work after the plugin system foundation landed. Covers vox-populi mens/tensor residual, vox-populi transport, vox-tensor…</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Where Things Live</title>
-    <link>https://vox-lang.org/architecture/where-things-live.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/where-things-live.html</guid>
-    <description>Where Things Live</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>TOESTUB contributor guide</title>
-    <link>https://vox-lang.org/contributors/toestub-contributor-guide.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/toestub-contributor-guide.html</guid>
-    <description>Rule-by-rule troubleshooting for TOESTUB CI failures, with fix patterns, suppression guidance, and false-positive notes.</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Migrating from Cargo Feature Flags</title>
-    <link>https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</guid>
-    <description>Mapping from `cargo --features` invocations to the runtime plugin system.</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>How-To</category>
-  </item>
-
-  <item>
-    <title>Picking a Vox bundle</title>
-    <link>https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</guid>
-    <description>Decision guide for choosing the right Vox distribution bundle for your use case.</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>How-To</category>
   </item>
 
   <item>

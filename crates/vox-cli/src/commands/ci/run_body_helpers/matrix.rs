@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::cmd_enums::ToestubCiMode;
 use crate::commands::ci::constants::FEATURE_SETS;

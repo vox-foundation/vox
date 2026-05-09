@@ -16,7 +16,7 @@ After **`vox mens train`** / **`vox-schola train`** (Candle QLoRA, default), the
 
 - **`POST /v1/chat/completions`** — OpenAI Chat Completions
 - **`POST /api/chat`** — Ollama-shaped chat (used by MCP `vox-mcp` when the provider is Ollama)
-- **`POST /api/generate`** — Ollama-shaped generate (**required** for **`vox-ludus`** streaming and **`vox-runtime` `PopuliClient::generate`**)
+- **`POST /api/generate`** — Ollama-shaped generate (**required** for **`vox-gamify`** streaming and **`vox-actor-runtime` `PopuliClient::generate`**)
 - **`GET /api/tags`** — model list for probes
 - **`GET /api/version`** — JSON including a **`cuda`** hint when `--device` is CUDA (for capability probes)
 - **`POST /api/embeddings`** — **501** (not implemented; use Ollama.app or another stack for embeddings)

@@ -36,6 +36,8 @@ training_eligible: false
 - [Build-Time Baseline (2026-05-08)](build-time-baseline.md)
 - [Build-Time Log](build-time-log.md)
 - [Comprehensive Vox audit and improvement plan (April 2026, v2)](comprehensive-audit-v2-2026.md)
+- [Crate Org Follow-up — Implementation Plan](2026-05-08-crate-org-followup-plan.md)
+- [Crate Organization Follow-up — SSOT, Naming, and Sprawl](2026-05-08-crate-org-followup-design.md)
 - [Dashboard Migration Research 2026](dashboard-migration-research-2026.md)
 - [Document boundary matrix](planning-meta/11-document-boundary-matrix.md)
 - [Document maintenance protocol](planning-meta/10-document-maintenance-protocol.md)
@@ -99,7 +101,7 @@ training_eligible: false
 ## Status: Research
 
 - [Agent Shell Fluency Eval Design (2026)](agent-shell-fluency-eval-design-2026.md)
-- [Crate Classification Audit (2026-05-08)](crate-classification-2026-05-08.md)
+- [Autonomous Orchestration Policy — Decision-Rule Research for Agent-to-Agent Behavior Switching (2026)](autonomous-orchestration-policy-research-2026.md)
 - [Dead Crate Deep Dive (2026-05-08)](dead-crate-deep-dive-2026-05-08.md)
 - [Dead Crate Fate Plan (2026-05-08)](dead-crate-fate-plan-2026-05-08.md)
 - [Frontend Convergence Findings (2026)](frontend-convergence-findings-2026.md)
@@ -138,5 +140,6 @@ training_eligible: false
 ## Status: Deprecated
 
 - [Burn Framework Necessity Audit (2026-05-08)](burn-necessity-audit-2026-05-08.md)
+- [Crate Classification Audit (2026-05-08)](crate-classification-2026-05-08.md)
 - [Populi Mesh — A2A Durability Spec (S1, 2026-05-01)](populi-mesh-a2a-durability-spec-2026.md)
 

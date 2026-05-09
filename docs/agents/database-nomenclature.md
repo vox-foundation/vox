@@ -18,7 +18,7 @@ last_updated: "2026-03-28"
 | `Codex` | Type alias | `vox-db/src/lib.rs` | `pub type Codex = VoxDb;` — product-facing name |
 | **Arca** | concept | `vox-db/src/schema/` | Schema domains + baseline DDL + digest (internal name) |
 | **Arca spec** | Rust module | `vox-db/src/schema/spec/mod.rs` | Shared DDL strings + `orchestrator_schema_digest()`; appended in `baseline_sql()` |
-| `vox-pm` | crate | `crates/vox-pm` | Package registry / artifacts — **not** the SQL schema SSOT |
+| `vox-package` | crate | `crates/vox-package` | Package registry / artifacts — **not** the SQL schema SSOT |
 
 **Rule:** In Rust code, use `VoxDb` in type signatures. Use **Codex** in user-facing docs. Do not introduce new aliases for the same type.
 
@@ -33,7 +33,7 @@ last_updated: "2026-03-28"
 | CI: `.query_all(` escape hatch on [`VoxDb`](../../crates/vox-db/src/facade/memory.rs) | `vox ci query-all-guard` (diff-scoped; `--all` for full audit) | Transitional paths in [`query-all-allowlist.txt`](./query-all-allowlist.txt); prefer typed `store/ops_*.rs` methods |
 
 > [!CAUTION]
-> Prefer adding a method on `VoxDb` in `store/ops_*.rs` instead of embedding SQL in `vox-ludus`, `vox-mcp`, or `vox-orchestrator`.
+> Prefer adding a method on `VoxDb` in `store/ops_*.rs` instead of embedding SQL in `vox-gamify`, `vox-mcp`, or `vox-orchestrator`.
 
 ## Schema Versioning
 
@@ -109,8 +109,8 @@ Before declaring `pub struct MyFoo { ... }` in any crate, search the repo for an
 
 Key examples:
 
-- `CostRecord`: canonical in `vox-ludus/src/db.rs`; `vox-ludus/src/cost.rs` re-exports it.
-- `CostSummary` in `vox-ludus/cost.rs` vs `vox-orchestrator/usage.rs`: different domains — keep separate.
+- `CostRecord`: canonical in `vox-gamify/src/db.rs`; `vox-gamify/src/cost.rs` re-exports it.
+- `CostSummary` in `vox-gamify/cost.rs` vs `vox-orchestrator/usage.rs`: different domains — keep separate.
 
 ## When to depend on `vox-db-types` vs `vox-db`
 
@@ -121,5 +121,5 @@ Key examples:
 | The `DbAgentId`/`DbSessionId`/etc. newtypes | `vox-db-types` (re-exported from `vox-db`) |
 
 The mechanical lint `vox ci row-serde-lint` enforces that every row type derives
-`Serialize` + `Deserialize`; `vox ci string-id-lint` (report-only) flags new
+`Serialize` + `Deserialize`; `vox ci string-id-lint` (fail-closed) flags
 stringly-typed ID fields where a newtype exists.
