@@ -7,6 +7,7 @@
 
 use std::path::PathBuf;
 
+use crate::git_exec::{GitExec, GitExecError};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
@@ -23,17 +24,10 @@ fn git_cwd(state: &ServerState) -> PathBuf {
 /// Run `git log` to show recent commits.
 pub async fn git_log(state: &ServerState, max_commits: Option<usize>) -> String {
     let n = max_commits.unwrap_or(10).to_string();
-    let output = tokio::process::Command::new("git")
-        .current_dir(git_cwd(state))
-        .args(["log", "--oneline", "-n", &n])
-        .output()
-        .await;
-
-    match output {
-        Ok(o) => {
-            let text = String::from_utf8_lossy(&o.stdout).to_string();
-            ToolResult::ok(text).to_json()
-        }
+    let exec = GitExec::new(git_cwd(state));
+    match exec.run(&["log", "--oneline", "-n", &n]).await {
+        Ok(o) => ToolResult::ok(o.stdout).to_json(),
+        Err(GitExecError::NonZero { stdout, .. }) => ToolResult::ok(stdout).to_json(),
         Err(e) => {
             ToolResult::<String>::err_with_remediation(format!("git log failed: {e}"), REM_GIT_EXEC)
                 .to_json()
