@@ -28,7 +28,7 @@ Vox already coordinates multiple coding agents against shared codebases. Today w
 
 - A read-only git MCP surface ([`crates/vox-orchestrator-mcp/src/git_tools.rs`](../../../crates/vox-orchestrator-mcp/src/git_tools.rs)).
 - A jj-inspired snapshot / oplog / conflict / workspace MCP surface ([`crates/vox-orchestrator-mcp/src/vcs_tools/`](../../../crates/vox-orchestrator-mcp/src/vcs_tools/)).
-- A *banned-command* policy ([`docs/agents/git-concurrency-policy.md`](../agents/git-concurrency-policy.md)) prohibiting `git stash` / `reset --hard` / `clean -fd` / `restore .`.
+- A *banned-command* policy ([`docs/agents/git-concurrency-policy.md`](./git-concurrency-policy.md)) prohibiting `git stash` / `reset --hard` / `clean -fd` / `restore .`.
 - CLI worktree plumbing for code-review chunk PRs ([`crates/vox-cli/src/commands/review/coderabbit/github/reviews/worktree.rs`](../../../crates/vox-cli/src/commands/review/coderabbit/github/reviews/worktree.rs)).
 - A multi-agent replication design (linked above).
 
@@ -189,7 +189,7 @@ Existing surface (read + snapshot + oplog) stays. Add:
 
 The shape mirrors GitHub Agentic Workflows' "safe outputs" pattern but lives inside Vox so it can be audited end-to-end (Clavis for secrets, vox-arch-check for layer rules, `vox.vcs.*` telemetry for outcomes).
 
-Banned-list enforcement (currently markdown in [`docs/agents/git-concurrency-policy.md`](../agents/git-concurrency-policy.md)) graduates to a Rust check: any spawn of `git stash|reset --hard|clean -fd|restore .` from the orchestrator process tree is denied at the [`vox-bounded-fs`](../../../crates/vox-bounded-fs/) / process-primitive layer, not just discouraged in prose.
+Banned-list enforcement (currently markdown in [`docs/agents/git-concurrency-policy.md`](./git-concurrency-policy.md)) graduates to a Rust check: any spawn of `git stash|reset --hard|clean -fd|restore .` from the orchestrator process tree is denied at the [`vox-bounded-fs`](../../../crates/vox-bounded-fs/) / process-primitive layer, not just discouraged in prose.
 
 ### Layer 4 — Dashboard surface
 

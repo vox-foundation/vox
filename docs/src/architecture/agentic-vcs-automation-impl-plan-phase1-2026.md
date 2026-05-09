@@ -46,7 +46,7 @@ These are run by the engineer, not by every step.
 - `cargo run -p vox-arch-check` — must pass after each task that touches `Cargo.toml` or moves code between layers.
 - `cargo run -p vox-doc-pipeline -- --check` — must pass after Task 9.
 
-The plan assumes a workspace clean of unrelated changes. Use a dedicated branch — see [`docs/agents/git-concurrency-policy.md`](../agents/git-concurrency-policy.md) §3.A.
+The plan assumes a workspace clean of unrelated changes. Use a dedicated branch — see [`docs/agents/git-concurrency-policy.md`](./git-concurrency-policy.md) §3.A.
 
 ---
 
