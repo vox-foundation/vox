@@ -1,5 +1,6 @@
 //! Scholarly repository adapters (Zenodo, OpenReview, local/echo ledger).
 
+mod arxiv_api;
 mod error;
 mod flags;
 mod idempotency;
@@ -173,9 +174,9 @@ async fn submit_for_adapter_normalized(
             let adapter = openreview::openreview_adapter_from_env().await?;
             adapter.submit(manifest).await
         }
-        vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => Err(ScholarlyError::Config {
-            message: "arxiv_assist adapter implementation pending in Wave 12".to_string(),
-        }),
+        vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => {
+            arxiv_api::ArxivAssistAdapter.submit(manifest).await
+        }
     }
 }
 
@@ -244,9 +245,11 @@ pub async fn fetch_status_with_configured_adapter(
             let adapter = openreview::openreview_adapter_from_env().await?;
             adapter.fetch_status(external_submission_id).await
         }
-        vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => Err(ScholarlyError::Config {
-            message: "arxiv_assist status polling pending".to_string(),
-        }),
+        vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => {
+            arxiv_api::ArxivAssistAdapter
+                .fetch_status(external_submission_id)
+                .await
+        }
     }
 }
 
@@ -288,9 +291,14 @@ pub async fn fetch_scholarly_remote_status_for_adapter(
         let o = openreview::openreview_adapter_from_env().await?;
         return o.fetch_status(external_submission_id).await;
     }
+    if kind.eq_ignore_ascii_case("arxiv_assist") || kind.eq_ignore_ascii_case("arxiv") {
+        return arxiv_api::ArxivAssistAdapter
+            .fetch_status(external_submission_id)
+            .await;
+    }
     Err(ScholarlyError::Config {
         message: format!(
-            "unsupported scholarly adapter for remote status: {kind:?} (supported: local_ledger, echo_ledger, zenodo, openreview)"
+            "unsupported scholarly adapter for remote status: {kind:?} (supported: local_ledger, echo_ledger, zenodo, openreview, arxiv_assist)"
         ),
     })
 }
