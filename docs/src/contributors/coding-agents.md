@@ -32,6 +32,7 @@ Quick-reference for AI agents operating on the Vox codebase. Deep rationale live
 | No hollow functions | No trivially-default returns | `skeleton/hollow-fn` |
 | No hardcoded secrets | Use vox-secrets | `security/hardcoded-secret` |
 | No CRLF line endings | LF only | `cross-platform/crlf` |
+| `pub fn` in golden `.vox` must have a test | `@test` block referencing the fn | `skeleton/no-test-for-pub-fn` |
 
 Full fix guide: [TOESTUB contributor guide](toestub-contributor-guide.md).
 Policy SSOT: [Architectural governance](../../agents/governance.md).
@@ -60,13 +61,46 @@ cargo run -p vox-cli -- ci line-endings
 
 Full 9-tier model: [`vox_agentic_loop_and_mens_plan.md`](../archive/research-2026-q1/vox_agentic_loop_and_mens_plan.md) §9-Tier Victory Conditions.
 
+## Task brief format: failing test first
+
+When assigning a task to an AI agent — or starting a task yourself — express the requirement as a **failing test before any implementation brief**. This is the most unambiguous spec format available:
+
+**For Rust changes:**
+```rust
+#[test]
+fn share_tunnel_url_includes_port() {
+    let url = TunnelUrl::new("localhost", 7700);
+    assert_eq!(url.to_string(), "vox://localhost:7700");
+}
+// impl TunnelUrl does NOT exist yet — the test is the spec
+```
+
+**For Vox golden examples:**
+```vox
+// vox:skip
+@test
+fn greet_returns_full_name() {
+    let result = greet("Ada", "Lovelace");
+    assert result == "Hello, Ada Lovelace";
+}
+// fn greet does NOT exist yet — write it until this passes
+```
+
+Paste the failing test as the first content of any implementation request. Benefits:
+- Eliminates ambiguity about inputs, outputs, and edge cases.
+- Acts as an automated linter on AI-generated output — code that doesn't pass the test is wrong, regardless of how plausible it looks.
+- Keeps the agent in a verifiable loop: write → run → diagnose → fix.
+- Test-covered implementation enters the MENS corpus as a higher-quality positive example.
+
+When a task cannot be expressed as a failing test (e.g., pure doc updates, config tweaks), state that explicitly rather than skipping the check silently.
+
 ## Corpus quality signal
 
 Your code changes feed the MENS training pipeline. Stub-free, test-covered,
 parse-passing contributions become positive training examples. Stubs and parse
 failures become negative examples — the model learns to avoid those patterns.
 
-See [contribution loop](contribution-loop.md) for the full flywheel.
+See [contribution loop](contribution-loop.md) for the full flywheel and the @test-first gate.
 
 ## Panic prevention (do not shortcut)
 
