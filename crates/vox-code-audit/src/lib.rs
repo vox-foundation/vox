@@ -9,6 +9,9 @@
 //! Public modules and re-exports are intentionally thin; each detector/rule is documented in its
 //! own file where non-obvious heuristics exist.
 
+pub(crate) mod embedded_rules;
+pub(crate) mod rule_pack_bridge;
+
 /// Optional LLM-backed triage: wraps provider-specific clients behind a small `AiAnalyzer` API.
 pub mod ai_analyze;
 /// Token maps, optional `syn` AST, and other shared analysis for detectors.

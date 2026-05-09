@@ -11074,6 +11074,7 @@ dependencies = [
  "vox-jsonschema-util",
  "vox-orchestrator-types",
  "vox-reqwest-defaults",
+ "vox-rule-pack",
  "vox-scaling-policy",
  "vox-secrets",
  "walkdir",
@@ -12377,6 +12378,20 @@ name = "vox-reqwest-defaults"
 version = "0.5.0"
 dependencies = [
  "reqwest 0.12.28",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-rule-pack"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 1.0.69",
  "workspace-hack",
 ]
 
