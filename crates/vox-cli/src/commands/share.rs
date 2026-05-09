@@ -81,7 +81,11 @@ pub async fn run(args: ShareArgs) -> Result<()> {
             (Some(binary), None)
         }
     } else {
-        // No file given: assume already running on port (original behavior)
+        if args.dev {
+            anyhow::bail!("`--dev` requires a FILE argument — pass the .vox file to develop: vox share --dev app.vox");
+        }
+        // No file given: assume the app is already running on --port (pre-S8 behavior).
+        // TODO: resolve `target/` paths relative to workspace root, not cwd
         println!(
             "[vox share] Note: pass a .vox FILE to auto-build. Sharing port {} directly.",
             args.port
@@ -135,6 +139,7 @@ async fn build_or_reuse_bundle(file: &std::path::Path) -> anyhow::Result<std::pa
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| "app".to_string());
     let ext = if cfg!(windows) { ".exe" } else { "" };
+    // TODO: anchor to workspace root rather than cwd when multi-crate workspace support needed
     let bundle_dir = std::path::PathBuf::from("target/share-bundle");
     let binary_path = bundle_dir.join(format!("{}{}", app_name, ext));
     let hash_path = bundle_dir.join(".last-hash");
