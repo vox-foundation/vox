@@ -14,6 +14,10 @@
 pub mod circuit;
 pub use circuit::CircuitState;
 
+/// Workspace-journey store mode enum (`WorkspaceJourneyStoreMode`).
+pub mod workspace_journey;
+pub use workspace_journey::WorkspaceJourneyStoreMode;
+
 /// Execution time telemetry types (`ExecOutcome`, `ExecTimeRecord`, `ToolLatencyProfile`).
 pub mod exec_time;
 pub use exec_time::{ExecOutcome, ExecTimeRecord, ToolLatencyProfile};

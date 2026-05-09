@@ -15,14 +15,7 @@ use crate::VoxDb;
 use crate::connect_canonical_optional;
 use crate::project_store::open_project_db_at_root;
 
-/// How repo-backed interactive surfaces resolve their primary [`VoxDb`] handle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WorkspaceJourneyStoreMode {
-    /// `.vox/store.db` under [`vox_repository::RepositoryContext::root`].
-    Project,
-    /// [`crate::DbConfig::resolve_canonical`] (user-global or `VOX_DB_URL`).
-    Canonical,
-}
+pub use vox_db_types::WorkspaceJourneyStoreMode;
 
 /// Read `VOX_WORKSPACE_JOURNEY_STORE`: `project` (default) or `canonical`.
 #[must_use]

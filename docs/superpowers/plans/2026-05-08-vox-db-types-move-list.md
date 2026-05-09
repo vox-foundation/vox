@@ -70,7 +70,7 @@ which `vox-db-types` already has.
 - [ ] `TrustRollupGroupSummary` — `crates/vox-db/src/trust_telemetry.rs:10` — counts + means.
 - [ ] `TrustObservationInput<'a>` — `crates/vox-db/src/trust_telemetry.rs:27` — borrowed-string params struct (mirrors other `*Params` already in vox-db-types). Has a `with_defaults` constructor — pure constant init, no deps.
 - [ ] `TrustObservationEntry` — `crates/vox-db/src/trust_telemetry.rs:47` — owned-string row entry (sister of types already in vox-db-types).
-- [ ] `WorkspaceJourneyStoreMode` — `crates/vox-db/src/workspace_journey_store.rs:20` — two-variant enum.
+- [x] `WorkspaceJourneyStoreMode` — `crates/vox-db/src/workspace_journey_store.rs:20` — two-variant enum.
 - [ ] `BuildHealthSummary` — `crates/vox-db/src/store/ops_build.rs:19` — counts + `Vec<CrateSample>`. Move with `CrateSample`.
 - [ ] `CrateSample` — `crates/vox-db/src/store/ops_build.rs:36` — `String`/`Option<i64>`/`Option<String>`.
 - [ ] `RegressionRow` — `crates/vox-db/src/store/ops_build.rs:47` — pure data (`String`/`i64`/`f64`/`Option<String>`).
