@@ -6,6 +6,12 @@ use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 use super::matrix::visit_rs_files;
 
+/// Crates whose entire path is implicitly allowlisted for direct turso usage.
+/// Used by both [`load_turso_import_allowlist`] and the
+/// `crate::commands::ci::policy_allowlist_parity` CI check (re-exported via
+/// `run_body_helpers::TURSO_BUILTIN_CRATES`).
+pub(crate) const TURSO_BUILTIN_CRATES: &[&str] = &["vox-db", "vox-package", "vox-compiler"];
+
 pub(crate) fn run_repo_guards(root: &Path) -> Result<()> {
     guard_no_typevar_zero(root)?;
     guard_no_open_code_refs(root)?;
@@ -139,11 +145,10 @@ pub(crate) fn source_contains_turso_path_prefix(text: &str) -> bool {
 }
 
 fn load_turso_import_allowlist(root: &Path) -> Result<Vec<String>> {
-    let mut out = vec![
-        "crates/vox-db/".to_string(),
-        "crates/vox-package/".to_string(),
-        "crates/vox-compiler/".to_string(),
-    ];
+    let mut out: Vec<String> = TURSO_BUILTIN_CRATES
+        .iter()
+        .map(|name| format!("crates/{name}/"))
+        .collect();
     let p = root.join("docs/agents/turso-import-allowlist.txt");
     if p.is_file() {
         let text = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;

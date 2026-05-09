@@ -12,7 +12,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-const BUILTIN_PREFIXES: &[&str] = &["vox-db", "vox-package", "vox-compiler"];
+use super::run_body::run_body_helpers::TURSO_BUILTIN_CRATES;
 
 #[derive(Debug, Deserialize)]
 struct Policy {
@@ -36,7 +36,12 @@ pub fn run(root: &Path) -> Result<()> {
     let policy_path = root.join("contracts/db/data-storage-policy.v1.yaml");
     let yaml = fs::read_to_string(&policy_path)
         .with_context(|| format!("read {}", policy_path.display()))?;
-    let policy: Policy = serde_yaml::from_str(&yaml).context("parse data-storage policy")?;
+    let policy: Policy = serde_yaml::from_str(&yaml).with_context(|| {
+        format!(
+            "parse data-storage policy at {} (expected `tiers.a_relational.{{allow_direct_access, temporary_exceptions}}`)",
+            policy_path.display()
+        )
+    })?;
 
     let allowlist_path = root.join("docs/agents/turso-import-allowlist.txt");
     let allowlist_text = fs::read_to_string(&allowlist_path)
@@ -65,7 +70,7 @@ pub fn run(root: &Path) -> Result<()> {
     let mut missing: Vec<String> = Vec::new();
     let mut warnings: Vec<String> = Vec::new();
     for c in &policy_crates {
-        if BUILTIN_PREFIXES.contains(&c.as_str()) {
+        if TURSO_BUILTIN_CRATES.contains(&c.as_str()) {
             continue;
         }
         if !crates_dir.join(c).is_dir() {
