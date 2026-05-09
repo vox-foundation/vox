@@ -1,7 +1,7 @@
 ---
 title: "Workspace Reorg — Build-Time + Layered Architecture (2026-05-08)"
 description: "Design document for the 2026-05-08 workspace reorg: build-time wins, layered architecture, and phase plan."
-category: "Architecture SSOTs"
+category: "architecture"
 status: "current"
 training_eligible: false
 ---

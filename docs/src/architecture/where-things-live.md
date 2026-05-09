@@ -1,7 +1,7 @@
 ---
 title: "Where Things Live"
 description: "Flat lookup table — concept to crate. Consult before adding code. Referenced by AGENTS.md and CLAUDE.md."
-category: "Architecture SSOTs"
+category: "architecture"
 status: "current"
 training_eligible: true
 training_rationale: "Canonical concept-to-crate lookup; high-value for LLM navigation of the Vox workspace."

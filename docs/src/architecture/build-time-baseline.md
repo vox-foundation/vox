@@ -1,7 +1,7 @@
 ---
 title: "Build-Time Baseline (2026-05-08)"
 description: "Phase 0 build-time measurements for the 2026-05-08 workspace reorg."
-category: "Architecture SSOTs"
+category: "architecture"
 status: "current"
 training_eligible: false
 ---
