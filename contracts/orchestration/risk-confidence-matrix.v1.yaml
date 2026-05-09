@@ -1,5 +1,29 @@
 # contracts/orchestration/risk-confidence-matrix.v1.yaml
-# SCAFFOLD — filled by Phase 6 execution.
+# Four-dimension risk scorer + HITL escalation matrix for D5+D9.
+# Mirrored by `crates/vox-orchestrator/src/risk_matrix.rs::RiskMatrixConfig::default`.
 version: 1
 description: "Four-dimension risk scorer and HITL escalation matrix (D5 + D9)"
-# See docs/superpowers/plans/2026-05-08-orchestrator-phase-6-risk-matrix-hitl.md Task 1
+
+# Composite score = sum(dim_i * weight_i), clamped to [0, 1].
+weights:
+  irreversibility: 0.35
+  blast_radius: 0.30
+  compliance_exposure: 0.20
+  confidence_deficit: 0.15
+
+# Score-based grade thresholds (in descending order; first match wins).
+grade_thresholds:
+  critical: 0.75
+  high: 0.50
+  medium: 0.25
+  # below medium = Low
+
+# Any single dimension at or above this forces Critical regardless of composite.
+hard_critical_dimension: 0.90
+
+# Grade -> HITL action mapping.
+hitl_actions:
+  low: proceed
+  medium: warn-context
+  high: escalate
+  critical: block-and-escalate

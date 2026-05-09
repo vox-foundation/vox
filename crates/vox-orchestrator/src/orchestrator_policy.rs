@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::budget_gate::{BudgetDecision, BudgetGateConfig, OrchestratorBudgetGate};
 use crate::cache_predictor::{CachePrediction, CachePredictor, CachePredictorConfig, CacheSignal};
-use crate::calibration::{CalibrationConfig, CalibrationLoop, CalibrationOutcome};
+use crate::calibration::{CalibrationConfig, CalibrationLoop};
 use crate::circuit_breaker::{AlarmTier, CircuitBreaker, CircuitBreakerConfig, CircuitBreakerState, TripReason};
 use crate::compaction_trigger::{CompactionTrigger, CompactionTriggerConfig};
 use crate::compaction::CompactionStrategy;
@@ -222,7 +222,7 @@ impl OrchestratorPolicy {
         let dispatch_decision = self.dispatch.route(&dispatch_sig);
 
         // D10 — calibration (record fusion score for drift tracking)
-        self.calibration.observe(fusion_score);
+        let _ = self.calibration.observe(fusion_score);
 
         PolicyDecision {
             circuit_trip,

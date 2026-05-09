@@ -342,3 +342,10 @@ pub use vox_search::{HybridSearchHit, MemorySearchEngine};
 
 pub use usage::LlmUsageKey;
 pub use workspace::{AgentWorkspace, ChangeId, ChangeStatus, WorkspaceManager};
+
+// ── Orchestrator policy (D1–D10) re-exports ───────────────────────────────────
+// Single ergonomic surface for the autonomous orchestration policy program.
+// See `docs/superpowers/plans/2026-05-08-orchestrator-master-plan.md`.
+pub use orchestrator_policy::{
+    OrchestratorPolicy, OrchestratorPolicyConfig, PolicyContext, PolicyDecision,
+};

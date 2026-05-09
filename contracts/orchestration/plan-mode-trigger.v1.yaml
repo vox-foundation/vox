@@ -1,5 +1,12 @@
 # contracts/orchestration/plan-mode-trigger.v1.yaml
-# SCAFFOLD — filled by Phase 5 execution.
+# Plan-mode vs ReAct decision thresholds for D2.
+# Mirrored by `crates/vox-orchestrator/src/planning/plan_mode_trigger.rs::PlanModeTriggerConfig::default`.
 version: 1
 description: "Plan-mode vs. ReAct mode decision trigger (D2)"
-# See docs/superpowers/plans/2026-05-08-orchestrator-phase-5-plan-mode-trigger.md Task 1
+
+# Any signal at or above its threshold selects PlanAndExecute; otherwise React.
+thresholds:
+  complexity: 6
+  dependency_count: 3
+  tool_hint_count: 4
+  prior_adequacy_score: 0.60  # below this triggers PlanAndExecute
