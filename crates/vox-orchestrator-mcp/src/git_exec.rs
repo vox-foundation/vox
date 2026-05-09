@@ -28,10 +28,18 @@ pub enum GitExecError {
     NonZero { code: i32, stdout: String, stderr: String },
 }
 
-/// Each entry is a *prefix* of args that, if matched in order, denies the call.
-/// The check is performed against the full `args` slice — a banned prefix that
-/// appears in the *middle* of args (because of an earlier `-c key=val` etc.)
-/// also denies. See `is_banned` for the matching rule.
+/// Each entry is a contiguous arg-vector window that, if matched **exactly**
+/// anywhere in `args`, denies the call. This is positional exact-match — NOT
+/// flag-prefix match. `["clean", "-f"]` does not subsume `["clean", "-fd"]`;
+/// each variant must be listed explicitly. The window-match (rather than
+/// strict-prefix) lets us catch banned subcommands that follow leading
+/// `-c key=val` configuration overrides. See `is_banned` for the matcher.
+///
+/// Phase 2 will add an arch-check rule covering `Command::new("git")`
+/// outside `git_exec.rs`, which removes the need to enumerate every
+/// destructive variant here. Until then, additions to this list should
+/// also include the `-ffd` / permuted-flag forms when the bypass risk is
+/// real.
 const BANNED_PREFIXES: &[&[&str]] = &[
     &["stash"],
     &["reset", "--hard"],
@@ -76,7 +84,7 @@ impl GitExec {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let code = output.status.code().unwrap_or(-1);
         let elapsed_ms = started.elapsed().as_millis() as u64;
-        tracing::info!(
+        tracing::debug!(
             target: "vox.vcs.exec",
             args = ?args,
             cwd = %self.cwd.display(),
