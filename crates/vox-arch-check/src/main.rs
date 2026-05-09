@@ -1,6 +1,6 @@
 //! Architecture check: enforces workspace-wide structural rules.
 //!
-//! Reads `docs/src/architecture/layers.toml` and runs five rules over the
+//! Reads `docs/src/architecture/layers.toml` and runs seven rules over the
 //! current `cargo metadata` snapshot:
 //!
 //!   1. **Layer ordering** (strict by default) — a crate at layer N may depend
@@ -11,15 +11,19 @@
 //!   3. **LoC budget** (warn) — `wc -l` over `src/**/*.rs` vs. `max_loc`.
 //!   4. **Orphan detector** (warn) — flags crates with 0 in-tree consumers
 //!      AND `kind != "plugin" | "binary" | "test-only"`.
-//!   5. **Docstring lint** (warn) — flags `lib.rs` files that don't open
-//!      with `//!`.
+//!   5. **Docstring lint** (strict for L0-L2, warn for L3+) — flags `lib.rs`
+//!      files that don't open with `//!`.
+//!   6. **Description present** (warn) — flags L1+ library crates with no
+//!      Cargo.toml `description` or one shorter than 40 characters.
+//!   7. **Where-things-live coverage** (warn) — flags workspace members not
+//!      listed in `docs/src/architecture/where-things-live.md`.
 //!
 //! Layer ordering is the only rule that fails the build by default; the other
-//! four are warn-only. Per-rule strictness can be set via `[guards]` in
+//! six are warn-only. Per-rule strictness can be set via `[guards]` in
 //! `layers.toml`.
 //!
 //! Modes:
-//!   default        — strict layer-ordering; warn-only on the other four
+//!   default        — strict layer-ordering; warn-only on the other six
 //!   --warn-only    — warn on layer-ordering too (used during transition phases)
 //!
 //! Exit codes:
@@ -77,6 +81,10 @@ struct GuardsConfig {
     orphan: Option<String>,
     #[serde(default)]
     docstring: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    where_things_live: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -104,13 +112,18 @@ struct Report {
     fan_in_warns: Vec<(String, usize, usize)>,
     loc_warns: Vec<(String, usize, usize)>,
     orphan_warns: Vec<String>,
-    docstring_warns: Vec<String>,
+    /// Docstring findings split by strictness: (name, strict)
+    docstring_warns: Vec<(String, bool)>,
+    description_warns: Vec<String>,
+    where_things_live_warns: Vec<String>,
     /// Whether each rule's failure should be treated as strict (vs. warn-only).
     strict_layer: bool,
     strict_fan_in: bool,
     strict_loc: bool,
     strict_orphan: bool,
     strict_docstring: bool,
+    strict_description: bool,
+    strict_where_things_live: bool,
 }
 
 impl Report {
@@ -119,7 +132,12 @@ impl Report {
             || (self.strict_fan_in && !self.fan_in_warns.is_empty())
             || (self.strict_loc && !self.loc_warns.is_empty())
             || (self.strict_orphan && !self.orphan_warns.is_empty())
-            || (self.strict_docstring && !self.docstring_warns.is_empty())
+            || self
+                .docstring_warns
+                .iter()
+                .any(|(_, strict)| *strict)
+            || (self.strict_description && !self.description_warns.is_empty())
+            || (self.strict_where_things_live && !self.where_things_live_warns.is_empty())
     }
 
     fn print_summary(&self) {
@@ -162,19 +180,64 @@ impl Report {
                 eprintln!("  {name}");
             }
         }
-        if !self.docstring_warns.is_empty() {
+        // Docstring: split strict vs. warn findings for display
+        let docstring_strict: Vec<&str> = self
+            .docstring_warns
+            .iter()
+            .filter(|(_, s)| *s)
+            .map(|(n, _)| n.as_str())
+            .collect();
+        let docstring_warn: Vec<&str> = self
+            .docstring_warns
+            .iter()
+            .filter(|(_, s)| !*s)
+            .map(|(n, _)| n.as_str())
+            .collect();
+        if !docstring_strict.is_empty() {
             any = true;
-            let label = if self.strict_docstring {
+            eprintln!(
+                "[ERROR] lib.rs without `//!` opening docstring — L0-L2 (strict) ({}):",
+                docstring_strict.len()
+            );
+            for name in &docstring_strict {
+                eprintln!("  {name}");
+            }
+        }
+        if !docstring_warn.is_empty() {
+            any = true;
+            let label = if self.strict_docstring { "ERROR" } else { "warn" };
+            eprintln!(
+                "[{label}] lib.rs without `//!` opening docstring — L3+ ({}):",
+                docstring_warn.len()
+            );
+            for name in &docstring_warn {
+                eprintln!("  {name}");
+            }
+        }
+        if !self.description_warns.is_empty() {
+            any = true;
+            let label = if self.strict_description { "ERROR" } else { "warn" };
+            eprintln!(
+                "[{label}] Cargo.toml description missing or too short ({}):",
+                self.description_warns.len()
+            );
+            for msg in &self.description_warns {
+                eprintln!("  {msg}");
+            }
+        }
+        if !self.where_things_live_warns.is_empty() {
+            any = true;
+            let label = if self.strict_where_things_live {
                 "ERROR"
             } else {
                 "warn"
             };
             eprintln!(
-                "[{label}] lib.rs without `//!` opening docstring ({}):",
-                self.docstring_warns.len()
+                "[{label}] crates not listed in where-things-live.md ({}):",
+                self.where_things_live_warns.len()
             );
-            for name in &self.docstring_warns {
-                eprintln!("  {name}");
+            for msg in &self.where_things_live_warns {
+                eprintln!("  {msg}");
             }
         }
         if !any {
@@ -223,6 +286,9 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     report.strict_loc = parse_strictness(layers.guards.loc_budget.as_ref(), false);
     report.strict_orphan = parse_strictness(layers.guards.orphan.as_ref(), false);
     report.strict_docstring = parse_strictness(layers.guards.docstring.as_ref(), false);
+    report.strict_description = parse_strictness(layers.guards.description.as_ref(), false);
+    report.strict_where_things_live =
+        parse_strictness(layers.guards.where_things_live.as_ref(), false);
 
     // ── Rule 1: Layer ordering + Rule 2: Fan-in (single pass) ──
     let mut dependent_count: HashMap<String, usize> = HashMap::new();
@@ -318,9 +384,13 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     }
     report.orphan_warns.sort();
 
-    // ── Rule 5: Docstring lint ──
+    // ── Rule 5: Docstring lint (strict for L0-L2, warn for L3+) ──
     for pkg in metadata_full.workspace_packages() {
         let name = pkg.name.as_str();
+        let layer = match layers.crates.get(name) {
+            Some(e) => e.layer,
+            None => continue,
+        };
         let manifest_dir = Path::new(pkg.manifest_path.as_str())
             .parent()
             .unwrap_or(Path::new("."));
@@ -337,12 +407,95 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             .find(|l| !l.trim().is_empty())
             .unwrap_or("");
         if !first_nonempty.trim_start().starts_with("//!") {
-            report.docstring_warns.push(name.to_string());
+            // L0-L2: strict (always fail); L3+: governed by strict_docstring guard
+            let is_strict = layer <= 2;
+            report.docstring_warns.push((name.to_string(), is_strict));
         }
     }
-    report.docstring_warns.sort();
+    report.docstring_warns.sort_by(|a, b| a.0.cmp(&b.0));
+
+    // ── Rule 6: Description present ──
+    report.description_warns =
+        check_description_present(&metadata_full, &layers);
+
+    // ── Rule 7: Where-things-live coverage ──
+    report.where_things_live_warns =
+        check_where_things_live_coverage(&metadata_full, &layers, &workspace_root)
+            .unwrap_or_else(|e| {
+                eprintln!("warn: where-things-live check skipped: {e:#}");
+                Vec::new()
+            });
 
     Ok(report)
+}
+
+/// Warn (or fail) if a workspace member at L1+ has no `description` field
+/// in its Cargo.toml or has one shorter than 40 characters. Binary-only
+/// crates (`kind = "binary"`) and `workspace-hack` are exempt.
+fn check_description_present(
+    meta: &cargo_metadata::Metadata,
+    cfg: &LayersConfig,
+) -> Vec<String> {
+    let mut findings = Vec::new();
+    let workspace_ids: HashSet<&cargo_metadata::PackageId> =
+        meta.workspace_members.iter().collect();
+    for pkg in meta.packages.iter().filter(|p| workspace_ids.contains(&p.id)) {
+        let name = pkg.name.as_str();
+        let Some(entry) = cfg.crates.get(name) else {
+            continue;
+        };
+        if entry.layer < 1 {
+            continue;
+        }
+        if entry.kind == "binary" {
+            continue;
+        }
+        if name == "workspace-hack" {
+            continue;
+        }
+        let desc = pkg.description.as_deref().unwrap_or("");
+        if desc.len() < 40 {
+            findings.push(format!(
+                "{}: Cargo.toml description is missing or shorter than 40 chars (\"{}\")",
+                name, desc,
+            ));
+        }
+    }
+    findings.sort();
+    findings
+}
+
+/// Warn if a workspace member is not mentioned in
+/// `docs/src/architecture/where-things-live.md`.
+fn check_where_things_live_coverage(
+    meta: &cargo_metadata::Metadata,
+    cfg: &LayersConfig,
+    repo_root: &std::path::Path,
+) -> anyhow::Result<Vec<String>> {
+    let path = repo_root.join("docs/src/architecture/where-things-live.md");
+    let body = std::fs::read_to_string(&path)
+        .with_context(|| format!("read {}", path.display()))?;
+    let mut findings = Vec::new();
+    let workspace_ids: HashSet<&cargo_metadata::PackageId> =
+        meta.workspace_members.iter().collect();
+    for pkg in meta.packages.iter().filter(|p| workspace_ids.contains(&p.id)) {
+        let name = pkg.name.as_str();
+        if !cfg.crates.contains_key(name) {
+            continue;
+        }
+        if name == "workspace-hack" {
+            continue;
+        }
+        let needle = format!("crates/{}/", name);
+        if !body.contains(&needle) {
+            findings.push(format!(
+                "{}: not listed in where-things-live.md (no `{}` substring)",
+                name, needle,
+            ));
+        }
+    }
+    findings.sort();
+    Ok(findings)
 }
 
 /// Count non-blank, non-comment-only lines under `dir/**/*.rs` (best-effort).

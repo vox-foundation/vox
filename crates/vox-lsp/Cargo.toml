@@ -1,6 +1,6 @@
 [package]
 name = "vox-lsp"
-description = "Vox Language Server (stdio JSON-RPC)."
+description = "Vox Language Server Protocol implementation (stdio JSON-RPC)."
 publish = false
 version.workspace = true
 edition.workspace = true

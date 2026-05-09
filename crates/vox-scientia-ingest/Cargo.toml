@@ -1,6 +1,6 @@
 [package]
 name = "vox-scientia-ingest"
-description = "Scientia corpus ingestion."
+description = "Scientia corpus ingestion pipeline for building Vox training datasets."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

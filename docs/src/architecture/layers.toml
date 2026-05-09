@@ -28,10 +28,12 @@
 [guards]
 # Strictness per rule. Layer ordering is implicitly strict (override with
 # the --warn-only CLI flag). The other four default to warn.
-fan_in     = "warn"
-loc_budget = "warn"
-orphan     = "warn"
-docstring  = "warn"
+fan_in           = "warn"
+loc_budget       = "warn"
+orphan           = "warn"
+docstring        = "warn"
+description      = "error"
+where_things_live = "error"
 
 [crates]
 
