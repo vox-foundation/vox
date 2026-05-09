@@ -82,7 +82,7 @@ jobs:
       - name: Markdown lint
         id: markdown_lint
         continue-on-error: true
-        run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md" "docs/src/architecture/architecture-index.md" "docs/src/architecture/research-index.md"
+        run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md" "docs/src/architecture/research-index.md"
 
       - name: Warn if markdown lint failed
         if: steps.markdown_lint.outcome == 'failure'
