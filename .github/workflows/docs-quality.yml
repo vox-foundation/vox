@@ -64,6 +64,12 @@ jobs:
         working-directory: docs-astro
         run: pnpm build
 
+      # Bootstrap period: continue-on-error until baseline passes, then graduate
+      # to a hard gate (same pattern as markdownlint above).
+      - name: TypeScript lint (biome)
+        continue-on-error: true
+        run: npx @biomejs/biome@1.9.4 lint --reporter=github
+
       # Hard gate: was continue-on-error.  Markdownlint rules are explicitly
       # configured in .markdownlint.jsonc; no surprise failures from rule changes.
       - name: Markdown lint

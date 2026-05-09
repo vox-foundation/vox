@@ -485,6 +485,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::safety::SafetyCommand,
     },
+    /// Run quality-gate checks from `contracts/ci/check-targets.v1.yaml` (`vox audit`).
+    Audit {
+        /// Arguments.
+        #[command(flatten)]
+        args: commands::audit::AuditArgs,
+    },
     /// CI guards: manifest, SSOT checks, feature matrix, doc inventory (no shell/Python required).
     Ci {
         /// Subcommand.

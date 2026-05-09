@@ -1,0 +1,168 @@
+schema_version: 1
+
+# Canonical list of every quality gate in the Vox workspace.
+#
+# Fields per check:
+#   id          — machine-readable identifier (used by `vox audit --category`)
+#   description — human-readable label printed by `vox audit`
+#   category    — one of: lint | test | audit | doc | arch
+#   blocking    — whether a failure blocks merge
+#   runs_on     — stages where the check applies: pre-commit | pre-push | ci
+#   rust_only   — when true the check is skipped if rust_changed=false (path filter)
+#   command     — exact argv executed by `vox audit`
+
+checks:
+  - id: fmt
+    description: "cargo fmt --all -- --check"
+    category: lint
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: true
+    command: ["cargo", "fmt", "--all", "--", "--check"]
+
+  - id: line-endings
+    description: "vox ci line-endings (forward-slash line-ending guard)"
+    category: lint
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "line-endings"]
+
+  - id: ssot-drift
+    description: "vox ci ssot-drift (SSOT documentation drift bundle)"
+    category: audit
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "ssot-drift"]
+
+  - id: doc-frontmatter
+    description: "vox-doc-pipeline --lint-only (frontmatter + code fences)"
+    category: doc
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-doc-pipeline", "--", "--lint-only"]
+
+  - id: doctest-md
+    description: "vox ci doctest-md --strict (Markdown doctest extraction)"
+    category: doc
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "doctest-md", "--strict"]
+
+  - id: drift-check
+    description: "vox-drift-check workspace (pattern-repetition linter)"
+    category: audit
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: true
+    command:
+      - "cargo"
+      - "run"
+      - "-q"
+      - "-p"
+      - "vox-drift-check"
+      - "--"
+      - "."
+      - "--severity"
+      - "warning"
+      - "--fail-on"
+      - "warning"
+
+  - id: doc-inventory
+    description: "vox ci doc-inventory verify (doc inventory matches generator)"
+    category: doc
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "doc-inventory", "verify"]
+
+  - id: clippy
+    description: "cargo clippy --workspace --all-targets -- -D warnings"
+    category: lint
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: true
+    command: ["cargo", "clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]
+
+  - id: toestub-scoped
+    description: "vox ci toestub-scoped --mode enforce-warn (TOESTUB structural guard)"
+    category: audit
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "toestub-scoped", "--mode", "enforce-warn"]
+
+  - id: arch-check
+    description: "cargo run -p vox-arch-check (architecture layer + LoC budget validation)"
+    category: arch
+    blocking: true
+    runs_on:
+      - ci
+    rust_only: true
+    command: ["cargo", "run", "-p", "vox-arch-check"]
+
+  - id: coverage-gates
+    description: "cargo llvm-cov --workspace coverage gates"
+    category: test
+    blocking: true
+    runs_on:
+      - ci
+    rust_only: true
+    command: ["cargo", "llvm-cov", "--workspace", "--lcov", "--output-path", "lcov.info"]
+
+  - id: mutation-compiler
+    description: "cargo mutants -p vox-compiler (mutation testing — compiler crate)"
+    category: test
+    blocking: false
+    runs_on:
+      - ci
+    rust_only: true
+    command: ["cargo", "mutants", "-p", "vox-compiler", "--no-shuffle", "-j", "2"]
+
+  - id: mutation-codegen
+    description: "cargo mutants -p vox-codegen (mutation testing — codegen crate)"
+    category: test
+    blocking: false
+    runs_on:
+      - ci
+    rust_only: true
+    command: ["cargo", "mutants", "-p", "vox-codegen", "--no-shuffle", "-j", "2"]
+
+  - id: markdownlint
+    description: "markdownlint-cli2 docs/**/*.md (Markdown style lint)"
+    category: doc
+    blocking: true
+    runs_on:
+      - ci
+    rust_only: false
+    command: ["markdownlint-cli2", "docs/**/*.md"]
+
+  - id: doctest-build
+    description: "cargo test --doc --workspace (rustdoc doctest build)"
+    category: doc
+    blocking: true
+    runs_on:
+      - ci
+    rust_only: true
+    command: ["cargo", "test", "--doc", "--workspace"]
