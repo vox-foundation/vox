@@ -190,11 +190,14 @@ pub struct DerivedDecl {
     pub span: Span,
 }
 
-/// `effect: { body }`
+/// `effect: { body }` or `effect depends_on (a, b): { body }`
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EffectDecl {
     /// Effect body expression.
     pub body: crate::ast::expr::Expr,
+    /// Explicit dependency list from `effect depends_on (a, b):` clause.
+    /// When `Some`, the lint `lint.effect.unresolvable_deps` is suppressed.
+    pub explicit_deps: Option<Vec<String>>,
     /// Source span.
     pub span: Span,
 }

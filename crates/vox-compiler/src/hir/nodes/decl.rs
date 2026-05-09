@@ -584,6 +584,9 @@ pub struct HirDerived {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirEffect {
     pub body: HirExpr,
+    /// Explicit dependency list from `effect depends_on (a, b):` clause.
+    /// When `Some`, the lint `lint.effect.unresolvable_deps` is suppressed.
+    pub explicit_deps: Option<Vec<String>>,
     pub span: Span,
 }
 
