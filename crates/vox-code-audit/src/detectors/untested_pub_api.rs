@@ -6,10 +6,11 @@ use crate::rules::{DetectionRule, Finding, FindingConfidence, Language, Severity
 /// Flags Rust library files that expose `pub fn` declarations but have zero
 /// `#[test]` blocks — meaning the public API has no inline unit test coverage.
 ///
-/// This is an advisory (Info) signal. It does not block CI but surfaces
-/// library crates where TDD has not yet been adopted. Binary entry-points
-/// (`main.rs`, `bin/`), test helpers, and intentionally-thin passthrough
-/// files (< 30 non-blank lines) are excluded.
+/// Severity: Warning. The default CI mode (`legacy`) only blocks on Errors,
+/// so this surfaces in reports without breaking the workspace. The local
+/// `tdd-guard` pre-commit hook (lefthook, mode `enforce-strict`) does block
+/// new violations. Binary entry-points (`main.rs`, `bin/`), test helpers,
+/// and intentionally-thin passthrough files (< 30 non-blank lines) are excluded.
 pub struct UntestedPubApiDetector;
 
 impl Default for UntestedPubApiDetector {
@@ -72,7 +73,7 @@ impl DetectionRule for UntestedPubApiDetector {
     }
 
     fn severity(&self) -> Severity {
-        Severity::Info
+        Severity::Warning
     }
 
     fn languages(&self) -> &[Language] {
