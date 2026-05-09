@@ -24,5 +24,8 @@ vox-secrets = { workspace = true }
 vox-config = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 
+[dev-dependencies]
+insta = "1"
+
 [lints]
 workspace = true
