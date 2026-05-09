@@ -82,6 +82,18 @@ pub mod state_machine_unreachable;
 /// Variables defined and last-used more than 80 lines apart.
 pub mod long_range_coupling;
 
+/// `str`-typed ID parameters at API boundaries (`@endpoint`, `@activity`, actor message handlers).
+pub mod id_at_boundary;
+
+/// `Result[T, str]` or anonymous error type on a public function boundary in Vox files.
+pub mod anonymous_error;
+
+/// Invalid or conflicting `syntax_version` declarations in Vox source file headers.
+pub mod syntax_version;
+
+/// `training_eligible: true` files that import from archive/deprecated/legacy module paths.
+pub mod training_eligible;
+
 // Phase 2 security detectors (vox/llm/*, vox/secret/*, vox/crypto/*)
 /// Direct HTTP calls to known LLM provider hostnames, bypassing `populi.*`.
 pub mod llm_provider_call;
@@ -136,12 +148,16 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(auth_endpoint::AuthEndpointDetector::new()),
         Box::new(state_machine_unreachable::StateMachineUnreachableDetector::new()),
         Box::new(long_range_coupling::LongRangeCouplingDetector::new()),
+        Box::new(id_at_boundary::IdAtBoundaryDetector::new()),
+        Box::new(anonymous_error::AnonymousErrorDetector::new()),
+        Box::new(syntax_version::SyntaxVersionDetector::new()),
+        Box::new(training_eligible::TrainingEligibleDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    37
+    41
 }
 
 #[cfg(test)]
