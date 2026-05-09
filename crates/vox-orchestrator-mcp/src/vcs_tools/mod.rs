@@ -5,6 +5,7 @@
 
 mod change;
 mod conflicts;
+pub mod branch_tools;
 pub mod commit_tools;
 mod oplog;
 mod parse;
