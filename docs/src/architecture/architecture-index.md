@@ -31,6 +31,7 @@ training_eligible: false
 - [Classification Taxonomy SSoT](classification-ssot-2026.md)
 - [Cryptography Policy SSoT](cryptography-ssot-2026.md)
 - [Search & Retrieval SSOT (2026)](search-retrieval-ssot-2026.md)
+- [Agentic Version Control Automation — Failure Modes, jj Footguns, and a Vox-Language Capability Proposal (2026-05-08)](agentic-version-control-automation-research-2026.md)
 - [Anti-foot-gun planning standard](planning-meta/05-anti-foot-gun-planning-standard.md)
 - [Architecture Index](architecture-index.md)
 - [Build-Time Baseline (2026-05-08)](build-time-baseline.md)
@@ -52,6 +53,7 @@ training_eligible: false
 - [Fast LLM instruction plan](planning-meta/02-fast-llm-instruction-plan.md)
 - [Feature growth and boundaries SSOT (2026)](feature-growth-boundaries.md)
 - [GUI-Native Language Roadmap — Execution Status](gui-native-roadmap-status-2026.md)
+- [Git Concurrency Policy](git-concurrency-policy.md)
 - [Inference Tuning Resolution Research 2026](inference-tuning-resolution-research-2026.md)
 - [Internal Web IR Implementation Blueprint](internal-web-ir-implementation-blueprint.md)
 - [MENS Training — Architecture Pointer](mens-training-ssot.md)
@@ -124,6 +126,11 @@ training_eligible: false
 
 ## Status: Roadmap
 
+- [Agentic VCS Automation — Phase 1 Implementation Plan (2026-05-08)](agentic-vcs-automation-impl-plan-phase1-2026.md)
+- [Agentic VCS Automation — Phase 2 Implementation Plan (2026-05-09)](agentic-vcs-automation-impl-plan-phase2-2026.md)
+- [Agentic VCS Automation — Phase 3 Implementation Plan (2026-05-09)](agentic-vcs-automation-impl-plan-phase3-2026.md)
+- [Agentic VCS Automation — Phase 4 Implementation Plan (2026-05-09)](agentic-vcs-automation-impl-plan-phase4-2026.md)
+- [Agentic VCS Automation — Phase 5 Implementation Plan (2026-05-09)](agentic-vcs-automation-impl-plan-phase5-2026.md)
 - [Codebase Cleanup & Signal Improvement Plan (2026-05-02)](2026-05-02-codebase-cleanup-and-signal-improvement.md)
 - [Data Storage Lint & CI Spec (2026)](data-storage-lint-and-ci-spec-2026.md)
 - [Data Storage Migration Backlog (2026)](data-storage-migration-backlog-2026.md)

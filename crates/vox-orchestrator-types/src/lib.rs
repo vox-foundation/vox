@@ -7,6 +7,11 @@
 
 pub mod agent_types;
 pub mod socrates_policy;
+pub mod vcs_capability;
+
+pub use vcs_capability::{
+    BranchCreate, BranchName, BranchNameError, RemoteId, WorkingTreeWrite, WorkspaceId,
+};
 
 pub use agent_types::{
     AccessKind, AgentId, AgentIdGenerator, BatchId, ChangeId, CorrelationId,

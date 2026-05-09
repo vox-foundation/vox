@@ -99,6 +99,11 @@ crossbeam-queue = "0.3.12"
 globset = "0.4"
 workspace-hack = { workspace = true }
 
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+serial_test.workspace = true
+jsonschema.workspace = true
+
 [lints.rust]
 unsafe_code = "warn"
 

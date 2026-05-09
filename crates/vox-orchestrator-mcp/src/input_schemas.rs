@@ -908,7 +908,7 @@ mod tests {
     fn all_parse_obj_schemas_are_valid_jsonschema() {
         // Draft-07 meta-schema
         let meta: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../contracts/capability/json-schema-draft-07-meta.json"
+            "../../../contracts/capability/json-schema-draft-07-meta.json"
         ))
         .expect("meta schema");
         let compiled = jsonschema::validator_for(&meta).expect("compile meta-schema");
