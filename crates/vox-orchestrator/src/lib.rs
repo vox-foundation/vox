@@ -76,6 +76,8 @@ pub mod catalog;
 pub mod catalog_classifier;
 /// DB-backed clarification inbox drain (Codex `a2a_messages`).
 pub mod clarification_db_inbox_poll;
+/// Five-signal circuit breaker for doom-loop detection (D6).
+pub mod circuit_breaker;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Orchestrator configuration load, merge, and validation.
