@@ -1,0 +1,13 @@
+fn main() to int {
+    let keystore = std.env("VOX_ANDROID_KEYSTORE")
+    let ks_pass = std.env("VOX_ANDROID_KEYSTORE_PASSWORD")
+    let alias = std.env("VOX_ANDROID_KEY_ALIAS")
+    let key_pass = std.env("VOX_ANDROID_KEY_PASSWORD")
+
+    let cmd = "cd android && ./gradlew assembleRelease "
+        + "-Pandroid.injected.signing.store.file=" + keystore + " "
+        + "-Pandroid.injected.signing.store.password=" + ks_pass + " "
+        + "-Pandroid.injected.signing.key.alias=" + alias + " "
+        + "-Pandroid.injected.signing.key.password=" + key_pass
+    return shell_exec(cmd)
+}
