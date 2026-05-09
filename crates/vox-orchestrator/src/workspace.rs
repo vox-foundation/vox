@@ -93,7 +93,13 @@ pub struct AgentWorkspace {
     pub active_change: Option<ChangeId>,
     /// The git branch this workspace is bound to. `None` until the orchestrator
     /// resolves the workspace to a branch (typically on first write op).
-    pub bound_branch: Option<vox_orchestrator_types::BranchName>,
+    ///
+    /// Visibility is `pub(crate)` to ensure the only write path is
+    /// `set_bound_branch`, which has replace semantics and returns the previous
+    /// value. External readers should call the `bound_branch()` accessor.
+    /// `vox_branch_create` (Phase 1 Task 6) is the intended sole caller of
+    /// `set_bound_branch` from production code.
+    pub(crate) bound_branch: Option<vox_orchestrator_types::BranchName>,
 }
 
 impl AgentWorkspace {
