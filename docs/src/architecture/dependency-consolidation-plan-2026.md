@@ -5,6 +5,7 @@ category: "architecture"
 status: "roadmap"
 last_updated: "2026-05-09"
 training_eligible: true
+training_rationale: "Explains the SSOT design for installer policy, cross-platform dependency management, and the Rust-native approach to replacing shell-scripted toolchain setup."
 schema_type: "TechArticle"
 ---
 
