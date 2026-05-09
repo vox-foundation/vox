@@ -136,6 +136,7 @@ impl DetectionRule for MagicValueDetector {
             {
                 findings.push(Finding {
                     rule_id: "magic-value/port".to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: self.severity(),
                     file: file.path.clone(),
@@ -147,6 +148,8 @@ impl DetectionRule for MagicValueDetector {
                         "Extract to a named constant or read from `std::env::var(\"PORT\")`."
                             .to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: None,
                     evidence: None,
@@ -159,6 +162,7 @@ impl DetectionRule for MagicValueDetector {
             {
                 findings.push(Finding {
                     rule_id: "magic-value/ip".to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: self.severity(),
                     file: file.path.clone(),
@@ -166,6 +170,8 @@ impl DetectionRule for MagicValueDetector {
                     column: 0,
                     message: "Hardcoded IP address — use a configuration variable".to_string(),
                     suggestion: Some("Move to a config file or environment variable.".to_string()),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: None,
                     evidence: None,
@@ -181,6 +187,7 @@ impl DetectionRule for MagicValueDetector {
             {
                 findings.push(Finding {
                     rule_id: "magic-value/path".to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: self.severity(),
                     file: file.path.clone(),
@@ -191,6 +198,8 @@ impl DetectionRule for MagicValueDetector {
                         "Replace with a configurable path or use `dirs` / `std::env` for dynamic resolution."
                             .to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: None,
                     evidence: None,
@@ -201,6 +210,7 @@ impl DetectionRule for MagicValueDetector {
             if self.db_conn_re.is_match(line) {
                 findings.push(Finding {
                     rule_id: "magic-value/db-conn".to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: Severity::Error,
                     file: file.path.clone(),
@@ -212,6 +222,8 @@ impl DetectionRule for MagicValueDetector {
                         "Move to `.env` and read via `std::env::var(\"DATABASE_URL\")`."
                             .to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: None,
                     evidence: None,

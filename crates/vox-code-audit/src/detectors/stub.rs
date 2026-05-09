@@ -323,6 +323,7 @@ impl StubDetector {
     ) -> Finding {
         Finding {
             rule_id: sub_id.to_string(),
+            diagnostic_id: None,
             rule_name: self.name().to_string(),
             severity: self.severity(),
             file: file.path.clone(),
@@ -330,6 +331,8 @@ impl StubDetector {
             column: 0,
             message: message.to_string(),
             suggestion,
+            alternatives: vec![],
+            rationale: None,
             context: file.context_around(line, 2),
             confidence: None,
             evidence: None,

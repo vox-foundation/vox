@@ -37,6 +37,7 @@ impl UnwrapCallDetector {
     fn make_finding(file: &SourceFile, line: usize, message: &str) -> Finding {
         Finding {
             rule_id: "rust/unwrap-call".to_string(),
+            diagnostic_id: None,
             rule_name: "Unwrap call (heuristic)".to_string(),
             severity: Severity::Info,
             file: file.path.clone(),
@@ -47,6 +48,8 @@ impl UnwrapCallDetector {
                 "Prefer `?`, `context`, or `expect(\"static reason\")` over `.unwrap()` in production paths."
                     .into(),
             ),
+            alternatives: vec![],
+            rationale: None,
             context: file.context_around(line, 2),
             confidence: None,
             evidence: None,

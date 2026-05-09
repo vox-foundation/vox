@@ -389,6 +389,7 @@ impl UnresolvedRefDetector {
                         crate::run_context::record_unresolved_callee(name);
                         findings.push(Finding {
                             rule_id: "unresolved-ref/fn-call".to_string(),
+                            diagnostic_id: None,
                             rule_name: self.name().to_string(),
                             severity: Severity::Info, // conservative — might be from a wildcard import
                             file: file.path.clone(),
@@ -402,6 +403,8 @@ impl UnresolvedRefDetector {
                                 "Add `use crate::some_module::{};` or verify the function exists.",
                                 name,
                             )),
+                            alternatives: vec![],
+                            rationale: None,
                             context: file.context_around(i + 1, 1),
                             confidence,
                             evidence,

@@ -73,6 +73,7 @@ impl DetectionRule for WorkspaceDriftDetector {
                 if trimmed.contains("path =") && trimmed.contains('{') && trimmed.contains('}') {
                     findings.push(Finding {
                         rule_id: self.id().to_string(),
+                        diagnostic_id: None,
                         rule_name: self.name().to_string(),
                         severity: self.severity(),
                         file: file.path.clone(),
@@ -80,6 +81,8 @@ impl DetectionRule for WorkspaceDriftDetector {
                         column: 0,
                         message: "Sub-crate dependency specifies `path =` inline instead of inheriting from workspace.".to_string(),
                         suggestion: Some("Add the dependency to the root Cargo.toml [workspace.dependencies] and use `{ workspace = true }` here.".to_string()),
+                        alternatives: vec![],
+                        rationale: None,
                         context: trimmed.to_string(),
                         confidence: None,
                         evidence: None,
@@ -93,6 +96,7 @@ impl DetectionRule for WorkspaceDriftDetector {
                     // No, AGENTS.md implies we use version.workspace = true everywhere.
                     findings.push(Finding {
                         rule_id: self.id().to_string(),
+                        diagnostic_id: None,
                         rule_name: self.name().to_string(),
                         severity: self.severity(),
                         file: file.path.clone(),
@@ -100,6 +104,8 @@ impl DetectionRule for WorkspaceDriftDetector {
                         column: 0,
                         message: "Sub-crate dependency specifies an explicit version string instead of inheriting from workspace.".to_string(),
                         suggestion: Some("Add the version to root Cargo.toml [workspace.dependencies] and use `{ workspace = true }` or `version.workspace = true` here.".to_string()),
+                        alternatives: vec![],
+                        rationale: None,
                         context: trimmed.to_string(),
                         confidence: None,
                         evidence: None,
@@ -110,6 +116,7 @@ impl DetectionRule for WorkspaceDriftDetector {
                 if trimmed.starts_with("edition =") {
                     findings.push(Finding {
                         rule_id: self.id().to_string(),
+                        diagnostic_id: None,
                         rule_name: self.name().to_string(),
                         severity: self.severity(),
                         file: file.path.clone(),
@@ -117,6 +124,8 @@ impl DetectionRule for WorkspaceDriftDetector {
                         column: 0,
                         message: "Sub-crate specifies an explicit edition instead of inheriting from workspace.".to_string(),
                         suggestion: Some("Use `edition.workspace = true` and define `edition = \"2024\"` in the root Cargo.toml.".to_string()),
+                        alternatives: vec![],
+                        rationale: None,
                         context: trimmed.to_string(),
                         confidence: None,
                         evidence: None,
@@ -142,6 +151,7 @@ impl DetectionRule for WorkspaceDriftDetector {
                                 if !file.content.contains(dir_name) {
                                     findings.push(Finding {
                                                 rule_id: self.id().to_string(),
+                                                diagnostic_id: None,
                                                 rule_name: self.name().to_string(),
                                                 severity: self.severity(),
                                                 file: file.path.clone(),
@@ -149,6 +159,8 @@ impl DetectionRule for WorkspaceDriftDetector {
                                                 column: 0,
                                                 message: format!("Orphan crate detected: `crates/{}` is not registered in root Cargo.toml", dir_name),
                                                 suggestion: Some(format!("Add `{x} = {{ path = \"crates/{x}\" }}` to [workspace.dependencies]", x = dir_name)),
+                                                alternatives: vec![],
+                                                rationale: None,
                                                 context: String::new(),
                                                 confidence: None,
                                                 evidence: None,
@@ -167,6 +179,7 @@ impl DetectionRule for WorkspaceDriftDetector {
             {
                 findings.push(Finding {
                     rule_id: self.id().to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: self.severity(),
                     file: file.path.clone(),
@@ -177,6 +190,8 @@ impl DetectionRule for WorkspaceDriftDetector {
                         "Change edition to \"2024\" in the `[workspace.package]` section."
                             .to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: String::new(),
                     confidence: None,
                     evidence: None,

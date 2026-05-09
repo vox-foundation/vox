@@ -175,6 +175,7 @@ impl EmptyBodyDetector {
     fn make_finding(&self, file: &SourceFile, line: usize, message: &str) -> Finding {
         Finding {
             rule_id: "empty-body".to_string(),
+            diagnostic_id: None,
             rule_name: self.name().to_string(),
             severity: self.severity(),
             file: file.path.clone(),
@@ -182,6 +183,8 @@ impl EmptyBodyDetector {
             column: 0,
             message: message.to_string(),
             suggestion: Some("Implement the function body or remove the empty stub.".to_string()),
+            alternatives: vec![],
+            rationale: None,
             context: file.context_around(line, 2),
             confidence: None,
             evidence: None,

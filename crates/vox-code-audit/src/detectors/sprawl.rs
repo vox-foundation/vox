@@ -62,6 +62,7 @@ impl DetectionRule for SprawlDetector {
         if self.forbidden_names.contains(&file_name.to_string()) {
             findings.push(Finding {
                 rule_id: self.id().to_string(),
+                diagnostic_id: None,
                 rule_name: self.name().to_string(),
                 severity: self.severity(),
                 file: file.path.clone(),
@@ -75,6 +76,8 @@ impl DetectionRule for SprawlDetector {
                     "Rename '{}' to reflect its specific domain (e.g., 'git_ops.rs').",
                     file_name
                 )),
+                alternatives: vec![],
+                rationale: None,
                 context: String::new(),
                 confidence: None,
                 evidence: None,
@@ -90,6 +93,7 @@ impl DetectionRule for SprawlDetector {
             if count > self.max_files_per_dir {
                 findings.push(Finding {
                     rule_id: self.id().to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: Severity::Warning,
                     file: file.path.clone(),
@@ -104,6 +108,8 @@ impl DetectionRule for SprawlDetector {
                         "Group these files into logical sub-directories (feature-slices)."
                             .to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: String::new(),
                     confidence: None,
                     evidence: None,

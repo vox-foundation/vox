@@ -174,6 +174,7 @@ impl DetectionRule for UntestedPubApiDetector {
         let first_line = v.pub_fns[0].1;
         vec![Finding {
             rule_id: self.id().to_string(),
+            diagnostic_id: None,
             rule_name: self.name().to_string(),
             severity: self.severity(),
             file: file.path.clone(),
@@ -190,6 +191,8 @@ impl DetectionRule for UntestedPubApiDetector {
                  Write the test before the implementation (see contribution-loop.md §@test-first)."
                     .to_string(),
             ),
+            alternatives: vec![],
+            rationale: None,
             context: file.context_around(first_line, 2),
             confidence: Some(FindingConfidence::High),
             evidence: Some(serde_json::json!({

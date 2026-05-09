@@ -92,6 +92,7 @@ impl DetectionRule for VictoryClaimDetector {
             if self.victory_re.is_match(line) {
                 findings.push(Finding {
                     rule_id: "victory-claim/premature".to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: Severity::Warning,
                     file: file.path.clone(),
@@ -102,6 +103,8 @@ impl DetectionRule for VictoryClaimDetector {
                     suggestion: Some(
                         "Remove the comment if the implementation is complete, or replace with a descriptive comment.".to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 2),
                     confidence: None,
                     evidence: None,
@@ -112,6 +115,7 @@ impl DetectionRule for VictoryClaimDetector {
             if self.todo_comment_re.is_match(line) {
                 findings.push(Finding {
                     rule_id: "victory-claim/todo-leftover".to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: Severity::Warning,
                     file: file.path.clone(),
@@ -121,6 +125,8 @@ impl DetectionRule for VictoryClaimDetector {
                     suggestion: Some(
                         "Complete the TODO or create a tracked task for it.".to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: None,
                     evidence: None,
@@ -131,6 +137,7 @@ impl DetectionRule for VictoryClaimDetector {
             if self.fixme_re.is_match(line) {
                 findings.push(Finding {
                     rule_id: "victory-claim/fixme".to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: Severity::Warning,
                     file: file.path.clone(),
@@ -138,6 +145,8 @@ impl DetectionRule for VictoryClaimDetector {
                     column: 0,
                     message: "FIXME marker — known issue left unresolved".to_string(),
                     suggestion: Some("Fix the issue or track it as a task.".to_string()),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: None,
                     evidence: None,
@@ -148,6 +157,7 @@ impl DetectionRule for VictoryClaimDetector {
             if self.hack_re.is_match(line) {
                 findings.push(Finding {
                     rule_id: "victory-claim/hack".to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -158,6 +168,8 @@ impl DetectionRule for VictoryClaimDetector {
                         "Replace with a proper solution or document why the hack is necessary."
                             .to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: None,
                     evidence: None,

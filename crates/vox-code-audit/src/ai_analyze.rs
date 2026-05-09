@@ -174,6 +174,7 @@ Do not explain your reasoning. Only output findings or CLEAN."#,
 
             findings.push(Finding {
                 rule_id: format!("ai/{}", parts[3]),
+                diagnostic_id: None,
                 rule_name: "AI-Enhanced Detector".to_string(),
                 severity,
                 file: file.path.clone(),
@@ -183,6 +184,8 @@ Do not explain your reasoning. Only output findings or CLEAN."#,
                 suggestion: Some(
                     "This issue was detected by AI analysis. Review and fix if valid.".to_string(),
                 ),
+                alternatives: vec![],
+                rationale: None,
                 context: if line_num > 0 {
                     file.context_around(line_num, 2)
                 } else {

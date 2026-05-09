@@ -93,6 +93,7 @@ impl DetectionRule for SchemaComplianceDetector {
         if !matched && (path_str.contains("crates/") || path_str.contains("packages/")) {
             findings.push(Finding {
                 rule_id: self.id().to_string(),
+                diagnostic_id: None,
                 rule_name: self.name().to_string(),
                 severity: self.severity(),
                 file: file.path.clone(),
@@ -103,6 +104,8 @@ impl DetectionRule for SchemaComplianceDetector {
                     path_str
                 ),
                 suggestion: Some("Register the crate in vox-schema.json or move the file to an authorized location.".to_string()),
+                alternatives: vec![],
+                rationale: None,
                 context: String::new(),
                     confidence: None,
                     evidence: None,

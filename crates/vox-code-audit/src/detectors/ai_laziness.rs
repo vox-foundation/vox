@@ -180,6 +180,7 @@ impl DetectionRule for AiLazinessDetector {
             let line = file.content[..m.start()].lines().count() + 1;
             findings.push(Finding {
                 rule_id: "ai-laziness/conditional-stub".into(),
+                diagnostic_id: None,
                 rule_name: "Conditional stub branch".into(),
                 severity: Severity::Warning,
                 file: file.path.clone(),
@@ -194,6 +195,8 @@ impl DetectionRule for AiLazinessDetector {
                      case is intentionally a no-op."
                         .into(),
                 ),
+                alternatives: vec![],
+                rationale: None,
                 context: file.context_around(line, 2),
                 confidence: Some(FindingConfidence::Medium),
                 evidence: None,
@@ -203,6 +206,7 @@ impl DetectionRule for AiLazinessDetector {
             let line = file.content[..m.start()].lines().count() + 1;
             findings.push(Finding {
                 rule_id: "ai-laziness/assertion-only-body".into(),
+                diagnostic_id: None,
                 rule_name: "Assertion-only function body".into(),
                 severity: Severity::Warning,
                 file: file.path.clone(),
@@ -217,6 +221,8 @@ impl DetectionRule for AiLazinessDetector {
                      if the assertion was the only intent."
                         .into(),
                 ),
+                alternatives: vec![],
+                rationale: None,
                 context: file.context_around(line, 2),
                 confidence: Some(FindingConfidence::Medium),
                 evidence: None,
@@ -226,6 +232,7 @@ impl DetectionRule for AiLazinessDetector {
             let line = file.content[..m.start()].lines().count() + 1;
             findings.push(Finding {
                 rule_id: "ai-laziness/early-return-only".into(),
+                diagnostic_id: None,
                 rule_name: "Early-return-only function body".into(),
                 severity: Severity::Warning,
                 file: file.path.clone(),
@@ -238,6 +245,8 @@ impl DetectionRule for AiLazinessDetector {
                      intentionally trip in production."
                         .into(),
                 ),
+                alternatives: vec![],
+                rationale: None,
                 context: file.context_around(line, 2),
                 confidence: Some(FindingConfidence::Medium),
                 evidence: None,
@@ -251,6 +260,7 @@ impl DetectionRule for AiLazinessDetector {
             if self.placeholder_return.is_match(line) {
                 findings.push(Finding {
                     rule_id: "ai-laziness/placeholder-return".into(),
+                    diagnostic_id: None,
                     rule_name: "Placeholder string return".into(),
                     severity: Severity::Warning,
                     file: file.path.clone(),
@@ -260,6 +270,8 @@ impl DetectionRule for AiLazinessDetector {
                         \"placeholder\", …)."
                         .into(),
                     suggestion: Some("Return the real value or surface an error.".into()),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 2),
                     confidence: Some(FindingConfidence::High),
                     evidence: None,
@@ -269,6 +281,7 @@ impl DetectionRule for AiLazinessDetector {
             if self.implement_later_comment.is_match(line) {
                 findings.push(Finding {
                     rule_id: "ai-laziness/implement-later-comment".into(),
+                    diagnostic_id: None,
                     rule_name: "Implement-later comment".into(),
                     severity: Severity::Warning,
                     file: file.path.clone(),
@@ -282,6 +295,8 @@ impl DetectionRule for AiLazinessDetector {
                          it; comments alone rot."
                             .into(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: Some(FindingConfidence::High),
                     evidence: None,
@@ -292,6 +307,7 @@ impl DetectionRule for AiLazinessDetector {
                 let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
                 findings.push(Finding {
                     rule_id: "ai-laziness/mock-named-fn".into(),
+                    diagnostic_id: None,
                     rule_name: "Mock-named function in non-test code".into(),
                     severity: Severity::Warning,
                     file: file.path.clone(),
@@ -307,6 +323,8 @@ impl DetectionRule for AiLazinessDetector {
                              responsibility, or delete it if unused."
                             .into(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: Some(FindingConfidence::Medium),
                     evidence: None,
@@ -318,6 +336,7 @@ impl DetectionRule for AiLazinessDetector {
                 if !ty.is_empty() && !Self::is_builtin_default_type(ty) {
                     findings.push(Finding {
                         rule_id: "ai-laziness/custom-type-default-return".into(),
+                        diagnostic_id: None,
                         rule_name: "Custom-type default return".into(),
                         severity: Severity::Warning,
                         file: file.path.clone(),
@@ -333,6 +352,8 @@ impl DetectionRule for AiLazinessDetector {
                              semantically correct here."
                                 .into(),
                         ),
+                        alternatives: vec![],
+                        rationale: None,
                         context: file.context_around(line_num, 2),
                         confidence: Some(FindingConfidence::Low),
                         evidence: None,

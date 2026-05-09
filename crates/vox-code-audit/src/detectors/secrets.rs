@@ -43,6 +43,7 @@ impl SecretDetector {
     ) -> Finding {
         Finding {
             rule_id: self.id().to_string(),
+            diagnostic_id: None,
             rule_name: self.name().to_string(),
             severity,
             file: file.path.clone(),
@@ -53,6 +54,8 @@ impl SecretDetector {
                 "Use environment variables or a secret manager instead of hardcoding credentials."
                     .into(),
             ),
+            alternatives: vec![],
+            rationale: None,
             context: file.context_around(line_num, 1),
             confidence: None,
             evidence: None,

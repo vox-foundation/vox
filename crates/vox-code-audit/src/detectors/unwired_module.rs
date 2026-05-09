@@ -181,6 +181,7 @@ impl UnwiredModuleDetector {
             if !is_used {
                 findings.push(Finding {
                     rule_id: "unwired/module".to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: self.severity(),
                     file: file.path.clone(),
@@ -194,6 +195,8 @@ impl UnwiredModuleDetector {
                         "Add `use crate::{}::...;` or remove the module declaration if unused.",
                         mod_name
                     )),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(*line_num, 1),
                     confidence: None,
                     evidence: None,

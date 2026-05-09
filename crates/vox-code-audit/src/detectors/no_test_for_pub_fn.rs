@@ -142,6 +142,7 @@ impl DetectionRule for NoTestForPubFnDetector {
             })
             .map(|(name, line)| Finding {
                 rule_id: self.id().to_string(),
+                diagnostic_id: None,
                 rule_name: self.name().to_string(),
                 severity: self.severity(),
                 file: file.path.clone(),
@@ -155,6 +156,8 @@ impl DetectionRule for NoTestForPubFnDetector {
                     "Add an `@test` fn that calls `{}(...)` before implementing it (see contribution-loop.md §@test-first).",
                     name
                 )),
+                alternatives: vec![],
+                rationale: None,
                 context: file.context_around(line, 2),
                 confidence: Some(FindingConfidence::Medium),
                 evidence: Some(serde_json::json!({ "fn_name": name })),

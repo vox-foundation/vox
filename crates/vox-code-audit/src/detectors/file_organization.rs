@@ -67,6 +67,7 @@ impl DetectionRule for FileOrganizationDetector {
             if def_count > self.max_lib_defs {
                 findings.push(Finding {
                     rule_id: self.id().to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: Severity::Error,
                     file: file.path.clone(),
@@ -77,6 +78,8 @@ impl DetectionRule for FileOrganizationDetector {
                         def_count, self.max_lib_defs
                     ),
                     suggestion: Some("Extract structs, enums, and traits into separate files and re-export them from lib.rs.".to_string()),
+                    alternatives: vec![],
+                    rationale: None,
                     context: String::new(),
                     confidence: None,
                     evidence: None,
@@ -110,6 +113,7 @@ impl DetectionRule for FileOrganizationDetector {
             if type_ratio > 0.7 && !is_allowed_name {
                 findings.push(Finding {
                     rule_id: self.id().to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: Severity::Warning,
                     file: file.path.clone(),
@@ -120,6 +124,8 @@ impl DetectionRule for FileOrganizationDetector {
                         (type_ratio * 100.0) as u32
                     ),
                     suggestion: Some("Organize types into a 'types.rs' or 'models/' directory to maintain a clean logic-to-data ratio.".to_string()),
+                    alternatives: vec![],
+                    rationale: None,
                     context: String::new(),
                     confidence: None,
                     evidence: None,

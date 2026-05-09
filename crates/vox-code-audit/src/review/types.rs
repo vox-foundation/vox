@@ -88,6 +88,7 @@ impl ReviewResult {
             .iter()
             .map(|rf| Finding {
                 rule_id: format!("review/{}", rf.category.rule_prefix()),
+                diagnostic_id: None,
                 rule_name: format!("AI Code Review — {}", rf.category),
                 severity: rf.severity,
                 file: rf.file.clone(),
@@ -95,6 +96,8 @@ impl ReviewResult {
                 column: 0,
                 message: rf.message.clone(),
                 suggestion: rf.suggestion.clone(),
+                alternatives: vec![],
+                rationale: None,
                 context: String::new(),
                 confidence: None,
                 evidence: None,

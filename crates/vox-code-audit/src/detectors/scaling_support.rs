@@ -97,6 +97,7 @@ pub(super) fn fs_unbounded_read_findings(file: &SourceFile) -> Vec<Finding> {
                 let column = span.start().column;
                 self.out.push(Finding {
                         rule_id: "scaling/unbounded-read".to_string(),
+                        diagnostic_id: None,
                         rule_name: "Scaling — fs read_to_string".to_string(),
                         severity: Severity::Info,
                         file: self.file.path.clone(),
@@ -105,6 +106,8 @@ pub(super) fn fs_unbounded_read_findings(file: &SourceFile) -> Vec<Finding> {
                         message: "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts"
                             .to_string(),
                         suggestion: None,
+                        alternatives: vec![],
+                        rationale: None,
                         context: self.file.context_around(line, 1),
                         confidence: Some(FindingConfidence::High),
                         evidence: Some(json!({
@@ -174,6 +177,7 @@ pub(super) fn env_unwrap_or_duplicate_findings(
         for &ln in &lines[1..] {
             out.push(Finding {
                 rule_id: "scaling/env-default-duplication".to_string(),
+                diagnostic_id: None,
                 rule_name: "Scaling — duplicate env string default".to_string(),
                 severity: Severity::Info,
                 file: file.path.clone(),
@@ -182,6 +186,8 @@ pub(super) fn env_unwrap_or_duplicate_findings(
                 message: "Same `unwrap_or(\"…\")` default repeated on multiple `std::env::var` / `vox_secrets::resolve_secret` lines — centralize (const / policy / SSOT)"
                     .to_string(),
                 suggestion: Some(format!("Literal default appears {}×: `{lit}`", lines.len())),
+                alternatives: vec![],
+                rationale: None,
                 context: file.context_around(ln, 1),
                 confidence: Some(FindingConfidence::Low),
                 evidence: None,
@@ -270,6 +276,7 @@ impl<'ast> Visit<'ast> for ScalingSynVisitor<'_> {
                 let line = span.start().line;
                 self.findings.push(Finding {
                     rule_id: "scaling/blocking-in-async".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — blocking fs in async".to_string(),
                     severity: Severity::Info,
                     file: self.file.path.clone(),
@@ -281,6 +288,8 @@ impl<'ast> Visit<'ast> for ScalingSynVisitor<'_> {
                         "Policy: `contracts/scaling/policy.yaml` per-crate overrides if intentional."
                             .to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: self.file.context_around(line, 2),
                     confidence: Some(FindingConfidence::High),
                     evidence: None,
@@ -291,6 +300,7 @@ impl<'ast> Visit<'ast> for ScalingSynVisitor<'_> {
                 let line = span.start().line;
                 self.findings.push(Finding {
                     rule_id: "scaling/thread-sleep-async".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — thread sleep".to_string(),
                     severity: Severity::Info,
                     file: self.file.path.clone(),
@@ -298,6 +308,8 @@ impl<'ast> Visit<'ast> for ScalingSynVisitor<'_> {
                     column: span.start().column,
                     message: "`thread::sleep` in async context blocks the executor".to_string(),
                     suggestion: Some("`tokio::time::sleep` or structured backoff".to_string()),
+                    alternatives: vec![],
+                    rationale: None,
                     context: self.file.context_around(line, 2),
                     confidence: Some(FindingConfidence::High),
                     evidence: None,

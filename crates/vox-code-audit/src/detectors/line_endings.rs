@@ -69,6 +69,7 @@ impl DetectionRule for LineEndingDetector {
         let line = Self::first_cr_line(&file.content);
         vec![Finding {
             rule_id: "cross-platform/crlf".to_string(),
+            diagnostic_id: None,
             rule_name: self.name().to_string(),
             severity: self.severity(),
             file: file.path.clone(),
@@ -80,6 +81,8 @@ impl DetectionRule for LineEndingDetector {
                 "Re-save as LF, or run `vox ci line-endings` on your changes; see `.editorconfig`."
                     .to_string(),
             ),
+            alternatives: vec![],
+            rationale: None,
             context: String::new(),
             confidence: None,
             evidence: None,

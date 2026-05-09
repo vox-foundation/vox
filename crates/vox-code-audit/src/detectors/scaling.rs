@@ -176,6 +176,7 @@ impl ScalingSurfacesDetector {
             {
                 findings.push(Finding {
                     rule_id: "scaling/path-literal".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — path literal".to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -187,6 +188,8 @@ impl ScalingSurfacesDetector {
                         "`vox_scaling_policy::DEFAULT_MENS_RUNS_ROOT` / env / SSOT policy.yaml"
                             .to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: Some(FindingConfidence::Low),
                     evidence: None,
@@ -202,6 +205,7 @@ impl ScalingSurfacesDetector {
             {
                 findings.push(Finding {
                     rule_id: "scaling/magic-limit".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — magic numeric hint".to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -213,6 +217,8 @@ impl ScalingSurfacesDetector {
                         "Use `ScalingPolicy::embedded()` thresholds or a named `const` near the callsite."
                             .to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: Some(FindingConfidence::Low),
                     evidence: None,
@@ -226,6 +232,7 @@ impl ScalingSurfacesDetector {
             {
                 findings.push(Finding {
                     rule_id: "scaling/regex-new-hot".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — Regex::new in hot path".to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -234,6 +241,8 @@ impl ScalingSurfacesDetector {
                     message: "`Regex::new` on a non-lazy path — compile once (`LazyLock`/`OnceLock`/`static`)"
                         .to_string(),
                     suggestion: None,
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: Some(FindingConfidence::Low),
                     evidence: None,
@@ -247,6 +256,7 @@ impl ScalingSurfacesDetector {
             {
                 findings.push(Finding {
                     rule_id: "scaling/unbounded-read".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — fs read_to_string".to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -255,6 +265,8 @@ impl ScalingSurfacesDetector {
                     message: "Unbounded `read_to_string` — consider size cap / streaming / `tokio::fs` in async contexts"
                         .to_string(),
                     suggestion: None,
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: Some(FindingConfidence::Low),
                     evidence: Some(serde_json::json!({
@@ -273,6 +285,7 @@ impl ScalingSurfacesDetector {
             {
                 findings.push(Finding {
                     rule_id: "scaling/cache-miss-hot-read".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — repeated disk read in loop".to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -281,6 +294,8 @@ impl ScalingSurfacesDetector {
                     message: "Filesystem read under a recent `for` loop — consider batching, caching, or mmap"
                         .to_string(),
                     suggestion: None,
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 2),
                     confidence: Some(FindingConfidence::Low),
                     evidence: None,
@@ -298,6 +313,7 @@ impl ScalingSurfacesDetector {
             {
                 findings.push(Finding {
                     rule_id: "scaling/large-in-memory-accumulator".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — very large Vec preallocation".to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -307,6 +323,8 @@ impl ScalingSurfacesDetector {
                         "`Vec::with_capacity({n})` — ensure N is bounded; streaming may scale better"
                     ),
                     suggestion: None,
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: Some(FindingConfidence::Low),
                     evidence: None,
@@ -318,6 +336,7 @@ impl ScalingSurfacesDetector {
             {
                 findings.push(Finding {
                     rule_id: "scaling/lines-collect-vec".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — lines().collect heap".to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -329,6 +348,8 @@ impl ScalingSurfacesDetector {
                         "See policy `corpus_validate_batch_lines` = {}",
                         self.policy.thresholds.corpus_validate_batch_lines
                     )),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: Some(FindingConfidence::Low),
                     evidence: None,
@@ -350,6 +371,7 @@ impl ScalingSurfacesDetector {
             {
                 findings.push(Finding {
                     rule_id: "scaling/repeated-json-parse".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — JSON parse in loop".to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -358,6 +380,8 @@ impl ScalingSurfacesDetector {
                     message: "Possible per-iteration `serde_json::from_str` — batch or parse once"
                         .to_string(),
                     suggestion: None,
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: Some(FindingConfidence::Low),
                     evidence: None,
@@ -373,6 +397,7 @@ impl ScalingSurfacesDetector {
             {
                 findings.push(Finding {
                     rule_id: "scaling/sql-no-limit".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — SQL without LIMIT".to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -381,6 +406,8 @@ impl ScalingSurfacesDetector {
                     message: "SQL string may lack LIMIT — unbounded result sets don't scale"
                         .to_string(),
                     suggestion: None,
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: Some(FindingConfidence::Medium),
                     evidence: Some(serde_json::json!({
@@ -395,6 +422,7 @@ impl ScalingSurfacesDetector {
             {
                 findings.push(Finding {
                     rule_id: "scaling/http-client-no-timeout".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — HTTP client default".to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -403,6 +431,8 @@ impl ScalingSurfacesDetector {
                     message: "`Client::new()` may lack timeouts — use builder with `.timeout(...)`"
                         .to_string(),
                     suggestion: None,
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: Some(FindingConfidence::Low),
                     evidence: None,
@@ -428,6 +458,7 @@ impl ScalingSurfacesDetector {
             {
                 findings.push(Finding {
                     rule_id: "scaling/nested-pairwise-loop".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Scaling — pairwise nested loop".to_string(),
                     severity: Severity::Info,
                     file: file.path.clone(),
@@ -436,6 +467,8 @@ impl ScalingSurfacesDetector {
                     message: "Nested loop with `(i+1)..` — ensure collection size stays bounded"
                         .to_string(),
                     suggestion: None,
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 2),
                     confidence: Some(FindingConfidence::Low),
                     evidence: None,

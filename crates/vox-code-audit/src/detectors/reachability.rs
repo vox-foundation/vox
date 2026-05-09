@@ -85,6 +85,7 @@ impl<'a, 'b> ReachVisitor<'a, 'b> {
             {
                 self.findings.push(Finding {
                     rule_id: "skeleton/declared-not-called".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Integration Graph Reachability Detector".to_string(),
                     severity: Severity::Warning, // Tier B
                     file: self.file.path.clone(),
@@ -92,6 +93,8 @@ impl<'a, 'b> ReachVisitor<'a, 'b> {
                     column: sig.ident.span().start().column,
                     message: format!("Public function {} returns a trivial default and is never called in this workspace crate.", name),
                     suggestion: Some("Implement the function, write a test that exercises it, or remove it.".to_string()),
+                    alternatives: vec![],
+                    rationale: None,
                     context: self.file.context_around(sig.ident.span().start().line, 1),
                     confidence: None,
                     evidence: None,

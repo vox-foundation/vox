@@ -56,6 +56,7 @@ impl DetectionRule for DeprecatedUsageDetector {
             if self.deprecated_re.is_match(line) {
                 findings.push(Finding {
                     rule_id: self.id().to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: self.severity(),
                     file: file.path.clone(),
@@ -66,6 +67,8 @@ impl DetectionRule for DeprecatedUsageDetector {
                     suggestion: Some(
                         "Refactor dependents and remove this deprecated item.".to_string(),
                     ),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(i + 1, 1),
                     confidence: None,
                     evidence: None,
@@ -84,6 +87,7 @@ impl DetectionRule for DeprecatedUsageDetector {
 
                 findings.push(Finding {
                     rule_id: "raw-jsx-leakage".to_string(),
+                    diagnostic_id: None,
                     rule_name: "Raw JSX Leakage Detector".to_string(),
                     severity: Severity::Warning,
                     file: file.path.clone(),
@@ -94,6 +98,8 @@ impl DetectionRule for DeprecatedUsageDetector {
                         "Use Vox-native syntax: '{}=' instead of '{}='.",
                         vox_attr, attr
                     )),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(i + 1, 1),
                     confidence: None,
                     evidence: None,

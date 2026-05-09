@@ -218,6 +218,7 @@ impl DetectionRule for StringlyTypedEnumDetector {
 
                 findings.push(Finding {
                     rule_id: "stringly-typed-enum".to_string(),
+                    diagnostic_id: None,
                     rule_name: self.name().to_string(),
                     severity: self.severity(),
                     file: file.path.clone(),
@@ -232,6 +233,8 @@ impl DetectionRule for StringlyTypedEnumDetector {
                         field_name,
                         capitalize_first(field_name)
                     )),
+                    alternatives: vec![],
+                    rationale: None,
                     context: file.context_around(line_num, 1),
                     confidence: None,
                     evidence: None,

@@ -190,6 +190,7 @@ mod tests {
     fn sample_finding(rule_id: &str, severity: Severity) -> Finding {
         Finding {
             rule_id: rule_id.to_string(),
+            diagnostic_id: None,
             rule_name: "Test".to_string(),
             severity,
             file: PathBuf::from("src/lib.rs"),
@@ -197,6 +198,8 @@ mod tests {
             column: 0,
             message: "test issue".to_string(),
             suggestion: None,
+            alternatives: vec![],
+            rationale: None,
             context: String::new(),
             confidence: None,
             evidence: None,

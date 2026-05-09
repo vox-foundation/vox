@@ -254,6 +254,7 @@ impl HollowFnDetector {
                     if HollowFnDetector::is_hollow_expr_ast(&expr_str) {
                         self.findings.push(Finding {
                                 rule_id: "skeleton/hollow-fn".to_string(),
+                                diagnostic_id: None,
                                 rule_name: "Hollow Function Detector".to_string(),
                                 severity: Severity::Warning,
                                 file: self.file.path.clone(),
@@ -261,6 +262,8 @@ impl HollowFnDetector {
                                 column: 0,
                                 message: format!("Function `{}` has a hollow body (returns `{}` without meaningful computation)", name, expr_str.replace(" ", "")),
                                 suggestion: Some("Implement the function logic, or if intentionally empty, add a comment explaining why.".to_string()),
+                                alternatives: vec![],
+                                rationale: None,
                                 context: self.file.context_around(line, 2),
                                 confidence: Some(FindingConfidence::Medium),
                                 evidence: Some(serde_json::json!({
@@ -318,6 +321,7 @@ impl HollowFnDetector {
                 if is_hollow {
                     findings.push(Finding {
                             rule_id: "skeleton/hollow-fn".to_string(),
+                            diagnostic_id: None,
                             rule_name: self.name().to_string(),
                             severity: self.severity(),
                             file: file.path.clone(),
@@ -330,6 +334,8 @@ impl HollowFnDetector {
                             suggestion: Some(
                                 "Implement the function logic or document why it's intentionally empty.".to_string(),
                             ),
+                            alternatives: vec![],
+                            rationale: None,
                             context: file.context_around(i + 1, 1),
                             confidence: Some(FindingConfidence::Medium),
                             evidence: None,

@@ -215,6 +215,7 @@ impl DetectionRule for DryViolationDetector {
                     flagged.insert((i, j), true);
                     findings.push(Finding {
                         rule_id: "dry-violation/duplicate-block".to_string(),
+                        diagnostic_id: None,
                         rule_name: self.name().to_string(),
                         severity: self.severity(),
                         file: file.path.clone(),
@@ -232,6 +233,8 @@ impl DetectionRule for DryViolationDetector {
                             "Extract the common logic into a shared function to avoid DRY violations."
                                 .to_string(),
                         ),
+                        alternatives: vec![],
+                        rationale: None,
                         context: file.context_around(blocks[i].start_line, 2),
                         confidence: None,
                         evidence: None,

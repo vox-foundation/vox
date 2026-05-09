@@ -60,6 +60,7 @@ impl DetectionRule for GodObjectDetector {
         if nonblank_lines > self.hard_max_lines {
             findings.push(Finding {
                 rule_id: self.id().to_string(),
+                diagnostic_id: None,
                 rule_name: self.name().to_string(),
                 severity: Severity::Error,
                 file: file.path.clone(),
@@ -72,6 +73,8 @@ impl DetectionRule for GodObjectDetector {
                 suggestion: Some(
                     "Break down the domain logic into sub-modules immediately.".to_string(),
                 ),
+                alternatives: vec![],
+                rationale: None,
                 context: file.context_around(1, 2),
                 confidence: None,
                 evidence: None,
@@ -79,6 +82,7 @@ impl DetectionRule for GodObjectDetector {
         } else if nonblank_lines > self.warn_max_lines {
             findings.push(Finding {
                 rule_id: self.id().to_string(),
+                diagnostic_id: None,
                 rule_name: self.name().to_string(),
                 severity: Severity::Warning,
                 file: file.path.clone(),
@@ -91,6 +95,8 @@ impl DetectionRule for GodObjectDetector {
                 suggestion: Some(
                     "Consider decomposing this file before it hits the 500-line hard block.".to_string(),
                 ),
+                alternatives: vec![],
+                rationale: None,
                 context: file.context_around(1, 2),
                 confidence: None,
                 evidence: None,
@@ -98,6 +104,7 @@ impl DetectionRule for GodObjectDetector {
         } else if nonblank_lines > self.info_max_lines {
             findings.push(Finding {
                 rule_id: self.id().to_string(),
+                diagnostic_id: None,
                 rule_name: self.name().to_string(),
                 severity: Severity::Info,
                 file: file.path.clone(),
@@ -110,6 +117,8 @@ impl DetectionRule for GodObjectDetector {
                 suggestion: Some(
                     "Consider trait extraction early to avoid refactoring later.".to_string(),
                 ),
+                alternatives: vec![],
+                rationale: None,
                 context: file.context_around(1, 2),
                 confidence: None,
                 evidence: None,
@@ -138,6 +147,7 @@ impl DetectionRule for GodObjectDetector {
             // Rough heuristic for density
             findings.push(Finding {
                 rule_id: self.id().to_string(),
+                diagnostic_id: None,
                 rule_name: self.name().to_string(),
                 severity: Severity::Error,
                 file: file.path.clone(),
@@ -150,6 +160,8 @@ impl DetectionRule for GodObjectDetector {
                 suggestion: Some(
                     "Consider decomposing large structs into multiple traits.".to_string(),
                 ),
+                alternatives: vec![],
+                rationale: None,
                 context: String::new(),
                 confidence: None,
                 evidence: None,
