@@ -54,6 +54,69 @@ pub struct RemoteTaskEnvelope {
     /// Optional portable harness contract carried with the relay for stage/role/gate transparency.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub harness_spec_json: Option<String>,
+    /// Phase C: parent task id propagated from the caller's TRACE_CTX. None for root tasks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_task_id: Option<u64>,
+    /// Phase C: agent identifier that issued this dispatch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub caller_agent_id: Option<String>,
+    /// Phase C: trace identifier shared across the entire call tree (UUID v4 string).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    /// Phase C: number of agent-to-agent hops from the root; root = 0.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub span_depth: Option<u16>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_envelope_without_trace_fields_deserializes() {
+        let json = r#"{
+            "idempotency_key": "k1",
+            "task_id": 7,
+            "repository_id": "repo",
+            "capability_requirements_json": "{}",
+            "payload": "test"
+        }"#;
+        let envelope: RemoteTaskEnvelope = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(envelope.task_id, 7);
+        assert!(envelope.parent_task_id.is_none());
+        assert!(envelope.trace_id.is_none());
+        assert!(envelope.span_depth.is_none());
+    }
+
+    #[test]
+    fn envelope_with_trace_fields_round_trips() {
+        let envelope = RemoteTaskEnvelope {
+            idempotency_key: "k1".into(),
+            task_id: 7,
+            repository_id: "repo".into(),
+            capability_requirements_json: "{}".into(),
+            payload: "test".into(),
+            privacy_class: None,
+            populi_scope_id: None,
+            submitted_unix_ms: None,
+            exec_lease_id: None,
+            campaign_id: None,
+            artifact_refs_json: None,
+            session_id: None,
+            thread_id: None,
+            context_envelope_json: None,
+            harness_spec_json: None,
+            parent_task_id: Some(5),
+            caller_agent_id: Some("agent-3".into()),
+            trace_id: Some("trace-123".into()),
+            span_depth: Some(2),
+        };
+        let json = serde_json::to_string(&envelope).unwrap();
+        let back: RemoteTaskEnvelope = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.parent_task_id, Some(5));
+        assert_eq!(back.span_depth, Some(2));
+        assert_eq!(back.trace_id.as_deref(), Some("trace-123"));
+    }
 }
 
 /// Ack payload for a remote task envelope.
