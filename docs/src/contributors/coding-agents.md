@@ -94,6 +94,8 @@ Paste the failing test as the first content of any implementation request. Benef
 
 When a task cannot be expressed as a failing test (e.g., pure doc updates, config tweaks), state that explicitly rather than skipping the check silently.
 
+**Scaffold shortcut (Vox):** `vox new fn <name> [--params "x: int"] [--returns int] [--in path/to/file.vox]` writes a paired `fn` + `@test` block in one keystroke. The emitted test references undefined placeholders (`_`, `_expected`) so the function won't compile until you fill in the expected behavior — the friction reducer for [AGENTS.md §Test-First Policy](../../../AGENTS.md). Pass `--stdout` to pipe the stub into your editor instead of writing to disk.
+
 ## Snapshot discipline
 
 Insta snapshot tests (`.snap` files under `crates/*/src/tests/snapshots/`) are

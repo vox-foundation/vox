@@ -21,13 +21,22 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 240
+**schema_version:** `1` · **vox-cli operations:** 263
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
 | `vox add` | active | — | pm | platform | — |
 | `vox architect` | active | codex|stub-check | diag | platform | — |
 | `vox ars` | active | — | ars | interop | — |
+| `vox auth` | active | — | ars | platform | — |
+| `vox auth connect` | active | — | ars | platform | — |
+| `vox auth init` | active | — | ars | platform | — |
+| `vox auth login` | active | — | ars | platform | — |
+| `vox auth trust` | active | — | ars | platform | — |
+| `vox auth trust-list` | active | — | ars | platform | — |
+| `vox auth unlock` | active | — | ars | platform | — |
+| `vox auth untrust` | active | — | ars | platform | — |
+| `vox auth whoami` | active | — | ars | platform | — |
 | `vox build` | active | — | fabrica | app | — |
 | `vox bundle` | active | — | fabrica | app | — |
 | `vox check` | active | — | fabrica | app | — |
@@ -42,7 +51,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci check-docs-ssot` | active | — | — | platform | — |
 | `vox ci check-links` | active | — | — | platform | — |
 | `vox ci check-summary-drift` | active | — | — | platform | — |
-| `vox ci clavis-parity` | active | — | — | platform | — | _(checks secrets-ssot.md)_ |
 | `vox ci command-compliance` | active | — | — | platform | — |
 | `vox ci command-sync` | active | — | — | platform | — |
 | `vox ci completion-audit` | active | — | — | platform | — |
@@ -54,6 +62,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci cuda-features` | active | — | — | platform | — |
 | `vox ci cuda-release-build` | active | — | — | platform | — |
 | `vox ci data-ssot-guards` | active | — | — | platform | — |
+| `vox ci db-schema-coverage` | active | — | — | platform | — |
 | `vox ci doc-inventory` | active | — | — | platform | — |
 | `vox ci eval-matrix` | active | — | — | platform | — |
 | `vox ci eval-matrix run` | active | — | — | platform | — |
@@ -77,11 +86,13 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci operations-sync` | active | — | — | platform | — |
 | `vox ci operations-verify` | active | — | — | platform | — |
 | `vox ci pm-provenance` | active | — | — | platform | — |
+| `vox ci policy-allowlist-parity` | active | — | — | platform | — |
 | `vox ci policy-smoke` | active | — | — | platform | — |
 | `vox ci pre-push` | active | — | — | platform | — |
 | `vox ci query-all-guard` | active | — | — | platform | — |
 | `vox ci release-build` | active | — | — | platform | — |
 | `vox ci repo-guards` | active | — | — | platform | — |
+| `vox ci row-serde-lint` | active | — | — | platform | — |
 | `vox ci rust-ecosystem-policy` | active | — | — | platform | — |
 | `vox ci scaling-audit` | active | — | — | platform | — |
 | `vox ci scaling-audit emit-reports` | active | — | — | platform | — |
@@ -89,19 +100,14 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci scientia-novelty-ledger-contracts` | active | — | — | platform | — |
 | `vox ci scientia-worthiness-contract` | active | — | — | platform | — |
 | `vox ci secret-env-guard` | active | — | — | platform | — |
+| `vox ci secrets-parity` | active | — | — | platform | — |
 | `vox ci sql-surface-guard` | active | — | — | platform | — |
 | `vox ci ssot-drift` | active | — | — | platform | — |
+| `vox ci string-id-lint` | active | — | — | platform | — |
 | `vox ci toestub-scoped` | active | — | — | platform | — |
 | `vox ci toestub-self-apply` | active | — | — | platform | — |
 | `vox ci turso-import-guard` | active | — | — | platform | — |
 | `vox ci workflow-scripts` | active | — | — | platform | — |
-| `vox secrets` | active | — | ars | platform | — |
-| `vox secrets backend-status` | active | — | ars | platform | — |
-| `vox secrets get` | active | — | ars | platform | — |
-| `vox secrets migrate-auth-store` | active | — | ars | platform | — |
-| `vox secrets set` | active | — | ars | platform | — |
-| `vox secrets status` | active | — | ars | platform | — |
-| `vox clavis` | active | — | ars | platform | _(deprecated alias of `vox secrets`)_ |
 | `vox codex` | active | — | codex | data | — |
 | `vox codex cutover` | active | — | codex | data | — |
 | `vox codex export-legacy` | active | — | codex | data | — |
@@ -143,8 +149,8 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox init` | active | — | pm | platform | — |
 | `vox live` | active | live | — | ai | — |
 | `vox lock` | active | — | pm | platform | — |
-| `vox login` | deprecated | — | ars | platform | — |
-| `vox logout` | deprecated | — | ars | platform | — |
+| `vox login` | active | — | ars | platform | — |
+| `vox logout` | active | — | ars | platform | — |
 | `vox lsp` | active | — | fabrica | app | — |
 | `vox ludus` | active | extras-ludus | ars | ai | — |
 | `vox ludus hud` | active | ludus-hud | ars | ai | — |
@@ -173,10 +179,19 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox mens workflow list` | active | mens-dei | mens | ai | — |
 | `vox mens workflow run` | active | mens-dei | mens | ai | — |
 | `vox migrate web` | active | — | pm | platform | — |
+| `vox model costs` | active | — | — | ai | — |
+| `vox model discover` | active | — | — | ai | — |
+| `vox model explain` | active | — | — | ai | — |
+| `vox model list` | active | — | — | ai | — |
+| `vox model preferences reset` | active | — | — | ai | — |
+| `vox model preferences set` | active | — | — | ai | — |
 | `vox model pricing check` | active | — | — | ai | — |
 | `vox model pricing refresh` | active | — | — | ai | — |
 | `vox model pricing rollup` | active | — | — | ai | — |
 | `vox model pricing show` | active | — | — | ai | — |
+| `vox model rollup` | active | — | — | ai | — |
+| `vox model scoreboard` | active | — | — | ai | — |
+| `vox model show` | active | — | — | ai | — |
 | `vox openclaw` | active | ars | ars | interop | — |
 | `vox openclaw doctor` | active | ars | ars | interop | — |
 | `vox openclaw gateway-call` | active | ars | ars | interop | — |
@@ -248,6 +263,13 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox scientia publication-worthiness-evaluate` | active | — | codex | data | — |
 | `vox scientia publication-zenodo-metadata` | active | — | codex | data | — |
 | `vox script` | active | script-execution | fabrica | workflow | — |
+| `vox secrets` | active | — | ars | platform | — |
+| `vox secrets backend-status` | active | — | ars | platform | — |
+| `vox secrets get` | active | — | ars | platform | — |
+| `vox secrets login` | active | — | ars | platform | — |
+| `vox secrets migrate-auth-store` | active | — | ars | platform | — |
+| `vox secrets set` | active | — | ars | platform | — |
+| `vox secrets status` | active | — | ars | platform | — |
 | `vox share` | active | — | ars | interop | — |
 | `vox shell check` | active | — | — | platform | — |
 | `vox shell repl` | active | — | — | platform | — |
