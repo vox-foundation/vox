@@ -138,6 +138,7 @@ vox-code-audit               = { path = "crates/vox-code-audit" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
 vox-dashboard             = { path = "crates/vox-dashboard" }
+vox-inspect-bridge        = { path = "crates/vox-inspect-bridge" }
 
 # External dependencies (centralized versions)
 abi_stable         = "0.11"

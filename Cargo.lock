@@ -10645,6 +10645,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-claim-extractor"
+version = "0.5.0"
+dependencies = [
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "vox-constrained-gen",
+ "vox-research-events",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-cli"
 version = "0.5.0"
 dependencies = [
@@ -11167,6 +11182,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-inspect-bridge"
+version = "0.5.0"
+dependencies = [
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "vox-research-events",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-install-policy"
 version = "0.5.0"
 dependencies = [
@@ -11311,6 +11339,20 @@ dependencies = [
  "walkdir",
  "which 7.0.3",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "vox-nanopub"
+version = "0.5.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+ "vox-crypto",
+ "vox-research-events",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -11990,6 +12032,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-prereg"
+version = "0.5.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+ "vox-crypto",
+ "vox-research-events",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-primitives"
 version = "0.5.0"
 
@@ -12076,6 +12132,28 @@ name = "vox-reqwest-defaults"
 version = "0.5.0"
 dependencies = [
  "reqwest 0.12.28",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-research-events"
+version = "0.5.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-ro-crate"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "vox-crypto",
+ "vox-research-events",
  "workspace-hack",
 ]
 

@@ -346,7 +346,7 @@ must register before running.
 **Deliverable:** publication artifact spec complete. First Zenodo sandbox
 deposit.
 
-### Phase 5 — Inspect bridge + atomic-NEI novelty (3 wk)
+### Phase 5 — Inspect bridge + atomic-NEI novelty (3 wk) ✅ Complete
 - `vox-inspect-bridge` crate. Translate Vox probes into Inspect tasks.
 - Contribute Vox-defined evals upstream to `inspect_evals` (academic
   co-author handshake).
