@@ -75,5 +75,8 @@ fn decl_kind_and_name(decl: &Decl) -> (String, String) {
         Decl::Activity(a) => ("activity".into(), a.name.clone()),
         Decl::Actor(a) => ("actor".into(), a.name.clone()),
         Decl::Form(f) => ("form".into(), f.name.clone()),
+        Decl::BackButton(_) => ("back_button".into(), "back_button".into()),
+        Decl::DeepLink(d) => ("deep_link".into(), d.scheme.clone()),
+        Decl::Push(_) => ("push".into(), "push".into()),
     }
 }
