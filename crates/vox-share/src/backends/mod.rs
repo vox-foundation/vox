@@ -3,3 +3,4 @@
 pub mod cloudflare;
 pub mod lan;
 pub mod localhost_run;
+pub mod tailscale;

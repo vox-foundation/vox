@@ -4,6 +4,7 @@ use crate::backend::{BackendKind, TunnelBackend, TunnelHandle};
 use crate::backends::cloudflare::CloudflareBackend;
 use crate::backends::lan::LanBackend;
 use crate::backends::localhost_run::LocalhostRunBackend;
+use crate::backends::tailscale::TailscaleBackend;
 use crate::error::{ShareError, ShareResult};
 use crate::proxy::{build_app as build_proxy_app, ProxyConfig};
 use std::net::SocketAddr;
@@ -124,9 +125,6 @@ fn make_backend(kind: BackendKind) -> Box<dyn TunnelBackend> {
         BackendKind::Lan => Box::new(LanBackend::new()),
         BackendKind::Cloudflare => Box::new(CloudflareBackend::new()),
         BackendKind::LocalhostRun => Box::new(LocalhostRunBackend::new()),
-        // S4 adds Tailscale.
-        BackendKind::Tailscale => {
-            unimplemented!("backend {:?} ships in a later phase", kind)
-        }
+        BackendKind::Tailscale => Box::new(TailscaleBackend::new()),
     }
 }
