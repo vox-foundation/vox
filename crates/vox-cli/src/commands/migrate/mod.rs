@@ -36,6 +36,15 @@ fn patch_legacy_hook_fn_keyword(src: &str) -> Option<String> {
 pub enum MigrateCmd {
     /// Scan `.vox` files for React interop migration findings (Path C, retired decorators).
     Web(WebMigrateArgs),
+    /// Rewrite a .vox corpus to canonical names from `contracts/naming/renames.v1.json`.
+    ///
+    /// Walks all `.vox` files under ROOT (default: current directory), rewrites any
+    /// identifier that appears as a `from` key in the rename registry to its canonical
+    /// `to` name, and writes the result back in-place (unless `--dry-run` is given).
+    ///
+    /// The token-based rewrite logic is a pass-through stub in Task 5; Task 6 implements
+    /// the full rewrite.
+    Names(NamesArgs),
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -52,6 +61,18 @@ pub struct WebMigrateArgs {
     /// Exit with failure if any migration findings (or parse errors) remain after the run (for CI).
     #[arg(long)]
     pub check: bool,
+}
+
+/// Arguments for `vox migrate names`.
+#[derive(clap::Args, Debug, Clone)]
+pub struct NamesArgs {
+    /// Root directory of .vox sources to rewrite. Defaults to the current working directory.
+    #[arg(default_value = ".")]
+    pub root: PathBuf,
+
+    /// Print what would change without writing files.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 #[derive(Serialize)]
@@ -76,7 +97,164 @@ struct WebReport {
 pub fn run(cmd: MigrateCmd) -> Result<()> {
     match cmd {
         MigrateCmd::Web(args) => run_web(args),
+        MigrateCmd::Names(args) => run_names(args),
     }
+}
+
+fn run_names(args: NamesArgs) -> Result<()> {
+    let registry = vox_compiler::parser::renames::RenameRegistry::load_canonical()
+        .map_err(|e| anyhow::anyhow!("loading rename registry: {}", e))?;
+    let files = collect_vox_files(&args.root)?;
+    let mut total = 0usize;
+    for path in &files {
+        let before =
+            std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+        let after = rewrite(&before, &registry);
+        if before != after {
+            total += 1;
+            if !args.dry_run {
+                std::fs::write(path, &after)
+                    .with_context(|| format!("write {}", path.display()))?;
+            }
+            println!(
+                "{}: {}",
+                if args.dry_run { "would update" } else { "updated" },
+                path.display()
+            );
+        }
+    }
+    println!(
+        "{} file(s) {}",
+        total,
+        if args.dry_run { "would be updated" } else { "updated" }
+    );
+    Ok(())
+}
+
+fn collect_vox_files(root: &std::path::Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut out = Vec::new();
+    walk_for_names(root, &mut out)?;
+    Ok(out)
+}
+
+fn walk_for_names(dir: &std::path::Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            let name = path.file_name().unwrap_or_default();
+            if name == "target" || name == "node_modules" || name == ".git" {
+                continue;
+            }
+            walk_for_names(&path, out)?;
+        } else if path.extension().map_or(false, |e| e == "vox") {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
+/// Codemod: rewrite identifier tokens that match a registry `from` name to their
+/// canonical `to` names. Operates on lexer tokens, not text patterns, so:
+///
+/// - String literal contents are **never** touched (they are a distinct token kind).
+/// - Substring matches inside unrelated identifiers (e.g. `MyBox`, `Boxes`) are
+///   never rewritten — only exact whole-identifier tokens are matched.
+/// - Comments and whitespace are preserved byte-for-byte (gaps between token
+///   spans are copied verbatim; comments are emitted via [`lex_preserving`]).
+/// - On lex failure the function is not applicable: the logos lexer is infallible
+///   (it skips unknown characters rather than returning an error), so in practice
+///   the source is always tokenised. Any unrecognised bytes are faithfully copied
+///   via the gap-fill logic.
+///
+/// ## Lexer API shape (actual, as of 2026-05)
+///
+/// ```text
+/// vox_compiler::lexer::lex_preserving(source: &str) -> Vec<Spanned>
+/// Spanned { token: Token, span: std::ops::Range<usize> }
+/// Token::Ident(String)      — lowercase identifiers
+/// Token::TypeIdent(String)  — upper-case / type identifiers
+/// ```
+///
+/// Horizontal whitespace is *skipped* by the logos lexer (not emitted as tokens);
+/// the inter-token byte ranges are recovered by copying `source[cursor..span.start]`
+/// before each token. Comments ARE emitted as `Token::Comment` by `lex_preserving`
+/// (unlike the standard `lex()` which strips them).
+///
+/// Exposed as `pub` for testing from the integration suite.
+pub fn rewrite(
+    source: &str,
+    registry: &vox_compiler::parser::renames::RenameRegistry,
+) -> String {
+    use vox_compiler::lexer::lex_preserving;
+    use vox_compiler::lexer::token::Token;
+
+    let tokens = lex_preserving(source);
+
+    let mut out = String::with_capacity(source.len());
+    let mut cursor = 0usize;
+
+    for spanned in &tokens {
+        let span_start = spanned.span.start;
+        let span_end = spanned.span.end;
+
+        // For Eof the span is empty (source.len()..source.len()); no gap or text to emit.
+        // We just flush any tail bytes that weren't covered by a real token.
+        if matches!(spanned.token, Token::Eof) {
+            break;
+        }
+
+        // Copy any bytes between the previous emit point and this token's start.
+        // This recovers horizontal whitespace (skipped by logos) and any unrecognised
+        // bytes (logos emits Err for them; we filtered those out in lex_preserving,
+        // so they land here as part of the inter-token gap).
+        if span_start > cursor {
+            out.push_str(&source[cursor..span_start]);
+        }
+
+        match &spanned.token {
+            Token::Ident(name) | Token::TypeIdent(name) => {
+                if let Some(entry) = registry.resolve(name) {
+                    // VUV-9 codemod scope: only primitive renames are token-level safe.
+                    // Kwarg/Decorator/EnumValue/Type renames need AST-aware rewriting
+                    // (kwargs need argument-position context; types need type-position
+                    // context). Future phases lift this restriction.
+                    if matches!(entry.kind, vox_compiler::parser::renames::RenameKind::Primitive) {
+                        out.push_str(&entry.to);
+                    } else {
+                        out.push_str(name);
+                    }
+                } else {
+                    out.push_str(&source[span_start..span_end]);
+                }
+            }
+            _ => {
+                out.push_str(&source[span_start..span_end]);
+            }
+        }
+
+        cursor = span_end;
+    }
+
+    // Flush any trailing bytes after the last real token (trailing whitespace,
+    // newlines, unrecognised chars after the last identifier, etc.).
+    if cursor < source.len() {
+        out.push_str(&source[cursor..]);
+    }
+
+    out
+}
+
+/// Thin wrapper over [`rewrite`] for integration tests that live outside this
+/// crate (and therefore outside `#[cfg(test)]`).
+pub fn rewrite_for_test(
+    source: &str,
+    registry: &vox_compiler::parser::renames::RenameRegistry,
+) -> String {
+    rewrite(source, registry)
 }
 
 fn run_web(args: WebMigrateArgs) -> Result<()> {

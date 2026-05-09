@@ -125,6 +125,7 @@ vox-reqwest-defaults      = { path = "crates/vox-reqwest-defaults" }
 vox-repository            = { path = "crates/vox-repository" }
 vox-actor-runtime               = { path = "crates/vox-actor-runtime" }
 vox-scaling-policy        = { path = "crates/vox-scaling-policy" }
+vox-share                 = { path = "crates/vox-share" }
 vox-skills                = { path = "crates/vox-skills" }
 vox-ssg                   = { path = "crates/vox-ssg" }
 vox-tensor                = { path = "crates/vox-tensor" }
@@ -218,6 +219,8 @@ argon2             = "0.5"
 # [VOX AUDIT 2026-04-13] Centralized sprawling versions found in sub-crates
 axum               = { version = "0.8", default-features = false }
 axum-extra         = "0.12.5"
+hyper              = { version = "1", features = ["full"] }
+hyper-util         = { version = "0.1", features = ["client", "client-legacy", "tokio"] }
 tower-http         = "0.6.2"
 subtle             = "2.6"
 futures            = "0.3"

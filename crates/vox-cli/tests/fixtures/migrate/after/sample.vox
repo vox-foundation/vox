@@ -1,0 +1,6 @@
+// vox:skip
+component Greeting(name: str) {
+    view: panel() {
+        text("Hello, " + name)
+    }
+}
