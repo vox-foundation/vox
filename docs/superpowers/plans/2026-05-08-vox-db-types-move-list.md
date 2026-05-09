@@ -71,10 +71,10 @@ which `vox-db-types` already has.
 - [ ] `TrustObservationInput<'a>` — `crates/vox-db/src/trust_telemetry.rs:27` — borrowed-string params struct (mirrors other `*Params` already in vox-db-types). Has a `with_defaults` constructor — pure constant init, no deps.
 - [ ] `TrustObservationEntry` — `crates/vox-db/src/trust_telemetry.rs:47` — owned-string row entry (sister of types already in vox-db-types).
 - [x] `WorkspaceJourneyStoreMode` — `crates/vox-db/src/workspace_journey_store.rs:20` — two-variant enum.
-- [ ] `BuildHealthSummary` — `crates/vox-db/src/store/ops_build.rs:19` — counts + `Vec<CrateSample>`. Move with `CrateSample`.
-- [ ] `CrateSample` — `crates/vox-db/src/store/ops_build.rs:36` — `String`/`Option<i64>`/`Option<String>`.
-- [ ] `RegressionRow` — `crates/vox-db/src/store/ops_build.rs:47` — pure data (`String`/`i64`/`f64`/`Option<String>`).
-- [ ] `BuildDependencyShape` — `crates/vox-db/src/store/ops_build.rs:10` — `i64` + `serde_json::Value`. (`vox-db-types` already pulls `serde_json` indirectly via existing types.)
+- [x] `BuildHealthSummary` — `crates/vox-db/src/store/ops_build.rs:19` — counts + `Vec<CrateSample>`. Move with `CrateSample`.
+- [x] `CrateSample` — `crates/vox-db/src/store/ops_build.rs:36` — `String`/`Option<i64>`/`Option<String>`.
+- [x] `RegressionRow` — `crates/vox-db/src/store/ops_build.rs:47` — pure data (`String`/`i64`/`f64`/`Option<String>`).
+- [x] `BuildDependencyShape` — `crates/vox-db/src/store/ops_build.rs:10` — `i64` + `serde_json::Value`. (`vox-db-types` already pulls `serde_json` indirectly via existing types.)
 - [ ] `CloudCostSummary` — `crates/vox-db/src/store/ops_mens_cloud.rs:283` — `u32`/`f64` only.
 - [ ] `CorpusQualitySummary` — `crates/vox-db/src/store/ops_mens_intelligence.rs:9` — `u64`/`f64` only.
 - [ ] `GrpoStepRow` — `crates/vox-db/src/store/ops_mens_intelligence.rs:24` — `String`/`u32`/`f32` only.
