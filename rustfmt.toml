@@ -1,19 +1,5 @@
 # Vox workspace rustfmt configuration.
-# Explicit over default so edition bumps don't silently shift behavior.
-# Requires nightly for some options; CI uses `cargo +stable fmt --check` so
-# only stable-stable options are in use here.
-
+# Makes implicit defaults explicit so edition bumps don't silently shift
+# behavior.  Only stable, non-reformatting options — changing import grouping
+# or brace style would require a dedicated bulk-reformat commit.
 edition = "2024"
-
-# Keep imports grouped: std → external → self.  Stable option.
-imports_granularity = "Crate"
-group_imports = "StdExternalCrate"
-
-# Chains: one item per line when the chain exceeds this width.
-chain_width = 60
-
-# Trailing commas in argument lists make diffs cleaner.
-trailing_comma = "Vertical"
-
-# Consistent brace style across the workspace.
-brace_style = "SameLineWhere"
