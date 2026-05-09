@@ -44,7 +44,7 @@ Override with `VOX_PREPUSH_BASE=<ref>` (e.g. `VOX_PREPUSH_BASE=HEAD~1`).
 
 ## `--act` mode (GH-hosted exception workflows)
 
-`vox ci pre-push --act` additionally runs the workflows that target
+When `--act` is set, `vox ci pre-push` additionally runs the workflows that target
 `ubuntu-latest` (documented in [github-hosted-exceptions](../ci/github-hosted-exceptions.md))
 inside Docker containers via [nektos/act](https://github.com/nektos/act).
 Catches Node/pnpm version mismatches and link-checker regressions before push

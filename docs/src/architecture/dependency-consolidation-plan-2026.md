@@ -2,7 +2,7 @@
 title: "Dependency consolidation plan (2026)"
 description: "Audit of every external tool, env var, and runtime dependency the repo expects; design for a unified Rust installer (vox doctor --install) extending the existing surface; phased migration that can merge cleanly back to main."
 category: "architecture"
-status: "draft"
+status: "roadmap"
 last_updated: "2026-05-09"
 training_eligible: true
 schema_type: "TechArticle"
@@ -163,7 +163,7 @@ vox doctor --install --dry-run   # show what would be installed; do not change s
 vox doctor --install --scope=ci  # only the subset CI cares about (faster pre-push)
 ```
 
-`--install` is a strict superset of the existing `auto_heal` flag and
+The `--install` flag is a strict superset of the existing `auto_heal` flag and
 deprecates it (fix-forward, not back-compat — per `AGENTS.md`).
 
 ### Per-check responsibility
