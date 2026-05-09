@@ -23,7 +23,6 @@ tiers:
     allow_direct_access:
       - vox-db
       - vox-secrets
-      - vox-test-harness
     # vox-package listed until M-26 completes; remove thereafter.
     temporary_exceptions:
       - vox-package
