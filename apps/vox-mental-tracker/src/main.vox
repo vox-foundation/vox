@@ -530,6 +530,20 @@ component VoicePage() {
     }
 }
 
+@endpoint(kind: mutation) fn store_push_token(token: str) to int {
+    return record_push_token_internal(token)
+}
+
+@endpoint(kind: mutation) fn handle_push_payload(json: str) to int { return 0 }
+
+@endpoint(kind: mutation) fn handle_push_tap(json: str) to int { return 0 }
+
+@push {
+    on_register: store_push_token
+    on_notification: handle_push_payload
+    on_action: handle_push_tap
+}
+
 routes {
     "/" to Home
     "/mood" to Mood
