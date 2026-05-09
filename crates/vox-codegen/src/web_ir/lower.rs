@@ -196,6 +196,10 @@ fn fold_primitive_web_ir_element(
     if let Some(class_expr) = view.class_expr {
         attrs.push(("className".to_string(), class_expr));
     }
+    // D1: safe_area kwarg → inline style={{ … }} with CSS env() vars.
+    if let Some(style_props) = view.style_expr {
+        attrs.push(("style".to_string(), format!("{{ {style_props} }}")));
+    }
     for attr in &view.passthrough {
         attrs.extend(lower_jsx_attr_pair(attr, state_names));
     }
