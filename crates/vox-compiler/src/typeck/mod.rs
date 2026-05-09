@@ -14,6 +14,7 @@
 
 mod ast_decl_lints;
 mod effect_deps_lint;
+mod stale_capture_lint;
 
 pub use ast_decl_lints::lint_ast_declarations;
 /// Automated fix suggestions for type-check diagnostics.
@@ -61,6 +62,7 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
     diags.extend(effect_check::check_effect_compliance(hir, source));
     diags.extend(state_machine_check::check_state_machines(hir, source));
     diags.extend(effect_deps_lint::check_effect_deps(hir, source));
+    diags.extend(stale_capture_lint::check_stale_captures(hir, source));
     diags
 }
 
