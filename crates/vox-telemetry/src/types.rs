@@ -223,7 +223,8 @@ pub enum TelemetryEvent {
     ResearchMetric(ResearchMetricEvent),
     /// Per-LLM-call record (Phase B).
     ModelCall(ModelCallEvent),
-    // Phase C adds: TaskRootSummary(TaskRootSummaryEvent)
+    /// Top-level task completion rollup (Phase C).
+    TaskRootSummary(TaskRootSummaryEvent),
     // Phase D adds: BuildSummary(BuildSummaryEvent), Error(ErrorEvent)
 }
 
@@ -261,6 +262,29 @@ pub struct ModelCallEvent {
     pub parent_task_id: Option<u64>,
     pub trace_id: Option<String>,
     pub caller_agent_id: Option<String>,
+}
+
+/// Top-level task completion rollup. Persisted as `research_metrics` row with
+/// `metric_type = METRIC_TYPE_TASK_ROOT_SUMMARY`.
+///
+/// One row per top-level task. Aggregates totals across all child agent calls
+/// and LLM calls within the task. Token/cost aggregates are populated in Phase D
+/// (wall_time_ms is 0 as a placeholder until task start time is threaded through).
+/// Sensitivity: **S1 (OperationalTracing)**.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TaskRootSummaryEvent {
+    pub task_id: u64,
+    pub trace_id: String,
+    pub repository_id: Option<String>,
+    /// "completed" | "failed" | "doubted" | "cancelled"
+    pub outcome: String,
+    pub wall_time_ms: u64,
+    pub total_input_tokens: u64,
+    pub total_output_tokens: u64,
+    pub total_cost_usd: f64,
+    pub child_call_count: u32,
+    pub max_span_depth: u16,
+    pub subagent_fanout: u32,
 }
 
 #[cfg(test)]

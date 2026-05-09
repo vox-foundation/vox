@@ -79,6 +79,7 @@ pub use types::{
     // event types
     ModelCallEvent,
     ResearchMetricEvent,
+    TaskRootSummaryEvent,
     TelemetryEvent,
     // write helpers
     TelemetryWriteOptions,

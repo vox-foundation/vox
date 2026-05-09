@@ -6,8 +6,8 @@
 use std::sync::Arc;
 
 use vox_telemetry::{
-    ModelCallEvent, ResearchMetricEvent, TelemetryEvent, TelemetryRecorder,
-    METRIC_TYPE_MODEL_CALL_EVENT,
+    ModelCallEvent, ResearchMetricEvent, TaskRootSummaryEvent, TelemetryEvent, TelemetryRecorder,
+    METRIC_TYPE_MODEL_CALL_EVENT, METRIC_TYPE_TASK_ROOT_SUMMARY,
 };
 
 /// `TelemetryRecorder` sink backed by a live `VoxDb` connection.
@@ -62,6 +62,37 @@ impl TelemetryRecorder for ResearchMetricsSink {
                         .await
                     {
                         tracing::warn!(?err, "ResearchMetricsSink: ModelCall write failed");
+                    }
+                });
+            }
+            TelemetryEvent::TaskRootSummary(e) => {
+                let db = Arc::clone(&self.db);
+                let e: TaskRootSummaryEvent = e.clone();
+                tokio::spawn(async move {
+                    let session_id = format!("task:{}", e.task_id);
+                    let metadata_json = match serde_json::to_string(&e) {
+                        Ok(s) => Some(s),
+                        Err(err) => {
+                            tracing::warn!(
+                                ?err,
+                                "ResearchMetricsSink: task_root_summary serialize failed"
+                            );
+                            return;
+                        }
+                    };
+                    if let Err(err) = db
+                        .append_research_metric(
+                            &session_id,
+                            METRIC_TYPE_TASK_ROOT_SUMMARY,
+                            Some(e.total_cost_usd),
+                            metadata_json.as_deref(),
+                        )
+                        .await
+                    {
+                        tracing::warn!(
+                            ?err,
+                            "ResearchMetricsSink: task_root_summary write failed"
+                        );
                     }
                 });
             }
