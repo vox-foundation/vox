@@ -80,6 +80,8 @@ pub mod clarification_db_inbox_poll;
 pub mod circuit_breaker;
 /// Composite confidence fusion for Socrates invocation decision (D3).
 pub mod confidence_fusion;
+/// Three-tier model cascade for autonomous model-routing (D1).
+pub mod tier_cascade;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Orchestrator configuration load, merge, and validation.
