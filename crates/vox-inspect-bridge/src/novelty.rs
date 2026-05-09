@@ -164,4 +164,12 @@ mod tests {
             if (closest_score - 0.65).abs() < 1e-9
         ));
     }
+
+    #[test]
+    fn no_summary_no_scores_is_novel() {
+        let bundle = make_bundle(vec![hit("doi:10.test", None)], None);
+        let scorer = AtomicNoveltyScorer::default();
+        let verdict = scorer.score(&bundle);
+        assert_eq!(verdict, NoveltyVerdict::Novel);
+    }
 }

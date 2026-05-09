@@ -18,10 +18,11 @@ impl ChronoFilter {
 
     /// Approximate calendar year of `claim_timestamp`.
     ///
-    /// Uses integer arithmetic: `(seconds / 86400 / 365) + 1970`.
-    /// Accurate to ±1 year — sufficient for year-granularity filtering.
+    /// Uses the average Gregorian year length (365.2425 days).
+    /// Accurate to ±1 year for 1970-2100; sufficient for year-granularity filtering.
     pub fn claim_year(&self) -> i32 {
-        (self.claim_timestamp / 86_400 / 365 + 1970) as i32
+        // Average Gregorian year = 365.2425 days; accurate to ±1 year for 1970-2100
+        ((self.claim_timestamp as f64 / 86_400.0 / 365.2425) as i64 + 1970) as i32
     }
 
     /// Return only hits whose `year` is strictly less than `claim_year()`.
