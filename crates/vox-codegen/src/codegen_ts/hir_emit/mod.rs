@@ -252,6 +252,9 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             if let Some(class_expr) = &view.class_expr {
                 attrs.push(format!("className={{{class_expr}}}"));
             }
+            if let Some(style_props) = &view.style_expr {
+                attrs.push(format!("style={{{{ {style_props} }}}}"));
+            }
             for attr in &view.passthrough {
                 if attr.name == "bind" {
                     let (value_str, onchange_str) =
@@ -282,6 +285,9 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             let mut attrs = Vec::new();
             if let Some(class_expr) = &view.class_expr {
                 attrs.push(format!("className={{{class_expr}}}"));
+            }
+            if let Some(style_props) = &view.style_expr {
+                attrs.push(format!("style={{{{ {style_props} }}}}"));
             }
             for attr in &view.passthrough {
                 if attr.name == "bind" {
@@ -1260,6 +1266,9 @@ mod async_emit_tests {
 pub(crate) struct ViewCallHir {
     pub(crate) html_tag: String,
     pub(crate) class_expr: Option<String>,
+    /// Inline React `style` object expression string (without outer `{{ }}`), e.g.
+    /// `"paddingTop: 'env(safe-area-inset-top)'"`. Present when `safe_area` kwarg is set.
+    pub(crate) style_expr: Option<String>,
     pub(crate) passthrough: Vec<HirJsxAttr>,
 }
 
@@ -1310,6 +1319,7 @@ pub(crate) fn transform_hir_view_kwargs(
         })
         .unwrap_or_default();
     let mut passthrough: Vec<HirJsxAttr> = Vec::with_capacity(attrs.len());
+    let mut safe_area_style: Option<String> = None;
 
     for attr in attrs {
         let name = attr.name.as_str();
@@ -1320,6 +1330,16 @@ pub(crate) fn transform_hir_view_kwargs(
         }
         if HIR_PRIMITIVE_CONSUMED_PROPS.contains(&name) {
             // Already folded into primitive_emission above.
+            continue;
+        }
+        // D1: safe_area kwarg → inline style CSS env() vars (not expressible as Tailwind classes).
+        if name == "safe_area" {
+            if let HirExpr::StringLit(v, _) = unwrap_inline_hir_block_expr(&attr.value) {
+                let props = crate::web_ir::primitives::safe_area_to_style_props(v);
+                if !props.is_empty() {
+                    safe_area_style = Some(props);
+                }
+            }
             continue;
         }
         if let Some(piece) = hir_kwarg_to_class_expr(name, &attr.value, ctx) {
@@ -1348,6 +1368,7 @@ pub(crate) fn transform_hir_view_kwargs(
     ViewCallHir {
         html_tag,
         class_expr,
+        style_expr: safe_area_style,
         passthrough,
     }
 }
