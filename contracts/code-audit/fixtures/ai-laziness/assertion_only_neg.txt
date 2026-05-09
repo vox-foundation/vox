@@ -1,0 +1,1 @@
+fn x(n: u32) { assert!(n > 0); process(n); }

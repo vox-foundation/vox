@@ -1,0 +1,1 @@
+fn x() -> MyConfig { return MyConfig::default() }

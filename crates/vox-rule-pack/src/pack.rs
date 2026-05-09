@@ -32,6 +32,18 @@ impl CompiledRule {
         self.regex.is_match(line)
     }
 
+    /// For `MultilineRegex` rules: returns 1-indexed line numbers of every match in `content`.
+    /// Returns an empty vec for `LineRegex` and `Substring` kinds (use `matches_line` instead).
+    pub fn matches_in_content(&self, content: &str) -> Vec<usize> {
+        if self.kind != MatchKind::MultilineRegex {
+            return Vec::new();
+        }
+        self.regex
+            .find_iter(content)
+            .map(|m| content[..m.start()].lines().count() + 1)
+            .collect()
+    }
+
     /// Returns a reference to the pre-compiled regex.
     pub fn regex(&self) -> &Regex {
         &self.regex

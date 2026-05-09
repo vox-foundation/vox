@@ -1,0 +1,1 @@
+fn x(b: bool) -> Result<()> { if b { return Ok(()); } else { do_real_work(); Ok(()) } }

@@ -81,3 +81,451 @@ rules:
       positive:
         - "fixtures/victory-claim/hack_pos.txt"
       negative: []
+
+  # ── ai-laziness family ────────────────────────────────────────────────────────
+
+  - id: ai-laziness/placeholder-return
+    parent_id: ai-laziness
+    name: "AI Laziness Patterns"
+    description: "Function returns a placeholder string literal (TODO, WIP, placeholder, etc.)."
+    severity: warning
+    confidence: high
+    languages: [rust, typescript, python, vox]
+    match:
+      kind: line-regex
+      pattern: "return\\s+(?:Ok\\(|Some\\(|Err\\(|Error\\(?)?\\s*\"(?i:todo|placeholder|wip|not[\\s_-]*implemented|fixme|tbd|coming soon|stub)\"\\s*\\)?\"?"
+    message: "Function returns a placeholder string literal (\"TODO\", \"WIP\", \"placeholder\", …)."
+    suggestion: "Return the real value or surface an error."
+    fixtures:
+      positive:
+        - "fixtures/ai-laziness/placeholder_return_pos_todo.txt"
+        - "fixtures/ai-laziness/placeholder_return_pos_wip.txt"
+      negative:
+        - "fixtures/ai-laziness/placeholder_return_neg_hello.txt"
+
+  - id: ai-laziness/implement-later-comment
+    parent_id: ai-laziness
+    name: "AI Laziness Patterns"
+    description: "Comment defers real work with phrases like 'implement later', 'finish this', etc."
+    severity: warning
+    confidence: high
+    languages: [rust, typescript, python, vox]
+    match:
+      kind: line-regex
+      pattern: "(?i)(?://|#|/\\*)\\s*(?:todo:?\\s*implement|implement\\s+later|finish\\s+this|finish\\s+later|come\\s+back\\s+to\\s+this|for\\s+now|stub\\s*(?:[:.-]|\\s+impl|$)|placeholder\\s+impl|temporary\\s+impl|hack\\s*[:.-]|will\\s+(?:fill|finish)\\s+in\\s+later)"
+    message: "Comment defers real work (`implement later` / `finish this` / `for now` / `stub`)."
+    suggestion: "Either implement the missing behavior or open a tracked issue and link it; comments alone rot."
+    fixtures:
+      positive:
+        - "fixtures/ai-laziness/implement_later_pos_comment.txt"
+        - "fixtures/ai-laziness/implement_later_pos_finish.txt"
+      negative:
+        - "fixtures/ai-laziness/implement_later_neg_doc.txt"
+
+  - id: ai-laziness/mock-named-fn
+    parent_id: ai-laziness
+    name: "AI Laziness Patterns"
+    description: "Function named stub_, mock_, fake_, dummy_, or placeholder_ outside test code."
+    severity: warning
+    confidence: medium
+    languages: [rust, typescript, python, vox]
+    match:
+      kind: line-regex
+      pattern: "(?:^|\\s)(?:pub\\s+)?(?:async\\s+)?fn\\s+(stub_|mock_|fake_|dummy_|placeholder_)\\w+\\s*\\("
+    message: "Function name starts with a mock/stub prefix but the file is not gated as test code."
+    suggestion: "Move the function under #[cfg(test)], rename it, or delete it if unused."
+    fixtures:
+      positive:
+        - "fixtures/ai-laziness/mock_named_fn_pos.txt"
+      negative:
+        - "fixtures/ai-laziness/mock_named_fn_neg_real.txt"
+
+  - id: ai-laziness/custom-type-default-return
+    parent_id: ai-laziness
+    name: "AI Laziness Patterns"
+    description: "return SomeType::default() for a project-defined type usually means unimplemented."
+    severity: warning
+    confidence: low
+    languages: [rust, typescript, python, vox]
+    match:
+      kind: line-regex
+      pattern: "return\\s+([A-Z][A-Za-z0-9]+)\\s*::\\s*(default|new)\\s*\\(\\s*\\)"
+    message: "`return CustomType::default()` for a project-defined type usually means the function isn't really implemented."
+    suggestion: "Compute the actual return value, or document why the default is semantically correct here."
+    fixtures:
+      positive:
+        - "fixtures/ai-laziness/custom_type_default_pos.txt"
+      negative:
+        - "fixtures/ai-laziness/custom_type_default_neg_builtin.txt"
+
+  - id: ai-laziness/conditional-stub
+    parent_id: ai-laziness
+    name: "AI Laziness Patterns"
+    description: "One if/else branch returns a hollow value while the other is real."
+    severity: warning
+    confidence: medium
+    languages: [rust, typescript, python, vox]
+    match:
+      kind: multiline-regex
+      pattern: "(?:if\\s+[^{]+\\{\\s*return\\s+(?:Ok\\(\\(\\)\\)|Err\\(\\(\\)\\)|None|Default::default\\(\\))\\s*;?\\s*\\}\\s*else\\s*\\{|\\belse\\s*\\{\\s*return\\s+(?:Ok\\(\\(\\)\\)|Err\\(\\(\\)\\)|None|Default::default\\(\\))\\s*;?\\s*\\})"
+    message: "One if/else branch returns a hollow value while the other is real — usually means only the happy path was implemented."
+    suggestion: "Implement the stubbed branch, or split the function and document that one case is intentionally a no-op."
+    fixtures:
+      positive:
+        - "fixtures/ai-laziness/conditional_stub_pos.txt"
+      negative:
+        - "fixtures/ai-laziness/conditional_stub_neg.txt"
+
+  - id: ai-laziness/assertion-only-body
+    parent_id: ai-laziness
+    name: "AI Laziness Patterns"
+    description: "Function body contains only an assertion/log/dbg call — no real work happens."
+    severity: warning
+    confidence: medium
+    languages: [rust, typescript, python, vox]
+    match:
+      kind: multiline-regex
+      pattern: "\\{\\s*(?:assert(?:_eq|_ne|_matches)?!|debug_assert(?:_eq|_ne)?!|dbg!|log::(?:info|debug|trace|warn|error)!|tracing::(?:info|debug|trace|warn|error)!|println!|eprintln!)\\s*\\([^)]*\\)\\s*;?\\s*\\}"
+    message: "Function body contains only an assertion / log / dbg call — no real work happens."
+    suggestion: "Replace the assertion with the actual implementation, or delete the function if the assertion was the only intent."
+    fixtures:
+      positive:
+        - "fixtures/ai-laziness/assertion_only_pos.txt"
+      negative:
+        - "fixtures/ai-laziness/assertion_only_neg.txt"
+
+  - id: ai-laziness/early-return-only
+    parent_id: ai-laziness
+    name: "AI Laziness Patterns"
+    description: "Function body is only `return;` — no behavior."
+    severity: warning
+    confidence: medium
+    languages: [rust, typescript, python, vox]
+    match:
+      kind: multiline-regex
+      pattern: "\\{\\s*(?:(?:println!|eprintln!|log::(?:info|debug|trace|warn|error)!|tracing::(?:info|debug|trace|warn|error)!)\\s*\\([^)]*\\)\\s*;\\s*)?return\\s*;\\s*\\}"
+    message: "Function body is only `return;` (optionally with a log) — no behavior."
+    suggestion: "Implement the function or delete it. Use `unimplemented!()` if it must intentionally trip in production."
+    fixtures:
+      positive:
+        - "fixtures/ai-laziness/early_return_only_pos.txt"
+      negative:
+        - "fixtures/ai-laziness/early_return_only_neg.txt"
+
+  # ── stub family ───────────────────────────────────────────────────────────────
+
+  - id: stub/todo
+    parent_id: stub
+    name: "Stub / Placeholder Detector"
+    description: "todo!() macro — incomplete implementation."
+    severity: error
+    languages: [rust, typescript, python, vox]
+    match:
+      kind: line-regex
+      pattern: "\\btodo!\\s*\\("
+    message: "`todo!()` macro — incomplete implementation"
+    suggestion: "Replace `todo!()` with the actual implementation."
+    fixtures:
+      positive:
+        - "fixtures/stub/todo_pos.txt"
+      negative:
+        - "fixtures/stub/todo_neg.txt"
+
+  - id: stub/unimplemented
+    parent_id: stub
+    name: "Stub / Placeholder Detector"
+    description: "unimplemented!() macro — missing implementation."
+    severity: error
+    languages: [rust]
+    match:
+      kind: line-regex
+      pattern: "\\bunimplemented!\\s*\\("
+    message: "`unimplemented!()` macro — missing implementation"
+    suggestion: "Implement the function body or remove the stub."
+    fixtures:
+      positive:
+        - "fixtures/stub/unimplemented_pos.txt"
+      negative:
+        - "fixtures/stub/unimplemented_neg.txt"
+
+  - id: stub/panic-not-impl
+    parent_id: stub
+    name: "Stub / Placeholder Detector"
+    description: "panic!(\"not implemented\") — stub placeholder."
+    severity: error
+    languages: [rust]
+    match:
+      kind: line-regex
+      pattern: "\\bpanic!\\s*\\(\\s*\"not\\s+implemented"
+    message: "`panic!(\"not implemented\")` — stub placeholder"
+    suggestion: "Replace the panic with actual logic or use `todo!()` during development."
+    fixtures:
+      positive:
+        - "fixtures/stub/panic_not_impl_pos.txt"
+      negative:
+        - "fixtures/stub/panic_not_impl_neg.txt"
+
+  - id: stub/not-implemented-error
+    parent_id: stub
+    name: "Stub / Placeholder Detector"
+    description: "raise NotImplementedError — Python stub placeholder."
+    severity: error
+    languages: [python]
+    match:
+      kind: line-regex
+      pattern: "\\braise\\s+NotImplementedError\\b"
+    message: "`raise NotImplementedError` — stub placeholder"
+    suggestion: "Implement the function body."
+    fixtures:
+      positive:
+        - "fixtures/stub/not_implemented_error_pos.txt"
+      negative:
+        - "fixtures/stub/not_implemented_error_neg.txt"
+
+  - id: stub/throw-not-implemented
+    parent_id: stub
+    name: "Stub / Placeholder Detector"
+    description: "throw new Error('not implemented') — TypeScript stub placeholder."
+    severity: error
+    languages: [typescript]
+    match:
+      kind: line-regex
+      pattern: "throw\\s+new\\s+Error\\s*\\(\\s*[\"']not\\s+implemented"
+    message: "`throw new Error('not implemented')` — stub placeholder"
+    suggestion: "Implement the function body."
+    fixtures:
+      positive:
+        - "fixtures/stub/throw_not_implemented_pos.txt"
+      negative:
+        - "fixtures/stub/throw_not_implemented_neg.txt"
+
+  - id: stub/placeholder
+    parent_id: stub
+    name: "Stub / Placeholder Detector"
+    description: "Placeholder text (FIXME or PLACEHOLDER) detected."
+    severity: error
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "(?i:\\bFIXME\\b)|\\bPLACEHOLDER\\b"
+    message: "Placeholder text detected (FIXME or PLACEHOLDER)"
+    suggestion: "Replace placeholders with actual implementation or high-quality documentation."
+    fixtures:
+      positive:
+        - "fixtures/stub/placeholder_pos_fixme.txt"
+        - "fixtures/stub/placeholder_pos_upper.txt"
+      negative:
+        - "fixtures/stub/placeholder_neg.txt"
+
+  - id: stub/todo-comment
+    parent_id: stub
+    name: "Stub / Placeholder Detector"
+    description: "TODO comment found — incomplete code."
+    severity: error
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "(?i)//\\s*TODO\\b|#\\s*TODO\\b"
+    message: "TODO comment found — incomplete code"
+    suggestion: "Address the TODO or track it in an issue tracker."
+    fixtures:
+      positive:
+        - "fixtures/stub/todo_comment_pos.txt"
+        - "fixtures/stub/todo_comment_pos_py.txt"
+      negative:
+        - "fixtures/stub/todo_comment_neg.txt"
+
+  # ── deprecated-usage family ───────────────────────────────────────────────────
+
+  - id: deprecated-usage
+    name: "Deprecated Usage Detector"
+    description: "Found @deprecated annotation — consider removing this obsolete code."
+    severity: warning
+    languages: [vox]
+    match:
+      kind: line-regex
+      pattern: "^\\s*@deprecated"
+    message: "Found @deprecated annotation. Consider removing this obsolete code."
+    suggestion: "Refactor dependents and remove this deprecated item."
+    fixtures:
+      positive:
+        - "fixtures/deprecated-usage/deprecated_pos.txt"
+      negative:
+        - "fixtures/deprecated-usage/deprecated_neg.txt"
+
+  - id: raw-jsx-leakage
+    name: "Raw JSX Leakage Detector"
+    description: "Raw JSX attribute leaks into Vox source (Item 16)."
+    severity: warning
+    languages: [vox]
+    match:
+      kind: line-regex
+      pattern: "(className=|onClick=|onChange=|onSubmit=)"
+    message: "Raw JSX attribute leaks into Vox source (Item 16) — use Vox-native syntax."
+    suggestion: "Use Vox-native syntax: 'class=' instead of 'className=', 'on:click=' instead of 'onClick=', etc."
+    fixtures:
+      positive:
+        - "fixtures/deprecated-usage/jsx_leakage_pos.txt"
+      negative:
+        - "fixtures/deprecated-usage/jsx_leakage_neg.txt"
+
+  # ── rust/unwrap-call ──────────────────────────────────────────────────────────
+
+  - id: rust/unwrap-call
+    name: "Unwrap call (heuristic)"
+    description: "Heuristic: .unwrap() in Rust (info); skips common test paths and cfg(test) lines."
+    severity: info
+    languages: [rust]
+    match:
+      kind: line-regex
+      pattern: "\\.unwrap\\s*\\(\\s*\\)"
+    message: "`.unwrap()` — prefer `?`, `context`, or `expect(\"static reason\")` in production paths"
+    suggestion: "Prefer `?`, `context`, or `expect(\"static reason\")` over `.unwrap()` in production paths."
+    fixtures:
+      positive:
+        - "fixtures/rust-unwrap/unwrap_pos.txt"
+      negative:
+        - "fixtures/rust-unwrap/unwrap_neg.txt"
+
+  # ── stringly-typed-enum ───────────────────────────────────────────────────────
+
+  - id: stringly-typed-enum
+    name: "Stringly-Typed Enum Detector"
+    description: "String/str field with a comment listing pipe-separated enum alternatives."
+    severity: warning
+    languages: [vox, rust, typescript, python]
+    match:
+      kind: line-regex
+      pattern: ":\\s*(?:String|str)\\s*,?\\s*(?://|#)\\s*\"[^\"]+\"\\s*\\|"
+    message: "Stringly-typed enum — the comment describes an exhaustive set; use an ADT instead."
+    suggestion: "Replace the String field with a proper enum/ADT type."
+    fixtures:
+      positive:
+        - "fixtures/stringly-typed-enum/stringly_pos.txt"
+      negative:
+        - "fixtures/stringly-typed-enum/stringly_neg.txt"
+
+  # ── security/hardcoded-secret ─────────────────────────────────────────────────
+
+  - id: security/hardcoded-secret/generic
+    parent_id: security
+    name: "Hardcoded Secret Detector"
+    description: "Potential hardcoded secret or API key detected."
+    severity: error
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "(?i)(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|bearer)\\s*[:=]\\s*[\"'][^\"']{8,}[\"']"
+    message: "Potential hardcoded secret or API key detected."
+    suggestion: "Use environment variables or a secret manager instead of hardcoding credentials."
+    fixtures:
+      positive:
+        - "fixtures/security-hardcoded-secret/generic_pos.txt"
+      negative:
+        - "fixtures/security-hardcoded-secret/generic_neg_env.txt"
+        - "fixtures/security-hardcoded-secret/generic_neg_placeholder.txt"
+
+  - id: security/hardcoded-secret/aws-key
+    parent_id: security
+    name: "Hardcoded Secret Detector"
+    description: "Potential AWS Access Key ID detected."
+    severity: critical
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "\\bAKIA[0-9A-Z]{16}\\b"
+    message: "Potential AWS Access Key ID detected."
+    suggestion: "Use environment variables or a secret manager instead of hardcoding credentials."
+    fixtures:
+      positive:
+        - "fixtures/security-hardcoded-secret/aws_key_pos.txt"
+      negative:
+        - "fixtures/security-hardcoded-secret/aws_key_neg.txt"
+
+  - id: security/hardcoded-secret/jwt
+    parent_id: security
+    name: "Hardcoded Secret Detector"
+    description: "Potential JWT token detected."
+    severity: error
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "\\beyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\\.[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+"
+    message: "Potential hardcoded JWT token detected."
+    suggestion: "Use environment variables or a secret manager instead of hardcoding credentials."
+    fixtures:
+      positive:
+        - "fixtures/security-hardcoded-secret/jwt_pos.txt"
+      negative:
+        - "fixtures/security-hardcoded-secret/jwt_neg.txt"
+
+  # ── magic-value family ────────────────────────────────────────────────────────
+
+  - id: magic-value/port
+    parent_id: magic-value
+    name: "Magic Value Detector"
+    description: "Hardcoded port/address — use an environment variable or constant."
+    severity: warning
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "(?:\"|')\\s*(?:127\\.0\\.0\\.1|0\\.0\\.0\\.0|localhost)\\s*:\\s*\\d+[\"']"
+    message: "Hardcoded port/address — use an environment variable or constant"
+    suggestion: "Extract to a named constant or read from `std::env::var(\"PORT\")`."
+    fixtures:
+      positive:
+        - "fixtures/magic-value/port_pos.txt"
+      negative:
+        - "fixtures/magic-value/port_neg_const.txt"
+
+  - id: magic-value/ip
+    parent_id: magic-value
+    name: "Magic Value Detector"
+    description: "Hardcoded IP address — use a constant or config."
+    severity: warning
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "(?:\"|')(?:127\\.0\\.0\\.1|0\\.0\\.0\\.0|192\\.168\\.\\d+\\.\\d+|10\\.\\d+\\.\\d+\\.\\d+)(?:\"|')"
+    message: "Hardcoded IP address — use a constant or config"
+    suggestion: "Extract to a named constant or read from configuration."
+    fixtures:
+      positive:
+        - "fixtures/magic-value/ip_pos.txt"
+      negative:
+        - "fixtures/magic-value/ip_neg.txt"
+
+  - id: magic-value/path
+    parent_id: magic-value
+    name: "Magic Value Detector"
+    description: "Hardcoded absolute filesystem path."
+    severity: warning
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "(?:\"|')(?:C:\\\\|D:\\\\|/home/|/tmp/|/var/|/usr/|/etc/)[^\"']*(?:\"|')"
+    message: "Hardcoded absolute filesystem path — use config or environment variable"
+    suggestion: "Read from environment variable or config file."
+    fixtures:
+      positive:
+        - "fixtures/magic-value/path_pos_unix.txt"
+        - "fixtures/magic-value/path_pos_win.txt"
+      negative:
+        - "fixtures/magic-value/path_neg.txt"
+
+  - id: magic-value/db-conn
+    parent_id: magic-value
+    name: "Magic Value Detector"
+    description: "Hardcoded database connection string."
+    severity: error
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "(?:\"|')(?:postgres(?:ql)?://|mysql://|mongodb://|redis://|sqlite:)[^\"']*(?:\"|')"
+    message: "Hardcoded database connection string — use environment variable or config"
+    suggestion: "Read the connection string from `DATABASE_URL` environment variable."
+    fixtures:
+      positive:
+        - "fixtures/magic-value/db_conn_pos.txt"
+      negative:
+        - "fixtures/magic-value/db_conn_neg.txt"

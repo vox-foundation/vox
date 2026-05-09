@@ -20,8 +20,8 @@ fn canonical_rules_yaml_parses() {
     let pack = RulePack::load_from_path(&path)
         .unwrap_or_else(|e| panic!("rules.v1.yaml must parse: {e}"));
     assert!(
-        pack.len() >= 4,
-        "expected at least the four victory-claim rules, got {}",
+        pack.len() >= 29,
+        "expected at least 29 rules (4 victory-claim + wave-2 migrations), got {}",
         pack.len()
     );
     for needed in [
@@ -29,6 +29,19 @@ fn canonical_rules_yaml_parses() {
         "victory-claim/todo-leftover",
         "victory-claim/fixme",
         "victory-claim/hack",
+        "ai-laziness/placeholder-return",
+        "ai-laziness/conditional-stub",
+        "stub/todo",
+        "stub/unimplemented",
+        "stub/placeholder",
+        "deprecated-usage",
+        "raw-jsx-leakage",
+        "rust/unwrap-call",
+        "stringly-typed-enum",
+        "security/hardcoded-secret/generic",
+        "security/hardcoded-secret/aws-key",
+        "magic-value/port",
+        "magic-value/db-conn",
     ] {
         assert!(
             pack.rule(needed).is_some(),
