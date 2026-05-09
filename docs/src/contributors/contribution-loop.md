@@ -54,12 +54,25 @@ To land in the positive training pool, a `.vox` file or Rust change must:
 | `.vox` parse rate | `vox corpus eval --mode ast` | ≥ 99.5% |
 | No CRLF line endings | `vox ci line-endings` | Zero CRLF |
 | Docs code blocks valid | `// vox:skip` or `{{#include}}` | No bare snippets |
+| `@test` block exists for new `.vox` capability | written before the implementation | One `@test` per new exported fn |
+
+## @test-first for golden examples
+
+The highest-signal workflow for new `.vox` capabilities follows a Red → Green → Ingest loop:
+
+1. **Red** — write an `@test` block that calls the function you intend to add. The function doesn't exist yet, so `vox check` fails. That failure is the spec.
+2. **Green** — implement the function until `vox check` and `cargo test` pass.
+3. **Refactor** — clean up while keeping the test green.
+4. **Ingest** — run `vox corpus eval` and commit. The `@test` block raises `r_test` in the planned GRPO reward signal (see §Planned additions).
+
+Skipping step 1 (writing the implementation before the test) is not an error today, but it produces lower-quality corpus entries: the model learns the output without learning the intention. Agents are expected to follow @test-first for any new exported function added to `examples/golden/`.
 
 ## What sends code to the negative pool
 
 The system generates negative training examples from:
 
 - `stub/todo`, `stub/unimplemented`, `skeleton/hollow-fn` findings
+- Missing `@test` for new exported `.vox` functions in `examples/golden/` (flagged by `skeleton/no-test-for-pub-fn`)
 - `.vox` parse failures during `vox corpus validate-batch`
 - MCP pre-emit validation failures (planned — see roadmap section)
 - Replans triggered by failed victory-condition tiers
@@ -71,7 +84,7 @@ for "implementation complete" adjacent to `unimplemented!()`.
 
 ## The golden examples path
 
-The highest-signal contribution you can make to MENS is a well-formed golden example:
+The highest-signal contribution you can make to MENS is a well-formed golden example that follows @test-first (see §@test-first for golden examples above):
 
 ```
 examples/golden/<capability>.vox

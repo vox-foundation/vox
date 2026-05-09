@@ -1,0 +1,81 @@
+# PR mutation testing (non-blocking): fires when compiler or codegen crates change.
+# Results are uploaded as a workflow artifact; the job never fails the PR.
+name: Mutation (PR, vox-compiler + vox-codegen)
+
+on:
+  pull_request:
+    paths:
+      - "crates/vox-compiler/**"
+      - "crates/vox-codegen/**"
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  cargo-mutants:
+    name: cargo-mutants (${{ matrix.crate }})
+    runs-on: [self-hosted, linux, x64]
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - crate: vox-compiler
+            path_filter: "crates/vox-compiler/**"
+          - crate: vox-codegen
+            path_filter: "crates/vox-codegen/**"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check if crate was changed
+        id: changed
+        uses: tj-actions/changed-files@v46
+        with:
+          files: ${{ matrix.path_filter }}
+
+      - name: Skip if crate unchanged
+        if: steps.changed.outputs.any_changed == 'false'
+        run: echo "No changes in ${{ matrix.crate }} — skipping mutants."
+
+      - name: Install Rust toolchain
+        if: steps.changed.outputs.any_changed == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Registry & Target
+        if: steps.changed.outputs.any_changed == 'true'
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-mutants-${{ matrix.crate }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-mutants-${{ matrix.crate }}-
+
+      - name: Install cargo-nextest
+        if: steps.changed.outputs.any_changed == 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: Install cargo-mutants
+        if: steps.changed.outputs.any_changed == 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants
+
+      - name: Run mutants (package ${{ matrix.crate }})
+        if: steps.changed.outputs.any_changed == 'true'
+        run: |
+          cargo mutants --locked -p ${{ matrix.crate }} --no-times --jobs 2 \
+            --output mutants-out/${{ matrix.crate }}
+
+      - name: Upload mutants report
+        if: steps.changed.outputs.any_changed == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutants-${{ matrix.crate }}-pr${{ github.event.pull_request.number }}
+          path: mutants-out/${{ matrix.crate }}/
+          retention-days: 14
