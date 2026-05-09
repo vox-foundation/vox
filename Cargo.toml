@@ -93,6 +93,7 @@ vox-mesh-types            = { path = "crates/vox-mesh-types" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
+vox-orchestrator-core     = { path = "crates/vox-orchestrator-core" }
 vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }
 vox-orchestrator-queue    = { path = "crates/vox-orchestrator-queue" }
 vox-orchestrator-d        = { path = "crates/vox-orchestrator-d" }

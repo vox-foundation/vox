@@ -80,7 +80,8 @@ vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 35_000 }
 vox-codegen             = { layer = 3, max_loc = 20_000 }
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
 vox-publisher           = { layer = 3, max_loc = 20_000 }
-vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 60_000 }
+vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 55_000 }
+vox-orchestrator-core   = { layer = 3, kind = "boundary-marker", max_loc = 20_000 } # C5: orchestrator/ router/dispatcher; extraction blocked by 30+ crate:: cross-cuts
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }
 vox-oratio              = { layer = 3 }

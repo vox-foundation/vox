@@ -80,7 +80,8 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-lsp`](../../../crates/vox-lsp/) | Vox Language Server (stdio JSON-RPC). |
 | [`vox-ml-cli`](../../../crates/vox-ml-cli/) | Vox ML, AI, and Telemetry command-line interface (binary tool). |
 | [`vox-openclaw-runtime`](../../../crates/vox-openclaw-runtime/) | OpenClaw client + ARS runtime adapter, executor, context bundles, hooks. |
-| [`vox-orchestrator`](../../../crates/vox-orchestrator/) | Slim coordinator for the multi-agent file-affinity router; queue/lock/oplog in vox-orchestrator-queue, MCP tools in vox-orchestrator-mcp. |
+| [`vox-orchestrator`](../../../crates/vox-orchestrator/) | Glue crate for the multi-agent file-affinity router: dei_shim, planning, services, runtime glue. Core router lives in vox-orchestrator-core, queue/lock/oplog in vox-orchestrator-queue, MCP in vox-orchestrator-mcp. |
+| [`vox-orchestrator-core`](../../../crates/vox-orchestrator-core/) | Workspace boundary marker for the core router/dispatcher of vox-orchestrator (the `orchestrator/` subdir, ~11.5K LoC). Full extraction blocked by 30+ `crate::` cross-cuts into sibling modules; code remains in vox-orchestrator until a broader L3 split lands. |
 | [`vox-orchestrator-mcp`](../../../crates/vox-orchestrator-mcp/) | MCP (Model Context Protocol) tool layer for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 4. |
 | [`vox-orchestrator-queue`](../../../crates/vox-orchestrator-queue/) | Locks, oplog, and affinity tracking for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 5. |
 | [`vox-oratio`](../../../crates/vox-oratio/) | Speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement. |

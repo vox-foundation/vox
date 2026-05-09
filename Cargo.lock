@@ -11455,6 +11455,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-orchestrator-core"
+version = "0.5.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-orchestrator-d"
 version = "0.5.0"
 dependencies = [
