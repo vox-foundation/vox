@@ -5,8 +5,6 @@ use std::pin::Pin;
 
 use crate::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL;
 use crate::{ActivityOptions, ActivityResult, execute_activity};
-use uuid::Uuid;
-
 use super::types::{ChatMessage, LlmConfig, LlmResponse};
 use super::wire::{
     OpenRouterRequest, OpenRouterResponse, chat_requires_nonempty_api_key, resolve_chat_api_key,
@@ -275,7 +273,9 @@ pub async fn infer_with_retry(
     candidates: Vec<LlmConfig>,
 ) -> ActivityResult<Result<(LlmResponse, LlmConfig), String>> {
     let mut last_error = "No LLM candidates provided".to_string();
-    let trace_id = Uuid::new_v4().to_string();
+    // Inherit trace_id from the ambient TRACE_CTX if one is active (set by dispatch scope);
+    // otherwise mint a fresh UUID so orphan calls outside any task still have a trace_id.
+    let trace_id = vox_telemetry::current_trace_ctx().trace_id.to_string();
     let mut attempt_number = 0;
 
     let terminal_fallback = candidates.first().cloned();

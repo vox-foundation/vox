@@ -26,6 +26,7 @@ vox-plugin-host = { workspace = true }
 vox-skills.workspace = true
 vox-openclaw-runtime = { workspace = true }
 vox-db = { workspace = true, optional = true }
+vox-telemetry = { workspace = true }
 reqwest = { workspace = true, features = ["stream"] }
 vox-reqwest-defaults = { workspace = true }
 serde = { workspace = true }
