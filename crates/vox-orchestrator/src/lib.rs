@@ -86,6 +86,12 @@ pub mod tier_cascade;
 pub mod risk_matrix;
 /// Sensitivity classifier and privacy-level-aware routing (D8).
 pub mod privacy_classifier;
+/// Prefix-cache hit predictor (D7).
+pub mod cache_predictor;
+/// Orchestrator-policy token/cost budget gate (D7).
+pub mod budget_gate;
+/// Compaction strategy selector by context utilization (D7).
+pub mod compaction_trigger;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Orchestrator configuration load, merge, and validation.
