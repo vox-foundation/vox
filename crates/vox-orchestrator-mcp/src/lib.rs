@@ -34,6 +34,8 @@ pub mod db_tools;
 pub mod dispatch;
 /// Execution time tracking tools.
 pub mod exec_time_tools;
+/// Central `git` executor with banned-command denylist and `vox.vcs.exec` telemetry.
+pub mod git_exec;
 /// Thin `git` CLI wrappers scoped to the discovered git root.
 pub mod git_tools;
 /// Grammar export tools
