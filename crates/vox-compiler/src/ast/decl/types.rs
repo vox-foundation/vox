@@ -141,6 +141,8 @@ pub enum Decl {
     Activity(ActivityDecl),
     /// Actor-model handler declaration (TASK-2.6 Path A).
     Actor(ActorDecl),
+    /// Form declaration — generates a React form component with validation.
+    Form(FormDecl),
 }
 impl Decl {
     /// Primary source span for this declaration (used for diagnostics).
@@ -182,6 +184,7 @@ impl Decl {
             Decl::Workflow(w) => w.span,
             Decl::Activity(a) => a.span,
             Decl::Actor(a) => a.span,
+            Decl::Form(f) => f.span,
         }
     }
 }

@@ -74,5 +74,6 @@ fn decl_kind_and_name(decl: &Decl) -> (String, String) {
         Decl::Workflow(w) => ("workflow".into(), w.name.clone()),
         Decl::Activity(a) => ("activity".into(), a.name.clone()),
         Decl::Actor(a) => ("actor".into(), a.name.clone()),
+        Decl::Form(f) => ("form".into(), f.name.clone()),
     }
 }
