@@ -11589,7 +11589,20 @@ dependencies = [
  "turso",
  "vox-compiler",
  "vox-db",
+ "vox-package-types",
  "vox-reqwest-defaults",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-package-types"
+version = "0.5.0"
+dependencies = [
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "toml 0.8.23",
  "workspace-hack",
 ]
 
@@ -11948,7 +11961,7 @@ dependencies = [
  "anyhow",
  "serde",
  "tempfile",
- "vox-package",
+ "vox-package-types",
  "vox-repository",
  "workspace-hack",
 ]

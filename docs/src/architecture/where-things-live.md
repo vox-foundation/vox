@@ -35,6 +35,7 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-jsonschema-util`](../../../crates/vox-jsonschema-util/) | Shared JSON Schema compile + validate helpers for CLI, contracts, and tooling. |
 | [`vox-openai-sse`](../../../crates/vox-openai-sse/) | OpenAI-compat SSE line reassembly and chat completion delta extraction. |
 | [`vox-openai-wire`](../../../crates/vox-openai-wire/) | OpenAI-compatible chat completions JSON types (non-streaming wire) shared across MCP and runtime. |
+| [`vox-package-types`](../../../crates/vox-package-types/) | Pure-data L1 leaf for vox-package: manifest, lockfile, package_kind, resolver types. |
 | [`vox-plugin-api`](../../../crates/vox-plugin-api/) | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
 | [`vox-reqwest-defaults`](../../../crates/vox-reqwest-defaults/) | Shared reqwest ClientBuilder presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
@@ -52,7 +53,6 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-eval`](../../../crates/vox-eval/) | Vox expression evaluator (interpreter for vox run --interp). |
 | [`vox-install-policy`](../../../crates/vox-install-policy/) | SSOT constants for Vox install/update surfaces (source path, release targets, default GitHub coordinates). |
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool name/description registry from contracts YAML (SSOT). |
-| [`vox-package`](../../../crates/vox-package/) | Vox package manager: Vox.toml manifests, vox.lock, content-addressed artifact cache, registry client, dependency resolver. |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
 | [`vox-skill-runtime`](../../../crates/vox-skill-runtime/) | Abstract sandbox runtime trait for skill execution. Implementations ship as plugins (wasm, container). |
@@ -72,6 +72,7 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-db`](../../../crates/vox-db/) | Codex / VoxDb facade: schema migrations, store ops, Turso/libSQL access for the Vox workspace. |
 | [`vox-deploy-codegen`](../../../crates/vox-deploy-codegen/) | Deployment artifact codegen: Dockerfile, Compose, K8s, Fly, Coolify, systemd. Pure text generation. |
 | [`vox-doc-pipeline`](../../../crates/vox-doc-pipeline/) | Doc generator: regenerates SUMMARY.md, architecture-index.md, feed.xml from frontmatter. |
+| [`vox-package`](../../../crates/vox-package/) | Vox package manager runtime: content-addressed artifact cache, registry HTTP client, workspace discovery. |
 | [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, GitLab, Gitea, Forgejo. |
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |
 | [`vox-git`](../../../crates/vox-git/) | Pure-Rust Git bridge using gix (no C, no libgit2). |
