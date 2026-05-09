@@ -93,7 +93,7 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
         // Try: walk the inner expression
         HirExpr::Try(t) => expr_has_async_call(&t.target, async_fn_names),
         // For loop: walk iterable and body
-        HirExpr::For(_, _, iterable, body, _) => {
+        HirExpr::For(_, _, iterable, body, _, _) => {
             expr_has_async_call(iterable, async_fn_names)
                 || expr_has_async_call(body, async_fn_names)
         }

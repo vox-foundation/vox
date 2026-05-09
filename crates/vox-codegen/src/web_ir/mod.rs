@@ -25,6 +25,7 @@ pub mod lower;
 pub mod primitives;
 pub mod validate;
 pub mod validate_a11y;
+pub mod validate_keys;
 pub mod validate_overlay;
 
 use serde::{Deserialize, Serialize};
@@ -169,6 +170,8 @@ pub enum DomNode {
     Loop {
         /// Iterator binding placeholder.
         iterator: String,
+        /// Optional React key expression string (from `key=expr` clause).
+        key: Option<String>,
         body: Vec<DomNodeId>,
         span: Option<SourceSpanId>,
     },

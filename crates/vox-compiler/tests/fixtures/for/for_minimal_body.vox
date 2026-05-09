@@ -2,7 +2,7 @@
 // Validates that for r in rows { span() } lowers to rows.map((r, _i) => ...).
 component Empty(rows: any) {
     view: panel(class="list") {
-        for r in rows {
+        for r in rows key=r {
             span()
         }
     }

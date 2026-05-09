@@ -71,11 +71,72 @@ pub fn generate(hir: &HirModule) -> Result<CodegenOutput, String> {
     generate_with_options(hir, CodegenOptions::from_env())
 }
 
+/// Check that every `HirExpr::For` inside a reactive component's view has a `key` expression.
+///
+/// Returns `Err("validate.list_key.required: …")` on the first violation found.
+fn check_for_missing_keys(hir: &HirModule) -> Result<(), String> {
+    for rc in &hir.components {
+        if let Some(view) = &rc.view {
+            if expr_has_keyless_for(view) {
+                return Err(format!(
+                    "validate.list_key.required: component `{}` has a `for … in …` list render \
+                     without a `key` clause. Add `for x in items key=x.id {{ … }}` to give \
+                     React stable identity and avoid silent reorder/insert/delete corruption.",
+                    rc.name
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn expr_has_keyless_for(e: &vox_compiler::hir::HirExpr) -> bool {
+    use vox_compiler::hir::{HirExpr, HirStmt};
+    match e {
+        HirExpr::For(_, _, _iter, _body, key, _) => key.is_none(),
+        HirExpr::Jsx(el) => {
+            el.children.iter().any(expr_has_keyless_for)
+        }
+        HirExpr::JsxSelfClosing(_) => false,
+        HirExpr::JsxFragment(children, _) => children.iter().any(expr_has_keyless_for),
+        HirExpr::Block(stmts, _) => {
+            stmts.iter().any(|s| {
+                if let HirStmt::Expr { expr, .. } = s {
+                    expr_has_keyless_for(expr)
+                } else {
+                    false
+                }
+            })
+        }
+        HirExpr::If(_, then_b, else_b, _) => {
+            then_b.iter().any(|s| {
+                if let HirStmt::Expr { expr, .. } = s {
+                    expr_has_keyless_for(expr)
+                } else {
+                    false
+                }
+            }) || else_b.as_ref().is_some_and(|eb| {
+                eb.iter().any(|s| {
+                    if let HirStmt::Expr { expr, .. } = s {
+                        expr_has_keyless_for(expr)
+                    } else {
+                        false
+                    }
+                })
+            })
+        }
+        _ => false,
+    }
+}
+
 /// Generate TypeScript with explicit options (callers such as `vox build` should pass config here).
 pub fn generate_with_options(
     hir: &HirModule,
     options: CodegenOptions,
 ) -> Result<CodegenOutput, String> {
+    // Validate: every for-loop in a component view must have a key clause (validate.list_key.required).
+    check_for_missing_keys(hir)?;
+
     let mut files = Vec::new();
     let mut reactive_stats = crate::codegen_ts::reactive::ReactiveViewBridgeStats::default();
     let app_contract = project_app_contract(hir);

@@ -179,7 +179,7 @@ impl LowerCtx {
                     self.inject_postconditions_into_expr(&mut arm.body, post_stmts);
                 }
             }
-            HirExpr::For(_, _, it, body, _) => {
+            HirExpr::For(_, _, it, body, _, _) => {
                 self.inject_postconditions_into_expr(it, post_stmts);
                 self.inject_postconditions_into_expr(body, post_stmts);
             }

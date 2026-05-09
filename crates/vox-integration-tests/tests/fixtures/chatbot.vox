@@ -13,7 +13,7 @@ component Chat() {
     let send = fn (_e) set_messages(messages.append({role: "user", text: input}))
     view: column(raw_class="chat_container") {
         column(raw_class="messages") {
-            for msg in messages {
+            for msg in messages key=msg.text {
                 column(raw_class="message") {
                     msg.text
                 }

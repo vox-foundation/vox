@@ -467,7 +467,7 @@ fn collect_from_expr(
             out,
             branch_counter,
         )?,
-        HirExpr::For(_, _, iter, body, _) => {
+        HirExpr::For(_, _, iter, body, _, _) => {
             // Replay-safe bounded loops: literal lists are deterministic and can be unrolled.
             const MAX_STATIC_LOOP_UNROLL: usize = 64;
             match iter.as_ref() {

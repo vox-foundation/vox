@@ -488,7 +488,7 @@ impl<'a> Checker<'a> {
                 last_ty
             }
 
-            HirExpr::For(binding, index, iterable, body, _span) => {
+            HirExpr::For(binding, index, iterable, body, _, _span) => {
                 let iter_ty = self.check_expr(iterable, None);
                 let element_ty = self.extract_iterable_element(&iter_ty);
                 self.env.push_scope();
