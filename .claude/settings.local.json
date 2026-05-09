@@ -117,7 +117,13 @@
       "Bash(git restore *)",
       "Bash(for crate in vox-webhook vox-skills vox-corpus vox-orchestrator-queue vox-package vox-plugin-publication vox-plugin-populi-mesh vox-plugin-mens-candle-cuda; do *)",
       "Bash(for crate in vox-webhook vox-skills vox-corpus vox-orchestrator-queue vox-package vox-plugin-publication; do *)",
-      "Bash(awk -F: '$2>0 {sum+=$2; count++} END {print \"Total Rust tests:\", sum, \"in\", count, \"files\"}')"
+      "Bash(awk -F: '$2>0 {sum+=$2; count++} END {print \"Total Rust tests:\", sum, \"in\", count, \"files\"}')",
+      "Bash(cd /mnt/c/Users/Owner/vox && find crates -type f -name \"*.rs\" -path \"*/src/*\" | head -30)",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && head -1 {}')",
+      "Bash(find crates/vox-cli*/src -name \"*.rs\")",
+      "Bash(cat > *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Owner\\\\vox\" -Recurse -Name \"rules.rs\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 5)"
     ]
   }
 }

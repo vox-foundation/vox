@@ -115,6 +115,7 @@ This is sized for multi-quarter execution. Each effect ships independently as `w
 **Suggested fix:** Cannot autofix the design. Diagnostic emits a worked example showing the hoist:
 
 ```vox
+// vox:skip — workflow keyword is reserved (ADR-028); documents future syntax
 // BAD: time.now() inside workflow body
 workflow fn process_order(id: OrderId) -> Result[Receipt, Err] {
     let started_at = time.now()        // <-- vox/workflow/non-deterministic-builtin
