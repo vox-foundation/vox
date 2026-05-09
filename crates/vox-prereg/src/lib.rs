@@ -15,6 +15,9 @@ pub mod gate;
 pub mod signing;
 pub mod symbolic;
 pub mod trusty_uri;
+pub mod living_review;
+pub mod reply_window;
+pub mod retraction;
 
 pub use deviation::{DeviationDetector, DeviationReport};
 pub use gate::{GateResult, PreregGate};
@@ -23,3 +26,8 @@ pub use symbolic::{
     BayesianStoppingRule, NumericComparatorVerifier, StopDecision, SymbolicVerdict,
 };
 pub use trusty_uri::compute_trusty_uri;
+pub use living_review::{DoiVersion, LivingReviewManifest};
+pub use reply_window::{ReplyWindowGate, ReplyWindowRecord, WindowStatus, ingest_reply};
+pub use retraction::{
+    RetractionReason, RetractionRecord, emit_retraction, mark_crossref_propagated,
+};
