@@ -60,6 +60,7 @@ vox-jsonschema-util   = { layer = 1 }
 vox-checksum-manifest = { layer = 1 }
 vox-identity          = { layer = 1 }
 vox-reqwest-defaults  = { layer = 1 }
+vox-rule-pack         = { layer = 1 }                            # SSOT loader for detector patterns; zero heavy deps
 vox-openai-wire       = { layer = 1 }
 vox-openai-sse        = { layer = 1 }
 vox-exec-grammar      = { layer = 1 }
