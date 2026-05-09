@@ -46,6 +46,7 @@ mod scaling_audit;
 mod scientia_heuristics_parity;
 mod scientia_novelty_ledger_contract;
 mod scientia_worthiness_contract;
+pub(crate) mod string_id_lint;
 pub(crate) mod sync_ignore_files;
 pub mod watch_run;
 pub mod workspace_artifacts;
