@@ -555,8 +555,7 @@ pub enum Cli {
 
 /// Register the process-wide telemetry sinks.
 ///
-/// In Phase A `db` is always `None` — the ResearchMetricsSink is not wired yet.
-/// Phase B passes `Some(db)` after the workspace DB is opened.
+/// `db` is `Some` when the workspace journey DB opened successfully at startup.
 pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>) {
     use std::sync::Arc;
     use vox_telemetry::{CompositeRecorder, TelemetryRecorder};
@@ -590,7 +589,10 @@ pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
         }
     }
     init_tracing_for_cli();
-    init_telemetry_sinks(None); // Phase B: pass Some(workspace_db) here
+    let telemetry_db = crate::workspace_db::connect_cli_workspace_voxdb_with_overrides(true)
+        .await
+        .ok();
+    init_telemetry_sinks(telemetry_db);
     apply_global_opts(&root.global);
     cli_dispatch::dispatch_cli(root.cmd, &root.global).await
 }
