@@ -102,8 +102,8 @@ impl PrivacyRouteEvent {
     ) -> Self {
         Self {
             metric_type: vox_db::research_metrics_contract::METRIC_TYPE_PRIVACY_ROUTE_DECISION,
-            privacy_level: format!("{level:?}").to_lowercase(),
-            routing_decision: format!("{decision:?}").to_lowercase(),
+            privacy_level: level.to_string(),
+            routing_decision: decision.to_string(),
             session_id,
         }
     }

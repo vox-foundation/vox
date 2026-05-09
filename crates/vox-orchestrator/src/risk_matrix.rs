@@ -133,7 +133,8 @@ impl RiskMatrix {
     pub fn grade(&self, dims: &RiskDimensions) -> RiskGrade {
         let any_hard_critical = dims.irreversibility >= self.config.hard_critical_dimension
             || dims.blast_radius >= self.config.hard_critical_dimension
-            || dims.compliance_exposure >= self.config.hard_critical_dimension;
+            || dims.compliance_exposure >= self.config.hard_critical_dimension
+            || dims.confidence_deficit >= self.config.hard_critical_dimension;
 
         if any_hard_critical {
             return RiskGrade::Critical;
@@ -265,6 +266,18 @@ mod tests {
             blast_radius: 0.91,
             compliance_exposure: 0.0,
             confidence_deficit: 0.0,
+        };
+        assert_eq!(m.grade(&dims), RiskGrade::Critical);
+    }
+
+    #[test]
+    fn high_confidence_deficit_forces_critical() {
+        let m = matrix();
+        let dims = RiskDimensions {
+            irreversibility: 0.0,
+            blast_radius: 0.0,
+            compliance_exposure: 0.0,
+            confidence_deficit: 0.95,
         };
         assert_eq!(m.grade(&dims), RiskGrade::Critical);
     }

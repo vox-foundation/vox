@@ -82,7 +82,7 @@ Vox already implements the *mechanism* of tier-based routing (`crates/vox-orches
 
 ### 2.3 Decision rule (proposed for Vox)
 
-```
+```rust
 fn select_model_tier(task) -> ModelTier {
     if task.has_pii or task.sensitivity == Critical:
         return restrict_to(privacy_eligible_providers())  // see Part 9
@@ -131,7 +131,7 @@ The literature converges on a question rather than a threshold: **can you list t
 
 `crates/vox-orchestrator/src/mcp_tools/chat_tools/plan.rs` and `plan_loop.rs::maybe_refine_plan()` already implement the *mechanism*; the trigger ("when do I plan vs just act?") is a hardcoded heuristic today. The proposed rule:
 
-```
+```rust
 fn pick_planning_mode(task) -> Mode {
     if task.estimated_steps >= 4 and task.tools_predictable:
         return PlanThenExecute    // 92% vs 85% lift
@@ -185,7 +185,7 @@ The escalation order matters: cheap-then-expensive saves cost on the long tail o
 
 ADR-005 already names this surface: `vox-socrates-policy`, `RiskDecision::Abstain`, `ConfidencePolicy`, `RiskBand`. What is missing is the **fusion function** — today the decision is a single heuristic gate, not a composite of logprobs + entropy + self-consistency. The composite is implementable today on the `llm_interactions` schema (v59) once two columns are added: per-call entropy estimate (LogU or SEP) and per-call sample-disagreement score for high-stakes calls.
 
-```
+```rust
 fn should_invoke_research(claim) -> ResearchAction {
     let score = fuse(claim.logprob_entropy, claim.sep_estimate, claim.self_consistency);
     if score >= ship_threshold:           return Ship
@@ -266,7 +266,7 @@ The *graduated warning* pattern (NousResearch hermes-agent) is worth copying: a 
 
 [`orchestrator-companion-audit-findings-2026.md`](orchestrator-companion-audit-findings-2026.md) FIX-B-11 names the doom-loop detector as a P1 gap. The literature gives us an executable spec:
 
-```
+```rust
 struct CircuitBreaker {
     no_progress_count: u32,         // increments when state hash unchanged
     same_error_count: u32,
@@ -357,7 +357,7 @@ The detection layer is two-pass: **regex/dictionary patterns** (deterministic, f
 
 Once a sensitivity tag is set, the routing decision is a **filter, not a scorer**:
 
-```
+```rust
 fn privacy_eligible_providers(task) -> Vec<Provider> {
     match task.sensitivity {
         Public | Internal => all_providers(),
@@ -440,7 +440,7 @@ OpenTelemetry's GenAI Semantic Conventions (SIG since April 2024) standardize sp
 
 ### 10.4 Calibration loop
 
-```
+```text
 loop every 24h:
     samples = sample_recent_completions(n=10000)
     for tier in [Cheap, Mid, Strong]:

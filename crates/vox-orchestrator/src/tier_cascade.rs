@@ -50,6 +50,16 @@ impl From<AlarmTier> for AlarmLevel {
     }
 }
 
+impl std::fmt::Display for AlarmLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "none"),
+            Self::Caution => write!(f, "caution"),
+            Self::Warning => write!(f, "warning"),
+        }
+    }
+}
+
 /// Input signals consumed by the cascade router.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompositeSignal {
@@ -175,7 +185,7 @@ impl TierRouteEvent {
             tier: tier.to_string(),
             complexity: signal.complexity,
             confidence: signal.confidence,
-            alarm_level: format!("{:?}", signal.alarm_level).to_lowercase(),
+            alarm_level: signal.alarm_level.to_string(),
             budget_exhausted: signal.budget_exhausted,
             session_id,
         }
