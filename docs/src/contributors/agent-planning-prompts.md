@@ -19,7 +19,7 @@ This document provides prompt-engineered directives to force the agent to stream
 
 ## Multi-Tab Planning Considerations
 
-When working with multiple agents or tabs simultaneously, hardcoding a file name like `PLAN.md` at the repository root will cause file-locking issues or state-bleed. 
+When working with multiple agents or tabs simultaneously, hardcoding a file name like `PLAN.md` at the repository root will cause file-locking issues or state-bleed.
 
 To resolve this, the prompt instructs the agent to create a scoped file path in the `tmp/plans/` directory (e.g., `tmp/plans/plan-<task_id>.md` or `tmp/plans/<tab_context>.md`). The `tmp/` directory is covered by `.gitignore` natively, ensuring no artifact collision in version control.
 
@@ -53,5 +53,5 @@ Instead, you will construct the plan iteratively by writing it directly to the f
 ```
 
 ## Maintenance
-When updating prompt behavior to address new LLM context window behaviors or system limits, update this document and bump `last_updated`.
 
+When updating prompt behavior to address new LLM context window behaviors or system limits, update this document and bump `last_updated`.

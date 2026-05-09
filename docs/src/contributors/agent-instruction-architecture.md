@@ -106,4 +106,3 @@ Update this page when changing instruction architecture or shell discipline poli
 - [`docs/src/architecture/terminal-exec-policy-research-findings-2026.md`](../archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md)
 - [`docs/src/contributors/continuation-prompt-engineering.md`](continuation-prompt-engineering.md)
 - [`docs/src/contributors/documentation-governance.md`](documentation-governance.md)
-
