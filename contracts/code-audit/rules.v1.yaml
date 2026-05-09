@@ -529,3 +529,191 @@ rules:
         - "fixtures/magic-value/db_conn_pos.txt"
       negative:
         - "fixtures/magic-value/db_conn_neg.txt"
+
+  # ─── scaling/* ───────────────────────────────────────────────────────────────
+  # These are metadata-only stubs. Detection patterns are generated dynamically
+  # by vox_scaling_policy::ScalingPolicy (paths/numeric hints from policy YAML).
+  # The `pattern` field uses a never-match sentinel so bench harness skips them.
+  # Do NOT replace the pattern with a real regex here — use vox-scaling-policy.
+
+  - id: scaling/blocking-in-async
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "Blocking I/O or thread::sleep inside async fn."
+    severity: warning
+    confidence: medium
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "Blocking call inside async fn — use async equivalents."
+    suggestion: "Replace with the async variant or offload to `spawn_blocking`."
+
+  - id: scaling/thread-sleep-async
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "thread::sleep inside an async fn."
+    severity: warning
+    confidence: medium
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "`thread::sleep` blocks the executor — use `tokio::time::sleep` instead."
+    suggestion: "Replace `thread::sleep` with `tokio::time::sleep` or equivalent."
+
+  - id: scaling/path-literal
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "Hardcoded mens/run path literal that should come from policy."
+    severity: warning
+    confidence: high
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "Hardcoded path literal — use the policy-sourced constant."
+    suggestion: "Read from `vox_scaling_policy::ScalingPolicy::embedded()`."
+
+  - id: scaling/magic-limit
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "Hardcoded numeric limit that should come from policy."
+    severity: warning
+    confidence: medium
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "Hardcoded numeric limit — use the policy-sourced constant."
+    suggestion: "Read from `vox_scaling_policy::ScalingPolicy::embedded().limits`."
+
+  - id: scaling/regex-new-hot
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "Regex::new() in a hot path (compiled per invocation)."
+    severity: warning
+    confidence: medium
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "`Regex::new()` called outside `OnceLock`/`lazy_static` — compiles on every call."
+    suggestion: "Cache the regex with `OnceLock<Regex>` or `lazy_static!`."
+
+  - id: scaling/unbounded-read
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "Unbounded file or stream read (read_to_string, read_to_end, etc.)."
+    severity: warning
+    confidence: medium
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "Unbounded read — large files will exhaust memory."
+    suggestion: "Stream the data with `BufReader` and a size cap."
+
+  - id: scaling/cache-miss-hot-read
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "Repeated read inside a tight loop that should be cached."
+    severity: warning
+    confidence: low
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "Repeated read in hot loop — cache the result before the loop."
+    suggestion: "Hoist the read outside the loop or use a memoisation wrapper."
+
+  - id: scaling/large-in-memory-accumulator
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "Unbounded Vec or HashMap accumulator in hot path."
+    severity: warning
+    confidence: low
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "Unbounded accumulator in hot path may exhaust memory under load."
+    suggestion: "Apply a cap, use a streaming approach, or page the results."
+
+  - id: scaling/lines-collect-vec
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: ".lines().collect::<Vec<_>>() materialises entire file."
+    severity: info
+    confidence: medium
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "`.lines().collect::<Vec<_>>()` loads all lines — prefer streaming."
+    suggestion: "Iterate with `.lines()` directly or use `BufRead::lines()`."
+
+  - id: scaling/repeated-json-parse
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "JSON parse inside a loop."
+    severity: warning
+    confidence: medium
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "JSON parse inside loop — parse once outside and reuse."
+    suggestion: "Cache the parsed value before the loop."
+
+  - id: scaling/sql-no-limit
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "SQL SELECT without LIMIT clause."
+    severity: warning
+    confidence: low
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "SQL SELECT without LIMIT — can return unbounded rows."
+    suggestion: "Add `LIMIT n` or paginate the query."
+
+  - id: scaling/http-client-no-timeout
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "HTTP client constructed without a timeout."
+    severity: warning
+    confidence: medium
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "HTTP client without timeout — will hang indefinitely on slow servers."
+    suggestion: "Set `.timeout(Duration::from_secs(N))` on the client builder."
+
+  - id: scaling/nested-pairwise-loop
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "O(n²) nested loop over the same collection."
+    severity: warning
+    confidence: low
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "O(n²) nested pairwise loop — consider a set/map or sort+scan approach."
+    suggestion: "Replace the inner scan with a HashSet lookup or sort-based merge."
+
+  - id: scaling/env-default-duplication
+    parent_id: scaling
+    name: "Scaling Surfaces Detector"
+    description: "Duplicate env-var default value (should come from single source)."
+    severity: info
+    confidence: low
+    languages: [rust]
+    match:
+      kind: substring
+      pattern: "___vox_scaling_dynamic___"
+    message: "Duplicated env-var default — centralise in policy or config module."
+    suggestion: "Move the default to a `const` or `ScalingPolicy` field."

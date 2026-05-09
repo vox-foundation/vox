@@ -20,8 +20,8 @@ fn canonical_rules_yaml_parses() {
     let pack = RulePack::load_from_path(&path)
         .unwrap_or_else(|e| panic!("rules.v1.yaml must parse: {e}"));
     assert!(
-        pack.len() >= 29,
-        "expected at least 29 rules (4 victory-claim + wave-2 migrations), got {}",
+        pack.len() >= 43,
+        "expected at least 43 rules (29 detector rules + 14 scaling metadata stubs), got {}",
         pack.len()
     );
     for needed in [
