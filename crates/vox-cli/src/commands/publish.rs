@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// `vox publish` — publish the current package to the VoxPM registry.
 pub async fn run(registry_url: Option<&str>) -> Result<()> {
@@ -12,7 +13,7 @@ pub async fn run(registry_url: Option<&str>) -> Result<()> {
 
     // Read auth token
     let token_path = dirs_path().join("auth_token");
-    let token = crate::commands::ci::bounded_read::read_utf8_path_capped(&token_path)
+    let token = read_utf8_path_capped(&token_path)
         .with_context(|| "Not logged in. Run `vox login` first.")?;
     let token = token.trim();
 

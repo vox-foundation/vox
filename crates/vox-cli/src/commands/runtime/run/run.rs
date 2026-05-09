@@ -4,6 +4,7 @@
 
 use anyhow::Result;
 use std::path::Path;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// Returns `true` if `file` should be executed as a standalone script rather
 /// than a web-app dev server, using only the **`@page` substring** heuristic
@@ -11,7 +12,7 @@ use std::path::Path;
 /// that scan is insufficient (`vox_config::WebRunMode`).
 pub fn is_script_file_by_page_heuristic(file: &Path) -> bool {
     // Read the first 8 KiB to look for @page — avoids full parse for detection.
-    let Ok(head) = crate::commands::ci::bounded_read::read_utf8_path_capped(file).map(|s| {
+    let Ok(head) = read_utf8_path_capped(file).map(|s| {
         let end = usize::min(8192, s.len());
         s[..end].to_string()
     }) else {

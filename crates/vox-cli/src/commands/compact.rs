@@ -2,7 +2,7 @@ use anyhow::Result;
 use owo_colors::OwoColorize;
 use std::path::Path;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 pub fn run(file_path: &Path) -> Result<()> {
     if !file_path.exists() {

@@ -9,6 +9,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use vox_bounded_fs::read_utf8_path_capped;
 
 fn vox_home() -> PathBuf {
     std::env::var_os("HOME")
@@ -149,7 +150,7 @@ pub fn aggregate_metrics(base: &Path, limit: u64) -> Metrics {
     let mut agg = Agg::default();
     let mut count = 0usize;
 
-    if let Ok(data) = crate::commands::ci::bounded_read::read_utf8_path_capped(&path) {
+    if let Ok(data) = read_utf8_path_capped(&path) {
         let lines: Vec<&str> = data.lines().filter(|l| !l.is_empty()).collect();
         let take = limit as usize;
         let start = lines.len().saturating_sub(take);

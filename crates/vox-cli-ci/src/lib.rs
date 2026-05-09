@@ -15,16 +15,18 @@
 //! - `crate::commands::scientia_ledger_contract::*` (scientia_novelty_ledger_contract.rs)
 //! - `crate::commands::runtime::shell::check_terminal` (exec_policy_contract.rs)
 //!
-//! **vox-cli → ci/ (25+ files use these ci/ modules):**
-//! - `commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async}`
-//!   used by build.rs, fmt.rs, pipeline.rs, compilerd.rs, runtime/shell/*, diagnostics/*, etc.
+//! **vox-cli → ci/ (remaining modules after bounded_read removal):**
 //! - `commands::ci::sync_ignore_files` (diagnostics/doctor, repo_init.rs)
 //! - `commands::ci::run_body::run_body_helpers` (diagnostics/doctor/checks_standard/clavis.rs)
 //! - `commands::ci::nomenclature_guard`, `retired_symbol_check` (external consumers)
 //!
-//! **Resolution path:** extract `bounded_read` → `vox-cli-core` first (it is a thin
-//! re-export of `vox-bounded-fs`). Then move `command_registry_model`, `command_contract`,
-//! and `artifact_policy` to `vox-cli-core`. Once vox-cli no longer imports from ci/
+//! **Resolved blockers:**
+//! - `commands::ci::bounded_read` — REMOVED (2026-05-08). All 63 caller files now import
+//!   directly from `vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_async}`.
+//!   The shim file and its `pub(crate) mod bounded_read` declaration have been deleted.
+//!
+//! **Resolution path:** move `command_registry_model`, `command_contract`, and
+//! `artifact_policy` to `vox-cli-core`. Once vox-cli no longer imports from ci/
 //! for non-ci purposes, the file move becomes a mechanical rename.
 //!
 //! Until then, `pub use vox_cli::commands::ci::run` cannot be added here (that would

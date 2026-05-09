@@ -6,7 +6,7 @@ use serde_json::Value as JsonValue;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use super::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 const MAP_REL: &str = "contracts/documentation/canonical-map.v1.yaml";
 const SCHEMA_REL: &str = "contracts/documentation/canonical-map.v1.schema.json";

@@ -9,7 +9,7 @@ use vox_compiler::generated_vox::{
     OutputSurfaceMode, normalize_generated_vox, validate_generated_vox,
 };
 
-use super::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 const SCHEMA_REL: &str = "contracts/eval/mens-scorecard.schema.json";
 const SUMMARY_SCHEMA_REL: &str = "contracts/eval/mens-scorecard-summary.schema.json";

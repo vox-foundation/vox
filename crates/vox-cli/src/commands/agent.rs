@@ -84,7 +84,7 @@ pub async fn generate() -> Result<()> {
     use std::fs;
     use std::path::Path;
 
-    use crate::commands::ci::bounded_read::read_utf8_path_capped;
+    use vox_bounded_fs::read_utf8_path_capped;
 
     let crates_dir = Path::new("crates");
     if !crates_dir.exists() {

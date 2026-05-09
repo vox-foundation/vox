@@ -6,7 +6,7 @@ use serde_json::Value as JsonValue;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 const INDEX_REL: &str = "contracts/index.yaml";
 const SCHEMA_REL: &str = "contracts/index.schema.json";

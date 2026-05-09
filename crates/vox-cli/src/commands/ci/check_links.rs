@@ -4,7 +4,7 @@ use regex::Regex;
 use std::path::Path;
 use walkdir::WalkDir;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
     let docs_src = repo_root.join("docs").join("src");

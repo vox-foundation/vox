@@ -1,6 +1,6 @@
 use anyhow::Context;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 use super::helpers::{extract_md_title, html_to_text_lossy, split_csv, summarize_text};
 

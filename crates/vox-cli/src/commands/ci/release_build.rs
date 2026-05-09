@@ -287,7 +287,7 @@ fn checksum_line(sha256_hex: &str, filename: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::commands::ci::bounded_read::read_utf8_path_capped;
+    use vox_bounded_fs::read_utf8_path_capped;
 
     use super::{
         artifact_filename, bootstrap_executable_name, checksum_line, executable_name,

@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, anyhow};
 
 use crate::command_registry_model::RegistryFile;
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 use super::registry::{
     CAPABILITY_REGISTRY_REL, parse_mcp_registry_yaml,
