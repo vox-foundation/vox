@@ -5,6 +5,8 @@
 
 /// Algebraic data types → TypeScript unions and helpers.
 pub mod adt;
+/// Single source of truth for Vox method/function/namespace → TypeScript lowering.
+pub mod builtin_registry;
 /// `@component` and related React component codegen.
 pub mod component;
 /// Main HIR → TypeScript emitter ([`generate`]).

@@ -22,8 +22,14 @@ use async_walker::stmt_has_async_call;
 
 pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag, ts_string_literal};
 pub(crate) use state_deps::extract_state_deps_with_diagnostics;
+use crate::codegen_ts::builtin_registry::{BuiltinLowering, BuiltinRegistry};
 
 static EMPTY_ASYNC_FNS: OnceLock<HashSet<String>> = OnceLock::new();
+static BUILTIN_REGISTRY: OnceLock<BuiltinRegistry> = OnceLock::new();
+
+fn registry() -> &'static BuiltinRegistry {
+    BUILTIN_REGISTRY.get_or_init(BuiltinRegistry::standard)
+}
 
 /// Emission context threaded through HIR → TS lowering.
 ///
@@ -351,6 +357,7 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                 .collect();
             // Map Vox snake_case Str methods to JS String.prototype names where they differ.
             // char_at/index_of return Optional in Vox; JS returns "" / -1, so we wrap.
+            // For other methods, consult the builtin registry (§A3: centralized lowering).
             let mut base = match method.as_str() {
                 "char_at" => format!(
                     "((__i) => {{ const __c = ({}).charAt(__i); return __c === \"\" ? null : __c; }})({})",
@@ -362,10 +369,21 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                     obj_str,
                     args_str.first().map(String::as_str).unwrap_or("\"\"")
                 ),
-                // §1.A.3: `length` is a property on JS strings/arrays, not a method.
-                // Vox `s.length()` must lower to `s.length` (no call parens).
-                "length" if args_str.is_empty() => format!("{obj_str}.length"),
-                _ => format!("{obj_str}.{method}({})", args_str.join(", ")),
+                _ => {
+                    // Consult the builtin registry. We pass "" as the type hint when no type
+                    // info is available; the registry falls back to a name-only scan.
+                    match registry().lookup_method("", method, args_str.len()) {
+                        Some(BuiltinLowering::Property(p)) => format!("{obj_str}.{p}"),
+                        Some(BuiltinLowering::MethodRename(m)) => {
+                            format!("{obj_str}.{m}({})", args_str.join(", "))
+                        }
+                        Some(BuiltinLowering::Inline(s)) => s.to_string(),
+                        Some(BuiltinLowering::FunctionRename(f)) => {
+                            format!("{f}({})", args_str.join(", "))
+                        }
+                        None => format!("{obj_str}.{method}({})", args_str.join(", ")),
+                    }
+                }
             };
             if let Some(p) = plan {
                 if p.capabilities.requires_sync {
