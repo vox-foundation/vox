@@ -1,56 +1,13 @@
 //! Execution time telemetry types for `agent_exec_history`.
 //! Sensitivity: **S1 (OperationalTracing)** — tool names + durations only.
+//!
+//! Pure data types ([`ExecOutcome`], [`ExecTimeRecord`], [`ToolLatencyProfile`])
+//! live in [`vox_db_types`]; this module re-exports them and adds the
+//! [`TimedExecution`] driver, which embeds a [`crate::VoxDb`] handle.
 
 use std::time::Instant;
 
-/// Write-path record for one execution observation.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ExecTimeRecord<'a> {
-    /// Stable tool fingerprint, e.g. `"mcp:vox_build_crate"`, `"process:unity_editor"`.
-    /// Convention: prefix with `"mcp:"` for MCP tools, `"process:"` for OS-launched processes.
-    pub tool_key: &'a str,
-    pub repository_id: &'a str,
-    pub duration_ms: u64,
-    /// Budget the agent planned for (None if first-ever run or no forecast was available).
-    pub timeout_budget_ms: Option<u64>,
-    pub compute_tokens_used: Option<u64>,
-    pub vendor_cost_usd_micros: Option<i64>,
-    pub attention_cost_ms: Option<u64>,
-    pub outcome: ExecOutcome,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum ExecOutcome {
-    Success,
-    Timeout,
-    Error,
-}
-
-impl ExecOutcome {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            ExecOutcome::Success => "success",
-            ExecOutcome::Timeout => "timeout",
-            ExecOutcome::Error => "error",
-        }
-    }
-}
-
-/// Historical latency profile returned by [`crate::VoxDb::query_tool_latency`].
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ToolLatencyProfile {
-    pub tool_key: String,
-    /// Total successful observations in the query window.
-    pub sample_count: i64,
-    pub avg_ms: f64,
-    /// Approximate 90th-percentile (via ORDER BY + OFFSET trick; no extension required).
-    pub p90_ms: f64,
-    pub max_ms: i64,
-    /// Fraction of all observations (including non-success) that ended in timeout.
-    pub timeout_rate: f64,
-    /// Suggested agent wait: `(p90_ms * safety_multiplier).ceil() as u64`.
-    pub recommended_budget_ms: u64,
-}
+pub use vox_db_types::{ExecOutcome, ExecTimeRecord, ToolLatencyProfile};
 
 /// Times an async closure and records the observation to `agent_exec_history`.
 /// Recording errors are logged and swallowed — never block the primary operation.
@@ -134,13 +91,6 @@ impl TimedExecution {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn exec_outcome_serialization() {
-        assert_eq!(ExecOutcome::Success.as_str(), "success");
-        assert_eq!(ExecOutcome::Timeout.as_str(), "timeout");
-        assert_eq!(ExecOutcome::Error.as_str(), "error");
-    }
 
     #[tokio::test]
     async fn timed_execution_fixture_no_db() {

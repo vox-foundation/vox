@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 /// A report on an agent interaction observed by the [`Observer`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ObservationReport {
-    pub session_id: String,
-    pub task_id: String,
+    pub session_id: crate::ids::DbSessionId,
+    pub task_id: crate::ids::DbTaskId,
     pub observed_at: DateTime<Utc>,
     pub file_path: String,
     pub lsp_error_count: usize,
@@ -71,7 +71,7 @@ impl Default for TestDecisionPolicy {
 /// A multi-tier victory condition verdict.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VictoryVerdict {
-    pub task_id: String,
+    pub task_id: crate::ids::DbTaskId,
     pub passed: bool,
     pub tiers_run: Vec<String>,
     pub first_failure: Option<String>,

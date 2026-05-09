@@ -117,7 +117,10 @@ guess. The full crate roster with layer assignments lives in
 | Add an HTTP route (orchestrator) | `crates/vox-orchestrator-mcp/src/services/routes/` |
 | Add a CLI subcommand | `crates/vox-cli/src/commands/<group>.rs` + register in [`commands/mod.rs`](../../../crates/vox-cli/src/commands/mod.rs) |
 | Add a CI subcommand under `vox ci` | `crates/vox-cli/src/commands/ci/` |
+| Add a new CI/db guard | `crates/vox-cli/src/commands/ci/<name>.rs` + register in `cmd_enums.rs` and `run_body.rs`. Mirror `db_schema_coverage.rs`. |
+| Add a `Db<Entity>Id` newtype | `crates/vox-db-types/src/ids.rs` (use the `string_id!` macro). |
 | Add a DB store operation | `crates/vox-db/src/<concept>.rs` (impl block on `VoxDb`) |
+| Add a pure-data DB row type | `crates/vox-db-types/src/store_types/` (NOT `vox-db`) |
 | Add a pure-data DB type | `crates/vox-db-types/src/` |
 | Add an orchestrator type (Agent/Task/etc.) | `crates/vox-orchestrator-types/src/agent_types/` |
 | Add an orchestrator policy module (D1–D10) | `crates/vox-orchestrator/src/<module>.rs` + register in `lib.rs` + add row to this table |
@@ -145,6 +148,10 @@ guess. The full crate roster with layer assignments lives in
 | Add a layer rule / arch-check rule | `crates/vox-arch-check/src/main.rs` + extend `layers.toml` schema |
 | Add an architectural exception (allowed inversion) | Append `[[known_inversions]]` block in [`layers.toml`](./layers.toml) with a `reason` |
 | Add a new workspace crate | Update [`Cargo.toml`](../../../Cargo.toml) `[workspace.dependencies]` AND add a row to [`layers.toml`](./layers.toml) — `vox-arch-check` will fail otherwise |
+
+> **L0/L1 split:** if your consumer only needs row/param TYPES (no async, no
+> connection), depend on `vox-db-types` directly — not on `vox-db`. The full
+> `vox-db` crate transitively pulls in `turso` and tokio.
 
 ## Plugins (L4 — cdylib only; never compile-time deps for L0..L3)
 

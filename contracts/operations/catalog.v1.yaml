@@ -2023,6 +2023,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.db-schema-coverage
+  title: Ci Db-schema-coverage
+  description: Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners.
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - db-schema-coverage
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.doc-inventory
   title: Ci Doc-inventory
   description: CLI operation `vox ci doc-inventory`
@@ -2647,6 +2674,33 @@ operations:
     path:
     - ci
     - pm-provenance
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.policy-allowlist-parity
+  title: Ci Policy-allowlist-parity
+  description: CLI operation `vox ci policy-allowlist-parity`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - policy-allowlist-parity
     status: active
     latin_ns: null
     handler_rust: null

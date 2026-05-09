@@ -46,7 +46,7 @@ pub struct ResearchIngestRequest {
 }
 
 /// Row ids returned from [`VoxDb::ingest_research_document`](crate::VoxDb::ingest_research_document).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResearchIngestResult {
     /// `knowledge_nodes` row id from the insert.
     pub packet_id: i64,

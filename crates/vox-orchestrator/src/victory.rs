@@ -94,7 +94,7 @@ impl VictoryEvaluator {
         };
 
         VictoryVerdict {
-            task_id: task_id.to_string(),
+            task_id: vox_db::DbTaskId::new(task_id),
             passed,
             tiers_run,
             first_failure,

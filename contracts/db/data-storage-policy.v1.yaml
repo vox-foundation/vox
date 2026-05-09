@@ -23,10 +23,13 @@ tiers:
     allow_direct_access:
       - vox-db
       - vox-secrets
-      - vox-test-harness
     # vox-package listed until M-26 completes; remove thereafter.
+    # vox-gamify owns gamify_* and vox_identities tables in
+    # crates/vox-gamify/src/schema.rs — transitional until those tables
+    # fold into vox-db's SCHEMA_FRAGMENTS (tracked separately, no milestone yet).
     temporary_exceptions:
       - vox-package
+      - vox-gamify
     # Additional libSQL files that M-26/M-67 fold away. Listed so the guard
     # ignores them until the migration lands; each line must be deleted in the
     # same PR that removes the corresponding file from disk.

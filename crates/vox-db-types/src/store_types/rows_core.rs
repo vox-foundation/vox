@@ -1,5 +1,5 @@
 /// One row from `execution_log`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ExecutionEntry {
     /// Row id.
     pub id: i64,
@@ -16,7 +16,7 @@ pub struct ExecutionEntry {
 }
 
 /// One row from `scheduled` (pending or historical).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ScheduledEntry {
     /// Row id.
     pub id: i64,
@@ -31,7 +31,7 @@ pub struct ScheduledEntry {
 }
 
 /// Registered UI or service component metadata.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComponentEntry {
     /// Component name.
     pub name: String,
@@ -49,9 +49,9 @@ pub struct MemoryEntry {
     /// Row id.
     pub id: i64,
     /// Agent that owns this memory.
-    pub agent_id: String,
+    pub agent_id: crate::ids::DbAgentId,
     /// Session scope.
-    pub session_id: String,
+    pub session_id: crate::ids::DbSessionId,
     /// Memory type label.
     pub memory_type: String,
     /// Text content.
@@ -65,7 +65,7 @@ pub struct MemoryEntry {
 }
 
 /// Vector embedding row from `embeddings`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EmbeddingEntry {
     /// Row id.
     pub id: i64,
@@ -85,7 +85,7 @@ pub struct LearnedPatternEntry {
     /// Row id.
     pub id: i64,
     /// User or agent id the pattern belongs to.
-    pub user_id: String,
+    pub user_id: crate::ids::DbUserId,
     /// Pattern classifier.
     pub pattern_type: String,
     /// Category bucket.
@@ -99,12 +99,12 @@ pub struct LearnedPatternEntry {
 }
 
 /// Analytics event from `behavior_events`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BehaviorEventEntry {
     /// Row id.
     pub id: i64,
     /// Subject user id.
-    pub user_id: String,
+    pub user_id: crate::ids::DbUserId,
     /// Event type label.
     pub event_type: String,
     /// Free-form context (e.g. command string).
@@ -116,7 +116,7 @@ pub struct BehaviorEventEntry {
 }
 
 /// Aggregated CLI command statistics for a user.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CommandFrequencyEntry {
     /// Command or context key.
     pub command: String,
@@ -144,7 +144,7 @@ pub struct TrainingPair {
 }
 
 /// Row from `users`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct UserEntry {
     /// User id.
     pub id: String,
@@ -159,7 +159,7 @@ pub struct UserEntry {
 }
 
 /// Agent definition as stored in `agents` (by name ordering in list APIs).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AgentDefEntry {
     /// Agent name.
     pub name: String,
@@ -178,7 +178,7 @@ pub struct AgentDefEntry {
 }
 
 /// Code snippet catalog row.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SnippetEntry {
     /// Row id.
     pub id: i64,
@@ -210,7 +210,7 @@ pub struct PackageSearchResult {
 }
 
 /// Artifact registry row (search/list).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ArtifactEntry {
     /// Artifact name.
     pub name: String,
@@ -231,7 +231,7 @@ pub struct ArtifactEntry {
 }
 
 /// Published skill: manifest JSON plus markdown body.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SkillManifestEntry {
     /// Skill id.
     pub id: String,
@@ -244,7 +244,7 @@ pub struct SkillManifestEntry {
 }
 
 /// Minimal knowledge graph node (id + label).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KnowledgeNodeSummary {
     /// Node id.
     pub id: String,
@@ -253,7 +253,7 @@ pub struct KnowledgeNodeSummary {
 }
 
 /// Orchestrator builder session payload.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BuilderSessionEntry {
     /// Session id.
     pub id: String,
@@ -264,12 +264,12 @@ pub struct BuilderSessionEntry {
 }
 
 /// One turn in an agent session transcript.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SessionTurnEntry {
     /// Row id.
     pub id: i64,
     /// Session id.
-    pub session_id: String,
+    pub session_id: crate::ids::DbSessionId,
     /// Turn payload JSON.
     pub payload_json: String,
     /// Creation timestamp.
@@ -277,7 +277,7 @@ pub struct SessionTurnEntry {
 }
 
 /// Typed stream event for SSE-style feeds.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypedStreamEventEntry {
     /// Row id.
     pub id: i64,
@@ -290,7 +290,7 @@ pub struct TypedStreamEventEntry {
 }
 
 /// Mens / review row for a target entity.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ReviewEntry {
     /// Row id.
     pub id: i64,
@@ -305,7 +305,7 @@ pub struct ReviewEntry {
 }
 
 /// One row from `codex_change_log` (Codex reactivity / SSE).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CodexChangeLogEntry {
     /// Monotonic change id.
     pub id: i64,

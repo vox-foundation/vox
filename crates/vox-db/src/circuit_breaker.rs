@@ -36,16 +36,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
-/// Three states a circuit breaker can be in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CircuitState {
-    /// Normal operation — calls pass through.
-    Closed,
-    /// Tripped — calls are rejected immediately.
-    Open,
-    /// Probe phase — one call is allowed to test recovery.
-    HalfOpen,
-}
+pub use vox_db_types::CircuitState;
 
 /// Error emitted when the circuit is open.
 #[derive(Debug, thiserror::Error)]

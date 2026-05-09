@@ -12,6 +12,8 @@
 
 use turso::params;
 
+use vox_db_types::{DbAgentId, DbSessionId};
+
 use crate::store::types::{
     CodexChangeLogEntry, SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, StoreError,
     WorkflowExecutionRow,
@@ -139,9 +141,9 @@ impl crate::VoxDb {
                 id: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
                 skill_id: row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
                 version: row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
-                session_id: row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                session_id: row.get::<Option<String>>(3).map_err(|e| StoreError::Db(e.to_string()))?.map(DbSessionId::new),
                 workflow_id: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
-                agent_id: row.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
+                agent_id: row.get::<Option<String>>(5).map_err(|e| StoreError::Db(e.to_string()))?.map(DbAgentId::new),
                 status: row.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
                 duration_ms: row.get(7).map_err(|e| StoreError::Db(e.to_string()))?,
                 input_hash: row.get(8).map_err(|e| StoreError::Db(e.to_string()))?,

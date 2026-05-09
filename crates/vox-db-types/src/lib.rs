@@ -10,6 +10,18 @@
 #![allow(clippy::collapsible_if)]
 #![allow(missing_docs)] // many types here have crate-level docs in vox-db
 
+/// Circuit-breaker state enum (`CircuitState`) for `vox_db::circuit_breaker`.
+pub mod circuit;
+pub use circuit::CircuitState;
+
+/// Workspace-journey store mode enum (`WorkspaceJourneyStoreMode`).
+pub mod workspace_journey;
+pub use workspace_journey::WorkspaceJourneyStoreMode;
+
+/// Execution time telemetry types (`ExecOutcome`, `ExecTimeRecord`, `ToolLatencyProfile`).
+pub mod exec_time;
+pub use exec_time::{ExecOutcome, ExecTimeRecord, ToolLatencyProfile};
+
 /// Parameters for [`crate::EvalRunParams`] (RLHF / dogfood eval-run recording).
 pub mod eval_params;
 pub use eval_params::EvalRunParams;
@@ -21,3 +33,7 @@ pub use store_types::*;
 
 /// Alias kept for back-compat (`vox_db::MemoryParams`).
 pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>;
+
+/// Typed string-ID newtypes for DB row fields (UUIDs, hashes, human-readable IDs).
+pub mod ids;
+pub use ids::{DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId};

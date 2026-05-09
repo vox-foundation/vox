@@ -294,6 +294,18 @@ pub enum CiCmd {
         #[arg(long)]
         all: bool,
     },
+    /// Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners.
+    #[command(name = "db-schema-coverage")]
+    DbSchemaCoverage,
+    /// Verify allow_direct_access in data-storage-policy.v1.yaml matches docs/agents/turso-import-allowlist.txt.
+    #[command(name = "policy-allowlist-parity")]
+    PolicyAllowlistParity,
+    /// Verify all public Row/Entry/Result/Summary/Pair/Report/Rollup/Snapshot/Profile/Job structs derive Serialize+Deserialize.
+    #[command(name = "row-serde-lint")]
+    RowSerdeLint,
+    /// Report (never fail) stringly-typed *_id fields in vox-db-types rows that have a Db<Entity>Id newtype.
+    #[command(name = "string-id-lint")]
+    StringIdLint,
     /// Verify Clavis SSOT parity between managed secret spec and docs/guards.
     #[command(name = "clavis-parity")]
     ClavisParity,

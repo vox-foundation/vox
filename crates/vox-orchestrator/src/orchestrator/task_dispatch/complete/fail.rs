@@ -221,7 +221,7 @@ impl Orchestrator {
         if let Some(db) = self.db() {
             let task_id_s = task_id.0.to_string();
             let verdict = VictoryVerdict {
-                task_id: task_id_s.clone(),
+                task_id: vox_db::DbTaskId::new(task_id_s.clone()),
                 passed: false,
                 tiers_run: vec!["Full".to_string()],
                 first_failure: Some("TaskFailure".to_string()),

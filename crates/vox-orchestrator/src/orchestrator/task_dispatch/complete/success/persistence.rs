@@ -202,7 +202,7 @@ impl Orchestrator {
 
             // Record Victory Verdict
             let verdict = VictoryVerdict {
-                task_id: task_id.0.to_string(),
+                task_id: vox_db::DbTaskId::new(task_id.0.to_string()),
                 passed: true,
                 tiers_run: vec!["Full".to_string()],
                 first_failure: None,
@@ -224,8 +224,8 @@ impl Orchestrator {
 
             // Record Observation Report
             let report = ObservationReport {
-                session_id: session_id.clone().unwrap_or_default(),
-                task_id: task_id.0.to_string(),
+                session_id: vox_db::DbSessionId::new(session_id.clone().unwrap_or_default()),
+                task_id: vox_db::DbTaskId::new(task_id.0.to_string()),
                 observed_at: chrono::Utc::now(),
                 file_path: write_files
                     .first()

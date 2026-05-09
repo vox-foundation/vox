@@ -8,6 +8,7 @@
 //! - **`llm_interactions`** + **`llm_feedback`** — read side for RLHF data export.
 
 use turso::params;
+use vox_db_types::DbUserId;
 
 use crate::store::types::{
     BehaviorEventEntry, CommandFrequencyEntry, LearnedPatternEntry, SaveSnippetParams,
@@ -89,7 +90,7 @@ impl crate::VoxDb {
         while let Some(row) = rows.next().await? {
             out.push(BehaviorEventEntry {
                 id: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
-                user_id: row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                user_id: DbUserId::new(row.get::<String>(1).map_err(|e| StoreError::Db(e.to_string()))?),
                 event_type: row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
                 context: row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
                 metadata: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
@@ -595,7 +596,7 @@ impl crate::VoxDb {
         while let Some(row) = rows.next().await? {
             out.push(LearnedPatternEntry {
                 id: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
-                user_id: row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                user_id: DbUserId::new(row.get::<String>(1).map_err(|e| StoreError::Db(e.to_string()))?),
                 pattern_type: row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
                 category: row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
                 description: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,

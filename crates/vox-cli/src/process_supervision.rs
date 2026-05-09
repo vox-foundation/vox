@@ -5,6 +5,16 @@
 //! - detached null-stdio spawning
 //! - best-effort process-tree termination by pid
 //! - lightweight `--version` probing for operator diagnostics
+//!
+//! ## State files: `<base>.state.json` — written under `.vox/process-supervision/`
+//!
+//! **Why JSON, not the DB?** These files describe operational ephemera (PID,
+//! socket path, last heartbeat) for processes the CLI manages. They:
+//!   * are written before the DB connection exists (chicken/egg with
+//!     orchestrator startup),
+//!   * are stale-by-design when the process exits (no migration concerns),
+//!   * are not user data and have no cross-machine value.
+//! Tier-D (cache) per `contracts/db/data-storage-policy.v1.yaml`.
 
 #![cfg_attr(not(feature = "ars"), allow(dead_code))] // OpenClaw sidecar API (`ensure_managed_process_running`, state file, …) is `feature = "ars"` only.
 

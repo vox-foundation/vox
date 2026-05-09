@@ -1,0 +1,254 @@
+crates/vox-code-audit\src\detectors\unresolved_ref.rs:482:CREATE TABLE t (id INTEGER PRIMARY KEY);\n\
+crates/vox-db\tests\spec_baseline_wiring.rs:15:        sql.contains("CREATE TABLE IF NOT EXISTS agent_sessions")
+crates/vox-db\tests\spec_baseline_wiring.rs:16:            && sql.contains("CREATE TABLE IF NOT EXISTS orchestration_lineage_events"),
+crates/vox-integration-tests\tests\snapshots\greaterfool_parity_gates_test__greaterfool_ref_main_rs_emit.snap:84:CREATE TABLE IF NOT EXISTS conversation (
+crates/vox-integration-tests\tests\snapshots\greaterfool_parity_gates_test__greaterfool_ref_main_rs_emit.snap:90:CREATE TABLE IF NOT EXISTS processingrun (
+crates/vox-integration-tests\tests\snapshots\greaterfool_parity_gates_test__greaterfool_ref_main_rs_emit.snap:98:CREATE TABLE IF NOT EXISTS modelmetric (
+crates/vox-db\tests\ops_retention_tests.rs:67:            "CREATE TABLE ret_expires_fixture (id INTEGER PRIMARY KEY, expires_at TEXT)",
+crates/vox-db\tests\ops_ludus_tests.rs:18:CREATE TABLE IF NOT EXISTS gamify_profiles (
+crates/vox-db\tests\ops_ludus_tests.rs:43:CREATE TABLE IF NOT EXISTS gamify_achievements (
+crates/vox-db\tests\ops_ludus_tests.rs:48:CREATE TABLE IF NOT EXISTS gamify_level_history (
+crates/vox-db\tests\ops_ludus_tests.rs:52:CREATE TABLE IF NOT EXISTS gamify_companions (
+crates/vox-db\tests\ops_ludus_tests.rs:61:CREATE TABLE IF NOT EXISTS gamify_quests (
+crates/vox-db\tests\ops_ludus_tests.rs:70:CREATE TABLE IF NOT EXISTS gamify_battles (
+crates/vox-db\tests\ops_ludus_tests.rs:77:CREATE TABLE IF NOT EXISTS agent_events (
+crates/vox-db\tests\ops_ludus_tests.rs:81:CREATE TABLE IF NOT EXISTS gamify_hint_telemetry (
+crates/vox-db\tests\ops_ludus_tests.rs:85:CREATE TABLE IF NOT EXISTS gamify_processed_events (
+crates/vox-db\tests\ops_ludus_tests.rs:90:CREATE TABLE IF NOT EXISTS gamify_notifications (
+crates/vox-db\tests\ops_ludus_tests.rs:95:CREATE TABLE IF NOT EXISTS cost_records (
+crates/vox-db\tests\ops_ludus_tests.rs:101:CREATE TABLE IF NOT EXISTS agent_sessions (
+crates/vox-db\tests\ops_ludus_tests.rs:106:CREATE TABLE IF NOT EXISTS agent_metrics (
+crates/vox-db\tests\ops_ludus_tests.rs:111:CREATE TABLE IF NOT EXISTS gamify_counters (
+crates/vox-db\tests\ops_ludus_tests.rs:115:CREATE TABLE IF NOT EXISTS gamify_daily_counters (
+crates/vox-db\tests\ops_ludus_tests.rs:119:CREATE TABLE IF NOT EXISTS gamify_event_config (
+crates/vox-db\tests\ops_ludus_tests.rs:123:CREATE TABLE IF NOT EXISTS gamify_collegium (
+crates/vox-db\tests\ops_ludus_tests.rs:126:CREATE TABLE IF NOT EXISTS gamify_collegium_members (
+crates/vox-db\tests\ops_ludus_tests.rs:130:CREATE TABLE IF NOT EXISTS gamify_policy_snapshots (
+crates/vox-db\tests\ops_ludus_tests.rs:139:CREATE TABLE IF NOT EXISTS agent_locks (
+crates/vox-db\tests\ops_ludus_tests.rs:143:CREATE TABLE IF NOT EXISTS agent_heartbeats (
+crates/vox-integration-tests\tests\snapshots\codegen_rust_test__table_ddl_output.snap:5:CREATE TABLE IF NOT EXISTS task (
+crates/vox-db\tests\migration_tests.rs:17:            up_sql: "CREATE TABLE test_mig (id INTEGER PRIMARY KEY);".to_string(),
+crates/vox-db\tests\migration_tests.rs:62:        up_sql: "CREATE TABLE IF NOT EXISTS adhoc_mig_probe (x INTEGER);".to_string(),
+crates/vox-compiler\tests\snapshots\axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap:84:CREATE TABLE IF NOT EXISTS t (
+crates/vox-db\tests\arca_compiler_table_parity.rs:126:CREATE TABLE IF NOT EXISTS toestub_suppressions (
+crates/vox-codegen\src\codegen_rust\emit\tables\codegen.rs:332:/// Generate `CREATE TABLE IF NOT EXISTS` DDL for a @table.
+crates/vox-codegen\src\codegen_rust\emit\tables\codegen.rs:346:        "CREATE TABLE IF NOT EXISTS {} (\n{}\n);",
+crates/vox-db\src\ddl\emit.rs:55:        "CREATE TABLE IF NOT EXISTS {} (\n{}\n);",
+crates/vox-db\src\ddl\emit.rs:78:        "CREATE TABLE IF NOT EXISTS {} (\n{}\n);",
+crates/vox-db\src\ddl\emit.rs:156:        "CREATE TABLE IF NOT EXISTS {} (\n{}\n);",
+crates/vox-db\src\ddl\emit.rs:173:        "CREATE TABLE IF NOT EXISTS {} (\n{}\n);",
+crates/vox-db\src\ddl\diff.rs:337:        assert!(ddl.contains("CREATE TABLE IF NOT EXISTS task"));
+crates/vox-db\src\collection.rs:6://! CREATE TABLE IF NOT EXISTS <name> (
+crates/vox-db\src\collection.rs:82:            "CREATE TABLE IF NOT EXISTS {table} (
+crates/vox-db\src\collection.rs:321:        "CREATE TABLE IF NOT EXISTS {name} (
+crates/vox-db\src\collection.rs:356:        assert!(ddl.contains("CREATE TABLE IF NOT EXISTS notes"));
+crates/vox-db\src\oratio_eval.rs:22:                "CREATE TABLE IF NOT EXISTS oratio_eval_run (
+crates/vox-db\src\oratio_eval.rs:47:                "CREATE TABLE IF NOT EXISTS oratio_eval_sample (
+crates/vox-db\src\migration.rs:81:            Migration::new(1, "one", "CREATE TABLE a(id INTEGER);"),
+crates/vox-db\src\migration.rs:82:            Migration::new(2, "two", "CREATE TABLE b(id INTEGER);"),
+crates/vox-db\src\facade\migrations.rs:18:                "CREATE TABLE IF NOT EXISTS schema_version (
+crates/vox-db\src\local_tests.rs:299:        "CREATE TABLE IF NOT EXISTS schema_version (
+crates/vox-db\src\local_tests.rs:310:        "CREATE TABLE IF NOT EXISTS objects (
+crates/vox-db\src\local_tests.rs:389:        "CREATE TABLE IF NOT EXISTS schema_version (
+crates/vox-integration-tests\tests\pipeline\includes\snapshots\pipeline_test__table_task_main_rs_emit.snap:84:CREATE TABLE IF NOT EXISTS task (
+crates/vox-db\src\training_run.rs:10://! CREATE TABLE IF NOT EXISTS populi_training_run (
+crates/vox-db\src\schema\spec\mod.rs:12:CREATE TABLE IF NOT EXISTS populi_training_run (
+crates/vox-db\src\schema\spec\mod.rs:30:CREATE TABLE IF NOT EXISTS codex_capability_map (
+crates/vox-db\src\schema\spec\mod.rs:48:CREATE TABLE IF NOT EXISTS corpus_snapshots (
+crates/vox-db\src\schema\domains\vox_mesh.rs:5:CREATE TABLE IF NOT EXISTS vox_kudos (
+crates/vox-db\src\schema\domains\vox_mesh.rs:20:CREATE TABLE IF NOT EXISTS vox_peer_reputation (
+crates/vox-db\src\schema\domains\vox_mesh.rs:32:CREATE TABLE IF NOT EXISTS mesh_a2a_messages (
+crates/vox-db\src\schema\domains\vox_mesh.rs:63:CREATE TABLE IF NOT EXISTS mesh_exec_leases (
+crates/vox-db\src\schema\domains\vox_mesh.rs:77:CREATE TABLE IF NOT EXISTS mesh_dispatch_results (
+crates/vox-db\src\schema\domains\visus.rs:7:CREATE TABLE IF NOT EXISTS visus_baselines (
+crates/vox-db\src\schema\domains\visus.rs:24:CREATE TABLE IF NOT EXISTS visus_audit_log (
+crates/vox-db\src\schema\domains\toestub_build.rs:3:CREATE TABLE IF NOT EXISTS toestub_task_queue (
+crates/vox-db\src\schema\domains\toestub_build.rs:12:CREATE TABLE IF NOT EXISTS toestub_baselines (
+crates/vox-db\src\schema\domains\toestub_build.rs:20:CREATE TABLE IF NOT EXISTS toestub_file_cache (
+crates/vox-db\src\schema\domains\toestub_build.rs:29:CREATE TABLE IF NOT EXISTS toestub_suppressions (
+crates/vox-db\src\schema\domains\toestub_build.rs:40:CREATE TABLE IF NOT EXISTS build_run (
+crates/vox-db\src\schema\domains\toestub_build.rs:53:CREATE TABLE IF NOT EXISTS build_crate_sample (
+crates/vox-db\src\schema\domains\toestub_build.rs:63:CREATE TABLE IF NOT EXISTS build_warning (
+crates/vox-db\src\schema\domains\toestub_build.rs:72:CREATE TABLE IF NOT EXISTS build_run_dependency_shape (
+crates/vox-secrets\src\backend\vox_vault.rs:886:        "CREATE TABLE IF NOT EXISTS clavis_account_secrets (
+crates/vox-secrets\src\backend\vox_vault.rs:911:        CREATE TABLE IF NOT EXISTS clavis_secret_versions (
+crates/vox-secrets\src\backend\vox_vault.rs:935:        CREATE TABLE IF NOT EXISTS clavis_audit_log (
+crates/vox-secrets\src\backend\vox_vault.rs:951:        CREATE TABLE IF NOT EXISTS clavis_profile_overrides (
+crates/vox-secrets\src\backend\vox_vault.rs:967:        CREATE TABLE IF NOT EXISTS clavis_agent_delegations (
+crates/vox-db\src\schema\domains\sql\gamification.sql:1:CREATE TABLE IF NOT EXISTS gamify_profiles (
+crates/vox-db\src\schema\domains\sql\gamification.sql:13:CREATE TABLE IF NOT EXISTS gamify_companions (
+crates/vox-db\src\schema\domains\sql\gamification.sql:31:CREATE TABLE IF NOT EXISTS gamify_quests (
+crates/vox-db\src\schema\domains\sql\gamification.sql:45:CREATE TABLE IF NOT EXISTS gamify_battles (
+crates/vox-db\src\schema\domains\sql\coordination.sql:1:CREATE TABLE IF NOT EXISTS distributed_locks (
+crates/vox-db\src\schema\domains\sql\coordination.sql:16:CREATE TABLE IF NOT EXISTS agent_oplog (
+crates/vox-db\src\schema\domains\sql\coordination.sql:35:CREATE TABLE IF NOT EXISTS a2a_messages (
+crates/vox-db\src\schema\domains\sql\coordination.sql:61:CREATE TABLE IF NOT EXISTS mesh_heartbeats (
+crates/vox-db\src\schema\domains\sql\coordination.sql:72:CREATE TABLE IF NOT EXISTS orchestration_lineage_events (
+crates/vox-db\src\schema\domains\scientia.rs:4:CREATE TABLE IF NOT EXISTS scientia_discoveries (
+crates/vox-db\src\schema\domains\scientia.rs:28:CREATE TABLE IF NOT EXISTS scientia_citations (
+crates/vox-db\src\schema\domains\scientia.rs:44:CREATE TABLE IF NOT EXISTS scientia_publication_queue (
+crates/vox-db\src\schema\domains\scientia.rs:64:CREATE TABLE IF NOT EXISTS agent_telemetry_flat (
+crates/vox-db\src\schema\domains\scientia.rs:91:CREATE TABLE IF NOT EXISTS reliability_scores (
+crates/vox-db\src\schema\domains\scientia.rs:105:CREATE TABLE IF NOT EXISTS research_eval_runs (
+crates/vox-db\src\schema\domains\scientia.rs:117:CREATE TABLE IF NOT EXISTS research_eval_samples (
+crates/vox-db\src\schema\domains\scientia.rs:136:CREATE TABLE IF NOT EXISTS model_scoreboard (
+crates/vox-db\src\schema\domains\scientia.rs:155:CREATE TABLE IF NOT EXISTS model_pricing_catalog (
+crates/vox-db\src\schema\domains\publish_cloud.rs:3:CREATE TABLE IF NOT EXISTS training_throughput_profiles (
+crates/vox-db\src\schema\domains\publish_cloud.rs:13:CREATE TABLE IF NOT EXISTS cloud_dispatch_log (
+crates/vox-db\src\schema\domains\publish_cloud.rs:50:CREATE TABLE IF NOT EXISTS local_train_log (
+crates/vox-db\src\schema\domains\publish_cloud.rs:66:CREATE TABLE IF NOT EXISTS published_news (
+crates/vox-db\src\schema\domains\publish_cloud.rs:76:CREATE TABLE IF NOT EXISTS news_publish_approvals (
+crates/vox-db\src\schema\domains\publish_cloud.rs:84:CREATE TABLE IF NOT EXISTS news_publish_approvals_v2 (
+crates/vox-db\src\schema\domains\publish_cloud.rs:92:CREATE TABLE IF NOT EXISTS news_publish_attempts (
+crates/vox-db\src\schema\domains\publish_cloud.rs:102:CREATE TABLE IF NOT EXISTS publication_manifests (
+crates/vox-db\src\schema\domains\publish_cloud.rs:125:CREATE TABLE IF NOT EXISTS publication_approvals (
+crates/vox-db\src\schema\domains\publish_cloud.rs:133:CREATE TABLE IF NOT EXISTS publication_attempts (
+crates/vox-db\src\schema\domains\publish_cloud.rs:147:CREATE TABLE IF NOT EXISTS scholarly_submissions (
+crates/vox-db\src\schema\domains\publish_cloud.rs:164:CREATE TABLE IF NOT EXISTS publication_media_assets (
+crates/vox-db\src\schema\domains\publish_cloud.rs:180:CREATE TABLE IF NOT EXISTS publication_status_events (
+crates/vox-db\src\schema\domains\publish_cloud.rs:194:CREATE TABLE IF NOT EXISTS external_submission_jobs (
+crates/vox-db\src\schema\domains\publish_cloud.rs:220:CREATE TABLE IF NOT EXISTS external_submission_attempts (
+crates/vox-db\src\schema\domains\publish_cloud.rs:235:CREATE TABLE IF NOT EXISTS external_status_snapshots (
+crates/vox-db\src\schema\domains\publish_cloud.rs:248:CREATE TABLE IF NOT EXISTS publication_external_links (
+crates/vox-db\src\schema\domains\publish_cloud.rs:265:CREATE TABLE IF NOT EXISTS publication_external_revisions (
+crates/vox-db\src\schema\domains\publish_cloud.rs:279:CREATE TABLE IF NOT EXISTS scientia_external_intelligence (
+crates/vox-db\src\schema\domains\publish_cloud.rs:298:CREATE TABLE IF NOT EXISTS scientia_feed_sources (
+crates/vox-db\src\schema\domains\publish_cloud.rs:307:CREATE TABLE IF NOT EXISTS syndication_events (
+crates/vox-db\src\schema\domains\publish_cloud.rs:323:CREATE TABLE IF NOT EXISTS scholarly_publication_records (
+crates/vox-db\src\schema\domains\packages.rs:3:CREATE TABLE IF NOT EXISTS packages (
+crates/vox-db\src\schema\domains\packages.rs:15:CREATE TABLE IF NOT EXISTS package_deps (
+crates/vox-db\src\schema\domains\packages.rs:24:CREATE TABLE IF NOT EXISTS components (
+crates/vox-db\src\schema\domains\mens_intelligence.rs:4:CREATE TABLE IF NOT EXISTS observer_events (
+crates/vox-db\src\schema\domains\mens_intelligence.rs:22:CREATE TABLE IF NOT EXISTS test_decisions (
+crates/vox-db\src\schema\domains\mens_intelligence.rs:33:CREATE TABLE IF NOT EXISTS victory_verdicts (
+crates/vox-db\src\schema\domains\mens_intelligence.rs:46:CREATE TABLE IF NOT EXISTS mens_corpus_quality (
+crates/vox-db\src\schema\domains\mens_intelligence.rs:61:CREATE TABLE IF NOT EXISTS corpus_pairs (
+crates/vox-db\src\schema\domains\mens_intelligence.rs:72:CREATE TABLE IF NOT EXISTS grpo_training_run (
+crates/vox-db\src\schema\domains\knowledge.rs:3:CREATE TABLE IF NOT EXISTS knowledge_nodes (
+crates/vox-db\src\schema\domains\knowledge.rs:14:CREATE TABLE IF NOT EXISTS knowledge_edges (
+crates/vox-db\src\schema\domains\knowledge.rs:23:CREATE TABLE IF NOT EXISTS snippets (
+crates/vox-db\src\schema\domains\knowledge.rs:36:CREATE TABLE IF NOT EXISTS embeddings (
+crates/vox-db\src\schema\domains\knowledge.rs:46:CREATE TABLE IF NOT EXISTS search_documents (
+crates/vox-db\src\schema\domains\knowledge.rs:58:CREATE TABLE IF NOT EXISTS search_document_chunks (
+crates/vox-db\src\schema\domains\knowledge.rs:68:CREATE TABLE IF NOT EXISTS search_indexing_jobs (
+crates/vox-db\src\schema\domains\foundation.rs:3:CREATE TABLE IF NOT EXISTS users (
+crates/vox-db\src\schema\domains\foundation.rs:12:CREATE TABLE IF NOT EXISTS node_identities (
+crates/vox-db\src\schema\domains\foundation.rs:23:CREATE TABLE IF NOT EXISTS node_trust_grants (
+crates/vox-db\src\schema\domains\foundation.rs:30:CREATE TABLE IF NOT EXISTS user_preferences (
+crates/vox-db\src\schema\domains\foundation.rs:40:CREATE TABLE IF NOT EXISTS account_config (
+crates/vox-db\src\schema\domains\foundation.rs:50:CREATE TABLE IF NOT EXISTS usage_limit_definitions (
+crates/vox-db\src\schema\domains\foundation.rs:65:CREATE TABLE IF NOT EXISTS usage_counter_snapshots (
+crates/vox-db\src\schema\domains\foundation.rs:79:CREATE TABLE IF NOT EXISTS anomalous_events (
+crates/vox-db\src\schema\domains\external_review.rs:6:CREATE TABLE IF NOT EXISTS external_review_run (
+crates/vox-db\src\schema\domains\external_review.rs:28:CREATE TABLE IF NOT EXISTS external_review_comment_thread (
+crates/vox-db\src\schema\domains\external_review.rs:48:CREATE TABLE IF NOT EXISTS external_review_finding (
+crates/vox-db\src\schema\domains\external_review.rs:80:CREATE TABLE IF NOT EXISTS external_review_finding_state_history (
+crates/vox-db\src\schema\domains\external_review.rs:94:CREATE TABLE IF NOT EXISTS external_review_outcome (
+crates/vox-db\src\schema\domains\external_review.rs:106:CREATE TABLE IF NOT EXISTS external_review_deadletter (
+crates/vox-db\src\schema\domains\external_review.rs:125:CREATE TABLE IF NOT EXISTS external_review_kpi_snapshot (
+crates/vox-db\src\schema\domains\exec_time.rs:2:CREATE TABLE IF NOT EXISTS agent_exec_history (
+crates/vox-db\src\store\open.rs:101:            "CREATE TABLE IF NOT EXISTS schema_version (
+crates/vox-db\src\schema\domains\execution.rs:3:CREATE TABLE IF NOT EXISTS execution_log (
+crates/vox-db\src\schema\domains\execution.rs:22:CREATE TABLE IF NOT EXISTS workflow_executions (
+crates/vox-db\src\schema\domains\execution.rs:36:CREATE TABLE IF NOT EXISTS scheduled (
+crates/vox-db\src\schema\domains\execution.rs:57:CREATE TABLE IF NOT EXISTS workflow_activity_log (
+crates/vox-db\src\schema\domains\execution.rs:71:CREATE TABLE IF NOT EXISTS workflow_run_log (
+crates/vox-db\src\schema\domains\execution.rs:91:CREATE TABLE IF NOT EXISTS workflow_signal_log (
+crates/vox-db\src\schema\domains\execution.rs:102:CREATE TABLE IF NOT EXISTS workflow_activity_attempt_log (
+crates/vox-db\src\schema\domains\execution.rs:117:CREATE TABLE IF NOT EXISTS actor_state (
+crates/vox-db\src\schema\domains\execution.rs:124:CREATE TABLE IF NOT EXISTS plan_sessions (
+crates/vox-db\src\schema\domains\execution.rs:139:CREATE TABLE IF NOT EXISTS plan_versions (
+crates/vox-db\src\schema\domains\execution.rs:151:CREATE TABLE IF NOT EXISTS plan_nodes (
+crates/vox-db\src\schema\domains\execution.rs:165:CREATE TABLE IF NOT EXISTS plan_node_attempts (
+crates/vox-db\src\schema\domains\execution.rs:183:CREATE TABLE IF NOT EXISTS reconstruction_campaign_spec (
+crates/vox-db\src\schema\domains\execution.rs:193:CREATE TABLE IF NOT EXISTS reconstruction_artifacts (
+crates/vox-db\src\schema\domains\execution.rs:209:CREATE TABLE IF NOT EXISTS reconstruction_benchmark_kpis (
+crates/vox-db\src\schema\domains\execution.rs:221:CREATE TABLE IF NOT EXISTS mens_observer_observations (
+crates/vox-db\src\schema\domains\execution.rs:231:CREATE TABLE IF NOT EXISTS plan_test_decisions (
+crates/vox-db\src\schema\domains\developer_journeys.rs:4:CREATE TABLE IF NOT EXISTS developer_journey_definitions (
+crates/vox-db\src\schema\domains\developer_journeys.rs:13:CREATE TABLE IF NOT EXISTS developer_journey_steps (
+crates/vox-db\src\schema\domains\conversations.rs:3:CREATE TABLE IF NOT EXISTS conversations (
+crates/vox-db\src\schema\domains\conversations.rs:16:CREATE TABLE IF NOT EXISTS conversation_messages (
+crates/vox-db\src\schema\domains\conversations.rs:29:CREATE TABLE IF NOT EXISTS conversation_tool_calls (
+crates/vox-db\src\schema\domains\conversations.rs:43:CREATE TABLE IF NOT EXISTS topics (
+crates/vox-db\src\schema\domains\conversations.rs:50:CREATE TABLE IF NOT EXISTS conversation_topics (
+crates/vox-db\src\schema\domains\conversations.rs:57:CREATE TABLE IF NOT EXISTS conversation_message_topics (
+crates/vox-db\src\schema\domains\conversations.rs:63:CREATE TABLE IF NOT EXISTS conversation_versions (
+crates/vox-db\src\schema\domains\conversations.rs:73:CREATE TABLE IF NOT EXISTS conversation_edges (
+crates/vox-db\src\schema\domains\conversations.rs:83:CREATE TABLE IF NOT EXISTS topic_evolution_events (
+crates/vox-db\src\schema\domains\clavis_cloudless.rs:3:CREATE TABLE IF NOT EXISTS clavis_account_secrets (
+crates/vox-db\src\schema\domains\ci_completion.rs:6:CREATE TABLE IF NOT EXISTS ci_completion_run (
+crates/vox-db\src\schema\domains\ci_completion.rs:18:CREATE TABLE IF NOT EXISTS ci_completion_finding (
+crates/vox-db\src\schema\domains\ci_completion.rs:45:CREATE TABLE IF NOT EXISTS ci_completion_detector_snapshot (
+crates/vox-db\src\schema\domains\ci_completion.rs:58:CREATE TABLE IF NOT EXISTS ci_completion_suppression (
+crates/vox-db\src\schema\domains\cas_codex.rs:3:CREATE TABLE IF NOT EXISTS objects (
+crates/vox-db\src\schema\domains\cas_codex.rs:10:CREATE TABLE IF NOT EXISTS names (
+crates/vox-db\src\schema\domains\cas_codex.rs:18:CREATE TABLE IF NOT EXISTS causal (
+crates/vox-db\src\schema\domains\cas_codex.rs:24:CREATE TABLE IF NOT EXISTS schema_version (
+crates/vox-db\src\schema\domains\cas_codex.rs:29:CREATE TABLE IF NOT EXISTS metadata (
+crates/vox-db\src\schema\domains\cas_codex.rs:40:CREATE TABLE IF NOT EXISTS codex_schema_lineage (
+crates/vox-db\src\schema\domains\cas_codex.rs:48:CREATE TABLE IF NOT EXISTS codex_change_log (
+crates/vox-db\src\schema\domains\cas_codex.rs:58:CREATE TABLE IF NOT EXISTS codex_subscriptions (
+crates/vox-db\src\schema\domains\cas_codex.rs:66:CREATE TABLE IF NOT EXISTS codex_query_snapshots (
+crates/vox-db\src\schema\domains\cas_codex.rs:74:CREATE TABLE IF NOT EXISTS codex_projection_versions (
+crates/vox-db\src\schema\domains\cas_codex.rs:81:CREATE TABLE IF NOT EXISTS processing_runs (
+crates/vox-db\src\schema\domains\cas_codex.rs:96:CREATE TABLE IF NOT EXISTS processing_run_steps (
+crates/vox-db\src\schema\domains\cas_codex.rs:109:CREATE TABLE IF NOT EXISTS audit_log (
+crates/vox-db\src\schema\domains\agents.rs:10:CREATE TABLE IF NOT EXISTS memories (
+crates/vox-db\src\schema\domains\agents.rs:22:CREATE TABLE IF NOT EXISTS behavior_events (
+crates/vox-db\src\schema\domains\agents.rs:31:CREATE TABLE IF NOT EXISTS learned_patterns (
+crates/vox-db\src\schema\domains\agents.rs:42:CREATE TABLE IF NOT EXISTS llm_interactions (
+crates/vox-db\src\schema\domains\agents.rs:62:CREATE TABLE IF NOT EXISTS llm_feedback (
+crates/vox-db\src\schema\domains\agents.rs:73:CREATE TABLE IF NOT EXISTS llm_attempts (
+crates/vox-db\src\schema\domains\agents.rs:85:CREATE TABLE IF NOT EXISTS artifacts (
+crates/vox-db\src\schema\domains\agents.rs:100:CREATE TABLE IF NOT EXISTS artifact_reviews (
+crates/vox-db\src\schema\domains\agents.rs:110:CREATE TABLE IF NOT EXISTS agents (
+crates/vox-db\src\schema\domains\agents.rs:124:CREATE TABLE IF NOT EXISTS skill_manifests (
+crates/vox-db\src\schema\domains\agents.rs:137:CREATE TABLE IF NOT EXISTS skill_executions (
+crates/vox-db\src\schema\domains\agents.rs:153:CREATE TABLE IF NOT EXISTS db_snapshots (
+crates/vox-db\src\schema\domains\agents.rs:161:CREATE TABLE IF NOT EXISTS research_metrics (
+crates/vox-db\src\schema\domains\agents.rs:170:CREATE TABLE IF NOT EXISTS eval_runs (
+crates/vox-db\src\schema\domains\agents.rs:183:CREATE TABLE IF NOT EXISTS builder_sessions (
+crates/vox-db\src\schema\domains\agents.rs:189:CREATE TABLE IF NOT EXISTS session_turns (
+crates/vox-db\src\schema\domains\agents.rs:196:CREATE TABLE IF NOT EXISTS typed_stream_events (
+crates/vox-db\src\schema\domains\agents.rs:203:CREATE TABLE IF NOT EXISTS question_sessions (
+crates/vox-db\src\schema\domains\agents.rs:215:CREATE TABLE IF NOT EXISTS question_events (
+crates/vox-db\src\schema\domains\agents.rs:232:CREATE TABLE IF NOT EXISTS question_options (
+crates/vox-db\src\schema\domains\agents.rs:243:CREATE TABLE IF NOT EXISTS question_option_outcomes (
+crates/vox-db\src\schema\domains\agents.rs:253:CREATE TABLE IF NOT EXISTS question_stop_events (
+crates/vox-db\src\schema\domains\agents.rs:264:CREATE TABLE IF NOT EXISTS populi_reviews (
+crates/vox-db\src\schema\domains\agents.rs:272:CREATE TABLE IF NOT EXISTS agent_sessions (
+crates/vox-db\src\schema\domains\agents.rs:283:CREATE TABLE IF NOT EXISTS agent_events (
+crates/vox-db\src\schema\domains\agents.rs:293:CREATE TABLE IF NOT EXISTS agent_session_events (
+crates/vox-db\src\schema\domains\agents.rs:303:CREATE TABLE IF NOT EXISTS cost_records (
+crates/vox-db\src\schema\domains\agents.rs:316:CREATE TABLE IF NOT EXISTS agent_metrics (
+crates/vox-db\src\schema\domains\agents.rs:326:CREATE TABLE IF NOT EXISTS agent_reliability (
+crates/vox-db\src\schema\domains\agents.rs:334:CREATE TABLE IF NOT EXISTS research_sessions (
+crates/vox-db\src\schema\domains\agents.rs:346:CREATE TABLE IF NOT EXISTS endpoint_reliability (
+crates/vox-db\src\schema\domains\agents.rs:360:CREATE TABLE IF NOT EXISTS skill_reliability (
+crates/vox-db\src\schema\domains\agents.rs:368:CREATE TABLE IF NOT EXISTS workflow_reliability (
+crates/vox-db\src\schema\domains\agents.rs:376:CREATE TABLE IF NOT EXISTS repository_reliability (
+crates/vox-db\src\schema\domains\agents.rs:384:CREATE TABLE IF NOT EXISTS trust_observations (
+crates/vox-db\src\schema\domains\agents.rs:403:CREATE TABLE IF NOT EXISTS trust_rollups (
+crates/vox-db\src\schema\domains\agents.rs:419:CREATE TABLE IF NOT EXISTS trusted_evidence_bundles (
+crates/vox-db\src\schema\domains\agents.rs:483:CREATE TABLE IF NOT EXISTS routing_decisions (
+crates/vox-gamify\src\schema.rs:20:CREATE TABLE IF NOT EXISTS gamify_teaching_profiles (
+crates/vox-gamify\src\schema.rs:33:CREATE TABLE IF NOT EXISTS gamify_policy_snapshots (
+crates/vox-gamify\src\schema.rs:62:CREATE TABLE IF NOT EXISTS gamify_ai_feedback (
+crates/vox-gamify\src\schema.rs:76:CREATE TABLE IF NOT EXISTS gamify_periodic_rewards (
+crates/vox-gamify\src\schema.rs:91:CREATE TABLE IF NOT EXISTS gamify_level_history (
+crates/vox-gamify\src\schema.rs:109:CREATE TABLE IF NOT EXISTS gamify_counters (
+crates/vox-gamify\src\schema.rs:140:CREATE TABLE IF NOT EXISTS gamify_collegium (
+crates/vox-gamify\src\schema.rs:151:CREATE TABLE IF NOT EXISTS gamify_collegium_members (
+crates/vox-gamify\src\schema.rs:162:CREATE TABLE IF NOT EXISTS gamify_arena_events (
+crates/vox-gamify\src\schema.rs:176:CREATE TABLE IF NOT EXISTS gamify_arena_participants (
+crates/vox-gamify\src\schema.rs:194:CREATE TABLE IF NOT EXISTS gamify_daily_counters (
+crates/vox-gamify\src\schema.rs:203:CREATE TABLE IF NOT EXISTS gamify_event_config (
+crates/vox-gamify\src\schema.rs:214:CREATE TABLE IF NOT EXISTS vox_identities (
+crates/vox-gamify\src\schema.rs:247:CREATE TABLE IF NOT EXISTS gamify_disputes (
+crates/vox-gamify\src\schema.rs:267:CREATE TABLE IF NOT EXISTS gamify_dispute_votes (
+crates/vox-gamify\src\schema.rs:282:CREATE TABLE IF NOT EXISTS gamify_dispute_jury (
+crates/vox-gamify\src\schema.rs:299:CREATE TABLE IF NOT EXISTS gamify_hint_telemetry (
+crates/vox-gamify\src\schema.rs:306:CREATE TABLE IF NOT EXISTS gamify_processed_events (
+crates/vox-gamify\src\schema.rs:312:CREATE TABLE IF NOT EXISTS gamify_notifications (
+contracts/reports\scaling-audit\findings-latest.json:27261:    "context": "   1 | //! Arca SQL: Populi cloud + news + publication (adjacent manifest fragments merged; DDL byte-compatible).\n   2 | pub const SCHEMA_PUBLISH_CLOUD: &str = r#\"\n   3 | CREATE TABLE IF NOT EXISTS training_throughput_profiles (",

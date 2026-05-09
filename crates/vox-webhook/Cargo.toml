@@ -7,7 +7,6 @@ authors.workspace = true
 description = "HTTP webhook gateway for the Vox agent system"
 
 [dependencies]
-vox-db           = { workspace = true }
 async-trait      = { workspace = true }
 serde            = { workspace = true }
 serde_json       = { workspace = true }

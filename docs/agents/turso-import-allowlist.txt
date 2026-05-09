@@ -1,11 +1,27 @@
 # Transitional allowlist for `vox ci turso-import-guard`
 #
-# Built-in prefixes: `crates/vox-db/`, `crates/vox-pm/`, `crates/vox-compiler/`.
-# Prefer typed `VoxDb` APIs from application crates; see codex-turso-allowlist.md.
+# Built-in prefixes: `crates/vox-db/`, `crates/vox-package/`, `crates/vox-compiler/`.
+# Plus auto-derived entries for crates listed in
+# contracts/db/data-storage-policy.v1.yaml under
+# tiers.a_relational.{owners, allow_direct_access, temporary_exceptions}
+# — those don't need to be listed here.
+#
+# This file is for TRANSITIONAL exceptions: paths that aren't yet sanctioned
+# satellites and should fold away over time. See codex-turso-allowlist.md.
 crates/vox-corpus/
 crates/vox-cli/src/commands/db/
 crates/vox-cli/src/commands/review/coderabbit/
-crates/vox-clavis/
 crates/vox-workflow-runtime/tests/
-crates/vox-ludus/
 crates/vox-populi/src/transport/store/
+
+# vox-codegen emits `turso::params![]` literals into generated Rust source.
+# False-positive of the text-based guard regex; the crate does not link turso.
+# A future tightening of the guard (skip code-string contexts) could remove
+# these entries.
+crates/vox-codegen/src/codegen_rust/
+
+# vox-plugin-populi-mesh — direct turso usage in mesh transport store.
+# Mirrors the existing crates/vox-populi/src/transport/store/ pattern (likely
+# a renamed/refactored copy). Transitional until plugin-host transport is
+# unified.
+crates/vox-plugin-populi-mesh/src/transport/store/

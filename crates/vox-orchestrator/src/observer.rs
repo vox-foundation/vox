@@ -174,8 +174,8 @@ impl Observer {
         });
 
         ObservationReport {
-            session_id: session_id.to_string(),
-            task_id: task_id.to_string(),
+            session_id: vox_db::DbSessionId::new(session_id),
+            task_id: vox_db::DbTaskId::new(task_id),
             observed_at: chrono::Utc::now(),
             file_path: path.display().to_string(),
             lsp_error_count,
@@ -204,8 +204,8 @@ impl Observer {
             self.compute_action_raw(lsp_error_count, parse_rate, construct_coverage);
 
         ObservationReport {
-            session_id: session_id.to_string(),
-            task_id: task_id.to_string(),
+            session_id: vox_db::DbSessionId::new(session_id),
+            task_id: vox_db::DbTaskId::new(task_id),
             observed_at: chrono::Utc::now(),
             file_path: path.display().to_string(),
             lsp_error_count,
@@ -269,7 +269,7 @@ impl Observer {
     pub fn summarize(&self, task_id: &str) -> ObservationSummary {
         let hist = self.history.lock().expect("observer history lock");
         let task_reports: Vec<&ObservationReport> =
-            hist.iter().filter(|r| r.task_id == task_id).collect();
+            hist.iter().filter(|r| r.task_id.as_str() == task_id).collect();
 
         let observation_count = task_reports.len();
         if observation_count == 0 {
