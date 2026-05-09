@@ -56,6 +56,13 @@ pub async fn branch_create(
     };
 
     // 4. Return capability.
+    tracing::info!(
+        target: "vox.vcs.branch",
+        branch = branch_name,
+        workspace_id = workspace_id,
+        "branch created"
+    );
+
     Ok(WorkingTreeWrite::mint(WorkspaceId(workspace_id), parsed_branch))
 }
 

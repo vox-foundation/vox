@@ -20,3 +20,6 @@ pub use secret_scan::scan_for_secrets;
 pub use secret_scan::{SecretKind, SecretMatch};
 pub use snapshots::*;
 pub use workspaces::*;
+
+#[cfg(test)]
+mod telemetry_tests;

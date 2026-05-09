@@ -97,6 +97,13 @@ pub async fn commit_create(
     let sha_out = git.run(&["rev-parse", "HEAD"]).await?;
     let sha = sha_out.stdout.trim().to_string();
 
+    tracing::info!(
+        target: "vox.vcs.commit",
+        sha = %sha,
+        workspace_id = workspace_id,
+        "commit created"
+    );
+
     Ok(CommitOutput { sha, message_used: full_message })
 }
 
