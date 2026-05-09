@@ -12,6 +12,17 @@ All notable changes to the Vox project are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Telemetry unification (Phases A–D):** `vox-telemetry` L1 facade crate with `TelemetryEvent` enum (`ResearchMetric`, `ModelCall`, `TaskRootSummary`, `BuildSummary`, `Error`), `TelemetryRecorder` trait, `record_event!` macro, `TRACE_CTX` task-local for distributed tracing, and `TaskTelemetryAggregator` for per-task token/cost rollup.
+- **`VOX_TELEMETRY` master switch:** `off` / `0` / `false` silences all telemetry paths. Overrides all per-category env vars (`VOX_BENCHMARK_TELEMETRY`, `VOX_MCP_LLM_COST_EVENTS`). See [`env-vars.md`](docs/src/reference/env-vars.md).
+- **`vox telemetry doctor`:** new subcommand that prints the effective `TelemetryConfig`, recorder registration status, and spool path. Exits 1 when master switch is off.
+- **`ModelCallEvent`:** per-LLM-call telemetry with split prompt-cache tokens (`cache_read_input_tokens` / `cache_creation_input_tokens`), latency, cost, and trace context.
+- **`TaskRootSummaryEvent`:** emitted on `complete_task`, `fail_task`, `doubt_task` with real token/cost totals populated by the `TaskTelemetryAggregator`.
+- **`BuildSummaryEvent`:** emitted after `vox ci build-timings` with wall time and compiled-crate count.
+- **`ErrorEvent`:** emitted at HTTP 429 (infer.rs), non-2xx HTTP (actor-runtime chat.rs), and circuit-breaker trips.
+- **Trace propagation:** `RemoteTaskEnvelope` extended with `parent_task_id`, `caller_agent_id`, `trace_id`, `span_depth`; MCP dispatch wraps sub-agent calls in `TRACE_CTX::scope`; `SubAgentDispatchEvent` enriched with `parent_task_id` and `span_depth`.
+
 ## [0.5.0] - 2026-04-18
 
 ### Added
