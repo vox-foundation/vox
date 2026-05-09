@@ -9,3 +9,7 @@ crates/vox-clavis/
 crates/vox-workflow-runtime/tests/
 crates/vox-ludus/
 crates/vox-populi/src/transport/store/
+# vox-secrets: tier-A relational owner per contracts/db/data-storage-policy.v1.yaml.
+# Clavis vault uses a separate libSQL DB file (.vox/clavis_vault.db) for blast-radius
+# isolation from user-data Codex; intentional and documented in ADR-004.
+crates/vox-secrets/
