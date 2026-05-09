@@ -8,6 +8,7 @@ use std::path::Path;
 
 use super::secret_scan::{scan_for_secrets, SecretMatch};
 use crate::git_exec::{GitExec, GitExecError};
+use vox_orchestrator_types::WorkspaceId;
 
 // ── Output / error types ─────────────────────────────────────────────────────
 
@@ -47,8 +48,8 @@ fn build_commit_message(
     workspace_id: u64,
 ) -> String {
     let trailers = format!(
-        "Co-authored-by: {} <{}>\nVox-Model-Id: {}\nVox-Workspace: W-{:06}",
-        author_name, author_email, model_id, workspace_id
+        "Co-authored-by: {} <{}>\nVox-Model-Id: {}\nVox-Workspace: {}",
+        author_name, author_email, model_id, WorkspaceId(workspace_id)
     );
     format!("{}\n\n{}", message.trim_end(), trailers)
 }

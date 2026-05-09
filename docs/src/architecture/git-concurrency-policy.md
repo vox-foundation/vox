@@ -63,6 +63,12 @@ currently detected: AWS access keys, AWS secret keys, GitHub tokens,
 OpenAI keys, Anthropic keys, Slack tokens, Google API keys, PEM private
 key headers.
 
+`commit_create` passes `--no-verify` to `git commit`, which means any
+`.git/hooks/pre-commit` or `.git/hooks/commit-msg` hooks in the target
+repository are **skipped**. The orchestrator's own secret scan replaces
+the need for a hook-level check for the patterns above, but operators
+should be aware that repo-local hooks will not run for agentic commits.
+
 ## Telemetry
 
 All VCS operations emit `tracing` events under the `vox.vcs.*`
