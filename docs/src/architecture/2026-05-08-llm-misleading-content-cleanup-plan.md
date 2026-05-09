@@ -114,16 +114,16 @@ For each file below, read it first, then update `crates/vox-clavis/...` → `cra
 
 Files (verified as of 2026-05-08):
 1. [`AGENTS.md`](../../AGENTS.md) — lines 75, 76, 77, 88, 89, 90 (the §Secret Management section). **Caveat:** if A.0 chose "full rename", also update `vox_clavis::resolve_secret(...)` → `vox_secrets::resolve_secret(...)` here. Otherwise leave the `vox_clavis::` Rust import path intact and let it be resolved by the Rust crate-rename in a separate dedicated PR.
-2. [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) — line 27.
-3. [`.cursor/rules/secrets-policy.mdc`](../../.cursor/rules/secrets-policy.mdc) — lines 8, 9.
-4. [`.cursor/rules/data-storage-policy.mdc`](../../.cursor/rules/data-storage-policy.mdc) — lines 11, 13.
-5. [`.voxindexingignore`](../../.voxindexingignore) — line 59.
-6. [`vox-schema.json`](../../vox-schema.json) — `"vox-clavis"` key on line ~50 and `path_pattern` on line ~52. **Caveat:** this is a JSON schema that may be consumed by tooling — search for consumers of `"vox-clavis"` as a key before renaming the key. If consumers exist, leave the key and only update `path_pattern`.
-7. [`contracts/toestub/suppressions.v1.json`](../../contracts/toestub/suppressions.v1.json) — `path_glob` on line 7.
-8. [`crates/_frozen.md`](../../crates/_frozen.md) — line 13.
-9. [`docs/agents/turso-import-allowlist.txt`](../agents/turso-import-allowlist.txt) — line 8.
-10. [`docs/agents/sql-connection-api-allowlist.txt`](../agents/sql-connection-api-allowlist.txt) — line 8.
-11. [`docs/agents/query-all-allowlist.txt`](../agents/query-all-allowlist.txt) — line 7.
+2. [`.github/copilot-instructions.md`](../../../.github/copilot-instructions.md) — line 27.
+3. [`.cursor/rules/secrets-policy.mdc`](../../../.cursor/rules/secrets-policy.mdc) — lines 8, 9.
+4. [`.cursor/rules/data-storage-policy.mdc`](../../../.cursor/rules/data-storage-policy.mdc) — lines 11, 13.
+5. [`.voxindexingignore`](../../../.voxindexingignore) — line 59.
+6. [`vox-schema.json`](../../../vox-schema.json) — `"vox-clavis"` key on line ~50 and `path_pattern` on line ~52. **Caveat:** this is a JSON schema that may be consumed by tooling — search for consumers of `"vox-clavis"` as a key before renaming the key. If consumers exist, leave the key and only update `path_pattern`.
+7. [`contracts/toestub/suppressions.v1.json`](../../../contracts/toestub/suppressions.v1.json) — `path_glob` on line 7.
+8. [`crates/_frozen.md`](../../../crates/_frozen.md) — line 13.
+9. [`docs/agents/turso-import-allowlist.txt`](../../agents/turso-import-allowlist.txt) — line 8.
+10. [`docs/agents/sql-connection-api-allowlist.txt`](../../agents/sql-connection-api-allowlist.txt) — line 8.
+11. [`docs/agents/query-all-allowlist.txt`](../../agents/query-all-allowlist.txt) — line 7.
 
 ### A.2 Verification
 
@@ -155,7 +155,7 @@ architecture docs, contributor docs, and rule files.
 ### B.1 Reads first
 
 - [`AGENTS.md`](../../AGENTS.md) — read context around line 178.
-- [`GEMINI.md`](../../GEMINI.md) — read context around lines 29, 47.
+- [`GEMINI.md`](../../../GEMINI.md) — read context around lines 29, 47.
 
 ### B.2 Edits
 
@@ -633,7 +633,7 @@ status field as authoritative.
 
 ### K.1 Reads first
 
-- [`docs/superpowers/plans/2026-05-03-vox-dashboard-claude-design-port.md`](../../docs/superpowers/plans/2026-05-03-vox-dashboard-claude-design-port.md) — read in full (it's long; chunk by H2).
+- [`docs/superpowers/plans/2026-05-03-vox-dashboard-claude-design-port.md`](../../superpowers/plans/2026-05-03-vox-dashboard-claude-design-port.md) — read in full (it's long; chunk by H2).
 
 ### K.2 Edits
 
@@ -910,7 +910,7 @@ If any check fails, **stop and diagnose** — do not proceed to merge.
 
 Independently of code/doc changes, update auto-memory at `C:\Users\Owner\.claude\projects\C--Users-Owner-vox\memory\`:
 
-- Update [project_vox_interop_positioning.md](file://C:/Users/Owner/.claude/projects/C--Users-Owner-vox/memory/project_vox_interop_positioning.md) (or whatever the current memory file is) with the 2026-05-03 retirement landing date and a pointer to this cleanup plan.
+- Update `project_vox_interop_positioning.md` (or whatever the current memory file is) with the 2026-05-03 retirement landing date and a pointer to this cleanup plan.
 - Add a new memory entry pointing at [phase-numbering-index.md](phase-numbering-index.md) so future sessions resolve "Phase N" correctly.
 
 ### O.4 Commit

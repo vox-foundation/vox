@@ -3382,7 +3382,7 @@ git commit -m "ci(tracker): Android emulator E2E lane"
 
 ## Execution
 
-Plan complete and saved to [`docs/superpowers/plans/2026-05-08-mobile-gui-correctness-and-tracker-ship.md`](docs/superpowers/plans/2026-05-08-mobile-gui-correctness-and-tracker-ship.md). Two execution options:
+Plan complete and saved to [`docs/superpowers/plans/2026-05-08-mobile-gui-correctness-and-tracker-ship.md`](2026-05-08-mobile-gui-correctness-and-tracker-ship.md). Two execution options:
 
 **1. Subagent-Driven (recommended)** — I dispatch a fresh subagent per task in this session, review between tasks, fast iteration. Best for tracks A and B which are tightly inter-dependent.
 
