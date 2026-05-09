@@ -96,6 +96,8 @@ pub mod compaction_trigger;
 pub mod calibration;
 /// Sub-agent dispatch router: spawn vs. inline decision (D4).
 pub mod subagent_dispatch;
+/// Unified orchestrator policy façade composing all D1–D10.
+pub mod orchestrator_policy;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Orchestrator configuration load, merge, and validation.
