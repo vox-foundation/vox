@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
+import { ErrorBoundary } from './ErrorBoundary';
 
 // Install Vox-runtime globals (str, len, Speech, std, mobile) BEFORE importing
 // the codegen output, since the emitted modules reference them at top level.
@@ -69,6 +70,8 @@ registerServiceWorker();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );
