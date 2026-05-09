@@ -5,6 +5,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::time::Duration;
+use vox_share::auth::AuthMode;
 use vox_share::{BackendKind, ShareConfig, ShareSession};
 
 #[derive(Args, Debug)]
@@ -29,6 +30,10 @@ pub struct ShareArgs {
     /// Accept Cloudflare ToS without prompting (required in CI / non-interactive environments).
     #[arg(long)]
     pub accept_tos: bool,
+
+    /// Authentication mode: none, basic:user:pass. Default: url-token (auto-generated).
+    #[arg(long, default_value = "token")]
+    pub auth: String,
 }
 
 pub async fn run(args: ShareArgs) -> Result<()> {
@@ -36,6 +41,14 @@ pub async fn run(args: ShareArgs) -> Result<()> {
         .backend
         .parse()
         .map_err(|e| anyhow::anyhow!("invalid --backend `{}`: {}", args.backend, e))?;
+
+    let auth_mode = if args.auth == "token" {
+        AuthMode::random_token()
+    } else {
+        args.auth
+            .parse::<AuthMode>()
+            .map_err(|e| anyhow::anyhow!("invalid --auth: {}", e))?
+    };
 
     let duration = parse_duration(&args.duration)?;
 
@@ -65,13 +78,14 @@ pub async fn run(args: ShareArgs) -> Result<()> {
         app_binary: None,
         connect_timeout: Duration::from_secs(10),
         allow_fallback,
+        auth_mode,
     };
 
     let session = ShareSession::start(cfg)
         .await
         .map_err(|e| anyhow::anyhow!("share session: {}", e))?;
 
-    println!("[vox share] Public URL: {}", session.tunnel_handle.public_url);
+    println!("[vox share] Public URL: {}", session.public_url);
     println!(
         "[vox share] Local proxy: http://127.0.0.1:{}",
         session.proxy_port

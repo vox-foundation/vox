@@ -1,10 +1,12 @@
 //! Reverse-proxy server that forwards incoming requests to an upstream app.
 //!
-//! Pass-through only in S1 (no auth). Future phases add middleware.
+//! Pass-through only in S1 (no auth). S5 adds auth middleware.
 
+use crate::auth::{auth_middleware, AuthMode};
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{StatusCode, Uri};
+use axum::middleware;
 use axum::response::Response;
 use axum::routing::any;
 use axum::Router;
@@ -20,6 +22,8 @@ pub struct ProxyConfig {
     pub upstream_addr: SocketAddr,
     /// Local address to bind the proxy listener on.
     pub bind_addr: SocketAddr,
+    /// Authentication mode for incoming requests.
+    pub auth_mode: AuthMode,
 }
 
 #[derive(Clone)]
@@ -32,13 +36,17 @@ struct ProxyState {
 ///
 /// All requests are forwarded to `cfg.upstream_addr` with the same method,
 /// headers, and body. The upstream response is returned verbatim.
+/// Auth middleware (if configured) is applied before forwarding.
 pub fn build_app(cfg: ProxyConfig) -> Router {
     let client = Client::builder(TokioExecutor::new()).build_http::<Body>();
     let state = ProxyState {
         upstream_addr: cfg.upstream_addr,
         client,
     };
-    Router::new().fallback(any(forward)).with_state(state)
+    Router::new()
+        .fallback(any(forward))
+        .with_state(state)
+        .layer(middleware::from_fn_with_state(cfg.auth_mode, auth_middleware))
 }
 
 async fn forward(

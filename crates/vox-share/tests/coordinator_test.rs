@@ -1,6 +1,7 @@
 //! Coordinator integration test using the LAN backend (zero infrastructure).
 
 use std::time::Duration;
+use vox_share::auth::AuthMode;
 use vox_share::{BackendKind, ShareConfig};
 
 #[tokio::test]
@@ -19,12 +20,13 @@ async fn coordinator_starts_lan_session_against_a_dummy_app() {
         app_binary: None, // already running externally
         connect_timeout: Duration::from_secs(2),
         allow_fallback: false,
+        auth_mode: AuthMode::None,
     };
     let session = vox_share::ShareSession::start(cfg).await
         .expect("LAN session should start");
 
     assert_eq!(session.tunnel_handle.backend, BackendKind::Lan);
-    assert!(session.tunnel_handle.public_url.starts_with("http://"));
+    assert!(session.public_url.starts_with("http://"));
     // The tunnel handle's public_url for LAN backend points at the LAN IP + proxy_port.
     // We verify the proxy works by hitting it via 127.0.0.1:<proxy_port>.
     assert!(session.proxy_port > 0);

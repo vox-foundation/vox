@@ -1,6 +1,7 @@
 //! Test the fallback chain: Cloudflare failure → localhost.run.
 
 use std::time::Duration;
+use vox_share::auth::AuthMode;
 use vox_share::{BackendKind, ShareConfig, ShareSession};
 
 #[tokio::test]
@@ -21,6 +22,7 @@ async fn fallback_config_field_compiles_and_works_with_lan() {
         app_binary: None,
         connect_timeout: Duration::from_secs(1),
         allow_fallback: false,
+        auth_mode: AuthMode::None,
     };
     let session = ShareSession::start(cfg)
         .await
@@ -47,6 +49,7 @@ async fn allow_fallback_true_does_not_affect_non_cloudflare_backends() {
         app_binary: None,
         connect_timeout: Duration::from_secs(1),
         allow_fallback: true, // should be ignored for non-Cloudflare backend
+        auth_mode: AuthMode::None,
     };
     let session = ShareSession::start(cfg)
         .await

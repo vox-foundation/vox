@@ -1,5 +1,6 @@
 //! Coordinator: wires app + proxy + tunnel-backend together.
 
+use crate::auth::AuthMode;
 use crate::backend::{BackendKind, TunnelBackend, TunnelHandle};
 use crate::backends::cloudflare::CloudflareBackend;
 use crate::backends::lan::LanBackend;
@@ -28,12 +29,16 @@ pub struct ShareConfig {
     pub connect_timeout: Duration,
     /// When true and backend is Cloudflare, fall back to localhost.run on failure.
     pub allow_fallback: bool,
+    /// Authentication mode for the share session.
+    pub auth_mode: AuthMode,
 }
 
 /// An active share session. Drop or call `shutdown` to clean up.
 pub struct ShareSession {
     pub tunnel_handle: TunnelHandle,
     pub proxy_port: u16,
+    /// The public URL to share with users — may include auth token decoration.
+    pub public_url: String,
     proxy_shutdown: tokio::sync::oneshot::Sender<()>,
     duration_timer: Option<tokio::task::JoinHandle<()>>,
     _app_child: Option<tokio::process::Child>,
@@ -61,6 +66,7 @@ impl ShareSession {
         let proxy_cfg = ProxyConfig {
             upstream_addr: SocketAddr::from(([127, 0, 0, 1], cfg.upstream_port)),
             bind_addr,
+            auth_mode: cfg.auth_mode.clone(),
         };
         let proxy_app = build_proxy_app(proxy_cfg);
 
@@ -101,9 +107,11 @@ impl ShareSession {
             })
         });
 
+        let public_url = cfg.auth_mode.decorate_url(&tunnel_handle.public_url);
         Ok(ShareSession {
             tunnel_handle,
             proxy_port: actual_proxy_port,
+            public_url,
             proxy_shutdown: proxy_shutdown_tx,
             duration_timer,
             _app_child: app_child,
