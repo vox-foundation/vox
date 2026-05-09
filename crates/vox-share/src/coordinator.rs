@@ -1,6 +1,7 @@
 //! Coordinator: wires app + proxy + tunnel-backend together.
 
 use crate::backend::{BackendKind, TunnelBackend, TunnelHandle};
+use crate::backends::cloudflare::CloudflareBackend;
 use crate::backends::lan::LanBackend;
 use crate::error::{ShareError, ShareResult};
 use crate::proxy::{build_app as build_proxy_app, ProxyConfig};
@@ -104,8 +105,9 @@ impl ShareSession {
 fn make_backend(kind: BackendKind) -> Box<dyn TunnelBackend> {
     match kind {
         BackendKind::Lan => Box::new(LanBackend::new()),
-        // S2-S4 add the remaining backends.
-        BackendKind::Cloudflare | BackendKind::LocalhostRun | BackendKind::Tailscale => {
+        BackendKind::Cloudflare => Box::new(CloudflareBackend::new()),
+        // S3 adds LocalhostRun; S4 adds Tailscale.
+        BackendKind::LocalhostRun | BackendKind::Tailscale => {
             unimplemented!("backend {:?} ships in a later phase", kind)
         }
     }

@@ -10,8 +10,8 @@ use vox_share::{BackendKind, ShareConfig, ShareSession};
 #[derive(Args, Debug)]
 #[command(about = "Share a Vox app via a public URL tunnel")]
 pub struct ShareArgs {
-    /// Tunnel backend (lan, cloudflare, localhost-run, tailscale). Default: lan (S1).
-    #[arg(long, default_value = "lan")]
+    /// Tunnel backend (lan, cloudflare, localhost-run, tailscale). Default: cloudflare.
+    #[arg(long, default_value = "cloudflare")]
     pub backend: String,
 
     /// Port the bundled app listens on.
@@ -25,6 +25,10 @@ pub struct ShareArgs {
     /// Use dev server pipeline instead of vox bundle (faster iteration).
     #[arg(long)]
     pub dev: bool,
+
+    /// Accept Cloudflare ToS without prompting (required in CI / non-interactive environments).
+    #[arg(long)]
+    pub accept_tos: bool,
 }
 
 pub async fn run(args: ShareArgs) -> Result<()> {
@@ -37,14 +41,12 @@ pub async fn run(args: ShareArgs) -> Result<()> {
 
     println!("[vox share] Backend: {}", backend);
 
-    if !matches!(backend, BackendKind::Lan) {
-        anyhow::bail!(
-            "backend `{}` ships in a later phase. Use `--backend lan` for now.",
-            backend
-        );
+    if matches!(backend, BackendKind::Cloudflare) {
+        vox_share::consent::ensure_consent(args.accept_tos, false)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
     }
 
-    println!("[vox share] (S1) LAN backend. Proxy port is OS-assigned.");
+    println!("[vox share] Proxy port is OS-assigned.");
     println!(
         "[vox share] Note: bundle integration ships in S8. Run your app on port {} separately.",
         args.port
