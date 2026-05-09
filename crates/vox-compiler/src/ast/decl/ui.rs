@@ -66,6 +66,9 @@ pub struct RouteEntry {
     /// Loading / pending component for this route.
     #[serde(default)]
     pub pending_component_name: Option<String>,
+    /// Error component for this route (shown on loader failure).
+    #[serde(default)]
+    pub error_component_name: Option<String>,
     pub span: Span,
 }
 

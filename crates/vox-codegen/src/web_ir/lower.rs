@@ -323,6 +323,9 @@ fn lower_route_contract_entry(
     if let Some(p) = &e.pending_component_name {
         meta["pending"] = json!(p.clone());
     }
+    if let Some(err) = &e.error_component_name {
+        meta["error"] = json!(err.clone());
+    }
     let children: Vec<RouteContract> = e
         .children
         .iter()

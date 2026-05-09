@@ -129,6 +129,39 @@ fn expr_has_keyless_for(e: &vox_compiler::hir::HirExpr) -> bool {
     }
 }
 
+/// Check that every route with a `loader` also has a `pending` and an `error` component.
+fn check_route_completeness(hir: &HirModule) -> Result<(), String> {
+    for routes_decl in &hir.client_routes {
+        check_route_entries_completeness(&routes_decl.entries)?;
+    }
+    Ok(())
+}
+
+fn check_route_entries_completeness(entries: &[vox_compiler::ast::decl::RouteEntry]) -> Result<(), String> {
+    for entry in entries {
+        if entry.loader_name.is_some() {
+            if entry.pending_component_name.is_none() {
+                return Err(format!(
+                    "validate.route.missing_pending: route `{}` has a loader `{}` but no `pending:` component. \
+                     Add `pending: <Component>` to the `with (…)` clause.",
+                    entry.path,
+                    entry.loader_name.as_deref().unwrap_or("")
+                ));
+            }
+            if entry.error_component_name.is_none() {
+                return Err(format!(
+                    "validate.route.missing_error: route `{}` has a loader `{}` but no `error:` component. \
+                     Add `error: <Component>` to the `with (…)` clause.",
+                    entry.path,
+                    entry.loader_name.as_deref().unwrap_or("")
+                ));
+            }
+        }
+        check_route_entries_completeness(&entry.children)?;
+    }
+    Ok(())
+}
+
 /// Generate TypeScript with explicit options (callers such as `vox build` should pass config here).
 pub fn generate_with_options(
     hir: &HirModule,
@@ -136,6 +169,8 @@ pub fn generate_with_options(
 ) -> Result<CodegenOutput, String> {
     // Validate: every for-loop in a component view must have a key clause (validate.list_key.required).
     check_for_missing_keys(hir)?;
+    // Validate: routes with loaders must have pending + error components.
+    check_route_completeness(hir)?;
 
     let mut files = Vec::new();
     let mut reactive_stats = crate::codegen_ts::reactive::ReactiveViewBridgeStats::default();
