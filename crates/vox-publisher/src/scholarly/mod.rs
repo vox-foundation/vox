@@ -4,6 +4,7 @@ mod error;
 mod flags;
 mod idempotency;
 mod openreview;
+pub mod orcid_oauth;
 mod zenodo;
 
 #[cfg(feature = "scholarly-external-jobs")]
