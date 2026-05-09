@@ -29,6 +29,9 @@ impl DriftRule for BearerHeaderRule {
                 context: String::new(),
                 confidence: Some(FindingConfidence::High),
                 evidence: None,
+                diagnostic_id: None,
+                alternatives: vec![],
+                rationale: None,
             })
             .collect()
     }

@@ -53,6 +53,32 @@ pub mod no_test_for_pub_fn;
 /// Rust library files with `pub fn` declarations but no `#[test]` blocks (advisory Info).
 pub mod untested_pub_api;
 
+/// Identifiers with duplicated prefix segments (e.g. `user_user_id`).
+pub mod duplicate_prefix;
+
+/// Public functions in critical crates missing ADR/TASK citations in doc comments.
+pub mod adr_citation;
+
+/// Decorator/keyword position mismatches in Vox files (`durable fn` → `@durable fn`).
+pub mod decorator_position;
+
+/// `match` over `Result`/`Option` that can be replaced with `?` or a combinator.
+pub mod question_mark;
+
+/// Complex `@require(...)` expressions lacking adequate justification prose.
+pub mod require_justification;
+
+/// Panicking builtins inside actor handlers or workflow activities.
+pub mod panicking_builtin;
+
+// Phase 2 security detectors (vox/llm/*, vox/secret/*, vox/crypto/*)
+/// Direct HTTP calls to known LLM provider hostnames, bypassing `populi.*`.
+pub mod llm_provider_call;
+/// `env.get(...)` with secret-shaped argument names (KEY, SECRET, TOKEN, …).
+pub mod env_secret_shape;
+/// Imports or dependencies referencing banned cryptography crates (aegis, ring, …).
+pub mod crypto_ban;
+
 use crate::rules::DetectionRule;
 
 /// Returns all built-in detectors.
@@ -83,12 +109,23 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(ai_laziness::AiLazinessDetector::new()),
         Box::new(no_test_for_pub_fn::NoTestForPubFnDetector::new()),
         Box::new(untested_pub_api::UntestedPubApiDetector::new()),
+        // Phase 2 security detectors (Error severity)
+        Box::new(llm_provider_call::LlmProviderCallDetector::new()),
+        Box::new(env_secret_shape::EnvSecretShapeDetector::new()),
+        Box::new(crypto_ban::CryptoBanDetector::new()),
+        // Phase 2 style / quality detectors
+        Box::new(duplicate_prefix::DuplicatePrefixDetector::new()),
+        Box::new(adr_citation::AdrCitationDetector::new()),
+        Box::new(decorator_position::DecoratorPositionDetector::new()),
+        Box::new(question_mark::QuestionMarkDetector::new()),
+        Box::new(require_justification::RequireJustificationDetector::new()),
+        Box::new(panicking_builtin::PanickingBuiltinDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    23
+    32
 }
 
 #[cfg(test)]

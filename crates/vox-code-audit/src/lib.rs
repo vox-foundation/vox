@@ -9,6 +9,9 @@
 //! Public modules and re-exports are intentionally thin; each detector/rule is documented in its
 //! own file where non-obvious heuristics exist.
 
+/// Stable diagnostic ID catalog (`vox/<category>/<name>` scheme) and explain infrastructure.
+pub mod diagnostics;
+
 /// Optional LLM-backed triage: wraps provider-specific clients behind a small `AiAnalyzer` API.
 pub mod ai_analyze;
 /// Token maps, optional `syn` AST, and other shared analysis for detectors.

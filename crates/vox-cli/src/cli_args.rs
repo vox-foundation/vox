@@ -283,6 +283,17 @@ pub struct StubCheckArgs {
     pub max_escalation: u8,
     #[arg(long)]
     pub self_heal_safe_mode: bool,
+    /// Print the explanation and bad/good examples for a specific diagnostic ID (e.g.
+    /// `vox/llm/direct-provider-call`) and exit. No scanning is performed.
+    #[arg(long, value_name = "DIAGNOSTIC_ID")]
+    pub explain: Option<String>,
+    /// List all known stable diagnostic IDs and exit.
+    #[arg(long)]
+    pub list_diagnostics: bool,
+    /// Require every suppression comment (`// vox:skip`, `// toestub-ignore(...)`) to
+    /// include a `— <reason>` of at least 20 characters. Exits non-zero if any are missing.
+    #[arg(long)]
+    pub rationale_required: bool,
 }
 
 /// `vox add` — manifest dependency declaration.

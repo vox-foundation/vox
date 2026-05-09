@@ -41,6 +41,9 @@ impl SweepRule for CallShapeRule {
                 context: String::new(),
                 confidence: None,
                 evidence: None,
+                diagnostic_id: None,
+                alternatives: vec![],
+                rationale: None,
             })
             .collect()
     }

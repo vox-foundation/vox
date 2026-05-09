@@ -37,6 +37,9 @@ impl DriftRule for VoxPathLiteralRule {
                 context: format!("crate: {}", crate_name),
                 confidence: Some(FindingConfidence::High),
                 evidence: None,
+                diagnostic_id: None,
+                alternatives: vec![],
+                rationale: None,
             })
             .collect()
     }

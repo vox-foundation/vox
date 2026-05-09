@@ -20,11 +20,28 @@ pub(crate) async fn run_doctor_command(args: &cli_args::DoctorArgs) -> anyhow::R
 
 #[cfg(feature = "stub-check")]
 pub(crate) async fn run_stub_check_command(args: &cli_args::StubCheckArgs) -> anyhow::Result<()> {
+    // Handle --list-diagnostics before scanning
+    if args.list_diagnostics {
+        commands::stub_check::list_diagnostics();
+        return Ok(());
+    }
+
+    // Handle --explain <ID> before scanning
+    if let Some(ref id) = args.explain {
+        return commands::stub_check::explain_diagnostic(id);
+    }
+
     let scan_root = args
         .path
         .clone()
         .or(args.scan_pos.clone())
         .unwrap_or_else(|| std::path::PathBuf::from("."));
+
+    // Handle --rationale-required before the normal scan
+    if args.rationale_required {
+        commands::stub_check::check_rationale_required(&scan_root)?;
+    }
+
     commands::stub_check::run(
         &scan_root,
         args.format.as_deref(),

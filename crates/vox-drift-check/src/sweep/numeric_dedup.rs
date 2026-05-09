@@ -53,6 +53,9 @@ impl SweepRule for NumericDedupRule {
                     evidence: Some(serde_json::json!({
                         "occurrences": locs.iter().map(|(p, l)| format!("{}:{}", p.display(), l)).collect::<Vec<_>>()
                     })),
+                    diagnostic_id: None,
+                    alternatives: vec![],
+                    rationale: None,
                 }
             })
             .collect()

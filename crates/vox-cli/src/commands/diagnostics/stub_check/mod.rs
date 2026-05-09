@@ -8,6 +8,9 @@ use anyhow::Context;
 use vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_async};
 use owo_colors::OwoColorize;
 use vox_code_audit::rules::{Language, Severity};
+use vox_code_audit::detectors::all_rules;
+use vox_code_audit::diagnostics::catalog::{ALL_KNOWN_IDS, explain_url, is_known_id};
+use vox_code_audit::rules::DetectionRule;
 use vox_code_audit::{Finding, OutputFormat, ToestubConfig, ToestubEngine};
 
 use vox_db::{
@@ -501,5 +504,139 @@ fn print_stub_check_ludus_route(res: &vox_gamify::reward_policy::RouteResult) {
                 .bright_yellow()
                 .bold()
         );
+    }
+}
+
+/// Print the explanation for a single diagnostic ID and exit.
+///
+/// Looks up the registered detector (if any) for its `explain()` text, then
+/// prints the stable ID, severity, URL, and rationale.
+pub fn explain_diagnostic(id: &str) -> anyhow::Result<()> {
+    if !is_known_id(id) {
+        // Attempt a fuzzy match to be helpful
+        let similar: Vec<&&str> = ALL_KNOWN_IDS
+            .iter()
+            .filter(|k| k.contains(id.split('/').last().unwrap_or(id)))
+            .collect();
+        if similar.is_empty() {
+            anyhow::bail!(
+                "Unknown diagnostic ID: `{id}`.\n\
+                 Run `vox check --list-diagnostics` to see all known IDs."
+            );
+        }
+        eprintln!(
+            "Unknown ID `{id}`. Did you mean one of:\n{}",
+            similar
+                .iter()
+                .map(|k| format!("  {k}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+        anyhow::bail!("ID not found");
+    }
+
+    let url = explain_url(id);
+
+    // Find the registered detector to get its explain() text
+    let rules = all_rules(None);
+    let explain_text = rules
+        .iter()
+        .find(|r| r.diagnostic_id() == Some(id))
+        .map(|r| r.explain())
+        .unwrap_or("");
+
+    println!("{}", "─".repeat(70));
+    println!("  Diagnostic: {}", id.bright_cyan().bold());
+    println!("  URL:        {}", url.dimmed());
+    println!("{}", "─".repeat(70));
+
+    if explain_text.is_empty() {
+        println!("  (No extended explanation available for this diagnostic yet.)");
+        println!("  See: {url}");
+    } else {
+        for line in explain_text.lines() {
+            println!("  {line}");
+        }
+    }
+    println!("{}", "─".repeat(70));
+    Ok(())
+}
+
+/// List all known stable diagnostic IDs.
+pub fn list_diagnostics() {
+    println!("{}", "─".repeat(70));
+    println!("  All known Vox diagnostic IDs ({} total)", ALL_KNOWN_IDS.len());
+    println!("{}", "─".repeat(70));
+    for id in ALL_KNOWN_IDS {
+        println!("  {}", id.bright_cyan());
+    }
+    println!("{}", "─".repeat(70));
+    println!("  Use `vox check --explain <ID>` for details on any ID.");
+}
+
+/// Check that all suppression comments in a set of findings have a rationale.
+///
+/// Returns an error listing any suppressions that lack a `— <reason>` of ≥ 20 chars.
+pub fn check_rationale_required(path: &std::path::Path) -> anyhow::Result<()> {
+    use std::fs;
+
+    let mut violations: Vec<String> = Vec::new();
+    let patterns = [
+        regex::Regex::new(r#"//\s*toestub-ignore\([^)]+\)\s*$"#).unwrap(),
+        regex::Regex::new(r#"//\s*vox:skip\s*$"#).unwrap(),
+    ];
+
+    fn walk_files(dir: &std::path::Path, out: &mut Vec<String>, patterns: &[regex::Regex]) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                walk_files(&p, out, patterns);
+            } else if matches!(
+                p.extension().and_then(|e| e.to_str()),
+                Some("rs" | "vox" | "ts")
+            ) {
+                let Ok(content) = std::fs::read_to_string(&p) else {
+                    continue;
+                };
+                for (line_num, line) in content.lines().enumerate() {
+                    for pat in patterns {
+                        if pat.is_match(line) {
+                            let reason_part = line
+                                .split("—")
+                                .nth(1)
+                                .or_else(|| line.split("--").nth(1))
+                                .unwrap_or("")
+                                .trim();
+                            if reason_part.chars().filter(|c| !c.is_whitespace()).count() < 20 {
+                                out.push(format!(
+                                    "{}:{}: suppression lacks a rationale (≥ 20 chars after '—'): {}",
+                                    p.display(),
+                                    line_num + 1,
+                                    line.trim()
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    walk_files(path, &mut violations, &patterns);
+
+    if violations.is_empty() {
+        println!("All suppression comments have adequate rationale.");
+        Ok(())
+    } else {
+        for v in &violations {
+            eprintln!("  {}", v);
+        }
+        anyhow::bail!(
+            "{} suppression(s) missing rationale. Add '— <reason>' with ≥ 20 chars.",
+            violations.len()
+        )
     }
 }

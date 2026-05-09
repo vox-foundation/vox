@@ -1,6 +1,6 @@
 //! Architecture check: enforces workspace-wide structural rules.
 //!
-//! Reads `docs/src/architecture/layers.toml` and runs eight rules over the
+//! Reads `docs/src/architecture/layers.toml` and runs nine rules over the
 //! current `cargo metadata` snapshot:
 //!
 //!   1. **Layer ordering** (strict by default) — a crate at layer N may depend
@@ -20,13 +20,16 @@
 //!   8. **Staleness** (warn) — flags crates with no commits since the last
 //!      release date in `CHANGELOG.md`. Mark stable utility crates with
 //!      `staleness_exempt = true` in `layers.toml` to silence the warning.
+//!   9. **Generated-file drift** (warn) — files containing a
+//!      `@generated-hash <hex>` header whose content hash no longer matches,
+//!      indicating a hand-edit of a machine-generated file.
 //!
 //! Layer ordering is the only rule that fails the build by default; the other
-//! seven are warn-only. Per-rule strictness can be set via `[guards]` in
+//! eight are warn-only. Per-rule strictness can be set via `[guards]` in
 //! `layers.toml`.
 //!
 //! Modes:
-//!   default        — strict layer-ordering; warn-only on the other seven
+//!   default        — strict layer-ordering; warn-only on the other eight
 //!   --warn-only    — warn on layer-ordering too (used during transition phases)
 //!
 //! Exit codes:
@@ -93,6 +96,8 @@ struct GuardsConfig {
     where_things_live: Option<String>,
     #[serde(default)]
     staleness: Option<String>,
+    #[serde(default)]
+    generated_file_drift: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -128,6 +133,8 @@ struct Report {
     staleness_warns: Vec<(String, String)>,
     /// "vX.Y.Z (YYYY-MM-DD)" used in the staleness summary line.
     staleness_since: String,
+    /// Rule 9: (file_path_relative, expected_hash, actual_hash).
+    generated_file_drift_warns: Vec<(PathBuf, String, String)>,
     /// Whether each rule's failure should be treated as strict (vs. warn-only).
     strict_layer: bool,
     strict_fan_in: bool,
@@ -137,6 +144,7 @@ struct Report {
     strict_description: bool,
     strict_where_things_live: bool,
     strict_staleness: bool,
+    strict_generated_file_drift: bool,
 }
 
 impl Report {
@@ -152,6 +160,7 @@ impl Report {
             || (self.strict_description && !self.description_warns.is_empty())
             || (self.strict_where_things_live && !self.where_things_live_warns.is_empty())
             || (self.strict_staleness && !self.staleness_warns.is_empty())
+            || (self.strict_generated_file_drift && !self.generated_file_drift_warns.is_empty())
     }
 
     fn print_summary(&self) {
@@ -266,6 +275,24 @@ impl Report {
                 eprintln!("  {name}: last changed {date}");
             }
         }
+        if !self.generated_file_drift_warns.is_empty() {
+            any = true;
+            let label = if self.strict_generated_file_drift {
+                "ERROR"
+            } else {
+                "warn"
+            };
+            eprintln!(
+                "[{label}] generated-file drift — hand-edited @generated files ({}):",
+                self.generated_file_drift_warns.len()
+            );
+            for (path, expected, actual) in &self.generated_file_drift_warns {
+                eprintln!(
+                    "  {}: expected hash {expected}, got {actual}  (re-run the generator)",
+                    path.display()
+                );
+            }
+        }
         if !any {
             println!(
                 "vox-arch-check {}: clean ✓",
@@ -326,6 +353,8 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     report.strict_where_things_live =
         parse_strictness(layers.guards.where_things_live.as_ref(), false);
     report.strict_staleness = parse_strictness(layers.guards.staleness.as_ref(), false);
+    report.strict_generated_file_drift =
+        parse_strictness(layers.guards.generated_file_drift.as_ref(), false);
 
     // ── Rule 1: Layer ordering + Rule 2: Fan-in (single pass) ──
     let mut dependent_count: HashMap<String, usize> = HashMap::new();
@@ -491,6 +520,13 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         report.staleness_warns.sort();
     }
 
+    // ── Rule 9: Generated-file drift ──
+    report.generated_file_drift_warns =
+        check_generated_file_drift(&workspace_root).unwrap_or_else(|e| {
+            eprintln!("warn: generated-file-drift check skipped: {e:#}");
+            Vec::new()
+        });
+
     Ok(report)
 }
 
@@ -617,6 +653,85 @@ fn count_loc(dir: &Path) -> Result<usize> {
         }
     }
     Ok(total)
+}
+
+/// FNV-1a 64-bit hash of `bytes` — stable across Rust versions, no extra deps.
+fn fnv1a_hex(bytes: &[u8]) -> String {
+    let mut hash: u64 = 14695981039346656037u64;
+    for &b in bytes {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(1099511628211u64);
+    }
+    format!("{hash:016x}")
+}
+
+/// Check for files that declare `@generated-hash <hex>` in their first five lines but
+/// whose content (with that header line blanked out) no longer matches the recorded hash.
+///
+/// The header format is flexible: any line containing `@generated-hash ` followed by a
+/// 16-character hex string is treated as the marker, regardless of comment prefix
+/// (`//`, `#`, `<!--`, etc.).
+fn check_generated_file_drift(workspace_root: &Path) -> anyhow::Result<Vec<(PathBuf, String, String)>> {
+    const MARKER: &str = "@generated-hash ";
+    const HASH_LEN: usize = 16;
+    // Extensions that may carry generated-hash headers.
+    const TRACKED_EXTS: &[&str] = &["rs", "ts", "tsx", "js", "vox", "md", "toml", "json"];
+
+    let mut warns = Vec::new();
+
+    for path in walkdir(workspace_root) {
+        // Skip binary-likely files and hidden dirs quickly.
+        let rel = match path.strip_prefix(workspace_root) {
+            Ok(r) => r,
+            Err(_) => path.as_path(),
+        };
+        // Skip target/, .git/, node_modules/
+        let rel_str = rel.to_string_lossy();
+        if rel_str.starts_with("target") || rel_str.starts_with(".git") || rel_str.contains("node_modules") {
+            continue;
+        }
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if !TRACKED_EXTS.contains(&ext) {
+            continue;
+        }
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        // Only scan the first five lines for the marker.
+        let mut header_line_idx: Option<usize> = None;
+        let mut recorded_hash = String::new();
+        for (i, line) in content.lines().enumerate().take(5) {
+            if let Some(pos) = line.find(MARKER) {
+                let after = &line[pos + MARKER.len()..];
+                let candidate: &str = after.split_whitespace().next().unwrap_or("");
+                if candidate.len() == HASH_LEN && candidate.chars().all(|c| c.is_ascii_hexdigit()) {
+                    header_line_idx = Some(i);
+                    recorded_hash = candidate.to_string();
+                    break;
+                }
+            }
+        }
+
+        let Some(marker_line) = header_line_idx else { continue };
+
+        // Recompute hash over file content with the marker line blanked.
+        let body_for_hash: String = content
+            .lines()
+            .enumerate()
+            .map(|(i, line)| if i == marker_line { "" } else { line })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let actual_hash = fnv1a_hex(body_for_hash.as_bytes());
+
+        if actual_hash != recorded_hash {
+            warns.push((rel.to_path_buf(), recorded_hash, actual_hash));
+        }
+    }
+
+    warns.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(warns)
 }
 
 fn walkdir(root: &Path) -> Vec<PathBuf> {

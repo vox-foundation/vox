@@ -41,15 +41,19 @@ pub enum OutputFormat {
     Terminal,
     /// Machine-readable JSON array of findings (CI parsers, dashboards).
     Json,
+    /// LLM-optimized JSON: includes `rationale`, `alternatives`, `minimal_excerpt`,
+    /// `confidence`, and `explain_url` for every finding. Use `--format llm-json`.
+    LlmJson,
     /// GitHub-flavored Markdown sections per file/rule (reports, PR comments).
     Markdown,
 }
 
 impl OutputFormat {
-    /// Parses CLI strings: `json`, `markdown`/`md`, anything else → [`OutputFormat::Terminal`].
+    /// Parses CLI strings: `json`, `llm-json`, `markdown`/`md`, anything else → [`OutputFormat::Terminal`].
     pub fn parse_format(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "json" => OutputFormat::Json,
+            "llm-json" | "llm_json" | "for-llm" => OutputFormat::LlmJson,
             "markdown" | "md" => OutputFormat::Markdown,
             _ => OutputFormat::Terminal,
         }
@@ -65,6 +69,7 @@ impl Reporter {
         match format {
             OutputFormat::Terminal => Self::format_terminal(findings),
             OutputFormat::Json => Self::format_json(findings),
+            OutputFormat::LlmJson => Self::format_llm_json(findings),
             OutputFormat::Markdown => Self::format_markdown(findings, task_queue),
         }
     }
@@ -78,8 +83,58 @@ impl Reporter {
         match format {
             OutputFormat::Terminal => Self::format_terminal(run.findings),
             OutputFormat::Json => Self::format_json_run(run),
+            OutputFormat::LlmJson => Self::format_llm_json(run.findings),
             OutputFormat::Markdown => Self::format_markdown(run.findings, task_queue),
         }
+    }
+
+    /// LLM-optimized JSON output.
+    ///
+    /// Includes `rationale`, `alternatives`, `confidence`, `explain_url`, and
+    /// a 7-line `minimal_excerpt` so an agent can propose a fix without additional
+    /// context fetches. Schema: `vox.lint.llm-report.v1`.
+    pub fn format_llm_json(findings: &[Finding]) -> String {
+        let diagnostics: Vec<serde_json::Value> = findings
+            .iter()
+            .map(|f| {
+                let mut d = json!({
+                    "id": f.diagnostic_id.as_deref().unwrap_or(&f.rule_id),
+                    "rule_id": f.rule_id,
+                    "severity": format!("{}", f.severity).to_lowercase(),
+                    "file": f.file.display().to_string(),
+                    "line": f.line,
+                    "column": f.column,
+                    "message": f.message,
+                });
+                if let Some(ref sug) = f.suggestion {
+                    d["suggested_fix"] = json!(sug);
+                }
+                if !f.alternatives.is_empty() {
+                    d["alternatives"] = json!(f.alternatives);
+                }
+                if let Some(ref rat) = f.rationale {
+                    d["rationale"] = json!(rat);
+                }
+                if let Some(conf) = f.confidence {
+                    d["confidence"] = json!(format!("{:?}", conf).to_lowercase());
+                }
+                if !f.context.is_empty() {
+                    d["minimal_excerpt"] = json!(f.context);
+                }
+                if let Some(id) = f.diagnostic_id.as_deref() {
+                    d["explain_url"] =
+                        json!(format!("https://vox-lang.org/diag/{}", id));
+                }
+                d
+            })
+            .collect();
+
+        let report = json!({
+            "schema": "vox.lint.llm-report.v1",
+            "total": findings.len(),
+            "diagnostics": diagnostics,
+        });
+        serde_json::to_string_pretty(&report).unwrap_or_default()
     }
 
     fn format_terminal(findings: &[Finding]) -> String {
@@ -253,6 +308,7 @@ mod tests {
         vec![
             Finding {
                 rule_id: "stub/todo".to_string(),
+                diagnostic_id: None,
                 rule_name: "Stub Detector".to_string(),
                 severity: Severity::Error,
                 file: PathBuf::from("src/main.rs"),
@@ -260,12 +316,15 @@ mod tests {
                 column: 0,
                 message: "todo!() found".to_string(),
                 suggestion: Some("Implement the function.".to_string()),
+                alternatives: vec![],
+                rationale: None,
                 context: String::new(),
                 confidence: None,
                 evidence: None,
             },
             Finding {
                 rule_id: "magic-value/port".to_string(),
+                diagnostic_id: None,
                 rule_name: "Magic Value Detector".to_string(),
                 severity: Severity::Warning,
                 file: PathBuf::from("src/server.rs"),
@@ -273,6 +332,8 @@ mod tests {
                 column: 0,
                 message: "Hardcoded port".to_string(),
                 suggestion: None,
+                alternatives: vec![],
+                rationale: None,
                 context: String::new(),
                 confidence: None,
                 evidence: None,

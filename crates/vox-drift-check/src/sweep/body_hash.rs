@@ -53,6 +53,9 @@ impl SweepRule for BodyHashRule {
                         .join(", "),
                     confidence: Some(FindingConfidence::High),
                     evidence: None,
+                    diagnostic_id: None,
+                    alternatives: vec![],
+                    rationale: None,
                 }
             })
             .collect()

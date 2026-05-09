@@ -136,6 +136,10 @@ impl SourceFile {
 pub struct Finding {
     /// Rule identifier, e.g. `"stub/todo"`.
     pub rule_id: String,
+    /// Stable diagnostic ID following `vox/<category>/<name>` scheme.
+    /// New detectors always populate this; legacy detectors may leave it `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostic_id: Option<String>,
     /// Human-readable rule name.
     pub rule_name: String,
     /// How serious this is.
@@ -148,8 +152,15 @@ pub struct Finding {
     pub column: usize,
     /// Short description of the problem.
     pub message: String,
-    /// Optional fix suggestion.
+    /// Optional fix suggestion (primary).
     pub suggestion: Option<String>,
+    /// Alternative fix suggestions (when more than one valid approach exists).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alternatives: Vec<String>,
+    /// Constant per-rule prose explaining *why* this rule exists.
+    /// Stable across occurrences — useful for `--explain` and LLM rationale fields.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rationale: Option<String>,
     /// Code context (surrounding lines).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub context: String,
@@ -220,6 +231,18 @@ pub trait DetectionRule: Send + Sync {
     ///
     /// For Rust, `rust_ctx` is built once per file by the engine.
     fn detect(&self, file: &SourceFile, rust_ctx: Option<&RustFileContext>) -> Vec<Finding>;
+
+    /// Stable `vox/<category>/<name>` diagnostic ID for this rule.
+    /// Returns `None` for legacy detectors that pre-date the ID scheme.
+    fn diagnostic_id(&self) -> Option<&'static str> {
+        None
+    }
+
+    /// Prose explanation of *why* this rule exists, shown by `vox check --explain <id>`.
+    /// Should include a "Bad" and "Good" example whenever practical.
+    fn explain(&self) -> &'static str {
+        ""
+    }
 }
 
 // ---------------------------------------------------------------------------
