@@ -992,6 +992,9 @@ fn guard_no_stray_root_files(root: &Path) -> Result<()> {
 mod sql_surface_tests {
     use super::sql_surface_contains_raw_connection_api;
 
+    // Serializes tests that mutate process-wide env vars so they don't race.
+    static ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn detects_single_line_connection_query() {
         let src = concat!("db", ".connection().", "query", "(\"SELECT 1\", ()).await");
@@ -1108,6 +1111,7 @@ mod sql_surface_tests {
     #[test]
     #[allow(unsafe_code)]
     fn secret_guard_hard_cut_enabled_by_cutover_phase() {
+        let _env = ENV_MUTEX.lock().unwrap();
         let prev_hard_cut = std::env::var("VOX_SECRETS_HARD_CUT").ok();
         let prev_profile = std::env::var("VOX_SECRETS_PROFILE").ok();
         let prev_phase = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
@@ -1176,6 +1180,7 @@ mod sql_surface_tests {
     #[test]
     #[allow(unsafe_code)]
     fn secrets_cutover_phase_parses_env_values() {
+        let _env = ENV_MUTEX.lock().unwrap();
         let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
         let prev_migration = std::env::var("VOX_SECRETS_MIGRATION_PHASE").ok();
         unsafe {

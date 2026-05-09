@@ -83,6 +83,7 @@ ci/grammar-ssot-parity
 ci/grpo-reward-baseline
 ci/gui-smoke
 ci/install-hooks
+ci/json-parse-check
 ci/k-complexity-budget
 ci/kill-stuck-tests
 ci/line-endings
@@ -131,11 +132,13 @@ ci/ssot-audit
 ci/ssot-drift
 ci/string-id-lint
 ci/sync-ignore-files
+ci/toestub-budget
 ci/toestub-scoped
 ci/toestub-self-apply
 ci/turso-import-guard
 ci/watch-run
 ci/workflow-scripts
+ci/yaml-parse-check
 codex
 codex/cutover
 codex/export-legacy
@@ -267,6 +270,7 @@ lsp
 mcp
 mens
 migrate
+migrate/names
 migrate/web
 model
 model/costs
@@ -382,10 +386,6 @@ secrets/set
 secrets/status
 secrets/sync
 share
-share/feedback
-share/list
-share/publish
-share/search
 shell
 shell/check
 shell/repl
@@ -396,6 +396,7 @@ snippet/search
 stop
 sync
 telemetry
+telemetry/doctor
 telemetry/enqueue
 telemetry/export
 telemetry/status
