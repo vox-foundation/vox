@@ -14,7 +14,7 @@
 
 // ─── Compile-time source tables ──────────────────────────────────────────────
 
-pub use vox_mcp_meta::{ORCHESTRATOR_TOOLS, SKILL_TOOLS};
+pub use vox_mcp_registry::{ORCHESTRATOR_TOOLS, SKILL_TOOLS};
 
 include!(concat!(env!("OUT_DIR"), "/dynamic_registry.rs"));
 
@@ -30,9 +30,9 @@ pub(crate) fn example_agent_pairs() -> Vec<(String, String)> {
 
 /// Dynamically generated example tasks from the live orchestrator registry.
 pub(crate) fn example_tasks() -> Vec<String> {
-    vox_mcp_meta::TOOL_REGISTRY
+    vox_mcp_registry::TOOL_REGISTRY
         .iter()
-        .filter(|t| vox_mcp_meta::ORCHESTRATOR_TOOLS.contains(&t.name))
+        .filter(|t| vox_mcp_registry::ORCHESTRATOR_TOOLS.contains(&t.name))
         .map(|t| {
             format!(
                 "use the {} tool to {}",

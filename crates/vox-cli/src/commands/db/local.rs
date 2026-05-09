@@ -1,6 +1,6 @@
 //! Local VoxDB inspection, maintenance, and preferences.
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped_async;
+use vox_bounded_fs::read_utf8_path_capped_async;
 use crate::commands::db_retention;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};

@@ -1,3 +1,8 @@
+//! A2A messaging, agent OpLog, actor state, file locks, and heartbeats for [`crate::VoxDb`].
+//!
+//! These coordination primitives were previously mixed into `ops_ludus/gamify_extended.rs`.
+//! They are not gamification-domain ops; they belong to the coordination / orchestration layer.
+
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use turso::params;
@@ -16,80 +21,6 @@ fn default_a2a_consumer_id() -> String {
 }
 
 impl crate::VoxDb {
-    // ── Leaderboard (gamify_profiles fast path) ───────────────────────────────
-
-    /// Get top users by XP.
-    pub async fn gamify_leaderboard_by_xp(
-        &self,
-        limit: i64,
-    ) -> Result<Vec<(String, i64, i64)>, StoreError> {
-        let mut rows = self
-            .conn
-            .query(
-                "SELECT user_id, level, xp FROM gamify_profiles ORDER BY xp DESC LIMIT ?1",
-                params![limit],
-            )
-            .await?;
-        let mut out = Vec::new();
-        while let Some(row) = rows.next().await? {
-            out.push((
-                row.get::<String>(0)?,
-                row.get::<i64>(1)?,
-                row.get::<i64>(2)?,
-            ));
-        }
-        Ok(out)
-    }
-
-    /// Get top users by Lumens.
-    pub async fn gamify_leaderboard_by_lumens(
-        &self,
-        limit: i64,
-    ) -> Result<Vec<(String, i64, i64)>, StoreError> {
-        let mut rows = self.conn.query(
-            "SELECT user_id, level, COALESCE(lumens, 0) FROM gamify_profiles ORDER BY 3 DESC LIMIT ?1",
-            params![limit],
-        ).await?;
-        let mut out = Vec::new();
-        while let Some(row) = rows.next().await? {
-            out.push((
-                row.get::<String>(0)?,
-                row.get::<i64>(1)?,
-                row.get::<i64>(2)?,
-            ));
-        }
-        Ok(out)
-    }
-
-    /// Get aggregate profile stats (completed quests, won battles).
-    pub async fn get_gamify_profile_stats(&self, user_id: &str) -> Result<(i64, i64), StoreError> {
-        let mut r1 = self
-            .conn
-            .query(
-                "SELECT COUNT(id) FROM gamify_quests WHERE user_id=?1 AND completed=1",
-                params![user_id],
-            )
-            .await?;
-        let quests = r1
-            .next()
-            .await?
-            .map(|r| r.get::<i64>(0).unwrap_or(0))
-            .unwrap_or(0);
-        let mut r2 = self
-            .conn
-            .query(
-                "SELECT COUNT(id) FROM gamify_battles WHERE user_id=?1 AND success=1",
-                params![user_id],
-            )
-            .await?;
-        let battles = r2
-            .next()
-            .await?
-            .map(|r| r.get::<i64>(0).unwrap_or(0))
-            .unwrap_or(0);
-        Ok((quests, battles))
-    }
-
     // ── A2A Messages (a2a_messages) ───────────────────────────────────────────
 
     /// Acknowledge an A2A message by row id.
@@ -110,7 +41,8 @@ impl crate::VoxDb {
             .await
     }
 
-    /// Send an A2A message and return the UUID.
+    /// Send an A2A message.
+    #[allow(clippy::too_many_arguments)]
     pub async fn send_a2a_message(
         &self,
         message_uuid: &str,
@@ -377,29 +309,27 @@ impl crate::VoxDb {
         repository_id: &str,
         limit: u32,
     ) -> Result<Vec<Vec<Option<String>>>, StoreError> {
-        let (sql, rows) = if let Some(aid) = agent_id {
-            let sql = "SELECT operation_id, agent_id, kind, description, predecessor_hash, model_id,
+        let mut cursor = if let Some(aid) = agent_id {
+            self.conn
+                .query(
+                    "SELECT operation_id, agent_id, kind, description, predecessor_hash, model_id,
                               CAST(change_id AS TEXT), CAST(timestamp_ms AS TEXT), CAST(undone AS TEXT)
                        FROM agent_oplog WHERE repository_id=?1 AND agent_id=?2
-                       ORDER BY timestamp_ms DESC LIMIT ?3";
-            let rows = self
-                .conn
-                .query(sql, params![repository_id, aid, limit as i64])
-                .await?;
-            (sql, rows)
+                       ORDER BY timestamp_ms DESC LIMIT ?3",
+                    params![repository_id, aid, limit as i64],
+                )
+                .await?
         } else {
-            let sql = "SELECT operation_id, agent_id, kind, description, predecessor_hash, model_id,
+            self.conn
+                .query(
+                    "SELECT operation_id, agent_id, kind, description, predecessor_hash, model_id,
                               CAST(change_id AS TEXT), CAST(timestamp_ms AS TEXT), CAST(undone AS TEXT)
                        FROM agent_oplog WHERE repository_id=?1
-                       ORDER BY timestamp_ms DESC LIMIT ?2";
-            let rows = self
-                .conn
-                .query(sql, params![repository_id, limit as i64])
-                .await?;
-            (sql, rows)
+                       ORDER BY timestamp_ms DESC LIMIT ?2",
+                    params![repository_id, limit as i64],
+                )
+                .await?
         };
-        let _ = sql;
-        let mut cursor = rows;
         let mut out = Vec::new();
         while let Some(row) = cursor.next().await? {
             let cols: Vec<Option<String>> = (0..9)
@@ -432,7 +362,7 @@ impl crate::VoxDb {
             .await
     }
 
-    // ── Actor State (actor_state) — V21 ──────────────────────────────────────
+    // ── Actor State (actor_state) ─────────────────────────────────────────────
 
     /// Save a JSON-serialized actor state value under a key (upsert).
     pub async fn save_actor_state(&self, key: &str, value_json: &str) -> Result<(), StoreError> {
@@ -482,7 +412,7 @@ impl crate::VoxDb {
             .await
     }
 
-    // ── Oplog Locks (agent_locks via ops_orchestrator) ────────────────────────
+    // ── Agent File Locks (agent_locks) ────────────────────────────────────────
 
     /// Try to acquire a file lock for an agent. Returns true if acquired.
     pub async fn acquire_file_lock(
@@ -551,7 +481,7 @@ impl crate::VoxDb {
         Ok(out)
     }
 
-    // ── Heartbeats (agent_heartbeats) ─────────────────────────────────────────
+    // ── Agent Heartbeats (agent_heartbeats) ───────────────────────────────────
 
     /// Upsert a heartbeat record for an agent.
     pub async fn upsert_heartbeat(
@@ -617,69 +547,6 @@ impl crate::VoxDb {
                     )
                     .await?;
                 Ok::<_, StoreError>(affected as u64)
-            })
-            .await
-    }
-
-    // ── Teaching profiles (gamify_teaching_profiles) ─────────────────────────
-
-    /// Read teaching profile row (`stage`, `silenced`, `mistake_counts` JSON, `cooldowns` JSON).
-    pub async fn get_gamify_teaching_profile_row(
-        &self,
-        user_id: &str,
-    ) -> Result<Option<(String, i64, String, String)>, StoreError> {
-        let mut rows = self
-            .conn
-            .query(
-                "SELECT stage, silenced, mistake_counts, cooldowns
-             FROM gamify_teaching_profiles WHERE user_id = ?1",
-                params![user_id],
-            )
-            .await?;
-        Ok(if let Some(row) = rows.next().await? {
-            Some((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
-        } else {
-            None
-        })
-    }
-
-    /// Upsert teaching profile (same semantics as Ludus `upsert_teaching_profile`).
-    pub async fn upsert_gamify_teaching_profile(
-        &self,
-        user_id: &str,
-        stage: &str,
-        silenced: bool,
-        mistake_counts_json: &str,
-        cooldowns_json: &str,
-    ) -> Result<(), StoreError> {
-        let user_id = user_id.to_string();
-        let stage = stage.to_string();
-        let mistake_counts_json = mistake_counts_json.to_string();
-        let cooldowns_json = cooldowns_json.to_string();
-        let silenced_flag = if silenced { 1i64 } else { 0i64 };
-        let breaker = self.breaker.clone();
-        let conn = self.conn.clone();
-        breaker
-            .call(|| async move {
-                conn.execute(
-                    "INSERT INTO gamify_teaching_profiles (user_id, stage, silenced, mistake_counts, cooldowns)
-         VALUES (?1, ?2, ?3, ?4, ?5)
-         ON CONFLICT(user_id) DO UPDATE SET
-            stage = excluded.stage,
-            silenced = excluded.silenced,
-            mistake_counts = excluded.mistake_counts,
-            cooldowns = excluded.cooldowns,
-            updated_at = datetime('now')",
-                    params![
-                        user_id.as_str(),
-                        stage.as_str(),
-                        silenced_flag,
-                        mistake_counts_json.as_str(),
-                        cooldowns_json.as_str(),
-                    ],
-                )
-                .await?;
-                Ok::<(), StoreError>(())
             })
             .await
     }

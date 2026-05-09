@@ -15,7 +15,7 @@ The Vox codebase enforces architectural health automatically using the TOESTUB e
 
 ```bash
 bash scripts/quality/toestub_scoped.sh                    # default root: crates/vox-repository
-cargo run -p vox-toestub --bin toestub -- <PATH>         # explicit scan root
+cargo run -p vox-code-audit --bin toestub -- <PATH>         # explicit scan root
 ```
 
 **Minimal `vox` binary** — subcommand is behind **`--features stub-check`** (see [`cli.md`](../src/reference/cli.md#vox-stub-check-feature-stub-check)):

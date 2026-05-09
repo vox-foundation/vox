@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// CodeRabbit config from `Vox.toml` `[review.coderabbit]`.
 #[derive(Debug, Clone)]

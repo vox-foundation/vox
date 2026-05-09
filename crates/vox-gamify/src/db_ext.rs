@@ -2,6 +2,7 @@
 //! build-clean milestones, and phoenix bonus detection.
 
 use anyhow::Result;
+use turso::params;
 use vox_db::Codex;
 
 fn current_day() -> i64 {
@@ -17,17 +18,51 @@ fn current_day() -> i64 {
 /// is closed and reopened within the same calendar day.
 pub async fn increment_daily_counter(db: &Codex, user_id: &str, event_type: &str) -> Result<i64> {
     let day = current_day();
-    db.increment_gamify_daily_counter(user_id, event_type, day)
+    let user_id_s = user_id.to_string();
+    let event_type_s = event_type.to_string();
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "INSERT INTO gamify_daily_counters (user_id, event_type, day, count) VALUES (?1, ?2, ?3, 1)
+                 ON CONFLICT(user_id, event_type, day) DO UPDATE SET count=count+1",
+                params![user_id_s.as_str(), event_type_s.as_str(), day],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
         .await
-        .map_err(|e| anyhow::anyhow!("{}", e))
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT count FROM gamify_daily_counters WHERE user_id=?1 AND event_type=?2 AND day=?3",
+            params![user_id, event_type, day],
+        )
+        .await?;
+    Ok(rows
+        .next()
+        .await?
+        .map(|r| r.get::<i64>(0).unwrap_or(1))
+        .unwrap_or(1))
 }
 
 /// Get today's counter value without incrementing.
 pub async fn get_daily_counter(db: &Codex, user_id: &str, event_type: &str) -> Result<i64> {
     let day = current_day();
-    db.get_gamify_daily_counter(user_id, event_type, day)
-        .await
-        .map_err(|e| anyhow::anyhow!("{}", e))
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT count FROM gamify_daily_counters WHERE user_id=?1 AND event_type=?2 AND day=?3",
+            params![user_id, event_type, day],
+        )
+        .await?;
+    Ok(rows
+        .next()
+        .await?
+        .map(|r| r.get::<i64>(0).unwrap_or(0))
+        .unwrap_or(0))
 }
 
 // ── Event Config Overrides ────────────────────────────────────────────────────
@@ -36,14 +71,19 @@ pub async fn get_daily_counter(db: &Codex, user_id: &str, event_type: &str) -> R
 pub async fn load_event_config_overrides(
     db: &Codex,
 ) -> Result<crate::reward_policy::EventConfigOverrides> {
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT event_type, COALESCE(xp_override, 0), COALESCE(crystals_override, 0)
+             FROM gamify_event_config WHERE enabled=1",
+            (),
+        )
+        .await?;
     let mut ov = crate::reward_policy::EventConfigOverrides::default();
-    let rows = db
-        .list_gamify_event_config_overrides()
-        .await
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
-    for (ev, xp, crystals) in rows {
-        let xp = xp.max(0) as u64;
-        let crystals = crystals.max(0) as u64;
+    while let Some(row) = rows.next().await? {
+        let ev: String = row.get(0)?;
+        let xp = row.get::<i64>(1).unwrap_or(0).max(0) as u64;
+        let crystals = row.get::<i64>(2).unwrap_or(0).max(0) as u64;
         ov.set(ev, xp, crystals);
     }
     Ok(ov)
@@ -58,15 +98,33 @@ pub async fn set_event_config_override(
     enabled: bool,
 ) -> Result<()> {
     let now = crate::util::now_unix();
-    db.set_gamify_event_config_override(
-        event_type,
-        xp_override.map(|v| v as i64),
-        crystals_override.map(|v| v as i64),
-        enabled,
-        now,
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let event_type = event_type.to_string();
+    let enabled_flag: i64 = if enabled { 1 } else { 0 };
+    let xp = xp_override.map(|v| v as i64);
+    let crystals = crystals_override.map(|v| v as i64);
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "INSERT INTO gamify_event_config (event_type, xp_override, crystals_override, enabled, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(event_type) DO UPDATE SET
+                   xp_override=excluded.xp_override, crystals_override=excluded.crystals_override,
+                   enabled=excluded.enabled, updated_at=excluded.updated_at",
+                params![
+                    event_type.as_str(),
+                    xp,
+                    crystals,
+                    enabled_flag,
+                    now
+                ],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
 
@@ -74,10 +132,6 @@ pub async fn set_event_config_override(
 
 /// Returns `true` if the user has already had at least one `build_failed` today.
 pub async fn has_failed_today(db: &Codex, user_id: &str) -> Result<bool> {
-    let day = current_day();
-    let n = db
-        .get_gamify_daily_counter(user_id, "build_failed", day)
-        .await
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
+    let n = get_daily_counter(db, user_id, "build_failed").await?;
     Ok(n >= 1)
 }

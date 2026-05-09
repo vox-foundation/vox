@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use walkdir::WalkDir;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 use super::docs_sync::{markdown_section, ref_cli_vox_ci_section, ref_cli_vox_codex_section};
 use super::registry::{

@@ -1,5 +1,6 @@
 [package]
 name = "vox-crypto"
+description = "Pure-Rust crypto primitives (chacha20poly1305 AEAD, ed25519, x25519); sole crypto SSOT per AGENTS.md §Cryptography Policy."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

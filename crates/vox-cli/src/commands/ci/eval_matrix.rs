@@ -13,7 +13,7 @@ use std::process::Command;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
-use super::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 const SCHEMA_REL: &str = "contracts/eval/benchmark-matrix.schema.json";
 const DATA_REL: &str = "contracts/eval/benchmark-matrix.json";

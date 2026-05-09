@@ -200,6 +200,8 @@ training_eligible: false
 - [Compiler IR Pipeline](archive/research-2026-q1/compiler-ir-pipeline.md)
 - [Completion policy SSOT (LLM premature-completion)](archive/research-2026-q1/completion-policy-ssot.md)
 - [Comprehensive Vox audit and improvement plan (April 2026, v2)](architecture/comprehensive-audit-v2-2026.md)
+- [Crate Org Follow-up — Implementation Plan](architecture/2026-05-08-crate-org-followup-plan.md)
+- [Crate Organization Follow-up — SSOT, Naming, and Sprawl](architecture/2026-05-08-crate-org-followup-design.md)
 - [Dashboard Migration Research 2026](architecture/dashboard-migration-research-2026.md)
 - [Deployment Compose SSOT](archive/research-2026-q1/deployment-compose-ssot.md)
 - [Doc-to-code acceptance checklist](archive/research-2026-q1/doc-to-code-acceptance-checklist.md)
@@ -366,6 +368,7 @@ training_eligible: false
 - [Architecture Decision Checklist for Implementing Agent Handoff Continuity](archive/research-2026-q1/research-agent-handoff-checklist-2026.md)
 - [Architecture: ASR Speech-to-Code](archive/research-2026-q1/asr-speech-to-code-architecture-2026.md)
 - [Automated Testing Research for the Vox Language](archive/research-2026-q1/automated-testing-research-2026.md)
+- [Autonomous Orchestration Policy — Decision-Rule Research for Agent-to-Agent Behavior Switching (2026)](architecture/autonomous-orchestration-policy-research-2026.md)
 - [Catastrophic Forgetting in QLoRA Fine-Tuning](archive/research-2026-q1/research-cl-qlora-catastrophic-forgetting-2026.md)
 - [Clavis as a one-stop secrets manager: research findings 2026](archive/research-2026-q1/clavis-one-stop-secrets-research-2026.md)
 - [Clavis secrets, env vars, and API key strategy research 2026](archive/research-2026-q1/clavis-secrets-env-research-2026.md)
@@ -374,7 +377,6 @@ training_eligible: false
 - [Comprehensive Vox audit and improvement plan (April 2026, v2)](archive/research-2026-q1/comprehensive-audit-findings-2026.md)
 - [Context management research findings 2026](archive/research-2026-q1/context-management-research-findings-2026.md)
 - [Continual Learning Flywheel Risks](archive/research-2026-q1/research-continual-learning-flywheel-2026.md)
-- [Crate Classification Audit (2026-05-08)](architecture/crate-classification-2026-05-08.md)
 - [Cross-Agent Evidence Sharing in A2A Protocol Implementations](archive/research-2026-q1/research-agent-handoff-a2a-evidence-sharing-2026.md)
 - [Custom Model Pretraining vs Qwen Fine-Tuning Research](archive/research-2026-q1/custom-model-pretraining-research-2026.md)
 - [Dead Crate Deep Dive (2026-05-08)](architecture/dead-crate-deep-dive-2026-05-08.md)
@@ -526,6 +528,7 @@ training_eligible: false
 ## Status: Deprecated
 
 - [Burn Framework Necessity Audit (2026-05-08)](architecture/burn-necessity-audit-2026-05-08.md)
+- [Crate Classification Audit (2026-05-08)](architecture/crate-classification-2026-05-08.md)
 - [HITL Doubt Flow and Resolution (Redirect)](archive/research-2026-q1/vox-dei-hitl-ssot.md)
 - [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](archive/phase5-react-interop-spec-2026.md)
 - [Populi Mesh — A2A Durability Spec (S1, 2026-05-01)](architecture/populi-mesh-a2a-durability-spec-2026.md)

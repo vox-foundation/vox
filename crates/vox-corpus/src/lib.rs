@@ -1,7 +1,6 @@
-//! Corpus and training **SSOT** for Mens: paths, preflight, dataset contracts, and corpus helpers.
-//!
-//! Compiler-coupled extraction stays in `vox-cli` (`commands/corpus/`). This crate holds portable
-//! metadata, validation, mix/benchmark contracts, and Codex-oriented snapshot types.
+//! Corpus crate for the Vox workspace: aggregates training data, MCP meta corpora,
+//! synthetic-search generators, tool-workflow corpora, and codegen-Vox samples.
+//! Used by `vox-ml-cli` and downstream training pipelines.
 
 pub mod arca_replay;
 pub mod ast_mutator;

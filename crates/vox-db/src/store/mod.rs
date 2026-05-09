@@ -56,7 +56,7 @@ mod ops_external_review;
 mod ops_identity;
 mod ops_learning;
 mod ops_lineage;
-mod ops_ludus;
+mod ops_a2a;
 mod ops_mcp_diagnostics;
 mod ops_memory;
 mod ops_mens_cloud;

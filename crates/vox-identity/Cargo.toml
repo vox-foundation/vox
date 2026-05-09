@@ -1,5 +1,6 @@
 [package]
 name = "vox-identity"
+description = "Identity primitives: signing keys, trust ledger entries."
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// Run the build pipeline for `file`, writing TS to `out_dir` and Rust to `target/generated`.
 ///

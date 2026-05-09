@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use vox_db::VoxDb;
 use vox_db::store::SaveSnippetParams;
 

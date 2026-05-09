@@ -1,4 +1,4 @@
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use anyhow::{Context, Result};
 use std::path::Path;
 pub(super) fn repo_relative_string(repo_root: &Path, path: &Path) -> Result<String> {

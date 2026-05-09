@@ -23,7 +23,7 @@ pub use remote_jobs::*;
 mod prepare;
 pub use prepare::*;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use crate::commands::db_cli::{ArxivHandoffStageCli, ScholarlyVenueCli};
 use anyhow::Result;
 use std::time::Instant;

@@ -7,7 +7,7 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 serde = { workspace = true, features = ["derive"] }
-vox-package = { workspace = true }
+vox-package-types = { workspace = true }
 vox-repository = { workspace = true }
 workspace-hack = { workspace = true }
 

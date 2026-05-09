@@ -35,7 +35,7 @@
 ## Retired Surfaces (Do Not Use)
 The following symbols are retired and must NOT be used in generated code:
 - `vox-dei` → replaced by `vox-orchestrator`
-- `vox-ars` → replaced by `vox-skills`
+- `vox-ars` → `vox-ars-runtime` (now `vox-openclaw-runtime`)
 - `@component fn Name()` → replaced by `component Name() {}`
 - `recall()` → replaced by `recall_async(query_spec)`
 - `TURSO_URL` → replaced by `VOX_DB_URL`

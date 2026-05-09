@@ -5,8 +5,44 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sat, 09 May 2026 05:09:15 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 09 May 2026 05:24:58 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Agentic VCS Automation — Phase 2 Implementation Plan (2026-05-09)</title>
+    <link>https://vox-lang.org/architecture/agentic-vcs-automation-impl-plan-phase2-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/agentic-vcs-automation-impl-plan-phase2-2026.html</guid>
+    <description>Step-by-step TDD plan that lands the Push/PR write-side: PushAllowed / ForcePushAllowed / DestructiveOp capability tokens, vox_push / vox_pr_open /…</description>
+    <pubDate>Sat, 09 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Agentic VCS Automation — Phase 3 Implementation Plan (2026-05-09)</title>
+    <link>https://vox-lang.org/architecture/agentic-vcs-automation-impl-plan-phase3-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/agentic-vcs-automation-impl-plan-phase3-2026.html</guid>
+    <description>Step-by-step TDD plan that lands the dashboard surface for agentic VCS state: API routes under /api/v2/vcs/, five panels (workspace branch board, oplog viewer…</description>
+    <pubDate>Sat, 09 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Agentic VCS Automation — Phase 4 Implementation Plan (2026-05-09)</title>
+    <link>https://vox-lang.org/architecture/agentic-vcs-automation-impl-plan-phase4-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/agentic-vcs-automation-impl-plan-phase4-2026.html</guid>
+    <description>Step-by-step TDD plan that adds the Vox-language @vcs.* decorator surface: parser support for @vcs.read_only / @vcs.requires(...) / @vcs.linear_working_tree /…</description>
+    <pubDate>Sat, 09 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Agentic VCS Automation — Phase 5 Implementation Plan (2026-05-09)</title>
+    <link>https://vox-lang.org/architecture/agentic-vcs-automation-impl-plan-phase5-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/agentic-vcs-automation-impl-plan-phase5-2026.html</guid>
+    <description>Step-by-step TDD plan that swaps the GitExec backend for hot-path operations from tokio::process::Command to gix (libgit2-equivalent in pure Rust), keeps…</description>
+    <pubDate>Sat, 09 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>Architecture Index</title>
@@ -118,15 +154,6 @@
   </item>
 
   <item>
-    <title>Crate Classification Audit (2026-05-08)</title>
-    <link>https://vox-lang.org/architecture/crate-classification-2026-05-08.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/crate-classification-2026-05-08.html</guid>
-    <description>Classification of every workspace crate as CORE, PLUGIN, SHARED, DEAD, or MISPLACED. Identifies extraction candidates and deletion candidates.</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
     <title>Dead Crate Deep Dive (2026-05-08)</title>
     <link>https://vox-lang.org/architecture/dead-crate-deep-dive-2026-05-08.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/dead-crate-deep-dive-2026-05-08.html</guid>
@@ -203,33 +230,6 @@
     <link>https://vox-lang.org/architecture/plugin-system-redesign-sp1-plan-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp1-plan-2026.html</guid>
     <description>Step-by-step implementation plan for Sub-Project 1 of the plugin system redesign: plugin manifest schemas, the vox-plugin-catalog SSOT crate, hand-rolled and…</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Plugin System Redesign — SP2 Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp2-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp2-plan-2026.html</guid>
-    <description>Step-by-step implementation plan for Sub-Project 2: vox-plugin-api shared types, vox-plugin-host loader for both code and skill payloads, dual-payload…</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Plugin System Redesign — SP3 Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp3-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp3-plan-2026.html</guid>
-    <description>Step-by-step implementation plan for Sub-Project 3: define the MlBackend extension-point trait, extract candle-cuda from vox-populi into a standalone…</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Plugin System Redesign — SP4 Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp4-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp4-plan-2026.html</guid>
-    <description>Step-by-step implementation plan for Sub-Project 4: migrate the vox.compiler skill from vox-skills&apos;s compile-time builtins to a standalone skill-payload plugin…</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
