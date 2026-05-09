@@ -47,4 +47,34 @@ Vox persisted data through `vox-db` (`VoxDb` / **Codex**), with related crates (
 - [Orphan surface inventory](../archive/research-2026-q1/orphan-surface-inventory.md)
 - Crate: `crates/vox-db`, `crates/vox-pm`
 
+## Status update — 2026-05
+
+### Sanctioned satellites (libSQL files outside `vox.db`)
+
+The "Turso-only" rule does not mean "single DB file." It means "every relational
+store uses libSQL/Turso, with the schema either in `vox-db`'s `SCHEMA_FRAGMENTS`
+manifest or in an explicitly-listed sanctioned satellite."
+
+Current sanctioned satellites:
+
+| Crate | DB file | Reason | Owner |
+|---|---|---|---|
+| `vox-secrets` | `.vox/clavis_vault.db` | Blast-radius isolation: secrets must never share a process-level connection with user-data Codex. | Security |
+| `vox-package` | `.vox_modules/local_store.db` | Transitional; folded away by M-67. | Package |
+
+The list above is mirrored mechanically in
+[`contracts/db/data-storage-policy.v1.yaml`](../../../contracts/db/data-storage-policy.v1.yaml)
+(`tiers.a_relational.{owners, allow_direct_access, temporary_exceptions}`).
+Three CI checks enforce no further drift:
+
+* `vox ci db-schema-coverage` — every `CREATE TABLE` lives in an owner crate.
+* `vox ci policy-allowlist-parity` — txt allowlist agrees with policy YAML.
+* `vox ci turso-import-guard` — built-in prefixes auto-derived from policy YAML.
+
+### What is NOT a satellite
+
+* Operational JSON state (`.vox/process-supervision/*.state.json`, orchestrator
+  context snapshots) — Tier D cache. See file headers for rationale.
+* In-process `Arc<Mutex<HashMap>>` registries (rate limit buckets, broadcast
+  subscriptions, per-request receipts) — ephemeral by design.
 
