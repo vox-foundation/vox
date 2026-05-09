@@ -57,6 +57,9 @@ cargo run -p vox-cli -- corpus eval --mode ast examples/golden/
 # Tier 7 — CI guards
 cargo run -p vox-cli -- ci ssot-drift
 cargo run -p vox-cli -- ci line-endings
+
+# Tier 7b — orphan snapshot cleanup (if .snap files changed)
+cargo run -p vox-cli -- snapshot orphans
 ```
 
 Full 9-tier model: [`vox_agentic_loop_and_mens_plan.md`](../archive/research-2026-q1/vox_agentic_loop_and_mens_plan.md) §9-Tier Victory Conditions.

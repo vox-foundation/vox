@@ -558,6 +558,13 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::telemetry::TelemetryCmd,
     },
+
+    /// Insta snapshot helpers: detect and clean up orphaned `.snap` files (`vox snapshot orphans [--clean]`).
+    Snapshot {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::snapshot::SnapshotCmd,
+    },
 }
 
 /// Register the process-wide telemetry sinks.

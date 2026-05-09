@@ -1,0 +1,20 @@
+{
+  "Vox TDD fn stub": {
+    "scope": "vox",
+    "prefix": "tdd",
+    "body": [
+      "@test",
+      "fn test_${1:name}() to Unit {",
+      "    // RED step: replace `_` and `_expected` with concrete values.",
+      "    let result = ${1:name}(${2:_})",
+      "    assert(result is ${3:_expected})",
+      "}",
+      "",
+      "fn ${1:name}(${4:// params}) to ${5:Unit} {",
+      "    // GREEN step: implement until the @test above passes.",
+      "    $0",
+      "}"
+    ],
+    "description": "Scaffold a paired fn + @test block (Test-First Policy). Mirrors `vox new fn --stdout`."
+  }
+}
