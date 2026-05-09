@@ -1,6 +1,7 @@
 /**
  * Fail if extension sources reference vox MCP tool names not in the canonical registry
- * (aliases parsed from crates/vox-mcp/src/tools/tool_aliases.rs — SSOT with vox-mcp).
+ * (aliases parsed from crates/vox-orchestrator-mcp/src/tool_aliases.rs — SSOT moved
+ * from crates/vox-orchestrator/src/mcp_tools/ during the 2026-05-08 reorg Phase 4).
  */
 import fs from 'fs';
 import path from 'path';
@@ -10,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 const extRoot = path.join(repoRoot, 'vox-vscode');
 const yamlPath = path.join(repoRoot, 'contracts', 'mcp', 'tool-registry.canonical.yaml');
-const rustAliasesPath = path.join(repoRoot, 'crates', 'vox-orchestrator', 'src', 'mcp_tools', 'tool_aliases.rs');
+const rustAliasesPath = path.join(repoRoot, 'crates', 'vox-orchestrator-mcp', 'src', 'tool_aliases.rs');
 
 function loadAliasesFromRust() {
     const text = fs.readFileSync(rustAliasesPath, 'utf8');
