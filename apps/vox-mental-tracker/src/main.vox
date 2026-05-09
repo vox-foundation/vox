@@ -347,6 +347,8 @@ component NavBar() {
         link(href="/export") { "Export" }
         text(raw_class="mh-nav-dot") { " · " }
         link(href="/voice") { "Voice" }
+        text(raw_class="mh-nav-dot") { " · " }
+        link(href="/settings") { "Settings" }
     }
 }
 
@@ -530,6 +532,16 @@ component VoicePage() {
     }
 }
 
+@endpoint(kind: mutation) fn record_crash_report(json: str) to int { return 0 }
+
+@table type CrashReport {
+    id: int
+    error: str
+    stack: str
+    ts: str
+    route: str
+}
+
 @endpoint(kind: mutation) fn store_push_token(token: str) to int {
     return record_push_token_internal(token)
 }
@@ -544,6 +556,15 @@ component VoicePage() {
     on_action: handle_push_tap
 }
 
+component SettingsPage() {
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=1) { "Settings" }
+        text(raw_class="mh-sub") { "Crash report opt-in and app preferences." }
+        link(href="/") { "← Home" }
+    }
+}
+
 routes {
     "/" to Home
     "/mood" to Mood
@@ -551,4 +572,5 @@ routes {
     "/weekly" to WeeklyPage
     "/export" to ExportPage
     "/voice" to VoicePage
+    "/settings" to SettingsPage
 }
