@@ -76,6 +76,18 @@ impl ModelRegistry {
         &self.arm_stats
     }
 
+    /// Record a bandit outcome for `model_id` and update the in-memory Beta posterior.
+    /// `success = true` increments the success counter; `false` increments failures.
+    /// Used by [`crate::calibration::ContextualBandit`] to feed outcomes back.
+    pub fn record_bandit_outcome(&mut self, model_id: &str, success: bool) {
+        let entry = self.arm_stats.entry(model_id.to_string()).or_insert((0, 0));
+        if success {
+            entry.0 = entry.0.saturating_add(1);
+        } else {
+            entry.1 = entry.1.saturating_add(1);
+        }
+    }
+
     pub fn inject_pricing_catalog(
         &mut self,
         pricing: Vec<vox_db::store::types::ModelPricingCatalogRow>,

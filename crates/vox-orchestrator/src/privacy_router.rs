@@ -49,6 +49,28 @@ pub enum PrivacyRoutingDecision {
     Blocked,
 }
 
+impl std::fmt::Display for PrivacyLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Public => write!(f, "public"),
+            Self::Internal => write!(f, "internal"),
+            Self::Private => write!(f, "private"),
+            Self::Regulated => write!(f, "regulated"),
+        }
+    }
+}
+
+impl std::fmt::Display for PrivacyRoutingDecision {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Allowed => write!(f, "allowed"),
+            Self::Redact => write!(f, "redact"),
+            Self::LocalOnly => write!(f, "local-only"),
+            Self::Blocked => write!(f, "blocked"),
+        }
+    }
+}
+
 /// A router that filters model candidates based on privacy constraints.
 pub struct PrivacyRouter {
     pub policy: PrivacyRoutingPolicy,

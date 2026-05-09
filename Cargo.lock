@@ -11584,6 +11584,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-orchestrator-test-helpers"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tokio",
+ "vox-orchestrator",
+ "vox-orchestrator-types",
+]
+
+[[package]]
 name = "vox-orchestrator-types"
 version = "0.5.0"
 dependencies = [

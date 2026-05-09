@@ -76,6 +76,28 @@ pub mod catalog;
 pub mod catalog_classifier;
 /// DB-backed clarification inbox drain (Codex `a2a_messages`).
 pub mod clarification_db_inbox_poll;
+/// Five-signal circuit breaker for doom-loop detection (D6).
+pub mod circuit_breaker;
+/// Composite confidence fusion for Socrates invocation decision (D3).
+pub mod confidence_fusion;
+/// Three-tier model cascade for autonomous model-routing (D1).
+pub mod tier_cascade;
+/// Four-dimension risk scorer and HITL escalation matrix (D5 + D9).
+pub mod risk_matrix;
+/// Sensitivity classifier and privacy-level-aware routing (D8).
+pub mod privacy_classifier;
+/// Prefix-cache hit predictor (D7).
+pub mod cache_predictor;
+/// Orchestrator-policy token/cost budget gate (D7).
+pub mod budget_gate;
+/// Compaction strategy selector by context utilization (D7).
+pub mod compaction_trigger;
+/// Calibration loop: Welford drift detection + Thompson bandit (D10).
+pub mod calibration;
+/// Sub-agent dispatch router: spawn vs. inline decision (D4).
+pub mod subagent_dispatch;
+/// Unified orchestrator policy façade composing all D1–D10.
+pub mod orchestrator_policy;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Orchestrator configuration load, merge, and validation.
@@ -320,3 +342,10 @@ pub use vox_search::{HybridSearchHit, MemorySearchEngine};
 
 pub use usage::LlmUsageKey;
 pub use workspace::{AgentWorkspace, ChangeId, ChangeStatus, WorkspaceManager};
+
+// ── Orchestrator policy (D1–D10) re-exports ───────────────────────────────────
+// Single ergonomic surface for the autonomous orchestration policy program.
+// See `docs/superpowers/plans/2026-05-08-orchestrator-master-plan.md`.
+pub use orchestrator_policy::{
+    OrchestratorPolicy, OrchestratorPolicyConfig, PolicyContext, PolicyDecision,
+};
