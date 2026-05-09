@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sat, 09 May 2026 04:44:52 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 09 May 2026 05:09:15 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -13,6 +13,24 @@
     <link>https://vox-lang.org/architecture/architecture-index.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
     <description>Auto-generated architecture index.</description>
+    <pubDate>Sat, 09 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Git Concurrency Policy</title>
+    <link>https://vox-lang.org/architecture/git-concurrency-policy.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/git-concurrency-policy.html</guid>
+    <description>Rules for safe git use by agentic workers in the Vox orchestrator</description>
+    <pubDate>Sat, 09 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Where Things Live</title>
+    <link>https://vox-lang.org/architecture/where-things-live.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/where-things-live.html</guid>
+    <description>Where Things Live</description>
     <pubDate>Sat, 09 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -212,24 +230,6 @@
     <link>https://vox-lang.org/architecture/plugin-system-redesign-sp4-plan-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp4-plan-2026.html</guid>
     <description>Step-by-step implementation plan for Sub-Project 4: migrate the vox.compiler skill from vox-skills&apos;s compile-time builtins to a standalone skill-payload plugin…</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>vox-container vs WASM Sandbox (2026-05-08)</title>
-    <link>https://vox-lang.org/architecture/vox-container-vs-wasm-2026-05-08.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-container-vs-wasm-2026-05-08.html</guid>
-    <description>Audit of vox-container&apos;s two distinct roles (deployment-codegen vs runtime sandbox) and an evaluation of WASM as a replacement for the runtime path.</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Vox-Populi Extraction Follow-Up Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/vox-populi-extraction-followup-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-populi-extraction-followup-plan-2026.html</guid>
-    <description>Plan for the remaining code-motion work after the plugin system foundation landed. Covers vox-populi mens/tensor residual, vox-populi transport, vox-tensor…</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>

@@ -125,6 +125,10 @@ training_eligible: false
 ## Status: Roadmap
 
 - [Agentic VCS Automation — Phase 1 Implementation Plan (2026-05-08)](agentic-vcs-automation-impl-plan-phase1-2026.md)
+- [Agentic VCS Automation — Phase 2 Implementation Plan (2026-05-09)](agentic-vcs-automation-impl-plan-phase2-2026.md)
+- [Agentic VCS Automation — Phase 3 Implementation Plan (2026-05-09)](agentic-vcs-automation-impl-plan-phase3-2026.md)
+- [Agentic VCS Automation — Phase 4 Implementation Plan (2026-05-09)](agentic-vcs-automation-impl-plan-phase4-2026.md)
+- [Agentic VCS Automation — Phase 5 Implementation Plan (2026-05-09)](agentic-vcs-automation-impl-plan-phase5-2026.md)
 - [Codebase Cleanup & Signal Improvement Plan (2026-05-02)](2026-05-02-codebase-cleanup-and-signal-improvement.md)
 - [Data Storage Lint & CI Spec (2026)](data-storage-lint-and-ci-spec-2026.md)
 - [Data Storage Migration Backlog (2026)](data-storage-migration-backlog-2026.md)
