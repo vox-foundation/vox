@@ -77,10 +77,11 @@ pub struct ResearchConfig {
     pub claim_detection_enabled: bool,
     /// Optional callback for progress reporting.
     pub progress_callback: Option<Arc<ProgressCallback>>,
-    /// Optional snapshot of workspace inference policy for registry stage picks ([`super::super::model_select::resolve_research_models`]).
+    /// Optional snapshot of workspace inference policy for registry stage picks.
     ///
-    /// When `None`, `run_research` uses [`crate::config::OrchestratorConfig::default`].[`effective_inference_config`](crate::config::OrchestratorConfig::effective_inference_config).
-    pub model_pick_inference: Option<crate::mode::InferenceConfig>,
+    /// Phase 0a STUB: uses `super::super::model_select::InferenceConfig` (static fallbacks).
+    /// Phase 1 replaces with `crate::mode::InferenceConfig` when that module is activated.
+    pub model_pick_inference: Option<super::super::model_select::InferenceConfig>,
 }
 
 impl std::fmt::Debug for ResearchConfig {
@@ -98,12 +99,11 @@ impl std::fmt::Debug for ResearchConfig {
 }
 
 impl Default for ResearchConfig {
-    /// Defaults match [`super::super::model_select::resolve_research_models`] at construction time
-    /// (same catalog / static snapshot as `run_research`). Serialised configs may still override
-    /// `planner_model` / `claim_model` / etc.; the live pipeline always re-resolves via the registry.
+    /// Phase 0a STUB: uses static fallback model IDs from vox-config constants.
+    /// Phase 1 wires to live ModelRegistry resolution via InferenceConfig.
     fn default() -> Self {
         let reg = crate::models::ModelRegistry::new();
-        let base = crate::config::OrchestratorConfig::default().effective_inference_config();
+        let base = super::super::model_select::InferenceConfig::default();
         let r = super::super::model_select::resolve_research_models(&reg, &base);
         let mut verifier = super::super::config::VerifierConfig::default();
         verifier.nli_model_id = r.claim_model.clone();
