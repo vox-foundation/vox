@@ -1,5 +1,5 @@
 /// A report on the reliability of a given skill.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SkillReliabilityReport {
     pub skill_id: String,
     pub total: u64,
@@ -10,7 +10,7 @@ pub struct SkillReliabilityReport {
 }
 
 /// One row from `endpoint_reliability`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EndpointReliabilityEntry {
     pub endpoint_url: String,
     pub model_id: String,
@@ -24,7 +24,7 @@ pub struct EndpointReliabilityEntry {
 }
 
 /// One row from `trust_rollups`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TrustRollupEntry {
     pub entity_type: String,
     pub entity_id: String,
@@ -59,7 +59,7 @@ impl CorpusRow {
     }
 }
 /// A single row from `skill_executions` — DB DTO (never used in business logic).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SkillExecutionRow {
     /// Primary key of this execution row.
     pub id: i64,
@@ -90,7 +90,7 @@ pub struct SkillExecutionRow {
 }
 
 /// A single row from `workflow_executions` — DB DTO.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WorkflowExecutionRow {
     /// Stable workflow identifier.
     pub workflow_id: String,
@@ -107,7 +107,7 @@ pub struct WorkflowExecutionRow {
 }
 
 /// A single row from `agent_questions`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QuestionRow {
     pub id: i64,
     pub asker_id: String,
@@ -119,7 +119,7 @@ pub struct QuestionRow {
 }
 
 /// One row from `question_sessions`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QuestionSessionRow {
     pub id: i64,
     pub session_id: String,
@@ -133,7 +133,7 @@ pub struct QuestionSessionRow {
 }
 
 /// One row from `question_events`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QuestionEventRow {
     pub id: i64,
     pub question_session_id: i64,
@@ -152,7 +152,7 @@ pub struct QuestionEventRow {
 }
 
 /// One row from `question_options`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QuestionOptionRow {
     pub id: i64,
     pub question_event_id: i64,
@@ -164,7 +164,7 @@ pub struct QuestionOptionRow {
 }
 
 /// One row from `question_option_outcomes`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QuestionOptionOutcomeRow {
     pub id: i64,
     pub question_event_id: i64,
@@ -176,7 +176,7 @@ pub struct QuestionOptionOutcomeRow {
 }
 
 /// One row from `question_stop_events`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QuestionStopEventRow {
     pub id: i64,
     pub question_session_id: i64,
@@ -189,7 +189,7 @@ pub struct QuestionStopEventRow {
 }
 
 /// One unacknowledged row from `a2a_messages` as returned by [`crate::VoxDb::poll_a2a_inbox`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct A2AMessageRow {
     pub id: i64,
     pub message_uuid: String,
@@ -210,7 +210,7 @@ pub struct A2AMessageRow {
 }
 
 /// A single row from `agent_events` (telemetry / gamify audit).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AgentEventRow {
     pub id: i64,
     pub agent_id: String,
@@ -221,7 +221,7 @@ pub struct AgentEventRow {
 }
 
 /// A single row from `benchmark_events`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BenchmarkEventRow {
     pub id: i64,
     pub benchmark_id: String,
@@ -233,7 +233,7 @@ pub struct BenchmarkEventRow {
 }
 
 /// Row shape for `agent_sessions` (MCP/orchestrator session lifecycle in Codex).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SessionRow {
     pub id: String,
     pub agent_id: String,
@@ -246,7 +246,7 @@ pub struct SessionRow {
 }
 
 /// A single row from `agent_session_events`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SessionEventRow {
     pub id: i64,
     pub session_id: String,
@@ -256,7 +256,7 @@ pub struct SessionEventRow {
 }
 
 /// A single row from `build_runs`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BuildRunRow {
     pub id: i64,
     pub build_id: String,
@@ -268,7 +268,7 @@ pub struct BuildRunRow {
 }
 
 /// A single row from `build_crate_samples`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CrateSampleRow {
     pub id: i64,
     pub build_id: String,
@@ -279,7 +279,7 @@ pub struct CrateSampleRow {
 }
 
 /// A single row from `cloud_dispatch_log`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CloudDispatchRow {
     pub id: i64,
     pub provider: String,
@@ -291,7 +291,7 @@ pub struct CloudDispatchRow {
 }
 
 /// A single row from `model_throughput_profiles`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ThroughputProfileRow {
     pub id: i64,
     pub model_id: String,
@@ -302,7 +302,7 @@ pub struct ThroughputProfileRow {
 }
 
 /// One row from `publication_manifests`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PublicationManifestRow {
     pub publication_id: String,
     pub content_type: String,
@@ -444,7 +444,7 @@ pub struct PublicationExternalRevisionRow {
 }
 
 /// A single row from `local_train_log`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LocalTrainRow {
     pub id: i64,
     pub run_id: String,
@@ -457,7 +457,7 @@ pub struct LocalTrainRow {
 }
 
 /// A single row from `arca_warnings`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WarningRow {
     pub id: i64,
     pub warning_type: String,
@@ -503,7 +503,7 @@ pub struct PlanNodeRow {
 }
 
 /// One row from `plan_node_attempts`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlanNodeAttemptRow {
     pub plan_session_id: String,
     pub version: i64,
@@ -517,7 +517,7 @@ pub struct PlanNodeAttemptRow {
 }
 
 /// One row from `gamify_policy_snapshots` for Ludus KPI / audit lists.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GamifyPolicySnapshotListRow {
     /// Event type label stored on the snapshot.
     pub event_type: String,
@@ -544,7 +544,7 @@ pub struct GamifyPolicySnapshotListRow {
 }
 
 /// Aggregated Ludus-facing KPI counters for one user (`load_kpi_summary`).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GamifyLudusKpiRollup {
     /// Policy snapshot rows for this user.
     pub events_recorded: i64,
@@ -569,7 +569,7 @@ pub struct GamifyLudusKpiRollup {
 }
 
 /// One row from `clavis_account_secrets` for Cloudless encrypted secret material.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AccountSecretCiphertextRow {
     pub account_id: String,
     pub secret_id: String,
