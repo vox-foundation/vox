@@ -1,3 +1,5 @@
+//! SCIENTIA nanopublication builder: TriG emission and Ed25519 signing.
+
 pub mod network;
 pub mod signing;
 pub mod trig;

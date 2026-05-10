@@ -1,3 +1,8 @@
+//! Workspace-wide multi-language drift and pattern-repetition linter.
+//!
+//! Detects stale symbol references, naming drift, and copy-paste patterns
+//! across Rust, TypeScript, and Vox source files.
+
 pub mod cache;
 pub mod config;
 pub mod engine;
