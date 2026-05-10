@@ -59,6 +59,8 @@ pub mod routing;
 
 /// Agent-to-agent messaging types and helpers.
 pub mod a2a;
+/// Submitter-side spot-check sampler for result verification (P5-T5).
+pub mod spot_check;
 /// Durable orchestrator state logs (drain records, etc.).
 pub mod drain_oplog;
 /// File and task affinity groups for routing work to the right agent.

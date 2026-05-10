@@ -1,7 +1,9 @@
 //! GitHub attestation manifest: sign, verify, and Gist-fetch (P5-T2a, P5-T2c).
 
+#[cfg(feature = "transport")]
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "transport")]
 use vox_crypto::{SigningKey, VerifyingKey, sign, verify_signature_hex, verifying_key_to_bytes};
 
 /// Stable canonical-input prefix for the attestation manifest signature.
@@ -37,6 +39,7 @@ pub enum ManifestVerifyError {
     },
 }
 
+#[cfg(feature = "transport")]
 fn now_unix_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -44,6 +47,7 @@ fn now_unix_ms() -> u64 {
         .unwrap_or(0)
 }
 
+#[cfg(feature = "transport")]
 fn canonical_manifest_input(
     node_pubkey_hex: &str,
     github_user_id: &str,
@@ -65,6 +69,7 @@ fn canonical_manifest_input(
 }
 
 impl AttestationManifest {
+    #[cfg(feature = "transport")]
     pub fn new_signed(
         node_pubkey_hex: &str,
         github_user_id: &str,
@@ -94,6 +99,7 @@ impl AttestationManifest {
         }
     }
 
+    #[cfg(feature = "transport")]
     pub fn verify(&self) -> Result<(), ManifestVerifyError> {
         if self.version != 1 {
             return Err(ManifestVerifyError::UnsupportedVersion(self.version));
@@ -137,6 +143,7 @@ impl AttestationManifest {
 
 // ── Fetch + verify (P5-T2c) ───────────────────────────────────────────────────
 
+#[cfg(feature = "transport")]
 #[derive(Debug, thiserror::Error)]
 pub enum FetchAndVerifyError {
     #[error("http: {0}")]
@@ -147,6 +154,7 @@ pub enum FetchAndVerifyError {
     Json(String),
 }
 
+#[cfg(feature = "transport")]
 pub async fn fetch_and_verify(url: &str) -> Result<AttestationManifest, FetchAndVerifyError> {
     let body = reqwest::Client::new()
         .get(url)
