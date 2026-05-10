@@ -16,11 +16,14 @@ use std::sync::Arc;
 use vox_orchestrator::events::EventBus;
 use vox_orchestrator::mesh::MeshRegistry;
 
+use crate::audit_log::AuditWriter;
+
 /// Shared state injected into every mesh handler via `State<MeshState>`.
 #[derive(Clone)]
 pub struct MeshState {
     pub registry: Arc<MeshRegistry>,
     pub bus: Arc<EventBus>,
+    pub audit: Arc<AuditWriter>,
 }
 
 pub async fn get_summary(State(state): State<MeshState>) -> Json<Value> {

@@ -1,3 +1,4 @@
+pub mod hopper;
 pub mod mesh;
 pub mod mesh_actions;
 pub mod mesh_invite;
@@ -8,6 +9,7 @@ pub mod oplog_at;
 pub mod runs;
 pub mod settings;
 
+pub use hopper::hopper_router;
 pub use mesh::mesh_router;
 pub use mesh_topology::MeshState;
 pub use models::models_router;

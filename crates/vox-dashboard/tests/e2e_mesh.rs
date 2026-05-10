@@ -1,21 +1,20 @@
-//! E2E contract tests for the /api/v2/mesh/* route set (Phase 2.7).
+//! E2E contract tests for the /api/v2/mesh/* route set (Phase 4 live-state).
 //!
-//! Spins up the mesh sub-router in-process via `tower::ServiceExt::oneshot`
-//! and asserts the shape / HTTP contract of every route.
+//! The pre-P4 fixture tests have been removed; see mesh_phase4_routes.rs for the
+//! authoritative integration tests. This file retains the contract shape tests
+//! updated for the live-state registry and the Phase 4 action protocol.
 
 use axum::{
-    Router,
     body::Body,
     http::{Request, StatusCode},
 };
-use serde_json::Value;
 use tower::ServiceExt;
-use vox_dashboard::api::mesh_router;
+use serde_json::Value;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-fn app() -> Router {
-    mesh_router::<()>()
+fn app() -> axum::Router {
+    vox_dashboard::test_support::build_router_with_empty_mesh()
 }
 
 async fn get_json(uri: &str) -> (StatusCode, Value) {
@@ -24,30 +23,30 @@ async fn get_json(uri: &str) -> (StatusCode, Value) {
         .await
         .unwrap();
     let status = resp.status();
-    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024)
-        .await
-        .unwrap();
-    let val: Value = serde_json::from_slice(&bytes).unwrap();
-    (status, val)
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    (status, serde_json::from_slice(&bytes).unwrap())
 }
 
-async fn post_json(uri: &str) -> (StatusCode, Value) {
+async fn post_json(uri: &str, body: serde_json::Value) -> (StatusCode, Value) {
     let resp = app()
         .oneshot(
             Request::builder()
                 .method("POST")
                 .uri(uri)
-                .body(Body::empty())
+                .header("content-type", "application/json")
+                .body(Body::from(body.to_string()))
                 .unwrap(),
         )
         .await
         .unwrap();
     let status = resp.status();
-    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024)
-        .await
-        .unwrap();
-    let val: Value = serde_json::from_slice(&bytes).unwrap();
-    (status, val)
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let body = if bytes.is_empty() {
+        serde_json::Value::Null
+    } else {
+        serde_json::from_slice(&bytes).unwrap()
+    };
+    (status, body)
 }
 
 // ── GET /api/v2/mesh/summary ──────────────────────────────────────────────────
@@ -56,15 +55,10 @@ async fn post_json(uri: &str) -> (StatusCode, Value) {
 async fn mesh_summary_returns_six_kpi_fields() {
     let (status, body) = get_json("/api/v2/mesh/summary").await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["v"], 1, "envelope version must be 1");
-
+    assert_eq!(body["v"], 1);
     let data = &body["data"];
     for field in &["nodes", "active", "blocked", "errors", "tok_s", "cost_h"] {
-        assert!(
-            data[field].is_string(),
-            "field '{field}' must be a string, got: {}",
-            data[field]
-        );
+        assert!(data[field].is_string(), "field '{field}' must be a string");
     }
 }
 
@@ -72,23 +66,19 @@ async fn mesh_summary_returns_six_kpi_fields() {
 async fn mesh_summary_includes_build_state() {
     let (status, body) = get_json("/api/v2/mesh/summary").await;
     assert_eq!(status, StatusCode::OK);
-    assert!(
-        body["data"]["build_state"].is_string(),
-        "build_state must be present"
-    );
-    assert_eq!(body["data"]["build_state"], "idle");
+    assert!(body["data"]["build_state"].is_string());
 }
 
 // ── GET /api/v2/mesh/nodes ────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn mesh_nodes_returns_seven_fixture_nodes() {
+async fn mesh_nodes_returns_array() {
     let (status, body) = get_json("/api/v2/mesh/nodes").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["v"], 1);
-
-    let nodes = body["data"].as_array().expect("data must be an array");
-    assert_eq!(nodes.len(), 7, "fixture topology has 7 nodes");
+    assert!(body["data"].is_array(), "data must be an array");
+    // Live empty registry has 0 nodes (not the old fixture's 7).
+    assert_eq!(body["data"].as_array().unwrap().len(), 0);
 }
 
 #[tokio::test]
@@ -111,31 +101,15 @@ async fn mesh_nodes_each_have_required_fields() {
     }
 }
 
-#[tokio::test]
-async fn mesh_nodes_contains_both_orchestrators() {
-    let (_, body) = get_json("/api/v2/mesh/nodes").await;
-    let nodes = body["data"].as_array().unwrap();
-    let ids: Vec<&str> = nodes.iter().map(|n| n["id"].as_str().unwrap()).collect();
-    assert!(
-        ids.contains(&"orchestrator-7c2a"),
-        "orchestrator-7c2a must be present"
-    );
-    assert!(
-        ids.contains(&"orchestrator-3f1b"),
-        "orchestrator-3f1b must be present"
-    );
-}
-
 // ── GET /api/v2/mesh/edges ────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn mesh_edges_returns_six_fixture_edges() {
+async fn mesh_edges_returns_array() {
     let (status, body) = get_json("/api/v2/mesh/edges").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["v"], 1);
-
-    let edges = body["data"].as_array().expect("data must be an array");
-    assert_eq!(edges.len(), 6, "fixture topology has 6 edges");
+    assert!(body["data"].is_array());
+    assert_eq!(body["data"].as_array().unwrap().len(), 0);
 }
 
 #[tokio::test]
@@ -153,43 +127,64 @@ async fn mesh_edges_each_have_required_fields() {
     }
 }
 
-#[tokio::test]
-async fn mesh_edges_delegation_edge_present() {
-    let (_, body) = get_json("/api/v2/mesh/edges").await;
-    let edges = body["data"].as_array().unwrap();
-    let delegation = edges.iter().find(|e| e["kind"] == "delegation");
-    assert!(
-        delegation.is_some(),
-        "must have at least one delegation edge"
-    );
-    let d = delegation.unwrap();
-    assert_eq!(d["from"], "orchestrator-7c2a");
-    assert_eq!(d["to"], "orchestrator-3f1b");
-}
-
 // ── POST /api/v2/mesh/nodes/{id}/kill|pause|replay ───────────────────────────
+//
+// Phase 4 (P4-T7): destructive actions require `confirm_token: "yes-i-mean-it"`.
+// Without the token they return 400; with it they return 200 + signed audit_id.
 
 #[tokio::test]
-async fn mesh_node_kill_returns_ack() {
-    let (status, body) = post_json("/api/v2/mesh/nodes/lex-2/kill").await;
-    assert_eq!(status, StatusCode::OK);
+async fn mesh_node_kill_without_confirm_returns_400() {
+    let (status, _) = post_json(
+        "/api/v2/mesh/nodes/lex-2/kill",
+        serde_json::json!({"reason": "test"}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn mesh_node_kill_with_confirm_returns_200_with_audit_id() {
+    let app = vox_dashboard::test_support::build_router_with_signing_keys();
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v2/mesh/nodes/lex-2/kill")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"reason":"test","confirm_token":"yes-i-mean-it"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let body: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(body["v"], 1);
-    assert_eq!(body["data"]["id"], "lex-2");
+    assert!(body["data"]["audit_id"].is_string());
     assert_eq!(body["data"]["action"], "kill");
+    assert_eq!(body["data"]["target"], "lex-2");
 }
 
 #[tokio::test]
-async fn mesh_node_pause_returns_ack() {
-    let (status, body) = post_json("/api/v2/mesh/nodes/parse-1/pause").await;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["data"]["id"], "parse-1");
+async fn mesh_node_pause_with_confirm_returns_200() {
+    let app = vox_dashboard::test_support::build_router_with_signing_keys();
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v2/mesh/nodes/parse-1/pause")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"reason":"test","confirm_token":"yes-i-mean-it"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let body: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(body["data"]["action"], "pause");
-}
-
-#[tokio::test]
-async fn mesh_node_replay_returns_ack() {
-    let (status, body) = post_json("/api/v2/mesh/nodes/hir-3/replay").await;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["data"]["id"], "hir-3");
-    assert_eq!(body["data"]["action"], "replay");
 }

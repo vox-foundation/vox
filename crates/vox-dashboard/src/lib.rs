@@ -58,6 +58,19 @@ pub mod test_support {
             .merge(crate::api::oplog_at::oplog_router(state))
     }
 
+    /// Build a router that includes the hopper panel routes (P4-T13).
+    ///
+    /// Returns `(router, Arc<InMemoryHopper>)` so tests can inspect internal state.
+    pub fn build_router_with_hopper() -> (Router<()>, Arc<vox_orchestrator::hopper::InMemoryHopper>) {
+        let (registry, bus) = build_mesh_state();
+        let state = ephemeral_state(registry, bus.clone());
+        let hopper = Arc::new(vox_orchestrator::hopper::InMemoryHopper::new(bus));
+        let router = crate::api::mesh::mesh_router(state.clone())
+            .merge(crate::api::oplog_at::oplog_router(state.clone()))
+            .merge(crate::api::hopper::hopper_router(state, hopper.clone()));
+        (router, hopper)
+    }
+
     /// Build a router pre-populated with two nodes that have cost/cap data.
     ///
     /// Used by the P4-T6 budget route tests.

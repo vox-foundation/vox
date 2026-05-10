@@ -978,6 +978,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
+name = "byteorder-lite"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f1fe948ff07f4bd06c30984e69f5b4899c516a3ef74f34df92a2df2ab535495"
+
+[[package]]
 name = "bytes"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5117,6 +5123,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "image"
+version = "0.25.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85ab80394333c02fe689eaf900ab500fbd0c2213da414687ebf995a65d5a6104"
+dependencies = [
+ "bytemuck",
+ "byteorder-lite",
+ "moxcms",
+ "num-traits",
+]
+
+[[package]]
 name = "include_dir"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6147,6 +6165,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "moxcms"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb85c154ba489f01b25c0d36ae69a87e4a1c73a72631fc6c0eb6dde34a73e44b"
+dependencies = [
+ "num-traits",
+ "pxfm",
 ]
 
 [[package]]
@@ -7350,6 +7378,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40e24eee682d89fb193496edf918a7f407d30175b2e785fe057e4392dfd182e0"
 
 [[package]]
+name = "pxfm"
+version = "0.1.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0c5ccf5294c6ccd63a74f1565028353830a9c2f5eb0c682c355c471726a6e3f"
+
+[[package]]
 name = "qlora-rs"
 version = "1.0.5"
 dependencies = [
@@ -7363,6 +7397,15 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tracing",
+]
+
+[[package]]
+name = "qrcode"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d68782463e408eb1e668cf6152704bd856c78c5b6417adaee3203d8f4c1fc9ec"
+dependencies = [
+ "image",
 ]
 
 [[package]]
@@ -10887,7 +10930,10 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "cargo_metadata",
+ "globset",
+ "regex",
  "serde",
+ "tempfile",
  "toml 0.8.23",
  "vox-build-meta",
  "vox-compiler",
@@ -11262,8 +11308,10 @@ dependencies = [
  "anyhow",
  "axum",
  "const-fnv1a-hash",
+ "hex",
  "include_dir",
  "mime_guess",
+ "qrcode",
  "serde",
  "serde_json",
  "serial_test",
@@ -11272,6 +11320,9 @@ dependencies = [
  "tower 0.5.3",
  "tower-http",
  "tracing",
+ "uuid",
+ "vox-crypto",
+ "vox-orchestrator",
  "workspace-hack",
 ]
 
@@ -11603,6 +11654,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-mesh-models"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "vox-mesh-types",
+]
+
+[[package]]
+name = "vox-mesh-policy"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "vox-compiler",
+ "vox-mesh-types",
+]
+
+[[package]]
 name = "vox-mesh-types"
 version = "0.5.0"
 dependencies = [
@@ -11810,7 +11886,6 @@ dependencies = [
  "vox-config",
  "vox-corpus",
  "vox-crypto",
- "vox-dashboard",
  "vox-db",
  "vox-gamify",
  "vox-lsp",
@@ -11834,6 +11909,13 @@ dependencies = [
  "walkdir",
  "workspace-hack",
  "xxhash-rust",
+]
+
+[[package]]
+name = "vox-orchestrator-cap-mint"
+version = "0.5.0"
+dependencies = [
+ "vox-orchestrator-types",
 ]
 
 [[package]]
@@ -11928,6 +12010,7 @@ dependencies = [
  "vox-openclaw-runtime",
  "vox-oratio",
  "vox-orchestrator",
+ "vox-orchestrator-cap-mint",
  "vox-orchestrator-types",
  "vox-package",
  "vox-plugin-host",
@@ -11952,14 +12035,18 @@ name = "vox-orchestrator-queue"
 version = "0.5.0"
 dependencies = [
  "async-trait",
+ "blake3",
  "chrono",
+ "hex",
  "parking_lot",
  "serde",
  "serde_json",
  "sha3",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "vox-crypto",
  "vox-db",
  "vox-orchestrator-types",
  "workspace-hack",
@@ -11981,6 +12068,7 @@ name = "vox-orchestrator-types"
 version = "0.5.0"
 dependencies = [
  "serde",
+ "serde_json",
  "serde_yaml",
  "thiserror 1.0.69",
 ]

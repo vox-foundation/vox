@@ -1,4 +1,4 @@
-// ⌘K palette — Phase 4, P4-T7.
+// ⌘K palette — Phase 4, P4-T7 (extended in P4-T13 with hopper actions).
 //
 // Mesh-aware actions:
 //   • "kill <node>"    → POST /api/v2/mesh/nodes/{id}/kill
@@ -6,18 +6,23 @@
 //   • "drain <node>"   → POST /api/v2/mesh/nodes/{id}/drain
 //   • "replay <node>"  → POST /api/v2/mesh/nodes/{id}/replay
 //
-// Every destructive choice opens a ConfirmModal that requires the user to
-// type the node id before submission; the API writes a signed audit-log entry.
+// Hopper actions (P4-T13):
+//   • "submit: <intent>"   → POST /api/v2/hopper/submit (mints DeveloperOverride on reprioritize)
+//   • "urgent: <task-id>"  → POST /api/v2/hopper/items/{id}/reprioritize {new_priority:"urgent"}
+//   • "defer:  <task-id>"  → POST /api/v2/hopper/items/{id}/reprioritize {new_priority:"background"}
 //
-// Hopper actions (submit/urgent/defer) are added in P4-T13.
+// Every destructive/override choice opens a ConfirmModal and writes a signed audit-log entry.
 component CmdK(open: bool, on_close: fn()) {
     let query     = use_state(value="")
     let nodes     = use_state(value=[])
+    let hop_items = use_state(value=[])
     let confirm   = use_state(value=null)   // null | {action, node}
 
     use_effect(deps=[open], body=fn() {
         if open {
-            api_get(url="/api/v2/mesh/nodes", on_ok=fn(r) { set(nodes, r.data) })
+            api_get(url="/api/v2/mesh/nodes",       on_ok=fn(r) { set(nodes,     r.data) })
+            api_get(url="/api/v2/hopper/inbox",     on_ok=fn(r) { set(hop_items, [...r.data]) })
+            api_get(url="/api/v2/hopper/assigned",  on_ok=fn(r) { set(hop_items, fn(prev) { [...prev, ...r.data] }) })
         }
     })
 
@@ -47,7 +52,7 @@ component CmdK(open: bool, on_close: fn()) {
                 input(
                     value=query,
                     on_change=fn(v) { set(query, v) },
-                    placeholder="Run a mesh command…",
+                    placeholder="Run a mesh or hopper command…",
                     autofocus=true,
                     raw_class="w-full px-4 h-12 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600",
                 )
@@ -70,8 +75,43 @@ component CmdK(open: bool, on_close: fn()) {
                         }
                     }
                 }
-                if nodes.length is 0 {
-                    text(size="xs", color="zinc.600", raw_class="px-4 py-3") { "No nodes connected." }
+                    // ── Hopper quick-submit ────────────────────────────────────
+                    if match_query("submit", query) and query.length > 0 {
+                        row(
+                            on_click=fn() {
+                                let intent = query.replace("submit:", "").trim()
+                                api_post(
+                                    url="/api/v2/hopper/submit",
+                                    body={"intent": intent},
+                                    on_ok=fn(_) { toast(text="Submitted: " + intent); on_close() },
+                                )
+                            },
+                            raw_class="px-4 py-2 hover:bg-white/5 cursor-pointer flex items-center gap-3",
+                        ) {
+                            panel(w=2, h=2, radius="sm", bg="emerald.500")
+                            text(size="sm", color="zinc.300") { "submit: " + query }
+                        }
+                    }
+
+                    // ── Hopper reprioritize: urgent / defer ────────────────────
+                    for hop_action in ["urgent", "defer"] {
+                        for item in hop_items.filter(fn(i) { match_query(i.intent, query) }) {
+                            row(
+                                on_click=fn() {
+                                    let new_p = if hop_action is "urgent" { "urgent" } else { "background" }
+                                    set(confirm, {action: hop_action, node: {id: item.item_id, intent: item.intent, privacy_class: item.privacy_class}, hop_item_id: item.item_id, hop_priority: new_p})
+                                },
+                                raw_class="px-4 py-2 hover:bg-white/5 cursor-pointer flex items-center gap-3",
+                            ) {
+                                panel(w=2, h=2, radius="sm", bg=if hop_action is "urgent" { "rose.400" } else { "zinc.600" })
+                                text(size="sm", color="zinc.300") { hop_action + ": " + item.intent }
+                                PrivacyBadge(class=item.privacy_class)
+                            }
+                        }
+                    }
+                }
+                if nodes.length is 0 and hop_items.length is 0 {
+                    text(size="xs", color="zinc.600", raw_class="px-4 py-3") { "No nodes or hopper items." }
                 }
             }
             if confirm is not null {

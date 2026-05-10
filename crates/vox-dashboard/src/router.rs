@@ -5,7 +5,7 @@ use axum::{Router, routing::get};
 use vox_orchestrator::events::EventBus;
 use vox_orchestrator::mesh::MeshRegistry;
 
-use crate::api::{MeshState, mesh_router, models_router, oplog_router, runs_router, settings_router};
+use crate::api::{MeshState, hopper_router, mesh_router, models_router, oplog_router, runs_router, settings_router};
 use crate::assets::serve_asset;
 use crate::audit_log::AuditWriter;
 
@@ -19,16 +19,18 @@ where
     let bus = Arc::new(EventBus::new(512));
     let mesh_state = MeshState {
         registry,
-        bus,
+        bus: bus.clone(),
         audit: Arc::new(AuditWriter::ephemeral()),
     };
+    let hopper = Arc::new(vox_orchestrator::hopper::InMemoryHopper::new(bus));
 
     Router::new()
         .route("/dashboard", get(serve_asset))
         .route("/dashboard/{*path}", get(serve_asset))
         .merge(settings_router::<S>())
         .merge(mesh_router(mesh_state.clone()))
-        .merge(oplog_router(mesh_state))
+        .merge(oplog_router(mesh_state.clone()))
+        .merge(hopper_router(mesh_state, hopper))
         .merge(models_router::<S>())
         .merge(runs_router::<S>())
         .layer(axum::extract::Extension(token))

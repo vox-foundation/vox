@@ -149,6 +149,8 @@ pub use vox_orchestrator_queue::locks;
 pub mod mcp_tools;
 /// Long-term and daily agent memory backed by Codex when enabled.
 pub mod memory;
+/// Unified task hopper — intake funnel for developer-sourced work (Hp-T1).
+pub mod hopper;
 /// Live mesh node registry — authoritative in-memory topology view for the dashboard.
 pub mod mesh;
 /// Populi control-plane poll loop shared by MCP and `vox-orchestrator-d`.
