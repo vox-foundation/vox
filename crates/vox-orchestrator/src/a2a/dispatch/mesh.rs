@@ -4,6 +4,9 @@
 //! must call [`gate_local_fallback`] first. This enforces the W1 invariant —
 //! a remote node holding an unexpired lease for the same scope blocks the
 //! local fallback rather than duplicating execution.
+//!
+//! P6-T9: `HopperOpSync` message kinds are routed through the federation
+//! envelope layer. See `crate::hopper::mesh_adapter` for the type definitions.
 
 use crate::types::{A2AMessageType, AgentId, CompletionAttestation};
 
