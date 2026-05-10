@@ -88,9 +88,11 @@ impl LegacyImportSource {
 /// Tables never exported: Turso/Arca owns `schema_version` via [`crate::VoxDb::migrate`].
 /// A fresh target DB must already hold [`crate::schema::BASELINE_VERSION`] before [`import_legacy_jsonl`].
 pub const LEGACY_EXPORT_SKIP_TABLES: &[&str] = &[
-    "mesh_a2a_messages",     // transient mesh execution state
-    "mesh_dispatch_results", // transient mesh execution state
-    "mesh_exec_leases",      // transient mesh execution state
+    "convergence_op_log",            // mesh replication state — not portable across peers
+    "convergence_op_log_backfill_dlq", // transient backfill dead-letter queue
+    "mesh_a2a_messages",             // transient mesh execution state
+    "mesh_dispatch_results",         // transient mesh execution state
+    "mesh_exec_leases",              // transient mesh execution state
     "schema_version",
 ];
 
@@ -102,6 +104,7 @@ pub const LEGACY_EXPORT_SKIP_TABLES: &[&str] = &[
 pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "a2a_messages",
     "account_config",
+    "activity_result_cache",
     "actor_state",
     "agent_events",
     "agent_exec_history",
