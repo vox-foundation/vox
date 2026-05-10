@@ -32,6 +32,7 @@ pub enum LintKind {
     UnknownStatus { value: String },
     UnknownSchemaType { value: String },
     BrokenIncludeAnchor { file: String, anchor: String },
+    BrokenIncludeFile { file: String },
     WholeFileIncludeHasTrainingHeader { file: String },
     DocTestFailed { msg: String },
     UnlabeledCodeFence { at_line: usize },

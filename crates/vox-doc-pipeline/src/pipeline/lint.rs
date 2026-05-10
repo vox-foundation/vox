@@ -283,6 +283,16 @@ fn check_include_anchor(path: &Path, line: &str, line_no: usize, errors: &mut Ve
     // Normalize path to some degree for reading, assuming docs/src as root of md files
     // But since target_file is usually `../../../examples/...` we just read it relative to cwd
     let content_res = vox_bounded_fs::read_utf8_path_capped(&target_path);
+    if content_res.is_err() {
+        errors.push(LintError {
+            file: path.to_owned(),
+            line: line_no,
+            kind: LintKind::BrokenIncludeFile {
+                file: target_file.to_string(),
+            },
+        });
+        return;
+    }
     if let Ok(content) = content_res {
         if let Some(anchor_name) = anchor {
             // Looking for `// ANCHOR: anchor_name`
