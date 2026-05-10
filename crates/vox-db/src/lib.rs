@@ -149,6 +149,7 @@ pub mod mesh_exec_leases;
 pub use mesh_exec_leases::ExecLeaseRow;
 pub mod mesh_locks;
 pub use mesh_locks::{LockKindRow, LockLeaderRow, VcsLockRow};
+pub use store::ops_convergence::ConvergenceOpRow;
 
 pub mod oratio_eval;
 pub mod plugin_state_backend;

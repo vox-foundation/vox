@@ -8,7 +8,7 @@ use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-pub const BASELINE_VERSION: i64 = 63; // +1 for activity_result_cache (P2-T5)
+pub const BASELINE_VERSION: i64 = 64; // +1 for convergence_op_log + backfill_dlq (P3-T1)
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

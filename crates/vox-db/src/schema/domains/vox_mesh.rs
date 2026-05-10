@@ -139,4 +139,44 @@ CREATE TABLE IF NOT EXISTS activity_result_cache (
 -- is running; on-demand via `vox db prune` otherwise).
 CREATE INDEX IF NOT EXISTS idx_activity_result_cache_until
     ON activity_result_cache (dedup_window_until);
+
+-- ── Phase 3: durable convergence op-log (P3-T1) ──────────────────────────
+
+-- Durable convergence op-log (P3-T1). Warm tier for gossiped op-fragments.
+-- Hot tier lives in OpLog::entries VecDeque; cold tier is Checkpoint-encoded blobs.
+CREATE TABLE IF NOT EXISTS convergence_op_log (
+    op_id            INTEGER PRIMARY KEY,            -- monotonic OperationId.0
+    set_id           BLOB    NOT NULL,                -- 16-byte ULID for the convergence set
+    parent_op_ids    TEXT    NOT NULL DEFAULT '[]',  -- JSON array of u64 parents (DAG)
+    kind_json        TEXT    NOT NULL,                -- serde_json of OperationKind
+    payload          BLOB    NOT NULL DEFAULT X'',    -- opaque op-fragment payload bytes
+    payload_blake3   BLOB    NOT NULL,                -- 32-byte blake3 of payload
+    predecessor_hash TEXT,                            -- hex sha3-256 / blake3 chain hash
+    signature        TEXT,                            -- hex-encoded 64-byte Ed25519 sig
+    signing_key_id   TEXT,                            -- hex-encoded 32-byte daemon pubkey id
+    agent_id         INTEGER NOT NULL,
+    daemon_id        TEXT    NOT NULL,                -- hex-encoded 16-byte daemon UUID
+    produced_at      INTEGER NOT NULL,                -- ms since epoch
+    description      TEXT    NOT NULL DEFAULT '',
+    change_id        INTEGER,
+    model_id         TEXT,
+    undone           INTEGER NOT NULL DEFAULT 0       -- 0=false / 1=true
+);
+
+CREATE INDEX IF NOT EXISTS convergence_op_log_set_id_produced_at
+    ON convergence_op_log(set_id, produced_at);
+CREATE INDEX IF NOT EXISTS convergence_op_log_daemon_produced
+    ON convergence_op_log(daemon_id, produced_at);
+CREATE INDEX IF NOT EXISTS convergence_op_log_change_id
+    ON convergence_op_log(change_id) WHERE change_id IS NOT NULL;
+
+-- Backfill DLQ: fragments whose parents we have not yet seen.
+CREATE TABLE IF NOT EXISTS convergence_op_log_backfill_dlq (
+    op_id            INTEGER PRIMARY KEY,
+    payload          BLOB    NOT NULL,
+    parent_op_ids    TEXT    NOT NULL,
+    first_seen_at    INTEGER NOT NULL,
+    retry_count      INTEGER NOT NULL DEFAULT 0,
+    last_error       TEXT
+);
 ";

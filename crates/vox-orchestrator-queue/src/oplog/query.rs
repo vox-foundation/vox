@@ -55,13 +55,16 @@ pub async fn list_from_db(
             change_id: change_id.map(|c| ChangeId(c as u64)),
             timestamp_ms: timestamp_ms as u64,
             undone: undone != 0,
-            // These are in-memory only in this schema fragment, or can be added to kind if needed
             snapshot_before: None,
             snapshot_after: None,
             db_snapshot_before: None,
             db_snapshot_after: None,
             context_snapshot_before: None,
             context_snapshot_after: None,
+            signature: None,
+            signing_key_id: None,
+            daemon_id: [0u8; 16],
+            parent_op_ids: Vec::new(),
         });
     }
 
@@ -100,6 +103,11 @@ impl OpLog {
     /// Get a specific operation by ID.
     pub fn get(&self, op_id: OperationId) -> Option<&OperationEntry> {
         self.entries.iter().find(|e| e.id == op_id)
+    }
+
+    /// Alias for [`Self::get`] — looks up an entry by its [`OperationId`].
+    pub fn lookup(&self, op_id: OperationId) -> Option<&OperationEntry> {
+        self.get(op_id)
     }
 
     /// Total number of entries.

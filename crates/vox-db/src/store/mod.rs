@@ -65,6 +65,7 @@ pub mod ops_orchestrator;
 mod ops_planning;
 mod ops_publication;
 mod ops_questioning;
+pub mod ops_convergence;
 mod ops_retention;
 mod ops_scientia;
 mod ops_secrets_cloudless;
