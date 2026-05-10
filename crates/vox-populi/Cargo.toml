@@ -70,6 +70,10 @@ mens-cloud = [
     "dep:reqwest",
     "dep:vox-reqwest-defaults",
 ]
+# Opt-in grand-network discovery publishing via the Provider Atlas (P6-T6).
+mesh-discovery-publish = [
+    "dep:vox-publisher",
+]
 
 [dependencies]
 async-trait = { workspace = true }
@@ -129,6 +133,7 @@ qlora-rs = { workspace = true, optional = true }
 futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
 vox-compiler = { workspace = true, optional = true }
+vox-publisher = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
 hex = "0.4.3"
 
