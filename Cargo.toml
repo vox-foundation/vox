@@ -103,6 +103,7 @@ vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }
 vox-orchestrator-queue    = { path = "crates/vox-orchestrator-queue" }
 vox-orchestrator-d        = { path = "crates/vox-orchestrator-d" }
 vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
+vox-orchestrator-cap-mint = { path = "crates/vox-orchestrator-cap-mint" }
 vox-openai-sse            = { path = "crates/vox-openai-sse" }
 vox-openai-wire           = { path = "crates/vox-openai-wire" }
 vox-plugin-api            = { path = "crates/vox-plugin-api" }

@@ -82,7 +82,7 @@ pub enum BranchNameError {
 pub struct RemoteId(pub u32);
 
 /// Capability: holder may stage and commit hunks against `branch` of `workspace`.
-/// Constructed only by `WorkingTreeWrite::mint`.
+/// Constructed only via `vox-orchestrator-cap-mint::mint_working_tree_write`.
 #[derive(Debug, Clone)]
 pub struct WorkingTreeWrite {
     workspace: WorkspaceId,
@@ -90,10 +90,8 @@ pub struct WorkingTreeWrite {
 }
 
 impl WorkingTreeWrite {
-    /// Mint a `WorkingTreeWrite`. **Authorization is the caller's responsibility**;
-    /// `vox_orchestrator::authorize_*` wrappers are the only callers we expect.
-    #[doc(hidden)]
-    pub fn mint(workspace: WorkspaceId, branch: BranchName) -> Self {
+    /// Crate-internal constructor. External callers must use `vox-orchestrator-cap-mint`.
+    pub(crate) fn mint(workspace: WorkspaceId, branch: BranchName) -> Self {
         Self { workspace, branch }
     }
 
@@ -113,8 +111,8 @@ pub struct BranchCreate {
 }
 
 impl BranchCreate {
-    #[doc(hidden)]
-    pub fn mint(workspace: WorkspaceId, parent: BranchName) -> Self {
+    /// Crate-internal constructor. External callers must use `vox-orchestrator-cap-mint`.
+    pub(crate) fn mint(workspace: WorkspaceId, parent: BranchName) -> Self {
         Self { workspace, parent }
     }
 
@@ -123,6 +121,40 @@ impl BranchCreate {
     }
     pub fn parent(&self) -> &BranchName {
         &self.parent
+    }
+}
+
+/// Sealed friend-hook module consumed exclusively by `vox-orchestrator-cap-mint`.
+///
+/// `MintWitness` is a public marker trait — the real guard is `pub(crate)` on
+/// the `WorkingTreeWrite::mint` / `BranchCreate::mint` constructors above, which
+/// makes direct external construction a compile error.  External code that wants
+/// to build capabilities must depend on `vox-orchestrator-cap-mint` and call its
+/// `mint_*` functions, which supply a `MintToken` (the only `MintWitness` impl).
+pub mod sealed {
+    use super::*;
+
+    /// Marker trait. Only `vox_orchestrator_cap_mint::MintToken` should implement this.
+    pub trait MintWitness {}
+
+    /// Called only by `vox-orchestrator-cap-mint::mint_working_tree_write`.
+    #[doc(hidden)]
+    pub fn __mint_working_tree_write<W: MintWitness>(
+        workspace: WorkspaceId,
+        branch: BranchName,
+        _token: &W,
+    ) -> WorkingTreeWrite {
+        WorkingTreeWrite { workspace, branch }
+    }
+
+    /// Called only by `vox-orchestrator-cap-mint::mint_branch_create`.
+    #[doc(hidden)]
+    pub fn __mint_branch_create<W: MintWitness>(
+        workspace: WorkspaceId,
+        parent: BranchName,
+        _token: &W,
+    ) -> BranchCreate {
+        BranchCreate { workspace, parent }
     }
 }
 
@@ -197,6 +229,7 @@ mod tests {
 
     #[test]
     fn working_tree_write_round_trip() {
+        // Uses the crate-internal `mint` (same crate as the test module).
         let cap = WorkingTreeWrite::mint(WorkspaceId(1), BranchName::parse("agent/x").unwrap());
         assert_eq!(cap.workspace(), WorkspaceId(1));
         assert_eq!(cap.branch().as_str(), "agent/x");
@@ -207,5 +240,17 @@ mod tests {
         let cap = BranchCreate::mint(WorkspaceId(2), BranchName::parse("main").unwrap());
         assert_eq!(cap.workspace(), WorkspaceId(2));
         assert_eq!(cap.parent().as_str(), "main");
+    }
+
+    #[test]
+    fn sealed_mint_witness_round_trip() {
+        struct TestToken;
+        impl super::sealed::MintWitness for TestToken {}
+        let cap = super::sealed::__mint_working_tree_write(
+            WorkspaceId(5),
+            BranchName::parse("test/branch").unwrap(),
+            &TestToken,
+        );
+        assert_eq!(cap.workspace(), WorkspaceId(5));
     }
 }

@@ -61,6 +61,7 @@ reason   = "vox-code-audit detectors must not pull search/vector deps (build-tim
 
 # ── L0 — pure types ───────────────────────────────────────────────────────────
 vox-orchestrator-types = { layer = 0 }
+vox-orchestrator-cap-mint = { layer = 1, max_loc = 200, max_dependents = 4 }
 vox-db-types           = { layer = 0 }
 vox-protocol           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
