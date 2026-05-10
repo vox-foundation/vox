@@ -32,7 +32,7 @@ If you are evaluating Vox as a language or product, start with the [project READ
 Quick routing by goal. All links resolve from this directory.
 
 | Goal | Start here |
-|---|---|
+| --- | --- |
 | Fix a TOESTUB / stub-check CI failure | [TOESTUB contributor guide](toestub-contributor-guide.md) |
 | Fix a `god_object` or `sprawl` violation | [TOESTUB contributor guide](toestub-contributor-guide.md) (god-object rules) |
 | Understand why my code affects model quality | [Contribution loop](contribution-loop.md) |
@@ -81,4 +81,3 @@ See [local CI parity](local-ci-pre-push.md) for modes and tuning.
 - When code changes alter public behavior, update the corresponding docs in the same PR.
 - Treat `contracts/` as machine SSOT, `docs/src/reference/` as human lookup, `docs/src/architecture/` as design and rationale, and `docs/agents/` as contributor and automation support.
 - Use `vox ci` guards where they exist instead of replacing them with one-off shell checks.
-

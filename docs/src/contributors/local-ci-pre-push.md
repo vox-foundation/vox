@@ -16,7 +16,7 @@ locally so failures show up before the GitHub round-trip.
 ## Modes
 
 | Mode | Steps | Typical wall-clock |
-|------|-------|--------------------|
+| ------ | ------- | -------------------- |
 | `--quick` | fmt-check, line-endings, ssot-drift | ~30 s |
 | default | + doc-inventory verify, clippy (workspace), TOESTUB on changed `crates/<x>` | ~2–4 min |
 | `--full` | + `cargo nextest run --workspace` | ~10–25 min |
@@ -71,7 +71,7 @@ running.
 Pick one of the following installers. All result in `act.exe` on `PATH`.
 
 | Method | Command | Notes |
-|--------|---------|-------|
+| -------- | --------- | ------- |
 | **WinGet** (recommended — ships with Windows 11) | `winget install nektos.act` | Auto-updates via `winget upgrade nektos.act`. |
 | **Scoop** | `scoop install act` | Adds to user PATH; `scoop update act` to upgrade. |
 | **Chocolatey** | `choco install act-cli` | Run as Administrator. |
@@ -100,7 +100,7 @@ the flag directly to `act` and skip the rc default).
 #### macOS / Linux
 
 | Method | Command |
-|--------|---------|
+| -------- | --------- |
 | **Homebrew** (macOS, Linux with Homebrew) | `brew install act` |
 | **install.sh** (Linux) | `curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh \| sudo bash` |
 | **GitHub CLI extension** (any OS) | `gh extension install nektos/gh-act` |
@@ -108,7 +108,7 @@ the flag directly to `act` and skip the rc default).
 ### Common `--act` failures and fixes
 
 | Symptom | Cause | Fix |
-|--------|-------|-----|
+| -------- | ------- | ----- |
 | `act: command not found` | Not on PATH and no `gh act` extension. | Install via the table above. |
 | `Cannot connect to the Docker daemon` | Docker Desktop / `dockerd` not running. | Start Docker Desktop (Windows/macOS) or `sudo systemctl start docker` (Linux). |
 | `unable to find image 'catthehacker/...': pull denied` | Network or rate-limit. | `docker login` (anon pull is rate-limited) or pre-pull the image. |

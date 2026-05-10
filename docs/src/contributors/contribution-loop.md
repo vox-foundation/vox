@@ -16,7 +16,7 @@ Every quality gate in this repository has two jobs: (1) keep the codebase sound,
 
 ## The shipped loop (today)
 
-```
+```text
 ① WRITE
   .vox files, Rust code, golden examples
   │
@@ -47,7 +47,7 @@ contributions with stubs, hollow functions, or parse failures become
 To land in the positive training pool, a `.vox` file or Rust change must:
 
 | Check | Command | Threshold |
-|---|---|---|
+| --- | --- | --- |
 | Zero stubs and hollow fns | `vox stub-check --path <dir>` | No `Error` findings |
 | Compiler clean | `cargo check -p <crate>` | Zero errors |
 | Tests present and passing | `cargo test -p <crate>` | Green |
@@ -86,7 +86,7 @@ for "implementation complete" adjacent to `unimplemented!()`.
 
 The highest-signal contribution you can make to MENS is a well-formed golden example that follows @test-first (see §@test-first for golden examples above):
 
-```
+```text
 examples/golden/<capability>.vox
 ```
 
@@ -158,6 +158,7 @@ Sessions that trigger multiple replans auto-ingest as negative examples.
 
 **GRPO reward shaping (Wave 9):** Instead of SFT-only training, the model will
 be scored on three signals per generated candidate:
+
 - `r_syntax` — parse passes (0/1)
 - `r_test` — `@test` block pass rate
 - `r_coverage` — AST construct richness
@@ -171,4 +172,3 @@ coverage inside `.vox` files a first-class quality signal.
 - [Vox source → MENS pipeline SSOT](../archive/research-2026-q1/vox-source-to-mens-pipeline-ssot.md) — authoritative technical crosswalk
 - [Mens native training SSOT](../reference/mens-training.md) — training pipeline reference
 - [AI agent panic and shortcut pathology](../archive/research-2026-q1/research-ai-panic-shortcuts-2026.md) — why shortcuts harm the corpus
-

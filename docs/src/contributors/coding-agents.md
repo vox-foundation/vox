@@ -24,7 +24,7 @@ Quick-reference for AI agents operating on the Vox codebase. Deep rationale live
 ## Structural limits (enforced by TOESTUB, fail CI)
 
 | Limit | Value | Rule ID |
-|---|---|---|
+| --- | --- | --- |
 | Max file length (non-blank lines) | 500 | `arch/god_object` |
 | Max methods per struct/impl | 12 | `arch/god_object` |
 | Max files per directory | 20 | `arch/sprawl` |
@@ -69,6 +69,7 @@ Full 9-tier model: [`vox_agentic_loop_and_mens_plan.md`](../archive/research-202
 When assigning a task to an AI agent — or starting a task yourself — express the requirement as a **failing test before any implementation brief**. This is the most unambiguous spec format available:
 
 **For Rust changes:**
+
 ```rust
 #[test]
 fn share_tunnel_url_includes_port() {
@@ -79,6 +80,7 @@ fn share_tunnel_url_includes_port() {
 ```
 
 **For Vox golden examples:**
+
 ```vox
 // vox:skip
 @test
@@ -90,6 +92,7 @@ fn greet_returns_full_name() {
 ```
 
 Paste the failing test as the first content of any implementation request. Benefits:
+
 - Eliminates ambiguity about inputs, outputs, and edge cases.
 - Acts as an automated linter on AI-generated output — code that doesn't pass the test is wrong, regardless of how plausible it looks.
 - Keeps the agent in a verifiable loop: write → run → diagnose → fix.
@@ -150,7 +153,7 @@ Research: [AI agent panic and shortcut pathology](../archive/research-2026-q1/re
 ## Key SSOTs
 
 | Need | SSOT |
-|---|---|
+| --- | --- |
 | Secrets / credentials | [Secrets SSOT](../reference/secrets-ssot.md) |
 | CLI command additions | [CLI design rules SSOT](../archive/research-2026-q1/cli-design-rules-ssot.md) |
 | Retired symbols / crates | [AGENTS.md §Retired Surfaces](../../../AGENTS.md) |
@@ -162,4 +165,3 @@ Research: [AI agent panic and shortcut pathology](../archive/research-2026-q1/re
 ## Enforcement
 
 Operations are checked by `AGENTS.md` + CI. Prefer decomposition over shell cleverness. When in doubt, read the SSOT.
-

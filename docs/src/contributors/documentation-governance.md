@@ -179,4 +179,3 @@ Before committing documentation to the repository, verify the following constrai
 3. **Status marker**: Use `status` only when needed (`current`, `experimental`, `legacy`, `research`, `roadmap`, `deprecated`).
 4. **Terminology**: Use established nomenclature (Codex vs Arca, Mens vs Populi, Islands vs Components).
 5. **Navigation integrity**: If creating a user-facing document, verify `SUMMARY.md` is updated and passes `vox-doc-pipeline --check`.
-
