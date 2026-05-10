@@ -478,6 +478,15 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
         });
     }
 
+    // P1-T5: Workflow determinism check — forbid time.now and random.* in workflow bodies.
+    for decl in &module.declarations {
+        if let Decl::Workflow(w) = decl {
+            for stmt in &w.body {
+                check_workflow_stmt_determinism(stmt, &w.name, &mut diags);
+            }
+        }
+    }
+
     // P1-T3: @remote param serializability check.
     for decl in &module.declarations {
         visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
@@ -570,6 +579,177 @@ fn check_durable_promise_arity(te: &TypeExpr, diags: &mut Vec<Diagnostic>) {
                 ast_node_kind: None,
             });
         }
+        _ => {}
+    }
+}
+
+/// Walk a workflow statement and flag non-deterministic calls.
+fn check_workflow_stmt_determinism(stmt: &Stmt, wf_name: &str, diags: &mut Vec<Diagnostic>) {
+    match stmt {
+        Stmt::Let { value, .. } => {
+            check_workflow_expr_determinism(value, wf_name, diags);
+        }
+        Stmt::Return { value: Some(v), .. } => {
+            check_workflow_expr_determinism(v, wf_name, diags);
+        }
+        Stmt::Return { value: None, .. } => {}
+        Stmt::Assign { value, .. } => {
+            check_workflow_expr_determinism(value, wf_name, diags);
+        }
+        Stmt::Expr { expr, .. } => {
+            check_workflow_expr_determinism(expr, wf_name, diags);
+        }
+        Stmt::While { condition, body, .. } => {
+            check_workflow_expr_determinism(condition, wf_name, diags);
+            for s in body {
+                check_workflow_stmt_determinism(s, wf_name, diags);
+            }
+        }
+        Stmt::Loop { body, .. } => {
+            for s in body {
+                check_workflow_stmt_determinism(s, wf_name, diags);
+            }
+        }
+        Stmt::Break { .. } | Stmt::Continue { .. } => {}
+    }
+}
+
+/// The set of forbidden non-deterministic call patterns in workflow bodies.
+/// Each entry is `(receiver_name, method_name_or_wildcard)`.
+const NON_DETERMINISTIC_CALLS: &[(&str, Option<&str>)] = &[
+    ("time", Some("now")),
+    ("random", None), // any method on `random`
+];
+
+fn is_non_deterministic_call(object_name: &str, method_name: &str) -> bool {
+    for &(receiver, method) in NON_DETERMINISTIC_CALLS {
+        if object_name == receiver {
+            match method {
+                Some(m) if method_name == m => return true,
+                None => return true,
+                _ => {}
+            }
+        }
+    }
+    false
+}
+
+fn check_workflow_expr_determinism(expr: &Expr, wf_name: &str, diags: &mut Vec<Diagnostic>) {
+    match expr {
+        Expr::MethodCall {
+            object,
+            method,
+            args,
+            span,
+        } => {
+            if let Expr::Ident { name: obj_name, .. } = object.as_ref() {
+                if is_non_deterministic_call(obj_name, method) {
+                    diags.push(Diagnostic {
+                        message: format!(
+                            "workflow `{wf_name}`: call to `{obj_name}.{method}()` is \
+                             non-deterministic and will break replay. Use `side_effect {{ }}` \
+                             or move the call into an `activity`."
+                        ),
+                        span: *span,
+                        severity: TypeckSeverity::Error,
+                        expected_type: None,
+                        found_type: None,
+                        context: None,
+                        suggestions: vec![
+                            "Wrap the call in `activity { … }` or `side_effect { … }`.".into(),
+                        ],
+                        category: DiagnosticCategory::Typecheck,
+                        code: Some("vox/workflow/non-deterministic-call".into()),
+                        fixes: vec![],
+                        line_col: None,
+                        missing_cases: vec![],
+                        ast_node_kind: None,
+                    });
+                }
+            }
+            // Recurse into the receiver and args regardless.
+            check_workflow_expr_determinism(object, wf_name, diags);
+            for arg in args {
+                check_workflow_expr_determinism(&arg.value, wf_name, diags);
+            }
+        }
+        Expr::Call { callee, args, .. } => {
+            check_workflow_expr_determinism(callee, wf_name, diags);
+            for arg in args {
+                check_workflow_expr_determinism(&arg.value, wf_name, diags);
+            }
+        }
+        Expr::Block { stmts, .. } => {
+            for s in stmts {
+                check_workflow_stmt_determinism(s, wf_name, diags);
+            }
+        }
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
+            check_workflow_expr_determinism(condition, wf_name, diags);
+            for s in then_body {
+                check_workflow_stmt_determinism(s, wf_name, diags);
+            }
+            if let Some(body) = else_body {
+                for s in body {
+                    check_workflow_stmt_determinism(s, wf_name, diags);
+                }
+            }
+        }
+        Expr::Binary { left, right, .. } => {
+            check_workflow_expr_determinism(left, wf_name, diags);
+            check_workflow_expr_determinism(right, wf_name, diags);
+        }
+        Expr::Unary { operand, .. } => {
+            check_workflow_expr_determinism(operand, wf_name, diags);
+        }
+        Expr::FieldAccess { object, .. } => {
+            check_workflow_expr_determinism(object, wf_name, diags);
+        }
+        Expr::Match { subject, arms, .. } => {
+            check_workflow_expr_determinism(subject, wf_name, diags);
+            for arm in arms {
+                check_workflow_expr_determinism(&arm.body, wf_name, diags);
+            }
+        }
+        Expr::For { iterable, body, .. } => {
+            check_workflow_expr_determinism(iterable, wf_name, diags);
+            check_workflow_expr_determinism(body, wf_name, diags);
+        }
+        Expr::Lambda { body, .. } => {
+            check_workflow_expr_determinism(body, wf_name, diags);
+        }
+        Expr::Pipe { left, right, .. } => {
+            check_workflow_expr_determinism(left, wf_name, diags);
+            check_workflow_expr_determinism(right, wf_name, diags);
+        }
+        Expr::ListLit { elements, .. } => {
+            for item in elements {
+                check_workflow_expr_determinism(item, wf_name, diags);
+            }
+        }
+        Expr::TupleLit { elements, .. } => {
+            for item in elements {
+                check_workflow_expr_determinism(item, wf_name, diags);
+            }
+        }
+        Expr::ObjectLit { fields, .. } => {
+            for (_, v) in fields {
+                check_workflow_expr_determinism(v, wf_name, diags);
+            }
+        }
+        // Terminal / irreducible — nothing to recurse into.
+        Expr::IntLit { .. }
+        | Expr::FloatLit { .. }
+        | Expr::StringLit { .. }
+        | Expr::BoolLit { .. }
+        | Expr::DecimalLit { .. }
+        | Expr::Ident { .. } => {}
+        // Remaining variants — don't recurse (safe to skip for MVP).
         _ => {}
     }
 }
