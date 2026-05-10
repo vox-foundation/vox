@@ -25,4 +25,9 @@ pub struct WorkerDonationPolicy {
     pub denied_users: Option<Vec<String>>,
     /// Optional list of federated mesh networks (scope IDs) to explicitly allow.
     pub allowed_mesh_networks: Option<Vec<String>>,
+    /// If `true`, this node is willing to accept workloads marked as handling
+    /// sensitive data (e.g. PII, health records). Defaults to `false` for
+    /// backwards compatibility with serialized policies that lack this field.
+    #[serde(default)]
+    pub accept_sensitive_workloads: bool,
 }
