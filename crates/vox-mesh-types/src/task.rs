@@ -13,13 +13,34 @@ pub enum TaskKind {
 
 impl std::fmt::Display for TaskKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl TaskKind {
+    /// Return the canonical snake_case string for this task kind.
+    pub fn as_str(&self) -> &'static str {
         match self {
-            Self::TextInfer => write!(f, "text_infer"),
-            Self::ImageGen => write!(f, "image_gen"),
-            Self::SpeechTranscribe => write!(f, "speech_transcribe"),
-            Self::TrainQLoRA => write!(f, "train_qlora"),
-            Self::Embed => write!(f, "embed"),
-            Self::VoxScript => write!(f, "vox_script"),
+            Self::TextInfer => "text_infer",
+            Self::ImageGen => "image_gen",
+            Self::SpeechTranscribe => "speech_transcribe",
+            Self::TrainQLoRA => "train_qlora",
+            Self::Embed => "embed",
+            Self::VoxScript => "vox_script",
+        }
+    }
+
+    /// Parse a task kind from a loose string, falling back to `VoxScript` for
+    /// unknown values. This is used by the policy file parser for forward
+    /// compatibility with future task kinds stored as plain strings.
+    pub fn from_str_loose(s: &str) -> Self {
+        match s {
+            "text_infer" => Self::TextInfer,
+            "image_gen" => Self::ImageGen,
+            "speech_transcribe" => Self::SpeechTranscribe,
+            "train_qlora" => Self::TrainQLoRA,
+            "embed" => Self::Embed,
+            "vox_script" | _ => Self::VoxScript,
         }
     }
 }

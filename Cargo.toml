@@ -94,6 +94,7 @@ vox-gamify                 = { path = "crates/vox-gamify" }
 vox-populi                = { path = "crates/vox-populi" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
+vox-mesh-policy           = { path = "crates/vox-mesh-policy" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }

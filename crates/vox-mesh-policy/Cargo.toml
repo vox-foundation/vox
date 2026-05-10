@@ -1,0 +1,19 @@
+[package]
+name = "vox-mesh-policy"
+description = "Parse, edit, and pretty-print donations.vox policy files."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+vox-compiler = { path = "../vox-compiler" }
+vox-mesh-types = { path = "../vox-mesh-types" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
