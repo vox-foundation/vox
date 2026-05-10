@@ -12699,6 +12699,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-wire-format-validator"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+]
+
+[[package]]
 name = "vox-workflow-runtime"
 version = "0.5.0"
 dependencies = [
