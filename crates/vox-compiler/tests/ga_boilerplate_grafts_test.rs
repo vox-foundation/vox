@@ -318,3 +318,95 @@ fn confirm_fn() to int { return 1 }
         ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
     );
 }
+
+// ── GA-09a — Routes-as-types (typed href) ─────────────────────────────────
+
+#[test]
+fn routes_block_produces_route_ids() {
+    let src = r#"
+routes {
+    "/" to Home
+    "/users/:id" to UserProfile
+}
+fn dummy() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let hir = vox_compiler::hir::lower::lower_module(&m);
+    assert_eq!(
+        hir.route_ids.len(),
+        2,
+        "expected 2 route_ids from routes block; got {:?}",
+        hir.route_ids.iter().map(|r| &r.name).collect::<Vec<_>>()
+    );
+    let home = hir.route_ids.iter().find(|r| r.name == "Home").expect("Home route");
+    assert_eq!(home.url_pattern, "/");
+    assert!(home.params.is_empty());
+    assert_eq!(home.analytics_slug, "home");
+
+    let profile = hir.route_ids.iter().find(|r| r.name == "UserProfile").expect("UserProfile route");
+    assert_eq!(profile.url_pattern, "/users/:id");
+    assert_eq!(profile.params, vec![("id".to_string(), "string".to_string())]);
+    assert_eq!(profile.analytics_slug, "user_profile");
+}
+
+#[test]
+fn single_route_produces_one_route_id() {
+    let src = r#"
+routes {
+    "/" to Home
+}
+fn dummy() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse");
+    let hir = vox_compiler::hir::lower::lower_module(&m);
+    assert!(!hir.route_ids.is_empty(), "should have at least one route_id");
+    assert_eq!(hir.route_ids[0].analytics_slug, "home");
+}
+
+// ── GA-21 — @ai structured output validation ──────────────────────────────
+
+#[test]
+fn ai_structured_output_with_undeclared_type_warns() {
+    let src = r#"
+@ai(model = "gpt-4o", structured_output = TripPlan)
+fn plan_trip() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/ai/return-shape-not-codec'd"));
+    assert!(
+        hit.is_some(),
+        "expected vox/ai/return-shape-not-codec'd for undeclared structured_output type; got {:?}",
+        ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn ai_without_structured_output_has_no_codec_diagnostic() {
+    let src = r#"
+@ai(model = "gpt-4o")
+fn chat() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    assert!(
+        !ds.iter().any(|d| d.code.as_deref() == Some("vox/ai/return-shape-not-codec'd")),
+        "@ai without structured_output should not warn"
+    );
+}
+
+#[test]
+fn ai_parses_max_iterations_arg() {
+    let src = r#"
+@ai(model = "gpt-4o", structured_output = Plan, max_iterations = 5)
+fn plan() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed for @ai with max_iterations");
+    let func = m.declarations.iter().find_map(|d| {
+        if let vox_compiler::ast::decl::Decl::Function(f) = d { Some(f) } else { None }
+    });
+    let f = func.expect("should have parsed function");
+    assert!(f.is_llm, "@ai should set is_llm");
+    assert_eq!(f.ai_max_iterations, 5, "max_iterations should be 5");
+    assert_eq!(f.ai_structured_output_type.as_deref(), Some("Plan"));
+}

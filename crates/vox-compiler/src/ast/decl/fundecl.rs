@@ -59,6 +59,12 @@ pub struct FnDecl {
     pub is_llm: bool,
     /// Optional specific LLM model to use for implementation.
     pub llm_model: Option<String>,
+    /// `structured_output: TypeName` arg from `@ai(structured_output = TypeName)` (GA-21).
+    #[serde(default)]
+    pub ai_structured_output_type: Option<String>,
+    /// `max_iterations: N` arg from `@ai(max_iterations = N)` (GA-21). Default 3.
+    #[serde(default)]
+    pub ai_max_iterations: u32,
     /// Whether the function serves as a page layout.
     /// Whether the function is public.
     pub is_pub: bool,

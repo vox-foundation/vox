@@ -97,6 +97,17 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
             }
         }
     }
+    // GA-21: @ai structured-output codec check — reject @ai fns whose return type has no codec.
+    let declared_type_names: std::collections::HashSet<&str> =
+        hir.types.iter().map(|t| t.name.as_str()).collect();
+    for f in &hir.functions {
+        if let Some(ao) = &f.ai_structured_output {
+            let has_codec = declared_type_names.contains(ao.return_type.as_str());
+            if let Some(d) = boilerplate_grafts::check_ai_return_shape(ao, has_codec) {
+                diags.push(d);
+            }
+        }
+    }
     diags
 }
 

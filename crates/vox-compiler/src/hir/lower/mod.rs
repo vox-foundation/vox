@@ -285,6 +285,10 @@ impl LowerCtx {
                 }
                 Decl::Routes(r) => {
                     hir.client_routes.push(r.clone());
+                    // GA-09a: derive typed RouteId from each route entry.
+                    for entry in &r.entries {
+                        hir.route_ids.push(route_entry_to_route_id(entry));
+                    }
                 }
                 Decl::Form(f) => {
                     hir.forms.push(self.lower_form(f));
@@ -503,6 +507,40 @@ impl LowerCtx {
 
         hir
     }
+}
+
+/// GA-09a: Derive a typed `HirRouteId` from a single `RouteEntry`.
+///
+/// Extracts `:param` segments from the path and derives the analytics slug
+/// from the component name via snake_case conversion.
+fn route_entry_to_route_id(
+    entry: &crate::ast::decl::ui::RouteEntry,
+) -> crate::hir::nodes::boilerplate_grafts::HirRouteId {
+    let params: Vec<(String, String)> = entry
+        .path
+        .split('/')
+        .filter(|seg| seg.starts_with(':'))
+        .map(|seg| (seg[1..].to_string(), "string".to_string()))
+        .collect();
+    let analytics_slug = pascal_to_snake(&entry.component_name);
+    crate::hir::nodes::boilerplate_grafts::HirRouteId {
+        name: entry.component_name.clone(),
+        url_pattern: entry.path.clone(),
+        params,
+        analytics_slug,
+        span: entry.span,
+    }
+}
+
+fn pascal_to_snake(s: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() && i > 0 {
+            out.push('_');
+        }
+        out.push(c.to_ascii_lowercase());
+    }
+    out
 }
 
 #[cfg(test)]

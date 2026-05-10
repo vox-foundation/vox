@@ -104,6 +104,11 @@ pub struct HirModule {
     #[serde(default)]
     pub token_decls: Vec<HirTokensDecl>,
 
+    /// Typed route ids derived from `routes { … }` blocks (GA-09a).
+    /// Each entry drives `emit_route_id_module()` in codegen-ts.
+    #[serde(default)]
+    pub route_ids: Vec<crate::hir::nodes::boilerplate_grafts::HirRouteId>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 }
@@ -304,6 +309,10 @@ pub struct HirFn {
     /// Optional specific LLM model to use for implementation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llm_model: Option<String>,
+    /// Structured-output contract for `@ai` functions (GA-21).
+    /// When `Some`, `check_ai_return_shape()` verifies the return type has a wire codec.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_structured_output: Option<crate::hir::nodes::boilerplate_grafts::HirAiStructuredOutput>,
     /// `@deprecated` on the source `fn`.
     #[serde(default)]
     pub is_deprecated: bool,

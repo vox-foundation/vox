@@ -898,6 +898,8 @@ impl Parser {
         let mut is_deprecated = false;
         let mut is_llm = false;
         let mut llm_model = None;
+        let mut ai_structured_output_type: Option<String> = None;
+        let mut ai_max_iterations: u32 = 3;
         let mut decorator_effects: Vec<crate::ast::decl::effect::EffectAnnotation> = Vec::new();
         let mut webhook: Option<crate::ast::decl::webhook::AstWebhookSpec> = None;
         let mut cors_spec: Option<crate::ast::decl::http_decorators::AstCorsSpec> = None;
@@ -959,15 +961,42 @@ impl Parser {
                     self.advance();
                     is_llm = true;
                     if self.eat(&Token::LParen) {
-                        if let Token::Ident(key) = self.peek().clone()
-                            && key == "model"
-                        {
-                            self.advance();
-                            self.expect(&Token::Eq)?;
-                            if let Token::StringLit(m) = self.peek().clone() {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                let key = key.clone();
                                 self.advance();
-                                llm_model = Some(m);
+                                self.eat(&Token::Eq);
+                                match key.as_str() {
+                                    "model" => {
+                                        if let Token::StringLit(m) = self.peek().clone() {
+                                            self.advance();
+                                            llm_model = Some(m);
+                                        }
+                                    }
+                                    "structured_output" => {
+                                        let ty_opt = match self.peek().clone() {
+                                            Token::Ident(ty) | Token::TypeIdent(ty) => Some(ty),
+                                            _ => None,
+                                        };
+                                        if let Some(ty) = ty_opt {
+                                            self.advance();
+                                            ai_structured_output_type = Some(ty);
+                                        }
+                                    }
+                                    "max_iterations" => {
+                                        if let Token::IntLit(n) = self.peek().clone() {
+                                            self.advance();
+                                            if n > 0 { ai_max_iterations = n as u32; }
+                                        }
+                                    }
+                                    _ => { self.advance(); }
+                                }
+                            } else {
+                                self.advance();
                             }
+                            if !self.eat(&Token::Comma) { break; }
                         }
                         self.expect(&Token::RParen)?;
                     }
@@ -1295,6 +1324,8 @@ impl Parser {
             is_reactive,
             is_llm,
             llm_model,
+            ai_structured_output_type,
+            ai_max_iterations,
             is_traced: false,
             is_pub,
             auth_provider: None,
@@ -1364,6 +1395,8 @@ impl Parser {
             is_traced: false,
             is_llm: false,
             llm_model: None,
+            ai_structured_output_type: None,
+            ai_max_iterations: 3,
             is_pub: true,
             auth_provider: None,
             roles: vec![],
