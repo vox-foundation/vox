@@ -1,4 +1,9 @@
 //! HTTP relay for A2A over Populi mesh transport.
+//!
+//! P0-T3: every path that falls back to local execution after a failed relay
+//! must call [`gate_local_fallback`] first. This enforces the W1 invariant —
+//! a remote node holding an unexpired lease for the same scope blocks the
+//! local fallback rather than duplicating execution.
 
 use crate::types::{A2AMessageType, AgentId, CompletionAttestation};
 
@@ -6,6 +11,42 @@ use super::super::envelope::{
     REMOTE_TASK_CANCEL_TYPE, REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE, RemoteTaskCancel,
     RemoteTaskEnvelope, RemoteTaskResult,
 };
+
+/// Gate a local-fallback decision against the `mesh_exec_leases` table.
+///
+/// Call this after a mesh relay fails, before falling through to local execution.
+/// Returns `Ok(())` when this node may proceed; returns `Err` when a remote node
+/// holds an unexpired lease for `scope_key` (W1 guard, ADR-017).
+/// Fails closed on DB error — returns `Err` rather than silently permitting.
+pub async fn gate_local_fallback(
+    db: &vox_db::VoxDb,
+    scope_key: &str,
+    self_node_id: &str,
+) -> Result<(), super::lease_gate::LeaseGateError> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    match super::lease_gate::check_before_local_fallback(db, scope_key, self_node_id, now).await {
+        Ok(()) => Ok(()),
+        Err(super::lease_gate::LeaseGateError::HeldByRemote { holder_node_id, .. }) => {
+            tracing::warn!(
+                scope_key = scope_key,
+                holder = %holder_node_id,
+                "gate_local_fallback: remote lease holder owns scope; refusing duplicate-execute"
+            );
+            Err(super::lease_gate::LeaseGateError::HeldByRemote {
+                scope_key: scope_key.to_string(),
+                holder_node_id,
+                expires_at: 0,
+            })
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "lease_gate db error; failing closed");
+            Err(e)
+        }
+    }
+}
 
 fn fnv1a64(parts: &[&str]) -> u64 {
     let mut h: u64 = 0xcbf29ce484222325;
