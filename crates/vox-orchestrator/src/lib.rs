@@ -226,6 +226,9 @@ pub mod validation;
 /// Aggregate multi-tier verification signals.
 pub mod victory;
 
+/// In-process `SkillRuntime` implementation (P0-T7).
+pub mod skill_runtime_inproc;
+
 /// Tokio scheduler bridge for running tasks against a live `crate::Orchestrator`.
 #[cfg(feature = "runtime")]
 pub mod runtime;

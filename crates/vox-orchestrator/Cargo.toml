@@ -93,6 +93,7 @@ aes-gcm = { version = "0.10.3", optional = true }
 rand.workspace = true
 base64.workspace = true
 vox-secrets.workspace = true
+vox-skill-runtime = { workspace = true }
 vox-telemetry.workspace = true
 vox-mesh-types.workspace = true
 blake3.workspace = true
@@ -121,6 +122,9 @@ axum = { workspace = true, features = ["tokio", "http1", "json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
 tower = { version = "0.5", features = ["util"] }
+
+[[test]]
+name = "skill_runtime_inproc"
 
 [lints.rust]
 unsafe_code = "warn"
