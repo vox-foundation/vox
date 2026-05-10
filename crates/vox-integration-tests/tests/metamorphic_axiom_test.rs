@@ -35,6 +35,7 @@ fn prop_sort_idempotent(list: list[int]) {
             llm_model: None,
             ai_structured_output: None,
             embed: None,
+            is_remote: false,
             is_deprecated: false,
             schedule_interval: None,
             durability: None,
@@ -42,6 +43,7 @@ fn prop_sort_idempotent(list: list[int]) {
             postconditions: vec![],
             capabilities: vec![],
             ts_extern_module: None,
+            generated_hash: None,
             span: vox_compiler::ast::Span::new(0, 0),
         },
     };
