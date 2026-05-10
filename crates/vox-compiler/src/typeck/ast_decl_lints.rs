@@ -462,5 +462,67 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
         });
     }
 
+    // P1-T1: DurablePromise arity check — bare `DurablePromise` without a type argument.
+    for decl in &module.declarations {
+        visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
+            // Check return type.
+            if let Some(ret) = &f.return_type {
+                check_durable_promise_arity(ret, &mut diags);
+            }
+            // Check param type annotations.
+            for p in &f.params {
+                if let Some(ann) = &p.type_ann {
+                    check_durable_promise_arity(ann, &mut diags);
+                }
+            }
+        });
+    }
+
     diags
+}
+
+/// Emit `vox/types/durable-promise-arity` when `DurablePromise` appears without a type argument.
+fn check_durable_promise_arity(te: &TypeExpr, diags: &mut Vec<Diagnostic>) {
+    match te {
+        TypeExpr::Named { name, span } if name == "DurablePromise" => {
+            diags.push(Diagnostic {
+                message: "type `DurablePromise` expects 1 type argument, found 0.\n\
+                          help: write `DurablePromise[T]` where T is the awaited value type."
+                    .to_string(),
+                span: *span,
+                severity: TypeckSeverity::Error,
+                expected_type: Some("DurablePromise[T]".into()),
+                found_type: Some("DurablePromise".into()),
+                context: None,
+                suggestions: vec!["Add a type argument: `DurablePromise[int]`, `DurablePromise[str]`, etc.".into()],
+                category: DiagnosticCategory::Typecheck,
+                code: Some("vox/types/durable-promise-arity".into()),
+                fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+        TypeExpr::Generic { name, args, span } if name == "DurablePromise" && args.len() != 1 => {
+            diags.push(Diagnostic {
+                message: format!(
+                    "type `DurablePromise` expects 1 type argument, found {}.",
+                    args.len()
+                ),
+                span: *span,
+                severity: TypeckSeverity::Error,
+                expected_type: Some("DurablePromise[T]".into()),
+                found_type: Some(format!("DurablePromise[{} args]", args.len())),
+                context: None,
+                suggestions: vec!["Write `DurablePromise[T]` with exactly one type argument.".into()],
+                category: DiagnosticCategory::Typecheck,
+                code: Some("vox/types/durable-promise-arity".into()),
+                fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+        _ => {}
+    }
 }
