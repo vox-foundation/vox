@@ -143,7 +143,8 @@ fn collect_query_plans_expr(
         | HirExpr::DecimalLit(_, _)
         | HirExpr::StringLit(_, _)
         | HirExpr::BoolLit(_, _)
-        | HirExpr::Ident(_, _) => {}
+        | HirExpr::Ident(_, _)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 

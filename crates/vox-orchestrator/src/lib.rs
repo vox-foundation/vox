@@ -59,6 +59,8 @@ pub mod routing;
 
 /// Agent-to-agent messaging types and helpers.
 pub mod a2a;
+/// Durable orchestrator state logs (drain records, etc.).
+pub mod drain_oplog;
 /// File and task affinity groups for routing work to the right agent.
 pub use vox_orchestrator_queue::affinity;
 /// Developer attention budget tracking — treats pilot attention as a first-class resource (Phase 15).
