@@ -291,6 +291,7 @@ impl Parser {
                 auth_provider: None,
                 roles: vec![],
                 cors: None,
+                webhook: None,
                 preconditions: vec![],
                 postconditions: vec![],
                 invariants: vec![],

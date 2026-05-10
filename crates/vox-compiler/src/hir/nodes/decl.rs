@@ -396,6 +396,9 @@ pub struct HirEndpointFn {
     /// Declared capability effects from `uses net, db, mcp(...)` (TASK-4.2).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: super::effect::HirEffectSet,
+    /// `@webhook(provider:, secret:, replay_window_secs:)` decorator (GA-16).
+    #[serde(default)]
+    pub webhook: Option<super::boilerplate_grafts::HirWebhookDecl>,
     /// Span covering the declaration.
     pub span: Span,
 }

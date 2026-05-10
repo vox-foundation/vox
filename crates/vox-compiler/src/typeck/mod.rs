@@ -78,6 +78,12 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
     diags.extend(semantic_ui::check_semantic_ui(&collect_semantic_ui_callsites(hir)));
     // GA-01: Async[T] view exhaustiveness (all four arms required).
     diags.extend(collect_async_views(hir).into_iter().filter_map(|v| async_exhaustiveness::check_async_view(&v)));
+    // GA-16: @webhook validation per endpoint (replay window + secret var).
+    for ep in &hir.endpoint_fns {
+        if let Some(w) = &ep.webhook {
+            diags.extend(boilerplate_grafts::check_webhook_decl(w));
+        }
+    }
     diags
 }
 

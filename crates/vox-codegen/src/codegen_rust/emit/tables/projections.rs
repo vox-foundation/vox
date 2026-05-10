@@ -102,6 +102,7 @@ mod tests {
             route_path: "/test".to_string(),
             is_pure: false,
             effects: vec![],
+            webhook: None,
             span,
         });
 

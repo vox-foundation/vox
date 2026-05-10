@@ -577,6 +577,7 @@ fn caller() to str { fetch() }",
             route_path: format!("/api/query/{name}"),
             is_pure,
             effects,
+            webhook: None,
             span: dummy_span(),
         }
     }

@@ -899,6 +899,7 @@ impl Parser {
         let mut is_llm = false;
         let mut llm_model = None;
         let mut decorator_effects: Vec<crate::ast::decl::effect::EffectAnnotation> = Vec::new();
+        let mut webhook: Option<crate::ast::decl::webhook::AstWebhookSpec> = None;
 
         loop {
             self.skip_newlines();
@@ -995,12 +996,71 @@ impl Parser {
                         let _ = self.expect(&Token::RParen);
                     }
                 }
+                Token::AtWebhook => {
+                    let wh_start = self.span();
+                    self.advance();
+                    let mut provider = crate::ast::decl::webhook::AstWebhookProvider::Custom { secret_var: String::new() };
+                    let mut replay_window_secs: u64 = 300;
+                    let mut idempotent = true;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                let _ = self.expect(&Token::Colon);
+                                match key.as_str() {
+                                    "provider" => {
+                                        if let Token::Ident(v) = self.peek().clone() {
+                                            self.advance();
+                                            match v.as_str() {
+                                                "stripe" => provider = crate::ast::decl::webhook::AstWebhookProvider::Stripe,
+                                                "github" => provider = crate::ast::decl::webhook::AstWebhookProvider::Github,
+                                                "slack" => provider = crate::ast::decl::webhook::AstWebhookProvider::Slack,
+                                                "custom" => {} // keep current Custom (secret_var possibly empty)
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+                                    "secret" => {
+                                        if let Token::StringLit(s) = self.peek().clone() {
+                                            self.advance();
+                                            provider = crate::ast::decl::webhook::AstWebhookProvider::Custom { secret_var: s };
+                                        }
+                                    }
+                                    "replay_window_secs" => {
+                                        if let Token::IntLit(n) = self.peek().clone() {
+                                            self.advance();
+                                            if n >= 0 { replay_window_secs = n as u64; }
+                                        }
+                                    }
+                                    "idempotent" => {
+                                        if let Token::Ident(v) = self.peek().clone() {
+                                            self.advance();
+                                            idempotent = v == "true";
+                                        }
+                                    }
+                                    _ => { self.advance(); }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) { break; }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                    webhook = Some(crate::ast::decl::webhook::AstWebhookSpec {
+                        provider,
+                        replay_window_secs,
+                        idempotent,
+                        span: wh_start.merge(self.span()),
+                    });
+                }
                 Token::AtAuth
                 | Token::AtCors
                 | Token::AtRateLimit
                 | Token::AtPii
                 | Token::AtEmbed
-                | Token::AtWebhook
                 | Token::AtOfflineCapable
                 | Token::AtCollaborative
                 | Token::AtLayer => {
@@ -1069,6 +1129,7 @@ impl Parser {
             auth_provider: None,
             roles: vec![],
             cors: None,
+            webhook,
             preconditions,
             postconditions,
             invariants,
@@ -1132,6 +1193,7 @@ impl Parser {
             auth_provider: None,
             roles: vec![],
             cors: None,
+            webhook: None,
             preconditions: vec![],
             postconditions: vec![],
             invariants: vec![],

@@ -71,6 +71,9 @@ pub struct FnDecl {
     pub roles: Vec<String>,
     /// Optional CORS policy configuration.
     pub cors: Option<String>,
+    /// `@webhook(provider:, secret:, replay_window_secs:)` decorator (GA-16).
+    #[serde(default)]
+    pub webhook: Option<super::webhook::AstWebhookSpec>,
     /// Precondition expressions from `@require(expr)` decorators.
     pub preconditions: Vec<Expr>,
     /// Postcondition expressions from `@ensure(expr)` decorators.

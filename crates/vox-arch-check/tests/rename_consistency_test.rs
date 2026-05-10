@@ -62,7 +62,7 @@ fn synthetic_violation_would_fail() {
         }}"#,
         pick
     );
-    let bad_registry = RenameRegistry::from_str(&bad_json).expect("parse bad registry");
+    let bad_registry = RenameRegistry::parse_json(&bad_json).expect("parse bad registry");
 
     let canonical_set: HashSet<&str> = canonical.iter().copied().collect();
 

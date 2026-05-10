@@ -173,6 +173,22 @@ impl LowerCtx {
                         }
                     };
                     let route_path = format!("{prefix}{}", lowered.name);
+                    let webhook = e.func.webhook.as_ref().map(|w| {
+                        use crate::ast::decl::webhook::AstWebhookProvider as A;
+                        use crate::hir::nodes::boilerplate_grafts::{HirWebhookDecl, WebhookProvider as H};
+                        let provider = match &w.provider {
+                            A::Stripe => H::Stripe,
+                            A::Github => H::Github,
+                            A::Slack => H::Slack,
+                            A::Custom { secret_var } => H::Custom { secret_var: secret_var.clone() },
+                        };
+                        HirWebhookDecl {
+                            provider,
+                            idempotent: w.idempotent,
+                            replay_window_secs: w.replay_window_secs,
+                            span: w.span,
+                        }
+                    });
                     hir.endpoint_fns.push(crate::hir::HirEndpointFn {
                         kind,
                         id: lowered.id,
@@ -187,6 +203,7 @@ impl LowerCtx {
                             .iter()
                             .filter_map(cap_to_effect_kind)
                             .collect(),
+                        webhook,
                         span: lowered.span,
                     });
                 }

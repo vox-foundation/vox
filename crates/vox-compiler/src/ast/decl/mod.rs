@@ -27,6 +27,8 @@ pub mod typedef;
 pub mod ui;
 /// Typed URL path declarations (`url Name { … }`).
 pub mod url;
+/// `@webhook(provider:, secret:, replay_window_secs:)` decorator AST (GA-16).
+pub mod webhook;
 
 pub use config::*;
 pub use db::*;

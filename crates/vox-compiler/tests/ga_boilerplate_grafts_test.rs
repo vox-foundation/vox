@@ -140,3 +140,76 @@ fn layer_fn() to int { return 3 }
     let result = parse(lex(src));
     assert!(result.is_ok(), "parse should succeed for multi-decorator functions; errors: {:?}", result.err());
 }
+
+// ── GA-16 — @webhook validation ───────────────────────────────────────────
+
+#[test]
+fn webhook_custom_without_secret_emits_diagnostic() {
+    // @webhook(provider: custom) on an endpoint must declare a secret env-var.
+    let src = r#"
+@endpoint(kind: server)
+@webhook(provider: custom)
+fn custom_hook() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/webhook/missing-secret-var"));
+    assert!(
+        hit.is_some(),
+        "expected vox/webhook/missing-secret-var; got {:?}",
+        ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn webhook_custom_with_secret_is_clean() {
+    let src = r#"
+@endpoint(kind: server)
+@webhook(provider: custom, secret: "WEBHOOK_SECRET")
+fn custom_hook() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/webhook/missing-secret-var"));
+    assert!(
+        hit.is_none(),
+        "@webhook with explicit secret should not trigger missing-secret-var; got {:?}",
+        ds.iter().map(|d| (d.code.as_deref(), &d.message)).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn webhook_replay_window_out_of_range_warns() {
+    // 4 seconds is below the recommended 5..=3600 range.
+    let src = r#"
+@endpoint(kind: server)
+@webhook(provider: stripe, replay_window_secs: 4)
+fn tight_hook() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/webhook/replay-window-out-of-range"));
+    assert!(
+        hit.is_some(),
+        "expected vox/webhook/replay-window-out-of-range for 4s window; got {:?}",
+        ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn webhook_stripe_default_window_is_clean() {
+    let src = r#"
+@endpoint(kind: server)
+@webhook(provider: stripe)
+fn stripe_hook() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    for code in ["vox/webhook/missing-secret-var", "vox/webhook/replay-window-out-of-range"] {
+        assert!(
+            !ds.iter().any(|d| d.code.as_deref() == Some(code)),
+            "did not expect {code}; got {:?}",
+            ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
+        );
+    }
+}
