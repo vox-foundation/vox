@@ -57,6 +57,7 @@ pub fn parse_source(src: &str, origin: &str) -> Result<WorkerDonationPolicy, Par
         allowed_users: None,
         denied_users: None,
         allowed_mesh_networks: None,
+        accept_sensitive_workloads: false,
     };
 
     for (lineno, raw) in src.lines().enumerate() {
