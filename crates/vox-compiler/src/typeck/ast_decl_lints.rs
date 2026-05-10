@@ -4,7 +4,7 @@ use crate::ast::decl::{Decl, FnDecl, Module, SearchIndexDecl, TableDecl};
 use crate::ast::expr::{Expr, StringPart};
 use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
-use crate::typeck::diagnostics::{codes, Diagnostic, DiagnosticCategory, TypeckSeverity};
+use crate::typeck::diagnostics::{codes, Diagnostic, DiagnosticCategory, DiagnosticFix, TypeckSeverity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
 
@@ -480,6 +480,20 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
         });
     }
 
+    // P1-T2: Deprecate Future[T] / Promise[T] — warn with DurablePromise[T] rewrite fix.
+    for decl in &module.declarations {
+        visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
+            if let Some(ret) = &f.return_type {
+                check_deprecated_type_aliases(ret, &mut diags);
+            }
+            for p in &f.params {
+                if let Some(ann) = &p.type_ann {
+                    check_deprecated_type_aliases(ann, &mut diags);
+                }
+            }
+        });
+    }
+
     // P1-T5: Workflow determinism check — forbid time.now and random.* in workflow bodies.
     for decl in &module.declarations {
         if let Decl::Workflow(w) = decl {
@@ -585,6 +599,100 @@ fn check_durable_promise_arity(te: &TypeExpr, diags: &mut Vec<Diagnostic>) {
                 category: DiagnosticCategory::Typecheck,
                 code: Some(codes::TYPES_DURABLE_PROMISE_ARITY.into()),
                 fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+        _ => {}
+    }
+}
+
+/// Render a `TypeExpr` as a Vox type string (for constructing fix replacements).
+fn type_expr_to_str(te: &TypeExpr) -> String {
+    match te {
+        TypeExpr::Named { name, .. } => name.clone(),
+        TypeExpr::Generic { name, args, .. } => {
+            let args_str: Vec<_> = args.iter().map(type_expr_to_str).collect();
+            format!("{}[{}]", name, args_str.join(", "))
+        }
+        TypeExpr::Function { params, return_type, .. } => {
+            let ps: Vec<_> = params.iter().map(type_expr_to_str).collect();
+            format!("fn({}) to {}", ps.join(", "), type_expr_to_str(return_type))
+        }
+        TypeExpr::Tuple { elements, .. } => {
+            let els: Vec<_> = elements.iter().map(type_expr_to_str).collect();
+            format!("({})", els.join(", "))
+        }
+        TypeExpr::Unit { .. } => "Unit".to_string(),
+        TypeExpr::Infer { .. } => "_".to_string(),
+        TypeExpr::Decimal { .. } => "decimal".to_string(),
+    }
+}
+
+/// Emit a deprecation warning when `Future[T]` or `Promise[T]` appears in a type position.
+///
+/// Both types are aliases for `DurablePromise[T]` during the v0.6 deprecation window.
+/// They will be removed in v0.7 (SSOT release-contract table).
+fn check_deprecated_type_aliases(te: &TypeExpr, diags: &mut Vec<Diagnostic>) {
+    match te {
+        TypeExpr::Named { name, span } if name == "Future" || name == "Promise" => {
+            let (code, old) = if name == "Future" {
+                (codes::TYPES_FUTURE_DEPRECATED, "Future")
+            } else {
+                (codes::TYPES_PROMISE_DEPRECATED, "Promise")
+            };
+            diags.push(Diagnostic {
+                message: format!(
+                    "type `{old}` is deprecated and will be removed in v0.7; \
+                     use `DurablePromise[T]` instead."
+                ),
+                span: *span,
+                severity: TypeckSeverity::Warning,
+                expected_type: Some("DurablePromise[T]".into()),
+                found_type: Some(old.into()),
+                context: None,
+                suggestions: vec![format!("Replace `{old}` with `DurablePromise[T]`.")],
+                category: DiagnosticCategory::Typecheck,
+                code: Some(code.into()),
+                fixes: vec![DiagnosticFix {
+                    label: format!("Replace `{old}` with `DurablePromise`"),
+                    span: *span,
+                    replacement: "DurablePromise".into(),
+                }],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+        TypeExpr::Generic { name, args, span } if name == "Future" || name == "Promise" => {
+            let (code, old) = if name == "Future" {
+                (codes::TYPES_FUTURE_DEPRECATED, "Future")
+            } else {
+                (codes::TYPES_PROMISE_DEPRECATED, "Promise")
+            };
+            let arg_str = args.first().map(type_expr_to_str).unwrap_or_else(|| "T".to_string());
+            let replacement = format!("DurablePromise[{}]", arg_str);
+            diags.push(Diagnostic {
+                message: format!(
+                    "type `{old}[T]` is deprecated and will be removed in v0.7; \
+                     use `DurablePromise[T]` instead."
+                ),
+                span: *span,
+                severity: TypeckSeverity::Warning,
+                expected_type: Some("DurablePromise[T]".into()),
+                found_type: Some(format!("{old}[T]")),
+                context: None,
+                suggestions: vec![format!(
+                    "Replace `{old}[{arg_str}]` with `DurablePromise[{arg_str}]`."
+                )],
+                category: DiagnosticCategory::Typecheck,
+                code: Some(code.into()),
+                fixes: vec![DiagnosticFix {
+                    label: format!("Replace `{old}[{arg_str}]` with `DurablePromise[{arg_str}]`"),
+                    span: *span,
+                    replacement,
+                }],
                 line_col: None,
                 missing_cases: vec![],
                 ast_node_kind: None,
