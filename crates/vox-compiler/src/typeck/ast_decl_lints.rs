@@ -4,7 +4,7 @@ use crate::ast::decl::{Decl, FnDecl, Module, SearchIndexDecl, TableDecl};
 use crate::ast::expr::{Expr, StringPart};
 use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
-use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
+use crate::typeck::diagnostics::{codes, Diagnostic, DiagnosticCategory, TypeckSeverity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
 
@@ -539,7 +539,7 @@ fn check_remote_param_serializable(
                 "Replace the function parameter with a serializable value or use a local closure instead.".into(),
             ],
             category: DiagnosticCategory::Typecheck,
-            code: Some("vox/remote/param-not-serializable".into()),
+            code: Some(codes::REMOTE_NON_SERIALIZABLE_PARAM.into()),
             fixes: vec![],
             line_col: None,
             missing_cases: vec![],
@@ -563,7 +563,7 @@ fn check_durable_promise_arity(te: &TypeExpr, diags: &mut Vec<Diagnostic>) {
                 context: None,
                 suggestions: vec!["Add a type argument: `DurablePromise[int]`, `DurablePromise[str]`, etc.".into()],
                 category: DiagnosticCategory::Typecheck,
-                code: Some("vox/types/durable-promise-arity".into()),
+                code: Some(codes::TYPES_DURABLE_PROMISE_ARITY.into()),
                 fixes: vec![],
                 line_col: None,
                 missing_cases: vec![],
@@ -583,7 +583,7 @@ fn check_durable_promise_arity(te: &TypeExpr, diags: &mut Vec<Diagnostic>) {
                 context: None,
                 suggestions: vec!["Write `DurablePromise[T]` with exactly one type argument.".into()],
                 category: DiagnosticCategory::Typecheck,
-                code: Some("vox/types/durable-promise-arity".into()),
+                code: Some(codes::TYPES_DURABLE_PROMISE_ARITY.into()),
                 fixes: vec![],
                 line_col: None,
                 missing_cases: vec![],
@@ -670,7 +670,7 @@ fn check_workflow_expr_determinism(expr: &Expr, wf_name: &str, diags: &mut Vec<D
                             "Wrap the call in `activity { … }` or `side_effect { … }`.".into(),
                         ],
                         category: DiagnosticCategory::Typecheck,
-                        code: Some("vox/workflow/non-deterministic-call".into()),
+                        code: Some(codes::WORKFLOW_NON_DETERMINISTIC_CALL.into()),
                         fixes: vec![],
                         line_col: None,
                         missing_cases: vec![],
@@ -797,7 +797,7 @@ fn check_side_effect_outside_workflow_expr(expr: &Expr, fn_name: &str, diags: &m
                 context: None,
                 suggestions: vec!["Move the `side_effect` block into a `workflow`.".into()],
                 category: DiagnosticCategory::Typecheck,
-                code: Some("vox/workflow/side-effect-outside-workflow".into()),
+                code: Some(codes::WORKFLOW_SIDE_EFFECT_OUTSIDE_WORKFLOW.into()),
                 fixes: vec![],
                 line_col: None,
                 missing_cases: vec![],

@@ -21,7 +21,7 @@ fn remote_fn_with_serializable_params_is_accepted() {
     let ds = diags(src);
     let remote_diags: Vec<_> = ds
         .iter()
-        .filter(|d| d.code.as_deref() == Some("vox/remote/param-not-serializable"))
+        .filter(|d| d.code.as_deref() == Some("vox/remote/non-serializable-param"))
         .collect();
     assert!(
         remote_diags.is_empty(),
@@ -41,8 +41,8 @@ fn remote_fn_with_raw_fn_param_is_rejected() {
     let ds = diags(src);
     assert!(
         ds.iter()
-            .any(|d| d.code.as_deref() == Some("vox/remote/param-not-serializable")),
-        "expected vox/remote/param-not-serializable for fn-typed param; got: {:?}",
+            .any(|d| d.code.as_deref() == Some("vox/remote/non-serializable-param")),
+        "expected vox/remote/non-serializable-param for fn-typed param; got: {:?}",
         ds.iter().map(|d| &d.code).collect::<Vec<_>>()
     );
 }
@@ -58,7 +58,7 @@ fn non_remote_fn_with_fn_param_is_not_flagged() {
     let ds = diags(src);
     let remote_diags: Vec<_> = ds
         .iter()
-        .filter(|d| d.code.as_deref() == Some("vox/remote/param-not-serializable"))
+        .filter(|d| d.code.as_deref() == Some("vox/remote/non-serializable-param"))
         .collect();
     assert!(
         remote_diags.is_empty(),
