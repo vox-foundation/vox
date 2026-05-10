@@ -339,6 +339,12 @@ pub struct HirFn {
     /// When `Some`, body is empty and codegen-TS emits an import for the function.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ts_extern_module: Option<String>,
+    /// P2-T1: Stable SHA3-512 content-hash (hex) of this function's compile inputs.
+    /// Populated for `DurabilityKind::Workflow` and `DurabilityKind::Activity` by the
+    /// HIR lowering pass. `None` for plain `fn` and for `actor` (actors live in mailboxes,
+    /// not the bundle CAS).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_hash: Option<String>,
     /// Span covering the declaration.
     pub span: Span,
 }

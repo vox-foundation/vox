@@ -352,6 +352,7 @@ impl LowerCtx {
                     actor_state_fields: vec![],
                     postconditions: vec![],
                     ts_extern_module: None,
+                    generated_hash: None,
                     span: *span,
                 });
                 HirExpr::Call(

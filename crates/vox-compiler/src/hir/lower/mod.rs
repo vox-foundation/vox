@@ -405,11 +405,13 @@ impl LowerCtx {
                 Decl::Workflow(w) => {
                     let mut f = self.lower_workflow(w);
                     f.durability = Some(crate::hir::nodes::DurabilityKind::Workflow);
+                    f.generated_hash = Some(stamp_durable_hash(&f));
                     hir.functions.push(f);
                 }
                 Decl::Activity(a) => {
                     let mut f = self.lower_activity(a);
                     f.durability = Some(crate::hir::nodes::DurabilityKind::Activity);
+                    f.generated_hash = Some(stamp_durable_hash(&f));
                     hir.functions.push(f);
                 }
                 Decl::Actor(a) => {
@@ -570,6 +572,51 @@ fn pascal_to_snake(s: &str) -> String {
         out.push(c.to_ascii_lowercase());
     }
     out
+}
+
+/// Compute a deterministic SHA3-512 hex hash over a durable function's compile inputs.
+///
+/// Inputs: durability label, name, param names+types (Debug repr), return type, body
+/// (Debug repr), and vox compiler version. Whitespace/comment changes in the source do
+/// not affect this hash — HIR Debug output is canonical.
+fn strip_spans(v: &mut serde_json::Value) {
+    // Span objects serialize as {"start": N, "end": N} — detect by shape.
+    if let serde_json::Value::Object(map) = v {
+        if map.len() == 2 && map.contains_key("start") && map.contains_key("end") {
+            *v = serde_json::Value::Null;
+            return;
+        }
+        // Named "span" field on a struct — remove it then recurse.
+        map.remove("span");
+        for val in map.values_mut() {
+            strip_spans(val);
+        }
+        return;
+    }
+    if let serde_json::Value::Array(arr) = v {
+        for val in arr.iter_mut() {
+            strip_spans(val);
+        }
+    }
+}
+
+fn stamp_durable_hash(f: &crate::hir::nodes::HirFn) -> String {
+    use sha3::{Digest, Sha3_512};
+    // Serialize only semantic fields, then strip all span objects so that
+    // whitespace-only edits (which change source positions) don't bust the hash.
+    let semantic = serde_json::json!({
+        "kind": f.durability.as_ref().map(|d| d.label()),
+        "name": f.name,
+        "params": serde_json::to_value(&f.params).unwrap_or(serde_json::Value::Null),
+        "return_type": serde_json::to_value(&f.return_type).unwrap_or(serde_json::Value::Null),
+        "body": serde_json::to_value(&f.body).unwrap_or(serde_json::Value::Null),
+        "ver": env!("CARGO_PKG_VERSION"),
+    });
+    let mut semantic = semantic;
+    strip_spans(&mut semantic);
+    let canonical = serde_json::to_string(&semantic).unwrap_or_default();
+    let digest = Sha3_512::digest(canonical.as_bytes());
+    digest.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 #[cfg(test)]

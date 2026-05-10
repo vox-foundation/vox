@@ -46,6 +46,7 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         postconditions: vec![],
         capabilities: vec![],
         ts_extern_module: None,
+        generated_hash: None,
         span: dummy_span(),
     }
 }

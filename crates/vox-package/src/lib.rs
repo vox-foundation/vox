@@ -8,6 +8,8 @@
 
 /// Content-addressed artifact cache (`.vox-cache`).
 pub mod artifact_cache;
+/// Content-addressed bundle store for compiled workflow / activity functions (P2-T1).
+pub mod bundle;
 /// HTTP client for the package registry API.
 pub mod registry;
 /// Multi-package workspace discovery from `Vox.toml` / members.

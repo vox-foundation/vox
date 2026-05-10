@@ -82,6 +82,7 @@ impl LowerCtx {
                 })
                 .collect(),
             ts_extern_module: f.ts_extern_module.clone(),
+            generated_hash: None,
             span: f.span,
         }
     }
@@ -399,6 +400,7 @@ impl LowerCtx {
             capabilities: vec![],
             postconditions: vec![],
             ts_extern_module: None,
+            generated_hash: None,
             span: w.span,
         }
     }
@@ -434,6 +436,7 @@ impl LowerCtx {
             capabilities: vec![],
             postconditions: vec![],
             ts_extern_module: None,
+            generated_hash: None,
             span: a.span,
         }
     }
@@ -477,6 +480,7 @@ impl LowerCtx {
             capabilities: vec![],
             postconditions: vec![],
             ts_extern_module: None,
+            generated_hash: None,
             span: a.span,
         }
     }
@@ -523,6 +527,7 @@ impl LowerCtx {
                     capabilities: vec![],
                     postconditions: vec![],
                     ts_extern_module: None,
+                    generated_hash: None,
                     span: h.span,
                 }
             })

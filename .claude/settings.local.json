@@ -133,7 +133,15 @@
       "Bash(find crates/vox-cli*/src -name \"*.rs\")",
       "Bash(cat > *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Owner\\\\vox\" -Recurse -Name \"rules.rs\" -ErrorAction SilentlyContinue)",
-      "Bash(Select-Object -First 5)"
+      "Bash(Select-Object -First 5)",
+      "Bash(git ls-tree *)",
+      "Bash(git show *)",
+      "Bash(ls /mnt/c/Users/Owner/vox/.claude/worktrees/zealous-ardinghelli-b01e11/crates/vox-db/src/ | grep -E \"\\(facade|store\\)\")",
+      "Bash(grep -n \"hir$\\\\|hir\\\\b\" crates/vox-compiler/src/hir/lower/mod.rs)",
+      "Bash(grep -n \"return hir\\\\|hir\\\\s*$\" crates/vox-compiler/src/hir/lower/mod.rs)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\zealous-ardinghelli-b01e11\" -Recurse -Filter \"*mesh-phase*plan*.md\")",
+      "Bash(Select-Object FullName)",
+      "Bash(/tmp/extract_tasks.sh \"C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\zealous-ardinghelli-b01e11\\\\docs\\\\src\\\\architecture\\\\mesh-phase0-foundations-plan-2026.md\")"
     ]
   }
 }
