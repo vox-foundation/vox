@@ -379,6 +379,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Snapshot { cmd } => {
             crate::commands::snapshot::run(&cmd)?;
         }
+        Cli::Workflow { cmd } => {
+            crate::commands::workflow::run(cmd).await?;
+        }
         Cli::Grammar { args } => {
             crate::commands::grammar::handle(args);
         }

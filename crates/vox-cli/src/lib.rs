@@ -571,6 +571,13 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::snapshot::SnapshotCmd,
     },
+
+    /// Workflow introspection: dry-run schedule preview and analysis (P1-T8).
+    Workflow {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::workflow::WorkflowCmd,
+    },
 }
 
 /// Register the process-wide telemetry sinks.
