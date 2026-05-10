@@ -4,6 +4,28 @@ use serde_json::{Value, json};
 use std::time::Duration;
 use vox_compiler::hir::HirModule;
 
+/// Derive a stable, content-addressed `activity_id` from structural inputs.
+///
+/// The id is a BLAKE3 hex digest of `"{workflow_name}\0{activity_name}\0{position}"`,
+/// truncated to 32 hex chars for readability. This is deterministic across replays as
+/// long as the workflow topology (activity order and names) does not change.
+pub(crate) fn derive_activity_id(
+    workflow_name: &str,
+    activity_name: &str,
+    position: usize,
+) -> String {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(workflow_name.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(activity_name.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(position.to_le_bytes().as_ref());
+    let hash = hasher.finalize();
+    // 16 bytes → 32 lowercase hex chars: unique enough for a workflow's activity set.
+    let bytes = &hash.as_bytes()[..16];
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
 use super::plan::plan_workflow_replay_ir;
 use super::tracker::{DefaultTracker, WorkflowTracker};
 #[cfg(feature = "mens")]
@@ -49,7 +71,7 @@ pub async fn interpret_workflow_durable(
         let activity_id = step
             .activity_id
             .clone()
-            .unwrap_or_else(|| format!("{workflow_name}-{idx}"));
+            .unwrap_or_else(|| derive_activity_id(workflow_name, &step.name, idx));
 
         if tracker
             .is_activity_completed(workflow_name, &activity_id)
@@ -471,5 +493,33 @@ mod tests {
             value["journal_version"].as_u64(),
             Some(WORKFLOW_JOURNAL_VERSION as u64)
         );
+    }
+
+    #[test]
+    fn derive_activity_id_is_deterministic() {
+        let id1 = derive_activity_id("my_workflow", "send_email", 0);
+        let id2 = derive_activity_id("my_workflow", "send_email", 0);
+        assert_eq!(id1, id2, "same inputs must produce same activity_id");
+    }
+
+    #[test]
+    fn derive_activity_id_differs_by_position() {
+        let id0 = derive_activity_id("wf", "step", 0);
+        let id1 = derive_activity_id("wf", "step", 1);
+        assert_ne!(id0, id1, "different positions must produce different ids");
+    }
+
+    #[test]
+    fn derive_activity_id_differs_by_workflow_name() {
+        let id_a = derive_activity_id("workflow_a", "step", 0);
+        let id_b = derive_activity_id("workflow_b", "step", 0);
+        assert_ne!(id_a, id_b, "different workflow names must produce different ids");
+    }
+
+    #[test]
+    fn derive_activity_id_is_32_hex_chars() {
+        let id = derive_activity_id("wf", "act", 0);
+        assert_eq!(id.len(), 32, "activity_id must be 32 hex chars");
+        assert!(id.chars().all(|c| c.is_ascii_hexdigit()), "must be lowercase hex");
     }
 }
