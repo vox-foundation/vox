@@ -1,0 +1,61 @@
+// Run-row drawer — Phase 4, P4-T9.
+//
+// Shows the full event tree for a workflow run and provides a copy-to-clipboard
+// deep-link using vox.mesh.trace_id (32 lowercase hex, W3C-compatible).
+// Deep-link format: vox://trace/{trace_id}
+component RunRowDrawer(run_id: str, on_close: fn()) {
+    let tree     = use_state(value=null)
+    let copied   = use_state(value=false)
+
+    use_effect(deps=[run_id], body=fn() {
+        api_get(url="/api/v2/runs/" + run_id + "/events", on_ok=fn(r) { set(tree, r.data) })
+    })
+
+    view: drawer(side="right", w=120, on_close=on_close, bg="zinc.950") {
+        if tree is null { text(color="zinc.500") { "Loading…" } }
+        else {
+            column(gap=2, pad=4) {
+                row(items="center", justify="between") {
+                    text(size="sm", weight="bold", color="white") { "Run " + run_id }
+                    PrivacyBadge(class=tree.privacy_class)
+                }
+                row(items="center", gap=2) {
+                    text(size="xs", color="zinc.500", font_family="mono") { "trace_id" }
+                    code_block(bg="zinc.900", pad=1) { text(size="xs", font_family="mono", color="zinc.300") { tree.trace_id } }
+                    button(on_click=fn() {
+                        clipboard_write(text="vox://trace/" + tree.trace_id)
+                        set(copied, true)
+                        delay(ms=1500, then=fn() { set(copied, false) })
+                    }, bg="white/5", radius="sm", pad_x=2) {
+                        text(size="xs") { if copied { "Copied!" } else { "Copy deep-link" } }
+                    }
+                }
+                EventTree(root=tree.root)
+            }
+        }
+    }
+}
+
+component EventTree(root: dict) {
+    view: column(gap=0) {
+        EventNode(node=root, depth=0)
+    }
+}
+
+component EventNode(node: dict, depth: int) {
+    let open = use_state(value=true)
+    view: column(gap=0) {
+        row(items="center", gap=1, pad_x=str(depth * 4) + "px",
+            on_click=fn() { set(open, !open) }) {
+            text(size="xs", color="zinc.600", font_family="mono") { if open { "▾" } else { "▸" } }
+            text(size="xs", color=if node.status is "err" { "rose.400" } else { "zinc.300" }) { node.span_name }
+            text(size="xs", color="zinc.600", font_family="mono") { fmt_duration(node.duration_ms) }
+            PrivacyBadge(class=node.privacy_class)
+        }
+        if open {
+            for child in node.children {
+                EventNode(node=child, depth=depth + 1)
+            }
+        }
+    }
+}
