@@ -33,4 +33,40 @@ pub mod test_support {
         crate::api::mesh::mesh_router(state.clone())
             .merge(crate::api::oplog_at::oplog_router(state))
     }
+
+    /// Build a router pre-populated with two nodes that have cost/cap data.
+    ///
+    /// Used by the P4-T6 budget route tests.
+    pub async fn build_router_with_two_nodes_and_costs(
+        a: (&str, f64, f64),
+        b: (&str, f64, f64),
+    ) -> Router<()> {
+        use vox_orchestrator::mesh::{MeshNode, MeshNodeKind, MeshNodeStatus, MeshPrivacyClass};
+
+        let registry = Arc::new(MeshRegistry::empty());
+        let bus = Arc::new(EventBus::new(64));
+
+        let make_node = |id: &str, used: f64, cap: f64| MeshNode {
+            id: id.into(),
+            kind: MeshNodeKind::Agent,
+            status: MeshNodeStatus::Active,
+            orchestrator: None,
+            model: "test-model".into(),
+            uptime_ms: 0,
+            tokens_24h: 0,
+            cost_usd_24h: used,
+            cost_cap_usd_24h: cap,
+            current_task: None,
+            last_events: vec![],
+            privacy_class: MeshPrivacyClass::Private,
+            heartbeat_age_ms: 0,
+        };
+
+        registry.upsert_node(make_node(a.0, a.1, a.2)).await;
+        registry.upsert_node(make_node(b.0, b.1, b.2)).await;
+
+        let state = MeshState { registry, bus };
+        crate::api::mesh::mesh_router(state.clone())
+            .merge(crate::api::oplog_at::oplog_router(state))
+    }
 }

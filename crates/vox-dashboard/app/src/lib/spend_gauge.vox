@@ -1,0 +1,53 @@
+// SpendGauge — per-node 24h spend ring + label. Phase 4, P4-T6.
+component SpendGauge(used_usd: number, cap_usd: number, label: str) {
+    let pct = if cap_usd > 0 { min(used_usd / cap_usd * 100, 100) } else { 0 }
+    let color = if pct < 60 { "emerald.400" }
+                else if pct < 90 { "amber.400" }
+                else { "rose.500" }
+
+    view: row(items="center", gap=2) {
+        panel(w=8, h=8, radius="full", border=true, border_color="white/10") {
+            panel(
+                raw_class="w-full h-full rounded-full",
+                style="background: conic-gradient(" + color + " 0% " + str(pct) + "%, rgba(255,255,255,0.05) " + str(pct) + "% 100%);",
+            )
+        }
+        column(gap=0) {
+            text(size="xs", color="zinc.500") { label }
+            text(size="xs", color="white", font_family="mono") { "$" + fmt_money(used_usd) }
+            text(size="xs", color="zinc.500", font_family="mono") { "/ $" + fmt_money(cap_usd) }
+        }
+    }
+}
+
+// MeshBudgetBar — full-width aggregate cost bar across the entire mesh.
+component MeshBudgetBar() {
+    let agg = use_state(value=null)
+
+    use_effect(deps=[], body=fn() {
+        api_get(url="/api/v2/mesh/budget", on_ok=fn(r) { set(agg, r.data.aggregate) })
+    })
+
+    use_ws_event(name="MeshNodeBudget", handler=fn(_) {
+        api_get(url="/api/v2/mesh/budget", on_ok=fn(r) { set(agg, r.data.aggregate) })
+    })
+
+    view: row(items="center", gap=3, pad_x=4, h=8, bg="zinc.900", border_t=true, border_color="white/5") {
+        if agg is null {
+            text(size="xs", color="zinc.600") { "Loading budget…" }
+        } else {
+            text(size="xs", color="zinc.500", font_family="mono") { "mesh 24h" }
+            panel(flex=1, h=1, bg="white/5", radius="sm") {
+                panel(
+                    w=str(min(agg.used_usd_24h / agg.cap_usd_24h * 100, 100)) + "%",
+                    h="full",
+                    bg="emerald.500",
+                    radius="sm",
+                )
+            }
+            text(size="xs", color="zinc.400", font_family="mono") {
+                "$" + fmt_money(agg.used_usd_24h) + " / $" + fmt_money(agg.cap_usd_24h)
+            }
+        }
+    }
+}

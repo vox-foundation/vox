@@ -191,3 +191,31 @@ async fn budget_event_reaches_subscriber() {
         other => panic!("expected MeshNodeBudget, got {other:?}"),
     }
 }
+
+// ── P4-T6: Per-node spend gauge + mesh-wide budget bar ────────────────────────
+
+#[tokio::test]
+async fn budget_route_returns_per_node_and_aggregate() {
+    let app = vox_dashboard::test_support::build_router_with_two_nodes_and_costs(
+        ("alice", 1.50, 5.00),
+        ("bob", 3.20, 10.00),
+    )
+    .await;
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v2/mesh/budget")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(res.into_body(), 8 * 1024).await.unwrap();
+    let v: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(v["v"].as_u64().unwrap(), 1);
+    let agg = &v["data"]["aggregate"];
+    assert!((agg["used_usd_24h"].as_f64().unwrap() - 4.70).abs() < 1e-9);
+    assert!((agg["cap_usd_24h"].as_f64().unwrap() - 15.00).abs() < 1e-9);
+    assert_eq!(v["data"]["per_node"].as_array().unwrap().len(), 2);
+}

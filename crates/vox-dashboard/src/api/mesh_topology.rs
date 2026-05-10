@@ -65,6 +65,33 @@ pub async fn get_nodes(State(state): State<MeshState>) -> Json<Value> {
     Json(json!({ "v": 1, "data": data }))
 }
 
+pub async fn get_budget(State(state): State<MeshState>) -> Json<Value> {
+    let s = state.registry.snapshot().await;
+    let mut used = 0.0_f64;
+    let mut cap = 0.0_f64;
+    let per_node: Vec<Value> = s
+        .nodes
+        .iter()
+        .map(|n| {
+            used += n.cost_usd_24h;
+            cap += n.cost_cap_usd_24h;
+            json!({
+                "node_id":  n.id,
+                "used_usd": n.cost_usd_24h,
+                "cap_usd":  n.cost_cap_usd_24h,
+                "tokens":   n.tokens_24h,
+            })
+        })
+        .collect();
+    Json(json!({
+        "v": 1,
+        "data": {
+            "per_node":  per_node,
+            "aggregate": { "used_usd_24h": used, "cap_usd_24h": cap }
+        }
+    }))
+}
+
 pub async fn get_edges(State(state): State<MeshState>) -> Json<Value> {
     let snapshot = state.registry.snapshot().await;
     let data: Vec<Value> = snapshot
