@@ -106,6 +106,7 @@ mod tests {
             cors: None,
             rate_limit: None,
             pii: None,
+            layer: None,
             span,
         });
 

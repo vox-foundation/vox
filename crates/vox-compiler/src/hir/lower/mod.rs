@@ -220,6 +220,11 @@ impl LowerCtx {
                         };
                         HirPiiMarker { class, span: p.span }
                     });
+                    let layer = e.func.layer.as_ref().and_then(|l| {
+                        crate::hir::nodes::layer::LayerTier::from_str(&l.tier).map(|tier| {
+                            crate::hir::nodes::layer::HirLayerDecl { tier, span: l.span }
+                        })
+                    });
                     hir.endpoint_fns.push(crate::hir::HirEndpointFn {
                         kind,
                         id: lowered.id,
@@ -238,6 +243,7 @@ impl LowerCtx {
                         cors,
                         rate_limit,
                         pii,
+                        layer,
                         span: lowered.span,
                     });
                 }

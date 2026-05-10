@@ -581,6 +581,7 @@ fn caller() to str { fetch() }",
             cors: None,
             rate_limit: None,
             pii: None,
+            layer: None,
             span: dummy_span(),
         }
     }

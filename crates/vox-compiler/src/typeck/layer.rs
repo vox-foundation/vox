@@ -118,6 +118,29 @@ pub fn check_duplicate_marks(marks: &[HirMark]) -> Vec<Diagnostic> {
     diags
 }
 
+/// Guard: user code must not declare `system-overlay` tier — it is reserved for
+/// the VUV runtime (debug overlays, accessibility cursor, system focus ring).
+pub fn check_system_overlay_reservation(decl: &crate::hir::nodes::layer::HirLayerDecl) -> Option<Diagnostic> {
+    if decl.tier == LayerTier::SystemOverlay {
+        return Some(Diagnostic {
+            severity: TypeckSeverity::Error,
+            message: "`system-overlay` tier is reserved for the VUV runtime. User components cannot declare this tier.".into(),
+            span: decl.span,
+            code: Some("vox/layer/reserved-tier".into()),
+            category: DiagnosticCategory::Typecheck,
+            suggestions: vec!["Use `toast` for self-dismissing notifications, or `modal` for blocking dialogs.".into()],
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            expected_type: Some("user-accessible tier".into()),
+            found_type: Some("system-overlay".into()),
+            context: None,
+            ast_node_kind: None,
+        });
+    }
+    None
+}
+
 /// Check that every `Mark<T>` reference resolves to a declared mark.
 pub fn check_dangling_marks(refs: &[HirMarkRef], decls: &[HirMark]) -> Vec<Diagnostic> {
     let declared: HashSet<&str> = decls.iter().map(|m| m.label.as_str()).collect();

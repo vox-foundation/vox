@@ -903,6 +903,7 @@ impl Parser {
         let mut cors_spec: Option<crate::ast::decl::http_decorators::AstCorsSpec> = None;
         let mut rate_limit: Option<crate::ast::decl::http_decorators::AstRateLimitSpec> = None;
         let mut pii: Option<crate::ast::decl::http_decorators::AstPiiSpec> = None;
+        let mut layer: Option<crate::ast::decl::layer_decorator::AstLayerSpec> = None;
 
         loop {
             self.skip_newlines();
@@ -1199,11 +1200,41 @@ impl Parser {
                         span: pii_start.merge(self.span()),
                     });
                 }
+                Token::AtLayer => {
+                    let l_start = self.span();
+                    self.advance();
+                    let mut tier = String::from("content");
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                let _ = self.expect(&Token::Colon);
+                                if key == "tier" {
+                                    if let Token::Ident(v) = self.peek().clone() {
+                                        self.advance();
+                                        tier = v;
+                                    }
+                                } else {
+                                    self.advance();
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) { break; }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                    layer = Some(crate::ast::decl::layer_decorator::AstLayerSpec {
+                        tier,
+                        span: l_start.merge(self.span()),
+                    });
+                }
                 Token::AtAuth
                 | Token::AtEmbed
                 | Token::AtOfflineCapable
-                | Token::AtCollaborative
-                | Token::AtLayer => {
+                | Token::AtCollaborative => {
                     self.advance();
                     if self.eat(&Token::LParen) {
                         self.skip_paren_args_inner();
@@ -1273,6 +1304,7 @@ impl Parser {
             cors_spec,
             rate_limit,
             pii,
+            layer,
             preconditions,
             postconditions,
             invariants,
@@ -1340,6 +1372,7 @@ impl Parser {
             cors_spec: None,
             rate_limit: None,
             pii: None,
+            layer: None,
             preconditions: vec![],
             postconditions: vec![],
             invariants: vec![],

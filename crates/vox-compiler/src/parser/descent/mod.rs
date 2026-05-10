@@ -295,6 +295,7 @@ impl Parser {
                 cors_spec: None,
                 rate_limit: None,
                 pii: None,
+                layer: None,
                 preconditions: vec![],
                 postconditions: vec![],
                 invariants: vec![],

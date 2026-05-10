@@ -29,6 +29,8 @@ pub mod ui;
 pub mod url;
 /// HTTP ergonomics decorators: `@cors`, `@rate_limit`, `@pii` (GA-06/GA-23).
 pub mod http_decorators;
+/// `@layer(tier:)` decorator AST (GA-26).
+pub mod layer_decorator;
 /// `@webhook(provider:, secret:, replay_window_secs:)` decorator AST (GA-16).
 pub mod webhook;
 

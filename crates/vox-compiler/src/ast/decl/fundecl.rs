@@ -83,6 +83,9 @@ pub struct FnDecl {
     /// `@pii(class:)` decorator — marks this fn as handling PII data (GA-23).
     #[serde(default)]
     pub pii: Option<super::http_decorators::AstPiiSpec>,
+    /// `@layer(tier:)` decorator — declares the Z-tier for a component (GA-26).
+    #[serde(default)]
+    pub layer: Option<super::layer_decorator::AstLayerSpec>,
     /// Precondition expressions from `@require(expr)` decorators.
     pub preconditions: Vec<Expr>,
     /// Postcondition expressions from `@ensure(expr)` decorators.

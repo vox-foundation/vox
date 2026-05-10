@@ -345,6 +345,7 @@ mod tests {
             cors: None,
             rate_limit: None,
             pii: None,
+            layer: None,
             span: sp,
         });
         module.endpoint_fns.push(HirEndpointFn {
@@ -364,6 +365,7 @@ mod tests {
             cors: None,
             rate_limit: None,
             pii: None,
+            layer: None,
             span: sp,
         });
 
@@ -397,6 +399,7 @@ mod tests {
             cors: None,
             rate_limit: None,
             pii: None,
+            layer: None,
             span: sp,
         });
 

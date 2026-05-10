@@ -408,6 +408,9 @@ pub struct HirEndpointFn {
     /// `@pii(class:)` marker on this endpoint (GA-23).
     #[serde(default)]
     pub pii: Option<super::boilerplate_grafts::HirPiiMarker>,
+    /// `@layer(tier:)` Z-tier annotation (GA-26).
+    #[serde(default)]
+    pub layer: Option<super::layer::HirLayerDecl>,
     /// Span covering the declaration.
     pub span: Span,
 }

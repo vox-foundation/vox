@@ -283,3 +283,38 @@ fn send_email_fn() to int { return 1 }
         ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
     );
 }
+
+// ── GA-26 — @layer tier validation ────────────────────────────────────────
+
+#[test]
+fn layer_system_overlay_is_reserved() {
+    let src = r#"
+@endpoint(kind: server)
+@layer(tier: system_overlay)
+fn debug_fn() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/layer/reserved-tier"));
+    assert!(
+        hit.is_some(),
+        "expected vox/layer/reserved-tier for system-overlay; got {:?}",
+        ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn layer_modal_tier_is_allowed() {
+    let src = r#"
+@endpoint(kind: server)
+@layer(tier: modal)
+fn confirm_fn() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    assert!(
+        !ds.iter().any(|d| d.code.as_deref() == Some("vox/layer/reserved-tier")),
+        "modal tier should be allowed; got {:?}",
+        ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
+    );
+}
