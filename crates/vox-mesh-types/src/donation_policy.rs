@@ -30,4 +30,7 @@ pub struct WorkerDonationPolicy {
     /// backwards compatibility with serialized policies that lack this field.
     #[serde(default)]
     pub accept_sensitive_workloads: bool,
+    /// Optional redundancy / replication policy for declared-deterministic tasks (P6-T4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub redundancy: Option<crate::redundancy::RedundancyPolicy>,
 }

@@ -48,7 +48,7 @@ pub enum RedundancyMode {
 // ---------------------------------------------------------------------------
 
 /// Redundancy policy attached to a `WorkerDonationPolicy` or a task spec.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RedundancyPolicy {
     /// Dispatch mode.
     pub mode: RedundancyMode,

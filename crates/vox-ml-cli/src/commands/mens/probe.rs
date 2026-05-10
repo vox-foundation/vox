@@ -3,6 +3,13 @@
 use anyhow::Result;
 
 pub async fn run_probe(verbose: bool) -> Result<()> {
+    #[cfg(not(feature = "gpu"))]
+    {
+        let _ = verbose;
+        anyhow::bail!("`vox mens probe` requires --features gpu");
+    }
+    #[cfg(feature = "gpu")]
+    {
     use owo_colors::OwoColorize;
     use vox_populi::mens::hardware;
     use vox_populi::mens::tensor::device::recommend_config;
@@ -71,4 +78,5 @@ pub async fn run_probe(verbose: bool) -> Result<()> {
     }
 
     Ok(())
+    } // end #[cfg(feature = "gpu")]
 }
