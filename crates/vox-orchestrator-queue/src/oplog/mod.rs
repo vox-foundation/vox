@@ -4,6 +4,7 @@ mod query;
 mod store;
 pub mod checkpoint;
 pub mod persist;
+pub mod sign;
 
 pub use query::list_from_db;
 pub use store::{append_to_db, append_to_db_with_breaker, mark_undone_in_db};
