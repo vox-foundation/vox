@@ -1,5 +1,6 @@
 //! Per-file lock manager for exclusive writer access.
 
+pub mod leader;
 mod lease;
 mod persisted;
 mod refresh;

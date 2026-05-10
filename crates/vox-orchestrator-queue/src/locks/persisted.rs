@@ -16,7 +16,7 @@ use crate::sync_lock;
 /// Default TTL for persisted file locks (30 minutes).
 const DEFAULT_LOCK_TTL_MS: i64 = 30 * 60 * 1_000;
 
-fn now_unix_ms() -> i64 {
+pub(super) fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -49,11 +49,11 @@ impl FileLockManager {
         };
 
         let rows = db.mesh_locks_for_repo(&self.repository_id).await?;
-        let now_ms = now_unix_ms();
+        let current_ms = now_ms();
         let mut locks = sync_lock::rw_write(&*self.locks);
 
         for row in rows {
-            if row.expires_at <= now_ms {
+            if row.expires_at <= current_ms {
                 continue; // Skip expired rows; leader prune will clean them.
             }
             let Ok(holder_u64) = row.holder.parse::<u64>() else {
@@ -96,7 +96,7 @@ impl FileLockManager {
 
         // Write through to DB when configured.
         if let Some(db) = &self.db {
-            let now_ms = now_unix_ms();
+            let ts = now_ms();
             let row = VcsLockRow {
                 path: path.to_string_lossy().into_owned(),
                 kind: match kind {
@@ -106,8 +106,8 @@ impl FileLockManager {
                 holder: agent.0.to_string(),
                 holder_node_id: self.node_id.clone(),
                 repository_id: self.repository_id.clone(),
-                acquired_at: now_ms,
-                expires_at: now_ms + DEFAULT_LOCK_TTL_MS,
+                acquired_at: ts,
+                expires_at: ts + DEFAULT_LOCK_TTL_MS,
                 lease_id: None,
                 fence_token: 0,
             };
