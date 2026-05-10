@@ -24,6 +24,9 @@ mime_guess = { workspace = true }
 const-fnv1a-hash = "1.1.0"
 # Live mesh state + event bus (Phase 4)
 vox-orchestrator = { path = "../vox-orchestrator" }
+# Cryptographic primitives for audit-log signing (P4-T7)
+vox-crypto = { path = "../vox-crypto" }
+hex = { workspace = true }
 # QR code SVG generation for the Add-a-Node wizard (P4-T2)
 qrcode = "0.14"
 uuid = { workspace = true }

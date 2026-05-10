@@ -23,58 +23,17 @@
 
 use axum::{
     Router,
-    extract::{Path, State},
     http::StatusCode,
     response::Json,
     routing::{get, post},
 };
 use serde_json::{Value, json};
+use axum::extract::State;
 
+use crate::api::mesh_actions::{node_drain, node_kill, node_pause, node_replay};
 use crate::api::mesh_invite::mint;
 use crate::api::mesh_join;
 use crate::api::mesh_topology::{MeshState, get_budget, get_edges, get_nodes, get_summary};
-
-// ── Action stubs (P4-T7 replaces these with signed audit-log versions) ───────
-
-async fn node_kill(
-    State(_state): State<MeshState>,
-    Path(id): Path<String>,
-) -> (StatusCode, Json<Value>) {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({ "v": 1, "error": "not implemented — wired in P4-T7", "id": id, "action": "kill" })),
-    )
-}
-
-async fn node_pause(
-    State(_state): State<MeshState>,
-    Path(id): Path<String>,
-) -> (StatusCode, Json<Value>) {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({ "v": 1, "error": "not implemented — wired in P4-T7", "id": id, "action": "pause" })),
-    )
-}
-
-async fn node_drain(
-    State(_state): State<MeshState>,
-    Path(id): Path<String>,
-) -> (StatusCode, Json<Value>) {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({ "v": 1, "error": "not implemented — wired in P4-T7", "id": id, "action": "drain" })),
-    )
-}
-
-async fn node_replay(
-    State(_state): State<MeshState>,
-    Path(id): Path<String>,
-) -> (StatusCode, Json<Value>) {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({ "v": 1, "error": "not implemented — wired in P4-T7", "id": id, "action": "replay" })),
-    )
-}
 
 // ── Model registry stub (P4-T12 handler wired here in its task) ──────────────
 

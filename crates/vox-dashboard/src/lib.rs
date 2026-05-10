@@ -3,6 +3,7 @@
 //! Mount via: `app.merge(vox_dashboard::router())`
 pub mod api;
 pub mod assets;
+pub mod audit_log;
 pub mod router;
 pub use router::dashboard_router;
 
@@ -15,6 +16,15 @@ pub mod test_support {
     use vox_orchestrator::mesh::MeshRegistry;
 
     use crate::api::MeshState;
+    use crate::audit_log::AuditWriter;
+
+    fn ephemeral_state(registry: Arc<MeshRegistry>, bus: Arc<EventBus>) -> MeshState {
+        MeshState {
+            registry,
+            bus,
+            audit: Arc::new(AuditWriter::ephemeral()),
+        }
+    }
 
     /// Build a `(MeshRegistry, EventBus)` pair backed by an empty registry.
     pub fn build_mesh_state() -> (Arc<MeshRegistry>, Arc<EventBus>) {
@@ -29,7 +39,21 @@ pub mod test_support {
     /// Includes mesh routes and the oplog-at route (P4-T5).
     pub fn build_router_with_empty_mesh() -> Router<()> {
         let (registry, bus) = build_mesh_state();
-        let state = MeshState { registry, bus };
+        let state = ephemeral_state(registry, bus);
+        crate::api::mesh::mesh_router(state.clone())
+            .merge(crate::api::oplog_at::oplog_router(state))
+    }
+
+    /// Build a router with a freshly-generated signing keypair.
+    ///
+    /// Used by P4-T7 destructive action tests that assert a real signature.
+    pub fn build_router_with_signing_keys() -> Router<()> {
+        let (registry, bus) = build_mesh_state();
+        let state = MeshState {
+            registry,
+            bus,
+            audit: Arc::new(AuditWriter::ephemeral()),
+        };
         crate::api::mesh::mesh_router(state.clone())
             .merge(crate::api::oplog_at::oplog_router(state))
     }
@@ -65,7 +89,7 @@ pub mod test_support {
         registry.upsert_node(make_node(a.0, a.1, a.2)).await;
         registry.upsert_node(make_node(b.0, b.1, b.2)).await;
 
-        let state = MeshState { registry, bus };
+        let state = ephemeral_state(registry, bus);
         crate::api::mesh::mesh_router(state.clone())
             .merge(crate::api::oplog_at::oplog_router(state))
     }

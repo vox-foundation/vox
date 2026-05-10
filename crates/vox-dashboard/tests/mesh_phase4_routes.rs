@@ -192,6 +192,46 @@ async fn budget_event_reaches_subscriber() {
     }
 }
 
+// ── P4-T7: Destructive actions with signed audit-log ─────────────────────────
+
+#[tokio::test]
+async fn destructive_action_emits_signed_audit_entry() {
+    let app = vox_dashboard::test_support::build_router_with_signing_keys();
+    let res = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v2/mesh/nodes/alice/kill")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"reason":"runaway","confirm_token":"yes-i-mean-it"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(res.into_body(), 8 * 1024).await.unwrap();
+    let v: Value = serde_json::from_slice(&bytes).unwrap();
+    assert!(v["data"]["audit_id"].is_string());
+    assert!(v["data"]["signature"].as_str().unwrap().len() >= 64);
+}
+
+#[tokio::test]
+async fn destructive_action_without_confirm_returns_400() {
+    let app = vox_dashboard::test_support::build_router_with_signing_keys();
+    let res = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v2/mesh/nodes/alice/kill")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"reason":"just because"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+}
+
 // ── P4-T6: Per-node spend gauge + mesh-wide budget bar ────────────────────────
 
 #[tokio::test]

@@ -1,4 +1,5 @@
 pub mod mesh;
+pub mod mesh_actions;
 pub mod mesh_invite;
 pub mod mesh_join;
 pub mod mesh_topology;
