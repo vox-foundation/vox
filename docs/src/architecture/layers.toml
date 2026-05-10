@@ -186,3 +186,17 @@ from   = "vox-arch-check"
 to     = "vox-compiler"
 reason = "dev-dependency only (rename-registry integration test added in feat(arch-check) VUV-9 task 8). The tool binary does not ship vox-compiler at runtime; remove once the test can be refactored to not need the full compiler crate."
 
+# ── Rule 11 (P3-T7): Forbidden code patterns ─────────────────────────────────
+# Forbid raw git invocations outside the concurrency-policy wrapper.
+# See docs/src/architecture/git-concurrency-policy.md.
+[[forbidden_pattern]]
+name             = "raw-git-exec"
+pattern          = 'Command::new\("git"\)'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    "crates/vox-vcs-git/src/git_exec.rs",
+    "crates/vox-arch-check/src/main.rs",
+    "crates/vox-arch-check/src/forbidden_patterns.rs",
+]
+allow_annotation = "// vox-arch-check: allow git-exec"
+reason           = "All git invocations must go through GitExec to honor the concurrency policy."

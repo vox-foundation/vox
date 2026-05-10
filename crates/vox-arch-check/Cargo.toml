@@ -9,6 +9,8 @@ cargo_metadata = "0.20"
 toml = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 anyhow.workspace = true
+regex = { workspace = true }
+globset = { workspace = true }
 
 [[bin]]
 name = "vox-arch-check"
@@ -16,6 +18,7 @@ path = "src/main.rs"
 
 [dev-dependencies]
 vox-compiler = { path = "../vox-compiler" }
+tempfile = { workspace = true }
 
 [build-dependencies]
 vox-build-meta = { workspace = true }
