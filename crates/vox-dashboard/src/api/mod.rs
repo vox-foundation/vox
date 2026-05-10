@@ -1,5 +1,6 @@
 pub mod mesh;
 pub mod mesh_invite;
+pub mod mesh_join;
 pub mod mesh_topology;
 pub mod models;
 pub mod oplog_at;

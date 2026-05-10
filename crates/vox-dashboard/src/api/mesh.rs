@@ -11,6 +11,8 @@
 //! GET  /api/v2/mesh/nodes
 //! GET  /api/v2/mesh/edges
 //! POST /api/v2/mesh/invite
+//! POST /api/v2/mesh/invite/preview
+//! POST /api/v2/mesh/join
 //! POST /api/v2/mesh/nodes/{id}/kill
 //! POST /api/v2/mesh/nodes/{id}/pause
 //! POST /api/v2/mesh/nodes/{id}/drain
@@ -28,6 +30,7 @@ use axum::{
 use serde_json::{Value, json};
 
 use crate::api::mesh_invite::mint;
+use crate::api::mesh_join;
 use crate::api::mesh_topology::{MeshState, get_edges, get_nodes, get_summary};
 
 // ── Action stubs (P4-T7 replaces these with signed audit-log versions) ───────
@@ -93,6 +96,8 @@ where
         .route("/api/v2/mesh/edges", get(get_edges))
         .route("/api/v2/mesh/models", get(get_models))
         .route("/api/v2/mesh/invite", post(mint))
+        .route("/api/v2/mesh/invite/preview", post(mesh_join::preview))
+        .route("/api/v2/mesh/join", post(mesh_join::join))
         .route("/api/v2/mesh/nodes/{id}/kill", post(node_kill))
         .route("/api/v2/mesh/nodes/{id}/pause", post(node_pause))
         .route("/api/v2/mesh/nodes/{id}/drain", post(node_drain))

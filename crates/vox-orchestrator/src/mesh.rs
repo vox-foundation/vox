@@ -387,6 +387,22 @@ impl MeshRegistry {
         Ok(token)
     }
 
+    /// Check whether a bearer token exists and is not yet expired, without
+    /// consuming it.  Returns `true` if valid, `false` if unknown or expired.
+    /// Used by the join-wizard preview endpoint (P4-T11).
+    pub async fn peek_bearer(&self, token: &str) -> bool {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+
+        let g = self.inner.read().await;
+        match g.bearers.get(token) {
+            Some(entry) if entry.expires_at_ms >= now_ms => true,
+            _ => false,
+        }
+    }
+
     /// Validate and consume a one-shot bearer token.
     ///
     /// Returns `(peer_id, slot_kind)` if valid; error string if expired or unknown.
