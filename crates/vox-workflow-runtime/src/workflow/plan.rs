@@ -306,6 +306,8 @@ fn collect_from_expr(
                         populi_op: PopuliHttpOp::Noop,
                         required_labels: None,
                         is_detached: false,
+                        arguments: vec![],
+                        dedup_window_ms: None,
                     }));
                     return Ok(());
                 }
@@ -321,6 +323,8 @@ fn collect_from_expr(
                         populi_op: PopuliHttpOp::Noop,
                         required_labels: None,
                         is_detached: false,
+                        arguments: vec![],
+                        dedup_window_ms: None,
                     }));
                     return Ok(());
                 }
@@ -347,6 +351,8 @@ fn collect_from_expr(
                     populi_op,
                     required_labels: ctx.required_labels.clone(),
                     is_detached: ctx.is_detached,
+                    arguments: vec![],
+                    dedup_window_ms: None,
                 }));
             } else {
                 collect_from_expr(
@@ -391,6 +397,8 @@ fn collect_from_expr(
                 populi_op: PopuliHttpOp::Noop,
                 required_labels: None,
                 is_detached: false,
+                arguments: vec![],
+                dedup_window_ms: None,
             }));
             if take_then {
                 collect_activity_calls_from_stmts(

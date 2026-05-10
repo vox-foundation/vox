@@ -30,7 +30,7 @@ use super::plan::plan_workflow_replay_ir;
 use super::tracker::{DefaultTracker, WorkflowTracker};
 #[cfg(feature = "mens")]
 use super::types::PopuliActivity;
-use super::types::{PlannedActivity, ReplayNode};
+use super::types::{PlannedActivity, ReplayNode, compute_structural_arg_hash};
 
 /// Version tag for interpreted workflow journal events emitted by this crate.
 pub const WORKFLOW_JOURNAL_VERSION: u32 = 1;
@@ -78,6 +78,34 @@ pub async fn interpret_workflow_durable(
                     .clone()
                     .unwrap_or_else(|| derive_activity_id(workflow_name, &step.name, activity_idx));
                 activity_idx += 1;
+
+                // P2-T5: try the deterministic per-activity dedup cache first.
+                let arg_hash_hex = compute_structural_arg_hash(&step.arguments);
+                let now_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+                if let Some(cached) = tracker
+                    .load_cached_activity_result(&activity_id, &arg_hash_hex, now_ms)
+                    .await?
+                {
+                    journal.push(versioned_event(json!({
+                        "event": "ActivityCacheHit",
+                        "workflow": workflow_name,
+                        "activity": step.name,
+                        "activity_id": activity_id,
+                        "arg_hash": arg_hash_hex,
+                    })));
+                    journal.push(versioned_event(json!({
+                        "event": "ActivityCompleted",
+                        "workflow": workflow_name,
+                        "activity": step.name,
+                        "activity_id": activity_id,
+                        "from_cache": true,
+                        "result": cached,
+                    })));
+                    continue;
+                }
 
                 if tracker
                     .is_activity_completed(workflow_name, &activity_id)
@@ -150,6 +178,16 @@ pub async fn interpret_workflow_durable(
                 tracker
                     .on_activity_completed(workflow_name, &step.name, &activity_id, &entry)
                     .await?;
+                let dedup_ms = step.dedup_window_ms.unwrap_or(24 * 60 * 60 * 1000);
+                let _ = tracker
+                    .record_cached_activity_result(
+                        &activity_id,
+                        &arg_hash_hex,
+                        &entry,
+                        now_ms,
+                        dedup_ms,
+                    )
+                    .await;
                 journal.push(entry);
 
                 journal.push(versioned_event(json!({

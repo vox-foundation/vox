@@ -38,6 +38,16 @@ pub struct PlannedActivity {
     pub required_labels: Option<Vec<String>>,
     /// When true, dispatch as a detached task and poll for completion.
     pub is_detached: bool,
+    /// P2-T5: structural argument values for dedup-cache keying. Empty when planning-time args are unavailable.
+    pub arguments: Vec<serde_json::Value>,
+    /// P2-T5: dedup window from `@activity(dedup = "…")` in milliseconds. Default: 24h.
+    pub dedup_window_ms: Option<u64>,
+}
+
+/// P2-T5: derive a hex SHA3-512 hash of the canonicalized argument list.
+pub fn compute_structural_arg_hash(args: &[serde_json::Value]) -> String {
+    let canonical = serde_json::Value::Array(args.to_vec()).to_string();
+    vox_db::hash::content_hash(canonical.as_bytes())
 }
 
 /// Replay-oriented node for interpreted durable workflow execution.
