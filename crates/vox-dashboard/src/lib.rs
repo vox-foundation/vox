@@ -26,9 +26,11 @@ pub mod test_support {
     /// Build a complete dashboard router against an empty mesh registry.
     ///
     /// Use this in integration tests that exercise mesh REST routes.
+    /// Includes mesh routes and the oplog-at route (P4-T5).
     pub fn build_router_with_empty_mesh() -> Router<()> {
         let (registry, bus) = build_mesh_state();
         let state = MeshState { registry, bus };
-        crate::api::mesh::mesh_router(state)
+        crate::api::mesh::mesh_router(state.clone())
+            .merge(crate::api::oplog_at::oplog_router(state))
     }
 }

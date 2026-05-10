@@ -1,0 +1,54 @@
+// Audit-log timeline scrubber — Phase 4, P4-T5.
+//
+// Renders a horizontal timeline slider. Dragging it fetches the op-log
+// snapshot at that cursor position via GET /api/v2/oplog/at/{ts}.
+//
+// The slider range is [min_op_id .. max_op_id] from the last summary call.
+// The selected op_id drives the workflow debugger (P4-T8).
+
+component OplogScrubber(
+    min_op_id: int,
+    max_op_id: int,
+    on_select: fn(ts: int, ops: any),
+) {
+    let cursor    = use_state(value=max_op_id)
+    let loading   = use_state(value=false)
+    let snapshot  = use_state(value=null)
+
+    let fetch_at = fn(ts: int) {
+        set(loading, true)
+        api_get(url="/api/v2/oplog/at/" + str(ts), on_ok=fn(payload) {
+            set(snapshot, payload.data)
+            set(loading,  false)
+            on_select(ts, payload.data.ops)
+        }, on_err=fn(_) { set(loading, false) })
+    }
+
+    view: column(gap=4) {
+        row(items="center", gap=3) {
+            text(size="xs", color="zinc.500", tracking="widest", case="upper") { "Op-log cursor" }
+            if loading { text(size="xs", color="zinc.400") { "Loading…" } }
+        }
+        slider(
+            min=min_op_id,
+            max=max_op_id,
+            value=cursor,
+            on_change=fn(v: int) {
+                set(cursor, v)
+                fetch_at(v)
+            },
+            step=1,
+            width="full",
+        )
+        row(justify="between") {
+            text(size="xs", font_family="mono", color="zinc.600") { str(min_op_id) }
+            text(size="xs", font_family="mono", color="zinc.400") { "op " + str(cursor) }
+            text(size="xs", font_family="mono", color="zinc.600") { str(max_op_id) }
+        }
+        if snapshot != null {
+            text(size="xs", color="zinc.500") {
+                str(snapshot.op_count) + " ops at cursor"
+            }
+        }
+    }
+}

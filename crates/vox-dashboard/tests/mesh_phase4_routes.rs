@@ -72,6 +72,80 @@ async fn edges_route_returns_empty_array_on_fresh_registry() {
     assert_eq!(v["data"].as_array().unwrap().len(), 0);
 }
 
+// ── P4-T5: Op-log scrubber endpoint ──────────────────────────────────────────
+
+#[tokio::test]
+async fn oplog_at_returns_correct_shape() {
+    let app = vox_dashboard::test_support::build_router_with_empty_mesh();
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v2/oplog/at/1000")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(res.into_body(), 4 * 1024).await.unwrap();
+    let v: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(v["v"].as_u64().unwrap(), 1);
+    assert_eq!(v["data"]["ts"].as_u64().unwrap(), 1000);
+    assert!(v["data"]["ops"].as_array().unwrap().is_empty());
+    assert_eq!(v["data"]["op_count"].as_u64().unwrap(), 0);
+}
+
+// ── P4-T2: Add-a-Node bearer mint ────────────────────────────────────────────
+
+#[tokio::test]
+async fn mint_bearer_returns_three_coequal_forms() {
+    let app = vox_dashboard::test_support::build_router_with_empty_mesh();
+    let res = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v2/mesh/invite")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"slot_kind":"gpu","ttl_secs":600}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(res.into_body(), 16 * 1024).await.unwrap();
+    let v: Value = serde_json::from_slice(&bytes).unwrap();
+    let data = &v["data"];
+    assert!(data["peer_id"].as_str().unwrap().starts_with("peer-"));
+    assert!(data["bearer_url"].as_str().unwrap().starts_with("vox+invite://"));
+    assert!(data["install_command"].as_str().unwrap().starts_with("vox populi join "));
+    assert!(data["install_command_print"].as_str().unwrap().contains(" --print"));
+    assert!(data["qr_svg"].as_str().unwrap().starts_with("<svg "));
+    assert_eq!(data["expires_in_secs"].as_u64().unwrap(), 600);
+}
+
+#[tokio::test]
+async fn mint_bearer_caps_ttl_at_ten_minutes() {
+    let app = vox_dashboard::test_support::build_router_with_empty_mesh();
+    let res = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v2/mesh/invite")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"slot_kind":"gpu","ttl_secs":3600}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let bytes = axum::body::to_bytes(res.into_body(), 16 * 1024).await.unwrap();
+    let v: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(
+        v["data"]["expires_in_secs"].as_u64().unwrap(),
+        600,
+        "TTL must be capped at 600s regardless of request"
+    );
+}
+
 // ── P4-T1c: WS event bus subscription round-trip ─────────────────────────────
 
 #[tokio::test]
