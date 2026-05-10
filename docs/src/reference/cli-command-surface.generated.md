@@ -21,7 +21,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 262
+**schema_version:** `1` · **vox-cli operations:** 263
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -64,6 +64,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci cuda-release-build` | active | — | — | platform | — |
 | `vox ci data-ssot-guards` | active | — | — | platform | — |
 | `vox ci db-schema-coverage` | active | — | — | platform | — |
+| `vox ci detect-rules-bench` | active | — | — | platform | — |
 | `vox ci doc-inventory` | active | — | — | platform | — |
 | `vox ci eval-matrix` | active | — | — | platform | — |
 | `vox ci eval-matrix run` | active | — | — | platform | — |
