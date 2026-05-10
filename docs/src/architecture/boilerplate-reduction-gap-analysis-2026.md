@@ -200,6 +200,7 @@ Tier 2 (depend on Tier 1):
 Tier 3 (compositions):
    GA-15  Offline + CRDT                     ← needs GA-13 + RichText (CC-12)
    GA-25  Multiplayer                        ← composes GA-13 + GA-15
+   GA-26  Layered layout discipline          ← composes GA-19 (semantic UI) + GA-20 (tokens)
 
 Deferred (no graft host until prerequisite lands):
    GA-04b Multi-tenancy @scoped_by(tenant)  ← deferred, no native-emit need
@@ -1102,6 +1103,61 @@ cargo test -p vox-compiler vector embed
 3. Per C4, no new `multiplayer` keyword; functionality is emergent.
 
 **Estimated lift.** M (500–800 LoC, mostly composition + golden).
+
+---
+
+### GA-26 — Layered layout discipline: typed Z-tiers + partitioning containers + `Mark<T>`
+
+**Goal.** Make Z-fighting, accidental occlusion, and tier inversion structurally unrepresentable in VUV (the Vox view-tree language). Adopt the `wlr-layer-shell` four-tier model (extended to seven for app UIs) plus i3/Sway's tree-of-partitioning-containers discipline. See companion memo: [`vuv-layered-layout-discipline-2026.md`](vuv-layered-layout-discipline-2026.md).
+
+**Existing surface to align with.** WebIR (`crates/vox-codegen/src/web_ir/`) already represents view trees as `DomNode` arenas with `view_roots`, plus dedicated `validate_a11y`, `validate_keys`, and `validate_overlay` passes. A `validate_overlay.rs` module exists but does NOT enforce a closed Z-tier enum today — so this graft is *strengthening an existing validation seam*, not adding a parallel one. Do not duplicate into a new `validate_z.rs`; extend `validate_overlay.rs`.
+
+**Status precondition.** Independent at the parser layer; benefits from GA-19 (semantic UI primitives — dialog/tooltip/menu naturally bind to specific tiers) and GA-20 (design tokens — z-tier *visual* affordances like elevation shadows live there).
+
+**Files to read first.**
+- [`vuv-layered-layout-discipline-2026.md`](vuv-layered-layout-discipline-2026.md) — the design memo this graft implements.
+- [i3 User's Guide §Tree](https://i3wm.org/docs/userguide.html#_tree) and [§VIM-like marks](https://i3wm.org/docs/userguide.html#vim_like_marks) — for tree partitioning + marks model.
+- [`zwlr_layer_shell_v1` spec](https://wayland.app/protocols/wlr-layer-shell-unstable-v1) — for the four-tier `background < bottom < top < overlay` precedent.
+- `crates/vox-codegen/src/web_ir/validate_overlay.rs` — existing seam to strengthen.
+- `crates/vox-codegen/src/web_ir/mod.rs` — `DomNode` schema; new variants live here.
+
+**Files to modify or create.**
+- `crates/vox-compiler/src/lexer/token.rs` — add `AtLayer` (decorator on a component declaring its z-tier).
+- `crates/vox-compiler/src/hir/nodes/layer.rs` (new) — `LayerTier` closed enum (`Background`, `Content`, `Chrome`, `Popover`, `Modal`, `Toast`, `SystemOverlay`); `HirMarkRef` for typed cross-tree handles.
+- `crates/vox-compiler/src/typeck/layer.rs` (new) — refuse compile when:
+  - a `Tooltip` is rendered as a parent of a `Modal` (`vox/layer/tier-inversion`);
+  - two siblings inside a partitioning container declare overlapping geometry (`vox/layer/sibling-overlap`);
+  - a `Mark<"k">` is declared twice in the same view-tree scope (`vox/layer/duplicate-mark`);
+  - a `Mark<T>`-typed jump target references a name that no surface declares (`vox/layer/dangling-mark`).
+- `crates/vox-codegen/src/web_ir/validate_overlay.rs` (extend) — wire the new diagnostics through the existing overlay pass.
+- `crates/vox-codegen/src/web_ir/layer_emit.rs` (new) — emit CSS portals + a single `<div data-vox-layer="modal">` per active tier; tier ordering is enforced via a generated stylesheet, not user-authored z-index.
+
+**Acceptance criteria.**
+1. A `component MyTooltip @layer(tier: Modal)` refuses compile with `vox/layer/tier-inversion` (a Tooltip in Modal tier is a category mismatch).
+2. A `Modal` declared inside a `Toast` parent's view tree refuses compile with `vox/layer/tier-inversion`.
+3. A `mark "primary-action"` declared on two sibling view roots refuses compile with `vox/layer/duplicate-mark`.
+4. A `Tooltip::for(target: Mark<"missing">)` where no surface declares that mark refuses compile with `vox/layer/dangling-mark`.
+5. Raw `style={{ zIndex: 9999 }}` in a generated TSX file refuses lint (lifted in GA-20 if `vox/tokens/raw-color` already does the analogous check for color); diagnostic id `vox/layer/raw-z-index`.
+6. The generated CSS embeds exactly seven layered `data-vox-layer="…"` selectors with a fixed z-index ladder; the ladder is **not user-extensible from `.vox` source** (per C4, one canonical ordering).
+
+**Verification commands.**
+```pwsh
+cargo test -p vox-compiler layer
+cargo test -p vox-codegen layer_emit overlay
+cargo run -p vox-cli -- check examples/golden/layer_modal_tooltip.vox
+```
+
+**P-stack rubric.**
+- **P0 levers:** Z-fighting, tier inversion, dangling-mark are all structurally unrepresentable.
+- **C2/C4 hygiene:** one canonical tier ladder; one canonical mark namespace; partitioning layouts (Row/Col/Tabs/Stack) are the *only* parents that can hold non-overlay siblings — no `position: absolute` escape hatch except via `@layer(tier: …)`.
+- **Decision-point delta:** `−4` per overlay site (no z-index choice, no portal-target choice, no tier-name choice, no de-collision via stacking-context kludges).
+
+**Out of scope for this task.**
+- Native (iOS/Android) layer-shell binding — defer with GA-09b.
+- Compositing-layer hints (`will-change`, `contain: layout`) — performance follow-up.
+- Floating-window discipline as a runtime escape hatch — initial graft is structural-only at compile time.
+
+**Estimated lift.** L (1500–2500 LoC across HIR + typeck + WebIR + emit + golden).
 
 ---
 

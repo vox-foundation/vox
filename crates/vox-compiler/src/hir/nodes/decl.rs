@@ -3,6 +3,7 @@
 use crate::ast::decl::fundecl::StyleBlock;
 use crate::ast::span::Span;
 use crate::hir::nodes::form::HirForm;
+use crate::hir::nodes::tokens::HirTokensDecl;
 
 use super::expr::HirExpr;
 use super::stmt::HirStmt;
@@ -98,6 +99,10 @@ pub struct HirModule {
     /// Push-notification wiring lowered from `@push` (at most one per module).
     #[serde(default)]
     pub push: Option<HirPush>,
+
+    /// Project-level design-token declarations (`tokens { … }`), CC-23.
+    #[serde(default)]
+    pub token_decls: Vec<HirTokensDecl>,
 
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,

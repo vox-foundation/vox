@@ -32,6 +32,15 @@ pub enum Token {
     Continue,
     #[token("match")]
     Match,
+    /// `when` — view-arm discriminant keyword for `Async[T]` rendering (GA-01).
+    #[token("when")]
+    When,
+    /// `fetching` — `Async[T]` view arm: data is in-flight (GA-01).
+    #[token("fetching")]
+    Fetching,
+    /// `empty` — `Async[T]` view arm: data resolved to empty set (GA-01).
+    #[token("empty")]
+    Empty,
     #[token("for")]
     For,
     #[token("in")]
@@ -164,6 +173,39 @@ pub enum Token {
     AtDeepLink,
     #[token("@push")]
     AtPush,
+    /// `@tokens` — project-level design-token block declaration (CC-23 / GA-20).
+    #[token("@tokens")]
+    AtTokens,
+    /// `@cors` — CORS policy decorator on `@endpoint` (Phase 3 HTTP ergonomics / GA-06).
+    #[token("@cors")]
+    AtCors,
+    /// `@rate_limit` — per-IP/key rate-limiting decorator (Phase 3 HTTP ergonomics / GA-06).
+    #[token("@rate_limit")]
+    AtRateLimit,
+    /// `@uses` — effect annotation declaring I/O surfaces of a function (Phase 5 / GA-05).
+    #[token("@uses")]
+    AtUses,
+    /// `@pii` — PII-taint marker on a type field or variable (GA-23).
+    #[token("@pii")]
+    AtPii,
+    /// `@embed` — embedding-generation decorator on a `@table` field (CC-16 / GA-24).
+    #[token("@embed")]
+    AtEmbed,
+    /// `@webhook` — verified-inbound-webhook decorator (CC-04 / GA-16).
+    #[token("@webhook")]
+    AtWebhook,
+    /// `@auth` — OAuth/OIDC auth flow decorator (GA-04).
+    #[token("@auth")]
+    AtAuth,
+    /// `@offline_capable` — service-worker / offline-first decorator (CC-22 / GA-15).
+    #[token("@offline_capable")]
+    AtOfflineCapable,
+    /// `@collaborative` — CRDT-backed collaborative-editing decorator (CC-20 / GA-15).
+    #[token("@collaborative")]
+    AtCollaborative,
+    /// `@layer` — VUV layered-layout tier decorator (GA-26).
+    #[token("@layer")]
+    AtLayer,
 
     // ── Symbols ───────────────────────────────────────────────
     #[token("(")]
@@ -350,6 +392,9 @@ impl std::fmt::Display for Token {
             Token::If => write!(f, "if"),
             Token::Else => write!(f, "else"),
             Token::Match => write!(f, "match"),
+            Token::When => write!(f, "when"),
+            Token::Fetching => write!(f, "fetching"),
+            Token::Empty => write!(f, "empty"),
             Token::For => write!(f, "for"),
             Token::In => write!(f, "in"),
             Token::To => write!(f, "to"),
@@ -411,6 +456,17 @@ impl std::fmt::Display for Token {
             Token::AtBackButton => write!(f, "@back_button"),
             Token::AtDeepLink => write!(f, "@deep_link"),
             Token::AtPush => write!(f, "@push"),
+            Token::AtTokens => write!(f, "@tokens"),
+            Token::AtCors => write!(f, "@cors"),
+            Token::AtRateLimit => write!(f, "@rate_limit"),
+            Token::AtUses => write!(f, "@uses"),
+            Token::AtPii => write!(f, "@pii"),
+            Token::AtEmbed => write!(f, "@embed"),
+            Token::AtWebhook => write!(f, "@webhook"),
+            Token::AtAuth => write!(f, "@auth"),
+            Token::AtOfflineCapable => write!(f, "@offline_capable"),
+            Token::AtCollaborative => write!(f, "@collaborative"),
+            Token::AtLayer => write!(f, "@layer"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBracket => write!(f, "["),

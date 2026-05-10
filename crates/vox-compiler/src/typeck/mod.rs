@@ -14,8 +14,11 @@
 
 mod ast_decl_lints;
 mod async_handler_lint;
+pub mod async_exhaustiveness;
+pub mod contrast;
 mod effect_deps_lint;
 pub mod form_check;
+pub mod layer;
 mod stale_capture_lint;
 
 pub use ast_decl_lints::lint_ast_declarations;
