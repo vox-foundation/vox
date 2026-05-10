@@ -898,6 +898,7 @@ impl Parser {
         let mut is_deprecated = false;
         let mut is_llm = false;
         let mut llm_model = None;
+        let mut decorator_effects: Vec<crate::ast::decl::effect::EffectAnnotation> = Vec::new();
 
         loop {
             self.skip_newlines();
@@ -966,6 +967,48 @@ impl Parser {
                         self.expect(&Token::RParen)?;
                     }
                 }
+                Token::AtUses => {
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if let Token::Ident(ref name) = self.peek().clone() {
+                                let name = name.clone();
+                                self.advance();
+                                if let Some(eff) = crate::ast::decl::effect::EffectAnnotation::from_keyword(&name) {
+                                    if name == "mcp" && self.eat(&Token::LParen) {
+                                        if let Token::Ident(tool) = self.peek().clone() {
+                                            self.advance();
+                                            decorator_effects.push(crate::ast::decl::effect::EffectAnnotation::Mcp(tool));
+                                        }
+                                        let _ = self.expect(&Token::RParen);
+                                    } else {
+                                        decorator_effects.push(eff);
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) { break; }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                }
+                Token::AtAuth
+                | Token::AtCors
+                | Token::AtRateLimit
+                | Token::AtPii
+                | Token::AtEmbed
+                | Token::AtWebhook
+                | Token::AtOfflineCapable
+                | Token::AtCollaborative
+                | Token::AtLayer => {
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        self.skip_paren_args_inner();
+                    }
+                }
                 _ => break,
             }
         }
@@ -990,7 +1033,14 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let effects = self.parse_uses_clause();
+        let clause_effects = self.parse_uses_clause();
+        let effects = if decorator_effects.is_empty() {
+            clause_effects
+        } else {
+            let mut all = decorator_effects;
+            all.extend(clause_effects);
+            all
+        };
         let return_type = if self.eat_return_arrow() {
             Some(self.parse_type_expr()?)
         } else {

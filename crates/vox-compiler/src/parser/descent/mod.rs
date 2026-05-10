@@ -130,6 +130,19 @@ impl Parser {
         }
     }
 
+    /// Consume a `(…)` arg list of any depth, discarding all tokens inside.
+    /// Call after the opening `(` has already been eaten.
+    pub(crate) fn skip_paren_args_inner(&mut self) {
+        let mut depth: u32 = 1;
+        while depth > 0 && !matches!(self.peek(), Token::Eof) {
+            match self.peek() {
+                Token::LParen => { depth += 1; self.advance(); }
+                Token::RParen => { depth -= 1; if depth > 0 { self.advance(); } else { self.advance(); break; } }
+                _ => { self.advance(); }
+            }
+        }
+    }
+
     pub(crate) fn eat_return_arrow(&mut self) -> bool {
         if self.eat(&Token::Arrow) {
             let mut err = ParseError::classified(
@@ -352,6 +365,16 @@ impl Parser {
                 | Token::AtDeprecated
                 | Token::AtLoading
                 | Token::AtTokens
+                | Token::AtUses
+                | Token::AtAuth
+                | Token::AtCors
+                | Token::AtRateLimit
+                | Token::AtPii
+                | Token::AtEmbed
+                | Token::AtWebhook
+                | Token::AtOfflineCapable
+                | Token::AtCollaborative
+                | Token::AtLayer
                 | Token::Let
                 | Token::Agent
                 | Token::Env
@@ -427,7 +450,17 @@ impl Parser {
                     | Token::AtPure
                     | Token::AtAi
                     | Token::AtDeprecated
-                    | Token::AtNative => {
+                    | Token::AtNative
+                    | Token::AtUses
+                    | Token::AtAuth
+                    | Token::AtCors
+                    | Token::AtRateLimit
+                    | Token::AtPii
+                    | Token::AtEmbed
+                    | Token::AtWebhook
+                    | Token::AtOfflineCapable
+                    | Token::AtCollaborative
+                    | Token::AtLayer => {
                         let mut f = self.parse_fn_decl(false)?;
                         f.is_async = true;
                         Ok(Decl::Function(f))
@@ -453,7 +486,17 @@ impl Parser {
             | Token::AtReactive
             | Token::AtAi
             | Token::AtDeprecated
-            | Token::AtNative => {
+            | Token::AtNative
+            | Token::AtUses
+            | Token::AtAuth
+            | Token::AtCors
+            | Token::AtRateLimit
+            | Token::AtPii
+            | Token::AtEmbed
+            | Token::AtWebhook
+            | Token::AtOfflineCapable
+            | Token::AtCollaborative
+            | Token::AtLayer => {
                 let f = self.parse_fn_decl(false)?;
                 Ok(Decl::Function(f))
             }
@@ -468,7 +511,17 @@ impl Parser {
                     | Token::AtPure
                     | Token::AtAi
                     | Token::AtDeprecated
-                    | Token::AtNative => {
+                    | Token::AtNative
+                    | Token::AtUses
+                    | Token::AtAuth
+                    | Token::AtCors
+                    | Token::AtRateLimit
+                    | Token::AtPii
+                    | Token::AtEmbed
+                    | Token::AtWebhook
+                    | Token::AtOfflineCapable
+                    | Token::AtCollaborative
+                    | Token::AtLayer => {
                         let f = self.parse_fn_decl(true)?;
                         Ok(Decl::Function(f))
                     }
