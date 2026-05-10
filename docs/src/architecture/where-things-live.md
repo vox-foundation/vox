@@ -209,6 +209,13 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | BundleRef / Bundle / BundleStore (P2-T1) | `crates/vox-package/src/bundle.rs` |
 | WorkflowDrainStarted / WorkflowDrainState (P2-T3) | `crates/vox-orchestrator/src/drain_oplog/workflow_drain.rs` |
 | activity_result_cache — table DDL + SQL constants (P2-T5) | `crates/vox-db/src/ddl/activity_result_cache.rs` |
+| SCIENTIA claim extraction pipeline (VeriScore, MiniCheck, T1→T2) | `crates/vox-claim-extractor/` |
+| SCIENTIA drift linter — workspace pattern-repetition checks | `crates/vox-drift-check/` |
+| SCIENTIA UK AISI Inspect adapter, atomic-NEI novelty, ChronoFact, EvidenceConflict | `crates/vox-inspect-bridge/` |
+| SCIENTIA nanopublication builder — TriG, Ed25519 signing, Trusty URI | `crates/vox-nanopub/` |
+| SCIENTIA pre-registration — signing, deviation detection, Bayesian stopping | `crates/vox-prereg/` |
+| SCIENTIA research event types and ResearchEventEmitter trait (L1) | `crates/vox-research-events/` |
+| SCIENTIA RO-Crate 1.2 JSON-LD builder — CFF, CodeMeta, TOP-Level-2, ACM badges | `crates/vox-ro-crate/` |
 
 > **L0/L1 split:** if your consumer only needs row/param TYPES (no async, no
 > connection), depend on `vox-db-types` directly — not on `vox-db`. The full
