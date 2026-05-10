@@ -342,7 +342,9 @@ fn first_shallow_pure_violation_in_expr(e: &Expr) -> Option<crate::ast::span::Sp
         | Expr::StringLit { .. }
         | Expr::BoolLit { .. }
         | Expr::DecimalLit { .. }
-        | Expr::Ident { .. } => None,
+        | Expr::Ident { .. }
+        // side_effect blocks are sanctioned non-determinism; skip them in the pure-fn check.
+        | Expr::SideEffect { .. } => None,
     }
 }
 
@@ -485,6 +487,15 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
                 check_workflow_stmt_determinism(stmt, &w.name, &mut diags);
             }
         }
+    }
+
+    // P1-T7: Flag side_effect { } blocks used outside a workflow body (no journal to bind to).
+    for decl in &module.declarations {
+        visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
+            for stmt in &f.body {
+                check_side_effect_outside_workflow_stmt(stmt, &f.name, &mut diags);
+            }
+        });
     }
 
     // P1-T3: @remote param serializability check.
@@ -750,6 +761,72 @@ fn check_workflow_expr_determinism(expr: &Expr, wf_name: &str, diags: &mut Vec<D
         | Expr::DecimalLit { .. }
         | Expr::Ident { .. } => {}
         // Remaining variants — don't recurse (safe to skip for MVP).
+        _ => {}
+    }
+}
+
+/// Walk a non-workflow function body and flag any `side_effect { }` blocks (P1-T7).
+/// Outside a workflow body there is no replay journal, so `side_effect` has no meaning.
+fn check_side_effect_outside_workflow_stmt(stmt: &Stmt, fn_name: &str, diags: &mut Vec<Diagnostic>) {
+    match stmt {
+        Stmt::Let { value, .. } => check_side_effect_outside_workflow_expr(value, fn_name, diags),
+        Stmt::Return { value: Some(v), .. } => {
+            check_side_effect_outside_workflow_expr(v, fn_name, diags)
+        }
+        Stmt::Return { value: None, .. } => {}
+        Stmt::Expr { expr: e, .. } => check_side_effect_outside_workflow_expr(e, fn_name, diags),
+        Stmt::Assign { value, .. } => {
+            check_side_effect_outside_workflow_expr(value, fn_name, diags)
+        }
+        _ => {}
+    }
+}
+
+fn check_side_effect_outside_workflow_expr(expr: &Expr, fn_name: &str, diags: &mut Vec<Diagnostic>) {
+    match expr {
+        Expr::SideEffect { span, .. } => {
+            diags.push(Diagnostic {
+                message: format!(
+                    "function `{fn_name}`: `side_effect {{ }}` can only appear inside a \
+                     `workflow` body — there is no replay journal here."
+                ),
+                span: *span,
+                severity: TypeckSeverity::Error,
+                expected_type: None,
+                found_type: None,
+                context: None,
+                suggestions: vec!["Move the `side_effect` block into a `workflow`.".into()],
+                category: DiagnosticCategory::Typecheck,
+                code: Some("vox/workflow/side-effect-outside-workflow".into()),
+                fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+        // Recurse into nested expressions but stop at SideEffect boundaries.
+        Expr::Call { callee, args, .. } => {
+            check_side_effect_outside_workflow_expr(callee, fn_name, diags);
+            for arg in args {
+                check_side_effect_outside_workflow_expr(&arg.value, fn_name, diags);
+            }
+        }
+        Expr::Block { stmts, .. } => {
+            for s in stmts {
+                check_side_effect_outside_workflow_stmt(s, fn_name, diags);
+            }
+        }
+        Expr::If { condition, then_body, else_body, .. } => {
+            check_side_effect_outside_workflow_expr(condition, fn_name, diags);
+            for s in then_body {
+                check_side_effect_outside_workflow_stmt(s, fn_name, diags);
+            }
+            if let Some(body) = else_body {
+                for s in body {
+                    check_side_effect_outside_workflow_stmt(s, fn_name, diags);
+                }
+            }
+        }
         _ => {}
     }
 }

@@ -63,6 +63,9 @@ pub enum Token {
     Workflow,
     #[token("activity")]
     Activity,
+    /// `side_effect` — sanctioned non-determinism block inside a workflow (P1-T7).
+    #[token("side_effect")]
+    SideEffect,
     #[token("spawn")]
     Spawn,
     #[token("http")]
@@ -409,6 +412,7 @@ impl std::fmt::Display for Token {
             Token::Actor => write!(f, "actor"),
             Token::Workflow => write!(f, "workflow"),
             Token::Activity => write!(f, "activity"),
+            Token::SideEffect => write!(f, "side_effect"),
             Token::Spawn => write!(f, "spawn"),
             Token::Http => write!(f, "http"),
             Token::Pub => write!(f, "pub"),

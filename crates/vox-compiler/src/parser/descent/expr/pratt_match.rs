@@ -202,6 +202,15 @@ impl Parser {
                     span: start.merge(self.span()),
                 }
             }
+            Token::SideEffect => {
+                self.advance(); // eat `side_effect`
+                self.expect(&Token::LBrace)?;
+                let stmts = self.parse_block()?;
+                Expr::SideEffect {
+                    stmts,
+                    span: start.merge(self.span()),
+                }
+            }
             // VUV: angle-bracket JSX (`<tag attr=...>`) was retired as a parser entry point.
             // View calls are now `Ident(kwargs) { children }`. Hitting `<` here is a real
             // less-than usage in expression context — fall through to the error path so we

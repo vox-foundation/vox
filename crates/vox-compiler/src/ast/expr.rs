@@ -363,6 +363,15 @@ pub enum Expr {
         /// Span covering the `{` … `}` block.
         span: Span,
     },
+    /// Phase 1 P1-T7: `side_effect { stmts }` — sanctioned non-determinism inside
+    /// a workflow body. Desugars to a synthesised anonymous inline activity at HIR
+    /// lower time; the workflow determinism check is exempt inside the block.
+    SideEffect {
+        /// Body statements (allowed to call `time.now()`, `random.*`, etc.).
+        stmts: Vec<crate::ast::stmt::Stmt>,
+        /// Span covering the `side_effect { … }` expression.
+        span: Span,
+    },
 }
 
 impl Expr {
@@ -393,6 +402,7 @@ impl Expr {
             | Expr::Try { span, .. }
             | Expr::StringInterp { span, .. }
             | Expr::Block { span, .. }
+            | Expr::SideEffect { span, .. }
             | Expr::Index { span, .. } => *span,
             Expr::Jsx(el) => el.span,
             Expr::JsxSelfClosing(el) => el.span,

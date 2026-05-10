@@ -70,6 +70,11 @@ pub fn lower_module_with_config(module: &Module, config: &LowerConfig) -> HirMod
 struct LowerCtx {
     def_map: DefMap,
     config: LowerConfig,
+    /// Auto-incremented counter for synthesised `__side_effect_<n>` activity names (P1-T7).
+    synthesis_counter: usize,
+    /// Inline activities synthesised from `side_effect { … }` blocks during lowering.
+    /// Drained into `HirModule::functions` after the main declaration pass completes.
+    synthesised_fns: Vec<crate::hir::nodes::HirFn>,
 }
 
 impl LowerCtx {
@@ -77,7 +82,15 @@ impl LowerCtx {
         Self {
             def_map: DefMap::new(),
             config,
+            synthesis_counter: 0,
+            synthesised_fns: Vec::new(),
         }
+    }
+
+    pub(crate) fn next_synthesis_counter(&mut self) -> usize {
+        let n = self.synthesis_counter;
+        self.synthesis_counter += 1;
+        n
     }
 
     fn lower(&mut self, module: &Module) -> HirModule {
@@ -517,6 +530,9 @@ impl LowerCtx {
         }
 
         db_select_normalize::normalize_db_select_projections(&mut hir);
+
+        // Drain synthesised side_effect activities (P1-T7) into the function list.
+        hir.functions.extend(self.synthesised_fns.drain(..));
 
         hir
     }
