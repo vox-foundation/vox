@@ -4,11 +4,16 @@
 
 pub mod bundle_fetch;
 pub mod lease_gate;
+pub mod op_fragment_sync;
 mod db;
 
 pub use db::{
     acknowledge_db_message, poll_inbox_from_db, prune_old_a2a_messages, send_to_db,
     send_to_db_with_breaker,
+};
+pub use op_fragment_sync::{
+    GossipError, OpFragmentBlob, OpFragmentSync, OpIdBloom, PeerEntry, PeerRegistry,
+    OP_FRAGMENT_SYNC_TYPE,
 };
 
 #[cfg(feature = "populi-transport")]

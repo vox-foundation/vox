@@ -10,6 +10,8 @@ pub const REMOTE_TASK_ACK_TYPE: &str = "remote_task_ack";
 pub const REMOTE_TASK_RESULT_TYPE: &str = "remote_task_result";
 /// Stable A2A wire type for best-effort remote task cancellation hints.
 pub const REMOTE_TASK_CANCEL_TYPE: &str = "remote_task_cancel";
+/// Stable A2A wire type for Bloom-filter op-fragment gossip (P3-T3).
+pub const OP_FRAGMENT_SYNC_TYPE: &str = "vox.orchestrator.OpFragmentSync.v1";
 
 /// Envelope sent across mesh A2A relay to request remote execution.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -120,6 +122,8 @@ mod tests {
             caller_agent_id: Some("agent-3".into()),
             trace_id: Some("trace-123".into()),
             span_depth: Some(2),
+            bundle_ref: None,
+            bundle_inline_b64: None,
         };
         let json = serde_json::to_string(&envelope).unwrap();
         let back: RemoteTaskEnvelope = serde_json::from_str(&json).unwrap();
