@@ -149,6 +149,8 @@ pub use vox_orchestrator_queue::locks;
 pub mod mcp_tools;
 /// Long-term and daily agent memory backed by Codex when enabled.
 pub mod memory;
+/// Live mesh node registry — authoritative in-memory topology view for the dashboard.
+pub mod mesh;
 /// Populi control-plane poll loop shared by MCP and `vox-orchestrator-d`.
 #[cfg(feature = "populi-transport")]
 pub mod mesh_federation_poll;
@@ -280,7 +282,9 @@ pub use contract::{
     plan_tool_daemon_alignment_valid,
 };
 pub use entropy_scorer::{calculate_entropy, score_confidence, semantic_drift_sigma};
-pub use events::{AgentActivity, AgentEvent, AgentEventKind, BuildStageKind, EventBus};
+pub use events::{
+    AgentActivity, AgentEvent, AgentEventKind, BuildStageKind, EventBus, MeshAction,
+};
 pub use gate::{BudgetGate, Gate, GateResult};
 pub use generated::agent_harness::{
     Adapter as HarnessAdapter, AgentHarnessSpec, CompletionGate as HarnessGate,

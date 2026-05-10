@@ -22,10 +22,13 @@ workspace-hack = { workspace = true }
 include_dir = { version = "0.7", optional = true }
 mime_guess = { workspace = true }
 const-fnv1a-hash = "1.1.0"
+# Live mesh state + event bus (Phase 4)
+vox-orchestrator = { path = "../vox-orchestrator" }
 
 [dev-dependencies]
 tempfile = { workspace = true }
 tower = { version = "0.5", features = ["util"] }
+tokio = { workspace = true }
 # Serializes tests that mutate process-wide env vars (env::set_var is unsafe in
 # Rust 2024 and races with parallel test threads).
 serial_test = "3"

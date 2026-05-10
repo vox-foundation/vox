@@ -674,6 +674,38 @@ pub enum AgentEventKind {
         developer_priority: TaskPriority,
         delta_seconds_since_admit: u64,
     },
+
+    // -----------------------------------------------------------------------
+    // Mesh spend + action events (P4-T1, P4-T6, P4-T7)
+    // -----------------------------------------------------------------------
+
+    /// Per-node budget tick — emitted at most once per second per node.
+    /// Powers the spend gauges (P4-T6) on the topology canvas.
+    MeshNodeBudget {
+        node_id: String,
+        cost_usd_24h: f64,
+        cost_cap_usd: f64,
+        token_count_24h: u64,
+    },
+
+    /// A destructive mesh action (kill/pause/drain/replay) was committed.
+    /// Always paired with a signed audit-log entry.
+    MeshActionCommitted {
+        node_id: String,
+        action: MeshAction,
+        actor: String,
+        signed_audit_id: String,
+    },
+}
+
+/// Destructive mesh actions that trigger a confirmation modal and signed audit-log entry.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MeshAction {
+    Kill,
+    Pause,
+    Drain,
+    Replay,
 }
 
 // ---------------------------------------------------------------------------

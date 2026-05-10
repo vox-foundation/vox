@@ -10,7 +10,6 @@ default = [
     "runtime",
     "json-schema",
 ]
-dashboard = ["dep:vox-dashboard"]
 # Populi HTTP mesh client (`vox-populi` transport).
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
 # `vox-oratio` speech-to-text / refinement tools.
@@ -71,7 +70,6 @@ vox-orchestrator-types.workspace = true
 vox-orchestrator-queue.workspace = true
 vox-config.workspace = true
 vox-repository.workspace = true
-vox-dashboard = { workspace = true, optional = true }
 vox-populi = { path = "../vox-populi", optional = true, default-features = false }
 vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = "0.1.89"
