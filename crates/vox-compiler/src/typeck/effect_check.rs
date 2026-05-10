@@ -340,7 +340,8 @@ fn check_expr(
         | HirExpr::Ident(..)
         | HirExpr::JsxSelfClosing(_)
         | HirExpr::Jsx(_)
-        | HirExpr::Try(_) => {}
+        | HirExpr::Try(_)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 
@@ -476,7 +477,8 @@ fn infer_expr_effects(expr: &HirExpr, caps: &mut HashSet<HirCapability>) {
         | HirExpr::Ident(..)
         | HirExpr::JsxSelfClosing(_)
         | HirExpr::Jsx(_)
-        | HirExpr::Try(_) => {}
+        | HirExpr::Try(_)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 

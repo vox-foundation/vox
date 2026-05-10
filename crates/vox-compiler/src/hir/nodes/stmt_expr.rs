@@ -182,6 +182,17 @@ pub enum HirExpr {
     Index(Box<HirExpr>, Box<HirExpr>, Span),
     /// `Async[T]` view — `when async_value { fetching => … empty => … error e => … ok x => … }`.
     AsyncView(Box<crate::hir::nodes::async_view::HirAsyncView>),
+    /// `workflow.version("change-id", min, max)` patch-marker (P2-T2).
+    WorkflowVersion(HirWorkflowVersion),
+}
+
+/// HIR form of `workflow.version("change-id", min_supported, max_supported)`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct HirWorkflowVersion {
+    pub change_id: String,
+    pub min: u32,
+    pub max: u32,
+    pub span: Span,
 }
 
 /// Named or positional call argument.

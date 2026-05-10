@@ -45,6 +45,15 @@ pub struct PlannedActivity {
 pub enum ReplayNode {
     /// Execute one activity step and persist/replay by `activity_id`.
     Activity(PlannedActivity),
+    /// `workflow.version("change-id", min, max)` patch-marker (P2-T2).
+    WorkflowPatch {
+        /// Stable identifier for this version gate (e.g. `"add-retry-v2"`).
+        change_id: String,
+        /// Minimum workflow version that takes the new code path.
+        min: u32,
+        /// Maximum workflow version that takes the new code path (inclusive).
+        max: u32,
+    },
 }
 
 /// Linear replay IR produced from workflow HIR for the interpreted runtime.

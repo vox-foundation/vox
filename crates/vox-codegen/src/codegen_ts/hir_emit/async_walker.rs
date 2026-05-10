@@ -133,5 +133,7 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
         | HirExpr::Ident(..) => false,
         // JSX nodes: not in handler bodies, but walk for completeness
         HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) | HirExpr::JsxFragment(_, _) => false,
+        // WorkflowVersion is a leaf — no sub-expressions to walk
+        HirExpr::WorkflowVersion(_) => false,
     }
 }

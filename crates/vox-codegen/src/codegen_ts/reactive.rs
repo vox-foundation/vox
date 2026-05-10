@@ -487,7 +487,8 @@ fn scan_hir_expr_for_react_imports(
         | HirExpr::StringLit(_, _)
         | HirExpr::BoolLit(_, _)
         | HirExpr::DecimalLit(_, _)
-        | HirExpr::Ident(_, _) => {}
+        | HirExpr::Ident(_, _)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 

@@ -51,102 +51,115 @@ pub async fn interpret_workflow_durable(
     tracker: &mut impl WorkflowTracker,
 ) -> anyhow::Result<Vec<Value>> {
     let replay_ir = plan_workflow_replay_ir(hir, workflow_name)?;
-    let plan: Vec<PlannedActivity> = replay_ir
+    let activity_count = replay_ir
         .nodes
-        .into_iter()
-        .map(|node| match node {
-            ReplayNode::Activity(step) => step,
-        })
-        .collect();
+        .iter()
+        .filter(|n| matches!(n, ReplayNode::Activity(_)))
+        .count();
     let mut journal = Vec::new();
     tracker
-        .on_workflow_started(workflow_name, plan.len())
+        .on_workflow_started(workflow_name, activity_count)
         .await?;
     journal.push(versioned_event(json!({
         "event": "WorkflowStarted",
         "workflow": workflow_name,
-        "steps": plan.len(),
+        "steps": activity_count,
     })));
-    for (idx, step) in plan.iter().enumerate() {
-        let activity_id = step
-            .activity_id
-            .clone()
-            .unwrap_or_else(|| derive_activity_id(workflow_name, &step.name, idx));
+    let mut activity_idx: usize = 0;
+    for node in replay_ir.nodes {
+        match node {
+            ReplayNode::WorkflowPatch { change_id, min, max } => {
+                handle_workflow_patch(workflow_name, &change_id, min, max, &mut journal, tracker)
+                    .await?;
+            }
+            ReplayNode::Activity(step) => {
+                let activity_id = step
+                    .activity_id
+                    .clone()
+                    .unwrap_or_else(|| derive_activity_id(workflow_name, &step.name, activity_idx));
+                activity_idx += 1;
 
-        if tracker
-            .is_activity_completed(workflow_name, &activity_id)
-            .await?
-        {
-            if let Some(replayed_result) = tracker
-                .load_activity_result(workflow_name, &activity_id)
-                .await?
-            {
+                if tracker
+                    .is_activity_completed(workflow_name, &activity_id)
+                    .await?
+                {
+                    if let Some(replayed_result) = tracker
+                        .load_activity_result(workflow_name, &activity_id)
+                        .await?
+                    {
+                        journal.push(versioned_event(json!({
+                            "event": "ActivityReplayed",
+                            "workflow": workflow_name,
+                            "activity": step.name,
+                            "activity_id": activity_id,
+                            "replay_source": "workflow_activity_log",
+                            "result_event": replayed_result
+                                .get("event")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown"),
+                        })));
+                        journal.push(versioned_event(replayed_result));
+                        journal.push(versioned_event(json!({
+                            "event": "ActivityCompleted",
+                            "workflow": workflow_name,
+                            "activity": step.name,
+                            "activity_id": activity_id,
+                            "replayed": true,
+                        })));
+                    } else {
+                        journal.push(versioned_event(json!({
+                            "event": "ActivitySkipped",
+                            "workflow": workflow_name,
+                            "activity": step.name,
+                            "activity_id": activity_id,
+                            "reason": "already completed in prior durable run",
+                        })));
+                    }
+                    continue;
+                }
+
+                tracker
+                    .on_activity_started(workflow_name, &step.name, &activity_id)
+                    .await?;
                 journal.push(versioned_event(json!({
-                    "event": "ActivityReplayed",
+                    "event": "ActivityTask",
                     "workflow": workflow_name,
                     "activity": step.name,
                     "activity_id": activity_id,
-                    "replay_source": "workflow_activity_log",
-                    "result_event": replayed_result
-                        .get("event")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("unknown"),
+                    "execution_boundary": if step.mens { "mesh" } else { "local" },
+                    "max_attempts": step.retries.saturating_add(1).max(1),
+                    "timeout_ms": step.timeout_ms,
+                    "idempotency_key": activity_id,
                 })));
-                journal.push(versioned_event(replayed_result));
+                journal.push(versioned_event(json!({
+                    "event": "ActivityStarted",
+                    "workflow": workflow_name,
+                    "activity": step.name,
+                    "activity_id": activity_id,
+                })));
+
+                let entry = execute_step_with_retries(
+                    workflow_name,
+                    &step,
+                    &activity_id,
+                    &mut journal,
+                    tracker,
+                )
+                .await?;
+
+                tracker
+                    .on_activity_completed(workflow_name, &step.name, &activity_id, &entry)
+                    .await?;
+                journal.push(entry);
+
                 journal.push(versioned_event(json!({
                     "event": "ActivityCompleted",
                     "workflow": workflow_name,
                     "activity": step.name,
                     "activity_id": activity_id,
-                    "replayed": true,
-                })));
-            } else {
-                journal.push(versioned_event(json!({
-                    "event": "ActivitySkipped",
-                    "workflow": workflow_name,
-                    "activity": step.name,
-                    "activity_id": activity_id,
-                    "reason": "already completed in prior durable run",
                 })));
             }
-            continue;
         }
-
-        tracker
-            .on_activity_started(workflow_name, &step.name, &activity_id)
-            .await?;
-        journal.push(versioned_event(json!({
-            "event": "ActivityTask",
-            "workflow": workflow_name,
-            "activity": step.name,
-            "activity_id": activity_id,
-            "execution_boundary": if step.mens { "mesh" } else { "local" },
-            "max_attempts": step.retries.saturating_add(1).max(1),
-            "timeout_ms": step.timeout_ms,
-            "idempotency_key": activity_id,
-        })));
-        journal.push(versioned_event(json!({
-            "event": "ActivityStarted",
-            "workflow": workflow_name,
-            "activity": step.name,
-            "activity_id": activity_id,
-        })));
-
-        let entry =
-            execute_step_with_retries(workflow_name, step, &activity_id, &mut journal, tracker)
-                .await?;
-
-        tracker
-            .on_activity_completed(workflow_name, &step.name, &activity_id, &entry)
-            .await?;
-        journal.push(entry);
-
-        journal.push(versioned_event(json!({
-            "event": "ActivityCompleted",
-            "workflow": workflow_name,
-            "activity": step.name,
-            "activity_id": activity_id,
-        })));
     }
     tracker.on_workflow_completed(workflow_name).await?;
     journal.push(versioned_event(json!({
@@ -154,6 +167,39 @@ pub async fn interpret_workflow_durable(
         "workflow": workflow_name,
     })));
     Ok(journal)
+}
+
+async fn handle_workflow_patch(
+    workflow_name: &str,
+    change_id: &str,
+    min: u32,
+    max: u32,
+    journal: &mut Vec<Value>,
+    tracker: &mut impl WorkflowTracker,
+) -> anyhow::Result<u32> {
+    if let Some(prior) = tracker.load_workflow_patch(workflow_name, change_id).await? {
+        journal.push(versioned_event(json!({
+            "event": "WorkflowPatch",
+            "workflow": workflow_name,
+            "change_id": change_id,
+            "version": prior,
+            "replayed": true,
+        })));
+        return Ok(prior);
+    }
+    tracker
+        .record_workflow_patch(workflow_name, change_id, max)
+        .await?;
+    journal.push(versioned_event(json!({
+        "event": "WorkflowPatch",
+        "workflow": workflow_name,
+        "change_id": change_id,
+        "version": max,
+        "min_supported": min,
+        "max_supported": max,
+        "replayed": false,
+    })));
+    Ok(max)
 }
 
 async fn execute_step_with_retries(

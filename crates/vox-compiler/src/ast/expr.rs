@@ -372,6 +372,17 @@ pub enum Expr {
         /// Span covering the `side_effect { … }` expression.
         span: Span,
     },
+    /// `workflow.version("change-id", min, max)` patch-marker primitive (P2-T2).
+    WorkflowVersion(WorkflowVersionCall),
+}
+
+/// Arguments for `workflow.version("change-id", min_supported, max_supported)`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct WorkflowVersionCall {
+    pub change_id: String,
+    pub min: u32,
+    pub max: u32,
+    pub span: Span,
 }
 
 impl Expr {
@@ -407,6 +418,7 @@ impl Expr {
             Expr::Jsx(el) => el.span,
             Expr::JsxSelfClosing(el) => el.span,
             Expr::JsxFragment { span, .. } => *span,
+            Expr::WorkflowVersion(c) => c.span,
         }
     }
 }

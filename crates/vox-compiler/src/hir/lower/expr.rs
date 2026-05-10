@@ -1,5 +1,6 @@
 use crate::ast::expr::{self, BinOp, Expr, UnOp};
 use crate::hir::nodes::durability::DurabilityKind;
+use crate::hir::HirWorkflowVersion;
 use crate::hir::*;
 
 use super::LowerCtx;
@@ -371,6 +372,12 @@ impl LowerCtx {
                 Box::new(self.lower_expr(index)),
                 *span,
             ),
+            Expr::WorkflowVersion(call) => HirExpr::WorkflowVersion(HirWorkflowVersion {
+                change_id: call.change_id.clone(),
+                min: call.min,
+                max: call.max,
+                span: call.span,
+            }),
         }
     }
 }

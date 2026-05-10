@@ -591,6 +591,8 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             let src = emit_hir_expr(&v.source, ctx);
             format!("{src} /* async view */")
         }
+        // WorkflowVersion is not representable as a TS expression in this emit path
+        HirExpr::WorkflowVersion(_) => String::new(),
     }
 }
 

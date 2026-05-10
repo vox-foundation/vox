@@ -352,7 +352,8 @@ fn walk_expr(
         | Expr::BoolLit { .. }
         | Expr::DecimalLit { .. }
         | Expr::Ident { .. }
-        | Expr::SideEffect { .. } => {}
+        | Expr::SideEffect { .. }
+        | Expr::WorkflowVersion(_) => {}
     }
 }
 

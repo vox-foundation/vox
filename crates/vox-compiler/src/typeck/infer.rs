@@ -394,6 +394,8 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
             }
             ctx.fresh_var()
         }
+        // workflow.version is a patch-marker primitive; infer as unit.
+        Expr::WorkflowVersion(_) => Ty::Unit,
     }
 }
 

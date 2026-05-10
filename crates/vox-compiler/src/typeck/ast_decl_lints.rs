@@ -344,7 +344,9 @@ fn first_shallow_pure_violation_in_expr(e: &Expr) -> Option<crate::ast::span::Sp
         | Expr::DecimalLit { .. }
         | Expr::Ident { .. }
         // side_effect blocks are sanctioned non-determinism; skip them in the pure-fn check.
-        | Expr::SideEffect { .. } => None,
+        | Expr::SideEffect { .. }
+        // workflow.version is a metadata marker; not a pure violation.
+        | Expr::WorkflowVersion(_) => None,
     }
 }
 

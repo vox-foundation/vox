@@ -673,6 +673,7 @@ impl<'a> Checker<'a> {
                 }
                 Ty::Unit
             }
+            HirExpr::WorkflowVersion(_) => Ty::Unit,
 
             HirExpr::Try(hir_try) => {
                 let inner_ty = self.check_expr(hir_try.target.as_ref(), None);

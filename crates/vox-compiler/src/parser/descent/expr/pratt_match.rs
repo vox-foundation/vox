@@ -2,7 +2,7 @@
 
 use super::super::Parser;
 use crate::ast::expr::{
-    Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, UnOp,
+    Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, UnOp, WorkflowVersionCall,
 };
 use crate::ast::stmt::Stmt;
 use crate::lexer::token::Token;
@@ -210,6 +210,90 @@ impl Parser {
                     stmts,
                     span: start.merge(self.span()),
                 }
+            }
+            // P2-T2: `workflow.version("change-id", min, max)` patch-marker.
+            Token::Workflow => {
+                self.advance(); // eat `workflow`
+                self.expect(&Token::Dot)?;
+                let method = self.parse_ident_name()?;
+                if method != "version" {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("expected `version` after `workflow.`, got `{method}`"),
+                        vec!["version".into()],
+                        Some(method),
+                        ParseErrorClass::Expression,
+                    ));
+                    return Err(());
+                }
+                self.expect(&Token::LParen)?;
+                let args = self.parse_args()?;
+                self.expect(&Token::RParen)?;
+                let span = start.merge(self.span());
+                let change_id = match args.first().map(|a| &a.value) {
+                    Some(Expr::StringLit { value, .. }) => value.clone(),
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            span,
+                            "workflow.version arg 1 must be a string literal",
+                            vec!["string literal".into()],
+                            None,
+                            ParseErrorClass::Expression,
+                        ));
+                        return Err(());
+                    }
+                };
+                let min = match args.get(1).map(|a| &a.value) {
+                    Some(Expr::IntLit { value, .. }) => match u32::try_from(*value) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            self.errors.push(ParseError::classified(
+                                span,
+                                "workflow.version arg 2 must be a non-negative int",
+                                vec!["non-negative integer".into()],
+                                None,
+                                ParseErrorClass::Expression,
+                            ));
+                            return Err(());
+                        }
+                    },
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            span,
+                            "workflow.version arg 2 must be a non-negative int",
+                            vec!["non-negative integer".into()],
+                            None,
+                            ParseErrorClass::Expression,
+                        ));
+                        return Err(());
+                    }
+                };
+                let max = match args.get(2).map(|a| &a.value) {
+                    Some(Expr::IntLit { value, .. }) => match u32::try_from(*value) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            self.errors.push(ParseError::classified(
+                                span,
+                                "workflow.version arg 3 must be a non-negative int",
+                                vec!["non-negative integer".into()],
+                                None,
+                                ParseErrorClass::Expression,
+                            ));
+                            return Err(());
+                        }
+                    },
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            span,
+                            "workflow.version arg 3 must be a non-negative int",
+                            vec!["non-negative integer".into()],
+                            None,
+                            ParseErrorClass::Expression,
+                        ));
+                        return Err(());
+                    }
+                };
+                Expr::WorkflowVersion(WorkflowVersionCall { change_id, min, max, span })
             }
             // VUV: angle-bracket JSX (`<tag attr=...>`) was retired as a parser entry point.
             // View calls are now `Ident(kwargs) { children }`. Hitting `<` here is a real
