@@ -303,6 +303,9 @@ pub struct HirFn {
     /// Capabilities declared via `uses` clause. Empty = unannotated; `[Nothing]` = pure.
     #[serde(default)]
     pub capabilities: Vec<HirCapability>,
+    /// `@remote` — eligible for cross-node dispatch via the mesh (P1-T3).
+    #[serde(default)]
+    pub is_remote: bool,
     /// Whether the function body is implemented via an LLM.
     #[serde(default)]
     pub is_llm: bool,

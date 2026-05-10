@@ -895,6 +895,7 @@ impl Parser {
         let mut is_mobile_native = false;
         let mut is_pure = false;
         let mut is_reactive = false;
+        let mut is_remote = false;
         let mut is_deprecated = false;
         let mut is_llm = false;
         let mut llm_model = None;
@@ -952,6 +953,10 @@ impl Parser {
                 Token::AtReactive => {
                     self.advance();
                     is_reactive = true;
+                }
+                Token::AtRemote => {
+                    self.advance();
+                    is_remote = true;
                 }
                 Token::AtDeprecated => {
                     self.advance();
@@ -1444,6 +1449,7 @@ impl Parser {
             is_deprecated,
             is_pure,
             is_reactive,
+            is_remote,
             is_llm,
             llm_model,
             ai_structured_output_type,
@@ -1519,6 +1525,7 @@ impl Parser {
             is_deprecated: false,
             is_pure: false,
             is_reactive: false,
+            is_remote: false,
             effects: vec![],
             is_traced: false,
             is_llm: false,

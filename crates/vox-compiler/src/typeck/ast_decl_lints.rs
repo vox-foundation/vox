@@ -478,7 +478,54 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
         });
     }
 
+    // P1-T3: @remote param serializability check.
+    for decl in &module.declarations {
+        visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
+            if !f.is_remote {
+                return;
+            }
+            for p in &f.params {
+                if let Some(ann) = &p.type_ann {
+                    check_remote_param_serializable(ann, &p.name, &f.name, &mut diags);
+                }
+            }
+        });
+    }
+
     diags
+}
+
+/// Emit `vox/remote/param-not-serializable` when an `@remote fn` has a non-serializable param type.
+///
+/// Function-typed parameters cannot cross a serialization boundary.
+fn check_remote_param_serializable(
+    te: &TypeExpr,
+    param_name: &str,
+    fn_name: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
+    if matches!(te, TypeExpr::Function { .. }) {
+        diags.push(Diagnostic {
+            message: format!(
+                "@remote fn `{fn_name}`: parameter `{param_name}` has a function type, \
+                 which cannot be serialized for cross-node dispatch."
+            ),
+            span: te.span(),
+            severity: TypeckSeverity::Error,
+            expected_type: Some("a serializable type (int, str, bool, a struct, …)".into()),
+            found_type: Some("function type".into()),
+            context: None,
+            suggestions: vec![
+                "Replace the function parameter with a serializable value or use a local closure instead.".into(),
+            ],
+            category: DiagnosticCategory::Typecheck,
+            code: Some("vox/remote/param-not-serializable".into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
 }
 
 /// Emit `vox/types/durable-promise-arity` when `DurablePromise` appears without a type argument.

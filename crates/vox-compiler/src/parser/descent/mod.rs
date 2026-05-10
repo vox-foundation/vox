@@ -297,6 +297,7 @@ impl Parser {
                 is_deprecated: false,
                 is_pure: false,
                 is_reactive: false,
+                is_remote: false,
                 is_traced: false,
                 is_llm: false,
                 llm_model: None,
@@ -382,6 +383,7 @@ impl Parser {
                 | Token::AtFuzz
                 | Token::AtPure
                 | Token::AtReactive
+                | Token::AtRemote
                 | Token::AtAi
                 | Token::AtDeprecated
                 | Token::AtLoading
@@ -469,6 +471,7 @@ impl Parser {
                     | Token::AtInvariant
                     | Token::AtFuzz
                     | Token::AtPure
+                    | Token::AtRemote
                     | Token::AtAi
                     | Token::AtDeprecated
                     | Token::AtNative
@@ -505,6 +508,7 @@ impl Parser {
             | Token::AtFuzz
             | Token::AtPure
             | Token::AtReactive
+            | Token::AtRemote
             | Token::AtAi
             | Token::AtDeprecated
             | Token::AtNative
@@ -530,6 +534,7 @@ impl Parser {
                     | Token::AtInvariant
                     | Token::AtFuzz
                     | Token::AtPure
+                    | Token::AtRemote
                     | Token::AtAi
                     | Token::AtDeprecated
                     | Token::AtNative

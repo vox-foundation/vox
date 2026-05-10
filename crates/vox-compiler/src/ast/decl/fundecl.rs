@@ -113,6 +113,10 @@ pub struct FnDecl {
     /// error (see plan 6).
     #[serde(default)]
     pub ts_extern_module: Option<String>,
+    /// Whether the function is marked `@remote` — eligible for cross-node dispatch
+    /// via the mesh (P1-T3). All parameters must be serializable.
+    #[serde(default)]
+    pub is_remote: bool,
     /// Source location.
     pub span: Span,
 }

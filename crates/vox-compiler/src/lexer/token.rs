@@ -206,6 +206,9 @@ pub enum Token {
     /// `@layer` — VUV layered-layout tier decorator (GA-26).
     #[token("@layer")]
     AtLayer,
+    /// `@remote` — marks a function for cross-node dispatch via the mesh (P1-T3).
+    #[token("@remote")]
+    AtRemote,
 
     // ── Symbols ───────────────────────────────────────────────
     #[token("(")]
@@ -467,6 +470,7 @@ impl std::fmt::Display for Token {
             Token::AtOfflineCapable => write!(f, "@offline_capable"),
             Token::AtCollaborative => write!(f, "@collaborative"),
             Token::AtLayer => write!(f, "@layer"),
+            Token::AtRemote => write!(f, "@remote"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBracket => write!(f, "["),
