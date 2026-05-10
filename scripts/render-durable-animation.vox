@@ -1,0 +1,87 @@
+// vox:caps fs env process
+// Re-render docs/src/assets/durable_essentialist_loop.webp from
+// docs/src/assets/template_durable.html.
+//
+// Pipeline:
+//   1. tools/render-durable-animation/render.js bakes the template (resolving
+//      the {{*_B64}} placeholders against node_*.png assets) and screenshots
+//      680 frames at 960x960 via headless Chrome.
+//   2. ffmpeg encodes the frames to animated WebP at 20 fps.
+//
+// Requirements on the host:
+//   - Node 20+ with `npm install` in tools/render-durable-animation/
+//   - Chrome/Chromium (path auto-detected on Windows; override with CHROME_PATH)
+//   - ffmpeg with libwebp_anim (the standard winget/choco builds have it)
+import fs;
+import path;
+import process;
+import env;
+
+fn detect_chrome() -> str {
+    let from_env = env.get("CHROME_PATH")
+    if from_env isnt "" {
+        return from_env
+    }
+    let candidates = [
+        "C:/Program Files/Google/Chrome/Application/chrome.exe",
+        "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    ]
+    for c in candidates {
+        if fs.exists(c) {
+            return c
+        }
+    }
+    return ""
+}
+
+fn main() {
+    let repo = process.cwd()
+    let tool_dir = path.join(repo, "tools/render-durable-animation")
+    let webp_out = path.join(repo, "docs/src/assets/durable_essentialist_loop.webp")
+    let frames_dir = path.join(tool_dir, "frames")
+
+    let chrome = detect_chrome()
+    if chrome is "" {
+        print("ERROR: Chrome/Chromium not found. Set CHROME_PATH env var.")
+        process.exit(1)
+    }
+
+    if !fs.exists(path.join(tool_dir, "node_modules")) {
+        print("Installing puppeteer-core in tools/render-durable-animation/ ...")
+        let r = process.run("npm", ["install", "--prefix", tool_dir])
+        if r.code isnt 0 {
+            print("npm install failed: " + r.stderr)
+            process.exit(1)
+        }
+    }
+
+    print("Capturing frames via headless Chrome at 960x960 ...")
+    let render = process.run("node", [path.join(tool_dir, "render.js"), repo, chrome])
+    if render.code isnt 0 {
+        print("render.js failed:")
+        print(render.stderr)
+        process.exit(1)
+    }
+
+    print("Encoding animated WebP via ffmpeg ...")
+    let ffmpeg_args = [
+        "-y",
+        "-framerate", "20",
+        "-i", path.join(frames_dir, "f%04d.png"),
+        "-loop", "0",
+        "-lossless", "0",
+        "-compression_level", "6",
+        "-q:v", "70",
+        webp_out,
+    ]
+    let enc = process.run("ffmpeg", ffmpeg_args)
+    if enc.code isnt 0 {
+        print("ffmpeg failed: " + enc.stderr)
+        process.exit(1)
+    }
+
+    print("OK. Wrote " + webp_out)
+}
