@@ -23,6 +23,25 @@ const SECTION_ORDER = [
   'Reference',
 ];
 
+// Sections collapsed by default — engineering internals not relevant to end users.
+// They remain searchable (Pagefind) and accessible via direct URL; just not expanded in the nav.
+const COLLAPSED_SECTIONS = new Set([
+  'Architecture Decisions (ADRs)',
+  'Architecture SSOTs',
+  'Contributors',
+  'CI & Quality',
+  'Operations',
+]);
+
+// Status values that earn a sidebar badge so users know a page is not yet stable.
+const STATUS_BADGE = {
+  experimental: { text: 'Experimental', variant: 'caution' },
+  research:     { text: 'Research',     variant: 'note'    },
+  roadmap:      { text: 'Roadmap',      variant: 'note'    },
+  deprecated:   { text: 'Deprecated',   variant: 'danger'  },
+  legacy:       { text: 'Legacy',       variant: 'tip'     },
+};
+
 // Directories under docs/src/ that should never appear in the sidebar
 const EXCLUDED_DIRS = new Set(['archive', '.well-known']);
 
@@ -52,11 +71,11 @@ function collectPages(dir, root) {
         // Strip docs/src/ prefix and .md for Starlight link; normalise Windows separators
         const rel = relative(root, full).replace(/\\/g, '/').replace(/\.md$/, '');
         pages.push({
-          title: data.title || entry.replace('.md', ''),
-          link: rel,
-          category: data.category || null,
+          title:      data.title || entry.replace('.md', ''),
+          link:       rel,
+          category:   data.category || null,
           sort_order: data.sort_order ?? 999,
-          status: data.status || 'current',
+          status:     data.status || 'current',
         });
       } catch {
         // skip unreadable / non-frontmatter files
@@ -64,6 +83,13 @@ function collectPages(dir, root) {
     }
   }
   return pages;
+}
+
+function makeItem(p) {
+  const badge = STATUS_BADGE[p.status];
+  return badge
+    ? { label: p.title, link: p.link, badge }
+    : { label: p.title, link: p.link };
 }
 
 export function getSidebar() {
@@ -94,7 +120,7 @@ export function getSidebar() {
 
   rootItems.sort(sortFn);
   for (const p of rootItems) {
-    sidebar.push({ label: p.title, link: p.link });
+    sidebar.push(makeItem(p));
   }
 
   for (const section of SECTION_ORDER) {
@@ -103,17 +129,19 @@ export function getSidebar() {
     items.sort(sortFn);
     sidebar.push({
       label: section,
-      items: items.map(p => ({ label: p.title, link: p.link })),
+      items: items.map(makeItem),
+      collapsed: COLLAPSED_SECTIONS.has(section),
     });
     grouped.delete(section);
   }
 
-  // Any category not in SECTION_ORDER appended at end
+  // Any category not in SECTION_ORDER appended at end (collapsed — catch-all for new sections)
   for (const [section, items] of grouped) {
     items.sort(sortFn);
     sidebar.push({
       label: section,
-      items: items.map(p => ({ label: p.title, link: p.link })),
+      items: items.map(makeItem),
+      collapsed: true,
     });
   }
 

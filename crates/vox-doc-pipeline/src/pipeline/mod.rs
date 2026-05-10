@@ -234,6 +234,13 @@ pub fn run() {
                         value
                     );
                 }
+                LintKind::BrokenIncludeFile { file } => {
+                    eprintln!(
+                        "  ERROR  {} — `{{{{#include {}}}}}` target file not found. The Starlight build will fail at runtime.",
+                        rel.display(),
+                        file
+                    );
+                }
                 LintKind::BrokenIncludeAnchor { file, anchor } => {
                     eprintln!(
                         "  ERROR  {} — unresolved anchor `:{}` in `{{{{#include ...}}}}` (target {}). Check if REGION exists in the golden file.",
@@ -274,6 +281,7 @@ pub fn run() {
                         | LintKind::UnknownCategory { .. }
                         | LintKind::UnknownStatus { .. }
                         | LintKind::UnknownSchemaType { .. }
+                        | LintKind::BrokenIncludeFile { .. }
                         | LintKind::BrokenIncludeAnchor { .. }
                         | LintKind::WholeFileIncludeHasTrainingHeader { .. }
                         | LintKind::MissingTrainingRationale
