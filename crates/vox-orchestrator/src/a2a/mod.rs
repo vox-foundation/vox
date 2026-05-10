@@ -4,6 +4,7 @@ mod bus;
 pub mod dispatch;
 mod envelope;
 pub mod secret_bag;
+pub mod traceparent;
 #[cfg(feature = "populi-transport")]
 pub mod jwe;
 #[cfg(feature = "populi-transport")]

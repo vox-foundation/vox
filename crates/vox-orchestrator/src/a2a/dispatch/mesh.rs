@@ -157,7 +157,9 @@ pub async fn relay_remote_task_envelope(
             jwe_payload,
             task_kind: Some("vox_script".to_string()),
             model_id: None,
-            traceparent: None,
+            traceparent: Some(crate::a2a::traceparent::encode(
+                &crate::a2a::traceparent::TraceContext::from_current_span(),
+            )),
             priority: 128,
         })
         .await

@@ -97,21 +97,30 @@ async fn process_one_envelope(
         }
     };
 
-    // Extract trace_id from the W3C traceparent on the inbox row (S1: field recording only).
-    let trace_id = msg
+    // Parse the W3C traceparent into a structured context (P0-T8).
+    let trace_ctx = msg
         .traceparent
         .as_deref()
-        .and_then(|tp| tp.split('-').nth(1))
-        .filter(|s| s.len() == 32)
+        .and_then(crate::a2a::traceparent::parse);
+    let trace_id = trace_ctx
+        .as_ref()
+        .map(|c| c.trace_id.as_str())
+        .unwrap_or("");
+    let parent_id = trace_ctx
+        .as_ref()
+        .map(|c| c.parent_id.as_str())
         .unwrap_or("");
     let exec_lease_id = envelope.exec_lease_id.as_deref().unwrap_or("");
-    tracing::info!(
+    let _span = tracing::info_span!(
+        "populi_remote_envelope",
         task_id = envelope.task_id,
         message_id = msg.id,
         exec_lease_id,
         "vox.mesh.trace_id" = trace_id,
-        "populi remote worker: processing envelope"
-    );
+        "vox.mesh.parent_span_id" = parent_id,
+    )
+    .entered();
+    tracing::info!("populi remote worker: processing envelope");
 
     // Decrypt JWE-wrapped secrets forwarded by the orchestrator (P0-T4).
     // Key derivation mirrors the sender in dispatch/mesh.rs: BLAKE3(VoxMeshJwtHmacSecret).
