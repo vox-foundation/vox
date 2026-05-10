@@ -22,4 +22,16 @@ pub struct Attestation {
     pub signature_b64: String,
     /// Unix epoch milliseconds when this attestation was produced.
     pub signed_at_unix_ms: u64,
+    /// Optional TEE attestation quote (P6-T5). Present when the task ran inside a
+    /// TEE-capable sandbox (Intel TDX, AMD SEV-SNP, AWS Nitro, Firecracker).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tee_quote: Option<crate::tee_attestation::TeeQuote>,
+    /// Optional BLAKE3 hex digest of the replay proof (P6-T5).
+    /// Allows a verifier to replay the computation and confirm the output.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replay_proof_blake3_hex: Option<String>,
+    /// Optional base64-encoded kudos signature over the attestation (P6-T5).
+    /// Signed by the node's long-lived identity key, not the ephemeral key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kudos_signature_b64: Option<String>,
 }
