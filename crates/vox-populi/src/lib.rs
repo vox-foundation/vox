@@ -380,6 +380,11 @@ pub fn current_target_triple() -> &'static str {
     return "unknown-unknown-unknown";
 }
 
+/// GitHub-attested pairing and revocation (P5-T2).
+pub mod pairing;
+/// Per-key token-bucket quota + reputation EMA (P5-T3).
+pub mod quota;
+
 #[cfg(test)]
 mod normalize_http_control_base_tests {
     use super::normalize_http_control_base;

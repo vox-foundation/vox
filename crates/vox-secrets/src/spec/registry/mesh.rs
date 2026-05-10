@@ -37,6 +37,17 @@ pub const SPECS_MESH: &[SecretSpec] = &[
         scope_description: "Wire auth scheme for A2A control-plane messages (P5-T1c).",
     },
     SecretSpec {
+        id: SecretId::VoxMeshGithubAttestationGistUrl,
+        canonical_env: "VOX_MESH_GITHUB_ATTESTATION_GIST_URL",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Run `vox populi pair github` to publish your attestation Gist.",
+        scope_description: "Raw URL of the GitHub Gist containing this node's attestation manifest (P5-T2c).",
+    },
+    SecretSpec {
         id: SecretId::VoxMeshWorkerToken,
         canonical_env: "VOX_MESH_WORKER_TOKEN",
         aliases: &[],
