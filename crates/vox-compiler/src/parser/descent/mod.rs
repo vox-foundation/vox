@@ -351,6 +351,7 @@ impl Parser {
                 | Token::AtAi
                 | Token::AtDeprecated
                 | Token::AtLoading
+                | Token::AtTokens
                 | Token::Let
                 | Token::Agent
                 | Token::Env
@@ -511,6 +512,7 @@ impl Parser {
             Token::AtBackButton => self.parse_back_button_decl(),
             Token::AtDeepLink => self.parse_deep_link_decl(),
             Token::AtPush => self.parse_push_decl(),
+            Token::AtTokens => self.parse_tokens_decl(),
             Token::Workflow => self.parse_workflow_decl(),
             Token::Activity => self.parse_activity_decl(),
             Token::Actor => self.parse_actor_decl(),

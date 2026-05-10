@@ -195,6 +195,20 @@ fn scan_expr_for_handlers(
             scan_expr_for_handlers(a, async_fns, diags);
             scan_expr_for_handlers(b, async_fns, diags);
         }
+        HirExpr::AsyncView(v) => {
+            if let Some(a) = &v.fetching_arm {
+                scan_expr_for_handlers(a, async_fns, diags);
+            }
+            if let Some(a) = &v.empty_arm {
+                scan_expr_for_handlers(a, async_fns, diags);
+            }
+            if let Some(a) = &v.error_arm {
+                scan_expr_for_handlers(a, async_fns, diags);
+            }
+            if let Some(a) = &v.ok_arm {
+                scan_expr_for_handlers(a, async_fns, diags);
+            }
+        }
         // Leaf literals — nothing to recurse into.
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)

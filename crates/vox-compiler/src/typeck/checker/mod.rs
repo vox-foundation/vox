@@ -45,6 +45,7 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         HirExpr::JsxFragment(_, s) => *s,
         HirExpr::Try(t) => t.span,
         HirExpr::DecimalLit(_, s) => *s,
+        HirExpr::AsyncView(v) => v.span,
     }
 }
 
@@ -542,6 +543,12 @@ impl<'a> Checker<'a> {
             HirExpr::Index(obj, idx, _) => {
                 Self::contains_db_write_or_unsafe_in_expr(obj)
                     || Self::contains_db_write_or_unsafe_in_expr(idx)
+            }
+            HirExpr::AsyncView(v) => {
+                [&v.fetching_arm, &v.empty_arm, &v.error_arm, &v.ok_arm]
+                    .iter()
+                    .filter_map(|a| a.as_deref())
+                    .any(Self::contains_db_write_or_unsafe_in_expr)
             }
             HirExpr::IntLit(_, _)
             | HirExpr::FloatLit(_, _)

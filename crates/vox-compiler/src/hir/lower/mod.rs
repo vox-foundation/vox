@@ -370,6 +370,60 @@ impl LowerCtx {
                         span: p.span,
                     });
                 }
+                Decl::Tokens(t) => {
+                    use crate::hir::nodes::tokens::{
+                        HirColorToken, HirFontToken, HirScalarToken, HirShadowToken, HirTokensDecl,
+                    };
+                    hir.token_decls.push(HirTokensDecl {
+                        span: t.span,
+                        colors: t
+                            .colors
+                            .iter()
+                            .map(|c| HirColorToken {
+                                name: c.name.clone(),
+                                light: c.light.clone(),
+                                dark: c.dark.clone(),
+                                span: c.span,
+                            })
+                            .collect(),
+                        spacing: t
+                            .spacing
+                            .iter()
+                            .map(|s| HirScalarToken {
+                                name: s.name.clone(),
+                                value: s.value.clone(),
+                                span: s.span,
+                            })
+                            .collect(),
+                        radius: t
+                            .radius
+                            .iter()
+                            .map(|r| HirScalarToken {
+                                name: r.name.clone(),
+                                value: r.value.clone(),
+                                span: r.span,
+                            })
+                            .collect(),
+                        shadows: t
+                            .shadows
+                            .iter()
+                            .map(|s| HirShadowToken {
+                                name: s.name.clone(),
+                                value: s.value.clone(),
+                                span: s.span,
+                            })
+                            .collect(),
+                        fonts: t
+                            .fonts
+                            .iter()
+                            .map(|f| HirFontToken {
+                                name: f.name.clone(),
+                                family: f.family.clone(),
+                                span: f.span,
+                            })
+                            .collect(),
+                    });
+                }
                 _ => {
                     hir.legacy_ast_nodes.push(decl.clone());
                 }

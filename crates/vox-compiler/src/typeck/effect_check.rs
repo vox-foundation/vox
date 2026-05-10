@@ -303,6 +303,21 @@ fn check_expr(
             check_expr(obj, caller_name, caller_set, cap_map, source, diags);
             check_expr(idx, caller_name, caller_set, cap_map, source, diags);
         }
+        HirExpr::AsyncView(v) => {
+            check_expr(&v.source, caller_name, caller_set, cap_map, source, diags);
+            if let Some(a) = &v.fetching_arm {
+                check_expr(a, caller_name, caller_set, cap_map, source, diags);
+            }
+            if let Some(a) = &v.empty_arm {
+                check_expr(a, caller_name, caller_set, cap_map, source, diags);
+            }
+            if let Some(a) = &v.error_arm {
+                check_expr(a, caller_name, caller_set, cap_map, source, diags);
+            }
+            if let Some(a) = &v.ok_arm {
+                check_expr(a, caller_name, caller_set, cap_map, source, diags);
+            }
+        }
         // Leaves.
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)

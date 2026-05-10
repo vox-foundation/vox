@@ -2,10 +2,11 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    BackButtonDecl, Decl, DeepLinkDecl, EffectDecl, EndpointDecl, EndpointKind, FieldConstraint,
-    FnDecl, ForallDecl, FormDecl, FormField, ImportDecl, ImportPath, ImportPathKind, LoadingDecl,
-    McpResourceDecl, McpToolDecl, OnCleanupDecl, OnMountDecl, PostCondition, PushDecl,
-    ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport, ScheduledDecl, TestDecl,
+    AstColorToken, AstFontToken, AstScalarToken, BackButtonDecl, Decl, DeepLinkDecl, EffectDecl,
+    EndpointDecl, EndpointKind, FieldConstraint, FnDecl, ForallDecl, FormDecl, FormField,
+    ImportDecl, ImportPath, ImportPathKind, LoadingDecl, McpResourceDecl, McpToolDecl,
+    OnCleanupDecl, OnMountDecl, PostCondition, PushDecl, ReactiveComponentDecl, ReactiveMemberDecl,
+    RustCrateImport, ScheduledDecl, TestDecl, TokensDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -1627,6 +1628,160 @@ impl Parser {
             universal_link,
             on_link,
             span: start.merge(self.span()),
+        }))
+    }
+
+    /// Parse `@tokens { color <name> light: "<hex>" dark: "<hex>" ... }`.
+    ///
+    /// Grammar per CC-23 / GA-20:
+    /// ```text
+    /// @tokens {
+    ///   color <name>   light: "<hex>" dark: "<hex>"
+    ///   spacing <name>: "<css-value>"
+    ///   radius  <name>: "<css-value>"
+    ///   shadow  <name>: "<css-value>"
+    ///   font    <name> family: "<stack>"
+    /// }
+    /// ```
+    pub(crate) fn parse_tokens_decl(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
+        self.advance(); // eat @tokens
+        self.expect(&Token::LBrace)?;
+
+        let mut colors: Vec<AstColorToken> = Vec::new();
+        let mut spacing: Vec<AstScalarToken> = Vec::new();
+        let mut radius: Vec<AstScalarToken> = Vec::new();
+        let mut shadows: Vec<AstScalarToken> = Vec::new();
+        let mut fonts: Vec<AstFontToken> = Vec::new();
+
+        loop {
+            self.skip_newlines();
+            if matches!(self.peek(), Token::RBrace | Token::Eof) {
+                break;
+            }
+            let kw = match self.peek().clone() {
+                Token::Ident(k) => {
+                    self.advance();
+                    k
+                }
+                other => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("Expected token category (color/spacing/radius/shadow/font) inside @tokens block, got `{other}`"),
+                        vec!["color".into(), "spacing".into(), "radius".into(), "shadow".into(), "font".into()],
+                        Some(other.to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            };
+            let entry_start = self.span();
+            match kw.as_str() {
+                "color" => {
+                    let name = self.parse_ident_name()?;
+                    // `light: "<hex>"`
+                    let light_kw = self.parse_ident_name()?;
+                    if light_kw != "light" {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected `light:` keyword in color token entry",
+                            vec!["light".into()],
+                            Some(light_kw),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                    self.expect(&Token::Colon)?;
+                    let light = match self.peek().clone() {
+                        Token::StringLit(s) | Token::SingleStringLit(s) => { self.advance(); s }
+                        other => {
+                            self.errors.push(ParseError::classified(self.span(), "Expected hex string after `light:`", vec!["\"#RRGGBB\"".into()], Some(other.to_string()), ParseErrorClass::Declaration));
+                            return Err(());
+                        }
+                    };
+                    let dark_kw = self.parse_ident_name()?;
+                    if dark_kw != "dark" {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected `dark:` keyword in color token entry",
+                            vec!["dark".into()],
+                            Some(dark_kw),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                    self.expect(&Token::Colon)?;
+                    let dark = match self.peek().clone() {
+                        Token::StringLit(s) | Token::SingleStringLit(s) => { self.advance(); s }
+                        other => {
+                            self.errors.push(ParseError::classified(self.span(), "Expected hex string after `dark:`", vec!["\"#RRGGBB\"".into()], Some(other.to_string()), ParseErrorClass::Declaration));
+                            return Err(());
+                        }
+                    };
+                    colors.push(AstColorToken { name, light, dark, span: entry_start.merge(self.span()) });
+                }
+                "spacing" | "radius" | "shadow" => {
+                    let name = self.parse_ident_name()?;
+                    self.expect(&Token::Colon)?;
+                    let value = match self.peek().clone() {
+                        Token::StringLit(s) | Token::SingleStringLit(s) => { self.advance(); s }
+                        other => {
+                            self.errors.push(ParseError::classified(self.span(), "Expected CSS value string", vec!["\"8px\"".into()], Some(other.to_string()), ParseErrorClass::Declaration));
+                            return Err(());
+                        }
+                    };
+                    let tok = AstScalarToken { name, value, span: entry_start.merge(self.span()) };
+                    match kw.as_str() {
+                        "spacing" => spacing.push(tok),
+                        "radius" => radius.push(tok),
+                        "shadow" => shadows.push(tok),
+                        _ => unreachable!(),
+                    }
+                }
+                "font" => {
+                    let name = self.parse_ident_name()?;
+                    let fam_kw = self.parse_ident_name()?;
+                    if fam_kw != "family" {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected `family:` keyword in font token entry",
+                            vec!["family".into()],
+                            Some(fam_kw),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                    self.expect(&Token::Colon)?;
+                    let family = match self.peek().clone() {
+                        Token::StringLit(s) | Token::SingleStringLit(s) => { self.advance(); s }
+                        other => {
+                            self.errors.push(ParseError::classified(self.span(), "Expected font family string", vec!["\"Inter, sans-serif\"".into()], Some(other.to_string()), ParseErrorClass::Declaration));
+                            return Err(());
+                        }
+                    };
+                    fonts.push(AstFontToken { name, family, span: entry_start.merge(self.span()) });
+                }
+                other => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("Unknown token category `{other}`; expected color, spacing, radius, shadow, or font"),
+                        vec!["color".into(), "spacing".into()],
+                        Some(other.to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            }
+            self.skip_newlines();
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(Decl::Tokens(TokensDecl {
+            span: start.merge(self.span()),
+            colors,
+            spacing,
+            radius,
+            shadows,
+            fonts,
         }))
     }
 
