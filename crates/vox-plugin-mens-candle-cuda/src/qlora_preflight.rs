@@ -537,12 +537,12 @@ mod tests {
         let raw: Vec<u8> = vec![0u8; n_bytes];
         let tv =
             TensorView::new(Dtype::F32, vec![vocab, d_model], raw.as_slice()).expect("tensor view");
-        serialize_to_file([(key, tv)], &None, path).expect("serialize safetensors");
+        serialize_to_file([(key, tv)], None, path).expect("serialize safetensors");
     }
 
     fn write_tensor_view(path: &std::path::Path, key: &str, shape: Vec<usize>, raw: &[u8]) {
         let tv = TensorView::new(Dtype::F32, shape, raw).expect("tensor view");
-        serialize_to_file([(key, tv)], &None, path).expect("serialize safetensors");
+        serialize_to_file([(key, tv)], None, path).expect("serialize safetensors");
     }
 
     #[test]

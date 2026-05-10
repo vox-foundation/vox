@@ -185,7 +185,7 @@ pub fn merge_qlora_into_base_subset(
     }
 
     let payload =
-        serialize(&map, &None).map_err(|e| anyhow::anyhow!("safetensors serialize: {e}"))?;
+        serialize(&map, None).map_err(|e| anyhow::anyhow!("safetensors serialize: {e}"))?;
     std::fs::write(out_path, payload).with_context(|| format!("write {}", out_path.display()))?;
     Ok(())
 }
@@ -273,7 +273,7 @@ mod tests {
             TensorView::new(Dtype::F32, vec![vocab, d], wb.as_slice()).unwrap(),
         );
         let base_path = dir.path().join("model.safetensors");
-        std::fs::write(&base_path, serialize(&base_map, &None).unwrap()).unwrap();
+        std::fs::write(&base_path, serialize(&base_map, None).unwrap()).unwrap();
 
         let a = Tensor::ones(&[rank, d], DType::F32, &dev).unwrap();
         let b = Tensor::ones(&[vocab, rank], DType::F32, &dev).unwrap();
@@ -301,7 +301,7 @@ mod tests {
             TensorView::new(Dtype::F32, vec![vocab, rank], bb.as_slice()).unwrap(),
         );
         let ad_path = dir.path().join("candle_qlora_adapter.safetensors");
-        std::fs::write(&ad_path, serialize(&ad_map, &None).unwrap()).unwrap();
+        std::fs::write(&ad_path, serialize(&ad_map, None).unwrap()).unwrap();
 
         let mut base_key_map = HashMap::new();
         base_key_map.insert("lm_head".into(), "wte.weight".into());
