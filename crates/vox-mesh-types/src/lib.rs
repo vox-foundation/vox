@@ -3,6 +3,8 @@
 pub mod a2a;
 /// Signed result attestation envelope (P5-T4).
 pub mod attestation;
+/// Mesh-wide model inventory snapshot (P5-T8).
+pub mod model_inventory;
 /// A2A wire types for content-addressed bundle requests/responses (P2-T4).
 pub mod bundle;
 pub mod donation_policy;
@@ -16,6 +18,7 @@ pub mod trace;
 
 pub use a2a::A2ADeliverRequest;
 pub use attestation::Attestation;
+pub use model_inventory::{MeshModelInventory, ModelInventoryEntry};
 pub use donation_policy::*;
 pub use federation::*;
 pub use kudos::*;
