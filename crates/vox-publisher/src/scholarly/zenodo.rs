@@ -92,6 +92,13 @@ impl ZenodoHttpClient {
         )
     }
 
+    fn url_new_version(&self, id: &str) -> String {
+        format!(
+            "{}/deposit/depositions/{id}/actions/newversion",
+            self.base.trim_end_matches('/')
+        )
+    }
+
     async fn create_deposition_draft_once(
         &self,
         body: &ZenodoDepositionCreateBody,

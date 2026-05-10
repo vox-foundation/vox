@@ -144,12 +144,71 @@ fn mesh_workflow_env_warnings(
     text: &str,
     module: &vox_compiler::ast::decl::Module,
 ) -> Vec<Diagnostic> {
+    use vox_compiler::ast::decl::Decl;
+    use vox_compiler::ast::expr::Expr;
+    use vox_compiler::ast::stmt::Stmt;
+    use vox_compiler::ast::span::Span;
+
     if vox_populi_enabled_from_env() {
         return Vec::new();
     }
-    let spans: Vec<vox_compiler::ast::span::Span> = Vec::new();
-    // workflow construct is tombstoned; no workflow bodies to walk
-    let _ = module;
+
+    fn collect_mesh_calls_expr(expr: &Expr, out: &mut Vec<Span>) {
+        match expr {
+            Expr::Ident { name, span } if name.starts_with("mesh_") => {
+                out.push(*span);
+            }
+            Expr::Call { callee, args, .. } => {
+                collect_mesh_calls_expr(callee, out);
+                for a in args { collect_mesh_calls_expr(&a.value, out); }
+            }
+            Expr::MethodCall { object, args, .. } => {
+                collect_mesh_calls_expr(object, out);
+                for a in args { collect_mesh_calls_expr(&a.value, out); }
+            }
+            Expr::Binary { left, right, .. } => {
+                collect_mesh_calls_expr(left, out);
+                collect_mesh_calls_expr(right, out);
+            }
+            Expr::Unary { operand, .. } => collect_mesh_calls_expr(operand, out),
+            Expr::Block { stmts, .. } => {
+                for s in stmts { collect_mesh_calls_stmt(s, out); }
+            }
+            Expr::If { condition, then_body, else_body, .. } => {
+                collect_mesh_calls_expr(condition, out);
+                for s in then_body { collect_mesh_calls_stmt(s, out); }
+                if let Some(es) = else_body { for s in es { collect_mesh_calls_stmt(s, out); } }
+            }
+            _ => {}
+        }
+    }
+
+    fn collect_mesh_calls_stmt(stmt: &Stmt, out: &mut Vec<Span>) {
+        match stmt {
+            Stmt::Let { value, .. } => collect_mesh_calls_expr(value, out),
+            Stmt::Assign { value, target, .. } => {
+                collect_mesh_calls_expr(target, out);
+                collect_mesh_calls_expr(value, out);
+            }
+            Stmt::Expr { expr, .. } => collect_mesh_calls_expr(expr, out),
+            Stmt::Return { value: Some(e), .. } => collect_mesh_calls_expr(e, out),
+            Stmt::While { condition, body, .. } => {
+                collect_mesh_calls_expr(condition, out);
+                for s in body { collect_mesh_calls_stmt(s, out); }
+            }
+            _ => {}
+        }
+    }
+
+    let mut spans: Vec<Span> = Vec::new();
+    for decl in &module.declarations {
+        if let Decl::Workflow(w) = decl {
+            for s in &w.body {
+                collect_mesh_calls_stmt(s, &mut spans);
+            }
+        }
+    }
+
     spans
         .into_iter()
         .map(|span| {
