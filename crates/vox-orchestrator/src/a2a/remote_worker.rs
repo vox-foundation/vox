@@ -113,37 +113,49 @@ async fn process_one_envelope(
         "populi remote worker: processing envelope"
     );
 
-    // Decrypt JWE-wrapped secrets forwarded by the orchestrator.
-    // S1: secrets are validated (JWE must be well-formed) but not injected into the process
-    // environment; task-scoped propagation to the execution path is an S2 concern.
+    // Decrypt JWE-wrapped secrets forwarded by the orchestrator (P0-T4).
     // Key derivation mirrors the sender in dispatch/mesh.rs: BLAKE3(VoxMeshJwtHmacSecret).
+    let mut secret_bag: Option<crate::a2a::secret_bag::SecretBag> = None;
     if let Some(jwe) = msg.jwe_payload.as_deref() {
         let mesh_secret = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshJwtHmacSecret);
         if let Some(mesh_val) = mesh_secret.expose() {
             let derived = blake3::hash(mesh_val.as_bytes());
             match super::jwe::decrypt_jwe_compact(jwe, derived.as_bytes()) {
-                Ok(plain) => {
-                    let secret_count =
-                        serde_json::from_slice::<std::collections::HashMap<String, String>>(&plain)
-                            .map_or(0, |m| m.len());
-                    tracing::info!(
-                        task_id = envelope.task_id,
-                        message_id = msg.id,
-                        secret_count,
-                        "populi remote worker: JWE secrets decoded; task-scoped injection is S2"
-                    );
-                }
-                Err(e) => {
-                    tracing::warn!(
+                Ok(plain) => match serde_json::from_slice::<serde_json::Value>(&plain) {
+                    Ok(value) => match crate::a2a::secret_bag::SecretBag::from_decrypted(value) {
+                        Ok(bag) => {
+                            tracing::info!(
+                                task_id = envelope.task_id,
+                                message_id = msg.id,
+                                secret_count = bag.len(),
+                                "populi remote worker: SecretBag ready for declared injection",
+                            );
+                            secret_bag = Some(bag);
+                        }
+                        Err(e) => tracing::warn!(
+                            task_id = envelope.task_id,
+                            message_id = msg.id,
+                            error = %e,
+                            "populi remote worker: SecretBag construction failed",
+                        ),
+                    },
+                    Err(e) => tracing::warn!(
                         task_id = envelope.task_id,
                         message_id = msg.id,
                         error = %e,
-                        "populi remote worker: JWE decrypt failed; proceeding without forwarded secrets"
-                    );
-                }
+                        "populi remote worker: secret payload not JSON object",
+                    ),
+                },
+                Err(e) => tracing::warn!(
+                    task_id = envelope.task_id,
+                    message_id = msg.id,
+                    error = %e,
+                    "populi remote worker: JWE decrypt failed; proceeding without forwarded secrets"
+                ),
             }
         }
     }
+    let _ = secret_bag; // threaded to skill runtime in Phase 5 (sandbox tiering)
 
     let payload_context = parse_remote_payload_context(&envelope.payload);
     let envelope_session_id = envelope

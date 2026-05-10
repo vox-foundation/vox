@@ -107,4 +107,22 @@ pub trait SkillRuntime: Send + Sync {
 
     /// Run the skill in its sandbox and return the outcome.
     fn run(&self, opts: &RunOpts) -> anyhow::Result<RunOutcome>;
+
+    /// Run a skill with task-scoped secret env vars merged into `opts.env`.
+    ///
+    /// Default impl extends `opts.env` with `secret_env` and calls `run`.
+    /// Implementors may override to filter by a per-runtime allowlist.
+    /// Phase 5 sandbox tiering overrides this to gate injection by trust level.
+    fn run_with_secrets(
+        &self,
+        opts: &RunOpts,
+        secret_env: &[(String, String)],
+    ) -> anyhow::Result<RunOutcome> {
+        if secret_env.is_empty() {
+            return self.run(opts);
+        }
+        let mut merged = opts.clone();
+        merged.env.extend(secret_env.iter().cloned());
+        self.run(&merged)
+    }
 }
