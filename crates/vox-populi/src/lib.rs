@@ -356,6 +356,8 @@ pub mod http_client;
 pub mod http_lifecycle;
 #[cfg(feature = "transport")]
 pub mod transport;
+#[cfg(feature = "tls")]
+pub mod tls;
 
 /// Returns the current target triple (Wave 4 best-effort).
 pub fn current_target_triple() -> &'static str {
