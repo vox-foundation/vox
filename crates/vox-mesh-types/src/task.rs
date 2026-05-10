@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::attestation::Attestation;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskKind {
@@ -65,5 +67,9 @@ pub struct TaskResult {
     pub output_b64: String,
     pub duration_ms: u64,
     pub payload_blake3_hex: Option<String>,
+    /// Legacy flat signature field; superseded by `attestation` (P5-T4).
     pub worker_ed25519_sig_b64: Option<String>,
+    /// Structured signed attestation envelope (P5-T4). Absent for legacy results.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attestation: Option<Attestation>,
 }
