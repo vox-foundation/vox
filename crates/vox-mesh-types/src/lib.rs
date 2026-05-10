@@ -1,6 +1,8 @@
 //! Pure-types L0 leaf for the populi/mesh subsystem (a2a envelopes, donation policy, federation, kudos).
 
 pub mod a2a;
+/// A2A wire types for content-addressed bundle requests/responses (P2-T4).
+pub mod bundle;
 pub mod donation_policy;
 pub mod federation;
 pub mod kudos;

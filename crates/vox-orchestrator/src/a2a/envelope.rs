@@ -66,6 +66,16 @@ pub struct RemoteTaskEnvelope {
     /// Phase C: number of agent-to-agent hops from the root; root = 0.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub span_depth: Option<u16>,
+    /// P2-T4: content-hash of the workflow bundle this envelope dispatches.
+    /// Receivers consult their bundle store; on miss they emit a
+    /// `bundle_request` A2A message back to the sender.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundle_ref: Option<vox_package::bundle::BundleRef>,
+    /// P2-T4: inline base64-encoded bundle bytes when the bundle is below
+    /// the size threshold (default 1 MiB). When set, receivers skip the
+    /// `bundle_request` round-trip and use these bytes directly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundle_inline_b64: Option<String>,
 }
 
 #[cfg(test)]

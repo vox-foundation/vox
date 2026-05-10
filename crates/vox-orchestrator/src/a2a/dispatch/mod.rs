@@ -2,6 +2,7 @@
 //! fallback. P0-T3 introduces `lease_gate` as the mandatory pre-check for any
 //! "fall through to local" path.
 
+pub mod bundle_fetch;
 pub mod lease_gate;
 mod db;
 
