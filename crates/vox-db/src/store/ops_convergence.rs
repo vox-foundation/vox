@@ -85,6 +85,36 @@ impl crate::VoxDb {
             .await
     }
 
+    /// Insert a row into `convergence_op_log_backfill_dlq` (best-effort, upserts retry_count).
+    pub async fn insert_backfill_dlq(
+        &self,
+        op_id: i64,
+        payload: Vec<u8>,
+        parent_op_ids_json: String,
+        first_seen_at: i64,
+        last_error: String,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.clone();
+        conn.execute(
+            "INSERT INTO convergence_op_log_backfill_dlq \
+                (op_id, payload, parent_op_ids, first_seen_at, retry_count, last_error) \
+             VALUES (?,?,?,?,0,?) \
+             ON CONFLICT(op_id) DO UPDATE SET \
+                retry_count = retry_count + 1, \
+                last_error  = excluded.last_error",
+            turso::params![
+                op_id,
+                payload,
+                parent_op_ids_json.as_str(),
+                first_seen_at,
+                last_error.as_str(),
+            ],
+        )
+        .await
+        .map(|_| ())
+        .map_err(StoreError::Turso)
+    }
+
     /// Load the most recent `limit` rows from `convergence_op_log`, ordered newest-first.
     pub async fn load_recent_convergence_op_log(
         &self,

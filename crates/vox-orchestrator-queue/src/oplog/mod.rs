@@ -2,6 +2,7 @@
 
 mod query;
 mod store;
+pub mod backfill;
 pub mod checkpoint;
 pub mod persist;
 pub mod sign;
