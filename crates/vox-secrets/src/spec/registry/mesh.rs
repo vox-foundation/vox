@@ -26,6 +26,17 @@ pub const SPECS_MESH: &[SecretSpec] = &[
         scope_description: "HMAC secret for signing and verifying mesh JWTs.",
     },
     SecretSpec {
+        id: SecretId::VoxMeshAuthScheme,
+        canonical_env: "VOX_MESH_AUTH_SCHEME",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set to 'ed25519-envelope' (default), 'jwt-hs256' (deprecated), or 'both'.",
+        scope_description: "Wire auth scheme for A2A control-plane messages (P5-T1c).",
+    },
+    SecretSpec {
         id: SecretId::VoxMeshWorkerToken,
         canonical_env: "VOX_MESH_WORKER_TOKEN",
         aliases: &[],

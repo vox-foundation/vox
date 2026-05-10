@@ -85,6 +85,7 @@ vox-plugin-host = { workspace = true, optional = true }
 vox-constrained-gen = { workspace = true }
 vox-grammar-export = { workspace = true }
 vox-crypto = { workspace = true }
+vox-identity = { workspace = true }
 vox-mesh-types = { workspace = true }
 
 # TLS (optional, P0-T5)
@@ -178,6 +179,22 @@ required-features = ["mens"]
 [[test]]
 name = "training_presets_yaml_contract"
 required-features = ["mens"]
+
+[[test]]
+name = "ed25519_envelope"
+required-features = ["transport"]
+
+[[test]]
+name = "github_attestation"
+required-features = ["transport"]
+
+[[test]]
+name = "quota_bucket"
+required-features = ["transport"]
+
+[[test]]
+name = "pairing_e2e"
+required-features = ["transport"]
 
 [lints]
 workspace = true

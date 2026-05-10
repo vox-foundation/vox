@@ -42,6 +42,8 @@ pub enum SecretId {
     VoxMeshSubmitterToken,
     VoxMeshAdminToken,
     VoxMeshJwtHmacSecret,
+    /// Wire auth scheme: "ed25519-envelope" (default) | "jwt-hs256" | "both" (P5-T1c).
+    VoxMeshAuthScheme,
     VoxMeshWorkerResultVerifyKey,
     VoxNewsTwitterBearer,
     VoxSocialBlueskyHandle,
