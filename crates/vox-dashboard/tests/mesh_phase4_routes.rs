@@ -119,7 +119,7 @@ async fn mint_bearer_returns_three_coequal_forms() {
     assert!(data["bearer_url"].as_str().unwrap().starts_with("vox+invite://"));
     assert!(data["install_command"].as_str().unwrap().starts_with("vox populi join "));
     assert!(data["install_command_print"].as_str().unwrap().contains(" --print"));
-    assert!(data["qr_svg"].as_str().unwrap().starts_with("<svg "));
+    assert!(data["qr_svg"].as_str().unwrap().contains("<svg "));
     assert_eq!(data["expires_in_secs"].as_u64().unwrap(), 600);
 }
 

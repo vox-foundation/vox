@@ -27,6 +27,7 @@ use axum::{
 };
 use serde_json::{Value, json};
 
+use crate::api::mesh_invite::mint;
 use crate::api::mesh_topology::{MeshState, get_edges, get_nodes, get_summary};
 
 // ── Action stubs (P4-T7 replaces these with signed audit-log versions) ───────
@@ -91,6 +92,7 @@ where
         .route("/api/v2/mesh/nodes", get(get_nodes))
         .route("/api/v2/mesh/edges", get(get_edges))
         .route("/api/v2/mesh/models", get(get_models))
+        .route("/api/v2/mesh/invite", post(mint))
         .route("/api/v2/mesh/nodes/{id}/kill", post(node_kill))
         .route("/api/v2/mesh/nodes/{id}/pause", post(node_pause))
         .route("/api/v2/mesh/nodes/{id}/drain", post(node_drain))
