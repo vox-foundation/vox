@@ -399,6 +399,15 @@ pub struct HirEndpointFn {
     /// `@webhook(provider:, secret:, replay_window_secs:)` decorator (GA-16).
     #[serde(default)]
     pub webhook: Option<super::boilerplate_grafts::HirWebhookDecl>,
+    /// `@cors(origins:, allow_credentials:)` sidecar (GA-06).
+    #[serde(default)]
+    pub cors: Option<super::http_ergonomics::HirCorsPolicy>,
+    /// `@rate_limit(by:, window_secs:, max:)` sidecar (GA-06).
+    #[serde(default)]
+    pub rate_limit: Option<super::http_ergonomics::HirRateLimitPolicy>,
+    /// `@pii(class:)` marker on this endpoint (GA-23).
+    #[serde(default)]
+    pub pii: Option<super::boilerplate_grafts::HirPiiMarker>,
     /// Span covering the declaration.
     pub span: Span,
 }

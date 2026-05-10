@@ -188,6 +188,9 @@ fn pii_class_name(c: &PiiClass) -> String {
         PiiClass::Name => "name".into(),
         PiiClass::Address => "address".into(),
         PiiClass::GovernmentId => "government_id".into(),
+        PiiClass::Ip => "ip".into(),
+        PiiClass::FinancialData => "financial_data".into(),
+        PiiClass::BiometricData => "biometric_data".into(),
         PiiClass::Other(s) => s.clone(),
     }
 }
@@ -356,6 +359,77 @@ pub fn check_webhook_decl(d: &HirWebhookDecl) -> Vec<Diagnostic> {
         });
     }
     diags
+}
+
+// ── GA-06 — CORS policy validation ───────────────────────────────────────
+
+use crate::hir::nodes::http_ergonomics::HirCorsPolicy;
+
+/// Warn when `allow_credentials: true` is combined with a wildcard `*` origin.
+/// Browsers block credentialed requests to wildcard origins (CORS spec §4.9.2).
+pub fn check_cors_policy(policy: &HirCorsPolicy) -> Vec<Diagnostic> {
+    let mut diags = vec![];
+    if policy.allow_credentials && policy.origins.iter().any(|o| o == "*") {
+        diags.push(Diagnostic {
+            severity: TypeckSeverity::Warning,
+            message: "`allow_credentials: true` with origins `[\"*\"]` is rejected by browsers (CORS spec §4.9.2). List explicit origins instead.".into(),
+            span: policy.span,
+            code: Some("vox/cors/credentials-with-wildcard".into()),
+            category: DiagnosticCategory::Lint,
+            suggestions: vec![
+                "Replace `[\"*\"]` with explicit origins, e.g. `[\"https://app.example.com\"]`.".into(),
+            ],
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            expected_type: Some("explicit origin list".into()),
+            found_type: Some("[\"*\"]".into()),
+            context: None,
+            ast_node_kind: None,
+        });
+    }
+    diags
+}
+
+// ── GA-23 — PII taint check ───────────────────────────────────────────────
+
+use crate::hir::nodes::effect::{HirEffectKind, HirEffectSet};
+
+/// Warn when a PII-tagged endpoint emits over the network without an explicit
+/// `uses net` declaration — which would hide a potential exfiltration path.
+pub fn check_pii_with_net_effect(
+    pii: &HirPiiMarker,
+    effects: &HirEffectSet,
+    fn_name: &str,
+) -> Option<Diagnostic> {
+    let has_net = effects.iter().any(|e| matches!(e, HirEffectKind::Net));
+    if has_net {
+        // PII + net is fine as long as it's declared — declaration proves awareness.
+        return None;
+    }
+    // If the fn body calls anything that could send data but lacks `uses net`,
+    // the effects set is empty (unannotated). Warn to prompt explicit annotation.
+    if effects.is_empty() {
+        return Some(Diagnostic {
+            severity: TypeckSeverity::Warning,
+            message: format!(
+                "`{}` is tagged `@pii` but has no `@uses(net)` declaration. If it transmits data, add `@uses(net)` to document the exfiltration surface.",
+                fn_name
+            ),
+            span: pii.span,
+            code: Some("vox/pii/unannotated-net-effect".into()),
+            category: DiagnosticCategory::Lint,
+            suggestions: vec!["Add `@uses(net)` if this endpoint sends PII over the network.".into()],
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            expected_type: Some("@uses(net) annotation".into()),
+            found_type: Some("no effect annotation".into()),
+            context: None,
+            ast_node_kind: None,
+        });
+    }
+    None
 }
 
 #[cfg(test)]

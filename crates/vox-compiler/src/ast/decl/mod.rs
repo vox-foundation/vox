@@ -27,6 +27,8 @@ pub mod typedef;
 pub mod ui;
 /// Typed URL path declarations (`url Name { … }`).
 pub mod url;
+/// HTTP ergonomics decorators: `@cors`, `@rate_limit`, `@pii` (GA-06/GA-23).
+pub mod http_decorators;
 /// `@webhook(provider:, secret:, replay_window_secs:)` decorator AST (GA-16).
 pub mod webhook;
 

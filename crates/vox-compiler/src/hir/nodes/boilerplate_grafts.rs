@@ -107,6 +107,9 @@ pub enum PiiClass {
     Name,
     Address,
     GovernmentId,
+    Ip,
+    FinancialData,
+    BiometricData,
     /// Free-form for project-specific PII categories.
     Other(String),
 }

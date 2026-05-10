@@ -900,6 +900,9 @@ impl Parser {
         let mut llm_model = None;
         let mut decorator_effects: Vec<crate::ast::decl::effect::EffectAnnotation> = Vec::new();
         let mut webhook: Option<crate::ast::decl::webhook::AstWebhookSpec> = None;
+        let mut cors_spec: Option<crate::ast::decl::http_decorators::AstCorsSpec> = None;
+        let mut rate_limit: Option<crate::ast::decl::http_decorators::AstRateLimitSpec> = None;
+        let mut pii: Option<crate::ast::decl::http_decorators::AstPiiSpec> = None;
 
         loop {
             self.skip_newlines();
@@ -1035,9 +1038,11 @@ impl Parser {
                                         }
                                     }
                                     "idempotent" => {
-                                        if let Token::Ident(v) = self.peek().clone() {
-                                            self.advance();
-                                            idempotent = v == "true";
+                                        match self.peek().clone() {
+                                            Token::True => { self.advance(); idempotent = true; }
+                                            Token::False => { self.advance(); idempotent = false; }
+                                            Token::Ident(v) => { self.advance(); idempotent = v == "true"; }
+                                            _ => {}
                                         }
                                     }
                                     _ => { self.advance(); }
@@ -1056,10 +1061,145 @@ impl Parser {
                         span: wh_start.merge(self.span()),
                     });
                 }
+                Token::AtCors => {
+                    let cs_start = self.span();
+                    self.advance();
+                    let mut origins: Vec<String> = vec![];
+                    let mut allow_credentials = false;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                let _ = self.expect(&Token::Colon);
+                                match key.as_str() {
+                                    "origins" => {
+                                        if self.eat(&Token::LBracket) {
+                                            loop {
+                                                self.skip_newlines();
+                                                if matches!(self.peek(), Token::RBracket | Token::Eof) { break; }
+                                                if let Token::StringLit(s) = self.peek().clone() {
+                                                    self.advance();
+                                                    origins.push(s);
+                                                } else {
+                                                    self.advance();
+                                                }
+                                                if !self.eat(&Token::Comma) { break; }
+                                            }
+                                            let _ = self.expect(&Token::RBracket);
+                                        } else if let Token::StringLit(s) = self.peek().clone() {
+                                            self.advance();
+                                            origins.push(s);
+                                        }
+                                    }
+                                    "allow_credentials" => {
+                                        match self.peek().clone() {
+                                            Token::True => { self.advance(); allow_credentials = true; }
+                                            Token::False => { self.advance(); allow_credentials = false; }
+                                            Token::Ident(v) => { self.advance(); allow_credentials = v == "true"; }
+                                            _ => {}
+                                        }
+                                    }
+                                    _ => { self.advance(); }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) { break; }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                    cors_spec = Some(crate::ast::decl::http_decorators::AstCorsSpec {
+                        origins,
+                        allow_credentials,
+                        span: cs_start.merge(self.span()),
+                    });
+                }
+                Token::AtRateLimit => {
+                    let rl_start = self.span();
+                    self.advance();
+                    let mut by = crate::ast::decl::http_decorators::AstRateLimitBy::Ip;
+                    let mut window_secs: u64 = 60;
+                    let mut max_requests: u64 = 100;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                let _ = self.expect(&Token::Colon);
+                                match key.as_str() {
+                                    "by" => {
+                                        if let Token::Ident(v) = self.peek().clone() {
+                                            self.advance();
+                                            by = match v.as_str() {
+                                                "user_id" | "user" => crate::ast::decl::http_decorators::AstRateLimitBy::UserId,
+                                                "api_key" => crate::ast::decl::http_decorators::AstRateLimitBy::ApiKey,
+                                                _ => crate::ast::decl::http_decorators::AstRateLimitBy::Ip,
+                                            };
+                                        }
+                                    }
+                                    "window_secs" | "window" => {
+                                        if let Token::IntLit(n) = self.peek().clone() {
+                                            self.advance();
+                                            if n > 0 { window_secs = n as u64; }
+                                        }
+                                    }
+                                    "max" | "max_requests" => {
+                                        if let Token::IntLit(n) = self.peek().clone() {
+                                            self.advance();
+                                            max_requests = n.max(0) as u64;
+                                        }
+                                    }
+                                    _ => { self.advance(); }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) { break; }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                    rate_limit = Some(crate::ast::decl::http_decorators::AstRateLimitSpec {
+                        by,
+                        window_secs,
+                        max_requests,
+                        span: rl_start.merge(self.span()),
+                    });
+                }
+                Token::AtPii => {
+                    let pii_start = self.span();
+                    self.advance();
+                    let mut class = crate::ast::decl::http_decorators::AstPiiClass::Other("unknown".into());
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                if key == "class" {
+                                    let _ = self.expect(&Token::Colon);
+                                    if let Token::Ident(v) = self.peek().clone() {
+                                        self.advance();
+                                        class = crate::ast::decl::http_decorators::AstPiiClass::from_str(&v);
+                                    }
+                                } else {
+                                    self.advance();
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) { break; }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                    pii = Some(crate::ast::decl::http_decorators::AstPiiSpec {
+                        class,
+                        span: pii_start.merge(self.span()),
+                    });
+                }
                 Token::AtAuth
-                | Token::AtCors
-                | Token::AtRateLimit
-                | Token::AtPii
                 | Token::AtEmbed
                 | Token::AtOfflineCapable
                 | Token::AtCollaborative
@@ -1130,6 +1270,9 @@ impl Parser {
             roles: vec![],
             cors: None,
             webhook,
+            cors_spec,
+            rate_limit,
+            pii,
             preconditions,
             postconditions,
             invariants,
@@ -1194,6 +1337,9 @@ impl Parser {
             roles: vec![],
             cors: None,
             webhook: None,
+            cors_spec: None,
+            rate_limit: None,
+            pii: None,
             preconditions: vec![],
             postconditions: vec![],
             invariants: vec![],

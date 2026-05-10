@@ -578,6 +578,9 @@ fn caller() to str { fetch() }",
             is_pure,
             effects,
             webhook: None,
+            cors: None,
+            rate_limit: None,
+            pii: None,
             span: dummy_span(),
         }
     }

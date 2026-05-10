@@ -103,6 +103,9 @@ mod tests {
             is_pure: false,
             effects: vec![],
             webhook: None,
+            cors: None,
+            rate_limit: None,
+            pii: None,
             span,
         });
 

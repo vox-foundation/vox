@@ -189,6 +189,37 @@ impl LowerCtx {
                             span: w.span,
                         }
                     });
+                    let cors = e.func.cors_spec.as_ref().map(|c| {
+                        crate::hir::nodes::http_ergonomics::HirCorsPolicy {
+                            origins: c.origins.clone(),
+                            allow_credentials: c.allow_credentials,
+                            span: c.span,
+                        }
+                    });
+                    let rate_limit = e.func.rate_limit.as_ref().map(|r| {
+                        use crate::ast::decl::http_decorators::AstRateLimitBy as A;
+                        use crate::hir::nodes::http_ergonomics::{HirRateLimitPolicy, RateLimitBy as H};
+                        HirRateLimitPolicy {
+                            by: match r.by { A::Ip => H::Ip, A::UserId => H::UserId, A::ApiKey => H::ApiKey },
+                            window_secs: r.window_secs,
+                            max_requests: r.max_requests,
+                            span: r.span,
+                        }
+                    });
+                    let pii = e.func.pii.as_ref().map(|p| {
+                        use crate::ast::decl::http_decorators::AstPiiClass as A;
+                        use crate::hir::nodes::boilerplate_grafts::{HirPiiMarker, PiiClass as H};
+                        let class = match &p.class {
+                            A::Name => H::Name,
+                            A::Email => H::Email,
+                            A::Phone => H::Phone,
+                            A::Ip => H::Ip,
+                            A::FinancialData => H::FinancialData,
+                            A::BiometricData => H::BiometricData,
+                            A::Other(_) => H::Email, // best-effort fallback
+                        };
+                        HirPiiMarker { class, span: p.span }
+                    });
                     hir.endpoint_fns.push(crate::hir::HirEndpointFn {
                         kind,
                         id: lowered.id,
@@ -204,6 +235,9 @@ impl LowerCtx {
                             .filter_map(cap_to_effect_kind)
                             .collect(),
                         webhook,
+                        cors,
+                        rate_limit,
+                        pii,
                         span: lowered.span,
                     });
                 }

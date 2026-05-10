@@ -213,3 +213,73 @@ fn stripe_hook() to int { return 1 }
         );
     }
 }
+
+// ── GA-06 — @cors / @rate_limit ───────────────────────────────────────────
+
+#[test]
+fn cors_credentials_with_wildcard_warns() {
+    let src = r#"
+@endpoint(kind: server)
+@cors(origins: ["*"], allow_credentials: true)
+fn my_api() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/cors/credentials-with-wildcard"));
+    assert!(
+        hit.is_some(),
+        "expected vox/cors/credentials-with-wildcard; got {:?}",
+        ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn cors_specific_origin_with_credentials_is_clean() {
+    let src = r#"
+@endpoint(kind: server)
+@cors(origins: ["https://app.example.com"], allow_credentials: true)
+fn my_api() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    assert!(
+        !ds.iter().any(|d| d.code.as_deref() == Some("vox/cors/credentials-with-wildcard")),
+        "explicit origin with credentials should be clean"
+    );
+}
+
+// ── GA-23 — @pii unannotated net effect ───────────────────────────────────
+
+#[test]
+fn pii_without_uses_net_warns_unannotated() {
+    let src = r#"
+@endpoint(kind: server)
+@pii(class: email)
+fn send_email_fn() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/pii/unannotated-net-effect"));
+    assert!(
+        hit.is_some(),
+        "expected vox/pii/unannotated-net-effect for PII endpoint without @uses(net); got {:?}",
+        ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn pii_with_uses_net_is_clean() {
+    let src = r#"
+@endpoint(kind: server)
+@pii(class: email)
+@uses(net)
+fn send_email_fn() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    assert!(
+        !ds.iter().any(|d| d.code.as_deref() == Some("vox/pii/unannotated-net-effect")),
+        "@pii + @uses(net) should not warn; got {:?}",
+        ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
+    );
+}

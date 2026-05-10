@@ -74,6 +74,15 @@ pub struct FnDecl {
     /// `@webhook(provider:, secret:, replay_window_secs:)` decorator (GA-16).
     #[serde(default)]
     pub webhook: Option<super::webhook::AstWebhookSpec>,
+    /// `@cors(origins:, allow_credentials:)` decorator (GA-06).
+    #[serde(default)]
+    pub cors_spec: Option<super::http_decorators::AstCorsSpec>,
+    /// `@rate_limit(by:, window_secs:, max:)` decorator (GA-06).
+    #[serde(default)]
+    pub rate_limit: Option<super::http_decorators::AstRateLimitSpec>,
+    /// `@pii(class:)` decorator — marks this fn as handling PII data (GA-23).
+    #[serde(default)]
+    pub pii: Option<super::http_decorators::AstPiiSpec>,
     /// Precondition expressions from `@require(expr)` decorators.
     pub preconditions: Vec<Expr>,
     /// Postcondition expressions from `@ensure(expr)` decorators.
