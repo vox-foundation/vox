@@ -11899,7 +11899,6 @@ dependencies = [
  "vox-config",
  "vox-corpus",
  "vox-crypto",
- "vox-dashboard",
  "vox-db",
  "vox-gamify",
  "vox-grammar-export",

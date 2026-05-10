@@ -79,4 +79,44 @@ CREATE TABLE IF NOT EXISTS mesh_dispatch_results (
     value_json  TEXT NOT NULL,
     created_at  INTEGER NOT NULL
 );
+
+-- ── Phase 0: persisted VCS file lock map (P0-T1) ──────────────────────────
+
+-- One row per locked path (canonical absolute form, NFC-normalised).
+-- `kind` is 'exclusive' | 'shared_read'; `holder` is the AgentId.0 string.
+-- `expires_at` is the UNIX-ms TTL deadline; the leader prunes expired rows.
+-- `lease_id` references mesh_exec_leases.lease_id when the lock is being
+-- proxied to a remote node; NULL for purely local locks.
+CREATE TABLE IF NOT EXISTS vcs_lock (
+    path             TEXT NOT NULL PRIMARY KEY,
+    kind             TEXT NOT NULL, -- 'exclusive' | 'shared_read'; enforced in Rust (Turso does not support CHECK)
+    holder           TEXT NOT NULL,
+    holder_node_id   TEXT NOT NULL,
+    repository_id    TEXT NOT NULL,
+    acquired_at      INTEGER NOT NULL,
+    expires_at       INTEGER NOT NULL,
+    lease_id         TEXT,
+    fence_token      INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_vcs_lock_holder
+    ON vcs_lock(holder_node_id, repository_id);
+CREATE INDEX IF NOT EXISTS idx_vcs_lock_expires
+    ON vcs_lock(expires_at);
+
+-- ── Phase 0: lock-leader election (P0-T2) ─────────────────────────────────
+
+-- Singleton row per repository: who is currently the lock leader.
+-- Followers proxy lock-mutation requests via A2A to leader_node_id.
+CREATE TABLE IF NOT EXISTS lock_leader (
+    repository_id    TEXT NOT NULL PRIMARY KEY,
+    leader_node_id   TEXT NOT NULL,
+    elected_at       INTEGER NOT NULL,
+    heartbeat_at     INTEGER NOT NULL,
+    expires_at       INTEGER NOT NULL,
+    epoch            INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_lock_leader_expires
+    ON lock_leader(expires_at);
 ";
