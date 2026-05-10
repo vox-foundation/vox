@@ -88,6 +88,8 @@ pub mod catalog_classifier;
 pub mod circuit_breaker;
 /// DB-backed clarification inbox drain (Codex `a2a_messages`).
 pub mod clarification_db_inbox_poll;
+/// SCIENTIA pre-registration gate — refuses campaigns without a signed prereg (§5.1).
+pub mod research_gate;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Compaction strategy selector by context utilization (D7).

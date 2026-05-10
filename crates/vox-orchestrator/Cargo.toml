@@ -94,6 +94,8 @@ rand.workspace = true
 base64.workspace = true
 vox-secrets.workspace = true
 vox-skill-runtime = { workspace = true }
+vox-prereg.workspace = true
+vox-research-events.workspace = true
 vox-telemetry.workspace = true
 vox-mesh-types.workspace = true
 blake3.workspace = true
