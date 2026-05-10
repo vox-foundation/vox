@@ -128,6 +128,7 @@ vox-git                 = { layer = 3 }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
 vox-dashboard           = { layer = 3 }
+vox-mesh-models         = { layer = 3 }
 vox-webhook             = { layer = 3 }
 vox-code-audit          = { layer = 3, max_loc = 15_000 }
 vox-drift-check              = { layer = 3, kind = "binary", max_loc = 8_000 }
