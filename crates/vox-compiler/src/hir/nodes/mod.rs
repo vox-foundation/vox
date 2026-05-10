@@ -8,11 +8,13 @@
 //! or bump all match sites in the same change.
 
 pub mod async_view;
+pub mod boilerplate_grafts;
 mod decl;
 pub mod durability;
 pub mod effect;
 mod expr;
 pub mod form;
+pub mod http_ergonomics;
 pub mod layer;
 pub mod state_machine;
 mod stmt;
@@ -24,6 +26,7 @@ pub use async_view::HirAsyncView;
 pub use decl::*;
 pub use durability::DurabilityKind;
 pub use effect::{HirEffectKind, HirEffectSet};
+pub use http_ergonomics::{HirCorsPolicy, HirRateLimitPolicy, RateLimitBy};
 pub use layer::{HirLayerDecl, HirMark, HirMarkRef, LayerTier};
 pub use expr::*;
 pub use stmt::*;
