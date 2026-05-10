@@ -206,6 +206,9 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Add a layer rule / arch-check rule | `crates/vox-arch-check/src/main.rs` + extend `layers.toml` schema |
 | Add an architectural exception (allowed inversion) | Append `[[known_inversions]]` block in [`layers.toml`](./layers.toml) with a `reason` |
 | Add a new workspace crate | Update [`Cargo.toml`](../../../Cargo.toml) `[workspace.dependencies]` AND add a row to [`layers.toml`](./layers.toml) — `vox-arch-check` will fail otherwise |
+| BundleRef / Bundle / BundleStore (P2-T1) | `crates/vox-package/src/bundle.rs` |
+| WorkflowDrainStarted / WorkflowDrainState (P2-T3) | `crates/vox-orchestrator/src/drain_oplog/workflow_drain.rs` |
+| activity_result_cache — table DDL + SQL constants (P2-T5) | `crates/vox-db/src/ddl/activity_result_cache.rs` |
 
 > **L0/L1 split:** if your consumer only needs row/param TYPES (no async, no
 > connection), depend on `vox-db-types` directly — not on `vox-db`. The full
