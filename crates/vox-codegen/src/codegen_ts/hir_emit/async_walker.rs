@@ -108,6 +108,22 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
         }
         // Lambda: do NOT cross the lambda boundary — it has its own async scope
         HirExpr::Lambda(_, _, _, _, _) => false,
+        // AsyncView: walk source and all optional arms
+        HirExpr::AsyncView(v) => {
+            expr_has_async_call(&v.source, async_fn_names)
+                || v.fetching_arm
+                    .as_ref()
+                    .is_some_and(|e| expr_has_async_call(e, async_fn_names))
+                || v.empty_arm
+                    .as_ref()
+                    .is_some_and(|e| expr_has_async_call(e, async_fn_names))
+                || v.error_arm
+                    .as_ref()
+                    .is_some_and(|e| expr_has_async_call(e, async_fn_names))
+                || v.ok_arm
+                    .as_ref()
+                    .is_some_and(|e| expr_has_async_call(e, async_fn_names))
+        }
         // Leaf nodes: no sub-expressions to walk
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)

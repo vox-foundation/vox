@@ -124,7 +124,9 @@ fn named(name: &str) -> WireType {
 
 fn generic(name: &str, args: &[HirType]) -> WireType {
     match name {
-        "list" | "Vec" | "Array" if args.len() == 1 => WireType::Array(Box::new(ty(&args[0]))),
+        "list" | "List" | "Vec" | "Array" if args.len() == 1 => {
+            WireType::Array(Box::new(ty(&args[0])))
+        }
         "Option" if args.len() == 1 => {
             // Bare `Option<T>` outside an option-aware position widens to its
             // inner type — the absent-key encoding lives on the *field*, not

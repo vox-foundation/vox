@@ -341,6 +341,11 @@ mod tests {
             route_path: "/api/query/q1".into(),
             is_pure: false,
             effects: vec![],
+            webhook: None,
+            cors: None,
+            rate_limit: None,
+            pii: None,
+            layer: None,
             span: sp,
         });
         module.endpoint_fns.push(HirEndpointFn {
@@ -356,6 +361,11 @@ mod tests {
             route_path: "/api/mutation/m1".into(),
             is_pure: false,
             effects: vec![],
+            webhook: None,
+            cors: None,
+            rate_limit: None,
+            pii: None,
+            layer: None,
             span: sp,
         });
 
@@ -385,6 +395,11 @@ mod tests {
             route_path: "/api/mutation/m1".into(),
             is_pure: false,
             effects: vec![],
+            webhook: None,
+            cors: None,
+            rate_limit: None,
+            pii: None,
+            layer: None,
             span: sp,
         });
 

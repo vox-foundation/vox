@@ -1,3 +1,5 @@
+//! SCIENTIA RO-Crate 1.2 JSON-LD metadata builder.
+
 pub mod ai_disclosure;
 pub mod cff;
 pub mod compliance;

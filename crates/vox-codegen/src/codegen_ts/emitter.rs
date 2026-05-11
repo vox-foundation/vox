@@ -370,6 +370,14 @@ pub fn generate_with_options(
         files.push((manifest_filename.to_string(), manifest));
     }
 
+    // GA-09a: typed RouteId module (routes.ts) — emitted whenever routes are declared.
+    if !hir.route_ids.is_empty() {
+        files.push((
+            "routes.ts".to_string(),
+            crate::web_ir::href_emit::emit_route_id_module(&hir.route_ids),
+        ));
+    }
+
     if options.mode != BuildMode::Library {
         // Generate mobile native bridge
         let mobile_fns: Vec<&HirFn> = hir

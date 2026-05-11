@@ -50,6 +50,7 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
 | [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro. Zero domain dependencies. |
 | [`vox-reqwest-defaults`](../../../crates/vox-reqwest-defaults/) | Shared reqwest ClientBuilder presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
+| [`vox-research-events`](../../../crates/vox-research-events/) | Typed SCIENTIA research event types and `PreregistrationV1`. |
 | [`vox-rule-pack`](../../../crates/vox-rule-pack/) | Declarative YAML rule-pack loader for code-audit detector patterns and Scientia heuristics. Zero heavy deps. |
 | [`vox-scaling-policy`](../../../crates/vox-scaling-policy/) | Compile-time and runtime accessors for scaling SSOT (contracts/scaling/policy.yaml). |
 | [`vox-secrets`](../../../crates/vox-secrets/) | Central secret resolution and compatibility adapters for Vox. |
@@ -59,14 +60,18 @@ guess. The full crate roster with layer assignments lives in
 | Crate | One-line scope |
 |---|---|
 | [`vox-capability-registry`](../../../crates/vox-capability-registry/) | Transport-independent capability registry (YAML SSOT) + Mens chat tool descriptors. |
+| [`vox-claim-extractor`](../../../crates/vox-claim-extractor/) | SCIENTIA claim extraction pipeline: VeriScore, atomic decomposition, MiniCheck verification. |
 | [`vox-config`](../../../crates/vox-config/) | Centralized configuration and env/default resolution for Vox tooling. |
 | [`vox-constrained-gen`](../../../crates/vox-constrained-gen/) | Grammar-constrained inference engine — Earley/PDA backends, deadlock watchdog, stream-of-revision. |
 | [`vox-doc-inventory`](../../../crates/vox-doc-inventory/) | Generate and verify docs/agents/doc-inventory.json (schema v3) without Python. |
 | [`vox-eval`](../../../crates/vox-eval/) | Vox expression evaluator (interpreter for vox run --interp). |
 | [`vox-install-policy`](../../../crates/vox-install-policy/) | SSOT constants for Vox install/update surfaces (source path, release targets, default GitHub coordinates). |
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool name/description registry from contracts YAML (SSOT). |
+| [`vox-nanopub`](../../../crates/vox-nanopub/) | SCIENTIA nanopublication builder: TriG emission, Ed25519 signing. |
+| [`vox-prereg`](../../../crates/vox-prereg/) | SCIENTIA pre-registration: Trusty URI signing, analysis-plan deviation detection. |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
+| [`vox-ro-crate`](../../../crates/vox-ro-crate/) | SCIENTIA RO-Crate 1.2 JSON-LD metadata builder. |
 | [`vox-share`](../../../crates/vox-share/) | Public-URL tunneling for Vox apps: Cloudflare Quick Tunnels (default), localhost.run (fallback), Tailscale Funnel (explicit). |
 | [`vox-skill-runtime`](../../../crates/vox-skill-runtime/) | Abstract sandbox runtime trait for skill execution. Implementations ship as plugins (wasm, container). |
 
@@ -91,6 +96,7 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, GitLab, Gitea, Forgejo. |
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |
 | [`vox-git`](../../../crates/vox-git/) | Pure-Rust Git bridge using gix (no C, no libgit2). |
+| [`vox-inspect-bridge`](../../../crates/vox-inspect-bridge/) | SCIENTIA Phase 5: UK AISI Inspect task adapter, atomic-NEI novelty scoring. |
 | [`vox-lsp`](../../../crates/vox-lsp/) | Vox Language Server (stdio JSON-RPC). |
 | [`vox-ml-cli`](../../../crates/vox-ml-cli/) | Vox ML, AI, and Telemetry command-line interface (binary tool). |
 | [`vox-openclaw-runtime`](../../../crates/vox-openclaw-runtime/) | OpenClaw client + ARS runtime adapter, executor, context bundles, hooks. |
@@ -112,6 +118,7 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-test-harness`](../../../crates/vox-test-harness/) | Shared test fixtures and harness primitives. |
 | [`vox-wasm-engine`](../../../crates/vox-wasm-engine/) | Single-source-of-truth Wasmtime engine + WASI execution for Vox programs and skill plugins. |
 | [`vox-webhook`](../../../crates/vox-webhook/) | HTTP webhook gateway for the Vox agent system. |
+| [`vox-wire-format-validator`](../../../crates/vox-wire-format-validator/) | CI guard: enforces Wire Format v1 SSOT and Contract IR implementation parity. |
 | [`vox-workflow-runtime`](../../../crates/vox-workflow-runtime/) | Interpreted workflow execution MVP (local + mens activity hooks). |
 
 ### L5 — surfaces

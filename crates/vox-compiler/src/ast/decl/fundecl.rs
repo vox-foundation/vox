@@ -59,6 +59,15 @@ pub struct FnDecl {
     pub is_llm: bool,
     /// Optional specific LLM model to use for implementation.
     pub llm_model: Option<String>,
+    /// `structured_output: TypeName` arg from `@ai(structured_output = TypeName)` (GA-21).
+    #[serde(default)]
+    pub ai_structured_output_type: Option<String>,
+    /// `max_iterations: N` arg from `@ai(max_iterations = N)` (GA-21). Default 3.
+    #[serde(default)]
+    pub ai_max_iterations: u32,
+    /// `@embed(model: "...", dimensions: N, source_field: "...")` decorator (GA-24).
+    #[serde(default)]
+    pub embed: Option<super::embed_decorator::AstEmbedSpec>,
     /// Whether the function serves as a page layout.
     /// Whether the function is public.
     pub is_pub: bool,
@@ -71,6 +80,21 @@ pub struct FnDecl {
     pub roles: Vec<String>,
     /// Optional CORS policy configuration.
     pub cors: Option<String>,
+    /// `@webhook(provider:, secret:, replay_window_secs:)` decorator (GA-16).
+    #[serde(default)]
+    pub webhook: Option<super::webhook::AstWebhookSpec>,
+    /// `@cors(origins:, allow_credentials:)` decorator (GA-06).
+    #[serde(default)]
+    pub cors_spec: Option<super::http_decorators::AstCorsSpec>,
+    /// `@rate_limit(by:, window_secs:, max:)` decorator (GA-06).
+    #[serde(default)]
+    pub rate_limit: Option<super::http_decorators::AstRateLimitSpec>,
+    /// `@pii(class:)` decorator — marks this fn as handling PII data (GA-23).
+    #[serde(default)]
+    pub pii: Option<super::http_decorators::AstPiiSpec>,
+    /// `@layer(tier:)` decorator — declares the Z-tier for a component (GA-26).
+    #[serde(default)]
+    pub layer: Option<super::layer_decorator::AstLayerSpec>,
     /// Precondition expressions from `@require(expr)` decorators.
     pub preconditions: Vec<Expr>,
     /// Postcondition expressions from `@ensure(expr)` decorators.

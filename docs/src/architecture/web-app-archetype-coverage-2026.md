@@ -593,6 +593,15 @@ The 21 archetypes above bottleneck on a small set of shared primitives. Building
 - **CC-23-C Codegen** — emit CSS variables; emit a typed TS export for token names.
 - **CC-23-E Eval** — contrast gate; spacing-scale consistency; cross-component token coverage.
 
+### CC-24. i18n message catalog as types
+
+**Unblocks:** A1 (e-commerce locale), A2 (multi-region marketing sites), A9 (payments with locale-aware formatting), A12 (enterprise SaaS multi-locale), A17 (AI assistants with locale-aware response shaping) — 5+ archetypes.
+**Why now:** Every multi-locale Vox app hand-rolls ICU-message bridging today; the model re-derives the same extraction pattern each time. A typed `t"..."` template literal would remove the extraction decision entirely and make missing-translation a compile error for declared locales.
+- **CC-24-D Design** — typed `t"key"` template literal referencing a project-root `locales/` catalog; plural arms checked structurally at compile time (`t"item_count" when 1 => "...", n => "..."`). Timezone-carrying date type flows through locale-aware format functions. Missing-translation for a declared locale is a `vox/i18n/missing-translation` error. Per C4, one canonical surface — no `i18n.t()` call form alongside `t"..."`.
+- **CC-24-R Runtime** — locale bundle loaded at route boundary; no over-fetching. `vox-i18n` sub-crate or module in `vox-actor-runtime` for server-side locale resolution.
+- **CC-24-C Codegen** — emit React-Intl-compatible message descriptors from `t"..."` uses; emit per-locale JSON bundles at build time; server-side formatter for SSR text nodes.
+- **CC-24-E Eval** — golden with two locales; missing-translation test; plural-arm exhaustiveness test; timezone round-trip.
+
 ---
 
 # §3 — MENS + orchestrator journey blockers
@@ -783,9 +792,10 @@ The ordering optimizes for archetype-coverage gain per unit-of-design-surface. I
 ### Block 8 (polish / quality-of-output)
 
 32. **CC-23. Design-system tokens** — quality lift across every archetype.
-33. **A1-04. Loading / empty state slots** — language-level addition.
-34. **A2-05. SEO metadata as types** — language-level addition.
-35. **M11–M17. Dashboard / DevEx polish.**
+33. **CC-24. i18n message catalog as types** — missing-translation structurally unrepresentable; unblocks 5+ multi-locale archetypes.
+34. **A1-04. Loading / empty state slots** — language-level addition.
+35. **A2-05. SEO metadata as types** — language-level addition.
+36. **M11–M17. Dashboard / DevEx polish.**
 
 **Cumulative archetype impact:** Quality of output across all archetypes.
 

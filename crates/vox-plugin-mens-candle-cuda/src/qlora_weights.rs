@@ -85,18 +85,36 @@ pub fn middle_projection_coverage(
     }
 }
 
-/// Read only the SafeTensors header bytes (8-byte length + JSON) without loading weight data.
+/// Read only the SafeTensors header JSON (without tensor data) and return a fake-padded
+/// buffer that satisfies `SafeTensors::deserialize`'s offset-range validation.
 fn read_safetensors_header(path: &std::path::Path) -> anyhow::Result<Vec<u8>> {
+    use std::collections::HashMap;
     let mut file = std::fs::File::open(path)
         .with_context(|| format!("open output shard {}", path.display()))?;
     let mut len_buf = [0u8; 8];
     file.read_exact(&mut len_buf)
         .with_context(|| format!("read header length from {}", path.display()))?;
     let header_len = u64::from_le_bytes(len_buf) as usize;
-    let mut buf = vec![0u8; 8 + header_len];
-    buf[..8].copy_from_slice(&len_buf);
-    file.read_exact(&mut buf[8..])
+    let mut json_buf = vec![0u8; header_len];
+    file.read_exact(&mut json_buf)
         .with_context(|| format!("read header from {}", path.display()))?;
+
+    let max_end: usize = {
+        #[derive(serde::Deserialize)]
+        struct TensorMeta { data_offsets: Option<[usize; 2]> }
+        let map: HashMap<String, TensorMeta> =
+            serde_json::from_slice(&json_buf).unwrap_or_default();
+        map.values()
+            .filter_map(|m| m.data_offsets)
+            .map(|[_s, e]| e)
+            .max()
+            .unwrap_or(0)
+    };
+
+    let total = 8 + header_len + max_end;
+    let mut buf = vec![0u8; total];
+    buf[..8].copy_from_slice(&len_buf);
+    buf[8..8 + header_len].copy_from_slice(&json_buf);
     Ok(buf)
 }
 

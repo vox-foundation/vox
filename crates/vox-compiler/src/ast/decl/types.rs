@@ -149,6 +149,8 @@ pub enum Decl {
     DeepLink(mobile::DeepLinkDecl),
     /// Mobile push-notification wiring (`@push`).
     Push(mobile::PushDecl),
+    /// Project-level design-token block (`@tokens { … }`).
+    Tokens(TokensDecl),
 }
 impl Decl {
     /// Primary source span for this declaration (used for diagnostics).
@@ -194,6 +196,7 @@ impl Decl {
             Decl::BackButton(b) => b.span,
             Decl::DeepLink(d) => d.span,
             Decl::Push(p) => p.span,
+            Decl::Tokens(t) => t.span,
         }
     }
 }

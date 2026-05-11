@@ -3,6 +3,7 @@
 use crate::ast::decl::fundecl::StyleBlock;
 use crate::ast::span::Span;
 use crate::hir::nodes::form::HirForm;
+use crate::hir::nodes::tokens::HirTokensDecl;
 
 use super::expr::HirExpr;
 use super::stmt::HirStmt;
@@ -98,6 +99,15 @@ pub struct HirModule {
     /// Push-notification wiring lowered from `@push` (at most one per module).
     #[serde(default)]
     pub push: Option<HirPush>,
+
+    /// Project-level design-token declarations (`tokens { … }`), CC-23.
+    #[serde(default)]
+    pub token_decls: Vec<HirTokensDecl>,
+
+    /// Typed route ids derived from `routes { … }` blocks (GA-09a).
+    /// Each entry drives `emit_route_id_module()` in codegen-ts.
+    #[serde(default)]
+    pub route_ids: Vec<crate::hir::nodes::boilerplate_grafts::HirRouteId>,
 
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
@@ -299,6 +309,13 @@ pub struct HirFn {
     /// Optional specific LLM model to use for implementation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llm_model: Option<String>,
+    /// Structured-output contract for `@ai` functions (GA-21).
+    /// When `Some`, `check_ai_return_shape()` verifies the return type has a wire codec.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_structured_output: Option<crate::hir::nodes::boilerplate_grafts::HirAiStructuredOutput>,
+    /// Embedding spec from `@embed(model:, dimensions:, source_field:)` (GA-24).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embed: Option<crate::hir::nodes::boilerplate_grafts::HirEmbedDecl>,
     /// `@deprecated` on the source `fn`.
     #[serde(default)]
     pub is_deprecated: bool,
@@ -391,6 +408,21 @@ pub struct HirEndpointFn {
     /// Declared capability effects from `uses net, db, mcp(...)` (TASK-4.2).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: super::effect::HirEffectSet,
+    /// `@webhook(provider:, secret:, replay_window_secs:)` decorator (GA-16).
+    #[serde(default)]
+    pub webhook: Option<super::boilerplate_grafts::HirWebhookDecl>,
+    /// `@cors(origins:, allow_credentials:)` sidecar (GA-06).
+    #[serde(default)]
+    pub cors: Option<super::http_ergonomics::HirCorsPolicy>,
+    /// `@rate_limit(by:, window_secs:, max:)` sidecar (GA-06).
+    #[serde(default)]
+    pub rate_limit: Option<super::http_ergonomics::HirRateLimitPolicy>,
+    /// `@pii(class:)` marker on this endpoint (GA-23).
+    #[serde(default)]
+    pub pii: Option<super::boilerplate_grafts::HirPiiMarker>,
+    /// `@layer(tier:)` Z-tier annotation (GA-26).
+    #[serde(default)]
+    pub layer: Option<super::layer::HirLayerDecl>,
     /// Span covering the declaration.
     pub span: Span,
 }

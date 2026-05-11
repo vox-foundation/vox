@@ -173,6 +173,58 @@ impl LowerCtx {
                         }
                     };
                     let route_path = format!("{prefix}{}", lowered.name);
+                    let webhook = e.func.webhook.as_ref().map(|w| {
+                        use crate::ast::decl::webhook::AstWebhookProvider as A;
+                        use crate::hir::nodes::boilerplate_grafts::{HirWebhookDecl, WebhookProvider as H};
+                        let provider = match &w.provider {
+                            A::Stripe => H::Stripe,
+                            A::Github => H::Github,
+                            A::Slack => H::Slack,
+                            A::Custom { secret_var } => H::Custom { secret_var: secret_var.clone() },
+                        };
+                        HirWebhookDecl {
+                            provider,
+                            idempotent: w.idempotent,
+                            replay_window_secs: w.replay_window_secs,
+                            span: w.span,
+                        }
+                    });
+                    let cors = e.func.cors_spec.as_ref().map(|c| {
+                        crate::hir::nodes::http_ergonomics::HirCorsPolicy {
+                            origins: c.origins.clone(),
+                            allow_credentials: c.allow_credentials,
+                            span: c.span,
+                        }
+                    });
+                    let rate_limit = e.func.rate_limit.as_ref().map(|r| {
+                        use crate::ast::decl::http_decorators::AstRateLimitBy as A;
+                        use crate::hir::nodes::http_ergonomics::{HirRateLimitPolicy, RateLimitBy as H};
+                        HirRateLimitPolicy {
+                            by: match r.by { A::Ip => H::Ip, A::UserId => H::UserId, A::ApiKey => H::ApiKey },
+                            window_secs: r.window_secs,
+                            max_requests: r.max_requests,
+                            span: r.span,
+                        }
+                    });
+                    let pii = e.func.pii.as_ref().map(|p| {
+                        use crate::ast::decl::http_decorators::AstPiiClass as A;
+                        use crate::hir::nodes::boilerplate_grafts::{HirPiiMarker, PiiClass as H};
+                        let class = match &p.class {
+                            A::Name => H::Name,
+                            A::Email => H::Email,
+                            A::Phone => H::Phone,
+                            A::Ip => H::Ip,
+                            A::FinancialData => H::FinancialData,
+                            A::BiometricData => H::BiometricData,
+                            A::Other(_) => H::Email, // best-effort fallback
+                        };
+                        HirPiiMarker { class, span: p.span }
+                    });
+                    let layer = e.func.layer.as_ref().and_then(|l| {
+                        crate::hir::nodes::layer::LayerTier::from_str(&l.tier).map(|tier| {
+                            crate::hir::nodes::layer::HirLayerDecl { tier, span: l.span }
+                        })
+                    });
                     hir.endpoint_fns.push(crate::hir::HirEndpointFn {
                         kind,
                         id: lowered.id,
@@ -187,6 +239,11 @@ impl LowerCtx {
                             .iter()
                             .filter_map(cap_to_effect_kind)
                             .collect(),
+                        webhook,
+                        cors,
+                        rate_limit,
+                        pii,
+                        layer,
                         span: lowered.span,
                     });
                 }
@@ -228,6 +285,10 @@ impl LowerCtx {
                 }
                 Decl::Routes(r) => {
                     hir.client_routes.push(r.clone());
+                    // GA-09a: derive typed RouteId from each route entry.
+                    for entry in &r.entries {
+                        hir.route_ids.push(route_entry_to_route_id(entry));
+                    }
                 }
                 Decl::Form(f) => {
                     hir.forms.push(self.lower_form(f));
@@ -370,6 +431,60 @@ impl LowerCtx {
                         span: p.span,
                     });
                 }
+                Decl::Tokens(t) => {
+                    use crate::hir::nodes::tokens::{
+                        HirColorToken, HirFontToken, HirScalarToken, HirShadowToken, HirTokensDecl,
+                    };
+                    hir.token_decls.push(HirTokensDecl {
+                        span: t.span,
+                        colors: t
+                            .colors
+                            .iter()
+                            .map(|c| HirColorToken {
+                                name: c.name.clone(),
+                                light: c.light.clone(),
+                                dark: c.dark.clone(),
+                                span: c.span,
+                            })
+                            .collect(),
+                        spacing: t
+                            .spacing
+                            .iter()
+                            .map(|s| HirScalarToken {
+                                name: s.name.clone(),
+                                value: s.value.clone(),
+                                span: s.span,
+                            })
+                            .collect(),
+                        radius: t
+                            .radius
+                            .iter()
+                            .map(|r| HirScalarToken {
+                                name: r.name.clone(),
+                                value: r.value.clone(),
+                                span: r.span,
+                            })
+                            .collect(),
+                        shadows: t
+                            .shadows
+                            .iter()
+                            .map(|s| HirShadowToken {
+                                name: s.name.clone(),
+                                value: s.value.clone(),
+                                span: s.span,
+                            })
+                            .collect(),
+                        fonts: t
+                            .fonts
+                            .iter()
+                            .map(|f| HirFontToken {
+                                name: f.name.clone(),
+                                family: f.family.clone(),
+                                span: f.span,
+                            })
+                            .collect(),
+                    });
+                }
                 _ => {
                     hir.legacy_ast_nodes.push(decl.clone());
                 }
@@ -392,6 +507,40 @@ impl LowerCtx {
 
         hir
     }
+}
+
+/// GA-09a: Derive a typed `HirRouteId` from a single `RouteEntry`.
+///
+/// Extracts `:param` segments from the path and derives the analytics slug
+/// from the component name via snake_case conversion.
+fn route_entry_to_route_id(
+    entry: &crate::ast::decl::ui::RouteEntry,
+) -> crate::hir::nodes::boilerplate_grafts::HirRouteId {
+    let params: Vec<(String, String)> = entry
+        .path
+        .split('/')
+        .filter(|seg| seg.starts_with(':'))
+        .map(|seg| (seg[1..].to_string(), "string".to_string()))
+        .collect();
+    let analytics_slug = pascal_to_snake(&entry.component_name);
+    crate::hir::nodes::boilerplate_grafts::HirRouteId {
+        name: entry.component_name.clone(),
+        url_pattern: entry.path.clone(),
+        params,
+        analytics_slug,
+        span: entry.span,
+    }
+}
+
+fn pascal_to_snake(s: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() && i > 0 {
+            out.push('_');
+        }
+        out.push(c.to_ascii_lowercase());
+    }
+    out
 }
 
 #[cfg(test)]

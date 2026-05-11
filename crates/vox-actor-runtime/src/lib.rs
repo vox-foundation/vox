@@ -44,6 +44,12 @@ pub mod route_capability_policy;
 pub mod routing_telemetry;
 /// Cooperative Tokio-backed scheduler registering spawned actors.
 pub mod scheduler;
+/// Durable / cron scheduler primitives for `@scheduled` + `@durable` (GA-11).
+pub mod durable_scheduler;
+/// Multi-channel notification dispatch (GA-14): Email / SMS / WebPush.
+pub mod notify;
+/// Cursor-presence channel for real-time multiplayer (GA-25).
+pub mod presence;
 /// Reactive state-machine instance helper consumed by emitted state-machine hooks
 /// (Phase G of the Svelte-mineable features plan).
 pub mod state_machine;

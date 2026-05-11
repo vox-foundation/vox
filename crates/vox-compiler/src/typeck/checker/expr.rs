@@ -652,6 +652,23 @@ impl<'a> Checker<'a> {
                 self.uf.fresh_var()
             }
 
+            HirExpr::AsyncView(v) => {
+                let _ = self.check_expr(&v.source, None);
+                if let Some(a) = &v.fetching_arm {
+                    let _ = self.check_expr(a, None);
+                }
+                if let Some(a) = &v.empty_arm {
+                    let _ = self.check_expr(a, None);
+                }
+                if let Some(a) = &v.error_arm {
+                    let _ = self.check_expr(a, None);
+                }
+                if let Some(a) = &v.ok_arm {
+                    let _ = self.check_expr(a, None);
+                }
+                Ty::Unit
+            }
+
             HirExpr::Try(hir_try) => {
                 let inner_ty = self.check_expr(hir_try.target.as_ref(), None);
                 let resolved = self.uf.resolve(&inner_ty);

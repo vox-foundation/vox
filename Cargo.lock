@@ -2956,9 +2956,6 @@ name = "esaxx-rs"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d817e038c30374a4bcb22f94d0a8a0e216958d4c3dcde369b1439fec4bdda6e6"
-dependencies = [
- "cc",
-]
 
 [[package]]
 name = "event-listener"
@@ -6611,28 +6608,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "269bca4c2591a28585d6bf10d9ed0332b7d76900a1b02bec41bdc3a2cdcda107"
 
 [[package]]
-name = "onig"
-version = "6.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "336b9c63443aceef14bea841b899035ae3abe89b7c486aaf4c5bd8aafedac3f0"
-dependencies = [
- "bitflags 2.11.0",
- "libc",
- "once_cell",
- "onig_sys",
-]
-
-[[package]]
-name = "onig_sys"
-version = "69.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f86c6eef3d6df15f23bcfb6af487cbd2fed4e5581d58d5bf1f5f8b7f6727dc"
-dependencies = [
- "cc",
- "pkg-config",
-]
-
-[[package]]
 name = "oorandom"
 version = "11.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9737,12 +9712,10 @@ dependencies = [
  "esaxx-rs",
  "fancy-regex 0.14.0",
  "getrandom 0.3.4",
- "indicatif 0.17.11",
  "itertools 0.14.0",
  "log",
  "macro_rules_attribute",
  "monostate",
- "onig",
  "paste",
  "rand 0.9.3",
  "rayon",
@@ -10957,7 +10930,7 @@ dependencies = [
  "regex",
  "reqwest 0.12.28",
  "rmcp",
- "safetensors 0.4.5",
+ "safetensors 0.7.0",
  "self_update",
  "semver",
  "serde",
@@ -12098,7 +12071,7 @@ dependencies = [
  "peft-rs",
  "qlora-rs",
  "rand 0.8.5",
- "safetensors 0.4.5",
+ "safetensors 0.7.0",
  "serde",
  "serde_json",
  "tempfile",
@@ -12307,7 +12280,7 @@ dependencies = [
  "qlora-rs",
  "rand 0.8.5",
  "reqwest 0.12.28",
- "safetensors 0.4.5",
+ "safetensors 0.7.0",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -12697,6 +12670,14 @@ dependencies = [
  "tracing",
  "vox-reqwest-defaults",
  "workspace-hack",
+]
+
+[[package]]
+name = "vox-wire-format-validator"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "blake3",
 ]
 
 [[package]]

@@ -27,6 +27,14 @@ pub mod typedef;
 pub mod ui;
 /// Typed URL path declarations (`url Name { … }`).
 pub mod url;
+/// `@embed(model:, dimensions:, source_field:)` decorator AST (GA-24).
+pub mod embed_decorator;
+/// HTTP ergonomics decorators: `@cors`, `@rate_limit`, `@pii` (GA-06/GA-23).
+pub mod http_decorators;
+/// `@layer(tier:)` decorator AST (GA-26).
+pub mod layer_decorator;
+/// `@webhook(provider:, secret:, replay_window_secs:)` decorator AST (GA-16).
+pub mod webhook;
 
 pub use config::*;
 pub use db::*;
@@ -47,3 +55,4 @@ mod types;
 pub use types::{
     Decl, HttpMethod, ImportDecl, ImportPath, ImportPathKind, Module, RustCrateImport,
 };
+pub use ui::{AstColorToken, AstFontToken, AstScalarToken, TokensDecl};

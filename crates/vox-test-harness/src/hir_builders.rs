@@ -37,6 +37,8 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         is_deprecated: false,
         is_llm: false,
         llm_model: None,
+        ai_structured_output: None,
+        embed: None,
         schedule_interval: None,
         durability: None,
         actor_state_fields: vec![],

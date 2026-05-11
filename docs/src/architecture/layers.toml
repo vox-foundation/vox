@@ -128,7 +128,8 @@ vox-workflow-runtime    = { layer = 3 }
 vox-dashboard           = { layer = 3 }
 vox-webhook             = { layer = 3 }
 vox-code-audit          = { layer = 3, max_loc = 15_000 }
-vox-drift-check         = { layer = 3, kind = "binary", max_loc = 8_000 }
+vox-drift-check              = { layer = 3, kind = "binary", max_loc = 8_000 }
+vox-wire-format-validator    = { layer = 3, kind = "binary", max_loc = 4_000 }
 vox-lsp                 = { layer = 3 }
 vox-gamify              = { layer = 3, max_loc = 20_000 }
 vox-skills              = { layer = 3 }

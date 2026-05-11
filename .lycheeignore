@@ -72,3 +72,12 @@ file://.*docs/src/SUMMARY\.md
 
 # acm.org returns 403 to bots; link is valid
 .*acm\.org/.*
+
+# Hacker News returns 429 to CI bots; links are valid for humans
+.*news\.ycombinator\.com/.*
+
+# Help Net Security returns 429 to CI bots; links are valid for humans
+.*helpnetsecurity\.com/.*
+
+# ScienceDirect article URLs often return 400 to automated clients; citations remain valid
+.*sciencedirect\.com/science/article/.*

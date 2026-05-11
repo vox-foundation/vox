@@ -38,9 +38,9 @@ uuid = { workspace = true }
 tempfile = { workspace = true }
 
 # Heavy STT deps — pulled in only when stt-candle feature is enabled
-candle-core   = { version = "0.9.1", optional = true, default-features = false }
-candle-nn     = { version = "0.9.1", optional = true, default-features = false }
-candle-transformers = { version = "0.9.1", optional = true, default-features = false }
+candle-core         = { workspace = true, optional = true }
+candle-nn           = { workspace = true, optional = true }
+candle-transformers = { workspace = true, optional = true }
 hf-hub        = { workspace = true, optional = true }
 tokenizers    = { workspace = true, optional = true }
 symphonia     = { version = "0.5.4", optional = true, default-features = false, features = [

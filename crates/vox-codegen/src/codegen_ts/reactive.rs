@@ -452,6 +452,34 @@ fn scan_hir_expr_for_react_imports(
                 need_callback,
             );
         }
+        HirExpr::AsyncView(v) => {
+            scan_hir_expr_for_react_imports(
+                &v.source,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
+            for arm in [
+                v.fetching_arm.as_deref(),
+                v.empty_arm.as_deref(),
+                v.error_arm.as_deref(),
+                v.ok_arm.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                scan_hir_expr_for_react_imports(
+                    arm,
+                    need_state,
+                    need_effect,
+                    need_memo,
+                    need_ref,
+                    need_callback,
+                );
+            }
+        }
         HirExpr::JsxSelfClosing(_)
         | HirExpr::Jsx(_)
         | HirExpr::IntLit(_, _)

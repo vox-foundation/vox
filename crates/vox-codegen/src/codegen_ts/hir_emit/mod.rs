@@ -584,6 +584,13 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             let idx_str = emit_hir_expr(index, ctx);
             format!("{obj_str}[{idx_str}]")
         }
+        HirExpr::AsyncView(v) => {
+            // Emit the source expression with a comment marking the async view site.
+            // Full async-view lowering is owned by the Web IR path; this compat emitter
+            // surfaces the source so callers at least get a renderable expression.
+            let src = emit_hir_expr(&v.source, ctx);
+            format!("{src} /* async view */")
+        }
     }
 }
 

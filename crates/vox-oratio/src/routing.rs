@@ -151,21 +151,22 @@ fn classify_intent(transcript: &str, context: &IdeContext) -> (IntentKind, f32) 
         if lower.contains("edit this") || lower.contains("change this") {
             return (IntentKind::CodeEdit, 0.85);
         }
-        if lower.contains("fix this") || !context.recent_errors.is_empty() && lower.contains("fix")
-        {
-            return (IntentKind::CodeEdit, 0.82);
-        }
 
-        // Error keyword bias: if user mentions a word from a recent error
+        // Error keyword bias: if user mentions a word from a recent error, check first
+        // (more specific than generic "fix" → higher confidence 0.88).
         for err in &context.recent_errors {
             let err_lower = err.to_lowercase();
             let err_tokens = word_tokens(&err_lower);
-            // Ignore very common short words
             for et in err_tokens {
                 if et.len() > 3 && tokens.contains(&et) {
                     return (IntentKind::CodeEdit, 0.88);
                 }
             }
+        }
+
+        if lower.contains("fix this") || !context.recent_errors.is_empty() && lower.contains("fix")
+        {
+            return (IntentKind::CodeEdit, 0.82);
         }
     }
 

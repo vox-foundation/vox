@@ -196,9 +196,10 @@ sysinfo            = "0.38"
 walkdir            = "2"
 rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
-candle-core        = { version = "0.9", default-features = false }
-candle-nn          = { version = "0.9", default-features = false }
-safetensors        = "0.4"
+candle-core         = { version = "0.9", default-features = false }
+candle-nn           = { version = "0.9", default-features = false }
+candle-transformers = { version = "0.9", default-features = false }
+safetensors        = "0.7"
 tokenizers         = { version = "0.21", default-features = false, features = ["fancy-regex"] }
 memmap2            = "0.9"
 # 0.4+ resolves Hugging Face relative `Location` redirects in tokio metadata (0.3 breaks with `relative URL without a base`).

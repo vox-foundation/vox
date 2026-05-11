@@ -8,6 +8,7 @@ pub mod macos_metal;
 mod mock;
 // nvml.rs deleted: NVML probing is owned by vox-plugin-nvml-probe.
 pub mod pipeline;
+pub mod windows_fallback;
 pub mod probe;
 pub mod registry;
 #[cfg(test)]

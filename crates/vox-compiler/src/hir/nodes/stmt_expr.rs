@@ -180,6 +180,8 @@ pub enum HirExpr {
     Try(HirTry),
     /// Subscript / index expression: `object[index]`.
     Index(Box<HirExpr>, Box<HirExpr>, Span),
+    /// `Async[T]` view — `when async_value { fetching => … empty => … error e => … ok x => … }`.
+    AsyncView(Box<crate::hir::nodes::async_view::HirAsyncView>),
 }
 
 /// Named or positional call argument.
