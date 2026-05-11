@@ -17,6 +17,25 @@ keeps the table accurate and prevents the next assistant from having to
 guess. The full crate roster with layer assignments lives in
 [`layers.toml`](./layers.toml).
 
+For **directory sprawl, sparse folders, and non-Rust artifact provenance**, see [Repository layout sprawl audit (2026)](./repo-layout-sprawl-audit-2026.md).
+
+## Repository roots (navigation)
+
+Grouped map of **top-level trees** — use this before inventing a new parallel folder (for example another `docker/` or `tools/`).
+
+| Group | Paths | Notes |
+|-------|-------|-------|
+| Rust workspace | [`Cargo.toml`](../../../Cargo.toml), [`crates/`](../../../crates/) | Implementation + `vox-arch-check` / [`layers.toml`](./layers.toml). |
+| Contracts | [`contracts/`](../../../contracts/), [`contracts/index.yaml`](../../../contracts/index.yaml) | SSOT bundles; path changes require index + consumer updates. |
+| Docs (source) | [`docs/src/`](../../) under repo `docs/` | Narrative SSOT; `.md` doctests. |
+| Docs (site) | [`docs-astro/`](../../../docs-astro/) | Astro build; sidebar from frontmatter. |
+| Apps & editors | [`apps/`](../../../apps/) | GUI surfaces — registry in [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml). |
+| Examples / fixtures | [`examples/`](../../../examples/), [`tests/fixtures/`](../../../tests/fixtures/) | Non-production sandboxes and bundles. |
+| Automation | [`scripts/*.vox`](../../../scripts/) | Prefer `vox run` over new shell/Python glue. |
+| CI / hooks | [`.github/workflows/`](../../../.github/workflows/), [`lefthook.yml`](../../../lefthook.yml) | Runner wiring; see CI docs under `docs/src/ci/`. |
+| Deploy / compose | [`infra/`](../../../infra/), [`docker/`](../../../docker/), root [`docker-compose.yml`](../../../docker-compose.yml) | Overlap is intentional (different compose working dirs); eval SSOT called out in deploy docs. |
+| Adjunct Node tool | [`tools/render-durable-animation/`](../../../tools/render-durable-animation/) | Invoked from [`scripts/render-durable-animation.vox`](../../../scripts/render-durable-animation.vox). |
+
 ## Quick reference: subsystem → crate (by layer)
 
 ### L0 — pure types
