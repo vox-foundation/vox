@@ -360,6 +360,9 @@ jobs:
         # Validates that the `vox test` command surface works end-to-end on golden examples.
         run: cargo nextest run -p vox-integration-tests --test golden_vox_test_runner --no-capture 2>&1
 
+      - name: AgentOS ACI schema + guardrail integration gate
+        run: cargo nextest run -p vox-integration-tests --test agentos_aci_bench --no-capture 2>&1
+
       - name: Compiler pipeline benchmarks compile-smoke (CR-E1 gate)
         # Verifies benchmark code compiles cleanly; timing baselines are captured
         # by the separate nightly benchmark job.  `--no-run` prevents wall-clock

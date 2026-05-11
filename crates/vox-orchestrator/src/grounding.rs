@@ -457,9 +457,24 @@ pub fn grounding_violation_declared_not_in_envelope(
     }
 }
 
+/// Bounded MCP tool name hints from natural-language intent (AgentOS planner stub).
+#[must_use]
+pub fn agentos_suggested_tools_from_intent(intent: &str, max_steps: usize) -> Vec<String> {
+    crate::agentos::intent_planner::plan_intent(intent, max_steps)
+        .into_iter()
+        .map(str::to_string)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn agentos_intent_maps_tests_to_run_tool() {
+        let v = agentos_suggested_tools_from_intent("please run cargo tests", 4);
+        assert!(v.iter().any(|t| t == "vox_run_tests"));
+    }
 
     #[test]
     fn voxcite_parses_ids() {

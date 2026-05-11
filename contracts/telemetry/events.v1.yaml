@@ -28,3 +28,10 @@ events:
     tier: "B"
     retention_days: 365
     description: "Telemetry regarding paper/asset novelty classification."
+
+  - id: agentos-guardrail-deny
+    schema_path: contracts/telemetry/agentos-guardrail-deny.v1.schema.json
+    owner_crate: vox-orchestrator
+    tier: "B"
+    retention_days: 90
+    description: "AgentOS guardrail kernel denied a high-risk MCP tool preflight."

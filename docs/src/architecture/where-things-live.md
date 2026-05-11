@@ -155,6 +155,11 @@ guess. The full crate roster with layer assignments lives in
 | Sub-agent dispatch — spawn vs. inline (D4) | `crates/vox-orchestrator/src/subagent_dispatch.rs` |
 | Orchestrator policy metric_type constants | `crates/vox-telemetry/src/types.rs` — `METRIC_TYPE_*` constants |
 | Orchestrator feature flags | `contracts/orchestration/feature-flags.v1.yaml` |
+| AgentOS ACI envelope + mutation classification (MCP) | `crates/vox-orchestrator-mcp/src/aci/` |
+| AgentOS guardrail kernel / checkpoint / intent planner | `crates/vox-orchestrator/src/agentos/` |
+| AgentOS shell backend adapters (contract-first) | `crates/vox-cli/src/commands/runtime/shell/backends/` |
+| Semantic filesystem / intent retrieval bridge | `crates/vox-search/src/semantic_fs/` |
+| AgentOS ACI contracts | `contracts/aci/agent-computer-interface.v1.yaml` + `agent-computer-interface.v1.schema.json` |
 | Add a code-audit detection rule | `crates/vox-code-audit/src/detectors/<rule>.rs` |
 | Add a skill manifest field | `crates/vox-plugin-types/src/skill_manifest.rs` |
 | Add a plugin manifest field | `crates/vox-plugin-types/src/plugin_manifest.rs` |

@@ -19,3 +19,6 @@ flags:
   vox.orchestrator.contextual_bandit.enabled: false
   vox.orchestrator.subagent_dispatch.enabled: false
   vox.orchestrator.chain_length_cap.enabled: false
+  vox.orchestrator.agentos.aci_envelope.enabled: false
+  vox.orchestrator.agentos.guardrail_kernel.enabled: false
+  vox.orchestrator.agentos.checkpoint_hints.enabled: false

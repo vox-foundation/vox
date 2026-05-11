@@ -226,6 +226,38 @@ contracts:
       - vox ci contracts-index
       - vox ci exec-policy-contract
 
+  - id: agent-computer-interface-v1
+    path: contracts/aci/agent-computer-interface.v1.yaml
+    owner: orchestrator
+    kind: yaml
+    description: AgentOS ACI v1 metadata (mutation_kind semantics, shell_backend notes).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: agent-computer-interface-v1-schema
+    path: contracts/aci/agent-computer-interface.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for MCP tool responses with sibling aci metadata block.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: agentos-aci-benchmark-suite-v1
+    path: contracts/benchmarks/agentos-aci-suite.v1.yaml
+    owner: orchestrator
+    kind: yaml
+    description: Manifest for AgentOS ACI integration harness (schema + guardrail + envelope).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: telemetry-agentos-guardrail-deny-v1-schema
+    path: contracts/telemetry/agentos-guardrail-deny.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for AgentOS guardrail denial telemetry payloads.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: completion-baseline-v1
     path: contracts/reports/completion-baseline.v1.json
     owner: platform-ci

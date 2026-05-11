@@ -86,6 +86,23 @@ pub async fn handle_tool_call(
         return Ok(crate::params::ToolResult::<()>::err(rejection).to_json_compact());
     }
 
+    if state.orchestrator_config.agentos_guardrail_kernel_enabled {
+        if let Err(detail) =
+            vox_orchestrator::agentos::guardrail_kernel::evaluate_mcp_tool_preflight(
+                name_canonical,
+                &args,
+            )
+        {
+            crate::agentos_telemetry::record_guardrail_deny_best_effort(
+                state.db.as_ref(),
+                state.repository.repository_id.as_str(),
+                &detail,
+            )
+            .await;
+            return Ok(crate::params::ToolResult::<()>::err(detail.reason).to_json_compact());
+        }
+    }
+
     // Trust-Tier RBAC for dangerous operations
     if matches!(
         name_canonical,
@@ -137,6 +154,9 @@ pub async fn handle_tool_call(
     )
     .with_costs(None, None, None);
 
+    let aci_envelope = state.orchestrator_config.agentos_aci_envelope_enabled;
+    let checkpoint_hints = state.orchestrator_config.agentos_checkpoint_hints_enabled;
+
     let result = te
         .run(|| {
             let args = args.clone();
@@ -145,6 +165,19 @@ pub async fn handle_tool_call(
             })
         })
         .await;
+
+    let result = result.map(|payload| {
+        if !aci_envelope {
+            return payload;
+        }
+        match crate::aci::attach_aci_envelope(name_canonical, &payload, checkpoint_hints) {
+            Ok(wrapped) => wrapped,
+            Err(e) => {
+                tracing::warn!(tool = name_canonical, error = %e, "aci envelope attach failed; returning raw payload");
+                payload
+            }
+        }
+    });
 
     let duration_ms = start_time.elapsed().as_millis() as i64;
 

@@ -26,6 +26,7 @@ Primary navigation:
 - Architecture map: [`docs/src/architecture/architecture-index.md`](docs/src/architecture/architecture-index.md)
 - See [phase-numbering-index](docs/src/architecture/phase-numbering-index.md) for disambiguation of the three independent phase sequences used in plans (frontend interop, GUI-native language, workspace reorg).
 - Classification SSOT: [`docs/src/architecture/classification-ssot-2026.md`](docs/src/architecture/classification-ssot-2026.md)
+- AgentOS / ACI SSOT: [`docs/src/architecture/agentos-ssot-2026.md`](docs/src/architecture/agentos-ssot-2026.md)
 - Agent discovery index: [`docs/src/.well-known/llms.txt`](docs/src/.well-known/llms.txt)
 
 ## Research and Documentation Storage (IDE Agent Directive)

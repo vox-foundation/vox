@@ -29,6 +29,8 @@ pub mod codex_tools;
 pub mod compiler_tools;
 /// Codex schema digest + sample row tools for `.vox` modules.
 pub mod db_tools;
+pub mod aci;
+mod agentos_telemetry;
 pub mod dispatch;
 /// Execution time tracking tools.
 pub mod exec_time_tools;

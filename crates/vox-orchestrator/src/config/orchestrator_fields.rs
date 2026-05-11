@@ -426,6 +426,17 @@ pub struct OrchestratorConfig {
     #[serde(default = "default_exec_time_history_window_days")]
     pub exec_time_history_window_days: u32,
 
+    // ── AgentOS (ACI envelopes + guardrails) ─────────────────────────────────
+    /// When true, MCP tool JSON responses include a validated sibling `aci` block. Default: false.
+    #[serde(default = "default_false")]
+    pub agentos_aci_envelope_enabled: bool,
+    /// When true, [`crate::agentos::guardrail_kernel`] runs before mutating / dangerous tools.
+    #[serde(default = "default_false")]
+    pub agentos_guardrail_kernel_enabled: bool,
+    /// When true, orchestrator may emit sparse checkpoint hints for telemetry consumers.
+    #[serde(default = "default_false")]
+    pub agentos_checkpoint_hints_enabled: bool,
+
     /// Daily local token threshold before enforcing local-tier inference. Default: 9.1M.
     #[serde(default = "default_local_breakeven_tokens")]
     pub local_breakeven_tokens: u64,

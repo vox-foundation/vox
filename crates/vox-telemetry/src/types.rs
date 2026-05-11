@@ -78,6 +78,8 @@ pub const METRIC_TYPE_BANDIT_UPDATE: &str = "orch.calibration.bandit_update";
 pub const METRIC_TYPE_SUBAGENT_DISPATCH: &str = "orch.subagent.dispatch";
 /// D4: Sub-agent chain depth exceeded configured cap.
 pub const METRIC_TYPE_CHAIN_DEPTH_ALERT: &str = "orch.subagent.chain_depth_alert";
+/// S1 — AgentOS guardrail denied a tool preflight (mutation / destructive heuristic).
+pub const METRIC_TYPE_AGENTOS_GUARDRAIL_DENY: &str = "orch.agentos.guardrail_deny";
 
 // ── New metric types (Phase B–D) — defined here, used when emit sites are added ─
 
