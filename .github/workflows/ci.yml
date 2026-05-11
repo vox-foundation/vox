@@ -320,13 +320,20 @@ jobs:
       - name: Build vox-cli
         run: cargo build -p vox-cli
 
+      - name: Test inventory snapshot drift gate
+        # Keep contracts/reports/test-inventory.v1.json in lockstep with the
+        # scanner output. This is a blocking check and should run after vox-cli
+        # builds so docs-only changes still validate deterministically.
+        run: cargo run -p vox-cli -- ci test-inventory --check contracts/reports/test-inventory.v1.json
+
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
 
       - name: routes.manifest + vox-client legacy-bundle smoke
-        run: cargo nextest run -p vox-compiler --test web_ir_lower_emit -E 'test(codegen_output_never_includes_vox_tanstack_router_or_server_fns)'
+        # `web_ir_lower_emit_test` cases are #[ignore]; match nextest semantics explicitly.
+        run: cargo nextest run -p vox-compiler --test web_ir_lower_emit_test --run-ignored ignored-only -E 'test(codegen_output_never_includes_vox_tanstack_router_or_server_fns)' --no-capture
 
       - name: SPA scaffold manifest idempotency
         run: cargo nextest run -p vox-cli --test scaffold_spa_manifest_idempotent
@@ -340,12 +347,12 @@ jobs:
       - name: WebIR structural validate gate (TS codegen path)
         env:
           VOX_WEBIR_VALIDATE: "1"
-        run: cargo nextest run -p vox-compiler --test web_ir_lower_emit
+        run: cargo nextest run -p vox-compiler --test web_ir_lower_emit_test --run-ignored ignored-only --no-capture
 
       - name: Projection parity gate (WebIR + AppContract + RuntimeProjection)
         env:
           VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE: "0"
-        run: cargo nextest run -p vox-compiler --test projection_parity
+        run: cargo nextest run -p vox-compiler --test projection_parity_test
 
       - name: Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)
         # A.13: VOX_EXAMPLES_STRICT_PARSE=1 must be the default in CI.
@@ -443,13 +450,68 @@ jobs:
         if: needs.setup.outputs.rust_changed == 'true'
         env:
           INSTA_UPDATE: unseen
-        run: cargo llvm-cov nextest --workspace --profile ci
+        run: |
+          set -euo pipefail
+          junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
+          printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
+          cargo llvm-cov nextest --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
 
       - name: Run Tests — plain nextest (docs-only change, no coverage overhead)
         if: needs.setup.outputs.rust_changed != 'true'
         env:
           INSTA_UPDATE: unseen
-        run: cargo nextest run --workspace --profile ci
+        run: |
+          set -euo pipefail
+          junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
+          printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
+          cargo nextest run --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+
+      - name: Runtime governance report + warn-only checks (non-blocking)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          junit_path="target/nextest/ci/junit.xml"
+          report_path="target/nextest/ci/runtime-report.json"
+          baseline_path="target/nextest/ci/runtime-baseline.json"
+
+          if [ ! -f "${junit_path}" ]; then
+            echo "::notice title=Runtime governance skipped::JUnit artifact not found at ${junit_path}; skipping runtime report and warn-mode governance checks."
+            exit 0
+          fi
+
+          mkdir -p "$(dirname "${report_path}")"
+
+          cargo run -p vox-cli -- ci test-runtime-report --junit "${junit_path}" --json --top 20 > "${report_path}"
+          report_status=$?
+          if [ ${report_status} -ne 0 ]; then
+            echo "::warning title=Runtime report generation failed::test-runtime-report exited with status ${report_status}; skipping downstream warn-mode checks."
+            exit 0
+          fi
+
+          cargo run -p vox-cli -- ci flake-budget --report-json "${report_path}" --max-candidates 20 --mode warn
+          flake_status=$?
+          if [ ${flake_status} -ne 0 ]; then
+            echo "::warning title=Flake budget warn-mode check errored::flake-budget exited with status ${flake_status}."
+          fi
+
+          cargo run -p vox-cli -- ci ignored-test-age --mode warn
+          ignored_status=$?
+          if [ ${ignored_status} -ne 0 ]; then
+            echo "::warning title=Ignored test age warn-mode check errored::ignored-test-age exited with status ${ignored_status}."
+          fi
+
+          if [ -f "${baseline_path}" ]; then
+            cargo run -p vox-cli -- ci runtime-regress --baseline "${baseline_path}" --current "${report_path}" --mode warn
+            regress_status=$?
+            if [ ${regress_status} -ne 0 ]; then
+              echo "::warning title=Runtime regress warn-mode check errored::runtime-regress exited with status ${regress_status}."
+            fi
+          else
+            echo "::notice title=Runtime regress skipped::No stable baseline artifact at ${baseline_path}; runtime-regress is not run in this workflow."
+          fi
+
+          exit 0
 
       - name: Upload insta snapshots (review and commit after first run)
         if: always()
@@ -461,10 +523,28 @@ jobs:
             crates/vox-compiler/tests/snapshots/
           if-no-files-found: ignore
 
+      - name: Upload nextest JUnit (CI profile)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nextest-junit
+          path: target/nextest/ci/junit.xml
+          if-no-files-found: ignore
+
+      - name: Upload nextest runtime report (CI governance input)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nextest-runtime-report
+          path: target/nextest/ci/runtime-report.json
+          if-no-files-found: ignore
+
       - name: vox-db replication feature (compile + embedded sync smoke skips without creds)
         run: cargo nextest run -p vox-db --features replication -E 'test(sync_embedded_replica_smoke)'
 
-      - name: Doc tests (not run by nextest)
+      # Doctests use Rust's built-in harness only; cargo-nextest does not execute them.
+      # Keep this as `cargo test --workspace --doc` until a verified nextest doctest path exists.
+      - name: Doc tests (cargo test --workspace --doc; not nextest)
         run: cargo test --workspace --doc
 
       - name: Line coverage report (summary, LCOV, gates enforce)
@@ -673,8 +753,9 @@ jobs:
         run: docker build --build-arg VOX_CLI_FEATURES=populi,script-execution -t vox:ci-mesh -t vox:ci-mesh-worker .
 
   # Chromium/CDP (chromiumoxide): requires Chrome or Chromium on the runner (browser pool).
+  # Canonical crate is `vox-plugin-browser` (historical `vox-browser` crate removed).
   vox-browser-cdp-smoke:
-    name: vox-browser CDP smoke (Chromium)
+    name: vox-plugin-browser CDP smoke (Chromium)
     runs-on: [self-hosted, linux, x64, browser]
     timeout-minutes: 15
     steps:
@@ -695,10 +776,26 @@ jobs:
             ${{ runner.os }}-cargo-browser-smoke-
             ${{ runner.os }}-cargo-
 
-      - name: CDP smoke (ignored tests)
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      # Prefer nextest for ignored-only integration tests when present; compile-check so the lane
+      # stays meaningful until CDP tests land on `vox-plugin-browser`.
+      - name: CDP smoke (ignored tests or compile fallback)
         env:
           VOX_BROWSER_NO_SANDBOX: "1"
-        run: cargo test -p vox-browser -- --ignored --nocapture
+        shell: bash
+        run: |
+          set -euo pipefail
+          LIST="$(cargo nextest list -p vox-plugin-browser --lib --run-ignored ignored-only 2>/dev/null || true)"
+          if [ -z "${LIST//[$'\t\r\n ']}" ]; then
+            echo "::notice::No ignored lib tests in vox-plugin-browser; running compile-only CDP smoke."
+            cargo check -p vox-plugin-browser
+          else
+            cargo nextest run -p vox-plugin-browser --lib --run-ignored ignored-only --no-capture
+          fi
 
   gui-playwright-smoke:
     name: GUI Playwright golden route (full_stack_minimal)
@@ -731,6 +828,11 @@ jobs:
             ${{ runner.os }}-cargo-gui-playwright-
             ${{ runner.os }}-cargo-
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: Install Playwright deps + Chromium
         run: |
           cd crates/vox-integration-tests
@@ -740,7 +842,7 @@ jobs:
       - name: Golden route (ignored integration test)
         env:
           VOX_GUI_PLAYWRIGHT: "1"
-        run: cargo test -p vox-integration-tests --test playwright_golden_route -- --ignored --nocapture
+        run: cargo nextest run -p vox-integration-tests --test playwright_golden_route_test --run-ignored ignored-only --no-capture
 
   all-features-matrix:
     name: All-Features Check (${{ matrix.crate }})

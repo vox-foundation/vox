@@ -125,18 +125,26 @@ fn build_steps(opts: PrePushOpts) -> Vec<Step> {
 /// Each workflow is run independently so a failure in one does not suppress
 /// output from the others.  All failures are collected and reported together.
 pub fn run_act(root: &Path, dry_run: bool) -> Result<()> {
-    let act_bin = which_act().context(
-        "`act` not found on PATH — install nektos/act (https://nektosact.com) to use --act",
-    )?;
+    let act_cmd = if dry_run {
+        which_act().unwrap_or_else(|_| ActCommand::new("act", vec![]))
+    } else {
+        which_act().context(
+            "`act` not found on PATH — install nektos/act (https://nektosact.com) to use --act",
+        )?
+    };
 
     let mut failures: Vec<&str> = Vec::new();
     for &workflow in ACT_WORKFLOWS {
         println!("==> act: {workflow}");
         if dry_run {
-            println!("    DRY-RUN: {act_bin} --workflows {workflow} push");
+            println!(
+                "    DRY-RUN: {}",
+                act_cmd.display_with_args(&["push", "--workflows", workflow])
+            );
             continue;
         }
-        let status = Command::new(&act_bin)
+        let status = Command::new(&act_cmd.executable)
+            .args(&act_cmd.base_args)
             .args(["push", "--workflows", workflow])
             .current_dir(root)
             .status()
@@ -159,23 +167,48 @@ pub fn run_act(root: &Path, dry_run: bool) -> Result<()> {
 }
 
 /// Locate the `act` binary; returns its path or an error.
-fn which_act() -> Result<String> {
+fn which_act() -> Result<ActCommand> {
     // `act` may be installed as a GitHub CLI extension (`gh act`) or standalone.
     // Prefer the standalone binary; fall back to `gh act`.
-    let candidates = ["act", "gh act"];
+    let candidates = [
+        ActCommand::new("act", vec![]),
+        ActCommand::new("gh", vec!["act"]),
+    ];
     for candidate in candidates {
-        let parts: Vec<&str> = candidate.split_whitespace().collect();
-        if let Ok(out) = Command::new(parts[0])
-            .args(&parts[1..])
+        if let Ok(out) = Command::new(&candidate.executable)
+            .args(&candidate.base_args)
             .arg("--version")
             .output()
         {
             if out.status.success() {
-                return Ok(candidate.to_string());
+                return Ok(candidate);
             }
         }
     }
     Err(anyhow!("act binary not found"))
+}
+
+#[derive(Clone, Debug)]
+struct ActCommand {
+    executable: String,
+    base_args: Vec<String>,
+}
+
+impl ActCommand {
+    fn new(executable: &str, base_args: Vec<&str>) -> Self {
+        Self {
+            executable: executable.to_string(),
+            base_args: base_args.into_iter().map(ToString::to_string).collect(),
+        }
+    }
+
+    fn display_with_args(&self, runtime_args: &[&str]) -> String {
+        let mut parts = Vec::with_capacity(1 + self.base_args.len() + runtime_args.len());
+        parts.push(self.executable.clone());
+        parts.extend(self.base_args.iter().cloned());
+        parts.extend(runtime_args.iter().map(|arg| (*arg).to_string()));
+        parts.join(" ")
+    }
 }
 
 fn cargo() -> Command {
@@ -183,9 +216,10 @@ fn cargo() -> Command {
 }
 
 /// Run `cargo` with the given args; bail if it exits non-zero.
-fn cargo_status(args: &[&str]) -> Result<()> {
+fn cargo_status(root: &Path, args: &[&str]) -> Result<()> {
     let status = cargo()
         .args(args)
+        .current_dir(root)
         .status()
         .with_context(|| format!("spawn cargo {}", args.join(" ")))?;
     if !status.success() {
@@ -194,20 +228,20 @@ fn cargo_status(args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-fn step_fmt(_root: &Path) -> Result<()> {
-    cargo_status(&["fmt", "--all", "--", "--check"])
+fn step_fmt(root: &Path) -> Result<()> {
+    cargo_status(root, &["fmt", "--all", "--", "--check"])
 }
 
-fn step_line_endings(_root: &Path) -> Result<()> {
-    cargo_status(&["run", "-q", "-p", "vox-cli", "--", "ci", "line-endings"])
+fn step_line_endings(root: &Path) -> Result<()> {
+    cargo_status(root, &["run", "-q", "-p", "vox-cli", "--", "ci", "line-endings"])
 }
 
-fn step_ssot_drift(_root: &Path) -> Result<()> {
-    cargo_status(&["run", "-q", "-p", "vox-cli", "--", "ci", "ssot-drift"])
+fn step_ssot_drift(root: &Path) -> Result<()> {
+    cargo_status(root, &["run", "-q", "-p", "vox-cli", "--", "ci", "ssot-drift"])
 }
 
-fn step_doc_inventory(_root: &Path) -> Result<()> {
-    cargo_status(&[
+fn step_doc_inventory(root: &Path) -> Result<()> {
+    cargo_status(root, &[
         "run",
         "-q",
         "-p",
@@ -219,8 +253,8 @@ fn step_doc_inventory(_root: &Path) -> Result<()> {
     ])
 }
 
-fn step_clippy(_root: &Path) -> Result<()> {
-    cargo_status(&[
+fn step_clippy(root: &Path) -> Result<()> {
+    cargo_status(root, &[
         "clippy",
         "--workspace",
         "--all-targets",
@@ -255,19 +289,22 @@ fn step_toestub_changed(root: &Path) -> Result<()> {
     for d in &dirs {
         cmd.arg(d);
     }
-    let status = cmd.status().context("spawn vox ci toestub-scoped")?;
+    let status = cmd
+        .current_dir(root)
+        .status()
+        .context("spawn vox ci toestub-scoped")?;
     if !status.success() {
         bail!("toestub-scoped exited with {:?}", status.code());
     }
     Ok(())
 }
 
-fn step_doc_frontmatter(_root: &Path) -> Result<()> {
-    cargo_status(&["run", "-q", "-p", "vox-doc-pipeline", "--", "--lint-only"])
+fn step_doc_frontmatter(root: &Path) -> Result<()> {
+    cargo_status(root, &["run", "-q", "-p", "vox-doc-pipeline", "--", "--lint-only"])
 }
 
-fn step_doctest_md(_root: &Path) -> Result<()> {
-    cargo_status(&[
+fn step_doctest_md(root: &Path) -> Result<()> {
+    cargo_status(root, &[
         "run",
         "-q",
         "-p",
@@ -279,7 +316,7 @@ fn step_doctest_md(_root: &Path) -> Result<()> {
     ])
 }
 
-fn step_drift_check(_root: &Path) -> Result<()> {
+fn step_drift_check(root: &Path) -> Result<()> {
     // Mirror the lefthook pre-push drift-check and the CI lints job step so
     // `vox ci pre-push` is the authoritative local gate.
     let status = std::process::Command::new(super::cargo_bin())
@@ -295,6 +332,7 @@ fn step_drift_check(_root: &Path) -> Result<()> {
             "--fail-on",
             "warning",
         ])
+        .current_dir(root)
         .status()
         .context("spawn vox-drift-check")?;
     if !status.success() {
@@ -303,8 +341,8 @@ fn step_drift_check(_root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn step_nextest(_root: &Path) -> Result<()> {
-    cargo_status(&[
+fn step_nextest(root: &Path) -> Result<()> {
+    cargo_status(root, &[
         "nextest",
         "run",
         "--workspace",

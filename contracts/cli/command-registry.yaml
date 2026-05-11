@@ -540,6 +540,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - flake-budget
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - grammar-drift
   status: active
   latin_ns: null
@@ -553,6 +565,18 @@ operations:
   path:
   - ci
   - gui-smoke
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - ignored-test-age
   status: active
   latin_ns: null
   product_lane: platform
@@ -821,6 +845,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - runtime-regress
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - rust-ecosystem-policy
   status: active
   latin_ns: null
@@ -943,7 +979,7 @@ operations:
 - surface: vox-cli
   path:
   - ci
-  - detect-rules-bench
+  - test-inventory
   status: active
   latin_ns: null
   product_lane: platform
@@ -951,7 +987,19 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: false
-  handler_rust: detect_rules_bench::run
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - test-runtime-report
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
 - surface: vox-cli
   path:
   - ci
