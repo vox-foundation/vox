@@ -166,11 +166,24 @@ pub async fn handle_tool_call(
         })
         .await;
 
+    // AgentOS: fold MCP mutation_kind into live orchestrator policy ledger (D5 overlay input).
+    {
+        let aid = agent_id.and_then(|s| s.parse::<u64>().ok());
+        state
+            .orchestrator
+            .record_agentos_mcp_tool(aid, name_canonical);
+    }
+
     let result = result.map(|payload| {
         if !aci_envelope {
             return payload;
         }
-        match crate::aci::attach_aci_envelope(name_canonical, &payload, checkpoint_hints) {
+        match crate::aci::attach_aci_envelope(
+            name_canonical,
+            &payload,
+            checkpoint_hints,
+            Some(&args),
+        ) {
             Ok(wrapped) => wrapped,
             Err(e) => {
                 tracing::warn!(tool = name_canonical, error = %e, "aci envelope attach failed; returning raw payload");

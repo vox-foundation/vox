@@ -178,7 +178,7 @@ See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/archit
 Environment-specific overlays (for example Antigravity on Windows) add stricter command-shape rules on top of this base; see [`GEMINI.md`](GEMINI.md). If Claude Code is in use, also see [`CLAUDE.md`](CLAUDE.md) for Claude-specific additions.
 For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — four `.mdc` rule files control build environment, CI runner conventions, CLI registry, and source hygiene.
 
-Live SSOT (scoped claim + evidence): [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md). Optional A/B eval design (not run, not required): [`docs/src/architecture/agent-shell-fluency-eval-design-2026.md`](docs/src/architecture/agent-shell-fluency-eval-design-2026.md). Archived 2026-Q1 background research is under `docs/src/archive/research-2026-q1/` — do not ingest autonomously per §Archival Protocol.
+Live SSOT (scoped claim + evidence): [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md). **Vox stdlib vs shells:** [`docs/src/architecture/vox-shell-stdlib-ssot-2026.md`](docs/src/architecture/vox-shell-stdlib-ssot-2026.md) — `std.fs` / `std.process` are argv‑first Rust builtins; they do not lower to PowerShell/bash. Optional A/B eval design (not run, not required): [`docs/src/architecture/agent-shell-fluency-eval-design-2026.md`](docs/src/architecture/agent-shell-fluency-eval-design-2026.md). Archived 2026-Q1 background research is under `docs/src/archive/research-2026-q1/` — do not ingest autonomously per §Archival Protocol.
 
 ## Test-First Policy (Required, Cross-Tool)
 

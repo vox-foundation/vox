@@ -55,6 +55,7 @@ workspace-hack            = { path = "crates/workspace-hack" }
 vox-build-meta            = { path = "crates/vox-build-meta" }
 vox-telemetry             = { path = "crates/vox-telemetry" }
 
+vox-agentos-mutation      = { path = "crates/vox-agentos-mutation" }
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-secrets                = { path = "crates/vox-secrets" }
 vox-cli                   = { path = "crates/vox-cli" }
@@ -174,6 +175,7 @@ owo-colors         = "4"
 chrono             = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 regex              = "1"
 comfy-table        = "7"
+csv                = "1.3"
 tempfile           = "3"
 turso              = { version = "0.4", default-features = false, features = ["sync"] }
 blake3             = { version = "1", features = ["pure"] }

@@ -429,6 +429,18 @@ pub fn lookup_builtin(
         .find(|e| e.namespace == namespace && e.name == name && e.arg_count == arg_count)
 }
 
+fn file_record_ty() -> Ty {
+    Ty::Record(vec![
+        ("name".into(), Ty::Str),
+        ("path".into(), Ty::Str),
+        ("size".into(), Ty::Int),
+        ("modified_ms".into(), Ty::Int),
+        ("is_dir".into(), Ty::Bool),
+        ("is_file".into(), Ty::Bool),
+        ("is_symlink".into(), Ty::Bool),
+    ])
+}
+
 /// `std.<field>` type members on the root namespace.
 #[must_use]
 pub fn std_root_field_ty(field: &str) -> Option<Ty> {
@@ -437,6 +449,10 @@ pub fn std_root_field_ty(field: &str) -> Option<Ty> {
         "path" => Ty::Named("StdPathNs".into()),
         "env" => Ty::Named("StdEnvNs".into()),
         "process" => Ty::Named("StdProcessNs".into()),
+        "csv" => Ty::Named("StdCsvNs".into()),
+        "toml" => Ty::Named("StdTomlNs".into()),
+        "yaml" => Ty::Named("StdYamlNs".into()),
+        "io" => Ty::Named("StdIoNs".into()),
         "json" => Ty::Named("StdJsonNs".into()),
         "http" => Ty::Named("StdHttpNs".into()),
         "crypto" => Ty::Named("StdCryptoNs".into()),
@@ -444,6 +460,7 @@ pub fn std_root_field_ty(field: &str) -> Option<Ty> {
         "log" => Ty::Named("StdLogNs".into()),
         "mobile" => Ty::Named("StdMobileNs".into()),
         "regex" => Ty::Named("StdRegexNs".into()),
+        "agentos" => Ty::Named("StdAgentosNs".into()),
         "uuid" => Ty::Fn(vec![], Box::new(Ty::Str)),
         "now_ms" => Ty::Fn(vec![], Box::new(Ty::Int)),
         "hash_fast" | "hash_secure" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
@@ -470,6 +487,14 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
         ("fs", "list_dir") | ("fs", "glob") => Ty::Fn(
             vec![Ty::Str],
             Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+        ),
+        ("fs", "list_dir_detailed") => Ty::Fn(
+            vec![Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::List(Box::new(file_record_ty()))))),
+        ),
+        ("fs", "stat") => Ty::Fn(
+            vec![Ty::Str],
+            Box::new(Ty::Result(Box::new(file_record_ty()))),
         ),
         ("fs", "remove_dir_all") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit)))),
         ("fs", "copy") => Ty::Fn(
@@ -517,6 +542,14 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
                 ("stderr".into(), Ty::Str),
             ])))),
         ),
+        ("process", "run_capture_json") => Ty::Fn(
+            vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+        ),
+        ("process", "run_capture_lines") => Ty::Fn(
+            vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+            Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+        ),
         ("process", "spawn_background") => Ty::Fn(
             vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
             Box::new(Ty::Result(Box::new(Ty::Int))),
@@ -530,6 +563,42 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             Box::new(Ty::Result(Box::new(Ty::Unit))),
         ),
         ("process", "exit") => Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)),
+        ("csv", "parse") => Ty::Fn(
+            vec![Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+        ),
+        ("csv", "parse_records") => Ty::Fn(
+            vec![Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+        ),
+        ("csv", "render") => Ty::Fn(
+            vec![Ty::List(Box::new(Ty::List(Box::new(Ty::Str))))],
+            Box::new(Ty::Result(Box::new(Ty::Str))),
+        ),
+        ("toml", "parse") => Ty::Fn(
+            vec![Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+        ),
+        ("toml", "render") => Ty::Fn(
+            vec![Ty::Named("Json".into())],
+            Box::new(Ty::Result(Box::new(Ty::Str))),
+        ),
+        ("yaml", "parse") => Ty::Fn(
+            vec![Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+        ),
+        ("yaml", "render") => Ty::Fn(
+            vec![Ty::Named("Json".into())],
+            Box::new(Ty::Result(Box::new(Ty::Str))),
+        ),
+        ("io", "open") => Ty::Fn(
+            vec![Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+        ),
+        ("io", "save") => Ty::Fn(
+            vec![Ty::Str, Ty::Named("Json".into())],
+            Box::new(Ty::Result(Box::new(Ty::Unit))),
+        ),
         ("json", "parse") => Ty::Fn(
             vec![Ty::Str],
             Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
@@ -560,6 +629,9 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             vec![Ty::Str],
             Box::new(Ty::Result(Box::new(Ty::Named("Regex".into())))),
         ),
+        ("agentos", "mutation_kind_for_tool") => {
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Str))
+        }
         _ => return None,
     })
 }
@@ -675,6 +747,14 @@ pub fn std_namespace_runtime_call(
             "(match vox_actor_runtime::builtins::vox_process_run_capture_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
             args[0], args[1], args[2], args[3]
         )),
+        ("process", "run_capture_json") if args.len() >= 2 => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_process_run_capture_json(({}).as_str(), {}.as_slice()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            args[0], args[1]
+        )),
+        ("process", "run_capture_lines") if args.len() >= 2 => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_process_run_capture_lines(({}).as_str(), {}.as_slice()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            args[0], args[1]
+        )),
         ("process", "spawn_background") if args.len() >= 2 => Some(format!(
             "(match vox_actor_runtime::builtins::vox_process_spawn_background(({}).as_str(), {}.as_slice()) {{ Ok(id) => Ok(id), Err(m) => Error(m) }})",
             args[0], args[1]
@@ -690,6 +770,14 @@ pub fn std_namespace_runtime_call(
         ("process", "exit") if !args.is_empty() => {
             Some(format!("{{ std::process::exit({} as i32) }}", args[0]))
         }
+        ("fs", "list_dir_detailed") if !args.is_empty() => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_fs_list_dir_detailed(({}).as_str()) {{ Ok(rows) => Ok(rows.into_iter().map(|r| serde_json::json!({{ \"name\": r.name, \"path\": r.path, \"size\": r.size, \"modified_ms\": r.modified_ms, \"is_dir\": r.is_dir, \"is_file\": r.is_file, \"is_symlink\": r.is_symlink }})).collect::<Vec<serde_json::Value>>()), Err(m) => Error(m) }})",
+            args[0]
+        )),
+        ("fs", "stat") if !args.is_empty() => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_fs_stat(({}).as_str()) {{ Ok(r) => Ok(serde_json::json!({{ \"name\": r.name, \"path\": r.path, \"size\": r.size, \"modified_ms\": r.modified_ms, \"is_dir\": r.is_dir, \"is_file\": r.is_file, \"is_symlink\": r.is_symlink }})), Err(m) => Error(m) }})",
+            args[0]
+        )),
         ("fs", "list_dir") if !args.is_empty() => Some(format!(
             "(match vox_actor_runtime::builtins::vox_list_dir(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
             args[0]
@@ -734,11 +822,76 @@ pub fn std_namespace_runtime_call(
             "(match vox_actor_runtime::builtins::vox_regex_compile(({}).as_str()) {{ Ok(r) => Ok(r), Err(m) => Error(m) }})",
             args[0]
         )),
+        ("csv", "parse") if !args.is_empty() => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_csv_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            args[0]
+        )),
+        ("csv", "parse_records") if !args.is_empty() => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_csv_parse_records(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            args[0]
+        )),
+        ("csv", "render") if !args.is_empty() => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_csv_render({}.as_slice()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
+            args[0]
+        )),
+        ("toml", "parse") if !args.is_empty() => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_toml_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            args[0]
+        )),
+        ("toml", "render") if !args.is_empty() => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_toml_render(&({})) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
+            args[0]
+        )),
+        ("yaml", "parse") if !args.is_empty() => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_yaml_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            args[0]
+        )),
+        ("yaml", "render") if !args.is_empty() => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_yaml_render(&({})) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
+            args[0]
+        )),
+        ("io", "open") if !args.is_empty() => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_io_open(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            args[0]
+        )),
+        ("io", "save") if args.len() >= 2 => Some(format!(
+            "(match ::vox_actor_runtime::builtins::vox_io_save(({}).as_str(), &({})) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            args[0], args[1]
+        )),
         ("json", "parse") if !args.is_empty() => Some(format!(
             "(match vox_actor_runtime::builtins::vox_json_parse(({}).as_str()) {{ Ok(j) => Ok(j), Err(m) => Error(m) }})",
             args[0]
         )),
+        ("agentos", "mutation_kind_for_tool") if !args.is_empty() => Some(format!(
+            "vox_actor_runtime::builtins::vox_agentos_mutation_kind_for_tool(({}).as_str())",
+            args[0]
+        )),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod agentos_std_surface_tests {
+    use super::{std_namespace_method_ty, std_namespace_runtime_call, std_root_field_ty};
+    use crate::typeck::ty::Ty;
+
+    #[test]
+    fn std_agentos_namespace_and_method_wired() {
+        assert!(matches!(
+            std_root_field_ty("agentos"),
+            Some(Ty::Named(n)) if n == "StdAgentosNs"
+        ));
+        assert!(std_namespace_method_ty("agentos", "mutation_kind_for_tool").is_some());
+        let rust = std_namespace_runtime_call(
+            "agentos",
+            "mutation_kind_for_tool",
+            &["tool_arg".to_string()],
+        )
+        .expect("runtime lowering");
+        assert!(
+            rust.contains("vox_agentos_mutation_kind_for_tool"),
+            "{rust}"
+        );
     }
 }
 

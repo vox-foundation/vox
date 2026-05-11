@@ -328,6 +328,260 @@ pub fn vox_list_dir(path: &str) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
+/// One directory entry with structured metadata (`std.fs.list_dir_detailed` / `std.fs.stat`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct VoxFileRecord {
+    pub name: String,
+    pub path: String,
+    pub size: i64,
+    pub modified_ms: i64,
+    pub is_dir: bool,
+    pub is_file: bool,
+    pub is_symlink: bool,
+}
+
+fn vox_file_record_from_meta(full_path: &str, name: &str, meta: &std::fs::Metadata) -> VoxFileRecord {
+    let modified_ms = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let ft = meta.file_type();
+    let len = meta.len();
+    let size = i64::try_from(len).unwrap_or(i64::MAX);
+    VoxFileRecord {
+        name: name.to_string(),
+        path: full_path.to_string(),
+        size,
+        modified_ms,
+        is_dir: ft.is_dir(),
+        is_file: ft.is_file(),
+        is_symlink: ft.is_symlink(),
+    }
+}
+
+/// Structured directory listing (`std.fs.list_dir_detailed`).
+pub fn vox_fs_list_dir_detailed(dir: &str) -> Result<Vec<VoxFileRecord>, String> {
+    let rd = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for ent in rd {
+        let ent = ent.map_err(|e| e.to_string())?;
+        let path_buf = ent.path();
+        let name = ent.file_name().to_string_lossy().into_owned();
+        let meta = match std::fs::symlink_metadata(&path_buf) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let full = path_buf.to_string_lossy().into_owned();
+        out.push(vox_file_record_from_meta(&full, &name, &meta));
+    }
+    Ok(out)
+}
+
+/// Metadata for a single path (`std.fs.stat`).
+pub fn vox_fs_stat(path: &str) -> Result<VoxFileRecord, String> {
+    let meta = std::fs::symlink_metadata(path).map_err(|e| e.to_string())?;
+    let name = std::path::Path::new(path)
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.to_string());
+    Ok(vox_file_record_from_meta(path, &name, &meta))
+}
+
+/// RFC 4180-style CSV parse → JSON array of string arrays (`std.csv.parse`).
+pub fn vox_csv_parse(text: &str) -> Result<serde_json::Value, String> {
+    let mut rdr = csv::ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(text.as_bytes());
+    let mut rows = Vec::new();
+    for rec in rdr.records() {
+        let rec = rec.map_err(|e| e.to_string())?;
+        let row: Vec<serde_json::Value> = rec
+            .iter()
+            .map(|f| serde_json::Value::String(f.to_string()))
+            .collect();
+        rows.push(serde_json::Value::Array(row));
+    }
+    Ok(serde_json::Value::Array(rows))
+}
+
+/// CSV with header row → JSON array of objects (`std.csv.parse_records`).
+pub fn vox_csv_parse_records(text: &str) -> Result<serde_json::Value, String> {
+    let mut rdr = csv::ReaderBuilder::new()
+        .flexible(true)
+        .from_reader(text.as_bytes());
+    let headers = rdr
+        .headers()
+        .map_err(|e| e.to_string())?
+        .iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+    let mut rows = Vec::new();
+    for rec in rdr.records() {
+        let rec = rec.map_err(|e| e.to_string())?;
+        let mut obj = serde_json::Map::new();
+        for (i, cell) in rec.iter().enumerate() {
+            let key = headers.get(i).cloned().unwrap_or_else(|| format!("column_{i}"));
+            obj.insert(key, serde_json::Value::String(cell.to_string()));
+        }
+        rows.push(serde_json::Value::Object(obj));
+    }
+    Ok(serde_json::Value::Array(rows))
+}
+
+/// Serialize rows as CSV (`std.csv.render`).
+pub fn vox_csv_render(rows: &[Vec<String>]) -> Result<String, String> {
+    let mut wtr = csv::WriterBuilder::new()
+        .has_headers(false)
+        .from_writer(Vec::new());
+    for row in rows {
+        wtr.write_record(row).map_err(|e| e.to_string())?;
+    }
+    wtr.into_inner()
+        .map_err(|e| e.to_string())
+        .and_then(|b| String::from_utf8(b).map_err(|e| e.to_string()))
+}
+
+/// Parse TOML text to JSON (`std.toml.parse`).
+pub fn vox_toml_parse(text: &str) -> Result<serde_json::Value, String> {
+    let v: toml::Value = toml::from_str(text).map_err(|e| e.to_string())?;
+    serde_json::to_value(&v).map_err(|e| e.to_string())
+}
+
+/// Render JSON as pretty TOML (`std.toml.render`).
+pub fn vox_toml_render(value: &serde_json::Value) -> Result<String, String> {
+    let tv: toml::Value = serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
+    toml::to_string_pretty(&tv).map_err(|e| e.to_string())
+}
+
+/// Parse YAML text to JSON (`std.yaml.parse`).
+pub fn vox_yaml_parse(text: &str) -> Result<serde_json::Value, String> {
+    serde_yaml::from_str::<serde_json::Value>(text).map_err(|e| e.to_string())
+}
+
+/// Render JSON as YAML (`std.yaml.render`).
+pub fn vox_yaml_render(value: &serde_json::Value) -> Result<String, String> {
+    serde_yaml::to_string(value).map_err(|e| e.to_string())
+}
+
+fn vox_csv_save_from_json(value: &serde_json::Value) -> Result<String, String> {
+    match value {
+        serde_json::Value::Array(rows) => {
+            if rows.is_empty() {
+                return Ok(String::new());
+            }
+            let mut out_rows: Vec<Vec<String>> = Vec::new();
+            if rows.iter().all(|r| r.is_object()) {
+                let keys: Vec<String> = rows[0]
+                    .as_object()
+                    .expect("object row")
+                    .keys()
+                    .cloned()
+                    .collect();
+                out_rows.push(keys.clone());
+                for row in rows {
+                    let obj = row.as_object().ok_or_else(|| "csv save: expected object".to_string())?;
+                    let mut line = Vec::new();
+                    for k in &keys {
+                        let cell = obj.get(k).map(json_scalar_to_string).unwrap_or_default();
+                        line.push(cell);
+                    }
+                    out_rows.push(line);
+                }
+            } else if rows.iter().all(|r| r.is_array()) {
+                for row in rows {
+                    let arr = row.as_array().ok_or_else(|| "csv save: expected array row".to_string())?;
+                    let line: Vec<String> = arr.iter().map(json_scalar_to_string).collect();
+                    out_rows.push(line);
+                }
+            } else {
+                return Err("csv save: array must be all objects or all arrays".into());
+            }
+            vox_csv_render(&out_rows)
+        }
+        _ => Err("csv save: expected JSON array".into()),
+    }
+}
+
+fn json_scalar_to_string(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::String(s) => s.clone(),
+        _ => v.to_string(),
+    }
+}
+
+/// Polymorphic read by extension (`std.io.open`).
+pub fn vox_io_open(path: &str) -> Result<serde_json::Value, String> {
+    let ext = std::path::Path::new(path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    match ext.as_str() {
+        "json" => serde_json::from_str(&text).map_err(|e| e.to_string()),
+        "toml" => vox_toml_parse(&text),
+        "yaml" | "yml" => vox_yaml_parse(&text),
+        "csv" => vox_csv_parse_records(&text),
+        _ => Ok(serde_json::Value::String(text)),
+    }
+}
+
+/// Polymorphic write by extension (`std.io.save`).
+pub fn vox_io_save(path: &str, value: &serde_json::Value) -> Result<(), String> {
+    let ext = std::path::Path::new(path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    let data: Vec<u8> = match ext.as_str() {
+        "json" => serde_json::to_string_pretty(value)
+            .map_err(|e| e.to_string())?
+            .into_bytes(),
+        "toml" => vox_toml_render(value)?.into_bytes(),
+        "yaml" | "yml" => vox_yaml_render(value)?.into_bytes(),
+        "csv" => vox_csv_save_from_json(value)?.into_bytes(),
+        _ => {
+            let s = match value {
+                serde_json::Value::String(s) => s.clone(),
+                _ => {
+                    return Err(
+                        "std.io.save: non-structured extension expects a JSON string value".into(),
+                    );
+                }
+            };
+            s.into_bytes()
+        }
+    };
+    std::fs::write(path, data).map_err(|e| e.to_string())
+}
+
+/// Run subprocess and parse stdout as JSON (`std.process.run_capture_json`).
+pub fn vox_process_run_capture_json(cmd: &str, args: &[String]) -> Result<serde_json::Value, String> {
+    let cap = vox_process_run_capture(cmd, args)?;
+    serde_json::from_str(cap.stdout.trim()).map_err(|e| format!("stdout is not valid JSON: {e}"))
+}
+
+/// Run subprocess; on success return stdout split into lines (`std.process.run_capture_lines`).
+pub fn vox_process_run_capture_lines(cmd: &str, args: &[String]) -> Result<Vec<String>, String> {
+    let cap = vox_process_run_capture(cmd, args)?;
+    if cap.exit != 0 {
+        return Err(format!(
+            "process exited with code {} (stderr: {})",
+            cap.exit, cap.stderr
+        ));
+    }
+    Ok(cap
+        .stdout
+        .lines()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>())
+}
+
 /// Spawn a subprocess; on success returns exit code (`std.process.run`).
 ///
 /// Non-zero exit is surfaced as `Err` so Vox `Result` can represent failure.
@@ -354,6 +608,12 @@ pub fn vox_process_which(cmd: &str) -> Option<String> {
     which::which(cmd)
         .ok()
         .map(|p| p.to_string_lossy().into_owned())
+}
+
+/// MCP canonical tool name → ACI `mutation_kind` string (`std.agentos.mutation_kind_for_tool`).
+#[must_use]
+pub fn vox_agentos_mutation_kind_for_tool(name: &str) -> String {
+    vox_agentos_mutation::mutation_kind_for_tool(name).to_string()
 }
 
 /// Terminate the current process with an exit code (`std.process.exit` in Vox scripts).

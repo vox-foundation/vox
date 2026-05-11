@@ -86,6 +86,9 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-drift-check`](../../../crates/vox-drift-check/) | Workspace drift and pattern-repetition linter (multi-language: Rust, TypeScript, Vox). |
 | [`vox-codegen`](../../../crates/vox-codegen/) | Codegen + WebIR + vox_ir extracted from vox-compiler. Consumes analysis types from vox-compiler. |
 | [`vox-compiler`](../../../crates/vox-compiler/) | Unified Vox compiler: lexer, parser, AST, HIR, typechecker, and codegen. |
+| [`vox-compiler/src/eval/shell_stdlib.rs`](../../../crates/vox-compiler/src/eval/shell_stdlib.rs) | Interpreter (`--interp`) mirror of shell‑tier `std.*` builtins — **must stay aligned** with `vox-actor-runtime` (Cargo cycle prevents a direct dep). See [`vox-shell-stdlib-ssot-2026.md`](./vox-shell-stdlib-ssot-2026.md). |
+| [`vox-actor-runtime/src/builtins/mod.rs`](../../../crates/vox-actor-runtime/src/builtins/mod.rs) | SSOT Rust lowering targets for `std.fs` / `std.process` / structured formats (`std.csv`, `std.toml`, `std.yaml`, `std.io`) used by native codegen. |
+| [`vox-shell-stdlib-ssot-2026.md`](./vox-shell-stdlib-ssot-2026.md) | Architecture SSOT: argv‑first shell‑tier stdlib vs host shells / `vox_run_shell`. |
 | [`vox-container`](../../../crates/vox-container/) | OCI container runtime abstraction — supports Docker and Podman. |
 | [`vox-corpus`](../../../crates/vox-corpus/) | Training data contracts, preflight, corpus SSOT, and Mens dataset metadata. |
 | [`vox-dashboard`](../../../crates/vox-dashboard/) | Local Axum-served orchestration dashboard (SPA host). |
@@ -162,6 +165,7 @@ guess. The full crate roster with layer assignments lives in
 | Sub-agent dispatch — spawn vs. inline (D4) | `crates/vox-orchestrator/src/subagent_dispatch.rs` |
 | Orchestrator policy metric_type constants | `crates/vox-telemetry/src/types.rs` — `METRIC_TYPE_*` constants |
 | Orchestrator feature flags | `contracts/orchestration/feature-flags.v1.yaml` |
+| AgentOS MCP → `mutation_kind` SSOT (orchestrator + `std.agentos` in Vox) | `crates/vox-agentos-mutation/` |
 | AgentOS ACI envelope + mutation classification (MCP) | `crates/vox-orchestrator-mcp/src/aci/` |
 | AgentOS guardrail kernel / checkpoint / intent planner | `crates/vox-orchestrator/src/agentos/` |
 | AgentOS policy ledger (MCP mutation_kind → orchestrator risk overlay) | `crates/vox-orchestrator/src/agentos/policy_runtime.rs` |

@@ -1,3 +1,9 @@
+use super::shell_stdlib::{
+    interp_csv_parse, interp_csv_parse_records, interp_csv_render, interp_fs_list_dir_detailed,
+    interp_fs_stat, interp_io_open, interp_io_save, interp_process_run_capture_json,
+    interp_process_run_capture_lines, interp_toml_parse, interp_toml_render, interp_yaml_parse,
+    interp_yaml_render,
+};
 use super::value::VoxValue;
 use secrecy::ExposeSecret;
 use std::sync::Mutex;
@@ -58,6 +64,27 @@ fn execute_exit_commands() {
 
 pub fn vox_flush_exit_commands() {
     execute_exit_commands();
+}
+
+fn voxvalue_as_table_str(v: &VoxValue) -> Option<Vec<Vec<String>>> {
+    let VoxValue::List(rows) = v else {
+        return None;
+    };
+    let mut out = Vec::new();
+    for row in rows {
+        let VoxValue::List(cells) = row else {
+            return None;
+        };
+        let mut line = Vec::new();
+        for c in cells {
+            let VoxValue::Str(s) = c else {
+                return None;
+            };
+            line.push(s.clone());
+        }
+        out.push(line);
+    }
+    Some(out)
 }
 
 /// Dispatch a method call on a runtime value. Returns `None` if the method is
@@ -312,11 +339,19 @@ pub fn call_builtin_method(
 
             if let Some(ns_str) = ns
                 && let Some(c) = caps
-                && (ns_str == "fs" || ns_str == "process" || ns_str == "env" || ns_str == "secrets")
-                && !(c.contains(ns_str) || (ns_str == "process" && c.contains("subprocess")))
+                && matches!(
+                    ns_str,
+                    "fs" | "io" | "process" | "env" | "secrets"
+                )
             {
-                println!("Capability denied: script missing capability '{}'", ns_str);
-                return Some(VoxValue::Null);
+                let ok = (ns_str == "fs" || ns_str == "io") && c.contains("fs")
+                    || ns_str == "process" && (c.contains("process") || c.contains("subprocess"))
+                    || ns_str == "env" && c.contains("env")
+                    || ns_str == "secrets" && c.contains("secrets");
+                if !ok {
+                    println!("Capability denied: script missing capability for '{ns_str}' namespace");
+                    return Some(VoxValue::Null);
+                }
             }
 
             match ns {
@@ -392,6 +427,52 @@ pub fn call_builtin_method(
                                 Ok(Box::new(VoxValue::List(list)))
                             }
                             Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
+                    "list_dir_detailed" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = match interp_fs_list_dir_detailed(&path) {
+                            Ok(rows) => {
+                                let list: Vec<VoxValue> = rows
+                                    .into_iter()
+                                    .map(|r| {
+                                        VoxValue::Object(vec![
+                                            ("name".into(), VoxValue::Str(r.name)),
+                                            ("path".into(), VoxValue::Str(r.path)),
+                                            ("size".into(), VoxValue::Int(r.size)),
+                                            ("modified_ms".into(), VoxValue::Int(r.modified_ms)),
+                                            ("is_dir".into(), VoxValue::Bool(r.is_dir)),
+                                            ("is_file".into(), VoxValue::Bool(r.is_file)),
+                                            ("is_symlink".into(), VoxValue::Bool(r.is_symlink)),
+                                        ])
+                                    })
+                                    .collect();
+                                Ok(Box::new(VoxValue::List(list)))
+                            }
+                            Err(e) => Err(e),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
+                    "stat" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = match interp_fs_stat(&path) {
+                            Ok(r) => Ok(Box::new(VoxValue::Object(vec![
+                                ("name".into(), VoxValue::Str(r.name)),
+                                ("path".into(), VoxValue::Str(r.path)),
+                                ("size".into(), VoxValue::Int(r.size)),
+                                ("modified_ms".into(), VoxValue::Int(r.modified_ms)),
+                                ("is_dir".into(), VoxValue::Bool(r.is_dir)),
+                                ("is_file".into(), VoxValue::Bool(r.is_file)),
+                                ("is_symlink".into(), VoxValue::Bool(r.is_symlink)),
+                            ]))),
+                            Err(e) => Err(e),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -630,6 +711,204 @@ pub fn call_builtin_method(
                         };
                         vox_flush_exit_commands();
                         std::process::exit(code);
+                    }
+                    "run_capture_json" => {
+                        let mut it = args.into_iter();
+                        let cmd_name = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let cmd_args = match it.next() {
+                            Some(VoxValue::List(ls)) => ls
+                                .into_iter()
+                                .filter_map(|v| {
+                                    if let VoxValue::Str(s) = v {
+                                        Some(s)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>(),
+                            _ => vec![],
+                        };
+                        let res =
+                            interp_process_run_capture_json(&cmd_name, &cmd_args);
+                        Some(VoxValue::Result(match res {
+                            Ok(v) => Ok(Box::new(json_to_vox(v))),
+                            Err(e) => Err(e),
+                        }))
+                    }
+                    "run_capture_lines" => {
+                        let mut it = args.into_iter();
+                        let cmd_name = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let cmd_args = match it.next() {
+                            Some(VoxValue::List(ls)) => ls
+                                .into_iter()
+                                .filter_map(|v| {
+                                    if let VoxValue::Str(s) = v {
+                                        Some(s)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>(),
+                            _ => vec![],
+                        };
+                        let res =
+                            interp_process_run_capture_lines(&cmd_name, &cmd_args);
+                        Some(VoxValue::Result(match res {
+                            Ok(lines) => Ok(Box::new(VoxValue::List(
+                                lines.into_iter().map(VoxValue::Str).collect(),
+                            ))),
+                            Err(e) => Err(e),
+                        }))
+                    }
+                    _ => None,
+                },
+                Some("agentos") => match method {
+                    "mutation_kind_for_tool" => {
+                        let name = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Str("read_only".to_string())),
+                        };
+                        Some(VoxValue::Str(
+                            vox_agentos_mutation::mutation_kind_for_tool(&name).to_string(),
+                        ))
+                    }
+                    _ => None,
+                },
+                Some("csv") => match method {
+                    "parse" => {
+                        let s = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        Some(VoxValue::Result(
+                            match interp_csv_parse(&s) {
+                                Ok(v) => Ok(Box::new(json_to_vox(v))),
+                                Err(e) => Err(e),
+                            },
+                        ))
+                    }
+                    "parse_records" => {
+                        let s = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        Some(VoxValue::Result(
+                            match interp_csv_parse_records(&s) {
+                                Ok(v) => Ok(Box::new(json_to_vox(v))),
+                                Err(e) => Err(e),
+                            },
+                        ))
+                    }
+                    "render" => {
+                        let rows_v = match args.into_iter().next() {
+                            Some(v) => v,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let rows = match voxvalue_as_table_str(&rows_v) {
+                            Some(r) => r,
+                            None => return Some(VoxValue::Result(Err("csv.render: expected list[list[str]]".into()))),
+                        };
+                        Some(VoxValue::Result(
+                            match interp_csv_render(&rows) {
+                                Ok(s) => Ok(Box::new(VoxValue::Str(s))),
+                                Err(e) => Err(e),
+                            },
+                        ))
+                    }
+                    _ => None,
+                },
+                Some("toml") => match method {
+                    "parse" => {
+                        let s = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        Some(VoxValue::Result(
+                            match interp_toml_parse(&s) {
+                                Ok(v) => Ok(Box::new(json_to_vox(v))),
+                                Err(e) => Err(e),
+                            },
+                        ))
+                    }
+                    "render" => {
+                        let v = match args.into_iter().next() {
+                            Some(val) => val,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let j = vox_to_json(v);
+                        Some(VoxValue::Result(
+                            match interp_toml_render(&j) {
+                                Ok(s) => Ok(Box::new(VoxValue::Str(s))),
+                                Err(e) => Err(e),
+                            },
+                        ))
+                    }
+                    _ => None,
+                },
+                Some("yaml") => match method {
+                    "parse" => {
+                        let s = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        Some(VoxValue::Result(
+                            match interp_yaml_parse(&s) {
+                                Ok(v) => Ok(Box::new(json_to_vox(v))),
+                                Err(e) => Err(e),
+                            },
+                        ))
+                    }
+                    "render" => {
+                        let v = match args.into_iter().next() {
+                            Some(val) => val,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let j = vox_to_json(v);
+                        Some(VoxValue::Result(
+                            match interp_yaml_render(&j) {
+                                Ok(s) => Ok(Box::new(VoxValue::Str(s))),
+                                Err(e) => Err(e),
+                            },
+                        ))
+                    }
+                    _ => None,
+                },
+                Some("io") => match method {
+                    "open" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        Some(VoxValue::Result(
+                            match interp_io_open(&path) {
+                                Ok(v) => Ok(Box::new(json_to_vox(v))),
+                                Err(e) => Err(e),
+                            },
+                        ))
+                    }
+                    "save" => {
+                        let mut it = args.into_iter();
+                        let path = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let val = match it.next() {
+                            Some(v) => v,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let j = vox_to_json(val);
+                        Some(VoxValue::Result(
+                            match interp_io_save(&path, &j) {
+                                Ok(()) => Ok(Box::new(VoxValue::Null)),
+                                Err(e) => Err(e),
+                            },
+                        ))
                     }
                     _ => None,
                 },

@@ -388,6 +388,11 @@ impl<'a> Checker<'a> {
                         "StdTimeNs" => Some("time"),
                         "StdMobileNs" => Some("mobile"),
                         "StdRegexNs" => Some("regex"),
+                        "StdAgentosNs" => Some("agentos"),
+                        "StdCsvNs" => Some("csv"),
+                        "StdTomlNs" => Some("toml"),
+                        "StdYamlNs" => Some("yaml"),
+                        "StdIoNs" => Some("io"),
                         _ => None,
                     };
                     if let Some(ns) = ns {

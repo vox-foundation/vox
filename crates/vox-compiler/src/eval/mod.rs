@@ -1,6 +1,7 @@
 pub use vox_eval::*;
 
 pub mod builtins;
+pub mod shell_stdlib;
 pub mod env;
 pub mod expr;
 pub mod stmt;
@@ -116,6 +117,41 @@ impl Interpreter {
                 VoxValue::Object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("json".to_string()),
+                )]),
+            ),
+            (
+                "agentos".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("agentos".to_string()),
+                )]),
+            ),
+            (
+                "csv".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("csv".to_string()),
+                )]),
+            ),
+            (
+                "toml".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("toml".to_string()),
+                )]),
+            ),
+            (
+                "yaml".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("yaml".to_string()),
+                )]),
+            ),
+            (
+                "io".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("io".to_string()),
                 )]),
             ),
         ]);

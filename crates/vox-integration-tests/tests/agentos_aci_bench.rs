@@ -55,6 +55,7 @@ fn aci_tool_response_validates_against_contract_schema() {
         "vox_git_status",
         r#"{"success":true,"data":{"ok":true}}"#,
         true,
+        None,
     )
     .expect("attach ACI envelope");
     let v: serde_json::Value = serde_json::from_str(&out).expect("parse wrapped JSON");

@@ -51,6 +51,8 @@ See [`where-things-live.md`](where-things-live.md) — AgentOS rows under orches
 
 - **MCP tools**: normalized JSON validated against ACI schema when [`OrchestratorConfig::agentos_aci_envelope_enabled`](../../../crates/vox-orchestrator/src/config/orchestrator_fields.rs) is true (default **false** until clients opt in).
 - **Host shell**: adapters live under `vox-cli` `commands/runtime/shell/`; policy remains PowerShell-first for AST allowlisting unless a structured backend is explicitly selected.
+- **Structured shell data in Vox scripts:** `std.fs` / `std.process` / `std.csv|toml|yaml|io` are **native Rust** builtins — see [`vox-shell-stdlib-ssot-2026.md`](./vox-shell-stdlib-ssot-2026.md). They are unrelated to `vox_run_shell` except via separate AgentOS probes.
+- **`aci.shell_backend` on `vox_run_shell`:** when envelopes attach, the field reflects the MCP argument `backend` (`powershell` default; `nu` / `nushell` → `nushell`). See [`vox-orchestrator-mcp/src/aci/envelope.rs`](../../../crates/vox-orchestrator-mcp/src/aci/envelope.rs).
 
 ## 6. Telemetry
 
