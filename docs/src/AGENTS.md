@@ -9,7 +9,7 @@ training_rationale: "Project architecture context."
 # Documentation Rules (docs/src/ scope)
 
 ## Code block policy
-- `.vox` and `.tsx` blocks: use `{{#include}}` from `examples/golden/` or tag `// vox:skip`
+- Fenced blocks tagged `vox`: use `{{#include}}` from `examples/golden/` or tag `// vox:skip` only when the snippet is intentionally illustrative or non-compiling; other language fences are not run through the Vox parser
 - All code blocks must specify a language identifier
 - Do not place golden examples inline without the include directive
 
