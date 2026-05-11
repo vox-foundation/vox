@@ -14,6 +14,9 @@ fn fake_attestation(task_id: &str, gpu_seconds: f64) -> Attestation {
         ephemeral_pubkey_hex: "00".repeat(32),
         signature_b64: "AAAA".to_string(),
         signed_at_unix_ms: 1_700_000_000_000,
+        tee_quote: None,
+        replay_proof_blake3_hex: None,
+        kudos_signature_b64: None,
     }
 }
 

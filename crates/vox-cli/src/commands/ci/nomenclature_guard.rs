@@ -48,6 +48,7 @@ const HISTORICAL_ALLOWLIST: &[&str] = &[
     "vox-schola",  // grandfathered — being migrated to vox-tutorial
     "vox-codex-api", // grandfathered — database abstraction layer
     "vox-ml-cli",  // grandfathered — ML subsystem
+    "vox-mens-eval", // grandfathered — Mn-T11 eval harness crate; pending english-core naming convergence
 ];
 
 #[derive(Serialize)]
