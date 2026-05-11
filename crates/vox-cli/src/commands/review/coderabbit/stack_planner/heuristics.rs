@@ -161,8 +161,8 @@ pub(crate) fn get_chunk_id(path: &str) -> (u32, &'static str) {
     }
 
     // ── Agent / MCP ───────────────────────────────────────────────────────
-    if p.contains("crates/vox-mcp/")
-        || p.contains("crates/vox-dei/")
+    if p.contains("crates/vox-orchestrator-mcp/")
+        || p.contains("crates/vox-mcp-registry/")
         || p.contains("crates/vox-codex")
         || p.contains("crates/vox-capability")
     {

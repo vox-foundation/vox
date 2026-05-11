@@ -561,6 +561,87 @@ pub enum CiCmd {
         #[arg(long)]
         strict: bool,
     },
+    /// Regenerable workspace test inventory (Rust tests, ignores, golden Vox, app E2E paths).
+    #[command(name = "test-inventory")]
+    TestInventory {
+        /// Print deterministic JSON to stdout.
+        #[arg(long)]
+        json: bool,
+        /// Write JSON to this path.
+        #[arg(long)]
+        output: Option<PathBuf>,
+        /// Write Markdown summary to this path.
+        #[arg(long)]
+        markdown: Option<PathBuf>,
+        /// Fail if this JSON file differs after parsing both sides and comparing structured data (semantic equality for `TestInventoryReport`, not a raw text diff).
+        #[arg(long)]
+        check: Option<PathBuf>,
+    },
+    /// Summarize nextest/JUnit XML: slow tests, retries/flaky heuristics, optional threshold warnings (report-only).
+    #[command(name = "test-runtime-report")]
+    TestRuntimeReport {
+        /// Path to JUnit XML (e.g. `target/nextest/ci/junit.xml` when nextest JUnit is enabled).
+        #[arg(long)]
+        junit: PathBuf,
+        /// Emit machine-readable JSON to stdout (suppresses default human summary).
+        #[arg(long)]
+        json: bool,
+        /// Write Markdown summary to this path.
+        #[arg(long)]
+        markdown: Option<PathBuf>,
+        /// Number of slow tests to list (max-time per classname+name).
+        #[arg(long, default_value_t = 20)]
+        top: usize,
+        /// Warn when any listed slow test exceeds this duration in milliseconds (does not fail the command).
+        #[arg(long)]
+        fail_over_ms: Option<u64>,
+        /// Warn when the number of retry/flaky candidate rows exceeds this value (does not fail the command).
+        #[arg(long)]
+        fail_retry_count: Option<usize>,
+    },
+    /// Governance gate: ignored tests must use `#[ignore = "..."]` with owner/sunset/date-style markers (default warn).
+    #[command(name = "ignored-test-age")]
+    IgnoredTestAge {
+        #[arg(long, value_enum, default_value_t = GovernanceGateMode::Warn)]
+        mode: GovernanceGateMode,
+        /// Optional `test-inventory` JSON; when set, requires `summary.cargo_ignored_test_functions` to match the live scan count.
+        #[arg(long)]
+        inventory: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Governance gate: retry/flaky candidate rows vs budget (`test-runtime-report` JSON or JUnit).
+    #[command(name = "flake-budget")]
+    FlakeBudget {
+        #[arg(long, value_enum, default_value_t = GovernanceGateMode::Warn)]
+        mode: GovernanceGateMode,
+        #[arg(long)]
+        report_json: Option<PathBuf>,
+        #[arg(long)]
+        junit: Option<PathBuf>,
+        #[arg(long, default_value_t = 20)]
+        top: usize,
+        #[arg(long = "max-candidates", default_value_t = 50)]
+        max_candidates: usize,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Governance gate: compare two `test-runtime-report` JSON files for top-test slowdowns vs baseline.
+    #[command(name = "runtime-regress")]
+    RuntimeRegress {
+        #[arg(long, value_enum, default_value_t = GovernanceGateMode::Warn)]
+        mode: GovernanceGateMode,
+        #[arg(long)]
+        current: PathBuf,
+        #[arg(long)]
+        baseline: PathBuf,
+        #[arg(long, default_value_t = 25.0)]
+        percent: f64,
+        #[arg(long, default_value_t = 500)]
+        absolute_ms: u64,
+        #[arg(long)]
+        json: bool,
+    },
     /// Coolify eval sandbox: discover apps and sync `vox-eval.compose.yml` via API.
     CoolifyEval {
         #[command(subcommand)]
@@ -692,6 +773,26 @@ pub enum CoverageGateMode {
     Warn,
     /// Exit non-zero when a configured threshold is not met.
     Enforce,
+}
+
+/// `vox ci ignored-test-age` / `flake-budget` / `runtime-regress` exit behavior.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+#[value(rename_all = "kebab-case")]
+pub enum GovernanceGateMode {
+    /// Print findings; exit 0 unless paired with other failures.
+    #[default]
+    Warn,
+    /// Exit non-zero when the gate detects drift.
+    Enforce,
+}
+
+impl GovernanceGateMode {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            GovernanceGateMode::Warn => "warn",
+            GovernanceGateMode::Enforce => "enforce",
+        }
+    }
 }
 
 /// Projection target for `vox ci operations-sync`.

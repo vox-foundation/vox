@@ -249,6 +249,9 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                             "--no-line-number",
                             "(VOX|TURSO|XDG)_[A-Z0-9_]+",
                             "crates/",
+                            "apps/",
+                            "scripts/",
+                            "docs/src/",
                         ])
                         .current_dir(&root)
                         .output()

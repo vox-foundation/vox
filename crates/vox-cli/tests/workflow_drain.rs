@@ -5,13 +5,8 @@ use vox_cli::VoxCliRoot;
 
 #[test]
 fn vox_workflow_drain_parses() {
-    let cli = VoxCliRoot::try_parse_from([
-        "vox",
-        "workflow",
-        "drain",
-        "--version",
-        &"a".repeat(128),
-    ]);
+    let cli =
+        VoxCliRoot::try_parse_from(["vox", "workflow", "drain", "--version", &"a".repeat(128)]);
     assert!(cli.is_ok(), "parse error: {:?}", cli.err());
 }
 

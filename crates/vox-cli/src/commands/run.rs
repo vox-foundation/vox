@@ -131,6 +131,7 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
         file,
         &out_dir,
         None,
+        None,
         false,
         false,
         crate::cli_args::BuildMode::App,

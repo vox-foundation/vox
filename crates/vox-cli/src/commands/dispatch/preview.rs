@@ -21,15 +21,15 @@ pub enum RoutingDecision {
     /// Dispatcher would route to a specific peer (file affinity, label match, lease).
     Remote { peer_id: String, reason: String },
     /// Activity result cache (P2-T5) would short-circuit; no run at all.
-    Cached { activity_id: String, arg_hash_hex: String },
+    Cached {
+        activity_id: String,
+        arg_hash_hex: String,
+    },
 }
 
 pub async fn run(args: PreviewArgs) -> anyhow::Result<()> {
     // Phase 3: wire to orchestrator admin client when daemon exposes preview_dispatch RPC.
-    println!(
-        "[dispatch preview] path={} args={:?}",
-        args.path, args.args
-    );
+    println!("[dispatch preview] path={} args={:?}", args.path, args.args);
     println!("(Phase 3: admin client dispatch preview not yet wired)");
     Ok(())
 }

@@ -19,6 +19,7 @@ mod dep_sprawl;
 pub mod deploy_status;
 mod detect_rules_bench;
 mod determinism_audit;
+mod docs_deprecated_command_guard;
 mod doctest_md;
 mod eval_matrix;
 mod exec_policy_contract;
@@ -49,6 +50,9 @@ mod scientia_novelty_ledger_contract;
 mod scientia_worthiness_contract;
 pub(crate) mod string_id_lint;
 pub(crate) mod sync_ignore_files;
+pub mod test_inventory;
+pub mod test_runtime_report;
+mod test_governance;
 mod toestub_budget;
 pub mod watch_run;
 pub mod workspace_artifacts;
@@ -65,7 +69,7 @@ use anyhow::Result;
 
 pub use cmd_enums::{
     CiCmd, CoolifyEvalCmd, CoverageGateMode, DocInventoryCmd, EvalMatrixCmd, GrammarDriftEmit,
-    MensScorecardCmd, OperationsSyncTarget, ScalingAuditCmd,
+    GovernanceGateMode, MensScorecardCmd, OperationsSyncTarget, ScalingAuditCmd,
 };
 
 /// Resolve repository root: `VOX_REPO_ROOT`, else walk up from CWD for `AGENTS.md` + `Cargo.toml`.

@@ -18,10 +18,17 @@ async fn run_once(args: &crate::cli_args::TestArgs) -> Result<()> {
     let out_dir = PathBuf::from("dist");
     let file = &args.file;
 
+    if vox_config::VoxConfig::load().build_target == vox_config::BuildTarget::Client {
+        anyhow::bail!(
+            "`vox test` requires Rust codegen; `[build] target = \"client\"` / `VOX_BUILD_TARGET=client` emits TypeScript only. Use fullstack or server."
+        );
+    }
+
     println!("Building for tests: {}...", file.display());
     build::run(
         file,
         &out_dir,
+        None,
         None,
         false,
         false,

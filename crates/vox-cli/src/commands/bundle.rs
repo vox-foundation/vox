@@ -95,6 +95,7 @@ async fn run_app_bundle(
         file,
         out_dir,
         target.map(|s| s.to_string()),
+        None,
         false,
         false,
         crate::cli_args::BuildMode::App,

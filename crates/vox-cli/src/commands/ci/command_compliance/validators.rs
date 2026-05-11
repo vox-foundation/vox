@@ -150,11 +150,97 @@ pub(crate) fn check_env_var_ssot_index(reg: &RegistryFile, env_ssot_md: &str) ->
         let needle = format!("`{name}`");
         if !env_ssot_md.contains(&needle) {
             return Err(anyhow!(
-                "command-registry env_var_ssot_index: {needle} not found in docs/src/reference/env-vars.md (or env-vars-ssot.md)"
+                "command-registry env_var_ssot_index: {needle} not found in docs/src/reference/env-vars.md (canonical prose SSOT)"
             ));
         }
     }
     Ok(())
+}
+
+fn extract_env_var_tokens_from_prose_md(md: &str) -> HashSet<String> {
+    static NAME_RE: OnceLock<Regex> = OnceLock::new();
+    let name_re = NAME_RE.get_or_init(|| Regex::new(r"^(VOX|TURSO|XDG)_[A-Z0-9_]+$").unwrap());
+    static BTICK: OnceLock<Regex> = OnceLock::new();
+    let btick = BTICK.get_or_init(|| Regex::new(r"`([^`\n]+)`").unwrap());
+
+    let mut in_fence = false;
+    let mut cited = HashSet::new();
+    for line in md.lines() {
+        let t = line.trim_start();
+        if t.starts_with("```") {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence {
+            continue;
+        }
+        for cap in btick.captures_iter(line) {
+            let inner = cap.get(1).unwrap().as_str();
+            for part in inner.split(|c| c == '/' || c == '|' || c == ',' || c == ' ') {
+                let p = part.trim();
+                if p.is_empty() || p.contains('*') {
+                    continue;
+                }
+                if name_re.is_match(p) {
+                    cited.insert(p.to_string());
+                }
+            }
+        }
+    }
+    cited
+}
+
+/// Every `` `VOX_*` ``, `` `TURSO_*` ``, `` `XDG_*` `` token in the env-vars prose doc must exist in
+/// [`contracts/config/env-vars.v1.yaml`] (machine registry). Code fences are skipped.
+pub(crate) fn check_env_vars_doc_tokens_registered(
+    repo_root: &Path,
+    env_ssot_md: &str,
+) -> Result<()> {
+    let yaml_path = repo_root.join("contracts/config/env-vars.v1.yaml");
+    let yaml_raw = read_utf8_path_capped(&yaml_path)
+        .with_context(|| format!("read {}", yaml_path.display()))?;
+    let yaml_val: serde_yaml::Value = serde_yaml::from_str(&yaml_raw)
+        .with_context(|| format!("parse {}", yaml_path.display()))?;
+    let mut registered = HashSet::new();
+    if let Some(vars) = yaml_val.get("variables").and_then(|v| v.as_sequence()) {
+        for v in vars {
+            if let Some(name) = v.get("name").and_then(|n| n.as_str()) {
+                registered.insert(name.to_string());
+            }
+        }
+    }
+
+    let cited = extract_env_var_tokens_from_prose_md(env_ssot_md);
+    let mut missing: Vec<_> = cited.difference(&registered).cloned().collect();
+    missing.sort();
+    if !missing.is_empty() {
+        return Err(anyhow!(
+            "env-vars prose SSOT cites variables not present in contracts/config/env-vars.v1.yaml: {:?}. Register them in YAML or fix doc typos.",
+            missing
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod env_doc_token_tests {
+    use super::*;
+
+    #[test]
+    fn extract_skips_fenced_blocks() {
+        let md = "```text\n`VOX_SKIP_ME`\n```\nuse `VOX_KEEP` in tables.\n";
+        let got = extract_env_var_tokens_from_prose_md(md);
+        assert!(got.contains("VOX_KEEP"));
+        assert!(!got.contains("VOX_SKIP_ME"));
+    }
+
+    #[test]
+    fn extract_splits_slash_separated_names_in_one_span() {
+        let md = "pair `VOX_A` / `VOX_B` done.\n";
+        let got = extract_env_var_tokens_from_prose_md(md);
+        assert!(got.contains("VOX_A"));
+        assert!(got.contains("VOX_B"));
+    }
 }
 
 fn schema_string_enum(schema: &Value, pointer: &str, label: &str) -> Result<Vec<String>> {

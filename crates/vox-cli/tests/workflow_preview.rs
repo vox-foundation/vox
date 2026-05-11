@@ -3,14 +3,18 @@
 use vox_cli::commands::workflow::preview::{WorkflowPreviewArgs, project_workflow_from_source};
 
 /// Helper: run the projector on Vox source string for the named workflow.
-fn preview(src: &str, wf_name: &str) -> anyhow::Result<vox_cli::commands::workflow::preview::PreviewedWorkflow> {
+fn preview(
+    src: &str,
+    wf_name: &str,
+) -> anyhow::Result<vox_cli::commands::workflow::preview::PreviewedWorkflow> {
     project_workflow_from_source(src, wf_name)
 }
 
 fn fixture(name: &str) -> String {
     let manifest = env!("CARGO_MANIFEST_DIR");
     let path = std::path::PathBuf::from(manifest)
-        .join("..").join("..") // workspace root
+        .join("..")
+        .join("..") // workspace root
         .join("tests/fixtures/workflow_preview")
         .join(name);
     std::fs::read_to_string(&path)
@@ -30,7 +34,11 @@ fn preview_simple_two_step_lists_both_activities() {
 fn preview_remote_fn_is_marked_remote() {
     let src = fixture("simple_two_step.vox");
     let p = preview(&src, "process").expect("preview");
-    let fetch = p.steps.iter().find(|s| s.name == "fetch_url").expect("fetch_url");
+    let fetch = p
+        .steps
+        .iter()
+        .find(|s| s.name == "fetch_url")
+        .expect("fetch_url");
     assert!(fetch.is_remote, "fetch_url should be marked remote");
 }
 

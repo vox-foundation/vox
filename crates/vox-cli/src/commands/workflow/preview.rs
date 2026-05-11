@@ -47,8 +47,8 @@ pub fn project_workflow_from_source(source: &str, wf_name: &str) -> Result<Previ
 }
 
 pub async fn run(args: &WorkflowPreviewArgs) -> Result<()> {
-    let (path, wf_name) = parse_target(&args.target)
-        .with_context(|| format!("invalid target `{}`", args.target))?;
+    let (path, wf_name) =
+        parse_target(&args.target).with_context(|| format!("invalid target `{}`", args.target))?;
     let result = crate::pipeline::run_frontend(&path, false).await?;
     if result.has_errors() {
         anyhow::bail!(
@@ -113,10 +113,7 @@ fn walk_expr(e: &HirExpr, hir: &HirModule, out: &mut Vec<PreviewedActivity>) {
             if let HirExpr::Ident(name, _) = callee.as_ref() {
                 if let Some(target) = hir.functions.iter().find(|f| &f.name == name) {
                     let is_activity = target.is_remote
-                        || matches!(
-                            target.durability,
-                            Some(DurabilityKind::Activity)
-                        )
+                        || matches!(target.durability, Some(DurabilityKind::Activity))
                         || name.starts_with("__side_effect_");
                     if is_activity {
                         let children = walk_stmts(&target.body, hir);
@@ -152,11 +149,7 @@ fn walk_expr(e: &HirExpr, hir: &HirModule, out: &mut Vec<PreviewedActivity>) {
 }
 
 fn render_tree(p: &PreviewedWorkflow) {
-    println!(
-        "{} {}",
-        "workflow".green().bold(),
-        p.workflow.bold()
-    );
+    println!("{} {}", "workflow".green().bold(), p.workflow.bold());
     println!("  {}:", "schedule".bold());
     if p.steps.is_empty() {
         println!("    (no activities)");

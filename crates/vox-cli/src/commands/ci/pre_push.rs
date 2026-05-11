@@ -3,7 +3,8 @@
 //! Runs in order: fmt --check, line-endings, ssot-drift, doc frontmatter lint,
 //! doctest-md extraction, doc-inventory verify, workspace drift check,
 //! clippy (workspace, all-targets, -D warnings), scoped TOESTUB (changed paths).
-//! `--quick` skips clippy + TOESTUB; `--full` also runs nextest on changed crates.
+//! `--quick` skips clippy + TOESTUB; `--full` also runs workspace **`cargo nextest`**
+//! with **`--profile ci`** (same profile as GitHub `ci.yml` tests job — timeouts/retries).
 //! `--act` additionally runs the GitHub-hosted exception workflows through `act`
 //! (nektos/act must be on PATH; Docker daemon must be running).
 //!
@@ -112,7 +113,7 @@ fn build_steps(opts: PrePushOpts) -> Vec<Step> {
     }
     if opts.full {
         v.push(Step {
-            label: "cargo nextest run --workspace --no-fail-fast",
+            label: "cargo nextest run --workspace --profile ci --no-fail-fast",
             run: step_nextest,
         });
     }
@@ -303,7 +304,14 @@ fn step_drift_check(_root: &Path) -> Result<()> {
 }
 
 fn step_nextest(_root: &Path) -> Result<()> {
-    cargo_status(&["nextest", "run", "--workspace", "--no-fail-fast"])
+    cargo_status(&[
+        "nextest",
+        "run",
+        "--workspace",
+        "--profile",
+        "ci",
+        "--no-fail-fast",
+    ])
 }
 
 /// Return a deduped list of `crates/<crate>` directories that have changes vs.
