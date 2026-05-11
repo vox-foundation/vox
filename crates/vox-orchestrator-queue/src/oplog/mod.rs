@@ -126,6 +126,15 @@ pub enum OperationKind {
         /// Reference into vox-db blob storage with the actual snapshot bytes.
         payload_blob_id: u64,
     },
+    /// MENS: references a signed SafeTensors checkpoint bundle in CAS (Mn-T6).
+    TrainingCheckpoint {
+        session_id: String,
+        /// Lowercase SHA3-512 hex (128 chars).
+        bundle_hash: String,
+        /// Lowercase SHA3-512 hex (128 chars).
+        optimizer_state_hash: String,
+        step: u64,
+    },
 }
 
 /// A single entry in the operation log.

@@ -59,6 +59,12 @@ pub fn parse_source(src: &str, origin: &str) -> Result<WorkerDonationPolicy, Par
         allowed_mesh_networks: None,
         accept_sensitive_workloads: false,
         redundancy: None,
+        accepts_inference_workloads: false,
+        accepts_training_workloads: false,
+        cuda_tier: 0,
+        metal_tier: 0,
+        vram_min_gb: 0,
+        accepts_sensitive_training_data: false,
     };
 
     for (lineno, raw) in src.lines().enumerate() {
@@ -101,6 +107,64 @@ pub fn parse_source(src: &str, origin: &str) -> Result<WorkerDonationPolicy, Par
                             path: origin.into(),
                             message: format!("line {}: min_priority must be u8", lineno + 1),
                         })?
+                    }
+                    "accept_sensitive_workloads" => {
+                        policy.accept_sensitive_workloads =
+                            parse_bool(val).map_err(|e| ParseError::Parse {
+                                path: origin.into(),
+                                message: format!(
+                                    "line {}: accept_sensitive_workloads: {e}",
+                                    lineno + 1
+                                ),
+                            })?
+                    }
+                    "accepts_inference_workloads" => {
+                        policy.accepts_inference_workloads =
+                            parse_bool(val).map_err(|e| ParseError::Parse {
+                                path: origin.into(),
+                                message: format!(
+                                    "line {}: accepts_inference_workloads: {e}",
+                                    lineno + 1
+                                ),
+                            })?
+                    }
+                    "accepts_training_workloads" => {
+                        policy.accepts_training_workloads =
+                            parse_bool(val).map_err(|e| ParseError::Parse {
+                                path: origin.into(),
+                                message: format!(
+                                    "line {}: accepts_training_workloads: {e}",
+                                    lineno + 1
+                                ),
+                            })?
+                    }
+                    "cuda_tier" => {
+                        policy.cuda_tier = val.parse().map_err(|_| ParseError::Parse {
+                            path: origin.into(),
+                            message: format!("line {}: cuda_tier must be u8", lineno + 1),
+                        })?
+                    }
+                    "metal_tier" => {
+                        policy.metal_tier = val.parse().map_err(|_| ParseError::Parse {
+                            path: origin.into(),
+                            message: format!("line {}: metal_tier must be u8", lineno + 1),
+                        })?
+                    }
+                    "vram_min_gb" => {
+                        policy.vram_min_gb = val.parse().map_err(|_| ParseError::Parse {
+                            path: origin.into(),
+                            message: format!("line {}: vram_min_gb must be u32", lineno + 1),
+                        })?
+                    }
+                    "accepts_sensitive_training_data" => {
+                        policy.accepts_sensitive_training_data =
+                            parse_bool(val).map_err(|e| ParseError::Parse {
+                                path: origin.into(),
+                                message: format!(
+                                    "line {}: accepts_sensitive_training_data: {e}",
+                                    lineno + 1
+                                ),
+                            })?
                     }
                     _ => {} // ignore unknown keys
                 }

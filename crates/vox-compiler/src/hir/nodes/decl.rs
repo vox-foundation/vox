@@ -347,6 +347,15 @@ pub struct HirFn {
     pub generated_hash: Option<String>,
     /// Span covering the declaration.
     pub span: Span,
+    /// `@inference(model = "...")` — Mn-T4.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inference_model: Option<String>,
+    /// `@training_step` — Mn-T5.
+    #[serde(default)]
+    pub training_step: bool,
+    /// `@distributed_train(...)` metadata when lowered from a workflow — Mn-T5.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distributed_train: Option<(String, u32)>,
 }
 
 /// A lowered postcondition with optional fallback.
@@ -675,6 +684,8 @@ pub enum HirCapability {
     Clock,
     Random,
     Spawn,
+    GpuCompute,
+    Mutate,
     /// `mcp(tool_name)` — parameterized MCP tool call.
     Mcp(String),
     /// `uses nothing` — explicitly pure.
@@ -691,6 +702,8 @@ impl HirCapability {
             Self::Clock => "clock",
             Self::Random => "random",
             Self::Spawn => "spawn",
+            Self::GpuCompute => "gpu_compute",
+            Self::Mutate => "mutate",
             Self::Mcp(_) => "mcp",
             Self::Nothing => "nothing",
         }

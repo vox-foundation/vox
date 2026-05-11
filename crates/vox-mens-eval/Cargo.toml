@@ -1,0 +1,8 @@
+[package]
+name = "vox-mens-eval"
+description = "MENS eval harness: emit-then-compile regression loops (Mn-T12 scaffold)."
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true

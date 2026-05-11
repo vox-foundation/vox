@@ -321,6 +321,8 @@ impl Parser {
                 is_mobile_native: false,
                 ts_extern_module: None,
                 effects: vec![],
+                inference_model: None,
+                training_step: false,
                 span: script_start.merge(script_end),
             };
             decls.push(Decl::Function(main_fn));
@@ -473,6 +475,8 @@ impl Parser {
                     | Token::AtPure
                     | Token::AtRemote
                     | Token::AtAi
+                    | Token::AtInference
+                    | Token::AtTrainingStep
                     | Token::AtDeprecated
                     | Token::AtNative
                     | Token::AtUses
@@ -510,6 +514,8 @@ impl Parser {
             | Token::AtReactive
             | Token::AtRemote
             | Token::AtAi
+            | Token::AtInference
+            | Token::AtTrainingStep
             | Token::AtDeprecated
             | Token::AtNative
             | Token::AtUses
@@ -536,6 +542,8 @@ impl Parser {
                     | Token::AtPure
                     | Token::AtRemote
                     | Token::AtAi
+                    | Token::AtInference
+                    | Token::AtTrainingStep
                     | Token::AtDeprecated
                     | Token::AtNative
                     | Token::AtUses
@@ -592,6 +600,7 @@ impl Parser {
             Token::AtDeepLink => self.parse_deep_link_decl(),
             Token::AtPush => self.parse_push_decl(),
             Token::AtTokens => self.parse_tokens_decl(),
+            Token::AtDistributedTrain => self.parse_distributed_train_workflow_decl(),
             Token::Workflow => self.parse_workflow_decl(),
             Token::Activity => self.parse_activity_decl(),
             Token::Actor => self.parse_actor_decl(),

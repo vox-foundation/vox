@@ -347,6 +347,8 @@ impl LowerCtx {
                     is_remote: false,
                     is_llm: false,
                     llm_model: None,
+                    ai_structured_output: None,
+                    embed: None,
                     is_deprecated: false,
                     schedule_interval: None,
                     durability: Some(DurabilityKind::Activity),
@@ -355,6 +357,9 @@ impl LowerCtx {
                     ts_extern_module: None,
                     generated_hash: None,
                     span: *span,
+                    inference_model: None,
+                    training_step: false,
+                    distributed_train: None,
                 });
                 HirExpr::Call(
                     Box::new(HirExpr::Ident(name, *span)),

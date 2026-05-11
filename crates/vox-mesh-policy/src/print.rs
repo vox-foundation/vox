@@ -35,6 +35,25 @@ pub fn pretty_print(policy: &WorkerDonationPolicy) -> String {
         policy.public_mesh_opt_in
     ));
     out.push_str(&format!("let min_priority = {}\n", policy.min_priority));
+    out.push_str(&format!(
+        "let accept_sensitive_workloads = {}\n",
+        policy.accept_sensitive_workloads
+    ));
+    out.push_str(&format!(
+        "let accepts_inference_workloads = {}\n",
+        policy.accepts_inference_workloads
+    ));
+    out.push_str(&format!(
+        "let accepts_training_workloads = {}\n",
+        policy.accepts_training_workloads
+    ));
+    out.push_str(&format!("let cuda_tier = {}\n", policy.cuda_tier));
+    out.push_str(&format!("let metal_tier = {}\n", policy.metal_tier));
+    out.push_str(&format!("let vram_min_gb = {}\n", policy.vram_min_gb));
+    out.push_str(&format!(
+        "let accepts_sensitive_training_data = {}\n",
+        policy.accepts_sensitive_training_data
+    ));
 
     if let Some(ref scopes) = policy.allowed_scopes {
         let list = scopes

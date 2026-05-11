@@ -94,6 +94,7 @@ vox-gamify                 = { path = "crates/vox-gamify" }
 vox-populi                = { path = "crates/vox-populi" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
+vox-mesh-models           = { path = "crates/vox-mesh-models" }
 vox-mesh-policy           = { path = "crates/vox-mesh-policy" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
@@ -118,6 +119,9 @@ vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
 vox-wasm-engine           = { path = "crates/vox-wasm-engine" }
 vox-package                    = { path = "crates/vox-package" }
 vox-package-types              = { path = "crates/vox-package-types" }
+vox-inference                  = { path = "crates/vox-inference" }
+vox-distributed-training       = { path = "crates/vox-distributed-training" }
+vox-mens-eval                  = { path = "crates/vox-mens-eval" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }
 vox-cli-ci                = { path = "crates/vox-cli-ci" }

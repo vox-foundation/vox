@@ -433,6 +433,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_CUDA_TIER"
+    owner_crate: "vox-compiler"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Host CUDA capability tier (0–100) used by `vox check` to gate `@training_step` / `@distributed_train` when below the compile-time minimum (default passes when unset)."
   - name: "VOX_DAP_MODE"
     owner_crate: "vox-cli"
     kind: "string"

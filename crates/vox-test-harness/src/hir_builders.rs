@@ -48,6 +48,9 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         ts_extern_module: None,
         generated_hash: None,
         span: dummy_span(),
+        inference_model: None,
+        training_step: false,
+        distributed_train: None,
     }
 }
 

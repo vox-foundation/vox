@@ -102,6 +102,7 @@ vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
 vox-eval                = { layer = 2 }
+vox-mens-eval           = { layer = 2 }
 vox-claim-extractor     = { layer = 2, max_loc = 20_000 }               # SCIENTIA Phase 1: VeriScore + atomic + MiniCheck extraction
 vox-nanopub             = { layer = 2, max_loc = 10_000 }               # SCIENTIA Phase 4: TriG emit + ed25519 sign + Nanopub Network
 vox-prereg              = { layer = 2, max_loc = 8_000 }                # SCIENTIA Phase 2: PreregistrationV1 signing + deviation detection
@@ -129,6 +130,7 @@ vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
 vox-dashboard           = { layer = 3 }
 vox-mesh-models         = { layer = 3 }
+vox-mesh-policy         = { layer = 3 }
 vox-webhook             = { layer = 3 }
 vox-code-audit          = { layer = 3, max_loc = 15_000 }
 vox-drift-check              = { layer = 3, kind = "binary", max_loc = 8_000 }
@@ -147,6 +149,8 @@ vox-test-harness        = { layer = 3 }
 vox-doc-pipeline        = { layer = 3 }
 vox-deploy-codegen      = { layer = 3 }
 vox-package             = { layer = 3 }
+vox-inference           = { layer = 3 }
+vox-distributed-training = { layer = 3 }
 vox-tensor              = { layer = 3 }
 vox-plugin-host         = { layer = 3 }
 vox-plugin-catalog      = { layer = 3 }

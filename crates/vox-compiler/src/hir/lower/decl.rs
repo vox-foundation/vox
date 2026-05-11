@@ -15,23 +15,30 @@ impl LowerCtx {
         body = self.inject_contracts(f, body);
         self.def_map.pop_scope();
 
-        let capabilities = f
-            .effects
-            .iter()
-            .map(|e| match e {
-                crate::ast::decl::EffectAnnotation::Net => crate::hir::HirCapability::Net,
-                crate::ast::decl::EffectAnnotation::Db => crate::hir::HirCapability::Db,
-                crate::ast::decl::EffectAnnotation::Fs => crate::hir::HirCapability::Fs,
-                crate::ast::decl::EffectAnnotation::Env => crate::hir::HirCapability::Env,
-                crate::ast::decl::EffectAnnotation::Clock => crate::hir::HirCapability::Clock,
-                crate::ast::decl::EffectAnnotation::Random => crate::hir::HirCapability::Random,
-                crate::ast::decl::EffectAnnotation::Spawn => crate::hir::HirCapability::Spawn,
-                crate::ast::decl::EffectAnnotation::Mcp(t) => {
-                    crate::hir::HirCapability::Mcp(t.clone())
-                }
-                crate::ast::decl::EffectAnnotation::Nothing => crate::hir::HirCapability::Nothing,
-            })
-            .collect();
+        let capabilities = Self::merge_mens_capabilities(
+            f.effects
+                .iter()
+                .map(|e| match e {
+                    crate::ast::decl::EffectAnnotation::Net => crate::hir::HirCapability::Net,
+                    crate::ast::decl::EffectAnnotation::Db => crate::hir::HirCapability::Db,
+                    crate::ast::decl::EffectAnnotation::Fs => crate::hir::HirCapability::Fs,
+                    crate::ast::decl::EffectAnnotation::Env => crate::hir::HirCapability::Env,
+                    crate::ast::decl::EffectAnnotation::Clock => crate::hir::HirCapability::Clock,
+                    crate::ast::decl::EffectAnnotation::Random => crate::hir::HirCapability::Random,
+                    crate::ast::decl::EffectAnnotation::Spawn => crate::hir::HirCapability::Spawn,
+                    crate::ast::decl::EffectAnnotation::GpuCompute => {
+                        crate::hir::HirCapability::GpuCompute
+                    }
+                    crate::ast::decl::EffectAnnotation::Mutate => crate::hir::HirCapability::Mutate,
+                    crate::ast::decl::EffectAnnotation::Mcp(t) => {
+                        crate::hir::HirCapability::Mcp(t.clone())
+                    }
+                    crate::ast::decl::EffectAnnotation::Nothing => crate::hir::HirCapability::Nothing,
+                })
+                .collect(),
+            f.inference_model.is_some(),
+            f.training_step,
+        );
 
         HirFn {
             id,
@@ -84,7 +91,33 @@ impl LowerCtx {
             ts_extern_module: f.ts_extern_module.clone(),
             generated_hash: None,
             span: f.span,
+            inference_model: f.inference_model.clone(),
+            training_step: f.training_step,
+            distributed_train: None,
         }
+    }
+
+    fn merge_mens_capabilities(
+        mut caps: Vec<crate::hir::HirCapability>,
+        inference: bool,
+        training_step: bool,
+    ) -> Vec<crate::hir::HirCapability> {
+        let mut push = |c: crate::hir::HirCapability| {
+            if !caps.contains(&c) {
+                caps.push(c);
+            }
+        };
+        if inference {
+            push(crate::hir::HirCapability::GpuCompute);
+            push(crate::hir::HirCapability::Random);
+            push(crate::hir::HirCapability::Net);
+        }
+        if training_step {
+            push(crate::hir::HirCapability::GpuCompute);
+            push(crate::hir::HirCapability::Random);
+            push(crate::hir::HirCapability::Mutate);
+        }
+        caps
     }
 
     pub(crate) fn lower_param(&mut self, p: &expr::Param) -> HirParam {
@@ -376,6 +409,24 @@ impl LowerCtx {
         let params = w.params.iter().map(|p| self.lower_param(p)).collect();
         let body = w.body.iter().map(|s| self.lower_stmt(s)).collect();
         self.def_map.pop_scope();
+        let distributed_train = match (&w.distributed_train_strategy, &w.distributed_train_peers)
+        {
+            (Some(s), Some(p)) => Some((s.clone(), (*p).min(u64::from(u32::MAX)) as u32)),
+            _ => None,
+        };
+        let mut capabilities = vec![];
+        if distributed_train.is_some() {
+            let mut push = |c: crate::hir::HirCapability| {
+                if !capabilities.contains(&c) {
+                    capabilities.push(c);
+                }
+            };
+            push(crate::hir::HirCapability::Spawn);
+            push(crate::hir::HirCapability::Net);
+            push(crate::hir::HirCapability::GpuCompute);
+            push(crate::hir::HirCapability::Random);
+            push(crate::hir::HirCapability::Mutate);
+        }
         HirFn {
             id,
             name: w.name.clone(),
@@ -397,11 +448,14 @@ impl LowerCtx {
             schedule_interval: None,
             durability: None, // overwritten by caller
             actor_state_fields: vec![],
-            capabilities: vec![],
+            capabilities,
             postconditions: vec![],
             ts_extern_module: None,
             generated_hash: None,
             span: w.span,
+            inference_model: None,
+            training_step: false,
+            distributed_train,
         }
     }
 
@@ -438,6 +492,9 @@ impl LowerCtx {
             ts_extern_module: None,
             generated_hash: None,
             span: a.span,
+            inference_model: None,
+            training_step: false,
+            distributed_train: None,
         }
     }
 
@@ -482,6 +539,9 @@ impl LowerCtx {
             ts_extern_module: None,
             generated_hash: None,
             span: a.span,
+            inference_model: None,
+            training_step: false,
+            distributed_train: None,
         }
     }
 
@@ -529,6 +589,9 @@ impl LowerCtx {
                     ts_extern_module: None,
                     generated_hash: None,
                     span: h.span,
+                    inference_model: None,
+                    training_step: false,
+                    distributed_train: None,
                 }
             })
             .collect()

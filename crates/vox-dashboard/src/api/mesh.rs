@@ -35,12 +35,20 @@ use crate::api::mesh_invite::mint;
 use crate::api::mesh_join;
 use crate::api::mesh_topology::{MeshState, get_budget, get_edges, get_nodes, get_summary};
 
+#[allow(dead_code)]
+fn mesh_policy_stack_anchor() {
+    let _: fn(&vox_mesh_types::donation_policy::WorkerDonationPolicy) -> String =
+        vox_mesh_policy::pretty_print;
+}
+
 // ── Model registry stub (P4-T12 handler wired here in its task) ──────────────
 
 async fn get_models(State(_state): State<MeshState>) -> (StatusCode, Json<Value>) {
+    let reg = vox_mesh_models::ModelRegistry::empty();
+    let models = reg.all_models();
     (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({ "v": 1, "error": "not implemented — wired in P4-T12", "data": [] })),
+        StatusCode::OK,
+        Json(json!({ "v": 1, "data": models })),
     )
 }
 

@@ -117,6 +117,12 @@ pub struct FnDecl {
     /// via the mesh (P1-T3). All parameters must be serializable.
     #[serde(default)]
     pub is_remote: bool,
+    /// `@inference(model = "...")` — MENS inference routing (Mn-T4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inference_model: Option<String>,
+    /// `@training_step` — CUDA-gated training step surface (Mn-T5).
+    #[serde(default)]
+    pub training_step: bool,
     /// Source location.
     pub span: Span,
 }

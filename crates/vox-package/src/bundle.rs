@@ -153,6 +153,7 @@ impl BundleStore {
 mod sealed {
     pub trait Sealed {}
     impl Sealed for super::Bundle {}
+    impl Sealed for crate::model_bundle::ModelBundle {}
 }
 
 /// Sealed trait for content-addressed bundle metadata.
@@ -174,5 +175,15 @@ impl BundleMeta for Bundle {
             Some("actor") => "actor",
             _ => "unknown",
         }
+    }
+}
+
+impl BundleMeta for crate::model_bundle::ModelBundle {
+    fn content_hash(&self) -> [u8; 64] {
+        self.bundle_hash
+    }
+
+    fn kind_label(&self) -> &'static str {
+        "model"
     }
 }

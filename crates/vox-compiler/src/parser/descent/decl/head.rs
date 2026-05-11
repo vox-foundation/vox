@@ -905,6 +905,8 @@ impl Parser {
         let mut embed_dimensions: usize = 0;
         let mut embed_source_field: Option<String> = None;
         let mut embed_span: Option<crate::ast::span::Span> = None;
+        let mut inference_model: Option<String> = None;
+        let mut training_step = false;
         let mut decorator_effects: Vec<crate::ast::decl::effect::EffectAnnotation> = Vec::new();
         let mut webhook: Option<crate::ast::decl::webhook::AstWebhookSpec> = None;
         let mut cors_spec: Option<crate::ast::decl::http_decorators::AstCorsSpec> = None;
@@ -965,6 +967,38 @@ impl Parser {
                 Token::AtFuzz | Token::AtNative => {
                     self.advance();
                     is_mobile_native = true;
+                }
+                Token::AtInference => {
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                let key = key.clone();
+                                self.advance();
+                                self.eat(&Token::Eq);
+                                if key == "model" {
+                                    if let Token::StringLit(m) = self.peek().clone() {
+                                        self.advance();
+                                        inference_model = Some(m);
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                }
+                Token::AtTrainingStep => {
+                    self.advance();
+                    training_step = true;
                 }
                 Token::AtAi => {
                     self.advance();
@@ -1478,6 +1512,8 @@ impl Parser {
             is_mobile_native,
             ts_extern_module: None,
             effects,
+            inference_model,
+            training_step,
             span: start.merge(self.span()),
         })
     }
@@ -1549,6 +1585,8 @@ impl Parser {
             test_strategy: None,
             is_mobile_native: false,
             ts_extern_module: Some(module),
+            inference_model: None,
+            training_step: false,
             span: start.merge(self.span()),
         }))
     }

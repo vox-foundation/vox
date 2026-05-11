@@ -212,6 +212,15 @@ pub enum Token {
     /// `@remote` — marks a function for cross-node dispatch via the mesh (P1-T3).
     #[token("@remote")]
     AtRemote,
+    /// `@inference` — MENS inference routing (Mn-T4).
+    #[token("@inference")]
+    AtInference,
+    /// `@training_step` — one step of a CUDA training loop (Mn-T5).
+    #[token("@training_step")]
+    AtTrainingStep,
+    /// `@distributed_train` — distributed training workflow preamble (Mn-T5).
+    #[token("@distributed_train")]
+    AtDistributedTrain,
 
     // ── Symbols ───────────────────────────────────────────────
     #[token("(")]
@@ -475,6 +484,9 @@ impl std::fmt::Display for Token {
             Token::AtCollaborative => write!(f, "@collaborative"),
             Token::AtLayer => write!(f, "@layer"),
             Token::AtRemote => write!(f, "@remote"),
+            Token::AtInference => write!(f, "@inference"),
+            Token::AtTrainingStep => write!(f, "@training_step"),
+            Token::AtDistributedTrain => write!(f, "@distributed_train"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBracket => write!(f, "["),

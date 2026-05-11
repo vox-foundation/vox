@@ -46,6 +46,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-build-meta`](../../../crates/vox-build-meta/) | Build-time helper emitting `VOX_BUILD_NUMBER` / `VOX_GIT_HASH`; use as `[build-dependencies]` only. |
 | [`vox-db-types`](../../../crates/vox-db-types/) | Pure-data L0 leaf for vox-db: row types, IDs, schema descriptors. |
 | [`vox-mesh-types`](../../../crates/vox-mesh-types/) | Pure-data mesh transport types. |
+| [`vox-mesh-policy`](../../../crates/vox-mesh-policy/) | Parse/print `donations.vox` and mesh donation policy fragments (SSOT P4-T3). |
+| [`vox-mesh-models`](../../../crates/vox-mesh-models/) | Mesh model registry aggregation types (`ModelRegistry`) for dashboard `/api/v2/mesh/models` (P4-T12). |
 | [`vox-orchestrator-types`](../../../crates/vox-orchestrator-types/) | Pure-data L0 leaf for vox-orchestrator: agent/task IDs, file affinity, switch actions, provider catalogs, VCS capability tokens (WorkingTreeWrite, BranchCreate, etc.). |
 | [`vox-primitives`](../../../crates/vox-primitives/) | Dependency-neutral id and backoff helpers shared across workspace crates. |
 | [`vox-protocol`](../../../crates/vox-protocol/) | Daemon wire-protocol pure-data types. |
@@ -104,7 +106,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-code-audit`](../../../crates/vox-code-audit/) | AI code quality stub detector — finds stubs, magic values, empty bodies, missing references, and DRY violations. |
 | [`vox-drift-check`](../../../crates/vox-drift-check/) | Workspace drift and pattern-repetition linter (multi-language: Rust, TypeScript, Vox). |
 | [`vox-codegen`](../../../crates/vox-codegen/) | Codegen + WebIR + vox_ir extracted from vox-compiler. Consumes analysis types from vox-compiler. |
-| [`vox-compiler`](../../../crates/vox-compiler/) | Unified Vox compiler: lexer, parser, AST, HIR, typechecker, and codegen. |
+| [`vox-compiler`](../../../crates/vox-compiler/) | Unified Vox compiler: lexer, parser, AST, HIR, typechecker, and codegen. MENS decorators `@inference`, `@training_step`, `@distributed_train` parse in `parser/descent`, effects + CUDA gate in `typeck/`. |
 | [`vox-compiler/src/eval/shell_stdlib.rs`](../../../crates/vox-compiler/src/eval/shell_stdlib.rs) | Interpreter (`--interp`) mirror of shell‑tier `std.*` builtins — **must stay aligned** with `vox-actor-runtime` (Cargo cycle prevents a direct dep). See [`vox-shell-stdlib-ssot-2026.md`](./vox-shell-stdlib-ssot-2026.md). |
 | [`vox-actor-runtime/src/builtins/mod.rs`](../../../crates/vox-actor-runtime/src/builtins/mod.rs) | SSOT Rust lowering targets for `std.fs` / `std.process` / structured formats (`std.csv`, `std.toml`, `std.yaml`, `std.io`) used by native codegen. |
 | [`vox-shell-stdlib-ssot-2026.md`](./vox-shell-stdlib-ssot-2026.md) | Architecture SSOT: argv‑first shell‑tier stdlib vs host shells / `vox_run_shell`. |
@@ -115,6 +117,9 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-deploy-codegen`](../../../crates/vox-deploy-codegen/) | Deployment artifact codegen: Dockerfile, Compose, K8s, Fly, Coolify, systemd. Pure text generation. |
 | [`vox-doc-pipeline`](../../../crates/vox-doc-pipeline/) | Doc generator: regenerates SUMMARY.md, architecture-index.md, feed.xml from frontmatter. |
 | [`vox-package`](../../../crates/vox-package/) | Vox package manager runtime: content-addressed artifact cache, registry HTTP client, workspace discovery. |
+| [`vox-inference`](../../../crates/vox-inference/) | MENS Mn-T2: `InferenceBackend` trait, capability metadata, multi-backend dispatcher (stubs until CandleMetal/CUDA wiring). |
+| [`vox-distributed-training`](../../../crates/vox-distributed-training/) | MENS Mn-T1/Mn-T6: `TrainingSession`, signed `GradientShard` / `CheckpointBundle`, `OperationKind::TrainingCheckpoint` mapping. |
+| [`vox-mens-eval`](../../../crates/vox-mens-eval/) | Mn-T12 eval harness types (`CompileVerdict`); CLI/CI wiring expands here. |
 | [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, GitLab, Gitea, Forgejo. |
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |
 | [`vox-git`](../../../crates/vox-git/) | Pure-Rust Git bridge using gix (no C, no libgit2). |

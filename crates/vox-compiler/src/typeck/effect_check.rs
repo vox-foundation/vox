@@ -82,6 +82,8 @@ fn effect_kind_to_cap(eff: &HirEffectKind) -> HirCapability {
         HirEffectKind::Clock => HirCapability::Clock,
         HirEffectKind::Random => HirCapability::Random,
         HirEffectKind::Spawn => HirCapability::Spawn,
+        HirEffectKind::GpuCompute => HirCapability::GpuCompute,
+        HirEffectKind::Mutate => HirCapability::Mutate,
         HirEffectKind::Mcp(s) => HirCapability::Mcp(s.clone()),
     }
 }
@@ -468,6 +470,21 @@ fn infer_expr_effects(expr: &HirExpr, caps: &mut HashSet<HirCapability>) {
         HirExpr::Index(obj, idx, _) => {
             infer_expr_effects(obj, caps);
             infer_expr_effects(idx, caps);
+        }
+        HirExpr::AsyncView(v) => {
+            infer_expr_effects(v.source.as_ref(), caps);
+            if let Some(a) = &v.fetching_arm {
+                infer_expr_effects(a, caps);
+            }
+            if let Some(a) = &v.empty_arm {
+                infer_expr_effects(a, caps);
+            }
+            if let Some(a) = &v.error_arm {
+                infer_expr_effects(a, caps);
+            }
+            if let Some(a) = &v.ok_arm {
+                infer_expr_effects(a, caps);
+            }
         }
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
