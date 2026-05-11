@@ -52,11 +52,22 @@ Guard logic lives in **`vox ci`** (`crates/vox-cli/src/commands/ci`). Shell scri
 
 ## Pre-push validation (Linux CI mirror)
 
-Use **`vox ci pre-push`** to run the merge-blocking subset locally
-(fmt-check, clippy, ssot-drift, line-endings, doc-inventory verify, scoped
-TOESTUB). **`--full`** appends workspace **`cargo nextest run --workspace --profile ci --no-fail-fast`**, matching the **`ci`** nextest profile in **`.config/nextest.toml`** (same choice as GitHub `ci.yml` when running plain nextest / llvm-cov nextest). See [local CI parity](../contributors/local-ci-pre-push.md).
+Use **`vox ci pre-push`** to run the merge-blocking subset locally. It **always** runs `cargo fmt --check`, **`vox ci line-endings`**, **`vox ci ssot-drift`**, **`vox-doc-pipeline --lint-only`** (frontmatter + fenced code), **`vox ci doctest-md --strict`**, and **`vox-drift-check`** so a green pre-push matches the **docs-quality** CI lane. Unless **`--quick`**, it also runs **`vox ci doc-inventory verify`**, workspace **`cargo clippy --all-targets -D warnings`**, and scoped TOESTUB on changed **`crates/<name>`** paths. **`--quick`** skips **only** doc-inventory, clippy, and TOESTUB — not the doc lint / doctest-md / drift steps (see [local CI parity](../contributors/local-ci-pre-push.md) for accurate wall-clock expectations).
+
+**`--full`** appends workspace **`cargo nextest run --workspace --profile ci --no-fail-fast`**, matching the **`ci`** nextest profile in **`.config/nextest.toml`** (same choice as GitHub `ci.yml` when running plain nextest / llvm-cov nextest).
+
+**Structured timings:** **`--report-json <path>`** writes **`contracts/reports/pre-push-report.v1.schema.json`**. Env **`VOX_PREPUSH_AUDIT_LOG=<path>`** appends one JSON line per **successful** run (omit on **`--dry-run`**) to detect repeated heavy pre-push usage during iteration.
 
 **Doctests:** keep **`cargo test --workspace --doc`** for workspace doctest discovery; **`cargo-nextest`** does not run Rust doctests, so CI keeps doctests on the built-in harness until a verified doctest runner path exists for nextest. **`vox ci pre-push --full`** inherits that gap: the extra nextest pass does not substitute for **`cargo test --workspace --doc`**.
+
+### Cargo incremental cache: troubleshooting (AI / multi-terminal)
+
+Repeated “full rebuild” symptoms are often **cache fragmentation**, not Rust forcing a clean build:
+
+- **Unified target dir:** repo **`.cargo/config.toml`** sets **`CARGO_TARGET_DIR`** to **`target/`** (relative to the repo root) so worktrees share one cache.
+- **Anti-pattern:** different shells export different **`CARGO_TARGET_DIR`** values (**`target-agent-ssot`**, **`target-ci-prepush`**, etc.). Each distinct root **does not** reuse incremental artifacts from **`target/`**.
+- **Audit:** run **`vox ci dev-loop-audit`** (or **`--json`**) before a long session; prefer **one** target dir per task, or **unset** **`CARGO_TARGET_DIR`** for inner-loop edits.
+- **Inner loop:** **`cargo check -p <crate>`** → **`cargo nextest run -p <crate> --profile ci`** (or filtered **`cargo test`**); reserve **`vox ci pre-push`** for push readiness. See [AI dev loop overhead (2026)](../architecture/ai-dev-loop-overhead-2026.md).
 
 ## Line endings (cross-platform)
 

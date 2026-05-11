@@ -223,6 +223,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_BUILD_TARGET"
+    owner_crate: "vox-config"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Override default codegen/build lane after config merge: fullstack | server | client (see Vox.toml build_target)."
   - name: "VOX_CANDLE_DEVICE"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -361,6 +367,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_CI_RETIRED_SYMBOL_SCAN_CRATES"
+    owner_crate: "vox-cli"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "When set to 1/true/yes, `vox ci retired-symbol-check` also scans Rust sources under crates/**/*.rs (noisy; strict audits only)."
   - name: "VOX_CLI"
     owner_crate: "vox-cli"
     kind: "string"
@@ -1639,6 +1651,18 @@ variables:
     required: false
     introduced_in: "0.5.0"
     description: "Preferred OpenRouter chat model id; Clavis SecretId VoxOpenRouterChatModel."
+  - name: "OPENROUTER_GEMINI_MODEL"
+    owner_crate: "vox-config"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "OpenRouter model id used when routing selects the Gemini lane (tests + routing_policy)."
+  - name: "GEMINI_DIRECT_MODEL"
+    owner_crate: "vox-config"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Native Gemini API model id mirror for routing_policy unit tests."
   - name: "HF_CHAT_MODEL"
     owner_crate: "vox-config"
     kind: "string"
@@ -2233,6 +2257,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_ORCHESTRATOR_COMPLETION_MARKDOWN_LINK_AUDIT_ENABLED"
+    owner_crate: "vox-secrets"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "When truthy, task completion runs `vox ci check-links` for each Markdown path in the task write manifest (see orchestrator `completion_markdown_link_audit_enabled`)."
   - name: "VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_ENFORCE"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -2671,6 +2701,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_ORCHESTRATOR_STRESS_DEBUG"
+    owner_crate: "vox-secrets"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Integration-test diagnostics only (`crates/vox-orchestrator/tests/stress_test.rs`): when truthy, logs periodic drain-loop progress to stderr. Not read by `OrchestratorConfig::merge_env_overrides`."
   - name: "VOX_ORCHESTRATOR_SOCRATES_GATE_AUTO_MODE"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -2833,6 +2869,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_PLUGINS_DIR"
+    owner_crate: "vox-orchestrator-d"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Optional override for the orchestrator daemon plugin search directory."
   - name: "VOX_PLAYWRIGHT_APP_DIR"
     owner_crate: "vox-integration-tests"
     kind: "string"
@@ -2881,6 +2923,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_POPULI_HTTP_RETRY_TRANSIENT"
+    owner_crate: "vox-populi"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "When true (`1`/`true`/`yes`), Populi HTTP control-plane client wraps outbound requests with transient retry middleware (reqwest-retry pilot)."
   - name: "VOX_PORT"
     owner_crate: "vox-integration-tests"
     kind: "string"
@@ -4009,3 +4057,117 @@ variables:
     required: false
     introduced_in: "0.4.0"
     description: "Enables the public eval sandbox endpoint on the MCP HTTP server when set to '1'."
+  - name: "VOX_TELEMETRY"
+    owner_crate: "vox-telemetry"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Master telemetry switch (off/on/debug). See docs/src/reference/env-vars.md."
+  - name: "VOX_ALLOW_LEGACY_COMPONENT_FN"
+    owner_crate: "vox-compiler"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Escape hatch for legacy @component fn React interop during migrations."
+  - name: "VOX_COMPILER_HIR_DUMP"
+    owner_crate: "vox-compiler"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "HIR dump path override for compiler diagnostics / debugging."
+  - name: "VOX_COMPILER_LOG_FILE"
+    owner_crate: "vox-compiler"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Optional compiler log file destination."
+  - name: "VOX_COMPILER_RECONCILE_MAX_RETRY"
+    owner_crate: "vox-compiler"
+    kind: "int"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Max reconciliation retries for incremental compile paths."
+  - name: "VOX_MCP_ORCHESTRATOR_AGENT_WRITES_RPC"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Feature gate for MCP orchestrator agent write RPC surface."
+  - name: "VOX_MCP_ORCHESTRATOR_RPC_READS"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Feature gate for MCP orchestrator read RPC batching."
+  - name: "VOX_MCP_ORCHESTRATOR_RPC_WRITES"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Feature gate for MCP orchestrator write RPC batching."
+  - name: "VOX_MCP_ORCHESTRATOR_START_RPC"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Feature gate for MCP orchestrator start RPC."
+  - name: "VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Feature gate for MCP orchestrator status tool RPC."
+  - name: "VOX_MCP_ORCHESTRATOR_TASK_STATUS_RPC"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Feature gate for MCP orchestrator task status RPC."
+  - name: "VOX_MCP_ORCHESTRATOR_TASK_WRITES_RPC"
+    owner_crate: "vox-orchestrator-mcp"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Feature gate for MCP orchestrator task write RPC surface."
+  - name: "VOX_MENS_BACKGROUND"
+    owner_crate: "vox-cli"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "MENS training / eval CLI: run GPU work in background mode."
+  - name: "VOX_MENS_DOMAIN"
+    owner_crate: "vox-cli"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "MENS pipeline domain selector for mens CLI workflows."
+  - name: "VOX_MENS_EPOCHS"
+    owner_crate: "vox-cli"
+    kind: "int"
+    required: false
+    introduced_in: "0.5.0"
+    description: "MENS training epoch override for mens CLI workflows."
+  - name: "VOX_MENS_FORCE_TRAIN"
+    owner_crate: "vox-cli"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "MENS: force training even when caches suggest skipping."
+  - name: "VOX_MENS_SKIP_EVAL"
+    owner_crate: "vox-cli"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "MENS: skip evaluation phase."
+  - name: "VOX_MENS_SKIP_MIX"
+    owner_crate: "vox-cli"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "MENS: skip mix-precision stages when supported."
+  - name: "VOX_MESH_GPU_READINESS_PROBE_OFF"
+    owner_crate: "vox-populi"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Disables mesh GPU readiness probing (operator override)."

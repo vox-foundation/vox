@@ -82,7 +82,7 @@ This is a *coherent* posture. The plan collapses significantly.
 - **60, 61** — MENS training pipeline hardening. **Demoted to P2.** MENS is a research pillar but no solo dev cares that their Vox code is training data on day one.
 - **41** — Scientia/RAG hardening beyond current state. **Demoted to P2.**
 - **77, 78** — SSoT generator consolidation. **Demoted to P2** (was P1). Still needed for contributor sanity, but 1 contributor ≈ you, so the pain is smaller than the audit assumed.
-- **96, 97** — crate ledger, resurrecting `vox-dei`. P1 → P2; the freeze decision (93) supersedes the ledger.
+- **96, 97** — crate ledger, resurrecting retired orchestrator codenames. P1 → P2; the freeze decision (93) supersedes the ledger.
 
 ### Items deleted from scope entirely
 

@@ -3,7 +3,7 @@ title: "Coding Agent Instructions"
 description: "Quick-reference heuristics, TOESTUB rule table, and pre-commit checklist for AI coding agents operating on Vox."
 category: "contributor"
 status: "current"
-last_updated: "2026-04-17"
+last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "High-signal quick-reference loaded as agent context; each section is a directly actionable rule."
 
@@ -37,6 +37,24 @@ Quick-reference for AI agents operating on the Vox codebase. Deep rationale live
 Full fix guide: [TOESTUB contributor guide](toestub-contributor-guide.md).
 Policy SSOT: [Architectural governance](../../agents/governance.md).
 
+## AI inner-loop: reduce Cargo overhead
+
+Coding agents often spawn **many shells**. Each distinct **`CARGO_TARGET_DIR`** is a **separate incremental cache** — the workspace [`.cargo/config.toml`](../../../.cargo/config.toml) pins **`target/`** for a reason.
+
+**Do:**
+
+- Run **`vox ci dev-loop-audit`** at the start of a focused session (or **`--json`** for tooling).
+- Prefer **`cargo check -p <crate>`** and **`cargo nextest run -p <crate> --profile ci`** (or a **filtered** **`cargo test`**) while iterating.
+- Use **`vox ci pre-push`** (optionally **`--quick`**) when you intend to **push**, not after every edit.
+- Emit timings occasionally: **`vox ci pre-push --report-json target/local/pre-push-last.json`**.
+
+**Avoid:**
+
+- Switching **`CARGO_TARGET_DIR`** between **`target`**, **`target-agent-ssot`**, **`target-ci-*`** during the same task unless intentionally isolating.
+- Using **`vox ci pre-push`** as the first compile check after a one-crate change.
+
+Full rationale and thresholds: [AI dev loop overhead (2026)](../architecture/ai-dev-loop-overhead-2026.md).
+
 ## Pre-commit victory checklist
 
 Run these before marking any task complete. Tiers are ordered — fix earlier tiers first.
@@ -45,11 +63,12 @@ Run these before marking any task complete. Tiers are ordered — fix earlier ti
 # Tier 1 — zero stubs
 cargo run -p vox-cli --features stub-check -- stub-check crates/<your-crate>
 
-# Tier 3 — compile
-cargo check --workspace
+# Tier 3 — compile (prefer scoped — avoids workspace-wide churn)
+cargo check -p <your-crate>
 
 # Tier 5 — unit tests (for code changes)
 cargo test -p <your-crate>
+# Or: cargo nextest run -p <your-crate> --profile ci
 
 # Tier 6 — .vox parse rate (if .vox files changed)
 cargo run -p vox-cli -- corpus eval --mode ast examples/golden/

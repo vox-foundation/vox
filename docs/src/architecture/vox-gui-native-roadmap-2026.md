@@ -230,7 +230,7 @@ Escalation format: see Appendix C.
 |------|---------|
 | **HIR** | High-level IR. Crate: `vox-compiler`. Path: `crates/vox-compiler/src/hir/`. Sits between parse and typed lowering. |
 | **Web IR** | Second-stage IR specific to UI emission. Path: `crates/vox-compiler/src/web_ir/`. Lowers to TSX via `codegen_ts`. |
-| **Path B** | Legacy UI model: `@component fn Name()`. Retired per AGENTS.md but HIR fields still exist. Phase 2 removes them. |
+| **Path B** | Legacy UI model: decorator-on-fn component syntax (Path B). Retired per AGENTS.md but HIR fields still exist. Phase 2 removes them. |
 | **Path C** | Current UI model: `component Name() { state; view }`. Replaces Path B. |
 | **Secrets** | Secret resolution crate. Path: `crates/vox-secrets/`. Call site: `vox_secrets::resolve_secret(SecretId::...)`. |
 | **MENS** | Model training pipeline. Native Rust (Burn + Candle). Trains on `.vox` corpus + golden set. |
@@ -1114,7 +1114,7 @@ cargo check --workspace --all-features
 **Preconditions**: Phase 1 complete.
 **Blocks**: TASK-2.2 through TASK-2.6 in any order.
 
-**Why**: AGENTS.md §Retired Surfaces lists `@component fn Name()` as retired
+**Why**: AGENTS.md §Retired Surfaces lists Path B decorator-on-fn component syntax as retired
 in favor of `component Name() {}`. But `crates/vox-compiler/src/hir/nodes/decl.rs`
 still carries nine Path B fields on `HirModule`: `components`,
 `v0_components`, `hooks`, `pages`, `contexts`, `client_routes`, `layouts`,
@@ -1163,7 +1163,7 @@ signal.
 6. Delete `reactive_components` only if confirmed duplicate with
    `components`; otherwise rename `reactive_components` to `components` for
    clarity.
-7. Update the parser: reject `@component fn Name()` syntax with a friendly
+7. Update the parser: reject Path B decorator-on-fn component syntax with a friendly
    "Path B retired; use `component Name() {}` form (see AGENTS.md)" error.
 8. Update any tests that referenced Path B; convert test inputs to Path C.
 

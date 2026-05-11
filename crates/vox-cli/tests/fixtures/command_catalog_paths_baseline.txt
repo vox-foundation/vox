@@ -69,6 +69,7 @@ ci/dep-sprawl
 ci/deploy-status
 ci/detect-rules-bench
 ci/determinism-audit
+ci/dev-loop-audit
 ci/doc-inventory
 ci/doc-inventory/generate
 ci/doc-inventory/verify

@@ -97,7 +97,9 @@ impl Orchestrator {
             }
         }
 
-        let broken_links_report = if task_clone_opt.is_some() {
+        let link_audit_enabled = crate::sync_lock::rw_read(&*self.config)
+            .completion_markdown_link_audit_enabled;
+        let broken_links_report = if task_clone_opt.is_some() && link_audit_enabled {
             crate::orchestrator::task_dispatch::complete::audit_reporter::verify_broken_links(
                 &write_files,
             )

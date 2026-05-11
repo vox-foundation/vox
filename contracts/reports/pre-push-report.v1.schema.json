@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/reports/pre-push-report.v1.schema.json",
+  "title": "pre-push-report-v1",
+  "description": "Structured timing output from `vox ci pre-push --report-json`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "ok",
+    "quick",
+    "full",
+    "dry_run",
+    "total_ms",
+    "steps"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "quick": {
+      "type": "boolean"
+    },
+    "full": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "total_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "elapsed_ms"],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "elapsed_ms": {
+            "anyOf": [
+              { "type": "integer", "minimum": 0 },
+              { "type": "null" }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

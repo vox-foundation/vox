@@ -3,6 +3,8 @@
 
 use std::process::Command;
 
+use tempfile::tempdir;
+
 #[test]
 fn pre_push_dry_run_quick_lists_steps() {
     let out = Command::new(env!("CARGO_BIN_EXE_vox"))
@@ -18,6 +20,47 @@ fn pre_push_dry_run_quick_lists_steps() {
     for needle in ["cargo fmt", "ci line-endings", "ci ssot-drift"] {
         assert!(stdout.contains(needle), "missing `{needle}` in:\n{stdout}");
     }
+    for needle in ["vox-doc-pipeline", "doctest-md", "vox-drift-check"] {
+        assert!(
+            stdout.contains(needle),
+            "quick mode must still list doc/drift steps; missing `{needle}` in:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn pre_push_dry_run_quick_writes_report_json() {
+    let dir = tempdir().expect("tempdir");
+    let report = dir.path().join("pre-push-report.json");
+    let out = Command::new(env!("CARGO_BIN_EXE_vox"))
+        .args([
+            "ci",
+            "pre-push",
+            "--dry-run",
+            "--quick",
+            "--report-json",
+            report.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("spawn vox");
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let raw = std::fs::read_to_string(&report).expect("read report");
+    assert!(
+        raw.contains("\"schema_version\": 1"),
+        "report missing schema_version:\n{raw}"
+    );
+    assert!(
+        raw.contains("\"dry_run\": true"),
+        "report missing dry_run:\n{raw}"
+    );
+    assert!(
+        raw.contains("\"elapsed_ms\": null") || raw.contains("\"elapsed_ms\":null"),
+        "dry-run steps should have null elapsed_ms:\n{raw}"
+    );
 }
 
 #[test]

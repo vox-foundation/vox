@@ -78,5 +78,5 @@ By having multiple intermediate representations, Vox can perform complex archite
 
 **Related Reference**:
 - [Architecture Index](expl-architecture.md) — High-level map of the current compiler module layout.
-- [Archived: vox-hir crate](../archive/vox-hir.md) — Historical reference for the HIR data structures from the pre-monolith compiler split.
+- Historical HIR reference material lives under `crates/vox-compiler/src/hir/` (monolith); older standalone crate docs were folded into this tree.
 

@@ -261,7 +261,7 @@ export class VoxMcpClient {
         policy_limit?: number;
         policy_days?: number;
     }): Promise<Record<string, unknown> | null> {
-        return this.call<Record<string, unknown>>('vox_ludus_progress_snapshot', {
+        return this.call<Record<string, unknown>>('vox_gamify_progress_snapshot', {
             notification_limit: params?.notification_limit ?? 12,
             policy_limit: params?.policy_limit ?? 24,
             policy_days: params?.policy_days ?? 7,
@@ -269,11 +269,11 @@ export class VoxMcpClient {
     }
 
     async ludusNotificationAck(notificationId: string): Promise<unknown> {
-        return this.call('vox_ludus_notification_ack', { notification_id: notificationId });
+        return this.call('vox_gamify_notification_ack', { notification_id: notificationId });
     }
 
     async ludusNotificationsAckAll(): Promise<unknown> {
-        return this.call('vox_ludus_notifications_ack_all', {});
+        return this.call('vox_gamify_notifications_ack_all', {});
     }
     async rebalance(): Promise<unknown> {
         return this.call('vox_rebalance', {});

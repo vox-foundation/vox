@@ -73,8 +73,10 @@ vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only h
 
 # ── L1 — primitives & utilities ───────────────────────────────────────────────
 vox-bounded-fs        = { layer = 1, max_dependents = 25 }
+vox-hf-layout         = { layer = 1, max_loc = 6_000 }               # HF config.json layout (MENS / Candle plugins)
 vox-crypto            = { layer = 1 }
 vox-secrets           = { layer = 1, max_dependents = 25 }
+vox-http-envelope     = { layer = 1, max_dependents = 8 }
 vox-jsonschema-util   = { layer = 1 }
 vox-checksum-manifest = { layer = 1 }
 vox-identity          = { layer = 1 }
@@ -90,6 +92,7 @@ vox-plugin-api        = { layer = 1 }                            # type/trait su
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
 vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
+vox-tracing-init      = { layer = 1 }                            # tracing_subscriber bootstrap presets (CLI vs daemon)
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2 }
@@ -114,6 +117,7 @@ vox-db                  = { layer = 3, max_dependents = 25, max_loc = 40_000 }
 vox-corpus              = { layer = 3, max_loc = 15_000 }
 vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 35_000 }
 vox-codegen             = { layer = 3, max_loc = 20_000 }
+vox-scientia-jsonschema-codegen = { layer = 3 }               # offline SCIENTIA JSON Schema → Rust (typify)
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
 vox-publisher           = { layer = 3, max_loc = 20_000 }
 vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 60_000 }

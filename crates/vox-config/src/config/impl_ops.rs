@@ -1,4 +1,8 @@
 //! Load / merge / persist logic for [`VoxConfig`](super::vox_config::VoxConfig).
+//!
+//! **Figment pilot (narrow):** precedence remains explicit (`defaults` → global TOML → repo `Vox.toml` → env)
+//! in [`VoxConfig::load`] / [`VoxConfig::load_from_repo_root`]. A future step can centralize the same
+//! ordering via [`figment`](https://docs.rs/figment) without changing field semantics — keep call sites stable until tests cover merge parity.
 
 use std::path::{Path, PathBuf};
 

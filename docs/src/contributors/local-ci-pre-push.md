@@ -3,7 +3,7 @@ title: "Local CI parity (pre-push)"
 description: "Run the merge-blocking subset locally before every push via `vox ci pre-push`. Includes optional `--act` mode for GitHub-hosted exception workflows."
 category: "contributors"
 status: "current"
-last_updated: "2026-05-09"
+last_updated: "2026-05-11"
 training_eligible: true
 schema_type: "TechArticle"
 ---
@@ -17,10 +17,14 @@ locally so failures show up before the GitHub round-trip.
 
 | Mode | Steps | Typical wall-clock |
 | ------ | ------- | -------------------- |
-| `--quick` | fmt-check, line-endings, ssot-drift | ~30 s |
-| default | + doc-inventory verify, clippy (workspace), TOESTUB on changed `crates/<x>` | ~2–4 min |
-| `--full` | + `cargo nextest run --workspace` | ~10–25 min |
+| `--quick` | fmt-check, line-endings, ssot-drift, **`vox-doc-pipeline --lint-only`**, **`vox ci doctest-md --strict`**, **`vox-drift-check`** (skips **doc-inventory**, **clippy**, **scoped TOESTUB** only) | ~1–3 min |
+| default | + doc-inventory verify, workspace clippy (`-D warnings`), scoped TOESTUB on changed `crates/<x>` | ~2–6 min |
+| `--full` | + **`cargo nextest run --workspace --profile ci --no-fail-fast`** | ~10–25 min |
 | `--act` | + GH-hosted exception workflows via `act` (composable with any mode above) | +3–8 min |
+
+**Telemetry:** **`--report-json <path>`** emits per-step durations (**`contracts/reports/pre-push-report.v1.schema.json`**). Env **`VOX_PREPUSH_AUDIT_LOG`** appends one JSON line per successful run for local frequency tracking.
+
+**Diagnostics:** **`vox ci dev-loop-audit`** surfaces **`CARGO_TARGET_DIR`** fragmentation that causes redundant compiles across terminals ([runner-contract §Cargo incremental cache](../ci/runner-contract.md#cargo-incremental-cache-troubleshooting-ai-multi-terminal)).
 
 ## Install the git hook (one-time)
 

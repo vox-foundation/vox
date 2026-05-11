@@ -12,6 +12,12 @@ training_rationale: "Canonical convergence reference; defines the SSOT seam and 
 **Audit date:** 2026-05-08
 **Companion to:** [External Frontend Interop Plan (2026)](external-frontend-interop-plan-2026.md), [GUI-Native Roadmap Status (2026)](gui-native-roadmap-status-2026.md)
 
+## Convergence decisions (2026-05-11 pilot)
+
+- **Contract IR remains the SSOT seam** for Zod/OpenAPI and future TS client emit; do not add parallel HIR→TS shortcuts.
+- **Scaffold/template churn** stays behind explicit codegen flags (`VOX_EMIT_*` / compiler gates) until R3/R5 land — prefer Contract IR snapshots over raw JSX golden churn.
+- **R3 (`HirRoute`) + R5 (Express)** remain deferred per §Implementation status below; next milestone is route lowering without breaking live Axum emit.
+
 ## Implementation status (2026-05-08)
 
 This findings doc is partially landed:
@@ -75,7 +81,7 @@ Plus one-time **scaffold** files (user-owned): `app/main.tsx`, `app/App.tsx`,
 
 | Path | Status | HIR | Codegen | Notes |
 |---|---|---|---|---|
-| **Path A** — `@component fn Name() { jsx }` | **Tombstoned at parser** | `HirFn { is_component: true }` | `codegen_ts/component.rs` | Parser rejects this form; the HIR field and codegen file are dead state |
+| **Path A** — legacy decorator-on-fn component syntax (retired) | **Tombstoned at parser** | `HirFn { is_component: true }` | `codegen_ts/component.rs` | Parser rejects this form; the HIR field and codegen file are dead state |
 | **Path C** — `component Name() { state…; view: … }` | **Canonical** | `HirReactiveComponent` (separate `HirModule.components` vector) | `codegen_ts/reactive.rs` | Active surface; reactive members lower to React hooks |
 
 Path C is correct. Path A's HIR flag and codegen file remain only because nothing

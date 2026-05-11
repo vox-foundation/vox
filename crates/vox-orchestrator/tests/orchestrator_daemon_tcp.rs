@@ -26,13 +26,24 @@ async fn wait_until_async<F, Fut>(
         }
         if tokio::time::Instant::now() >= deadline {
             panic!("{label}: timed out after {timeout:?}");
-        }
-        tokio::time::sleep(interval).await;
+    }
+    tokio::time::sleep(interval).await;
     }
 }
 
+/// Wall-clock ceiling so local TCP daemon tests cannot stall indefinitely if readiness RPC regresses.
+const DAEMON_TEST_TIMEOUT: Duration = Duration::from_secs(60);
+
 #[tokio::test]
 async fn orchestrator_daemon_ping_and_task_status() {
+    tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
+        orchestrator_daemon_ping_and_task_status_inner().await;
+    })
+    .await
+    .expect("orchestrator_daemon_ping_and_task_status exceeded wall-clock budget");
+}
+
+async fn orchestrator_daemon_ping_and_task_status_inner() {
     let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
     let aid = orch.spawn_agent("d1").expect("spawn");
     let tid = TaskId(4242);
@@ -97,6 +108,14 @@ async fn orchestrator_daemon_ping_and_task_status() {
 
 #[tokio::test]
 async fn orchestrator_daemon_task_and_agent_write_methods() {
+    tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
+        orchestrator_daemon_task_and_agent_write_methods_inner().await;
+    })
+    .await
+    .expect("orchestrator_daemon_task_and_agent_write_methods exceeded wall-clock budget");
+}
+
+async fn orchestrator_daemon_task_and_agent_write_methods_inner() {
     let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
     let aid = orch.spawn_agent("writer").expect("spawn");
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");

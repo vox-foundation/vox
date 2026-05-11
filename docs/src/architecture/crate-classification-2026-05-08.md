@@ -85,7 +85,7 @@ This audit classifies every crate in `crates/` against five labels:
 | vox-integration-tests | DEAD | 0 | test crate with no callers; uses vox-lsp |
 | vox-test-harness | DEAD | 0 | test harness; no consumers |
 | vox-lsp | CORE (optional) | 1 (orchestrator behind feature) | behind `toestub-gate` feature |
-| vox-ars | CORE (optional) | 2 (orchestrator + runtime, mandatory) | ARS migration facade; used at runtime |
+| vox-openclaw-runtime | CORE (optional) | 2 (orchestrator + runtime, mandatory) | OpenClaw / ARS runtime facade; used at runtime |
 | vox-audio-ingress | MISPLACED | 1 (self-referential via vox-oratio dep) | brings in vox-oratio; should be PLUGIN |
 | vox-browser | DEAD | 0 | browser abstraction; no consumer; MISPLACED into vox-plugin-browser |
 | vox-forge | CORE (optional) | 1 (vox-cli behind `coderabbit` feature) | GitHub/GitLab integration |

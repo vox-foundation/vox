@@ -1,12 +1,10 @@
 //! Markdown lint passes for docs under `docs/src/`.
 //!
-// SCIENTIA Phase 0c — contracts/scientia/ schema sources for vox-research-events::schema_types
-// These JSON schemas generate Rust types; if schemas change, update schema_types.rs to match:
-//   contracts/scientia/discovery-signal.schema.json → DiscoverySignal
-//   contracts/scientia/finding-candidate.v1.schema.json → FindingCandidateV1
-//   contracts/scientia/novelty-evidence-bundle.v1.schema.json → NoveltyEvidenceBundle
-//   contracts/scientia/evidence-pack.v1.schema.json → EvidencePackV1
-//   contracts/scientia/worthiness-signals.v2.schema.json → WorthinessSignalsV2
+// SCIENTIA — contracts/scientia/*.schema.json
+// Stable serde names live in vox-research-events::schema_types; typify exhaust in schema_types::generated.
+// Regenerate: cargo run -p vox-scientia-jsonschema-codegen
+// Hand-maintained name map (lint reminder): discovery-signal → DiscoverySignal; finding-candidate.v1 → FindingCandidateV1;
+// novelty-evidence-bundle.v1 → NoveltyEvidenceBundle; evidence-pack.v1 → EvidencePackV1; worthiness-signals.v2 → WorthinessSignalsV2.
 
 use std::fs;
 use std::path::Path;

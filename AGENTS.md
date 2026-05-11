@@ -216,15 +216,14 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | Retired / Deprecated | Canonical Replacement (Use Instead) |
 |---|---|
 | `vox-dei` (old large orchestrator crate) | `vox-orchestrator` |
-| `vox-ars` (crate) | `vox-ars-runtime` |
+| `vox-ars` (crate) | `vox-openclaw-runtime` |
 | `vox-ludus` | `vox-gamify` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |
 | `@server fn`, `@query fn`, `@mutation fn` | `@endpoint(kind: server\|query\|mutation) fn` |
 | `@py.import` (Python interop) | Removed — Python is no longer a Vox glue surface (see §VoxScript-First Glue Code) |
 | `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
-| `recall()` (synchronous memory read) | `recall_async(query_spec)` |
-| `persist_fact()` | `sync_to_db()` |
+| `recall()` / `recall_async()` (deprecated memory reads) | `MemoryManager::lookup_fact_by_key` (async) or RAG / retrieval bundle — see `crates/vox-orchestrator/src/memory/manager.rs` |
 
 ## Versioning Policy (SSOT)
 
@@ -290,6 +289,7 @@ Full details and per-rule fix patterns: [`docs/src/architecture/vox-language-rul
 
 ## Related Operational Surfaces
 
+- Canonical vs deprecated runtime names (daemon binary, MCP prefixes, env families): [`docs/src/architecture/canonical-runtime-names.md`](docs/src/architecture/canonical-runtime-names.md)
 - CI and runner behavior: [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)
 - Search & retrieval (agent corpora, MCP tools, policy): [`docs/src/architecture/search-retrieval-ssot-2026.md`](docs/src/architecture/search-retrieval-ssot-2026.md)
 - Workspace artifact hygiene and governance policy: [`docs/agents/governance.md`](docs/agents/governance.md)

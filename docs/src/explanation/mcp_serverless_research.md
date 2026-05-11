@@ -52,7 +52,7 @@ The following tasks are broken down with roughly equal difficulty to advance our
   - Add logic to the `vox check` command to emit training data JSONL.
   - Prepare a script to generate instruction-code pairs for model sync.
 
-- [ ] **Task 5: Refine `check_search_index` in `vox-typeck`**
+- [ ] **Task 5: Refine `check_search_index` in the compiler monolith (`vox-compiler`)**
   - Implement the missing type-checking blocks for `SearchIndexDecl` to ensure database stability.
 
 

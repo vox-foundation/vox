@@ -43,7 +43,7 @@ Records what was delivered across the 10 phases.
 - vox-orchestrator drops the `mcp-native` feature and 14 deps that mcp now
   owns (schemars, axum, rmcp, tower-http, vox-compiler, vox-grammar-export,
   vox-mcp-registry, vox-capability-registry, vox-openai-wire,
-  vox-project-scaffold, vox-skills, vox-ars-runtime, vox-plugin-host).
+  vox-project-scaffold, vox-skills, vox-openclaw-runtime, vox-plugin-host).
 - vox-cli's `mcp-server` feature wires through to the new crate.
 - Orchestrator incremental: **5.59s → 4.06s (−27%)**. MCP edits are now isolated.
 

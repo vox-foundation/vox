@@ -207,6 +207,8 @@ pub enum SecretId {
     VoxOrchestratorChatmlStrict,
     VoxOrchestratorCompletionGroundingShadow,
     VoxOrchestratorCompletionGroundingEnforce,
+    /// Env override for orchestrator `completion_markdown_link_audit_enabled` (after Vox.toml merge).
+    VoxOrchestratorCompletionMarkdownLinkAuditEnabled,
     VoxOrchestratorPlanningLlmSynthesisEnabled,
     VoxOrchestratorPlanningLlmSynthesisModel,
     VoxOrchestratorPlanningEnabled,
@@ -262,6 +264,9 @@ pub enum SecretId {
     VoxOpenRouterCatalogMinRefreshIntervalSecs,
     VoxOpenRouterCatalogRefreshJitterMs,
     VoxOrchestratorHarnessCompletionGuard,
+    /// Stress integration tests only: periodic stderr progress in `crates/vox-orchestrator/tests/stress_test.rs`.
+    /// Not merged into orchestrator `merge_env_overrides`; read via `resolve_secret`.
+    VoxOrchestratorStressDebug,
     VoxOrchestratorMeshExecLeaseReconcile,
     VoxOrchestratorMeshExecLeaseAutoRevoke,
     VoxWorkspaceRoot,

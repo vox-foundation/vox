@@ -3,35 +3,16 @@ import { join, relative, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import matter from 'gray-matter';
 
-// Mirrors vox-doc-pipeline's SECTION_ORDER
-const SECTION_ORDER = [
-  'Getting Started',
-  'Journeys',
-  'Tutorials',
-  'How-To Guides',
-  'Language Reference',
-  'API Reference — Keywords',
-  'API Reference — Decorators',
-  'API Reference — Crates',
-  'Examples',
-  'Explanations',
-  'Architecture Decisions (ADRs)',
-  'Architecture SSOTs',
-  'Contributors',
-  'CI & Quality',
-  'Operations',
-  'Reference',
-];
-
-// Sections collapsed by default — engineering internals not relevant to end users.
-// They remain searchable (Pagefind) and accessible via direct URL; just not expanded in the nav.
-const COLLAPSED_SECTIONS = new Set([
-  'Architecture Decisions (ADRs)',
-  'Architecture SSOTs',
-  'Contributors',
-  'CI & Quality',
-  'Operations',
-]);
+// SSOT: contracts/documentation/docs-sidebar-section-order.v1.json
+const __sidebarUtilsFile = fileURLToPath(import.meta.url);
+const __repoRootSidebarOrder = join(__sidebarUtilsFile, '..', '..', '..', '..');
+const __sidebarOrderPath = join(
+  __repoRootSidebarOrder,
+  'contracts/documentation/docs-sidebar-section-order.v1.json'
+);
+const __sidebarOrder = JSON.parse(readFileSync(__sidebarOrderPath, 'utf8'));
+const SECTION_ORDER = __sidebarOrder.sections;
+const COLLAPSED_SECTIONS = new Set(__sidebarOrder.collapsed_sections ?? []);
 
 // Status values that earn a sidebar badge so users know a page is not yet stable.
 const STATUS_BADGE = {

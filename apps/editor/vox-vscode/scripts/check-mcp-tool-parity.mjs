@@ -8,8 +8,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, '..', '..');
-const extRoot = path.join(repoRoot, 'vox-vscode');
+// scripts/ -> vox-vscode/ -> editor/ -> apps/ -> repository root
+const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
+const extRoot = path.join(repoRoot, 'apps', 'editor', 'vox-vscode');
 const yamlPath = path.join(repoRoot, 'contracts', 'mcp', 'tool-registry.canonical.yaml');
 const rustAliasesPath = path.join(repoRoot, 'crates', 'vox-orchestrator-mcp', 'src', 'tool_aliases.rs');
 

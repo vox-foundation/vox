@@ -40,6 +40,8 @@ domains:
     tier: B-canon
     status: current
     spec_paths:
+      - contracts/config/env-vars.v1.yaml
+      - contracts/config/env-vars.v1.schema.json
       - contracts/db/baseline-version-policy.yaml
       - contracts/terminal/exec-policy.v1.yaml
     canon_doc: docs/src/reference/env-vars.md
@@ -91,6 +93,8 @@ domains:
     tier: B-canon
     status: current
     spec_paths:
+      - contracts/telemetry/events.v1.yaml
+      - contracts/telemetry/events.v1.schema.json
       - contracts/orchestration/context-lifecycle-telemetry.schema.json
       - contracts/telemetry/completion-run.v1.schema.json
       - contracts/telemetry/completion-finding.v1.schema.json

@@ -377,6 +377,37 @@ mod orch_smoke {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn complete_task_with_link_audit_enabled_skips_check_links_without_md_writes() {
+        let mut cfg = OrchestratorConfig::for_testing();
+        cfg.completion_markdown_link_audit_enabled = true;
+        let orch = Orchestrator::new(cfg);
+        let task_id = orch
+            .submit_task(
+                "rs-only writes",
+                vec![FileAffinity::write("src/link_audit_flag_smoke.rs")],
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+        let agent_id = *orch
+            .task_assignments
+            .read()
+            .unwrap()
+            .get(&task_id)
+            .unwrap();
+        orch.agent_queue(agent_id)
+            .unwrap()
+            .write()
+            .unwrap()
+            .dequeue();
+        orch.complete_task_with_attestation(task_id, Some(complete_attestation_for_tests()))
+            .await
+            .expect("complete");
+        assert_eq!(orch.status().total_completed, 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn retire_agent_returns_tasks() {
         let orch = test_orchestrator();
         let agent_id = orch.spawn_agent("temp").unwrap();

@@ -78,6 +78,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             full,
             dry_run,
             act,
+            report_json,
         } => super::pre_push::run(
             &root,
             super::pre_push::PrePushOpts {
@@ -85,8 +86,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 full,
                 dry_run,
                 act,
+                report_json,
             },
         ),
+        CiCmd::DevLoopAudit { json } => super::dev_loop_audit::run(&root, json),
         CiCmd::SsotAudit => run_ssot_audit(&root).await,
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
         CiCmd::DataStorageGuard(opts) => {

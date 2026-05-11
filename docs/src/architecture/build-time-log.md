@@ -55,7 +55,7 @@ The 88K-LoC vox-orchestrator splits along its biggest internal seam:
 vox-orchestrator drops mcp-native feature and 14 deps that mcp owns
 (schemars, axum, rmcp, tower-http, vox-compiler, vox-grammar-export,
 vox-mcp-registry, vox-capability-registry, vox-openai-wire,
-vox-project-scaffold, vox-skills, vox-ars-runtime, vox-plugin-host).
+vox-project-scaffold, vox-skills, vox-openclaw-runtime, vox-plugin-host).
 
 | Scenario | Time | vs baseline |
 |---|---|---|

@@ -18,6 +18,7 @@ This file tracks the single source of truth for Vox architecture, research findi
 
 ## Audits & Assessments
 
+- [AI-assisted dev loop — compile overhead (2026)](ai-dev-loop-overhead-2026.md) — Cache fragmentation (`CARGO_TARGET_DIR`), **`vox ci pre-push`** semantics, **`dev-loop-audit`** / **`--report-json`** tooling, informal thresholds vs **`build-timings`**.
 - [CLI vs compilerd params backlog (2026)](cli-compilerd-params-ssot.md) — SSOT target for merged clap + serde request structs (`cli_args.rs` / `compilerd.rs`).
 - [Canonical runtime names — daemon, MCP, env (2026)](canonical-runtime-names.md) — Frozen identifiers vs compatibility aliases (`vox-orchestrator-d`, gamify/ludus, DB/Turso); links machine registry `env-vars.v1.yaml` and prose `env-vars.md`.
 - [Workspace test inventory (2026)](test-inventory-2026.md) — Regenerable `vox ci test-inventory` artifact: Rust test attrs, ignores (with WebIR caveat), golden Vox `@test`, app E2E paths, doctest candidates, harness-pattern totals; deterministic JSON + Markdown.

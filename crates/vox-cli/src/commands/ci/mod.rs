@@ -20,6 +20,7 @@ pub mod deploy_status;
 mod detect_rules_bench;
 mod determinism_audit;
 mod docs_deprecated_command_guard;
+mod dev_loop_audit;
 mod doctest_md;
 mod eval_matrix;
 mod exec_policy_contract;

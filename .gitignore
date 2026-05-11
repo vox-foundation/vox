@@ -22,6 +22,7 @@ docs-astro/public/.well-known
 /artifacts/
 
 # === SCRATCH / EPHEMERAL / LOGS ===
+.tmp_metadata.json
 scratch/*
 !scratch/.gitkeep
 test_output*.txt

@@ -19,7 +19,7 @@ serde_json = { workspace = true }
 sysinfo = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "macros", "process", "rt", "rt-multi-thread", "signal", "sync"] }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+vox-tracing-init = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 which = { workspace = true }
 

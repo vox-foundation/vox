@@ -143,8 +143,8 @@ These accompany or follow Unit 1–5:
 ### CC-1: Retire `vox-skills` shim entirely
 
 **ARS shim relocation — DONE (2026-05-03).**
-Created `crates/vox-ars` as a thin re-export facade over `vox_skills::ars_shim`.
-All external consumers (vox-cli, vox-runtime, vox-orchestrator) migrated to `vox_ars::*` import paths.
+Created `crates/vox-openclaw-runtime` as the ARS/OpenClaw facade (successor to the retired three-letter ARS crate name).
+All external consumers (vox-cli, vox-runtime, vox-orchestrator) migrated to canonical OpenClaw runtime import paths.
 Physical move of the 12 `ars_shim/` files out of vox-skills is **deferred** — `ars_shim/mod.rs` re-exports
 `crate::parser::parse_skill_md`, `crate::SkillRegistry`, and `crate::install_builtins` from the vox-skills
 crate root, creating a circular dependency if extracted. Those types need to move into `vox-plugin-host` first.

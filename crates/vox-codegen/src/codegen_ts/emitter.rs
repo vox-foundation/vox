@@ -10,6 +10,8 @@
 //! **Style + route printer bridge (OP-S059 / S091 / S111 / S137 / S171 / S199):** classic CSS emission and
 //! TanStack route files are still assembled here alongside [`super::routes`]; migrating printers to consume
 //! only validated [`crate::web_ir::WebIrModule`] slices is tracked in the internal Web IR blueprint.
+//!
+//! **Frontend convergence (2026):** OpenAPI / Zod lanes should consume [`crate::contract_ir`] types before adding new direct HIR scrape paths — see `docs/src/architecture/frontend-convergence-findings-2026.md`.
 
 use crate::codegen_ts::adt::generate_types;
 use vox_compiler::app_contract::project_app_contract;

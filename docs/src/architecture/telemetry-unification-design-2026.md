@@ -239,7 +239,7 @@ This design preserves the trust posture established by the 2026-Q1 effort:
 | Moving metric type constants down to L1 breaks external readers of `vox-db::research_metrics_contract`. | Re-export in place. The module path and constant identifiers stay stable. CI guards in `data-ssot-guards` continue to verify constants are documented. |
 | Trace context overhead on hot paths (every LLM call, every dispatch). | `task_local!` is sub-nanosecond on read. The macro's no-op path when no recorder is registered keeps test/library overhead at zero. Benchmarked in Phase A. |
 | Default-on local collection surprises users. | CHANGELOG entry under Telemetry; `vox doctor telemetry` makes the state visible; master switch makes opt-out one step. |
-| Confusion between `vox-telemetry` (facade) and the `vox-ml-cli` "Telemetry" branding. | The `vox-ml-cli` description references ML/AI/Telemetry CLI command surfaces. The facade is plumbing. The `where-things-live.md` row will distinguish them. |
+| Confusion between `vox-telemetry` (facade) and Populi CLI “Telemetry” branding. | The Populi (`vox-populi`) crate owns ML/AI/Telemetry CLI command surfaces. The facade is plumbing. The `where-things-live.md` row distinguishes them. |
 | Sink fan-out latency on high-frequency emit. | `CompositeRecorder` dispatches synchronously by default but each sink can opt into async/buffered behavior. `SpoolSink` always buffers. |
 
 ## Open questions

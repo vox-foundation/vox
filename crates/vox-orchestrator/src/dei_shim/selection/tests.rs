@@ -29,19 +29,18 @@ fn task_strengths_cover_all_categories() {
 }
 
 #[test]
-fn infer_prompt_hints_detect_vision_and_web() {
+fn infer_prompt_hints_web_search_only_no_vision_heuristic() {
+    // Vision routing is driven by attachment manifests, not substring heuristics (SSOT).
     let (v, w) = infer_prompt_capability_hints("Please describe this screenshot.png");
-    assert!(v);
+    assert!(!v);
     assert!(!w);
-    let (v2, w2) = infer_prompt_capability_hints("look up the latest Vox release notes");
+    let (_v2, w2) = infer_prompt_capability_hints("look up the latest Vox release notes");
     assert!(w2);
-    assert!(!v2);
     let (v3, w3) = infer_prompt_capability_hints("Run OCR on this scan and extract the table");
-    assert!(v3);
+    assert!(!v3);
     assert!(!w3);
-    let (v4, w4) = infer_prompt_capability_hints("What is the weather today in Seattle?");
+    let (_v4, w4) = infer_prompt_capability_hints("What is the weather today in Seattle?");
     assert!(w4);
-    assert!(!v4);
 }
 
 #[test]

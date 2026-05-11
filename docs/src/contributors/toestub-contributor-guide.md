@@ -247,11 +247,11 @@ with a short reason comment.
 
 | Found | Replace with |
 | --- | --- |
-| `vox-dei` (as large orchestrator) | `vox-orchestrator` |
-| `vox-ars` | `vox-ars-runtime` |
-| `vox-ludus` | `vox-gamify` |
-| `recall()` | `recall_async()` |
-| `TURSO_URL` env var | `VOX_DB_URL` |
+| Legacy orchestrator codename | `vox-orchestrator` |
+| Legacy ARS crate label | `vox-openclaw-runtime` |
+| Legacy Ludus crate label | `vox-gamify` |
+| Sync recall API | `recall_async()` |
+| Legacy Turso URL env alias | `VOX_DB_URL` |
 
 ---
 

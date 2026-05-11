@@ -102,6 +102,14 @@ contracts:
     enforced_by:
       - vox ci check-docs-ssot
 
+  - id: documentation-retired-symbols
+    path: contracts/documentation/retired-symbols.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Retired identifier patterns consumed by vox ci retired-symbol-check (docs hygiene).
+    enforced_by:
+      - vox ci retired-symbol-check
+
   - id: frontend-surface-ownership-v1
     path: contracts/frontend/surface-ownership.v1.yaml
     owner: platform-gui
@@ -607,6 +615,14 @@ contracts:
       - vox ci command-compliance
       - cargo build -p vox-mcp-registry
 
+  - id: mcp-tool-wire-aliases
+    path: contracts/mcp/tool-wire-aliases.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Wire-level MCP tool aliases (legacy names → canonical); feeds vox-orchestrator-mcp build.rs.
+    enforced_by:
+      - cargo check -p vox-orchestrator-mcp
+
   - id: mcp-http-gateway-openapi
     path: contracts/mcp/http-gateway.openapi.yaml
     owner: platform-ci
@@ -1033,6 +1049,22 @@ contracts:
     description: Incremental SQL write ownership audit placeholder (Rev C).
     enforced_by: []
 
+  - id: dev-loop-audit-v1-schema
+    path: contracts/reports/dev-loop-audit.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for `vox ci dev-loop-audit --json` (AI/local compile-loop diagnostics).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: pre-push-report-v1-schema
+    path: contracts/reports/pre-push-report.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for `vox ci pre-push --report-json` timing artifacts.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: toestub-run-json-v1-schema
     path: contracts/toestub/toestub-run-json.v1.schema.json
     owner: platform-ci
@@ -1086,3 +1118,83 @@ contracts:
     description: JSON Schema for remediation delta snapshot JSON.
     enforced_by:
       - vox ci scaling-audit verify
+
+  - id: orchestration-risk-confidence-matrix-v1
+    path: contracts/orchestration/risk-confidence-matrix.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Orchestrator risk / confidence tuning matrix.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-circuit-breaker-v1
+    path: contracts/orchestration/circuit-breaker.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Circuit breaker policy fragments for orchestrator integrations.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-socrates-fusion-v1
+    path: contracts/orchestration/socrates-fusion.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Socrates fusion orchestration metadata.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-plan-mode-trigger-v1
+    path: contracts/orchestration/plan-mode-trigger.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Plan-mode trigger contract for agent tooling.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-feature-flags-v1
+    path: contracts/orchestration/feature-flags.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Orchestrator feature-flag inventory.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scaling-task-templates
+    path: contracts/scaling/task-templates.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Scaling audit task template stubs.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: review-coderabbit-semantic-groups-v1
+    path: contracts/review/coderabbit-semantic-groups.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: CodeRabbit semantic grouping hints for review automation.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: code-audit-rules-v1
+    path: contracts/code-audit/rules.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Code audit / TOESTUB rule inventory referenced by vox-code-audit.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: mens-golden-decl-expectations
+    path: contracts/mens/golden_decl_expectations.yaml
+    owner: mens
+    kind: yaml
+    description: Expected declarations for golden Vox examples (MENS corpus hygiene).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: scientia-venue-catalog-v1
+    path: contracts/scientia/venue-catalog.v1.yaml
+    owner: scientia
+    kind: yaml
+    description: Venue catalog for Scientia publication workflows.
+    enforced_by:
+      - vox ci contracts-index

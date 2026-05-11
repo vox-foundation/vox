@@ -1,3 +1,5 @@
+# Schema-backed telemetry event catalog (tier B). Runtime/event-name guards may consume this
+# alongside JSON-schema payloads in contracts/telemetry/*.schema.json.
 x-vox-version: 1
 version: 1
 events:

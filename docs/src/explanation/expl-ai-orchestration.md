@@ -52,7 +52,7 @@ The DEI orchestrator handles registering this URI schema. When an LLM requests `
 
 ## DEI Orchestrator
 
-The **Distributed Execution Intelligence (DEI)** orchestrator (sometimes referred to as `vox-dei`) is the runtime engine that manages these agents and tools.
+The **Distributed Execution Intelligence (DEI)** orchestrator (historically confused with older crate naming; canonical crate is `vox-orchestrator`) is the runtime engine that manages these agents and tools.
 
 When you run `vox run src/main.vox`, the orchestrator spins up, discovers all your decorated tools, and starts an MCP endpoint that defaults to Stdio for desktop clients or HTTP/SSE for distributed meshes.
 

@@ -532,6 +532,15 @@ impl OrchestratorConfig {
                 self.completion_grounding_enforce,
             );
         }
+        if let Some(val) = secrets_opt(
+            vox_secrets::SecretId::VoxOrchestratorCompletionMarkdownLinkAuditEnabled,
+        ) {
+            self.completion_markdown_link_audit_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_COMPLETION_MARKDOWN_LINK_AUDIT_ENABLED",
+                &val,
+                self.completion_markdown_link_audit_enabled,
+            );
+        }
         // Phase 15: Attention Budget env overrides
         if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorAttentionEnabled) {
             self.attention_enabled = parse_or_warn(
@@ -913,6 +922,7 @@ impl OrchestratorConfig {
             bulletin_capacity: 16,
             toestub_gate: false,
             behavioral_gate_on_complete: false,
+            completion_markdown_link_audit_enabled: false,
             ..Default::default()
         }
     }

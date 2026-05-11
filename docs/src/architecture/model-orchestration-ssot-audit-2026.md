@@ -489,10 +489,10 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Change semantics: `models.toml` contains ONLY `[premium_alias]` and `[overrides.<model_id>]` sections; no `[[models]]` arrays. Migration: on first boot after this change, rewrite existing `models.toml` stripping the `[[models]]` table and leaving a comment pointer.
 - *Success.* A pristine install has a minimal `models.toml`; overrides survive.
 
-**FIX-63. Archive the `vox-dei` module name in logs / docs / symbols.**
-- *Problem.* Mixed references; developers expect the retired name to exist somewhere.
-- *Operation.* Grep for `vox_dei|vox-dei|dei_` across `crates/**/src/**.rs` and either rename or add `#[allow(dead_code)] mod dei_shim` with a doc comment pointing to the new home. (One known non-code hit is `docs/src/reference/` — leave archival mentions in `docs/src/archive`.)
-- *Success.* Only the archived directory and the retirement table in `AGENTS.md` mention `vox-dei`.
+**FIX-63. Retired naming — archive legacy orchestrator DEI identifiers in logs / docs / symbols.**
+- *Problem.* Mixed references; developers expect the retired orchestrator codename to exist somewhere.
+- *Operation.* Grep for `vox_dei`, `dei_`, and hyphenated legacy spellings across `crates/**/src/**.rs` and either rename or add `#[allow(dead_code)] mod dei_shim` with a doc comment pointing to the new home. (One known non-code hit is `docs/src/reference/` — leave archival mentions in `docs/src/archive`.)
+- *Success.* Only the archived directory and the retirement table in `AGENTS.md` mention the legacy orchestrator codename.
 
 **FIX-64. Gate MENS training scripts behind `vox ci secret-env-guard`.**
 - *Problem.* Training scripts under `scripts/mens/` may read envs directly.

@@ -485,12 +485,12 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **Blockers**: M-20.
 - **SSOT findings**: F10.
 - **Sub-steps**:
-  1. Inventory: `rg 'TURSO_URL|VOX_TURSO_URL|VOX_TURSO_TOKEN|TURSO_AUTH_TOKEN' crates/`.
+  1. Inventory: grep `crates/` for literals enumerated under Turso compatibility aliases in `contracts/config/env-vars.v1.yaml` / env-vars SSOT.
   2. In `crates/vox-secrets/src/backend/vox_vault.rs` and `lib.rs`, add a deprecation warning branch that logs once when a `TURSO_*` var is used and routes it into the canonical `VOX_DB_URL` / `VOX_DB_TOKEN`.
   3. Add the deprecation list to `contracts/config/env-vars.v1.yaml` (requires M-13).
   4. Plan sunset for release 0.6 (6 months).
   5. Add guard sub-check `retired-env-var` that warns in `vox-secrets` (sunset window), fails elsewhere.
-- **Verification**: guard green; CI passes; a test with `TURSO_URL=…` produces the deprecation warning.
+- **Verification**: guard green; CI passes; a test with a legacy Turso URL env var set produces the deprecation warning.
 
 ## Phase 3 — Tier B / C rollout
 

@@ -88,10 +88,11 @@ pub enum CiCmd {
     /// the `check-and-test` guards cluster so failures match CI before pushing.
     #[command(name = "pre-push")]
     PrePush {
-        /// Skip clippy and TOESTUB (fmt + ssot-drift + line-endings only). ~30s.
+        /// Skip doc-inventory, workspace clippy, and scoped TOESTUB (still runs fmt,
+        /// line-endings, ssot-drift, doc frontmatter lint, doctest-md strict, drift-check).
         #[arg(long, conflicts_with = "full")]
         quick: bool,
-        /// Also run `cargo nextest run --workspace --no-fail-fast` (slow). Off by default.
+        /// Append **`cargo nextest run --workspace --profile ci --no-fail-fast`** (slow). Off by default.
         #[arg(long)]
         full: bool,
         /// Print commands without executing.
@@ -102,6 +103,16 @@ pub enum CiCmd {
         /// Catches failures in docs-quality, link_checker, and ts-emit-noemit before push.
         #[arg(long)]
         act: bool,
+        /// Write JSON timing report (`contracts/reports/pre-push-report.v1.schema.json`).
+        #[arg(long, value_name = "PATH")]
+        report_json: Option<PathBuf>,
+    },
+    /// Heuristics for Cargo cache fragmentation and expensive local verification habits (AI / inner-loop).
+    #[command(name = "dev-loop-audit")]
+    DevLoopAudit {
+        /// Emit JSON (`contracts/reports/dev-loop-audit.v1.schema.json`).
+        #[arg(long)]
+        json: bool,
     },
     /// VoxDB connect policy doc, telemetry JSONL parsing, and `research_metrics` NULL-vs-zero invariants.
     #[command(name = "data-ssot-guards")]

@@ -38,6 +38,10 @@ pub struct OrchestratorConfig {
     /// Disabled in [`OrchestratorConfig::for_testing`] so integration tests do not recurse into Cargo.
     #[serde(default = "default_true")]
     pub behavioral_gate_on_complete: bool,
+    /// When true, completion verifies Markdown writes via nested `vox ci check-links` (default: true).
+    /// Disabled in [`OrchestratorConfig::for_testing`] so integration/stress tests avoid subprocess-heavy audits.
+    #[serde(default = "default_true")]
+    pub completion_markdown_link_audit_enabled: bool,
     /// Maximum number of times a task can be re-routed due to validation failures (default: 3).
     pub max_debug_iterations: u8,
     /// TOESTUB-specific max auto-debug retries (default: 3).

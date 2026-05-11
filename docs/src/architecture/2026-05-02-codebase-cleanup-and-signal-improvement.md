@@ -320,7 +320,7 @@ These came up in the audit but need maintainer judgment or larger scope before c
 
 1. **`crates/vox-orchestrator/src/dei_shim/`** — DEPRECATED-marked shim. Audit could not determine if callers still exist. Owner: orchestrator track.
 2. **`VOX_MENS_EXPERIMENTAL_OPTIMIZER`** — experimental feature flag in `vox-men`. Decide: productionize, gate more strictly, or remove. Owner: mens track.
-3. **`HISTORICAL_ALLOWLIST` for `vox-dei`/`vox-ars`** — grandfathered names being migrated to `vox-orchestrator`/`vox-skills`. Migration in progress; remove allowlist entries as renames complete. Owner: rename-tracking task.
+3. **`HISTORICAL_ALLOWLIST` for retired orchestrator / ARS codenames** — grandfathered labels being migrated to `vox-orchestrator` / OpenClaw runtime paths. Migration in progress; remove allowlist entries as renames complete. Owner: rename-tracking task.
 4. **293 files in `docs/src/archive/research-2026-q1/`** — fenced from AI context (Phase 5.3 above) but still indexed by full-text search and visible to humans browsing. Question for maintainer: move deeper (e.g. to `.git/archive/` orphan branch) or accept the noise floor.
 5. **Naming-overlap of `telemetry-trust-ssot.md`** (active stub, 21 lines) vs `archive/.../telemetry-trust-ssot.md` (frozen 81-line research). Same filename, different scope. Renaming the archive file would break archive integrity (frozen-by-convention); renaming the active file weakens the SSOT signal. Probably leave as-is, but flag.
 

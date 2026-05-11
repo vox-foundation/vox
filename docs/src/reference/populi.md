@@ -15,7 +15,7 @@ The **mesh** (Populi) layer is **opt-in at runtime**: default single-node behavi
 ## A2A acknowledgment vs Ludus notification ACK
 
 - **Populi A2A** **`ack`** paths (inbox claimer / message ACK) acknowledge **mesh-delivered agent mail** and task handoff plumbing. They are **unrelated** to **Vox Ludus** `gamify_notifications` read state.
-- **Ludus** notification ACK is **`vox_ludus_notification_ack`** / **`vox_ludus_notifications_ack_all`** on Codex (`gamify_notifications`). Operators should not confuse mesh **message** lifecycle with **gamify** UX inbox.
+- **Gamify** notification ACK is **`vox_gamify_notification_ack`** / **`vox_gamify_notifications_ack_all`** on Codex (`gamify_notifications`). Legacy MCP names **`vox_ludus_*`** still alias to these tools. Operators should not confuse mesh **message** lifecycle with **gamify** UX inbox.
 
 Optional future work: correlate mesh task outcomes with Ludus `remote_task_*`-style events for cross-node reputation (**design-only spike**; not implied by current ACK semantics).
 

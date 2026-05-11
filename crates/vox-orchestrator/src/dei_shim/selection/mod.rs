@@ -4,7 +4,6 @@
 //! Virtual models (e.g. openrouter/auto) are defined here and merged when applicable.
 
 mod free_tier;
-mod resolve;
 mod scorer;
 mod task_routing;
 #[cfg(test)]
@@ -13,7 +12,7 @@ mod virtual_models;
 mod weights;
 
 pub use free_tier::{FreeTierRouteRequest, FreeTierRouter, RouteCandidate};
-pub use resolve::{
+pub use crate::registry_model_resolve::{
     infer_prompt_capability_hints, resolve_model_with_registry_fallbacks,
     RegistryModelResolutionParams,
 };

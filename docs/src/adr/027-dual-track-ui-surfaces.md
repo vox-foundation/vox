@@ -23,7 +23,7 @@ training_eligible: false
 Vox today carries **two parallel UI surfaces** that have grown in sync but were never delineated:
 
 1. A **Vox-native reactivity model**: `component Name(params) { state/derived/effect/on mount/on cleanup/view: }` paired with `state_machine Name { state … on Event from X -> Y }` and the `routes { … }` block. These lower through `HirReactiveComponent` / `HirStateMachineDecl` / `client_routes` into WebIR, then to TSX.
-2. An **explicit React/TanStack interop model**: `@island Name { prop: Type }` for hydration islands, `@v0 from "design-id" Name { … }` for AI-generated React stubs, and the legacy `@component fn` decorator that emits React hooks directly.
+2. An **explicit React/TanStack interop model**: `@island Name { prop: Type }` for hydration islands, `@v0 from "design-id" Name { … }` for AI-generated React stubs, and the legacy decorator-on-fn component form that emits React hooks directly.
 
 Both are documented as "supported," but the boundary between them is informal. Authors writing Vox-native components routinely import React idioms (`use_state`, `onClick`, raw `<div className=…>`); authors writing islands occasionally reach for `state_machine`. The April 2026 comprehensive audit flagged this as **corpus contamination** — the model trains on a mixture of two surfaces with no schematic separator, learning React hooks as the canonical Vox idiom.
 
@@ -52,7 +52,7 @@ Track A bans bare React imports (`use_state`, `useEffect`, `<div className>`) at
 |---|---|---|
 | `@island Name { prop: Type }` | 🟢 Stable (V1 mount contract, OP-0214) | `HirIsland` → TSX with `data-vox-island` |
 | `@v0 from "design-id" Name { … }` | 🟡 Preview | Build hook → v0.dev API → React component stubs |
-| `@component fn Name() { … }` (classic) | 🟡 Preview, frozen | AST-direct → React hooks emit |
+| Classic decorator-on-fn component body `{ … }` | 🟡 Preview, frozen | AST-direct → React hooks emit |
 
 Track B is **explicit interop**. Files using these decorators must include `// @track: react-interop` as the first non-frontmatter line. Track B is **training-ineligible by default**: corpus extraction skips files marked `@track: react-interop` unless the contributor opts them in with `training_weight: > 0`.
 
@@ -63,7 +63,7 @@ Track B exists for three concrete cases:
 
 ### What collapses
 
-- The `@component fn` decorator is **frozen** — no new features land. It remains for migration but is not the canonical form.
+- The classic decorator-on-fn component track is **frozen** — no new features land. It remains for migration but is not the canonical form.
 - The previous "Path C optional" framing in ADR 012 is replaced: `component`/`state_machine`/`routes` are the **default** Vox-native path, not optional.
 - The "shelve Vox-native reactivity indefinitely" stance from the April 2026 comprehensive audit (item #15) is **overturned** — Track A becomes the primary surface for greenfield. The audit's concerns (corpus pollution, two-emitter maintenance cost) are addressed by the explicit track boundary, not by removing Track A.
 

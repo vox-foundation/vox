@@ -3,7 +3,7 @@ title: "The Vox Contribution Loop"
 description: "How Vox contributions feed the MENS training pipeline, why quality gates matter doubly, and what makes code training-eligible."
 category: "contributor"
 status: "current"
-last_updated: "2026-04-17"
+last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Core motivational narrative for the contribution-to-corpus feedback loop."
 
@@ -22,7 +22,7 @@ Every quality gate in this repository has two jobs: (1) keep the codebase sound,
   │
 ② VERIFY  ← where most of your friction happens
   vox stub-check      — zero stubs / hollow fns
-  cargo check/test    — compiler + unit tests green
+  cargo check/test    — compiler + unit tests green (prefer `-p <crate>` / nextest — see [AI dev loop overhead](../architecture/ai-dev-loop-overhead-2026.md))
   vox corpus eval     — .vox parse_rate ≥ 99.5%
   │                    ↓ fails here → negative example pool
 ③ INGEST
@@ -111,10 +111,10 @@ cargo test -p your-crate
 # 3. .vox corpus quality (if you touched .vox files)
 cargo run -p vox-cli -- corpus eval --mode ast examples/golden/
 
-# 4. Full pre-push parity
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo run -p vox-cli -- ci ssot-drift
+# 4. Push-ready parity (single command — mirrors merge-blocking CI subset)
+cargo run -p vox-cli -- ci pre-push
+# Narrow doc-only iteration: `vox ci pre-push --quick` still runs doc lint + doctest-md + drift-check
+# Optional timings artifact: add `--report-json target/local/pre-push-last.json`
 ```
 
 ## After merging a snapshot-touching PR

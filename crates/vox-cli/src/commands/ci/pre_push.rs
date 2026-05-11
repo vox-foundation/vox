@@ -3,10 +3,19 @@
 //! Runs in order: fmt --check, line-endings, ssot-drift, doc frontmatter lint,
 //! doctest-md extraction, doc-inventory verify, workspace drift check,
 //! clippy (workspace, all-targets, -D warnings), scoped TOESTUB (changed paths).
-//! `--quick` skips clippy + TOESTUB; `--full` also runs workspace **`cargo nextest`**
+//! **`--quick`** skips doc-inventory, clippy, and scoped TOESTUB (doc lint + doctest-md +
+//! drift-check still run). **`--full`** also runs workspace **`cargo nextest`**
 //! with **`--profile ci`** (same profile as GitHub `ci.yml` tests job — timeouts/retries).
 //! `--act` additionally runs the GitHub-hosted exception workflows through `act`
 //! (nektos/act must be on PATH; Docker daemon must be running).
+//!
+//! **`--report-json <path>`** writes a machine-readable timing summary after the run
+//! (or after **`--dry-run`**, with planned steps and null durations). Schema:
+//! **`contracts/reports/pre-push-report.v1.schema.json`**.
+//!
+//! **`VOX_PREPUSH_AUDIT_LOG`** — when set to a repo-relative or absolute path, a single
+//! JSON line is appended on successful completion (not on **`--dry-run`**) for local
+//! tooling that tracks how often full pre-push runs occur.
 //!
 //! Previously the pre-push did not run doc frontmatter lint, doctest extraction,
 //! or the workspace drift check — those only ran in CI.  The gap meant a green
@@ -14,17 +23,22 @@
 //! included (they're fast; drift-check may take a few seconds on large trees).
 
 use anyhow::{Context, Result, anyhow, bail};
+use serde::Serialize;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PrePushOpts {
     pub quick: bool,
     pub full: bool,
     pub dry_run: bool,
     /// Run the GH-hosted exception workflows through `act` after the Rust checks.
     pub act: bool,
+    /// Write [`PrePushReportV1`] JSON to this path after execution.
+    pub report_json: Option<PathBuf>,
 }
 
 /// Workflows that run on `ubuntu-latest` (GH-hosted exceptions).  These are
@@ -36,28 +50,168 @@ const ACT_WORKFLOWS: &[&str] = &[
     ".github/workflows/ts-emit-noemit.yml",
 ];
 
+#[derive(Debug, Serialize)]
+pub struct PrePushReportV1 {
+    pub schema_version: u32,
+    pub ok: bool,
+    pub quick: bool,
+    pub full: bool,
+    pub dry_run: bool,
+    pub total_ms: u64,
+    pub steps: Vec<PrePushStepTiming>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PrePushStepTiming {
+    pub label: String,
+    /// Wall time for the step; **`null`** when **`dry_run`** (planned only).
+    pub elapsed_ms: Option<u64>,
+}
+
 pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
-    let steps = build_steps(opts);
+    let steps = build_steps(&opts);
+    let mut step_records: Vec<PrePushStepTiming> = Vec::with_capacity(steps.len());
     if opts.dry_run {
         for s in &steps {
             println!("DRY-RUN: {}", s.label);
+            step_records.push(PrePushStepTiming {
+                label: s.label.to_string(),
+                elapsed_ms: None,
+            });
         }
         if opts.act {
             run_act(root, true)?;
         }
+        write_pre_push_report(
+            root,
+            &opts,
+            &step_records,
+            true,
+            0,
+            opts.report_json.as_deref(),
+        )?;
         return Ok(());
     }
     let total = Instant::now();
     for s in steps {
         let started = Instant::now();
         println!("==> {}", s.label);
-        (s.run)(root).with_context(|| format!("step `{}`", s.label))?;
-        println!("    OK ({:.1?})", started.elapsed());
+        match (s.run)(root).with_context(|| format!("step `{}`", s.label)) {
+            Ok(()) => {
+                let elapsed_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+                println!("    OK ({elapsed_ms}ms)");
+                step_records.push(PrePushStepTiming {
+                    label: s.label.to_string(),
+                    elapsed_ms: Some(elapsed_ms),
+                });
+            }
+            Err(e) => {
+                let elapsed_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+                step_records.push(PrePushStepTiming {
+                    label: s.label.to_string(),
+                    elapsed_ms: Some(elapsed_ms),
+                });
+                let total_ms = total.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+                let _ = write_pre_push_report(
+                    root,
+                    &opts,
+                    &step_records,
+                    false,
+                    total_ms,
+                    opts.report_json.as_deref(),
+                );
+                return Err(e);
+            }
+        }
     }
     if opts.act {
         run_act(root, false)?;
     }
-    println!("pre-push: all checks passed in {:.1?}", total.elapsed());
+    let total_ms = total.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+    println!("pre-push: all checks passed in {total_ms}ms");
+    write_pre_push_report(
+        root,
+        &opts,
+        &step_records,
+        true,
+        total_ms,
+        opts.report_json.as_deref(),
+    )?;
+    append_prepush_audit_log(root, &opts, total_ms)?;
+    Ok(())
+}
+
+fn write_pre_push_report(
+    root: &Path,
+    opts: &PrePushOpts,
+    steps: &[PrePushStepTiming],
+    ok: bool,
+    total_ms: u64,
+    report_path: Option<&Path>,
+) -> Result<()> {
+    let Some(path) = report_path else {
+        return Ok(());
+    };
+    let report = PrePushReportV1 {
+        schema_version: 1,
+        ok,
+        quick: opts.quick,
+        full: opts.full,
+        dry_run: opts.dry_run,
+        total_ms,
+        steps: steps.to_vec(),
+    };
+    let json = serde_json::to_string_pretty(&report)?;
+    let out_path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        root.join(path)
+    };
+    if let Some(parent) = out_path.parent() {
+        std::fs::create_dir_all(parent).with_context(|| parent.display().to_string())?;
+    }
+    std::fs::write(&out_path, format!("{json}\n")).with_context(|| out_path.display().to_string())?;
+    Ok(())
+}
+
+#[derive(Serialize)]
+struct PrePushAuditLine {
+    schema_version: u32,
+    event: &'static str,
+    unix_ms: u64,
+    total_ms: u64,
+    quick: bool,
+    full: bool,
+}
+
+fn append_prepush_audit_log(root: &Path, opts: &PrePushOpts, total_ms: u64) -> Result<()> {
+    let Ok(raw) = std::env::var("VOX_PREPUSH_AUDIT_LOG") else {
+        return Ok(());
+    };
+    let path = if Path::new(&raw).is_absolute() {
+        PathBuf::from(raw)
+    } else {
+        root.join(raw)
+    };
+    let unix_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .min(u128::from(u64::MAX)) as u64;
+    let line = PrePushAuditLine {
+        schema_version: 1,
+        event: "pre-push-complete",
+        unix_ms,
+        total_ms,
+        quick: opts.quick,
+        full: opts.full,
+    };
+    let mut f = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .with_context(|| path.display().to_string())?;
+    writeln!(f, "{}", serde_json::to_string(&line)?).with_context(|| path.display().to_string())?;
     Ok(())
 }
 
@@ -66,7 +220,7 @@ struct Step {
     run: fn(&Path) -> Result<()>,
 }
 
-fn build_steps(opts: PrePushOpts) -> Vec<Step> {
+fn build_steps(opts: &PrePushOpts) -> Vec<Step> {
     let mut v = vec![
         Step {
             label: "cargo fmt --all -- --check",

@@ -170,7 +170,7 @@ Each finding has an ID, a one-line summary, a file-and-line anchor, and a link t
 - **F7**. `crates/vox-db/src/collection.rs:83` uses string-interpolated SQL (`format!("INSERT INTO {}", ...)`) instead of a bound parameter. Small but real SQLi vector if the caller is wrong. M-27.
 - **F8**. `crates/vox-db/src/codex_legacy.rs:50-51` uses fuzzy `is_legacy_schema_chain` heuristics instead of a committed-to baseline digest. M-28.
 - **F9**. Row-by-row Turso workaround at `crates/vox-db/src/store/ops_retention.rs:101-111` — documented but not isolated. M-29-docs documents module-level; M-21 considers removing once Turso batch support matures.
-- **F10**. `TURSO_*` env vars (`TURSO_URL`, `VOX_TURSO_URL`, `VOX_TURSO_TOKEN`, `TURSO_AUTH_TOKEN`) appear across `vox-secrets/src/backend/vox_vault.rs` and `vox-secrets/src/lib.rs` constants. Redundant with the canonical `VOX_DB_URL` / `VOX_DB_TOKEN`. M-30 (sunset).
+- **F10**. Historical note: legacy Turso-prefixed env aliases (`TURSO_*`, `VOX_TURSO_*`) appear across `vox-secrets/src/backend/vox_vault.rs` and `vox-secrets/src/lib.rs` constants. Redundant with the canonical `VOX_DB_URL` / `VOX_DB_TOKEN`. M-30 (sunset).
 
 ### B. Contracts — canonical shape
 
