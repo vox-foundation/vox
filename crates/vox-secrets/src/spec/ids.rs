@@ -243,6 +243,12 @@ pub enum SecretId {
     VoxOrchestratorExecTimeDefaultBudgetMs,
     VoxOrchestratorExecTimeHistoryWindowDays,
     VoxOrchestratorCampaignId,
+    /// Env override for orchestrator `agentos_aci_envelope_enabled` (after Vox.toml merge).
+    VoxOrchestratorAgentosAciEnvelopeEnabled,
+    /// Env override for orchestrator `agentos_guardrail_kernel_enabled`.
+    VoxOrchestratorAgentosGuardrailKernelEnabled,
+    /// Env override for orchestrator `agentos_checkpoint_hints_enabled`.
+    VoxOrchestratorAgentosCheckpointHintsEnabled,
     VoxRepositoryRoot,
     VoxProviderDailyLimitDefault,
     VoxProviderLimitProviders,

@@ -298,6 +298,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-package/",
         "crates/vox-project-scaffold/",
         "crates/vox-mcp/",
+        "crates/vox-orchestrator-mcp/",
         "crates/vox-db/",
         "crates/vox-doc-pipeline/",
         "crates/vox-forge/",
@@ -333,6 +334,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-package/",
         "crates/vox-project-scaffold/",
         "crates/vox-mcp/",
+        "crates/vox-orchestrator-mcp/",
         "crates/vox-db/",
         "crates/vox-doc-pipeline/",
         "crates/vox-forge/",
@@ -1105,6 +1107,18 @@ mod sql_surface_tests {
         assert!(super::path_is_allowed_for_secret_guard(
             "crates/vox-config/src/inference.rs",
             false
+        ));
+    }
+
+    #[test]
+    fn secret_env_allowlist_includes_orchestrator_mcp_dispatch_surface() {
+        assert!(super::path_is_allowed_for_secret_guard(
+            "crates/vox-orchestrator-mcp/src/dispatch.rs",
+            false
+        ));
+        assert!(super::path_is_allowed_for_secret_guard(
+            "crates/vox-orchestrator-mcp/src/dispatch.rs",
+            true
         ));
     }
 

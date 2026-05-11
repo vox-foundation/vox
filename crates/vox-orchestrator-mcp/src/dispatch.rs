@@ -204,6 +204,7 @@ pub async fn handle_tool_call(
             "duration_ms": duration_ms,
             "success": result.is_ok(),
             "repository_id": state.repository.repository_id,
+            "mutation_kind": vox_orchestrator::agentos::mutation_classifier::mutation_kind_for_tool(name_canonical),
         });
         if let Some(sid) = session_id {
             route_ev["session_id"] = serde_json::Value::String(sid.to_string());
@@ -221,6 +222,7 @@ pub async fn handle_tool_call(
                 "duration_ms": duration_ms,
                 "success": result.is_ok(),
                 "repository_id": state.repository.repository_id,
+                "mutation_kind": vox_orchestrator::agentos::mutation_classifier::mutation_kind_for_tool(name_canonical),
             });
             if let Some(sid) = session_id {
                 payload["session_id"] = serde_json::Value::String(sid.to_string());
@@ -823,6 +825,9 @@ async fn handle_tool_call_inner(
         "vox_memory_search" => {
             Ok(crate::memory::memory_search(state, serde_json::from_value(args)?).await)
         }
+        "vox_semantic_fs_discover" => Ok(
+            crate::memory::semantic_fs_discover_mcp(state, serde_json::from_value(args)?).await,
+        ),
         "vox_memory_log" => {
             Ok(crate::memory::memory_daily_log(state, serde_json::from_value(args)?).await)
         }

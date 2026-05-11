@@ -1,11 +1,14 @@
 use super::config::memory_config_for_state;
 use super::params::{
     KnowledgeQueryParams, MemoryLogParams, MemoryRecallParams, MemorySearchParams,
-    MemoryStoreParams,
+    MemoryStoreParams, SemanticFsDiscoverParams,
 };
 use super::retrieval::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
+
+use serde_json::json;
+use vox_search::SearchPolicy;
 
 const REM_MEMORY_VOXDB: &str =
     "Attach VoxDb (`VOX_DB_PATH` / `VOX_DB_URL`) to the MCP server for knowledge-graph queries.";
@@ -164,6 +167,20 @@ pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> S
         }
         Err(e) => ToolResult::<String>::err_with_remediation(e, REM_MEMORY_RETRIEVAL).to_json(),
     }
+}
+
+/// Rank workspace paths for an intent via the semantic-fs bridge (read-only inventory search).
+pub async fn semantic_fs_discover_mcp(state: &ServerState, params: SemanticFsDiscoverParams) -> String {
+    let policy = SearchPolicy::from_env();
+    let lim_raw = params.limit.unwrap_or(16);
+    let limit = lim_raw.clamp(1, 256) as usize;
+    let hits = super::semantic_fs_discover(
+        &state.repository.root,
+        params.intent.trim(),
+        limit,
+        &policy,
+    );
+    ToolResult::ok(json!({ "hits": hits })).to_json()
 }
 
 /// Append an entry to today's daily memory log.

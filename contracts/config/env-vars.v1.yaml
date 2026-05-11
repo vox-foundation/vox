@@ -2191,6 +2191,24 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_ORCHESTRATOR_AGENTOS_ACI_ENVELOPE_ENABLED"
+    owner_crate: "vox-secrets"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "When set (truthy string), overrides orchestrator AgentOS ACI response envelope toggle after Vox.toml."
+  - name: "VOX_ORCHESTRATOR_AGENTOS_GUARDRAIL_KERNEL_ENABLED"
+    owner_crate: "vox-secrets"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "When set (truthy string), overrides orchestrator AgentOS MCP guardrail preflight toggle after Vox.toml."
+  - name: "VOX_ORCHESTRATOR_AGENTOS_CHECKPOINT_HINTS_ENABLED"
+    owner_crate: "vox-secrets"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "When set (truthy string), overrides orchestrator AgentOS sparse checkpoint hints in ACI envelopes after Vox.toml."
   - name: "VOX_ORCHESTRATOR_CHATML_STRICT"
     owner_crate: "vox-secrets"
     kind: "string"

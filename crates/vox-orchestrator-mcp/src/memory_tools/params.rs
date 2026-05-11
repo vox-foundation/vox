@@ -46,6 +46,16 @@ pub struct MemorySearchParams {
     pub correlation_id: Option<String>,
 }
 
+/// MCP arguments: semantic-fs path discovery from an intent string.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SemanticFsDiscoverParams {
+    /// Natural-language intent (token overlap ranks paths under the workspace root).
+    pub intent: String,
+    /// Max paths to return (default 16).
+    #[serde(default)]
+    pub limit: Option<i64>,
+}
+
 /// MCP arguments: append one line to today's rolling log file.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct MemoryLogParams {

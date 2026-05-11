@@ -875,6 +875,34 @@ impl OrchestratorConfig {
                 self.exec_time_history_window_days,
             );
         }
+
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorAgentosAciEnvelopeEnabled)
+        {
+            self.agentos_aci_envelope_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_AGENTOS_ACI_ENVELOPE_ENABLED",
+                &v,
+                self.agentos_aci_envelope_enabled,
+            );
+        }
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorAgentosGuardrailKernelEnabled)
+        {
+            self.agentos_guardrail_kernel_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_AGENTOS_GUARDRAIL_KERNEL_ENABLED",
+                &v,
+                self.agentos_guardrail_kernel_enabled,
+            );
+        }
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorAgentosCheckpointHintsEnabled)
+        {
+            self.agentos_checkpoint_hints_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_AGENTOS_CHECKPOINT_HINTS_ENABLED",
+                &v,
+                self.agentos_checkpoint_hints_enabled,
+            );
+        }
     }
 
     /// Create a config suitable for testing (small limits, fast timeouts).

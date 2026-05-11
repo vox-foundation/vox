@@ -264,6 +264,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_memory_search" => parse_obj(
             r#"{"type":"object","properties":{"query":{"type":"string"}},"required":["query"],"additionalProperties":false}"#,
         ),
+        "vox_semantic_fs_discover" => parse_obj(
+            r#"{"type":"object","properties":{"intent":{"type":"string","minLength":1},"limit":{"type":"integer","minimum":1,"maximum":256}},"required":["intent"],"additionalProperties":false}"#,
+        ),
         "vox_memory_log" => parse_obj(
             r#"{"type":"object","properties":{"entry":{"type":"string"}},"required":["entry"],"additionalProperties":false}"#,
         ),
@@ -294,7 +297,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
         "vox_learn_pattern" | "vox_behavior_record" | "vox_behavior_summary" => {
             parse_obj(r#"{"type":"object","additionalProperties":true}"#)
-        }
+        },
 
         // ── Codex memory DB ─────────────────────────────────────────────────
         "vox_memory_save_db" | "vox_memory_recall_db" => parse_obj(

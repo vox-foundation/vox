@@ -26,7 +26,9 @@ use crate::privacy_classifier::{
 use crate::privacy_router::{
     PrivacyLevel, PrivacyRouter, PrivacyRoutingDecision, PrivacyRoutingPolicy,
 };
-use crate::risk_matrix::{HitlAction, RiskDimensions, RiskGrade, RiskMatrix, RiskMatrixConfig};
+use crate::risk_matrix::{
+    HitlAction, RiskDimensions, RiskGrade, RiskMatrix, RiskMatrixConfig, apply_agentos_mutation_risk,
+};
 use crate::subagent_dispatch::{DispatchConfig, DispatchDecision, DispatchRouter, DispatchSignal};
 use crate::tier_cascade::{
     AlarmLevel, CompositeSignal, RoutingTier, TierCascadeConfig, TierCascadeRouter,
@@ -58,6 +60,9 @@ pub struct PolicyContext {
     pub context_utilization: f64,
     // D4: dispatch signal
     pub dispatch: DispatchSignal,
+    /// When set (e.g. last MCP tool `aci.mutation_kind`), merges AgentOS signals into risk scoring.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agentos_last_mutation_kind: Option<String>,
 }
 
 impl Default for PolicyContext {
@@ -83,6 +88,7 @@ impl Default for PolicyContext {
             },
             context_utilization: 0.5,
             dispatch: DispatchSignal::default(),
+            agentos_last_mutation_kind: None,
         }
     }
 }
@@ -220,8 +226,12 @@ impl OrchestratorPolicy {
         // D2 — plan mode trigger
         let plan_mode = self.plan_trigger.decide(&ctx.plan_mode);
 
-        // D5+D9 — risk matrix
-        let (risk_score, risk_grade, hitl_action) = self.risk.evaluate(&ctx.risk);
+        // D5+D9 — risk matrix (optional AgentOS mutation_kind overlay)
+        let mut risk_dims = ctx.risk.clone();
+        if let Some(ref mk) = ctx.agentos_last_mutation_kind {
+            apply_agentos_mutation_risk(&mut risk_dims, mk.as_str());
+        }
+        let (risk_score, risk_grade, hitl_action) = self.risk.evaluate(&risk_dims);
 
         // D8 — privacy
         let privacy_level = self.privacy_classifier.classify(&ctx.privacy);
@@ -355,10 +365,30 @@ mod tests {
     }
 
     #[test]
+    fn agentos_external_mutation_boosts_risk_score_over_read_only() {
+        let mut p_base = policy();
+        let base = p_base.evaluate(&PolicyContext {
+            agentos_last_mutation_kind: Some("read_only".into()),
+            ..Default::default()
+        });
+        let mut p_ext = policy();
+        let boosted = p_ext.evaluate(&PolicyContext {
+            agentos_last_mutation_kind: Some("external_side_effect".into()),
+            ..Default::default()
+        });
+        assert!(
+            boosted.risk_score > base.risk_score,
+            "base={} boosted={}",
+            base.risk_score,
+            boosted.risk_score
+        );
+    }
+
+    #[test]
     fn evaluate_is_stateful_across_calls() {
         let mut p = policy();
         // First call
-        p.evaluate(&PolicyContext::default());
+        let _ = p.evaluate(&PolicyContext::default());
         // Second call — calibration loop now has 1 observation, no crash
         let d2 = p.evaluate(&PolicyContext::default());
         assert!(d2.fusion_score >= 0.0);

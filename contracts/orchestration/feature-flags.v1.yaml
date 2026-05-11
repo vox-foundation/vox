@@ -2,6 +2,10 @@
 # Feature flags for orchestrator policy modules (D1–D10).
 # All default false — safe to ship before wiring.
 # Set to true to activate the corresponding module.
+#
+# Runtime: orchestrator reads `[orchestrator]` in Vox.toml first, then optional env overrides
+# resolved via vox-secrets (`VOX_ORCHESTRATOR_AGENTOS_*`, etc.). This YAML is the contract /
+# documentation snapshot — it is not loaded automatically by the Rust binary today.
 version: 1
 x-vox-version: 1
 flags:
