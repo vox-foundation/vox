@@ -20,7 +20,7 @@ fn update_hljs() {
 }
 
 fn update_textmate() {
-    let path = "vox-vscode/syntaxes/vox.tmLanguage.json"
+    let path = "apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json"
     let content = fs.read_file(path)
     
     let tm_keywords = regex.replace(KEYWORDS, " ", "|")

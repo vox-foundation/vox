@@ -18,7 +18,7 @@ Users and enterprises evaluate Vox on **what leaves the machine** and **what is 
 
 ## Naming collision: webview `telemetry` tab
 
-The VS Code webview sidebar ([`vox-vscode/webview-ui/src/index.tsx`](../../../vox-vscode/webview-ui/src/index.tsx)) shows **local** dashboard-style content (for example [`UnifiedDashboard.tsx`](../../../vox-vscode/webview-ui/src/components/UnifiedDashboard.tsx)), not a remote analytics pipeline.
+The VS Code webview sidebar ([`apps/editor/vox-vscode/webview-ui/src/index.tsx`](../../../apps/editor/vox-vscode/webview-ui/src/index.tsx)) shows **local** dashboard-style content (for example [`UnifiedDashboard.tsx`](../../../apps/editor/vox-vscode/webview-ui/src/components/UnifiedDashboard.tsx)), not a remote analytics pipeline.
 
 **Implementation rule:** user-facing copy MUST distinguish:
 
@@ -37,7 +37,7 @@ Prefer labels such as **“Usage & budgets”** or **“Local insights”** in p
 
 ## Extension README
 
-[`vox-vscode/README.md`](../../../vox-vscode/README.md) SHOULD link to:
+[`apps/editor/vox-vscode/README.md`](../../../apps/editor/vox-vscode/README.md) SHOULD link to:
 
 - this SSOT
 - [telemetry-trust-ssot](telemetry-trust-ssot.md)

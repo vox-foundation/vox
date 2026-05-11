@@ -163,9 +163,9 @@ The middle comment block of `.cursorignore`, `.aiignore`, and `.aiexclude` has b
 **Files referenced by audit (no documented source/generator):**
 - `contracts/capability/model-manifest.generated.json`
 - `contracts/scientia/social-execution-board.generated.yaml`
-- `vox-vscode/src/core/mcpToolRegistry.generated.ts`
+- `apps/editor/vox-vscode/src/core/mcpToolRegistry.generated.ts`
 
-- [ ] **Step 1: For each, find the generator.** Run: `grep -rn "model-manifest.generated\|social-execution-board.generated\|mcpToolRegistry.generated" --include='*.rs' --include='*.vox' --include='*.mjs' --include='*.ts' --include='*.toml' --include='*.json'`. The vscode one is almost certainly `vox-vscode/scripts/generate-mcp-tool-registry.mjs` per Phase 5 audit. The contracts ones are unknown.
+- [ ] **Step 1: For each, find the generator.** Run: `grep -rn "model-manifest.generated\|social-execution-board.generated\|mcpToolRegistry.generated" --include='*.rs' --include='*.vox' --include='*.mjs' --include='*.ts' --include='*.toml' --include='*.json'`. The vscode one is almost certainly `apps/editor/vox-vscode/scripts/generate-mcp-tool-registry.mjs` per Phase 5 audit. The contracts ones are unknown.
 - [ ] **Step 2: For each generator found, ensure the *generated* file has a header comment block stating: source file(s), generator command, and a `DO NOT EDIT` notice.** If the file already has this, skip. If not, the fix is in the *generator*, not the output (so the next regen re-emits it correctly).
 - [ ] **Step 3: For any file with no findable generator,** flag as a separate investigation task. Do not delete; the file may be checked-in golden output of a one-shot script no longer in the tree, or be a stranded artifact.
 - [ ] **Step 4: Commit.** `git commit -m "chore: document provenance for *.generated.* files"`

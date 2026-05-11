@@ -253,7 +253,7 @@ Each finding has an ID, a one-line summary, a file-and-line anchor, and a link t
 - **F69**. `tree-sitter-vox/GRAMMAR_SSOT.md` exists and is a grammar SSOT. Link it from Related Documents; wire a parity check. M-72.
 - **F70**. `.gitignore` hygiene — no automated BOM check. Policy-only, rolled into M-74.
 - **F71**. `patches/` directory is Cargo vendored-patches — third-party, not Vox data. Allowlist in guard. M-73.
-- **F72**. `examples/` and `marquee_app/` top-level dirs: if they persist data, routing must go through the tiered model. M-73.
+- **F72**. `examples/` and `apps/interop/marquee_app/` top-level dirs: if they persist data, routing must go through the tiered model. M-73.
 - **F73**. `tools/` and `infra/` top-level dirs: similar to F72. M-73.
 - **F74**. `telemetry-trust-ssot.md`, `telemetry-remote-sink-spec.md`, and `telemetry-implementation-blueprint-2026.md` are referenced by `AGENTS.md §Telemetry trust (SSOT)` but do NOT exist in `docs/src/architecture/`. M-40 is blocked on authoring at least the trust SSOT. Tracked here so downstream migrations know the prerequisite.
 

@@ -493,7 +493,7 @@ proposing message are answered yes:
 
 | Phase | Plan |
 |---|---|
-| 0a | [Phase 0a — Phantom-import resolution](../../superpowers/plans/2026-05-09-scientia-phase-0a-phantom-imports.md) — **Complete** |
+| 0a | [Phase 0a — Phantom-import resolution](../../superpowers/plans/scientia/2026-05-09-scientia-phase-0a-phantom-imports.md) — **Complete** |
 | 0b | Phase 0b — `vox-research-events` L1 crate — **Complete** |
 | 0c | schema_types module in vox-research-events (5 JSON Schema → Rust types) — **Complete** |
 | 0d | 7 DB tables + 12 Codex methods (research_pipeline.rs) — **Complete** |

@@ -177,7 +177,7 @@ checks:
     command: ["cargo", "deny", "check"]
 
   - id: biome-ts-lint
-    description: "biome lint (TypeScript/TSX/JSX across docs-astro, vox-mental-tracker, tools/visualizer)"
+    description: "biome lint (TypeScript/TSX/JSX across docs-astro, vox-mental-tracker, apps/experimental/visualizer)"
     category: lint
     blocking: true
     runs_on:

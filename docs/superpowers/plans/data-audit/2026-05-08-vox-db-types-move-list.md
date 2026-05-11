@@ -1,7 +1,7 @@
 # vox-db → vox-db-types move candidates
 
 Audit produced for Phase 4 of the Vox-DB & Memory Management Audit PR
-(plan: `docs/superpowers/plans/2026-05-08-vox-db-and-memory-audit-pr.md`).
+(plan: `docs/superpowers/plans/data-audit/2026-05-08-vox-db-and-memory-audit-pr.md`).
 
 This is a working checklist for Phase 4.2-4.3. Each MOVE candidate gets
 ticked off as it lands.

@@ -152,7 +152,7 @@ C:\Users\Owner\vox\                        — repo root
 │   ├── vox-scientia/                      — RAG / knowledge curation
 │   ├── vox-db/                            — Codex / Arca Vault / Turso bindings
 │   └── vox-runtime/                       — process primitives, telemetry
-├── vox-vscode/                            — VS Code extension (to be shrunk)
+├── apps/editor/vox-vscode/                            — VS Code extension (to be shrunk)
 ├── contracts/
 │   ├── mcp/tool-registry.canonical.yaml   — MCP tool SSOT (247 tools)
 │   ├── operations/catalog.v1.yaml         — operations catalog
@@ -198,8 +198,8 @@ cargo fmt --all -- --check
 # Doctests for .vox code blocks
 vox doc-pipeline --mode check
 
-# VS Code extension (only if you touched vox-vscode/)
-cd vox-vscode && npm run compile && npm run lint
+# VS Code extension (only if you touched apps/editor/vox-vscode/)
+cd apps/editor/vox-vscode && npm run compile && npm run lint
 ```
 
 If a task adds new code, also run:
@@ -1189,8 +1189,8 @@ rg "HirLoweringMigrationFlags|\.components\b|\.hooks\b" crates/ && echo "LEAKS" 
 - Workspace builds clean.
 
 **Known issues**:
-- If `vox-vscode/` references any of the deleted Decl types through MCP
-  schema, regenerate `vox-vscode/src/core/mcpToolRegistry.generated.ts` via
+- If `apps/editor/vox-vscode/` references any of the deleted Decl types through MCP
+  schema, regenerate `apps/editor/vox-vscode/src/core/mcpToolRegistry.generated.ts` via
   its existing script.
 
 **Do NOT**:
@@ -2435,7 +2435,7 @@ vox doc-pipeline --mode check
 vox build examples/golden/*.vox
 
 # 10. VS Code extension (if touched)
-cd vox-vscode && npm run compile && npm run lint
+cd apps/editor/vox-vscode && npm run compile && npm run lint
 ```
 
 If any step fails and the failure is not a pre-existing unrelated issue,

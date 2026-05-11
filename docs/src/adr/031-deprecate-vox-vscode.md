@@ -14,7 +14,7 @@ Accepted (2026-05-01)
 
 ## Context
 
-`vox-vscode/` was historically documented as the "Single Source of Truth" for the Vox user-facing frontend (`docs/src/reference/vox-web-stack.md`, line 34, pre-2026-05-01). In practice:
+`apps/editor/vox-vscode/` was historically documented as the "Single Source of Truth" for the Vox user-facing frontend (`docs/src/reference/vox-web-stack.md`, line 34, pre-2026-05-01). In practice:
 
 1. The VS Code extension hardcodes VS Code APIs (`vscode.window`, `TextEditor`, `DiagnosticsCollection`, `WebviewPanel`). These APIs are unavailable outside the extension host and cannot be reused in a browser-native or CLI context.
 2. `crates/vox-dashboard/` (started in ADR 024) has grown into a capable Axum+React SPA that covers the same orchestration surface without editor lock-in.
@@ -36,9 +36,9 @@ Accepted (2026-05-01)
 
 ## Consequences
 
-- No new features land in `vox-vscode/src/` beyond LSP fixes.
-- `vox-vscode/package.json` should be updated to mark `deprecated: true` once Phase 2 parity is achieved.
-- All documentation that says "ship new behavior in `vox-vscode/` first" must be updated to say "ship in `vox-dashboard/`".
+- No new features land in `apps/editor/vox-vscode/src/` beyond LSP fixes.
+- `apps/editor/vox-vscode/package.json` should be updated to mark `deprecated: true` once Phase 2 parity is achieved.
+- All documentation that says "ship new behavior in `apps/editor/vox-vscode/` first" must be updated to say "ship in `vox-dashboard/`".
 
 ## Related
 

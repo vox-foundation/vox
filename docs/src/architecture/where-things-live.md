@@ -144,6 +144,7 @@ guess. The full crate roster with layer assignments lives in
 | Local `act` configuration (catalog image pin, platform map) | `.actrc` (repo root) |
 | Self-hosted CI runner image | `Dockerfile.ci-runner` (repo root); published via `.github/workflows/publish-ci-runner.yml` to GHCR |
 | Extend `vox ci pre-push` modes | `crates/vox-cli/src/commands/ci/pre_push.rs` — add `Step` to `build_steps` or extend `PrePushOpts` |
+| Find the canonical path for GUI surfaces (interop app, experimental visualizer, fixtures, VS Code host) | [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml) — `apps/interop/marquee_app`, `apps/experimental/visualizer`, `tests/fixtures/frontend/test_app_bundle`, `apps/editor/vox-vscode` |
 | Add a `Db<Entity>Id` newtype | `crates/vox-db-types/src/ids.rs` (use the `string_id!` macro). |
 | Add a DB store operation | `crates/vox-db/src/<concept>.rs` (impl block on `VoxDb`) |
 | Add a pure-data DB row type | `crates/vox-db-types/src/store_types/` (NOT `vox-db`) |

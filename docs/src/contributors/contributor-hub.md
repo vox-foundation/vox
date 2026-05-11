@@ -63,7 +63,7 @@ Use these surfaces intentionally:
 | Contracts and schema-backed behavior | [contracts/README.md](../../../contracts/README.md), related reference pages under `docs/src/reference/` |
 | MCP, HTTP, Populi mesh, SSE, WebSockets | [Communication protocols](../reference/communication-protocols.md), [protocol catalog](../../../contracts/communication/protocol-catalog.yaml); research [Protocol convergence research 2026](../archive/research-2026-q1/protocol-convergence-research-2026.md) |
 | CI, workflow, or policy guardrails | [CI runner contract](../ci/runner-contract.md), [Pre-push local CI parity](#pre-push-local-ci-parity) (below), [Architectural governance (TOESTUB)](../../agents/governance.md) |
-| VS Code / Cursor extension, MCP tool calls from the editor, Oratio speech UX | [`vox-vscode/README.md`](../../../vox-vscode/README.md), [VS Code ↔ MCP compatibility](../reference/vscode-mcp-compat.md), [Speech capture architecture](../reference/speech-capture-architecture.md) |
+| VS Code / Cursor extension, MCP tool calls from the editor, Oratio speech UX | [`apps/editor/vox-vscode/README.md`](../../../apps/editor/vox-vscode/README.md), [VS Code ↔ MCP compatibility](../reference/vscode-mcp-compat.md), [Speech capture architecture](../reference/speech-capture-architecture.md) |
 
 Fast local policy rerun for this lane:
 

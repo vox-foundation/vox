@@ -146,7 +146,7 @@ in [`crates/vox-code-audit/src/detectors/mod.rs`](../../../crates/vox-code-audit
   ([`lefthook.yml`](../../../lefthook.yml) line ~38) is the sole runner.
   No CI invocation. Coverage gap if hooks aren't installed.
 - **TypeScript linting is essentially absent.** Two tool-local configs
-  (`tools/visualizer/eslint.config.js`, `vox-vscode/eslint.config.mjs`).
+  (`apps/experimental/visualizer/eslint.config.js`, `apps/editor/vox-vscode/eslint.config.mjs`).
   No workspace-wide eslint or biome; emitted TS from `crates/vox-codegen/codegen_ts/`
   is unvetted by any linter.
 - **Markdownlint is advisory.** `continue-on-error: true` in
@@ -421,7 +421,7 @@ Ship these in any order; each is independent and small.
    real; expect to add `cargo-mutants` exclusions for known-irrelevant
    mutations.
 3. **TypeScript linting via biome.** Workspace-root `biome.json`. Lint TS in
-   `docs-astro/`, `vox-vscode/`, `tools/visualizer/`, **and** the output
+   `docs-astro/`, `apps/editor/vox-vscode/`, `apps/experimental/visualizer/`, **and** the output
    from `crates/vox-codegen/codegen_ts/` test fixtures. Pros: codegen
    regressions surface as lint failures, not runtime bugs. Risks: existing
    TS may need cleanup; ship as warnings first, promote to errors after a

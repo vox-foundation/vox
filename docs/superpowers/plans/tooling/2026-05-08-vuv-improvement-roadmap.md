@@ -1219,7 +1219,7 @@ VUV-9 ships the deprecation cycle. Every later phase honors it: if it renames `X
 
 ## Execution handoff
 
-Plan complete and saved at `docs/superpowers/plans/2026-05-08-vuv-improvement-roadmap.md`. The detailed VUV-9 work is ready to execute.
+Plan complete and saved at `docs/superpowers/plans/tooling/2026-05-08-vuv-improvement-roadmap.md`. The detailed VUV-9 work is ready to execute.
 
 **Two execution options:**
 

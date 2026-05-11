@@ -32,7 +32,7 @@ schema_type: "TechArticle"
 
 > [!IMPORTANT]
 > **`vox-dashboard` is the Single Source of Truth** for the Vox user-facing frontend experience (see [ADR 030](../adr/030-state-machine-ssot.md) and [ADR 031](../adr/031-deprecate-vox-vscode.md)).
-> `vox-vscode/` is **deprecated** and retained only for its LSP client. Ship new MCP behavior, capability UX, and visualization in `crates/vox-dashboard/` — not in the VS Code extension.
+> `apps/editor/vox-vscode/` is **deprecated** and retained only for its LSP client. Ship new MCP behavior, capability UX, and visualization in `crates/vox-dashboard/` — not in the VS Code extension.
 
 The **orchestration dashboard** (`crates/vox-dashboard/`) is the primary Vox user surface. It is served by the Axum backend (`vox dashboard` command) and communicates with the orchestrator over a local MCP WebSocket proxy. All reactive UI state within the dashboard uses the Vox `state_machine` compiler primitive as the single source of truth (see below).
 

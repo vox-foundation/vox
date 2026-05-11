@@ -27,7 +27,7 @@ These are the commits the app PR (#70) carries beyond `main`:
 
 ### What's NOT yet landed (the work this handoff is for)
 
-- **Six language/compiler features** that the app's remaining phases want. All have written plans under `docs/superpowers/plans/2026-05-08-language-*.md`, indexed by `docs/superpowers/plans/2026-05-08-language-features-tracker-index.md`.
+- **Six language/compiler features** that the app's remaining phases want. All have written plans under `docs/superpowers/plans/language/2026-05-08-language-*.md`, indexed by `docs/superpowers/plans/language/2026-05-08-language-features-tracker-index.md`.
 - **App phases 2-6** (voice E2E, native STT parity, clinician-grade export, hourglass verification, release-readiness). Once the language work lands, the app PR rebases on the new `main` and the remaining phases finish on `claude/vox-mental-tracker-baseline`.
 
 ---
@@ -40,14 +40,14 @@ Each language plan is its own PR off `main`. **Do not commingle compiler changes
 
 | # | Plan | Path |
 |---|---|---|
-| 1 | struct types | `docs/superpowers/plans/2026-05-08-language-struct-types.md` |
-| 2 | JSON parse + access stdlib | `docs/superpowers/plans/2026-05-08-language-json-stdlib.md` |
-| 3 | match-arm statement bodies | `docs/superpowers/plans/2026-05-08-language-match-arm-statements.md` |
-| 4 | string utilities (split/slice/char_at/index_of/starts_with/ends_with) | `docs/superpowers/plans/2026-05-08-language-string-utils.md` |
-| 5 | regex stdlib | `docs/superpowers/plans/2026-05-08-language-regex-stdlib.md` |
-| 6 | TS-source FFI from Vox components | `docs/superpowers/plans/2026-05-08-language-ts-source-ffi.md` |
+| 1 | struct types | `docs/superpowers/plans/language/2026-05-08-language-struct-types.md` |
+| 2 | JSON parse + access stdlib | `docs/superpowers/plans/language/2026-05-08-language-json-stdlib.md` |
+| 3 | match-arm statement bodies | `docs/superpowers/plans/language/2026-05-08-language-match-arm-statements.md` |
+| 4 | string utilities (split/slice/char_at/index_of/starts_with/ends_with) | `docs/superpowers/plans/language/2026-05-08-language-string-utils.md` |
+| 5 | regex stdlib | `docs/superpowers/plans/language/2026-05-08-language-regex-stdlib.md` |
+| 6 | TS-source FFI from Vox components | `docs/superpowers/plans/language/2026-05-08-language-ts-source-ffi.md` |
 
-Index document with rationale + ordering: `docs/superpowers/plans/2026-05-08-language-features-tracker-index.md`.
+Index document with rationale + ordering: `docs/superpowers/plans/language/2026-05-08-language-features-tracker-index.md`.
 
 ### Dependency graph
 
@@ -88,7 +88,7 @@ Wait for wave 1 to land (or at least for plan (1) to land — that's the only bl
    - For language features that touch Rust codegen: `cargo build --workspace` (so existing crates that consume codegen still link).
    - For language features that touch TS codegen: build a tiny example with `vox build` and `node --check` the emitted TS.
 6. Use `superpowers:requesting-code-review` after self-verification. Open the PR with `gh pr create --base main`.
-7. Update `docs/superpowers/plans/2026-05-08-language-features-tracker-index.md` to mark the plan landed (replace its row's bare title with `[landed in #NNN](url)`).
+7. Update `docs/superpowers/plans/language/2026-05-08-language-features-tracker-index.md` to mark the plan landed (replace its row's bare title with `[landed in #NNN](url)`).
 
 ### Existing repo conventions to respect
 
@@ -143,7 +143,7 @@ These do NOT exist yet. The receiving session should write them using `superpowe
 - Tests: deterministic snapshot of CSV + JSON bundle for a fixed fixture.
 
 **Phase 5 — Hourglass verification + CI lanes.**
-- Expand vitest + Playwright. Add policy-runner labels per `apps/vox-mental-tracker/docs/architecture/failure-modes-research-2026.md` to the existing `.github/workflows/vox-mental-tracker.yml` (use the lane shape from `docs/superpowers/plans/2026-05-03-local-ci-pre-push-and-job-split.md`).
+- Expand vitest + Playwright. Add policy-runner labels per `apps/vox-mental-tracker/docs/architecture/failure-modes-research-2026.md` to the existing `.github/workflows/vox-mental-tracker.yml` (use the lane shape from `docs/superpowers/plans/ci/2026-05-03-local-ci-pre-push-and-job-split.md`).
 - Add a `vox check` CI step that depends on the language features being in `main`.
 
 **Phase 6 — Release-readiness gate.**

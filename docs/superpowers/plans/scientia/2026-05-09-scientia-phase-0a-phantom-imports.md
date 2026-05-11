@@ -1310,7 +1310,7 @@ Expected: pass.
 Edit [scientia-self-publication-finalization-plan-2026.md](../../src/architecture/scientia-self-publication-finalization-plan-2026.md) §12 to mark Phase 0a as `Complete`:
 
 ```markdown
-| 0a | [Phase 0a — Phantom-import resolution](../../superpowers/plans/2026-05-09-scientia-phase-0a-phantom-imports.md) — **Complete** |
+| 0a | [Phase 0a — Phantom-import resolution](../../superpowers/plans/scientia/2026-05-09-scientia-phase-0a-phantom-imports.md) — **Complete** |
 ```
 
 Commit with `docs(scientia): mark Phase 0a complete in strategic plan`.

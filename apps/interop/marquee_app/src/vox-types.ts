@@ -19,7 +19,7 @@ export type Result<T, E = string> =
   | { ok: true; value: T }
   | { ok: false; error: E }
 
-// ─── @table Item (from marquee_app/src/main.vox) ──────────────────────────────
+// ─── @table Item (from apps/interop/marquee_app/src/main.vox) ──────────────────────────────
 
 export interface Item {
   id: string

@@ -3,7 +3,7 @@
 > **For agentic workers:** This document is a continuation handoff from the
 > audit PR merged on 2026-05-09. Read it top-to-bottom before touching
 > anything. All references to "the audit PR" mean the work in
-> `docs/superpowers/plans/2026-05-08-vox-db-and-memory-audit-pr.md`.
+> `docs/superpowers/plans/data-audit/2026-05-08-vox-db-and-memory-audit-pr.md`.
 
 **Goal:** Complete the two items that were correctly deferred from the audit PR
 and document the decision framework that governs future DB work.

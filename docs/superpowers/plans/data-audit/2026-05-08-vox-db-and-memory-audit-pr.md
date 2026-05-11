@@ -91,7 +91,7 @@ The guard's `scan_targets` may exclude `vox-secrets` via a non-obvious mechanism
 sed -n '1,200p' crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs
 ```
 
-Record findings in `docs/superpowers/plans/2026-05-08-vox-db-audit-baseline.md` (a sibling notes file, ≤30 lines). Capture: the actual scan scope, whether `vox-secrets` is included, and whether the regex matches the contents of `vox_vault.rs`.
+Record findings in `docs/superpowers/plans/data-audit/2026-05-08-vox-db-audit-baseline.md` (a sibling notes file, ≤30 lines). Capture: the actual scan scope, whether `vox-secrets` is included, and whether the regex matches the contents of `vox_vault.rs`.
 
 - [ ] **Step 6: Re-run with verbose tracing to confirm**
 
@@ -100,7 +100,7 @@ If still ambiguous, add `--verbose` if the subcommand supports it, OR temporaril
 - [ ] **Step 7: Commit the baseline notes file**
 
 ```bash
-git add docs/superpowers/plans/2026-05-08-vox-db-audit-baseline.md
+git add docs/superpowers/plans/data-audit/2026-05-08-vox-db-audit-baseline.md
 git commit -m "docs(plan): baseline notes for vox-db audit PR"
 ```
 
@@ -1017,7 +1017,7 @@ This phase is the largest. It can be split off into a follow-up PR if the execut
 ### Task 4.1: Audit which `vox-db` types are pure data
 
 **Files:**
-- Read-only audit; output: `docs/superpowers/plans/2026-05-08-vox-db-types-move-list.md`
+- Read-only audit; output: `docs/superpowers/plans/data-audit/2026-05-08-vox-db-types-move-list.md`
 
 - [ ] **Step 1: List every public type re-exported from `vox-db`**
 
@@ -1041,7 +1041,7 @@ rg "turso::|VoxDb|Connection" crates/vox-db/src/<file>.rs
 
 - [ ] **Step 3: Write the move-list document**
 
-Create `docs/superpowers/plans/2026-05-08-vox-db-types-move-list.md` with the format:
+Create `docs/superpowers/plans/data-audit/2026-05-08-vox-db-types-move-list.md` with the format:
 
 ```markdown
 # vox-db → vox-db-types move candidates
@@ -1063,7 +1063,7 @@ Create `docs/superpowers/plans/2026-05-08-vox-db-types-move-list.md` with the fo
 - [ ] **Step 4: Commit the audit doc**
 
 ```bash
-git add docs/superpowers/plans/2026-05-08-vox-db-types-move-list.md
+git add docs/superpowers/plans/data-audit/2026-05-08-vox-db-types-move-list.md
 git commit -m "docs(vox-db): catalog pure-data types eligible to move to vox-db-types"
 ```
 
@@ -1457,7 +1457,7 @@ If no domain type exists, skip that row (no bridge needed). If one does (e.g. `S
 
 - [ ] **Step 3: Document picks**
 
-Append to `docs/superpowers/plans/2026-05-08-vox-db-types-move-list.md`:
+Append to `docs/superpowers/plans/data-audit/2026-05-08-vox-db-types-move-list.md`:
 
 ```markdown
 ## Row↔Domain bridges to add (Phase 6)
@@ -2241,8 +2241,8 @@ gh pr view --web
 - `crates/vox-db-types/src/store_types/conversions.rs`
 - `crates/vox-db-types/tests/serde_uniformity.rs`
 - `scripts/extract_table_names.vox`
-- `docs/superpowers/plans/2026-05-08-vox-db-audit-baseline.md`
-- `docs/superpowers/plans/2026-05-08-vox-db-types-move-list.md`
+- `docs/superpowers/plans/data-audit/2026-05-08-vox-db-audit-baseline.md`
+- `docs/superpowers/plans/data-audit/2026-05-08-vox-db-types-move-list.md`
 
 **Modified:**
 - `crates/vox-cli/src/commands/ci/cmd_enums.rs` (4 new variants)

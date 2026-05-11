@@ -502,7 +502,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **SSOT findings**: F17, F67, Open Question #9.
 - **Sub-steps**:
   1. Identify whether `dist/schemas.ts` is source or build output. Check `package.json` build scripts, `dist/.gitignore`, `docs/src/reference/frontend.md` if it exists.
-  2. If source: move to `marquee_app/src/schemas.ts` or similar, and commit decision.
+  2. If source: move to `apps/interop/marquee_app/src/schemas.ts` or similar, and commit decision.
   3. If build output: move out of `dist/`, add to `.gitignore`, and write a regeneration task. CI check: `dist/schemas.ts` byte-identical to regeneration.
   4. Author decision memo at `docs/src/architecture/decisions/011-dist-schemas-ts-provenance.md`.
 - **Verification**: decision memo committed; follow-up ticket filed.
@@ -907,7 +907,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   2. Author `docs/src/architecture/decisions/012-vox-tensor-vs-vox-mens-boundary.md` resolving Open Question #8.
 - **Verification**: guard green; decision memo committed.
 
-### M-73 · Top-level dir READMEs (patches/examples/marquee_app/tools/infra)
+### M-73 · Top-level dir READMEs (patches/examples/apps/interop/marquee_app/tools/infra)
 
 - **Owner**: Governance.
 - **Blast radius**: L.
@@ -1074,7 +1074,7 @@ These four tickets close the findings added in SSOT §I (F75–F78) after reconc
 - **Mens**: owners of `vox-mens`, `vox-populi`, `vox-tensor`.
 - **Ludus**: owners of `vox-ludus`.
 - **Config owner**: owners of `vox-config`.
-- **Frontend**: owners of `marquee_app/`, `dist/`, `vox-vscode`.
+- **Frontend**: owners of `apps/interop/marquee_app/`, `dist/`, `apps/editor/vox-vscode`.
 - **Governance**: owners of `AGENTS.md`, `crates/_frozen.md`, and `docs/src/architecture/decisions/`.
 - **CI**: owners of `.gitlab-ci.yml`, `.github/workflows/`, and the `vox ci` subcommands.
 

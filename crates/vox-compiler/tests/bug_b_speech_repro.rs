@@ -1,5 +1,5 @@
 //! Bug B repro: `Speech.transcribe_microphone()` lowers to `mobile.transcribe_microphone()`
-//! per docs/superpowers/plans/2026-05-08-codegen-ts-bugs-blocking-tracker.md.
+//! per docs/superpowers/plans/language/2026-05-08-codegen-ts-bugs-blocking-tracker.md.
 
 const FIXTURE: &str = r#"
 import react.use_state

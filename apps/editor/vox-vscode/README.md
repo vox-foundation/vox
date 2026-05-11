@@ -10,7 +10,7 @@ training_rationale: "Provides documentation for the VS Code extension, including
 
 > Syntax highlighting, LSP integration, and build commands for [Vox](https://github.com/vox-foundation/vox) — the AI-native, full-stack programming language.
 
-**Frontend output (2026):** `vox build` emits **`routes.manifest.ts`** and **`vox-client.ts`**; generated **`App.tsx` / `VoxTanStackRouter.tsx` / `serverFns.ts`** are retired. Use **`vox build --scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) to seed a user-owned `app/App.tsx` + Vite shell that imports the manifest. Extension docs, snippets, and path assumptions should align with manifest-first adapters (see [`react-interop-hybrid-adapter-cookbook.md`](../docs/src/architecture/react-interop-hybrid-adapter-cookbook.md)).
+**Frontend output (2026):** `vox build` emits **`routes.manifest.ts`** and **`vox-client.ts`**; generated **`App.tsx` / `VoxTanStackRouter.tsx` / `serverFns.ts`** are retired. Use **`vox build --scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) to seed a user-owned `app/App.tsx` + Vite shell that imports the manifest. Extension docs, snippets, and path assumptions should align with manifest-first adapters (see [`react-interop-hybrid-adapter-cookbook.md`](../../../docs/src/architecture/react-interop-hybrid-adapter-cookbook.md)).
 
 ## Features
 
@@ -18,7 +18,7 @@ training_rationale: "Provides documentation for the VS Code extension, including
 - **Language Server Protocol** — Real-time diagnostics, hover information, and completions via `vox-lsp`.
 - **Build Commands** — "Vox: Build Current File" and "Vox: Run Current Project" from the command palette.
 - **Visual Editor** — "Vox: Open Visual Editor" opens a webview preview (`dist/index.html` when present, otherwise a localhost dev iframe).
-- **MCP + Oratio** — With `vox mcp` connected (`vox.mcp.serverPath`), run any contributed **Vox:** command (or open **Vox Workspace**) to activate even in folders without `.vox` files; use **Vox: Oratio —** or **Explorer** right-click on audio (case-insensitive extension match). In-workspace files use a relative MCP path; external picks copy into `.vox/tmp/`. Voice capture writes mono WAV under `.vox/tmp/` then calls the same MCP tools. See [`docs/src/reference/speech-capture-architecture.md`](../docs/src/reference/speech-capture-architecture.md) in this workspace.
+- **MCP + Oratio** — With `vox mcp` connected (`vox.mcp.serverPath`), run any contributed **Vox:** command (or open **Vox Workspace**) to activate even in folders without `.vox` files; use **Vox: Oratio —** or **Explorer** right-click on audio (case-insensitive extension match). In-workspace files use a relative MCP path; external picks copy into `.vox/tmp/`. Voice capture writes mono WAV under `.vox/tmp/` then calls the same MCP tools. See [`docs/src/reference/speech-capture-architecture.md`](../../../docs/src/reference/speech-capture-architecture.md) in this workspace.
 - **Status Bar** — Quick-access build button in the VS Code status bar.
 
 ## Installation
@@ -26,7 +26,7 @@ training_rationale: "Provides documentation for the VS Code extension, including
 ### From VSIX (Recommended)
 
 ```bash
-cd vox-vscode
+cd apps/editor/vox-vscode
 npm install
 npm run compile
 npx @vscode/vsce package
@@ -36,7 +36,7 @@ code --install-extension vox-lang-0.2.0.vsix
 ### From Source
 
 ```bash
-cd vox-vscode
+cd apps/editor/vox-vscode
 npm install
 npm run compile
 # Then press F5 in VS Code to launch the Extension Development Host
@@ -66,8 +66,8 @@ npm run compile
 
 ## Privacy and telemetry
 
-- **Vox product telemetry SSOT** (trust boundaries, naming, and debug flags): [`docs/src/architecture/telemetry-trust-ssot.md`](../docs/src/architecture/telemetry-trust-ssot.md), [`docs/src/architecture/telemetry-client-disclosure-ssot.md`](../docs/src/architecture/telemetry-client-disclosure-ssot.md).
-- **MCP debug payloads** (`vox.mcp.debugPayloads`): see [`docs/src/reference/vscode-mcp-compat.md`](../docs/src/reference/vscode-mcp-compat.md) — high-sensitivity diagnostic, not anonymous usage data.
+- **Vox product telemetry SSOT** (trust boundaries, naming, and debug flags): [`docs/src/architecture/telemetry-trust-ssot.md`](../../../docs/src/architecture/telemetry-trust-ssot.md), [`docs/src/architecture/telemetry-client-disclosure-ssot.md`](../../../docs/src/architecture/telemetry-client-disclosure-ssot.md).
+- **MCP debug payloads** (`vox.mcp.debugPayloads`): see [`docs/src/reference/vscode-mcp-compat.md`](../../../docs/src/reference/vscode-mcp-compat.md) — high-sensitivity diagnostic, not anonymous usage data.
 - The webview may expose a **local** “telemetry” or insights tab for **on-machine** stats; it is not a separate remote analytics product unless documented otherwise in the SSOT above.
 
 ## Commands

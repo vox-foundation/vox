@@ -52,7 +52,7 @@ Use this as the **single execution checklist** for telemetry unification. Check 
 
 ### 0.E VS Code packaging
 
-- [x] `vox-vscode/README.md` — link [telemetry-client-disclosure-ssot](telemetry-client-disclosure-ssot.md) and trust-ssot.
+- [x] `apps/editor/vox-vscode/README.md` — link [telemetry-client-disclosure-ssot](telemetry-client-disclosure-ssot.md) and trust-ssot.
 
 archived_date: 2026-04-18
 ---
@@ -197,9 +197,9 @@ archived_date: 2026-04-18
 
 ## Phase 4 — Client disclosure and UX
 
-- [x] `vox-vscode/webview-ui/src/index.tsx` — evaluate tab `id="telemetry"` rename vs display label-only change; document breaking change if any.
-- [x] `vox-vscode/webview-ui/src/components/Dashboard.tsx` — user-visible strings reviewed against client-disclosure SSOT.
-- [x] `vox-vscode/package.json` — contribution settings descriptions reference trust SSOT where debug flags exposed.
+- [x] `apps/editor/vox-vscode/webview-ui/src/index.tsx` — evaluate tab `id="telemetry"` rename vs display label-only change; document breaking change if any.
+- [x] `apps/editor/vox-vscode/webview-ui/src/components/Dashboard.tsx` — user-visible strings reviewed against client-disclosure SSOT.
+- [x] `apps/editor/vox-vscode/package.json` — contribution settings descriptions reference trust SSOT where debug flags exposed.
 - [x] `docs/src/reference/vscode-mcp-compat.md` — cross-link telemetry-client-disclosure-ssot.
 
 archived_date: 2026-04-18

@@ -3,7 +3,7 @@
 //!
 //! §1.A.3 repro: `.length()` lowers to a method call in TS where `length` is a property.
 //!
-//! Reference: docs/superpowers/plans/2026-05-08-handoff-zero-ts-vox-self-sufficient.md §1.A
+//! Reference: docs/superpowers/plans/handoff/2026-05-08-handoff-zero-ts-vox-self-sufficient.md §1.A
 
 const FIXTURE_LAMBDA_HANDLER: &str = r#"
 import react.use_state

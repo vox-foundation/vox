@@ -16,7 +16,7 @@ training_eligible: false
 **Superseded** (2026-05-03) — islands retired; see [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). Original status: Accepted (2026-04-30)
 
 > [!NOTE]
-> **Amendment (2026-05-01):** `vox-dashboard` is now the **primary user surface** for the Vox orchestrator; `vox-vscode/` is deprecated and retained for LSP only. New capability UX, MCP behavior, and visualization ship in `crates/vox-dashboard/`. See [ADR 031](031-deprecate-vox-vscode.md).
+> **Amendment (2026-05-01):** `vox-dashboard` is now the **primary user surface** for the Vox orchestrator; `apps/editor/vox-vscode/` is deprecated and retained for LSP only. New capability UX, MCP behavior, and visualization ship in `crates/vox-dashboard/`. See [ADR 031](031-deprecate-vox-vscode.md).
 
 ## Context
 

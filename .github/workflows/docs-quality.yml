@@ -65,7 +65,7 @@ jobs:
         run: pnpm build
 
       # Hard gate: graduated from continue-on-error after baseline stabilised.
-      # Covers docs-astro, apps/vox-mental-tracker, tools/visualizer, vox-codegen TS tests.
+      # Covers docs-astro, apps/vox-mental-tracker, apps/experimental/visualizer, vox-codegen TS tests.
       - name: TypeScript lint (biome)
         run: npx @biomejs/biome@1.9.4 lint --reporter=github
 

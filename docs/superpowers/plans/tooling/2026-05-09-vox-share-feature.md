@@ -1598,7 +1598,7 @@ This plan adds new public CLI surface (`vox share`, its flags) and new vocabular
 
 ## Execution handoff
 
-Plan complete and saved at `docs/superpowers/plans/2026-05-09-vox-share-feature.md`.
+Plan complete and saved at `docs/superpowers/plans/tooling/2026-05-09-vox-share-feature.md`.
 
 **Two execution options:**
 

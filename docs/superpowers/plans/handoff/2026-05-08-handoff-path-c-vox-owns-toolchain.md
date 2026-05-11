@@ -251,7 +251,7 @@ Working directory: C:\Users\Owner\vox
 
 Read this single document end-to-end before any action:
 
-  docs/superpowers/plans/2026-05-08-handoff-path-c-vox-owns-toolchain.md
+  docs/superpowers/plans/handoff/2026-05-08-handoff-path-c-vox-owns-toolchain.md
 
 Prerequisites: the four codegen-TS bugs in
 2026-05-08-codegen-ts-bugs-blocking-tracker.md

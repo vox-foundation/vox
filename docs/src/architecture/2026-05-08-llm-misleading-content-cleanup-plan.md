@@ -56,7 +56,7 @@ This is the *summary* of findings. The phase-by-phase steps below have the opera
 | `docs/src/archive/how-to-islands-and-pages.md:20–27` | Internal prose says `@island` is "scheduled for retirement" — the file's own frontmatter says it was retired 2026-05-03. Reconcile. | **I** |
 | `docs/src/architecture/gui-native-roadmap-status-2026.md` (TASK-7.3, TASK-8.2 verdicts) | Future-tense language for tasks that are complete-or-deferred (mixed). | **J** |
 | `docs/src/architecture/dashboard-migration-research-2026.md` (~line 50) | "future compiler roadmap will expose..." — flip to "deferred to Phase 9 (vox-gui-native-roadmap-2026.md)". | **J** |
-| `docs/superpowers/plans/2026-05-03-vox-dashboard-claude-design-port.md:5–6, 656` | Treats `import react` Phase 5 bridges as if working today. Add Phase-5-blocking note. | **K** |
+| `docs/superpowers/plans/ci/2026-05-03-vox-dashboard-claude-design-port.md:5–6, 656` | Treats `import react` Phase 5 bridges as if working today. Add Phase-5-blocking note. | **K** |
 | `docs/src/SUMMARY.md`, `docs/agents/doc-inventory.json`, `docs/agents/doc-inventory-index.json`, `architecture-index.md`, `feed.xml`, `.cursorignore`, `.aiignore`, `.aiexclude` | Auto-generated; potentially stale post-retirement. Re-run generators (do not hand-edit). | **L** |
 | (repo-wide) Three independent phase numbering systems | Frontend interop (Phases 1–5), GUI-native (Phases 0–9), workspace reorg (Phases 1–10). LLMs conflate them. | **M** |
 | `docs/src/architecture/2026-05-02-codebase-cleanup-and-signal-improvement.md:33` | Calls `@island` "active code on a known decommission timeline" — but it was decommissioned 2026-05-03. Tasks reference `v0_shadcn_island.vox` golden, also stale. | **N** |
@@ -633,7 +633,7 @@ status field as authoritative.
 
 ### K.1 Reads first
 
-- [`docs/superpowers/plans/2026-05-03-vox-dashboard-claude-design-port.md`](../../superpowers/plans/2026-05-03-vox-dashboard-claude-design-port.md) — read in full (it's long; chunk by H2).
+- [`docs/superpowers/plans/ci/2026-05-03-vox-dashboard-claude-design-port.md`](../../superpowers/plans/ci/2026-05-03-vox-dashboard-claude-design-port.md) — read in full (it's long; chunk by H2).
 
 ### K.2 Edits
 

@@ -154,7 +154,7 @@ Use this lightweight review matrix for high-drift surfaces:
 | communication protocols, transport routes, or streaming semantics | [`contracts/communication/protocol-catalog.yaml`](../../../contracts/communication/protocol-catalog.yaml), [Communication protocols reference](../reference/communication-protocols.md), and the owning protocol page such as MCP / Populi / runtime docs |
 | Mens training or corpus behavior | [Mens native training SSOT](../reference/mens-training.md), [Mens training data contract](../reference/mens-training-data-contract.md) |
 | Codex `research_metrics`, mesh/cost telemetry env knobs, or telemetry trust boundaries | [Telemetry and research_metrics contract](../reference/telemetry-metric-contract.md), [env-vars](../reference/env-vars.md), [Telemetry trust SSOT](../architecture/telemetry-trust-ssot.md) |
-| **`vox-vscode/`** (extension host, webview UI, Oratio/MCP wiring) | [`vox-vscode/README.md`](../../../vox-vscode/README.md), [VS Code to MCP compatibility](../reference/vscode-mcp-compat.md); speech capture / Oratio pages when capture or tool surfaces change |
+| **`apps/editor/vox-vscode/`** (extension host, webview UI, Oratio/MCP wiring) | [`apps/editor/vox-vscode/README.md`](../../../apps/editor/vox-vscode/README.md), [VS Code to MCP compatibility](../reference/vscode-mcp-compat.md); speech capture / Oratio pages when capture or tool surfaces change |
 
 ## Review cadence
 

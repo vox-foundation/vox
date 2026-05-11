@@ -1,6 +1,6 @@
 /**
  * Reads contracts/mcp/tool-registry.canonical.yaml and emits a TS constant list.
- * Run from repo: node vox-vscode/scripts/generate-mcp-tool-registry.mjs
+ * Run from repo: node apps/editor/vox-vscode/scripts/generate-mcp-tool-registry.mjs
  */
 import fs from 'fs';
 import path from 'path';

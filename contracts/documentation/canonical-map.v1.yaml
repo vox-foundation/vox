@@ -1,4 +1,4 @@
-x-vox-version: 2
+x-vox-version: 3
 schema_version: 1
 
 domains:
@@ -124,9 +124,9 @@ domains:
     aliases: []
     owning_crate_globs:
       - crates/vox-dashboard/**
-      - tools/visualizer/**
-      - marquee_app/**
-      - test_app_bundle/**
+      - apps/experimental/visualizer/**
+      - apps/interop/marquee_app/**
+      - tests/fixtures/frontend/test_app_bundle/**
 
   - id: hitl-doubt
     title: HITL Doubt Flow and Resolution

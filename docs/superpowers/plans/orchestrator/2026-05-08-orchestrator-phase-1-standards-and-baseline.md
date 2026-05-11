@@ -135,7 +135,7 @@ Phase 1 of orchestrator-master-plan. Empty test-helpers crate so later
 tasks can populate it with MockModelRegistry, MockBulletinBoard, and
 golden-fixture loader. No production behavior change.
 
-Refs: docs/superpowers/plans/2026-05-08-orchestrator-master-plan.md
+Refs: docs/superpowers/plans/orchestrator/2026-05-08-orchestrator-master-plan.md
 EOF
 )"
 ```
@@ -300,7 +300,7 @@ test(orchestrator): add MockModelRegistry to test-helpers
 Builder-pattern mock for ModelRegistry. Pre-populated with
 deterministic Cheap/Mid/Strong specs. Used by phase 2-10 unit tests.
 
-Refs: docs/superpowers/plans/2026-05-08-orchestrator-phase-1-standards-and-baseline.md
+Refs: docs/superpowers/plans/orchestrator/2026-05-08-orchestrator-phase-1-standards-and-baseline.md
 EOF
 )"
 ```
@@ -703,7 +703,7 @@ Captures p50/p99 of best_for_task on the routing hot path. First entry
 in the orchestrator benchmark suite. Baseline numbers will be recorded
 in orchestrator-perf-baseline-2026.md (task 10).
 
-Refs: docs/superpowers/plans/2026-05-08-orchestrator-phase-1-standards-and-baseline.md
+Refs: docs/superpowers/plans/orchestrator/2026-05-08-orchestrator-phase-1-standards-and-baseline.md
 EOF
 )"
 ```
@@ -924,7 +924,7 @@ training_rationale: "Authoritative perf baseline for orchestrator program; consu
 
 ## How to read this
 
-Each row records the p50 and p99 of one criterion benchmark at the point Phase 1 of [the orchestrator master plan](../../superpowers/plans/2026-05-08-orchestrator-master-plan.md) merged. Subsequent phases append rows with their own measurements.
+Each row records the p50 and p99 of one criterion benchmark at the point Phase 1 of [the orchestrator master plan](./2026-05-08-orchestrator-master-plan.md) merged. Subsequent phases append rows with their own measurements.
 
 Quality gate G3 (master plan §3) is enforced as: any change touching a benchmarked path must keep p99 ≤ 1.20 × baseline on that path, or the phase plan must include an explicit perf-deviation justification.
 
@@ -1108,7 +1108,7 @@ NULLABLE) to llm_interactions. Populated by Phase 3 (D3 fusion).
 
 Migration is purely additive — existing INSERT statements unaffected.
 
-Refs: docs/superpowers/plans/2026-05-08-orchestrator-phase-1-standards-and-baseline.md task 11
+Refs: docs/superpowers/plans/orchestrator/2026-05-08-orchestrator-phase-1-standards-and-baseline.md task 11
 EOF
 )"
 ```
@@ -1682,7 +1682,7 @@ Establishes the regression boundary for P4 and P9 routing changes.
 Includes a regen binary; phase plans must explicitly authorize
 fixture regen.
 
-Refs: docs/superpowers/plans/2026-05-08-orchestrator-phase-1-standards-and-baseline.md task 18
+Refs: docs/superpowers/plans/orchestrator/2026-05-08-orchestrator-phase-1-standards-and-baseline.md task 18
 EOF
 )"
 ```
@@ -1762,7 +1762,7 @@ build(arch-check): promote orphan detector warn -> error
 P1 master-plan tightening. Catches new dead code at CI time instead of
 on review. Existing exempt cases (binaries, plugins) unchanged.
 
-Refs: docs/superpowers/plans/2026-05-08-orchestrator-phase-1-standards-and-baseline.md task 19
+Refs: docs/superpowers/plans/orchestrator/2026-05-08-orchestrator-phase-1-standards-and-baseline.md task 19
 EOF
 )"
 ```

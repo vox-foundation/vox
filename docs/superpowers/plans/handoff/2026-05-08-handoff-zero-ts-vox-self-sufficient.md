@@ -268,7 +268,7 @@ Working directory: C:\Users\Owner\vox
 
 Read this single document end-to-end before any action:
 
-  docs/superpowers/plans/2026-05-08-handoff-zero-ts-vox-self-sufficient.md
+  docs/superpowers/plans/handoff/2026-05-08-handoff-zero-ts-vox-self-sufficient.md
 
 Sequence:
 - §1.A.1, §1.A.3, §1.B.1 are independent — spawn parallel subagents.
