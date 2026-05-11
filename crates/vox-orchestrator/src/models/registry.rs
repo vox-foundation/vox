@@ -1,6 +1,5 @@
 use std::cmp::Ord;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::catalog::{ModelCatalog, OpenRouterCatalog};
@@ -358,7 +357,7 @@ impl ModelRegistry {
                                         cost_per_1k_output: 0.0,
                                         is_free: true,
                                         strengths: vec![
-                                            crate::models::StrengthTag::from_str(&kind_str).unwrap_or(crate::models::StrengthTag::Unknown),
+                                            kind_str.parse::<crate::models::StrengthTag>().unwrap_or(crate::models::StrengthTag::Unknown),
                                             crate::models::StrengthTag::Generalist,
                                         ],
                                         capabilities: crate::models::spec::ModelCapabilities {
