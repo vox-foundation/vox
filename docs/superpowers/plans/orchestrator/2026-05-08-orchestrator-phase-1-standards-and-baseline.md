@@ -21,7 +21,7 @@
 - [ ] **Read these three sections:**
   - Master plan §3 (Five Quality Gates) — [`2026-05-08-orchestrator-master-plan.md`](2026-05-08-orchestrator-master-plan.md#3-the-five-quality-gates)
   - Master plan §8 (Cross-Cutting Standards)
-  - Research doc Part 11 — [`docs/src/architecture/autonomous-orchestration-policy-research-2026.md`](../../src/architecture/autonomous-orchestration-policy-research-2026.md#part-11--vox-mapping-reasonably-automatable-today)
+  - Research doc Part 11 — [`docs/src/architecture/autonomous-orchestration-policy-research-2026.md`](../../../src/architecture/autonomous-orchestration-policy-research-2026.md#part-11--vox-mapping-reasonably-automatable-today)
 
 ---
 

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Existing vox-prereg deps (serde, serde_json, thiserror). No new deps needed.
 
-**Strategic reference:** [SCIENTIA plan §4 (Reputational firewall)](../../src/architecture/scientia-self-publication-finalization-plan-2026.md#phase-3--reputational-firewall)
+**Strategic reference:** [SCIENTIA plan §4 (Reputational firewall)](../../../src/architecture/scientia-self-publication-finalization-plan-2026.md#phase-3--reputational-firewall)
 
 ---
 

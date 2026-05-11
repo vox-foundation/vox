@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Activate the orphaned [`vox-orchestrator/dei_shim/research/`](../../../crates/vox-orchestrator/src/dei_shim/research/) tree by writing the six missing modules (`claims`, `gate`, `planner`, `provider`, `types`, `verifier`) plus `persistence`, all as type-correct behavioral stubs, so that `run_research()` compiles, runs end-to-end, and returns a coherent (empty) `ResearchResult`. This unblocks every subsequent SCIENTIA phase.
+**Goal:** Activate the orphaned [`vox-orchestrator/dei_shim/research/`](../../../../crates/vox-orchestrator/src/dei_shim/research/) tree by writing the six missing modules (`claims`, `gate`, `planner`, `provider`, `types`, `verifier`) plus `persistence`, all as type-correct behavioral stubs, so that `run_research()` compiles, runs end-to-end, and returns a coherent (empty) `ResearchResult`. This unblocks every subsequent SCIENTIA phase.
 
 **Architecture:** The orphan is a 488-line research-pipeline scaffold left from a prior abandoned attempt. Its module declarations don't exist as files; the parent module never declares `pub mod research`, so the file is dead-code-on-disk. We activate it by (a) declaring `pub mod research` in `dei_shim/mod.rs`, (b) providing the seven stub modules with the exact types/functions pipeline.rs imports, (c) returning Vec::new()/default values from every async fn, and (d) marking each stub with `// PHASE_0a_STUB` so Phase 1's `vox-claim-extractor` integration can grep them. Each stub is *type-rich* (full struct/enum definitions) but *behavior-empty* (no LLM calls, no I/O).
 
 **Tech Stack:** Rust 2024 edition; async-trait via tokio; serde for JSON; vox-db for `Codex` calls (already present); vox-secrets for `SecretId`. No new external dependencies.
 
-**Strategic context:** [scientia-self-publication-finalization-plan-2026.md §3.1](../../src/architecture/scientia-self-publication-finalization-plan-2026.md#31-resolve-phantom-imports-first-pre-existing-tech-debt) and §6 phase index.
+**Strategic context:** [scientia-self-publication-finalization-plan-2026.md §3.1](../../../src/architecture/scientia-self-publication-finalization-plan-2026.md#31-resolve-phantom-imports-first-pre-existing-tech-debt) and §6 phase index.
 
 **Out of scope** (deferred to later phases):
 - Real claim extraction (Phase 1, `vox-claim-extractor`)
@@ -23,7 +23,7 @@
 
 | Action | Path | Responsibility |
 |---|---|---|
-| Modify | [crates/vox-orchestrator/src/dei_shim/mod.rs](../../../crates/vox-orchestrator/src/dei_shim/mod.rs) | Add `pub mod research;` |
+| Modify | [crates/vox-orchestrator/src/dei_shim/mod.rs](../../../../crates/vox-orchestrator/src/dei_shim/mod.rs) | Add `pub mod research;` |
 | Create | `crates/vox-orchestrator/src/dei_shim/research/mod.rs` | Submodule declarations + re-exports |
 | Create | `crates/vox-orchestrator/src/dei_shim/research/types.rs` | All shared research types: `ResearchQuery`, `ResearchScope`, `ResearchPlan`, `ResearchHit`, `RetrievalDiagnostics`, `Citation`, `RoutingTier`, `CompetenceSignal`, `ResearchMetadata`, `ResearchResult` |
 | Create | `crates/vox-orchestrator/src/dei_shim/research/claims.rs` | `Claim` struct + `extract_claims_with_model()` stub |
@@ -32,7 +32,7 @@
 | Create | `crates/vox-orchestrator/src/dei_shim/research/provider.rs` | `ProviderRegistry`, `ProviderConfig`, `from_env_with_config()`, `primary_name()` |
 | Create | `crates/vox-orchestrator/src/dei_shim/research/verifier.rs` | `verify_claims_with_config()` stub + `ClaimVerdict`, `EvidenceSpan`, `Verdict`, `SpanType` |
 | Create | `crates/vox-orchestrator/src/dei_shim/research/persistence.rs` | `slug_from_query()`, `write_research_doc()` |
-| Modify | [crates/vox-orchestrator/src/dei_shim/research/orchestrator/config.rs](../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/config.rs) | Reference shared `GateConfig`, `RoutingThresholds`, `ProviderConfig` from `super::super::*` |
+| Modify | [crates/vox-orchestrator/src/dei_shim/research/orchestrator/config.rs](../../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/config.rs) | Reference shared `GateConfig`, `RoutingThresholds`, `ProviderConfig` from `super::super::*` |
 | Create | `crates/vox-orchestrator/tests/scientia_phase_0a_pipeline_smoke.rs` | Integration test exercising `run_research()` with stubs |
 
 LoC budget: ~800 lines across all stubs (types-rich but behavior-empty). Each module ≤200 LoC.
@@ -58,12 +58,12 @@ Expected: clean compile (no errors). The phantom imports in `research/orchestrat
 - [ ] **Step P2: Read key context files** (information for the implementer; no edit)
 
 Read fully before starting:
-- [`crates/vox-orchestrator/src/dei_shim/research/orchestrator/pipeline.rs`](../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/pipeline.rs) — the 488-line consumer; defines the type contract.
-- [`crates/vox-orchestrator/src/dei_shim/research/orchestrator/config.rs`](../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/config.rs) — `ResearchConfig` referenced by stubs.
-- [`crates/vox-orchestrator/src/dei_shim/research/orchestrator/stages.rs`](../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/stages.rs) — uses `ResearchHit` etc.
-- [`crates/vox-orchestrator/src/dei_shim/research/model_select.rs`](../../../crates/vox-orchestrator/src/dei_shim/research/model_select.rs) — already exists; not orphaned per-se but only reachable through orphan.
-- [`crates/vox-orchestrator/src/dei_shim/research/orchestrator/web_gather.rs`](../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/web_gather.rs) — uses `ResearchHit`, `ResearchPlan`.
-- [`crates/vox-orchestrator/src/dei_shim/research/orchestrator/pipeline_cache.rs`](../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/pipeline_cache.rs) — uses `ResearchQuery`, `ResearchResult`.
+- [`crates/vox-orchestrator/src/dei_shim/research/orchestrator/pipeline.rs`](../../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/pipeline.rs) — the 488-line consumer; defines the type contract.
+- [`crates/vox-orchestrator/src/dei_shim/research/orchestrator/config.rs`](../../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/config.rs) — `ResearchConfig` referenced by stubs.
+- [`crates/vox-orchestrator/src/dei_shim/research/orchestrator/stages.rs`](../../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/stages.rs) — uses `ResearchHit` etc.
+- [`crates/vox-orchestrator/src/dei_shim/research/model_select.rs`](../../../../crates/vox-orchestrator/src/dei_shim/research/model_select.rs) — already exists; not orphaned per-se but only reachable through orphan.
+- [`crates/vox-orchestrator/src/dei_shim/research/orchestrator/web_gather.rs`](../../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/web_gather.rs) — uses `ResearchHit`, `ResearchPlan`.
+- [`crates/vox-orchestrator/src/dei_shim/research/orchestrator/pipeline_cache.rs`](../../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/pipeline_cache.rs) — uses `ResearchQuery`, `ResearchResult`.
 
 Note any additional types/methods used; `Step T1` lists the canonical set but the implementer should cross-check.
 
@@ -1122,7 +1122,7 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 ## Task 10: Reconcile `orchestrator/config.rs` with the new shared types
 
-[`orchestrator/config.rs`](../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/config.rs) references `super::super::config::GateConfig`, `RoutingThresholds`, and `ProviderConfig` (per the audit at lines 59, 63). With Tasks 6–7 these now live in `super::super::{gate,provider}` directly.
+[`orchestrator/config.rs`](../../../../crates/vox-orchestrator/src/dei_shim/research/orchestrator/config.rs) references `super::super::config::GateConfig`, `RoutingThresholds`, and `ProviderConfig` (per the audit at lines 59, 63). With Tasks 6–7 these now live in `super::super::{gate,provider}` directly.
 
 **Files:**
 - Modify: `crates/vox-orchestrator/src/dei_shim/research/orchestrator/config.rs`
@@ -1245,7 +1245,7 @@ EOF
 ## Task 12: Update `where-things-live.md`
 
 **Files:**
-- Modify: [docs/src/architecture/where-things-live.md](../../src/architecture/where-things-live.md)
+- Modify: [docs/src/architecture/where-things-live.md](../../../src/architecture/where-things-live.md)
 
 - [ ] **Step 12.1: Add the row**
 
@@ -1307,7 +1307,7 @@ Expected: pass.
 
 - [ ] **Step 13.4: Update Phase 0a row in strategic plan**
 
-Edit [scientia-self-publication-finalization-plan-2026.md](../../src/architecture/scientia-self-publication-finalization-plan-2026.md) §12 to mark Phase 0a as `Complete`:
+Edit [scientia-self-publication-finalization-plan-2026.md](../../../src/architecture/scientia-self-publication-finalization-plan-2026.md) §12 to mark Phase 0a as `Complete`:
 
 ```markdown
 | 0a | [Phase 0a — Phantom-import resolution](../../superpowers/plans/scientia/2026-05-09-scientia-phase-0a-phantom-imports.md) — **Complete** |

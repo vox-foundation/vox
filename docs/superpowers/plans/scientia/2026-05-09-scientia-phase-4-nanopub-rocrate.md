@@ -8,7 +8,7 @@
 
 **Tech Stack:** serde, serde_json, sha2, hex, thiserror, vox-crypto, workspace-hack.
 
-**Strategic reference:** [SCIENTIA plan §6 (Publication Artifacts)](../../src/architecture/scientia-self-publication-finalization-plan-2026.md#phase-4--nanopub--ro-crate--topacm-badges)
+**Strategic reference:** [SCIENTIA plan §6 (Publication Artifacts)](../../../src/architecture/scientia-self-publication-finalization-plan-2026.md#phase-4--nanopub--ro-crate--topacm-badges)
 
 ---
 

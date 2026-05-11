@@ -48,7 +48,7 @@ training_rationale: "Implementation plan; gets stale as tasks are completed. The
 - `crates/vox-populi/src/mens/discovery_publish.rs` — opt-in cron-skill that aggregates `vox.workflow.*`/`vox.mesh.*` telemetry into Atlas Findings.
 - `crates/vox-orchestrator/src/hopper/mesh_adapter.rs` — P6-T9 mesh adapter completing hopper Option C (Hp-T1+T5+T8 over the federation envelope).
 - `tests/hopper_mesh_replication.vox` — Vox-language acceptance test for two-daemon hopper convergence (per AGENTS.md VoxScript-First).
-- `docs/src/howto/grand-network-quickstart.md` — operator-facing quickstart for the volunteer mesh.
+- `docs/src/how-to/grand-network-quickstart.md` — operator-facing quickstart for the volunteer mesh.
 
 **Modify:**
 
@@ -911,8 +911,8 @@ If `VoxMeshNodeEd25519Sk` is not already defined in `crates/vox-secrets/src/spec
 
 - [ ] **Step 4: Verify build and CLI smoke**
 
-Run: `cargo build -p vox-ml-cli 2>&1 | tail -10`
-Run: `cargo run -p vox-ml-cli -- populi attest --help 2>&1 | tail -10`
+Run: `cargo build -p vox-populi 2>&1 | tail -10`
+Run: `cargo run -p vox-populi -- populi attest --help 2>&1 | tail -10`
 Expected: clean build; `--help` shows `publish` and `fetch` subcommands.
 
 ### P6-T2d: commit
@@ -2282,7 +2282,7 @@ Operators paste the URL on the command line; the subcommand validates structure,
 **Files:**
 
 - Create: `crates/vox-ml-cli/src/commands/populi_join.rs`
-- Create: `docs/src/howto/grand-network-quickstart.md`
+- Create: `docs/src/how-to/grand-network-quickstart.md`
 - Modify: `crates/vox-ml-cli/src/commands/mod.rs`
 - Modify: `crates/vox-ml-cli/src/commands/populi_cli.rs`
 
@@ -2517,19 +2517,19 @@ In `crates/vox-ml-cli/src/commands/populi_cli.rs`, add the variant and dispatch 
 
 - [ ] **Step 3: Run, verify pass**
 
-Run: `cargo test -p vox-ml-cli --lib commands::populi_join 2>&1 | tail -10`
+Run: `cargo test -p vox-populi --lib commands::populi_join 2>&1 | tail -10`
 Expected: PASS for all three parser tests.
 
 - [ ] **Step 4: CLI smoke**
 
-Run: `cargo run -p vox-ml-cli -- populi join --help 2>&1 | tail -10`
+Run: `cargo run -p vox-populi -- populi join --help 2>&1 | tail -10`
 Expected: clap prints usage with `--yes` and `--initial-tier`.
 
 ### P6-T7c: quickstart documentation
 
 - [ ] **Step 1: Create the howto**
 
-`docs/src/howto/grand-network-quickstart.md`:
+`docs/src/how-to/grand-network-quickstart.md`:
 
 ```markdown
 ---
@@ -2664,7 +2664,7 @@ Expected: PASS, or document the file in the next regeneration of `SUMMARY.md`/`r
 git add crates/vox-ml-cli/src/commands/populi_join.rs \
         crates/vox-ml-cli/src/commands/mod.rs \
         crates/vox-ml-cli/src/commands/populi_cli.rs \
-        docs/src/howto/grand-network-quickstart.md
+        docs/src/how-to/grand-network-quickstart.md
 git commit -m "feat(populi): P6-T7 vox populi join + grand-network quickstart docs
 
 Out-of-band invite URL (vox+populi://join?…), manifest fetch+verify,
@@ -3008,7 +3008,7 @@ The SSOT acceptance criteria for Phase 6, plus the verification commands that pr
 
 ### A1 — Two strangers pair via published manifests; share compute on a deterministic Embed task with redundant-execution; kudos credit reconciles to within ε
 
-- Inputs: Alice and Bob run the [Grand Network Quickstart](../howto/grand-network-quickstart.md). Alice publishes her attestation; Bob `vox populi join`s.
+- Inputs: Alice and Bob run the [Grand Network Quickstart](../how-to/grand-network-quickstart.md). Alice publishes her attestation; Bob `vox populi join`s.
 - Verifier: an integration test launching two `vox populi` nodes in-process (same workspace, distinct ports), publishing both manifests, calling `populi_join::run` on each side, and dispatching an `Embed` task with `RedundancyPolicy::boinc_default()`.
 - Tolerance: `ε = 1` kudos unit (ledger uses integer ms; integer ε avoids floating-point flake).
 - Pass when: both kudos balances on each side equal each other to within 1 unit after the test completes.
@@ -3070,7 +3070,7 @@ If the Phase needs to be backed out wholesale, the safest sequence is `revert P6
 - **Anti-goal scan.** No code path introduces a Vox-owned discovery server, a token, or a TEE-first dependency. The discovery feedback loop is opt-in (default `enabled = false`) and the trust-snapshot publisher is opt-in. `vox populi join` is operator-confirmed (`--yes` is required for non-interactive use). The federation envelope adopts ATProto/ForgeFed *shape* (JSON-LD-shaped, strict-JSON parsed) without ActivityPub HTTP semantics, Webfinger lookup, or LD-context resolution.
 - **Type consistency.** `OpFragmentEnvelope`, `FederationEnvelope`, `PublicAttestationManifest`, `RedundancyPolicy`, `TrustTier`, `Tier`, `Attestation`, `TeeQuote`, `TeeVerifier`, `ProviderAtlasFinding`, `TrustGraphSnapshot`, `Invite` are each defined exactly once and re-exported from a single canonical module. New `serde` fields are all `#[serde(default, skip_serializing_if = "Option::is_none")]` to preserve backward compatibility.
 - **TDD integrity.** Each task starts with a failing test (RED), then implements minimum-necessary code (GREEN), then commits. Where a task is interface-only (T3 mock, T5 stub verifier), the test asserts the interface contract (e.g. `NotImplemented` for every `TeeQuoteKind`).
-- **Auto-generated file discipline.** No edits to `SUMMARY.md`, `architecture-index.md`, `research-index.md`, or `feed.xml`. The howto in `docs/src/howto/grand-network-quickstart.md` is a hand-authored content file that the indexer will pick up on the next regeneration.
+- **Auto-generated file discipline.** No edits to `SUMMARY.md`, `architecture-index.md`, `research-index.md`, or `feed.xml`. The howto in `docs/src/how-to/grand-network-quickstart.md` is a hand-authored content file that the indexer will pick up on the next regeneration.
 - **Known limitations (intentional).** Real firecracker/kata launch (T3), real vendor-specific TEE verification (T5), and the orchestrator dispatch coupling for `RedundancyPolicy` (T4 ships the types and voting helper; the dispatch path that calls `decide_replicas` is a separate orchestrator commit not in this plan) are deferred to v1.x.
 
 ---

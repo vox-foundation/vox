@@ -111,16 +111,17 @@ async fn process_one_envelope(
         .map(|c| c.parent_id.as_str())
         .unwrap_or("");
     let exec_lease_id = envelope.exec_lease_id.as_deref().unwrap_or("");
-    let _span = tracing::info_span!(
+    let span = tracing::info_span!(
         "populi_remote_envelope",
         task_id = envelope.task_id,
         message_id = msg.id,
         exec_lease_id,
         "vox.mesh.trace_id" = trace_id,
         "vox.mesh.parent_span_id" = parent_id,
-    )
-    .entered();
-    tracing::info!("populi remote worker: processing envelope");
+    );
+
+    async {
+        tracing::info!("populi remote worker: processing envelope");
 
     // Decrypt JWE-wrapped secrets forwarded by the orchestrator (P0-T4).
     // Key derivation mirrors the sender in dispatch/mesh.rs: BLAKE3(VoxMeshJwtHmacSecret).
@@ -388,6 +389,9 @@ async fn process_one_envelope(
             })
             .await;
     }
+    }
+    .instrument(span)
+    .await;
 }
 
 async fn run_remote_worker_tick(

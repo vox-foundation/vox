@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILLS: superpowers:writing-plans (review only — this is a meta-plan over multiple smaller plans), superpowers:test-driven-development (per-bug TDD; every gap below should land with a golden snapshot), superpowers:verification-before-completion, superpowers:requesting-code-review.
 
-This document is a forward-looking handoff. Read it end-to-end before deciding scope. The bug-by-bug fixes here are the next-shoe-to-drop after [PR #78's plan](2026-05-08-codegen-ts-bugs-blocking-tracker.md) (4 bugs landed) and [PR #79's plan](2026-05-08-handoff-path-c-vox-owns-toolchain.md) (toolchain ownership, separate track).
+This document is a forward-looking handoff. Read it end-to-end before deciding scope. The bug-by-bug fixes here are the next-shoe-to-drop after [PR #78's plan](../language/2026-05-08-codegen-ts-bugs-blocking-tracker.md) (4 bugs landed) and [PR #79's plan](2026-05-08-handoff-path-c-vox-owns-toolchain.md) (toolchain ownership, separate track).
 
 ---
 

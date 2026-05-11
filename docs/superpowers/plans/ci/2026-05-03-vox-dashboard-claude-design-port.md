@@ -1,10 +1,10 @@
 # Vox Dashboard — Claude Design Port (Implementation Plan)
 
-> **Phase 5 dependency.** Sections describing React-component capitalized imports (e.g. `CodeEditor(path=active_path)` calling into a React-authored TSX file) depend on Phase 5 of [external-frontend-interop-plan-2026](../../src/architecture/external-frontend-interop-plan-2026.md), which is in-plan as of 2026-05-08. Until Phase 5 lands, those surfaces require a hand-authored compat layer (TBD).
+> **Phase 5 dependency.** Sections describing React-component capitalized imports (e.g. `CodeEditor(path=active_path)` calling into a React-authored TSX file) depend on Phase 5 of [external-frontend-interop-plan-2026](../../../src/architecture/external-frontend-interop-plan-2026.md), which is in-plan as of 2026-05-08. Until Phase 5 lands, those surfaces require a hand-authored compat layer (TBD).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the existing 4-tab Latin-named Vox dashboard with the 7-surface design spec in [`docs/src/architecture/vox-dashboard-design-brief-2026.md`](../../src/architecture/vox-dashboard-design-brief-2026.md), implemented entirely in Vox VUV source, fully wired to the orchestrator over the existing HTTP/WebSocket gateway.
+**Goal:** Replace the existing 4-tab Latin-named Vox dashboard with the 7-surface design spec in [`docs/src/architecture/vox-dashboard-design-brief-2026.md`](../../../src/architecture/vox-dashboard-design-brief-2026.md), implemented entirely in Vox VUV source, fully wired to the orchestrator over the existing HTTP/WebSocket gateway.
 
 **Architecture:** Vox source files in `crates/vox-dashboard/app/src/` compile to TSX via `vox build`. TSX is bundled by Vite, served as static assets baked into the orchestrator binary, mounted at `/dashboard/`. Each surface fetches initial state via REST (`/api/v2/...`) and subscribes to live updates via WebSocket (`/v1/ws`). Settings persist via `SettingsState` (file-based flat JSON — see Section 11 of the brief for the namespace conventions). VoxDB is used by the orchestrator for run history and build timelines; settings are deliberately kept out of VoxDB.
 

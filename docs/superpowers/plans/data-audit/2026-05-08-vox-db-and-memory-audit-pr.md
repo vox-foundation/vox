@@ -16,14 +16,14 @@
 
 Before starting, the executor MUST read:
 
-1. [`AGENTS.md`](../../../AGENTS.md) — cross-tool policy.
-2. [`CLAUDE.md`](../../../CLAUDE.md) — Claude-specific overlay; especially the "consult `where-things-live.md` before adding code" and "VoxScript-first glue code" rules.
-3. [`docs/src/architecture/where-things-live.md`](../../src/architecture/where-things-live.md) — flat lookup table.
-4. [`docs/src/architecture/layers.toml`](../../src/architecture/layers.toml) — layer rules + `[[known_inversions]]` pattern (re-used in this plan).
-5. [`docs/src/adr/004-codex-arca-turso-ssot.md`](../../src/adr/004-codex-arca-turso-ssot.md) — Turso-as-SSOT decision.
-6. [`contracts/db/data-storage-policy.v1.yaml`](../../../contracts/db/data-storage-policy.v1.yaml) — declarative policy; Tasks below treat this as authoritative when prose disagrees.
-7. [`docs/agents/turso-import-allowlist.txt`](../../agents/turso-import-allowlist.txt) — current transitional allowlist.
-8. [`docs/agents/database-nomenclature.md`](../../agents/database-nomenclature.md) — VoxDb vs Codex vs Arca naming.
+1. [`AGENTS.md`](../../../../AGENTS.md) — cross-tool policy.
+2. [`CLAUDE.md`](../../../../CLAUDE.md) — Claude-specific overlay; especially the "consult `where-things-live.md` before adding code" and "VoxScript-first glue code" rules.
+3. [`docs/src/architecture/where-things-live.md`](../../../src/architecture/where-things-live.md) — flat lookup table.
+4. [`docs/src/architecture/layers.toml`](../../../src/architecture/layers.toml) — layer rules + `[[known_inversions]]` pattern (re-used in this plan).
+5. [`docs/src/adr/004-codex-arca-turso-ssot.md`](../../../src/adr/004-codex-arca-turso-ssot.md) — Turso-as-SSOT decision.
+6. [`contracts/db/data-storage-policy.v1.yaml`](../../../../contracts/db/data-storage-policy.v1.yaml) — declarative policy; Tasks below treat this as authoritative when prose disagrees.
+7. [`docs/agents/turso-import-allowlist.txt`](../../../agents/turso-import-allowlist.txt) — current transitional allowlist.
+8. [`docs/agents/database-nomenclature.md`](../../../agents/database-nomenclature.md) — VoxDb vs Codex vs Arca naming.
 
 If any of these are missing or moved, STOP and report — that itself is drift.
 
@@ -1866,7 +1866,7 @@ git commit -am "feat(ci): string-id-lint (report-only) for stringly-typed *_id r
 
 # PHASE 8 — Document operational JSON state
 
-[`crates/vox-cli/src/process_supervision.rs`](../../../crates/vox-cli/src/process_supervision.rs) writes JSON state files for process management. [`crates/vox-orchestrator/src/orchestrator/persistence/lifecycle.rs`](../../../crates/vox-orchestrator/src/orchestrator/persistence/lifecycle.rs) serializes context store snapshots. These are NOT in the DB. Add comments explaining why so future readers don't ask.
+[`crates/vox-cli/src/process_supervision.rs`](../../../../crates/vox-cli/src/process_supervision.rs) writes JSON state files for process management. [`crates/vox-orchestrator/src/orchestrator/persistence/lifecycle.rs`](../../../../crates/vox-orchestrator/src/orchestrator/persistence/lifecycle.rs) serializes context store snapshots. These are NOT in the DB. Add comments explaining why so future readers don't ask.
 
 ### Task 8.1: Add module-level docs
 
@@ -1964,7 +1964,7 @@ Current sanctioned satellites:
 | `vox-package` | `.vox_modules/local_store.db` | Transitional; folded away by M-67. | Package |
 
 The list above is mirrored mechanically in
-[`contracts/db/data-storage-policy.v1.yaml`](../../../contracts/db/data-storage-policy.v1.yaml)
+[`contracts/db/data-storage-policy.v1.yaml`](../../../../contracts/db/data-storage-policy.v1.yaml)
 (`tiers.a_relational.{owners, allow_direct_access, temporary_exceptions}`).
 Three CI checks enforce no further drift:
 

@@ -8,7 +8,7 @@
 
 **Tech Stack:** `serde`, `serde_json`, `sha2`, `hex`, `thiserror`, `vox-research-events`, `vox-crypto`, `workspace-hack`.
 
-**Strategic reference:** [SCIENTIA plan §5 (Pre-registration as code)](../../src/architecture/scientia-self-publication-finalization-plan-2026.md#5-pre-registration-as-code), [§3.4 (Ground-truth verifier — symbolic where possible)](../../src/architecture/scientia-self-publication-finalization-plan-2026.md#34-ground-truth-verifier--symbolic-where-possible-minicheck-where-not)
+**Strategic reference:** [SCIENTIA plan §5 (Pre-registration as code)](../../../src/architecture/scientia-self-publication-finalization-plan-2026.md#5-pre-registration-as-code), [§3.4 (Ground-truth verifier — symbolic where possible)](../../../src/architecture/scientia-self-publication-finalization-plan-2026.md#34-ground-truth-verifier--symbolic-where-possible-minicheck-where-not)
 
 ---
 

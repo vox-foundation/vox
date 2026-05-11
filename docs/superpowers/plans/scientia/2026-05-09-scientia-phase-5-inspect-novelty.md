@@ -8,7 +8,7 @@
 
 **Tech Stack:** serde, serde_json, tokio, reqwest, thiserror, vox-research-events, workspace-hack.
 
-**Strategic reference:** [SCIENTIA plan §3.3 (Novelty)](../../src/architecture/scientia-self-publication-finalization-plan-2026.md#33-novelty--specter2--chronofact-grounded)
+**Strategic reference:** [SCIENTIA plan §3.3 (Novelty)](../../../src/architecture/scientia-self-publication-finalization-plan-2026.md#33-novelty--specter2--chronofact-grounded)
 
 ---
 

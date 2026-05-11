@@ -689,6 +689,8 @@ impl Orchestrator {
                         caller_agent_id: None,
                         trace_id: None,
                         span_depth: None,
+                        bundle_ref: None,
+                        bundle_inline_b64: None,
                     };
                     let relay_client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
                         &base,
@@ -930,6 +932,8 @@ impl Orchestrator {
                     caller_agent_id: None,
                     trace_id: None,
                     span_depth: None,
+                    bundle_ref: None,
+                    bundle_inline_b64: None,
                 };
                 if let Err(err) = crate::a2a::relay_remote_task_envelope(
                     &client,

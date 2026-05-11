@@ -506,7 +506,7 @@ External (Wave-2 prior-art research):
 - [Temporal Workflow Replay Debugger](https://temporal.io/code-exchange/temporal-workflow-replay-debugger) · [Temporal Events & History](https://docs.temporal.io/workflow-execution/event)
 - [Pijul Theory](https://pijul.org/manual/theory.html) · [Jujutsu](https://github.com/jj-vcs/jj) · [GitButler Workspace Branch](https://docs.gitbutler.com/workspace-branch)
 - [Automerge](https://github.com/automerge/automerge) · [Yjs](https://docs.yjs.dev/) · [Replicache Consistency Model](https://doc.replicache.dev/concepts/consistency)
-- [Fossil Sync Protocol](https://www.fossil-scm.org/home/doc/trunk/www/sync.wiki) · [Plastic SCM Exclusive Checkouts](https://blog.plasticscm.com/2014/11/orchestrate-your-development-with.html)
+- [Fossil Sync Protocol](https://www.fossil-scm.org/home/doc/trunk/www/sync.wiki) · [Plastic SCM (Unity Version Control)](https://unity.com/products/plastic-scm)
 - [etcd Raft library](https://github.com/etcd-io/raft) · [Raft consensus](https://raft.github.io/)
 - [ForgeFed protocol](https://forgefed.org/) · [Forgejo FAQ](https://forgejo.org/faq/)
 - [Demers et al.: Epidemic algorithms for replicated database maintenance](https://www.cis.upenn.edu/~bcpierce/courses/dd/papers/demers-epidemic.pdf)

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement the per-phase plans referenced below. This master plan is the *index and contract*; each phase has its own TDD-detailed plan file. Steps in phase plans use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal.** Convert [`docs/src/architecture/autonomous-orchestration-policy-research-2026.md`](../../src/architecture/autonomous-orchestration-policy-research-2026.md) into running code: the orchestrator decides *autonomously and on the user's behalf* when to switch model tier, plan vs act, invoke research (Socrates), spawn sub-agents, escalate to HITL, and recover from runaway loops — under explicit, contract-defined decision rules with telemetry and HITL fallback at every gate.
+**Goal.** Convert [`docs/src/architecture/autonomous-orchestration-policy-research-2026.md`](../../../src/architecture/autonomous-orchestration-policy-research-2026.md) into running code: the orchestrator decides *autonomously and on the user's behalf* when to switch model tier, plan vs act, invoke research (Socrates), spawn sub-agents, escalate to HITL, and recover from runaway loops — under explicit, contract-defined decision rules with telemetry and HITL fallback at every gate.
 
 **Architecture.** Eleven sequential phases on the existing `crates/vox-orchestrator` surface. Phase 1 lands instrumentation, fixtures, benchmarks, and contract scaffolds with **zero behavior change**. Phases 2–10 each ship one decision rule (D6 → D3 → D1 → D2 → D5/D9 → D8 → D7 → D10 → D4 — ordered by dependency). Phase 11 is hygiene consolidation. Every phase passes the same five quality gates (§3) and updates the same telemetry contract (`research_metrics_contract.rs`).
 
@@ -22,7 +22,7 @@
 
 **Reading order for the agent executing this:**
 1. Read this file end-to-end.
-2. Read [`docs/src/architecture/autonomous-orchestration-policy-research-2026.md`](../../src/architecture/autonomous-orchestration-policy-research-2026.md) Parts 1, 11, 12, 13.
+2. Read [`docs/src/architecture/autonomous-orchestration-policy-research-2026.md`](../../../src/architecture/autonomous-orchestration-policy-research-2026.md) Parts 1, 11, 12, 13.
 3. Open the current phase plan (e.g., `2026-05-08-orchestrator-phase-1-standards-and-baseline.md`).
 4. Execute its tasks linearly. Do not jump ahead — phases have dependencies.
 
@@ -66,7 +66,7 @@ If a phase adds a new module to `vox-orchestrator`, it must be **categorized in 
 
 ### Gate G2: Telemetry conformance
 
-Every new decision point must emit a `metric_type` row to `llm_interactions` or `model_route_event` per the constants in [`crates/vox-db/src/research_metrics_contract.rs`](../../../crates/vox-db/src/research_metrics_contract.rs). New `metric_type` constants need:
+Every new decision point must emit a `metric_type` row to `llm_interactions` or `model_route_event` per the constants in [`crates/vox-db/src/research_metrics_contract.rs`](../../../../crates/vox-db/src/research_metrics_contract.rs). New `metric_type` constants need:
 
 1. A new `pub const METRIC_TYPE_*` in `research_metrics_contract.rs`.
 2. The OTel GenAI SemConv mapping (see research doc §10.3) in a doc comment.
@@ -132,7 +132,7 @@ The phase plan files for P2–P11 are **not yet written** — they're written wh
 
 ### 4.1–4.11 Phase summaries (one paragraph each)
 
-**P1 — Standards & baseline.** Net-new infrastructure with no behavior change. Adds `crates/vox-orchestrator-test-helpers` (mock `ModelRegistry`, mock `BulletinBoard`, golden-fixture loader). Adds `crates/vox-orchestrator/benches/` with five criterion benchmarks (`route_decision`, `socrates_gate`, `bulletin_throughput`, `compaction_pipeline`, `plan_refinement`). Promotes `vox-arch-check` orphan detector from warn → error. Adds golden behavioral tests pinning current routing decisions for ~30 representative tasks. Adds new telemetry columns (`logprob_entropy`, `sep_estimate`, `self_consistency_score`) to `llm_interactions` (schema v59 → v60 migration). Writes [`docs/src/architecture/orchestrator-perf-baseline-2026.md`](../../src/architecture/orchestrator-perf-baseline-2026.md) with current p50/p99 numbers. Drops contract scaffolds for the four phase contracts (`tier-routing.v2`, `risk-confidence-matrix.v1`, `circuit-breaker.v1`, `socrates-fusion.v1`) — empty bodies, schema-validated.
+**P1 — Standards & baseline.** Net-new infrastructure with no behavior change. Adds `crates/vox-orchestrator-test-helpers` (mock `ModelRegistry`, mock `BulletinBoard`, golden-fixture loader). Adds `crates/vox-orchestrator/benches/` with five criterion benchmarks (`route_decision`, `socrates_gate`, `bulletin_throughput`, `compaction_pipeline`, `plan_refinement`). Promotes `vox-arch-check` orphan detector from warn → error. Adds golden behavioral tests pinning current routing decisions for ~30 representative tasks. Adds new telemetry columns (`logprob_entropy`, `sep_estimate`, `self_consistency_score`) to `llm_interactions` (schema v59 → v60 migration). Writes [`docs/src/architecture/orchestrator-perf-baseline-2026.md`](../../../src/architecture/orchestrator-perf-baseline-2026.md) with current p50/p99 numbers. Drops contract scaffolds for the four phase contracts (`tier-routing.v2`, `risk-confidence-matrix.v1`, `circuit-breaker.v1`, `socrates-fusion.v1`) — empty bodies, schema-validated.
 
 **P2 — Circuit breaker / doom-loop detector (D6).** Implements the five-signal detector from research doc §6.3 — no-progress, same-error, tool-call-thrash, action-n-gram-overlap, semantic-drift — plus a hard turn cap with graduated CAUTION/WARNING tiers. Lives in a new `crates/vox-orchestrator/src/circuit_breaker.rs`. Reads thresholds from `contracts/orchestration/circuit-breaker.v1.yaml`. Trips hand off to the existing replanner (`mcp_tools/chat_tools/plan_loop.rs::maybe_refine_plan`) with a structured `TripReason`; if replanning fails K times, escalates via the bulletin board's `EscalationEvent`. Adds property tests on the n-gram overlap function via `proptest`. Perf budget: <50µs p99 per check.
 
@@ -152,7 +152,7 @@ The phase plan files for P2–P11 are **not yet written** — they're written wh
 
 **P10 — Sub-agent dispatch + chain-length cap (D4).** Implements description-driven sub-agent selection consistent with the existing `vox-skills/skills/*.skill.md` surface. Adds a chain-length tracker that escalates to HITL once cumulative agent-chain reliability drops below a threshold (research doc §5.3). Adds the parallel-fan-out path for independent subtasks. The existing `clarification_db_inbox_poll` and `populi-mesh` A2A surfaces are the transport — this phase only adds *trigger logic*, not transport mechanics.
 
-**P11 — Hygiene retrospective & consolidation.** The cleanup pass. Audits all phases' contract files for naming consistency. Promotes one or more arch-check rules (TBD per state at P11 start) from warn → error. Removes feature gates introduced earlier (e.g., the cascade gate from P4). Updates [`docs/src/architecture/where-things-live.md`](../../src/architecture/where-things-live.md) for every concept added in P2–P10 (P11 is the last chance — earlier phases must have already added rows; P11 verifies). Regenerates `SUMMARY.md`, `architecture-index.md`, `feed.xml` via `vox-doc-pipeline`. Writes a retro doc summarizing perf-baseline deltas across all phases.
+**P11 — Hygiene retrospective & consolidation.** The cleanup pass. Audits all phases' contract files for naming consistency. Promotes one or more arch-check rules (TBD per state at P11 start) from warn → error. Removes feature gates introduced earlier (e.g., the cascade gate from P4). Updates [`docs/src/architecture/where-things-live.md`](../../../src/architecture/where-things-live.md) for every concept added in P2–P10 (P11 is the last chance — earlier phases must have already added rows; P11 verifies). Regenerates `SUMMARY.md`, `architecture-index.md`, `feed.xml` via `vox-doc-pipeline`. Writes a retro doc summarizing perf-baseline deltas across all phases.
 
 ---
 
@@ -201,7 +201,7 @@ Each row is *binding*. A phase plan that doesn't include verification of every c
 
 ## 7. Glossary (used throughout phase plans)
 
-- **Decision axis Dn.** One of the ten decisions (D1–D10) defined in [`docs/src/architecture/autonomous-orchestration-policy-research-2026.md`](../../src/architecture/autonomous-orchestration-policy-research-2026.md) Part 1.
+- **Decision axis Dn.** One of the ten decisions (D1–D10) defined in [`docs/src/architecture/autonomous-orchestration-policy-research-2026.md`](../../../src/architecture/autonomous-orchestration-policy-research-2026.md) Part 1.
 - **Composite confidence.** The single fused score from P3 — a weighted combination of logprob entropy, SEP estimate, and per-claim self-consistency. Range [0, 1]; higher = more confident.
 - **Risk score.** The four-dimension product (irreversibility × blast_radius × compliance_exposure × (1 − composite_confidence)) defined in P6.
 - **Tier.** One of `Cheap | Mid | Strong` from research doc §2.2; mapped to existing `StrengthTag` in `crates/vox-orchestrator/src/models/`.
@@ -210,7 +210,7 @@ Each row is *binding*. A phase plan that doesn't include verification of every c
 - **Cascade.** Sequential model invocation: try `Cheap`; if composite_confidence < threshold, retry on `Mid`; etc. Defined in P4.
 - **Adaptive thinking.** Anthropic's `thinking_budget = adaptive` mode (research doc §3.1). Different from "extended thinking with explicit budget" — adaptive lets Claude decide.
 - **Layer.** `vox-arch-check` layer assignment in `docs/src/architecture/layers.toml`. `vox-orchestrator` = L3.
-- **Where-things-live row.** A row in [`docs/src/architecture/where-things-live.md`](../../src/architecture/where-things-live.md) of the form `| concept | crate | function/struct |`. Required for every new concept.
+- **Where-things-live row.** A row in [`docs/src/architecture/where-things-live.md`](../../../src/architecture/where-things-live.md) of the form `| concept | crate | function/struct |`. Required for every new concept.
 - **HITL.** Human-in-the-loop. Per research doc Part 12 and EU AI Act Article 14, mandatory for several action classes regardless of confidence.
 - **Net-new.** Code/contract that does not exist today and is being introduced. Distinct from *extended* (existing surface getting more behavior).
 - **Schema bump.** A change to `crates/vox-db` schema version (currently v59). Per `research_metrics_contract.rs`.
@@ -304,17 +304,17 @@ Estimated wall time at one task per ~5 minutes (skilled agent, no blockers): ~23
 
 Every phase plan opens by re-citing these. Do not skip them.
 
-- [`docs/src/architecture/autonomous-orchestration-policy-research-2026.md`](../../src/architecture/autonomous-orchestration-policy-research-2026.md) — the research; defines the decisions and the state of the art.
-- [`docs/src/architecture/model-orchestration-ssot-audit-2026.md`](../../src/architecture/model-orchestration-ssot-audit-2026.md) — current routing surface.
-- [`docs/src/architecture/orchestrator-companion-audit-findings-2026.md`](../../src/architecture/orchestrator-companion-audit-findings-2026.md) — non-routing surface; many P1–P11 tasks close FIX items here.
-- [`docs/src/architecture/nextgen-orchestrator-research-2026.md`](../../src/architecture/nextgen-orchestrator-research-2026.md) — failure modes & advanced concepts.
-- [`docs/src/adr/005-socrates-anti-hallucination-ssot.md`](../../src/adr/005-socrates-anti-hallucination-ssot.md) — Socrates contract; P3 extends, does not replace.
-- [`docs/src/adr/025-multi-agent-lock-coherence.md`](../../src/adr/025-multi-agent-lock-coherence.md) — A2A coherence; P10 builds on top.
-- [`docs/src/adr/030-state-machine-ssot.md`](../../src/adr/030-state-machine-ssot.md) — mode/state machine; P5/P6 plug into.
-- [`AGENTS.md`](../../../AGENTS.md) — project policy; non-negotiable.
-- [`CLAUDE.md`](../../../CLAUDE.md) — Claude-specific overlay; reinforces the above.
-- [`docs/src/architecture/where-things-live.md`](../../src/architecture/where-things-live.md) — concept-to-crate index; every new concept gets a row.
-- [`docs/src/architecture/layers.toml`](../../src/architecture/layers.toml) — layer rules; no inversions.
+- [`docs/src/architecture/autonomous-orchestration-policy-research-2026.md`](../../../src/architecture/autonomous-orchestration-policy-research-2026.md) — the research; defines the decisions and the state of the art.
+- [`docs/src/architecture/model-orchestration-ssot-audit-2026.md`](../../../src/architecture/model-orchestration-ssot-audit-2026.md) — current routing surface.
+- [`docs/src/architecture/orchestrator-companion-audit-findings-2026.md`](../../../src/architecture/orchestrator-companion-audit-findings-2026.md) — non-routing surface; many P1–P11 tasks close FIX items here.
+- [`docs/src/architecture/nextgen-orchestrator-research-2026.md`](../../../src/architecture/nextgen-orchestrator-research-2026.md) — failure modes & advanced concepts.
+- [`docs/src/adr/005-socrates-anti-hallucination-ssot.md`](../../../src/adr/005-socrates-anti-hallucination-ssot.md) — Socrates contract; P3 extends, does not replace.
+- [`docs/src/adr/025-multi-agent-lock-coherence.md`](../../../src/adr/025-multi-agent-lock-coherence.md) — A2A coherence; P10 builds on top.
+- [`docs/src/adr/030-state-machine-ssot.md`](../../../src/adr/030-state-machine-ssot.md) — mode/state machine; P5/P6 plug into.
+- [`AGENTS.md`](../../../../AGENTS.md) — project policy; non-negotiable.
+- [`CLAUDE.md`](../../../../CLAUDE.md) — Claude-specific overlay; reinforces the above.
+- [`docs/src/architecture/where-things-live.md`](../../../src/architecture/where-things-live.md) — concept-to-crate index; every new concept gets a row.
+- [`docs/src/architecture/layers.toml`](../../../src/architecture/layers.toml) — layer rules; no inversions.
 
 ---
 
@@ -329,7 +329,7 @@ The program is done when:
 - [ ] HITL escalation rate (from telemetry, after 30 days of post-P9 data) is between 1% and 5% of decisions — calibrated, not pathological.
 - [ ] Doom-loop trip rate (post-P2) is non-zero (proves the detector is firing) but below 0.5% of tasks (proves it's not over-firing).
 - [ ] `vox-arch-check` passes with at least one previously-warn rule promoted to error.
-- [ ] [`docs/src/architecture/where-things-live.md`](../../src/architecture/where-things-live.md) has rows for every new concept.
+- [ ] [`docs/src/architecture/where-things-live.md`](../../../src/architecture/where-things-live.md) has rows for every new concept.
 - [ ] `cargo run -p vox-doc-pipeline -- --check` passes; `vox ci secret-env-guard` passes; `vox ci clavis-parity` passes.
 - [ ] Retrospective doc `orchestrator-policy-program-retrospective-2026.md` filed with deltas, learnings, open questions.
 

@@ -36,7 +36,13 @@ fuzzy-search = ["dep:nucleo"]
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Native MCP server runtime previously in vox-mcp binary
-mcp-server = ["vox-orchestrator/populi-transport", "dep:axum", "dep:rmcp", "dep:vox-orchestrator-mcp"]
+mcp-server = [
+    "vox-orchestrator/populi-transport",
+    "vox-orchestrator-mcp/populi-transport",
+    "dep:axum",
+    "dep:rmcp",
+    "dep:vox-orchestrator-mcp",
+]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
 

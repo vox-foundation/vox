@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Land the VUV authoring-layer improvements derived from the [Gradio & Streamlit research (2026)](../../../docs/src/architecture/gradio-streamlit-research-2026.md) — naming-stability tooling, accessibility, layout vocabulary, runtime testability, a stdlib chat primitive, per-session state, and cache discipline — across seven shippable phases.
+**Goal:** Land the VUV authoring-layer improvements derived from the [Gradio & Streamlit research (2026)](../../../src/architecture/gradio-streamlit-research-2026.md) — naming-stability tooling, accessibility, layout vocabulary, runtime testability, a stdlib chat primitive, per-session state, and cache discipline — across seven shippable phases.
 
 **Architecture:** Each phase is **independently shippable**, lands behind a flag where useful, and ends in a green test suite — same discipline as VUV-1–8. Phase VUV-9 ships the substrate (deprecation cycle + codemod) the others depend on. Detailed TDD steps in this document cover **VUV-9 only**; phases VUV-10 through VUV-15 each get a one-paragraph scope summary and a **follow-up plan trigger** (write a fresh plan when the prior phase lands and the next is unblocked). Open questions from the research doc are resolved with concrete design decisions in [§Open-question resolutions](#open-question-resolutions) so future phases have a fixed target.
 
@@ -12,7 +12,7 @@
 
 ## Status of prior VUV work (2026-05-08)
 
-Per [gui-authoring-syntax-2026.md §Implementation status](../../../docs/src/architecture/gui-authoring-syntax-2026.md#implementation-status-2026-05-08):
+Per [gui-authoring-syntax-2026.md §Implementation status](../../../src/architecture/gui-authoring-syntax-2026.md#implementation-status-2026-05-08):
 
 | Phase | Status |
 |---|---|
@@ -31,7 +31,7 @@ This plan picks up at **VUV-9** and runs to **VUV-15**.
 
 ## Open-question resolutions
 
-Resolutions for the seven questions in [gradio-streamlit-research-2026.md §7](../../../docs/src/architecture/gradio-streamlit-research-2026.md#7-open-questions-and-follow-ups). Each resolution becomes a fixed target for downstream phases.
+Resolutions for the seven questions in [gradio-streamlit-research-2026.md §7](../../../src/architecture/gradio-streamlit-research-2026.md#7-open-questions-and-follow-ups). Each resolution becomes a fixed target for downstream phases.
 
 ### Q1 — Streamlit-magic prototype mode (auto-render bare expressions)
 
@@ -39,7 +39,7 @@ Resolutions for the seven questions in [gradio-streamlit-research-2026.md §7](.
 
 **Why:** the cost is paying for explicit `view:` everywhere. The benefit is that an LLM reading any `.vox` file can tell, from local context, whether a value renders or not.
 
-**Closes:** [gui-authoring-syntax-2026.md Open Question 1](../../../docs/src/architecture/gui-authoring-syntax-2026.md#open-questions) ("bare string in child position — desugar?") was already resolved as "require explicit `text(…)`"; this is the same principle one level up.
+**Closes:** [gui-authoring-syntax-2026.md Open Question 1](../../../src/architecture/gui-authoring-syntax-2026.md#open-questions) ("bare string in child position — desugar?") was already resolved as "require explicit `text(…)`"; this is the same principle one level up.
 
 ### Q2 — Stdlib `ChatInterface`-equivalent
 
@@ -91,7 +91,7 @@ let theme: Theme = Theme.dark()
 ```
 
 - **Storage:** server-side in-memory map keyed by `session_id` (a cookie set on first request). The session-id cookie is HttpOnly + SameSite=Lax + Secure-when-HTTPS. Default eviction: 30 minutes idle.
-- **Wire:** session values hydrate over the existing WebSocket on connect; writes propagate via the existing reactive channel. No new protocol; the wire-format SSOT ([Phase 2 of the interop plan](../../../docs/src/architecture/external-frontend-interop-plan-2026.md)) handles serialization.
+- **Wire:** session values hydrate over the existing WebSocket on connect; writes propagate via the existing reactive channel. No new protocol; the wire-format SSOT ([Phase 2 of the interop plan](../../../src/architecture/external-frontend-interop-plan-2026.md)) handles serialization.
 - **Type safety:** `@session let foo: T = expr` — `foo` is typed `T`, not `Any`. There is no string-keyed `session_state["foo"]` form (this is the Streamlit failure mode we are explicitly rejecting).
 - **No global mutable state by convention:** for cross-session sharing, users go through `@table` (Vox's existing DB primitive). Same convention as Gradio.
 - **Pluggable backend:** the in-memory store is the default; users can swap to Redis via `Vox.toml [session] backend = "redis"` without touching `.vox` source.
@@ -137,7 +137,7 @@ fn open_db() -> Db { … }                          // singleton-per-process; re
 
 ## Roadmap (phasing table)
 
-Same shape as the [VUV-1-8 phasing table](../../../docs/src/architecture/gui-authoring-syntax-2026.md#implementation-phasing). Each phase: **independently shippable, behind a flag where useful, ends in a green test suite.**
+Same shape as the [VUV-1-8 phasing table](../../../src/architecture/gui-authoring-syntax-2026.md#implementation-phasing). Each phase: **independently shippable, behind a flag where useful, ends in a green test suite.**
 
 | Phase | Work | Surfaces touched | Approx. size | Gate |
 |---|---|---|---|---|
@@ -449,7 +449,7 @@ git commit -m "feat(parser): RenameRegistry loader + validation (VUV-9 task 3)"
 This task makes old names parse to new names with a warning. The exact integration point depends on the existing parser's identifier-resolution path. The general shape:
 
 **Files:**
-- Modify: `crates/vox-compiler/src/parser/descent/expr/pratt_match.rs` (or wherever primitive-call parsing currently lives — see [VUV-2 reference](../../../docs/src/architecture/gui-authoring-syntax-2026.md#implementation-status-2026-05-08))
+- Modify: `crates/vox-compiler/src/parser/descent/expr/pratt_match.rs` (or wherever primitive-call parsing currently lives — see [VUV-2 reference](../../../src/architecture/gui-authoring-syntax-2026.md#implementation-status-2026-05-08))
 - Modify: parser-error/diagnostic surface (likely `crates/vox-compiler/src/parser/error.rs`)
 - Test: extend `crates/vox-compiler/tests/rename_alias_test.rs`
 
@@ -990,7 +990,7 @@ git commit -m "feat(arch-check): enforce rename-registry consistency (VUV-9 task
 
 - [ ] **Step 1: Update the VUV phasing table**
 
-Add a row to the implementation-status table in [gui-authoring-syntax-2026.md](../../../docs/src/architecture/gui-authoring-syntax-2026.md):
+Add a row to the implementation-status table in [gui-authoring-syntax-2026.md](../../../src/architecture/gui-authoring-syntax-2026.md):
 
 ```markdown
 | **VUV-9** Naming policy + codemod | ✅ Done | Policy at vuv-naming-policy-2026.md; registry at contracts/naming/renames.v1.json (empty until first rename); `vox migrate` codemod + arch-check enforcement. |
@@ -998,7 +998,7 @@ Add a row to the implementation-status table in [gui-authoring-syntax-2026.md](.
 
 - [ ] **Step 2: Update research doc open questions**
 
-In [gradio-streamlit-research-2026.md §7](../../../docs/src/architecture/gradio-streamlit-research-2026.md#7-open-questions-and-follow-ups), mark Q6 as resolved with a link to this plan.
+In [gradio-streamlit-research-2026.md §7](../../../src/architecture/gradio-streamlit-research-2026.md#7-open-questions-and-follow-ups), mark Q6 as resolved with a link to this plan.
 
 - [ ] **Step 3: Regenerate the doc indices**
 
@@ -1091,7 +1091,7 @@ All of the following must be green before VUV-9 is considered shipped:
 **Scope summary.** New crate `crates/vox-ui-stdlib/` with three composed components:
 
 1. **`chat_panel(messages, on_send, streaming, placeholder, submit_label)`** — a column with scrollable message list + bottom input row. Children are rendered as an additional-inputs accordion (à la `gr.ChatInterface`).
-2. **`chat_message(role, content, timestamp?)`** — a single bubble. Already prototyped in [chat_message.vox](../../../crates/vox-dashboard/app/src/lib/) (or wherever the dashboard's chat lives); promote to stdlib with hardened API.
+2. **`chat_message(role, content, timestamp?)`** — a single bubble. Already prototyped in [chat_message.vox](../../../../crates/vox-dashboard/app/src/lib/) (or wherever the dashboard's chat lives); promote to stdlib with hardened API.
 3. **`streaming_token(stream)`** — a primitive that consumes a token stream and renders incrementally. Lowers to a reactive consumer hooked into the existing Vox reactive system.
 
 **Files involved:**
@@ -1200,7 +1200,7 @@ VUV-9 ships the deprecation cycle. Every later phase honors it: if it renames `X
 **Non-goals:**
 
 - Cloning Gradio or Streamlit. We are not building a `gr.Interface`-equivalent or an `st.write`-equivalent. The research doc explicitly rejected magic and polymorphic catch-alls.
-- Native rendering (egui/iced/dioxus). [frontend-convergence-findings-2026.md](../../../docs/src/architecture/frontend-convergence-findings-2026.md) is clear: "GUI native" means typed primitives, not a non-React renderer.
+- Native rendering (egui/iced/dioxus). [frontend-convergence-findings-2026.md](../../../src/architecture/frontend-convergence-findings-2026.md) is clear: "GUI native" means typed primitives, not a non-React renderer.
 - Deploy-side concerns. `share=True` analogue, hosted demo platform, etc. — out of scope; tracked separately.
 
 ---
@@ -1209,7 +1209,7 @@ VUV-9 ships the deprecation cycle. Every later phase honors it: if it renames `X
 
 (Done by the plan author before handoff.)
 
-- [x] Spec coverage — every keep/adapt row in [research-doc §6](../../../docs/src/architecture/gradio-streamlit-research-2026.md#6-lessons-for-vuv--keep-adapt-reject) maps to a phase in the roadmap.
+- [x] Spec coverage — every keep/adapt row in [research-doc §6](../../../src/architecture/gradio-streamlit-research-2026.md#6-lessons-for-vuv--keep-adapt-reject) maps to a phase in the roadmap.
 - [x] Open questions — Q1–Q7 each have an explicit resolution.
 - [x] Placeholder scan — no "TBD"; every "follow-up plan" entry has a concrete trigger condition.
 - [x] Type consistency — `RenameRegistry`, `RenameEntry`, `RenameKind` named consistently across tasks 2–8.

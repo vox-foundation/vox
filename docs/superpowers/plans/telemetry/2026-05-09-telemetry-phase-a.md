@@ -1241,7 +1241,7 @@ git commit -m "fix(vox-cli/ci): update data_ssot_guards path to vox-telemetry/sr
 Find the `### L1 — primitives & utilities` table. Add as the last row before the blank line:
 
 ```markdown
-| [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro. Zero domain dependencies. |
+| [`vox-telemetry`](../../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro. Zero domain dependencies. |
 ```
 
 - [ ] **Step 2: Run `vox-arch-check`**

@@ -424,7 +424,7 @@ cargo run -q -p vox-cli -- ci install-hooks
 
 This writes `.git/hooks/pre-push` as a one-line delegate to
 `vox ci pre-push`. The generated stub honours
-[AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md) — no business logic
+[AGENTS.md §VoxScript-First Glue Code](../../../../AGENTS.md) — no business logic
 in shell.
 
 ## Bypass

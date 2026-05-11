@@ -23,7 +23,7 @@
 | Foreground UX | Plain stdout, structured `[vox share]` and `[app]` prefixes |
 | First-run UX | One-time `[Y/n]` consent banner; cloudflared auto-downloaded + SHA256-verified; state in `~/.config/vox/share-state.json` |
 
-Companion research at [docs/src/architecture/gradio-streamlit-research-2026.md §6](../../src/architecture/gradio-streamlit-research-2026.md) and [the share-feature research dossier](../../../crates/vox-share/RESEARCH.md) (created in S1).
+Companion research at [docs/src/architecture/gradio-streamlit-research-2026.md §6](../../../src/architecture/gradio-streamlit-research-2026.md) and [the share-feature research dossier](../../../../crates/vox-share/RESEARCH.md) (created in S1).
 
 **Out of scope for this plan:** the Vox-hosted FRP relay at `*.vox.live`. That's the future direction (see [§Phase S10](#phase-s10--future-direction-vox-hosted-frp-relay)) but not built here.
 

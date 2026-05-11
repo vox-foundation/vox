@@ -237,10 +237,10 @@ white-paper. Here is a focused survey, one verdict per system.
 | **SWARM Parallelism** ([paper](https://arxiv.org/abs/2301.11913)) | Pipeline-parallel training over heterogeneous, slow, unreliable workers. | **KEEP for research** — directly addresses the "training on volunteer mesh" problem; not for v1.0. |
 | **FedAvg / Federated Learning** ([paper](https://arxiv.org/abs/1602.05629)) | Train locally on private data; server averages weights periodically. Privacy-preserving. | **ADAPT (privacy mode)** — the right shape for `accepts_sensitive_training_data: false` peers contributing data updates without exposing inputs. |
 | **vLLM tensor parallel** ([source](https://docs.vllm.ai/)) | Production tensor-parallel inference; CUDA-only; mature batching. | **REJECT (as a dependency)** — but we *handoff* to vLLM via the existing `external_serving_handoff.rs` for users who already run it. |
-| **llama.cpp RPC** ([source](https://github.com/ggerganov/llama.cpp/tree/master/examples/rpc)) | Splits a GGUF model across machines using a custom RPC protocol; CPU + GPU. | **KEEP (as Mn-T2 backend)** — exactly the pattern for "use my friend's MacBook + my desktop together for inference". |
+| **llama.cpp RPC** ([source](https://github.com/ggml-org/llama.cpp/tree/master/tools/rpc)) | Splits a GGUF model across machines using a custom RPC protocol; CPU + GPU. | **KEEP (as Mn-T2 backend)** — exactly the pattern for "use my friend's MacBook + my desktop together for inference". |
 | **mlx-distributed** ([source](https://ml-explore.github.io/mlx/build/html/usage/distributed.html)) | Apple's MLX has a small distributed primitive; macOS-only. | **REJECT (for v0.6/v0.7)** — Apple Silicon training is out of scope; revisit if we ever lift the charter. |
 | **Candle distributed (current)** ([source](https://github.com/huggingface/candle)) | Single-device today; multi-device is sketched but not first-class. | **ADAPT** — we build on Candle's `Device` and `VarMap` and provide our own all-reduce envelope on top. |
-| **BOINC adaptive replication** ([paper / wiki](https://boinc.berkeley.edu/trac/wiki/AdaptiveReplication)) | Volunteer compute network; redundant execution of jobs with majority voting; "trusted host" downgrade after consistent agreement. | **KEEP** — directly informs Mn-T14 / SSOT P6-T4. |
+| **BOINC adaptive replication** ([project overview](https://boinc.berkeley.edu/) — legacy Trac wiki page on adaptive replication is retired) | Volunteer compute network; redundant execution of jobs with majority voting; "trusted host" downgrade after consistent agreement. | **KEEP** — directly informs Mn-T14 / SSOT P6-T4. |
 | **SafeTensors sharding** ([source](https://huggingface.co/docs/safetensors/index)) | Memory-mapped, zero-copy, no-arbitrary-code-execution tensor format; supports sharded models via index json. | **KEEP** — this is the only on-disk weight format we touch. |
 
 The synthesis: we copy the *shape* of DDP gradient sync, the
@@ -297,7 +297,7 @@ the backend.
 - `CandleMetal` — Mn-T13. Wraps `candle-core` with `Device::Metal`.
 - `CandleCpu` — wraps `candle-core` with `Device::Cpu`. Slow but always
   available; used as the smoke-test backend in CI.
-- `LlamaCppRpc` — speaks the [llama.cpp RPC protocol](https://github.com/ggerganov/llama.cpp/tree/master/examples/rpc)
+- `LlamaCppRpc` — speaks the [llama.cpp RPC protocol](https://github.com/ggml-org/llama.cpp/tree/master/tools/rpc)
   to a remote host running `rpc-server`. The remote host doesn't need
   Vox installed — this is one of two interop paths for "I have an old
   GGUF model on a NAS".

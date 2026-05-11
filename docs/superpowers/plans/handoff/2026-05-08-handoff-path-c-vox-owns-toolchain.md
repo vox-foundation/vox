@@ -26,9 +26,9 @@ vox serve apps/my-app/src/main.vox                              # dev server + w
 - **Build target during dev:** `cargo build --release -p vox-cli` then `target/release/vox.exe`. The globally-installed `~/.cargo/bin/vox` is stale relative to source until reinstalled, and reinstall requires stopping any running vox.exe processes (don't assume that's safe).
 - **Open PR using the current TS codegen path (do not break it):** [#70](https://github.com/vox-foundation/vox/pull/70) — vox-mental-tracker app. Its Phase 5 Playwright lane caches Chromium and self-skips when `BASE_URL` is unset; once Path C lands, the tracker rebases and **Phase F of this plan** swaps Vite for `vox serve`.
 
-## 2. Prerequisites — the 4 codegen-TS bugs in [PR #78's plan](2026-05-08-codegen-ts-bugs-blocking-tracker.md)
+## 2. Prerequisites — the 4 codegen-TS bugs in [PR #78's plan](../language/2026-05-08-codegen-ts-bugs-blocking-tracker.md)
 
-Before Path C's emit changes are valuable, the existing TS codegen needs to produce *correct* output. Four bugs documented in `2026-05-08-codegen-ts-bugs-blocking-tracker.md`:
+Before Path C's emit changes are valuable, the existing TS codegen needs to produce *correct* output. Four bugs documented in [`2026-05-08-codegen-ts-bugs-blocking-tracker.md`](../language/2026-05-08-codegen-ts-bugs-blocking-tracker.md):
 
 - **A.** match arms emit `case _:` literal patterns; `Ok(t)` / `Error(e)` bindings drop on the floor.
 - **B.** `Speech.method()` lowers to `mobile.method()` — wrong runtime namespace.
@@ -254,7 +254,7 @@ Read this single document end-to-end before any action:
   docs/superpowers/plans/handoff/2026-05-08-handoff-path-c-vox-owns-toolchain.md
 
 Prerequisites: the four codegen-TS bugs in
-2026-05-08-codegen-ts-bugs-blocking-tracker.md
+docs/superpowers/plans/language/2026-05-08-codegen-ts-bugs-blocking-tracker.md
 (PR #78's plan) need to be fixed first. Land those four PRs (order
 C → B → A → D), then start Path C Phase A.
 
