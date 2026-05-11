@@ -94,6 +94,8 @@ vox-gamify                 = { path = "crates/vox-gamify" }
 vox-populi                = { path = "crates/vox-populi" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
+vox-mesh-models           = { path = "crates/vox-mesh-models" }
+vox-mesh-policy           = { path = "crates/vox-mesh-policy" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
@@ -103,6 +105,7 @@ vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }
 vox-orchestrator-queue    = { path = "crates/vox-orchestrator-queue" }
 vox-orchestrator-d        = { path = "crates/vox-orchestrator-d" }
 vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
+vox-orchestrator-cap-mint = { path = "crates/vox-orchestrator-cap-mint" }
 vox-openai-sse            = { path = "crates/vox-openai-sse" }
 vox-openai-wire           = { path = "crates/vox-openai-wire" }
 vox-plugin-api            = { path = "crates/vox-plugin-api" }
@@ -116,6 +119,9 @@ vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
 vox-wasm-engine           = { path = "crates/vox-wasm-engine" }
 vox-package                    = { path = "crates/vox-package" }
 vox-package-types              = { path = "crates/vox-package-types" }
+vox-inference                  = { path = "crates/vox-inference" }
+vox-distributed-training       = { path = "crates/vox-distributed-training" }
+vox-mens-eval                  = { path = "crates/vox-mens-eval" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }
 vox-cli-ci                = { path = "crates/vox-cli-ci" }
@@ -182,6 +188,9 @@ blake3             = { version = "1", features = ["pure"] }
 jsonwebtoken       = { version = "9", default-features = false }
 ed25519-dalek      = { version = "2", default-features = false }
 x25519-dalek       = { version = "2", default-features = false, features = ["static_secrets"] }
+rustls             = { version = "0.23", default-features = false, features = ["ring"] }
+rustls-pemfile     = "2"
+tokio-rustls       = { version = "0.26", default-features = false, features = ["ring"] }
 insta              = { version = "1", features = ["json"] }
 criterion          = { version = "0.5", features = ["html_reports"] }
 async-trait        = "0.1"

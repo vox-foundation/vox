@@ -13,6 +13,10 @@ pub mod oratio_mic;
 pub mod populi_cli;
 #[cfg(feature = "populi")]
 pub mod populi_lifecycle;
+#[cfg(feature = "populi")]
+pub mod populi_attest;
+#[cfg(feature = "populi")]
+pub mod populi_join;
 
 #[cfg(any(feature = "gpu", feature = "mens-dei", feature = "mens-base"))]
 pub mod ai;

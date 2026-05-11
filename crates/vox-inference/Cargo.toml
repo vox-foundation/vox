@@ -1,0 +1,15 @@
+[package]
+name = "vox-inference"
+description = "InferenceBackend trait, capabilities, and multi-backend dispatcher (MENS Mn-T2)."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+vox-package = { workspace = true }
+
+[lints]
+workspace = true

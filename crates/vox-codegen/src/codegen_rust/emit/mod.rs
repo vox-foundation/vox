@@ -9,6 +9,7 @@ use vox_compiler::hir::HirModule;
 use vox_compiler::rust_interop_support::{classify_rust_crate, is_template_managed_app_dependency};
 
 mod client;
+mod durability_lower;
 mod http;
 mod method_emit;
 mod stmt_expr;

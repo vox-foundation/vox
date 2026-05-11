@@ -234,6 +234,8 @@ deploy
 dev
 diag
 diag/doctor
+dispatch
+dispatch/preview
 doctor
 drift-check
 ext
@@ -276,6 +278,10 @@ migrate
 migrate/names
 migrate/web
 model
+model/cas
+model/cas/ls
+model/cas/pull
+model/cas/push
 model/costs
 model/discover
 model/explain
@@ -411,3 +417,7 @@ test
 train
 update
 upgrade
+workflow
+workflow/drain
+workflow/ls
+workflow/preview

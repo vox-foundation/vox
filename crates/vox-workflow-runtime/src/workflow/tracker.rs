@@ -103,6 +103,48 @@ pub trait WorkflowTracker: Send + Sync {
     ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
         async { Ok(()) }
     }
+
+    /// Load the previously recorded version for a `workflow.version` patch marker.
+    fn load_workflow_patch(
+        &self,
+        _workflow_name: &str,
+        _change_id: &str,
+    ) -> impl std::future::Future<Output = anyhow::Result<Option<u32>>> + Send {
+        async { Ok(None) }
+    }
+
+    /// Persist the chosen version for a `workflow.version` patch marker.
+    fn record_workflow_patch(
+        &mut self,
+        _workflow_name: &str,
+        _change_id: &str,
+        _version: u32,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        async { Ok(()) }
+    }
+
+    /// P2-T5: try the activity result cache. `Ok(None)` for miss; `Ok(Some(_))`
+    /// for hit (caller skips the body). Default: always miss.
+    fn load_cached_activity_result(
+        &self,
+        _activity_id: &str,
+        _arg_hash_hex: &str,
+        _now_unix_ms: u64,
+    ) -> impl std::future::Future<Output = anyhow::Result<Option<Value>>> + Send {
+        async { Ok(None) }
+    }
+
+    /// P2-T5: upsert a cache entry. Default: no-op.
+    fn record_cached_activity_result(
+        &mut self,
+        _activity_id: &str,
+        _arg_hash_hex: &str,
+        _result: &Value,
+        _produced_at_unix_ms: u64,
+        _dedup_window_ms: u64,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        async { Ok(()) }
+    }
 }
 
 /// A default no-op tracker used if none is provided.

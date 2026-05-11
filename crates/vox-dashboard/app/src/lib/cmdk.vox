@@ -1,0 +1,173 @@
+// ⌘K palette — Phase 4, P4-T7 (extended in P4-T13 with hopper actions).
+//
+// Mesh-aware actions:
+//   • "kill <node>"    → POST /api/v2/mesh/nodes/{id}/kill
+//   • "pause <node>"   → POST /api/v2/mesh/nodes/{id}/pause
+//   • "drain <node>"   → POST /api/v2/mesh/nodes/{id}/drain
+//   • "replay <node>"  → POST /api/v2/mesh/nodes/{id}/replay
+//
+// Hopper actions (P4-T13):
+//   • "submit: <intent>"   → POST /api/v2/hopper/submit (mints DeveloperOverride on reprioritize)
+//   • "urgent: <task-id>"  → POST /api/v2/hopper/items/{id}/reprioritize {new_priority:"urgent"}
+//   • "defer:  <task-id>"  → POST /api/v2/hopper/items/{id}/reprioritize {new_priority:"background"}
+//
+// Every destructive/override choice opens a ConfirmModal and writes a signed audit-log entry.
+component CmdK(open: bool, on_close: fn()) {
+    let query     = use_state(value="")
+    let nodes     = use_state(value=[])
+    let hop_items = use_state(value=[])
+    let confirm   = use_state(value=null)   // null | {action, node}
+
+    use_effect(deps=[open], body=fn() {
+        if open {
+            api_get(url="/api/v2/mesh/nodes",       on_ok=fn(r) { set(nodes,     r.data) })
+            api_get(url="/api/v2/hopper/inbox",     on_ok=fn(r) { set(hop_items, [...r.data]) })
+            api_get(url="/api/v2/hopper/assigned",  on_ok=fn(r) { set(hop_items, fn(prev) { [...prev, ...r.data] }) })
+        }
+    })
+
+    let on_submit = fn(action, node) {
+        set(confirm, {action: action, node: node})
+    }
+
+    let on_confirm = fn(reason) {
+        api_post(
+            url="/api/v2/mesh/nodes/" + confirm.node.id + "/" + confirm.action,
+            body={"reason": reason, "confirm_token": "yes-i-mean-it"},
+            on_ok=fn(r) {
+                toast(text=confirm.action + " " + confirm.node.id + " — audit " + r.data.audit_id)
+                set(confirm, null)
+                on_close()
+            },
+            on_err=fn(_) {
+                toast(text="Action failed — check network and try again.")
+            },
+        )
+    }
+
+    if !open { view: panel() }
+    else {
+        view: overlay(on_dismiss=on_close, raw_class="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-32") {
+            panel(w=160, bg="zinc.950", border=true, border_color="white/10", radius="lg", shadow=true) {
+                input(
+                    value=query,
+                    on_change=fn(v) { set(query, v) },
+                    placeholder="Run a mesh or hopper command…",
+                    autofocus=true,
+                    raw_class="w-full px-4 h-12 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600",
+                )
+                column(max_h=100, overflow="auto") {
+                    for action in ["kill", "pause", "drain", "replay"] {
+                        for node in nodes.filter(fn(n) { match_query(n.id, query) }) {
+                            row(
+                                on_click=fn() { on_submit(action, node) },
+                                raw_class="px-4 py-2 hover:bg-white/5 cursor-pointer flex items-center gap-3",
+                            ) {
+                                panel(
+                                    w=2, h=2, radius="sm",
+                                    bg=if action is "kill" { "rose.500" }
+                                       else if action is "drain" { "amber.400" }
+                                       else { "zinc.500" },
+                                )
+                                text(size="sm", color="zinc.300") { action + " " + node.id }
+                                PrivacyBadge(class=node.privacy_class)
+                            }
+                        }
+                    }
+                }
+                    // ── Hopper quick-submit ────────────────────────────────────
+                    if match_query("submit", query) and query.length > 0 {
+                        row(
+                            on_click=fn() {
+                                let intent = query.replace("submit:", "").trim()
+                                api_post(
+                                    url="/api/v2/hopper/submit",
+                                    body={"intent": intent},
+                                    on_ok=fn(_) { toast(text="Submitted: " + intent); on_close() },
+                                )
+                            },
+                            raw_class="px-4 py-2 hover:bg-white/5 cursor-pointer flex items-center gap-3",
+                        ) {
+                            panel(w=2, h=2, radius="sm", bg="emerald.500")
+                            text(size="sm", color="zinc.300") { "submit: " + query }
+                        }
+                    }
+
+                    // ── Hopper reprioritize: urgent / defer ────────────────────
+                    for hop_action in ["urgent", "defer"] {
+                        for item in hop_items.filter(fn(i) { match_query(i.intent, query) }) {
+                            row(
+                                on_click=fn() {
+                                    let new_p = if hop_action is "urgent" { "urgent" } else { "background" }
+                                    set(confirm, {action: hop_action, node: {id: item.item_id, intent: item.intent, privacy_class: item.privacy_class}, hop_item_id: item.item_id, hop_priority: new_p})
+                                },
+                                raw_class="px-4 py-2 hover:bg-white/5 cursor-pointer flex items-center gap-3",
+                            ) {
+                                panel(w=2, h=2, radius="sm", bg=if hop_action is "urgent" { "rose.400" } else { "zinc.600" })
+                                text(size="sm", color="zinc.300") { hop_action + ": " + item.intent }
+                                PrivacyBadge(class=item.privacy_class)
+                            }
+                        }
+                    }
+                }
+                if nodes.length is 0 and hop_items.length is 0 {
+                    text(size="xs", color="zinc.600", raw_class="px-4 py-3") { "No nodes or hopper items." }
+                }
+            }
+            if confirm is not null {
+                ConfirmModal(
+                    action=confirm.action,
+                    node=confirm.node,
+                    on_confirm=on_confirm,
+                    on_cancel=fn() { set(confirm, null) },
+                )
+            }
+        }
+    }
+}
+
+component ConfirmModal(action: str, node: dict, on_confirm: fn(str), on_cancel: fn()) {
+    let typed  = use_state(value="")
+    let reason = use_state(value="")
+
+    view: overlay(raw_class="fixed inset-0 z-60 bg-black/60 flex items-center justify-center") {
+        panel(w=120, bg="zinc.950", border=true, border_color="rose.500/40", radius="lg", pad=6, gap=4) {
+            text(size="lg", weight="bold", color="rose.300") { "Confirm: " + action + " " + node.id }
+            text(size="sm", color="zinc.400") {
+                "This signals the orchestrator and writes a SIGNED audit-log entry. There is no undo."
+            }
+            PrivacyBadge(class=node.privacy_class)
+            input(
+                value=typed,
+                on_change=fn(v) { set(typed, v) },
+                placeholder="Type the node id to confirm",
+                raw_class="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded text-sm font-mono",
+            )
+            input(
+                value=reason,
+                on_change=fn(v) { set(reason, v) },
+                placeholder="Reason (logged in audit trail)",
+                raw_class="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded text-sm",
+            )
+            row(gap=2, justify="end") {
+                button(
+                    on_click=on_cancel,
+                    bg="white/5",
+                    color="zinc.400",
+                    radius="md",
+                    pad_x=3,
+                    pad_y=2,
+                ) { text(size="sm") { "Cancel" } }
+                button(
+                    on_click=fn() { on_confirm(reason) },
+                    disabled=if typed is node.id { false } else { true },
+                    bg=if typed is node.id { "rose.500" } else { "white/10" },
+                    color="white",
+                    radius="md",
+                    pad_x=4,
+                    pad_y=2,
+                ) { text(size="sm", weight="bold") { "Confirm " + action } }
+            }
+        }
+    }
+}

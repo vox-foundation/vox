@@ -46,6 +46,7 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         HirExpr::Try(t) => t.span,
         HirExpr::DecimalLit(_, s) => *s,
         HirExpr::AsyncView(v) => v.span,
+        HirExpr::WorkflowVersion(v) => v.span,
     }
 }
 
@@ -553,7 +554,8 @@ impl<'a> Checker<'a> {
             | HirExpr::BoolLit(_, _)
             | HirExpr::StringLit(_, _)
             | HirExpr::Ident(_, _)
-            | HirExpr::DecimalLit(_, _) => false,
+            | HirExpr::DecimalLit(_, _)
+            | HirExpr::WorkflowVersion(_) => false,
         }
     }
 

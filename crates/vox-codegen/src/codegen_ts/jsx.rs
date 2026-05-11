@@ -665,6 +665,13 @@ pub fn emit_expr(expr: &Expr) -> String {
         Expr::Index { object, index, .. } => {
             format!("{}[{}]", emit_expr(object), emit_expr(index))
         }
+        // side_effect desugars to a synthesised activity call at HIR time; should not
+        // reach the AST-level TS codegen path.
+        Expr::SideEffect { .. } => {
+            "__side_effect__(/* P1-T7 */)".to_string()
+        }
+        // WorkflowVersion is not representable as a TS expression in this emit path
+        Expr::WorkflowVersion(_) => String::new(),
     }
 }
 

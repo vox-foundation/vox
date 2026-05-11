@@ -1,4 +1,6 @@
 use crate::ast::expr::{self, BinOp, Expr, UnOp};
+use crate::hir::nodes::durability::DurabilityKind;
+use crate::hir::HirWorkflowVersion;
 use crate::hir::*;
 
 use super::LowerCtx;
@@ -321,6 +323,51 @@ impl LowerCtx {
             Expr::Block { stmts, span } => {
                 HirExpr::Block(stmts.iter().map(|s| self.lower_stmt(s)).collect(), *span)
             }
+            // P1-T7: desugar `side_effect { … }` into a synthesised anonymous inline activity
+            // and a zero-argument call to it.  The body stmts may use non-deterministic builtins
+            // (time.now, random.*) — the workflow determinism check is exempt inside the block.
+            Expr::SideEffect { stmts, span } => {
+                let n = self.next_synthesis_counter();
+                let name = format!("__side_effect_{n}");
+                let body: Vec<HirStmt> = stmts.iter().map(|s| self.lower_stmt(s)).collect();
+                let id = self.def_map.define(name.clone());
+                self.synthesised_fns.push(HirFn {
+                    id,
+                    name: name.clone(),
+                    generics: vec![],
+                    params: vec![],
+                    return_type: None,
+                    body,
+                    is_async: false,
+                    is_pub: false,
+                    is_mobile_native: false,
+                    is_pure: false,
+                    is_reactive: false,
+                    capabilities: vec![],
+                    is_remote: false,
+                    is_llm: false,
+                    llm_model: None,
+                    ai_structured_output: None,
+                    embed: None,
+                    is_deprecated: false,
+                    schedule_interval: None,
+                    durability: Some(DurabilityKind::Activity),
+                    actor_state_fields: vec![],
+                    postconditions: vec![],
+                    ts_extern_module: None,
+                    generated_hash: None,
+                    span: *span,
+                    inference_model: None,
+                    training_step: false,
+                    distributed_train: None,
+                });
+                HirExpr::Call(
+                    Box::new(HirExpr::Ident(name, *span)),
+                    vec![],
+                    false,
+                    *span,
+                )
+            }
             Expr::Index {
                 object,
                 index,
@@ -330,6 +377,12 @@ impl LowerCtx {
                 Box::new(self.lower_expr(index)),
                 *span,
             ),
+            Expr::WorkflowVersion(call) => HirExpr::WorkflowVersion(HirWorkflowVersion {
+                change_id: call.change_id.clone(),
+                min: call.min,
+                max: call.max,
+                span: call.span,
+            }),
         }
     }
 }

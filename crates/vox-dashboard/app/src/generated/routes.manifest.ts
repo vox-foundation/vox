@@ -3,7 +3,7 @@
 // Adapter: import { voxRoutes } from "./routes.manifest" in your App.tsx.
 
 import type { ComponentType } from "react"
-import { AppShell } from "./AppShell"
+import { AppShell } from "./AppShell.tsx"
 
 export type VoxRoute = {
   path: string

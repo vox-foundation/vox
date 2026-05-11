@@ -487,7 +487,8 @@ fn scan_hir_expr_for_react_imports(
         | HirExpr::StringLit(_, _)
         | HirExpr::BoolLit(_, _)
         | HirExpr::DecimalLit(_, _)
-        | HirExpr::Ident(_, _) => {}
+        | HirExpr::Ident(_, _)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 
@@ -898,6 +899,25 @@ pub fn generate_reactive_component(
     let visible_fn_names: HashSet<String> = hir.functions.iter().map(|f| f.name.clone()).collect();
 
     out.push_str(&react_import_line(&rc.members));
+
+    // Phase 5: external React components (`import react Foo from "./Foo.tsx"` in Vox source).
+    let mut react_es_imports: Vec<(&str, &str)> = hir
+        .imports
+        .iter()
+        .filter_map(|imp| {
+            imp.es_module_specifier
+                .as_ref()
+                .map(|spec| (imp.item.as_str(), spec.as_str()))
+        })
+        .collect();
+    react_es_imports.sort_by_key(|(item, _)| *item);
+    let has_react_es = !react_es_imports.is_empty();
+    for (item, spec) in &react_es_imports {
+        out.push_str(&format!("import {item} from \"{spec}\";\n"));
+    }
+    if has_react_es {
+        out.push('\n');
+    }
 
     // Emit import statements for other Vox components referenced in the view.
     let known_components: HashSet<String> = hir.components.iter().map(|c| c.name.clone()).collect();

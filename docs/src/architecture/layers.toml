@@ -61,6 +61,7 @@ reason   = "vox-code-audit detectors must not pull search/vector deps (build-tim
 
 # ── L0 — pure types ───────────────────────────────────────────────────────────
 vox-orchestrator-types = { layer = 0 }
+vox-orchestrator-cap-mint = { layer = 1, max_loc = 200, max_dependents = 4 }
 vox-db-types           = { layer = 0 }
 vox-protocol           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
@@ -101,6 +102,7 @@ vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
 vox-eval                = { layer = 2 }
+vox-mens-eval           = { layer = 2 }
 vox-claim-extractor     = { layer = 2, max_loc = 20_000 }               # SCIENTIA Phase 1: VeriScore + atomic + MiniCheck extraction
 vox-nanopub             = { layer = 2, max_loc = 10_000 }               # SCIENTIA Phase 4: TriG emit + ed25519 sign + Nanopub Network
 vox-prereg              = { layer = 2, max_loc = 8_000 }                # SCIENTIA Phase 2: PreregistrationV1 signing + deviation detection
@@ -127,6 +129,8 @@ vox-git                 = { layer = 3 }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
 vox-dashboard           = { layer = 3 }
+vox-mesh-models         = { layer = 3 }
+vox-mesh-policy         = { layer = 3 }
 vox-webhook             = { layer = 3 }
 vox-code-audit          = { layer = 3, max_loc = 15_000 }
 vox-drift-check              = { layer = 3, kind = "binary", max_loc = 8_000 }
@@ -145,6 +149,8 @@ vox-test-harness        = { layer = 3 }
 vox-doc-pipeline        = { layer = 3 }
 vox-deploy-codegen      = { layer = 3 }
 vox-package             = { layer = 3 }
+vox-inference           = { layer = 3 }
+vox-distributed-training = { layer = 3 }
 vox-tensor              = { layer = 3 }
 vox-plugin-host         = { layer = 3 }
 vox-plugin-catalog      = { layer = 3 }
@@ -185,3 +191,17 @@ from   = "vox-arch-check"
 to     = "vox-compiler"
 reason = "dev-dependency only (rename-registry integration test added in feat(arch-check) VUV-9 task 8). The tool binary does not ship vox-compiler at runtime; remove once the test can be refactored to not need the full compiler crate."
 
+# ── Rule 11 (P3-T7): Forbidden code patterns ─────────────────────────────────
+# Forbid raw git invocations outside the concurrency-policy wrapper.
+# See docs/src/architecture/git-concurrency-policy.md.
+[[forbidden_pattern]]
+name             = "raw-git-exec"
+pattern          = 'Command::new\("git"\)'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    "crates/vox-vcs-git/src/git_exec.rs",
+    "crates/vox-arch-check/src/main.rs",
+    "crates/vox-arch-check/src/forbidden_patterns.rs",
+]
+allow_annotation = "// vox-arch-check: allow git-exec"
+reason           = "All git invocations must go through GitExec to honor the concurrency policy."

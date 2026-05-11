@@ -1,4 +1,6 @@
 //! SCIENTIA RO-Crate 1.2 JSON-LD metadata builder.
+//!
+//! Produces CFF, CodeMeta, TOP-Level-2, and ACM badge compliance surfaces for research artifacts.
 
 pub mod ai_disclosure;
 pub mod cff;

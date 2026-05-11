@@ -227,6 +227,8 @@ fn collect_unknown_calls(expr: &HirExpr, known: &HashSet<String>, out: &mut Vec<
             collect_unknown_calls(iter, known, out);
             collect_unknown_calls(body, known, out);
         }
+        // workflow.version is a patch-marker leaf; no calls to track.
+        HirExpr::WorkflowVersion(_) => {}
     }
 }
 

@@ -1,0 +1,119 @@
+// "Join a mesh" wizard — Phase 4, P4-T11.
+//
+// Inverse of wizard_add_node.vox (P4-T2): paste an invite URL → become a worker.
+//
+// Flow:
+//   1. Paste vox+invite://…?b=… URL.
+//   2. Dashboard POSTs to /api/v2/mesh/invite/preview to validate + decode.
+//   3. Show policy preview: slots, privacy class.
+//   4. Confirm-and-join → POST /api/v2/mesh/join.
+//   5. After join succeeds, navigate to /donations so the user reviews policy.
+component WizardJoinMesh() {
+    let url      = use_state(value="")
+    let preview  = use_state(value=null)
+    let stage    = use_state(value="paste")    // "paste" | "preview" | "joined"
+    let error    = use_state(value=null)
+
+    let on_validate = fn() {
+        set(error, null)
+        api_post(
+            url="/api/v2/mesh/invite/preview",
+            body={"bearer_url": url},
+            on_ok=fn(r) { set(preview, r.data); set(stage, "preview") },
+            on_err=fn(_) { set(error, "Invalid invite URL — check the link and try again.") },
+        )
+    }
+
+    let on_join = fn() {
+        api_post(
+            url="/api/v2/mesh/join",
+            body={"bearer_url": url},
+            on_ok=fn(_) { set(stage, "joined"); navigate(to="/donations") },
+            on_err=fn(_) { set(error, "Join failed — the bearer may have expired.") },
+        )
+    }
+
+    view: column(pad=8, gap=6, bg="zinc.950") {
+        text(size="2xl", weight="bold", color="white") { "Join a mesh" }
+
+        if stage is "paste" {
+            text(size="sm", color="zinc.500") {
+                "Paste an invite URL from a friend or scan a QR code."
+            }
+            input(
+                value=url,
+                on_change=fn(v) { set(url, v) },
+                placeholder="vox+invite://…",
+                autofocus=true,
+                raw_class="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-md text-sm font-mono text-zinc-200",
+            )
+            if error is not null {
+                text(size="xs", color="rose.400") { error }
+            }
+            button(
+                on_click=on_validate,
+                bg="emerald.500",
+                color="zinc.950",
+                radius="lg",
+                pad_x=6,
+                pad_y=3,
+            ) {
+                text(size="sm", weight="bold") { "Preview policy" }
+            }
+        } else if stage is "preview" {
+            text(size="lg", weight="bold", color="white") {
+                "Join " + preview.inviter + "'s mesh"
+            }
+            row(items="center", gap=2) {
+                PrivacyBadge(class="paired-peers-only")
+                text(size="xs", color="zinc.400") {
+                    "Your machine will be visible to " + preview.inviter + " as a worker node."
+                }
+            }
+            panel(border=true, border_color="amber.500/30", bg="amber.500/5", radius="md", pad=3) {
+                text(size="xs", color="amber.300") {
+                    "Review the slot types below. You can adjust donation limits in the Donations editor after joining."
+                }
+            }
+            column(gap=2) {
+                text(size="xs", color="zinc.500", tracking="widest", case="upper") { "Requested slots" }
+                for slot in preview.slots {
+                    row(items="center", gap=2) {
+                        panel(w=2, h=2, radius="sm", bg="emerald.500/20", border=true, border_color="emerald.500/30")
+                        text(size="sm", color="zinc.200") { slot.kind }
+                        text(size="xs", color="zinc.500") { "×" + str(slot.max_concurrent) }
+                    }
+                }
+            }
+            if error is not null {
+                text(size="xs", color="rose.400") { error }
+            }
+            row(gap=3) {
+                button(
+                    on_click=fn() { set(stage, "paste"); set(preview, null) },
+                    bg="white/5",
+                    color="zinc.400",
+                    radius="md",
+                    pad_x=4,
+                    pad_y=2,
+                ) {
+                    text(size="sm") { "Cancel" }
+                }
+                button(
+                    on_click=on_join,
+                    bg="emerald.500",
+                    color="zinc.950",
+                    radius="md",
+                    pad_x=6,
+                    pad_y=2,
+                ) {
+                    text(size="sm", weight="bold") { "Join as worker" }
+                }
+            }
+        } else {
+            text(size="sm", color="zinc.400") {
+                "Joined. Redirecting to your donation policy…"
+            }
+        }
+    }
+}

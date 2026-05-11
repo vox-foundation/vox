@@ -123,6 +123,8 @@ vox-cli-core = { workspace = true }
 base64 = { workspace = true }
 futures = { workspace = true }
 vox-package = { workspace = true }
+vox-inference = { workspace = true }
+vox-mens-eval = { workspace = true }
 vox-container = { workspace = true }
 vox-wasm-engine = { workspace = true }
 vox-deploy-codegen = { workspace = true }

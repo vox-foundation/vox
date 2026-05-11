@@ -297,6 +297,7 @@ impl Parser {
                 is_deprecated: false,
                 is_pure: false,
                 is_reactive: false,
+                is_remote: false,
                 is_traced: false,
                 is_llm: false,
                 llm_model: None,
@@ -320,6 +321,8 @@ impl Parser {
                 is_mobile_native: false,
                 ts_extern_module: None,
                 effects: vec![],
+                inference_model: None,
+                training_step: false,
                 span: script_start.merge(script_end),
             };
             decls.push(Decl::Function(main_fn));
@@ -382,6 +385,7 @@ impl Parser {
                 | Token::AtFuzz
                 | Token::AtPure
                 | Token::AtReactive
+                | Token::AtRemote
                 | Token::AtAi
                 | Token::AtDeprecated
                 | Token::AtLoading
@@ -469,7 +473,10 @@ impl Parser {
                     | Token::AtInvariant
                     | Token::AtFuzz
                     | Token::AtPure
+                    | Token::AtRemote
                     | Token::AtAi
+                    | Token::AtInference
+                    | Token::AtTrainingStep
                     | Token::AtDeprecated
                     | Token::AtNative
                     | Token::AtUses
@@ -505,7 +512,10 @@ impl Parser {
             | Token::AtFuzz
             | Token::AtPure
             | Token::AtReactive
+            | Token::AtRemote
             | Token::AtAi
+            | Token::AtInference
+            | Token::AtTrainingStep
             | Token::AtDeprecated
             | Token::AtNative
             | Token::AtUses
@@ -530,7 +540,10 @@ impl Parser {
                     | Token::AtInvariant
                     | Token::AtFuzz
                     | Token::AtPure
+                    | Token::AtRemote
                     | Token::AtAi
+                    | Token::AtInference
+                    | Token::AtTrainingStep
                     | Token::AtDeprecated
                     | Token::AtNative
                     | Token::AtUses
@@ -587,6 +600,7 @@ impl Parser {
             Token::AtDeepLink => self.parse_deep_link_decl(),
             Token::AtPush => self.parse_push_decl(),
             Token::AtTokens => self.parse_tokens_decl(),
+            Token::AtDistributedTrain => self.parse_distributed_train_workflow_decl(),
             Token::Workflow => self.parse_workflow_decl(),
             Token::Activity => self.parse_activity_decl(),
             Token::Actor => self.parse_actor_decl(),

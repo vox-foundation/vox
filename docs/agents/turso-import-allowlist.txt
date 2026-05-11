@@ -9,8 +9,6 @@
 # This file is for TRANSITIONAL exceptions: paths that aren't yet sanctioned
 # satellites and should fold away over time. See codex-turso-allowlist.md.
 crates/vox-corpus/
-crates/vox-cli/src/commands/db/
-crates/vox-cli/src/commands/review/coderabbit/
 crates/vox-workflow-runtime/tests/
 crates/vox-populi/src/transport/store/
 

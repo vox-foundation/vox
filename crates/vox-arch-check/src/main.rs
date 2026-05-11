@@ -44,6 +44,9 @@ use anyhow::{Context, Result, anyhow};
 use cargo_metadata::MetadataCommand;
 use serde::Deserialize;
 
+mod forbidden_patterns;
+use forbidden_patterns::{ForbiddenPatternRule, scan as scan_forbidden_pattern};
+
 #[derive(Debug, Deserialize)]
 struct LayersConfig {
     crates: HashMap<String, CrateEntry>,
@@ -51,6 +54,9 @@ struct LayersConfig {
     known_inversions: Vec<KnownInversion>,
     #[serde(default)]
     forbidden_deps: Vec<ForbiddenDepRule>,
+    /// Rule 11 (P3-T7): forbidden code patterns with optional allow annotations.
+    #[serde(default)]
+    forbidden_pattern: Vec<ForbiddenPatternRule>,
     #[serde(default)]
     guards: GuardsConfig,
 }
@@ -111,6 +117,8 @@ struct GuardsConfig {
     generated_file_drift: Option<String>,
     #[serde(default)]
     forbidden_deps: Option<String>,
+    #[serde(default)]
+    forbidden_pattern: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -150,6 +158,8 @@ struct Report {
     generated_file_drift_warns: Vec<(PathBuf, String, String)>,
     /// Rule 10: (crate, forbidden_dep) pairs for direct forbidden-dep violations.
     forbidden_dep_violations: Vec<(String, String)>,
+    /// Rule 11 (P3-T7): (rule_name, file, line, matched) tuples.
+    forbidden_pattern_hits: Vec<(String, PathBuf, usize, String)>,
     /// Whether each rule's failure should be treated as strict (vs. warn-only).
     strict_layer: bool,
     strict_fan_in: bool,
@@ -161,6 +171,7 @@ struct Report {
     strict_staleness: bool,
     strict_generated_file_drift: bool,
     strict_forbidden_deps: bool,
+    strict_forbidden_pattern: bool,
 }
 
 impl Report {
@@ -175,6 +186,7 @@ impl Report {
             || (self.strict_staleness && !self.staleness_warns.is_empty())
             || (self.strict_generated_file_drift && !self.generated_file_drift_warns.is_empty())
             || (self.strict_forbidden_deps && !self.forbidden_dep_violations.is_empty())
+            || (self.strict_forbidden_pattern && !self.forbidden_pattern_hits.is_empty())
     }
 
     fn print_summary(&self) {
@@ -334,6 +346,17 @@ impl Report {
                 eprintln!("  {krate} → {forbidden}  (see [[forbidden_deps]] in layers.toml)");
             }
         }
+        if !self.forbidden_pattern_hits.is_empty() {
+            any = true;
+            let label = if self.strict_forbidden_pattern { "ERROR" } else { "warn" };
+            eprintln!(
+                "[{label}] forbidden_pattern violations ({}):",
+                self.forbidden_pattern_hits.len()
+            );
+            for (rule, file, line, matched) in &self.forbidden_pattern_hits {
+                eprintln!("  [{}] {}:{} — {}", rule, file.display(), line, matched);
+            }
+        }
         if !any {
             println!(
                 "vox-arch-check {}: clean ✓",
@@ -398,6 +421,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             false,
         ),
         strict_forbidden_deps: parse_strictness(layers.guards.forbidden_deps.as_ref(), false),
+        strict_forbidden_pattern: parse_strictness(layers.guards.forbidden_pattern.as_ref(), false),
         ..Report::default()
     };
 
@@ -606,11 +630,34 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         report.forbidden_dep_violations.dedup();
     }
 
+    // ── Rule 11: Forbidden code patterns (P3-T7) ──
+    if !layers.forbidden_pattern.is_empty() {
+        for rule in &layers.forbidden_pattern {
+            match scan_forbidden_pattern(&workspace_root, rule) {
+                Ok(hits) => {
+                    for hit in hits {
+                        report.forbidden_pattern_hits.push((
+                            hit.rule,
+                            hit.file,
+                            hit.line,
+                            hit.matched,
+                        ));
+                    }
+                }
+                Err(e) => {
+                    eprintln!("warn: forbidden_pattern rule '{}' skipped: {e:#}", rule.name);
+                }
+            }
+        }
+        report.forbidden_pattern_hits.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
+    }
+
     Ok(report)
 }
 
 /// Return the YYYY-MM-DD date of the last commit touching `dir`, or `None` if git is unavailable.
 fn git_last_commit_date(dir: &Path) -> Option<String> {
+    // vox-arch-check: allow git-exec
     let out = Command::new("git")
         .args(["log", "-n", "1", "--format=%cd", "--date=short"])
         .arg("--")

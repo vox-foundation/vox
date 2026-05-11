@@ -2,6 +2,7 @@
 
 use clap::{Parser, Subcommand};
 
+pub mod cas;
 pub mod costs;
 pub mod discover;
 pub mod explain;
@@ -21,6 +22,11 @@ pub struct ModelArgs {
 
 #[derive(Subcommand)]
 pub enum ModelCmd {
+    /// Mesh CAS model bundles (SafeTensors; Mn-T8).
+    Cas {
+        #[command(subcommand)]
+        cmd: cas::CasCmd,
+    },
     /// Refresh the model catalog from all sources (discovery).
     Discover(discover::DiscoverArgs),
     /// Perform batch aggregation of telemetry into the scoreboard.
@@ -43,6 +49,7 @@ pub enum ModelCmd {
 
 pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
     match cmd {
+        ModelCmd::Cas { cmd } => cas::run(cmd).await,
         ModelCmd::Discover(args) => discover::run(args).await,
         ModelCmd::Rollup(args) => rollup::run(args).await,
         ModelCmd::Scoreboard(args) => scoreboard::run(args).await,

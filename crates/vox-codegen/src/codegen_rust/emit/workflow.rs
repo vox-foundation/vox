@@ -221,9 +221,7 @@ pub fn emit_fn(func: &HirFn) -> String {
             out.push_str("    it\n");
         }
     } else {
-        for stmt in &func.body {
-            out.push_str(&emit_stmt(stmt, 1, false, false, false));
-        }
+        out.push_str(&super::durability_lower::emit_durable_body(func));
     }
     out.push_str("}\n\n");
     out

@@ -339,3 +339,52 @@ Live tests require a real GPU. They are gated behind the `hw-probe-live-test` Ca
 cargo test -p vox-populi --test probe_pipeline_live --features hw-probe-live-test
 ```
 
+
+
+---
+
+## Appendix: TLS / WireGuard transport (P0-T5)
+
+### Enabling TLS on the HTTP plane
+
+Add a `[mesh.transport]` sub-table to `Vox.toml`:
+
+```toml
+[mesh]
+control_url = "https://my-mesh.example.com:9847"
+
+[mesh.transport]
+tls_cert_path   = "/etc/vox/cert.pem"
+tls_key_path    = "/etc/vox/key.pem"
+tls_min_version = "1.3"   # optional; default is "1.3"
+```
+
+When `tls_cert_path` and `tls_key_path` are set, the `vox populi serve` command loads the `tls` Cargo feature and terminates TLS locally via `rustls`. Plain HTTP is the default when neither path is set.
+
+### Generating a self-signed certificate (development)
+
+Using [`mkcert`](https://github.com/FiloSottile/mkcert):
+
+```sh
+mkcert -install          # trust the local CA once
+mkcert localhost 127.0.0.1
+# → localhost+1.pem  localhost+1-key.pem
+```
+
+Using [`step`](https://smallstep.com/docs/step-cli/):
+
+```sh
+step certificate create mesh.local mesh.crt mesh.key \
+  --profile self-signed --subtle
+```
+
+### WireGuard / Tailscale Funnel (recommended for off-LAN)
+
+For meshes that span the public internet, we recommend **Tailscale Funnel** as a WireGuard sidecar rather than bundling WireGuard into the process. The `wireguard_endpoint` key in `[mesh.transport]` is a documentation pointer only — the server reads it via `vox doctor mesh` but takes no action:
+
+```toml
+[mesh.transport]
+wireguard_endpoint = "100.x.y.z:9847"  # Tailscale node address
+```
+
+Run `tailscale funnel 9847` to expose port 9847 through the Tailscale fabric. No cert management is needed — Tailscale handles TLS and peer authentication.

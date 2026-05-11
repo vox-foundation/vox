@@ -44,6 +44,8 @@ fn cap_to_effect_kind(cap: &HirCapability) -> Option<crate::hir::nodes::effect::
         HirCapability::Clock => Some(HirEffectKind::Clock),
         HirCapability::Random => Some(HirEffectKind::Random),
         HirCapability::Spawn => Some(HirEffectKind::Spawn),
+        HirCapability::GpuCompute => Some(HirEffectKind::GpuCompute),
+        HirCapability::Mutate => Some(HirEffectKind::Mutate),
         HirCapability::Mcp(t) => Some(HirEffectKind::Mcp(t.clone())),
         HirCapability::Nothing => None,
     }
@@ -70,6 +72,11 @@ pub fn lower_module_with_config(module: &Module, config: &LowerConfig) -> HirMod
 struct LowerCtx {
     def_map: DefMap,
     config: LowerConfig,
+    /// Auto-incremented counter for synthesised `__side_effect_<n>` activity names (P1-T7).
+    synthesis_counter: usize,
+    /// Inline activities synthesised from `side_effect { … }` blocks during lowering.
+    /// Drained into `HirModule::functions` after the main declaration pass completes.
+    synthesised_fns: Vec<crate::hir::nodes::HirFn>,
 }
 
 impl LowerCtx {
@@ -77,7 +84,15 @@ impl LowerCtx {
         Self {
             def_map: DefMap::new(),
             config,
+            synthesis_counter: 0,
+            synthesised_fns: Vec::new(),
         }
+    }
+
+    pub(crate) fn next_synthesis_counter(&mut self) -> usize {
+        let n = self.synthesis_counter;
+        self.synthesis_counter += 1;
+        n
     }
 
     fn lower(&mut self, module: &Module) -> HirModule {
@@ -99,6 +114,7 @@ impl LowerCtx {
                                 hir.imports.push(HirImport {
                                     module_path: mod_path,
                                     item: path.alias.clone().unwrap_or(item),
+                                    es_module_specifier: None,
                                     span: path.span,
                                 });
                             }
@@ -114,6 +130,17 @@ impl LowerCtx {
                                     path: spec.path.clone(),
                                     git: spec.git.clone(),
                                     rev: spec.rev.clone(),
+                                    span: path.span,
+                                });
+                            }
+                            ImportPathKind::ReactComponent {
+                                local_name,
+                                module_specifier,
+                            } => {
+                                hir.imports.push(HirImport {
+                                    module_path: Vec::new(),
+                                    item: local_name.clone(),
+                                    es_module_specifier: Some(module_specifier.clone()),
                                     span: path.span,
                                 });
                             }
@@ -392,11 +419,13 @@ impl LowerCtx {
                 Decl::Workflow(w) => {
                     let mut f = self.lower_workflow(w);
                     f.durability = Some(crate::hir::nodes::DurabilityKind::Workflow);
+                    f.generated_hash = Some(stamp_durable_hash(&f));
                     hir.functions.push(f);
                 }
                 Decl::Activity(a) => {
                     let mut f = self.lower_activity(a);
                     f.durability = Some(crate::hir::nodes::DurabilityKind::Activity);
+                    f.generated_hash = Some(stamp_durable_hash(&f));
                     hir.functions.push(f);
                 }
                 Decl::Actor(a) => {
@@ -518,6 +547,9 @@ impl LowerCtx {
 
         db_select_normalize::normalize_db_select_projections(&mut hir);
 
+        // Drain synthesised side_effect activities (P1-T7) into the function list.
+        hir.functions.extend(self.synthesised_fns.drain(..));
+
         hir
     }
 }
@@ -554,6 +586,51 @@ fn pascal_to_snake(s: &str) -> String {
         out.push(c.to_ascii_lowercase());
     }
     out
+}
+
+/// Compute a deterministic SHA3-512 hex hash over a durable function's compile inputs.
+///
+/// Inputs: durability label, name, param names+types (Debug repr), return type, body
+/// (Debug repr), and vox compiler version. Whitespace/comment changes in the source do
+/// not affect this hash — HIR Debug output is canonical.
+fn strip_spans(v: &mut serde_json::Value) {
+    // Span objects serialize as {"start": N, "end": N} — detect by shape.
+    if let serde_json::Value::Object(map) = v {
+        if map.len() == 2 && map.contains_key("start") && map.contains_key("end") {
+            *v = serde_json::Value::Null;
+            return;
+        }
+        // Named "span" field on a struct — remove it then recurse.
+        map.remove("span");
+        for val in map.values_mut() {
+            strip_spans(val);
+        }
+        return;
+    }
+    if let serde_json::Value::Array(arr) = v {
+        for val in arr.iter_mut() {
+            strip_spans(val);
+        }
+    }
+}
+
+fn stamp_durable_hash(f: &crate::hir::nodes::HirFn) -> String {
+    use sha3::{Digest, Sha3_512};
+    // Serialize only semantic fields, then strip all span objects so that
+    // whitespace-only edits (which change source positions) don't bust the hash.
+    let semantic = serde_json::json!({
+        "kind": f.durability.as_ref().map(|d| d.label()),
+        "name": f.name,
+        "params": serde_json::to_value(&f.params).unwrap_or(serde_json::Value::Null),
+        "return_type": serde_json::to_value(&f.return_type).unwrap_or(serde_json::Value::Null),
+        "body": serde_json::to_value(&f.body).unwrap_or(serde_json::Value::Null),
+        "ver": env!("CARGO_PKG_VERSION"),
+    });
+    let mut semantic = semantic;
+    strip_spans(&mut semantic);
+    let canonical = serde_json::to_string(&semantic).unwrap_or_default();
+    let digest = Sha3_512::digest(canonical.as_bytes());
+    digest.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 #[cfg(test)]

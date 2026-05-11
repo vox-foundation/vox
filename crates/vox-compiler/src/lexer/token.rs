@@ -63,6 +63,9 @@ pub enum Token {
     Workflow,
     #[token("activity")]
     Activity,
+    /// `side_effect` — sanctioned non-determinism block inside a workflow (P1-T7).
+    #[token("side_effect")]
+    SideEffect,
     #[token("spawn")]
     Spawn,
     #[token("http")]
@@ -206,6 +209,18 @@ pub enum Token {
     /// `@layer` — VUV layered-layout tier decorator (GA-26).
     #[token("@layer")]
     AtLayer,
+    /// `@remote` — marks a function for cross-node dispatch via the mesh (P1-T3).
+    #[token("@remote")]
+    AtRemote,
+    /// `@inference` — MENS inference routing (Mn-T4).
+    #[token("@inference")]
+    AtInference,
+    /// `@training_step` — one step of a CUDA training loop (Mn-T5).
+    #[token("@training_step")]
+    AtTrainingStep,
+    /// `@distributed_train` — distributed training workflow preamble (Mn-T5).
+    #[token("@distributed_train")]
+    AtDistributedTrain,
 
     // ── Symbols ───────────────────────────────────────────────
     #[token("(")]
@@ -406,6 +421,7 @@ impl std::fmt::Display for Token {
             Token::Actor => write!(f, "actor"),
             Token::Workflow => write!(f, "workflow"),
             Token::Activity => write!(f, "activity"),
+            Token::SideEffect => write!(f, "side_effect"),
             Token::Spawn => write!(f, "spawn"),
             Token::Http => write!(f, "http"),
             Token::Pub => write!(f, "pub"),
@@ -467,6 +483,10 @@ impl std::fmt::Display for Token {
             Token::AtOfflineCapable => write!(f, "@offline_capable"),
             Token::AtCollaborative => write!(f, "@collaborative"),
             Token::AtLayer => write!(f, "@layer"),
+            Token::AtRemote => write!(f, "@remote"),
+            Token::AtInference => write!(f, "@inference"),
+            Token::AtTrainingStep => write!(f, "@training_step"),
+            Token::AtDistributedTrain => write!(f, "@distributed_train"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBracket => write!(f, "["),

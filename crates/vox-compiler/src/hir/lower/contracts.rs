@@ -288,7 +288,8 @@ impl LowerCtx {
             | HirExpr::StringLit(..)
             | HirExpr::BoolLit(..)
             | HirExpr::DecimalLit(..)
-            | HirExpr::Ident(..) => {}
+            | HirExpr::Ident(..)
+            | HirExpr::WorkflowVersion(_) => {}
         }
     }
 }

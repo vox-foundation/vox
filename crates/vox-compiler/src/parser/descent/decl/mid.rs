@@ -454,9 +454,91 @@ impl Parser {
 
     /// Parse `workflow Name(params) [uses ...] [to ReturnType] { body }`.
     pub(crate) fn parse_workflow_decl(&mut self) -> Result<Decl, ()> {
-        use crate::ast::decl::WorkflowDecl;
         let start = self.span();
         self.advance(); // eat `workflow`
+        self.finish_workflow_decl(start, None, None)
+    }
+
+    /// `@distributed_train(strategy = ..., peers = N) workflow Name(...) { ... }`
+    pub(crate) fn parse_distributed_train_workflow_decl(&mut self) -> Result<Decl, ()> {
+        use crate::parser::error::{ParseError, ParseErrorClass};
+        let outer_start = self.span();
+        self.advance(); // `@distributed_train`
+        self.expect(&Token::LParen)?;
+        let mut strategy: Option<String> = None;
+        let mut peers: Option<u64> = None;
+        loop {
+            self.skip_newlines();
+            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                break;
+            }
+            if let Token::Ident(key) = self.peek().clone() {
+                let key = key.clone();
+                self.advance();
+                self.expect(&Token::Eq)?;
+                match key.as_str() {
+                    "strategy" => match self.peek().clone() {
+                        Token::StringLit(s) | Token::SingleStringLit(s) => {
+                            self.advance();
+                            strategy = Some(s);
+                        }
+                        Token::Ident(v) => {
+                            self.advance();
+                            strategy = Some(v);
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected string or identifier for `strategy` in `@distributed_train`",
+                                vec!["\"data_parallel\"".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    },
+                    "peers" => {
+                        if let Token::IntLit(n) = self.peek().clone() {
+                            self.advance();
+                            if n > 0 {
+                                peers = Some(n as u64);
+                            }
+                        }
+                    }
+                    _ => {
+                        self.advance();
+                    }
+                }
+            } else {
+                self.advance();
+            }
+            if !self.eat(&Token::Comma) {
+                break;
+            }
+        }
+        self.expect(&Token::RParen)?;
+        self.skip_newlines();
+        if !matches!(self.peek(), Token::Workflow) {
+            self.errors.push(ParseError::classified(
+                self.span(),
+                "Expected `workflow` after `@distributed_train(...)`",
+                vec!["workflow".into()],
+                Some(self.peek().to_string()),
+                ParseErrorClass::Declaration,
+            ));
+            return Err(());
+        }
+        self.advance(); // `workflow`
+        self.finish_workflow_decl(outer_start, strategy, peers)
+    }
+
+    fn finish_workflow_decl(
+        &mut self,
+        span_start: crate::ast::span::Span,
+        distributed_train_strategy: Option<String>,
+        distributed_train_peers: Option<u64>,
+    ) -> Result<Decl, ()> {
+        use crate::ast::decl::WorkflowDecl;
         let name = self.parse_ident_name()?;
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
@@ -475,7 +557,9 @@ impl Parser {
             body,
             is_traced: false,
             is_deprecated: false,
-            span: start.merge(self.span()),
+            distributed_train_strategy,
+            distributed_train_peers,
+            span: span_start.merge(self.span()),
         }))
     }
 

@@ -368,3 +368,39 @@ impl Diagnostic {
         lines[from..to].join("\n")
     }
 }
+
+// ── Phase 1 stable diagnostic codes (mesh-phase1-language-spine-plan-2026) ─────
+
+/// Public constants for every diagnostic code introduced in Phase 1.
+/// Use these instead of raw string literals so that IDs are greppable,
+/// typo-proof, and covered by the namespace guard test.
+pub mod codes {
+    pub const TYPES_DURABLE_PROMISE_ARITY: &str = "vox/types/durable-promise-arity";
+    pub const TYPES_FUTURE_DEPRECATED: &str = "vox/types/future-deprecated";
+    pub const TYPES_PROMISE_DEPRECATED: &str = "vox/types/promise-deprecated";
+
+    pub const API_MESH_PREFIX_DEPRECATED: &str = "vox/api/mesh-prefix-deprecated";
+
+    pub const REMOTE_NON_SERIALIZABLE_PARAM: &str = "vox/remote/non-serializable-param";
+    pub const REMOTE_NON_SERIALIZABLE_RETURN: &str = "vox/remote/non-serializable-return";
+
+    pub const WORKFLOW_WITH_ID_NON_DETERMINISTIC: &str = "vox/workflow/with-id-non-deterministic";
+    pub const WORKFLOW_NON_DETERMINISTIC_CALL: &str = "vox/workflow/non-deterministic-call";
+    pub const WORKFLOW_SIDE_EFFECT_OUTSIDE_WORKFLOW: &str = "vox/workflow/side-effect-outside-workflow";
+
+    pub const EFFECT_MISSING_DECLARATION: &str = "vox/effect/missing-declaration";
+
+    /// All Phase-1 codes registered for stability, used by the namespace guard test.
+    pub const ALL_PHASE_1: &[&str] = &[
+        TYPES_DURABLE_PROMISE_ARITY,
+        TYPES_FUTURE_DEPRECATED,
+        TYPES_PROMISE_DEPRECATED,
+        API_MESH_PREFIX_DEPRECATED,
+        REMOTE_NON_SERIALIZABLE_PARAM,
+        REMOTE_NON_SERIALIZABLE_RETURN,
+        WORKFLOW_WITH_ID_NON_DETERMINISTIC,
+        WORKFLOW_NON_DETERMINISTIC_CALL,
+        WORKFLOW_SIDE_EFFECT_OUTSIDE_WORKFLOW,
+        EFFECT_MISSING_DECLARATION,
+    ];
+}

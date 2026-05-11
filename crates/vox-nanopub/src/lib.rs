@@ -1,4 +1,6 @@
-//! SCIENTIA nanopublication builder: TriG emission and Ed25519 signing.
+//! SCIENTIA nanopublication builder: TriG emission, Ed25519 signing, and Trusty URI derivation.
+//!
+//! Converts atomic claims (T2) into signed nanopublications ready for the Nanopublication Network.
 
 pub mod network;
 pub mod signing;

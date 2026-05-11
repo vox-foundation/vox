@@ -67,6 +67,58 @@ pub fn auth_allows_admin_route(ctx: &PopuliAuthContext) -> bool {
     }
 }
 
+/// Wire auth scheme: controls whether JWT-HS256 and/or Ed25519-envelope paths are active.
+///
+/// Default (when `VOX_MESH_AUTH_SCHEME` is unset or `"ed25519-envelope"`) is [`Self::Ed25519Envelope`].
+/// The `"jwt-hs256"` and `"both"` modes are deprecated and emit a `tracing::warn!` — they are
+/// scheduled for removal in v0.7 (SSOT P5-T1c).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuthScheme {
+    /// Default: only Ed25519-signed envelopes are accepted.
+    Ed25519Envelope,
+    /// Deprecated: only JWT-HS256 bearer is accepted. Removed in v0.7.
+    JwtHs256,
+    /// Deprecated: both Ed25519 and JWT-HS256 paths are accepted. Removed in v0.7.
+    Both,
+}
+
+impl AuthScheme {
+    pub fn from_env() -> Self {
+        match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshAuthScheme)
+            .expose()
+            .as_deref()
+            .map(str::trim)
+            .unwrap_or("")
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "jwt-hs256" => {
+                tracing::warn!(
+                    "VOX_MESH_AUTH_SCHEME=jwt-hs256: this is forgeable by any token-holder \
+                     and will be removed in v0.7. Migrate to ed25519-envelope (SSOT P5-T1)."
+                );
+                AuthScheme::JwtHs256
+            }
+            "both" => {
+                tracing::warn!(
+                    "VOX_MESH_AUTH_SCHEME=both: jwt-hs256 path is deprecated and will be \
+                     removed in v0.7. Migrate to ed25519-envelope (SSOT P5-T1)."
+                );
+                AuthScheme::Both
+            }
+            _ => AuthScheme::Ed25519Envelope,
+        }
+    }
+
+    pub fn accepts_jwt(self) -> bool {
+        matches!(self, Self::JwtHs256 | Self::Both)
+    }
+
+    pub fn accepts_ed25519(self) -> bool {
+        matches!(self, Self::Ed25519Envelope | Self::Both)
+    }
+}
+
 /// Resolved populi bearer material from Clavis / env (captured at router build time).
 #[derive(Clone, Debug, Default)]
 pub struct PopuliMeshAuthRuntime {

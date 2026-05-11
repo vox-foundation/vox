@@ -248,6 +248,9 @@ pub struct HirImport {
     pub module_path: Vec<String>,
     /// Imported symbol name.
     pub item: String,
+    /// When `Some`, emit `import <item> from "<spec>"` for external React components (Phase 5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub es_module_specifier: Option<String>,
     /// Span in source.
     pub span: Span,
 }
@@ -303,6 +306,9 @@ pub struct HirFn {
     /// Capabilities declared via `uses` clause. Empty = unannotated; `[Nothing]` = pure.
     #[serde(default)]
     pub capabilities: Vec<HirCapability>,
+    /// `@remote` — eligible for cross-node dispatch via the mesh (P1-T3).
+    #[serde(default)]
+    pub is_remote: bool,
     /// Whether the function body is implemented via an LLM.
     #[serde(default)]
     pub is_llm: bool,
@@ -336,8 +342,23 @@ pub struct HirFn {
     /// When `Some`, body is empty and codegen-TS emits an import for the function.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ts_extern_module: Option<String>,
+    /// P2-T1: Stable SHA3-512 content-hash (hex) of this function's compile inputs.
+    /// Populated for `DurabilityKind::Workflow` and `DurabilityKind::Activity` by the
+    /// HIR lowering pass. `None` for plain `fn` and for `actor` (actors live in mailboxes,
+    /// not the bundle CAS).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_hash: Option<String>,
     /// Span covering the declaration.
     pub span: Span,
+    /// `@inference(model = "...")` — Mn-T4.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inference_model: Option<String>,
+    /// `@training_step` — Mn-T5.
+    #[serde(default)]
+    pub training_step: bool,
+    /// `@distributed_train(...)` metadata when lowered from a workflow — Mn-T5.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distributed_train: Option<(String, u32)>,
 }
 
 /// A lowered postcondition with optional fallback.
@@ -666,6 +687,8 @@ pub enum HirCapability {
     Clock,
     Random,
     Spawn,
+    GpuCompute,
+    Mutate,
     /// `mcp(tool_name)` — parameterized MCP tool call.
     Mcp(String),
     /// `uses nothing` — explicitly pure.
@@ -682,6 +705,8 @@ impl HirCapability {
             Self::Clock => "clock",
             Self::Random => "random",
             Self::Spawn => "spawn",
+            Self::GpuCompute => "gpu_compute",
+            Self::Mutate => "mutate",
             Self::Mcp(_) => "mcp",
             Self::Nothing => "nothing",
         }

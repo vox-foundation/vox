@@ -233,7 +233,8 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
         | HirExpr::StringLit(..)
         | HirExpr::BoolLit(..)
         | HirExpr::Ident(..)
-        | HirExpr::DecimalLit(..) => {}
+        | HirExpr::DecimalLit(..)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 
@@ -369,7 +370,8 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
         | HirExpr::StringLit(..)
         | HirExpr::BoolLit(..)
         | HirExpr::Ident(..)
-        | HirExpr::DecimalLit(..) => {}
+        | HirExpr::DecimalLit(..)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 

@@ -1,4 +1,5 @@
 //! Minimal HTTP control plane for populi join / list / heartbeat / leave (loopback-first).
+#![allow(missing_docs)]
 //!
 //! When **any** mesh-class secret resolves via Clavis (`VOX_MESH_TOKEN` and/or worker/submitter/admin
 //! role tokens, or optional **`VOX_MESH_JWT_HMAC_SECRET`** for HS256 JWTs), all routes except
@@ -14,13 +15,15 @@
 //! **`VOX_MESH_HTTP_RATE_LIMIT_PER_SEC`** / **`VOX_MESH_HTTP_RATE_LIMIT_BURST`**.
 
 mod auth;
+pub mod auth_ed25519;
+pub mod envelope;
 mod handlers;
 mod mesh_replay;
 mod result_attestation;
 mod router;
 pub mod store;
 
-pub use auth::{PopuliAuthContext, PopuliBearerRole, PopuliMeshAuthRuntime};
+pub use auth::{AuthScheme, PopuliAuthContext, PopuliBearerRole, PopuliMeshAuthRuntime};
 pub use router::{
     PopuliHttpAuth, populi_http_app, populi_http_app_with_auth, router, serve, serve_with_listener,
 };

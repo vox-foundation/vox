@@ -220,6 +220,9 @@ fn find_stale_captures_in_expr(
 
         // ── JSX — not expected in lifecycle bodies; ignore ────────────────────
         HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) | HirExpr::JsxFragment(..) => {}
+
+        // workflow.version is a leaf marker; no captures possible.
+        HirExpr::WorkflowVersion(_) => {}
     }
 }
 

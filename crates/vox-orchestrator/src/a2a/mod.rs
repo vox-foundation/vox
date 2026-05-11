@@ -1,8 +1,10 @@
 //! Agent-to-agent messaging types and helpers.
 
 mod bus;
-mod dispatch;
+pub mod dispatch;
 mod envelope;
+pub mod secret_bag;
+pub mod traceparent;
 #[cfg(feature = "populi-transport")]
 pub mod jwe;
 #[cfg(feature = "populi-transport")]

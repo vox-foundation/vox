@@ -215,7 +215,8 @@ fn scan_expr_for_handlers(
         | HirExpr::StringLit(..)
         | HirExpr::BoolLit(..)
         | HirExpr::DecimalLit(..)
-        | HirExpr::Ident(..) => {}
+        | HirExpr::Ident(..)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 

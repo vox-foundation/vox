@@ -67,3 +67,20 @@ extern type WebSocketHandle
 
 extern fn json_parse(s: str) -> any
 extern fn json_stringify(v: any) -> str
+
+// ── Mesh topology subscription ────────────────────────────────────────────────
+// Subscribes to MeshTopologyChanged / MeshNodeBudget / MeshActionCommitted
+// over /v1/ws and exposes a typed reactive store that mesh.vox consumes.
+//
+// Phase 4 (P4-T1c): added for live topology updates.
+
+component MeshTopologyStream(
+    on_topology: fn(payload: any),
+    on_budget:   fn(payload: any),
+    on_action:   fn(payload: any),
+) {
+    use_ws_event(name="MeshTopologyChanged",   handler=on_topology)
+    use_ws_event(name="MeshNodeBudget",        handler=on_budget)
+    use_ws_event(name="MeshActionCommitted",   handler=on_action)
+    view: panel()
+}

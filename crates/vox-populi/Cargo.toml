@@ -13,6 +13,8 @@ default = []
 nvml-gpu-probe = []
 # Enable live-hardware integration tests (requires real GPU hardware; do not enable on CI).
 hw-probe-live-test = []
+# Optional rustls TLS termination on the populi HTTP plane (P0-T5).
+tls = ["dep:rustls", "dep:rustls-pemfile", "dep:tokio-rustls"]
 # DEPRECATED: HTTP control plane code extracted to vox-plugin-populi-mesh; rewire of
 # vox-cli/vox-ml-cli/vox-orchestrator callsites is pending (Unit 2 follow-up).
 # Keep this feature until all callers are rewired through MeshDriver.
@@ -68,6 +70,10 @@ mens-cloud = [
     "dep:reqwest",
     "dep:vox-reqwest-defaults",
 ]
+# Opt-in grand-network discovery publishing via the Provider Atlas (P6-T6).
+mesh-discovery-publish = [
+    "dep:vox-publisher",
+]
 
 [dependencies]
 async-trait = { workspace = true }
@@ -83,7 +89,14 @@ vox-plugin-host = { workspace = true, optional = true }
 vox-constrained-gen = { workspace = true }
 vox-grammar-export = { workspace = true }
 vox-crypto = { workspace = true }
+vox-identity = { workspace = true }
 vox-mesh-types = { workspace = true }
+vox-distributed-training = { workspace = true }
+
+# TLS (optional, P0-T5)
+rustls = { workspace = true, optional = true }
+rustls-pemfile = { workspace = true, optional = true }
+tokio-rustls = { workspace = true, optional = true }
 
 # Populi transport
 axum = { workspace = true, optional = true }
@@ -121,6 +134,7 @@ qlora-rs = { workspace = true, optional = true }
 futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
 vox-compiler = { workspace = true, optional = true }
+vox-publisher = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
 hex = "0.4.3"
 
@@ -135,10 +149,15 @@ jsonwebtoken = { workspace = true }
 ed25519-dalek = { workspace = true }
 blake3 = { workspace = true }
 tracing-test = { workspace = true }
+# TLS smoke test helpers (P0-T5)
+rcgen = "0.13"
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
 data-encoding = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
 serial_test = { workspace = true }
+mockito = "1"
 
 [[test]]
 name = "http_control_plane"
@@ -167,6 +186,22 @@ required-features = ["mens"]
 [[test]]
 name = "training_presets_yaml_contract"
 required-features = ["mens"]
+
+[[test]]
+name = "ed25519_envelope"
+required-features = ["transport"]
+
+[[test]]
+name = "github_attestation"
+required-features = ["transport"]
+
+[[test]]
+name = "quota_bucket"
+required-features = ["transport"]
+
+[[test]]
+name = "pairing_e2e"
+required-features = ["transport"]
 
 [lints]
 workspace = true

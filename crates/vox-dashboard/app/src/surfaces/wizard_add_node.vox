@@ -1,0 +1,155 @@
+// "Add a Node" wizard — Phase 4, P4-T2.
+//
+// Three coequal output forms after mint:
+//   1. one-line install command (--print mode primary per anti-goal §No auto-pipe-to-shell)
+//   2. QR code (renders server-generated SVG via QRCode interop)
+//   3. copy-to-clipboard bearer URL
+//
+// The bearer expires in ≤ 10 minutes — surface a countdown.
+// The wizard never auto-executes the command; the user must paste and confirm.
+
+component WizardAddNode() {
+    let mint_state   = use_state(value="idle")     // "idle" | "minting" | "ready" | "error"
+    let mint_result  = use_state(value=null)        // MintResponse data object
+    let countdown    = use_state(value=0)           // seconds remaining
+    let copied       = use_state(value=false)
+    let print_first  = use_state(value=true)        // primary toggle: --print first vs direct join
+
+    let on_mint = fn() {
+        set(mint_state, "minting")
+        api_post(
+            url="/api/v2/mesh/invite",
+            body={ slot_kind: "gpu", ttl_secs: 600 },
+            on_ok=fn(payload) {
+                set(mint_result, payload.data)
+                set(countdown,   payload.data.expires_in_secs)
+                set(mint_state,  "ready")
+            },
+            on_err=fn(_) { set(mint_state, "error") },
+        )
+    }
+
+    let on_copy = fn() {
+        clipboard_write(text=mint_result.bearer_url)
+        set(copied, true)
+        delay(ms=1500, then=fn() { set(copied, false) })
+    }
+
+    use_interval(ms=1000, handler=fn() {
+        if countdown > 0 { set(countdown, countdown - 1) }
+    })
+
+    view: column(pad=8, gap=6, bg="zinc.950") {
+        // ── Header ─────────────────────────────────────────────────────────
+        text(size="2xl", weight="bold", color="white") { "Add a node" }
+        text(size="sm", color="zinc.500") {
+            "Generates a one-shot bearer that expires in ≤ 10 minutes. "
+            "Run the install command on the friend machine."
+        }
+
+        if mint_state is "idle" {
+            button(
+                on_click=on_mint,
+                bg="emerald.500",
+                color="zinc.950",
+                radius="lg",
+                pad_x=6,
+                pad_y=3,
+            ) {
+                text(size="sm", weight="bold") { "Mint invite" }
+            }
+        } else if mint_state is "minting" {
+            text(size="sm", color="zinc.400") { "Minting…" }
+        } else if mint_state is "ready" {
+            // ── Countdown indicator ─────────────────────────────────────────
+            row(items="center", gap=2) {
+                panel(
+                    w=2, h=2, radius="full",
+                    bg=if countdown < 60 { "rose.500" } else { "emerald.400" },
+                )
+                text(size="xs", font_family="mono", color="zinc.500") {
+                    "Expires in " + str(countdown) + "s"
+                }
+            }
+
+            // ── Three coequal forms ─────────────────────────────────────────
+            row(gap=6, items="stretch") {
+                // (1) Install command
+                column(flex=1, gap=2) {
+                    text(size="xs", color="zinc.500", tracking="widest", case="upper") {
+                        "Install command"
+                    }
+                    row(gap=2) {
+                        button(
+                            on_click=fn() { set(print_first, true) },
+                            bg=if print_first { "white/10" } else { "transparent" },
+                            radius="md", pad_x=2, pad_y=1,
+                        ) { text(size="xs", color="zinc.300") { "--print first" } }
+                        button(
+                            on_click=fn() { set(print_first, false) },
+                            bg=if print_first { "transparent" } else { "white/10" },
+                            radius="md", pad_x=2, pad_y=1,
+                        ) { text(size="xs", color="zinc.300") { "direct join" } }
+                    }
+                    code_block(bg="zinc.900", border=true, border_color="white/10", radius="md", pad=3) {
+                        text(size="xs", font_family="mono", color="zinc.300") {
+                            if print_first { mint_result.install_command_print }
+                            else { mint_result.install_command }
+                        }
+                    }
+                    text(size="xs", color="zinc.600") {
+                        "`--print` mode prints the bearer it would use; "
+                        "paste it back here to confirm before running without --print."
+                    }
+                }
+
+                // (2) QR code
+                column(flex=1, gap=2, items="center") {
+                    text(size="xs", color="zinc.500", tracking="widest", case="upper") { "QR code" }
+                    panel(bg="white", radius="md", pad=4) {
+                        interop(component="QRCode", props={ svg: mint_result.qr_svg, size: 180 })
+                    }
+                    text(size="xs", color="zinc.600") { "Scan from a phone or another machine." }
+                }
+
+                // (3) Copy URL
+                column(flex=1, gap=2) {
+                    text(size="xs", color="zinc.500", tracking="widest", case="upper") { "Bearer URL" }
+                    code_block(bg="zinc.900", border=true, border_color="white/10", radius="md", pad=3) {
+                        text(size="xs", font_family="mono", color="zinc.300") {
+                            mint_result.bearer_url
+                        }
+                    }
+                    button(
+                        on_click=on_copy,
+                        bg=if copied { "emerald.600" } else { "white/10" },
+                        radius="md",
+                        pad_x=3,
+                        pad_y=2,
+                    ) {
+                        text(size="xs", color="white") { if copied { "Copied!" } else { "Copy URL" } }
+                    }
+                }
+            }
+
+            // ── Anti-goal safety banner ─────────────────────────────────────
+            panel(
+                border=true,
+                border_color="amber.500/30",
+                bg="amber.500/5",
+                radius="md",
+                pad=3,
+            ) {
+                text(size="xs", color="amber.300") {
+                    "We never auto-pipe to your shell. The friend machine prints the command first; "
+                    "you confirm by re-running without --print."
+                }
+            }
+        } else {
+            text(size="sm", color="rose.400") { "Mint failed — check your network and try again." }
+            button(on_click=fn() { set(mint_state, "idle") }, bg="white/10", radius="md", pad_x=3, pad_y=2) {
+                text(size="xs", color="zinc.300") { "Retry" }
+            }
+        }
+    }
+}

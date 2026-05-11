@@ -10,7 +10,6 @@ default = [
     "runtime",
     "json-schema",
 ]
-dashboard = ["dep:vox-dashboard"]
 # Populi HTTP mesh client (`vox-populi` transport).
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
 # `vox-oratio` speech-to-text / refinement tools.
@@ -71,7 +70,6 @@ vox-orchestrator-types.workspace = true
 vox-orchestrator-queue.workspace = true
 vox-config.workspace = true
 vox-repository.workspace = true
-vox-dashboard = { workspace = true, optional = true }
 vox-populi = { path = "../vox-populi", optional = true, default-features = false }
 vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = "0.1.89"
@@ -93,6 +91,9 @@ aes-gcm = { version = "0.10.3", optional = true }
 rand.workspace = true
 base64.workspace = true
 vox-secrets.workspace = true
+vox-skill-runtime = { workspace = true }
+vox-prereg.workspace = true
+vox-research-events.workspace = true
 vox-telemetry.workspace = true
 vox-mesh-types.workspace = true
 blake3.workspace = true
@@ -121,6 +122,9 @@ axum = { workspace = true, features = ["tokio", "http1", "json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
 tower = { version = "0.5", features = ["util"] }
+
+[[test]]
+name = "skill_runtime_inproc"
 
 [lints.rust]
 unsafe_code = "warn"

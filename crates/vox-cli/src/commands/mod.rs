@@ -157,3 +157,9 @@ pub mod drift_check;
 
 /// Insta snapshot helpers: orphan detection and cleanup (`vox snapshot`).
 pub mod snapshot;
+
+/// Workflow introspection: dry-run schedule preview (`vox workflow preview`) (P1-T8).
+pub mod workflow;
+
+/// Dispatch-time routing preview — `vox dispatch preview` (P2-T6).
+pub mod dispatch;

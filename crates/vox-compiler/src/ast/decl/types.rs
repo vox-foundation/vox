@@ -33,6 +33,14 @@ pub struct ImportPath {
 pub enum ImportPathKind {
     /// Dot-separated symbol path (e.g. `react.use_state`).
     SymbolPath { segments: Vec<String> },
+    /// Consume a React `.tsx` component from disk — Phase 5 interop
+    /// (`import react MyButton from "../ui/MyButton.tsx"`).
+    ReactComponent {
+        /// Local binding (typically PascalCase).
+        local_name: String,
+        /// ES module specifier string literal (relative or package path).
+        module_specifier: String,
+    },
     /// Rust crate import (`import rust:serde_json`).
     RustCrate(RustCrateImport),
 }

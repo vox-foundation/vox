@@ -32,6 +32,8 @@ pub mod builtins;
 // (implemented in `checker/mod.rs`).
 /// Central state machine for the type checking process.
 pub mod checker;
+/// CUDA availability gate for MENS training decorators (Mn-T5).
+pub mod cuda_gate;
 /// Diagnostic structures and error reporting for type checking.
 pub mod diagnostics;
 /// Effect propagation check: `caller.capabilities ⊇ callee.capabilities`.
@@ -67,6 +69,7 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
     let builtins = BuiltinTypes::register_all(&mut env);
     let mut diags = typecheck_hir(hir, &mut env, &builtins, source);
     diags.extend(effect_check::check_effect_compliance(hir, source));
+    diags.extend(cuda_gate::check_training_cuda_tier(hir, source));
     diags.extend(state_machine_check::check_state_machines(hir, source));
     diags.extend(effect_deps_lint::check_effect_deps(hir, source));
     diags.extend(stale_capture_lint::check_stale_captures(hir, source));

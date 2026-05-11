@@ -22,9 +22,12 @@
 #![deny(missing_docs)]
 
 pub mod db_tracker;
+/// `DurablePromise<T>` — the single awaitable primitive for distributed durable work (P1-T1).
+pub mod durable_promise;
 pub mod workflow;
 
 pub use db_tracker::VoxDbTracker;
+pub use durable_promise::{DurablePromise, JournalError};
 #[cfg(feature = "mens")]
 pub use workflow::execute_populi_step;
 pub use workflow::{

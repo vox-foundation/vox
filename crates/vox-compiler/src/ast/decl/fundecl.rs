@@ -113,6 +113,16 @@ pub struct FnDecl {
     /// error (see plan 6).
     #[serde(default)]
     pub ts_extern_module: Option<String>,
+    /// Whether the function is marked `@remote` — eligible for cross-node dispatch
+    /// via the mesh (P1-T3). All parameters must be serializable.
+    #[serde(default)]
+    pub is_remote: bool,
+    /// `@inference(model = "...")` — MENS inference routing (Mn-T4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inference_model: Option<String>,
+    /// `@training_step` — CUDA-gated training step surface (Mn-T5).
+    #[serde(default)]
+    pub training_step: bool,
     /// Source location.
     pub span: Span,
 }

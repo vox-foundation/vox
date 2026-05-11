@@ -1,0 +1,28 @@
+// Privacy-class badge — Phase 4, P4-T10.
+//
+// Sticky indicator on every job/span showing its vox.mesh.privacy_class.
+// Color codes: public=sky, private=zinc, confidential=rose.
+
+component PrivacyBadge(privacy_class: str) {
+    let color = if privacy_class is "public"       { "sky.400" }
+                else if privacy_class is "confidential" { "rose.400" }
+                else { "zinc.500" }
+
+    let label = if privacy_class is "public"       { "Public" }
+                else if privacy_class is "confidential" { "Confidential" }
+                else { "Private" }
+
+    view: panel(
+        bg=color + "/10",
+        border=true,
+        border_color=color + "/30",
+        radius="full",
+        pad_x=2,
+        pad_y=1,
+    ) {
+        row(gap=1, items="center") {
+            panel(w=1.5, h=1.5, radius="full", bg=color)
+            text(size="xs", color=color, weight="medium") { label }
+        }
+    }
+}

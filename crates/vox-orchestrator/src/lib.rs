@@ -59,6 +59,10 @@ pub mod routing;
 
 /// Agent-to-agent messaging types and helpers.
 pub mod a2a;
+/// Submitter-side spot-check sampler for result verification (P5-T5).
+pub mod spot_check;
+/// Durable orchestrator state logs (drain records, etc.).
+pub mod drain_oplog;
 /// File and task affinity groups for routing work to the right agent.
 pub use vox_orchestrator_queue::affinity;
 /// Developer attention budget tracking — treats pilot attention as a first-class resource (Phase 15).
@@ -86,6 +90,8 @@ pub mod catalog_classifier;
 pub mod circuit_breaker;
 /// DB-backed clarification inbox drain (Codex `a2a_messages`).
 pub mod clarification_db_inbox_poll;
+/// SCIENTIA pre-registration gate — refuses campaigns without a signed prereg (§5.1).
+pub mod research_gate;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Compaction strategy selector by context utilization (D7).
@@ -145,6 +151,10 @@ pub use vox_orchestrator_queue::locks;
 pub mod mcp_tools;
 /// Long-term and daily agent memory backed by Codex when enabled.
 pub mod memory;
+/// Unified task hopper — intake funnel for developer-sourced work (Hp-T1).
+pub mod hopper;
+/// Live mesh node registry — authoritative in-memory topology view for the dashboard.
+pub mod mesh;
 /// Populi control-plane poll loop shared by MCP and `vox-orchestrator-d`.
 #[cfg(feature = "populi-transport")]
 pub mod mesh_federation_poll;
@@ -226,6 +236,9 @@ pub mod validation;
 /// Aggregate multi-tier verification signals.
 pub mod victory;
 
+/// In-process `SkillRuntime` implementation (P0-T7).
+pub mod skill_runtime_inproc;
+
 /// Tokio scheduler bridge for running tasks against a live `crate::Orchestrator`.
 #[cfg(feature = "runtime")]
 pub mod runtime;
@@ -273,7 +286,9 @@ pub use contract::{
     plan_tool_daemon_alignment_valid,
 };
 pub use entropy_scorer::{calculate_entropy, score_confidence, semantic_drift_sigma};
-pub use events::{AgentActivity, AgentEvent, AgentEventKind, BuildStageKind, EventBus};
+pub use events::{
+    AgentActivity, AgentEvent, AgentEventKind, BuildStageKind, EventBus, MeshAction,
+};
 pub use gate::{BudgetGate, Gate, GateResult};
 pub use generated::agent_harness::{
     Adapter as HarnessAdapter, AgentHarnessSpec, CompletionGate as HarnessGate,

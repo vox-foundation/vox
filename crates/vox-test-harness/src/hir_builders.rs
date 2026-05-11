@@ -34,6 +34,7 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         is_mobile_native: false,
         is_pure: false,
         is_reactive: false,
+        is_remote: false,
         is_deprecated: false,
         is_llm: false,
         llm_model: None,
@@ -45,7 +46,11 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         postconditions: vec![],
         capabilities: vec![],
         ts_extern_module: None,
+        generated_hash: None,
         span: dummy_span(),
+        inference_model: None,
+        training_step: false,
+        distributed_train: None,
     }
 }
 
