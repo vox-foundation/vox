@@ -3,13 +3,13 @@
 // docs/src/assets/template_durable.html.
 //
 // Pipeline:
-//   1. tools/render-durable-animation/render.js bakes the template (resolving
+//   1. apps/build-tools/render-durable-animation/render.js bakes the template (resolving
 //      the {{*_B64}} placeholders against node_*.png assets) and screenshots
 //      680 frames at 960x960 via headless Chrome.
 //   2. ffmpeg encodes the frames to animated WebP at 20 fps.
 //
 // Requirements on the host:
-//   - Node 20+ with `npm install` in tools/render-durable-animation/
+//   - Node 20+ with `npm install` in apps/build-tools/render-durable-animation/
 //   - Chrome/Chromium (path auto-detected on Windows; override with CHROME_PATH)
 //   - ffmpeg with libwebp_anim (the standard winget/choco builds have it)
 import fs;
@@ -39,7 +39,7 @@ fn detect_chrome() -> str {
 
 fn main() {
     let repo = process.cwd()
-    let tool_dir = path.join(repo, "tools/render-durable-animation")
+    let tool_dir = path.join(repo, "apps/build-tools/render-durable-animation")
     let webp_out = path.join(repo, "docs/src/assets/durable_essentialist_loop.webp")
     let frames_dir = path.join(tool_dir, "frames")
 
@@ -50,7 +50,7 @@ fn main() {
     }
 
     if !fs.exists(path.join(tool_dir, "node_modules")) {
-        print("Installing puppeteer-core in tools/render-durable-animation/ ...")
+        print("Installing puppeteer-core in apps/build-tools/render-durable-animation/ ...")
         let r = process.run("npm", ["install", "--prefix", tool_dir])
         if r.code isnt 0 {
             print("npm install failed: " + r.stderr)

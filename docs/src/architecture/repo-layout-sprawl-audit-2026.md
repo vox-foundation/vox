@@ -46,7 +46,7 @@ git ls-files | ForEach-Object { Split-Path $_ -Parent } |
 | **Automation** | [`scripts/*.vox`](../../../scripts/) | VoxScript-first glue (`vox run …`); thin bootstrap PS/sh only. |
 | **CI / policy entrypoints** | [`.github/workflows/`](../../../.github/workflows/), [`lefthook.yml`](../../../lefthook.yml), [`deny.toml`](../../../deny.toml), [`biome.json`](../../../biome.json) | External runners and repo-wide lint gates. |
 | **Deploy / ops** | [`infra/`](../../../infra/), [`docker/`](../../../docker/), root `Dockerfile*`, [`docker-compose.yml`](../../../docker-compose.yml) | Overlap is **documented** (eval sandbox: root compose + mirror under `docker/`). Prefer **documenting canonical path** over silent merges. |
-| **Adjunct tooling** | [`tools/render-durable-animation/`](../../../tools/render-durable-animation/) | Small Node helper; driven by [`scripts/render-durable-animation.vox`](../../../scripts/render-durable-animation.vox). |
+| **Build-time helpers** | [`apps/build-tools/render-durable-animation/`](../../../apps/build-tools/render-durable-animation/) | Small Node helper for doc assets; driven by [`scripts/render-durable-animation.vox`](../../../scripts/render-durable-animation.vox). |
 | **Training / Mens** | [`mens/`](../../../mens/) | Corpus config + local training runs (`mens/runs/` gitignored). |
 
 ## Non-Rust artifacts — producer / consumer matrix
@@ -73,7 +73,7 @@ Only high-traffic families are listed; extend this table when consolidating a di
 ### Tier M — structural (requires reference sweep)
 
 - **Merge thin `contracts/<x>/` domains** only when a domain has ≤2 files **and** shares an owner with an adjacent domain — must update **`contracts/index.yaml`**, `rg contracts/old-path`, and any crate literals.
-- **Fold `tools/` into `apps/build-tools/`** (example): update [`scripts/render-durable-animation.vox`](../../../scripts/render-durable-animation.vox), package name, and any CI path literals.
+- **Fold `tools/` into `apps/build-tools/`** — done for `render-durable-animation`; keep new adjunct CLIs under [`apps/build-tools/`](../../../apps/build-tools/).
 
 ### Tier L — avoid without RFC
 
@@ -82,6 +82,6 @@ Only high-traffic families are listed; extend this table when consolidating a di
 
 ## Next steps
 
-1. Triage the ~203 single-file parent dirs: tag each as **idiomatic** | **candidate merge** | **generated**.
+1. Triage the ~203 single-file parent dirs: tag each as **idiomatic** | **candidate merge** | **generated** — baseline list in [`repo-layout-single-file-parent-dirs-triage-2026.md`](./repo-layout-single-file-parent-dirs-triage-2026.md).
 2. For each Tier M move: attach an `rg` evidence block (reference count) in the PR description.
 3. Extend this matrix when introducing new generated JSON/YAML under `contracts/` or `docs/agents/`.

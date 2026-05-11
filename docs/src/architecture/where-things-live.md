@@ -34,7 +34,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Automation | [`scripts/*.vox`](../../../scripts/) | Prefer `vox run` over new shell/Python glue. |
 | CI / hooks | [`.github/workflows/`](../../../.github/workflows/), [`lefthook.yml`](../../../lefthook.yml) | Runner wiring; see CI docs under `docs/src/ci/`. |
 | Deploy / compose | [`infra/`](../../../infra/), [`docker/`](../../../docker/), root [`docker-compose.yml`](../../../docker-compose.yml) | Overlap is intentional (different compose working dirs); eval SSOT called out in deploy docs. |
-| Adjunct Node tool | [`tools/render-durable-animation/`](../../../tools/render-durable-animation/) | Invoked from [`scripts/render-durable-animation.vox`](../../../scripts/render-durable-animation.vox). |
+| Build-time Node helper | [`apps/build-tools/render-durable-animation/`](../../../apps/build-tools/render-durable-animation/) | Invoked from [`scripts/render-durable-animation.vox`](../../../scripts/render-durable-animation.vox). |
 
 ## Quick reference: subsystem → crate (by layer)
 
@@ -120,7 +120,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-git`](../../../crates/vox-git/) | Pure-Rust Git bridge using gix (no C, no libgit2). |
 | [`vox-inspect-bridge`](../../../crates/vox-inspect-bridge/) | SCIENTIA Phase 5: UK AISI Inspect task adapter, atomic-NEI novelty scoring. |
 | [`vox-lsp`](../../../crates/vox-lsp/) | Vox Language Server (stdio JSON-RPC). |
-| [`vox-ml-cli`](../../../crates/vox-ml-cli/) | Vox ML, AI, and Telemetry command-line interface (binary tool). |
+| [`vox-ml-cli`](../../../crates/vox-ml-cli) | Vox ML, AI, and Telemetry command-line interface (binary tool). |
 | [`vox-openclaw-runtime`](../../../crates/vox-openclaw-runtime/) | OpenClaw client + ARS runtime adapter, executor, context bundles, hooks. |
 | [`vox-orchestrator`](../../../crates/vox-orchestrator/) | Glue crate for the multi-agent file-affinity router: dei_shim, planning, services, runtime glue. Core router lives in vox-orchestrator-core, queue/lock/oplog in vox-orchestrator-queue, MCP in vox-orchestrator-mcp. |
 | [`vox-orchestrator-core`](../../../crates/vox-orchestrator-core/) | Workspace boundary marker for the core router/dispatcher of vox-orchestrator (the `orchestrator/` subdir, ~11.5K LoC). Full extraction blocked by 30+ `crate::` cross-cuts into sibling modules; code remains in vox-orchestrator until a broader L3 split lands. |

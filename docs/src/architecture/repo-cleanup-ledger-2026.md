@@ -18,7 +18,7 @@ Machine-readable intent: each row is executed as-is after reference updates.
 | `artifacts/toestub-crates-audit.json` | No `rg` references | `git rm` |
 | `docs/lychee_report.json` | Superseded by `docs-astro/lychee_report.json` in workflow | `git rm` |
 | `marquee_app/build/**` | Built output; no source refs | `git rm` |
-| `crates/vox-ml-cli/check_errors.txt` | Captured compiler log | `git rm` |
+| `crates\vox-ml-cli\check_errors.txt` (historical path) | Captured compiler log | `git rm` |
 | `mens/data/metadata.json` | Generated corpus sidecar | `git rm` |
 | `mens/temp_stabilization/metadata.json` | Orphan experiment output | `git rm` |
 | `vox-vscode/tmp/*.md` | Scratch planning | `git rm` |
@@ -47,7 +47,7 @@ Intentional tracked policy under `.vox/` (e.g. `.vox/agents/`, `.vox/bin/`) reta
 | `test_app_bundle/` | `tests/fixtures/frontend/test_app_bundle/` |
 | `test_app/` | `examples/sandboxes/test_app/` |
 
-`tools/render-durable-animation/` stays under `tools/` (only visualizer moves).
+`tools/render-durable-animation/` moved to [`apps/build-tools/render-durable-animation/`](../../../apps/build-tools/render-durable-animation/) (Tier M consolidation; script path in [`scripts/render-durable-animation.vox`](../../../scripts/render-durable-animation.vox)).
 
 ## `docs/superpowers/plans` — domain subfolders
 
