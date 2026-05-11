@@ -289,7 +289,9 @@ fn classify_ignored_test_issue(attrs: &[String]) -> Option<IgnoredTestGovernance
 ///
 /// Returns `(total_ignored_tests, findings)` where `findings` is non-empty when bare `#[ignore]` or
 /// a string reason lacks owner/sunset-style documentation.
-pub fn scan_ignored_test_governance_findings(root: &Path) -> Result<(u64, Vec<IgnoredTestGovernanceFinding>)> {
+pub fn scan_ignored_test_governance_findings(
+    root: &Path,
+) -> Result<(u64, Vec<IgnoredTestGovernanceFinding>)> {
     let mut total_ignored = 0u64;
     let mut findings: Vec<IgnoredTestGovernanceFinding> = Vec::new();
     let crates_path = root.join("crates");
@@ -321,8 +323,8 @@ pub fn scan_ignored_test_governance_findings(root: &Path) -> Result<(u64, Vec<Ig
             continue;
         }
 
-        let source = fs::read_to_string(path)
-            .with_context(|| format!("read {}", path.display()))?;
+        let source =
+            fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
         let mut pending = Vec::<String>::new();
 
         for (idx, raw_line) in source.lines().enumerate() {
@@ -362,11 +364,9 @@ pub fn scan_ignored_test_governance_findings(root: &Path) -> Result<(u64, Vec<Ig
                 continue;
             }
 
-            let ignored = attrs.iter().any(|a| {
-                strip_line_comment(a)
-                    .trim()
-                    .starts_with("#[ignore")
-            });
+            let ignored = attrs
+                .iter()
+                .any(|a| strip_line_comment(a).trim().starts_with("#[ignore"));
             if !ignored {
                 pending.clear();
                 continue;

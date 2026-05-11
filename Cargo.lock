@@ -11155,13 +11155,20 @@ dependencies = [
  "owo-colors",
  "serde",
  "serde_json",
+ "sysinfo",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
+ "vox-bounded-fs",
+ "vox-config",
  "vox-db",
  "vox-gamify",
+ "vox-jsonschema-util",
+ "vox-protocol",
  "vox-repository",
  "vox-secrets",
+ "which 7.0.3",
 ]
 
 [[package]]
@@ -11204,10 +11211,12 @@ dependencies = [
  "flate2",
  "insta",
  "miette",
+ "prettyplease",
  "proptest",
  "serde",
  "serde_json",
  "sha3",
+ "syn 2.0.117",
  "vox-compiler",
  "vox-config",
  "vox-deploy-codegen",
@@ -11598,6 +11607,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-hf-layout"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tracing",
+ "vox-bounded-fs",
+]
+
+[[package]]
+name = "vox-http-envelope"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "vox-identity"
 version = "0.5.0"
 dependencies = [
@@ -11675,6 +11703,7 @@ dependencies = [
  "vox-test-harness",
  "vox-workflow-runtime",
  "walkdir",
+ "wiremock",
  "workspace-hack",
 ]
 
@@ -11790,6 +11819,7 @@ dependencies = [
  "uuid",
  "vox-actor-runtime",
  "vox-bounded-fs",
+ "vox-cli",
  "vox-cli-core",
  "vox-compiler",
  "vox-config",
@@ -12297,6 +12327,7 @@ dependencies = [
  "vox-compiler",
  "vox-db",
  "vox-eval",
+ "vox-hf-layout",
  "vox-plugin-api",
  "vox-secrets",
  "vox-tensor",
@@ -12524,6 +12555,7 @@ dependencies = [
  "vox-distributed-training",
  "vox-eval",
  "vox-grammar-export",
+ "vox-hf-layout",
  "vox-identity",
  "vox-mesh-types",
  "vox-plugin-host",
@@ -12860,6 +12892,7 @@ dependencies = [
  "anyhow",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "vox-codegen",
  "vox-compiler",
@@ -12872,9 +12905,11 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "bytes",
+ "tempfile",
  "tracing",
  "wasmtime",
  "wasmtime-wasi",
+ "wat",
  "workspace-hack",
 ]
 

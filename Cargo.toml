@@ -89,8 +89,10 @@ vox-webhook               = { path = "crates/vox-webhook" }
 vox-git                   = { path = "crates/vox-git" }
 vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
 vox-grammar-export        = { path = "crates/vox-grammar-export" }
+vox-http-envelope         = { path = "crates/vox-http-envelope" }
 vox-lsp                   = { path = "crates/vox-lsp" }
 vox-gamify                 = { path = "crates/vox-gamify" }
+vox-hf-layout              = { path = "crates/vox-hf-layout" }
 vox-populi                = { path = "crates/vox-populi" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
@@ -265,8 +267,10 @@ rubato             = "0.15.0"
 symphonia          = "0.5.4"
 sherpa-onnx        = "1.12"
 syn                = "2"
+prettyplease       = "0.2"
 proc-macro2        = "1"
 semver             = "1"
+parking_lot        = "0.12"
 secrecy            = "0.10"
 rmcp               = "0.16"
 rmp-serde          = "1"

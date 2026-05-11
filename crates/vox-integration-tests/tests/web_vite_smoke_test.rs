@@ -36,6 +36,7 @@ async fn full_stack_minimal_vite_production_build() {
         &vox_file,
         &ts_out,
         None,
+        None,
         false,
         false,
         vox_cli::cli_args::BuildMode::App,

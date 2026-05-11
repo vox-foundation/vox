@@ -98,6 +98,8 @@ pub mod error_enrichment;
 // `eval_params` types moved to `vox-db-types`; re-exported below.
 pub mod exec_time_telemetry;
 pub mod sql_util;
+mod local_cli_introspection;
+pub use local_cli_introspection::{audit_database_json, sample_table_json_objects};
 pub use exec_time_telemetry::{ExecOutcome, ExecTimeRecord, TimedExecution, ToolLatencyProfile};
 pub mod hash;
 pub mod learning;

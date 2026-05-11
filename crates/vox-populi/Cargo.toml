@@ -49,6 +49,7 @@ mens = [
     "dep:vox-corpus",
     "dep:vox-db",
     "dep:vox-bounded-fs",
+    "dep:vox-hf-layout",
 ]
 mens-candle-qlora = [
     "mens",
@@ -125,6 +126,7 @@ rand = { workspace = true, optional = true }
 vox-tensor = { workspace = true, optional = true }
 vox-corpus = { workspace = true, optional = true }
 vox-bounded-fs = { workspace = true, optional = true }
+vox-hf-layout = { workspace = true, optional = true }
 hf-hub = { workspace = true, optional = true }
 candle-core = { workspace = true, optional = true }
 candle-nn = { workspace = true, optional = true }
@@ -136,7 +138,7 @@ vox-eval = { workspace = true, optional = true }
 vox-compiler = { workspace = true, optional = true }
 vox-publisher = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
-hex = "0.4.3"
+hex = { workspace = true }
 
 [dev-dependencies]
 jsonschema = { workspace = true, default-features = false }

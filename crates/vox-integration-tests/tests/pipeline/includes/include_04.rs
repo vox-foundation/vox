@@ -246,7 +246,7 @@ fn pipeline_web_ir_ops_gate_compose() {
     );
 }
 
-/// OP-0304 interim rollout gate: compose + perf smoke in one test; CI also runs `cargo test -p vox-compiler --test web_ir_lower_emit`.
+/// OP-0304 interim rollout gate: compose + perf smoke in one test; CI also runs `cargo nextest run -p vox-compiler --test web_ir_lower_emit_test --run-ignored ignored-only`.
 #[test]
 fn pipeline_web_ir_rollout_compose_gate_interim() {
     pipeline_web_ir_ops_gate_compose();

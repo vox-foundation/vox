@@ -35,6 +35,13 @@ pub struct CodegenOutput {
 }
 
 /// Emit a minimal Axum + Turso backend crate from `module` (paths relative to generated root).
+fn format_generated_lib_rs(src: &str) -> String {
+    match syn::parse_file(src) {
+        Ok(ast) => prettyplease::unparse(&ast),
+        Err(_) => src.to_string(),
+    }
+}
+
 pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput, miette::Error> {
     let mut files = HashMap::new();
 
@@ -55,7 +62,8 @@ pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput,
     files.insert("src/main.rs".to_string(), emit_main(module, package_name));
 
     // src/lib.rs (Types, Actors, Workflows, Functions)
-    files.insert("src/lib.rs".to_string(), emit_lib(module));
+    let lib_rs = emit_lib(module);
+    files.insert("src/lib.rs".to_string(), format_generated_lib_rs(&lib_rs));
     if let Ok(contract_json) = serde_json::to_string_pretty(&project_app_contract(module)) {
         files.insert("app_contract.json".to_string(), contract_json);
     }

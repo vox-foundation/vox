@@ -35,6 +35,7 @@ async fn golden_route_screenshot_and_a11y() {
         &vox_file,
         &ts_out,
         None,
+        None,
         false,
         false,
         vox_cli::cli_args::BuildMode::App,

@@ -647,7 +647,10 @@ mod tests {
         let j = serde_json::to_string(&r).unwrap();
         let r2 = parse_runtime_report_json(&j).unwrap();
         assert_eq!(r.total_tests, r2.total_tests);
-        assert_eq!(r.retry_flaky_candidates.len(), r2.retry_flaky_candidates.len());
+        assert_eq!(
+            r.retry_flaky_candidates.len(),
+            r2.retry_flaky_candidates.len()
+        );
     }
 
     #[test]

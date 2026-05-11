@@ -120,7 +120,7 @@ export const UnifiedDashboard = ({
                             <button
                                 type="button"
                                 className="text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded border border-destructive bg-void text-destructive hover:bg-destructive hover:text-white transition-colors"
-                                onClick={() => voxTransport.callTool('vox_ludus_notifications_ack_all', {})}
+                                onClick={() => voxTransport.callTool('vox_gamify_notifications_ack_all', {})}
                             >
                                 ACK ALL
                             </button>
@@ -132,7 +132,7 @@ export const UnifiedDashboard = ({
                                     <button
                                         type="button"
                                         className="text-[10px] px-3 py-1 bg-machine border border-border text-steel rounded hover:border-cyan hover:text-cyan transition-colors uppercase tracking-widest font-bold"
-                                        onClick={() => voxTransport.callTool('vox_ludus_notification_ack', { notification_id: String(n.id ?? '') })}
+                                        onClick={() => voxTransport.callTool('vox_gamify_notification_ack', { notification_id: String(n.id ?? '') })}
                                     >
                                         ACK
                                     </button>

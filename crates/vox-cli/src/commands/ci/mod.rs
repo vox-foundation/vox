@@ -50,9 +50,9 @@ mod scientia_novelty_ledger_contract;
 mod scientia_worthiness_contract;
 pub(crate) mod string_id_lint;
 pub(crate) mod sync_ignore_files;
+mod test_governance;
 pub mod test_inventory;
 pub mod test_runtime_report;
-mod test_governance;
 mod toestub_budget;
 pub mod watch_run;
 pub mod workspace_artifacts;
@@ -68,8 +68,8 @@ use std::process::{Command, Stdio};
 use anyhow::Result;
 
 pub use cmd_enums::{
-    CiCmd, CoolifyEvalCmd, CoverageGateMode, DocInventoryCmd, EvalMatrixCmd, GrammarDriftEmit,
-    GovernanceGateMode, MensScorecardCmd, OperationsSyncTarget, ScalingAuditCmd,
+    CiCmd, CoolifyEvalCmd, CoverageGateMode, DocInventoryCmd, EvalMatrixCmd, GovernanceGateMode,
+    GrammarDriftEmit, MensScorecardCmd, OperationsSyncTarget, ScalingAuditCmd,
 };
 
 /// Resolve repository root: `VOX_REPO_ROOT`, else walk up from CWD for `AGENTS.md` + `Cargo.toml`.

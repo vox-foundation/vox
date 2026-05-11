@@ -15,4 +15,4 @@ zeroize = { version = "1.8", features = ["zeroize_derive"] }
 rand = { workspace = true }
 dirs = { workspace = true }
 chrono = { workspace = true }
-hex = "0.4.3"
+hex = { workspace = true }

@@ -99,10 +99,7 @@ fn scan_source_lines(
 
             if matches!(
                 sym.id.as_str(),
-                "turso-url-env"
-                    | "turso-token-env"
-                    | "vox-turso-url-env"
-                    | "vox-turso-token-env"
+                "turso-url-env" | "turso-token-env" | "vox-turso-url-env" | "vox-turso-token-env"
             ) && (filename == "env-vars.md" || filename == "secrets-ssot.md")
             {
                 continue;

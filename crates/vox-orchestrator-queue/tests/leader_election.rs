@@ -1,7 +1,32 @@
 //! P0-T2: lock-leader election with heartbeat (vox-db backed).
+//!
+//! Short TTL / heartbeat cases poll leadership and heartbeat outcomes instead of fixed delays.
+
+use std::time::Duration;
 
 use vox_db::{DbConfig, VoxDb};
 use vox_orchestrator_queue::locks::leader::{LeaderRole, LockLeaderElection};
+
+async fn wait_until_async<F, Fut>(
+    label: &str,
+    timeout: Duration,
+    interval: Duration,
+    mut condition: F,
+) where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = bool>,
+{
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        if condition().await {
+            return;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            panic!("{label}: timed out after {timeout:?}");
+        }
+        tokio::time::sleep(interval).await;
+    }
+}
 
 #[tokio::test]
 async fn first_caller_becomes_leader() {
@@ -35,8 +60,13 @@ async fn heartbeat_keeps_leadership_alive() {
     let elect = LockLeaderElection::with_ttl_ms(db, "node-A", "repo-1", 500);
     let _role = elect.try_become_leader().await.expect("claim");
 
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    assert!(elect.heartbeat().await.expect("heartbeat"), "still leader");
+    wait_until_async(
+        "leader heartbeat acknowledged",
+        Duration::from_secs(5),
+        Duration::from_millis(5),
+        || async { elect.heartbeat().await.expect("heartbeat") },
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -46,9 +76,19 @@ async fn expired_lease_can_be_taken_over() {
     let a = LockLeaderElection::with_ttl_ms(db.clone(), "node-A", "repo-1", 5);
     a.try_become_leader().await.expect("claim A");
 
-    tokio::time::sleep(std::time::Duration::from_millis(30)).await;
-
     let b = LockLeaderElection::new(db, "node-B", "repo-1");
+    wait_until_async(
+        "node-B takes leadership after node-A lease expires",
+        Duration::from_secs(5),
+        Duration::from_millis(5),
+        || async {
+            matches!(
+                b.try_become_leader().await.expect("claim B"),
+                LeaderRole::Leader { .. }
+            )
+        },
+    )
+    .await;
     let role = b.try_become_leader().await.expect("claim B");
     assert!(
         matches!(role, LeaderRole::Leader { .. }),

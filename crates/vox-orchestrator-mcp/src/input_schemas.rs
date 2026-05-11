@@ -222,32 +222,32 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_agent_handoff" => parse_obj(
             r#"{"type":"object","properties":{"from_agent_id":{"type":"integer","minimum":0},"to_agent_id":{"type":"integer","minimum":0},"plan_summary":{"type":"string","minLength":1},"unresolved_objectives":{"type":"array","items":{"type":"string"}},"verification_criteria":{"type":"array","items":{"type":"string"}},"context_envelope_json":{"type":"string","minLength":1},"harness_spec_json":{"type":"string","minLength":1}},"required":["from_agent_id","to_agent_id","plan_summary"],"additionalProperties":false}"#,
         ),
-        "vox_ludus_notifications_list" => parse_obj(
+        "vox_gamify_notifications_list" => parse_obj(
             r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":100}},"additionalProperties":false}"#,
         ),
-        "vox_ludus_progress_snapshot" => parse_obj(
+        "vox_gamify_progress_snapshot" => parse_obj(
             r#"{"type":"object","properties":{"notification_limit":{"type":"integer","minimum":1,"maximum":100},"policy_limit":{"type":"integer","minimum":1,"maximum":500},"policy_days":{"type":"integer","minimum":1,"maximum":3660}},"additionalProperties":false}"#,
         ),
-        "vox_ludus_notification_ack" => parse_obj(
+        "vox_gamify_notification_ack" => parse_obj(
             r#"{"type":"object","properties":{"notification_id":{"type":"string","minLength":1}},"required":["notification_id"],"additionalProperties":false}"#,
         ),
-        "vox_ludus_notifications_ack_all" => {
+        "vox_gamify_notifications_ack_all" => {
             parse_obj(r#"{"type":"object","additionalProperties":false}"#)
-        }
-        "vox_ludus_quest_list" => parse_obj(
+        },
+        "vox_gamify_quest_list" => parse_obj(
             r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":200}},"additionalProperties":false}"#,
         ),
-        "vox_ludus_shop_catalog" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_ludus_shop_buy" => parse_obj(
+        "vox_gamify_shop_catalog" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_gamify_shop_buy" => parse_obj(
             r#"{"type":"object","properties":{"item_index":{"type":"integer","minimum":1},"idempotency_key":{"type":"string"}},"required":["item_index"],"additionalProperties":false}"#,
         ),
-        "vox_ludus_collegium_join" => parse_obj(
+        "vox_gamify_collegium_join" => parse_obj(
             r#"{"type":"object","properties":{"collegium_id":{"type":"string","minLength":1}},"required":["collegium_id"],"additionalProperties":false}"#,
         ),
-        "vox_ludus_battle_start" => parse_obj(
+        "vox_gamify_battle_start" => parse_obj(
             r#"{"type":"object","properties":{"companion_name":{"type":"string"},"rule_id":{"type":"string"},"message":{"type":"string"},"file_path":{"type":"string"},"line":{"type":"integer","minimum":1},"context":{"type":"string"}},"required":["companion_name","rule_id","message"],"additionalProperties":false}"#,
         ),
-        "vox_ludus_battle_submit" => parse_obj(
+        "vox_gamify_battle_submit" => parse_obj(
             r#"{"type":"object","properties":{"companion_name":{"type":"string"},"code":{"type":"string"},"success":{"type":"boolean"}},"required":["companion_name","code"],"additionalProperties":false}"#,
         ),
 

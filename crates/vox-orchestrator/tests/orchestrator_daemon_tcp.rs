@@ -1,11 +1,35 @@
 //! Round-trip TCP daemon for `orch.ping` / `orch.task_status`.
+//!
+//! Daemon readiness waits on a successful `ping()` instead of a fixed sleep after spawn.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use tokio::net::TcpListener;
 use vox_orchestrator::{
     AgentTask, Orchestrator, OrchestratorConfig, TaskId, TaskPriority, orch_daemon,
 };
+
+async fn wait_until_async<F, Fut>(
+    label: &str,
+    timeout: Duration,
+    interval: Duration,
+    mut condition: F,
+) where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = bool>,
+{
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        if condition().await {
+            return;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            panic!("{label}: timed out after {timeout:?}");
+        }
+        tokio::time::sleep(interval).await;
+    }
+}
 
 #[tokio::test]
 async fn orchestrator_daemon_ping_and_task_status() {
@@ -32,9 +56,19 @@ async fn orchestrator_daemon_ping_and_task_status() {
         o,
     ));
 
-    tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+    let addr_str = addr.to_string();
+    wait_until_async(
+        "orchestrator daemon TCP accepting (`orch.ping`)",
+        Duration::from_secs(15),
+        Duration::from_millis(5),
+        || {
+            let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
+            async move { c.ping().await.is_ok() }
+        },
+    )
+    .await;
 
-    let client = orch_daemon::OrchDaemonClient::new(addr.to_string());
+    let client = orch_daemon::OrchDaemonClient::new(addr_str);
     let ping = client.ping().await.expect("ping");
     assert_eq!(ping["repository_id"], "ut-repo");
     assert_eq!(ping["protocol"], "vox.orchestrator_daemon/v1");
@@ -73,8 +107,18 @@ async fn orchestrator_daemon_task_and_agent_write_methods() {
         "ut-repo".to_string(),
         orch.clone(),
     ));
-    tokio::time::sleep(std::time::Duration::from_millis(30)).await;
-    let client = orch_daemon::OrchDaemonClient::new(addr.to_string());
+    let addr_str = addr.to_string();
+    wait_until_async(
+        "orchestrator daemon TCP accepting (`orch.ping`)",
+        Duration::from_secs(15),
+        Duration::from_millis(5),
+        || {
+            let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
+            async move { c.ping().await.is_ok() }
+        },
+    )
+    .await;
+    let client = orch_daemon::OrchDaemonClient::new(addr_str);
 
     let submitted = client
         .submit_task(serde_json::json!({

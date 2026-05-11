@@ -1,7 +1,7 @@
 //! Emergency **bootstrap** model identifiers when dynamic catalogs are unavailable.
 //!
 //! Prefer OpenRouter virtual routes and registry resolution at runtime; these strings are the
-//! single workspace fallback surface until `vox-dei` is restored as a full member crate.
+//! single workspace fallback surface; orchestrator lives in `vox-orchestrator` (see AGENTS.md retired surfaces).
 
 /// OpenRouter dynamic auto-selection route.
 pub const OPENROUTER_AUTO: &str = "openrouter/auto";

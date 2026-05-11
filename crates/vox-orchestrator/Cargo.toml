@@ -45,7 +45,7 @@ toml = { workspace = true }
 vox-package.workspace = true
 vox-gamify = { workspace = true }
 dirs = { workspace = true }
-parking_lot = "0.12"
+parking_lot = { workspace = true }
 futures-util = { workspace = true }
 sysinfo = { version = "0.38.2", optional = true }
 sha3 = { workspace = true }
@@ -53,7 +53,7 @@ xxhash-rust = { workspace = true }
 hmac = "0.12.1"
 sha2 = "0.10.8"
 tiktoken-rs = "0.6"
-hex = "0.4.3"
+hex = { workspace = true }
 getrandom = "0.2"
 vox-crypto.workspace = true
 vox-agentos-mutation.workspace = true

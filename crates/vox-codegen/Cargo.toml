@@ -23,6 +23,8 @@ miette = { workspace = true }
 vox-secrets = { workspace = true }
 vox-config = { workspace = true }
 vox-deploy-codegen = { workspace = true }
+prettyplease = { workspace = true }
+syn = { workspace = true, features = ["full"] }
 
 [dev-dependencies]
 insta = "1"

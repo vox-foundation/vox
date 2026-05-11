@@ -9,5 +9,8 @@ license.workspace = true
 reqwest = { workspace = true }
 workspace-hack = { workspace = true }
 
+[dev-dependencies]
+reqwest = { workspace = true }
+
 [lints]
 workspace = true

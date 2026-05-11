@@ -459,7 +459,12 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             absolute_ms,
             json,
         } => super::test_governance::run_runtime_regress(
-            mode, current, baseline, percent, absolute_ms, json,
+            mode,
+            current,
+            baseline,
+            percent,
+            absolute_ms,
+            json,
         ),
         CiCmd::DeployStatus { write_to } => super::deploy_status::run(write_to).await,
         CiCmd::GeneratePluginCatalogDocs {

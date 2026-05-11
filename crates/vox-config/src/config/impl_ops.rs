@@ -549,7 +549,9 @@ db_extra = "de"
     fn vox_build_target_env_overrides_toml_after_merge() {
         let _lock = VOX_BUILD_TARGET_ENV_MUTEX.lock().expect("serial env test");
         let prev = std::env::var("VOX_BUILD_TARGET").ok();
-        std::env::set_var("VOX_BUILD_TARGET", "client");
+        unsafe {
+            std::env::set_var("VOX_BUILD_TARGET", "client");
+        }
         let dir = tempfile::tempdir().expect("tempdir");
         let p = dir.path().join("Vox.toml");
         std::fs::write(&p, "[build]\ntarget = \"server\"\n").expect("write");
@@ -559,8 +561,12 @@ db_extra = "de"
         VoxConfig::merge_build_target_from_env_var(&mut cfg);
         assert_eq!(cfg.build_target, BuildTarget::Client);
         match prev {
-            Some(v) => std::env::set_var("VOX_BUILD_TARGET", v),
-            None => std::env::remove_var("VOX_BUILD_TARGET"),
+            Some(v) => unsafe {
+                std::env::set_var("VOX_BUILD_TARGET", v);
+            },
+            None => unsafe {
+                std::env::remove_var("VOX_BUILD_TARGET");
+            },
         }
     }
 

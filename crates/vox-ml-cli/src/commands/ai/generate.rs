@@ -1,6 +1,6 @@
 //! `vox mens generate` — AI-powered Vox code generation.
 //!
-//! Connects to the `vox-dei-d` daemon and streams AI-generated Vox source code
+//! Connects to the `vox-orchestrator-d` daemon and streams AI-generated Vox source code
 //! from a natural language prompt. Supports context modes, output validation,
 //! structured output modes, and Codex task-job queueing.
 
@@ -100,7 +100,7 @@ fn validate_json_schema(source: &str, schema_path: &Path) -> Result<()> {
     )
 }
 
-/// Call the vox-dei-d daemon and collect the full streamed generation result.
+/// Call the `vox-orchestrator-d` daemon and collect the full streamed generation result.
 ///
 /// Chunks are printed to stdout in real-time by `call_daemon`; the final
 /// `Result` payload (if any) is returned as the captured text.
@@ -237,9 +237,9 @@ pub async fn run(
                 .unwrap_or("")
                 .to_string()
         } else {
-            // Route through vox-dei-d daemon (fail fast — no fake offline output).
+            // Route through vox-orchestrator-d daemon (fail fast — no fake offline output).
             generate_via_daemon(&full_prompt).await.context(
-                "Dei daemon unavailable. Start `vox-dei-d`, or pass `--server-url` for direct HTTP inference.",
+                "Orchestrator daemon unavailable. Start `vox-orchestrator-d`, or pass `--server-url` for direct HTTP inference.",
             )?
         };
 

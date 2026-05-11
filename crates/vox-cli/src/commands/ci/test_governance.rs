@@ -144,7 +144,9 @@ pub(crate) fn run_flake_budget(
             super::test_runtime_report::build_report(&xml, top)?
         }
         (Some(_), Some(_)) => anyhow::bail!("pass only one of --report-json or --junit"),
-        (None, None) => anyhow::bail!("flake-budget requires --report-json <path> or --junit <path>"),
+        (None, None) => {
+            anyhow::bail!("flake-budget requires --report-json <path> or --junit <path>")
+        }
     };
 
     let n = retry_flaky_candidate_count(&report);

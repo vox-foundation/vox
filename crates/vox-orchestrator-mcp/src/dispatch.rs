@@ -895,34 +895,34 @@ async fn handle_tool_call_inner(
         "vox_check_mood" => {
             Ok(crate::gamify::check_mood(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_notifications_list" => {
+        "vox_gamify_notifications_list" => {
             Ok(crate::gamify::ludus_notifications_list(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_progress_snapshot" => {
+        "vox_gamify_progress_snapshot" => {
             Ok(crate::gamify::ludus_progress_snapshot(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_notification_ack" => {
+        "vox_gamify_notification_ack" => {
             Ok(crate::gamify::ludus_notification_ack(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_notifications_ack_all" => {
+        "vox_gamify_notifications_ack_all" => {
             Ok(crate::gamify::ludus_notifications_ack_all(state).await)
         }
-        "vox_ludus_quest_list" => {
+        "vox_gamify_quest_list" => {
             Ok(crate::gamify::ludus_quest_list(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_shop_catalog" => {
+        "vox_gamify_shop_catalog" => {
             Ok(crate::gamify::ludus_shop_catalog(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_shop_buy" => {
+        "vox_gamify_shop_buy" => {
             Ok(crate::gamify::ludus_shop_buy(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_collegium_join" => {
+        "vox_gamify_collegium_join" => {
             Ok(crate::gamify::ludus_collegium_join(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_battle_start" => {
+        "vox_gamify_battle_start" => {
             Ok(crate::gamify::ludus_battle_start(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_battle_submit" => {
+        "vox_gamify_battle_submit" => {
             Ok(crate::gamify::ludus_battle_submit(state, serde_json::from_value(args)?).await)
         }
         "vox_agent_status" => {

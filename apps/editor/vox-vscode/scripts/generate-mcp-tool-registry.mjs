@@ -7,7 +7,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, '..', '..');
+// scripts/ -> vox-vscode/ -> editor/ -> apps/ -> repository root
+const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
 const yamlPath = path.join(repoRoot, 'contracts', 'mcp', 'tool-registry.canonical.yaml');
 const outPath = path.join(__dirname, '..', 'src', 'core', 'mcpToolRegistry.generated.ts');
 

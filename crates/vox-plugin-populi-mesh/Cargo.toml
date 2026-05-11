@@ -18,7 +18,7 @@ tracing = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
 workspace-hack = { workspace = true }
-hex = "0.4.3"
+hex = { workspace = true }
 
 # Transport heavy deps (moved from vox-populi transport feature)
 vox-populi = { workspace = true }

@@ -353,6 +353,8 @@ pub mod mens;
 #[cfg(feature = "transport")]
 pub mod http_client;
 #[cfg(feature = "transport")]
+mod http_auth;
+#[cfg(feature = "transport")]
 pub mod http_lifecycle;
 #[cfg(feature = "transport")]
 pub mod transport;

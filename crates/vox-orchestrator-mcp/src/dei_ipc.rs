@@ -1,5 +1,5 @@
 ﻿//! Minimal JSON-line RPC client for **`vox-orchestrator-d`** (DeI `ai.*` / `config.get` surfaces).
-//! Logical docs name: `vox-dei-d`.
+//! Logical daemon binary: `vox-orchestrator-d` (legacy docs may say `vox-dei-d`).
 //!
 //! Wire shape `{ id, method, params }` is [`vox_protocol::DispatchRequest`] (same as CLI dispatch); validates against
 //! `contracts/dei/rpc-methods.schema.json` (`$id`: `https://vox-lang.org/schemas/dei/rpc-methods.schema.json`).
@@ -32,7 +32,7 @@ fn resolve_daemon_path(daemon: &str) -> std::path::PathBuf {
     std::path::PathBuf::from(daemon)
 }
 
-/// Call `vox-dei-d` with `method` / `params`; returns the final `Result` JSON value or an error.
+/// Call `vox-orchestrator-d` with `method` / `params`; returns the final `Result` JSON value or an error.
 pub async fn call_dei_daemon(method: &str, params: Value) -> anyhow::Result<Value> {
     let daemon_path = resolve_daemon_path(DAEMON_BINARY);
     let mut child = Command::new(&daemon_path)
@@ -86,12 +86,12 @@ pub async fn call_dei_daemon(method: &str, params: Value) -> anyhow::Result<Valu
         anyhow::bail!(err);
     }
     if exit_code != 0 {
-        anyhow::bail!("vox-dei-d reported exit code {exit_code}");
+        anyhow::bail!("vox-orchestrator-d reported exit code {exit_code}");
     }
 
     let status = child.wait().await?;
     if !status.success() {
-        anyhow::bail!("vox-dei-d process exited with {}", status);
+        anyhow::bail!("vox-orchestrator-d process exited with {}", status);
     }
 
     Ok(final_result)
