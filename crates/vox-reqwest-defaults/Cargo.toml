@@ -5,12 +5,33 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+default = []
+# Populi pilot: trace hook + optional reqwest-retry stack on top of a configured inner [`reqwest::Client`].
+middleware = [
+    "dep:async-trait",
+    "dep:http",
+    "dep:reqwest-middleware",
+    "dep:reqwest-retry",
+    "dep:tracing",
+]
+
 [dependencies]
+async-trait = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
 reqwest = { workspace = true }
+reqwest-middleware = { workspace = true, optional = true }
+reqwest-retry = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }
+
+[[test]]
+name = "middleware_stack_smoke"
+path = "tests/middleware_stack_smoke.rs"
+required-features = ["middleware"]
 
 [lints]
 workspace = true
