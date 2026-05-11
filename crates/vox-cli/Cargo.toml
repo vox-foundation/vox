@@ -216,7 +216,7 @@ self_update = { version = "0.43.1", default-features = false, features = [
     "compression-flate2",
     "compression-zip-deflate",
 ] }
-semver = "1"
+semver = { workspace = true }
 keyring.workspace = true
 workspace-hack = { workspace = true }
 vox-rule-pack = { workspace = true }
@@ -224,7 +224,7 @@ vox-telemetry = { workspace = true }
 vox-identity.workspace = true
 vox-crypto.workspace = true
 vox-share = { workspace = true }
-hex = "0.4.3"
+hex = { workspace = true }
 nucleo = { workspace = true, optional = true }
 tempfile = { workspace = true }
 

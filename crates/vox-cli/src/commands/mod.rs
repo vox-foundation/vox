@@ -4,6 +4,8 @@
 //! is available in [`crate::pipeline`] for a single frontend; `build` and `check` here still use the
 //! legacy inline path. New work should route through `pipeline` for consistent diagnostics.
 
+mod command_registry_handler_needles;
+
 pub mod add;
 
 /// Quality-gate umbrella command (`vox audit`); reads `contracts/ci/check-targets.v1.yaml`.
@@ -54,6 +56,8 @@ pub mod dev;
 pub mod diagnostics;
 /// API documentation generator wrapper (`vox doc`).
 pub mod doc;
+/// Narrow codegen (`vox emit client`, …).
+pub mod emit;
 /// Extension lane: unified entry for legacy/ML subcommands (ars, ludus, oratio, schola).
 pub mod ext;
 /// Supplemental subcommands (snippet, share, ars).

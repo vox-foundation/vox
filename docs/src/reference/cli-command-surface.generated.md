@@ -21,7 +21,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 263
+**schema_version:** `1` · **vox-cli operations:** 264
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -64,7 +64,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci cuda-release-build` | active | — | — | platform | — |
 | `vox ci data-ssot-guards` | active | — | — | platform | — |
 | `vox ci db-schema-coverage` | active | — | — | platform | — |
-| `vox ci detect-rules-bench` | active | — | — | platform | — |
 | `vox ci doc-inventory` | active | — | — | platform | — |
 | `vox ci eval-matrix` | active | — | — | platform | — |
 | `vox ci eval-matrix run` | active | — | — | platform | — |
@@ -104,6 +103,8 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci secrets-parity` | active | — | — | platform | — |
 | `vox ci sql-surface-guard` | active | — | — | platform | — |
 | `vox ci ssot-drift` | active | — | — | platform | — |
+| `vox ci test-inventory` | active | — | — | platform | — |
+| `vox ci test-runtime-report` | active | — | — | platform | — |
 | `vox ci toestub-scoped` | active | — | — | platform | — |
 | `vox ci toestub-self-apply` | active | — | — | platform | — |
 | `vox ci turso-import-guard` | active | — | — | platform | — |

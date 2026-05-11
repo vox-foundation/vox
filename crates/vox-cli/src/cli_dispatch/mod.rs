@@ -44,6 +44,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
             let mut cmd = VoxCliRoot::command();
             clap_complete::generate(shell, &mut cmd, "vox", &mut std::io::stdout());
         }
+        Cli::Emit { cmd } => {
+            crate::commands::emit::run(cmd).await?;
+        }
         Cli::Commands {
             format,
             recommended,

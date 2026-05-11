@@ -24,6 +24,7 @@
 //! | `vox fmt <file>` | `commands::fmt` |
 //! | `vox add` / `remove` / `update` / `lock` / `sync` / `upgrade` / `pm` | `commands::add`, `remove`, `update`, `lock`, `sync`, `upgrade`, `pm` |
 //! | `vox dev <file>` | `commands::dev` (via `vox-compilerd`) |
+//! | `vox emit client <file>` | `commands::emit` (Library TS SDK / openapi only) |
 //! | `vox live` | `commands::live` (needs `--features live`) |
 //! | `vox db …` | `commands::db_cli` |
 //! | `vox scientia …` | `commands::scientia` (research / capability-map facade over `db_cli`) |

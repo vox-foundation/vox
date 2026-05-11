@@ -422,7 +422,7 @@ none exists.
 
 **`cli_args.rs:9`**
 - Old: `/// fullstack` is the default — existing projects are unaffected.`
-- New: `/// fullstack is the default. Use --target=server to emit Axum + api.ts only, or --target=client for the SDK shape.`
+- New: `/// fullstack is the default. Use --target=server for Rust-only (Axum), or --target=client for the TS SDK (`vox-client.ts`, `openapi.json`, …).`
 
 **`gamify_web.rs:62`** (and adjacent)
 - Old: ` ... and Axum Rust backend (existing default).`
@@ -431,7 +431,7 @@ none exists.
 
 **`emitter.rs:149`**
 - Old: `// Generate Express server only when explicitly requested (Axum + api.ts is canonical).`
-- New: `// Legacy Express server emission (deprecated; Axum + api.ts is canonical). Gated on VOX_EMIT_EXPRESS_SERVER=1.`
+- New: `// Legacy Express server emission (deprecated; Axum + typed vox-client.ts is canonical). Gated on VOX_EMIT_EXPRESS_SERVER=1.`
 - Add a `#[deprecated]` annotation to the Express-emit function if it has a clear function boundary; otherwise just the comment.
 
 ### G.3 Verification

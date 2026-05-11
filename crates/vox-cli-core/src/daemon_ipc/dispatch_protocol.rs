@@ -1,6 +1,4 @@
-//! JSON line protocol shared by the CLI dispatch client (`dispatch` module) and [`crate::compilerd`] (daemon).
-//!
-//! Each message is a single JSON object per line on stdout/stdin.
+//! Newline JSON protocol — re-export wire types from [`vox_protocol`].
 
 pub use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
@@ -46,7 +44,7 @@ mod tests {
 
         let req = DispatchRequest {
             id: "req-1".into(),
-            method: crate::dei_daemon::method::AI_GENERATE.into(),
+            method: vox_protocol::dei_method::AI_GENERATE.into(),
             params: serde_json::json!({ "prompt": "hello" }),
         };
         let instance = serde_json::to_value(&req).expect("serialize DispatchRequest");
@@ -77,7 +75,7 @@ mod tests {
             .map(|v| v.as_str().expect("enum string"))
             .collect();
 
-        use crate::dei_daemon::method;
+        use vox_protocol::dei_method as method;
         for m in [
             method::AI_CHECK,
             method::AI_FIX,

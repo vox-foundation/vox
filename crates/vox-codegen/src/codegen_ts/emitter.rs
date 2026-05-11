@@ -279,7 +279,7 @@ pub fn generate_with_options(
         ));
     }
 
-    // Legacy Express server emission (deprecated; Axum + api.ts is canonical). Gated on `VOX_EMIT_EXPRESS_SERVER=1`.
+    // Legacy Express server emission (deprecated; Axum + `vox-client.ts` is canonical). Gated on `VOX_EMIT_EXPRESS_SERVER=1`.
     if options.mode != BuildMode::Library {
         let routes_content = generate_routes(hir);
         let emit_express_resolved =
@@ -325,9 +325,26 @@ pub fn generate_with_options(
     // endpoints. Reads through Contract IR; conforms to wire-format-v1. See
     // [`crate::codegen_ts::openapi_emit`] and Phase 2 of the external frontend
     // interop plan.
-    if has_schemas || has_api_fns {
+    let has_openapi = has_schemas || has_api_fns;
+    if has_openapi {
         let openapi = crate::codegen_ts::openapi_emit::generate_openapi(hir, "vox-app", "0.1.0");
         files.push(("openapi.json".to_string(), openapi));
+    }
+
+    if options.mode == BuildMode::Library {
+        let pkg_cfg = crate::codegen_ts::library_package_emit::LibraryPackageConfig {
+            has_vox_client: has_api_fns,
+            has_types,
+            has_schemas,
+            has_openapi,
+            has_schema_ts: !hir.tables.is_empty(),
+        };
+        if pkg_cfg.any_export() {
+            files.push((
+                "package.json".to_string(),
+                crate::codegen_ts::library_package_emit::emit_library_package_json(pkg_cfg),
+            ));
+        }
     }
 
     // Load vox.tokens.json via TokenRegistry: emits typed CSS + TS and validates token refs.

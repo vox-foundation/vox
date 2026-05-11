@@ -198,6 +198,8 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `artifact-prune --dry-run \| --apply [--policy <path>]` | Prune untracked artifact paths per retention policy (requires exactly one of `--dry-run` or `--apply`). Skips git-tracked paths; Windows delete failures may rename to `*.stale-<epoch>`. |
 | `backend-tests` | Runs `cargo test -p vox-runtime`, `cargo test -p vox-orchestrator model_route_policy`, and `cargo test -p vox-db research_metrics_contract` (routing, orchestrator policy tests, research metrics contract). |
 | `doc-inventory generate \| verify` | Regenerate or verify `docs/agents/doc-inventory.json` (Rust; replaces retired Python scripts) |
+| `test-inventory [--json] [--output <path>] [--markdown <path>] [--check <path>]` | Regenerable workspace test inventory (Rust test attrs, ignores, golden Vox `@test`, app E2E paths, doctest candidates, harness-pattern totals). **`--check`** parses committed JSON and the fresh report and fails on structured inequality (not a raw text compare). |
+| `test-runtime-report --junit <path> [--json] [--markdown <path>] [--top N]` | Parses nextest/JUnit XML (e.g. CI artifact under `target/nextest/ci/junit.xml`). Emits JSON or a human summary: totals, top slow tests (max time per classname+name), retry/flaky **heuristics** (duplicate `<testcase>` rows; `<flakyFailure>` / `<rerunFailure>` children). **`--fail-over-ms`** / **`--fail-retry-count`** log warnings only (no non-zero exit). |
 | `eval-matrix verify` | Validates `contracts/eval/benchmark-matrix.json` against `contracts/eval/benchmark-matrix.schema.json` (M1–M5 milestones; `benchmark_classes` ids are a fixed enum in the schema) |
 | `eval-matrix run [--milestone <id>]` | Runs `cargo` checks/tests mapped from each `benchmark_classes` entry (deduped); always re-runs `verify` first |
 | `mens-scorecard verify \| run \| decide \| burn-rnd \| ingest-trust` | Validates and executes the Mens scorecard harness (`contracts/eval/mens-scorecard*.json`), computes promotion decisions from scorecard summaries, and can ingest `summary.json` into VoxDb trust observations. |
@@ -212,6 +214,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `cuda-features` | Optional CUDA compile checks when `nvcc` exists |
 | `cuda-release-build` | `cargo build -p vox-cli --bin vox --release --features gpu,mens-candle-cuda` with tee to `mens/runs/logs/cuda_build_<UTC>.log` (same intent as workspace alias **`cargo vox-cuda-release`** / `scripts/populi/cursor_background_cuda_build.ps1`; needs nvcc + MSVC toolchain on Windows) |
 | `data-ssot-guards` | Fast static checks for telemetry / DB SSOT drift: `vox mens watch-telemetry` keys vs Populi schema, required policy docs, and no `COALESCE(metric_value, …)` in codex `research_metrics` paths |
+| `db-schema-coverage` | Verifies every `CREATE TABLE` in the workspace is owned by a crate in `tiers.a_relational.owners` (data-storage policy SSOT). |
 | `build-timings` | Wall-clock `cargo check` lanes: default `vox-cli`, GPU+stub, optional CUDA when `nvcc` is on `PATH` or under `CUDA_PATH`/`CUDA_HOME`; **`--json`** one object per line; **`--crates`** adds `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-populi --features mens-train`, `vox-cli --features oratio`. Budgets: `docs/ci/build-timings/budgets.json`; env `VOX_BUILD_TIMINGS_BUDGET_WARN` / `VOX_BUILD_TIMINGS_BUDGET_FAIL`; `SKIP_CUDA_FEATURE_CHECK=1` skips CUDA lane. |
 | `grammar-export-check` | Emits EBNF/GBNF/Lark/JSON-Schema from `vox-grammar-export`; fails on empty output or zero rules (wired in **main** `.github/workflows/ci.yml`). |
 | `grammar-drift` | Compare/update EBNF SHA-256 vs `mens/data/grammar_fingerprint.txt` (+ Populi twin); `--emit github` / `--emit gitlab` for CI. **Primary workflow:** `.github/workflows/ml_data_extraction.yml` (data/ML lane), not the default Linux `ci.yml` job. |
@@ -221,7 +224,8 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `sql-surface-guard [--all]` | Fails if sources use `connection().query(` / `connection().execute(` outside [`docs/agents/sql-connection-api-allowlist.txt`](../../../docs/agents/sql-connection-api-allowlist.txt) plus built-in `vox-db` / `vox-compiler` prefixes (see [`docs/agents/database-nomenclature.md`](../../../docs/agents/database-nomenclature.md)). |
 | `query-all-guard [--all]` | Fails if sources call the Codex `query_all` facade escape hatch outside [`docs/agents/query-all-allowlist.txt`](../../../docs/agents/query-all-allowlist.txt) plus `crates/vox-db/` (same nomenclature doc). |
 | `turso-import-guard [--all]` | Fails if sources use the Turso crate path prefix outside [`docs/agents/turso-import-allowlist.txt`](../../../docs/agents/turso-import-allowlist.txt) plus built-in `vox-db` / `vox-package` / `vox-compiler` prefixes ([codex-turso-allowlist](../archive/research-2026-q1/codex-turso-allowlist.md)). |
-| `clavis-parity` | Verifies Secrets managed secret names are synchronized with `docs/src/reference/secrets-ssot.md`. |
+| `policy-allowlist-parity` | Verifies `allow_direct_access` in `contracts/db/data-storage-policy.v1.yaml` matches [`docs/agents/turso-import-allowlist.txt`](../../../docs/agents/turso-import-allowlist.txt). |
+| `secrets-parity` | Verifies Secrets SSOT parity between managed secret specs and [`secrets-ssot.md`](secrets-ssot.md). Visible alias: **`clavis-parity`**. |
 | `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|bootstrap\|both]` | Build and package allowlisted release artifacts (`cargo build --locked --release`): `vox`, `vox-bootstrap`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, script duals, and **`contracts/operations/completion-policy.v1.yaml`** (JSON Schema) — blocks orphan CLI drift |
 | `completion-audit [--scan-extra <DIR>]…` | Scans **`crates/`** (always) plus optional extra directories under the repo (generated apps, codegen trees). Same detectors; paths must exist and resolve under the repository root. Writes **`contracts/reports/completion-audit.v1.json`**. CI uses **`--features completion-toestub`** to merge TOESTUB `victory-claim` (Tier C). |
@@ -229,8 +233,8 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `completion-ingest [--report <path>] [--workflow …] [--run-kind …]` | Inserts the audit report into VoxDB **`ci_completion_*`** tables (optional telemetry; requires a working local/default DB) |
 | `rust-ecosystem-policy` | Runs focused rust ecosystem contract parity checks (`cargo test -p vox-compiler --test rust_ecosystem_support_parity`) for faster local iteration than full CI suites |
 | `policy-smoke` | Fast bundle: `cargo check -p vox-orchestrator`, in-process `command-compliance`, and `cargo test -p vox-compiler --test rust_ecosystem_support_parity` (same parity test as `rust-ecosystem-policy`) |
-| `pre-push [--dry-run] [--quick] [--full]` | Local merge-blocking aggregate: `cargo fmt --check`, `line-endings`, `ssot-drift`; by default also `doc-inventory verify`, workspace `clippy -D warnings`, and scoped TOESTUB on changed paths. **`--quick`** skips doc-inventory, clippy, and TOESTUB; **`--full`** appends `cargo nextest`. **`--dry-run`** prints planned steps only. |
-| `gui-smoke` | GUI regression bundle: always runs `cargo test -p vox-compiler --test web_ir_lower_emit`; when **`VOX_WEB_VITE_SMOKE=1`**, also runs ignored `web_vite_smoke`; when **`VOX_GUI_PLAYWRIGHT=1`**, runs ignored `playwright_golden_route` (requires `pnpm install` + `pnpm exec playwright install chromium` under `crates/vox-integration-tests`) |
+| `pre-push [--dry-run] [--quick] [--full]` | Local merge-blocking aggregate: `cargo fmt --check`, `line-endings`, `ssot-drift`; by default also `doc-inventory verify`, workspace `clippy -D warnings`, and scoped TOESTUB on changed paths. **`--quick`** skips doc-inventory, clippy, and TOESTUB; **`--full`** appends **`cargo nextest run --workspace --profile ci --no-fail-fast`** (same nextest profile as GitHub `ci.yml`). **`--full`** still does not run Rust library doctests (`cargo test --doc`); run that separately when needed. **`--dry-run`** prints planned steps only. |
+| `gui-smoke` | GUI regression bundle: runs ignored-only **`cargo nextest`** on **`web_ir_lower_emit_test`** (TanStack/router codegen guard — matches compiler CI smoke); when **`VOX_WEB_VITE_SMOKE=1`**, also ignored-only **`web_vite_smoke_test`**; when **`VOX_GUI_PLAYWRIGHT=1`**, ignored-only **`playwright_golden_route_test`** (requires `pnpm install` + `pnpm exec playwright install chromium` under `crates/vox-integration-tests`). Requires **`cargo-nextest`** on `PATH`. |
 | `coverage-gates` | Compares `cargo llvm-cov report --json --summary-only` output to `.config/coverage-gates.toml`: `--summary-json <path>`, `--config` (default `.config/coverage-gates.toml`), `--mode warn\|enforce` (GitHub/GitLab CI uses **`enforce`** with `workspace_min_lines_percent` in `.config/coverage-gates.toml`). Run this **after** `cargo llvm-cov nextest --workspace --profile ci`; the **`report`** subcommand does not accept `--workspace` (it merges the prior instrumented run’s profraw data). |
 | `command-sync [--write]` | Regenerates or verifies [`cli-command-surface.generated.md`](cli-command-surface.generated.md) from `command-registry.yaml` (after `operations-sync --target cli`, run `--write` to refresh the table) |
 | `operations-verify` | Validates [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml) vs committed MCP/CLI/capability registries (strict projections), dispatch + input schemas + read-role governance, inventory JSON |
@@ -335,15 +339,26 @@ vox commands --search shell --format json
 
 ### `vox dev <file>`
 
-Watch mode: spawns **`vox-compilerd`** (JSON lines on stdio; one `DispatchRequest` per process), sends a `dev` request with `file`, `out_dir`, `port`, and `open`, then streams daemon output until exit or Ctrl+C. Resolve the daemon the same way as other compilerd tools: sibling to the `vox` executable, then `PATH`.
+Watch mode: spawns **`vox-compilerd`** (JSON lines on stdio; one `DispatchRequest` per process), sends a `dev` request with `file`, `out_dir`, optional **`target`** (build profile), `port`, and `open`, then streams daemon output until exit or Ctrl+C. Resolve the daemon the same way as other compilerd tools: sibling to the `vox` executable, then `PATH`.
 
 Build the daemon from this repo: `cargo build -p vox-cli --bin vox-compilerd` → `target/debug/vox-compilerd(.exe)` (install next to `vox` or add to `PATH`).
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-o`, `--out-dir` | `dist` | Build artifact directory |
+| `--target` | _(from `Vox.toml` / env)_ | `fullstack`, `server`, or `client` — same as `vox build --target` |
 | `--port` | `3000` | Dev server port (when applicable) |
-| `--open` | `false` | Open browser when the daemon reports a URL |
+| `--open` | `false` | Open browser when the daemon reports a URL (`--target=server` suppresses browser open) |
+
+### `vox emit client <file>`
+
+Emits the **client** (Library) artifact set only: `vox-client.ts`, `openapi.json`, types/schemas, and a **`private`** root **`package.json`** (exports map + `peerDependencies.zod`) when any library export exists — same as **`vox build --target=client`** without running the fullstack Rust path.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-o`, `--out-dir` | `dist` | Output directory |
+| `--mobile-target` | — | Same as `vox build --mobile-target` when needed |
+| `--emit-ir` | `false` | Write `web-ir.v1.json` into the output dir |
 
 ### `vox live`
 
@@ -403,7 +418,7 @@ Build: `cargo build -p vox-cli --features codex` for the extended path.
 
 ### `vox db`
 
-Local **VoxDB** inspection and research helpers (`crates/vox-cli/src/commands/db.rs`, `db_cli.rs`). Uses the same connection resolution as Codex (`VOX_DB_*`, compatibility `VOX_TURSO_*`, legacy `TURSO_*`, or local path).
+Local **VoxDB** inspection and research helpers (`crates/vox-cli/src/commands/db.rs`, `db_cli.rs`). Uses the same connection resolution as Codex (`VOX_DB_*`, then Turso compatibility aliases per env-vars SSOT, or local path).
 
 `vox db audit` prints read-only JSON to stdout: schema version, database paths, select storage `PRAGMA`s, and per-user-table row counts. Add `--timestamps` for heuristic `MIN`/`MAX` on a chosen time-like column per table (extra queries).
 
@@ -508,7 +523,7 @@ Optional IDE wiring: [`.vscode/settings.json`](../../../.vscode/settings.json) a
 | `socrates-metrics [--repository-id <id>] [--limit N]` | Prints `SocratesSurfaceAggregate` JSON from recent `socrates_surface` `research_metrics` rows |
 | `socrates-eval-snapshot --eval-id <id> [--repository-id <id>] [--limit N]` | Writes one `eval_runs` row via `VoxDb::record_socrates_eval_summary` (errors if no `socrates_surface` rows in window) |
 
-Connection uses `DbConfig::resolve_standalone()` (`VOX_DB_*`, `VOX_TURSO_*`, legacy `TURSO_*`, or local path).
+Connection uses `DbConfig::resolve_standalone()` (`VOX_DB_*`, then Turso compatibility aliases per env-vars SSOT, or local path).
 
 Always available in the minimal binary. **`vox snippet`** — `save`, `search`, and `export` use the local Codex database (`VOX_DB_URL` / `VOX_DB_TOKEN` or `.vox/store.db`). **`vox share`** — `publish`, `search`, `list`, `review` against the same index.
 
@@ -779,6 +794,8 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `bundle` | default | `commands::bundle` |
 | `fmt` | default | `commands::fmt` (`vox_compiler::fmt::try_format`; `--check` supported) |
 | `add` | default | `commands::add` |
+| `audit` | default | `commands::audit` |
+| `auth` | default | `commands::auth` |
 | `remove` | default | `commands::remove` |
 | `update` | default | `commands::update` |
 | `lock` | default | `commands::lock` |

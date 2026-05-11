@@ -101,6 +101,9 @@ struct DevParams {
     port: u16,
     #[serde(default)]
     open: bool,
+    /// Same as `vox build --target` (`fullstack` | `server` | `client`).
+    #[serde(default)]
+    target: Option<crate::cli_args::BuildTargetArg>,
 }
 
 fn serde_default_http_port() -> u16 {
@@ -203,6 +206,7 @@ async fn handle_build(req: &DispatchRequest) -> anyhow::Result<()> {
     crate::commands::build::run(
         &p.file,
         &p.out_dir,
+        None,
         None,
         false,
         false,
@@ -347,6 +351,7 @@ async fn handle_profile(req: &DispatchRequest) -> anyhow::Result<()> {
         &p.file,
         &out_dir,
         None,
+        None,
         false,
         false,
         crate::cli_args::BuildMode::App,
@@ -383,16 +388,18 @@ async fn handle_profile(req: &DispatchRequest) -> anyhow::Result<()> {
 
 async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
     let p: DevParams = serde_json::from_value(req.params.clone()).context(
-        "params must be {{ \"file\": \"...\", \"out_dir\": \"...\", \"port\"?, \"open\"? }}",
+        "params must be {{ \"file\": \"...\", \"out_dir\": \"...\", \"port\"?, \"open\"?, \"target\"? }}",
     )?;
     let file = PathBuf::from(p.file);
     let out_dir = PathBuf::from(p.out_dir);
     config::set_process_vox_port(p.port);
+    let cli_build_target = p.target.map(Into::into);
 
     crate::commands::build::run(
         &file,
         &out_dir,
         None,
+        cli_build_target,
         false,
         false,
         crate::cli_args::BuildMode::App,
@@ -433,11 +440,13 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
         let file = file.clone();
         let out_dir = out_dir.clone();
         let req_id = req_id.clone();
+        let cli_build_target = cli_build_target;
         async move {
             if let Err(e) = crate::commands::build::run(
                 &file,
                 &out_dir,
                 None,
+                cli_build_target,
                 false,
                 false,
                 crate::cli_args::BuildMode::App,
@@ -462,6 +471,23 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod dev_params_tests {
+    use super::DevParams;
+    use serde_json::json;
+
+    #[test]
+    fn dev_params_deserializes_lowercase_target() {
+        let p: DevParams = serde_json::from_value(json!({
+            "file": "x.vox",
+            "out_dir": "dist",
+            "target": "server",
+        }))
+        .expect("deserialize DevParams");
+        assert_eq!(p.target, Some(crate::cli_args::BuildTargetArg::Server));
+    }
 }
 
 #[cfg(test)]

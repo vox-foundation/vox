@@ -7,6 +7,8 @@ pub(super) fn emit_stmt(
     is_route: bool,
     is_actor: bool,
     mutation_tx: bool,
+    // Rust expression for `Option<String>` request id (e.g. `vox_rid.0.clone()`), or omit with `None`.
+    http_error_rid: Option<&str>,
 ) -> String {
     let pad = " ".repeat(indent * 4);
     match stmt {
@@ -53,6 +55,7 @@ pub(super) fn emit_stmt(
                 }
             } else if let Some(v) = value {
                 let expr_str = emit_expr_with(v, is_route, is_actor, mutation_tx);
+                let rid_tok = http_error_rid.unwrap_or("None");
                 if is_route && mutation_tx {
                     format!(
                         "{pad}return Ok(Json(serde_json::to_value({}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?));\n",
@@ -60,8 +63,12 @@ pub(super) fn emit_stmt(
                     )
                 } else if is_route {
                     format!(
-                        "{pad}return Json(serde_json::to_value({}).expect(\"vox codegen: route return JSON\"));\n",
-                        expr_str
+                        "{pad}return Ok(Json(serde_json::to_value({expr}).map_err(|e| (
+    StatusCode::INTERNAL_SERVER_ERROR,
+    Json(vox_http_envelope::error_json(\"SERIALIZATION_ERROR\", format!(\"{{}}\", e), {rid}, None)),
+))?));\n",
+                        expr = expr_str,
+                        rid = rid_tok,
                     )
                 } else {
                     format!("{pad}return {};\n", expr_str)
@@ -69,7 +76,7 @@ pub(super) fn emit_stmt(
             } else if is_route && mutation_tx {
                 format!("{pad}return Ok(Json(serde_json::Value::Null));\n")
             } else if is_route {
-                format!("{pad}return Json(serde_json::Value::Null);\n")
+                format!("{pad}return Ok(Json(serde_json::Value::Null));\n")
             } else {
                 format!("{pad}return;\n")
             }
@@ -106,6 +113,7 @@ pub(super) fn emit_stmt(
                     is_route,
                     is_actor,
                     mutation_tx,
+                    http_error_rid,
                 ));
             }
             s.push_str(&format!("{pad}}}\n"));
@@ -132,6 +140,7 @@ pub(super) fn emit_stmt(
                     is_route,
                     is_actor,
                     mutation_tx,
+                    http_error_rid,
                 ));
             }
             s.push_str(&format!("{pad}}}\n"));
@@ -144,7 +153,7 @@ pub(super) fn emit_stmt(
 
 /// Emit one statement for script-mode `main` (no route/actor return wrapping).
 pub fn emit_main_stmt(stmt: &HirStmt, indent: usize) -> String {
-    emit_stmt(stmt, indent, false, false, false)
+    emit_stmt(stmt, indent, false, false, false, None)
 }
 
 /// Emit an assignment l-value target without adding `.clone()`.

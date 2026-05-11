@@ -9,7 +9,7 @@
 pub mod benchmark_telemetry;
 #[cfg(feature = "script-execution")]
 mod build_lock;
-mod build_service;
+pub mod build_service;
 pub mod cli_actions;
 pub mod cli_args;
 mod cli_dispatch;
@@ -22,12 +22,17 @@ pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
-/// External `vox-dei-d` RPC boundary (method id SSOT).
+/// External `vox-orchestrator-d` RPC boundary (method id SSOT).
 pub mod dei_daemon;
 /// Colored CLI output helpers (`print_info`, `print_success`, …).
 pub mod diagnostics;
-mod dispatch;
-pub mod dispatch_protocol;
+/// Daemon newline-JSON IPC (`call_daemon`, …) — SSOT in `vox-cli-core::daemon_ipc`.
+pub mod dispatch {
+    pub use vox_cli_core::daemon_ipc::dispatch::*;
+}
+pub mod dispatch_protocol {
+    pub use vox_cli_core::daemon_ipc::dispatch_protocol::*;
+}
 /// Vite/React scaffold helpers and shared **pnpm** executable resolution (`pnpm_executable`).
 pub mod frontend;
 pub mod fs_utils;
@@ -45,7 +50,9 @@ mod latin_cmd;
 ))]
 mod lock_telemetry;
 pub mod pipeline;
-mod process_supervision;
+pub mod process_supervision {
+    pub use vox_cli_core::daemon_ipc::process_supervision::*;
+}
 /// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
 pub(crate) mod render;
 pub mod telemetry_sink;
@@ -226,6 +233,12 @@ pub enum Cli {
         /// Arguments.
         #[command(flatten)]
         args: cli_args::DevArgs,
+    },
+    /// Emit focused codegen artifacts (`emit client`, …).
+    Emit {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::emit::EmitCmd,
     },
     /// In-process orchestrator event dashboard (requires `--features live`)
     #[cfg(feature = "live")]

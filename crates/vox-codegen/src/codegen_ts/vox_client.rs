@@ -40,10 +40,73 @@ pub fn emit_vox_client(hir: &HirModule) -> String {
         ));
     }
 
-    out.push_str("export class VoxApiError extends Error {\n  constructor(public readonly status: number, public readonly path: string, public readonly responseText: string) {\n    super(`${path} failed: ${status}${responseText ? ` — ${responseText.slice(0, 200)}` : \"\"}`);\n    this.name = \"VoxApiError\";\n  }\n}\n\n");
+    out.push_str(
+        r#"/** Wire-format v1 error body when the server returns SSOT §6 JSON (`ok` is always false). */
+export type VoxWireError = {
+  ok: false;
+  code: string;
+  message: string;
+  request_id?: string;
+  details?: unknown;
+};
+
+const VoxErrorEnvelopeSchema = z.object({
+  ok: z.literal(false),
+  code: z.string(),
+  message: z.string(),
+  request_id: z.string().optional(),
+  details: z.unknown().optional(),
+});
+
+function parseVoxWireError(text: string): VoxWireError | undefined {
+  const s = text.trim();
+  if (!s.startsWith("{")) return undefined;
+  try {
+    const j: unknown = JSON.parse(s);
+    const p = VoxErrorEnvelopeSchema.safeParse(j);
+    return p.success ? (p.data as VoxWireError) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export class VoxApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly path: string,
+    /** Raw response body (often JSON text). */
+    public readonly responseText: string,
+    /** Parsed §6 envelope when the body matches `VoxWireError`. */
+    public readonly wireError?: VoxWireError,
+  ) {
+    const detail =
+      wireError !== undefined
+        ? `${wireError.code}: ${wireError.message}`
+        : responseText
+          ? responseText.slice(0, 280)
+          : "";
+    super(detail ? `${path} failed: ${status} — ${detail}` : `${path} failed: ${status}`);
+    this.name = "VoxApiError";
+  }
+}
+
+"#,
+    );
 
     out.push_str(
-        "const BASE = ((import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? \"\");\n\n",
+        r#"let __voxApiBaseRuntime: string | undefined;
+
+/** Override the API base URL at runtime (e.g. after reading a host-injected config). Precedence: this value, then `import.meta.env.VITE_API_URL`, then relative paths. */
+export function configureVoxApiBase(base: string | undefined): void {
+  __voxApiBaseRuntime = base;
+}
+
+function voxApiBase(): string {
+  if (__voxApiBaseRuntime !== undefined) return __voxApiBaseRuntime;
+  return ((import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? "");
+}
+
+"#,
     );
     out.push_str(
         r#"/** Build `?a=<json>&b=<json>` with keys sorted lexicographically (matches Axum BTreeMap decode). */
@@ -57,19 +120,21 @@ function voxQueryString(query: Record<string, unknown>): string {
 }
 
 async function $get<T>(path: string, schema?: { parse: (x: any) => T }, query?: Record<string, unknown>, init?: RequestInit): Promise<T> {
-  const url = BASE ? `${BASE}${path}` : path;
+  const base = voxApiBase();
+  const url = base ? `${base}${path}` : path;
   const qs = query && Object.keys(query).length > 0 ? voxQueryString(query) : "";
   const r = await fetch(`${url}${qs}`, { method: "GET", ...init });
   if (!r.ok) {
     const t = await r.text().catch(() => "");
-    throw new VoxApiError(r.status, path, t);
+    throw new VoxApiError(r.status, path, t, parseVoxWireError(t));
   }
   const data = await r.json();
   return schema ? schema.parse(data) : (data as T);
 }
 
 async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: unknown, init?: RequestInit): Promise<T> {
-  const url = BASE ? `${BASE}${path}` : path;
+  const base = voxApiBase();
+  const url = base ? `${base}${path}` : path;
   const r = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -78,7 +143,7 @@ async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: 
   });
   if (!r.ok) {
     const t = await r.text().catch(() => "");
-    throw new VoxApiError(r.status, path, t);
+    throw new VoxApiError(r.status, path, t, parseVoxWireError(t));
   }
   const data = await r.json();
   return schema ? schema.parse(data) : (data as T);

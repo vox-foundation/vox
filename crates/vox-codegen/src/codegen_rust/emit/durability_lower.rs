@@ -54,7 +54,7 @@ fn emit_activity_body(func: &HirFn) -> String {
         "    ::vox_workflow_runtime::journal::execute(\"{activity_id}\", async move {{\n"
     ));
     for stmt in &func.body {
-        let inner = emit_stmt(stmt, 2, false, false, false);
+        let inner = emit_stmt(stmt, 2, false, false, false, None);
         out.push_str(&inner);
     }
     out.push_str("    }).await\n");
@@ -69,7 +69,7 @@ fn emit_actor_body(func: &HirFn) -> String {
         "    ::vox_actor_runtime::mailbox::spawn(\"{actor_name}\", move || async move {{\n"
     ));
     for stmt in &func.body {
-        let inner = emit_stmt(stmt, 2, false, false, false);
+        let inner = emit_stmt(stmt, 2, false, false, false, None);
         out.push_str(&inner);
     }
     out.push_str("    }).await\n");
@@ -79,7 +79,7 @@ fn emit_actor_body(func: &HirFn) -> String {
 pub(super) fn emit_plain_body(func: &HirFn) -> String {
     let mut out = String::new();
     for stmt in &func.body {
-        out.push_str(&emit_stmt(stmt, 1, false, false, false));
+        out.push_str(&emit_stmt(stmt, 1, false, false, false, None));
     }
     out
 }

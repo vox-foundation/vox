@@ -1,28 +1,15 @@
 //! Shared process supervision helpers for sidecar/daemon binaries.
 //!
-//! This module is the SSOT for:
-//! - managed binary path resolution (`sibling` -> `~/.vox/bin` -> `PATH` search)
-//! - detached null-stdio spawning
-//! - best-effort process-tree termination by pid
-//! - lightweight `--version` probing for operator diagnostics
+//! SSOT: managed binary path resolution (`sibling` → `~/.vox/bin` → `PATH`),
+//! detached spawning, process-tree termination, `--version` probing.
 //!
-//! ## State files: `<base>.state.json` — written under `.vox/process-supervision/`
-//!
-//! **Why JSON, not the DB?** These files describe operational ephemera (PID,
-//! socket path, last heartbeat) for processes the CLI manages. They:
-//!   * are written before the DB connection exists (chicken/egg with
-//!     orchestrator startup),
-//!   * are stale-by-design when the process exits (no migration concerns),
-//!   * are not user data and have no cross-machine value.
-//!
-//! Tier-D (cache) per `contracts/db/data-storage-policy.v1.yaml`.
-
-#![cfg_attr(not(feature = "ars"), allow(dead_code))] // OpenClaw sidecar API (`ensure_managed_process_running`, state file, …) is `feature = "ars"` only.
+//! State files under `.vox/process-supervision/` are Tier-D cache per
+//! `contracts/db/data-storage-policy.v1.yaml`.
 
 use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,7 +56,6 @@ fn executable_name(base: &str) -> String {
 pub fn resolve_managed_binary_path(base: &str) -> PathBuf {
     let exe_name = executable_name(base);
 
-    // 1) Sibling to the current binary (production installs)
     if let Ok(current_exe) = std::env::current_exe()
         && let Some(parent) = current_exe.parent()
     {
@@ -79,23 +65,16 @@ pub fn resolve_managed_binary_path(base: &str) -> PathBuf {
         }
     }
 
-    // 2) ~/.vox/bin/<binary>
-    let home = std::env::var("USERPROFILE")
-        .or_else(|_| std::env::var("HOME"))
-        .unwrap_or_default();
-    if !home.is_empty() {
-        let vox_bin = Path::new(&home).join(".vox").join("bin").join(&exe_name);
-        if vox_bin.exists() {
-            return vox_bin;
-        }
+    let home = vox_config::paths::user_home_dir();
+    let vox_bin = home.join(".vox").join("bin").join(&exe_name);
+    if vox_bin.exists() {
+        return vox_bin;
     }
 
-    // 3) Walk `PATH` for `executable_name`.
     if let Some(found) = path_lookup_executable(base) {
         return found;
     }
 
-    // 4) Bare name for [`Command`]/OS resolution.
     PathBuf::from(base)
 }
 

@@ -38,7 +38,7 @@ The audit covers three workstreams:
 Scope was **expanded** during v2 to additionally cover:
 
 - Streaming (SSE / chunked) and file uploads / multipart.
-- Duplicate TS client emission (`api.ts` vs `vox-client.ts`).
+- Duplicate TS client emission (`api.ts` vs `vox-client.ts`) — **resolved:** only **`vox-client.ts`** ships (see §3.2 C4).
 - TanStack Query helper emit alignment.
 - npm-publishable client packaging (per Phase 1 spec).
 - `Vox.toml [build]` and `VOX_BUILD_TARGET` env-var wiring.
@@ -57,13 +57,11 @@ flowchart LR
   contractIr --> openapiEmit[OpenAPI emit]
   contractIr --> voxClient[vox-client.ts emit]
   contractIr --> zodEmit[schemas.ts emit]
-  hir --> apiClient[api.ts emit duplicate]
   hir --> rustHttp[Rust Axum emit]
   hir --> tanstackQuery[vox-tanstack-query.tsx emit]
   rustHttp --> axumServer[Generated Axum binary]
   voxClient --> reactApp[External React app]
   openapiEmit --> reactApp
-  apiClient --> reactApp
   tanstackQuery --> reactApp
 ```
 
@@ -74,9 +72,9 @@ Files behind each node:
 | HIR | [`crates/vox-compiler/src/hir/lower/mod.rs`](../../../crates/vox-compiler/src/hir/lower/mod.rs) | Lowers AST and stamps `route_path` per [`web_prefixes.rs`](../../../crates/vox-compiler/src/web_prefixes.rs). |
 | ContractIR | [`crates/vox-compiler/src/contract_ir/project.rs`](../../../crates/vox-compiler/src/contract_ir/project.rs) | Wire-shape projection (`Decimal`/`BigInt` → string, `Option` → optional). |
 | AppContract | [`crates/vox-compiler/src/app_contract.rs`](../../../crates/vox-compiler/src/app_contract.rs) | Stable JSON contract; `VOX_PORT`, `VOX_SSR_DEV_URL` baked in. |
-| OpenAPI emit | [`crates/vox-codegen/src/codegen_ts/openapi_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/openapi_emit.rs) | OpenAPI 3.1; `servers.url = "/api/v1"`. |
-| `vox-client.ts` | [`crates/vox-codegen/src/codegen_ts/vox_client.rs`](../../../crates/vox-codegen/src/codegen_ts/vox_client.rs) | Modern typed client (Zod, `VITE_API_URL`, `VoxApiError`). |
-| `api.ts` (duplicate) | [`crates/vox-codegen/src/codegen_rust/emit/client.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/client.rs) | Older client emitted from the **Rust** path; `API_BASE = ''`; `throw new Error`. |
+| OpenAPI emit | [`crates/vox-codegen/src/codegen_ts/openapi_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/openapi_emit.rs) | OpenAPI 3.1; **`servers[0].url` empty string** so composed URLs match absolute `/api/...` paths; **`components.schemas.ErrorEnvelope`** + error responses on operations. |
+| `vox-client.ts` | [`crates/vox-codegen/src/codegen_ts/vox_client.rs`](../../../crates/vox-codegen/src/codegen_ts/vox_client.rs) | Typed client (Zod, `VITE_API_URL`, optional **`configureVoxApiBase`**, **`VoxApiError`** with optional **`wireError`** / **`VoxWireError`** for SSOT §6 bodies). |
+| `api.ts` (retired) | [`crates/vox-codegen/src/codegen_rust/emit/client.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/client.rs) | Legacy Rust-path emitter; **`api_client_ts` is forced empty** in [`emit/mod.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/mod.rs) — **no `api.ts` is written**. |
 | Zod / `schemas.ts` | [`crates/vox-codegen/src/codegen_ts/zod_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/zod_emit.rs) | Runtime validators consumed by `vox-client.ts`. |
 | TanStack Query | [`crates/vox-codegen/src/codegen_ts/tanstack_query_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/tanstack_query_emit.rs) | Generic `useVoxServerQuery` provider; **not per-endpoint**. |
 | Rust Axum emit | [`crates/vox-codegen/src/codegen_rust/emit/http.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/http.rs) | `main.rs` + per-endpoint Axum handlers. |
@@ -92,21 +90,36 @@ Files behind each node:
 - **Sorted lexicographic query keys** + `JSON.stringify` + `encodeURIComponent` align between client (`voxQueryString`) and server decode (`Query<BTreeMap<String, String>>`).
 - **Type projection is single-source.** `Decimal` / `BigInt` → string, `Option` → absent key, sum types → `_tag` are enforced once in [`contract_ir::project`](../../../crates/vox-compiler/src/contract_ir/project.rs) and re-used by Zod, OpenAPI, and the typed client.
 
-### 3.2 Critical contract bugs
+### 3.2 Critical contract bugs (frozen findings — 2026-05-11 audit pass)
 
-| ID | Issue | Code evidence | SSOT evidence | Severity |
-|----|-------|---------------|---------------|----------|
-| **C1** | OpenAPI `servers[0].url = "/api/v1"` combined with absolute path keys (e.g. `/api/query/foo`) yields **`/api/v1/api/query/foo`** in any standard OpenAPI client. | `openapi_emit.rs` line 46 (`servers`); line 60 (`path_item.entry(e.path.clone())`); test asserts `servers[0]["url"] == "/api/v1"` line 256. | [`wire-format-v1-ssot.md`](wire-format-v1-ssot.md) §2 base URL `/api/v1/`. | **P0** |
-| **C2** | SSOT example URLs (`/api/v1/search_items?...`) do not exist; routes are `/api/query/<name>`, `/api/mutation/<name>`, `/api/<server>` per [`web_prefixes.rs`](../../../crates/vox-compiler/src/web_prefixes.rs). | `web_prefixes.rs` (constants); `hir/lower/mod.rs` line 165–175. | SSOT §2.1 example. | **P0** |
-| **C3** | SSOT §6 error envelope (`{ ok: false, code, message, request_id?, details? }`) is **not emitted**. Generated handlers either return raw success JSON or, only in mutation+`@table` paths, `Json({"error": e.to_string()})`. | `http.rs` `emit_server_fn_handler` line 399; `emit_query_fn_handler` line 419 — no envelope wrap. | SSOT §6. | **P0** |
-| **C4** | Two divergent TS client files are emitted into the same `dist/`: `vox-client.ts` (Zod, `VITE_API_URL`, `VoxApiError`) and `api.ts` (`API_BASE = ''`, `throw new Error("Server error: ${status}")`). React consumers can call either with different error semantics. | `commands/build.rs` line 178–182 writes `api.ts`; `vox_client.rs` always emitted via `emitter.rs`. | None — undocumented duplication. | **P1** |
-| **C5** | OpenAPI describes each `query` parameter with its declared type (e.g. `{type: "string"}`) but the on-the-wire encoding is always **a JSON-text string** (`encodeURIComponent(JSON.stringify(value))`). For composite types the OpenAPI parameter `schema` lies; for scalars it accidentally works because `JSON.stringify("x")` is `"\"x\""` which most servers tolerate. | `vox_client.rs` `voxQueryString`; `openapi_emit.rs` `parameters` block (line 86–98). | SSOT §2.1. | **P1** |
-| **C6** | SSOT §8 promises golden tests under `tests/golden/wire-format/`. The directory does not exist. (`Glob **/tests/golden/wire-format/**` → 0 files.) | None. | SSOT §8. | **P2** |
-| **C7** | HIR has no representation for **error response types** (Result / tagged error). OpenAPI emits only a `200` success response and no `4xx`/`5xx` schemas. | `openapi_emit.rs` `emit_operation` line 130–141 (only `responses.200`). | SSOT §6 implies error shape exists. | **P1** |
+The table below records **original** gaps. **Current remediation status** is authoritative in **§3.2.1** and in code (do not treat line-number citations here as still accurate).
+
+| ID | Issue | Original severity | Resolution / supersession |
+|----|-------|-------------------|---------------------------|
+| **C1** | OpenAPI `servers.url` composed incorrectly with absolute `/api/...` paths. | P0 | **Fixed:** `servers[0].url = ""`; tests in `openapi_emit.rs`. |
+| **C2** | SSOT examples vs real `/api/query/…` routes. | P0 | **Doc fixed:** [`wire-format-v1-ssot.md`](wire-format-v1-ssot.md) §2 / §2.1 aligned with [`web_prefixes.rs`](../../../crates/vox-compiler/src/web_prefixes.rs). |
+| **C3** | Error envelope not used consistently in handlers. | P0 | **Partial:** `vox-http-envelope` + Axum paths updated; not every branch guaranteed (see §3.2.1). |
+| **C4** | Duplicate `api.ts` vs `vox-client.ts`. | P1 | **Resolved:** Rust codegen sets `api_client_ts` to empty; no `api.ts` from `generate()` ([`emit/mod.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/mod.rs)). Consumers use **`vox-client.ts`**. |
+| **C5** | OpenAPI query param schema vs JSON-in-query encoding. | P1 | **Mitigated:** per-parameter description + SSOT §2.1 OpenAPI note; composite types still “logical schema after parse”. |
+| **C6** | No wire-format goldens. | P2 | **Started:** `crates/vox-codegen/tests/golden/wire-format/` + `wire_format_golden.rs`. |
+| **C7** | OpenAPI missing error responses. | P1 | **Mitigated:** `ErrorEnvelope` + `400`/`429`/`500`/`default`; domain `Result` errors still not first-class in HIR. |
+
+### 3.2.1 Partial remediation (2026-05-11)
+
+Follow-through landed in-tree for several rows above (re-run `cargo test -p vox-codegen openapi_emit` and `cargo test -p vox-codegen wire_format_golden`):
+
+- **C1:** OpenAPI **`servers[0].url = ""`** — see `openapi_emit.rs` and `openapi_paths_do_not_double_api_segment_when_server_url_empty`.
+- **C3 / C7:** Axum codegen uses **`vox_http_envelope`** on multiple handler failures; OpenAPI documents **`ErrorEnvelope`** and **`400` / `429` / `500` / `default`** responses. Domain **`Result` errors on the wire** remain an application/HIR modeling gap.
+- **C5:** Query parameters include an explicit **JSON-after-decode** description; SSOT §2.1 references OpenAPI.
+- **C6:** Fixture **`crates/vox-codegen/tests/golden/wire-format/error-envelope.example.json`** and test **`wire_format_golden.rs`** (grow this tree per SSOT §8).
+
+CLI: **`vox emit client`**, **`vox dev --target={fullstack,server,client}`** (compilerd **`target`** field), **`configureVoxApiBase`** in emitted **`vox-client.ts`**. Library mode also emits **`package.json`** ([`library_package_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/library_package_emit.rs)).
 
 ### 3.3 Recommended wire-format reconciliation
 
-Two valid resolutions for **C1/C2**; pick exactly one (avoid dual canon):
+**Status:** **Option A** is applied for OpenAPI (`servers[0].url = ""`) and SSOT §2 path layout (see §3.2.1).
+
+Two valid resolutions for **C1/C2** were originally framed as follows (historical):
 
 **Option A (preferred): keep code, fix doc.** Update `wire-format-v1-ssot.md` §2 to state that v1 is the implicit version and the canonical layout is `/api/query/<name>`, `/api/mutation/<name>`, `/api/<name>` (server fns). Change OpenAPI emit to `servers[0].url = ""` (or omit servers entirely, which is OpenAPI-3-valid and falls back to the spec URL).
 
@@ -133,19 +146,19 @@ Reference: [`phase1-build-targets-spec-2026.md`](phase1-build-targets-spec-2026.
 | Capability | Spec / docs | Code reality | Verdict |
 |------------|-------------|--------------|---------|
 | `BuildTarget` enum | Phase 1 spec §1 | `crates/vox-config/src/config/gamify_web.rs` lines 55–93 | **Landed** |
-| `Vox.toml [build] target = "server"` | Phase 1 spec §2 | Test `reads_build_target_server_from_vox_toml` in [`config/impl_ops.rs`](../../../crates/vox-config/src/config/impl_ops.rs) line 499 confirms parse | **Landed** |
-| `VOX_BUILD_TARGET` env var precedence | Documented in `gamify_web.rs` line 57 | **No `env::var("VOX_BUILD_TARGET")` exists in the workspace** (`rg VOX_BUILD_TARGET crates → only doc-comment hit`) | **False — doc-only** |
-| CLI `--target=fullstack|server|client` accepted | `BuildArgs.build_target` in [`cli_args.rs`](../../../crates/vox-cli/src/cli_args.rs) line 57 | Accepted by clap, but **not propagated**: [`cli_dispatch/lanes.rs`](../../../crates/vox-cli/src/cli_dispatch/lanes.rs) lines 134–143 calls `build::run(&a.file, &a.out_dir, a.mobile_target.clone(), …)`. The third positional arg is **`mobile_target`**, not `build_target`. `a.build_target` is **read nowhere**. | **Wiring bug** |
-| `vox build` codegen branches on target | Phase 1 spec §1 | [`commands/build.rs`](../../../crates/vox-cli/src/commands/build.rs) always runs `codegen_ts::generate_with_options` AND `codegen_rust::generate` (lines 40–55). `CodegenOptions.target` is forwarded only to mobile helper emission ([`codegen_ts/emitter.rs`](../../../crates/vox-codegen/src/codegen_ts/emitter.rs) line 405). | **Not implemented** |
-| `vox dev --target=server` | Phase 1 spec §3 | [`commands/dev.rs`](../../../crates/vox-cli/src/commands/dev.rs) takes only `(file, out_dir, port, open)`; no target. | **Missing** |
-| `vox emit client --lang=ts --out=…` | Phase 1 spec §1.2 | **No `Cli::Emit` variant**, no `commands/emit.rs`. | **Missing** |
+| `Vox.toml [build] target = "server"` | Phase 1 spec §2 | Test `reads_build_target_server_from_vox_toml` in [`config/impl_ops.rs`](../../../crates/vox-config/src/config/impl_ops.rs) confirms parse | **Landed** |
+| `VOX_BUILD_TARGET` env var | Documented in `gamify_web.rs` | Read in [`impl_ops.rs`](../../../crates/vox-config/src/config/impl_ops.rs) (`apply_build_target_env_override`); CLI `--target` still overrides after load | **Landed** |
+| CLI `--target=fullstack|server|client` | Phase 1 spec | Forwarded from [`cli_dispatch/lanes.rs`](../../../crates/vox-cli/src/cli_dispatch/lanes.rs) into `build::run(..., a.build_target.map(Into::into), …)` and `dev::run(..., a.build_target)` | **Landed** |
+| `vox build` codegen branches on target | Phase 1 spec §1 | [`commands/build.rs`](../../../crates/vox-cli/src/commands/build.rs): **`server`** → Rust only; **`client`** → Library TS (`openapi.json`, `vox-client.ts`, `package.json`, …); **`fullstack`** → TS + Rust | **Landed** |
+| `vox dev --target=…` | Phase 1 spec §3 | [`commands/dev.rs`](../../../crates/vox-cli/src/commands/dev.rs) accepts `build_target`, forwards **`target`** on the daemon JSON params; **`server`** suppresses browser open by default | **Landed** |
+| `vox emit client` | Phase 1 spec §1.2 | [`Cli::Emit`](../../../crates/vox-cli/src/lib.rs) + [`commands/emit.rs`](../../../crates/vox-cli/src/commands/emit.rs) — Library TS SDK only | **Landed** |
 | `vox init --kind=backend` | Phase 1 spec §1.4 | Not present in CLI surface. | **Missing** |
-| `vox bundle` skipping Vite when `target=server` | Implied | [`commands/run.rs`](../../../crates/vox-cli/src/commands/run.rs) `resolve_has_frontend` honors `BuildTarget::Server` (line 273) — works at run-time only. | **Partial (run only)** |
+| `vox bundle` skipping Vite when `target=server` | Implied | [`commands/run.rs`](../../../crates/vox-cli/src/commands/run.rs) `resolve_has_frontend` honors `BuildTarget::Server` — works at run-time only. | **Partial (run only)** |
 | Lean Dockerfile for backend-only | Phase 1 spec §1.5 | [`crates/vox-container`](../../../crates/vox-container/) emits a Rust-first image regardless of target. | **Out of scope today** |
 
 ### 4.2 Documentation drift
 
-[`phase-numbering-index.md`](phase-numbering-index.md) line 17 states: **"Frontend interop: Phases 1–4 complete; Phase 5 in plan."** Code reality of Phase 1: enum + Vox.toml read landed; **everything else is paper**. The doc is incorrect; either land Phase 1 or downgrade the index.
+[`phase-numbering-index.md`](phase-numbering-index.md) may still read ahead of nuance: core **build targets**, **`vox emit client`**, env **`VOX_BUILD_TARGET`**, and **`vox dev --target`** are implemented — re-verify that file before treating Phase 1 as incomplete.
 
 ---
 
@@ -176,13 +189,13 @@ Severity follows `P0` (blocker for an external React+backend team) → `P3` (pap
 | G1 | OpenAPI `servers` + paths compose to a duplicate `/api/` segment | P0 | S | `vox-codegen` | §3.2 C1 |
 | G2 | SSOT path examples disagree with emitted routes | P0 | S | docs | §3.2 C2 |
 | G3 | Error envelope unimplemented | P0 | M | `vox-codegen`, `vox-runtime` | §3.2 C3 |
-| G4 | `BuildArgs.build_target` not threaded into `build::run`; `vox build` does not branch | P0 | M | `vox-cli`, `vox-codegen` | §4.1 row 4 |
-| G5 | `VOX_BUILD_TARGET` env var documented but unread | P1 | S | `vox-config` | §4.1 row 3 |
-| G6 | `vox emit client` subcommand does not exist | P1 | M | `vox-cli`, new `vox-codegen-client` crate | §4.1 row 7 |
-| G7 | Two divergent TS client files (`api.ts` + `vox-client.ts`) | P1 | S–M | `vox-codegen` | §3.2 C4 |
+| G4 | `BuildArgs.build_target` not threaded into `build::run`; `vox build` does not branch | P0 | M | `vox-cli`, `vox-codegen` | **Resolved:** `lanes.rs` → `build::run`; server/client/fullstack branches in [`build.rs`](../../../crates/vox-cli/src/commands/build.rs) |
+| G5 | `VOX_BUILD_TARGET` env var documented but unread | P1 | S | `vox-config` | **Resolved:** [`impl_ops.rs`](../../../crates/vox-config/src/config/impl_ops.rs) (`apply_build_target_env_override`) |
+| G6 | `vox emit client` subcommand does not exist | P1 | M | `vox-cli` | **Resolved:** [`commands/emit.rs`](../../../crates/vox-cli/src/commands/emit.rs) |
+| G7 | Two divergent TS client files (`api.ts` + `vox-client.ts`) | P1 | S–M | `vox-codegen` | **Resolved:** §3.2 C4 — only **`vox-client.ts`** is emitted |
 | G8 | CORS/rate-limit lowered into HIR but not emitted | P1 | M | `vox-codegen` | §5 row 1–2 |
-| G9 | `vox dev --target=server` missing | P1 | S | `vox-cli` | §4.1 row 6 |
-| G10 | OpenAPI omits non-200 responses; no error schema | P1 | M | `vox-codegen`, contract IR | §3.2 C7 |
+| G9 | `vox dev --target=server` missing | P1 | S | `vox-cli` | **Resolved:** [`dev.rs`](../../../crates/vox-cli/src/commands/dev.rs) |
+| G10 | OpenAPI omits non-200 responses; no error schema | P1 | M | `vox-codegen`, contract IR | **Mitigated:** §3.2 C7 — **`ErrorEnvelope`** + structured responses |
 | G11 | OpenAPI parameter encoding lies for composite query types | P1 | S–M | `vox-codegen` | §3.2 C5 |
 | G12 | No request-id propagation / structured tracing layer | P2 | M | `vox-codegen` | §5 row 4 |
 | G13 | No SSE / streaming / multipart codegen | P2 | L | `vox-compiler`, `vox-codegen` | §5 rows 5–6 |
@@ -302,24 +315,18 @@ Each milestone lists **discrete tasks** with a **single file as the unit of work
 
 ### Milestone F — Collapse the duplicate TS client (P1; 1 PR; 1 day)
 
-**Goal:** One client, one error model, one base-URL convention.
+**Status:** **Done** (2026-05-11 follow-up): Rust codegen keeps **`api_client_ts` empty**; docs point consumers at **`vox-client.ts`** ([`vox-fullstack-artifacts.md`](../reference/vox-fullstack-artifacts.md)); emitted client parses SSOT §6 errors into **`VoxWireError`** / **`VoxApiError.wireError`**.
 
-**Tasks:**
+**Original tasks (historical):**
 
-1. **Stop emitting `api.ts`** by removing the write at [`commands/build.rs`](../../../crates/vox-cli/src/commands/build.rs) line 178–182, and remove `emit_api_client` from the `pub use` at [`emit/mod.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/mod.rs) line 21.
-2. **Migrate any `import … from "./api"`** in goldens / snapshots / scaffolds to `vox-client`. Affected files (per `rg "from ['\"]\\./api['\"]" tests/ crates/`): expect 4–8 hits — verify before deleting.
-3. **Add a deprecation note** in [`docs/src/reference/vox-fullstack-artifacts.md`](../reference/vox-fullstack-artifacts.md) lines 19–28 (the `api.ts` row) explaining the consolidation.
-4. **Acceptance:**
-   - `rg "fn emit_api_client" crates/ → 0 hits.`
-   - `cargo test -p vox-codegen` and `-p vox-integration-tests` pass after snapshot updates.
+1. **Stop emitting `api.ts`** — enforced via empty `api_client_ts` in [`emit/mod.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/mod.rs).
+2. **Migrate `import … from "./api"`** — verify with `rg` before any golden deletes.
+3. **Docs** — consolidation called out under Legacy / canonical **`vox-client.ts`** in [`vox-fullstack-artifacts.md`](../reference/vox-fullstack-artifacts.md).
+4. **Acceptance:** `rg "fn emit_api_client" crates/` → 0; `cargo test -p vox-codegen`, `-p vox-integration-tests` green after snapshot updates.
 
 ### Milestone G — `vox dev --target=server` (P1; 1 PR; 1–2 days)
 
-**Tasks:**
-
-1. Extend [`commands/dev.rs`](../../../crates/vox-cli/src/commands/dev.rs) with a `target: BuildTarget` parameter (or read from `VoxConfig::load`).
-2. When target == `Server`, do not start the Vite shell or open a browser; only restart the Axum binary on file change.
-3. **Acceptance:** `cargo run -p vox-cli -- dev examples/golden/crud_api.vox --target=server` does not require `pnpm` or Node.
+**Status:** **CLI landed** — [`dev.rs`](../../../crates/vox-cli/src/commands/dev.rs) forwards **`target`** to **`vox-compilerd`** and suppresses browser open when **`server`**. End-to-end “no Node/Vite” behavior depends on daemon implementation; treat remaining gaps there as a separate verification item.
 
 ### Milestone H — Streaming / SSE / multipart (P2; multi-PR; >2 weeks)
 
@@ -359,7 +366,7 @@ Practical recipes for a React team that can't wait:
 | TanStack Query | Wrap each `vox-client` call in `useVoxServerQuery(['name', ...args], () => name(...args))` from generated `vox-tanstack-query.tsx`. |
 | Auth | Terminate at a reverse proxy (Caddy/Nginx). Verify Bearer tokens upstream; pass-through to Axum. |
 | CORS | Same — proxy adds the headers until Milestone E lands. |
-| Errors | Treat any non-2xx as opaque; **do not depend on SSOT §6 shape** until Milestone B. |
+| Errors | Prefer **`VoxApiError.wireError`** when present (parsed §6 JSON). Fall back to **`responseText`** for non-envelope bodies. |
 | Streaming | Not supported — fall back to polling `@query`. |
 
 ---
@@ -385,6 +392,6 @@ What the v1 of this doc got wrong or missed:
 - [Phase 3 HTTP ergonomics](phase3-http-ergonomics-spec-2026.md) — spec for Milestone E.
 - [External frontend interop plan](external-frontend-interop-plan-2026.md) — five-phase strategy.
 - [Phase numbering index](phase-numbering-index.md) — needs status correction (Milestone J).
-- [vox-fullstack-artifacts](../reference/vox-fullstack-artifacts.md) — needs `api.ts` deprecation note (Milestone F).
+- [vox-fullstack-artifacts](../reference/vox-fullstack-artifacts.md) — canonical artifact table + **`vox-client.ts`** / Library **`package.json`** (Milestone F done).
 - [vox-web-stack](../reference/vox-web-stack.md) — consumer-facing guide.
 - [Web app archetype coverage 2026](web-app-archetype-coverage-2026.md) — broader blocker map (CC-* items intersect Milestones B, E, H).

@@ -60,8 +60,8 @@ pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput,
         files.insert("app_contract.json".to_string(), contract_json);
     }
 
-    // TypeScript API client
-    let api_client_ts = emit_api_client(module);
+    // Legacy `api.ts` emission removed — use Contract-IR-driven `vox-client.ts` from TS codegen.
+    let api_client_ts = String::new();
 
     // MCP stdio server when `@mcp.tool` and/or `@mcp.resource` declarations are present.
     if !module.mcp_tools.is_empty() || !module.mcp_resources.is_empty() {
@@ -141,6 +141,9 @@ serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
 axum = "0.7"
 tower = "0.4"
+tower-http = {{ version = "0.5", features = ["cors", "trace", "request-id"] }}
+governor = "0.10"
+vox-http-envelope = {{ path = "../../crates/vox-http-envelope" }}
 rust-embed = "8"
 mime_guess = "2"
 reqwest = {{ version = "0.12", default-features = false, features = ["rustls-tls"] }}

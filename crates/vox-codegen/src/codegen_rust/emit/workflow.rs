@@ -1,6 +1,6 @@
 use vox_compiler::hir::{HirFn, HirForall, HirModule, HirType};
 
-use super::stmt_expr::{emit_expr, emit_stmt};
+use super::stmt_expr::emit_expr;
 use super::tables::{collect_table_select_projections, emit_table_struct};
 use super::types::emit_type;
 

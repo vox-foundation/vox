@@ -136,6 +136,7 @@ pub(crate) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
                 &a.file,
                 &a.out_dir,
                 a.mobile_target.clone(),
+                a.build_target.map(Into::into),
                 a.scaffold,
                 a.emit_ir,
                 a.mode,
@@ -163,7 +164,7 @@ pub(crate) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
             commands::run::run(&a.file, &a.args, mode).await?;
         }
         FabricaCmd::Dev(a) => {
-            commands::dev::run(&a.file, &a.out_dir, a.port, a.open).await?;
+            commands::dev::run(&a.file, &a.out_dir, a.port, a.open, a.build_target).await?;
         }
         FabricaCmd::Bundle(a) => {
             commands::bundle::run(&a.file, &a.out_dir, a.target.as_deref(), a.release, a.mode)

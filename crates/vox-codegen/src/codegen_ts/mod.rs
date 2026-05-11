@@ -25,6 +25,8 @@ pub mod mobile_emit;
 /// OpenAPI 3.1 specification emit (driven by Contract IR; per Phase 2 of the
 /// external frontend interop plan).
 pub mod openapi_emit;
+/// `package.json` skeleton for Library / client-target SDK folders.
+pub mod library_package_emit;
 /// Reactive components codegen (Path C).
 pub mod reactive;
 /// `.vox.ui` reactive module → React context + provider + hook (Phase D of the

@@ -6,9 +6,10 @@ use std::path::PathBuf;
 
 /// Build target for `vox build` / `vox dev`. See `vox_config::BuildTarget` for semantics.
 ///
-/// `fullstack` is the default build mode. Use `--target=server` to emit Axum + api.ts only,
-/// or `--target=client` for the client SDK shape.
+/// `fullstack` is the default build mode. Use `--target=server` for Rust-only (no `dist/` TS),
+/// or `--target=client` for Library-shaped TS (`vox-client.ts`, `openapi.json`, …; no `target/generated/`).
 #[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum BuildTargetArg {
     /// Emit TypeScript/React frontend **and** Axum Rust backend (default).
     #[default]
@@ -162,10 +163,26 @@ pub struct DevArgs {
     pub file: PathBuf,
     #[arg(short, long, default_value = "dist")]
     pub out_dir: PathBuf,
+    /// Build target for watched rebuilds (`fullstack`, `server`, `client`). Same semantics as `vox build --target`.
+    #[arg(long = "target", value_enum)]
+    pub build_target: Option<BuildTargetArg>,
     #[arg(long)]
     pub port: Option<u16>,
     #[arg(long, default_value = "false")]
     pub open: bool,
+}
+
+/// `vox emit client` — Library-shaped TypeScript SDK only.
+#[derive(Args, Clone, Debug)]
+pub struct EmitClientArgs {
+    #[arg(required = true)]
+    pub file: PathBuf,
+    #[arg(short, long, default_value = "dist")]
+    pub out_dir: PathBuf,
+    #[arg(long = "mobile-target")]
+    pub mobile_target: Option<String>,
+    #[arg(long)]
+    pub emit_ir: bool,
 }
 
 /// Bundling mode: `app` (web + backend) or `script` (binary only).

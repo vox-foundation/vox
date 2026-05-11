@@ -2,6 +2,7 @@
 
 pub mod benchmark_telemetry;
 pub mod cli_actions;
+pub mod daemon_ipc;
 pub mod cli_args;
 pub mod constants;
 pub mod db_types;

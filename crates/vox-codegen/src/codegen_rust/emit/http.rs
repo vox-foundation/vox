@@ -1,8 +1,134 @@
 use vox_compiler::app_contract::project_app_contract;
-use vox_compiler::hir::{HirHttpMethod, HirModule, HirRoute};
+use vox_compiler::hir::http_ergonomics::{HirCorsPolicy, RateLimitBy};
+use vox_compiler::hir::{HirEndpointFn, HirEndpointKind, HirHttpMethod, HirModule, HirRoute};
 
 use super::stmt_expr::emit_stmt;
 use super::tables::emit_db_setup;
+
+fn endpoint_fn_by_name<'a>(
+    module: &'a HirModule,
+    name: &str,
+    kind: HirEndpointKind,
+) -> Option<&'a HirEndpointFn> {
+    module
+        .endpoint_fns
+        .iter()
+        .find(|e| e.name == name && e.kind == kind)
+}
+
+fn safe_ident_suffix(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+fn emit_cors_layer_value(policy: &HirCorsPolicy) -> String {
+    if policy.origins.iter().any(|o| o == "*") {
+        return concat!(
+            "tower_http::cors::CorsLayer::new()\n",
+            "            .allow_methods(tower_http::cors::Any)\n",
+            "            .allow_headers(tower_http::cors::Any)\n",
+            "            .allow_origin(tower_http::cors::AllowOrigin::any())\n",
+            "            .allow_credentials(false)",
+        )
+        .to_string();
+    }
+    let mut lines = String::from(
+        "tower_http::cors::CorsLayer::new()\n\
+            .allow_methods(tower_http::cors::Any)\n\
+            .allow_headers(tower_http::cors::Any)\n\
+            .allow_origin(tower_http::cors::AllowOrigin::list({\n\
+                let mut __vox_origins = Vec::new();\n",
+    );
+    for o in &policy.origins {
+        let escaped = o.replace('\\', "\\\\").replace('"', "\\\"");
+        lines.push_str(&format!(
+            "                __vox_origins.push(\"{escaped}\".parse::<axum::http::HeaderValue>().unwrap());\n"
+        ));
+    }
+    lines.push_str(&format!(
+        "                __vox_origins\n\
+            }}))\n\
+            .allow_credentials({})",
+        policy.allow_credentials
+    ));
+    lines
+}
+
+fn emit_ip_rate_limit_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
+    let Some(ref rl) = sf.rate_limit else {
+        return String::new();
+    };
+    if rl.by != RateLimitBy::Ip {
+        return String::new();
+    }
+    let suffix = safe_ident_suffix(&format!("{prefix}{}", sf.name));
+    let static_name = format!("VOX_RL_{suffix}");
+    let fn_name = format!("vox_rl_guard_{suffix}");
+    let window = rl.window_secs.max(1);
+    let max_r = rl.max_requests.max(1).min(u64::from(u32::MAX)) as u32;
+    format!(
+        r#"static {static_name}: std::sync::OnceLock<std::sync::Arc<governor::RateLimiter<
+    std::net::IpAddr,
+    governor::state::keyed::DefaultKeyedStateStore<std::net::IpAddr>,
+    governor::clock::DefaultClock,
+>>> = std::sync::OnceLock::new();
+
+async fn {fn_name}(
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, axum::response::Response> {{
+    let lim = {static_name}.get_or_init(|| {{
+        let q = governor::Quota::with_period(std::time::Duration::from_secs({window}))
+            .expect("vox codegen: rate limit window")
+            .allow_burst(std::num::NonZeroU32::new({max_r}).expect("vox codegen: rate limit burst"));
+        std::sync::Arc::new(governor::RateLimiter::keyed(q))
+    }});
+    match lim.check_key(&addr.ip()) {{
+        Ok(_) => Ok(next.run(req).await),
+        Err(_) => Err((StatusCode::TOO_MANY_REQUESTS, Json(vox_http_envelope::error_json(
+            "RATE_LIMITED",
+            "Too many requests",
+            None,
+            None,
+        ))).into_response()),
+    }}
+}}
+
+"#
+    )
+}
+
+fn wrap_method_router(method_router_expr: String, sf: Option<&HirEndpointFn>) -> String {
+    let Some(sf) = sf else {
+        return method_router_expr;
+    };
+    let mut out = method_router_expr;
+    if let Some(ref rl) = sf.rate_limit {
+        if rl.by == RateLimitBy::Ip {
+            let suffix_raw = match sf.kind {
+                HirEndpointKind::Query => format!("q_{}", sf.name),
+                HirEndpointKind::Mutation => format!("m_{}", sf.name),
+                HirEndpointKind::Server => format!("sf_{}", sf.name),
+            };
+            let suffix = safe_ident_suffix(&suffix_raw);
+            let fn_name = format!("vox_rl_guard_{suffix}");
+            out = format!("{out}.layer(axum::middleware::from_fn({fn_name}))");
+        }
+    }
+    if let Some(ref cors) = sf.cors {
+        let cors_ex = emit_cors_layer_value(cors);
+        out = format!("{out}.layer({cors_ex})");
+    }
+    out
+}
 
 pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     let app_contract = project_app_contract(module);
@@ -57,6 +183,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
             routing_methods.join(", ")
         ));
     }
+    out.push_str("use axum::extract::Extension;\n");
     if module
         .endpoint_fns
         .iter()
@@ -67,11 +194,14 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str("use axum::response::{Response, IntoResponse};\n");
     out.push_str("use axum::body::Body;\n");
     out.push_str("use axum::http::{StatusCode, header};\n");
+    out.push_str("use axum::middleware;\n");
+    out.push_str("use axum::extract::ConnectInfo;\n");
+    out.push_str("use tower_http::trace::TraceLayer;\n");
+    out.push_str("use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};\n");
     out.push_str("use std::net::SocketAddr;\n");
     out.push_str("use rust_embed::Embed;\n");
     if has_tables {
         out.push_str("use std::sync::Arc;\n");
-        out.push_str("use axum::extract::Extension;\n");
         out.push_str("use vox_db::Codex;\n");
     }
 
@@ -159,6 +289,23 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str("    serve_embedded(uri).await\n");
     out.push_str("}\n\n");
 
+    for sf in &module.endpoint_fns {
+        let pfx = match sf.kind {
+            HirEndpointKind::Query => "q_",
+            HirEndpointKind::Mutation => "m_",
+            HirEndpointKind::Server => "sf_",
+        };
+        out.push_str(&emit_ip_rate_limit_prelude(sf, pfx));
+    }
+
+    out.push_str(
+        "async fn vox_copy_request_id(mut req: axum::http::Request<Body>, next: middleware::Next) -> Response {\n",
+    );
+    out.push_str("    let rid = req.extensions().get::<tower_http::request_id::RequestId>().and_then(|id| id.header_value().to_str().ok().map(|s| s.to_string()));\n");
+    out.push_str("    req.extensions_mut().insert(rid);\n");
+    out.push_str("    next.run(req).await\n");
+    out.push_str("}\n\n");
+
     out.push_str("#[tokio::main]\n");
     out.push_str("async fn main() {\n");
     out.push_str("    tracing_subscriber::fmt::init();\n");
@@ -201,7 +348,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
 
     // Setup routes
     if has_routes {
-        out.push_str("    let app = Router::new()\n");
+        out.push_str("    let mut app = Router::new()\n");
         // Manual routes
         for route in &app_contract.http_routes {
             let method = route_method_from_contract(route.method.as_str());
@@ -214,30 +361,30 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
         }
         // Auto-generated server function routes
         for sf in &app_contract.server_fns {
-            out.push_str(&format!(
-                "        .route(\"{}\", post(handle_sf_{}))\n",
-                sf.route_path, sf.name
-            ));
+            let hir_sf = endpoint_fn_by_name(module, &sf.name, HirEndpointKind::Server);
+            let mr = wrap_method_router(format!("post(handle_sf_{})", sf.name), hir_sf);
+            out.push_str(&format!("        .route(\"{}\", {mr})\n", sf.route_path));
         }
         // `@query` — GET /api/query/<name> + deterministic JSON-in-query encoding (see vox-client.ts).
         for qf in &app_contract.query_fns {
-            out.push_str(&format!(
-                "        .route(\"{}\", get(handle_q_{}))\n",
-                qf.route_path, qf.name
-            ));
+            let hir_sf = endpoint_fn_by_name(module, &qf.name, HirEndpointKind::Query);
+            let mr = wrap_method_router(format!("get(handle_q_{})", qf.name), hir_sf);
+            out.push_str(&format!("        .route(\"{}\", {mr})\n", qf.route_path));
         }
         // `@mutation` — POST /api/mutation/<name>
         for mf in &app_contract.mutation_fns {
-            out.push_str(&format!(
-                "        .route(\"{}\", post(handle_m_{}))\n",
-                mf.route_path, mf.name
-            ));
+            let hir_sf = endpoint_fn_by_name(module, &mf.name, HirEndpointKind::Mutation);
+            let mr = wrap_method_router(format!("post(handle_m_{})", mf.name), hir_sf);
+            out.push_str(&format!("        .route(\"{}\", {mr})\n", mf.route_path));
         }
         out.push_str("        .fallback(serve_dispatch);\n\n");
-
         if has_tables {
-            out.push_str("    let app = app.layer(Extension(db.clone()));\n");
+            out.push_str("    app = app.layer(Extension(db.clone()));\n");
         }
+        out.push_str("    app = app.layer(middleware::from_fn(vox_copy_request_id));\n");
+        out.push_str("    app = app.layer(PropagateRequestIdLayer::x_request_id());\n");
+        out.push_str("    app = app.layer(SetRequestIdLayer::x_request_id(MakeRequestUuid));\n");
+        out.push_str("    app = app.layer(TraceLayer::new_for_http());\n\n");
 
         out.push_str(&format!(
             "    let port: u16 = std::env::var(\"{}\")\n",
@@ -258,7 +405,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
             "    let listener = tokio::net::TcpListener::bind(addr).await.expect(\"Failed to bind TCP listener\");\n",
         );
         out.push_str(
-            "    axum::serve(listener, app).await.expect(\"Server exited with error\");\n",
+            "    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())\n        .await\n        .expect(\"Server exited with error\");\n",
         );
         out.push_str("    vox_actor_runtime::builtins::vox_flush_exit_commands();\n");
     } else {
@@ -338,21 +485,25 @@ fn emit_route_handler(route: &HirRoute, has_tables: bool) -> String {
     let handler_name = route_handler_name(&route.path, &route.method);
     let mut out = String::new();
     out.push_str(&format!("async fn {handler_name}("));
+    out.push_str("Extension(vox_rid): Extension<Option<String>>, ");
     if has_tables {
         out.push_str("Extension(db): Extension<Arc<Codex>>, ");
     }
-    out.push_str("Json(request): Json<serde_json::Value>) -> Json<serde_json::Value> {\n");
+    out.push_str(
+        "Json(request): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {\n",
+    );
 
+    let rid = Some("vox_rid.0.clone()");
     let mut has_return = false;
     for stmt in &route.body {
-        let emitted = emit_stmt(stmt, 1, true, false, false);
-        if emitted.contains("return Json(") {
+        let emitted = emit_stmt(stmt, 1, true, false, false, rid);
+        if emitted.contains("return Ok(Json(") {
             has_return = true;
         }
         out.push_str(&emitted);
     }
     if !has_return {
-        out.push_str("    Json(serde_json::Value::Null)\n");
+        out.push_str("    Ok(Json(serde_json::Value::Null))\n");
     }
     out.push_str("}\n\n");
     out
@@ -367,10 +518,13 @@ fn emit_server_fn_handler(
 ) -> String {
     let mut out = String::new();
     out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
+    out.push_str("Extension(vox_rid): Extension<Option<String>>, ");
     if has_tables {
         out.push_str("Extension(db): Extension<Arc<Codex>>, ");
     }
-    out.push_str("Json(request): Json<serde_json::Value>) -> Json<serde_json::Value> {\n");
+    out.push_str(
+        "Json(request): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {\n",
+    );
 
     // Extract params from request JSON
     for param in &sf.params {
@@ -380,12 +534,13 @@ fn emit_server_fn_handler(
         ));
     }
 
+    let rid = Some("vox_rid.0.clone()");
     if wrap_mutation_tx && has_tables {
         out.push_str("    let db = (*db).clone();\n");
         out.push_str("    match db.transaction(async move {\n");
         let mut has_return = false;
         for stmt in &sf.body {
-            let emitted = emit_stmt(stmt, 2, true, false, true);
+            let emitted = emit_stmt(stmt, 2, true, false, true, rid);
             if emitted.contains("return Ok(Json(") || emitted.contains("return Json(") {
                 has_return = true;
             }
@@ -395,20 +550,22 @@ fn emit_server_fn_handler(
             out.push_str("        Ok(Json(serde_json::Value::Null))\n");
         }
         out.push_str("    }).await {\n");
-        out.push_str("        Ok(resp) => resp,\n");
-        out.push_str("        Err(e) => Json(serde_json::json!({\"error\": e.to_string()})),\n");
+        out.push_str("        Ok(resp) => Ok(resp),\n");
+        out.push_str(
+            "        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(vox_http_envelope::error_json(\"INTERNAL_ERROR\", e.to_string(), vox_rid.0.clone(), None)))),\n",
+        );
         out.push_str("    }\n");
     } else {
         let mut has_return = false;
         for stmt in &sf.body {
-            let emitted = emit_stmt(stmt, 1, true, false, false);
-            if emitted.contains("return Json(") {
+            let emitted = emit_stmt(stmt, 1, true, false, false, rid);
+            if emitted.contains("return Ok(Json(") {
                 has_return = true;
             }
             out.push_str(&emitted);
         }
         if !has_return {
-            out.push_str("    Json(serde_json::Value::Null)\n");
+            out.push_str("    Ok(Json(serde_json::Value::Null))\n");
         }
     }
     out.push_str("}\n\n");
@@ -423,30 +580,38 @@ fn emit_query_fn_handler(
 ) -> String {
     let mut out = String::new();
     out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
+    out.push_str("Extension(vox_rid): Extension<Option<String>>, ");
     if has_tables {
         out.push_str("Extension(db): Extension<Arc<Codex>>, ");
     }
     out.push_str(
-        "Query(q): Query<std::collections::BTreeMap<String, String>>) -> Json<serde_json::Value> {\n",
+        "Query(q): Query<std::collections::BTreeMap<String, String>>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {\n",
     );
 
     for param in &sf.params {
+        let pname = param.name.replace('\\', "\\\\").replace('"', "\\\"");
         out.push_str(&format!(
-            "    let {} = q.get(\"{}\").and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok()).unwrap_or(serde_json::Value::Null);\n",
-            param.name, param.name
+            "    let {} = match q.get(\"{}\") {{\n",
+            param.name, pname
+        ));
+        out.push_str("        None => serde_json::Value::Null,\n");
+        out.push_str(&format!(
+            "        Some(__s) => match serde_json::from_str::<serde_json::Value>(__s) {{\n            Ok(v) => v,\n            Err(__e) => {{\n                return Err((StatusCode::BAD_REQUEST, Json(vox_http_envelope::error_json(\n                    \"BAD_REQUEST\",\n                    format!(\"Invalid JSON for query parameter \\\"{0}\\\": {{}}\", __e),\n                    vox_rid.0.clone(),\n                    Some(serde_json::json!({{\"param\": \"{0}\"}})),\n                ))));\n            }}\n        }},\n    }};\n",
+            pname
         ));
     }
 
+    let rid = Some("vox_rid.0.clone()");
     let mut has_return = false;
     for stmt in &sf.body {
-        let emitted = emit_stmt(stmt, 1, true, false, false);
-        if emitted.contains("return Json(") {
+        let emitted = emit_stmt(stmt, 1, true, false, false, rid);
+        if emitted.contains("return Ok(Json(") {
             has_return = true;
         }
         out.push_str(&emitted);
     }
     if !has_return {
-        out.push_str("    Json(serde_json::Value::Null)\n");
+        out.push_str("    Ok(Json(serde_json::Value::Null))\n");
     }
     out.push_str("}\n\n");
     out

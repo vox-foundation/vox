@@ -18,7 +18,12 @@ This file tracks the single source of truth for Vox architecture, research findi
 
 ## Audits & Assessments
 
-- [Vox–React backend interop audit (2026-05-11)](vox-react-backend-interop-audit-2026.md) — Wire/OpenAPI/path versioning parity, `BuildTarget` vs `vox build` codegen, runtime ops gaps (CORS/auth), prioritized backlog and milestones for external React + backend-only APIs.
+- [CLI vs compilerd params backlog (2026)](cli-compilerd-params-ssot.md) — SSOT target for merged clap + serde request structs (`cli_args.rs` / `compilerd.rs`).
+- [Canonical runtime names — daemon, MCP, env (2026)](canonical-runtime-names.md) — Frozen identifiers vs compatibility aliases (`vox-orchestrator-d`, gamify/ludus, DB/Turso); links machine registry `env-vars.v1.yaml` and prose `env-vars.md`.
+- [Workspace test inventory (2026)](test-inventory-2026.md) — Regenerable `vox ci test-inventory` artifact: Rust test attrs, ignores (with WebIR caveat), golden Vox `@test`, app E2E paths, doctest candidates, harness-pattern totals; deterministic JSON + Markdown.
+- [Legacy / tombstone remediation ledger (2026-05-11)](legacy-tombstone-remediation-ledger-2026.md) — Retired MCP names (`vox_ludus_*` aliases), orchestrator/daemon naming, compiler-monolith path hygiene, contract SSOT decisions, verification commands.
+- [Contracts outside index — classification (2026-05-11)](contracts-non-indexed-classification-2026.md) — When `contracts/index.yaml` omits files (reports, derived registries, fixtures) and when to add rows.
+- [Vox–React backend interop audit (2026-05-11)](vox-react-backend-interop-audit-2026.md) — Wire/OpenAPI/path parity, build targets + **`vox emit client`**, **`vox-client.ts`** §6 error parsing + Library **`package.json`**, runtime ops gaps (CORS/auth), prioritized backlog.
 - [Repository cleanup ledger — deep reorg (2026-05-11)](repo-cleanup-ledger-2026.md) — Tracked removals (orphan artifacts), runtime DB untracking, clustered frontend/editor surfaces under `apps/` + `tests/fixtures/`, and `docs/superpowers/plans/<domain>/` sprawl reduction; includes verification notes.
 - [Repository layout sprawl audit (2026-05-11)](repo-layout-sprawl-audit-2026.md) — Organization-focused audit: sparse directories, overlapping ops roots (`infra/` vs `docker/` vs repo compose), non-Rust artifact producer/consumer matrix, and tiered consolidation backlog (safe docs vs contract-wide moves).
 - [Single-file parent directories — triage list (2026-05-11)](repo-layout-single-file-parent-dirs-triage-2026.md) — All ~203 tracked paths whose parent holds a single file; workspace for idiomatic vs merge tagging per [sprawl audit](./repo-layout-sprawl-audit-2026.md) next steps.
