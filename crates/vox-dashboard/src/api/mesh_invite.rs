@@ -9,7 +9,7 @@
 use axum::extract::State;
 use axum::response::Json;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::time::Duration;
 
 use crate::api::mesh_topology::MeshState;
@@ -83,8 +83,8 @@ pub async fn mint(
 }
 
 fn generate_qr_svg(content: &str) -> String {
-    use qrcode::render::svg;
     use qrcode::QrCode;
+    use qrcode::render::svg;
 
     QrCode::new(content.as_bytes())
         .map(|code| {

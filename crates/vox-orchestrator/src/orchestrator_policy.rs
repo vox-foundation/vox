@@ -9,7 +9,6 @@
 use serde::{Deserialize, Serialize};
 
 use crate::budget_gate::{BudgetDecision, BudgetGateConfig, BudgetStatus, OrchestratorBudgetGate};
-use crate::orchestration_feature_flags::OrchestrationFeatureFlags;
 use crate::cache_predictor::{CachePrediction, CachePredictor, CachePredictorConfig, CacheSignal};
 use crate::calibration::{CalibrationConfig, CalibrationLoop};
 use crate::circuit_breaker::{
@@ -18,6 +17,7 @@ use crate::circuit_breaker::{
 use crate::compaction::CompactionStrategy;
 use crate::compaction_trigger::{CompactionTrigger, CompactionTriggerConfig};
 use crate::confidence_fusion::{ConfidenceFuser, FusionConfig, FusionDecision, FusionInputs};
+use crate::orchestration_feature_flags::OrchestrationFeatureFlags;
 use crate::planning::plan_mode_trigger::{
     PlanModeDecision, PlanModeSignal, PlanModeTrigger, PlanModeTriggerConfig,
 };

@@ -464,7 +464,10 @@ mod tests {
         };
         let v = parse(&emit_from_contract(&ir, "demo", "0.1.0"));
         let server = v["servers"][0]["url"].as_str().unwrap_or("");
-        assert!(server.is_empty(), "expected empty server URL, got {server:?}");
+        assert!(
+            server.is_empty(),
+            "expected empty server URL, got {server:?}"
+        );
         for path_key in v["paths"].as_object().unwrap().keys() {
             let composed = format!("{server}{path_key}");
             assert!(

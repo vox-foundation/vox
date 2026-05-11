@@ -38,7 +38,14 @@ impl VoxDb {
                 "INSERT OR REPLACE INTO mesh_exec_leases \
                  (lease_id, task_id, scope_key, holder_node_id, granted_at, expires_at, state) \
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'granted')",
-                turso::params![lease_id, task_id, scope_key, holder_node_id, granted_at, expires_at],
+                turso::params![
+                    lease_id,
+                    task_id,
+                    scope_key,
+                    holder_node_id,
+                    granted_at,
+                    expires_at
+                ],
             )
             .await
             .map_err(StoreError::Turso)?;

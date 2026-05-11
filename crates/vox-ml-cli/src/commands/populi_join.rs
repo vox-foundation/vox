@@ -89,10 +89,9 @@ fn percent_decode(s: &str) -> String {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(hex) = u8::from_str_radix(
-                std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""),
-                16,
-            ) {
+            if let Ok(hex) =
+                u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16)
+            {
                 out.push(hex as char);
                 i += 3;
                 continue;
@@ -112,18 +111,15 @@ fn percent_decode(s: &str) -> String {
 pub async fn run(args: JoinArgs) -> anyhow::Result<()> {
     let invite = parse_invite_url(&args.invite)?;
 
-    println!("vox populi join: fetching manifest from {}", invite.manifest_url);
+    println!(
+        "vox populi join: fetching manifest from {}",
+        invite.manifest_url
+    );
 
     let manifest = fetch_manifest(&invite.manifest_url).await?;
 
-    println!(
-        "  Node ID:    {}",
-        manifest.node_id
-    );
-    println!(
-        "  Published:  {}",
-        manifest.published_at
-    );
+    println!("  Node ID:    {}", manifest.node_id);
+    println!("  Published:  {}", manifest.published_at);
     println!(
         "  Tasks:      {}",
         manifest
@@ -180,10 +176,7 @@ mod tests {
     fn parse_vox_mesh_invite() {
         let url = "vox-mesh://invite?manifest=https%3A%2F%2Fgist.github.com%2Fraw%2Fabc123&sig=AAAA&label=My+Node";
         let invite = parse_invite_url(url).unwrap();
-        assert_eq!(
-            invite.manifest_url,
-            "https://gist.github.com/raw/abc123"
-        );
+        assert_eq!(invite.manifest_url, "https://gist.github.com/raw/abc123");
         assert_eq!(invite.invite_sig_b64.as_deref(), Some("AAAA"));
         assert_eq!(invite.label.as_deref(), Some("My Node"));
     }

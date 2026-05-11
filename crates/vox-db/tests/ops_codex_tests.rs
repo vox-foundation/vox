@@ -122,7 +122,11 @@ async fn list_research_metrics_for_session_prefix_includes_created_at() {
     assert_eq!(rows[0].0, "mens:r1");
     assert_eq!(rows[0].1, "entropy");
     assert_eq!(rows[0].2, Some(0.5));
-    assert!(rows[0].4.len() >= 8, "created_at should be non-empty: {:?}", rows[0].4);
+    assert!(
+        rows[0].4.len() >= 8,
+        "created_at should be non-empty: {:?}",
+        rows[0].4
+    );
 }
 
 #[tokio::test]

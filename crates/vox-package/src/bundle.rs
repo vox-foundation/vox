@@ -118,8 +118,7 @@ impl BundleStore {
         }
         let bytes = std::fs::read(&bytes_path)?;
         let manifest_str = std::fs::read_to_string(&manifest_path)?;
-        let manifest: JsonValue =
-            serde_json::from_str(&manifest_str).unwrap_or(JsonValue::Null);
+        let manifest: JsonValue = serde_json::from_str(&manifest_str).unwrap_or(JsonValue::Null);
         let deps_path = dir.join("deps.json");
         let deps: Vec<BundleRef> = if deps_path.exists() {
             serde_json::from_slice(&std::fs::read(&deps_path)?).map_err(io::Error::other)?
@@ -136,15 +135,15 @@ impl BundleStore {
 
     /// Store a bundle by its self-asserted hash. Idempotent.
     pub fn put(&self, bundle: &Bundle) -> io::Result<BundleRef> {
-        let r = BundleRef { fn_hash: bundle.fn_hash };
+        let r = BundleRef {
+            fn_hash: bundle.fn_hash,
+        };
         let dir = self.bundle_dir(&r);
         std::fs::create_dir_all(&dir)?;
         std::fs::write(dir.join("bundle.bin"), bundle.bytes.as_ref())?;
-        let manifest_str =
-            serde_json::to_string(&bundle.manifest).map_err(io::Error::other)?;
+        let manifest_str = serde_json::to_string(&bundle.manifest).map_err(io::Error::other)?;
         std::fs::write(dir.join("manifest.json"), manifest_str)?;
-        let deps_json =
-            serde_json::to_vec_pretty(&bundle.deps).map_err(io::Error::other)?;
+        let deps_json = serde_json::to_vec_pretty(&bundle.deps).map_err(io::Error::other)?;
         std::fs::write(dir.join("deps.json"), deps_json)?;
         Ok(r)
     }

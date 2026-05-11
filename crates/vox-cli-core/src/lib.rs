@@ -2,9 +2,9 @@
 
 pub mod benchmark_telemetry;
 pub mod cli_actions;
-pub mod daemon_ipc;
 pub mod cli_args;
 pub mod constants;
+pub mod daemon_ipc;
 pub mod db_types;
 pub mod diagnostics;
 pub mod fs_utils;
@@ -28,9 +28,7 @@ pub struct GlobalOpts {
 
 /// Initialize [`tracing`] for CLI tools.
 pub fn init_tracing_for_cli() {
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    let _ = tracing_subscriber::fmt().with_env_filter(filter).try_init();
+    vox_tracing_init::try_init_cli_default_info_fallback();
 }
 
 /// Apply global opts to the environment.

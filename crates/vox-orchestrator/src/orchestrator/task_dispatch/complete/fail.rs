@@ -86,9 +86,11 @@ impl Orchestrator {
                 .unwrap_or_default();
             let campaign_id = queue.current_task().and_then(|t| t.campaign_id.clone());
             let benchmark_tier = queue.current_task().and_then(|t| t.benchmark_tier);
-            let bandit_model_id = queue
-                .current_task()
-                .and_then(|t| t.model_override.clone().or_else(|| t.model_preference.clone()));
+            let bandit_model_id = queue.current_task().and_then(|t| {
+                t.model_override
+                    .clone()
+                    .or_else(|| t.model_preference.clone())
+            });
             if failed_desc.contains("[PHASE:SHARD_VALIDATE]") {
                 queue.recent_shard_validation_failures =
                     queue.recent_shard_validation_failures.saturating_add(1);

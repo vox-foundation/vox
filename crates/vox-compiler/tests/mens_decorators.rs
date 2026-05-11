@@ -52,7 +52,11 @@ fn training_step_lowers_caps() {
     "#;
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);
-    let f = hir.functions.iter().find(|f| f.name == "step").expect("step");
+    let f = hir
+        .functions
+        .iter()
+        .find(|f| f.name == "step")
+        .expect("step");
     assert!(f.training_step);
     assert!(f.capabilities.contains(&HirCapability::GpuCompute));
     assert!(f.capabilities.contains(&HirCapability::Mutate));
@@ -78,7 +82,9 @@ fn training_step_cuda_gate_emits_when_tier_low() {
         std::env::remove_var("VOX_CUDA_TIER");
     }
     assert!(
-        diags.iter().any(|d| d.code.as_deref() == Some("vox/train/cuda-required")),
+        diags
+            .iter()
+            .any(|d| d.code.as_deref() == Some("vox/train/cuda-required")),
         "expected cuda-required diagnostic, got {diags:?}"
     );
 }
@@ -112,7 +118,11 @@ fn distributed_train_workflow_lowers_caps_and_meta() {
     "#;
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);
-    let f = hir.functions.iter().find(|f| f.name == "Train").expect("Train");
+    let f = hir
+        .functions
+        .iter()
+        .find(|f| f.name == "Train")
+        .expect("Train");
     assert_eq!(
         f.distributed_train.as_ref().map(|(s, p)| (s.as_str(), *p)),
         Some(("data_parallel", 4))

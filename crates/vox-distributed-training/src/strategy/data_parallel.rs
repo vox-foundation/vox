@@ -3,11 +3,9 @@ use sha3::Digest;
 use vox_crypto::{SigningKey, VerifyingKey};
 use vox_package::Sha3_512;
 
-use crate::checkpoint::{synthetic_weights_hash, CheckpointBundle};
+use crate::checkpoint::{CheckpointBundle, synthetic_weights_hash};
 use crate::gradient::GradientShard;
-use crate::session::{
-    Batch, SessionId, StepResult, TrainingError, TrainingSession,
-};
+use crate::session::{Batch, SessionId, StepResult, TrainingError, TrainingSession};
 
 /// Single-node / rank-local data-parallel session (world_size = 1 implemented).
 pub struct DataParallelSession {
@@ -132,9 +130,7 @@ impl TrainingSession for DataParallelSession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vox_crypto::{
-        generate_signing_keypair, signing_key_from_bytes, signing_key_to_bytes,
-    };
+    use vox_crypto::{generate_signing_keypair, signing_key_from_bytes, signing_key_to_bytes};
 
     #[tokio::test]
     async fn single_rank_smoke() {
@@ -151,8 +147,7 @@ mod tests {
             h.update(b"grad");
             h.finalize().into()
         };
-        let shard =
-            GradientShard::sign(&sk_dup, sid, sess.step_index(), 0, tensor_hash);
+        let shard = GradientShard::sign(&sk_dup, sid, sess.step_index(), 0, tensor_hash);
         let reduced = sess.all_reduce(shard).await.unwrap();
         assert!(reduced.verify(sess.verifying_key_ref()));
 

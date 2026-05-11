@@ -23,11 +23,11 @@ pub mod scientia_prior_art;
 pub mod scholarly;
 #[cfg(feature = "scholarly-external-jobs")]
 pub use crate::scholarly::external as scholarly_external_jobs;
-pub mod scientia_scholarly;
 pub mod distribution_compile;
 pub mod peer_review_gate;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scholarly_remote_status;
+pub mod scientia_scholarly;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scientia_worthiness_enrich;
 pub mod scientific_metadata;

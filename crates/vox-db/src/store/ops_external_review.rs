@@ -489,11 +489,7 @@ impl crate::VoxDb {
                         params![repository_id.as_str()],
                     )
                     .await?;
-                let n: i64 = rows
-                    .next()
-                    .await?
-                    .and_then(|r| r.get(0).ok())
-                    .unwrap_or(0);
+                let n: i64 = rows.next().await?.and_then(|r| r.get(0).ok()).unwrap_or(0);
                 Ok::<i64, StoreError>(n)
             })
             .await
@@ -515,11 +511,7 @@ impl crate::VoxDb {
                         params![repository_id.as_str()],
                     )
                     .await?;
-                let n: i64 = rows
-                    .next()
-                    .await?
-                    .and_then(|r| r.get(0).ok())
-                    .unwrap_or(0);
+                let n: i64 = rows.next().await?.and_then(|r| r.get(0).ok()).unwrap_or(0);
                 Ok::<i64, StoreError>(n)
             })
             .await

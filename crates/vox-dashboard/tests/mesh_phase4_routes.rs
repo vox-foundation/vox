@@ -24,7 +24,9 @@ async fn nodes_route_returns_live_state_not_fixture() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(res.into_body(), 8 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(res.into_body(), 8 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&bytes).unwrap();
     let arr = v["data"].as_array().expect("data should be an array");
     assert_eq!(
@@ -47,7 +49,9 @@ async fn summary_route_returns_live_zeroes() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(res.into_body(), 4 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(res.into_body(), 4 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&bytes).unwrap();
     let data = &v["data"];
     assert_eq!(data["nodes"].as_str().unwrap(), "0");
@@ -67,7 +71,9 @@ async fn edges_route_returns_empty_array_on_fresh_registry() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(res.into_body(), 4 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(res.into_body(), 4 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(v["data"].as_array().unwrap().len(), 0);
 }
@@ -87,7 +93,9 @@ async fn oplog_at_returns_correct_shape() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(res.into_body(), 4 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(res.into_body(), 4 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(v["v"].as_u64().unwrap(), 1);
     assert_eq!(v["data"]["ts"].as_u64().unwrap(), 1000);
@@ -112,13 +120,30 @@ async fn mint_bearer_returns_three_coequal_forms() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(res.into_body(), 16 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(res.into_body(), 16 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&bytes).unwrap();
     let data = &v["data"];
     assert!(data["peer_id"].as_str().unwrap().starts_with("peer-"));
-    assert!(data["bearer_url"].as_str().unwrap().starts_with("vox+invite://"));
-    assert!(data["install_command"].as_str().unwrap().starts_with("vox populi join "));
-    assert!(data["install_command_print"].as_str().unwrap().contains(" --print"));
+    assert!(
+        data["bearer_url"]
+            .as_str()
+            .unwrap()
+            .starts_with("vox+invite://")
+    );
+    assert!(
+        data["install_command"]
+            .as_str()
+            .unwrap()
+            .starts_with("vox populi join ")
+    );
+    assert!(
+        data["install_command_print"]
+            .as_str()
+            .unwrap()
+            .contains(" --print")
+    );
     assert!(data["qr_svg"].as_str().unwrap().contains("<svg "));
     assert_eq!(data["expires_in_secs"].as_u64().unwrap(), 600);
 }
@@ -137,7 +162,9 @@ async fn mint_bearer_caps_ttl_at_ten_minutes() {
         )
         .await
         .unwrap();
-    let bytes = axum::body::to_bytes(res.into_body(), 16 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(res.into_body(), 16 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(
         v["data"]["expires_in_secs"].as_u64().unwrap(),
@@ -184,7 +211,11 @@ async fn budget_event_reaches_subscriber() {
     });
     let evt = rx.recv().await.unwrap();
     match evt.kind {
-        AgentEventKind::MeshNodeBudget { node_id, cost_usd_24h, .. } => {
+        AgentEventKind::MeshNodeBudget {
+            node_id,
+            cost_usd_24h,
+            ..
+        } => {
             assert_eq!(node_id, "node-1");
             assert!((cost_usd_24h - 1.23).abs() < 1e-9);
         }
@@ -203,13 +234,17 @@ async fn destructive_action_emits_signed_audit_entry() {
                 .method("POST")
                 .uri("/api/v2/mesh/nodes/alice/kill")
                 .header("content-type", "application/json")
-                .body(Body::from(r#"{"reason":"runaway","confirm_token":"yes-i-mean-it"}"#))
+                .body(Body::from(
+                    r#"{"reason":"runaway","confirm_token":"yes-i-mean-it"}"#,
+                ))
                 .unwrap(),
         )
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(res.into_body(), 8 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(res.into_body(), 8 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&bytes).unwrap();
     assert!(v["data"]["audit_id"].is_string());
     assert!(v["data"]["signature"].as_str().unwrap().len() >= 64);
@@ -251,7 +286,9 @@ async fn budget_route_returns_per_node_and_aggregate() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(res.into_body(), 8 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(res.into_body(), 8 * 1024)
+        .await
+        .unwrap();
     let v: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(v["v"].as_u64().unwrap(), 1);
     let agg = &v["data"]["aggregate"];

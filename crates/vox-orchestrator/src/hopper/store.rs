@@ -16,7 +16,9 @@ use crate::events::{AgentEventKind, EventBus, HopperItemId};
 use crate::types::TaskPriority;
 
 use super::capability::DeveloperOverride;
-use super::types::{IntakeItem, IntakeSource, ItemState, PriorityHint, PriorityOverrideRecord, now_micros};
+use super::types::{
+    IntakeItem, IntakeSource, ItemState, PriorityHint, PriorityOverrideRecord, now_micros,
+};
 
 // ── Errors ────────────────────────────────────────────────────────────────────
 
@@ -65,7 +67,11 @@ pub trait HopperIntake: Send + Sync {
     ) -> Result<IntakeItem, HopperError>;
 
     /// Mark an item as assigned to an agent.
-    async fn assign(&self, item_id: &HopperItemId, agent_id: String) -> Result<IntakeItem, HopperError>;
+    async fn assign(
+        &self,
+        item_id: &HopperItemId,
+        agent_id: String,
+    ) -> Result<IntakeItem, HopperError>;
 
     /// Mark an item as done.
     async fn complete(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError>;
@@ -75,17 +81,23 @@ pub trait HopperIntake: Send + Sync {
 
 pub struct InMemoryHopper {
     items: RwLock<Vec<IntakeItem>>,
-    bus:   Arc<EventBus>,
+    bus: Arc<EventBus>,
 }
 
 impl InMemoryHopper {
     pub fn new(bus: Arc<EventBus>) -> Self {
-        Self { items: RwLock::new(vec![]), bus }
+        Self {
+            items: RwLock::new(vec![]),
+            bus,
+        }
     }
 
     /// Construct without an event bus (useful in unit tests).
     pub fn headless() -> Self {
-        Self { items: RwLock::new(vec![]), bus: Arc::new(EventBus::new(16)) }
+        Self {
+            items: RwLock::new(vec![]),
+            bus: Arc::new(EventBus::new(16)),
+        }
     }
 }
 
@@ -102,11 +114,15 @@ impl HopperIntake for InMemoryHopper {
         let item = IntakeItem::new(intent, affinity_hints, priority_hint, source, session_id);
 
         self.bus.emit(AgentEventKind::HopperItemAdmitted {
-            item_id:             item.item_id.clone(),
+            item_id: item.item_id.clone(),
             classified_priority: item.classified_priority.clone(),
-            classified_affinity: item.affinity_hints.iter().map(|s| std::path::PathBuf::from(s)).collect(),
-            confidence:          item.confidence,
-            session_id:          item.session_id.clone(),
+            classified_affinity: item
+                .affinity_hints
+                .iter()
+                .map(|s| std::path::PathBuf::from(s))
+                .collect(),
+            confidence: item.confidence,
+            session_id: item.session_id.clone(),
         });
 
         self.items.write().await.push(item.clone());
@@ -114,7 +130,9 @@ impl HopperIntake for InMemoryHopper {
     }
 
     async fn inbox(&self) -> Vec<IntakeItem> {
-        self.items.read().await
+        self.items
+            .read()
+            .await
             .iter()
             .filter(|i| matches!(i.state, ItemState::Inbox))
             .cloned()
@@ -122,7 +140,9 @@ impl HopperIntake for InMemoryHopper {
     }
 
     async fn assigned(&self) -> Vec<IntakeItem> {
-        self.items.read().await
+        self.items
+            .read()
+            .await
             .iter()
             .filter(|i| matches!(i.state, ItemState::Assigned { .. }))
             .cloned()
@@ -130,7 +150,9 @@ impl HopperIntake for InMemoryHopper {
     }
 
     async fn history(&self) -> Vec<IntakeItem> {
-        self.items.read().await
+        self.items
+            .read()
+            .await
             .iter()
             .filter(|i| matches!(i.state, ItemState::Done | ItemState::Overridden))
             .cloned()
@@ -156,27 +178,31 @@ impl HopperIntake for InMemoryHopper {
         let old_priority = item.classified_priority.clone();
         item.classified_priority = new_priority.clone();
         item.override_history.push(PriorityOverrideRecord {
-            ts_micros:         now_micros(),
-            actor:             cap.actor.clone(),
+            ts_micros: now_micros(),
+            actor: cap.actor.clone(),
             original_priority: old_priority.clone(),
-            new_priority:      new_priority.clone(),
-            reason:            cap.reason.clone(),
-            audit_id:          cap.audit_id.clone(),
+            new_priority: new_priority.clone(),
+            reason: cap.reason.clone(),
+            audit_id: cap.audit_id.clone(),
         });
 
         let out = item.clone();
 
         self.bus.emit(AgentEventKind::HopperItemOverridden {
-            item_id:                     item_id.clone(),
-            original_priority:           old_priority,
-            developer_priority:          new_priority,
-            delta_seconds_since_admit:   (now_micros().saturating_sub(out.submitted_at)) / 1_000_000,
+            item_id: item_id.clone(),
+            original_priority: old_priority,
+            developer_priority: new_priority,
+            delta_seconds_since_admit: (now_micros().saturating_sub(out.submitted_at)) / 1_000_000,
         });
 
         Ok(out)
     }
 
-    async fn assign(&self, item_id: &HopperItemId, agent_id: String) -> Result<IntakeItem, HopperError> {
+    async fn assign(
+        &self,
+        item_id: &HopperItemId,
+        agent_id: String,
+    ) -> Result<IntakeItem, HopperError> {
         let mut items = self.items.write().await;
         let item = items
             .iter_mut()
@@ -204,15 +230,22 @@ mod tests {
     use super::*;
     use crate::hopper::capability::DeveloperOverrideMint;
 
-    fn mint() -> DeveloperOverrideMint { DeveloperOverrideMint::new() }
+    fn mint() -> DeveloperOverrideMint {
+        DeveloperOverrideMint::new()
+    }
 
     #[tokio::test]
     async fn submit_lands_in_inbox() {
         let h = InMemoryHopper::headless();
-        let item = h.submit(
-            "fix flaky test".into(), vec![], PriorityHint::Normal,
-            IntakeSource::Developer, None,
-        ).await;
+        let item = h
+            .submit(
+                "fix flaky test".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                None,
+            )
+            .await;
         assert_eq!(item.state, ItemState::Inbox);
         assert_eq!(h.inbox().await.len(), 1);
         assert_eq!(h.history().await.len(), 0);
@@ -221,13 +254,21 @@ mod tests {
     #[tokio::test]
     async fn reprioritize_requires_developer_override_cap() {
         let h = InMemoryHopper::headless();
-        let item = h.submit(
-            "urgent fix".into(), vec![], PriorityHint::Normal,
-            IntakeSource::Developer, None,
-        ).await;
+        let item = h
+            .submit(
+                "urgent fix".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                None,
+            )
+            .await;
 
         let cap = mint().mint("test-user", "needs to go first", "audit-123");
-        let updated = h.reprioritize(&item.item_id, TaskPriority::Urgent, cap).await.unwrap();
+        let updated = h
+            .reprioritize(&item.item_id, TaskPriority::Urgent, cap)
+            .await
+            .unwrap();
         assert_eq!(updated.classified_priority, TaskPriority::Urgent);
         assert_eq!(updated.override_history.len(), 1);
         assert_eq!(updated.override_history[0].audit_id, "audit-123");
@@ -236,23 +277,35 @@ mod tests {
     #[tokio::test]
     async fn reprioritize_terminal_item_returns_error() {
         let h = InMemoryHopper::headless();
-        let item = h.submit(
-            "old task".into(), vec![], PriorityHint::Normal,
-            IntakeSource::Agent, None,
-        ).await;
+        let item = h
+            .submit(
+                "old task".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Agent,
+                None,
+            )
+            .await;
         h.complete(&item.item_id).await.unwrap();
         let cap = mint().mint("u", "r", "a");
-        let result = h.reprioritize(&item.item_id, TaskPriority::Urgent, cap).await;
+        let result = h
+            .reprioritize(&item.item_id, TaskPriority::Urgent, cap)
+            .await;
         assert!(matches!(result, Err(HopperError::Terminal)));
     }
 
     #[tokio::test]
     async fn assign_and_complete_lifecycle() {
         let h = InMemoryHopper::headless();
-        let item = h.submit(
-            "build widget".into(), vec![], PriorityHint::Unspecified,
-            IntakeSource::Webhook, None,
-        ).await;
+        let item = h
+            .submit(
+                "build widget".into(),
+                vec![],
+                PriorityHint::Unspecified,
+                IntakeSource::Webhook,
+                None,
+            )
+            .await;
         h.assign(&item.item_id, "agent-42".into()).await.unwrap();
         assert_eq!(h.assigned().await.len(), 1);
         assert_eq!(h.inbox().await.len(), 0);

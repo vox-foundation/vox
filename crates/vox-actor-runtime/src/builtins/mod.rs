@@ -340,7 +340,11 @@ pub struct VoxFileRecord {
     pub is_symlink: bool,
 }
 
-fn vox_file_record_from_meta(full_path: &str, name: &str, meta: &std::fs::Metadata) -> VoxFileRecord {
+fn vox_file_record_from_meta(
+    full_path: &str,
+    name: &str,
+    meta: &std::fs::Metadata,
+) -> VoxFileRecord {
     let modified_ms = meta
         .modified()
         .ok()
@@ -422,7 +426,10 @@ pub fn vox_csv_parse_records(text: &str) -> Result<serde_json::Value, String> {
         let rec = rec.map_err(|e| e.to_string())?;
         let mut obj = serde_json::Map::new();
         for (i, cell) in rec.iter().enumerate() {
-            let key = headers.get(i).cloned().unwrap_or_else(|| format!("column_{i}"));
+            let key = headers
+                .get(i)
+                .cloned()
+                .unwrap_or_else(|| format!("column_{i}"));
             obj.insert(key, serde_json::Value::String(cell.to_string()));
         }
         rows.push(serde_json::Value::Object(obj));
@@ -481,7 +488,9 @@ fn vox_csv_save_from_json(value: &serde_json::Value) -> Result<String, String> {
                     .collect();
                 out_rows.push(keys.clone());
                 for row in rows {
-                    let obj = row.as_object().ok_or_else(|| "csv save: expected object".to_string())?;
+                    let obj = row
+                        .as_object()
+                        .ok_or_else(|| "csv save: expected object".to_string())?;
                     let mut line = Vec::new();
                     for k in &keys {
                         let cell = obj.get(k).map(json_scalar_to_string).unwrap_or_default();
@@ -491,7 +500,9 @@ fn vox_csv_save_from_json(value: &serde_json::Value) -> Result<String, String> {
                 }
             } else if rows.iter().all(|r| r.is_array()) {
                 for row in rows {
-                    let arr = row.as_array().ok_or_else(|| "csv save: expected array row".to_string())?;
+                    let arr = row
+                        .as_array()
+                        .ok_or_else(|| "csv save: expected array row".to_string())?;
                     let line: Vec<String> = arr.iter().map(json_scalar_to_string).collect();
                     out_rows.push(line);
                 }
@@ -561,7 +572,10 @@ pub fn vox_io_save(path: &str, value: &serde_json::Value) -> Result<(), String> 
 }
 
 /// Run subprocess and parse stdout as JSON (`std.process.run_capture_json`).
-pub fn vox_process_run_capture_json(cmd: &str, args: &[String]) -> Result<serde_json::Value, String> {
+pub fn vox_process_run_capture_json(
+    cmd: &str,
+    args: &[String],
+) -> Result<serde_json::Value, String> {
     let cap = vox_process_run_capture(cmd, args)?;
     serde_json::from_str(cap.stdout.trim()).map_err(|e| format!("stdout is not valid JSON: {e}"))
 }

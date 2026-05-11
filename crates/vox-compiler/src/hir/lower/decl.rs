@@ -33,7 +33,9 @@ impl LowerCtx {
                     crate::ast::decl::EffectAnnotation::Mcp(t) => {
                         crate::hir::HirCapability::Mcp(t.clone())
                     }
-                    crate::ast::decl::EffectAnnotation::Nothing => crate::hir::HirCapability::Nothing,
+                    crate::ast::decl::EffectAnnotation::Nothing => {
+                        crate::hir::HirCapability::Nothing
+                    }
                 })
                 .collect(),
             f.inference_model.is_some(),
@@ -409,8 +411,7 @@ impl LowerCtx {
         let params = w.params.iter().map(|p| self.lower_param(p)).collect();
         let body = w.body.iter().map(|s| self.lower_stmt(s)).collect();
         self.def_map.pop_scope();
-        let distributed_train = match (&w.distributed_train_strategy, &w.distributed_train_peers)
-        {
+        let distributed_train = match (&w.distributed_train_strategy, &w.distributed_train_peers) {
             (Some(s), Some(p)) => Some((s.clone(), (*p).min(u64::from(u32::MAX)) as u32)),
             _ => None,
         };

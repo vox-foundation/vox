@@ -143,9 +143,8 @@ impl VoxDb {
         let mut out = Vec::new();
         while let Some(row) = rows.next().await.map_err(StoreError::Turso)? {
             let kind_str: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
-            let kind = LockKindRow::from_sql(&kind_str).ok_or_else(|| {
-                StoreError::Db(format!("unknown lock kind: {kind_str}"))
-            })?;
+            let kind = LockKindRow::from_sql(&kind_str)
+                .ok_or_else(|| StoreError::Db(format!("unknown lock kind: {kind_str}")))?;
             out.push(VcsLockRow {
                 path: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
                 kind,

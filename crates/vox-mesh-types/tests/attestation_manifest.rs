@@ -1,6 +1,8 @@
 //! Integration tests for PublicAttestationManifest (P6-T2).
 
-use vox_mesh_types::attestation_manifest::{AttestationCache, PublicAttestationManifest, SupportedTask};
+use vox_mesh_types::attestation_manifest::{
+    AttestationCache, PublicAttestationManifest, SupportedTask,
+};
 
 fn make_manifest(node_id: &str) -> PublicAttestationManifest {
     PublicAttestationManifest {
@@ -76,7 +78,7 @@ fn cache_miss_expired() {
 #[test]
 fn cache_evict_stale() {
     let mut cache = AttestationCache::with_ttl(60);
-    cache.insert(make_manifest("node-006"), 0);   // inserted at t=0
+    cache.insert(make_manifest("node-006"), 0); // inserted at t=0
     cache.insert(make_manifest("node-007"), 1000); // inserted at t=1000
 
     // At t=50: node-006 age=50 (live), node-007 age=0 (future insert counted as live via saturating_sub)

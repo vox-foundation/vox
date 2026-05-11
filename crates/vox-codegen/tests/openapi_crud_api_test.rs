@@ -27,7 +27,8 @@ fn paths_reference_error_envelope(paths_val: &Value) -> bool {
 fn crud_api_openapi_lists_error_envelope_and_default_response() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let path = std::path::Path::new(manifest_dir).join("../../examples/golden/crud_api.vox");
-    let src = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let src =
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let module = parse(lex(&src)).expect("parse crud_api.vox");
     let hir = lower_module(&module);
     let opts = CodegenOptions {

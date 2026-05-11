@@ -9,10 +9,7 @@ use super::{OperationId, OperationKind};
 /// Snapshot all projections, write a Checkpoint op, and prune warm rows below `up_to`.
 ///
 /// This is a stub — full implementation lands in P3-T9 when the `Projection` trait is defined.
-pub async fn compact_now(
-    ctx: Arc<PersistContext>,
-    up_to: OperationId,
-) -> Result<(), PersistError> {
+pub async fn compact_now(ctx: Arc<PersistContext>, up_to: OperationId) -> Result<(), PersistError> {
     let _kind = OperationKind::Checkpoint {
         op_id_lo: 0,
         op_id_hi: up_to.0,

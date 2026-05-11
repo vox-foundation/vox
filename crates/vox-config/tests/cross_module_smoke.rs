@@ -1,8 +1,6 @@
 //! Cross-module integration smoke (`vox-config`): paths + env parsing + bootstrap constants.
 
-use vox_config::{
-    bootstrap_inference, env_parse, operator_registry, paths, routing_migration,
-};
+use vox_config::{bootstrap_inference, env_parse, operator_registry, paths, routing_migration};
 
 #[test]
 fn paths_constants_and_join_helpers_resolve() {
@@ -45,9 +43,15 @@ fn operator_registry_exports_non_empty_env_catalog() {
 
 #[test]
 fn routing_migration_raw_detects_enforce_phases() {
-    assert!(routing_migration::secrets_cutover_blocks_legacy_env_raw("enforce"));
-    assert!(routing_migration::secrets_cutover_blocks_legacy_env_raw("Decommission"));
-    assert!(!routing_migration::secrets_cutover_blocks_legacy_env_raw("warn"));
+    assert!(routing_migration::secrets_cutover_blocks_legacy_env_raw(
+        "enforce"
+    ));
+    assert!(routing_migration::secrets_cutover_blocks_legacy_env_raw(
+        "Decommission"
+    ));
+    assert!(!routing_migration::secrets_cutover_blocks_legacy_env_raw(
+        "warn"
+    ));
 }
 
 #[test]

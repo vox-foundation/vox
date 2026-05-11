@@ -1,8 +1,10 @@
-//! MCP-style registry resolution without the legacy `dei_shim::selection` graph (stale vs model SSOT).
+//! MCP-style registry resolution — canonical implementation for model pick/fallback.
+//!
+//! [`crate::dei_shim::selection`] re-exports these symbols for legacy module paths; do not duplicate logic there.
 
 use crate::config::CostPreference;
 use crate::mode::{InferenceConfig, TierProfile};
-use crate::models::{task_category_strength, ModelRegistry, ModelSpec, StrengthTag};
+use crate::models::{ModelRegistry, ModelSpec, StrengthTag, task_category_strength};
 use crate::privacy_router::model_supports_privacy_local_inference;
 use crate::types::TaskCategory;
 use crate::usage::RemainingBudget;
@@ -138,7 +140,8 @@ pub fn resolve_model_with_registry_fallbacks(
             "Model override '{id}' is not in the registry; clear the override or pick a valid id from the model list"
         ));
     }
-    if let Some(pin) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingHardPinModel).expose()
+    if let Some(pin) =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingHardPinModel).expose()
     {
         let p = pin.trim();
         if !p.is_empty() {

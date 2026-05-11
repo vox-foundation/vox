@@ -2,8 +2,8 @@
 
 use serde_json::json;
 use vox_openai_wire::{
-    ChatCompletionRequest, ChatCompletionResponse, ChatMessageContent, ChatMessagePart, ImageUrl,
-    ChatMessageTurn,
+    ChatCompletionRequest, ChatCompletionResponse, ChatMessageContent, ChatMessagePart,
+    ChatMessageTurn, ImageUrl,
 };
 
 #[test]
@@ -35,10 +35,7 @@ fn chat_completion_request_serializes_multipart_with_image_url() {
     assert_eq!(parts[0]["type"], "text");
     assert_eq!(parts[0]["text"], "describe");
     assert_eq!(parts[1]["type"], "image_url");
-    assert_eq!(
-        parts[1]["image_url"]["url"],
-        "https://example.com/x.png"
-    );
+    assert_eq!(parts[1]["image_url"]["url"], "https://example.com/x.png");
 }
 
 #[test]

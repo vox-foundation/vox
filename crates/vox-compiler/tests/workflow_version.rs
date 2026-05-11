@@ -3,7 +3,7 @@
 use vox_compiler::ast::decl::Module;
 use vox_compiler::ast::expr::{Expr, WorkflowVersionCall};
 use vox_compiler::ast::stmt::Stmt;
-use vox_compiler::hir::{lower_module, HirExpr, HirStmt, HirWorkflowVersion};
+use vox_compiler::hir::{HirExpr, HirStmt, HirWorkflowVersion, lower_module};
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
 
@@ -48,7 +48,11 @@ fn parses_workflow_version_call_with_min_max() {
     "#;
     let module = parse_src(src);
     let calls = collect_workflow_version_calls(&module);
-    assert_eq!(calls.len(), 1, "should find exactly one workflow.version call");
+    assert_eq!(
+        calls.len(),
+        1,
+        "should find exactly one workflow.version call"
+    );
     assert_eq!(calls[0].change_id, "change-1");
     assert_eq!(calls[0].min, 1);
     assert_eq!(calls[0].max, 2);
@@ -76,5 +80,8 @@ fn workflow_version_lowers_to_hir() {
             false
         }
     });
-    assert!(has_version, "HIR body should contain HirExpr::WorkflowVersion");
+    assert!(
+        has_version,
+        "HIR body should contain HirExpr::WorkflowVersion"
+    );
 }

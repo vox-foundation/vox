@@ -386,7 +386,8 @@ pub mod codes {
 
     pub const WORKFLOW_WITH_ID_NON_DETERMINISTIC: &str = "vox/workflow/with-id-non-deterministic";
     pub const WORKFLOW_NON_DETERMINISTIC_CALL: &str = "vox/workflow/non-deterministic-call";
-    pub const WORKFLOW_SIDE_EFFECT_OUTSIDE_WORKFLOW: &str = "vox/workflow/side-effect-outside-workflow";
+    pub const WORKFLOW_SIDE_EFFECT_OUTSIDE_WORKFLOW: &str =
+        "vox/workflow/side-effect-outside-workflow";
 
     pub const EFFECT_MISSING_DECLARATION: &str = "vox/effect/missing-declaration";
 

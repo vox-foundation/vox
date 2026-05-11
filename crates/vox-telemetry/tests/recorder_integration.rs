@@ -3,8 +3,8 @@
 use std::sync::{Arc, Mutex};
 
 use vox_telemetry::{
-    CompositeRecorder, NoOpRecorder, ResearchMetricEvent, TelemetryEvent, TelemetryRecorder,
-    METRIC_TYPE_BENCHMARK_EVENT, SESSION_PREFIX_BENCH, validate_research_metric_row,
+    CompositeRecorder, METRIC_TYPE_BENCHMARK_EVENT, NoOpRecorder, ResearchMetricEvent,
+    SESSION_PREFIX_BENCH, TelemetryEvent, TelemetryRecorder, validate_research_metric_row,
 };
 
 struct CaptureRecorder {
@@ -21,12 +21,7 @@ impl TelemetryRecorder for CaptureRecorder {
 #[test]
 fn validate_research_metric_row_accepts_benchmark_metric() {
     let sid = format!("{SESSION_PREFIX_BENCH}integration");
-    assert!(validate_research_metric_row(
-        &sid,
-        METRIC_TYPE_BENCHMARK_EVENT,
-        None
-    )
-    .is_ok());
+    assert!(validate_research_metric_row(&sid, METRIC_TYPE_BENCHMARK_EVENT, None).is_ok());
 }
 
 #[test]

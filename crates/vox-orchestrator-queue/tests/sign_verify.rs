@@ -39,7 +39,10 @@ fn signed_entry_round_trips_and_tampered_payload_fails() {
 
     let mut entry = make_entry();
     sign_entry(&ring, &mut entry).expect("sign");
-    assert!(verify_entry(&ring, &entry).is_ok(), "valid entry must verify");
+    assert!(
+        verify_entry(&ring, &entry).is_ok(),
+        "valid entry must verify"
+    );
 
     // Tamper the payload — signature must no longer verify.
     entry.description.push('!');

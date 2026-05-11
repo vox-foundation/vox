@@ -102,14 +102,8 @@ async fn counterparty_fetches_and_verifies_manifest() {
 
     let (sk, vk) = generate_signing_keypair();
     let pubkey_hex = hex::encode(verifying_key_to_bytes(&vk));
-    let manifest = AttestationManifest::new_signed(
-        &pubkey_hex,
-        "12345",
-        "alice",
-        1_900_000_000_000,
-        &sk,
-        &vk,
-    );
+    let manifest =
+        AttestationManifest::new_signed(&pubkey_hex, "12345", "alice", 1_900_000_000_000, &sk, &vk);
     let mut mock = mockito::Server::new_async().await;
     let _gist = mock
         .mock("GET", "/raw/manifest.json")

@@ -1,15 +1,15 @@
 //! Append-only operation log for durable orchestration history.
 
-mod query;
-mod store;
 pub mod backfill;
 pub mod checkpoint;
 pub mod persist;
+mod query;
 pub mod sign;
+mod store;
 
+pub use persist::PersistError;
 pub use query::list_from_db;
 pub use store::{append_to_db, append_to_db_with_breaker, mark_undone_in_db};
-pub use persist::PersistError;
 
 use std::collections::VecDeque;
 use std::fmt;

@@ -2,8 +2,8 @@
 
 use vox_mesh_types::{
     Attestation,
-    tee_attestation::{StubTeeVerifier, TeeQuote, TeeQuoteKind, TeeVerifier, TeeVerifyError},
     task::TaskResult,
+    tee_attestation::{StubTeeVerifier, TeeQuote, TeeQuoteKind, TeeVerifier, TeeVerifyError},
 };
 
 fn make_tee_quote(kind: TeeQuoteKind) -> TeeQuote {
@@ -123,6 +123,9 @@ fn replay_proof_and_kudos_signature_optional() {
 
     let json = serde_json::to_string(&att).unwrap();
     let decoded: Attestation = serde_json::from_str(&json).unwrap();
-    assert_eq!(decoded.replay_proof_blake3_hex.as_deref(), Some("replay-hash"));
+    assert_eq!(
+        decoded.replay_proof_blake3_hex.as_deref(),
+        Some("replay-hash")
+    );
     assert_eq!(decoded.kudos_signature_b64.as_deref(), Some("kudos-sig"));
 }

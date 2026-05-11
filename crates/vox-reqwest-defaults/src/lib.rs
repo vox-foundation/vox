@@ -32,7 +32,7 @@ mod populi_middleware {
     use http::Extensions;
     use reqwest::{Request, Response};
     use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware, Next, Result};
-    use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
+    use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
 
     /// Lightweight outbound trace hook for Populi control-plane requests (retry stack sits inner).
     #[derive(Clone, Debug)]

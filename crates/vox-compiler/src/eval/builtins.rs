@@ -339,17 +339,16 @@ pub fn call_builtin_method(
 
             if let Some(ns_str) = ns
                 && let Some(c) = caps
-                && matches!(
-                    ns_str,
-                    "fs" | "io" | "process" | "env" | "secrets"
-                )
+                && matches!(ns_str, "fs" | "io" | "process" | "env" | "secrets")
             {
                 let ok = (ns_str == "fs" || ns_str == "io") && c.contains("fs")
                     || ns_str == "process" && (c.contains("process") || c.contains("subprocess"))
                     || ns_str == "env" && c.contains("env")
                     || ns_str == "secrets" && c.contains("secrets");
                 if !ok {
-                    println!("Capability denied: script missing capability for '{ns_str}' namespace");
+                    println!(
+                        "Capability denied: script missing capability for '{ns_str}' namespace"
+                    );
                     return Some(VoxValue::Null);
                 }
             }
@@ -731,8 +730,7 @@ pub fn call_builtin_method(
                                 .collect::<Vec<_>>(),
                             _ => vec![],
                         };
-                        let res =
-                            interp_process_run_capture_json(&cmd_name, &cmd_args);
+                        let res = interp_process_run_capture_json(&cmd_name, &cmd_args);
                         Some(VoxValue::Result(match res {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
                             Err(e) => Err(e),
@@ -757,8 +755,7 @@ pub fn call_builtin_method(
                                 .collect::<Vec<_>>(),
                             _ => vec![],
                         };
-                        let res =
-                            interp_process_run_capture_lines(&cmd_name, &cmd_args);
+                        let res = interp_process_run_capture_lines(&cmd_name, &cmd_args);
                         Some(VoxValue::Result(match res {
                             Ok(lines) => Ok(Box::new(VoxValue::List(
                                 lines.into_iter().map(VoxValue::Str).collect(),
@@ -786,24 +783,20 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        Some(VoxValue::Result(
-                            match interp_csv_parse(&s) {
-                                Ok(v) => Ok(Box::new(json_to_vox(v))),
-                                Err(e) => Err(e),
-                            },
-                        ))
+                        Some(VoxValue::Result(match interp_csv_parse(&s) {
+                            Ok(v) => Ok(Box::new(json_to_vox(v))),
+                            Err(e) => Err(e),
+                        }))
                     }
                     "parse_records" => {
                         let s = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        Some(VoxValue::Result(
-                            match interp_csv_parse_records(&s) {
-                                Ok(v) => Ok(Box::new(json_to_vox(v))),
-                                Err(e) => Err(e),
-                            },
-                        ))
+                        Some(VoxValue::Result(match interp_csv_parse_records(&s) {
+                            Ok(v) => Ok(Box::new(json_to_vox(v))),
+                            Err(e) => Err(e),
+                        }))
                     }
                     "render" => {
                         let rows_v = match args.into_iter().next() {
@@ -812,14 +805,16 @@ pub fn call_builtin_method(
                         };
                         let rows = match voxvalue_as_table_str(&rows_v) {
                             Some(r) => r,
-                            None => return Some(VoxValue::Result(Err("csv.render: expected list[list[str]]".into()))),
+                            None => {
+                                return Some(VoxValue::Result(Err(
+                                    "csv.render: expected list[list[str]]".into(),
+                                )));
+                            }
                         };
-                        Some(VoxValue::Result(
-                            match interp_csv_render(&rows) {
-                                Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                                Err(e) => Err(e),
-                            },
-                        ))
+                        Some(VoxValue::Result(match interp_csv_render(&rows) {
+                            Ok(s) => Ok(Box::new(VoxValue::Str(s))),
+                            Err(e) => Err(e),
+                        }))
                     }
                     _ => None,
                 },
@@ -829,12 +824,10 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        Some(VoxValue::Result(
-                            match interp_toml_parse(&s) {
-                                Ok(v) => Ok(Box::new(json_to_vox(v))),
-                                Err(e) => Err(e),
-                            },
-                        ))
+                        Some(VoxValue::Result(match interp_toml_parse(&s) {
+                            Ok(v) => Ok(Box::new(json_to_vox(v))),
+                            Err(e) => Err(e),
+                        }))
                     }
                     "render" => {
                         let v = match args.into_iter().next() {
@@ -842,12 +835,10 @@ pub fn call_builtin_method(
                             _ => return Some(VoxValue::Null),
                         };
                         let j = vox_to_json(v);
-                        Some(VoxValue::Result(
-                            match interp_toml_render(&j) {
-                                Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                                Err(e) => Err(e),
-                            },
-                        ))
+                        Some(VoxValue::Result(match interp_toml_render(&j) {
+                            Ok(s) => Ok(Box::new(VoxValue::Str(s))),
+                            Err(e) => Err(e),
+                        }))
                     }
                     _ => None,
                 },
@@ -857,12 +848,10 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        Some(VoxValue::Result(
-                            match interp_yaml_parse(&s) {
-                                Ok(v) => Ok(Box::new(json_to_vox(v))),
-                                Err(e) => Err(e),
-                            },
-                        ))
+                        Some(VoxValue::Result(match interp_yaml_parse(&s) {
+                            Ok(v) => Ok(Box::new(json_to_vox(v))),
+                            Err(e) => Err(e),
+                        }))
                     }
                     "render" => {
                         let v = match args.into_iter().next() {
@@ -870,12 +859,10 @@ pub fn call_builtin_method(
                             _ => return Some(VoxValue::Null),
                         };
                         let j = vox_to_json(v);
-                        Some(VoxValue::Result(
-                            match interp_yaml_render(&j) {
-                                Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                                Err(e) => Err(e),
-                            },
-                        ))
+                        Some(VoxValue::Result(match interp_yaml_render(&j) {
+                            Ok(s) => Ok(Box::new(VoxValue::Str(s))),
+                            Err(e) => Err(e),
+                        }))
                     }
                     _ => None,
                 },
@@ -885,12 +872,10 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        Some(VoxValue::Result(
-                            match interp_io_open(&path) {
-                                Ok(v) => Ok(Box::new(json_to_vox(v))),
-                                Err(e) => Err(e),
-                            },
-                        ))
+                        Some(VoxValue::Result(match interp_io_open(&path) {
+                            Ok(v) => Ok(Box::new(json_to_vox(v))),
+                            Err(e) => Err(e),
+                        }))
                     }
                     "save" => {
                         let mut it = args.into_iter();
@@ -903,12 +888,10 @@ pub fn call_builtin_method(
                             _ => return Some(VoxValue::Null),
                         };
                         let j = vox_to_json(val);
-                        Some(VoxValue::Result(
-                            match interp_io_save(&path, &j) {
-                                Ok(()) => Ok(Box::new(VoxValue::Null)),
-                                Err(e) => Err(e),
-                            },
-                        ))
+                        Some(VoxValue::Result(match interp_io_save(&path, &j) {
+                            Ok(()) => Ok(Box::new(VoxValue::Null)),
+                            Err(e) => Err(e),
+                        }))
                     }
                     _ => None,
                 },

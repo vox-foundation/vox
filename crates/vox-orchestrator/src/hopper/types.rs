@@ -34,8 +34,8 @@ impl IntakeSource {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Developer => "developer",
-            Self::Agent     => "agent",
-            Self::Webhook   => "webhook",
+            Self::Agent => "agent",
+            Self::Webhook => "webhook",
         }
     }
 }
@@ -58,8 +58,8 @@ pub enum PriorityHint {
 impl PriorityHint {
     pub fn as_task_priority(&self) -> Option<TaskPriority> {
         match self {
-            Self::Urgent     => Some(TaskPriority::Urgent),
-            Self::Normal     => Some(TaskPriority::Normal),
+            Self::Urgent => Some(TaskPriority::Urgent),
+            Self::Normal => Some(TaskPriority::Normal),
             Self::Background => Some(TaskPriority::Background),
             Self::Unspecified => None,
         }
@@ -84,10 +84,10 @@ pub enum ItemState {
 impl ItemState {
     pub fn kind(&self) -> &'static str {
         match self {
-            Self::Inbox        => "inbox",
+            Self::Inbox => "inbox",
             Self::Assigned { .. } => "assigned",
-            Self::Done         => "done",
-            Self::Overridden   => "overridden",
+            Self::Done => "done",
+            Self::Overridden => "overridden",
         }
     }
 }
@@ -97,13 +97,13 @@ impl ItemState {
 /// Records every priority override for auditability (SSOT §5.7).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PriorityOverrideRecord {
-    pub ts_micros:         u64,
-    pub actor:             String,
+    pub ts_micros: u64,
+    pub actor: String,
     pub original_priority: TaskPriority,
-    pub new_priority:      TaskPriority,
-    pub reason:            String,
+    pub new_priority: TaskPriority,
+    pub reason: String,
     /// Signed audit-log ID from `audit_log::AuditWriter` (P4-T7).
-    pub audit_id:          String,
+    pub audit_id: String,
 }
 
 // ── Core intake item ──────────────────────────────────────────────────────────
@@ -111,29 +111,29 @@ pub struct PriorityOverrideRecord {
 /// A single unit of developer intent flowing through the hopper.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IntakeItem {
-    pub item_id:             HopperItemId,
+    pub item_id: HopperItemId,
     /// Human-readable intent from the developer or agent.
-    pub intent:              String,
+    pub intent: String,
     /// Affinity hints: file paths, crate names, or agent names the item prefers.
-    pub affinity_hints:      Vec<String>,
+    pub affinity_hints: Vec<String>,
     /// Caller-supplied priority hint (advisory; may be overridden by classifier).
-    pub priority_hint:       PriorityHint,
+    pub priority_hint: PriorityHint,
     /// Origin of the submission.
-    pub source:              IntakeSource,
+    pub source: IntakeSource,
     /// Optional session context (chat session, CLI session, etc.).
-    pub session_id:          Option<String>,
+    pub session_id: Option<String>,
     /// Classified priority assigned by the intake classifier.
     pub classified_priority: TaskPriority,
     /// Classifier confidence 0–1.
-    pub confidence:          f32,
+    pub confidence: f32,
     /// Privacy class derived from context (mirrors `vox.mesh.privacy_class`).
-    pub privacy_class:       String,
+    pub privacy_class: String,
     /// Current lifecycle state.
-    pub state:               ItemState,
+    pub state: ItemState,
     /// Unix micros when this item was submitted.
-    pub submitted_at:        u64,
+    pub submitted_at: u64,
     /// Full override history (each `DeveloperOverride` appends here).
-    pub override_history:    Vec<PriorityOverrideRecord>,
+    pub override_history: Vec<PriorityOverrideRecord>,
 }
 
 impl IntakeItem {

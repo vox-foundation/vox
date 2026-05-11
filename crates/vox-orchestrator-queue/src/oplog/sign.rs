@@ -110,9 +110,15 @@ pub fn sign_entry(ring: &KeyRing, entry: &mut OperationEntry) -> Result<(), Sign
 /// Verify `entry`'s signature against the key in `ring`.
 pub fn verify_entry(ring: &KeyRing, entry: &OperationEntry) -> Result<(), SignError> {
     let kid = entry.signing_key_id.as_ref().ok_or(SignError::NoLocalKey)?;
-    let vk = ring.peers.get(kid).ok_or_else(|| SignError::UnknownKey(kid.clone()))?;
+    let vk = ring
+        .peers
+        .get(kid)
+        .ok_or_else(|| SignError::UnknownKey(kid.clone()))?;
 
-    let sig_vec = entry.signature.as_ref().ok_or(SignError::SignatureMismatch)?;
+    let sig_vec = entry
+        .signature
+        .as_ref()
+        .ok_or(SignError::SignatureMismatch)?;
     if sig_vec.len() != 64 {
         return Err(SignError::BadSigLen);
     }

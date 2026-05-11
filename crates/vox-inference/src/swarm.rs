@@ -23,4 +23,3 @@ mod tests {
         let _ = SwarmInferenceStub::new();
     }
 }
-

@@ -6,7 +6,7 @@
 pub mod parse;
 pub mod print;
 
-pub use parse::{load_policy, ParseError};
+pub use parse::{ParseError, load_policy};
 pub use print::pretty_print;
 
 #[cfg(test)]

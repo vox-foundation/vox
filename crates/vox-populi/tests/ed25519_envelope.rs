@@ -85,10 +85,14 @@ fn verify_against_trust_rejects_unknown_pubkey() {
 fn auth_scheme_default_is_ed25519_envelope() {
     use vox_populi::transport::AuthScheme;
     let prior = std::env::var("VOX_MESH_AUTH_SCHEME").ok();
-    unsafe { std::env::remove_var("VOX_MESH_AUTH_SCHEME"); }
+    unsafe {
+        std::env::remove_var("VOX_MESH_AUTH_SCHEME");
+    }
     let scheme = AuthScheme::from_env();
     assert_eq!(scheme, AuthScheme::Ed25519Envelope);
     if let Some(v) = prior {
-        unsafe { std::env::set_var("VOX_MESH_AUTH_SCHEME", v); }
+        unsafe {
+            std::env::set_var("VOX_MESH_AUTH_SCHEME", v);
+        }
     }
 }

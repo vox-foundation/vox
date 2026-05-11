@@ -75,7 +75,10 @@ pub fn scan(repo_root: &Path, rule: &ForbiddenPatternRule) -> Result<Vec<Forbidd
                 rule: rule.name.clone(),
                 file: rel.to_path_buf(),
                 line: i + 1,
-                matched: regex.find(line).map(|m| m.as_str().to_string()).unwrap_or_default(),
+                matched: regex
+                    .find(line)
+                    .map(|m| m.as_str().to_string())
+                    .unwrap_or_default(),
             });
         }
     }
@@ -164,11 +167,7 @@ mod tests {
     fn non_rs_file_under_crates_is_not_scanned() {
         let dir = tempfile::tempdir().unwrap();
         // .toml file should not match the `crates/**/*.rs` glob.
-        write_fixture(
-            &dir,
-            "crates/my-crate/Cargo.toml",
-            r#"[package]"# ,
-        );
+        write_fixture(&dir, "crates/my-crate/Cargo.toml", r#"[package]"#);
         let rule = make_rule();
         // No .rs files → no hits.
         let hits = scan(dir.path(), &rule).unwrap();

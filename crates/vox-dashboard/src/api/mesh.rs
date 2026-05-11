@@ -21,6 +21,7 @@
 //! GET  /api/v2/mesh/models
 //! ```
 
+use axum::extract::State;
 use axum::{
     Router,
     http::StatusCode,
@@ -28,7 +29,6 @@ use axum::{
     routing::{get, post},
 };
 use serde_json::{Value, json};
-use axum::extract::State;
 
 use crate::api::mesh_actions::{node_drain, node_kill, node_pause, node_replay};
 use crate::api::mesh_invite::mint;
@@ -46,10 +46,7 @@ fn mesh_policy_stack_anchor() {
 async fn get_models(State(_state): State<MeshState>) -> (StatusCode, Json<Value>) {
     let reg = vox_mesh_models::ModelRegistry::empty();
     let models = reg.all_models();
-    (
-        StatusCode::OK,
-        Json(json!({ "v": 1, "data": models })),
-    )
+    (StatusCode::OK, Json(json!({ "v": 1, "data": models })))
 }
 
 // ── Router ────────────────────────────────────────────────────────────────────

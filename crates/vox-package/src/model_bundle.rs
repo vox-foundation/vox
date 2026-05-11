@@ -47,10 +47,7 @@ mod merkle_leaves_hex {
 
     use super::Sha3_512;
 
-    pub fn serialize<S: Serializer>(
-        v: &Option<Vec<Sha3_512>>,
-        s: S,
-    ) -> Result<S::Ok, S::Error> {
+    pub fn serialize<S: Serializer>(v: &Option<Vec<Sha3_512>>, s: S) -> Result<S::Ok, S::Error> {
         match v {
             None => s.serialize_none(),
             Some(leaves) => {
@@ -63,9 +60,7 @@ mod merkle_leaves_hex {
         }
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        d: D,
-    ) -> Result<Option<Vec<Sha3_512>>, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Vec<Sha3_512>>, D::Error> {
         let opt: Option<Vec<String>> = Option::deserialize(d)?;
         match opt {
             None => Ok(None),
@@ -147,8 +142,7 @@ pub fn compute_model_bundle_content_hash(bundle: &ModelBundle) -> Sha3_512 {
         format: &bundle.format,
         provenance: &bundle.provenance,
     };
-    let canonical =
-        serde_json::to_vec(&payload).unwrap_or_else(|_| b"{}".to_vec());
+    let canonical = serde_json::to_vec(&payload).unwrap_or_else(|_| b"{}".to_vec());
     sha3::Sha3_512::digest(&canonical).into()
 }
 

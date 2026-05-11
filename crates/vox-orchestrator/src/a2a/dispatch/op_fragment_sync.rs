@@ -31,7 +31,11 @@ impl Default for OpIdBloom {
 
 impl OpIdBloom {
     pub fn new() -> Self {
-        Self { bits: vec![0u64; M_BITS / 64], floor: u64::MAX, ceiling: 0 }
+        Self {
+            bits: vec![0u64; M_BITS / 64],
+            floor: u64::MAX,
+            ceiling: 0,
+        }
     }
 
     pub fn insert(&mut self, op_id: u64) {
@@ -83,7 +87,11 @@ impl OpIdBloom {
         for (i, chunk) in b.chunks_exact(8).enumerate() {
             bits[i] = u64::from_be_bytes(chunk.try_into().ok()?);
         }
-        Some(Self { bits, floor: 0, ceiling: 0 })
+        Some(Self {
+            bits,
+            floor: 0,
+            ceiling: 0,
+        })
     }
 }
 
@@ -142,7 +150,11 @@ pub struct PeerRegistry {
 
 impl PeerRegistry {
     pub fn new(local_daemon_id: [u8; 16], set_id: [u8; 16]) -> Self {
-        Self { local_daemon_id, set_id, peers: std::sync::RwLock::new(Vec::new()) }
+        Self {
+            local_daemon_id,
+            set_id,
+            peers: std::sync::RwLock::new(Vec::new()),
+        }
     }
 
     pub fn local_daemon_id(&self) -> [u8; 16] {
@@ -188,7 +200,7 @@ mod populi_impl {
 
     use crate::types::AgentId;
 
-    use super::{GossipError, OpFragmentSync, OP_FRAGMENT_SYNC_TYPE, OpIdBloom, PeerRegistry};
+    use super::{GossipError, OP_FRAGMENT_SYNC_TYPE, OpFragmentSync, OpIdBloom, PeerRegistry};
 
     /// Periodically emit a Bloom-summary to all known peers (Demers et al. anti-entropy).
     ///
@@ -302,10 +314,17 @@ mod tests {
             b.insert(id);
         }
         let bytes = b.to_bytes();
-        assert_eq!(bytes.len(), M_BITS / 8, "bloom byte length must be M_BITS/8");
+        assert_eq!(
+            bytes.len(),
+            M_BITS / 8,
+            "bloom byte length must be M_BITS/8"
+        );
         let b2 = OpIdBloom::from_bytes(&bytes).expect("round-trip");
         for id in [1u64, 2, 3, 100, 9999] {
-            assert!(b2.might_contain(id), "round-tripped bloom must contain {id}");
+            assert!(
+                b2.might_contain(id),
+                "round-tripped bloom must contain {id}"
+            );
         }
     }
 
@@ -358,15 +377,27 @@ mod tests {
         };
         let json = serde_json::to_string(&msg).unwrap();
         let back: OpFragmentSync = serde_json::from_str(&json).unwrap();
-        assert!(matches!(back, OpFragmentSync::Reply { more_after: Some(42), .. }));
+        assert!(matches!(
+            back,
+            OpFragmentSync::Reply {
+                more_after: Some(42),
+                ..
+            }
+        ));
     }
 
     #[test]
     fn op_fragment_sync_continue_round_trips() {
-        let msg = OpFragmentSync::Continue { daemon_id: [7u8; 16], cursor: 1234 };
+        let msg = OpFragmentSync::Continue {
+            daemon_id: [7u8; 16],
+            cursor: 1234,
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let back: OpFragmentSync = serde_json::from_str(&json).unwrap();
-        assert!(matches!(back, OpFragmentSync::Continue { cursor: 1234, .. }));
+        assert!(matches!(
+            back,
+            OpFragmentSync::Continue { cursor: 1234, .. }
+        ));
     }
 
     #[test]
@@ -393,7 +424,10 @@ mod tests {
         use crate::types::AgentId;
         let reg = PeerRegistry::new([0u8; 16], [1u8; 16]);
         assert_eq!(reg.snapshot().len(), 0);
-        reg.add_peer(super::PeerEntry { agent_id: AgentId(42), daemon_id: [2u8; 16] });
+        reg.add_peer(super::PeerEntry {
+            agent_id: AgentId(42),
+            daemon_id: [2u8; 16],
+        });
         assert_eq!(reg.snapshot().len(), 1);
         assert_eq!(reg.snapshot()[0].agent_id.0, 42);
     }

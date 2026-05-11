@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
-#![allow(clippy::await_holding_lock)] // Env lock serializes transport tests across whole async bodies.
+#![allow(clippy::await_holding_lock)]
+// Env lock serializes transport tests across whole async bodies.
 // `#[serial]` serializes all tests in this binary: `VOX_MESH_*` env is process-wide (see e.g. `VOX_MESH_A2A_MAX_MESSAGES`).
 //! Axum readiness polls `/health`; prune/maintenance paths use bounded condition waits instead of fixed sleeps.
 

@@ -7,7 +7,10 @@ use vox_orchestrator::a2a::dispatch::lease_gate::{LeaseGateError, check_before_l
 async fn no_lease_allows_local_fallback() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
     let res = check_before_local_fallback(&db, "task:42", "node-A", 1_000).await;
-    assert!(res.is_ok(), "no lease should allow local fallback; got {res:?}");
+    assert!(
+        res.is_ok(),
+        "no lease should allow local fallback; got {res:?}"
+    );
 }
 
 #[tokio::test]

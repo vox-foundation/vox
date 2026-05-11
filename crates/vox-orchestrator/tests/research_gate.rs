@@ -48,7 +48,11 @@ fn refused_when_no_signature_provided() {
             threshold: Some(0.95),
             alpha: None,
         },
-        stopping_rule: StopRule { max_n: 100, alpha: None, threshold: Some(0.95) },
+        stopping_rule: StopRule {
+            max_n: 100,
+            alpha: None,
+            threshold: Some(0.95),
+        },
         decision_rule: DecisionRule {
             description: "if posterior P(increase) > 0.95, flag".to_string(),
         },

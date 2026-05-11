@@ -1,8 +1,5 @@
 // P5-T7: kudos GpuComputeMs accounting reconciliation test.
-use vox_mesh_types::{
-    Attestation,
-    kudos::gpu_compute_ms_from_attestation,
-};
+use vox_mesh_types::{Attestation, kudos::gpu_compute_ms_from_attestation};
 
 fn fake_attestation(task_id: &str, gpu_seconds: f64) -> Attestation {
     Attestation {
@@ -28,7 +25,10 @@ fn gpu_compute_ms_sum_matches_expected() {
 
     // Expected: sum of (i+1)*1000 for i in 0..10 = 1000+2000+...+10000 = 55000
     let expected_ms: u64 = (1..=10u64).map(|i| i * 1000).sum();
-    let computed_ms: u64 = attestations.iter().map(gpu_compute_ms_from_attestation).sum();
+    let computed_ms: u64 = attestations
+        .iter()
+        .map(gpu_compute_ms_from_attestation)
+        .sum();
 
     assert_eq!(
         computed_ms, expected_ms,
@@ -56,7 +56,10 @@ fn gpu_compute_ms_batch_of_ten_sums_correctly() {
         .map(|i| fake_attestation(&format!("batch-{i}"), gpu_secs))
         .collect();
 
-    let total: u64 = attestations.iter().map(gpu_compute_ms_from_attestation).sum();
+    let total: u64 = attestations
+        .iter()
+        .map(gpu_compute_ms_from_attestation)
+        .sum();
     let expected = (gpu_secs * 1000.0) as u64 * 10;
     assert_eq!(total, expected, "10 × 3.7s should equal 37000ms");
 }

@@ -1,8 +1,6 @@
 //! Integration tests for OpFragmentEnvelope and FederationEnvelope (P6-T1).
 
-use vox_mesh_types::op_fragment::{
-    FederationSignature, OpFragmentEnvelope, OpFragmentKind,
-};
+use vox_mesh_types::op_fragment::{FederationSignature, OpFragmentEnvelope, OpFragmentKind};
 
 /// Build a minimal envelope for testing.
 fn make_envelope(kind: OpFragmentKind, payload: serde_json::Value) -> OpFragmentEnvelope {
@@ -47,7 +45,10 @@ fn canonical_bytes_exclude_signature() {
     let sig_b64 = parsed["signature"]["signature_b64"]
         .as_str()
         .expect("signature_b64 is a string in canonical form");
-    assert!(sig_b64.is_empty(), "canonical bytes blank out signature_b64");
+    assert!(
+        sig_b64.is_empty(),
+        "canonical bytes blank out signature_b64"
+    );
 }
 
 #[test]
@@ -87,9 +88,11 @@ fn sign_and_verify_roundtrip() {
         &env.signature.signature_b64,
     )
     .unwrap();
-    let sig_decoded =
-        ed25519_dalek::Signature::from_bytes(&sig_bytes.try_into().unwrap());
-    assert!(vk.verify(&env.canonical_signing_bytes(), &sig_decoded).is_ok());
+    let sig_decoded = ed25519_dalek::Signature::from_bytes(&sig_bytes.try_into().unwrap());
+    assert!(
+        vk.verify(&env.canonical_signing_bytes(), &sig_decoded)
+            .is_ok()
+    );
 }
 
 #[test]

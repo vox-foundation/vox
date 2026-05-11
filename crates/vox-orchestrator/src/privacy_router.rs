@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::models::spec::ProviderType;
 use crate::models::ModelSpec;
+use crate::models::spec::ProviderType;
 
 /// Sensitivity level of a task or file context.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -136,8 +136,8 @@ impl PrivacyRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::spec::PricingSource;
     use crate::models::ModelCapabilities;
+    use crate::models::spec::PricingSource;
 
     fn dummy_llm(id: &str, provider_type: ProviderType, provider: &str) -> ModelSpec {
         ModelSpec {

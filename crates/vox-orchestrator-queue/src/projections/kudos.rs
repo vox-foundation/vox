@@ -44,8 +44,8 @@ impl Projection for KudosProjection {
     }
 
     fn restore(&self, b: &[u8]) -> Result<(), ProjectionError> {
-        let entries: Vec<(u64, String, i64)> = serde_json::from_slice(b)
-            .map_err(|e| ProjectionError::Decode(e.to_string()))?;
+        let entries: Vec<(u64, String, i64)> =
+            serde_json::from_slice(b).map_err(|e| ProjectionError::Decode(e.to_string()))?;
         let mut map = self.state.lock().unwrap();
         map.clear();
         for (agent, prim, amount) in entries {

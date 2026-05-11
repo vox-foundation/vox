@@ -9,7 +9,7 @@
 use axum::extract::State;
 use axum::response::Json;
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::api::mesh_topology::MeshState;
 
@@ -24,8 +24,8 @@ pub async fn preview(
     State(state): State<MeshState>,
     Json(req): Json<JoinRequest>,
 ) -> Result<Json<Value>, axum::http::StatusCode> {
-    let parsed = parse_bearer_url(&req.bearer_url)
-        .map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
+    let parsed =
+        parse_bearer_url(&req.bearer_url).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
 
     // Check the bearer exists in the registry (without consuming it).
     let exists = state.registry.peek_bearer(&parsed.token).await;
@@ -50,8 +50,8 @@ pub async fn join(
     State(state): State<MeshState>,
     Json(req): Json<JoinRequest>,
 ) -> Result<Json<Value>, axum::http::StatusCode> {
-    let parsed = parse_bearer_url(&req.bearer_url)
-        .map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
+    let parsed =
+        parse_bearer_url(&req.bearer_url).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
 
     let (peer_id, _slot_kind) = state
         .registry
@@ -77,9 +77,9 @@ pub async fn join(
 // ── URL parsing ───────────────────────────────────────────────────────────────
 
 struct ParsedBearer {
-    host:             String,
-    token:            String,
-    expires_in_hint:  u64,
+    host: String,
+    token: String,
+    expires_in_hint: u64,
 }
 
 fn parse_bearer_url(url: &str) -> Result<ParsedBearer, ()> {

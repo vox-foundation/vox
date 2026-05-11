@@ -8,8 +8,8 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use tower::ServiceExt;
 use serde_json::Value;
+use tower::ServiceExt;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -23,7 +23,9 @@ async fn get_json(uri: &str) -> (StatusCode, Value) {
         .await
         .unwrap();
     let status = resp.status();
-    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024)
+        .await
+        .unwrap();
     (status, serde_json::from_slice(&bytes).unwrap())
 }
 
@@ -40,7 +42,9 @@ async fn post_json(uri: &str, body: serde_json::Value) -> (StatusCode, Value) {
         .await
         .unwrap();
     let status = resp.status();
-    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024)
+        .await
+        .unwrap();
     let body = if bytes.is_empty() {
         serde_json::Value::Null
     } else {
@@ -159,7 +163,9 @@ async fn mesh_node_kill_with_confirm_returns_200_with_audit_id() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024)
+        .await
+        .unwrap();
     let body: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(body["v"], 1);
     assert!(body["data"]["audit_id"].is_string());
@@ -184,7 +190,9 @@ async fn mesh_node_pause_with_confirm_returns_200() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await.unwrap();
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024)
+        .await
+        .unwrap();
     let body: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(body["data"]["action"], "pause");
 }

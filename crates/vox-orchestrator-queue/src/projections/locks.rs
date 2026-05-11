@@ -63,8 +63,8 @@ impl Projection for LocksProjection {
     }
 
     fn restore(&self, b: &[u8]) -> Result<(), ProjectionError> {
-        let parsed: BTreeMap<String, LockOwner> = serde_json::from_slice(b)
-            .map_err(|e| ProjectionError::Decode(e.to_string()))?;
+        let parsed: BTreeMap<String, LockOwner> =
+            serde_json::from_slice(b).map_err(|e| ProjectionError::Decode(e.to_string()))?;
         *self.state.lock().unwrap() = parsed;
         Ok(())
     }

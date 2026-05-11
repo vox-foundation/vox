@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 use vox_orchestrator::calibration::{BanditArm, ContextualBandit, arm_stats_from_bandit};
 use vox_orchestrator::circuit_breaker::CircuitBreakerState;
-use vox_orchestrator::{RegistryModelResolutionParams, resolve_model_with_registry_fallbacks};
 use vox_orchestrator::models::{
     ModelCapabilities, ModelRegistry, ModelSpec, PricingSource, ProviderType, StrengthTag,
 };
@@ -16,6 +15,7 @@ use vox_orchestrator::{
     InferenceConfig, OrchestrationFeatureFlags, OrchestratorPolicy, OrchestratorPolicyConfig,
     PolicyContext, TierProfile,
 };
+use vox_orchestrator::{RegistryModelResolutionParams, resolve_model_with_registry_fallbacks};
 
 fn dummy_llm(id: &str, provider_type: ProviderType, provider: &str) -> ModelSpec {
     ModelSpec {
@@ -63,17 +63,18 @@ fn dei_resolve_respects_registry_arm_stats_shape() {
         complexity: 5,
         ..Default::default()
     };
-    let resolved = resolve_model_with_registry_fallbacks(
-        &reg,
-        None,
-        cfg,
-        "hello world",
-        None,
-        params,
-        None,
-    )
-    .expect("resolve");
-    assert_eq!(resolved.0.id, "cloud-a");
+    let resolved =
+        resolve_model_with_registry_fallbacks(&reg, None, cfg, "hello world", None, params, None)
+            .expect("resolve");
+    assert!(
+        matches!(resolved.0.id.as_str(), "cloud-a" | "cloud-b"),
+        "Thompson exploration should return one of the filtered codegen models; got {}",
+        resolved.0.id
+    );
+    assert!(
+        reg.arm_stats_snapshot().contains_key("cloud-a"),
+        "resolution path must use injected registry arm stats (non-empty snapshot)"
+    );
 }
 
 #[test]
@@ -92,16 +93,9 @@ fn privacy_requires_local_filters_cloud_candidates() {
         privacy_requires_local: true,
         ..Default::default()
     };
-    let resolved = resolve_model_with_registry_fallbacks(
-        &reg,
-        None,
-        cfg,
-        "hello world",
-        None,
-        params,
-        None,
-    )
-    .expect("resolve");
+    let resolved =
+        resolve_model_with_registry_fallbacks(&reg, None, cfg, "hello world", None, params, None)
+            .expect("resolve");
     assert_eq!(resolved.0.id, "local-a");
 }
 

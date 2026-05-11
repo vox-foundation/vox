@@ -61,7 +61,8 @@ pub mod test_support {
     /// Build a router that includes the hopper panel routes (P4-T13).
     ///
     /// Returns `(router, Arc<InMemoryHopper>)` so tests can inspect internal state.
-    pub fn build_router_with_hopper() -> (Router<()>, Arc<vox_orchestrator::hopper::InMemoryHopper>) {
+    pub fn build_router_with_hopper() -> (Router<()>, Arc<vox_orchestrator::hopper::InMemoryHopper>)
+    {
         let (registry, bus) = build_mesh_state();
         let state = ephemeral_state(registry, bus.clone());
         let hopper = Arc::new(vox_orchestrator::hopper::InMemoryHopper::new(bus));

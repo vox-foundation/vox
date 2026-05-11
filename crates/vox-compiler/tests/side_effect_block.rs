@@ -33,7 +33,10 @@ fn side_effect_block_parses() {
         .iter()
         .filter(|d| d.code.as_deref() == Some("E_PARSE"))
         .collect();
-    assert!(parse_errs.is_empty(), "should parse without error: {parse_errs:?}");
+    assert!(
+        parse_errs.is_empty(),
+        "should parse without error: {parse_errs:?}"
+    );
 }
 
 /// `side_effect { }` suppresses the `vox/workflow/non-deterministic-call` diagnostic.

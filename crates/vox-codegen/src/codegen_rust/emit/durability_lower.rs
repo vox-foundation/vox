@@ -31,7 +31,9 @@ fn emit_workflow_body(func: &HirFn) -> String {
     ));
     out.push_str("    let _ = __vox_fn_hash;\n");
     out.push_str("    let __vox_hir = ::vox_workflow_runtime::workflow::current_hir_module();\n");
-    out.push_str("    let mut __vox_tracker = ::vox_workflow_runtime::workflow::tracker::DefaultTracker;\n");
+    out.push_str(
+        "    let mut __vox_tracker = ::vox_workflow_runtime::workflow::tracker::DefaultTracker;\n",
+    );
     out.push_str(&format!(
         "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(&__vox_hir, \"{name}\", &mut __vox_tracker).await?;\n"
     ));
@@ -47,7 +49,10 @@ fn emit_workflow_body(func: &HirFn) -> String {
 }
 
 fn emit_activity_body(func: &HirFn) -> String {
-    let activity_id = func.generated_hash.clone().unwrap_or_else(|| func.name.clone());
+    let activity_id = func
+        .generated_hash
+        .clone()
+        .unwrap_or_else(|| func.name.clone());
     let mut out = String::new();
     out.push_str("    // P2-T7: activity body lowered to journal::execute\n");
     out.push_str(&format!(

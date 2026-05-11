@@ -17,10 +17,7 @@ use serde_json::{Value, json};
 
 use crate::api::mesh_topology::MeshState;
 
-pub async fn get_oplog_at(
-    State(_state): State<MeshState>,
-    Path(ts): Path<u64>,
-) -> Json<Value> {
+pub async fn get_oplog_at(State(_state): State<MeshState>, Path(ts): Path<u64>) -> Json<Value> {
     // Phase 4 stub — DB injection not yet wired to MeshState.
     // The real implementation queries convergence_op_log WHERE op_id <= ts
     // via vox_db::VoxDb, ordered by op_id ASC, LIMIT 500.

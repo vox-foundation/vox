@@ -68,7 +68,11 @@ pub async fn interpret_workflow_durable(
     let mut activity_idx: usize = 0;
     for node in replay_ir.nodes {
         match node {
-            ReplayNode::WorkflowPatch { change_id, min, max } => {
+            ReplayNode::WorkflowPatch {
+                change_id,
+                min,
+                max,
+            } => {
                 handle_workflow_patch(workflow_name, &change_id, min, max, &mut journal, tracker)
                     .await?;
             }
@@ -215,7 +219,10 @@ async fn handle_workflow_patch(
     journal: &mut Vec<Value>,
     tracker: &mut impl WorkflowTracker,
 ) -> anyhow::Result<u32> {
-    if let Some(prior) = tracker.load_workflow_patch(workflow_name, change_id).await? {
+    if let Some(prior) = tracker
+        .load_workflow_patch(workflow_name, change_id)
+        .await?
+    {
         journal.push(versioned_event(json!({
             "event": "WorkflowPatch",
             "workflow": workflow_name,
@@ -597,13 +604,19 @@ mod tests {
     fn derive_activity_id_differs_by_workflow_name() {
         let id_a = derive_activity_id("workflow_a", "step", 0);
         let id_b = derive_activity_id("workflow_b", "step", 0);
-        assert_ne!(id_a, id_b, "different workflow names must produce different ids");
+        assert_ne!(
+            id_a, id_b,
+            "different workflow names must produce different ids"
+        );
     }
 
     #[test]
     fn derive_activity_id_is_32_hex_chars() {
         let id = derive_activity_id("wf", "act", 0);
         assert_eq!(id.len(), 32, "activity_id must be 32 hex chars");
-        assert!(id.chars().all(|c| c.is_ascii_hexdigit()), "must be lowercase hex");
+        assert!(
+            id.chars().all(|c| c.is_ascii_hexdigit()),
+            "must be lowercase hex"
+        );
     }
 }

@@ -1,6 +1,8 @@
 //! Integration tests for TrustGraphSnapshot (P6-T8).
 
-use vox_publisher::atlas::trust_snapshot::{PeerEntry, TrustGraphSnapshot, TrustGraphSnapshotBuilder};
+use vox_publisher::atlas::trust_snapshot::{
+    PeerEntry, TrustGraphSnapshot, TrustGraphSnapshotBuilder,
+};
 
 fn make_peer(node_id: &str, tier: u8, successes: u64, fails: u64) -> PeerEntry {
     PeerEntry {

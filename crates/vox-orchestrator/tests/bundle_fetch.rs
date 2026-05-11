@@ -3,12 +3,14 @@
 use std::sync::Arc;
 
 use vox_orchestrator::a2a::dispatch::bundle_fetch::{
-    decode_inline, resolve_local, ship_decision, INLINE_BUNDLE_BYTE_LIMIT,
+    INLINE_BUNDLE_BYTE_LIMIT, decode_inline, resolve_local, ship_decision,
 };
 use vox_package::bundle::{Bundle, BundleRef, BundleStore};
 
 fn dummy_ref() -> BundleRef {
-    BundleRef { fn_hash: [0xabu8; 64] }
+    BundleRef {
+        fn_hash: [0xabu8; 64],
+    }
 }
 
 fn make_bundle(size: usize) -> Bundle {

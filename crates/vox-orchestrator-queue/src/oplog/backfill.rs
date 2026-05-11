@@ -25,7 +25,11 @@ pub struct BackfillConfig {
 
 impl Default for BackfillConfig {
     fn default() -> Self {
-        Self { max_entries: 1024, max_bytes: 64 * 1024, max_age_ms: 600_000 }
+        Self {
+            max_entries: 1024,
+            max_bytes: 64 * 1024,
+            max_age_ms: 600_000,
+        }
     }
 }
 
@@ -153,12 +157,8 @@ impl BackfillBuffer {
     }
 }
 
-async fn spill_to_dlq(
-    ctx: &PersistContext,
-    frag: &HeldFragment,
-) -> Result<(), vox_db::StoreError> {
-    let parent_json =
-        serde_json::to_string(&frag.parent_op_ids).unwrap_or_else(|_| "[]".into());
+async fn spill_to_dlq(ctx: &PersistContext, frag: &HeldFragment) -> Result<(), vox_db::StoreError> {
+    let parent_json = serde_json::to_string(&frag.parent_op_ids).unwrap_or_else(|_| "[]".into());
     ctx.db
         .insert_backfill_dlq(
             frag.op_id as i64,
@@ -222,7 +222,11 @@ mod tests {
 
     #[tokio::test]
     async fn evicts_oldest_when_entry_limit_exceeded() {
-        let cfg = BackfillConfig { max_entries: 2, max_bytes: 1024 * 1024, max_age_ms: 0 };
+        let cfg = BackfillConfig {
+            max_entries: 2,
+            max_bytes: 1024 * 1024,
+            max_age_ms: 0,
+        };
         let bf = BackfillBuffer::new(cfg);
 
         bf.insert(make_fragment(1, &[99])).await;
@@ -242,7 +246,11 @@ mod tests {
 
     #[tokio::test]
     async fn evicts_when_byte_budget_exceeded() {
-        let cfg = BackfillConfig { max_entries: 1024, max_bytes: 32, max_age_ms: 0 };
+        let cfg = BackfillConfig {
+            max_entries: 1024,
+            max_bytes: 32,
+            max_age_ms: 0,
+        };
         let bf = BackfillBuffer::new(cfg);
 
         // blob = 16 bytes each; two fit (32), third evicts first.

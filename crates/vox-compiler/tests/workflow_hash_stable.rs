@@ -1,7 +1,7 @@
 //! P2-T1 acceptance: `generated_hash` on `HirFn` is stable across whitespace
 //! changes and changes on body edits.
 
-use vox_compiler::hir::{lower_module, DurabilityKind};
+use vox_compiler::hir::{DurabilityKind, lower_module};
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
 

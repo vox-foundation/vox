@@ -1,5 +1,5 @@
 use sha3::Digest;
-use vox_crypto::{sign, verify, SigningKey, VerifyingKey};
+use vox_crypto::{SigningKey, VerifyingKey, sign, verify};
 use vox_orchestrator_queue::oplog::OperationKind;
 use vox_package::Sha3_512;
 

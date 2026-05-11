@@ -71,7 +71,16 @@ fn plain_fn_unchanged() {
         .find(|f| f.durability.is_none())
         .expect("plain fn present");
     let rust = emit_fn(func);
-    assert!(!rust.contains("interpret_workflow_durable"), "plain fn must not use workflow runtime");
-    assert!(!rust.contains("journal::execute"), "plain fn must not use journal execute");
-    assert!(!rust.contains("mailbox::spawn"), "plain fn must not use mailbox spawn");
+    assert!(
+        !rust.contains("interpret_workflow_durable"),
+        "plain fn must not use workflow runtime"
+    );
+    assert!(
+        !rust.contains("journal::execute"),
+        "plain fn must not use journal execute"
+    );
+    assert!(
+        !rust.contains("mailbox::spawn"),
+        "plain fn must not use mailbox spawn"
+    );
 }

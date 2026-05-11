@@ -59,10 +59,10 @@ pub mod routing;
 
 /// Agent-to-agent messaging types and helpers.
 pub mod a2a;
-/// Submitter-side spot-check sampler for result verification (P5-T5).
-pub mod spot_check;
 /// Durable orchestrator state logs (drain records, etc.).
 pub mod drain_oplog;
+/// Submitter-side spot-check sampler for result verification (P5-T5).
+pub mod spot_check;
 /// File and task affinity groups for routing work to the right agent.
 pub use vox_orchestrator_queue::affinity;
 /// Developer attention budget tracking — treats pilot attention as a first-class resource (Phase 15).
@@ -90,8 +90,6 @@ pub mod catalog_classifier;
 pub mod circuit_breaker;
 /// DB-backed clarification inbox drain (Codex `a2a_messages`).
 pub mod clarification_db_inbox_poll;
-/// SCIENTIA pre-registration gate — refuses campaigns without a signed prereg (§5.1).
-pub mod research_gate;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Compaction strategy selector by context utilization (D7).
@@ -130,6 +128,8 @@ pub mod legacy;
 pub mod orchestrator_policy;
 /// Sensitivity classifier and privacy-level-aware routing (D8).
 pub mod privacy_classifier;
+/// SCIENTIA pre-registration gate — refuses campaigns without a signed prereg (§5.1).
+pub mod research_gate;
 /// Four-dimension risk scorer and HITL escalation matrix (D5 + D9).
 pub mod risk_matrix;
 /// Sub-agent dispatch router: spawn vs. inline decision (D4).
@@ -147,12 +147,12 @@ pub mod jj_backend;
 pub mod judge_model;
 /// Per-file lock manager for exclusive writer access.
 pub use vox_orchestrator_queue::locks;
+/// Unified task hopper — intake funnel for developer-sourced work (Hp-T1).
+pub mod hopper;
 /// MCP tool surface and plugin-skills bridge stubs (implementation pending SP6).
 pub mod mcp_tools;
 /// Long-term and daily agent memory backed by Codex when enabled.
 pub mod memory;
-/// Unified task hopper — intake funnel for developer-sourced work (Hp-T1).
-pub mod hopper;
 /// Live mesh node registry — authoritative in-memory topology view for the dashboard.
 pub mod mesh;
 /// Populi control-plane poll loop shared by MCP and `vox-orchestrator-d`.
@@ -169,12 +169,12 @@ pub mod monitor;
 pub mod observer;
 /// Append-only operation log for durable orchestration history.
 pub use vox_orchestrator_queue::oplog;
+pub mod mode;
 /// TCP JSON-line orchestrator daemon (`vox-orchestrator-d`) and client helpers.
 pub mod orch_daemon;
+pub mod orchestration_feature_flags;
 /// Core multi-agent orchestrator implementation.
 pub mod orchestrator;
-pub mod mode;
-pub mod orchestration_feature_flags;
 /// PII-aware redacting filter for sensitive data.
 pub mod pii_filter;
 /// Optional JSONL sink for orchestrator agent events (`VOX_ORCHESTRATOR_EVENT_LOG`).
@@ -286,9 +286,7 @@ pub use contract::{
     plan_tool_daemon_alignment_valid,
 };
 pub use entropy_scorer::{calculate_entropy, score_confidence, semantic_drift_sigma};
-pub use events::{
-    AgentActivity, AgentEvent, AgentEventKind, BuildStageKind, EventBus, MeshAction,
-};
+pub use events::{AgentActivity, AgentEvent, AgentEventKind, BuildStageKind, EventBus, MeshAction};
 pub use gate::{BudgetGate, Gate, GateResult};
 pub use generated::agent_harness::{
     Adapter as HarnessAdapter, AgentHarnessSpec, CompletionGate as HarnessGate,
@@ -325,15 +323,15 @@ pub use populi_federation::{
 pub use privacy_router::{
     PrivacyLevel, PrivacyRouter, PrivacyRoutingPolicy, model_supports_privacy_local_inference,
 };
-pub use registry_model_resolve::{
-    infer_prompt_capability_hints, resolve_model_with_registry_fallbacks,
-    RegistryModelResolutionParams,
-};
 pub use reconstruction::{
     AgentExecutionRole, CampaignMemorySnapshot, ReconstructionArtifactKind,
     ReconstructionArtifactRecord, ReconstructionBenchmarkKpis, ReconstructionBenchmarkTier,
     ReconstructionEvidence, ReconstructionShardBoundary, RepoReconstructionSpec,
     VerificationFailureKind, VerificationLayerStatus, campaign_context_prefix,
+};
+pub use registry_model_resolve::{
+    RegistryModelResolutionParams, infer_prompt_capability_hints,
+    resolve_model_with_registry_fallbacks,
 };
 pub use scope::{ScopeCheckResult, ScopeEnforcement, ScopeGuard};
 pub use security::{
@@ -374,9 +372,7 @@ pub use workspace::{AgentWorkspace, ChangeId, ChangeStatus, WorkspaceManager};
 // ── Orchestrator policy (D1–D10) re-exports ───────────────────────────────────
 // Single ergonomic surface for the autonomous orchestration policy program.
 // See `docs/superpowers/plans/orchestrator/2026-05-08-orchestrator-master-plan.md`.
-pub use mode::{
-    ExecutionModeProfile, InferenceConfig, Modalities, QualityLevel, TierProfile,
-};
+pub use mode::{ExecutionModeProfile, InferenceConfig, Modalities, QualityLevel, TierProfile};
 pub use orchestration_feature_flags::OrchestrationFeatureFlags;
 pub use orchestrator_policy::{
     OrchestratorPolicy, OrchestratorPolicyConfig, PolicyContext, PolicyDecision,

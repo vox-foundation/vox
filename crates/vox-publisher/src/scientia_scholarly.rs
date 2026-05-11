@@ -19,9 +19,7 @@ pub use vox_inspect_bridge::{
 
 // --- Nanopublication builder ---------------------------------------------------
 #[cfg(feature = "scholarly-external-jobs")]
-pub use vox_nanopub::{
-    NanopubDocument, NanopubGraphs, SignedNanopub, build_nanopub, sign_nanopub,
-};
+pub use vox_nanopub::{NanopubDocument, NanopubGraphs, SignedNanopub, build_nanopub, sign_nanopub};
 
 // --- RO-Crate JSON-LD metadata ------------------------------------------------
 #[cfg(feature = "scholarly-external-jobs")]

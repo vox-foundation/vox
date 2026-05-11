@@ -12,6 +12,6 @@ pub mod telemetry;
 
 pub use checkpoint::CheckpointBundle;
 pub use gradient::GradientShard;
-pub use mesh_env::{get_mesh_rank, is_mesh_mode, MeshTrainConfig};
+pub use mesh_env::{MeshTrainConfig, get_mesh_rank, is_mesh_mode};
 pub use session::{Batch, SessionId, StepResult, TrainingError, TrainingSession};
 pub use strategy::data_parallel::DataParallelSession;

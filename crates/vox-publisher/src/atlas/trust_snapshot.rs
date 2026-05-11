@@ -58,10 +58,7 @@ impl TrustGraphSnapshot {
     pub fn canonical_signing_bytes(&self) -> serde_json::Result<Vec<u8>> {
         let mut v = serde_json::to_value(self)?;
         if let Some(obj) = v.as_object_mut() {
-            obj.insert(
-                "signature_b64".to_string(),
-                serde_json::Value::Null,
-            );
+            obj.insert("signature_b64".to_string(), serde_json::Value::Null);
         }
         let sorted = sort_json_value(v);
         serde_json::to_vec(&sorted)
@@ -69,7 +66,10 @@ impl TrustGraphSnapshot {
 
     /// Return the number of peers at or above the given trust tier.
     pub fn peers_at_or_above_tier(&self, min_tier: u8) -> usize {
-        self.peers.values().filter(|p| p.trust_tier >= min_tier).count()
+        self.peers
+            .values()
+            .filter(|p| p.trust_tier >= min_tier)
+            .count()
     }
 }
 

@@ -13,7 +13,9 @@ pub const INLINE_BUNDLE_BYTE_LIMIT: usize = 1024 * 1024; // 1 MiB
 /// inline, or `(bundle_ref, None)` when the receiver must do a `bundle_request`
 /// round-trip.
 pub fn ship_decision(bundle: &Bundle) -> (BundleRef, Option<String>) {
-    let r = BundleRef { fn_hash: bundle.fn_hash };
+    let r = BundleRef {
+        fn_hash: bundle.fn_hash,
+    };
     if bundle.bytes.len() <= INLINE_BUNDLE_BYTE_LIMIT {
         let b64 = B64.encode(bundle.bytes.as_ref());
         (r, Some(b64))

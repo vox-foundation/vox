@@ -297,8 +297,7 @@ pub async fn run_workflow(
         .await?;
 
         let generated_dir = std::path::PathBuf::from("target").join("generated");
-        let shared_target =
-            vox_cli::fs_utils::run_target_dir_for_workspace(Some(&generated_dir));
+        let shared_target = vox_cli::fs_utils::run_target_dir_for_workspace(Some(&generated_dir));
 
         // Run workflow: set env so generated binary executes workflow and exits
         let extra_env: Vec<(String, String)> = vec![

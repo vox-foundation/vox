@@ -13,24 +13,27 @@ use vox_crypto::{SigningKey, generate_signing_keypair, sign};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditEntry {
-    pub audit_id:  String,
-    pub action:    String,
-    pub target:    String,
-    pub actor:     String,
-    pub reason:    String,
+    pub audit_id: String,
+    pub action: String,
+    pub target: String,
+    pub actor: String,
+    pub reason: String,
     pub ts_micros: u64,
     /// Hex-encoded Ed25519 signature over the canonical JSON payload.
     pub signature: String,
 }
 
 pub struct AuditWriter {
-    key:      SigningKey,
-    entries:  Mutex<Vec<AuditEntry>>,
+    key: SigningKey,
+    entries: Mutex<Vec<AuditEntry>>,
 }
 
 impl AuditWriter {
     pub fn new(key: SigningKey) -> Self {
-        Self { key, entries: Mutex::new(vec![]) }
+        Self {
+            key,
+            entries: Mutex::new(vec![]),
+        }
     }
 
     /// Generate a fresh ephemeral keypair — suitable for tests.

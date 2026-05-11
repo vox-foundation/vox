@@ -5,7 +5,10 @@ use axum::{Router, routing::get};
 use vox_orchestrator::events::EventBus;
 use vox_orchestrator::mesh::MeshRegistry;
 
-use crate::api::{MeshState, hopper_router, mesh_router, models_router, oplog_router, runs_router, settings_router};
+use crate::api::{
+    MeshState, hopper_router, mesh_router, models_router, oplog_router, runs_router,
+    settings_router,
+};
 use crate::assets::serve_asset;
 use crate::audit_log::AuditWriter;
 

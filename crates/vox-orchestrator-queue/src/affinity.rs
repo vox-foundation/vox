@@ -89,7 +89,12 @@ impl FileAffinityMap {
         now_ms: u64,
     ) {
         let mut g = sync_lock::rw_write(&*self.inner_v);
-        let new = AffinityValue { daemon, agent, lamport, assigned_at_ms: now_ms };
+        let new = AffinityValue {
+            daemon,
+            agent,
+            lamport,
+            assigned_at_ms: now_ms,
+        };
         match g.get(file) {
             None => {
                 g.insert(file.to_path_buf(), new);
@@ -387,11 +392,23 @@ mod tests {
         assert_eq!(aff.lookup_v(Path::new("a.rs")).unwrap().daemon, local);
 
         // Remote asserts higher lamport within 60s — ignored (hold-down).
-        aff.assign_v(Path::new("a.rs"), remote, AgentId(7), Lamport(200), t0 + 1_000);
+        aff.assign_v(
+            Path::new("a.rs"),
+            remote,
+            AgentId(7),
+            Lamport(200),
+            t0 + 1_000,
+        );
         assert_eq!(aff.lookup_v(Path::new("a.rs")).unwrap().daemon, local);
 
         // After 60 s, higher lamport wins.
-        aff.assign_v(Path::new("a.rs"), remote, AgentId(7), Lamport(200), t0 + 60_001);
+        aff.assign_v(
+            Path::new("a.rs"),
+            remote,
+            AgentId(7),
+            Lamport(200),
+            t0 + 60_001,
+        );
         assert_eq!(aff.lookup_v(Path::new("a.rs")).unwrap().daemon, remote);
     }
 
@@ -403,7 +420,10 @@ mod tests {
         aff.assign_v(Path::new("b.rs"), d, AgentId(1), Lamport(10), t0);
         // Same daemon: hold-down doesn't apply.
         aff.assign_v(Path::new("b.rs"), d, AgentId(1), Lamport(20), t0 + 100);
-        assert_eq!(aff.lookup_v(Path::new("b.rs")).unwrap().lamport, Lamport(20));
+        assert_eq!(
+            aff.lookup_v(Path::new("b.rs")).unwrap().lamport,
+            Lamport(20)
+        );
     }
 
     #[test]

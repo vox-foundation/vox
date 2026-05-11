@@ -5,13 +5,13 @@ pub mod a2a;
 pub mod attestation;
 /// Public attestation manifest + cache (P6-T2).
 pub mod attestation_manifest;
-/// Mesh-wide model inventory snapshot (P5-T8).
-pub mod model_inventory;
 /// A2A wire types for content-addressed bundle requests/responses (P2-T4).
 pub mod bundle;
 pub mod donation_policy;
 pub mod federation;
 pub mod kudos;
+/// Mesh-wide model inventory snapshot (P5-T8).
+pub mod model_inventory;
 pub mod model_registry;
 /// Signed federation op-fragment envelope (P6-T1).
 pub mod op_fragment;
@@ -26,13 +26,18 @@ pub mod trace;
 
 pub use a2a::A2ADeliverRequest;
 pub use attestation::Attestation;
-pub use attestation_manifest::{AttestationCache, ManifestVerifyError, PublicAttestationManifest, SupportedTask};
-pub use model_inventory::{MeshModelInventory, ModelInventoryEntry};
+pub use attestation_manifest::{
+    AttestationCache, ManifestVerifyError, PublicAttestationManifest, SupportedTask,
+};
 pub use donation_policy::*;
 pub use federation::*;
 pub use kudos::*;
+pub use model_inventory::{MeshModelInventory, ModelInventoryEntry};
 pub use model_registry::*;
-pub use op_fragment::{FederationEnvelope, FederationEnvelopeKind, FederationSignature, OpFragmentEnvelope, OpFragmentKind};
+pub use op_fragment::{
+    FederationEnvelope, FederationEnvelopeKind, FederationSignature, OpFragmentEnvelope,
+    OpFragmentKind,
+};
 pub use quorum::*;
 pub use redundancy::{RedundancyMode, RedundancyPolicy, TrustTier, VoteOutcome};
 pub use secret_sync::*;

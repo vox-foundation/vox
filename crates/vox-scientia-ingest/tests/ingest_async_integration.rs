@@ -3,7 +3,7 @@
 //! Uses in-memory `VoxDb` only; no HTTP feeds and no embedding provider.
 
 use vox_db::{DbConfig, VoxDb};
-use vox_scientia_ingest::{FeedCrawler, IngestDeduplicator, InboundItem};
+use vox_scientia_ingest::{FeedCrawler, InboundItem, IngestDeduplicator};
 
 #[tokio::test]
 async fn feed_crawler_crawl_all_empty_sources_yields_no_items() {

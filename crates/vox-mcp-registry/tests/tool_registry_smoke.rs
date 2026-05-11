@@ -1,12 +1,15 @@
 //! Compile-time MCP registry constants (`vox-mcp-registry`).
 
 use vox_mcp_registry::{
-    McpToolRegistryEntry, ORCHESTRATOR_TOOLS, SKILL_TOOLS, TOOL_REGISTRY, A2A_MESSAGE_TYPES,
+    A2A_MESSAGE_TYPES, McpToolRegistryEntry, ORCHESTRATOR_TOOLS, SKILL_TOOLS, TOOL_REGISTRY,
 };
 
 #[test]
 fn tool_registry_non_empty_and_unique_names() {
-    assert!(!TOOL_REGISTRY.is_empty(), "TOOL_REGISTRY must list MCP tools");
+    assert!(
+        !TOOL_REGISTRY.is_empty(),
+        "TOOL_REGISTRY must list MCP tools"
+    );
 
     let names: Vec<&str> = TOOL_REGISTRY.iter().map(|e| e.name).collect();
     let uniq: std::collections::HashSet<&str> = names.iter().copied().collect();
@@ -19,9 +22,8 @@ fn tool_registry_non_empty_and_unique_names() {
 
 #[test]
 fn sample_entry_has_expected_shape() {
-    let row: Option<&McpToolRegistryEntry> = TOOL_REGISTRY
-        .iter()
-        .find(|e| e.name == "vox_submit_task");
+    let row: Option<&McpToolRegistryEntry> =
+        TOOL_REGISTRY.iter().find(|e| e.name == "vox_submit_task");
     let entry = row.expect("canonical registry should include `vox_submit_task`");
     assert!(!entry.description.is_empty());
     assert!(!entry.product_lane.is_empty());
@@ -30,8 +32,7 @@ fn sample_entry_has_expected_shape() {
 
 #[test]
 fn skill_and_orchestrator_tool_lists_are_subsets_of_registry() {
-    let names: std::collections::HashSet<&str> =
-        TOOL_REGISTRY.iter().map(|e| e.name).collect();
+    let names: std::collections::HashSet<&str> = TOOL_REGISTRY.iter().map(|e| e.name).collect();
     for name in SKILL_TOOLS {
         assert!(
             names.contains(name),

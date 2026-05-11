@@ -1,9 +1,9 @@
 pub use vox_eval::*;
 
 pub mod builtins;
-pub mod shell_stdlib;
 pub mod env;
 pub mod expr;
+pub mod shell_stdlib;
 pub mod stmt;
 pub mod value;
 

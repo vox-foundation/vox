@@ -54,8 +54,8 @@ impl Projection for CapabilityProjection {
     }
 
     fn restore(&self, b: &[u8]) -> Result<(), ProjectionError> {
-        let parsed: BTreeMap<u64, CapabilityRecord> = serde_json::from_slice(b)
-            .map_err(|e| ProjectionError::Decode(e.to_string()))?;
+        let parsed: BTreeMap<u64, CapabilityRecord> =
+            serde_json::from_slice(b).map_err(|e| ProjectionError::Decode(e.to_string()))?;
         *self.state.lock().unwrap() = parsed;
         Ok(())
     }

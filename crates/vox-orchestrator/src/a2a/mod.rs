@@ -3,8 +3,6 @@
 mod bus;
 pub mod dispatch;
 mod envelope;
-pub mod secret_bag;
-pub mod traceparent;
 #[cfg(feature = "populi-transport")]
 pub mod jwe;
 #[cfg(feature = "populi-transport")]
@@ -17,6 +15,8 @@ mod remote_worker;
 #[cfg(not(feature = "populi-transport"))]
 #[path = "remote_worker_noop.rs"]
 mod remote_worker;
+pub mod secret_bag;
+pub mod traceparent;
 
 pub use crate::types::{A2AMessage, A2AMessageType, MessageId};
 

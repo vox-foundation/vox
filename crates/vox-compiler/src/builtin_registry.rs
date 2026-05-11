@@ -629,9 +629,7 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             vec![Ty::Str],
             Box::new(Ty::Result(Box::new(Ty::Named("Regex".into())))),
         ),
-        ("agentos", "mutation_kind_for_tool") => {
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Str))
-        }
+        ("agentos", "mutation_kind_for_tool") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
         _ => return None,
     })
 }

@@ -1,8 +1,7 @@
 //! Integration coverage for validation helpers and stable metric-type constants.
 
 use vox_telemetry::{
-    METRIC_TYPE_BENCHMARK_EVENT, ResearchMetricEvent, TelemetryEvent,
-    validate_research_metric_row,
+    METRIC_TYPE_BENCHMARK_EVENT, ResearchMetricEvent, TelemetryEvent, validate_research_metric_row,
 };
 
 #[test]

@@ -14,7 +14,11 @@ pub(crate) struct InterpFileRecord {
     pub is_symlink: bool,
 }
 
-fn file_record_from_meta(full_path: &str, name: &str, meta: &std::fs::Metadata) -> InterpFileRecord {
+fn file_record_from_meta(
+    full_path: &str,
+    name: &str,
+    meta: &std::fs::Metadata,
+) -> InterpFileRecord {
     let modified_ms = meta
         .modified()
         .ok()
@@ -92,7 +96,10 @@ pub(crate) fn interp_csv_parse_records(text: &str) -> Result<serde_json::Value, 
         let rec = rec.map_err(|e| e.to_string())?;
         let mut obj = serde_json::Map::new();
         for (i, cell) in rec.iter().enumerate() {
-            let key = headers.get(i).cloned().unwrap_or_else(|| format!("column_{i}"));
+            let key = headers
+                .get(i)
+                .cloned()
+                .unwrap_or_else(|| format!("column_{i}"));
             obj.insert(key, serde_json::Value::String(cell.to_string()));
         }
         rows.push(serde_json::Value::Object(obj));

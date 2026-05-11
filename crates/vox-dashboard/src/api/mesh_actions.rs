@@ -11,9 +11,9 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Deserialize;
-use serde_json::{json, Value};
-use vox_orchestrator::events::AgentEventKind;
+use serde_json::{Value, json};
 use vox_orchestrator::MeshAction;
+use vox_orchestrator::events::AgentEventKind;
 
 use crate::api::mesh_topology::MeshState;
 
@@ -74,17 +74,17 @@ async fn handle_destructive(
         .await;
 
     let mesh_action = match action {
-        "kill"   => MeshAction::Kill,
-        "pause"  => MeshAction::Pause,
-        "drain"  => MeshAction::Drain,
+        "kill" => MeshAction::Kill,
+        "pause" => MeshAction::Pause,
+        "drain" => MeshAction::Drain,
         "replay" => MeshAction::Replay,
         _ => unreachable!(),
     };
 
     state.bus.emit(AgentEventKind::MeshActionCommitted {
-        node_id:         id.clone(),
-        action:          mesh_action,
-        actor:           "dashboard-user".into(),
+        node_id: id.clone(),
+        action: mesh_action,
+        actor: "dashboard-user".into(),
         signed_audit_id: entry.audit_id.clone(),
     });
 

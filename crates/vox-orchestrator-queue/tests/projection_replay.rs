@@ -11,7 +11,9 @@ fn synth_ops() -> Vec<OperationEntry> {
         id: OperationId(0),
         agent_id: AgentId(1),
         timestamp_ms: 1_000_000,
-        kind: OperationKind::Custom { label: "noop".into() },
+        kind: OperationKind::Custom {
+            label: "noop".into(),
+        },
         description: String::new(),
         snapshot_before: None,
         snapshot_after: None,

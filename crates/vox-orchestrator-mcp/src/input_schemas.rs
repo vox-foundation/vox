@@ -233,7 +233,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
         "vox_gamify_notifications_ack_all" => {
             parse_obj(r#"{"type":"object","additionalProperties":false}"#)
-        },
+        }
         "vox_gamify_quest_list" => parse_obj(
             r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":200}},"additionalProperties":false}"#,
         ),

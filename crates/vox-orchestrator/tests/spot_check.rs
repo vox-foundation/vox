@@ -10,7 +10,10 @@ fn task_id(n: usize) -> String {
 fn prob_zero_never_checks() {
     let sampler = SpotCheckSampler::new(0.0);
     for i in 0..1000 {
-        assert!(!sampler.should_check(&task_id(i)), "prob=0 must never check");
+        assert!(
+            !sampler.should_check(&task_id(i)),
+            "prob=0 must never check"
+        );
     }
 }
 
@@ -18,7 +21,10 @@ fn prob_zero_never_checks() {
 fn prob_one_always_checks() {
     let sampler = SpotCheckSampler::new(1.0);
     for i in 0..1000 {
-        assert!(sampler.should_check(&task_id(i)), "prob=1 must always check");
+        assert!(
+            sampler.should_check(&task_id(i)),
+            "prob=1 must always check"
+        );
     }
 }
 
@@ -26,7 +32,9 @@ fn prob_one_always_checks() {
 fn prob_five_pct_within_tolerance_over_ten_thousand_samples() {
     let sampler = SpotCheckSampler::new(0.05);
     let n = 10_000;
-    let checked = (0..n).filter(|i| sampler.should_check(&task_id(*i))).count();
+    let checked = (0..n)
+        .filter(|i| sampler.should_check(&task_id(*i)))
+        .count();
     let ratio = checked as f64 / n as f64;
     // Expect 5% ± 2%
     assert!(
@@ -42,7 +50,11 @@ fn sampling_is_deterministic() {
     let id = "deterministic-test-task";
     let first = sampler.should_check(id);
     for _ in 0..100 {
-        assert_eq!(sampler.should_check(id), first, "same input must always yield same decision");
+        assert_eq!(
+            sampler.should_check(id),
+            first,
+            "same input must always yield same decision"
+        );
     }
 }
 
@@ -50,7 +62,9 @@ fn sampling_is_deterministic() {
 fn prob_half_approximately_balanced() {
     let sampler = SpotCheckSampler::new(0.5);
     let n = 10_000;
-    let checked = (0..n).filter(|i| sampler.should_check(&task_id(*i))).count();
+    let checked = (0..n)
+        .filter(|i| sampler.should_check(&task_id(*i)))
+        .count();
     let ratio = checked as f64 / n as f64;
     // Expect 50% ± 5%
     assert!(

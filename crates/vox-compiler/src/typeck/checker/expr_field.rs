@@ -103,14 +103,15 @@ impl<'a> Checker<'a> {
                     ));
                     Ty::Error
                 }),
-            Ty::Named(n) if n == "StdCsvNs" => std_namespace_method_ty("csv", field).unwrap_or_else(|| {
-                self.diags.push(Diagnostic::error(
-                    format!("Unknown std.csv method '{field}'"),
-                    span,
-                    self.source,
-                ));
-                Ty::Error
-            }),
+            Ty::Named(n) if n == "StdCsvNs" => std_namespace_method_ty("csv", field)
+                .unwrap_or_else(|| {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown std.csv method '{field}'"),
+                        span,
+                        self.source,
+                    ));
+                    Ty::Error
+                }),
             Ty::Named(n) if n == "StdTomlNs" => std_namespace_method_ty("toml", field)
                 .unwrap_or_else(|| {
                     self.diags.push(Diagnostic::error(
@@ -129,14 +130,16 @@ impl<'a> Checker<'a> {
                     ));
                     Ty::Error
                 }),
-            Ty::Named(n) if n == "StdIoNs" => std_namespace_method_ty("io", field).unwrap_or_else(|| {
-                self.diags.push(Diagnostic::error(
-                    format!("Unknown std.io method '{field}'"),
-                    span,
-                    self.source,
-                ));
-                Ty::Error
-            }),
+            Ty::Named(n) if n == "StdIoNs" => {
+                std_namespace_method_ty("io", field).unwrap_or_else(|| {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown std.io method '{field}'"),
+                        span,
+                        self.source,
+                    ));
+                    Ty::Error
+                })
+            }
             Ty::Named(n) if n == "StdHttpNs" => std_namespace_method_ty("http", field)
                 .unwrap_or_else(|| {
                     self.diags.push(Diagnostic::error(

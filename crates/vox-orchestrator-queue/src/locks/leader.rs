@@ -56,11 +56,7 @@ pub struct LockLeaderElection {
 
 impl LockLeaderElection {
     /// Create with default 9 s TTL (heartbeat every 3 s).
-    pub fn new(
-        db: VoxDb,
-        node_id: impl Into<String>,
-        repository_id: impl Into<String>,
-    ) -> Self {
+    pub fn new(db: VoxDb, node_id: impl Into<String>, repository_id: impl Into<String>) -> Self {
         Self {
             db: Arc::new(db),
             node_id: node_id.into(),
@@ -133,8 +129,7 @@ impl LockLeaderElection {
         tokio::sync::watch::Receiver<bool>,
     ) {
         let (tx, rx) = tokio::sync::watch::channel(true);
-        let interval =
-            std::time::Duration::from_millis((self.ttl_ms / 3).max(1) as u64);
+        let interval = std::time::Duration::from_millis((self.ttl_ms / 3).max(1) as u64);
         let me = Arc::clone(&self);
         let handle = tokio::spawn(async move {
             let mut ticker = tokio::time::interval(interval);

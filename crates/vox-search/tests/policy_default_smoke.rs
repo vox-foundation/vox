@@ -1,6 +1,6 @@
 //! Offline policy defaults (`vox-search`).
 
-use vox_search::{SearchPolicy, SEARCH_POLICY_DEFAULT_VERSION};
+use vox_search::{SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy};
 
 #[test]
 fn default_search_policy_version_and_weights() {
@@ -17,5 +17,8 @@ fn search_policy_roundtrips_json() {
     let v = serde_json::to_value(&p).expect("serialize SearchPolicy");
     let back: SearchPolicy = serde_json::from_value(v).expect("deserialize SearchPolicy");
     assert_eq!(back.version, p.version);
-    assert_eq!(back.memory_vector_fusion_weight, p.memory_vector_fusion_weight);
+    assert_eq!(
+        back.memory_vector_fusion_weight,
+        p.memory_vector_fusion_weight
+    );
 }

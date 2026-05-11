@@ -20,13 +20,13 @@ pub mod fragment_emit;
 pub mod hir_emit;
 /// JSX lowering and attribute handling.
 pub mod jsx;
+/// `package.json` skeleton for Library / client-target SDK folders.
+pub mod library_package_emit;
 /// Mobile Capacitor primitive emit (`@back_button`, `@deep_link`, `@push`) → `mobile.ts` (Tasks D2-D4).
 pub mod mobile_emit;
 /// OpenAPI 3.1 specification emit (driven by Contract IR; per Phase 2 of the
 /// external frontend interop plan).
 pub mod openapi_emit;
-/// `package.json` skeleton for Library / client-target SDK folders.
-pub mod library_package_emit;
 /// Reactive components codegen (Path C).
 pub mod reactive;
 /// `.vox.ui` reactive module → React context + provider + hook (Phase D of the

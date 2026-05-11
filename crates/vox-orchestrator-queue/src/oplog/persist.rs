@@ -134,8 +134,8 @@ impl OpLog {
 
         // Rows come newest-first; insert oldest-first into the hot tier.
         for row in rows.into_iter().rev() {
-            let kind: OperationKind = serde_json::from_str(&row.kind_json)
-                .map_err(PersistError::Serde)?;
+            let kind: OperationKind =
+                serde_json::from_str(&row.kind_json).map_err(PersistError::Serde)?;
             let parent_op_ids: Vec<u64> =
                 serde_json::from_str(&row.parent_op_ids_json).unwrap_or_default();
 
@@ -173,8 +173,7 @@ impl OpLog {
 
 async fn write_entry(ctx: &PersistContext, entry: &OperationEntry) -> Result<(), PersistError> {
     let kind_json = serde_json::to_string(&entry.kind).map_err(PersistError::Serde)?;
-    let parents_json =
-        serde_json::to_string(&entry.parent_op_ids).map_err(PersistError::Serde)?;
+    let parents_json = serde_json::to_string(&entry.parent_op_ids).map_err(PersistError::Serde)?;
     let set_id_hex = hex::encode(ctx.set_id);
     let daemon_id_hex = hex::encode(ctx.daemon_id);
     let payload_blake3_hex = hex::encode(blake3::hash(kind_json.as_bytes()).as_bytes());

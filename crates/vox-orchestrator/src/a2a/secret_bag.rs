@@ -19,7 +19,9 @@ impl std::fmt::Debug for SecretBag {
             .map(|(k, v)| (k.as_str(), format!("[redacted len={}]", v.len())))
             .collect();
         redacted.sort_by_key(|(k, _)| *k);
-        f.debug_struct("SecretBag").field("entries", &redacted).finish()
+        f.debug_struct("SecretBag")
+            .field("entries", &redacted)
+            .finish()
     }
 }
 

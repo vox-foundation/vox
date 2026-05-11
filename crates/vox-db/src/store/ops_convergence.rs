@@ -143,8 +143,7 @@ impl crate::VoxDb {
             let predecessor_hash: Option<String> = row.get(5).ok().flatten();
             let signature: Option<String> = row.get(6).ok().flatten();
             let signing_key_id: Option<String> = row.get(7).ok().flatten();
-            let parent_op_ids_json: String =
-                row.get(8).unwrap_or_else(|_| "[]".to_string());
+            let parent_op_ids_json: String = row.get(8).unwrap_or_else(|_| "[]".to_string());
             let produced_at: i64 = row.get(9).unwrap_or(0);
             let change_id: Option<i64> = row.get(10).ok().flatten();
             let model_id: Option<String> = row.get(11).ok().flatten();

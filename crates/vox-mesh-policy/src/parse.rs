@@ -7,7 +7,10 @@ use vox_mesh_types::donation_policy::{DonationSlot, WorkerDonationPolicy};
 #[derive(Debug, Error)]
 pub enum ParseError {
     #[error("I/O error reading {path}: {source}")]
-    Io { path: String, source: std::io::Error },
+    Io {
+        path: String,
+        source: std::io::Error,
+    },
     #[error("Parse error in {path}: {message}")]
     Parse { path: String, message: String },
     #[error("Policy field missing: {field}")]

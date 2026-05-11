@@ -31,9 +31,7 @@ pub fn mint_working_tree_write(workspace: WorkspaceId, branch: BranchName) -> Wo
 /// Mint a [`BranchCreate`] capability for `workspace`/`parent`.
 pub fn mint_branch_create(workspace: WorkspaceId, parent: BranchName) -> BranchCreate {
     let token = MintToken(());
-    vox_orchestrator_types::vcs_capability::sealed::__mint_branch_create(
-        workspace, parent, &token,
-    )
+    vox_orchestrator_types::vcs_capability::sealed::__mint_branch_create(workspace, parent, &token)
 }
 
 #[cfg(test)]
@@ -42,20 +40,14 @@ mod tests {
 
     #[test]
     fn mint_working_tree_write_round_trip() {
-        let cap = mint_working_tree_write(
-            WorkspaceId(1),
-            BranchName::parse("agent/test").unwrap(),
-        );
+        let cap = mint_working_tree_write(WorkspaceId(1), BranchName::parse("agent/test").unwrap());
         assert_eq!(cap.workspace(), WorkspaceId(1));
         assert_eq!(cap.branch().as_str(), "agent/test");
     }
 
     #[test]
     fn mint_branch_create_round_trip() {
-        let cap = mint_branch_create(
-            WorkspaceId(2),
-            BranchName::parse("main").unwrap(),
-        );
+        let cap = mint_branch_create(WorkspaceId(2), BranchName::parse("main").unwrap());
         assert_eq!(cap.workspace(), WorkspaceId(2));
         assert_eq!(cap.parent().as_str(), "main");
     }

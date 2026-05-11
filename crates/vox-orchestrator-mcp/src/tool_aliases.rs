@@ -1,4 +1,4 @@
-﻿//! Wire-level MCP tool name aliases (same JSON args as canonical tools).
+//! Wire-level MCP tool name aliases (same JSON args as canonical tools).
 
 /// `(alias, canonical)` pairs accepted by [`super::handle_tool_call`] and [`super::input_schemas::tool_input_schema`].
 pub const TOOL_WIRE_ALIASES: &[(&str, &str)] = &[
@@ -9,10 +9,19 @@ pub const TOOL_WIRE_ALIASES: &[(&str, &str)] = &[
     ("vox_budget_history", "vox_cost_history"),
     ("vox_model_list", "vox_list_models"),
     // Retired `vox-ludus` MCP prefix → canonical `vox_gamify_*` (see legacy remediation ledger).
-    ("vox_ludus_notifications_list", "vox_gamify_notifications_list"),
-    ("vox_ludus_progress_snapshot", "vox_gamify_progress_snapshot"),
+    (
+        "vox_ludus_notifications_list",
+        "vox_gamify_notifications_list",
+    ),
+    (
+        "vox_ludus_progress_snapshot",
+        "vox_gamify_progress_snapshot",
+    ),
     ("vox_ludus_notification_ack", "vox_gamify_notification_ack"),
-    ("vox_ludus_notifications_ack_all", "vox_gamify_notifications_ack_all"),
+    (
+        "vox_ludus_notifications_ack_all",
+        "vox_gamify_notifications_ack_all",
+    ),
     ("vox_ludus_quest_list", "vox_gamify_quest_list"),
     ("vox_ludus_shop_catalog", "vox_gamify_shop_catalog"),
     ("vox_ludus_shop_buy", "vox_gamify_shop_buy"),

@@ -348,7 +348,11 @@ impl Report {
         }
         if !self.forbidden_pattern_hits.is_empty() {
             any = true;
-            let label = if self.strict_forbidden_pattern { "ERROR" } else { "warn" };
+            let label = if self.strict_forbidden_pattern {
+                "ERROR"
+            } else {
+                "warn"
+            };
             eprintln!(
                 "[{label}] forbidden_pattern violations ({}):",
                 self.forbidden_pattern_hits.len()
@@ -645,11 +649,16 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                     }
                 }
                 Err(e) => {
-                    eprintln!("warn: forbidden_pattern rule '{}' skipped: {e:#}", rule.name);
+                    eprintln!(
+                        "warn: forbidden_pattern rule '{}' skipped: {e:#}",
+                        rule.name
+                    );
                 }
             }
         }
-        report.forbidden_pattern_hits.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
+        report
+            .forbidden_pattern_hits
+            .sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
     }
 
     Ok(report)

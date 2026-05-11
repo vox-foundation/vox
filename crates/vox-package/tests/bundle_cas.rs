@@ -22,10 +22,7 @@ fn bundle_round_trip_by_fn_hash() {
     let bundle_ref = store.put(&bundle).expect("put");
     assert_eq!(bundle_ref.fn_hash, [0xABu8; 64]);
 
-    let loaded = store
-        .lookup(&bundle_ref)
-        .expect("lookup")
-        .expect("hit");
+    let loaded = store.lookup(&bundle_ref).expect("lookup").expect("hit");
     assert_eq!(loaded.fn_hash, bundle.fn_hash);
     assert_eq!(loaded.bytes.as_ref(), bundle.bytes.as_ref());
 }
@@ -35,7 +32,9 @@ fn bundle_lookup_miss_returns_none() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let store = BundleStore::open(tmp.path().to_path_buf()).expect("open store");
 
-    let unknown = BundleRef { fn_hash: [0x77u8; 64] };
+    let unknown = BundleRef {
+        fn_hash: [0x77u8; 64],
+    };
     let result = store.lookup(&unknown).expect("lookup ok");
     assert!(result.is_none(), "miss should return None, not error");
 }

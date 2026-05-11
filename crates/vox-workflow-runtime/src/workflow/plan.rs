@@ -518,7 +518,12 @@ fn collect_from_expr(
                 collect_from_expr(workflow_name, v, ctx, activity_names, out, branch_counter)?;
             }
         }
-        HirExpr::WorkflowVersion(HirWorkflowVersion { change_id, min, max, .. }) => {
+        HirExpr::WorkflowVersion(HirWorkflowVersion {
+            change_id,
+            min,
+            max,
+            ..
+        }) => {
             out.push(super::types::ReplayNode::WorkflowPatch {
                 change_id: change_id.clone(),
                 min: *min,

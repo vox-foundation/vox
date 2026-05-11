@@ -1,9 +1,7 @@
 //! Integration tests for daemon dispatch JSON envelopes.
 
 use serde_json::json;
-use vox_protocol::{
-    DispatchPayload, DispatchRequest, DispatchResponse, orch_daemon_method,
-};
+use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse, orch_daemon_method};
 
 #[test]
 fn dispatch_request_roundtrips_through_json() {

@@ -293,7 +293,12 @@ impl Parser {
                         return Err(());
                     }
                 };
-                Expr::WorkflowVersion(WorkflowVersionCall { change_id, min, max, span })
+                Expr::WorkflowVersion(WorkflowVersionCall {
+                    change_id,
+                    min,
+                    max,
+                    span,
+                })
             }
             // VUV: angle-bracket JSX (`<tag attr=...>`) was retired as a parser entry point.
             // View calls are now `Ident(kwargs) { children }`. Hitting `<` here is a real

@@ -1,9 +1,7 @@
 //! Serde round-trip for daemon wire types (`vox-protocol`).
 
 use serde_json::json;
-use vox_protocol::{
-    DispatchPayload, DispatchRequest, DispatchResponse, orch_daemon_method,
-};
+use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse, orch_daemon_method};
 
 #[test]
 fn dispatch_request_roundtrips_json() {

@@ -11,8 +11,8 @@
 /// classified priority. Constructed only via `DeveloperOverrideMint::mint`.
 #[derive(Debug, Clone)]
 pub struct DeveloperOverride {
-    pub actor:    String,
-    pub reason:   String,
+    pub actor: String,
+    pub reason: String,
     pub audit_id: String,
     _sealed: (),
 }
@@ -31,12 +31,17 @@ impl DeveloperOverrideMint {
 
     /// Produce a `DeveloperOverride` token for the given actor/reason pair.
     /// The `audit_id` should be the ID returned by `AuditWriter::record`.
-    pub fn mint(&self, actor: impl Into<String>, reason: impl Into<String>, audit_id: impl Into<String>) -> DeveloperOverride {
+    pub fn mint(
+        &self,
+        actor: impl Into<String>,
+        reason: impl Into<String>,
+        audit_id: impl Into<String>,
+    ) -> DeveloperOverride {
         DeveloperOverride {
-            actor:    actor.into(),
-            reason:   reason.into(),
+            actor: actor.into(),
+            reason: reason.into(),
             audit_id: audit_id.into(),
-            _sealed:  (),
+            _sealed: (),
         }
     }
 }

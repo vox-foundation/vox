@@ -1,4 +1,4 @@
-use vox_crypto::{sign, verify, SigningKey, VerifyingKey};
+use vox_crypto::{SigningKey, VerifyingKey, sign, verify};
 use vox_package::Sha3_512;
 
 use crate::session::SessionId;
@@ -49,12 +49,7 @@ impl GradientShard {
 
     #[must_use]
     pub fn verify(&self, verifying_key: &VerifyingKey) -> bool {
-        let msg = Self::message_bytes(
-            self.session_id,
-            self.step,
-            self.rank,
-            self.tensor_blob_hash,
-        );
+        let msg = Self::message_bytes(self.session_id, self.step, self.rank, self.tensor_blob_hash);
         verify(verifying_key, &msg, &self.signature)
     }
 }

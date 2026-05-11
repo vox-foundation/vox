@@ -54,7 +54,11 @@ impl MergeOutcome {
 
     /// Returns the suggested retry delay when `LockWait`, otherwise `None`.
     pub fn lock_wait_lease_ms(&self) -> Option<u64> {
-        if let Self::LockWait { lease_ms, .. } = self { Some(*lease_ms) } else { None }
+        if let Self::LockWait { lease_ms, .. } = self {
+            Some(*lease_ms)
+        } else {
+            None
+        }
     }
 }
 
@@ -110,7 +114,10 @@ mod tests {
 
     #[test]
     fn lock_wait_lease_ms_none_for_conflict() {
-        let o = MergeOutcome::Conflict { path: PathBuf::from("y.rs"), reason: "x".into() };
+        let o = MergeOutcome::Conflict {
+            path: PathBuf::from("y.rs"),
+            reason: "x".into(),
+        };
         assert_eq!(o.lock_wait_lease_ms(), None);
     }
 }

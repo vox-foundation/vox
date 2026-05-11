@@ -347,7 +347,9 @@ impl MeshRegistry {
             let mut b = [0u8; 16];
             // Use the current time + peer_id hash as a simple non-crypto-random seed.
             // In production this should use getrandom; here we avoid adding a dep.
-            let seed = now_ms.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            let seed = now_ms
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             let peer_hash: u64 = peer_id.bytes().fold(seed, |h, b| {
                 h.wrapping_mul(6364136223846793005).wrapping_add(b as u64)
             });
@@ -358,7 +360,8 @@ impl MeshRegistry {
 
         // URL-safe base64 without padding.
         let token = {
-            const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+            const CHARS: &[u8] =
+                b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
             let mut s = String::with_capacity(22);
             let mut buf = 0u32;
             let mut bits = 0u32;
@@ -407,10 +410,7 @@ impl MeshRegistry {
     /// Validate and consume a one-shot bearer token.
     ///
     /// Returns `(peer_id, slot_kind)` if valid; error string if expired or unknown.
-    pub async fn consume_bearer(
-        &self,
-        token: &str,
-    ) -> Result<(String, String), String> {
+    pub async fn consume_bearer(&self, token: &str) -> Result<(String, String), String> {
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -419,9 +419,7 @@ impl MeshRegistry {
         let mut g = self.inner.write().await;
         match g.bearers.remove(token) {
             None => Err("unknown bearer token".into()),
-            Some(entry) if entry.expires_at_ms < now_ms => {
-                Err("bearer token expired".into())
-            }
+            Some(entry) if entry.expires_at_ms < now_ms => Err("bearer token expired".into()),
             Some(entry) => Ok((entry.peer_id, entry.slot_kind)),
         }
     }

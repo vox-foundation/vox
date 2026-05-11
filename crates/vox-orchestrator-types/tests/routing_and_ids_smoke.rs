@@ -2,11 +2,11 @@
 
 use std::str::FromStr;
 
-use vox_orchestrator_types::{
-    backend_telemetry_labels, route_backend_for_chat_route, AgentId, ChatProviderRouteKind,
-    ChatRouteBackend, DaemonId, HuggingFaceRouterEndpoint, MergeOutcome, TaskId,
-};
 use vox_orchestrator_types::socrates_policy::shannon_entropy_bits;
+use vox_orchestrator_types::{
+    AgentId, ChatProviderRouteKind, ChatRouteBackend, DaemonId, HuggingFaceRouterEndpoint,
+    MergeOutcome, TaskId, backend_telemetry_labels, route_backend_for_chat_route,
+};
 
 #[test]
 fn task_and_agent_id_parse_and_display() {

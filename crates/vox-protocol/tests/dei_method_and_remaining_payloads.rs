@@ -2,7 +2,7 @@
 
 use serde_json::json;
 use vox_protocol::{
-    dei_method, DispatchPayload, DispatchRequest, DispatchResponse, orch_daemon_method,
+    DispatchPayload, DispatchRequest, DispatchResponse, dei_method, orch_daemon_method,
 };
 
 #[test]

@@ -63,7 +63,10 @@ mod tests {
     fn different_signers_produce_different_pubkeys() {
         let a = EphemeralSigner::new();
         let b = EphemeralSigner::new();
-        assert_ne!(a.pubkey_hex, b.pubkey_hex, "each signer must have unique pubkey");
+        assert_ne!(
+            a.pubkey_hex, b.pubkey_hex,
+            "each signer must have unique pubkey"
+        );
     }
 
     #[test]
@@ -75,6 +78,9 @@ mod tests {
         let pk_arr: [u8; 32] = pk_bytes.try_into().expect("32 bytes");
         let vk = verifying_key_from_bytes(&pk_arr).expect("valid key");
 
-        assert!(!verify(&vk, b"tampered message", &sig), "tampered msg must not verify");
+        assert!(
+            !verify(&vk, b"tampered message", &sig),
+            "tampered msg must not verify"
+        );
     }
 }

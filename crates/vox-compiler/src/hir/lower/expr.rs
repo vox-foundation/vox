@@ -1,6 +1,6 @@
 use crate::ast::expr::{self, BinOp, Expr, UnOp};
-use crate::hir::nodes::durability::DurabilityKind;
 use crate::hir::HirWorkflowVersion;
+use crate::hir::nodes::durability::DurabilityKind;
 use crate::hir::*;
 
 use super::LowerCtx;
@@ -361,12 +361,7 @@ impl LowerCtx {
                     training_step: false,
                     distributed_train: None,
                 });
-                HirExpr::Call(
-                    Box::new(HirExpr::Ident(name, *span)),
-                    vec![],
-                    false,
-                    *span,
-                )
+                HirExpr::Call(Box::new(HirExpr::Ident(name, *span)), vec![], false, *span)
             }
             Expr::Index {
                 object,

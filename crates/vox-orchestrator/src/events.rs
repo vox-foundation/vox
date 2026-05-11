@@ -647,7 +647,6 @@ pub enum AgentEventKind {
     // -----------------------------------------------------------------------
     // Hopper variants (Hp-T2, SSOT §3.5)
     // -----------------------------------------------------------------------
-
     /// Emitted when a developer or policy reorders a task in flight.
     TaskReprioritized {
         task_id: TaskId,
@@ -678,7 +677,6 @@ pub enum AgentEventKind {
     // -----------------------------------------------------------------------
     // Mesh spend + action events (P4-T1, P4-T6, P4-T7)
     // -----------------------------------------------------------------------
-
     /// Per-node budget tick — emitted at most once per second per node.
     /// Powers the spend gauges (P4-T6) on the topology canvas.
     MeshNodeBudget {

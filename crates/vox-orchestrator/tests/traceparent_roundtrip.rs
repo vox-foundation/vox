@@ -27,10 +27,7 @@ fn parse_rejects_malformed() {
 
 #[test]
 fn from_current_span_uses_active_trace() {
-    let _guard = tracing_subscriber::fmt()
-        .with_test_writer()
-        .try_init()
-        .ok();
+    let _guard = tracing_subscriber::fmt().with_test_writer().try_init().ok();
     let ctx = TraceContext::from_current_span();
     assert_ne!(ctx.trace_id, "00000000000000000000000000000000");
 }

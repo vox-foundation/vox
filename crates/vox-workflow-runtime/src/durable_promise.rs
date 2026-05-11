@@ -14,8 +14,8 @@ use std::fmt;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use tokio::sync::oneshot;
 
 /// Error variants for a durable activity execution.

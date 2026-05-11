@@ -47,8 +47,7 @@ pub async fn run(cmd: AttestCmd) -> anyhow::Result<()> {
             task_kinds,
             dry_run,
         } => {
-            let node_id =
-                node_id.unwrap_or_else(|| format!("local-{}", simple_hex_id()));
+            let node_id = node_id.unwrap_or_else(|| format!("local-{}", simple_hex_id()));
 
             let supported_tasks: Vec<SupportedTask> = task_kinds
                 .iter()
@@ -60,8 +59,7 @@ pub async fn run(cmd: AttestCmd) -> anyhow::Result<()> {
                 })
                 .collect();
 
-            let pubkey_hex = load_node_pubkey_hex()
-                .unwrap_or_else(|_| "0".repeat(64));
+            let pubkey_hex = load_node_pubkey_hex().unwrap_or_else(|_| "0".repeat(64));
 
             let mut manifest = PublicAttestationManifest {
                 version: "1".to_string(),
@@ -178,7 +176,20 @@ fn days_to_ymd(mut days: u64) -> (u64, u64, u64) {
         days -= yd;
         year += 1;
     }
-    let months = [31u64, if is_leap(year) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let months = [
+        31u64,
+        if is_leap(year) { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
     let mut month = 1u64;
     for md in &months {
         if days < *md {
@@ -195,36 +206,30 @@ fn is_leap(y: u64) -> bool {
 }
 
 fn load_node_pubkey_hex() -> anyhow::Result<String> {
-    let sk_b64 =
-        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshFederationSigningKey)
-            .expose()
-            .map(|s| s.to_string())
-            .ok_or_else(|| anyhow::anyhow!("VoxMeshFederationSigningKey not configured"))?;
-    let bytes = base64::Engine::decode(
-        &base64::engine::general_purpose::STANDARD,
-        sk_b64.trim(),
-    )
-    .map_err(|e| anyhow::anyhow!("invalid base64: {}", e))?;
+    let sk_b64 = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshFederationSigningKey)
+        .expose()
+        .map(|s| s.to_string())
+        .ok_or_else(|| anyhow::anyhow!("VoxMeshFederationSigningKey not configured"))?;
+    let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, sk_b64.trim())
+        .map_err(|e| anyhow::anyhow!("invalid base64: {}", e))?;
     let sk = vox_crypto::facades::signing_key_from_bytes(
         &bytes
             .try_into()
             .map_err(|_| anyhow::anyhow!("wrong key length"))?,
     );
     let vk = vox_crypto::facades::to_verifying_key(&sk);
-    Ok(hex::encode(vox_crypto::facades::verifying_key_to_bytes(&vk)))
+    Ok(hex::encode(vox_crypto::facades::verifying_key_to_bytes(
+        &vk,
+    )))
 }
 
 fn sign_manifest(manifest: &mut PublicAttestationManifest) -> anyhow::Result<()> {
-    let sk_b64 =
-        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshFederationSigningKey)
-            .expose()
-            .map(|s| s.to_string())
-            .ok_or_else(|| anyhow::anyhow!("VoxMeshFederationSigningKey not configured"))?;
-    let bytes = base64::Engine::decode(
-        &base64::engine::general_purpose::STANDARD,
-        sk_b64.trim(),
-    )
-    .map_err(|e| anyhow::anyhow!("invalid base64: {}", e))?;
+    let sk_b64 = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshFederationSigningKey)
+        .expose()
+        .map(|s| s.to_string())
+        .ok_or_else(|| anyhow::anyhow!("VoxMeshFederationSigningKey not configured"))?;
+    let bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, sk_b64.trim())
+        .map_err(|e| anyhow::anyhow!("invalid base64: {}", e))?;
     let sk = vox_crypto::facades::signing_key_from_bytes(
         &bytes
             .try_into()
@@ -249,11 +254,7 @@ async fn publish_to_url(url: &str, body: &str) -> anyhow::Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("HTTP PUT to {}: {}", url, e))?;
     if !resp.status().is_success() {
-        anyhow::bail!(
-            "publish to {} failed with status {}",
-            url,
-            resp.status()
-        );
+        anyhow::bail!("publish to {} failed with status {}", url, resp.status());
     }
     Ok(())
 }

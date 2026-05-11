@@ -11,7 +11,7 @@
 
 use axum::extract::State;
 use axum::response::Json;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use vox_orchestrator::events::EventBus;
 use vox_orchestrator::mesh::MeshRegistry;

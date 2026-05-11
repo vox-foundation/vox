@@ -14,13 +14,13 @@
 
 use std::sync::Arc;
 
+use axum::Router;
 use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use axum::routing::{get, post};
-use axum::Router;
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use vox_orchestrator::hopper::{
     DeveloperOverrideMint, HopperError, HopperIntake, HopperItemId, InMemoryHopper, IntakeSource,
     PriorityHint,
@@ -33,18 +33,18 @@ use crate::api::mesh_topology::MeshState;
 
 fn priority_from_str(s: &str) -> TaskPriority {
     match s {
-        "urgent"     => TaskPriority::Urgent,
+        "urgent" => TaskPriority::Urgent,
         "background" => TaskPriority::Background,
-        _            => TaskPriority::Normal,
+        _ => TaskPriority::Normal,
     }
 }
 
 fn priority_to_str(p: &TaskPriority) -> &'static str {
     match p {
-        TaskPriority::Urgent     => "urgent",
-        TaskPriority::Normal     => "normal",
+        TaskPriority::Urgent => "urgent",
+        TaskPriority::Normal => "normal",
         TaskPriority::Background => "background",
-        _                        => "normal",
+        _ => "normal",
     }
 }
 
@@ -78,19 +78,21 @@ pub async fn submit(
     Json(req): Json<SubmitRequest>,
 ) -> Json<Value> {
     let hint = match req.priority_hint.as_deref() {
-        Some("urgent")     => PriorityHint::Urgent,
+        Some("urgent") => PriorityHint::Urgent,
         Some("background") => PriorityHint::Background,
-        Some("normal")     => PriorityHint::Normal,
-        _                  => PriorityHint::Unspecified,
+        Some("normal") => PriorityHint::Normal,
+        _ => PriorityHint::Unspecified,
     };
 
-    let item = hopper.submit(
-        req.intent,
-        req.affinity_hints.unwrap_or_default(),
-        hint,
-        IntakeSource::Developer,
-        req.session_id,
-    ).await;
+    let item = hopper
+        .submit(
+            req.intent,
+            req.affinity_hints.unwrap_or_default(),
+            hint,
+            IntakeSource::Developer,
+            req.session_id,
+        )
+        .await;
 
     Json(json!({
         "v": 1,
@@ -148,7 +150,7 @@ pub async fn reprioritize(
         .await
         .map_err(|e| match e {
             HopperError::NotFound(_) => StatusCode::NOT_FOUND,
-            HopperError::Terminal    => StatusCode::CONFLICT,
+            HopperError::Terminal => StatusCode::CONFLICT,
         })?;
 
     Ok(Json(json!({
@@ -166,16 +168,16 @@ pub async fn reprioritize(
 
 #[derive(Deserialize)]
 pub struct SubmitRequest {
-    pub intent:          String,
-    pub session_id:      Option<String>,
-    pub affinity_hints:  Option<Vec<String>>,
-    pub priority_hint:   Option<String>,
+    pub intent: String,
+    pub session_id: Option<String>,
+    pub affinity_hints: Option<Vec<String>>,
+    pub priority_hint: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub struct ReprioritizeRequest {
-    pub new_priority:  String,
-    pub reason:        String,
+    pub new_priority: String,
+    pub reason: String,
     #[serde(default)]
     pub confirm_token: Option<String>,
 }
@@ -187,10 +189,10 @@ where
     S: Clone + Send + Sync + 'static,
 {
     Router::new()
-        .route("/api/v2/hopper/submit",                  post(submit))
-        .route("/api/v2/hopper/inbox",                   get(list_inbox))
-        .route("/api/v2/hopper/assigned",                get(list_assigned))
-        .route("/api/v2/hopper/history",                 get(list_history))
+        .route("/api/v2/hopper/submit", post(submit))
+        .route("/api/v2/hopper/inbox", get(list_inbox))
+        .route("/api/v2/hopper/assigned", get(list_assigned))
+        .route("/api/v2/hopper/history", get(list_history))
         .route("/api/v2/hopper/items/{id}/reprioritize", post(reprioritize))
         .with_state(mesh_state)
         .layer(Extension(hopper))

@@ -2,10 +2,10 @@
 //!
 //! Keeps direct `turso` crate usage inside `vox-db` (data-storage policy).
 
+use crate::VoxDb;
 use crate::sql_util::validate_identifier;
 use crate::store::types::StoreError;
-use crate::VoxDb;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use turso::Connection;
 
 fn sqlite_quote_ident(name: &str) -> String {
@@ -119,7 +119,8 @@ pub async fn audit_database_json(db: &VoxDb, timestamps: bool) -> Result<Value, 
             }
             if let Some(tc) = pick_time_audit_column(&col_names) {
                 let tq = sqlite_quote_ident(&tc);
-                let rng_sql = format!("SELECT MIN({tq}), MAX({tq}) FROM {q} WHERE {tq} IS NOT NULL");
+                let rng_sql =
+                    format!("SELECT MIN({tq}), MAX({tq}) FROM {q} WHERE {tq} IS NOT NULL");
                 if let Ok(mut rng) = conn.query(&rng_sql, ()).await {
                     if let Some(rr) = rng.next().await? {
                         let vmin: Option<String> = rr.get(0).ok();

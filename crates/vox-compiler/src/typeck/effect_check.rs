@@ -369,7 +369,9 @@ fn infer_stmt_effects(stmt: &HirStmt, caps: &mut HashSet<HirCapability>) {
             infer_expr_effects(v, caps);
         }
         HirStmt::Return { value: None, .. } => {}
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             infer_expr_effects(condition, caps);
             for s in body {
                 infer_stmt_effects(s, caps);

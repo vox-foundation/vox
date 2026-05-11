@@ -4,7 +4,9 @@ use crate::ast::decl::{Decl, FnDecl, Module, SearchIndexDecl, TableDecl};
 use crate::ast::expr::{Expr, StringPart};
 use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
-use crate::typeck::diagnostics::{codes, Diagnostic, DiagnosticCategory, DiagnosticFix, TypeckSeverity};
+use crate::typeck::diagnostics::{
+    Diagnostic, DiagnosticCategory, DiagnosticFix, TypeckSeverity, codes,
+};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
 
@@ -577,7 +579,10 @@ fn check_durable_promise_arity(te: &TypeExpr, diags: &mut Vec<Diagnostic>) {
                 expected_type: Some("DurablePromise[T]".into()),
                 found_type: Some("DurablePromise".into()),
                 context: None,
-                suggestions: vec!["Add a type argument: `DurablePromise[int]`, `DurablePromise[str]`, etc.".into()],
+                suggestions: vec![
+                    "Add a type argument: `DurablePromise[int]`, `DurablePromise[str]`, etc."
+                        .into(),
+                ],
                 category: DiagnosticCategory::Typecheck,
                 code: Some(codes::TYPES_DURABLE_PROMISE_ARITY.into()),
                 fixes: vec![],
@@ -597,7 +602,9 @@ fn check_durable_promise_arity(te: &TypeExpr, diags: &mut Vec<Diagnostic>) {
                 expected_type: Some("DurablePromise[T]".into()),
                 found_type: Some(format!("DurablePromise[{} args]", args.len())),
                 context: None,
-                suggestions: vec!["Write `DurablePromise[T]` with exactly one type argument.".into()],
+                suggestions: vec![
+                    "Write `DurablePromise[T]` with exactly one type argument.".into(),
+                ],
                 category: DiagnosticCategory::Typecheck,
                 code: Some(codes::TYPES_DURABLE_PROMISE_ARITY.into()),
                 fixes: vec![],
@@ -618,7 +625,11 @@ fn type_expr_to_str(te: &TypeExpr) -> String {
             let args_str: Vec<_> = args.iter().map(type_expr_to_str).collect();
             format!("{}[{}]", name, args_str.join(", "))
         }
-        TypeExpr::Function { params, return_type, .. } => {
+        TypeExpr::Function {
+            params,
+            return_type,
+            ..
+        } => {
             let ps: Vec<_> = params.iter().map(type_expr_to_str).collect();
             format!("fn({}) to {}", ps.join(", "), type_expr_to_str(return_type))
         }
@@ -673,7 +684,10 @@ fn check_deprecated_type_aliases(te: &TypeExpr, diags: &mut Vec<Diagnostic>) {
             } else {
                 (codes::TYPES_PROMISE_DEPRECATED, "Promise")
             };
-            let arg_str = args.first().map(type_expr_to_str).unwrap_or_else(|| "T".to_string());
+            let arg_str = args
+                .first()
+                .map(type_expr_to_str)
+                .unwrap_or_else(|| "T".to_string());
             let replacement = format!("DurablePromise[{}]", arg_str);
             diags.push(Diagnostic {
                 message: format!(
@@ -720,7 +734,9 @@ fn check_workflow_stmt_determinism(stmt: &Stmt, wf_name: &str, diags: &mut Vec<D
         Stmt::Expr { expr, .. } => {
             check_workflow_expr_determinism(expr, wf_name, diags);
         }
-        Stmt::While { condition, body, .. } => {
+        Stmt::While {
+            condition, body, ..
+        } => {
             check_workflow_expr_determinism(condition, wf_name, diags);
             for s in body {
                 check_workflow_stmt_determinism(s, wf_name, diags);
@@ -877,7 +893,11 @@ fn check_workflow_expr_determinism(expr: &Expr, wf_name: &str, diags: &mut Vec<D
 
 /// Walk a non-workflow function body and flag any `side_effect { }` blocks (P1-T7).
 /// Outside a workflow body there is no replay journal, so `side_effect` has no meaning.
-fn check_side_effect_outside_workflow_stmt(stmt: &Stmt, fn_name: &str, diags: &mut Vec<Diagnostic>) {
+fn check_side_effect_outside_workflow_stmt(
+    stmt: &Stmt,
+    fn_name: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
     match stmt {
         Stmt::Let { value, .. } => check_side_effect_outside_workflow_expr(value, fn_name, diags),
         Stmt::Return { value: Some(v), .. } => {
@@ -892,7 +912,11 @@ fn check_side_effect_outside_workflow_stmt(stmt: &Stmt, fn_name: &str, diags: &m
     }
 }
 
-fn check_side_effect_outside_workflow_expr(expr: &Expr, fn_name: &str, diags: &mut Vec<Diagnostic>) {
+fn check_side_effect_outside_workflow_expr(
+    expr: &Expr,
+    fn_name: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
     match expr {
         Expr::SideEffect { span, .. } => {
             diags.push(Diagnostic {
@@ -926,7 +950,12 @@ fn check_side_effect_outside_workflow_expr(expr: &Expr, fn_name: &str, diags: &m
                 check_side_effect_outside_workflow_stmt(s, fn_name, diags);
             }
         }
-        Expr::If { condition, then_body, else_body, .. } => {
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
             check_side_effect_outside_workflow_expr(condition, fn_name, diags);
             for s in then_body {
                 check_side_effect_outside_workflow_stmt(s, fn_name, diags);
