@@ -191,37 +191,20 @@ impl PopuliMeshAuthRuntime {
     /// Read tokens via [`vox_secrets::resolve_secret`] (same precedence as other mesh callers).
     #[must_use]
     pub fn from_env() -> Self {
-        let mesh = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
-            .expose()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(|s| Arc::from(s.to_string().into_boxed_str()));
-        let worker = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshWorkerToken)
-            .expose()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(|s| Arc::from(s.to_string().into_boxed_str()));
-        let submitter = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshSubmitterToken)
-            .expose()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(|s| Arc::from(s.to_string().into_boxed_str()));
-        let admin = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshAdminToken)
-            .expose()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(|s| Arc::from(s.to_string().into_boxed_str()));
-        let jwt_hmac = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshJwtHmacSecret)
-            .expose()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(|s| Arc::from(s.to_string().into_boxed_str()));
         Self {
-            mesh,
-            worker,
-            submitter,
-            admin,
-            jwt_hmac,
+            mesh: crate::http_auth::trimmed_nonempty_secret_arc(vox_secrets::SecretId::VoxMeshToken),
+            worker: crate::http_auth::trimmed_nonempty_secret_arc(
+                vox_secrets::SecretId::VoxMeshWorkerToken,
+            ),
+            submitter: crate::http_auth::trimmed_nonempty_secret_arc(
+                vox_secrets::SecretId::VoxMeshSubmitterToken,
+            ),
+            admin: crate::http_auth::trimmed_nonempty_secret_arc(
+                vox_secrets::SecretId::VoxMeshAdminToken,
+            ),
+            jwt_hmac: crate::http_auth::trimmed_nonempty_secret_arc(
+                vox_secrets::SecretId::VoxMeshJwtHmacSecret,
+            ),
         }
     }
 
@@ -322,11 +305,7 @@ impl PopuliMeshAuthRuntime {
 }
 
 pub(super) fn populi_control_token_from_env() -> Option<String> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(std::string::ToString::to_string)
+    crate::http_auth::mesh_worker_plane_bearer_string()
 }
 
 /// Constant-time comparison when lengths match (avoids early return on length for the equal-length case).
