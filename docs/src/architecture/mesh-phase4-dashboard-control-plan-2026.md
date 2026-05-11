@@ -397,6 +397,7 @@ Expected: PASS — empty mesh returns 0 nodes.
 Append to `crates/vox-dashboard/app/src/lib/transport.vox`:
 
 ```vox
+// vox:skip
 // ── Mesh topology subscription ────────────────────────────────────────────────
 // Subscribes to MeshTopologyChanged / MeshNodeBudget / MeshActionCommitted
 // over /v1/ws and exposes a typed reactive store that mesh.vox consumes.
@@ -647,6 +648,7 @@ Expected: PASS for both tests.
 Create `crates/vox-dashboard/app/src/surfaces/wizard_add_node.vox`:
 
 ```vox
+// vox:skip
 // "Add a Node" wizard — Phase 4, P4-T2.
 //
 // Three coequal output forms after mint:
@@ -1327,6 +1329,7 @@ fn is_git_tracked(path: &PathBuf) -> bool {
 Create `crates/vox-dashboard/app/src/surfaces/donations_editor.vox`:
 
 ```vox
+// vox:skip
 // Donations editor — Phase 4, P4-T3.
 //
 // Reads donations.vox via /api/v2/mesh/policy, surfaces fields as a structured
@@ -1565,6 +1568,7 @@ export function MeshTopologyCanvas(props: MeshTopologyCanvasProps): React.ReactE
 Create `crates/vox-dashboard/app/src/lib/mesh_topology.vox`:
 
 ```vox
+// vox:skip
 // MeshTopologyCanvas — VUV wrapper around the ForceGraph TSX interop.
 // Owns the live-data subscription and the node-pin map.
 
@@ -1619,6 +1623,7 @@ fn derive_with_status(raw: list) -> list {
 In `crates/vox-dashboard/app/src/surfaces/mesh.vox`, replace the empty-state block with `MeshTopologyCanvas(...)`. Re-run the VUV transpiler — `NetworkTab.tsx` regenerates.
 
 ```vox
+// vox:skip
 // Excerpt — new mesh surface body:
 view: column(flex=1, bg="zinc.950") {
     row(h=12, border_b=true, border_color="zinc.800", pad_x=6, items="center", justify="between") {
@@ -1725,6 +1730,7 @@ pub async fn get_at(
 `crates/vox-dashboard/app/src/lib/oplog_scrubber.vox`:
 
 ```vox
+// vox:skip
 // Audit-log scrubber — Phase 4, P4-T5.
 //
 // A timeline slider over the op-log. Dragging fetches the projection at that
@@ -1852,6 +1858,7 @@ pub async fn get_budget(State(state): State<MeshState>) -> Json<Value> {
 - [ ] **Step 3: VUV gauge component**
 
 ```vox
+// vox:skip
 // SpendGauge — per-node 24h spend ring + bar.
 component SpendGauge(used_usd: number, cap_usd: number, label: str) {
     let pct = if cap_usd > 0 { min(used_usd / cap_usd * 100, 100) } else { 0 }
@@ -2103,6 +2110,7 @@ async fn handle_destructive(
 `crates/vox-dashboard/app/src/lib/cmdk.vox`:
 
 ```vox
+// vox:skip
 // ⌘K palette — Phase 4, P4-T7.
 //
 // Mesh-aware actions:
@@ -2236,6 +2244,7 @@ pub async fn run_activity(
 - [ ] **Step 2: VUV debugger surface**
 
 ```vox
+// vox:skip
 // Workflow visual debugger — Phase 4, P4-T8.
 component WorkflowDebugger(run_id: str) {
     let timeline = use_state(value=[])
@@ -2291,6 +2300,7 @@ Per the S1 obs spec: every span on a mesh-touching path carries `vox.mesh.trace_
 - [ ] **Step 1: Drawer**
 
 ```vox
+// vox:skip
 component RunRowDrawer(run_id: str, on_close: fn()) {
     let tree     = use_state(value=null)
     let copied   = use_state(value=false)
@@ -2376,6 +2386,7 @@ The badge is **non-removable** and **color-coded.** It lives on every job-row, e
 - [ ] **Step 1: Component**
 
 ```vox
+// vox:skip
 // PrivacyBadge — Phase 4, P4-T10.
 //
 // MANDATORY on every UI element that surfaces a job, span, or node.
@@ -2416,7 +2427,7 @@ For each component listed in §Files, add a `PrivacyBadge(class=...)` next to th
 
 Add a project lint (in `crates/vox-arch-check`) that fails if a list-row component renders a job, span, or node identifier without an adjacent `PrivacyBadge`. The lint walks `app/src/**/*.vox` AST looking for `for span in …` / `for run in …` / `for node in …` loops; the body must include `PrivacyBadge(`. Failure produces:
 
-```
+```text
 error: vox-arch-check: missing PrivacyBadge on iteration over `nodes`
   --> crates/vox-dashboard/app/src/surfaces/mesh.vox:42
 ```
@@ -2487,6 +2498,7 @@ pub async fn join(
 - [ ] **Step 2: Wizard UI**
 
 ```vox
+// vox:skip
 component WizardJoinMesh() {
     let url      = use_state(value="")
     let preview  = use_state(value=null)
@@ -2601,6 +2613,7 @@ pub async fn get_models(State(state): State<MeshState>) -> Json<Value> {
 - [ ] **Step 3: UI**
 
 ```vox
+// vox:skip
 component ModelsRegistry() {
     let view = use_state(value=null)
     use_effect(deps=[], body=fn() {

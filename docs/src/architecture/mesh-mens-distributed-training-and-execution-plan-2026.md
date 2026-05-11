@@ -382,6 +382,7 @@ This means:
 ### 4.4 Annotations
 
 ```vox
+// vox:skip
 @training_step
 fn step(model: Llama, batch: Batch) -> StepResult {
     // standard forward/backward, returns loss + grads

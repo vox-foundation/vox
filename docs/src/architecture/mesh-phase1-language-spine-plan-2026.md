@@ -2791,6 +2791,7 @@ fn render_step(s: &PreviewedActivity, indent: usize) {
 Create `tests/fixtures/workflow_preview/simple_two_step.vox`:
 
 ```vox
+// vox:skip
 @remote fn fetch_url(u: str) to str { return u }
 activity parse_json(s: str) to str { return s }
 
@@ -2804,6 +2805,7 @@ workflow process(u: str) to str {
 Create `tests/fixtures/workflow_preview/with_side_effect.vox`:
 
 ```vox
+// vox:skip
 @remote fn step(x: i32) to i32 { return x + 1 }
 
 workflow main() to i64 {
@@ -2816,6 +2818,7 @@ workflow main() to i64 {
 Create `tests/fixtures/workflow_preview/with_signal.vox`:
 
 ```vox
+// vox:skip
 @remote fn fan_out(items: List[i32]) to List[i32] uses spawn { return items }
 activity reduce(xs: List[i32]) to i32 { return 0 }
 

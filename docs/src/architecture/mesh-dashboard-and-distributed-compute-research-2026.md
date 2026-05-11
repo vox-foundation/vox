@@ -331,12 +331,14 @@ Borrow Restate's "durable promises": every awaitable side-effecting op gets an *
 #### 4.1.5 Three durable parallel patterns as one-liners (sketches)
 
 ```vox
+// vox:skip
 // Map-reduce — fan out N independent activities, await all, fold
 let receipts = orders |> par_map fn(o) { @activity charge(o) }
                      |> fold(Receipt::empty, Receipt::merge)
 ```
 
 ```vox
+// vox:skip
 // Pipeline with backpressure — stage1 → stage2 → stage3
 pipeline {
     source:  read_orders()                  // stream emit
@@ -347,6 +349,7 @@ pipeline {
 ```
 
 ```vox
+// vox:skip
 // Event sourcing — append-only log + projection
 event_sourced actor InventoryStream {
     state: Inventory = Inventory::empty()
