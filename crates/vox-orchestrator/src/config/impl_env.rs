@@ -912,6 +912,7 @@ impl OrchestratorConfig {
             lock_timeout_ms: 1000,
             bulletin_capacity: 16,
             toestub_gate: false,
+            behavioral_gate_on_complete: false,
             ..Default::default()
         }
     }

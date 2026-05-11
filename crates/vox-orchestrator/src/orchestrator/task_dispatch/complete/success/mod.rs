@@ -113,7 +113,9 @@ impl Orchestrator {
 
         let mut behavioral_failure = None;
         if task_clone_opt.is_some() {
-            let gate = crate::gate::BehavioralGate::new(true);
+            let require_behavioral = crate::sync_lock::rw_read(&*self.config)
+                .behavioral_gate_on_complete;
+            let gate = crate::gate::BehavioralGate::new(require_behavioral);
             if let crate::gate::GateResult::BehavioralTestFailed { message } =
                 gate.check_behavior(None).await
             {

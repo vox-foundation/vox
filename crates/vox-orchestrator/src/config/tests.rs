@@ -16,6 +16,7 @@ fn default_config_values() {
     assert_eq!(cfg.queue_overflow_strategy, OverflowStrategy::SpawnNewAgent);
     assert_eq!(cfg.lock_timeout_ms, 30_000);
     assert!(cfg.toestub_gate);
+    assert!(cfg.behavioral_gate_on_complete);
     assert!(cfg.fallback_to_single_agent);
     assert_eq!(cfg.min_agents, 1);
     assert!(!cfg.scaling_enabled);
@@ -41,6 +42,7 @@ fn test_config_values() {
     assert_eq!(cfg.max_agents, 4);
     assert_eq!(cfg.lock_timeout_ms, 1000);
     assert!(!cfg.toestub_gate);
+    assert!(!cfg.behavioral_gate_on_complete);
     assert!(cfg.validate().is_ok());
 }
 

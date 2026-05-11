@@ -18,6 +18,7 @@ This file tracks the single source of truth for Vox architecture, research findi
 
 ## Audits & Assessments
 
+- [Vox–React backend interop audit (2026-05-11)](vox-react-backend-interop-audit-2026.md) — Wire/OpenAPI/path versioning parity, `BuildTarget` vs `vox build` codegen, runtime ops gaps (CORS/auth), prioritized backlog and milestones for external React + backend-only APIs.
 - [Repository cleanup ledger — deep reorg (2026-05-11)](repo-cleanup-ledger-2026.md) — Tracked removals (orphan artifacts), runtime DB untracking, clustered frontend/editor surfaces under `apps/` + `tests/fixtures/`, and `docs/superpowers/plans/<domain>/` sprawl reduction; includes verification notes.
 - [Repository layout sprawl audit (2026-05-11)](repo-layout-sprawl-audit-2026.md) — Organization-focused audit: sparse directories, overlapping ops roots (`infra/` vs `docker/` vs repo compose), non-Rust artifact producer/consumer matrix, and tiered consolidation backlog (safe docs vs contract-wide moves).
 - [Single-file parent directories — triage list (2026-05-11)](repo-layout-single-file-parent-dirs-triage-2026.md) — All ~203 tracked paths whose parent holds a single file; workspace for idiomatic vs merge tagging per [sprawl audit](./repo-layout-sprawl-audit-2026.md) next steps.

@@ -34,6 +34,10 @@ pub struct OrchestratorConfig {
     pub test_decision_policy: crate::planning::TestDecisionPolicy,
     /// Whether to run TOESTUB validation after each completed task (default: true).
     pub toestub_gate: bool,
+    /// When true, task completion runs the behavioral gate (nested workspace `cargo test` / npm test).
+    /// Disabled in [`OrchestratorConfig::for_testing`] so integration tests do not recurse into Cargo.
+    #[serde(default = "default_true")]
+    pub behavioral_gate_on_complete: bool,
     /// Maximum number of times a task can be re-routed due to validation failures (default: 3).
     pub max_debug_iterations: u8,
     /// TOESTUB-specific max auto-debug retries (default: 3).
