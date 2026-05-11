@@ -66,6 +66,11 @@ populi/runs/
 populi/data/*.jsonl
 .vox-research-data/
 .vox/cache/
+.vox/artifacts/
+# Runtime memory stubs (regenerated locally; never commit)
+/.vox/memory/
+# Crate-local `.vox/` state (orchestrator memory, etc.)
+crates/*/.vox/
 *.db-wal
 *.db-shm
 *.db
@@ -73,6 +78,10 @@ stub_check_results*.json
 opencode.json
 .opencode/
 stub_check_results2.json
+
+# CI link checker output wrongly committed at repo root (canonical output lives under docs-astro/)
+/docs/lychee_report.json
+**/check_errors.txt
 
 
 # Jujutsu VCS
@@ -90,6 +99,8 @@ scratch*.log
 *.orig
 crates/*/target/
 crates/*/target_*/
+# Quarantined Cargo target dirs (rename when deletes fail on locked binaries)
+crates/*/target.stale-*/
 
 # Root-level scratch/debug output (should never be committed)
 /*.txt
@@ -127,6 +138,8 @@ mens/data/*.mix_report.json
 # benchmark_passatk.json, review_metrics.json, benchmark_gate_eval.json,
 # training-preflight.json, checkpoint_state.json, etc.) are covered by this rule.
 mens/runs/
+# Quarantined mens scratch (e.g. renamed temp_stabilization trees)
+/mens/.stale/
 
 # Repo-root only: renamed `target` trees when deletes fail on locked binaries (e.g. Windows).
 /target*.stale-*/
