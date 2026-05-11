@@ -212,7 +212,7 @@ Deferred (no graft host until prerequisite lands):
 
 Apply these in order and stop at the first match:
 
-1. **Is there an open commitment in [the orchestrator state](../../README.md) the user has assigned?** If yes, do that. Stop.
+1. **Is there an open commitment in [the orchestrator state](../../../README.md) the user has assigned?** If yes, do that. Stop.
 2. **Is the user's request directly invoking a specific GA-id (e.g. "execute GA-04")?** Do that. Stop.
 3. **Is one of the foundational grafts (GA-02, GA-05, GA-08, GA-20) unstarted?** Pick the smallest one (S/M lift) you can complete in one session. GA-02 has highest leverage (unblocks 7 downstream). GA-05 has highest P-stack score (Phase 5 promise). GA-08 is doc-only (S lift, low risk).
 4. **If foundations are landed, pick the Tier-1 graft with the highest *(P0-lever-count × archetype-coverage)* score**. As of the 2026-05-09 audit:
