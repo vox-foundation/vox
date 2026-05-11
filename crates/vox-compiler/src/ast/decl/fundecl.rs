@@ -65,6 +65,9 @@ pub struct FnDecl {
     /// `max_iterations: N` arg from `@ai(max_iterations = N)` (GA-21). Default 3.
     #[serde(default)]
     pub ai_max_iterations: u32,
+    /// `@embed(model: "...", dimensions: N, source_field: "...")` decorator (GA-24).
+    #[serde(default)]
+    pub embed: Option<super::embed_decorator::AstEmbedSpec>,
     /// Whether the function serves as a page layout.
     /// Whether the function is public.
     pub is_pub: bool,

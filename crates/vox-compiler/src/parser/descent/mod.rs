@@ -289,6 +289,7 @@ impl Parser {
                 llm_model: None,
                 ai_structured_output_type: None,
                 ai_max_iterations: 3,
+                embed: None,
                 is_pub: false,
                 auth_provider: None,
                 roles: vec![],

@@ -900,6 +900,10 @@ impl Parser {
         let mut llm_model = None;
         let mut ai_structured_output_type: Option<String> = None;
         let mut ai_max_iterations: u32 = 3;
+        let mut embed_model: Option<String> = None;
+        let mut embed_dimensions: usize = 0;
+        let mut embed_source_field: Option<String> = None;
+        let mut embed_span: Option<crate::ast::span::Span> = None;
         let mut decorator_effects: Vec<crate::ast::decl::effect::EffectAnnotation> = Vec::new();
         let mut webhook: Option<crate::ast::decl::webhook::AstWebhookSpec> = None;
         let mut cors_spec: Option<crate::ast::decl::http_decorators::AstCorsSpec> = None;
@@ -1260,8 +1264,48 @@ impl Parser {
                         span: l_start.merge(self.span()),
                     });
                 }
+                Token::AtEmbed => {
+                    let e_start = self.span();
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                let key = key.clone();
+                                self.advance();
+                                self.eat(&Token::Colon);
+                                match key.as_str() {
+                                    "model" => {
+                                        if let Token::StringLit(m) = self.peek().clone() {
+                                            self.advance();
+                                            embed_model = Some(m);
+                                        }
+                                    }
+                                    "dimensions" => {
+                                        if let Token::IntLit(n) = self.peek().clone() {
+                                            self.advance();
+                                            if n >= 0 { embed_dimensions = n as usize; }
+                                        }
+                                    }
+                                    "source_field" => {
+                                        if let Token::StringLit(f) = self.peek().clone() {
+                                            self.advance();
+                                            embed_source_field = Some(f);
+                                        }
+                                    }
+                                    _ => { self.advance(); }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) { break; }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                        embed_span = Some(e_start.merge(self.span()));
+                    }
+                }
                 Token::AtAuth
-                | Token::AtEmbed
                 | Token::AtOfflineCapable
                 | Token::AtCollaborative => {
                     self.advance();
@@ -1326,6 +1370,12 @@ impl Parser {
             llm_model,
             ai_structured_output_type,
             ai_max_iterations,
+            embed: embed_span.map(|sp| crate::ast::decl::embed_decorator::AstEmbedSpec {
+                model: embed_model.unwrap_or_default(),
+                dimensions: embed_dimensions,
+                source_field: embed_source_field.unwrap_or_default(),
+                span: sp,
+            }),
             is_traced: false,
             is_pub,
             auth_provider: None,
@@ -1397,6 +1447,7 @@ impl Parser {
             llm_model: None,
             ai_structured_output_type: None,
             ai_max_iterations: 3,
+            embed: None,
             is_pub: true,
             auth_provider: None,
             roles: vec![],

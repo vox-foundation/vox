@@ -34,6 +34,7 @@ fn prop_sort_idempotent(list: list[int]) {
             is_llm: false,
             llm_model: None,
             ai_structured_output: None,
+            embed: None,
             is_deprecated: false,
             schedule_interval: None,
             durability: None,

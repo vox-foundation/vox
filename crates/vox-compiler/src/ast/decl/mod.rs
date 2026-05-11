@@ -27,6 +27,8 @@ pub mod typedef;
 pub mod ui;
 /// Typed URL path declarations (`url Name { … }`).
 pub mod url;
+/// `@embed(model:, dimensions:, source_field:)` decorator AST (GA-24).
+pub mod embed_decorator;
 /// HTTP ergonomics decorators: `@cors`, `@rate_limit`, `@pii` (GA-06/GA-23).
 pub mod http_decorators;
 /// `@layer(tier:)` decorator AST (GA-26).

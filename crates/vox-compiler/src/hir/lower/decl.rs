@@ -54,6 +54,12 @@ impl LowerCtx {
                     span: f.span,
                 }
             }),
+            embed: f.embed.as_ref().map(|e| crate::hir::nodes::boilerplate_grafts::HirEmbedDecl {
+                model: e.model.clone(),
+                source_field: e.source_field.clone(),
+                dimension: e.dimensions,
+                span: e.span,
+            }),
             is_deprecated: f.is_deprecated,
             schedule_interval: None,
             durability: None,
@@ -376,6 +382,7 @@ impl LowerCtx {
             is_llm: false,
             llm_model: None,
             ai_structured_output: None,
+            embed: None,
             is_deprecated: w.is_deprecated,
             schedule_interval: None,
             durability: None, // overwritten by caller
@@ -409,6 +416,7 @@ impl LowerCtx {
             is_llm: false,
             llm_model: None,
             ai_structured_output: None,
+            embed: None,
             is_deprecated: a.is_deprecated,
             schedule_interval: None,
             durability: None, // overwritten by caller
@@ -450,6 +458,7 @@ impl LowerCtx {
             is_llm: false,
             llm_model: None,
             ai_structured_output: None,
+            embed: None,
             is_deprecated: a.is_deprecated,
             schedule_interval: None,
             durability: None, // overwritten by caller
@@ -494,6 +503,7 @@ impl LowerCtx {
                     is_llm: false,
                     llm_model: None,
                     ai_structured_output: None,
+            embed: None,
                     is_deprecated: a.is_deprecated,
                     schedule_interval: None,
                     durability: None, // overwritten by caller (same as shell)

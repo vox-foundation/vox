@@ -8,8 +8,8 @@ use std::collections::HashSet;
 
 use crate::ast::span::Span;
 use crate::hir::nodes::boilerplate_grafts::{
-    HirAiStructuredOutput, HirCapabilityRequirement, HirEffectClass, HirPiiMarker, HirUploadType,
-    HirUsesDecl, HirVectorType, HirWebhookDecl, PiiClass, WebhookProvider,
+    HirAiStructuredOutput, HirCapabilityRequirement, HirEffectClass, HirEmbedDecl, HirPiiMarker,
+    HirUploadType, HirUsesDecl, HirVectorType, HirWebhookDecl, PiiClass, WebhookProvider,
 };
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 
@@ -227,6 +227,36 @@ pub fn check_vector_dimension(
         context: None,
         ast_node_kind: None,
     })
+}
+
+// ── GA-24 — @embed dimension validation ──────────────────────────────────
+
+/// Refuse compile when an `@embed` decorator declares `dimensions: 0` —
+/// an embedding with zero dimensions cannot represent anything.
+pub fn check_embed_dimensions(embed: &HirEmbedDecl) -> Option<Diagnostic> {
+    if embed.dimension == 0 {
+        return Some(Diagnostic {
+            severity: TypeckSeverity::Error,
+            message: format!(
+                "`@embed` on `{}` declares `dimensions: 0`; an embedding must have at least one dimension.",
+                if embed.source_field.is_empty() { "(unspecified field)" } else { &embed.source_field }
+            ),
+            span: embed.span,
+            code: Some("vox/embed/zero-dimensions".into()),
+            category: DiagnosticCategory::Typecheck,
+            suggestions: vec![
+                "Specify the output dimension of your model, e.g. `dimensions: 1536` for `text-embedding-3-small`.".into(),
+            ],
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            expected_type: Some("dimensions > 0".into()),
+            found_type: Some("0".into()),
+            context: None,
+            ast_node_kind: None,
+        });
+    }
+    None
 }
 
 // ── GA-21 — @ai return-shape codec check ──────────────────────────────────

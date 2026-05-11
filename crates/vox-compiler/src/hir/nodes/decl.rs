@@ -313,6 +313,9 @@ pub struct HirFn {
     /// When `Some`, `check_ai_return_shape()` verifies the return type has a wire codec.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ai_structured_output: Option<crate::hir::nodes::boilerplate_grafts::HirAiStructuredOutput>,
+    /// Embedding spec from `@embed(model:, dimensions:, source_field:)` (GA-24).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embed: Option<crate::hir::nodes::boilerplate_grafts::HirEmbedDecl>,
     /// `@deprecated` on the source `fn`.
     #[serde(default)]
     pub is_deprecated: bool,

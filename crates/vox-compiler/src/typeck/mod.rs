@@ -107,6 +107,12 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
                 diags.push(d);
             }
         }
+        // GA-24: @embed dimension validity.
+        if let Some(embed) = &f.embed {
+            if let Some(d) = boilerplate_grafts::check_embed_dimensions(embed) {
+                diags.push(d);
+            }
+        }
     }
     diags
 }

@@ -410,3 +410,52 @@ fn plan() to int { return 1 }
     assert_eq!(f.ai_max_iterations, 5, "max_iterations should be 5");
     assert_eq!(f.ai_structured_output_type.as_deref(), Some("Plan"));
 }
+
+// ── GA-24 — @embed + Vector[N] dimension validation ───────────────────────
+
+#[test]
+fn embed_decorator_parses_args() {
+    let src = r#"
+@embed(model: "text-embedding-3-small", dimensions: 1536, source_field: "description")
+fn embed_description() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed for @embed with args");
+    let func = m.declarations.iter().find_map(|d| {
+        if let vox_compiler::ast::decl::Decl::Function(f) = d { Some(f) } else { None }
+    });
+    let f = func.expect("should have parsed function");
+    let embed = f.embed.as_ref().expect("@embed should be captured");
+    assert_eq!(embed.model, "text-embedding-3-small");
+    assert_eq!(embed.dimensions, 1536);
+    assert_eq!(embed.source_field, "description");
+}
+
+#[test]
+fn embed_zero_dimensions_warns() {
+    let src = r#"
+@embed(model: "text-embedding-3-small", dimensions: 0, source_field: "body")
+fn embed_fn() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/embed/zero-dimensions"));
+    assert!(
+        hit.is_some(),
+        "expected vox/embed/zero-dimensions for dimensions: 0; got {:?}",
+        ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn embed_nonzero_dimensions_is_clean() {
+    let src = r#"
+@embed(model: "text-embedding-3-small", dimensions: 1536, source_field: "body")
+fn embed_fn() to int { return 1 }
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let ds = typecheck_ast_module(src, &m);
+    assert!(
+        !ds.iter().any(|d| d.code.as_deref() == Some("vox/embed/zero-dimensions")),
+        "@embed with valid dimensions should not warn"
+    );
+}
