@@ -18,6 +18,12 @@ impl Parser {
         self.advance(); // eat 'import'
         let mut paths = Vec::new();
         loop {
+            if self.try_parse_react_component_import(&mut paths)? {
+                if !self.eat(&Token::Comma) {
+                    break;
+                }
+                continue;
+            }
             // `rust:` imports use the full parse_import_path handler.
             // All symbol imports go through parse_symbol_import which also accepts
             // `/` as a path separator and `as { name1, name2 }` destructuring.
@@ -36,6 +42,67 @@ impl Parser {
             paths,
             span: start.merge(self.span()),
         }))
+    }
+
+    /// `import react LocalName from "./Component.tsx"` — Phase 5 React interop.
+    ///
+    /// Returns `Ok(false)` without consuming input when this is not that form (including
+    /// `import react.use_state`, which starts with `react` then `.`).
+    fn try_parse_react_component_import(
+        &mut self,
+        paths: &mut Vec<ImportPath>,
+    ) -> Result<bool, ()> {
+        let save = self.pos;
+        let seg_start = self.span();
+        let Token::Ident(first) = self.peek().clone() else {
+            return Ok(false);
+        };
+        if first != "react" {
+            return Ok(false);
+        }
+        self.advance();
+        match self.peek().clone() {
+            Token::Dot | Token::Slash => {
+                self.pos = save;
+                Ok(false)
+            }
+            Token::Ident(local_name) | Token::TypeIdent(local_name) => {
+                let local_name = local_name.clone();
+                self.advance();
+                let Token::Ident(from_kw) = self.peek().clone() else {
+                    self.pos = save;
+                    return Ok(false);
+                };
+                if from_kw != "from" {
+                    self.pos = save;
+                    return Ok(false);
+                }
+                self.advance();
+                let module_specifier = match self.peek().clone() {
+                    Token::StringLit(s) | Token::SingleStringLit(s) => {
+                        self.advance();
+                        s
+                    }
+                    _ => {
+                        self.pos = save;
+                        return Ok(false);
+                    }
+                };
+                paths.push(ImportPath {
+                    kind: ImportPathKind::ReactComponent {
+                        local_name,
+                        module_specifier,
+                    },
+                    alias: None,
+                    span: seg_start.merge(self.span()),
+                });
+                Ok(true)
+            }
+            _ => {
+                self.pos = save;
+                Ok(false)
+            }
+        }
     }
 
     /// Parse one symbol import declaration, appending zero or more `ImportPath`s to `paths`.

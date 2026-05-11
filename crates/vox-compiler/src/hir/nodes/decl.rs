@@ -248,6 +248,9 @@ pub struct HirImport {
     pub module_path: Vec<String>,
     /// Imported symbol name.
     pub item: String,
+    /// When `Some`, emit `import <item> from "<spec>"` for external React components (Phase 5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub es_module_specifier: Option<String>,
     /// Span in source.
     pub span: Span,
 }

@@ -114,6 +114,7 @@ impl LowerCtx {
                                 hir.imports.push(HirImport {
                                     module_path: mod_path,
                                     item: path.alias.clone().unwrap_or(item),
+                                    es_module_specifier: None,
                                     span: path.span,
                                 });
                             }
@@ -129,6 +130,17 @@ impl LowerCtx {
                                     path: spec.path.clone(),
                                     git: spec.git.clone(),
                                     rev: spec.rev.clone(),
+                                    span: path.span,
+                                });
+                            }
+                            ImportPathKind::ReactComponent {
+                                local_name,
+                                module_specifier,
+                            } => {
+                                hir.imports.push(HirImport {
+                                    module_path: Vec::new(),
+                                    item: local_name.clone(),
+                                    es_module_specifier: Some(module_specifier.clone()),
                                     span: path.span,
                                 });
                             }
