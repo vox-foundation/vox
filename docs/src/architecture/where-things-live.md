@@ -150,6 +150,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-cli`](../../../crates/vox-cli/) | Vox command-line interface: compile, run, bundle, and workspace diagnostics. |
 | [`vox-integration-tests`](../../../crates/vox-integration-tests/) | Cross-crate integration test harness (test-only L5). |
 | [`vox-orchestrator-d`](../../../crates/vox-orchestrator-d/) | Vox orchestrator daemon binary. Extracted from vox-orchestrator in 2026-05-08 reorg Phase 4. |
+| [`vox-ml-cli`](../../../crates/vox-ml-cli/) | ML / Mens / telemetry CLI (`vox-ml-cli`); training and GPU features gated in crate features. |
 
 ## Common tasks → exact path
 
