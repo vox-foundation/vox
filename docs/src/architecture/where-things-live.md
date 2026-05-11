@@ -175,6 +175,9 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Circuit breaker — doom-loop detection (D6) | `crates/vox-orchestrator/src/circuit_breaker.rs` |
 | Confidence fusion — Socrates trigger (D3) | `crates/vox-orchestrator/src/confidence_fusion.rs` |
 | Tier cascade — model routing (D1) | `crates/vox-orchestrator/src/tier_cascade.rs` |
+| Registry-backed model resolution (Thompson arms, privacy-local filter) | `crates/vox-orchestrator/src/registry_model_resolve.rs` |
+| Inference tier/modality config for routing (`InferenceConfig`, `TierProfile`) | `crates/vox-orchestrator/src/mode.rs` |
+| Embedded orchestration feature flags (YAML → runtime gates) | `crates/vox-orchestrator/src/orchestration_feature_flags.rs` |
 | Plan-mode trigger — React vs. plan (D2) | `crates/vox-orchestrator/src/planning/plan_mode_trigger.rs` |
 | Risk matrix — HITL escalation (D5+D9) | `crates/vox-orchestrator/src/risk_matrix.rs` |
 | Privacy classifier — sensitivity detection (D8) | `crates/vox-orchestrator/src/privacy_classifier.rs` |

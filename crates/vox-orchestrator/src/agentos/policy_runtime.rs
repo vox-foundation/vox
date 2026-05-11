@@ -29,7 +29,9 @@ impl AgentosPolicyLedger {
     pub fn new() -> Self {
         Self {
             inner: Mutex::new(AgentosPolicyLedgerInner {
-                policy: OrchestratorPolicy::new(OrchestratorPolicyConfig::default()),
+                policy: OrchestratorPolicy::new(
+                    OrchestratorPolicyConfig::default().for_agentos_policy_ledger(),
+                ),
                 last_mutation_kind_by_agent: HashMap::new(),
             }),
         }

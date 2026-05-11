@@ -102,6 +102,14 @@ async fn orchestrator_daemon_task_and_agent_write_methods() {
         .await
         .expect("submit_task_2");
     let task_id2 = submitted2["task_id"].as_u64().expect("task_id2");
+    // `fail_task` / `complete_task` apply to the agent's in-progress task; dequeue first
+    // so the RPC exercises real queue semantics (queued-only tasks are not mark_failed).
+    {
+        let ql = orch.agent_queue(aid).expect("queue for fail path");
+        let mut q = ql.write().unwrap();
+        let t = q.dequeue().expect("dequeue task 2");
+        assert_eq!(t.id.0, task_id2);
+    }
     let _ = client
         .fail_task(task_id2, "expected fail".to_string())
         .await
@@ -117,6 +125,12 @@ async fn orchestrator_daemon_task_and_agent_write_methods() {
         .await
         .expect("submit_task_3");
     let task_id3 = submitted3["task_id"].as_u64().expect("task_id3");
+    {
+        let ql = orch.agent_queue(aid).expect("queue for complete path");
+        let mut q = ql.write().unwrap();
+        let t = q.dequeue().expect("dequeue task 3");
+        assert_eq!(t.id.0, task_id3);
+    }
     let _ = client
         .complete_task(task_id3, None)
         .await

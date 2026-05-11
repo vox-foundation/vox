@@ -340,6 +340,20 @@ impl Orchestrator {
         std::sync::Arc::clone(&self.models)
     }
 
+    pub fn record_bandit_task_outcome(&self, model_id: Option<&str>, success: bool) {
+        if !crate::orchestration_feature_flags::orchestration_feature_flags_cached()
+            .contextual_bandit_enabled()
+        {
+            return;
+        }
+        let Some(mid) = model_id.map(str::trim).filter(|s| !s.is_empty()) else {
+            return;
+        };
+        if let Ok(mut reg) = self.models_handle().write() {
+            reg.record_bandit_outcome(mid, success);
+        }
+    }
+
     /// Access the event bus
     pub fn event_bus(&self) -> &crate::events::EventBus {
         &self.event_bus

@@ -8,7 +8,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::budget_gate::{BudgetDecision, BudgetGateConfig, OrchestratorBudgetGate};
+use crate::budget_gate::{BudgetDecision, BudgetGateConfig, BudgetStatus, OrchestratorBudgetGate};
+use crate::orchestration_feature_flags::OrchestrationFeatureFlags;
 use crate::cache_predictor::{CachePrediction, CachePredictor, CachePredictorConfig, CacheSignal};
 use crate::calibration::{CalibrationConfig, CalibrationLoop};
 use crate::circuit_breaker::{
@@ -64,6 +65,10 @@ pub struct PolicyContext {
     /// When set (e.g. last MCP tool `aci.mutation_kind`), merges AgentOS signals into risk scoring.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agentos_last_mutation_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completion_text_sample: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_entropy_baseline: Option<f64>,
 }
 
 impl Default for PolicyContext {
@@ -90,6 +95,8 @@ impl Default for PolicyContext {
             context_utilization: 0.5,
             dispatch: DispatchSignal::default(),
             agentos_last_mutation_kind: None,
+            completion_text_sample: None,
+            session_entropy_baseline: None,
         }
     }
 }
@@ -128,6 +135,10 @@ pub struct PolicyDecision {
 
 // ── Config bundle ─────────────────────────────────────────────────────────────
 
+fn default_embedded_feature_flags() -> OrchestrationFeatureFlags {
+    OrchestrationFeatureFlags::from_embedded_contract()
+}
+
 /// Aggregated config for all D1–D10 modules. Each field uses the module's own Default.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrchestratorPolicyConfig {
@@ -141,6 +152,8 @@ pub struct OrchestratorPolicyConfig {
     pub compaction_trigger: CompactionTriggerConfig,
     pub calibration: CalibrationConfig,
     pub dispatch: DispatchConfig,
+    #[serde(skip, default = "default_embedded_feature_flags")]
+    pub feature_flags: OrchestrationFeatureFlags,
 }
 
 impl Default for OrchestratorPolicyConfig {
@@ -156,7 +169,27 @@ impl Default for OrchestratorPolicyConfig {
             compaction_trigger: CompactionTriggerConfig::default(),
             calibration: CalibrationConfig::default(),
             dispatch: DispatchConfig::default(),
+            feature_flags: default_embedded_feature_flags(),
         }
+    }
+}
+
+impl OrchestratorPolicyConfig {
+    #[must_use]
+    pub fn with_all_policy_modules_enabled_for_tests(mut self) -> Self {
+        self.feature_flags = OrchestrationFeatureFlags::all_enabled_for_testing();
+        self
+    }
+
+    #[must_use]
+    pub fn for_agentos_policy_ledger(mut self) -> Self {
+        self.feature_flags = OrchestrationFeatureFlags {
+            risk_matrix_hitl: true,
+            socrates_fusion: true,
+            agentos_aci_envelope: true,
+            ..OrchestrationFeatureFlags::all_disabled()
+        };
+        self
     }
 }
 
@@ -167,6 +200,7 @@ impl Default for OrchestratorPolicyConfig {
 /// Construct once and call [`evaluate`] after each loop iteration.
 /// The [`CalibrationLoop`] is stateful — it accumulates observations across calls.
 pub struct OrchestratorPolicy {
+    feature_flags: OrchestrationFeatureFlags,
     cb: CircuitBreaker,
     fuser: ConfidenceFuser,
     tier: TierCascadeRouter,
@@ -184,6 +218,7 @@ pub struct OrchestratorPolicy {
 impl OrchestratorPolicy {
     pub fn new(config: OrchestratorPolicyConfig) -> Self {
         Self {
+            feature_flags: config.feature_flags.clone(),
             cb: CircuitBreaker::new(config.circuit_breaker),
             fuser: ConfidenceFuser::new(config.fusion),
             tier: TierCascadeRouter::new(config.tier_cascade),
@@ -205,50 +240,105 @@ impl OrchestratorPolicy {
     /// accumulates across loop iterations automatically.
     #[must_use]
     pub fn evaluate(&mut self, ctx: &PolicyContext) -> PolicyDecision {
-        // D6 — circuit breaker
-        let circuit_trip = self.cb.should_trip(&ctx.circuit_breaker);
-        let alarm_tier = self.cb.check_tier(&ctx.circuit_breaker);
+        let flags = &self.feature_flags;
 
-        // D3 — confidence fusion
-        let (fusion_score, fusion_decision) = self.fuser.evaluate(&ctx.fusion_inputs);
-
-        // D1 — tier cascade (needs budget + alarm)
-        let budget_decision = self
-            .budget
-            .evaluate(ctx.budget_token_fraction, ctx.budget_cost_fraction);
-        let tier_signal = CompositeSignal {
-            complexity: ctx.complexity,
-            alarm_level: AlarmLevel::from(alarm_tier),
-            confidence: fusion_score,
-            budget_exhausted: budget_decision.is_exhausted(),
-        };
-        let routing_tier = self.tier.select(&tier_signal);
-
-        // D2 — plan mode trigger
-        let plan_mode = self.plan_trigger.decide(&ctx.plan_mode);
-
-        // D5+D9 — risk matrix (optional AgentOS mutation_kind overlay)
-        let mut risk_dims = ctx.risk.clone();
-        if let Some(ref mk) = ctx.agentos_last_mutation_kind {
-            apply_agentos_mutation_risk(&mut risk_dims, mk.as_str());
+        let mut cb_state = ctx.circuit_breaker.clone();
+        if flags.drift_detector {
+            if let (Some(sample), Some(base)) =
+                (&ctx.completion_text_sample, ctx.session_entropy_baseline)
+            {
+                cb_state.semantic_drift_sigma =
+                    crate::entropy_scorer::semantic_drift_sigma(sample.as_str(), base);
+            }
         }
-        let (risk_score, risk_grade, hitl_action) = self.risk.evaluate(&risk_dims);
 
-        // D8 — privacy
-        let privacy_level = self.privacy_classifier.classify(&ctx.privacy);
-        let privacy_routing = route_for_level(&self.privacy_router, privacy_level);
+        let circuit_trip = if flags.circuit_breaker {
+            self.cb.should_trip(&cb_state)
+        } else {
+            None
+        };
+        let alarm_tier = if flags.circuit_breaker {
+            self.cb.check_tier(&cb_state)
+        } else {
+            AlarmTier::None
+        };
 
-        // D7 cache + compaction
-        let cache_prediction = self.cache.predict(&ctx.cache);
-        let compaction_strategy = self.compaction.select(ctx.context_utilization);
+        let (fusion_score, fusion_decision) = if flags.socrates_fusion {
+            self.fuser.evaluate(&ctx.fusion_inputs)
+        } else {
+            (0.75, FusionDecision::AnswerDirectly)
+        };
 
-        // D4 — dispatch
-        let mut dispatch_sig = ctx.dispatch.clone();
-        dispatch_sig.budget_exhausted = budget_decision.is_exhausted();
-        let dispatch_decision = self.dispatch.route(&dispatch_sig);
+        let budget_decision = if flags.tenant_budget {
+            self.budget
+                .evaluate(ctx.budget_token_fraction, ctx.budget_cost_fraction)
+        } else {
+            BudgetDecision {
+                status: BudgetStatus::Ok,
+                triggering_fraction: 0.0,
+            }
+        };
 
-        // D10 — calibration (record fusion score for drift tracking)
-        let _ = self.calibration.observe(fusion_score);
+        let routing_tier = if flags.tier_cascade {
+            let tier_signal = CompositeSignal {
+                complexity: ctx.complexity,
+                alarm_level: AlarmLevel::from(alarm_tier),
+                confidence: fusion_score,
+                budget_exhausted: budget_decision.is_exhausted(),
+            };
+            self.tier.select(&tier_signal)
+        } else {
+            RoutingTier::Standard
+        };
+
+        let plan_mode = if flags.plan_mode_trigger {
+            self.plan_trigger.decide(&ctx.plan_mode)
+        } else {
+            PlanModeDecision::React
+        };
+
+        let (risk_score, risk_grade, hitl_action) = if flags.risk_matrix_hitl {
+            let mut risk_dims = ctx.risk.clone();
+            if flags.agentos_aci_envelope {
+                if let Some(ref mk) = ctx.agentos_last_mutation_kind {
+                    apply_agentos_mutation_risk(&mut risk_dims, mk.as_str());
+                }
+            }
+            self.risk.evaluate(&risk_dims)
+        } else {
+            (0.0, RiskGrade::Low, HitlAction::Proceed)
+        };
+
+        let (privacy_level, privacy_routing) = if flags.privacy_routing {
+            let privacy_level = self.privacy_classifier.classify(&ctx.privacy);
+            let privacy_routing = route_for_level(&self.privacy_router, privacy_level);
+            (privacy_level, privacy_routing)
+        } else {
+            (PrivacyLevel::Internal, PrivacyRoutingDecision::Redact)
+        };
+
+        let cache_prediction = if flags.cache_aware_routing {
+            self.cache.predict(&ctx.cache)
+        } else {
+            CachePrediction::Miss
+        };
+        let compaction_strategy = if flags.compaction_5layer {
+            self.compaction.select(ctx.context_utilization)
+        } else {
+            CompactionStrategy::Balanced
+        };
+
+        let dispatch_decision = if flags.subagent_dispatch {
+            let mut dispatch_sig = ctx.dispatch.clone();
+            dispatch_sig.budget_exhausted = budget_decision.is_exhausted();
+            self.dispatch.route(&dispatch_sig)
+        } else {
+            DispatchDecision::Inline
+        };
+
+        if flags.calibration_loop {
+            let _ = self.calibration.observe(fusion_score);
+        }
 
         PolicyDecision {
             circuit_trip,
@@ -275,7 +365,9 @@ mod tests {
     use super::*;
 
     fn policy() -> OrchestratorPolicy {
-        OrchestratorPolicy::new(OrchestratorPolicyConfig::default())
+        OrchestratorPolicy::new(
+            OrchestratorPolicyConfig::default().with_all_policy_modules_enabled_for_tests(),
+        )
     }
 
     #[test]
@@ -393,5 +485,32 @@ mod tests {
         // Second call — calibration loop now has 1 observation, no crash
         let d2 = p.evaluate(&PolicyContext::default());
         assert!(d2.fusion_score >= 0.0);
+    }
+
+    #[test]
+    fn semantic_drift_entropy_trips_breaker() {
+        let mut p = policy();
+        let baseline =
+            crate::entropy_scorer::calculate_entropy("The quick brown fox jumps many times.");
+        let ctx = PolicyContext {
+            completion_text_sample: Some("a".repeat(400)),
+            session_entropy_baseline: Some(baseline),
+            ..PolicyContext::default()
+        };
+        let d = p.evaluate(&ctx);
+        assert_eq!(d.circuit_trip, Some(TripReason::SemanticDrift));
+    }
+
+    #[test]
+    fn embedded_feature_defaults_skip_circuit_trip() {
+        let mut p = OrchestratorPolicy::new(OrchestratorPolicyConfig::default());
+        let d = p.evaluate(&PolicyContext {
+            circuit_breaker: CircuitBreakerState {
+                no_progress_loops: 9,
+                ..Default::default()
+            },
+            ..PolicyContext::default()
+        });
+        assert!(d.circuit_trip.is_none());
     }
 }

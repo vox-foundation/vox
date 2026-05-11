@@ -163,6 +163,8 @@ pub use vox_orchestrator_queue::oplog;
 pub mod orch_daemon;
 /// Core multi-agent orchestrator implementation.
 pub mod orchestrator;
+pub mod mode;
+pub mod orchestration_feature_flags;
 /// PII-aware redacting filter for sensitive data.
 pub mod pii_filter;
 /// Optional JSONL sink for orchestrator agent events (`VOX_ORCHESTRATOR_EVENT_LOG`).
@@ -183,6 +185,7 @@ pub mod queue;
 pub mod rebalance;
 /// Reconstruction campaign tiers, evidence scoring, and resumable campaign state.
 pub mod reconstruction;
+pub mod registry_model_resolve;
 pub mod retrieval;
 /// JSON schemas for persisted orchestrator artifacts.
 pub mod schema;
@@ -269,7 +272,7 @@ pub use contract::{
     OrchestrationMigrationFlags, SessionContractEnvelope, TaskCapabilityHints,
     plan_tool_daemon_alignment_valid,
 };
-pub use entropy_scorer::{calculate_entropy, score_confidence};
+pub use entropy_scorer::{calculate_entropy, score_confidence, semantic_drift_sigma};
 pub use events::{AgentActivity, AgentEvent, AgentEventKind, BuildStageKind, EventBus};
 pub use gate::{BudgetGate, Gate, GateResult};
 pub use generated::agent_harness::{
@@ -304,7 +307,13 @@ pub use planning::{
 pub use populi_federation::{
     PopuliNodeBrief, PopuliRoutingHintUpdate, RemotePopuliRoutingHint, RemotePopuliSnapshot,
 };
-pub use privacy_router::{PrivacyLevel, PrivacyRouter, PrivacyRoutingPolicy};
+pub use privacy_router::{
+    PrivacyLevel, PrivacyRouter, PrivacyRoutingPolicy, model_supports_privacy_local_inference,
+};
+pub use registry_model_resolve::{
+    infer_prompt_capability_hints, resolve_model_with_registry_fallbacks,
+    RegistryModelResolutionParams,
+};
 pub use reconstruction::{
     AgentExecutionRole, CampaignMemorySnapshot, ReconstructionArtifactKind,
     ReconstructionArtifactRecord, ReconstructionBenchmarkKpis, ReconstructionBenchmarkTier,
@@ -350,6 +359,10 @@ pub use workspace::{AgentWorkspace, ChangeId, ChangeStatus, WorkspaceManager};
 // ── Orchestrator policy (D1–D10) re-exports ───────────────────────────────────
 // Single ergonomic surface for the autonomous orchestration policy program.
 // See `docs/superpowers/plans/orchestrator/2026-05-08-orchestrator-master-plan.md`.
+pub use mode::{
+    ExecutionModeProfile, InferenceConfig, Modalities, QualityLevel, TierProfile,
+};
+pub use orchestration_feature_flags::OrchestrationFeatureFlags;
 pub use orchestrator_policy::{
     OrchestratorPolicy, OrchestratorPolicyConfig, PolicyContext, PolicyDecision,
 };

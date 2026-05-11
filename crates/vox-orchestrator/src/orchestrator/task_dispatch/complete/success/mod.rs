@@ -364,6 +364,10 @@ impl Orchestrator {
                 _ => None,
             };
             queue.mark_complete(task_id);
+            let bandit_model_id = current
+                .model_override
+                .clone()
+                .or_else(|| current.model_preference.clone());
             (
                 write_files,
                 current.session_id.clone(),
@@ -374,6 +378,7 @@ impl Orchestrator {
                 current.campaign_id.clone(),
                 current.benchmark_tier,
                 current.audit_report.clone(),
+                bandit_model_id,
             )
         };
 
@@ -387,6 +392,7 @@ impl Orchestrator {
             campaign_id,
             benchmark_tier,
             audit_report,
+            bandit_model_id,
         ) = completion_data;
 
         let (snap_before, db_snap_before) =
@@ -439,6 +445,8 @@ impl Orchestrator {
             session_id,
             audit_report,
         );
+
+        self.record_bandit_task_outcome(bandit_model_id.as_deref(), true);
 
         {
             let agents = crate::sync_lock::rw_read(&*self.agents);

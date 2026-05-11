@@ -3,10 +3,10 @@
 //! [`CalibrationLoop`] tracks a running mean/variance over latency or quality scores
 //! and alerts when the z-score of a new observation exceeds the drift threshold.
 //! [`ContextualBandit`] picks the arm with the highest expected reward under each
-//! arm's Beta(α, β) posterior — i.e. greedy exploitation. Stochastic Thompson sampling
-//! is intentionally left to the existing `routing::engine` Thompson draw used at
-//! tier-cascade time; this module is pure (no RNG, no I/O) so it stays deterministic
-//! and trivially testable.
+//! arm's Beta(α, β) posterior — i.e. greedy exploitation. Thompson draws live in
+//! [`crate::routing::ModelSelectionEngine`] using aligned `(successes, failures)` counts.
+
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -200,6 +200,15 @@ impl ContextualBandit {
     }
 }
 
+#[must_use]
+pub fn arm_stats_from_bandit(bandit: &ContextualBandit) -> HashMap<String, (u32, u32)> {
+    bandit
+        .arms()
+        .iter()
+        .map(|a| (a.model_id.clone(), (a.successes, a.failures)))
+        .collect()
+}
+
 // ── Metric payloads ───────────────────────────────────────────────────────────
 
 /// Serialize-only — `&'static str` is incompatible with `Deserialize` and round-tripping isn't needed.
@@ -361,6 +370,14 @@ mod tests {
         let arm = &bandit.arms()[0];
         assert_eq!(arm.successes, 1);
         assert_eq!(arm.failures, 1);
+    }
+
+    #[test]
+    fn arm_stats_from_bandit_maps_models() {
+        let bandit = ContextualBandit::new(vec![BanditArm::new("m-a"), BanditArm::new("m-b")]);
+        let m = arm_stats_from_bandit(&bandit);
+        assert_eq!(m.len(), 2);
+        assert_eq!(m.get("m-a").copied(), Some((0, 0)));
     }
 
     #[test]
