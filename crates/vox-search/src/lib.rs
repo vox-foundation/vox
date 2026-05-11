@@ -23,6 +23,8 @@ mod rrf;
 pub mod scraper;
 pub mod searxng;
 mod searxng_defaults;
+/// Intent-oriented repo path discovery (AgentOS semantic filesystem bridge).
+pub mod semantic_fs;
 pub mod symbol_proximity;
 pub mod web_dispatcher;
 

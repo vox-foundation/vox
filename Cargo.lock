@@ -11897,6 +11897,7 @@ dependencies = [
  "vox-db",
  "vox-gamify",
  "vox-grammar-export",
+ "vox-jsonschema-util",
  "vox-lsp",
  "vox-mcp-registry",
  "vox-mesh-types",

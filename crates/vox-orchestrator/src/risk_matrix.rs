@@ -223,6 +223,20 @@ impl HitlInterruptEvent {
     }
 }
 
+/// Merge AgentOS `mutation_kind` signals into raw [`RiskDimensions`] before matrix scoring.
+pub fn apply_agentos_mutation_risk(dim: &mut RiskDimensions, mutation_kind: &str) {
+    match mutation_kind {
+        "external_side_effect" => {
+            dim.blast_radius = dim.blast_radius.max(0.55);
+            dim.irreversibility = dim.irreversibility.max(0.35);
+        }
+        "local_mutation" => {
+            dim.irreversibility = dim.irreversibility.max(0.28);
+        }
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -349,5 +363,12 @@ mod tests {
     fn hitl_interrupt_event_has_correct_metric_type() {
         let ev = HitlInterruptEvent::new(HitlAction::Escalate, RiskGrade::High, "drop table", None);
         assert_eq!(ev.metric_type, "orch.hitl.interrupt");
+    }
+
+    #[test]
+    fn agentos_external_boosts_blast_radius() {
+        let mut d = RiskDimensions::default();
+        apply_agentos_mutation_risk(&mut d, "external_side_effect");
+        assert!(d.blast_radius >= 0.55);
     }
 }

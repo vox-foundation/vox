@@ -2,7 +2,8 @@
 //!
 //! This is the **authoritative** path for validating host/agent PowerShell command strings against
 //! [`DEFAULT_POLICY_REL`]. It is **not** wired into `vox shell repl` passthrough; REPL remains a
-//! minimal dev utility (see `mod.rs`).
+//! minimal dev utility (see `mod.rs`). AgentOS **ACI** shell backends that classify probe output are
+//! in [`crate::commands::runtime::shell::aci_adapter`] (`aci_adapter`).
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};

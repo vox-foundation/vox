@@ -13,6 +13,9 @@
 
 pub(crate) mod check_terminal;
 
+pub mod aci_adapter;
+pub mod backends;
+
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};

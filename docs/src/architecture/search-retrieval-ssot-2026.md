@@ -65,6 +65,7 @@ The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` 
 | Knowledge graph | SQLite FTS / LIKE on `knowledge_nodes` | Exposed as MCP `vox_knowledge_query` |
 | Ingested doc chunks (RAG) | FTS5 / LIKE + `embeddings` hybrid | Fusion weight: `chunk_vector_fusion_weight`, passed into `query_search_document_chunks_hybrid` (not hard-coded in `vox-db`) |
 | Repo inventory | Bounded filesystem walk + token overlap | Interim until persistent code indexes exist |
+| Semantic FS (intent paths) | `vox-search::semantic_fs` (`discover_files_for_intent`, `retrieve_evidence_for_intent`) | Same inventory ranker as repo paths; MCP exposes `semantic_fs_discover` for AgentOS intent-shaped discovery |
 | Docs mirror (optional) | Tantivy (`tantivy-lexical` feature) | Supplemental |
 | Sidecar ANN (optional) | Qdrant (`qdrant-vector` feature) | Parallel to DB chunk search |
 | Web | SearXNG / DDG / optional Tavily | Policy-gated |
