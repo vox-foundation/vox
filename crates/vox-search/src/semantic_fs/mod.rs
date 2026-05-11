@@ -47,7 +47,8 @@ mod tests {
         let policy = SearchPolicy::default();
         let hits = discover_files_for_intent(dir.path(), "agentos hint", 8, &policy);
         assert!(
-            hits.iter().any(|h| h["path"].as_str().unwrap_or("").contains("agentos_hint")),
+            hits.iter()
+                .any(|h| h["path"].as_str().unwrap_or("").contains("agentos_hint")),
             "{hits:?}"
         );
     }

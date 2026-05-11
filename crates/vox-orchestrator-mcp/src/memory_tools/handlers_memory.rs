@@ -170,16 +170,15 @@ pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> S
 }
 
 /// Rank workspace paths for an intent via the semantic-fs bridge (read-only inventory search).
-pub async fn semantic_fs_discover_mcp(state: &ServerState, params: SemanticFsDiscoverParams) -> String {
+pub async fn semantic_fs_discover_mcp(
+    state: &ServerState,
+    params: SemanticFsDiscoverParams,
+) -> String {
     let policy = SearchPolicy::from_env();
     let lim_raw = params.limit.unwrap_or(16);
     let limit = lim_raw.clamp(1, 256) as usize;
-    let hits = super::semantic_fs_discover(
-        &state.repository.root,
-        params.intent.trim(),
-        limit,
-        &policy,
-    );
+    let hits =
+        super::semantic_fs_discover(&state.repository.root, params.intent.trim(), limit, &policy);
     ToolResult::ok(json!({ "hits": hits })).to_json()
 }
 

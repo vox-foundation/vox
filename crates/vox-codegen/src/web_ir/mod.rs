@@ -20,15 +20,15 @@
 //! [`validate::validate_web_ir`] (non-empty specifiers / escape-hatch reasons). Route+data shape
 //! notes: [`RouteContract`] JSON in [`RouteNode::RouteTree`] must stay serde-stable for tooling (OP-S153).
 
-pub mod emit_tsx;
-pub mod lower;
-pub mod primitives;
-pub mod validate;
 pub mod async_state;
+pub mod emit_tsx;
 pub mod href_emit;
 pub mod layer_emit;
+pub mod lower;
 pub mod paginated_emit;
+pub mod primitives;
 pub mod semantic_ui_emit;
+pub mod validate;
 pub mod validate_a11y;
 pub mod validate_keys;
 pub mod validate_overlay;

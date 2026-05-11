@@ -57,10 +57,21 @@ pub struct Notification {
 /// Outcome of a delivery attempt.
 #[derive(Debug, Clone)]
 pub enum DeliveryOutcome {
-    Delivered { provider_message_id: String, at: SystemTime },
-    Bounced { reason: String, at: SystemTime },
-    Deferred { retry_after: SystemTime },
-    Failed { error: String, at: SystemTime },
+    Delivered {
+        provider_message_id: String,
+        at: SystemTime,
+    },
+    Bounced {
+        reason: String,
+        at: SystemTime,
+    },
+    Deferred {
+        retry_after: SystemTime,
+    },
+    Failed {
+        error: String,
+        at: SystemTime,
+    },
 }
 
 /// Dispatch trait. Adapters (`vox_notify_resend`, `vox_notify_twilio`, etc.)
@@ -141,7 +152,9 @@ mod tests {
 
     #[test]
     fn sms_recipient_routes_to_sms_channel() {
-        let r = Recipient::Sms { phone: "+15551234567".into() };
+        let r = Recipient::Sms {
+            phone: "+15551234567".into(),
+        };
         assert_eq!(r.channel(), Channel::Sms);
     }
 

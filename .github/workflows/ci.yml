@@ -545,7 +545,7 @@ jobs:
 
       - name: Mens corpus mix (strict required sources)
         run: |
-          bash scripts/ci/prep_mens_mix_inputs.sh
+          cargo run -p vox-cli --quiet -- run --interp scripts/ci/corpus_prep.vox
           cargo run -p vox-cli --quiet -- mens corpus mix --config mens/config/mix.yaml
 
       - name: Populi CI gate matrix (single manifest)

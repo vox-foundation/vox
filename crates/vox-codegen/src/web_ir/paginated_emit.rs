@@ -86,7 +86,9 @@ mod tests {
     use super::*;
     use vox_compiler::ast::span::Span;
 
-    fn span() -> Span { Span { start: 0, end: 0 } }
+    fn span() -> Span {
+        Span { start: 0, end: 0 }
+    }
 
     #[test]
     fn paginated_module_uses_item_type_name() {

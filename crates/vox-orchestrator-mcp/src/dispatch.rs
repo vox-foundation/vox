@@ -825,9 +825,9 @@ async fn handle_tool_call_inner(
         "vox_memory_search" => {
             Ok(crate::memory::memory_search(state, serde_json::from_value(args)?).await)
         }
-        "vox_semantic_fs_discover" => Ok(
-            crate::memory::semantic_fs_discover_mcp(state, serde_json::from_value(args)?).await,
-        ),
+        "vox_semantic_fs_discover" => {
+            Ok(crate::memory::semantic_fs_discover_mcp(state, serde_json::from_value(args)?).await)
+        }
         "vox_memory_log" => {
             Ok(crate::memory::memory_daily_log(state, serde_json::from_value(args)?).await)
         }

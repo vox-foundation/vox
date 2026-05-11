@@ -12,6 +12,8 @@ pub mod builtins;
 #[cfg(feature = "database")]
 /// Optional Codex / Turso database handle when the `database` feature is enabled.
 pub mod db;
+/// Durable / cron scheduler primitives for `@scheduled` + `@durable` (GA-11).
+pub mod durable_scheduler;
 /// Garbage collection arena and !Send pointers for actor memory isolation.
 pub mod gc;
 /// Hugging Face router, Hub listings, and Mens/Ollama capability probes.
@@ -26,8 +28,12 @@ pub mod mailbox;
 pub mod mens;
 /// SSOT chat routing: manual URL, Mens, HF dedicated/router, OpenRouter.
 pub mod model_resolution;
+/// Multi-channel notification dispatch (GA-14): Email / SMS / WebPush.
+pub mod notify;
 /// Opaque process identifiers for actors and messaging.
 pub mod pid;
+/// Cursor-presence channel for real-time multiplayer (GA-25).
+pub mod presence;
 /// Actor `ProcessContext`, `ProcessHandle`, and `spawn_process`.
 pub mod process;
 /// Prompt normalization, conflict detection, and safety pass for LLM ingress.
@@ -44,12 +50,6 @@ pub mod route_capability_policy;
 pub mod routing_telemetry;
 /// Cooperative Tokio-backed scheduler registering spawned actors.
 pub mod scheduler;
-/// Durable / cron scheduler primitives for `@scheduled` + `@durable` (GA-11).
-pub mod durable_scheduler;
-/// Multi-channel notification dispatch (GA-14): Email / SMS / WebPush.
-pub mod notify;
-/// Cursor-presence channel for real-time multiplayer (GA-25).
-pub mod presence;
 /// Reactive state-machine instance helper consumed by emitted state-machine hooks
 /// (Phase G of the Svelte-mineable features plan).
 pub mod state_machine;

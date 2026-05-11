@@ -426,9 +426,12 @@ impl ContextEnvelope {
             .into_iter()
             .map(str::to_string)
             .collect();
+        let sparse = tools
+            .iter()
+            .any(|t| crate::agentos::checkpoint_engine::should_sparse_checkpoint(t));
         self.agentos = Some(ContextAgentOsHints {
             suggested_tools: tools,
-            sparse_checkpoint_recommended: None,
+            sparse_checkpoint_recommended: Some(sparse),
         });
         self
     }
@@ -671,6 +674,23 @@ mod agentos_hint_tests {
         let env = ContextEnvelope::from_session_retrieval("repo", "sid", &retrieval)
             .with_agentos_intent_hints("run cargo tests", 4);
         let hints = env.agentos.expect("hints");
-        assert!(hints.suggested_tools.iter().any(|t| t.contains("vox_run_tests")));
+        assert!(
+            hints
+                .suggested_tools
+                .iter()
+                .any(|t| t.contains("vox_run_tests"))
+        );
+        assert_eq!(hints.sparse_checkpoint_recommended, Some(false));
+    }
+
+    #[test]
+    fn intent_hints_set_sparse_checkpoint_when_plan_includes_mutation() {
+        let retrieval: crate::socrates::SessionRetrievalEnvelope =
+            serde_json::from_value(serde_json::json!({})).expect("empty retrieval envelope");
+        let env = ContextEnvelope::from_session_retrieval("repo", "sid", &retrieval)
+            .with_agentos_intent_hints("patch readme section", 4);
+        let hints = env.agentos.expect("hints");
+        assert!(hints.suggested_tools.iter().any(|t| t == "vox_write_file"));
+        assert_eq!(hints.sparse_checkpoint_recommended, Some(true));
     }
 }

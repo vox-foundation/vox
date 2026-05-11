@@ -13,8 +13,8 @@
 #![allow(clippy::collapsible_if)]
 
 mod ast_decl_lints;
-mod async_handler_lint;
 pub mod async_exhaustiveness;
+mod async_handler_lint;
 pub mod boilerplate_grafts;
 pub mod contrast;
 mod effect_deps_lint;
@@ -75,9 +75,15 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
     // GA-20 / CC-23: contrast-ratio validation for design token color pairs.
     diags.extend(contrast::check_tokens(&hir.token_decls));
     // GA-19: a11y label enforcement for semantic UI primitives.
-    diags.extend(semantic_ui::check_semantic_ui(&collect_semantic_ui_callsites(hir)));
+    diags.extend(semantic_ui::check_semantic_ui(
+        &collect_semantic_ui_callsites(hir),
+    ));
     // GA-01: Async[T] view exhaustiveness (all four arms required).
-    diags.extend(collect_async_views(hir).into_iter().filter_map(|v| async_exhaustiveness::check_async_view(&v)));
+    diags.extend(
+        collect_async_views(hir)
+            .into_iter()
+            .filter_map(|v| async_exhaustiveness::check_async_view(&v)),
+    );
     // GA-16/GA-06/GA-23/GA-26: per-endpoint decorator validation.
     for ep in &hir.endpoint_fns {
         if let Some(w) = &ep.webhook {
@@ -87,7 +93,8 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
             diags.extend(boilerplate_grafts::check_cors_policy(c));
         }
         if let Some(p) = &ep.pii {
-            if let Some(d) = boilerplate_grafts::check_pii_with_net_effect(p, &ep.effects, &ep.name) {
+            if let Some(d) = boilerplate_grafts::check_pii_with_net_effect(p, &ep.effects, &ep.name)
+            {
                 diags.push(d);
             }
         }
@@ -126,60 +133,105 @@ fn collect_async_views(hir: &HirModule) -> Vec<crate::hir::nodes::async_view::Hi
         match expr {
             HirExpr::AsyncView(v) => {
                 // Check nested arms too before pushing this node.
-                if let Some(arm) = &v.fetching_arm { visit_expr(arm, out); }
-                if let Some(arm) = &v.empty_arm { visit_expr(arm, out); }
-                if let Some(arm) = &v.error_arm { visit_expr(arm, out); }
-                if let Some(arm) = &v.ok_arm { visit_expr(arm, out); }
+                if let Some(arm) = &v.fetching_arm {
+                    visit_expr(arm, out);
+                }
+                if let Some(arm) = &v.empty_arm {
+                    visit_expr(arm, out);
+                }
+                if let Some(arm) = &v.error_arm {
+                    visit_expr(arm, out);
+                }
+                if let Some(arm) = &v.ok_arm {
+                    visit_expr(arm, out);
+                }
                 out.push(*v.clone());
             }
             HirExpr::Block(stmts, _) => {
-                for s in stmts { visit_stmt(s, out); }
+                for s in stmts {
+                    visit_stmt(s, out);
+                }
             }
             HirExpr::If(cond, then_stmts, else_stmts, _) => {
                 visit_expr(cond, out);
-                for s in then_stmts { visit_stmt(s, out); }
-                if let Some(es) = else_stmts { for s in es { visit_stmt(s, out); } }
+                for s in then_stmts {
+                    visit_stmt(s, out);
+                }
+                if let Some(es) = else_stmts {
+                    for s in es {
+                        visit_stmt(s, out);
+                    }
+                }
             }
-            HirExpr::Binary(_, l, r, _) => { visit_expr(l, out); visit_expr(r, out); }
+            HirExpr::Binary(_, l, r, _) => {
+                visit_expr(l, out);
+                visit_expr(r, out);
+            }
             HirExpr::Unary(_, e, _) => visit_expr(e, out),
             HirExpr::Call(f, args, _, _) => {
                 visit_expr(f, out);
-                for a in args { visit_expr(&a.value, out); }
+                for a in args {
+                    visit_expr(&a.value, out);
+                }
             }
             HirExpr::MethodCall(recv, _, args, _, _) => {
                 visit_expr(recv, out);
-                for a in args { visit_expr(&a.value, out); }
+                for a in args {
+                    visit_expr(&a.value, out);
+                }
             }
             HirExpr::Lambda(_, _, body, _, _) => visit_expr(body, out),
             HirExpr::For(_, _, iter, body, key, _) => {
                 visit_expr(iter, out);
                 visit_expr(body, out);
-                if let Some(k) = key { visit_expr(k, out); }
+                if let Some(k) = key {
+                    visit_expr(k, out);
+                }
             }
             HirExpr::Match(e, arms, _) => {
                 visit_expr(e, out);
-                for arm in arms { visit_expr(&arm.body, out); }
+                for arm in arms {
+                    visit_expr(&arm.body, out);
+                }
             }
             HirExpr::Jsx(el) => {
-                for a in &el.attributes { visit_expr(&a.value, out); }
-                for c in &el.children { visit_expr(c, out); }
+                for a in &el.attributes {
+                    visit_expr(&a.value, out);
+                }
+                for c in &el.children {
+                    visit_expr(c, out);
+                }
             }
             HirExpr::JsxSelfClosing(el) => {
-                for a in &el.attributes { visit_expr(&a.value, out); }
+                for a in &el.attributes {
+                    visit_expr(&a.value, out);
+                }
             }
             HirExpr::JsxFragment(children, _) => {
-                for c in children { visit_expr(c, out); }
+                for c in children {
+                    visit_expr(c, out);
+                }
             }
             HirExpr::Try(t) => visit_expr(&t.target, out),
-            HirExpr::Index(a, b, _) => { visit_expr(a, out); visit_expr(b, out); }
-            HirExpr::With(a, b, _) => { visit_expr(a, out); visit_expr(b, out); }
+            HirExpr::Index(a, b, _) => {
+                visit_expr(a, out);
+                visit_expr(b, out);
+            }
+            HirExpr::With(a, b, _) => {
+                visit_expr(a, out);
+                visit_expr(b, out);
+            }
             HirExpr::FieldAccess(e, _, _) => visit_expr(e, out),
             HirExpr::Spawn(e, _) => visit_expr(e, out),
             HirExpr::ObjectLit(fields, _) => {
-                for (_, v) in fields { visit_expr(v, out); }
+                for (_, v) in fields {
+                    visit_expr(v, out);
+                }
             }
             HirExpr::ListLit(items, _) | HirExpr::TupleLit(items, _) => {
-                for v in items { visit_expr(v, out); }
+                for v in items {
+                    visit_expr(v, out);
+                }
             }
             _ => {}
         }
@@ -194,12 +246,18 @@ fn collect_async_views(hir: &HirModule) -> Vec<crate::hir::nodes::async_view::Hi
             }
             HirStmt::Expr { expr, .. } => visit_expr(expr, out),
             HirStmt::Return { value: Some(e), .. } => visit_expr(e, out),
-            HirStmt::While { condition, body, .. } => {
+            HirStmt::While {
+                condition, body, ..
+            } => {
                 visit_expr(condition, out);
-                for s in body { visit_stmt(s, out); }
+                for s in body {
+                    visit_stmt(s, out);
+                }
             }
             HirStmt::Loop { body, .. } => {
-                for s in body { visit_stmt(s, out); }
+                for s in body {
+                    visit_stmt(s, out);
+                }
             }
             _ => {}
         }
@@ -207,7 +265,9 @@ fn collect_async_views(hir: &HirModule) -> Vec<crate::hir::nodes::async_view::Hi
 
     let mut out = vec![];
     for f in &hir.functions {
-        for s in &f.body { visit_stmt(s, &mut out); }
+        for s in &f.body {
+            visit_stmt(s, &mut out);
+        }
     }
     for comp in &hir.components {
         use crate::hir::nodes::HirReactiveMember;
@@ -235,8 +295,8 @@ fn collect_async_views(hir: &HirModule) -> Vec<crate::hir::nodes::async_view::Hi
 /// enforce the a11y requirement.
 fn collect_semantic_ui_callsites(hir: &HirModule) -> Vec<semantic_ui::SemanticUiCallSite> {
     use crate::hir::HirExpr;
-    use crate::hir::HirStmt;
     use crate::hir::HirJsxAttr;
+    use crate::hir::HirStmt;
 
     const PRIMITIVES: &[&str] = &["Dialog", "Menu", "Listbox", "Combobox", "Tabs"];
 
@@ -254,8 +314,12 @@ fn collect_semantic_ui_callsites(hir: &HirModule) -> Vec<semantic_ui::SemanticUi
                         span: el.span,
                     });
                 }
-                for a in &el.attributes { visit_expr(&a.value, out); }
-                for c in &el.children { visit_expr(c, out); }
+                for a in &el.attributes {
+                    visit_expr(&a.value, out);
+                }
+                for c in &el.children {
+                    visit_expr(c, out);
+                }
             }
             HirExpr::JsxSelfClosing(el) => {
                 if PRIMITIVES.contains(&el.tag.as_str()) {
@@ -265,42 +329,70 @@ fn collect_semantic_ui_callsites(hir: &HirModule) -> Vec<semantic_ui::SemanticUi
                         span: el.span,
                     });
                 }
-                for a in &el.attributes { visit_expr(&a.value, out); }
+                for a in &el.attributes {
+                    visit_expr(&a.value, out);
+                }
             }
             HirExpr::JsxFragment(children, _) => {
-                for c in children { visit_expr(c, out); }
+                for c in children {
+                    visit_expr(c, out);
+                }
             }
             HirExpr::Block(stmts, _) => {
-                for s in stmts { visit_stmt(s, out); }
+                for s in stmts {
+                    visit_stmt(s, out);
+                }
             }
             HirExpr::If(cond, then_stmts, else_stmts, _) => {
                 visit_expr(cond, out);
-                for s in then_stmts { visit_stmt(s, out); }
-                if let Some(es) = else_stmts { for s in es { visit_stmt(s, out); } }
+                for s in then_stmts {
+                    visit_stmt(s, out);
+                }
+                if let Some(es) = else_stmts {
+                    for s in es {
+                        visit_stmt(s, out);
+                    }
+                }
             }
             HirExpr::For(_, _, iter, body, key, _) => {
                 visit_expr(iter, out);
                 visit_expr(body, out);
-                if let Some(k) = key { visit_expr(k, out); }
+                if let Some(k) = key {
+                    visit_expr(k, out);
+                }
             }
             HirExpr::Lambda(_, _, body, _, _) => visit_expr(body, out),
             HirExpr::Match(e, arms, _) => {
                 visit_expr(e, out);
-                for arm in arms { visit_expr(&arm.body, out); }
+                for arm in arms {
+                    visit_expr(&arm.body, out);
+                }
             }
             HirExpr::AsyncView(v) => {
-                if let Some(arm) = &v.fetching_arm { visit_expr(arm, out); }
-                if let Some(arm) = &v.empty_arm { visit_expr(arm, out); }
-                if let Some(arm) = &v.error_arm { visit_expr(arm, out); }
-                if let Some(arm) = &v.ok_arm { visit_expr(arm, out); }
+                if let Some(arm) = &v.fetching_arm {
+                    visit_expr(arm, out);
+                }
+                if let Some(arm) = &v.empty_arm {
+                    visit_expr(arm, out);
+                }
+                if let Some(arm) = &v.error_arm {
+                    visit_expr(arm, out);
+                }
+                if let Some(arm) = &v.ok_arm {
+                    visit_expr(arm, out);
+                }
             }
             HirExpr::Call(f, args, _, _) => {
                 visit_expr(f, out);
-                for a in args { visit_expr(&a.value, out); }
+                for a in args {
+                    visit_expr(&a.value, out);
+                }
             }
             HirExpr::MethodCall(recv, _, args, _, _) => {
                 visit_expr(recv, out);
-                for a in args { visit_expr(&a.value, out); }
+                for a in args {
+                    visit_expr(&a.value, out);
+                }
             }
             _ => {}
         }
@@ -315,12 +407,18 @@ fn collect_semantic_ui_callsites(hir: &HirModule) -> Vec<semantic_ui::SemanticUi
             }
             HirStmt::Expr { expr, .. } => visit_expr(expr, out),
             HirStmt::Return { value: Some(e), .. } => visit_expr(e, out),
-            HirStmt::While { condition, body, .. } => {
+            HirStmt::While {
+                condition, body, ..
+            } => {
                 visit_expr(condition, out);
-                for s in body { visit_stmt(s, out); }
+                for s in body {
+                    visit_stmt(s, out);
+                }
             }
             HirStmt::Loop { body, .. } => {
-                for s in body { visit_stmt(s, out); }
+                for s in body {
+                    visit_stmt(s, out);
+                }
             }
             _ => {}
         }
@@ -328,7 +426,9 @@ fn collect_semantic_ui_callsites(hir: &HirModule) -> Vec<semantic_ui::SemanticUi
 
     let mut out = vec![];
     for f in &hir.functions {
-        for s in &f.body { visit_stmt(s, &mut out); }
+        for s in &f.body {
+            visit_stmt(s, &mut out);
+        }
     }
     for comp in &hir.components {
         use crate::hir::nodes::HirReactiveMember;

@@ -1,4 +1,5 @@
 // vox:caps fs env process
+// CI canonical gate: `cargo run -p vox-cli -- ci script-hygiene` (Rust implementation mirrors this allowlist).
 import fs;
 import path;
 import process;

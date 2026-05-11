@@ -30,7 +30,9 @@ fn dummy() to int { return 1 }
 "##;
     let m = parse(lex(src)).expect("parse");
     let ds = typecheck_ast_module(src, &m);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/tokens/contrast-violation"));
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("vox/tokens/contrast-violation"));
     assert!(
         hit.is_some(),
         "expected vox/tokens/contrast-violation diagnostic for low-contrast pair; got {:?}",
@@ -49,13 +51,20 @@ fn fetch_data() to int { return 1 }
     let m = parse(lex(src)).expect("parse should succeed for @uses decorator");
     // Verify effect was stored
     let func = m.declarations.iter().find_map(|d| {
-        if let vox_compiler::ast::decl::Decl::Function(f) = d { Some(f) } else { None }
+        if let vox_compiler::ast::decl::Decl::Function(f) = d {
+            Some(f)
+        } else {
+            None
+        }
     });
     assert!(func.is_some(), "should have parsed function");
     let effects = &func.unwrap().effects;
     assert!(
-        effects.iter().any(|e| matches!(e, vox_compiler::ast::decl::effect::EffectAnnotation::Net)),
-        "@uses(net) should populate effects with Net; got {:?}", effects
+        effects
+            .iter()
+            .any(|e| matches!(e, vox_compiler::ast::decl::effect::EffectAnnotation::Net)),
+        "@uses(net) should populate effects with Net; got {:?}",
+        effects
     );
 }
 
@@ -67,15 +76,23 @@ fn upload_file() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse");
     let func = m.declarations.iter().find_map(|d| {
-        if let vox_compiler::ast::decl::Decl::Function(f) = d { Some(f) } else { None }
+        if let vox_compiler::ast::decl::Decl::Function(f) = d {
+            Some(f)
+        } else {
+            None
+        }
     });
     let effects = &func.unwrap().effects;
     assert!(
-        effects.iter().any(|e| matches!(e, vox_compiler::ast::decl::effect::EffectAnnotation::Net)),
+        effects
+            .iter()
+            .any(|e| matches!(e, vox_compiler::ast::decl::effect::EffectAnnotation::Net)),
         "expected Net effect"
     );
     assert!(
-        effects.iter().any(|e| matches!(e, vox_compiler::ast::decl::effect::EffectAnnotation::Fs)),
+        effects
+            .iter()
+            .any(|e| matches!(e, vox_compiler::ast::decl::effect::EffectAnnotation::Fs)),
         "expected Fs effect"
     );
 }
@@ -92,7 +109,9 @@ component Nav() {
 "#;
     let m = parse(lex(src)).expect("parse");
     let ds = typecheck_ast_module(src, &m);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/a11y/dialog-missing-label"));
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("vox/a11y/dialog-missing-label"));
     assert!(
         hit.is_some(),
         "expected vox/a11y/dialog-missing-label for Dialog without label; got {:?}",
@@ -110,7 +129,9 @@ component Nav() {
 "#;
     let m = parse(lex(src)).expect("parse");
     let ds = typecheck_ast_module(src, &m);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/a11y/dialog-missing-label"));
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("vox/a11y/dialog-missing-label"));
     assert!(
         hit.is_none(),
         "Dialog with label= should not trigger a11y diagnostic; got {:?}",
@@ -138,7 +159,11 @@ fn stripe_hook() to int { return 2 }
 fn layer_fn() to int { return 3 }
 "#;
     let result = parse(lex(src));
-    assert!(result.is_ok(), "parse should succeed for multi-decorator functions; errors: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "parse should succeed for multi-decorator functions; errors: {:?}",
+        result.err()
+    );
 }
 
 // ── GA-16 — @webhook validation ───────────────────────────────────────────
@@ -153,7 +178,9 @@ fn custom_hook() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/webhook/missing-secret-var"));
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("vox/webhook/missing-secret-var"));
     assert!(
         hit.is_some(),
         "expected vox/webhook/missing-secret-var; got {:?}",
@@ -170,11 +197,15 @@ fn custom_hook() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/webhook/missing-secret-var"));
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("vox/webhook/missing-secret-var"));
     assert!(
         hit.is_none(),
         "@webhook with explicit secret should not trigger missing-secret-var; got {:?}",
-        ds.iter().map(|d| (d.code.as_deref(), &d.message)).collect::<Vec<_>>()
+        ds.iter()
+            .map(|d| (d.code.as_deref(), &d.message))
+            .collect::<Vec<_>>()
     );
 }
 
@@ -188,7 +219,9 @@ fn tight_hook() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/webhook/replay-window-out-of-range"));
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("vox/webhook/replay-window-out-of-range"));
     assert!(
         hit.is_some(),
         "expected vox/webhook/replay-window-out-of-range for 4s window; got {:?}",
@@ -205,7 +238,10 @@ fn stripe_hook() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
-    for code in ["vox/webhook/missing-secret-var", "vox/webhook/replay-window-out-of-range"] {
+    for code in [
+        "vox/webhook/missing-secret-var",
+        "vox/webhook/replay-window-out-of-range",
+    ] {
         assert!(
             !ds.iter().any(|d| d.code.as_deref() == Some(code)),
             "did not expect {code}; got {:?}",
@@ -225,7 +261,9 @@ fn my_api() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/cors/credentials-with-wildcard"));
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("vox/cors/credentials-with-wildcard"));
     assert!(
         hit.is_some(),
         "expected vox/cors/credentials-with-wildcard; got {:?}",
@@ -243,7 +281,8 @@ fn my_api() to int { return 1 }
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
     assert!(
-        !ds.iter().any(|d| d.code.as_deref() == Some("vox/cors/credentials-with-wildcard")),
+        !ds.iter()
+            .any(|d| d.code.as_deref() == Some("vox/cors/credentials-with-wildcard")),
         "explicit origin with credentials should be clean"
     );
 }
@@ -259,7 +298,9 @@ fn send_email_fn() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/pii/unannotated-net-effect"));
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("vox/pii/unannotated-net-effect"));
     assert!(
         hit.is_some(),
         "expected vox/pii/unannotated-net-effect for PII endpoint without @uses(net); got {:?}",
@@ -278,7 +319,8 @@ fn send_email_fn() to int { return 1 }
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
     assert!(
-        !ds.iter().any(|d| d.code.as_deref() == Some("vox/pii/unannotated-net-effect")),
+        !ds.iter()
+            .any(|d| d.code.as_deref() == Some("vox/pii/unannotated-net-effect")),
         "@pii + @uses(net) should not warn; got {:?}",
         ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
     );
@@ -295,7 +337,9 @@ fn debug_fn() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/layer/reserved-tier"));
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("vox/layer/reserved-tier"));
     assert!(
         hit.is_some(),
         "expected vox/layer/reserved-tier for system-overlay; got {:?}",
@@ -313,7 +357,8 @@ fn confirm_fn() to int { return 1 }
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
     assert!(
-        !ds.iter().any(|d| d.code.as_deref() == Some("vox/layer/reserved-tier")),
+        !ds.iter()
+            .any(|d| d.code.as_deref() == Some("vox/layer/reserved-tier")),
         "modal tier should be allowed; got {:?}",
         ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
     );
@@ -338,14 +383,25 @@ fn dummy() to int { return 1 }
         "expected 2 route_ids from routes block; got {:?}",
         hir.route_ids.iter().map(|r| &r.name).collect::<Vec<_>>()
     );
-    let home = hir.route_ids.iter().find(|r| r.name == "Home").expect("Home route");
+    let home = hir
+        .route_ids
+        .iter()
+        .find(|r| r.name == "Home")
+        .expect("Home route");
     assert_eq!(home.url_pattern, "/");
     assert!(home.params.is_empty());
     assert_eq!(home.analytics_slug, "home");
 
-    let profile = hir.route_ids.iter().find(|r| r.name == "UserProfile").expect("UserProfile route");
+    let profile = hir
+        .route_ids
+        .iter()
+        .find(|r| r.name == "UserProfile")
+        .expect("UserProfile route");
     assert_eq!(profile.url_pattern, "/users/:id");
-    assert_eq!(profile.params, vec![("id".to_string(), "string".to_string())]);
+    assert_eq!(
+        profile.params,
+        vec![("id".to_string(), "string".to_string())]
+    );
     assert_eq!(profile.analytics_slug, "user_profile");
 }
 
@@ -359,7 +415,10 @@ fn dummy() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse");
     let hir = vox_compiler::hir::lower::lower_module(&m);
-    assert!(!hir.route_ids.is_empty(), "should have at least one route_id");
+    assert!(
+        !hir.route_ids.is_empty(),
+        "should have at least one route_id"
+    );
     assert_eq!(hir.route_ids[0].analytics_slug, "home");
 }
 
@@ -373,7 +432,9 @@ fn plan_trip() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/ai/return-shape-not-codec'd"));
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("vox/ai/return-shape-not-codec'd"));
     assert!(
         hit.is_some(),
         "expected vox/ai/return-shape-not-codec'd for undeclared structured_output type; got {:?}",
@@ -390,7 +451,8 @@ fn chat() to int { return 1 }
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
     assert!(
-        !ds.iter().any(|d| d.code.as_deref() == Some("vox/ai/return-shape-not-codec'd")),
+        !ds.iter()
+            .any(|d| d.code.as_deref() == Some("vox/ai/return-shape-not-codec'd")),
         "@ai without structured_output should not warn"
     );
 }
@@ -403,7 +465,11 @@ fn plan() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse should succeed for @ai with max_iterations");
     let func = m.declarations.iter().find_map(|d| {
-        if let vox_compiler::ast::decl::Decl::Function(f) = d { Some(f) } else { None }
+        if let vox_compiler::ast::decl::Decl::Function(f) = d {
+            Some(f)
+        } else {
+            None
+        }
     });
     let f = func.expect("should have parsed function");
     assert!(f.is_llm, "@ai should set is_llm");
@@ -421,7 +487,11 @@ fn embed_description() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse should succeed for @embed with args");
     let func = m.declarations.iter().find_map(|d| {
-        if let vox_compiler::ast::decl::Decl::Function(f) = d { Some(f) } else { None }
+        if let vox_compiler::ast::decl::Decl::Function(f) = d {
+            Some(f)
+        } else {
+            None
+        }
     });
     let f = func.expect("should have parsed function");
     let embed = f.embed.as_ref().expect("@embed should be captured");
@@ -438,7 +508,9 @@ fn embed_fn() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("vox/embed/zero-dimensions"));
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("vox/embed/zero-dimensions"));
     assert!(
         hit.is_some(),
         "expected vox/embed/zero-dimensions for dimensions: 0; got {:?}",
@@ -455,7 +527,8 @@ fn embed_fn() to int { return 1 }
     let m = parse(lex(src)).expect("parse should succeed");
     let ds = typecheck_ast_module(src, &m);
     assert!(
-        !ds.iter().any(|d| d.code.as_deref() == Some("vox/embed/zero-dimensions")),
+        !ds.iter()
+            .any(|d| d.code.as_deref() == Some("vox/embed/zero-dimensions")),
         "@embed with valid dimensions should not warn"
     );
 }

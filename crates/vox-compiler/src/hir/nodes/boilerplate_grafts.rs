@@ -179,7 +179,9 @@ pub enum WebhookProvider {
     Github,
     Slack,
     /// Custom HMAC-SHA256 with a named secret variable.
-    Custom { secret_var: String },
+    Custom {
+        secret_var: String,
+    },
 }
 
 // ── GA-17 — Paginated[T] cursor codec ─────────────────────────────────────
@@ -267,11 +269,16 @@ mod tests {
     use super::*;
     use crate::ast::span::Span;
 
-    fn span() -> Span { Span { start: 0, end: 0 } }
+    fn span() -> Span {
+        Span { start: 0, end: 0 }
+    }
 
     #[test]
     fn pii_class_email_round_trips() {
-        let m = HirPiiMarker { class: PiiClass::Email, span: span() };
+        let m = HirPiiMarker {
+            class: PiiClass::Email,
+            span: span(),
+        };
         let json = serde_json::to_string(&m).unwrap();
         let back: HirPiiMarker = serde_json::from_str(&json).unwrap();
         assert_eq!(back.class, PiiClass::Email);
@@ -282,7 +289,10 @@ mod tests {
         for p in [
             RetryPolicy::None,
             RetryPolicy::ExpBackoff { max_attempts: 3 },
-            RetryPolicy::FixedInterval { max_attempts: 5, interval_ms: 1000 },
+            RetryPolicy::FixedInterval {
+                max_attempts: 5,
+                interval_ms: 1000,
+            },
         ] {
             let s = serde_json::to_string(&p).unwrap();
             let back: RetryPolicy = serde_json::from_str(&s).unwrap();
@@ -292,8 +302,14 @@ mod tests {
 
     #[test]
     fn vector_type_carries_dimension() {
-        let v768 = HirVectorType { dimension: 768, span: span() };
-        let v1536 = HirVectorType { dimension: 1536, span: span() };
+        let v768 = HirVectorType {
+            dimension: 768,
+            span: span(),
+        };
+        let v1536 = HirVectorType {
+            dimension: 1536,
+            span: span(),
+        };
         assert_ne!(v768.dimension, v1536.dimension);
     }
 
@@ -301,7 +317,9 @@ mod tests {
     fn webhook_providers_distinct() {
         let s = WebhookProvider::Stripe;
         let g = WebhookProvider::Github;
-        let c = WebhookProvider::Custom { secret_var: "SECRET".into() };
+        let c = WebhookProvider::Custom {
+            secret_var: "SECRET".into(),
+        };
         assert_ne!(s, g);
         assert_ne!(s, c);
         assert_ne!(g, c);
@@ -309,7 +327,10 @@ mod tests {
 
     #[test]
     fn offline_strategy_distinct() {
-        assert_ne!(OfflineStrategy::StaleWhileRevalidate, OfflineStrategy::CacheFirst);
+        assert_ne!(
+            OfflineStrategy::StaleWhileRevalidate,
+            OfflineStrategy::CacheFirst
+        );
         assert_ne!(OfflineStrategy::CacheFirst, OfflineStrategy::NetworkFirst);
     }
 }

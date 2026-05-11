@@ -90,7 +90,9 @@ pub fn emit_layer_portal_roots() -> String {
 pub fn emit_layer_portal_resolver() -> String {
     let mut out = String::new();
     out.push_str("import type { LayerTier } from \"./vox-layer-types\";\n\n");
-    out.push_str("/** Resolve the portal root element for a given tier. Returns null on the server. */\n");
+    out.push_str(
+        "/** Resolve the portal root element for a given tier. Returns null on the server. */\n",
+    );
     out.push_str("export function voxResolveLayerRoot(tier: LayerTier): HTMLElement | null {\n");
     out.push_str("  if (typeof document === \"undefined\") return null;\n");
     out.push_str("  return document.getElementById(`vox-layer-${tier}`);\n");
@@ -137,7 +139,10 @@ mod tests {
     fn z_indexes_are_strictly_ascending() {
         let z_values: Vec<i32> = TIERS.iter().map(|&t| tier_z_index(t)).collect();
         for pair in z_values.windows(2) {
-            assert!(pair[0] < pair[1], "tiers not strictly ascending: {z_values:?}");
+            assert!(
+                pair[0] < pair[1],
+                "tiers not strictly ascending: {z_values:?}"
+            );
         }
     }
 

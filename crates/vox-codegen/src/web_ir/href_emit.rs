@@ -37,11 +37,8 @@ pub fn emit_route_id_module(routes: &[HirRouteId]) -> String {
             if r.params.is_empty() {
                 out.push_str(&format!("{prefix}{{ _route: \"{}\" }}\n", r.name));
             } else {
-                let param_block: Vec<String> = r
-                    .params
-                    .iter()
-                    .map(|(n, t)| format!("{n}: {t}"))
-                    .collect();
+                let param_block: Vec<String> =
+                    r.params.iter().map(|(n, t)| format!("{n}: {t}")).collect();
                 out.push_str(&format!(
                     "{prefix}{{ _route: \"{}\"; {} }}\n",
                     r.name,
@@ -60,11 +57,7 @@ pub fn emit_route_id_module(routes: &[HirRouteId]) -> String {
                 r.name, r.name
             ));
         } else {
-            let arg_type: Vec<String> = r
-                .params
-                .iter()
-                .map(|(n, t)| format!("{n}: {t}"))
-                .collect();
+            let arg_type: Vec<String> = r.params.iter().map(|(n, t)| format!("{n}: {t}")).collect();
             out.push_str(&format!(
                 "  {}: (params: {{ {} }}): RouteId => ({{ _route: \"{}\", ...params }}),\n",
                 r.name,
@@ -88,10 +81,7 @@ pub fn emit_route_id_module(routes: &[HirRouteId]) -> String {
             for (pname, _) in &r.params {
                 body = body.replace(&format!(":{pname}"), &format!("${{(r as any).{pname}}}"));
             }
-            out.push_str(&format!(
-                "    case \"{}\": return `{body}`;\n",
-                r.name
-            ));
+            out.push_str(&format!("    case \"{}\": return `{body}`;\n", r.name));
         }
     }
     out.push_str("  }\n}\n\n");
@@ -115,9 +105,11 @@ pub fn emit_route_id_module(routes: &[HirRouteId]) -> String {
 /// downstream build pipeline can substitute real values when crawling.
 #[must_use]
 pub fn emit_sitemap_xml(base_url: &str, routes: &[HirRouteId]) -> String {
-    let mut out = String::from(r#"<?xml version="1.0" encoding="UTF-8"?>
+    let mut out = String::from(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-"#);
+"#,
+    );
     for r in routes {
         let url = format!("{base_url}{}", r.url_pattern);
         out.push_str(&format!("  <url>\n    <loc>{url}</loc>\n  </url>\n"));
@@ -131,7 +123,9 @@ mod tests {
     use super::*;
     use vox_compiler::ast::span::Span;
 
-    fn span() -> Span { Span { start: 0, end: 0 } }
+    fn span() -> Span {
+        Span { start: 0, end: 0 }
+    }
 
     fn home() -> HirRouteId {
         HirRouteId {

@@ -23,5 +23,7 @@ pub enum AstWebhookProvider {
     Github,
     Slack,
     /// Custom provider — `secret_var` carries the env-var name. Empty string means missing.
-    Custom { secret_var: String },
+    Custom {
+        secret_var: String,
+    },
 }

@@ -14,7 +14,9 @@ use crate::ast::span::Span;
 ///
 /// New tiers cannot be added by user code. The closed enum is part of the
 /// language contract; opening it would be a P0 / C4 regression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub enum LayerTier {
     /// Wallpapers, backdrops, decorative non-interactive elements.
     Background = 0,
@@ -58,9 +60,7 @@ impl LayerTier {
             "popover" | "Popover" => Some(LayerTier::Popover),
             "modal" | "Modal" => Some(LayerTier::Modal),
             "toast" | "Toast" => Some(LayerTier::Toast),
-            "system-overlay" | "system_overlay" | "SystemOverlay" => {
-                Some(LayerTier::SystemOverlay)
-            }
+            "system-overlay" | "system_overlay" | "SystemOverlay" => Some(LayerTier::SystemOverlay),
             _ => None,
         }
     }
@@ -185,10 +185,7 @@ mod tests {
             LayerTier::default_for_primitive("Tooltip"),
             LayerTier::Popover
         );
-        assert_eq!(
-            LayerTier::default_for_primitive("Dialog"),
-            LayerTier::Modal
-        );
+        assert_eq!(LayerTier::default_for_primitive("Dialog"), LayerTier::Modal);
         assert_eq!(LayerTier::default_for_primitive("Toast"), LayerTier::Toast);
         assert_eq!(
             LayerTier::default_for_primitive("MyCustomThing"),

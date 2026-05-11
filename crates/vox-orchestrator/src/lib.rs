@@ -38,9 +38,9 @@
 #![allow(clippy::large_enum_variant)]
 #![allow(clippy::let_underscore_future)]
 
-pub mod attachment_manifest;
 /// AgentOS: ACI-aligned mutation classification, guardrails, checkpoint hints.
 pub mod agentos;
+pub mod attachment_manifest;
 pub mod dei_shim;
 pub use vox_orchestrator_queue::sync_lock;
 
@@ -260,8 +260,8 @@ pub use context_envelope::{
     ContextAgentOsHints, ContextBudget, ContextCaptureMode, ContextConflictClass,
     ContextConflictPolicy, ContextContent, ContextDerivedRef, ContextEnvelope, ContextEnvelopeType,
     ContextFact, ContextFreshnessTier, ContextInjectionMode, ContextLineage, ContextMergeStrategy,
-    ContextPriority, ContextProvenance, ContextRetrievalCostClass, ContextSafety, ContextSourcePlane,
-    ContextSubject, ContextTrust, ContextTrustTier,
+    ContextPriority, ContextProvenance, ContextRetrievalCostClass, ContextSafety,
+    ContextSourcePlane, ContextSubject, ContextTrust, ContextTrustTier,
 };
 pub use continuation::{ContinuationEngine, ContinuationStrategy};
 pub use contract::{

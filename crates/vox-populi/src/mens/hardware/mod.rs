@@ -8,12 +8,12 @@ pub mod macos_metal;
 mod mock;
 // nvml.rs deleted: NVML probing is owned by vox-plugin-nvml-probe.
 pub mod pipeline;
-pub mod windows_fallback;
 pub mod probe;
 pub mod registry;
 #[cfg(test)]
 mod tests;
 pub mod types;
+pub mod windows_fallback;
 
 /// Default probe cache TTL. Re-probes after 5 minutes by default.
 const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(300);

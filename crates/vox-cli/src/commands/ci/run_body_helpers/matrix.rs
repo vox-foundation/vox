@@ -26,6 +26,68 @@ pub(crate) fn visit_rs_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>
     Ok(())
 }
 
+/// Allowlisted non-`.vox` glue under `scripts/` (bootstrap / installer stubs only).
+/// Keep in sync with [scripts/ci/script-hygiene.vox](scripts/ci/script-hygiene.vox).
+const SCRIPT_GLUE_ALLOWLIST: &[&str] = &[
+    "scripts/windows/vox-dev.ps1",
+    "scripts/vox-dev.sh",
+    "scripts/install.ps1",
+    "scripts/install.sh",
+];
+
+fn normalized_repo_rel(path: &Path, root: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+fn visit_legacy_glue_under_scripts(
+    dir: &Path,
+    root: &Path,
+    violations: &mut Vec<String>,
+) -> Result<()> {
+    for entry in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {
+        let path = entry?.path();
+        let fname = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+        if path.is_dir() {
+            if fname == "node_modules" {
+                continue;
+            }
+            visit_legacy_glue_under_scripts(&path, root, violations)?;
+            continue;
+        }
+        let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+            continue;
+        };
+        if !matches!(ext, "sh" | "ps1" | "py") {
+            continue;
+        }
+        let rel = normalized_repo_rel(&path, root);
+        let rel_lower = rel.to_ascii_lowercase();
+        if SCRIPT_GLUE_ALLOWLIST
+            .iter()
+            .any(|allowed| rel_lower == *allowed)
+        {
+            continue;
+        }
+        violations.push(rel);
+    }
+    Ok(())
+}
+
+/// `.sh` / `.ps1` / `.py` under `scripts/` minus bootstrap allowlist (VoxScript-first policy).
+pub(crate) fn collect_legacy_script_glue_violations(root: &Path) -> Result<Vec<String>> {
+    let scripts_dir = root.join("scripts");
+    if !scripts_dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut violations = Vec::new();
+    visit_legacy_glue_under_scripts(&scripts_dir, root, &mut violations)?;
+    violations.sort();
+    Ok(violations)
+}
+
 pub(crate) fn visit_vox_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>) -> Result<()> {
     for entry in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {
         let entry = entry?;
@@ -73,6 +135,14 @@ pub(crate) fn run_script_hygiene(root: &Path, _retired_check: bool) -> Result<()
             "VoxScript hygiene failed for {} scripts:\n{}",
             violations.len(),
             violations.join("\n")
+        ));
+    }
+
+    let glue = collect_legacy_script_glue_violations(root)?;
+    if !glue.is_empty() {
+        return Err(anyhow!(
+            "Legacy shell/Python glue under scripts/ is forbidden (use .vox automation). Violations:\n{}",
+            glue.join("\n")
         ));
     }
 

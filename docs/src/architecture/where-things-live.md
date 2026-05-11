@@ -164,6 +164,7 @@ guess. The full crate roster with layer assignments lives in
 | Orchestrator feature flags | `contracts/orchestration/feature-flags.v1.yaml` |
 | AgentOS ACI envelope + mutation classification (MCP) | `crates/vox-orchestrator-mcp/src/aci/` |
 | AgentOS guardrail kernel / checkpoint / intent planner | `crates/vox-orchestrator/src/agentos/` |
+| AgentOS policy ledger (MCP mutation_kind → orchestrator risk overlay) | `crates/vox-orchestrator/src/agentos/policy_runtime.rs` |
 | AgentOS shell backend adapters (contract-first) | `crates/vox-cli/src/commands/runtime/shell/backends/` |
 | Semantic filesystem / intent retrieval bridge | `crates/vox-search/src/semantic_fs/` |
 | AgentOS ACI contracts | `contracts/aci/agent-computer-interface.v1.yaml` + `agent-computer-interface.v1.schema.json` |

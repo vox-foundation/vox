@@ -47,7 +47,8 @@ fn aci_tool_response_validates_against_contract_schema() {
     let schema_path = root.join(ACI_TOOL_RESPONSE_SCHEMA_RELPATH);
     let schema_src = fs::read_to_string(&schema_path)
         .unwrap_or_else(|e| panic!("read {}: {e}", schema_path.display()));
-    let schema_val: serde_json::Value = serde_json::from_str(&schema_src).expect("parse ACI schema");
+    let schema_val: serde_json::Value =
+        serde_json::from_str(&schema_src).expect("parse ACI schema");
     let validator = jsonschema::validator_for(&schema_val).expect("compile ACI schema");
 
     let out = attach_aci_envelope(
@@ -57,8 +58,11 @@ fn aci_tool_response_validates_against_contract_schema() {
     )
     .expect("attach ACI envelope");
     let v: serde_json::Value = serde_json::from_str(&out).expect("parse wrapped JSON");
-    validator.validate(&v).expect("attached payload must match ACI schema");
+    validator
+        .validate(&v)
+        .expect("attached payload must match ACI schema");
     assert_eq!(v["aci"]["tool"], "vox_git_status");
+    assert!(v["aci"]["side_effects"].as_array().is_some());
 }
 
 #[test]

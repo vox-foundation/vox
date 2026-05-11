@@ -544,12 +544,10 @@ impl<'a> Checker<'a> {
                 Self::contains_db_write_or_unsafe_in_expr(obj)
                     || Self::contains_db_write_or_unsafe_in_expr(idx)
             }
-            HirExpr::AsyncView(v) => {
-                [&v.fetching_arm, &v.empty_arm, &v.error_arm, &v.ok_arm]
-                    .iter()
-                    .filter_map(|a| a.as_deref())
-                    .any(Self::contains_db_write_or_unsafe_in_expr)
-            }
+            HirExpr::AsyncView(v) => [&v.fetching_arm, &v.empty_arm, &v.error_arm, &v.ok_arm]
+                .iter()
+                .filter_map(|a| a.as_deref())
+                .any(Self::contains_db_write_or_unsafe_in_expr),
             HirExpr::IntLit(_, _)
             | HirExpr::FloatLit(_, _)
             | HirExpr::BoolLit(_, _)

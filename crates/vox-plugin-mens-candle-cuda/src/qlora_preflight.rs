@@ -78,7 +78,9 @@ fn read_safetensors_header(path: &std::path::Path) -> anyhow::Result<Vec<u8>> {
     // Format: `{"key": {"dtype":"F32","shape":[…],"data_offsets":[start,end]}, …}`.
     let max_end: usize = {
         #[derive(serde::Deserialize)]
-        struct TensorMeta { data_offsets: Option<[usize; 2]> }
+        struct TensorMeta {
+            data_offsets: Option<[usize; 2]>,
+        }
         let map: HashMap<String, TensorMeta> =
             serde_json::from_slice(&json_buf).unwrap_or_default();
         map.values()

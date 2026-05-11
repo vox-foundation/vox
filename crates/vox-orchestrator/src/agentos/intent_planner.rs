@@ -14,6 +14,9 @@ pub fn plan_intent(intent: &str, max_steps: usize) -> Vec<&'static str> {
     if lower.contains("validate") || lower.contains("typecheck") || lower.contains("check") {
         out.push("vox_validate_file");
     }
+    if lower.contains("write") || lower.contains("patch") || lower.contains("edit") {
+        out.push("vox_write_file");
+    }
     if out.is_empty() {
         out.push("vox_repo_status");
     }
@@ -30,5 +33,11 @@ mod tests {
     fn detects_tests_intent() {
         let p = plan_intent("run cargo tests on vox-cli", 4);
         assert!(p.contains(&"vox_run_tests"));
+    }
+
+    #[test]
+    fn detects_write_intent() {
+        let p = plan_intent("patch the readme", 4);
+        assert!(p.contains(&"vox_write_file"));
     }
 }

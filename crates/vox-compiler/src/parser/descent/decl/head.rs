@@ -967,7 +967,9 @@ impl Parser {
                     if self.eat(&Token::LParen) {
                         loop {
                             self.skip_newlines();
-                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
                             if let Token::Ident(key) = self.peek().clone() {
                                 let key = key.clone();
                                 self.advance();
@@ -992,15 +994,21 @@ impl Parser {
                                     "max_iterations" => {
                                         if let Token::IntLit(n) = self.peek().clone() {
                                             self.advance();
-                                            if n > 0 { ai_max_iterations = n as u32; }
+                                            if n > 0 {
+                                                ai_max_iterations = n as u32;
+                                            }
                                         }
                                     }
-                                    _ => { self.advance(); }
+                                    _ => {
+                                        self.advance();
+                                    }
                                 }
                             } else {
                                 self.advance();
                             }
-                            if !self.eat(&Token::Comma) { break; }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
                         }
                         self.expect(&Token::RParen)?;
                     }
@@ -1010,15 +1018,23 @@ impl Parser {
                     if self.eat(&Token::LParen) {
                         loop {
                             self.skip_newlines();
-                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
                             if let Token::Ident(ref name) = self.peek().clone() {
                                 let name = name.clone();
                                 self.advance();
-                                if let Some(eff) = crate::ast::decl::effect::EffectAnnotation::from_keyword(&name) {
+                                if let Some(eff) =
+                                    crate::ast::decl::effect::EffectAnnotation::from_keyword(&name)
+                                {
                                     if name == "mcp" && self.eat(&Token::LParen) {
                                         if let Token::Ident(tool) = self.peek().clone() {
                                             self.advance();
-                                            decorator_effects.push(crate::ast::decl::effect::EffectAnnotation::Mcp(tool));
+                                            decorator_effects.push(
+                                                crate::ast::decl::effect::EffectAnnotation::Mcp(
+                                                    tool,
+                                                ),
+                                            );
                                         }
                                         let _ = self.expect(&Token::RParen);
                                     } else {
@@ -1028,7 +1044,9 @@ impl Parser {
                             } else {
                                 self.advance();
                             }
-                            if !self.eat(&Token::Comma) { break; }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
                         }
                         let _ = self.expect(&Token::RParen);
                     }
@@ -1036,13 +1054,17 @@ impl Parser {
                 Token::AtWebhook => {
                     let wh_start = self.span();
                     self.advance();
-                    let mut provider = crate::ast::decl::webhook::AstWebhookProvider::Custom { secret_var: String::new() };
+                    let mut provider = crate::ast::decl::webhook::AstWebhookProvider::Custom {
+                        secret_var: String::new(),
+                    };
                     let mut replay_window_secs: u64 = 300;
                     let mut idempotent = true;
                     if self.eat(&Token::LParen) {
                         loop {
                             self.skip_newlines();
-                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
                             if let Token::Ident(key) = self.peek().clone() {
                                 self.advance();
                                 let _ = self.expect(&Token::Colon);
@@ -1068,23 +1090,36 @@ impl Parser {
                                     "replay_window_secs" => {
                                         if let Token::IntLit(n) = self.peek().clone() {
                                             self.advance();
-                                            if n >= 0 { replay_window_secs = n as u64; }
+                                            if n >= 0 {
+                                                replay_window_secs = n as u64;
+                                            }
                                         }
                                     }
-                                    "idempotent" => {
-                                        match self.peek().clone() {
-                                            Token::True => { self.advance(); idempotent = true; }
-                                            Token::False => { self.advance(); idempotent = false; }
-                                            Token::Ident(v) => { self.advance(); idempotent = v == "true"; }
-                                            _ => {}
+                                    "idempotent" => match self.peek().clone() {
+                                        Token::True => {
+                                            self.advance();
+                                            idempotent = true;
                                         }
+                                        Token::False => {
+                                            self.advance();
+                                            idempotent = false;
+                                        }
+                                        Token::Ident(v) => {
+                                            self.advance();
+                                            idempotent = v == "true";
+                                        }
+                                        _ => {}
+                                    },
+                                    _ => {
+                                        self.advance();
                                     }
-                                    _ => { self.advance(); }
                                 }
                             } else {
                                 self.advance();
                             }
-                            if !self.eat(&Token::Comma) { break; }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
                         }
                         let _ = self.expect(&Token::RParen);
                     }
@@ -1103,7 +1138,9 @@ impl Parser {
                     if self.eat(&Token::LParen) {
                         loop {
                             self.skip_newlines();
-                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
                             if let Token::Ident(key) = self.peek().clone() {
                                 self.advance();
                                 let _ = self.expect(&Token::Colon);
@@ -1112,14 +1149,21 @@ impl Parser {
                                         if self.eat(&Token::LBracket) {
                                             loop {
                                                 self.skip_newlines();
-                                                if matches!(self.peek(), Token::RBracket | Token::Eof) { break; }
+                                                if matches!(
+                                                    self.peek(),
+                                                    Token::RBracket | Token::Eof
+                                                ) {
+                                                    break;
+                                                }
                                                 if let Token::StringLit(s) = self.peek().clone() {
                                                     self.advance();
                                                     origins.push(s);
                                                 } else {
                                                     self.advance();
                                                 }
-                                                if !self.eat(&Token::Comma) { break; }
+                                                if !self.eat(&Token::Comma) {
+                                                    break;
+                                                }
                                             }
                                             let _ = self.expect(&Token::RBracket);
                                         } else if let Token::StringLit(s) = self.peek().clone() {
@@ -1127,20 +1171,31 @@ impl Parser {
                                             origins.push(s);
                                         }
                                     }
-                                    "allow_credentials" => {
-                                        match self.peek().clone() {
-                                            Token::True => { self.advance(); allow_credentials = true; }
-                                            Token::False => { self.advance(); allow_credentials = false; }
-                                            Token::Ident(v) => { self.advance(); allow_credentials = v == "true"; }
-                                            _ => {}
+                                    "allow_credentials" => match self.peek().clone() {
+                                        Token::True => {
+                                            self.advance();
+                                            allow_credentials = true;
                                         }
+                                        Token::False => {
+                                            self.advance();
+                                            allow_credentials = false;
+                                        }
+                                        Token::Ident(v) => {
+                                            self.advance();
+                                            allow_credentials = v == "true";
+                                        }
+                                        _ => {}
+                                    },
+                                    _ => {
+                                        self.advance();
                                     }
-                                    _ => { self.advance(); }
                                 }
                             } else {
                                 self.advance();
                             }
-                            if !self.eat(&Token::Comma) { break; }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
                         }
                         let _ = self.expect(&Token::RParen);
                     }
@@ -1159,7 +1214,9 @@ impl Parser {
                     if self.eat(&Token::LParen) {
                         loop {
                             self.skip_newlines();
-                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
                             if let Token::Ident(key) = self.peek().clone() {
                                 self.advance();
                                 let _ = self.expect(&Token::Colon);
@@ -1177,7 +1234,9 @@ impl Parser {
                                     "window_secs" | "window" => {
                                         if let Token::IntLit(n) = self.peek().clone() {
                                             self.advance();
-                                            if n > 0 { window_secs = n as u64; }
+                                            if n > 0 {
+                                                window_secs = n as u64;
+                                            }
                                         }
                                     }
                                     "max" | "max_requests" => {
@@ -1186,12 +1245,16 @@ impl Parser {
                                             max_requests = n.max(0) as u64;
                                         }
                                     }
-                                    _ => { self.advance(); }
+                                    _ => {
+                                        self.advance();
+                                    }
                                 }
                             } else {
                                 self.advance();
                             }
-                            if !self.eat(&Token::Comma) { break; }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
                         }
                         let _ = self.expect(&Token::RParen);
                     }
@@ -1205,11 +1268,14 @@ impl Parser {
                 Token::AtPii => {
                     let pii_start = self.span();
                     self.advance();
-                    let mut class = crate::ast::decl::http_decorators::AstPiiClass::Other("unknown".into());
+                    let mut class =
+                        crate::ast::decl::http_decorators::AstPiiClass::Other("unknown".into());
                     if self.eat(&Token::LParen) {
                         loop {
                             self.skip_newlines();
-                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
                             if let Token::Ident(key) = self.peek().clone() {
                                 self.advance();
                                 if key == "class" {
@@ -1224,7 +1290,9 @@ impl Parser {
                             } else {
                                 self.advance();
                             }
-                            if !self.eat(&Token::Comma) { break; }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
                         }
                         let _ = self.expect(&Token::RParen);
                     }
@@ -1240,7 +1308,9 @@ impl Parser {
                     if self.eat(&Token::LParen) {
                         loop {
                             self.skip_newlines();
-                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
                             if let Token::Ident(key) = self.peek().clone() {
                                 self.advance();
                                 let _ = self.expect(&Token::Colon);
@@ -1255,7 +1325,9 @@ impl Parser {
                             } else {
                                 self.advance();
                             }
-                            if !self.eat(&Token::Comma) { break; }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
                         }
                         let _ = self.expect(&Token::RParen);
                     }
@@ -1270,7 +1342,9 @@ impl Parser {
                     if self.eat(&Token::LParen) {
                         loop {
                             self.skip_newlines();
-                            if matches!(self.peek(), Token::RParen | Token::Eof) { break; }
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
                             if let Token::Ident(key) = self.peek().clone() {
                                 let key = key.clone();
                                 self.advance();
@@ -1285,7 +1359,9 @@ impl Parser {
                                     "dimensions" => {
                                         if let Token::IntLit(n) = self.peek().clone() {
                                             self.advance();
-                                            if n >= 0 { embed_dimensions = n as usize; }
+                                            if n >= 0 {
+                                                embed_dimensions = n as usize;
+                                            }
                                         }
                                     }
                                     "source_field" => {
@@ -1294,20 +1370,22 @@ impl Parser {
                                             embed_source_field = Some(f);
                                         }
                                     }
-                                    _ => { self.advance(); }
+                                    _ => {
+                                        self.advance();
+                                    }
                                 }
                             } else {
                                 self.advance();
                             }
-                            if !self.eat(&Token::Comma) { break; }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
                         }
                         let _ = self.expect(&Token::RParen);
                         embed_span = Some(e_start.merge(self.span()));
                     }
                 }
-                Token::AtAuth
-                | Token::AtOfflineCapable
-                | Token::AtCollaborative => {
+                Token::AtAuth | Token::AtOfflineCapable | Token::AtCollaborative => {
                     self.advance();
                     if self.eat(&Token::LParen) {
                         self.skip_paren_args_inner();
@@ -2068,9 +2146,18 @@ impl Parser {
                     }
                     self.expect(&Token::Colon)?;
                     let light = match self.peek().clone() {
-                        Token::StringLit(s) | Token::SingleStringLit(s) => { self.advance(); s }
+                        Token::StringLit(s) | Token::SingleStringLit(s) => {
+                            self.advance();
+                            s
+                        }
                         other => {
-                            self.errors.push(ParseError::classified(self.span(), "Expected hex string after `light:`", vec!["\"#RRGGBB\"".into()], Some(other.to_string()), ParseErrorClass::Declaration));
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected hex string after `light:`",
+                                vec!["\"#RRGGBB\"".into()],
+                                Some(other.to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
                             return Err(());
                         }
                     };
@@ -2087,25 +2174,52 @@ impl Parser {
                     }
                     self.expect(&Token::Colon)?;
                     let dark = match self.peek().clone() {
-                        Token::StringLit(s) | Token::SingleStringLit(s) => { self.advance(); s }
+                        Token::StringLit(s) | Token::SingleStringLit(s) => {
+                            self.advance();
+                            s
+                        }
                         other => {
-                            self.errors.push(ParseError::classified(self.span(), "Expected hex string after `dark:`", vec!["\"#RRGGBB\"".into()], Some(other.to_string()), ParseErrorClass::Declaration));
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected hex string after `dark:`",
+                                vec!["\"#RRGGBB\"".into()],
+                                Some(other.to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
                             return Err(());
                         }
                     };
-                    colors.push(AstColorToken { name, light, dark, span: entry_start.merge(self.span()) });
+                    colors.push(AstColorToken {
+                        name,
+                        light,
+                        dark,
+                        span: entry_start.merge(self.span()),
+                    });
                 }
                 "spacing" | "radius" | "shadow" => {
                     let name = self.parse_ident_name()?;
                     self.expect(&Token::Colon)?;
                     let value = match self.peek().clone() {
-                        Token::StringLit(s) | Token::SingleStringLit(s) => { self.advance(); s }
+                        Token::StringLit(s) | Token::SingleStringLit(s) => {
+                            self.advance();
+                            s
+                        }
                         other => {
-                            self.errors.push(ParseError::classified(self.span(), "Expected CSS value string", vec!["\"8px\"".into()], Some(other.to_string()), ParseErrorClass::Declaration));
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected CSS value string",
+                                vec!["\"8px\"".into()],
+                                Some(other.to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
                             return Err(());
                         }
                     };
-                    let tok = AstScalarToken { name, value, span: entry_start.merge(self.span()) };
+                    let tok = AstScalarToken {
+                        name,
+                        value,
+                        span: entry_start.merge(self.span()),
+                    };
                     match kw.as_str() {
                         "spacing" => spacing.push(tok),
                         "radius" => radius.push(tok),
@@ -2128,13 +2242,26 @@ impl Parser {
                     }
                     self.expect(&Token::Colon)?;
                     let family = match self.peek().clone() {
-                        Token::StringLit(s) | Token::SingleStringLit(s) => { self.advance(); s }
+                        Token::StringLit(s) | Token::SingleStringLit(s) => {
+                            self.advance();
+                            s
+                        }
                         other => {
-                            self.errors.push(ParseError::classified(self.span(), "Expected font family string", vec!["\"Inter, sans-serif\"".into()], Some(other.to_string()), ParseErrorClass::Declaration));
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected font family string",
+                                vec!["\"Inter, sans-serif\"".into()],
+                                Some(other.to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
                             return Err(());
                         }
                     };
-                    fonts.push(AstFontToken { name, family, span: entry_start.merge(self.span()) });
+                    fonts.push(AstFontToken {
+                        name,
+                        family,
+                        span: entry_start.merge(self.span()),
+                    });
                 }
                 other => {
                     self.errors.push(ParseError::classified(

@@ -58,11 +58,7 @@ mod tests {
         };
         record_guardrail_deny_best_effort(Some(&arc), "repo-test", &detail).await;
         let rows = arc
-            .list_research_metrics_by_type(
-                METRIC_TYPE_AGENTOS_GUARDRAIL_DENY,
-                "mcp:repo-test",
-                5,
-            )
+            .list_research_metrics_by_type(METRIC_TYPE_AGENTOS_GUARDRAIL_DENY, "mcp:repo-test", 5)
             .await
             .expect("list metrics");
         assert_eq!(rows.len(), 1);

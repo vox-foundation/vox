@@ -27,7 +27,8 @@ use crate::privacy_router::{
     PrivacyLevel, PrivacyRouter, PrivacyRoutingDecision, PrivacyRoutingPolicy,
 };
 use crate::risk_matrix::{
-    HitlAction, RiskDimensions, RiskGrade, RiskMatrix, RiskMatrixConfig, apply_agentos_mutation_risk,
+    HitlAction, RiskDimensions, RiskGrade, RiskMatrix, RiskMatrixConfig,
+    apply_agentos_mutation_risk,
 };
 use crate::subagent_dispatch::{DispatchConfig, DispatchDecision, DispatchRouter, DispatchSignal};
 use crate::tier_cascade::{

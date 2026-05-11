@@ -175,12 +175,16 @@ impl LowerCtx {
                     let route_path = format!("{prefix}{}", lowered.name);
                     let webhook = e.func.webhook.as_ref().map(|w| {
                         use crate::ast::decl::webhook::AstWebhookProvider as A;
-                        use crate::hir::nodes::boilerplate_grafts::{HirWebhookDecl, WebhookProvider as H};
+                        use crate::hir::nodes::boilerplate_grafts::{
+                            HirWebhookDecl, WebhookProvider as H,
+                        };
                         let provider = match &w.provider {
                             A::Stripe => H::Stripe,
                             A::Github => H::Github,
                             A::Slack => H::Slack,
-                            A::Custom { secret_var } => H::Custom { secret_var: secret_var.clone() },
+                            A::Custom { secret_var } => H::Custom {
+                                secret_var: secret_var.clone(),
+                            },
                         };
                         HirWebhookDecl {
                             provider,
@@ -198,9 +202,15 @@ impl LowerCtx {
                     });
                     let rate_limit = e.func.rate_limit.as_ref().map(|r| {
                         use crate::ast::decl::http_decorators::AstRateLimitBy as A;
-                        use crate::hir::nodes::http_ergonomics::{HirRateLimitPolicy, RateLimitBy as H};
+                        use crate::hir::nodes::http_ergonomics::{
+                            HirRateLimitPolicy, RateLimitBy as H,
+                        };
                         HirRateLimitPolicy {
-                            by: match r.by { A::Ip => H::Ip, A::UserId => H::UserId, A::ApiKey => H::ApiKey },
+                            by: match r.by {
+                                A::Ip => H::Ip,
+                                A::UserId => H::UserId,
+                                A::ApiKey => H::ApiKey,
+                            },
                             window_secs: r.window_secs,
                             max_requests: r.max_requests,
                             span: r.span,
@@ -218,7 +228,10 @@ impl LowerCtx {
                             A::BiometricData => H::BiometricData,
                             A::Other(_) => H::Email, // best-effort fallback
                         };
-                        HirPiiMarker { class, span: p.span }
+                        HirPiiMarker {
+                            class,
+                            span: p.span,
+                        }
                     });
                     let layer = e.func.layer.as_ref().and_then(|l| {
                         crate::hir::nodes::layer::LayerTier::from_str(&l.tier).map(|tier| {

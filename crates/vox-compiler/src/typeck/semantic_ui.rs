@@ -67,7 +67,9 @@ fn requires_label(primitive: &str) -> bool {
 mod tests {
     use super::*;
 
-    fn span() -> Span { Span { start: 0, end: 0 } }
+    fn span() -> Span {
+        Span { start: 0, end: 0 }
+    }
 
     #[test]
     fn dialog_without_label_rejected() {
@@ -78,7 +80,10 @@ mod tests {
         };
         let diags = check_semantic_ui(&[cs]);
         assert_eq!(diags.len(), 1);
-        assert_eq!(diags[0].code.as_deref(), Some("vox/a11y/dialog-missing-label"));
+        assert_eq!(
+            diags[0].code.as_deref(),
+            Some("vox/a11y/dialog-missing-label")
+        );
     }
 
     #[test]
@@ -99,7 +104,11 @@ mod tests {
                 has_label: false,
                 span: span(),
             };
-            assert_eq!(check_semantic_ui(&[cs]).len(), 1, "{p} should require label");
+            assert_eq!(
+                check_semantic_ui(&[cs]).len(),
+                1,
+                "{p} should require label"
+            );
         }
     }
 

@@ -81,7 +81,8 @@ pub fn check_pure_violation(
         code: Some("vox/effect/pure-violation".into()),
         category: DiagnosticCategory::Typecheck,
         suggestions: vec![
-            "Remove `@pure` from the caller, or call this through an effect-tracked indirection.".into(),
+            "Remove `@pure` from the caller, or call this through an effect-tracked indirection."
+                .into(),
         ],
         fixes: vec![],
         line_col: None,
@@ -168,9 +169,9 @@ pub fn check_pii_leak(
         span: call_site,
         code: Some("vox/taint/pii-leak".into()),
         category: DiagnosticCategory::Typecheck,
-        suggestions: vec![
-            format!("Wrap the value in `redact(value)` or record consent: `consent_recorded(user, \"{class_name}\")`."),
-        ],
+        suggestions: vec![format!(
+            "Wrap the value in `redact(value)` or record consent: `consent_recorded(user, \"{class_name}\")`."
+        )],
         fixes: vec![],
         line_col: None,
         missing_cases: vec![],
@@ -308,7 +309,9 @@ pub fn check_upload_type(t: &HirUploadType) -> Vec<Diagnostic> {
             span: t.span,
             code: Some("vox/upload/empty-mime".into()),
             category: DiagnosticCategory::Typecheck,
-            suggestions: vec!["Use `image/*`, `application/pdf`, or another concrete pattern.".into()],
+            suggestions: vec![
+                "Use `image/*`, `application/pdf`, or another concrete pattern.".into(),
+            ],
             fixes: vec![],
             line_col: None,
             missing_cases: vec![],
@@ -356,7 +359,8 @@ pub fn check_webhook_decl(d: &HirWebhookDecl) -> Vec<Diagnostic> {
             code: Some("vox/webhook/replay-window-out-of-range".into()),
             category: DiagnosticCategory::Lint,
             suggestions: vec![
-                "Use a 5–300s window for typical providers; 3600s only for very-high-skew sources.".into()
+                "Use a 5–300s window for typical providers; 3600s only for very-high-skew sources."
+                    .into(),
             ],
             fixes: vec![],
             line_col: None,
@@ -449,7 +453,9 @@ pub fn check_pii_with_net_effect(
             span: pii.span,
             code: Some("vox/pii/unannotated-net-effect".into()),
             category: DiagnosticCategory::Lint,
-            suggestions: vec!["Add `@uses(net)` if this endpoint sends PII over the network.".into()],
+            suggestions: vec![
+                "Add `@uses(net)` if this endpoint sends PII over the network.".into(),
+            ],
             fixes: vec![],
             line_col: None,
             missing_cases: vec![],
@@ -468,7 +474,9 @@ mod tests {
     use crate::ast::span::Span;
     use crate::hir::nodes::boilerplate_grafts::*;
 
-    fn span() -> Span { Span { start: 0, end: 0 } }
+    fn span() -> Span {
+        Span { start: 0, end: 0 }
+    }
 
     #[test]
     fn capability_leak_detected() {
@@ -510,13 +518,19 @@ mod tests {
 
     #[test]
     fn pure_caller_of_pure_callee_passes() {
-        let uses = HirUsesDecl { effects: vec![], span: span() };
+        let uses = HirUsesDecl {
+            effects: vec![],
+            span: span(),
+        };
         assert!(check_pure_violation(true, &uses, span()).is_none());
     }
 
     #[test]
     fn missing_net_decl_detected() {
-        let declared = HirUsesDecl { effects: vec![], span: span() };
+        let declared = HirUsesDecl {
+            effects: vec![],
+            span: span(),
+        };
         let used = HirEffectClass::Net {
             retry: None,
             timeout_secs: None,
@@ -537,29 +551,44 @@ mod tests {
 
     #[test]
     fn pii_leak_detected() {
-        let m = HirPiiMarker { class: PiiClass::Email, span: span() };
+        let m = HirPiiMarker {
+            class: PiiClass::Email,
+            span: span(),
+        };
         let diag = check_pii_leak(&m, false, false, span()).unwrap();
         assert_eq!(diag.code.as_deref(), Some("vox/taint/pii-leak"));
     }
 
     #[test]
     fn pii_redacted_passes() {
-        let m = HirPiiMarker { class: PiiClass::Email, span: span() };
+        let m = HirPiiMarker {
+            class: PiiClass::Email,
+            span: span(),
+        };
         assert!(check_pii_leak(&m, true, false, span()).is_none());
         assert!(check_pii_leak(&m, false, true, span()).is_none());
     }
 
     #[test]
     fn vector_dim_mismatch_detected() {
-        let v768 = HirVectorType { dimension: 768, span: span() };
-        let v1536 = HirVectorType { dimension: 1536, span: span() };
+        let v768 = HirVectorType {
+            dimension: 768,
+            span: span(),
+        };
+        let v1536 = HirVectorType {
+            dimension: 1536,
+            span: span(),
+        };
         let diag = check_vector_dimension(&v768, &v1536, span()).unwrap();
         assert_eq!(diag.code.as_deref(), Some("vox/vector/dimension-mismatch"));
     }
 
     #[test]
     fn vector_same_dim_passes() {
-        let v = HirVectorType { dimension: 768, span: span() };
+        let v = HirVectorType {
+            dimension: 768,
+            span: span(),
+        };
         assert!(check_vector_dimension(&v, &v, span()).is_none());
     }
 
@@ -571,7 +600,10 @@ mod tests {
             span: span(),
         };
         let diag = check_ai_return_shape(&o, false).unwrap();
-        assert_eq!(diag.code.as_deref(), Some("vox/ai/return-shape-not-codec'd"));
+        assert_eq!(
+            diag.code.as_deref(),
+            Some("vox/ai/return-shape-not-codec'd")
+        );
     }
 
     #[test]
@@ -592,7 +624,11 @@ mod tests {
             span: span(),
         };
         let diags = check_upload_type(&t);
-        assert!(diags.iter().any(|d| d.code.as_deref() == Some("vox/upload/zero-max-bytes")));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some("vox/upload/zero-max-bytes"))
+        );
     }
 
     #[test]
@@ -603,19 +639,29 @@ mod tests {
             span: span(),
         };
         let diags = check_upload_type(&t);
-        assert!(diags.iter().any(|d| d.code.as_deref() == Some("vox/upload/empty-mime")));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some("vox/upload/empty-mime"))
+        );
     }
 
     #[test]
     fn webhook_custom_without_secret_rejected() {
         let d = HirWebhookDecl {
-            provider: WebhookProvider::Custom { secret_var: "".into() },
+            provider: WebhookProvider::Custom {
+                secret_var: "".into(),
+            },
             idempotent: true,
             replay_window_secs: 60,
             span: span(),
         };
         let diags = check_webhook_decl(&d);
-        assert!(diags.iter().any(|d| d.code.as_deref() == Some("vox/webhook/missing-secret-var")));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some("vox/webhook/missing-secret-var"))
+        );
     }
 
     #[test]
@@ -627,6 +673,10 @@ mod tests {
             span: span(),
         };
         let diags = check_webhook_decl(&d);
-        assert!(diags.iter().any(|d| d.code.as_deref() == Some("vox/webhook/replay-window-out-of-range")));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some("vox/webhook/replay-window-out-of-range"))
+        );
     }
 }

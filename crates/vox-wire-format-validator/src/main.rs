@@ -56,9 +56,7 @@ fn run_update(repo_root: &Path) -> anyhow::Result<()> {
         &hash[..16],
         expected_hash_path.display()
     );
-    println!(
-        "\nCommit src/expected_hash.rs alongside your Contract IR or SSOT change."
-    );
+    println!("\nCommit src/expected_hash.rs alongside your Contract IR or SSOT change.");
     Ok(())
 }
 

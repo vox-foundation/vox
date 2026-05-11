@@ -38,9 +38,9 @@ pub use types::{
     // event types
     BuildSummaryEvent,
     ErrorEvent,
+    METRIC_TYPE_AGENT_EXEC_TIME,
     // existing metric types
     METRIC_TYPE_AGENTOS_GUARDRAIL_DENY,
-    METRIC_TYPE_AGENT_EXEC_TIME,
     METRIC_TYPE_BANDIT_UPDATE,
     METRIC_TYPE_BENCHMARK_EVENT,
     METRIC_TYPE_BUDGET_DECISION,

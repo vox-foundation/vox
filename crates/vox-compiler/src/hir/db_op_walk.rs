@@ -215,10 +215,18 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
             walk_expr(idx.as_ref(), f);
         }
         HirExpr::AsyncView(v) => {
-            if let Some(arm) = &v.fetching_arm { walk_expr(arm, f); }
-            if let Some(arm) = &v.empty_arm { walk_expr(arm, f); }
-            if let Some(arm) = &v.error_arm { walk_expr(arm, f); }
-            if let Some(arm) = &v.ok_arm { walk_expr(arm, f); }
+            if let Some(arm) = &v.fetching_arm {
+                walk_expr(arm, f);
+            }
+            if let Some(arm) = &v.empty_arm {
+                walk_expr(arm, f);
+            }
+            if let Some(arm) = &v.error_arm {
+                walk_expr(arm, f);
+            }
+            if let Some(arm) = &v.ok_arm {
+                walk_expr(arm, f);
+            }
         }
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
@@ -343,10 +351,18 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
             walk_expr_mut(idx.as_mut(), f);
         }
         HirExpr::AsyncView(v) => {
-            if let Some(arm) = &mut v.fetching_arm { walk_expr_mut(arm, f); }
-            if let Some(arm) = &mut v.empty_arm { walk_expr_mut(arm, f); }
-            if let Some(arm) = &mut v.error_arm { walk_expr_mut(arm, f); }
-            if let Some(arm) = &mut v.ok_arm { walk_expr_mut(arm, f); }
+            if let Some(arm) = &mut v.fetching_arm {
+                walk_expr_mut(arm, f);
+            }
+            if let Some(arm) = &mut v.empty_arm {
+                walk_expr_mut(arm, f);
+            }
+            if let Some(arm) = &mut v.error_arm {
+                walk_expr_mut(arm, f);
+            }
+            if let Some(arm) = &mut v.ok_arm {
+                walk_expr_mut(arm, f);
+            }
         }
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)

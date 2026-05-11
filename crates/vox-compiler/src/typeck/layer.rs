@@ -65,13 +65,11 @@ fn walk_tier(node: &LayerCheckNode, diags: &mut Vec<Diagnostic>) {
                 span: child.span,
                 code: Some("vox/layer/tier-inversion".into()),
                 category: DiagnosticCategory::Typecheck,
-                suggestions: vec![
-                    format!(
-                        "Move `{}` to a parent at tier `{}` or above; or change parent's tier.",
-                        child.primitive_name,
-                        child_tier.as_str()
-                    ),
-                ],
+                suggestions: vec![format!(
+                    "Move `{}` to a parent at tier `{}` or above; or change parent's tier.",
+                    child.primitive_name,
+                    child_tier.as_str()
+                )],
                 fixes: vec![],
                 line_col: None,
                 missing_cases: vec![],
@@ -120,7 +118,9 @@ pub fn check_duplicate_marks(marks: &[HirMark]) -> Vec<Diagnostic> {
 
 /// Guard: user code must not declare `system-overlay` tier — it is reserved for
 /// the VUV runtime (debug overlays, accessibility cursor, system focus ring).
-pub fn check_system_overlay_reservation(decl: &crate::hir::nodes::layer::HirLayerDecl) -> Option<Diagnostic> {
+pub fn check_system_overlay_reservation(
+    decl: &crate::hir::nodes::layer::HirLayerDecl,
+) -> Option<Diagnostic> {
     if decl.tier == LayerTier::SystemOverlay {
         return Some(Diagnostic {
             severity: TypeckSeverity::Error,
@@ -174,7 +174,9 @@ pub fn check_dangling_marks(refs: &[HirMarkRef], decls: &[HirMark]) -> Vec<Diagn
 mod tests {
     use super::*;
 
-    fn span() -> Span { Span { start: 0, end: 0 } }
+    fn span() -> Span {
+        Span { start: 0, end: 0 }
+    }
 
     fn node(name: &str, tier: Option<LayerTier>, children: Vec<LayerCheckNode>) -> LayerCheckNode {
         LayerCheckNode {
@@ -187,11 +189,7 @@ mod tests {
 
     #[test]
     fn modal_inside_tooltip_is_tier_inversion() {
-        let tree = node(
-            "Tooltip",
-            None,
-            vec![node("Dialog", None, vec![])],
-        );
+        let tree = node("Tooltip", None, vec![node("Dialog", None, vec![])]);
         let diags = check_tier_inversions(&tree);
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].code.as_deref(), Some("vox/layer/tier-inversion"));
@@ -202,11 +200,7 @@ mod tests {
         // Per the corrected rule: a Modal (stronger) cannot be a child of a
         // Content-tier surface. The Modal must be portaled up to its own
         // tier, not nested as a DOM child.
-        let tree = node(
-            "RootView",
-            None,
-            vec![node("Dialog", None, vec![])],
-        );
+        let tree = node("RootView", None, vec![node("Dialog", None, vec![])]);
         let diags = check_tier_inversions(&tree);
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].code.as_deref(), Some("vox/layer/tier-inversion"));
@@ -215,19 +209,21 @@ mod tests {
     #[test]
     fn tooltip_inside_modal_is_fine() {
         // Tooltip (Popover) is weaker than Modal — fine to nest.
-        let tree = node(
-            "Dialog",
-            None,
-            vec![node("Tooltip", None, vec![])],
-        );
+        let tree = node("Dialog", None, vec![node("Tooltip", None, vec![])]);
         assert!(check_tier_inversions(&tree).is_empty());
     }
 
     #[test]
     fn duplicate_mark_emits_diag() {
         let marks = vec![
-            HirMark { label: "search".into(), span: span() },
-            HirMark { label: "search".into(), span: span() },
+            HirMark {
+                label: "search".into(),
+                span: span(),
+            },
+            HirMark {
+                label: "search".into(),
+                span: span(),
+            },
         ];
         let diags = check_duplicate_marks(&marks);
         assert_eq!(diags.len(), 1);
@@ -237,16 +233,28 @@ mod tests {
     #[test]
     fn unique_marks_emit_no_diag() {
         let marks = vec![
-            HirMark { label: "search".into(), span: span() },
-            HirMark { label: "submit".into(), span: span() },
+            HirMark {
+                label: "search".into(),
+                span: span(),
+            },
+            HirMark {
+                label: "submit".into(),
+                span: span(),
+            },
         ];
         assert!(check_duplicate_marks(&marks).is_empty());
     }
 
     #[test]
     fn dangling_mark_ref_emits_diag() {
-        let decls = vec![HirMark { label: "search".into(), span: span() }];
-        let refs = vec![HirMarkRef { label: "missing".into(), span: span() }];
+        let decls = vec![HirMark {
+            label: "search".into(),
+            span: span(),
+        }];
+        let refs = vec![HirMarkRef {
+            label: "missing".into(),
+            span: span(),
+        }];
         let diags = check_dangling_marks(&refs, &decls);
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].code.as_deref(), Some("vox/layer/dangling-mark"));
@@ -254,8 +262,14 @@ mod tests {
 
     #[test]
     fn resolved_mark_ref_emits_no_diag() {
-        let decls = vec![HirMark { label: "search".into(), span: span() }];
-        let refs = vec![HirMarkRef { label: "search".into(), span: span() }];
+        let decls = vec![HirMark {
+            label: "search".into(),
+            span: span(),
+        }];
+        let refs = vec![HirMarkRef {
+            label: "search".into(),
+            span: span(),
+        }];
         assert!(check_dangling_marks(&refs, &decls).is_empty());
     }
 

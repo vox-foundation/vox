@@ -146,8 +146,8 @@ fn mesh_workflow_env_warnings(
 ) -> Vec<Diagnostic> {
     use vox_compiler::ast::decl::Decl;
     use vox_compiler::ast::expr::Expr;
-    use vox_compiler::ast::stmt::Stmt;
     use vox_compiler::ast::span::Span;
+    use vox_compiler::ast::stmt::Stmt;
 
     if vox_populi_enabled_from_env() {
         return Vec::new();
@@ -160,11 +160,15 @@ fn mesh_workflow_env_warnings(
             }
             Expr::Call { callee, args, .. } => {
                 collect_mesh_calls_expr(callee, out);
-                for a in args { collect_mesh_calls_expr(&a.value, out); }
+                for a in args {
+                    collect_mesh_calls_expr(&a.value, out);
+                }
             }
             Expr::MethodCall { object, args, .. } => {
                 collect_mesh_calls_expr(object, out);
-                for a in args { collect_mesh_calls_expr(&a.value, out); }
+                for a in args {
+                    collect_mesh_calls_expr(&a.value, out);
+                }
             }
             Expr::Binary { left, right, .. } => {
                 collect_mesh_calls_expr(left, out);
@@ -172,12 +176,25 @@ fn mesh_workflow_env_warnings(
             }
             Expr::Unary { operand, .. } => collect_mesh_calls_expr(operand, out),
             Expr::Block { stmts, .. } => {
-                for s in stmts { collect_mesh_calls_stmt(s, out); }
+                for s in stmts {
+                    collect_mesh_calls_stmt(s, out);
+                }
             }
-            Expr::If { condition, then_body, else_body, .. } => {
+            Expr::If {
+                condition,
+                then_body,
+                else_body,
+                ..
+            } => {
                 collect_mesh_calls_expr(condition, out);
-                for s in then_body { collect_mesh_calls_stmt(s, out); }
-                if let Some(es) = else_body { for s in es { collect_mesh_calls_stmt(s, out); } }
+                for s in then_body {
+                    collect_mesh_calls_stmt(s, out);
+                }
+                if let Some(es) = else_body {
+                    for s in es {
+                        collect_mesh_calls_stmt(s, out);
+                    }
+                }
             }
             _ => {}
         }
@@ -192,9 +209,13 @@ fn mesh_workflow_env_warnings(
             }
             Stmt::Expr { expr, .. } => collect_mesh_calls_expr(expr, out),
             Stmt::Return { value: Some(e), .. } => collect_mesh_calls_expr(e, out),
-            Stmt::While { condition, body, .. } => {
+            Stmt::While {
+                condition, body, ..
+            } => {
                 collect_mesh_calls_expr(condition, out);
-                for s in body { collect_mesh_calls_stmt(s, out); }
+                for s in body {
+                    collect_mesh_calls_stmt(s, out);
+                }
             }
             _ => {}
         }

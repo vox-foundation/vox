@@ -297,7 +297,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
         "vox_learn_pattern" | "vox_behavior_record" | "vox_behavior_summary" => {
             parse_obj(r#"{"type":"object","additionalProperties":true}"#)
-        },
+        }
 
         // ── Codex memory DB ─────────────────────────────────────────────────
         "vox_memory_save_db" | "vox_memory_recall_db" => parse_obj(

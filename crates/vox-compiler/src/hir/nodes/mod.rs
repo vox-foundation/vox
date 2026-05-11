@@ -26,9 +26,9 @@ pub use async_view::HirAsyncView;
 pub use decl::*;
 pub use durability::DurabilityKind;
 pub use effect::{HirEffectKind, HirEffectSet};
+pub use expr::*;
 pub use http_ergonomics::{HirCorsPolicy, HirRateLimitPolicy, RateLimitBy};
 pub use layer::{HirLayerDecl, HirMark, HirMarkRef, LayerTier};
-pub use expr::*;
 pub use stmt::*;
 pub use stmt_expr::{
     DefId, HirDbPlanCapabilities, HirDbPredicate, HirDbQueryPlan, HirDbRetrievalMode, HirDbTableOp,

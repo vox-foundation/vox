@@ -77,7 +77,10 @@ mod tests {
 
     #[test]
     fn run_shell_is_external() {
-        assert_eq!(mutation_kind_for_tool("vox_run_shell"), "external_side_effect");
+        assert_eq!(
+            mutation_kind_for_tool("vox_run_shell"),
+            "external_side_effect"
+        );
     }
 
     #[test]

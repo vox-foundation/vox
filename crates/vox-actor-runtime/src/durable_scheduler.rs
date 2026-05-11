@@ -183,7 +183,10 @@ mod tests {
     fn no_missed_buckets_when_last_run_in_future() {
         let now = SystemTime::now();
         let later = now + Duration::from_secs(10);
-        assert_eq!(missed_buckets_since(Some(later), now, Duration::from_secs(60)), 0);
+        assert_eq!(
+            missed_buckets_since(Some(later), now, Duration::from_secs(60)),
+            0
+        );
     }
 
     #[test]
@@ -191,13 +194,22 @@ mod tests {
         use std::time::UNIX_EPOCH;
         let now = UNIX_EPOCH + Duration::from_secs(7200);
         let last = UNIX_EPOCH + Duration::from_secs(0);
-        assert_eq!(missed_buckets_since(Some(last), now, Duration::from_secs(3600)), 2);
+        assert_eq!(
+            missed_buckets_since(Some(last), now, Duration::from_secs(3600)),
+            2
+        );
     }
 
     #[test]
     fn next_delay_from_uses_canonical_periods() {
         let now = SystemTime::now();
-        assert_eq!(ScheduleSpec::Hourly.next_delay_from(now), Duration::from_secs(3600));
-        assert_eq!(ScheduleSpec::Daily.next_delay_from(now), Duration::from_secs(86_400));
+        assert_eq!(
+            ScheduleSpec::Hourly.next_delay_from(now),
+            Duration::from_secs(3600)
+        );
+        assert_eq!(
+            ScheduleSpec::Daily.next_delay_from(now),
+            Duration::from_secs(86_400)
+        );
     }
 }

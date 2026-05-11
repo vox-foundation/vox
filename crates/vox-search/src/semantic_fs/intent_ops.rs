@@ -38,7 +38,8 @@ mod tests {
         assert_eq!(v["intent"], "intent ops");
         let hits = v["hits"].as_array().expect("hits array");
         assert!(
-            hits.iter().any(|h| h["path"].as_str().unwrap_or("").contains("intent_ops")),
+            hits.iter()
+                .any(|h| h["path"].as_str().unwrap_or("").contains("intent_ops")),
             "{hits:?}"
         );
     }

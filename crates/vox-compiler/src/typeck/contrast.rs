@@ -154,7 +154,10 @@ mod tests {
         let l1 = parse_hex_luminance("#888888").unwrap();
         let l2 = parse_hex_luminance("#999999").unwrap();
         let ratio = contrast_ratio(l1, l2);
-        assert!(ratio < MIN_CONTRAST_RATIO, "similar grays should fail: {ratio}");
+        assert!(
+            ratio < MIN_CONTRAST_RATIO,
+            "similar grays should fail: {ratio}"
+        );
     }
 
     #[test]
@@ -190,7 +193,10 @@ mod tests {
         };
         let diags = check_tokens(&[decl]);
         assert_eq!(diags.len(), 1);
-        assert_eq!(diags[0].code.as_deref(), Some("vox/tokens/contrast-violation"));
+        assert_eq!(
+            diags[0].code.as_deref(),
+            Some("vox/tokens/contrast-violation")
+        );
     }
 
     #[test]

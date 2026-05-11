@@ -125,10 +125,18 @@ fn collect_query_plans_expr(
             collect_query_plans_expr(idx, out);
         }
         HirExpr::AsyncView(v) => {
-            if let Some(arm) = &v.fetching_arm { collect_query_plans_expr(arm, out); }
-            if let Some(arm) = &v.empty_arm { collect_query_plans_expr(arm, out); }
-            if let Some(arm) = &v.error_arm { collect_query_plans_expr(arm, out); }
-            if let Some(arm) = &v.ok_arm { collect_query_plans_expr(arm, out); }
+            if let Some(arm) = &v.fetching_arm {
+                collect_query_plans_expr(arm, out);
+            }
+            if let Some(arm) = &v.empty_arm {
+                collect_query_plans_expr(arm, out);
+            }
+            if let Some(arm) = &v.error_arm {
+                collect_query_plans_expr(arm, out);
+            }
+            if let Some(arm) = &v.ok_arm {
+                collect_query_plans_expr(arm, out);
+            }
         }
         HirExpr::IntLit(_, _)
         | HirExpr::FloatLit(_, _)

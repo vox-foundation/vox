@@ -52,7 +52,9 @@ mod tests {
     use super::*;
     use crate::ast::span::Span;
 
-    fn span() -> Span { Span { start: 0, end: 0 } }
+    fn span() -> Span {
+        Span { start: 0, end: 0 }
+    }
 
     #[test]
     fn cors_wildcard_allows_any_origin() {

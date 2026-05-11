@@ -561,6 +561,9 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                 None
             };
         if let Some(mut base) = base {
+            if base.agentos.is_none() {
+                base = base.with_agentos_intent_hints(&description, 4);
+            }
             apply_mcp_trace_to_context_envelope(
                 &mut base,
                 params.trace_id.as_deref(),

@@ -33,10 +33,7 @@ pub fn check_async_view(view: &HirAsyncView) -> Option<Diagnostic> {
         line_col: None,
         missing_cases: missing.iter().map(|s| s.to_string()).collect(),
         expected_type: Some("exhaustive async arms".into()),
-        found_type: Some(format!(
-            "missing: {}",
-            missing.join(", ")
-        )),
+        found_type: Some(format!("missing: {}", missing.join(", "))),
         context: None,
         ast_node_kind: None,
     })
@@ -46,8 +43,8 @@ pub fn check_async_view(view: &HirAsyncView) -> Option<Diagnostic> {
 mod tests {
     use super::*;
     use crate::ast::span::Span;
-    use crate::hir::nodes::async_view::HirAsyncView;
     use crate::hir::HirExpr;
+    use crate::hir::nodes::async_view::HirAsyncView;
 
     fn dummy_span() -> Span {
         Span { start: 0, end: 0 }
