@@ -192,7 +192,9 @@ impl PopuliMeshAuthRuntime {
     #[must_use]
     pub fn from_env() -> Self {
         Self {
-            mesh: crate::http_auth::trimmed_nonempty_secret_arc(vox_secrets::SecretId::VoxMeshToken),
+            mesh: crate::http_auth::trimmed_nonempty_secret_arc(
+                vox_secrets::SecretId::VoxMeshToken,
+            ),
             worker: crate::http_auth::trimmed_nonempty_secret_arc(
                 vox_secrets::SecretId::VoxMeshWorkerToken,
             ),

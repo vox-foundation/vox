@@ -11,7 +11,10 @@ pub struct RevocationGossip {
 
 impl RevocationGossip {
     pub fn new(retention: Duration) -> Self {
-        Self { revoked_at: HashMap::new(), retention }
+        Self {
+            revoked_at: HashMap::new(),
+            retention,
+        }
     }
 
     pub fn tombstone(&mut self, pubkey_hex: String) {

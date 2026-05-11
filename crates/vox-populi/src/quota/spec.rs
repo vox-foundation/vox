@@ -11,7 +11,10 @@ pub struct QuotaPolicy {
 
 impl Default for QuotaPolicy {
     fn default() -> Self {
-        Self { capacity: 10_000, refill_per_sec: 100.0 }
+        Self {
+            capacity: 10_000,
+            refill_per_sec: 100.0,
+        }
     }
 }
 
@@ -26,7 +29,10 @@ pub struct ReputationEma {
 
 impl Default for ReputationEma {
     fn default() -> Self {
-        Self { value: 1.0, alpha: 0.1 }
+        Self {
+            value: 1.0,
+            alpha: 0.1,
+        }
     }
 }
 

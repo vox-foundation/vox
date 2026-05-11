@@ -17,7 +17,12 @@ pub struct PeerBucket {
 impl PeerBucket {
     pub fn new(policy: QuotaPolicy) -> Self {
         let tokens = policy.capacity as f64;
-        Self { tokens, last_refill: Instant::now(), reputation: ReputationEma::default(), policy }
+        Self {
+            tokens,
+            last_refill: Instant::now(),
+            reputation: ReputationEma::default(),
+            policy,
+        }
     }
 
     /// Attempt to consume `n` tokens. Returns `true` if allowed.
@@ -38,8 +43,8 @@ impl PeerBucket {
 
     fn refill(&mut self) {
         let elapsed = self.last_refill.elapsed().as_secs_f64();
-        self.tokens = (self.tokens + elapsed * self.policy.refill_per_sec)
-            .min(self.policy.capacity as f64);
+        self.tokens =
+            (self.tokens + elapsed * self.policy.refill_per_sec).min(self.policy.capacity as f64);
         self.last_refill = Instant::now();
     }
 }
@@ -53,7 +58,10 @@ pub struct QuotaRegistry {
 
 impl QuotaRegistry {
     pub fn new(default_policy: QuotaPolicy) -> Self {
-        Self { buckets: HashMap::new(), default_policy }
+        Self {
+            buckets: HashMap::new(),
+            default_policy,
+        }
     }
 
     pub fn try_consume(&mut self, pubkey_hex: &str, n: u64) -> bool {

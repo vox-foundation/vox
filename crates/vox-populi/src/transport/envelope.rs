@@ -76,9 +76,8 @@ fn now_unix_ms() -> u64 {
 }
 
 fn canonical_input(message_type: &str, payload: &[u8], issued_at_unix_ms: u64) -> Vec<u8> {
-    let mut buf = Vec::with_capacity(
-        ENVELOPE_DOMAIN.len() + message_type.len() + 1 + payload.len() + 1 + 8,
-    );
+    let mut buf =
+        Vec::with_capacity(ENVELOPE_DOMAIN.len() + message_type.len() + 1 + payload.len() + 1 + 8);
     buf.extend_from_slice(ENVELOPE_DOMAIN);
     buf.extend_from_slice(message_type.as_bytes());
     buf.push(0u8);
@@ -89,12 +88,7 @@ fn canonical_input(message_type: &str, payload: &[u8], issued_at_unix_ms: u64) -
 }
 
 impl SignedA2AEnvelope {
-    pub fn sign(
-        message_type: &str,
-        payload: &[u8],
-        sk: &SigningKey,
-        vk: &VerifyingKey,
-    ) -> Self {
+    pub fn sign(message_type: &str, payload: &[u8], sk: &SigningKey, vk: &VerifyingKey) -> Self {
         let issued_at_unix_ms = now_unix_ms();
         let input = canonical_input(message_type, payload, issued_at_unix_ms);
         let sig = sign(sk, &input);
@@ -125,12 +119,8 @@ impl SignedA2AEnvelope {
             return Err(EnvelopeVerifyError::InvalidSignatureB64);
         }
         let input = canonical_input(&self.message_type, &payload, self.issued_at_unix_ms);
-        let ok = verify_signature_hex(
-            &self.sender_pubkey_hex,
-            &input,
-            &hex::encode(&sig_bytes),
-        )
-        .map_err(|_| EnvelopeVerifyError::InvalidPubkey)?;
+        let ok = verify_signature_hex(&self.sender_pubkey_hex, &input, &hex::encode(&sig_bytes))
+            .map_err(|_| EnvelopeVerifyError::InvalidPubkey)?;
         if !ok {
             return Err(EnvelopeVerifyError::SignatureMismatch);
         }

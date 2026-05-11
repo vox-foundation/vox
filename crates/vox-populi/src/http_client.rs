@@ -19,10 +19,7 @@ use serde::Serialize;
 
 fn populi_retry_transient_from_env() -> bool {
     match std::env::var("VOX_POPULI_HTTP_RETRY_TRANSIENT") {
-        Ok(v) => matches!(
-            v.trim().to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes"
-        ),
+        Ok(v) => matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"),
         Err(_) => false,
     }
 }

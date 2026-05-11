@@ -351,15 +351,15 @@ pub fn local_registry_path() -> PathBuf {
 pub mod mens;
 
 #[cfg(feature = "transport")]
-pub mod http_client;
-#[cfg(feature = "transport")]
 mod http_auth;
 #[cfg(feature = "transport")]
-pub mod http_lifecycle;
+pub mod http_client;
 #[cfg(feature = "transport")]
-pub mod transport;
+pub mod http_lifecycle;
 #[cfg(feature = "tls")]
 pub mod tls;
+#[cfg(feature = "transport")]
+pub mod transport;
 
 /// Returns the current target triple (Wave 4 best-effort).
 pub fn current_target_triple() -> &'static str {

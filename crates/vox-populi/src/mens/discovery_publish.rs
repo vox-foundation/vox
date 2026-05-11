@@ -135,8 +135,20 @@ mod tests {
             "own-node",
             "2026-05-10T00:00:00Z",
             vec![
-                ("peer-a".to_string(), 3, "https://gist/peer-a".to_string(), 100, 2),
-                ("peer-b".to_string(), 1, "https://gist/peer-b".to_string(), 5, 0),
+                (
+                    "peer-a".to_string(),
+                    3,
+                    "https://gist/peer-a".to_string(),
+                    100,
+                    2,
+                ),
+                (
+                    "peer-b".to_string(),
+                    1,
+                    "https://gist/peer-b".to_string(),
+                    5,
+                    0,
+                ),
             ],
         );
         assert_eq!(snapshot.node_id, "own-node");

@@ -75,10 +75,7 @@ impl DeviceFlow {
         Ok(body)
     }
 
-    pub async fn poll_until_token(
-        &self,
-        init: &DeviceFlowInit,
-    ) -> Result<String, DeviceFlowError> {
+    pub async fn poll_until_token(&self, init: &DeviceFlowInit) -> Result<String, DeviceFlowError> {
         let url = format!("{}/login/oauth/access_token", self.cfg.github_login_base);
         let started = std::time::Instant::now();
         let timeout = std::time::Duration::from_secs(init.expires_in);
@@ -128,7 +125,12 @@ impl DeviceFlow {
             files: std::collections::HashMap<&'a str, GistFile<'a>>,
         }
         let mut files = std::collections::HashMap::new();
-        files.insert("vox-attestation.json", GistFile { content: manifest_json });
+        files.insert(
+            "vox-attestation.json",
+            GistFile {
+                content: manifest_json,
+            },
+        );
         let body = GistBody {
             description: "Vox mesh node attestation manifest (auto-generated)",
             public: true,

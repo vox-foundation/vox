@@ -124,12 +124,8 @@ impl AttestationManifest {
             self.issued_at_unix_ms,
             self.expires_at_unix_ms,
         );
-        let ok = verify_signature_hex(
-            &self.signer_pubkey_hex,
-            &input,
-            &hex::encode(&sig_bytes),
-        )
-        .map_err(|_| ManifestVerifyError::InvalidPubkey)?;
+        let ok = verify_signature_hex(&self.signer_pubkey_hex, &input, &hex::encode(&sig_bytes))
+            .map_err(|_| ManifestVerifyError::InvalidPubkey)?;
         if !ok {
             return Err(ManifestVerifyError::SignatureMismatch);
         }
