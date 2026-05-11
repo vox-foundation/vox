@@ -434,4 +434,19 @@ impl Orchestrator {
     ) -> std::sync::Arc<std::sync::RwLock<crate::judge_model::JudgeModel>> {
         std::sync::Arc::clone(&self.judge_model)
     }
+
+    /// Record MCP tool completion for AgentOS policy risk overlay (`agent_id` from MCP args).
+    pub fn record_agentos_mcp_tool(&self, agent_id: Option<u64>, canonical_tool_name: &str) {
+        self.agentos_policy_ledger
+            .record_mcp_tool(agent_id, canonical_tool_name);
+    }
+
+    /// Evaluate unified orchestrator policy with the latest AgentOS `mutation_kind` for this MCP agent.
+    #[must_use]
+    pub fn evaluate_orchestrator_policy_for_agent(
+        &self,
+        agent_id: Option<u64>,
+    ) -> crate::orchestrator_policy::PolicyDecision {
+        self.agentos_policy_ledger.evaluate_for_agent(agent_id)
+    }
 }

@@ -125,4 +125,6 @@ pub struct Orchestrator {
     pub privacy_router: std::sync::Arc<std::sync::RwLock<crate::privacy_router::PrivacyRouter>>,
     /// Cross-model consensus judge.
     pub judge_model: std::sync::Arc<std::sync::RwLock<crate::judge_model::JudgeModel>>,
+    /// AgentOS: MCP `mutation_kind` ledger + unified [`crate::orchestrator_policy::OrchestratorPolicy`] evaluation.
+    pub agentos_policy_ledger: std::sync::Arc<crate::agentos::policy_runtime::AgentosPolicyLedger>,
 }

@@ -303,7 +303,7 @@ mod tests {
         let mut cal = CalibrationLoop::new(CalibrationConfig::default());
         // Baseline with realistic variance so std_dev > 0
         for x in [1.0f64, 2.0, 1.5, 2.5, 1.0, 2.0, 1.5, 2.5, 1.0, 2.0] {
-            cal.observe(x);
+            let _ = cal.observe(x);
         }
         let out = cal.observe(50.0);
         assert!(out.drift_detected, "z_score={}", out.z_score);
@@ -314,7 +314,7 @@ mod tests {
     fn no_drift_on_in_range_observation() {
         let mut cal = CalibrationLoop::new(CalibrationConfig::default());
         for x in [1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0] {
-            cal.observe(x);
+            let _ = cal.observe(x);
         }
         let out = cal.observe(2.0);
         assert!(!out.drift_detected);

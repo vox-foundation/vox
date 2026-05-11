@@ -65,6 +65,7 @@ vox-db-types           = { layer = 0 }
 vox-protocol           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
 vox-primitives         = { layer = 0 }
+vox-agentos-mutation   = { layer = 0, max_dependents = 12 }
 workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
 vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable

@@ -57,6 +57,7 @@ tiktoken-rs = "0.6"
 hex = "0.4.3"
 getrandom = "0.2"
 vox-crypto.workspace = true
+vox-agentos-mutation.workspace = true
 
 # Optional dependencies behind feature flags
 vox-actor-runtime = { workspace = true, optional = true }

@@ -7,5 +7,6 @@ pub mod context_budget_manager;
 pub mod guardrail_kernel;
 pub mod intent_planner;
 pub mod mutation_classifier;
+pub mod policy_runtime;
 pub mod replay_fast_forward;
 pub mod risk_scoring;

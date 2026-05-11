@@ -80,6 +80,7 @@ impl crate::orchestrator::Orchestrator {
             judge_model: Arc::new(RwLock::new(crate::judge_model::JudgeModel::new(
                 crate::judge_model::JudgePolicy::Never,
             ))),
+            agentos_policy_ledger: crate::agentos::policy_runtime::AgentosPolicyLedger::shared(),
         }
     }
 
@@ -150,6 +151,7 @@ impl crate::orchestrator::Orchestrator {
             judge_model: Arc::new(RwLock::new(crate::judge_model::JudgeModel::new(
                 crate::judge_model::JudgePolicy::Never,
             ))),
+            agentos_policy_ledger: crate::agentos::policy_runtime::AgentosPolicyLedger::shared(),
         }
     }
 
