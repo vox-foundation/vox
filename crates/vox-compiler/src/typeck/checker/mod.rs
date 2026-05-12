@@ -94,9 +94,7 @@ impl<'a> Checker<'a> {
         for r in &mut module.mcp_resources {
             self.check_function(&mut r.func);
         }
-        for r in &module.routes {
-            self.check_route(r);
-        }
+
 
         for c in &module.components {
             self.check_reactive_component(c);
@@ -559,31 +557,7 @@ impl<'a> Checker<'a> {
         }
     }
 
-    fn check_route(&mut self, r: &HirRoute) {
-        let mut ret_ty = r
-            .return_type
-            .as_ref()
-            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
-        if matches!(ret_ty, Ty::Infer) {
-            ret_ty = self.uf.fresh_var();
-        }
-        self.env.push_scope();
-        self.env.push_return_type(ret_ty.clone());
-        // Align with AST `check::typecheck_module` HTTP scope: `request` + `db`.
-        self.env.define(
-            "request".into(),
-            Binding::new(Ty::Named("Request".into()), false, BindingKind::Variable),
-        );
-        self.env.define(
-            "db".into(),
-            Binding::new(Ty::Database, false, BindingKind::Variable),
-        );
-        for stmt in &r.body {
-            let _ = self.check_stmt(stmt);
-        }
-        self.env.pop_return_type();
-        self.env.pop_scope();
-    }
+
 
     pub fn check_stmt(&mut self, stmt: &HirStmt) -> Ty {
         match stmt {
