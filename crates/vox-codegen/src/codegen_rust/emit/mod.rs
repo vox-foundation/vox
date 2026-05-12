@@ -370,7 +370,7 @@ tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
 reqwest = {{ version = "0.12", default-features = false, features = ["rustls-tls"] }}
-vox-reqwest-defaults = {{ path = "../../../crates/vox-reqwest-defaults" }}
+vox-http-client = {{ path = "../../../crates/vox-http-client" }}
 tracing = "0.1"
 tracing-subscriber = "0.3"
 turso = {{ version = "0.4", default-features = false }}
@@ -465,11 +465,10 @@ axum = "0.7"
 tower = "0.4"
 tower-http = {{ version = "0.5", features = ["cors", "trace", "request-id"] }}
 governor = "0.10"
-vox-http-envelope = {{ path = "../../crates/vox-http-envelope" }}
 rust-embed = "8"
 mime_guess = "2"
 reqwest = {{ version = "0.12", default-features = false, features = ["rustls-tls"] }}
-vox-reqwest-defaults = {{ path = "../../crates/vox-reqwest-defaults" }}
+vox-http-client = {{ path = "../../crates/vox-http-client" }}
 tracing = "0.1"
 tracing-subscriber = "0.3"
 turso = {{ version = "0.4", default-features = false }}

@@ -224,6 +224,17 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `@py.import` (Python interop) | Removed — Python is no longer a Vox glue surface (see §VoxScript-First Glue Code) |
 | `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
 | `recall()` / `recall_async()` (deprecated memory reads) | `MemoryManager::lookup_fact_by_key` (async) or RAG / retrieval bundle — see `crates/vox-orchestrator/src/memory/manager.rs` |
+| `@capacitor/*`, `npx cap sync` | `@tauri-apps/plugin-*`, `cargo tauri build` |
+| `axum::serve`, `rust-embed` (for generated desktop/mobile apps) | Tauri 2 runtime (Axum is retained for native-binary/server targets only) |
+| `vox-sherpa-transcribe` (Capacitor plugin) | `vox-tauri-sherpa` (native Tauri plugin) |
+
+### Deprecation Annotations
+
+Any vestigial code remaining from an active migration (e.g. Tauri convergence) MUST be marked with an inline deprecation annotation so `vox ci retirement-audit` can track it.
+Marker syntax:
+`// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="tauri-convergence" canonical="..."`
+
+Every vestigial call site must carry this marker until it is fully removed by its respective migration task.
 
 ## Versioning Policy (SSOT)
 

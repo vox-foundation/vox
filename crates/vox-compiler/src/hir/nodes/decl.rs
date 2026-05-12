@@ -36,8 +36,7 @@ pub struct HirModule {
     pub functions: Vec<HirFn>,
     /// Algebraic and struct types.
     pub types: Vec<HirTypeDef>,
-    /// HTTP route handlers.
-    pub routes: Vec<HirRoute>,
+
     /// `@test` functions.
     pub tests: Vec<HirFn>,
     /// `@forall` properties.
@@ -125,7 +124,7 @@ pub struct SemanticHirModule {
     pub rust_imports: Vec<HirRustImport>,
     pub functions: Vec<HirFn>,
     pub types: Vec<HirTypeDef>,
-    pub routes: Vec<HirRoute>,
+
     pub tests: Vec<HirFn>,
     pub endpoint_fns: Vec<HirEndpointFn>,
     pub tables: Vec<HirTable>,
@@ -152,7 +151,7 @@ impl HirModule {
             ("rust_imports", HirFieldOwnership::SemanticCore),
             ("functions", HirFieldOwnership::SemanticCore),
             ("types", HirFieldOwnership::SemanticCore),
-            ("routes", HirFieldOwnership::AppContract),
+
             ("tests", HirFieldOwnership::SemanticCore),
             ("foralls", HirFieldOwnership::SemanticCore),
             ("endpoint_fns", HirFieldOwnership::AppContract),
@@ -189,7 +188,7 @@ impl HirModule {
             rust_imports: self.rust_imports.clone(),
             functions: self.functions.clone(),
             types: self.types.clone(),
-            routes: self.routes.clone(),
+
             tests: self.tests.clone(),
             endpoint_fns: self.endpoint_fns.clone(),
             tables: self.tables.clone(),
@@ -209,47 +208,6 @@ impl HirModule {
     }
 }
 
-/// HTTP route lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirRoute {
-    /// HTTP method.
-    pub method: HirHttpMethod,
-    /// Path pattern string.
-    pub path: String,
-    /// Stable contract key (`METHOD path`) for WebIR / client stubs (OP-0040).
-    pub route_contract: String,
-    /// Declared response type.
-    pub return_type: Option<HirType>,
-    /// Handler body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the route.
-    pub span: Span,
-}
-
-/// HTTP methods for [`HirRoute`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum HirHttpMethod {
-    /// GET
-    Get,
-    /// POST
-    Post,
-    /// PUT
-    Put,
-    /// DELETE
-    Delete,
-}
-
-impl HirHttpMethod {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Get => "GET",
-            Self::Post => "POST",
-            Self::Put => "PUT",
-            Self::Delete => "DELETE",
-        }
-    }
-}
 
 /// A resolved import.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

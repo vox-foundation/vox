@@ -1,4 +1,4 @@
-﻿# Workspace architectural source of truth — read by `vox-arch-check`.
+# Workspace architectural source of truth — read by `vox-arch-check`.
 # See docs/src/architecture/2026-05-08-workspace-reorg-design.md and
 # docs/src/architecture/2026-05-08-naming-and-guards-design.md.
 #
@@ -83,7 +83,7 @@ vox-bounded-fs        = { layer = 1, max_dependents = 25 }
 vox-hf-layout         = { layer = 1, max_loc = 6_000 }               # HF config.json layout (MENS / Candle plugins)
 vox-crypto            = { layer = 1 }
 vox-secrets           = { layer = 1, max_dependents = 25 }
-vox-http-envelope     = { layer = 1, max_dependents = 8 }
+
 vox-jsonschema-util   = { layer = 1 }
 vox-checksum-manifest = { layer = 1 }
 vox-identity          = { layer = 1 }
@@ -124,7 +124,7 @@ vox-corpus              = { layer = 3, max_loc = 15_000 }
 vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 35_000 }
 vox-codegen             = { layer = 3, max_loc = 20_000 }
 vox-tauri-codegen       = { layer = 3, max_loc = 6_000 }
-vox-tauri-sherpa        = { layer = 3 }
+vox-tauri-sherpa        = { layer = 3, kind = "plugin" }
 vox-assets              = { layer = 2, max_loc = 4_000 }
 vox-release-artifacts   = { layer = 2, max_loc = 4_000 }
 vox-scientia-jsonschema-codegen = { layer = 3 }               # offline SCIENTIA JSON Schema → Rust (typify)
@@ -335,9 +335,6 @@ reason           = "Generated desktop/mobile applications bundle assets through 
 name             = "no-capacitor-deps-in-apps"
 pattern          = '"@capacitor/'
 file_glob        = "apps/**/package.json"
-exempt_files     = [
-    "apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/package.json",
-]
 allow_annotation = "// vox-arch-check: allow capacitor-app-dep"
 reason           = "Application package manifests use @tauri-apps/* per ADR 037."
 
