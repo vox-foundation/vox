@@ -17,8 +17,8 @@
   - Gate G2 — All Playwright E2E green.
   - Gate G3 — `vox check` clean.
   - Gate G4 — Contracts schema-valid.
-  - Gate G5 — Tauri Android build succeeds (`vox compile --target mobile-android` + Tauri Android toolchain; see `docs/how-to/build-android.md`).
-  - Gate G6 — Tauri iOS build succeeds (skip if no Apple toolchain available; document gap).
+  - Gate G5 — Capacitor Android build succeeds (`pnpm build:android` or per `docs/how-to/build-android.md`).
+  - Gate G6 — Capacitor iOS build succeeds (skip if no Apple toolchain available; document gap).
   - Gate G7 — Privacy doc reflects current data flows (`docs/user/privacy.md`).
   - Gate G8 — Failure-modes research is current (`docs/architecture/failure-modes-research-2026.md`).
 - [ ] **A2.** `apps/vox-mental-tracker/scripts/release_gates.vox` runs each programmatic gate (G1-G4) and exits non-zero if any fail. Manual gates (G5-G8) are checklist-only.

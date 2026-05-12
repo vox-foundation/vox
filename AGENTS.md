@@ -23,7 +23,7 @@ Primary navigation:
 - **Architectural rules:** [`docs/src/architecture/layers.toml`](docs/src/architecture/layers.toml) — layer assignments, fan-in / LoC budgets, allowed inversions. Enforced by `cargo run -p vox-arch-check`.
 - Contributor entry point: [`docs/src/contributors/contributor-hub.md`](docs/src/contributors/contributor-hub.md)
 - Documentation authority map: [`docs/src/contributors/documentation-governance.md`](docs/src/contributors/documentation-governance.md)
-- Architecture and research index: [`docs/src/architecture/research-index.md`](docs/src/architecture/research-index.md)
+- Architecture map: [`docs/src/architecture/architecture-index.md`](docs/src/architecture/architecture-index.md)
 - See [phase-numbering-index](docs/src/architecture/phase-numbering-index.md) for disambiguation of the three independent phase sequences used in plans (frontend interop, GUI-native language, workspace reorg).
 - Classification SSOT: [`docs/src/architecture/classification-ssot-2026.md`](docs/src/architecture/classification-ssot-2026.md)
 - AgentOS / ACI SSOT: [`docs/src/architecture/agentos-ssot-2026.md`](docs/src/architecture/agentos-ssot-2026.md)
@@ -164,8 +164,6 @@ removed; source files may freely use `actor`, `workflow`, and `activity` forms.
 
 See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/architecture/gui-native-roadmap-status-2026.md) §Phase 2.
 
-**Parse vs runtime (durability):** `@durable`, `@scheduled`, and `DurabilityKind::Workflow` / `::Activity` metadata are **parsed and lowered**, but the current runtime does **not** implement durable journals, replay, or cron-style scheduling — see [`docs/src/architecture/durability-runtime-audit-2026.md`](docs/src/architecture/durability-runtime-audit-2026.md). [`ADR-028`](docs/src/adr/028-deprecate-stub-durability-grammar.md) *proposes* a future breaking grammar change to narrow that surface; it is **not** in effect until accepted and implemented.
-
 ## Cross-Platform Shell Discipline (Stable Rules)
 
 > **Scope of the PowerShell preference.** The PS-first stance below is a **host-side allowlisting and output-parsing** preference, not a claim that agents produce better code in PowerShell than Bash. Project automation is **Vox** (see §VoxScript-First Glue Code). See [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md) for what this policy does and does not claim.
@@ -226,34 +224,6 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `@py.import` (Python interop) | Removed — Python is no longer a Vox glue surface (see §VoxScript-First Glue Code) |
 | `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
 | `recall()` / `recall_async()` (deprecated memory reads) | `MemoryManager::lookup_fact_by_key` (async) or RAG / retrieval bundle — see `crates/vox-orchestrator/src/memory/manager.rs` |
-| `@capacitor/core` | `@tauri-apps/api` |
-| `@capacitor/clipboard` | `@tauri-apps/plugin-clipboard-manager` |
-| `@capacitor/filesystem` | `@tauri-apps/plugin-fs` |
-| `@capacitor/haptics` | `@tauri-apps/plugin-haptics` |
-| `@capacitor/share` | `@tauri-apps/plugin-share` |
-| `@capacitor/push-notifications` | `@tauri-apps/plugin-notification` |
-| `@capacitor/splash-screen` | Tauri 2 native splash/window config via `tauri.conf.json` |
-| `Capacitor.Plugins.VoxNative.invoke(...)` | `import { invoke } from '@tauri-apps/api/core'` |
-| `npx cap sync` | `cargo tauri android build` / `cargo tauri ios build` |
-| `axum::serve` in generated desktop/mobile app `main.rs` | `tauri::Builder::default().run(...)`; Axum remains valid for `native-binary`, dashboard, server, and daemon/API lanes |
-| `rust-embed Assets` in generated desktop/mobile apps | Tauri `dist/` bundling |
-| `vox-sherpa-transcribe` (Capacitor app plugin) | `vox-tauri-sherpa` (Tauri 2 mobile plugin crate) |
-
-### Deprecation Annotations
-
-Vestigial code that is intentionally kept during a migration MUST carry a single-line retirement marker next to the call site:
-
-```rust
-// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="tauri-convergence" canonical="@tauri-apps/api"
-```
-
-Rules:
-
-- `reason` MUST match an accepted ADR or migration plan slug.
-- `canonical` MUST name the replacement API, crate, or command.
-- `retire-by` MUST be a future `Cargo.toml [workspace.package].version`.
-- `vox ci retirement-audit` is the canonical check for these markers; once enforcement lands, expired or malformed markers fail CI.
-- Do not use annotations to keep new code on retired surfaces. They are for shrinking allowlists only.
 
 ## Versioning Policy (SSOT)
 
@@ -319,7 +289,6 @@ Full details and per-rule fix patterns: [`docs/src/architecture/vox-language-rul
 
 ## Related Operational Surfaces
 
-- End-user native installers (`vox compile`, `[bundle]` / `[workspace]` manifests): [`docs/src/architecture/vox-application-packaging-ssot-2026.md`](docs/src/architecture/vox-application-packaging-ssot-2026.md) — sibling to server/OCI [`docs/src/reference/vox-portability-ssot.md`](docs/src/reference/vox-portability-ssot.md).
 - Canonical vs deprecated runtime names (daemon binary, MCP prefixes, env families): [`docs/src/architecture/canonical-runtime-names.md`](docs/src/architecture/canonical-runtime-names.md)
 - CI and runner behavior: [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)
 - Search & retrieval (agent corpora, MCP tools, policy): [`docs/src/architecture/search-retrieval-ssot-2026.md`](docs/src/architecture/search-retrieval-ssot-2026.md)

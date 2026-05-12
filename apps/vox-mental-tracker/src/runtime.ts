@@ -11,21 +11,23 @@
  * Imported once from src/main.tsx — the side-effects do all the work.
  */
 
-/* eslint-disable no-var --
-   `declare global` augmentation for Vox builtins on globalThis requires var. */
-
 declare global {
+  // eslint-disable-next-line no-var
   var str: (x: unknown) => string;
+  // eslint-disable-next-line no-var
   var len: (x: unknown) => number;
+  // eslint-disable-next-line no-var
   var Speech: {
     transcribe_microphone: () => SpeechResult | Promise<SpeechResult>;
   };
+  // eslint-disable-next-line no-var
   var std: {
     time: { now_ms: () => number };
     crypto: { uuid: () => string; hash_secure: (s: string) => Promise<string> };
     json: { parse: (s: string) => unknown };
     regex: { compile: (p: string) => { _tag: "Ok"; _p0: RegExp } | { _tag: "Error"; _p0: string } };
   };
+  // eslint-disable-next-line no-var
   var mobile: {
     transcribe_microphone: () => SpeechResult | Promise<SpeechResult>;
   };
@@ -44,7 +46,9 @@ type SpeechResult = { _tag: "Ok"; _p0: string } | { _tag: "Error"; _p0: string }
 /**
  * Returns a SpeechResult synchronously when __VOX_TEST_TRANSCRIPT__ is set
  * (so the codegen-emitted match-on-_tag works without an `await`), or a
- * Promise otherwise (Tauri `vox-tauri-sherpa-guest`, Web Speech API, or prompt fallback).
+ * Promise otherwise (Web Speech API / Capacitor plugin paths). The async
+ * path requires codegen-side support for awaiting before destructuring,
+ * tracked compiler-side.
  */
 function transcribeMicrophone(): SpeechResult | Promise<SpeechResult> {
   const testTranscript = (globalThis as unknown as { __VOX_TEST_TRANSCRIPT__?: string })
@@ -53,24 +57,9 @@ function transcribeMicrophone(): SpeechResult | Promise<SpeechResult> {
     return { _tag: "Ok", _p0: testTranscript };
   }
 
-  const inTauri =
-    typeof window !== "undefined" &&
-    // Tauri 2 exposes this on the window object in WebView builds
-    "__TAURI__" in window;
-
-  if (inTauri) {
-    return (async (): Promise<SpeechResult> => {
-      try {
-        const { transcribe } = await import("vox-tauri-sherpa-guest");
-        const r = await transcribe();
-        return { _tag: "Ok", _p0: r.text };
-      } catch (e) {
-        return { _tag: "Error", _p0: String(e) };
-      }
-    })();
-  }
-
-  // Web Speech API (browser / Vite preview). Keeps dev smoke tests working without a native shell.
+  // Web Speech API (browser). Capacitor builds wire this to SpeechRecognizer
+  // via the Sherpa plugin package; this fallback keeps the dev/preview path
+  // working for in-browser smoke tests.
   const SR =
     (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
       .SpeechRecognition ||

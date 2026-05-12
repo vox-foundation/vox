@@ -1,13 +1,11 @@
 # vox-mental-tracker
 
-Local-first mental health tracker scaffold (**Vox language**). **No cloud sync in v1** — data stays on device; share exports via the system sheet.
-
-**Packaging:** **`vox compile`** + **Tauri 2** for desktop/mobile installers. On-device speech uses **`vox-tauri-sherpa-guest`** (`invoke` bridge) instead of Capacitor.
+Local-first mental health tracker scaffold (Vox language + Capacitor). **No cloud sync in v1** — data stays on device; share exports via the system sheet.
 
 ## Requirements
 
 - **Vox** CLI (install per [external-app-bootstrap](../../docs/src/how-to/external-app-bootstrap.md) in the main Vox repo when this tree is vendored).
-- **pnpm** for Vite + `@tauri-apps/api`.
+- **pnpm** for Capacitor/Vite assets.
 
 ## Commands
 
@@ -17,7 +15,8 @@ From this directory (with `vox` on `PATH`):
 vox check src/main.vox
 vox build src/main.vox -o dist
 pnpm install
-vox compile --target desktop   # or mobile-android / mobile-ios
+npx cap add android   # once
+vox build src/main.vox -o dist --target android
 ```
 
 Automation scripts live under **`scripts/*.vox`** (run with `vox run`).
@@ -40,4 +39,3 @@ Per-release checklist in [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md). Detaile
 ```bash
 vox run apps/vox-mental-tracker/scripts/release_gates.vox
 ```
-

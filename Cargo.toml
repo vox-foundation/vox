@@ -1,9 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "crates/workspace-hack", "crates/voxup"]
+members = ["crates/*","crates/workspace-hack"]
 exclude = [
-  "crates/vox-tauri-sherpa",
-  "crates/vox-arch-check/tests/fixtures/missing-desc",
+    "crates/vox-arch-check/tests/fixtures/missing-desc",
     "crates/vox-plugin-host/tests/fixtures/noop-code",
     "crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi",
     "crates/vox-plugin-noop-skill",
@@ -15,7 +14,6 @@ exclude = [
     "crates/vox-plugin-skill-testing",
     "crates/vox-plugin-skill-testing-validate",
     "crates/vox-plugin-skill-v0",
-    "crates/voxup",
 ]
 default-members = ["crates/vox-cli"]
 
@@ -71,10 +69,6 @@ vox-deploy-codegen        = { path = "crates/vox-deploy-codegen" }
 vox-skill-runtime         = { path = "crates/vox-skill-runtime" }
 vox-checksum-manifest     = { path = "crates/vox-checksum-manifest" }
 vox-install-policy        = { path = "crates/vox-install-policy" }
-vox-release-artifacts     = { path = "crates/vox-release-artifacts" }
-vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
-vox-gui                   = { path = "crates/vox-gui" }
-vox-assets                = { path = "crates/vox-assets" }
 vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }
 vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
@@ -128,8 +122,6 @@ vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
 vox-wasm-engine           = { path = "crates/vox-wasm-engine" }
 vox-package                    = { path = "crates/vox-package" }
 vox-package-types              = { path = "crates/vox-package-types" }
-vox-plugin-mens-candle-cuda = { path = "crates/vox-plugin-mens-candle-cuda" }
-vox-plugin-mens-candle-metal = { path = "crates/vox-plugin-mens-candle-metal" }
 vox-inference                  = { path = "crates/vox-inference" }
 vox-distributed-training       = { path = "crates/vox-distributed-training" }
 vox-mens-eval                  = { path = "crates/vox-mens-eval" }
@@ -190,11 +182,12 @@ sha2               = "0.10"
 sha3               = "0.10"
 bincode            = "2"
 data-encoding      = "2"
-thiserror          = "2"
+thiserror          = "1"
 base64             = "0.22"
 owo-colors         = "4"
 chrono             = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 regex              = "1"
+regress            = "0.11"
 comfy-table        = "7"
 csv                = "1.3"
 tempfile           = "3"
@@ -259,27 +252,25 @@ axum-extra         = "0.12.5"
 hyper              = { version = "1", features = ["full"] }
 hyper-util         = { version = "0.1", features = ["client", "client-legacy", "tokio"] }
 tower-http         = "0.6.2"
-tower              = { version = "0.5", default-features = false }
-rand_distr         = "0.4"
 subtle             = "2.6"
 futures            = "0.3"
 chacha20poly1305   = "0.10"
 aead               = { version = "0.5", features = ["std"] }
 gix                = { version = "0.70", default-features = false }
 jj-lib             = { version = "=0.27.0", default-features = false }
-wasmtime           = "44"
-wasmtime-wasi      = "44"
+wasmtime           = "42.0.1"
+wasmtime-wasi      = "42.0.1"
 zip                = "8.4.0"
-self_update        = "0.44"
+self_update        = "0.43.1"
 landlock           = "0.4.4"
 win32job           = "2"
 windows-sys        = "0.59"
 tavily             = "2.1.0"
 quick-xml          = "0.31"
 flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
-tokio-tungstenite  = { version = "0.29", default-features = false }
+tokio-tungstenite  = { version = "0.24", default-features = false }
 rubato             = "0.15.0"
-symphonia          = { version = "0.5.4", default-features = false }
+symphonia          = "0.5.4"
 sherpa-onnx        = "1.12"
 syn                = "2"
 prettyplease       = "0.2"
@@ -299,27 +290,9 @@ swc_ecma_parser    = "39"
 swc_ecma_ast       = "23"
 swc_ecma_visit     = "23"
 swc_common         = "21"
-which              = "8"
+which              = "7"
 ctrlc              = "3.4"
 proptest           = { version = "1", default-features = false, features = ["std"] }
-cargo_metadata     = "0.23"
-zeroize            = { version = "1.8", features = ["zeroize_derive"] }
-byteorder          = "1.5"
-tar                = "0.4"
-notify             = "7"
-tower-lsp-server   = "0.23"
-tiktoken-rs        = "0.6"
-libc               = "0.2"
-# SCIENTIA codegen still uses typify 0.6.x → schemars 0.8; centralize the pin.
-schemars08         = { package = "schemars", version = "0.8", default-features = false }
-cpal               = "0.15"
-include_dir        = "0.7"
-urlencoding        = "2"
-pulldown-cmark     = "0.13"
-dialoguer          = "0.12"
-rand09             = { package = "rand", version = "0.9" }
-# typify-generated `schema_types.generated.rs` uses `::regress::Regex` for JSON Schema patterns.
-regress            = "0.10"
 
 
 [patch.crates-io]

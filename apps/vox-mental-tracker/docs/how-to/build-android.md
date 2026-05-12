@@ -1,21 +1,19 @@
-# Build Android (Tauri 2)
+# Build Android (Capacitor)
 
 1. **Web bundle**
 
    ```bash
-   cd apps/vox-mental-tracker
-   pnpm install
-   pnpm build:web
+   vox build src/main.vox -o dist
    ```
 
-2. **Tauri mobile workspace** (from the app directory, with `vox` on `PATH`)
+2. **Capacitor**
 
    ```bash
-   vox compile --target mobile-android -o dist src/main.vox
+   pnpm install
+   npx cap add android   # first time only
+   vox build src/main.vox -o dist --target android   # runs cap sync when wired to CLI
    ```
-
-   Generated Rust + `src-tauri/` live under the **repository** `target/generated/` (shared workspace target dir). Continue with `cargo tauri android init` / `cargo tauri android build` per [application packaging SSOT](../../../../docs/src/architecture/vox-application-packaging-ssot-2026.md) once the mobile project is initialized.
 
 3. **Signing / Play**: generate keystore locally; never commit secrets.
 
-Mic permission strings live in the Android manifest for the Tauri mobile project — merge edits carefully on upgrades.
+Mic permission strings live in `AndroidManifest.xml` after `cap add android` — merge edits carefully on upgrades.
