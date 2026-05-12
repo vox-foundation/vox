@@ -27,7 +27,7 @@ vox-crypto = { workspace = true }
 vox-mesh-types = { workspace = true }
 vox-db = { workspace = true }
 vox-bounded-fs = { workspace = true }
-vox-reqwest-defaults = { workspace = true }
+vox-http-client = { workspace = true }
 vox-primitives = { workspace = true }
 vox-repository = { workspace = true }
 axum = { workspace = true }

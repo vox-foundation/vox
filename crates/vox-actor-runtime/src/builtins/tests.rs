@@ -217,7 +217,7 @@ fn json_read_str_and_f64() {
 
 #[tokio::test]
 async fn http_invalid_json_body_is_rejected_before_network() {
-    let client = vox_reqwest_defaults::client();
+    let client = vox_http_client::client();
     let err = handle_http_op(
         &client,
         HttpOp::PostJson {
@@ -232,7 +232,7 @@ async fn http_invalid_json_body_is_rejected_before_network() {
 
 #[tokio::test]
 async fn http_invalid_url_reports_error() {
-    let client = vox_reqwest_defaults::client();
+    let client = vox_http_client::client();
     let err = handle_http_op(
         &client,
         HttpOp::GetText {

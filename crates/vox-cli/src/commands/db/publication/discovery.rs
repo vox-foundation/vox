@@ -154,7 +154,7 @@ pub async fn publication_novelty_fetch(
         title: row.title.clone(),
         abstract_text: row.abstract_text.clone(),
     };
-    let client = vox_reqwest_defaults::client();
+    let client = vox_http_client::client();
     let repo_root = vox_repository::resolve_repo_root_for_ci();
     let scientia_h =
         vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);

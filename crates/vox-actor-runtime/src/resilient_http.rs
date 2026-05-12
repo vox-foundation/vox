@@ -47,7 +47,7 @@ impl ResilientHttpClient {
     /// Wraps a fresh `reqwest` client with the given retry policy.
     pub fn new(policy: RetryPolicy) -> Self {
         Self {
-            client: vox_reqwest_defaults::client(),
+            client: vox_http_client::client(),
             policy,
         }
     }

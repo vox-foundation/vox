@@ -72,7 +72,7 @@ pub async fn vox_scientia_publication_novelty_fetch(
         title: row.title.clone(),
         abstract_text: row.abstract_text.clone(),
     };
-    let client = vox_reqwest_defaults::client();
+    let client = vox_http_client::client();
     let scientia_h = vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(
         &state.repository.root,
     );
@@ -209,7 +209,7 @@ pub async fn vox_scientia_publication_decision_explain(
             title: manifest.title.clone(),
             abstract_text: manifest.abstract_text.clone(),
         };
-        let client = vox_reqwest_defaults::client();
+        let client = vox_http_client::client();
         let bundle = match vox_publisher::scientia_prior_art::fetch_prior_art_federated(
             &client,
             &candidate_id,
@@ -397,7 +397,7 @@ pub async fn vox_scientia_publication_novelty_happy_path(
         title: row.title.clone(),
         abstract_text: row.abstract_text.clone(),
     };
-    let client = vox_reqwest_defaults::client();
+    let client = vox_http_client::client();
     let bundle = match vox_publisher::scientia_prior_art::fetch_prior_art_federated(
         &client,
         &candidate_id,

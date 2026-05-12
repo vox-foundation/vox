@@ -5,6 +5,7 @@
 //! owns the pretty-print round-trip.
 pub mod parse;
 pub mod print;
+pub mod models;
 
 pub use parse::{ParseError, load_policy};
 pub use print::pretty_print;

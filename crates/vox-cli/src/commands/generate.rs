@@ -26,7 +26,7 @@ pub async fn run(
     let retries = max_retries.unwrap_or(3);
     let validate = !no_validate;
 
-    let client = vox_reqwest_defaults::client_builder()
+    let client = vox_http_client::client_builder()
         .timeout(std::time::Duration::from_secs(120))
         .build()
         .context("Failed to build HTTP client")?;

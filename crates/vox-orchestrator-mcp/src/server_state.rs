@@ -128,7 +128,7 @@ impl ServerState {
             .await;
         });
 
-        let http_client = vox_reqwest_defaults::client_builder()
+        let http_client = vox_http_client::client_builder()
             .timeout(std::time::Duration::from_secs(120))
             .build()
             .expect("reqwest client for vox-mcp");
@@ -178,7 +178,7 @@ impl ServerState {
         skill_registry: Arc<SkillRegistry>,
     ) -> Self {
         let workspace_root = Some(repository.root.clone());
-        let http_client = vox_reqwest_defaults::client_builder()
+        let http_client = vox_http_client::client_builder()
             .timeout(std::time::Duration::from_secs(120))
             .build()
             .expect("reqwest client for vox-mcp");

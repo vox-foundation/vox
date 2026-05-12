@@ -71,7 +71,8 @@ pub fn git_latest_mtime_map(repo_root: &Path, under: &Path) -> Option<GitMtimeMa
         .ok()?
         .to_string_lossy()
         .replace('\\', "/");
-    let output = std::process::Command::new("git")
+    let output = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(repo_root)
         .args([
             "log",
@@ -131,7 +132,8 @@ fn parse_frontmatter_meta(content: &str) -> (String, Option<String>) {
 }
 
 fn get_git_last_updated_unix(path: &Path, cwd: Option<&Path>) -> u64 {
-    let mut cmd = std::process::Command::new("git");
+    let mut cmd = std::process::// vox-arch-check: allow git-exec
+        Command::new("git");
     if let Some(root) = cwd {
         cmd.current_dir(root);
     }

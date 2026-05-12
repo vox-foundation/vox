@@ -389,7 +389,7 @@ pub async fn mcp_infer_tool_completion(
             (system_prompt, routing.user_prompt)
         };
 
-        let mut user_parts = vec![vox_openai_wire::ChatMessagePart::Text { text: final_user }];
+        let mut user_parts = vec![vox_openai::ChatMessagePart::Text { text: final_user }];
         if let Some(ref manifest) = attachment_manifest {
             if let Some(db) = state.db.as_ref() {
                 for attachment in &manifest.attachments {
@@ -398,8 +398,8 @@ pub async fn mcp_infer_tool_completion(
                             Ok(bytes) => {
                                 let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
                                 let url = format!("data:{};base64,{}", attachment.mime_type, b64);
-                                user_parts.push(vox_openai_wire::ChatMessagePart::ImageUrl {
-                                    image_url: vox_openai_wire::ImageUrl {
+                                user_parts.push(vox_openai::ChatMessagePart::ImageUrl {
+                                    image_url: vox_openai::ImageUrl {
                                         url: Box::leak(url.into_boxed_str()),
                                     },
                                 });
@@ -414,9 +414,9 @@ pub async fn mcp_infer_tool_completion(
         }
 
         let user_content = if user_parts.len() > 1 {
-            vox_openai_wire::ChatMessageContent::Parts(user_parts)
+            vox_openai::ChatMessageContent::Parts(user_parts)
         } else {
-            vox_openai_wire::ChatMessageContent::Text(final_user)
+            vox_openai::ChatMessageContent::Text(final_user)
         };
 
         let temperature = temperature_override

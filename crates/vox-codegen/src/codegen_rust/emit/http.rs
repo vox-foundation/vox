@@ -89,7 +89,7 @@ async fn {fn_name}(
     }});
     match lim.check_key(&addr.ip()) {{
         Ok(_) => Ok(next.run(req).await),
-        Err(_) => Err((StatusCode::TOO_MANY_REQUESTS, Json(vox_http_envelope::error_json(
+        Err(_) => Err((StatusCode::TOO_MANY_REQUESTS, Json(vox_http_client::envelope::error_json(
             "RATE_LIMITED",
             "Too many requests",
             None,
@@ -245,7 +245,7 @@ pub fn emit_main(module: &HirModule, package_name: &str, app_contract: &AppContr
         "                    let target = format!(\"{}{}\", base.trim_end_matches('/'), uri);\n",
     );
     out.push_str(
-        "                    if let Ok(client) = vox_reqwest_defaults::client_builder()\n",
+        "                    if let Ok(client) = vox_http_client::client_builder()\n",
     );
     out.push_str("                        .timeout(std::time::Duration::from_secs(60))\n");
     out.push_str("                        .build()\n");
@@ -553,7 +553,7 @@ fn emit_server_fn_handler(
         out.push_str("    }).await {\n");
         out.push_str("        Ok(resp) => Ok(resp),\n");
         out.push_str(
-            "        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(vox_http_envelope::error_json(\"INTERNAL_ERROR\", e.to_string(), vox_rid.clone(), None)))),\n",
+            "        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(vox_http_client::envelope::error_json(\"INTERNAL_ERROR\", e.to_string(), vox_rid.clone(), None)))),\n",
         );
         out.push_str("    }\n");
     } else {
@@ -597,7 +597,7 @@ fn emit_query_fn_handler(
         ));
         out.push_str("        None => serde_json::Value::Null,\n");
         out.push_str(&format!(
-            "        Some(__s) => match serde_json::from_str::<serde_json::Value>(__s) {{\n            Ok(v) => v,\n            Err(__e) => {{\n                return Err((StatusCode::BAD_REQUEST, Json(vox_http_envelope::error_json(\n                    \"BAD_REQUEST\",\n                    format!(\"Invalid JSON for query parameter \\\"{0}\\\": {{}}\", __e),\n                    vox_rid.clone(),\n                    Some(serde_json::json!({{\"param\": \"{0}\"}})),\n                ))));\n            }}\n        }},\n    }};\n",
+            "        Some(__s) => match serde_json::from_str::<serde_json::Value>(__s) {{\n            Ok(v) => v,\n            Err(__e) => {{\n                return Err((StatusCode::BAD_REQUEST, Json(vox_http_client::envelope::error_json(\n                    \"BAD_REQUEST\",\n                    format!(\"Invalid JSON for query parameter \\\"{0}\\\": {{}}\", __e),\n                    vox_rid.clone(),\n                    Some(serde_json::json!({{\"param\": \"{0}\"}})),\n                ))));\n            }}\n        }},\n    }};\n",
             pname
         ));
     }

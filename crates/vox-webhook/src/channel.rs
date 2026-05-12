@@ -75,10 +75,10 @@ impl ChannelManager {
     pub fn new() -> Self {
         Self {
             channels: Mutex::new(HashMap::new()),
-            client: vox_reqwest_defaults::client_builder()
+            client: vox_http_client::client_builder()
                 .timeout(std::time::Duration::from_secs(10))
                 .build()
-                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+                .unwrap_or_else(|_| vox_http_client::client()),
         }
     }
 

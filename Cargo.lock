@@ -13037,16 +13037,14 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
- "vox-agentos-mutation",
  "vox-config",
  "vox-db",
- "vox-openai-sse",
- "vox-openai-wire",
+ "vox-http-client",
+ "vox-openai",
  "vox-openclaw-runtime",
  "vox-orchestrator-types",
  "vox-plugin-host",
  "vox-primitives",
- "vox-reqwest-defaults",
  "vox-secrets",
  "vox-skills",
  "vox-telemetry",
@@ -13054,10 +13052,6 @@ dependencies = [
  "workspace-hack",
  "xxhash-rust",
 ]
-
-[[package]]
-name = "vox-agentos-mutation"
-version = "0.5.0"
 
 [[package]]
 name = "vox-arch-check"
@@ -13208,12 +13202,12 @@ dependencies = [
  "vox-gamify",
  "vox-git",
  "vox-grammar-export",
+ "vox-http-client",
  "vox-identity",
  "vox-inference",
  "vox-install-policy",
  "vox-jsonschema-util",
  "vox-mcp-registry",
- "vox-mens-eval",
  "vox-mesh-types",
  "vox-openclaw-runtime",
  "vox-orchestrator",
@@ -13228,7 +13222,6 @@ dependencies = [
  "vox-publisher",
  "vox-release-artifacts",
  "vox-repository",
- "vox-reqwest-defaults",
  "vox-rule-pack",
  "vox-scaling-policy",
  "vox-search",
@@ -13305,9 +13298,9 @@ dependencies = [
  "tracing",
  "vox-bounded-fs",
  "vox-config",
+ "vox-http-client",
  "vox-jsonschema-util",
  "vox-orchestrator-types",
- "vox-reqwest-defaults",
  "vox-rule-pack",
  "vox-scaling-policy",
  "vox-secrets",
@@ -13365,13 +13358,13 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "toml 0.8.23",
- "vox-agentos-mutation",
  "vox-codegen",
  "vox-config",
  "vox-deploy-codegen",
  "vox-eval",
  "vox-grammar-export",
  "vox-jsonschema-util",
+ "vox-primitives",
  "vox-repository",
  "vox-secrets",
  "vox-test-harness",
@@ -13629,7 +13622,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "vox-reqwest-defaults",
+ "vox-http-client",
  "workspace-hack",
 ]
 
@@ -13658,8 +13651,8 @@ dependencies = [
  "vox-bounded-fs",
  "vox-config",
  "vox-db",
- "vox-openai-sse",
- "vox-reqwest-defaults",
+ "vox-http-client",
+ "vox-openai",
  "vox-secrets",
  "workspace-hack",
  "xxhash-rust",
@@ -13720,11 +13713,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-http-envelope"
+name = "vox-http-client"
 version = "0.5.0"
 dependencies = [
+ "async-trait",
+ "http",
+ "reqwest 0.12.28",
+ "reqwest-middleware",
+ "reqwest-retry",
  "serde",
  "serde_json",
+ "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -13854,23 +13854,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-mens-eval"
-version = "0.5.0"
-
-[[package]]
-name = "vox-mesh-models"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "vox-mesh-types",
-]
-
-[[package]]
-name = "vox-mesh-policy"
+name = "vox-mesh"
 version = "0.5.0"
 dependencies = [
  "anyhow",
@@ -13878,6 +13862,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",
+ "tokio",
  "vox-compiler",
  "vox-mesh-types",
 ]
@@ -13931,6 +13916,7 @@ dependencies = [
  "vox-crypto",
  "vox-db",
  "vox-eval",
+ "vox-http-client",
  "vox-jsonschema-util",
  "vox-mesh-types",
  "vox-oratio",
@@ -13940,7 +13926,6 @@ dependencies = [
  "vox-primitives",
  "vox-protocol",
  "vox-repository",
- "vox-reqwest-defaults",
  "vox-scaling-policy",
  "vox-secrets",
  "vox-tensor",
@@ -13965,19 +13950,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-openai-sse"
+name = "vox-openai"
 version = "0.5.0"
 dependencies = [
- "serde_json",
- "workspace-hack",
-]
-
-[[package]]
-name = "vox-openai-wire"
-version = "0.5.0"
-dependencies = [
+ "bytes",
  "serde",
  "serde_json",
+ "thiserror 1.0.69",
  "workspace-hack",
 ]
 
@@ -14002,8 +13981,8 @@ dependencies = [
  "tracing",
  "uuid",
  "vox-db",
+ "vox-http-client",
  "vox-plugin-host",
- "vox-reqwest-defaults",
  "vox-secrets",
  "workspace-hack",
 ]
@@ -14034,8 +14013,8 @@ dependencies = [
  "tracing",
  "uuid",
  "vox-compiler",
+ "vox-http-client",
  "vox-populi",
- "vox-reqwest-defaults",
  "vox-secrets",
  "workspace-hack",
 ]
@@ -14088,7 +14067,6 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "vox-actor-runtime",
- "vox-agentos-mutation",
  "vox-bounded-fs",
  "vox-code-audit",
  "vox-config",
@@ -14096,6 +14074,7 @@ dependencies = [
  "vox-crypto",
  "vox-db",
  "vox-gamify",
+ "vox-http-client",
  "vox-lsp",
  "vox-mesh-types",
  "vox-oratio",
@@ -14104,10 +14083,10 @@ dependencies = [
  "vox-package",
  "vox-populi",
  "vox-prereg",
+ "vox-primitives",
  "vox-protocol",
  "vox-publisher",
  "vox-repository",
- "vox-reqwest-defaults",
  "vox-research-events",
  "vox-search",
  "vox-secrets",
@@ -14208,11 +14187,12 @@ dependencies = [
  "vox-db",
  "vox-gamify",
  "vox-grammar-export",
+ "vox-http-client",
  "vox-jsonschema-util",
  "vox-lsp",
  "vox-mcp-registry",
  "vox-mesh-types",
- "vox-openai-wire",
+ "vox-openai",
  "vox-openclaw-runtime",
  "vox-oratio",
  "vox-orchestrator",
@@ -14226,7 +14206,6 @@ dependencies = [
  "vox-protocol",
  "vox-publisher",
  "vox-repository",
- "vox-reqwest-defaults",
  "vox-research-events",
  "vox-search",
  "vox-secrets",
@@ -14298,8 +14277,8 @@ dependencies = [
  "turso",
  "vox-compiler",
  "vox-db",
+ "vox-http-client",
  "vox-package-types",
- "vox-reqwest-defaults",
  "workspace-hack",
 ]
 
@@ -14541,12 +14520,12 @@ dependencies = [
  "vox-bounded-fs",
  "vox-crypto",
  "vox-db",
+ "vox-http-client",
  "vox-mesh-types",
  "vox-plugin-api",
  "vox-populi",
  "vox-primitives",
  "vox-repository",
- "vox-reqwest-defaults",
  "vox-secrets",
  "workspace-hack",
 ]
@@ -14690,13 +14669,13 @@ dependencies = [
  "vox-eval",
  "vox-grammar-export",
  "vox-hf-layout",
+ "vox-http-client",
  "vox-identity",
  "vox-mesh-types",
  "vox-plugin-host",
  "vox-primitives",
  "vox-publisher",
  "vox-repository",
- "vox-reqwest-defaults",
  "vox-secrets",
  "vox-tensor",
  "workspace-hack",
@@ -14773,11 +14752,11 @@ dependencies = [
  "vox-config",
  "vox-db",
  "vox-forge",
+ "vox-http-client",
  "vox-inspect-bridge",
  "vox-jsonschema-util",
  "vox-nanopub",
  "vox-primitives",
- "vox-reqwest-defaults",
  "vox-ro-crate",
  "vox-secrets",
  "wiremock",
@@ -14812,19 +14791,6 @@ dependencies = [
  "tracing",
  "vox-bounded-fs",
  "walkdir",
- "workspace-hack",
-]
-
-[[package]]
-name = "vox-reqwest-defaults"
-version = "0.5.0"
-dependencies = [
- "async-trait",
- "http",
- "reqwest 0.12.28",
- "reqwest-middleware",
- "reqwest-retry",
- "tracing",
  "workspace-hack",
 ]
 
@@ -15009,10 +14975,10 @@ dependencies = [
  "uuid",
  "vox-container",
  "vox-db",
+ "vox-http-client",
  "vox-openclaw-runtime",
  "vox-package",
  "vox-plugin-host",
- "vox-reqwest-defaults",
  "vox-skill-runtime",
  "workspace-hack",
 ]
@@ -15128,7 +15094,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "vox-reqwest-defaults",
+ "vox-http-client",
  "workspace-hack",
 ]
 

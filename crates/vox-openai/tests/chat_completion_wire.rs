@@ -1,7 +1,7 @@
 //! Serialize requests and parse minimal completion JSON (`vox-openai-wire`).
 
 use serde_json::json;
-use vox_openai_wire::{
+use vox_openai::{
     ChatCompletionRequest, ChatCompletionResponse, ChatMessageContent, ChatMessageTurn,
 };
 

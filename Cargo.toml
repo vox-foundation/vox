@@ -56,7 +56,7 @@ vox-build-meta            = { path = "crates/vox-build-meta" }
 vox-telemetry             = { path = "crates/vox-telemetry" }
 vox-tracing-init          = { path = "crates/vox-tracing-init" }
 
-vox-agentos-mutation      = { path = "crates/vox-agentos-mutation" }
+
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-secrets                = { path = "crates/vox-secrets" }
 vox-cli                   = { path = "crates/vox-cli" }
@@ -90,15 +90,15 @@ vox-webhook               = { path = "crates/vox-webhook" }
 vox-git                   = { path = "crates/vox-git" }
 vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
 vox-grammar-export        = { path = "crates/vox-grammar-export" }
-vox-http-envelope         = { path = "crates/vox-http-envelope" }
+
 vox-lsp                   = { path = "crates/vox-lsp" }
 vox-gamify                 = { path = "crates/vox-gamify" }
 vox-hf-layout              = { path = "crates/vox-hf-layout" }
 vox-populi                = { path = "crates/vox-populi" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
-vox-mesh-models           = { path = "crates/vox-mesh-models" }
-vox-mesh-policy           = { path = "crates/vox-mesh-policy" }
+
+vox-mesh               = { path = "crates/vox-mesh" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
@@ -109,8 +109,8 @@ vox-orchestrator-queue    = { path = "crates/vox-orchestrator-queue" }
 vox-orchestrator-d        = { path = "crates/vox-orchestrator-d" }
 vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
 vox-orchestrator-cap-mint = { path = "crates/vox-orchestrator-cap-mint" }
-vox-openai-sse            = { path = "crates/vox-openai-sse" }
-vox-openai-wire           = { path = "crates/vox-openai-wire" }
+
+vox-openai             = { path = "crates/vox-openai" }
 vox-plugin-api            = { path = "crates/vox-plugin-api" }
 vox-plugin-types          = { path = "crates/vox-plugin-types" }
 vox-plugin-catalog        = { path = "crates/vox-plugin-catalog" }
@@ -124,7 +124,7 @@ vox-package                    = { path = "crates/vox-package" }
 vox-package-types              = { path = "crates/vox-package-types" }
 vox-inference                  = { path = "crates/vox-inference" }
 vox-distributed-training       = { path = "crates/vox-distributed-training" }
-vox-mens-eval                  = { path = "crates/vox-mens-eval" }
+
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }
 vox-cli-ci                = { path = "crates/vox-cli-ci" }
@@ -132,7 +132,7 @@ vox-cli-ci                = { path = "crates/vox-cli-ci" }
 vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
 vox-primitives            = { path = "crates/vox-primitives" }
 vox-protocol              = { path = "crates/vox-protocol" }
-vox-reqwest-defaults      = { path = "crates/vox-reqwest-defaults" }
+vox-http-client        = { path = "crates/vox-http-client" }
 vox-prereg                = { path = "crates/vox-prereg" }
 vox-research-events       = { path = "crates/vox-research-events" }
 vox-nanopub               = { path = "crates/vox-nanopub" }

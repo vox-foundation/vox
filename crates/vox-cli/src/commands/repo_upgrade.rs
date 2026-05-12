@@ -124,7 +124,8 @@ fn repo_semver_gate(args: &UpgradeToolchainArgs) -> Result<()> {
 }
 
 fn ensure_git_available() -> Result<()> {
-    let s = Command::new("git")
+    let s = // vox-arch-check: allow git-exec
+        Command::new("git")
         .arg("--version")
         .status()
         .context("spawn `git --version`")?;
@@ -188,7 +189,8 @@ fn run_git_fetch(
     branch: &str,
 ) -> Result<()> {
     if args.git_ref.is_some() {
-        let s = Command::new("git")
+        let s = // vox-arch-check: allow git-exec
+        Command::new("git")
             .current_dir(root)
             .args(["fetch", remote, "--tags"])
             .status()
@@ -196,7 +198,8 @@ fn run_git_fetch(
         if !s.success() {
             bail!("git fetch {remote} --tags failed");
         }
-        let s = Command::new("git")
+        let s = // vox-arch-check: allow git-exec
+        Command::new("git")
             .current_dir(root)
             .args(["fetch", remote])
             .status()
@@ -205,7 +208,8 @@ fn run_git_fetch(
             bail!("git fetch {remote} failed");
         }
         if branch != "HEAD" {
-            let s = Command::new("git")
+            let s = // vox-arch-check: allow git-exec
+        Command::new("git")
                 .current_dir(root)
                 .args(["fetch", remote, branch])
                 .status()
@@ -217,7 +221,8 @@ fn run_git_fetch(
         return Ok(());
     }
 
-    let s = Command::new("git")
+    let s = // vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(root)
         .args(["fetch", remote, branch])
         .status()
@@ -243,7 +248,8 @@ fn fast_forward_current_branch(root: &Path, remote: &str, branch: &str) -> Resul
     if remote_head == head {
         return Ok(());
     }
-    let s = Command::new("git")
+    let s = // vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(root)
         .args(["merge", "--ff-only", &merge_ref])
         .status()
@@ -255,7 +261,8 @@ fn fast_forward_current_branch(root: &Path, remote: &str, branch: &str) -> Resul
 }
 
 fn checkout_ref(root: &Path, gref: &str) -> Result<()> {
-    let s = Command::new("git")
+    let s = // vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(root)
         .args(["checkout", gref])
         .status()
@@ -328,7 +335,8 @@ fn rollback_git(root: &Path) -> Result<()> {
     let st = read_rollback_marker(root)?;
     if let Some(sym) = &st.head_symbolic_ref {
         let branch = sym.strip_prefix("refs/heads/").unwrap_or(sym.as_str());
-        let s = Command::new("git")
+        let s = // vox-arch-check: allow git-exec
+        Command::new("git")
             .current_dir(root)
             .args(["checkout", branch])
             .status()
@@ -337,7 +345,8 @@ fn rollback_git(root: &Path) -> Result<()> {
             bail!("rollback: checkout {branch} failed");
         }
     }
-    let s = Command::new("git")
+    let s = // vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(root)
         .args(["reset", "--hard", &st.head_sha])
         .status()
@@ -423,7 +432,8 @@ fn emit_repo_apply_success(root: &Path, json_output: bool, prev_head: &str) -> R
 }
 
 fn git_output(root: &Path, args: &[&str]) -> Result<String> {
-    let out = Command::new("git")
+    let out = // vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(root)
         .args(args)
         .output()

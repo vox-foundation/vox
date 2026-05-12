@@ -1,7 +1,7 @@
 //! Multipart message serialization and tool-call / usage field parsing (`vox-openai-wire`).
 
 use serde_json::json;
-use vox_openai_wire::{
+use vox_openai::{
     ChatCompletionRequest, ChatCompletionResponse, ChatMessageContent, ChatMessagePart,
     ChatMessageTurn, ImageUrl,
 };

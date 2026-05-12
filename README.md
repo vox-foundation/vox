@@ -91,7 +91,7 @@ The full CLI surface, including every `vox ci`, `vox populi`, and `vox mens` sub
 ---
 
 <div align="center">
-  <img src="docs/src/assets/vox_unification_diagram.png" alt="Vox architecture unification vs. legacy fragmentation">
+  <img src="docs/src/assets/archive/vox_unification_diagram.png" alt="Vox architecture unification vs. legacy fragmentation">
 </div>
 
 <!-- ANCHOR: how_vox -->

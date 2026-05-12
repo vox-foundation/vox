@@ -132,11 +132,11 @@ impl PopuliHttpClient {
         while base.ends_with('/') {
             base.pop();
         }
-        let inner = vox_reqwest_defaults::client_builder()
+        let inner = vox_http_client::client_builder()
             .timeout(timeout)
             .build()
             .expect("reqwest TLS stack must be available (platform TLS missing or misconfigured)");
-        let client = vox_reqwest_defaults::populi_control_plane_client(
+        let client = vox_http_client::populi_control_plane_client(
             inner,
             populi_retry_transient_from_env(),
         );

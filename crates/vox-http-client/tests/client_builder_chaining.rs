@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use vox_reqwest_defaults::client_builder;
+use vox_http_client::client_builder;
 
 #[test]
 fn client_builder_chains_user_agent_and_timeouts_without_panic() {

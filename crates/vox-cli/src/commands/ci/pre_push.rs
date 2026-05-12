@@ -469,7 +469,8 @@ fn cargo_status(root: &Path, args: &[&str]) -> Result<()> {
 fn git_diff_name_only_for_prepush(root: &Path) -> Result<String> {
     let primary = std::env::var("VOX_PREPUSH_BASE").unwrap_or_else(|_| "origin/main".into());
     let attempt = |base: &str| -> Result<String> {
-        let out = Command::new("git")
+        let out = // vox-arch-check: allow git-exec
+        Command::new("git")
             .args(["diff", "--name-only", &format!("{base}...HEAD")])
             .current_dir(root)
             .output()

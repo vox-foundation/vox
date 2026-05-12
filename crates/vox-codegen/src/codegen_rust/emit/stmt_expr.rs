@@ -65,7 +65,7 @@ pub(super) fn emit_stmt(
                     format!(
                         "{pad}return Ok(Json(serde_json::to_value({expr}).map_err(|e| (
     StatusCode::INTERNAL_SERVER_ERROR,
-    Json(vox_http_envelope::error_json(\"SERIALIZATION_ERROR\", format!(\"{{}}\", e), {rid}, None)),
+    Json(vox_http_client::envelope::error_json(\"SERIALIZATION_ERROR\", format!(\"{{}}\", e), {rid}, None)),
 ))?));\n",
                         expr = expr_str,
                         rid = rid_tok,

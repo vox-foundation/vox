@@ -1,5 +1,5 @@
 //! `relay_ai_fixture_distributed_subagent` — skipped-path coverage (no live Populi server).
-#![allow(unsafe_code)] // Rust 2024 `set_var` / `remove_var`; serialized via `#[serial]`.
+// vox-arch-check: allow crate unsafe_code`n#![allow(unsafe_code)] // Rust 2024 `set_var` / `remove_var`; serialized via `#[serial]`.
 
 use serial_test::serial;
 use vox_orchestrator::a2a::relay_ai_fixture_distributed_subagent;

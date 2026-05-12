@@ -1,8 +1,0 @@
-[package]
-name = "vox-agentos-mutation"
-description = "SSOT: canonical MCP tool name → ACI mutation_kind string (AgentOS policy + ACI envelopes)."
-version.workspace = true
-edition.workspace = true
-
-[lints]
-workspace = true

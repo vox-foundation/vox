@@ -2,6 +2,8 @@
 //!
 //! **Policy:** see `docs/src/architecture/outbound-http-policy.md` in the repo for when to use this crate, migration order, and exceptions.
 
+pub mod envelope;
+
 use std::time::Duration;
 
 fn default_user_agent() -> String {

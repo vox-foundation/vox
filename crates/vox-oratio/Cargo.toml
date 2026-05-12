@@ -34,14 +34,14 @@ stt-candle = [
 compiler-rerank = ["dep:vox-compiler"]
 cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 stt-sherpa = ["dep:sherpa-onnx"]
-cloud = ["dep:vox-populi", "dep:tokio", "dep:vox-reqwest-defaults", "dep:async-trait", "dep:reqwest"]
+cloud = ["dep:vox-populi", "dep:tokio", "dep:vox-http-client", "dep:async-trait", "dep:reqwest"]
 serve = ["dep:axum", "axum/multipart", "dep:tokio", "stt-candle"]
 
 [dependencies]
 vox-populi = { workspace = true, optional = true, features = ["mens-cloud"] }
 reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
-vox-reqwest-defaults = { workspace = true, optional = true }
+vox-http-client = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 anyhow = { workspace = true }
 vox-compiler = { workspace = true, optional = true }

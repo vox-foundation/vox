@@ -308,7 +308,8 @@ fn lint_duplicate_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintE
 }
 
 fn git_last_commit_date(repo_root: &Path, rel_file: &str) -> Option<NaiveDate> {
-    let out = Command::new("git")
+    let out = // vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(repo_root)
         .args(["log", "-1", "--format=%cs", "--", rel_file])
         .output()

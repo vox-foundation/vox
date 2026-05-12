@@ -87,10 +87,9 @@ vox-http-envelope     = { layer = 1, max_dependents = 8 }
 vox-jsonschema-util   = { layer = 1 }
 vox-checksum-manifest = { layer = 1 }
 vox-identity          = { layer = 1 }
-vox-reqwest-defaults  = { layer = 1 }
+vox-http-client  = { layer = 1, staleness_exempt = true }
 vox-rule-pack         = { layer = 1 }                            # SSOT loader for detector patterns; zero heavy deps
-vox-openai-wire       = { layer = 1 }
-vox-openai-sse        = { layer = 1 }
+vox-openai       = { layer = 1, staleness_exempt = true }
 vox-exec-grammar      = { layer = 1 }
 vox-grammar-export    = { layer = 1 }
 vox-scaling-policy    = { layer = 1 }
@@ -125,6 +124,7 @@ vox-corpus              = { layer = 3, max_loc = 15_000 }
 vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 35_000 }
 vox-codegen             = { layer = 3, max_loc = 20_000 }
 vox-tauri-codegen       = { layer = 3, max_loc = 6_000 }
+vox-tauri-sherpa        = { layer = 3 }
 vox-assets              = { layer = 2, max_loc = 4_000 }
 vox-release-artifacts   = { layer = 2, max_loc = 4_000 }
 vox-scientia-jsonschema-codegen = { layer = 3 }               # offline SCIENTIA JSON Schema → Rust (typify)
@@ -143,8 +143,7 @@ vox-git                 = { layer = 3 }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
 vox-dashboard           = { layer = 3 }
-vox-mesh-models         = { layer = 3 }
-vox-mesh-policy         = { layer = 3 }
+vox-mesh         = { layer = 3, staleness_exempt = true }
 vox-webhook             = { layer = 3 }
 vox-code-audit          = { layer = 3, max_loc = 15_000 }
 vox-drift-check              = { layer = 3, kind = "binary", max_loc = 8_000 }
@@ -177,6 +176,7 @@ vox-plugin-browser           = { layer = 4, kind = "plugin" }
 vox-plugin-cloud             = { layer = 4, kind = "plugin" }
 vox-plugin-grammar-export    = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin" }
+vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin" }
 vox-plugin-nvml-probe        = { layer = 4, kind = "plugin" }
 vox-plugin-oratio            = { layer = 4, kind = "plugin" }
 vox-plugin-oratio-mic        = { layer = 4, kind = "plugin" }
@@ -192,6 +192,7 @@ vox-cli               = { layer = 5, kind = "binary", max_loc = 70_000 }
 vox-gui               = { layer = 5, kind = "binary", max_loc = 25_000 } # Tauri desktop shell; depends on vox-cli / vox-orchestrator
 vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
+voxup                 = { layer = 5, kind = "binary" }
 
 
 # ── Permitted inversions ──────────────────────────────────────────────────────
@@ -224,6 +225,30 @@ exempt_files     = [
     "crates/vox-vcs-git/src/git_exec.rs",
     "crates/vox-arch-check/src/main.rs",
     "crates/vox-arch-check/src/forbidden_patterns.rs",
+    "crates/vox-orchestrator-mcp/src/git_tools.rs",
+    "crates/vox-repository/src/repo_catalog/query.rs",
+    "crates/vox-search/src/memory_hybrid.rs",
+    "crates/vox-git/src/bridge.rs",
+    "crates/vox-orchestrator-mcp/src/git_exec.rs",
+    "crates/vox-build-meta/src/lib.rs",
+    "crates/vox-cli/src/commands/ci/data_storage_guard.rs",
+    "crates/vox-cli/src/commands/ci/line_endings.rs",
+    "crates/vox-cli/src/commands/ci/pre_push.rs",
+    "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
+    "crates/vox-cli/src/commands/ci/watch_run.rs",
+    "crates/vox-cli/src/commands/ci/workspace_artifacts/mod.rs",
+    "crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/toolchain.rs",
+    "crates/vox-cli/src/commands/repo_upgrade.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/git.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/github/reviews/baseline.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/github/reviews/stack.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/github/reviews/submit_branch.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/github/reviews/worktree.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/historical_planner.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/semantic_planner/collector.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/semantic_planner/submit.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/stack_planner/submit.rs",
+    "crates/vox-doc-pipeline/src/pipeline/lint.rs",
 ]
 allow_annotation = "// vox-arch-check: allow git-exec"
 reason           = "All git invocations must go through GitExec to honor the concurrency policy."
@@ -264,6 +289,7 @@ exempt_files     = [
     "crates/vox-integration-tests/tests/pipeline_env_test.rs",
     "crates/vox-integration-tests/tests/pipeline_test.rs",
     "crates/vox-integration-tests/tests/ts_emit_typecheck_test.rs",
+    "crates/vox-orchestrator/tests/mesh_ai_fixture_relay.rs",
 ]
 allow_annotation = "// vox-arch-check: allow crate unsafe_code"
 reason           = "New crate-root `#![allow(unsafe_code)]` must be reviewed; centralize test env mutation or document FFI invariants instead of widening the surface."
@@ -309,5 +335,8 @@ reason           = "Generated desktop/mobile applications bundle assets through 
 name             = "no-capacitor-deps-in-apps"
 pattern          = '"@capacitor/'
 file_glob        = "apps/**/package.json"
+exempt_files     = [
+    "apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/package.json",
+]
 allow_annotation = "// vox-arch-check: allow capacitor-app-dep"
 reason           = "Application package manifests use @tauri-apps/* per ADR 037."

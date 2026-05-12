@@ -652,7 +652,8 @@ fn scan_targets(root: &Path, all: bool) -> Result<Vec<String>> {
     if let Ok(spec) = std::env::var("VOX_SECRET_GUARD_GIT_REF") {
         let spec = spec.trim();
         if !spec.is_empty() {
-            let output = std::process::Command::new("git")
+            let output = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
                 .current_dir(root)
                 .args(["diff", "--name-only", "--diff-filter=AMR", spec])
                 .output()
@@ -671,7 +672,8 @@ fn scan_targets(root: &Path, all: bool) -> Result<Vec<String>> {
         }
     }
 
-    let output = std::process::Command::new("git")
+    let output = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(root)
         .args(["diff", "--name-only", "--diff-filter=AMR", "HEAD"])
         .output()

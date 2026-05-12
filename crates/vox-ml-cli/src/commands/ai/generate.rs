@@ -184,7 +184,7 @@ pub async fn run(
     // Build the HTTP client once outside the retry loop — creating a Client per
     // attempt is expensive (TLS handshake, connection pool teardown).
     let http_client = server_url.map(|_| {
-        vox_reqwest_defaults::client_builder()
+        vox_http_client::client_builder()
             .timeout(std::time::Duration::from_secs(
                 std::env::var("VOX_GEN_TIMEOUT_SECS")
                     .ok()

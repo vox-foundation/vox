@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use crate::types::{ModelEntry, NodeModelMap};
+use super::types::{ModelEntry, NodeModelMap};
 
 /// Aggregated view of models across all mesh nodes.
 ///
@@ -81,7 +81,7 @@ impl ModelRegistry {
         let mut maps: Vec<NodeModelMap> = g
             .by_node
             .iter()
-            .map(|(node_id, models)| NodeModelMap {
+            .map(|(node_id, models): (&String, &Vec<ModelEntry>)| NodeModelMap {
                 node_id: node_id.clone(),
                 models: models.clone(),
             })

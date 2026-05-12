@@ -41,7 +41,7 @@ tracing = { workspace = true }
 vox-forge = { path = "../vox-forge", features = ["github", "gitlab"] }
 quick-xml = { workspace = true, features = ["serialize"] }
 reqwest = { workspace = true, features = ["multipart"] }
-vox-reqwest-defaults = { workspace = true }
+vox-http-client = { workspace = true }
 mime_guess = { workspace = true }
 hex = { workspace = true }
 sha2 = { workspace = true }

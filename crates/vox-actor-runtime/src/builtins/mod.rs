@@ -709,8 +709,8 @@ pub fn vox_process_which(cmd: &str) -> Option<String> {
 
 /// MCP canonical tool name → ACI `mutation_kind` string (`std.agentos.mutation_kind_for_tool`).
 #[must_use]
-pub fn vox_agentos_mutation_kind_for_tool(name: &str) -> String {
-    vox_agentos_mutation::mutation_kind_for_tool(name).to_string()
+pub fn agentos_mutation_kind_for_tool(name: &str) -> String {
+    vox_primitives::agentos_mutation::mutation_kind_for_tool(name).to_string()
 }
 
 /// Terminate the current process with an exit code (`std.process.exit` in Vox scripts).
@@ -1008,7 +1008,7 @@ fn http_worker() -> &'static HttpWorker {
                     .map_err(|e| format!("http runtime init failed: {e}"));
                 match runtime {
                     Ok(rt) => {
-                        let client = vox_reqwest_defaults::client();
+                        let client = vox_http_client::client();
                         while let Ok(req) = rx.recv() {
                             let result = rt.block_on(handle_http_op(&client, req.op));
                             let _ = req.reply_tx.send(result);

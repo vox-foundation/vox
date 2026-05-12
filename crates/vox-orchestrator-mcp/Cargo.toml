@@ -35,7 +35,7 @@ vox-compiler.workspace = true
 vox-grammar-export.workspace = true
 vox-mcp-registry.workspace = true
 vox-capability-registry.workspace = true
-vox-openai-wire.workspace = true
+vox-openai.workspace = true
 vox-project-scaffold.workspace = true
 vox-skills.workspace = true
 vox-openclaw-runtime.workspace = true
@@ -63,7 +63,7 @@ vox-code-audit.workspace = true
 vox-lsp.workspace = true
 vox-populi = { workspace = true }
 tower-lsp-server = { workspace = true }
-vox-reqwest-defaults.workspace = true
+vox-http-client.workspace = true
 vox-publisher = { workspace = true, optional = true, default-features = false }
 vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
 

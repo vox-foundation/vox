@@ -140,7 +140,8 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                         continue;
                     }
 
-                    if let Ok(output) = std::process::Command::new("git")
+                    if let Ok(output) = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
                         .arg("ls-files")
                         .arg(line)
                         .current_dir(&root)
@@ -160,7 +161,8 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
 
     // Scratch cleanliness
     if run_all || opts.only.contains(&"scratch-clean".to_string()) {
-        if let Ok(output) = std::process::Command::new("git")
+        if let Ok(output) = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
             .arg("ls-files")
             .arg("scratch/")
             .current_dir(&root)

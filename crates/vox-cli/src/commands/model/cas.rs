@@ -28,7 +28,7 @@ pub async fn run(cmd: CasCmd) -> anyhow::Result<()> {
         CasCmd::Ls => {
             // Keep `vox-inference` / `vox-mens-eval` in the CLI dependency graph for arch-check
             // until CAS listing and eval harness callsites are fully wired.
-            let _ = vox_mens_eval::summarize_placeholder();
+            let _ = vox_eval::mens::summarize_placeholder();
             let _ = std::sync::Arc::new(vox_inference::CandleCpuStub);
             println!(
                 "vox model cas ls: no bundle index yet — see Mn-T8 / vox-package model CAS helpers."

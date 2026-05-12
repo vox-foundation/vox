@@ -1,4 +1,4 @@
----
+﻿---
 title: "Where Things Live"
 description: "Flat lookup table — concept to crate. Consult before adding code. Referenced by AGENTS.md and CLAUDE.md."
 category: "architecture"
@@ -279,3 +279,4 @@ Crates with `kind = "binary"` in `layers.toml` (e.g., `vox-arch-check`, `vox-pop
 `vox-arch-check`'s orphan detector flags new crates with no consumers. If you
 add one, expect that warning to land on your PR until you wire it up — that's
 working as intended.
+

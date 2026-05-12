@@ -15,10 +15,10 @@ pub struct OpenRouterCatalog {
 impl OpenRouterCatalog {
     pub fn new() -> Self {
         Self {
-            client: vox_reqwest_defaults::client_builder()
+            client: vox_http_client::client_builder()
                 .timeout(Duration::from_secs(10))
                 .build()
-                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+                .unwrap_or_else(|_| vox_http_client::client()),
         }
     }
 }
@@ -301,10 +301,10 @@ pub struct OllamaCatalog {
 impl OllamaCatalog {
     pub fn new(base_url: String) -> Self {
         Self {
-            client: vox_reqwest_defaults::client_builder()
+            client: vox_http_client::client_builder()
                 .timeout(Duration::from_secs(5))
                 .build()
-                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+                .unwrap_or_else(|_| vox_http_client::client()),
             base_url,
         }
     }
@@ -383,10 +383,10 @@ impl Default for HuggingFaceCatalog {
 impl HuggingFaceCatalog {
     pub fn new() -> Self {
         Self {
-            client: vox_reqwest_defaults::client_builder()
+            client: vox_http_client::client_builder()
                 .timeout(Duration::from_secs(10))
                 .build()
-                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+                .unwrap_or_else(|_| vox_http_client::client()),
         }
     }
 }
@@ -446,10 +446,10 @@ impl Default for PopuliMeshCatalog {
 impl PopuliMeshCatalog {
     pub fn new() -> Self {
         Self {
-            client: vox_reqwest_defaults::client_builder()
+            client: vox_http_client::client_builder()
                 .timeout(Duration::from_secs(5))
                 .build()
-                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+                .unwrap_or_else(|_| vox_http_client::client()),
         }
     }
 }
@@ -545,10 +545,10 @@ impl Default for AnthropicDirectCatalog {
 impl AnthropicDirectCatalog {
     pub fn new() -> Self {
         Self {
-            client: vox_reqwest_defaults::client_builder()
+            client: vox_http_client::client_builder()
                 .timeout(Duration::from_secs(10))
                 .build()
-                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+                .unwrap_or_else(|_| vox_http_client::client()),
         }
     }
 }
@@ -658,10 +658,10 @@ impl Default for GoogleDirectCatalog {
 impl GoogleDirectCatalog {
     pub fn new() -> Self {
         Self {
-            client: vox_reqwest_defaults::client_builder()
+            client: vox_http_client::client_builder()
                 .timeout(Duration::from_secs(10))
                 .build()
-                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+                .unwrap_or_else(|_| vox_http_client::client()),
         }
     }
 }
@@ -813,10 +813,10 @@ const LITELLM_PRICES_URL: &str =
 impl LiteLLMCatalog {
     pub fn new() -> Self {
         Self {
-            client: vox_reqwest_defaults::client_builder()
+            client: vox_http_client::client_builder()
                 .timeout(Duration::from_secs(20))
                 .build()
-                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+                .unwrap_or_else(|_| vox_http_client::client()),
         }
     }
 

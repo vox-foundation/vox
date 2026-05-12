@@ -22,7 +22,7 @@ data-encoding    = { workspace = true }
 axum             = { workspace = true, features = ["macros"] }
 # HTTP client (for outbound webhooks)
 reqwest          = { workspace = true }
-vox-reqwest-defaults = { workspace = true }
+vox-http-client = { workspace = true }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]

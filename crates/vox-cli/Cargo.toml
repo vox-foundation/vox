@@ -121,7 +121,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 reqwest = { workspace = true, features = ["multipart"] }
-vox-reqwest-defaults = { workspace = true }
+vox-http-client = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
@@ -132,7 +132,8 @@ base64 = { workspace = true }
 futures = { workspace = true }
 vox-package = { workspace = true }
 vox-inference = { workspace = true }
-vox-mens-eval = { workspace = true }
+
+vox-eval = { workspace = true }
 vox-container = { workspace = true }
 vox-wasm-engine = { workspace = true }
 vox-deploy-codegen = { workspace = true }
@@ -208,7 +209,7 @@ tokio-stream = { workspace = true, optional = true }
 dirs = { workspace = true }
 walkdir = { workspace = true }
 sysinfo = { workspace = true }
-vox-eval = { workspace = true }
+
 vox-forge = { workspace = true, optional = true, features = ["github", "gitlab"] }
 vox-git = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }

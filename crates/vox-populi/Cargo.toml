@@ -23,8 +23,8 @@ transport = [
     "dep:tokio",
     "dep:reqwest",
     "dep:reqwest-middleware",
-    "dep:vox-reqwest-defaults",
-    "vox-reqwest-defaults/middleware",
+    "dep:vox-http-client",
+    "vox-http-client/middleware",
     "dep:tower-http",
     "dep:subtle",
     "dep:vox-bounded-fs",
@@ -71,7 +71,7 @@ mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
     "dep:reqwest",
-    "dep:vox-reqwest-defaults",
+    "dep:vox-http-client",
 ]
 # Opt-in grand-network discovery publishing via the Provider Atlas (P6-T6).
 mesh-discovery-publish = [
@@ -106,7 +106,7 @@ axum = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true, default-features = false, features = ["json", "rustls-tls"] }
 reqwest-middleware = { workspace = true, optional = true }
-vox-reqwest-defaults = { workspace = true, optional = true }
+vox-http-client = { workspace = true, optional = true }
 tower-http = { workspace = true, optional = true, features = ["trace", "request-id"] }
 vox-db = { workspace = true, optional = true }
 turso = { workspace = true, optional = true }
