@@ -125,8 +125,15 @@ fn recent_tasks() to list[Task] {
 
 @endpoint(kind: mutation)
 fn add_task(title: str, owner: str) to Result[Id[Task]] {
-    if title == "" { return Error("title required") }
-    return Ok(db.insert(Task, { title: title, done: false, owner: owner }))
+    if title == "" {
+        return Error("title required")
+    }
+    
+    return Ok(db.insert(Task, { 
+        title: title, 
+        done: false, 
+        owner: owner 
+    }))
 }
 ```
 
@@ -139,13 +146,19 @@ A `Result[T]` caller must handle both arms — no exceptions, no `null`, no impl
 ### Pillar 3: One file → running deployment
 
 ```vox
-component TaskPage(tasks: List[Task]) {
+component TaskPage(tasks: list[Task]) {
     view: column() {
-        tasks.map(fn(t) { row() { text() { t.title } } })
+        tasks.map(fn(t) { 
+            row() { 
+                text() { t.title } 
+            } 
+        })
     }
 }
 
-routes { "/" to TaskPage }
+routes { 
+    "/" to TaskPage 
+}
 ```
 
 `vox build` emits [React](https://react.dev/)/[TSX](https://www.typescriptlang.org/) components, a generated `vox-client.ts` RPC bridge, and — via [`vox-deploy-codegen`](crates/vox-deploy-codegen/) — Dockerfile, Compose, Kubernetes, Fly, Coolify, and systemd targets, all derived from the same module graph. External React, TanStack, or mobile apps can import the emitted components or call the endpoints over the bridge.
@@ -159,7 +172,9 @@ routes { "/" to TaskPage }
 ```vox
 @durable
 fn charge_card(amount: int) to Result[str] {
-    if amount > 1000 { return Error("amount too large") }
+    if amount > 1000 {
+        return Error("amount too large")
+    }
     return Ok("tx_123")
 }
 
