@@ -20,6 +20,11 @@ docs-astro/public/.well-known
 
 # Local TOESTUB / audit outputs (do not commit large JSON baselines)
 /artifacts/
+.tmp_audit/
+# Compiled plugin binaries produced by full-runtime audit runs (build artifacts)
+/.vox/audit/**/vox_plugin_*.dll
+/.vox/audit/**/vox_plugin_*.so
+/.vox/audit/**/vox_plugin_*.dylib
 
 # === SCRATCH / EPHEMERAL / LOGS ===
 .tmp_metadata.json
