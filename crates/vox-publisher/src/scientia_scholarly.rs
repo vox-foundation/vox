@@ -6,23 +6,23 @@
 
 // --- Claim extraction ----------------------------------------------------------
 #[cfg(feature = "scholarly-external-jobs")]
-pub use vox_claim_extractor::{
+pub use vox_scientia::claim_extractor::{
     AtomicClaim, ClaimVerdict, ExtractionConfig, ExtractionPipeline, ExtractionResult,
 };
 
 // --- Novelty scoring & conflict detection --------------------------------------
 #[cfg(feature = "scholarly-external-jobs")]
-pub use vox_inspect_bridge::{
+pub use vox_scientia::inspect_bridge::{
     AtomicNoveltyScorer, ChronoFilter, EvidenceConflict, EvidenceConflictDetector, NoveltyConfig,
     NoveltyVerdict,
 };
 
 // --- Nanopublication builder ---------------------------------------------------
 #[cfg(feature = "scholarly-external-jobs")]
-pub use vox_nanopub::{NanopubDocument, NanopubGraphs, SignedNanopub, build_nanopub, sign_nanopub};
+pub use vox_scientia::nanopub::{NanopubDocument, NanopubGraphs, SignedNanopub, build_nanopub, sign_nanopub};
 
 // --- RO-Crate JSON-LD metadata ------------------------------------------------
 #[cfg(feature = "scholarly-external-jobs")]
-pub use vox_ro_crate::{
+pub use vox_scientia::ro_crate::{
     AiDisclosureBlock, CffMetadata, RoCrateMetadata, build_cff_json, build_ro_crate_json,
 };

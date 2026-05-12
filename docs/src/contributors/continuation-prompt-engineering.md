@@ -135,6 +135,10 @@ When working specifically on the Vox codebase, append this tightly scoped block.
 
 ```xml
 <vox_context>
+<active_skill>
+- DYNAMIC INJECTION: The orchestrator will inject procedural workflows (e.g., `superpowers:test-driven-development`) here based on task state.
+- PRIORITY: If an active skill is present, its instructions supersede generic behavioral rules.
+</active_skill>
 <anti_skeleton>
 - TOESTUB BLOCKERS: `stub/todo`, `stub/unimplemented`, `empty-body`, `victory-claim/premature`, `unwired/module`, `arch/god_object`, `arch/sprawl`.
 - VERIFY: RUN `vox stub-check --path <changed-dirs>` and evaluate the output before completing work. Error-severity findings are hard blockers.

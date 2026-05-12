@@ -16,9 +16,8 @@ pub async fn run(args: crate::cli_args::GuiArgs) -> Result<()> {
         c
     };
     
-    if let Some(_cmd_val) = args.command {
-        // TODO(command-deeplink): Implement direct command navigation
-        // cmd.arg("--command").arg(_cmd_val);
+    if let Some(cmd_val) = args.command {
+        cmd.arg("--command").arg(cmd_val);
     }
 
     let mut child = cmd.spawn()?;

@@ -12,12 +12,20 @@ default = ["gui"]
 
 [dependencies]
 vox-cli = { workspace = true }
+vox-cli-core = { workspace = true }
+vox-protocol = { workspace = true }
 vox-orchestrator = { workspace = true }
+vox-repository = { workspace = true }
+vox-package-types = { workspace = true }
+toml = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
+serde_yaml = { workspace = true }
 tauri = { version = "2" }
 tauri-plugin-shell = { version = "2" }
-
+rmp-serde = "1.1"
+serde_bytes = "0.11"
+tokio = { workspace = true }
 [build-dependencies]
 vox-build-meta = { workspace = true }
 tauri-build = { version = "2", features = [] }

@@ -1,0 +1,37 @@
+// gui-registry-check.vox
+// CI guard to verify TypeScript interface synchronization with Rust SSoT structure for the registry.
+
+fn main() {
+    let ts_file = "crates/vox-gui/ui/src/transport.ts";
+    if !std.fs.exists(ts_file) {
+        println!("❌ Could not find " + ts_file);
+        std.process.exit(1);
+    }
+
+    let ts_content = std.fs.read_to_string(ts_file);
+
+    // Ensure the interface defines all required SSoT fields
+    let required_fields = [
+        "path: string[]",
+        "status: string",
+        "product_lane: string | null",
+        "feature_gate: string | null",
+        "catalog_group: string | null",
+        "surface: string"
+    ];
+
+    let mut missing = false;
+    for field in required_fields {
+        if !ts_content.contains(field) {
+            println!("❌ Missing field in TS RegistryOperation: " + field);
+            missing = true;
+        }
+    }
+
+    if missing {
+        println!("❌ gui-registry-check failed: TS interface drifted from RegistryFile SSoT.");
+        std.process.exit(1);
+    }
+
+    println!("✅ gui-registry-check passed.");
+}

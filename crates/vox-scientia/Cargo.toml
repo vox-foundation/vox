@@ -1,0 +1,30 @@
+[package]
+name = "vox-scientia"
+description = "SCIENTIA cluster data ingestion, semantic matching, and knowledge layer orchestration."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+vox-crypto = { workspace = true }
+vox-research-events = { workspace = true }
+vox-db = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true, features = ["v4", "serde"] }
+thiserror = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+
+anyhow = { workspace = true }
+url = "2"
+chrono = { workspace = true }
+base64 = { workspace = true }
+regex = { workspace = true }
+tokio = { workspace = true }
+
+tokio-stream = { workspace = true }
+scraper = { workspace = true }
+vox-search.workspace = true
+feed-rs = "2.3.1"

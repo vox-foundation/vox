@@ -294,3 +294,4 @@ working as intended.
 | crates/vox-plugin-mens-candle-metal/ | ML | Apple Silicon |
 | crates/vox-tauri-sherpa/ | Tauri | Sherpa desktop |
 | crates/voxup/ | CLI | Installer |
+| [crates/vox-scientia/](../../../crates/vox-scientia/) | SCIENTIA cluster for ingestion, extraction, and ro-crate formatting. |

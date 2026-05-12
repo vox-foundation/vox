@@ -131,7 +131,6 @@ vox-cli-core = { workspace = true }
 base64 = { workspace = true }
 futures = { workspace = true }
 vox-package = { workspace = true }
-vox-inference = { workspace = true }
 
 vox-eval = { workspace = true }
 vox-container = { workspace = true }

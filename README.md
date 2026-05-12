@@ -34,82 +34,87 @@
 
 Mainstream languages predate LLMs by decades. They tolerate implicit state — nulls, exceptions, schemas restated three times across the stack. That's tractable for a person; it's a minefield for a statistical code generator. A million-token context window doesn't help when most of it is integration boilerplate.
 
-Vox is what falls out when you design the language *after* the model: collapse the duplications, push errors into the type system, draw the browser/server boundary in one place, and build durability and tool exposure into the grammar instead of layering them on top.
-
 <div align="center">
-  <img src="docs/src/assets/old_internet_knot_abstract.png" alt="A highly abstract, semiotic diagram representing the chaotic complexity of modern web development. Features 5 layers (Frontend, REST / GraphQL, Backend, Glue Code, and Databases) entangled with confusing lines, illustrating the pain of boilerplate and fragmentation." width="80%">
+  <img src="docs/src/assets/old_internet_knot_abstract.png" alt="A diagram illustrating the complexity of traditional web development fragmentation." width="80%">
+  <p>
+    <strong>Fragmentation in Traditional Web Development</strong><br>
+    Traditional development requires restating data models and logic across frontend, API, backend, and database layers. This duplication creates significant maintenance overhead and increases the risk of integration drift.
+  </p>
 </div>
+
+Vox is what falls out when you design the language *after* the model: collapse the duplications, push errors into the type system, draw the browser/server boundary in one place, and build durability and tool exposure into the grammar instead of layering them on top.
 <!-- ANCHOR_END: why_vox -->
+
+## Killer Features
+
+Vox collapses the massive fragmentation of modern web and AI development into a single, cohesive ecosystem.
+
+- **[Local AI Inference & Fine-Tuning](crates/vox-ml-cli/)**: Run models natively on your GPU without touching Python. Execute open-weights models or train them via QLoRA using Rust-native acceleration (CUDA and Apple Metal).
+- **[One File to Rule the Stack](docs/src/reference/deployment-compose.md)**: A single `.vox` file emits database migrations, a typed API server, reactive frontend components, and deployment artifacts. Zero integration boilerplate.
+- **[Distributed Mesh Computing](docs/src/how-to/how-to-model-routing.md)**: Securely network laptops and cloud servers. The orchestrator automatically routes AI workloads to the nodes with the best available hardware.
+- **[Native Desktop GUI](crates/vox-gui/)**: Compile `.vox` files into fully native, cross-platform graphical applications powered by Tauri, complete with native IPC bridges.
+- [Wire format](crates/vox-protocol/) — Data and tool contracts are the single source of truth; schemas are generated, not restated.
+- [Autonomous RAG & Research](docs/src/reference/socrates-protocol.md) — Deploy agents equipped with persistent long-term memory, fact-checking (the [Socrates protocol](docs/src/reference/socrates-protocol.md)), and autonomous web-search.
+
+---
 
 ## Install
 
 Vox is currently in pre-1.0 active development. Official installation packages (`voxup`, `.msi`, `.deb`, Homebrew) are configured in the CI pipeline but have not yet been formally released. 
 
-To use Vox today, you must build the CLI from source:
+### Building from Source
+**Prerequisites:** Ensure you have [Rust and Cargo](https://rustup.rs/) installed.
 
-**Prerequisites:**
-Ensure you have [Rust and Cargo](https://rustup.rs/) installed.
-
-**Building from Source**
 ```bash
 git clone https://github.com/vox-foundation/vox.git
 cd vox
 cargo install --path crates/vox-cli
 ```
 
-**Getting Started**
+### Quick Start
 ```bash
 vox init my-app
 cd my-app
 vox run src/main.vox
 ```
 
-## Killer Features
-
-Vox collapses the massive fragmentation of modern web and AI development into a single, cohesive ecosystem. Here is what you can do out of the box:
-
-- **[Local AI Inference & Fine-Tuning](crates/vox-ml-cli/)**: Run models natively on your GPU without touching Python. Use `vox populi` to execute open-weights models or train them directly via QLoRA using Rust-native hardware acceleration (CUDA and Apple Metal).
-- **[Distributed Mesh Computing](docs/src/how-to/how-to-model-routing.md)**: Network your laptops and cloud servers together securely. The Vox orchestrator automatically routes AI inference and training workloads to whichever nodes have the necessary hardware.
-- **[Native Desktop GUI](crates/vox-gui/)**: Need a desktop app instead of a web app? Vox compiles your `.vox` files into a fully native, cross-platform graphical desktop application powered by Tauri—complete with native IPC bridges.
-- **[Autonomous RAG & Research](crates/vox-schola/)**: Deploy `vox-schola` agents equipped with persistent long-term memory, rigorous fact-checking (the Socrates pipeline), and autonomous web-search capabilities.
-- **[One File to Rule the Stack](docs/src/reference/deployment-compose.md)**: A single `.vox` file emits your database schema migrations, a typed API server, reactive frontend components, and your Docker/Kubernetes deployment artifacts. Zero integration boilerplate.
-
-### Ecosystem & Plugins
-
-Vox is highly modular. The core binary covers compile, run, bundle, package. Heavier capabilities are provided through optional **CLI Extensions** and **Runtime Plugins**.
-
-#### CLI Extensions
-These ship as separate binaries that `vox` dispatches to from `$PATH`; if missing, `vox` tells you what to install.
-
-| Extension | Adds | Purpose |
-|---|---|---|
-| `vox-ml-cli` | `vox mens`, `vox oratio`, `vox populi`, `vox speech`, `vox train` | Rust-native ML frameworks ([Candle](https://github.com/huggingface/candle), [Whisper](https://en.wikipedia.org/wiki/Whisper_(speech_recognition_system)), [HF hub](https://huggingface.co/docs/hub/index)) for training and serving without Python. |
-| `vox-schola` | `vox schola`, `vox scientia` | Autonomous AI research, fact-checking, and capability-map subsystems. |
-| `vox-gui` | `vox gui` | Native Tauri desktop application and visual environment. |
-
-#### Runtime Plugins (Agent Skills)
-The Vox AgentOS dynamically loads capabilities through a stable ABI using `vox-plugin-host`. Vox provides a rich suite of first-party plugins granting your agents access to the outside world:
-
-- **Machine Learning & Audio**: `mens-candle-cuda` (NVIDIA acceleration), `mens-candle-metal` (Apple Silicon acceleration), `nvml-probe`, `oratio`, `oratio-mic`, `populi-mesh`
-- **Execution Sandboxes**: `runtime-container` (Docker), `runtime-wasm`, `script-execution`
-- **Agent Skills**: `skill-compiler`, `skill-git`, `skill-memory`, `skill-orchestrator`, `skill-rag`, `skill-testing`, `skill-testing-validate`, `skill-v0`, `browser`, `noop-skill`
-- **Core Infrastructure**: `api`, `catalog`, `cloud`, `host`, `types`, `webhook`
-- **Publishing**: `publication`, `grammar-export`
-
-*→ See the [Plugin Catalog](docs/src/reference/plugin-catalog.generated.md) for detailed tool signatures.*
-
-## The CLI
-
 The full CLI surface, including every `vox ci`, `vox populi`, and `vox mens` subcommand, lives at [`docs/src/reference/cli.md`](docs/src/reference/cli.md). Run `vox commands --recommended` for first-time discovery.
 
 ---
 
-<div align="center">
-  <img src="docs/src/assets/vox_architecture_prism.png" alt="A highly abstract, semiotic vector-art diagram illustrating the architecture of Vox. A single, unified geometric shape representing the source of truth refracts through a central compiler matrix. The output splits cleanly into three perfectly aligned layers: a structural database grid, a networking server mesh, and a clean interactive UI surface, demonstrating how a single source derives the entire technology stack.">
-</div>
+### Ecosystem & Plugins
+
+Vox is highly modular. The core binary covers compile, run, bundle, and package; heavier capabilities are provided through optional extensions.
+
+#### CLI Extensions
+Extensions ship as separate binaries; `vox` will notify you if one is required but missing.
+
+| Extension | Adds | Purpose |
+|---|---|---|
+| `vox-ml-cli` | `vox mens`, `vox populi`, ... | Rust-native ML (Candle, Whisper) for training and serving. |
+| `vox-schola` | `vox schola`, `vox scientia` | Autonomous research and fact-checking. |
+| `vox-gui` | `vox gui` | Native Tauri desktop application environment. |
+
+#### Agent Skills
+The Vox AgentOS dynamically loads capabilities (Skills) through a stable ABI. First-party skills include:
+
+- **ML & Audio**: `mens-candle-cuda`, `mens-candle-metal`, `oratio-mic`, `populi-mesh`
+- **Execution**: `runtime-container` (Docker), `runtime-wasm`, `script-execution`
+- **Agent Skills**: `skill-git`, `skill-memory`, `skill-orchestrator`, `skill-rag`, `skill-testing`
+- **Infrastructure**: `api`, `cloud`, `host`, `types`, `webhook`
+
+*→ See the [Plugin Catalog](docs/src/reference/plugin-catalog.generated.md) for detailed signatures.*
 
 <!-- ANCHOR: how_vox -->
 ## How Vox works
+
+<div align="center">
+  <img src="docs/src/assets/vox_architecture_prism.png" alt="A diagram showing one source file generating multiple stack components." width="80%">
+  <p>
+    <strong>Unified Compilation from a Single Source</strong><br>
+    Vox uses a single .vox file to derive the entire technology stack. The compiler uses this unified source of truth to generate synchronized database schemas, API servers, and reactive UI components simultaneously.
+  </p>
+</div>
 
 ### Pillar 1: One source of truth
 
@@ -121,7 +126,7 @@ The full CLI surface, including every `vox ci`, `vox populi`, and `vox mens` sub
 }
 ```
 
-The declaration is the [schema](crates/vox-db/), the [wire format](crates/vox-types/), and the typed client. `@index Task.by_owner on (owner)` lives next to it. [Migrations](crates/vox-db/) come from the diff against the previous schema.
+The declaration is the [schema](crates/vox-db/), the [wire format](crates/vox-protocol/), and the typed client. `@index Task.by_owner on (owner)` lives next to it. [Migrations](crates/vox-db/) come from the diff against the previous schema.
 
 → [`@table` reference](docs/src/reference/ref-decorators.md) · [migration guide](docs/src/how-to/how-to-database.md)
 
@@ -195,7 +200,13 @@ fn checkout(amount: int) to Result[str] {
 ```
 
 <div align="center">
-  <img src="docs/src/assets/durable_essentialist_loop.webp" alt="Durable execution loop: commit, execute, recover, complete" width="60%">
+  <img src="docs/src/assets/durable_essentialist_loop.webp" alt="Vox Durable Execution Loop" width="600px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+  <div style="max-width: 600px; text-align: left; margin-top: 15px;">
+    <h3>Durable Execution and State Recovery</h3>
+    <p>
+      Vox ensures that long-running workflows are resilient to infrastructure failures. By automatically checkpointing state at every await point, the runtime can resume execution on any available node without losing context, making it ideal for multi-step agentic processes that may take minutes or days to complete.
+    </p>
+  </div>
 </div>
 
 The same primitives drive multi-agent work. [`vox-orchestrator`](crates/vox-orchestrator/) routes tasks to agents by file affinity and ten policy modules (tier cascade, plan-mode trigger, risk matrix, budget gate, circuit breaker, calibration, …). Capabilities are extensible: dozens of first-party plugins (compiler, git, memory, RAG, testing, Mens-Candle-CUDA/Metal, WASM and OCI runtimes) load through [`vox-plugin-host`](crates/vox-plugin-host/) behind a stable ABI.
@@ -227,54 +238,69 @@ Properties enforced on the project itself, invisible from the language surface:
 
 ## Automation: VoxScript-first
 
-Project automation is `.vox`, not `.ps1` / `.sh` / `.py`. The same file runs on Windows, Linux, and macOS; it's type-checked before execution (`vox check scripts/foo.vox`); it emits `vox.script.*` [telemetry](crates/vox-telemetry/); and it can run in a WASM sandbox for untrusted input.
+Project automation is `.vox`, not `.ps1`, `.sh`, or `.py`. Vox scripts are type-checked, cross-platform, and telemetry-observable by default.
 
 ```bash
 vox run scripts/clean-cache.vox
 vox run --isolation wasm scripts/process-untrusted-data.vox
 ```
 
-Other commands worth knowing:
-
-- `vox share publish file.vox` — short-lived public preview tunnel (Cloudflare, localhost.run, Tailscale).
-- `vox audit` — runs the rule pack against your tree.
-- `vox telemetry doctor` — diagnoses `VOX_TELEMETRY` and per-sink wiring.
+**Key Commands:**
+- `vox share publish` — Create a short-lived public tunnel for local previews.
+- `vox audit` — Run the rule-pack against your codebase.
+- `vox telemetry doctor` — Verify sink health and event wiring.
 
 ---
 
-## Mesh and provider routing
+## Distributed AgentOS (Mesh)
 
-Cross-machine work is opt-in. Nodes advertise CPU/CUDA/Metal/VRAM on startup and the orchestrator routes training and inference jobs to whichever machines can take them. Agent-to-agent messages are in-process by default; the `populi-transport` feature enables relay. Both ends declare the same Vox type, so wire mismatches fail at compile time.
+Cross-machine orchestration is opt-in. Nodes advertise hardware capabilities (CUDA/Metal/VRAM) on startup, and the orchestrator automatically routes workloads to the best-equipped peer. Agent-to-agent communication is type-safe; wire mismatches are caught at compile time.
 
 ```bash
 VOX_MESH_ENABLED=1 VOX_MESH_NODE_ID=my-node vox populi serve
 vox populi status --quotas
 ```
 
-Local models (Ollama) and the major cloud providers go through one policy layer with per-provider quotas and disclosure rules. See the [model routing how-to](docs/src/how-to/how-to-model-routing.md).
+Local models and cloud providers are managed through a unified policy layer with per-node quotas. See the [model routing how-to](docs/src/how-to/how-to-model-routing.md).
 
 ---
 
-## Stability
+## Stability & Path to 1.0
 
 <!-- ANCHOR: tier_table -->
-Vox Workspace (Pre-1.0) — Surfaces are graded by how reproducibly an LLM can target them: data and tool contracts lock first, rendering surfaces last.
+Vox is marching toward a production-hardened v1.0 release. Surfaces are graded by their architectural stability and proximity to the v1 criteria.
 
-🟢 Stable · 🟡 Preview · 🚧 Experimental
+| Feature Area | Status | Context & Maturity |
+|:---|:---|:---|
+| **Core Intelligence** | | |
+| Orchestrator Core | 🔵 Stable | Thread-safe dispatch, agent lifecycle, and [Superpowers](docs/src/architecture/superpowers-ssot.md) orchestration. |
+| Agent Skills (MCP) | 🟣 Mature | Full [MCP v1.0](https://modelcontextprotocol.io) compliance with 100+ first-party tools. |
+| Socrates Research | 🟡 Preview | [Socrates protocol](docs/src/reference/socrates-protocol.md) for automated fact-checking and retrieval. |
+| **Language Platform** | | |
+| Compiler Core | 🟣 Mature | Wave 2 complete: pure-HIR lowering and stable syntax grammar. |
+| LSP & IDE Tools | 🟣 Mature | Production-grade `vox-lsp` with full cross-reference support. |
+| Durable Runtime | 🟡 Preview | [Checkpointing](crates/vox-workflow-runtime/) functional; compaction scaling in flight. |
+| **Data & Foundation** | | |
+| Database Engine | 🔵 Stable | [vox-db](crates/vox-db/) with Turso integration and zero-downtime migrations. |
+| Secrets & Safety | 🔵 Stable | [Clavis](crates/vox-secrets/) hardened vault and [Rule Pack](crates/vox-rule-pack/) CI guards. |
+| Telemetry Facade | 🟣 Mature | Unified [vox-telemetry](crates/vox-telemetry/) with trace propagation and cost rollups. |
+| **AI/ML Engine** | | |
+| Inference (Mens) | 🟡 Preview | Native CUDA/Metal/CPU inference with [Candle/Burn](crates/vox-inference/). |
+| Training (Populi) | 🟠 Emergent | QLoRA native pipeline; loss-parity verification in progress. |
+| Visus (Vision) | 🟠 Emergent | [Voice of Vision](crates/vox-cli/src/commands/visus/) for automated GUI bug detection. |
+| **Platform & UI** | | |
+| CLI & DX | 🟣 Mature | Rich diagnostic surface (`vox audit`, `vox ci`, `vox drift-check`). |
+| Native GUI (Tauri) | 🟡 Preview | Tauri 2.0 integration with Dashboard, Agent Flow, and Superpowers catalog. |
+| Distributed Mesh | 🟠 Emergent | Node discovery and workload routing functional across peers. |
 
-| Feature Area | Status | Description | Architecture & Stability Context |
-|:---|:---|:---|:---|
-| **Agent Integrations** | 🟢 Stable | Allows AI agents to interact with Vox apps via standard protocols. | Anthropic's [Model Context Protocol](https://modelcontextprotocol.io) (`@mcp.tool`) is structurally locked and robust. |
-| **Code Validation** | 🟡 Preview | Enforces code quality, security, and repository architecture rules. | The [Rule pack](crates/vox-rule-pack/) guards PRs; coverage of structural rules expands continuously as the project matures. |
-| **Compiler & LSP** | 🟡 Preview | Parses `.vox` code and provides editor autocomplete. | The compiler architecture utilizes a multi-phase structural collapse (AST/HIR unifications) to minimize semantic complexity. |
-| **Database Engine** | 🟡 Preview | Handles typed schemas and automatic database migrations. | Foundational data structures are mature; query primitives and ORM boundaries are unified as the engine stabilizes. |
-| **Durable Workflows** | 🟡 Preview | Code that survives crashes and pauses automatically. | Syntactic grammar uses standard function decorators (`@durable`) for checkpointed execution. |
-| **RAG & Research** | 🟡 Preview | Equips agents with long-term memory and autonomous web searching. | [`vox-schola`](crates/vox-schola/) and Socrates fact-checking pipelines provide robust memory and research capabilities. |
-| **Web UI & Rendering** | 🟡 Preview | Renders web user interfaces from `.vox` files. | Follows a reactive DOM projection pipeline where routing structures are unified at the HIR level. |
-| **API Endpoints** | 🚧 Experim. | Safely exposes server logic via `@endpoint(kind: ...)` without manual wiring. | The isomorphic transport layer unifies cross-platform IPC boundaries. |
-| **Local AI (MENS)** | 🚧 Experim. | Runs open-source AI models directly on your hardware's GPU. | Core inference pipelines enable native AI models directly on detected hardware (CUDA / Metal / WebGPU). |
-| **Tauri Desktop UI** | 🚧 Experim. | Compiles the `.vox` app directly into a native cross-platform window. | Native IPC generation is functional; packaging and cross-platform deployment are part of the production release cycle. |
-| **Distributed Mesh** | 🚧 Experim. | Allows Vox nodes on different computers to share inference workloads. | Cross-machine routing protocols facilitate shared inference workloads across the mesh. |
+**Stability Tiers:**
+- 🟢 **Production Candidate**: Hardened for 1.0; feature-complete and regression-free.
+- 🔵 **Stable**: API locked; high test coverage; used in core production internal loops.
+- 🟣 **Mature**: Core logic stable; focus on ergonomics, documentation, and performance.
+- 🟡 **Preview**: Feature-complete; API may shift based on early adopter feedback.
+- 🟠 **Emergent**: Core logic functional; major feature parity or scaling remaining.
+- 🚧 **Experimental**: Proof of concept; breaking changes are frequent and expected.
+- 🔬 **Research**: Internal prototypes; not yet exposed in the standard CLI surface.
 
 v1.0 criteria: [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md). Roadmap: [GUI-native phases](docs/src/architecture/gui-native-roadmap-status-2026.md). History: [`CHANGELOG.md`](CHANGELOG.md).
 <!-- ANCHOR_END: tier_table -->
@@ -289,7 +315,7 @@ Docs follow the **Diátaxis** framework.
 
 | Intent | Start here |
 |---|---|
-| Learning | [Getting Started](docs/src/tutorials/tut-getting-started.md) · [First full-stack app](docs/src/how-to/first-full-stack-app.md) |
+| Learning | [Getting Started](docs/src/tutorials/tut-getting-started.md) · [First full-stack app](docs/src/tutorials/tut-first-app.md) |
 | Task recipes | [How-To Guides](docs/src/how-to/) · [AI Agents & MCP](docs/src/how-to/how-to-ai-agents.md) |
 | Understanding | [Why Vox for AI](docs/src/explanation/why-vox-for-ai.md) · [Compiler architecture](docs/src/explanation/expl-architecture.md) |
 | Reference | [CLI](docs/src/reference/cli.md) · [Decorators](docs/src/reference/ref-decorators.md) |
@@ -304,16 +330,14 @@ Start at the [Contributor Hub](docs/src/contributors/contributor-hub.md). The [C
 
 ---
 
-## CI gates beyond the rule pack
+Beyond the rule pack, the CI environment enforces repo-wide invariants:
 
-The rule pack (Pillar 5) covers detectors. A handful of CI guards live outside it because they enforce repo invariants, not code patterns:
-
-| Guard | Blocks | Run |
-|---|---|---|
-| `vox arch-check` | layer inversions, fan-in violations, LoC budgets, orphans | always |
-| `vox ci secret-env-guard` | raw `std::env::var` for secrets | always |
-| `vox ci sync-ignore-files` | `.voxignore` drift to `.cursorignore` / `.aiignore` / `.aiexclude` | always |
-| `vox-drift-check` | multi-language workspace drift | pre-push |
+| Guard | Purpose |
+|---|---|
+| `vox arch-check` | Blocks layer inversions, fan-in violations, and LoC budget overruns. |
+| `vox ci secret-env-guard` | Blocks raw `std::env` calls; enforces `vox-secrets` as the only secret source. |
+| `vox ci sync-ignore-files` | Ensures `.voxignore` is synced to IDE-specific ignore files. |
+| `vox-drift-check` | Detects semantic drift in multi-language workspace artifacts. |
 
 Rationale and the full detector inventory live in [`AGENTS.md`](AGENTS.md).
 

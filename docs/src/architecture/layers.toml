@@ -65,10 +65,11 @@ forbidden = ["vox-search", "tantivy", "qdrant"]
 reason   = "vox-code-audit detectors must not pull search/vector deps (build-time neutrality)"
 
 [crates]
+vox-scientia = { layer = 3, staleness_exempt = true }
 
 # ── L0 — pure types ───────────────────────────────────────────────────────────
 vox-orchestrator-types = { layer = 0 }
-vox-orchestrator-cap-mint = { layer = 1, max_loc = 200, max_dependents = 4 }
+
 vox-db-types           = { layer = 0 }
 vox-protocol           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
@@ -112,10 +113,10 @@ vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
 vox-eval                = { layer = 2 }
 vox-mens-eval           = { layer = 2 }
-vox-claim-extractor     = { layer = 2, max_loc = 20_000 }               # SCIENTIA Phase 1: VeriScore + atomic + MiniCheck extraction
-vox-nanopub             = { layer = 2, max_loc = 10_000 }               # SCIENTIA Phase 4: TriG emit + ed25519 sign + Nanopub Network
-vox-prereg              = { layer = 2, max_loc = 8_000 }                # SCIENTIA Phase 2: PreregistrationV1 signing + deviation detection
-vox-ro-crate            = { layer = 2, max_loc = 12_000 }               # SCIENTIA Phase 4: RO-Crate 1.2 builder
+
+
+
+
 vox-share               = { layer = 2 }
 
 # ── L3 — heavy runtimes ───────────────────────────────────────────────────────
@@ -131,7 +132,7 @@ vox-scientia-jsonschema-codegen = { layer = 3 }               # offline SCIENTIA
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
 vox-publisher           = { layer = 3, max_loc = 20_000 }
 vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 60_000 }
-vox-orchestrator-core   = { layer = 3, kind = "boundary-marker", max_loc = 20_000 } # C5: orchestrator/ router/dispatcher; extraction blocked by 30+ crate:: cross-cuts
+
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }
@@ -152,22 +153,22 @@ vox-lsp                 = { layer = 3 }
 vox-gamify              = { layer = 3, max_loc = 20_000 }
 vox-skills              = { layer = 3 }
 vox-cli-core            = { layer = 3 }
-vox-cli-ci              = { layer = 3, kind = "boundary-marker" } # C3: ci/ extraction boundary marker (full move pending bounded_read refactor)
+
 vox-orchestrator-mcp    = { layer = 3, max_loc = 40_000 }        # Phase 4 extraction
 vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extraction
 vox-search              = { layer = 3 }
-vox-scientia-ingest     = { layer = 3 }
+
 vox-ssg                 = { layer = 3 }
 vox-test-harness        = { layer = 3 }
 vox-doc-pipeline        = { layer = 3 }
 vox-deploy-codegen      = { layer = 3 }
 vox-package             = { layer = 3 }
-vox-inference           = { layer = 3 }
-vox-distributed-training = { layer = 3 }
+
+
 vox-tensor              = { layer = 3 }
 vox-plugin-host         = { layer = 3 }
 vox-plugin-catalog      = { layer = 3 }
-vox-inspect-bridge      = { layer = 3, max_loc = 15_000 }               # SCIENTIA Phase 5: UK AISI Inspect adapter
+
 
 # ── L4 — concrete plugins (cdylib only — never compile-time deps for L0..L3) ──
 # Note: Skill-only plugins (e.g., vox-plugin-skill-git) have no Cargo.toml and are

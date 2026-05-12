@@ -15,10 +15,13 @@ mod client;
 mod durability_lower;
 mod http;
 mod method_emit;
+pub(super) mod ownership;
+mod state_machine;
 mod stmt_expr;
 mod stmt_expr_tail;
 pub mod tables;
 mod types;
+mod usage;
 mod with_emit;
 mod workflow;
 
@@ -326,7 +329,8 @@ use {}::*;
         }
 
         for stmt in &sf.body {
-            let emitted = stmt_expr::emit_stmt(stmt, 1, false, false, false, None);
+            let emitted =
+                stmt_expr::emit_stmt(stmt, 1, false, false, false, Some(&module.inferred_types), None, None);
             out.push_str(&emitted);
         }
 

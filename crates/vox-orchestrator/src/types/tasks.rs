@@ -112,6 +112,22 @@ impl TaskPhase {
     }
 }
 
+impl std::str::FromStr for TaskPhase {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "inspect" => Ok(Self::Inspect),
+            "localize" => Ok(Self::Localize),
+            "hypothesize" => Ok(Self::Hypothesize),
+            "act" => Ok(Self::Act),
+            "verify" => Ok(Self::Verify),
+            "decide" => Ok(Self::Decide),
+            _ => Err(format!("Unknown TaskPhase: {}", s)),
+        }
+    }
+}
+
 impl fmt::Display for TaskPhase {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
@@ -247,6 +263,9 @@ pub struct TaskEnqueueHints {
     /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
+    /// Optional procedural skill to guide the agent (e.g. `superpowers:tdd`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_skill: Option<String>,
 }
 
 /// Completion-time attestation metadata supplied by clients (e.g. MCP) for policy checks.
@@ -439,6 +458,9 @@ pub struct AgentTask {
     /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
+    /// Procedural skill currently guiding the agent's behavior (e.g. `superpowers:test-driven-development`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_skill: Option<String>,
 }
 
 impl AgentTask {
@@ -506,6 +528,7 @@ impl AgentTask {
             transcript: Vec::new(),
             current_phase: None,
             attachment_manifest: None,
+            active_skill: None,
         }
     }
 
@@ -653,6 +676,9 @@ impl AgentTask {
         }
         if let Some(ref budget) = h.budget {
             self.budget = Some(budget.clone());
+        }
+        if let Some(ref skill) = h.active_skill {
+            self.active_skill = Some(skill.clone());
         }
     }
 
@@ -846,6 +872,7 @@ mod tests {
             attachment_manifest: None,
             trace_id: None,
             budget: None,
+            active_skill: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");

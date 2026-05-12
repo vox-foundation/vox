@@ -33,20 +33,20 @@ jobs:
         shell: bash
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source "$HOME/.cargo/env"
+          source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
           rustup default stable
       
       - name: Run setup.vox (First run - Provision)
         shell: bash
         run: |
-          source "$HOME/.cargo/env"
+          source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
           cargo run -p vox-cli -- run scripts/setup.vox
 
       - name: Run setup.vox (Second run - Idempotency)
         # Timeout on Unix, on Windows we can use PowerShell timeout or just let it run.
         shell: bash
         run: |
-          source "$HOME/.cargo/env"
+          source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             timeout 10s cargo run -p vox-cli -- run scripts/setup.vox
           else

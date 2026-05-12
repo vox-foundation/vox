@@ -375,3 +375,5 @@ pub use orchestration_feature_flags::OrchestrationFeatureFlags;
 pub use orchestrator_policy::{
     OrchestratorPolicy, OrchestratorPolicyConfig, PolicyContext, PolicyDecision,
 };
+
+pub mod preregistration;

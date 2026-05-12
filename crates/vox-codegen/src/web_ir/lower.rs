@@ -418,16 +418,7 @@ fn mutation_payload_type(sf: &HirEndpointFn) -> String {
         .unwrap_or_else(|| "void".to_string())
 }
 
-fn slug_path_segment(p: &str) -> String {
-    let t = p.trim_matches('/');
-    if t.is_empty() {
-        "root".to_string()
-    } else {
-        t.chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-            .collect()
-    }
-}
+
 
 fn parse_style_selector(s: &str) -> StyleSelector {
     let s = s.trim();

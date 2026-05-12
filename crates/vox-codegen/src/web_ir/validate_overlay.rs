@@ -49,19 +49,40 @@ fn check_overlay_children(
             continue;
         };
 
-        // Check z-index uniqueness.
+        // Check z-index uniqueness and discipline.
         if let Some(z_val) = attrs
             .iter()
             .find(|(k, _)| k == "data-vox-z")
             .map(|(_, v)| v.clone())
         {
+            // ADR 034: Warn on loose discipline (numeric z-index).
+            if z_val.chars().all(|c| c.is_ascii_digit()) {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.overlay.loose_z_index".to_string(),
+                    message: format!(
+                        "Numeric z-index '{z_val}' used — prefer named Z-tiers (background, content, popover, etc.) to prevent Z-fighting"
+                    ),
+                    span: None,
+                    category: Some("overlay".to_string()),
+                });
+            } else if crate::web_ir::ZTier::from_str(&z_val).is_none() {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.overlay.invalid_z_tier".to_string(),
+                    message: format!(
+                        "Invalid Z-tier '{z_val}' — must be one of the seven normative tiers"
+                    ),
+                    span: None,
+                    category: Some("overlay".to_string()),
+                });
+            }
+
             let count = seen_z.entry(z_val.clone()).or_insert(0);
             *count += 1;
             if *count == 2 {
                 out.push(WebIrDiagnostic {
                     code: "web_ir_validate.overlay.duplicate_z".to_string(),
                     message: format!(
-                        "Two overlay children share z-index '{z_val}' — stacking order is undefined"
+                        "Two overlay children share z-index '{z_val}' — stacking order is undefined (Z-fighting risk)"
                     ),
                     span: None,
                     category: Some("overlay".to_string()),

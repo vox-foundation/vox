@@ -206,7 +206,25 @@ export const UnifiedDashboard = ({
                                             {entry.description || entry.op_type}
                                         </div>
                                         {entry.agent_id && (
-                                            <div className="text-[9px] font-mono text-steel uppercase tracking-widest">AGENT {entry.agent_id}</div>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <div className="text-[9px] font-mono text-steel uppercase tracking-widest">AGENT {entry.agent_id}</div>
+                                                {entry.current_phase && (
+                                                    <>
+                                                        <span className="text-steel opacity-30">|</span>
+                                                        <div className="text-[9px] font-bold font-mono text-cyan uppercase tracking-widest px-1.5 py-0.5 rounded bg-cyan bg-opacity-10 border border-cyan border-opacity-20">
+                                                            PHASE: {entry.current_phase}
+                                                        </div>
+                                                    </>
+                                                )}
+                                                {entry.active_skill && (
+                                                    <>
+                                                        <span className="text-steel opacity-30">|</span>
+                                                        <div className="text-[9px] font-bold font-mono text-primary uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary bg-opacity-10 border border-primary border-opacity-20 flex items-center gap-1">
+                                                            <Sparkles size={10} /> {entry.active_skill}
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
                                         )}
                                         {entry.audit_report && (
                                             <div className="mt-2 p-2 bg-void border border-border border-opacity-50 rounded text-[10px] font-mono text-steel italic">
@@ -217,6 +235,19 @@ export const UnifiedDashboard = ({
                                     </div>
                                     <div className="flex items-center gap-4 shrink-0">
                                         {entry.duration_ms && <span className="text-[10px] font-mono text-steel">{entry.duration_ms}ms</span>}
+                                        {entry.status === 'Doubted' && (
+                                            <button
+                                                title="Overrule suspect flag and mark as completed"
+                                                className="p-1.5 rounded border border-emerald-500 bg-machine text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all transform hover:scale-110"
+                                                onClick={() => {
+                                                    if (entry.id) {
+                                                        voxTransport.callTool('vox_overrule_task', { task_id: entry.id, reason: 'Human overrule from Dashboard' });
+                                                    }
+                                                }}
+                                            >
+                                                <CheckCircle2 size={14} />
+                                            </button>
+                                        )}
                                         {entry.status !== 'Doubted' && entry.status !== 'Validated' && entry.status !== 'Overruled' && (
                                             <button
                                                 title="Flag this task as suspect for audit"

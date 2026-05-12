@@ -23,7 +23,7 @@ fn redact_value(value: &str) -> String {
 }
 
 fn local_inference_allows_no_cloud_key() -> bool {
-    match std::env::var("VOX_INFERENCE_PROFILE")
+    match std::env::var("vox_populi::inference_PROFILE")
         .ok()
         .map(|s| s.trim().to_ascii_lowercase())
         .as_deref()

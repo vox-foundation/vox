@@ -133,11 +133,15 @@ pub enum AgentEventKind {
     AgentHeartbeat {
         agent_id: AgentId,
         activity: AgentActivity,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        active_skill: Option<String>,
     },
     /// An agent's activity changed.
     ActivityChanged {
         agent_id: AgentId,
         activity: AgentActivity,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        active_skill: Option<String>,
     },
     /// An agent's operating mode changed (Strategic, Execution, Verification).
     OperatingModeChanged {
@@ -267,6 +271,8 @@ pub enum AgentEventKind {
     ContinuationTriggered {
         agent_id: AgentId,
         strategy: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        active_skill: Option<String>,
     },
 
     /// A plan handoff between agents.

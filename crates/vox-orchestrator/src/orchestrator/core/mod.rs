@@ -15,6 +15,7 @@ use crate::types::{AgentIdGenerator, TaskIdGenerator};
 impl crate::orchestrator::Orchestrator {
     pub fn new(config: OrchestratorConfig) -> Self {
         let bulletin = BulletinBoard::new(config.bulletin_capacity);
+        let skill_registry = vox_skills::new_registry_arc();
         Self {
             config: Arc::new(RwLock::new(config.clone())),
             affinity_map: FileAffinityMap::new(),
@@ -42,6 +43,7 @@ impl crate::orchestrator::Orchestrator {
                 config.continuation_cooldown_ms,
                 config.max_auto_continuations,
                 config.stale_threshold_ms,
+                skill_registry.clone(),
             ))),
             event_bus: crate::events::EventBus::new(1024),
             message_bus: crate::a2a::MessageBus::new(100),
@@ -81,11 +83,13 @@ impl crate::orchestrator::Orchestrator {
                 crate::judge_model::JudgePolicy::Never,
             ))),
             agentos_policy_ledger: crate::agentos::policy_runtime::AgentosPolicyLedger::shared(),
+            skill_registry,
         }
     }
 
     pub fn with_groups(config: OrchestratorConfig, groups: AffinityGroupRegistry) -> Self {
         let bulletin = BulletinBoard::new(config.bulletin_capacity);
+        let skill_registry = vox_skills::new_registry_arc();
         Self {
             config: Arc::new(RwLock::new(config.clone())),
             affinity_map: FileAffinityMap::new(),
@@ -113,6 +117,7 @@ impl crate::orchestrator::Orchestrator {
                 config.continuation_cooldown_ms,
                 config.max_auto_continuations,
                 config.stale_threshold_ms,
+                skill_registry.clone(),
             ))),
             event_bus: crate::events::EventBus::new(1024),
             message_bus: crate::a2a::MessageBus::new(100),
@@ -152,6 +157,7 @@ impl crate::orchestrator::Orchestrator {
                 crate::judge_model::JudgePolicy::Never,
             ))),
             agentos_policy_ledger: crate::agentos::policy_runtime::AgentosPolicyLedger::shared(),
+            skill_registry,
         }
     }
 
@@ -168,6 +174,31 @@ impl crate::orchestrator::Orchestrator {
         tokio::spawn(async move {
             crate::orchestrator::catalog_refresh::run_catalog_refresh_loop(orch2).await;
         });
+    }
+
+    /// Hot-reloads configuration from Vox.toml (discovers from CWD or repo root)
+    pub fn reload_config(&self) {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let mut candidates = Vec::new();
+        if let Some(root) = vox_repository::find_project_manifest_root(&cwd) {
+            candidates.push(root.join("Vox.toml"));
+        }
+        candidates.push(std::path::PathBuf::from("Vox.toml"));
+
+        for toml_path in candidates {
+            if toml_path.is_file() {
+                if let Ok(mut new_cfg) = OrchestratorConfig::load_from_toml(&toml_path) {
+                    new_cfg.merge_env_overrides();
+                    if let Ok(mut guard) = self.config.write() {
+                        *guard = new_cfg;
+                    }
+                    self.event_bus.emit(crate::events::AgentEventKind::AttentionConfigReloaded);
+                    tracing::info!(path = %toml_path.display(), "hot-reloaded orchestrator config from Vox.toml");
+                    return;
+                }
+            }
+        }
+        tracing::warn!("hot-reload failed: could not load Vox.toml from current dir or repository root");
     }
 }
 

@@ -15,7 +15,7 @@ pub mod cli_args;
 mod cli_dispatch;
 mod codex_cmd;
 mod command_contract;
-mod command_registry_model;
+pub mod command_registry_model;
 use crate::codex_cmd::CodexCmd;
 pub mod artifact_policy;
 pub mod command_catalog;
@@ -99,7 +99,7 @@ pub use vox_cli_core::init_tracing_for_cli;
 #[command(
     name = "vox",
     about = "The Vox AI-native language compiler",
-    long_about = "The Vox AI-native language compiler.\n\nDiscover commands dynamically:\n  vox commands --recommended\n  vox commands --format json --include-nested",
+    long_about = "The Vox AI-native language compiler.\n\nDiscover commands dynamically:\n  vox commands --recommended\n  vox commands --format json --include-nested\n\nVisualization:\n  vox gui           — launch the native agent dashboard and command catalog",
     version = VOX_VERSION
 )]
 pub struct VoxCliRoot {
@@ -386,7 +386,8 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::visus::VisusCmd,
     },
-    /// Launch the Vox native GUI (Tauri 2 desktop app).
+    /// Launch the native Vox GUI (Tauri) for real-time orchestration visualization and discovery.
+    /// Use --command <view> to open directly to a specific surface (e.g., 'catalog', 'flow').
     #[cfg(feature = "gui")]
     Gui {
         #[command(flatten)]
@@ -596,6 +597,13 @@ pub enum Cli {
         /// Subcommand.
         #[command(subcommand)]
         cmd: commands::snapshot::SnapshotCmd,
+    },
+
+    /// Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger.
+    Rollback {
+        /// Optional specific task or transaction ID to roll back.
+        #[arg(long)]
+        id: Option<String>,
     },
 
     /// Workflow introspection: dry-run schedule preview and analysis (P1-T8).

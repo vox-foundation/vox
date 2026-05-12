@@ -7,7 +7,7 @@ license.workspace = true
 description = "Declarative asset manifest resolution for vox compile ([bundle.assets])."
 
 [dependencies]
-anyhow = "1"
+anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]

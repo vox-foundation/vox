@@ -50,6 +50,7 @@ opt-level = 1
 debug = 0
 
 [workspace.dependencies]
+vox-scientia = { path = "crates/vox-scientia" }
 workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
 vox-build-meta            = { path = "crates/vox-build-meta" }
@@ -84,7 +85,7 @@ vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
 vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }
 vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
-vox-scientia-ingest       = { path = "crates/vox-scientia-ingest" }
+
 vox-test-harness          = { path = "crates/vox-test-harness" }
 vox-webhook               = { path = "crates/vox-webhook" }
 vox-git                   = { path = "crates/vox-git" }
@@ -102,13 +103,13 @@ vox-mesh               = { path = "crates/vox-mesh" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
-vox-orchestrator-core     = { path = "crates/vox-orchestrator-core" }
+
 vox-orchestrator-test-helpers = { path = "crates/vox-orchestrator-test-helpers" }
 vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }
 vox-orchestrator-queue    = { path = "crates/vox-orchestrator-queue" }
 vox-orchestrator-d        = { path = "crates/vox-orchestrator-d" }
 vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
-vox-orchestrator-cap-mint = { path = "crates/vox-orchestrator-cap-mint" }
+
 
 vox-openai             = { path = "crates/vox-openai" }
 vox-plugin-api            = { path = "crates/vox-plugin-api" }
@@ -122,22 +123,22 @@ vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
 vox-wasm-engine           = { path = "crates/vox-wasm-engine" }
 vox-package                    = { path = "crates/vox-package" }
 vox-package-types              = { path = "crates/vox-package-types" }
-vox-inference                  = { path = "crates/vox-inference" }
-vox-distributed-training       = { path = "crates/vox-distributed-training" }
+
+
 
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }
-vox-cli-ci                = { path = "crates/vox-cli-ci" }
+
 
 vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
 vox-primitives            = { path = "crates/vox-primitives" }
 vox-protocol              = { path = "crates/vox-protocol" }
 vox-http-client        = { path = "crates/vox-http-client" }
-vox-prereg                = { path = "crates/vox-prereg" }
+
 vox-research-events       = { path = "crates/vox-research-events" }
-vox-nanopub               = { path = "crates/vox-nanopub" }
-vox-ro-crate              = { path = "crates/vox-ro-crate" }
-vox-claim-extractor       = { path = "crates/vox-claim-extractor" }
+
+
+
 vox-repository            = { path = "crates/vox-repository" }
 vox-rule-pack             = { path = "crates/vox-rule-pack" }
 vox-actor-runtime               = { path = "crates/vox-actor-runtime" }
@@ -155,7 +156,7 @@ vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
 vox-tauri-sherpa          = { path = "crates/vox-tauri-sherpa" }
 vox-release-artifacts     = { path = "crates/vox-release-artifacts" }
 vox-assets                = { path = "crates/vox-assets" }
-vox-inspect-bridge        = { path = "crates/vox-inspect-bridge" }
+
 
 # External dependencies (centralized versions)
 abi_stable         = "0.11"

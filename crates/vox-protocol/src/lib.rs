@@ -39,6 +39,12 @@ pub mod orch_daemon_method {
     pub const RESUME_AGENT: &str = "orch.resume_agent";
     /// Params: `{}` → workspace journey store diagnostics (`.vox/store.db` vs canonical).
     pub const WORKSPACE_JOURNEY: &str = "orch.workspace_journey";
+    /// Params: `{}` → `{"ok": true}`. Triggers a hot-reload of Vox.toml configuration.
+    pub const RELOAD_CONFIG: &str = "orch.reload_config";
+    /// Params: `{"op_id": "uuid"}` → `{"ok": true}`
+    pub const UNDO_OPERATION: &str = "orch.undo_operation";
+    /// Params: `{"op_id": "uuid"}` → `{"ok": true}`
+    pub const REDO_OPERATION: &str = "orch.redo_operation";
 }
 
 pub mod dei_method {

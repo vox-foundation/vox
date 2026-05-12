@@ -147,7 +147,7 @@ impl<'a> Checker<'a> {
         }
     }
     pub fn check_expr(&mut self, expr: &HirExpr, expected: Option<&Ty>) -> Ty {
-        match expr {
+        let ty = match expr {
             HirExpr::IntLit(_, _) => Ty::Int,
             HirExpr::FloatLit(_, _) => Ty::Float,
             HirExpr::StringLit(_, _) => Ty::Str,
@@ -727,6 +727,10 @@ impl<'a> Checker<'a> {
                     }
                 }
             }
-        }
+        };
+        let resolved = self.uf.resolve(&ty);
+        let hir_ty = resolved.to_hir_type();
+        self.inferred_types.insert(super::hir_expr_span(expr), hir_ty);
+        ty
     }
 }

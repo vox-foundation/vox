@@ -386,6 +386,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Snapshot { cmd } => {
             crate::commands::snapshot::run(&cmd)?;
         }
+        Cli::Rollback { id } => {
+            crate::commands::rollback::run(id).await?;
+        }
         Cli::Workflow { cmd } => {
             crate::commands::workflow::run(cmd).await?;
         }

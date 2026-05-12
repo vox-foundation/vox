@@ -9,8 +9,9 @@ description = "Publication plugin: RSS/Atom ingest with dedup, Reddit/YouTube pu
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+vox-scientia = { workspace = true }
 vox-plugin-api = { workspace = true }
-vox-scientia-ingest = { workspace = true }
+
 vox-publisher = { workspace = true, features = ["scientia-reddit", "scientia-youtube", "scholarly-external-jobs"] }
 vox-db = { workspace = true }
 # NOTE: `vox-actor-runtime` is intentionally NOT a dependency. Plugins must not pull

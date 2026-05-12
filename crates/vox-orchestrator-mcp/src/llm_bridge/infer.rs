@@ -32,7 +32,7 @@ pub struct McpInferRouting<'a> {
     /// Resolver marked this path as free-tier (`ModelSpec.is_free` should match; enforced at infer).
     pub free_only: bool,
     /// When cloud gate denies (daily cap, in-memory budget) or HTTP fails, try local Ollama.
-    /// Effective only if **`VOX_INFERENCE_PROFILE`** allows local Ollama HTTP (`desktop_ollama` or `lan_gateway`).
+    /// Effective only if **`vox_populi::inference_PROFILE`** allows local Ollama HTTP (`desktop_ollama` or `lan_gateway`).
     pub allow_cloud_ollama_fallback: bool,
     /// Optional tenant/session usage partition key for centralized accounting.
     pub user_id: Option<&'a str>,
@@ -351,7 +351,7 @@ pub async fn mcp_infer_tool_completion(
                         if allow_ollama_fallback {
                             "LLM daily quota or rate limit active for this provider; try a local Ollama model or wait."
                         } else {
-                            "LLM daily quota or rate limit active for this provider; configure cloud keys, set VOX_INFERENCE_PROFILE=desktop_ollama or lan_gateway to allow Ollama fallback, or wait."
+                            "LLM daily quota or rate limit active for this provider; configure cloud keys, set vox_populi::inference_PROFILE=desktop_ollama or lan_gateway to allow Ollama fallback, or wait."
                         }
                         .into(),
                     );

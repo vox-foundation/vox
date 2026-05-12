@@ -17,6 +17,7 @@ pub fn run_train_step(model: &mut CandleModel, batch_json: &str) -> anyhow::Resu
     
     // SP3-D streaming protocol deserialization stub
     #[derive(serde::Deserialize)]
+    #[allow(dead_code)]
     struct BatchPayload {
         input_ids: Vec<u32>,
         prefix_len: usize,
@@ -38,6 +39,7 @@ pub fn run_eval_step(model: &CandleModel, batch_json: &str) -> anyhow::Result<St
     }
 
     #[derive(serde::Deserialize)]
+    #[allow(dead_code)]
     struct BatchPayload {
         input_ids: Vec<u32>,
         prefix_len: usize,

@@ -47,6 +47,48 @@ pub enum WebIrVersion {
     V0_1,
 }
 
+/// Normative Z-tiers for the seven-tier ladder (ADR 034 / VUV Layered Layout Discipline).
+///
+/// **Rule 2:** within-tier ordering is deliberately unspecified.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ZTier {
+    Background,
+    Content,
+    Chrome,
+    Popover,
+    Modal,
+    Toast,
+    SystemOverlay,
+}
+
+impl ZTier {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "background" => Some(Self::Background),
+            "content" => Some(Self::Content),
+            "chrome" => Some(Self::Chrome),
+            "popover" => Some(Self::Popover),
+            "modal" => Some(Self::Modal),
+            "toast" => Some(Self::Toast),
+            "system_overlay" => Some(Self::SystemOverlay),
+            _ => None,
+        }
+    }
+
+    pub fn to_str(self) -> &'static str {
+        match self {
+            Self::Background => "background",
+            Self::Content => "content",
+            Self::Chrome => "chrome",
+            Self::Popover => "popover",
+            Self::Modal => "modal",
+            Self::Toast => "toast",
+            Self::SystemOverlay => "system_overlay",
+        }
+    }
+}
+
 /// Web-facing projection IR — same serde layout as [`WebIrModule`]; use this name at core/projection boundaries.
 pub type WebProjectionIR = WebIrModule;
 

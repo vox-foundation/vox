@@ -112,7 +112,7 @@ async fn run_via_orchestrator(
             .await
             .map_err(|e| {
                 eprintln!("⚠️  VoxLocal inference unavailable: {e}");
-                eprintln!("   Start it with: vox run scripts/vox_inference.vox --serve");
+                eprintln!("   Start it with: vox run scripts/vox_populi::inference.vox --serve");
                 anyhow::anyhow!(e)
             })?;
 
@@ -141,10 +141,10 @@ async fn run_legacy_direct(
         }
         _ => {
             eprintln!("⚠️  Inference server not running at {}", url);
-            eprintln!("   Start it with: vox run scripts/vox_inference.vox --serve");
+            eprintln!("   Start it with: vox run scripts/vox_populi::inference.vox --serve");
             eprintln!();
             eprintln!(
-                "   Or generate directly: vox run scripts/vox_inference.vox --prompt \"{}\"",
+                "   Or generate directly: vox run scripts/vox_populi::inference.vox --prompt \"{}\"",
                 prompt
             );
             anyhow::bail!("Inference server not available");

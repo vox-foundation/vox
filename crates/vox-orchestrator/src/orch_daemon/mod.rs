@@ -91,6 +91,37 @@ pub async fn dispatch_request(
             }
             response_result(&req.id, diag)
         }
+        orch_daemon_method::RELOAD_CONFIG => {
+            // Hot-reload orchestrator configuration from Vox.toml
+            orch.reload_config();
+            response_result(&req.id, serde_json::json!({ "ok": true }))
+        }
+        orch_daemon_method::UNDO_OPERATION => {
+            let Some(op_id_str) = req.params.get("op_id").and_then(|x| x.as_str()) else {
+                return response_err(&req.id, "params.op_id (string) required");
+            };
+            let num_str = op_id_str.trim_start_matches("OP-");
+            let Ok(num) = num_str.parse::<u64>() else {
+                return response_err(&req.id, "params.op_id must be a valid OperationId (e.g. OP-000007)");
+            };
+            match orch.undo_operation(crate::oplog::OperationId(num)).await {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, format!("{e}")),
+            }
+        }
+        orch_daemon_method::REDO_OPERATION => {
+            let Some(op_id_str) = req.params.get("op_id").and_then(|x| x.as_str()) else {
+                return response_err(&req.id, "params.op_id (string) required");
+            };
+            let num_str = op_id_str.trim_start_matches("OP-");
+            let Ok(num) = num_str.parse::<u64>() else {
+                return response_err(&req.id, "params.op_id must be a valid OperationId (e.g. OP-000007)");
+            };
+            match orch.redo_operation(crate::oplog::OperationId(num)).await {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, format!("{e}")),
+            }
+        }
         orch_daemon_method::STATUS => match serde_json::to_value(orch.status()) {
             Ok(v) => response_result(&req.id, v),
             Err(e) => response_err(&req.id, e.to_string()),

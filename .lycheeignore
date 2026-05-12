@@ -46,6 +46,7 @@ file://.*vox-vscode/.*
 file://.*docs/theme/.*
 file://.*docs/src/index\.md
 file://.*docs/book\.toml
+file://.*\.vox/audit/.*
 
 
 # LangChain discussion deleted/removed upstream; citation remains as a footnote reference

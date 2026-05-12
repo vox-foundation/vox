@@ -20,14 +20,11 @@ scientia-youtube = []
 # Shared scholarly `external_submission_jobs` orchestration (CLI + MCP).
 scholarly-external-jobs = [
     "dep:vox-db",
-    "dep:vox-claim-extractor",
-    "dep:vox-inspect-bridge",
-    "dep:vox-nanopub",
-    "dep:vox-ro-crate",
 ]
 live-api-canary = []
 
 [dependencies]
+vox-scientia = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
@@ -55,10 +52,10 @@ vox-config = { path = "../vox-config" }
 vox-jsonschema-util.workspace = true
 unicode-segmentation = { workspace = true }
 vox-db = { path = "../vox-db", optional = true }
-vox-claim-extractor = { workspace = true, optional = true }
-vox-inspect-bridge = { workspace = true, optional = true }
-vox-nanopub = { workspace = true, optional = true }
-vox-ro-crate = { workspace = true, optional = true }
+
+
+
+
 bsky-sdk = { workspace = true, optional = true }
 atrium-api = { workspace = true, optional = true }
 workspace-hack = { workspace = true }

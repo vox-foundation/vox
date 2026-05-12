@@ -949,5 +949,5 @@ mod orch_smoke {
     }
 }
 
-#[cfg(test)]
+mod persistence_integrity;
 mod populi_single_owner;

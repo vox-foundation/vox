@@ -14,6 +14,7 @@ pub struct Checker<'a> {
     pub builtins: &'a BuiltinTypes,
     pub uf: &'a mut InferenceContext,
     pub diags: &'a mut Vec<Diagnostic>,
+    pub inferred_types: &'a mut std::collections::HashMap<Span, HirType>,
     pub source: &'a str,
 }
 
@@ -61,6 +62,7 @@ impl<'a> Checker<'a> {
         builtins: &'a BuiltinTypes,
         uf: &'a mut InferenceContext,
         diags: &'a mut Vec<Diagnostic>,
+        inferred_types: &'a mut std::collections::HashMap<Span, HirType>,
         source: &'a str,
     ) -> Self {
         Self {
@@ -68,6 +70,7 @@ impl<'a> Checker<'a> {
             builtins,
             uf,
             diags,
+            inferred_types,
             source,
         }
     }
@@ -764,11 +767,19 @@ pub fn typecheck_hir(
 ) -> Vec<Diagnostic> {
     let mut uf = InferenceContext::new();
     let mut diags = Vec::new();
-    let mut checker = Checker::new(env, builtins, &mut uf, &mut diags, source);
-    checker.check_module(module);
-
-    // Category 3: evaluate deferred logic after top-down + bottom-up propagation concludes
-    checker.solve_constraints();
-
+    let mut inferred_types = std::mem::take(&mut module.inferred_types);
+    {
+        let mut checker = Checker::new(
+            env,
+            builtins,
+            &mut uf,
+            &mut diags,
+            &mut inferred_types,
+            source,
+        );
+        checker.check_module(module);
+        checker.solve_constraints();
+    }
+    module.inferred_types = inferred_types;
     diags
 }

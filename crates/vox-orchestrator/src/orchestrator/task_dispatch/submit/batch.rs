@@ -219,7 +219,7 @@ impl Orchestrator {
                 let env = vox_actor_runtime::mailbox::Envelope::Message(
                     vox_actor_runtime::mailbox::Message {
                         from: vox_actor_runtime::Pid::new(),
-                        payload: vox_actor_runtime::mailbox::MessagePayload::Json(json),
+                        payload: vox_actor_runtime::mailbox::MessagePayload::Json(json.into()),
                     },
                 );
                 let handle: &vox_actor_runtime::process::ProcessHandle = &handle;

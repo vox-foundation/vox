@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{HirFn, HirForall, HirModule, HirType};
 
 use super::tables::{collect_table_select_projections, emit_table_struct};
@@ -55,6 +57,12 @@ pub fn emit_lib(module: &HirModule) -> String {
         out.push_str("}\n\n");
     }
 
+    // State Machines
+    out.push_str(&super::state_machine::emit_state_machine_decls(module));
+
+    // Actor state structs
+    out.push_str(&emit_actor_state_structs(module));
+
     // Table structs
     let table_projections = collect_table_select_projections(module);
     for table in &module.tables {
@@ -66,19 +74,26 @@ pub fn emit_lib(module: &HirModule) -> String {
     }
 
     for func in &module.functions {
-        out.push_str(&emit_fn(func));
+        let handlers: Vec<&HirFn> = if !func.actor_state_fields.is_empty() {
+            module.functions.iter()
+                .filter(|f| f.name.starts_with(&format!("{}::", func.name)))
+                .collect()
+        } else {
+            vec![]
+        };
+        out.push_str(&emit_fn(func, Some(&module.inferred_types), &handlers));
     }
 
     // MCP tools and resources — must be `pub` so `mcp_server` binary can `use crate::*`.
     for t in &module.mcp_tools {
         let mut f = t.func.clone();
         f.is_pub = true;
-        out.push_str(&emit_fn(&f));
+        out.push_str(&emit_fn(&f, Some(&module.inferred_types), &[]));
     }
     for r in &module.mcp_resources {
         let mut f = r.func.clone();
         f.is_pub = true;
-        out.push_str(&emit_fn(&f));
+        out.push_str(&emit_fn(&f, Some(&module.inferred_types), &[]));
     }
 
     // Tests
@@ -88,18 +103,18 @@ pub fn emit_lib(module: &HirModule) -> String {
         } else {
             out.push_str("#[test]\n");
         }
-        out.push_str(&emit_fn(test));
+        out.push_str(&emit_fn(test, Some(&module.inferred_types), &[]));
     }
 
     // Property-based Tests (@forall)
     for forall in &module.foralls {
-        out.push_str(&emit_forall(forall));
+        out.push_str(&emit_forall(forall, Some(&module.inferred_types)));
     }
 
     out
 }
 
-fn emit_forall(forall: &HirForall) -> String {
+fn emit_forall(forall: &HirForall, inferred_types: Option<&HashMap<Span, HirType>>) -> String {
     let mut out = String::new();
     out.push_str("proptest::proptest! {\n");
     if forall.iterations > 0 {
@@ -110,7 +125,7 @@ fn emit_forall(forall: &HirForall) -> String {
     }
     out.push_str("    #[test]\n");
     // Indent the function emit to map inside the macro bounds cleanly
-    let func_code = emit_fn(&forall.func);
+    let func_code = emit_fn(&forall.func, inferred_types, &[]);
     for line in func_code.lines() {
         if line.trim().is_empty() {
             out.push('\n');
@@ -125,7 +140,11 @@ fn emit_forall(forall: &HirForall) -> String {
 }
 
 /// Emit a single HIR function (or test) as Rust source.
-pub fn emit_fn(func: &HirFn) -> String {
+pub fn emit_fn(
+    func: &HirFn,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    actor_handlers: &[&HirFn],
+) -> String {
     let mut out = String::new();
     let pub_kw = if func.is_pub { "pub " } else { "" };
     let async_kw = if func.is_async || func.is_llm {
@@ -133,7 +152,11 @@ pub fn emit_fn(func: &HirFn) -> String {
     } else {
         ""
     };
-    out.push_str(&format!("{}{}fn {}(", pub_kw, async_kw, func.name));
+    out.push_str(&format!("{}{}fn {}(", pub_kw, async_kw, func.name.replace("::", "_")));
+    if func.name.contains("::") {
+        let actor_name = func.name.split("::").next().unwrap();
+        out.push_str(&format!("state: &mut {}State, ", actor_name));
+    }
     for param in &func.params {
         out.push_str(&format!(
             "{}: {}, ",
@@ -154,8 +177,35 @@ pub fn emit_fn(func: &HirFn) -> String {
     if func.is_llm {
         super::ai_fixture::emit_llm_function_body(&mut out, func);
     } else {
-        out.push_str(&super::durability_lower::emit_durable_body(func));
+        let usage = super::usage::UsageTracker::build(&func.body);
+        out.push_str(&super::durability_lower::emit_durable_body(
+            func,
+            inferred_types,
+            Some(&usage),
+            actor_handlers,
+        ));
     }
     out.push_str("}\n\n");
+    out
+}
+
+fn emit_actor_state_structs(module: &HirModule) -> String {
+    let mut out = String::new();
+    for func in &module.functions {
+        if !func.actor_state_fields.is_empty() {
+            out.push_str(&format!(
+                "#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]\npub struct {}State {{\n",
+                func.name
+            ));
+            for field in &func.actor_state_fields {
+                out.push_str(&format!(
+                    "    pub {}: {},\n",
+                    field.name,
+                    super::types::emit_type(&field.type_ann)
+                ));
+            }
+            out.push_str("}\n\n");
+        }
+    }
     out
 }

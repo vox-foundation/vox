@@ -1,0 +1,62 @@
+// gui-build.vox
+// Procedural skill to build the native Vox GUI (Tauri frontend and Rust core).
+
+fn main() {
+    let ui_dir = "crates/vox-gui/ui";
+    
+    println!("📦 Building Vox GUI Frontend...");
+    
+    // 1. Install dependencies if node_modules is missing
+    if !std.fs.exists(ui_dir + "/node_modules") {
+        println!("  - Installing NPM dependencies...");
+        let install_res = std.process.run("pnpm", ["install"], { cwd: ui_dir });
+        if install_res.exit_code != 0 {
+            println!("  ❌ NPM Install failed: " + install_res.stderr);
+            return;
+        }
+    }
+    
+    // 2. Build the production bundle
+    println!("  - Building production assets...");
+    let build_res = std.process.run("pnpm", ["build"], { cwd: ui_dir });
+    if build_res.exit_code != 0 {
+        println!("  ❌ Frontend build failed: " + build_res.stderr);
+        return;
+    }
+    
+    println!("✅ GUI Frontend build complete.");
+    
+    // 3. Ensure the CLI binary is built
+    println!("  - Building backend CLI...");
+    let cli_build = std.process.run("cargo", ["build", "-p", "vox-cli", "--release"], { cwd: "." });
+    if cli_build.exit_code != 0 {
+        println!("  ❌ Backend build failed: " + cli_build.stderr);
+        return;
+    }
+
+    // 4. Copy the binary to the platform-specific triple formats required by Tauri 2
+    println!("  - Preparing Tauri external sidecar binaries...");
+    
+    // Attempt to parse the host triple from rustc
+    let rustc_res = std.process.run("rustc", ["-vV"], { cwd: "." });
+    let mut host_triple = "x86_64-unknown-linux-gnu"; // fallback
+    for line in rustc_res.stdout.split("\n") {
+        if line.starts_with("host: ") {
+            host_triple = line.replace("host: ", "").trim();
+        }
+    }
+
+    let ext = if host_triple.contains("windows") { ".exe" } else { "" };
+    let source_bin = "target/release/vox" + ext;
+    let target_bin = "target/release/vox-" + host_triple + ext;
+
+    if std.fs.exists(source_bin) {
+        std.fs.copy(source_bin, target_bin);
+        println!("  ✓ Copied " + source_bin + " to " + target_bin);
+    } else {
+        println!("  ⚠️ Source binary not found: " + source_bin);
+    }
+
+    println!("✅ GUI build pipeline complete.");
+    println!("🦀 To build the final GUI binary, run: cargo tauri build");
+}

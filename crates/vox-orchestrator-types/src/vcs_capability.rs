@@ -130,38 +130,20 @@ impl BranchCreate {
     }
 }
 
-/// Sealed friend-hook module consumed exclusively by `vox-orchestrator-cap-mint`.
+/// Mint a [`WorkingTreeWrite`] capability for `workspace`/`branch`.
 ///
-/// `MintWitness` is a public marker trait — the real guard is `pub(crate)` on
-/// the `WorkingTreeWrite::mint` / `BranchCreate::mint` constructors above, which
-/// makes direct external construction a compile error.  External code that wants
-/// to build capabilities must depend on `vox-orchestrator-cap-mint` and call its
-/// `mint_*` functions, which supply a `MintToken` (the only `MintWitness` impl).
-pub mod sealed {
-    use super::*;
+/// Authorization (lock-leader check, affinity, signature) is the caller's
+/// responsibility — `vox_orchestrator::authorize_*` wrappers are the only
+/// intended callers.
+#[doc(hidden)]
+pub fn mint_working_tree_write(workspace: WorkspaceId, branch: BranchName) -> WorkingTreeWrite {
+    WorkingTreeWrite { workspace, branch }
+}
 
-    /// Marker trait. Only `vox_orchestrator_cap_mint::MintToken` should implement this.
-    pub trait MintWitness {}
-
-    /// Called only by `vox-orchestrator-cap-mint::mint_working_tree_write`.
-    #[doc(hidden)]
-    pub fn __mint_working_tree_write<W: MintWitness>(
-        workspace: WorkspaceId,
-        branch: BranchName,
-        _token: &W,
-    ) -> WorkingTreeWrite {
-        WorkingTreeWrite { workspace, branch }
-    }
-
-    /// Called only by `vox-orchestrator-cap-mint::mint_branch_create`.
-    #[doc(hidden)]
-    pub fn __mint_branch_create<W: MintWitness>(
-        workspace: WorkspaceId,
-        parent: BranchName,
-        _token: &W,
-    ) -> BranchCreate {
-        BranchCreate { workspace, parent }
-    }
+/// Mint a [`BranchCreate`] capability for `workspace`/`parent`.
+#[doc(hidden)]
+pub fn mint_branch_create(workspace: WorkspaceId, parent: BranchName) -> BranchCreate {
+    BranchCreate { workspace, parent }
 }
 
 #[cfg(test)]
@@ -249,14 +231,8 @@ mod tests {
     }
 
     #[test]
-    fn sealed_mint_witness_round_trip() {
-        struct TestToken;
-        impl super::sealed::MintWitness for TestToken {}
-        let cap = super::sealed::__mint_working_tree_write(
-            WorkspaceId(5),
-            BranchName::parse("test/branch").unwrap(),
-            &TestToken,
-        );
+    fn mint_working_tree_write_round_trip_func() {
+        let cap = mint_working_tree_write(WorkspaceId(5), BranchName::parse("test/branch").unwrap());
         assert_eq!(cap.workspace(), WorkspaceId(5));
     }
 }

@@ -127,4 +127,6 @@ pub struct Orchestrator {
     pub judge_model: std::sync::Arc<std::sync::RwLock<crate::judge_model::JudgeModel>>,
     /// AgentOS: MCP `mutation_kind` ledger + unified [`crate::orchestrator_policy::OrchestratorPolicy`] evaluation.
     pub agentos_policy_ledger: std::sync::Arc<crate::agentos::policy_runtime::AgentosPolicyLedger>,
+    /// Skill registry for procedural workflow tracking and continuation instruction injection.
+    pub skill_registry: std::sync::Arc<vox_skills::SkillRegistry>,
 }

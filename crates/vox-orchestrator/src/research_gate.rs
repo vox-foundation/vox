@@ -1,6 +1,6 @@
 //! Pre-registration gate integration for the orchestrator.
 //!
-//! This module wires [`vox_prereg`] into the orchestrator's campaign-dispatch
+//! This module wires [`crate::preregistration`] into the orchestrator's campaign-dispatch
 //! path. Per SCIENTIA §5.1, the orchestrator must refuse to launch any research
 //! campaign that lacks a signed [`vox_research_events::preregistration::PreregistrationV1`]
 //! record.
@@ -17,7 +17,7 @@
 //! }
 //! ```
 
-pub use vox_prereg::{GateResult, PreregGate};
+pub use crate::preregistration::{GateResult, PreregGate};
 
 /// Check whether a campaign may proceed given an optional pre-registration
 /// record and an optional hex-encoded Ed25519 signature.

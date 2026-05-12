@@ -91,8 +91,9 @@ aes-gcm = { workspace = true, optional = true }
 rand.workspace = true
 base64.workspace = true
 vox-secrets.workspace = true
+vox-skills = { workspace = true }
 vox-skill-runtime = { workspace = true }
-vox-prereg.workspace = true
+
 vox-research-events.workspace = true
 vox-telemetry.workspace = true
 vox-mesh-types.workspace = true
@@ -117,7 +118,6 @@ proptest = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }
 vox-actor-runtime = { workspace = true }
-vox-skills = { workspace = true }
 axum = { workspace = true, features = ["tokio", "http1", "json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }

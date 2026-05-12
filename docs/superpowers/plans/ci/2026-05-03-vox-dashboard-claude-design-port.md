@@ -31,7 +31,7 @@
 
 | Phase | Subsystem | Shippable outcome | Status |
 |---|---|---|---|
-| 0 | Compiler + backend skeleton | SVG passthrough, `/api/v2`, SettingsState, event variants | **DONE** |
+| 0 | Compiler + backend skeleton | SVG passthrough, `/api/v2`, SettingsState, event variants | **DONE (Assets Landed 2026-05-12)** |
 | 1 | Chrome & composites | Shell, TopBar, LeftRail, StatusBar, icon set, composite primitives | To do |
 | 2 | Mesh surface | Live topology + inspector + activity strip | To do |
 | 3 | Runs surface | Run history table + drawer + live-tail | To do |

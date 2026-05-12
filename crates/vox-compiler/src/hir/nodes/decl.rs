@@ -110,6 +110,11 @@ pub struct HirModule {
     #[serde(default)]
     pub route_ids: Vec<crate::hir::nodes::boilerplate_grafts::HirRouteId>,
 
+    /// Map of source spans to their inferred types, populated by the type checker.
+    /// This supports performance-critical codegen optimizations (e.g. zero-copy emission).
+    #[serde(default)]
+    pub inferred_types: std::collections::HashMap<Span, HirType>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 }

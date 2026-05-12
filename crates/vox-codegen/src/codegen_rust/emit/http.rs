@@ -1,6 +1,8 @@
 use vox_compiler::app_contract::AppContractModule;
 use vox_compiler::hir::http_ergonomics::{HirCorsPolicy, RateLimitBy};
-use vox_compiler::hir::{DurabilityKind, HirEndpointFn, HirEndpointKind, HirModule};
+use std::collections::HashMap;
+use vox_compiler::ast::span::Span;
+use vox_compiler::hir::{DurabilityKind, HirEndpointFn, HirEndpointKind, HirModule, HirType};
 
 use super::stmt_expr::emit_stmt;
 use super::tables::emit_db_setup;
@@ -412,10 +414,21 @@ pub fn emit_main(
     for sf in &module.endpoint_fns {
         match sf.kind {
             vox_compiler::hir::HirEndpointKind::Server => {
-                out.push_str(&emit_server_fn_handler(sf, has_tables, "handle_sf_", false));
+                out.push_str(&emit_server_fn_handler(
+                    sf,
+                    has_tables,
+                    "handle_sf_",
+                    false,
+                    Some(&module.inferred_types),
+                ));
             }
             vox_compiler::hir::HirEndpointKind::Query => {
-                out.push_str(&emit_query_fn_handler(sf, has_tables, "handle_q_"));
+                out.push_str(&emit_query_fn_handler(
+                    sf,
+                    has_tables,
+                    "handle_q_",
+                    Some(&module.inferred_types),
+                ));
             }
             vox_compiler::hir::HirEndpointKind::Mutation => {
                 let wrap_mutation_tx = app_contract
@@ -428,6 +441,7 @@ pub fn emit_main(
                     has_tables,
                     "handle_m_",
                     wrap_mutation_tx,
+                    Some(&module.inferred_types),
                 ));
                 mutation_idx += 1;
             }
@@ -467,6 +481,7 @@ fn emit_server_fn_handler(
     has_tables: bool,
     name_prefix: &str,
     wrap_mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
 ) -> String {
     let mut out = String::new();
     out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
@@ -491,8 +506,9 @@ fn emit_server_fn_handler(
         out.push_str("    let db = (*db).clone();\n");
         out.push_str("    match db.transaction(async move {\n");
         let mut has_return = false;
+        let usage = super::usage::UsageTracker::build(&sf.body);
         for stmt in &sf.body {
-            let emitted = emit_stmt(stmt, 2, true, false, true, rid);
+            let emitted = emit_stmt(stmt, 2, true, false, true, inferred_types, Some(&usage), rid);
             if emitted.contains("return Ok(Json(") || emitted.contains("return Json(") {
                 has_return = true;
             }
@@ -509,8 +525,9 @@ fn emit_server_fn_handler(
         out.push_str("    }\n");
     } else {
         let mut has_return = false;
+        let usage = super::usage::UsageTracker::build(&sf.body);
         for stmt in &sf.body {
-            let emitted = emit_stmt(stmt, 1, true, false, false, rid);
+            let emitted = emit_stmt(stmt, 1, true, false, false, inferred_types, Some(&usage), rid);
             if emitted.contains("return Ok(Json(") {
                 has_return = true;
             }
@@ -529,6 +546,7 @@ fn emit_query_fn_handler(
     sf: &vox_compiler::hir::HirEndpointFn,
     has_tables: bool,
     name_prefix: &str,
+    inferred_types: Option<&HashMap<Span, HirType>>,
 ) -> String {
     let mut out = String::new();
     out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
@@ -555,8 +573,9 @@ fn emit_query_fn_handler(
 
     let rid = Some("vox_rid.clone()");
     let mut has_return = false;
+    let usage = super::usage::UsageTracker::build(&sf.body);
     for stmt in &sf.body {
-        let emitted = emit_stmt(stmt, 1, true, false, false, rid);
+        let emitted = emit_stmt(stmt, 1, true, false, false, inferred_types, Some(&usage), rid);
         if emitted.contains("return Ok(Json(") {
             has_return = true;
         }

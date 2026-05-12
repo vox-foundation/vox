@@ -669,9 +669,7 @@ http post "/chat" to Result { return Ok(0) }
             hir.legacy_ast_nodes
         );
         assert_eq!(hir.tables.len(), 1);
-        assert_eq!(hir.routes.len(), 1);
         assert_eq!(hir.endpoint_fns.len(), 1);
-        assert_eq!(hir.routes[0].route_contract, "POST /chat");
         assert_eq!(
             hir.endpoint_fns[0].route_path,
             format!("{SERVER_FN_API_PREFIX}{}", "doThing")
@@ -695,7 +693,6 @@ http post "/chat" to Result { return Ok(0) }
         );
         assert_eq!(hir.tables.len(), 1);
         assert_eq!(hir.endpoint_fns.len(), 3);
-        assert_eq!(hir.routes.len(), 1);
     }
 
     #[test]

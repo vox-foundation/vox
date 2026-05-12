@@ -67,6 +67,11 @@ pub use secrets::secrets_str;
 /// Minimum Vox MCP server version required for full agent capability.
 pub const VOX_MCP_MIN_VERSION: &str = ">=0.2.0";
 
+/// URL path prefix for serving stored files.
+pub const STORAGE_URL_PREFIX: &str = "/storage";
+
+/// Maximum number of WAL entries to buffer before forcing a flush to disk.
+pub const WAL_FLUSH_BATCH_SIZE: usize = 32;
 #[cfg(test)]
 mod tests {
     use super::*;

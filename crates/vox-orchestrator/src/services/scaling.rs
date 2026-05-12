@@ -179,6 +179,8 @@ mod tests {
                 weighted_load: total_weighted_load,
                 agent_session_id: None,
                 max_handoff_count: 0,
+                active_skill: None,
+                current_phase: None,
             }],
         }
     }

@@ -14,6 +14,7 @@ use vox_actor_runtime::{
 use crate::events::AgentEventKind;
 use crate::models::{ModelRouteBackend, route_backend_for_model};
 use crate::orchestrator::Orchestrator;
+use crate::planning::prompts::SUPERPOWERS_PROMPT;
 use crate::services::{ScalingAction, ScalingService};
 use crate::types::AgentId;
 use crate::types::TaskId;
@@ -118,10 +119,19 @@ impl AiTaskProcessor {
             }
         }
 
+        let mut skill_block = String::new();
+        if let Some(ref skill) = task.active_skill {
+            skill_block.push_str("\n### Procedural Skill (Active Methodology)\n");
+            skill_block.push_str(&format!("ACTIVE_SKILL: {}\n", skill));
+            skill_block.push_str(SUPERPOWERS_PROMPT);
+            skill_block.push_str("\n\n");
+        }
+
         let prompt = format!(
-            "Task: {}\n\n{}\nPhase: {}\nCategory: {:?}\nRouting model hint: {}\n\nKnown notes:\n{}\n\nAction contract:\n- Think step-by-step for this phase only.\n- If proposing tool usage, emit one line starting with `@tool` and a concrete tool name.\n- Keep output concise and executable.",
+            "Task: {}\n\n{}{}\nPhase: {}\nCategory: {:?}\nRouting model hint: {}\n\nKnown notes:\n{}\n\nAction contract:\n- Think step-by-step for this phase only.\n- If proposing tool usage, emit one line starting with `@tool` and a concrete tool name.\n- Keep output concise and executable.",
             task.description,
             history_block,
+            skill_block,
             phase.as_str(),
             task.task_category,
             usage_model,
@@ -312,6 +322,7 @@ impl TaskProcessor for AiTaskProcessor {
                     }
                 }
             }
+            self.orchestrator.record_workflow_phase_change(task.id, phase).await;
             self.event_bus.emit(AgentEventKind::TaskPhaseChanged {
                 task_id: task.id,
                 agent_id,
@@ -480,7 +491,7 @@ impl ActorAgent {
                 if let Some(envelope) = msg {
                     if let vox_actor_runtime::mailbox::Envelope::Message(msg) = envelope {
                         if let MessagePayload::Json(json_data) = msg.payload {
-                            if let Ok(cmd) = serde_json::from_str::<AgentCommand>(&json_data) {
+                            if let Ok(cmd) = serde_json::from_slice::<AgentCommand>(&json_data) {
                                 Self::handle_command(cmd, agent_id, &orchestrator, &processor)
                                     .await;
                             }

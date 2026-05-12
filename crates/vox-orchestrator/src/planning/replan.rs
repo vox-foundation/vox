@@ -83,6 +83,7 @@ pub async fn enqueue_recovery_first_node(
                 attachment_manifest: None,
                 budget: None,
                 trace_id: None,
+                active_skill: None,
             });
         }
         let next_version = meta.plan_version.saturating_add(1);

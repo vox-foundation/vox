@@ -94,7 +94,6 @@ vox-grammar-export = { workspace = true }
 vox-crypto = { workspace = true }
 vox-identity = { workspace = true }
 vox-mesh-types = { workspace = true }
-vox-distributed-training = { workspace = true }
 
 # TLS (optional, P0-T5)
 rustls = { workspace = true, optional = true }
@@ -142,6 +141,10 @@ vox-compiler = { workspace = true, optional = true }
 vox-publisher = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
 hex = { workspace = true }
+sha3.workspace = true
+uuid.workspace = true
+vox-package.workspace = true
+vox-orchestrator-queue.workspace = true
 
 [dev-dependencies]
 jsonschema = { workspace = true, default-features = false }

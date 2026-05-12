@@ -268,6 +268,10 @@ pub struct SubmitTaskParams {
     /// Optional flag for async detached mesh task execution.
     #[serde(default)]
     pub is_detached: Option<bool>,
+    /// Optional procedural skill to guide the agent (e.g. `superpowers:tdd`).
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub active_skill: Option<String>,
 }
 
 /// Heuristic plan-adequacy snapshot for direct [`SubmitTaskParams`] submits when shadow mode is on.

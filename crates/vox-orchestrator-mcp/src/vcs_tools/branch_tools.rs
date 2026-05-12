@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use vox_orchestrator_cap_mint::mint_working_tree_write;
+use vox_orchestrator_types::vcs_capability::mint_working_tree_write;
 use vox_orchestrator_types::{BranchName, BranchNameError, WorkingTreeWrite, WorkspaceId};
 
 use crate::git_exec::{GitExec, GitExecError};

@@ -162,6 +162,7 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
             max_latency_ms: b.max_latency_ms,
         }),
         trace_id: params.trace_id.clone(),
+        active_skill: params.active_skill.clone(),
     })
 }
 

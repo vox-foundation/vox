@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+use super::ownership::OwnershipMode;
+use vox_compiler::ast::span::Span;
 use vox_compiler::builtin_registry::{BuiltinArgKind, lookup_builtin, std_namespace_runtime_call};
-use vox_compiler::hir::{HirBinOp, HirExpr, HirPattern, HirStmt};
+use vox_compiler::hir::{HirBinOp, HirExpr, HirPattern, HirStmt, HirType};
 
 pub(super) fn emit_stmt(
     stmt: &HirStmt,
@@ -7,6 +10,8 @@ pub(super) fn emit_stmt(
     is_route: bool,
     is_actor: bool,
     mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
     // Rust expression for `Option<String>` request id (e.g. `vox_rid.clone()`), or omit with `None`.
     http_error_rid: Option<&str>,
 ) -> String {
@@ -24,23 +29,23 @@ pub(super) fn emit_stmt(
                     "{pad}let {}{} = ctx.heap.allocate({});\n",
                     mut_kw,
                     emit_pattern(pattern, is_route, is_actor, mutation_tx),
-                    emit_expr_with(value, is_route, is_actor, mutation_tx)
+                    emit_expr_with(value, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
                 )
             } else {
                 format!(
                     "{pad}let {}{} = {};\n",
                     mut_kw,
                     emit_pattern(pattern, is_route, is_actor, mutation_tx),
-                    emit_expr_with(value, is_route, is_actor, mutation_tx)
+                    emit_expr_with(value, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
                 )
             }
         }
         HirStmt::Assign { target, value, .. } => {
             // The target must be an l-value; do not emit `.clone()` on ident targets.
-            let lhs = emit_assign_target(target);
+            let lhs = emit_assign_target(target, inferred_types, usage);
             format!(
                 "{pad}{lhs} = {};\n",
-                emit_expr_with(value, is_route, is_actor, mutation_tx)
+                emit_expr_with(value, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
             )
         }
         HirStmt::Return { value, .. } => {
@@ -48,13 +53,13 @@ pub(super) fn emit_stmt(
                 if let Some(v) = value {
                     format!(
                         "{pad}let _ = {}; // return ignored in actor; scaffolding only\n",
-                        emit_expr_with(v, is_route, is_actor, mutation_tx)
+                        emit_expr_with(v, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
                     )
                 } else {
                     format!("{pad}// return ignored in actor; scaffolding only\n")
                 }
             } else if let Some(v) = value {
-                let expr_str = emit_expr_with(v, is_route, is_actor, mutation_tx);
+                let expr_str = emit_expr_with(v, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned);
                 let rid_tok = http_error_rid.unwrap_or("None");
                 if is_route && mutation_tx {
                     format!(
@@ -84,7 +89,7 @@ pub(super) fn emit_stmt(
         HirStmt::Expr { expr, .. } => {
             format!(
                 "{pad}{};\n",
-                emit_expr_with(expr, is_route, is_actor, mutation_tx)
+                emit_expr_with(expr, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
             )
         }
         HirStmt::While {
@@ -92,7 +97,7 @@ pub(super) fn emit_stmt(
         } => {
             let mut s = format!(
                 "{pad}while {} {{\n",
-                emit_expr_with(condition, is_route, is_actor, mutation_tx)
+                emit_expr_with(condition, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
             );
             if is_actor {
                 s.push_str(&format!("{pad}    ctx.reduction_count += 1;\n"));
@@ -113,6 +118,8 @@ pub(super) fn emit_stmt(
                     is_route,
                     is_actor,
                     mutation_tx,
+                    inferred_types,
+                    usage,
                     http_error_rid,
                 ));
             }
@@ -140,6 +147,8 @@ pub(super) fn emit_stmt(
                     is_route,
                     is_actor,
                     mutation_tx,
+                    inferred_types,
+                    usage,
                     http_error_rid,
                 ));
             }
@@ -152,8 +161,12 @@ pub(super) fn emit_stmt(
 }
 
 /// Emit one statement for script-mode `main` (no route/actor return wrapping).
-pub fn emit_main_stmt(stmt: &HirStmt, indent: usize) -> String {
-    emit_stmt(stmt, indent, false, false, false, None)
+pub fn emit_main_stmt(
+    stmt: &HirStmt,
+    indent: usize,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+) -> String {
+    emit_stmt(stmt, indent, false, false, false, inferred_types, None, None)
 }
 
 /// Emit an assignment l-value target without adding `.clone()`.
@@ -161,14 +174,14 @@ pub fn emit_main_stmt(stmt: &HirStmt, indent: usize) -> String {
 /// The standard `emit_expr_with` appends `.clone()` to every identifier,
 /// which produces invalid Rust like `j.clone() = rhs`. This function emits
 /// a bare identifier or a simple field-access path instead.
-fn emit_assign_target(expr: &HirExpr) -> String {
+fn emit_assign_target(expr: &HirExpr, inferred_types: Option<&HashMap<Span, HirType>>, usage: Option<&super::usage::UsageTracker>) -> String {
     match expr {
         HirExpr::Ident(n, _) => n.clone(),
         HirExpr::FieldAccess(obj, field, _) => {
-            format!("{}.{}", emit_assign_target(obj), field)
+            format!("{}.{}", emit_assign_target(obj, inferred_types, usage), field)
         }
         // Fallback: use the generic emitter for complex lvalues (index ops etc.)
-        other => emit_expr_with(other, false, false, false),
+        other => emit_expr_with(other, false, false, false, inferred_types, usage, OwnershipMode::Owned),
     }
 }
 
@@ -181,7 +194,7 @@ pub(super) fn emit_pattern(
     match pat {
         HirPattern::Ident(n, _) => n.clone(),
         HirPattern::Wildcard(_) => "_".into(),
-        HirPattern::Literal(lit, _) => emit_expr_with(lit, is_route, is_actor, mutation_tx),
+        HirPattern::Literal(lit, _) => emit_expr_with(lit, is_route, is_actor, mutation_tx, None, None, OwnershipMode::Owned),
         HirPattern::Tuple(pats, _) => format!(
             "({})",
             pats.iter()
@@ -230,18 +243,39 @@ pub(super) fn emit_pattern(
 
 /// Emit one HIR expression as a Rust expression string (for nested codegen / tools).
 pub fn emit_expr(expr: &HirExpr) -> String {
-    emit_expr_with(expr, false, false, false)
+    emit_expr_with(expr, false, false, false, None, None, OwnershipMode::Owned)
 }
 
-fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: bool) -> String {
+pub(super) fn emit_expr_with(
+    expr: &HirExpr,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+    mode: OwnershipMode,
+) -> String {
     let fallible_db = mutation_tx;
-    let emit = |e: &HirExpr| emit_expr_with(e, is_route, is_actor, mutation_tx);
+    let emit = |e: &HirExpr, m: OwnershipMode| {
+        emit_expr_with(
+            e,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            m,
+        )
+    };
     if let Some(s) = super::stmt_expr_tail::try_emit_expr_tail(
         expr,
         is_route,
         is_actor,
         mutation_tx,
         fallible_db,
+        inferred_types,
+        usage,
+        mode,
         &emit,
     ) {
         return s;
@@ -251,7 +285,10 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
         HirExpr::FloatLit(v, _) => v.to_string(),
         HirExpr::StringLit(v, _) => {
             let escaped = v.replace("\"", "\\\"").replace("\n", "\\n");
-            format!("\"{}\".to_string()", escaped)
+            match mode {
+                OwnershipMode::Owned => format!("\"{}\".to_string()", escaped),
+                OwnershipMode::Borrowed => format!("\"{}\"", escaped),
+            }
         }
         HirExpr::BoolLit(v, _) => v.to_string(),
         HirExpr::DecimalLit(v, _) => {
@@ -259,14 +296,14 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
         }
         HirExpr::ListLit(elements, _) => format!(
             "vec![{}]",
-            elements.iter().map(emit).collect::<Vec<_>>().join(", ")
+            elements.iter().map(|e| emit(e, OwnershipMode::Owned)).collect::<Vec<_>>().join(", ")
         ),
         HirExpr::TupleLit(elements, _) => format!(
             "({})",
-            elements.iter().map(emit).collect::<Vec<_>>().join(", ")
+            elements.iter().map(|e| emit(e, OwnershipMode::Owned)).collect::<Vec<_>>().join(", ")
         ),
 
-        HirExpr::Ident(n, _) => {
+        HirExpr::Ident(n, span) => {
             if n == "request"
                 || n == "std"
                 || n == "fs"
@@ -274,7 +311,24 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
             {
                 n.clone()
             } else {
-                format!("{}.clone()", n)
+                let is_copy = inferred_types.and_then(|m| m.get(span)).is_some_and(|t| {
+                    matches!(
+                        t,
+                        HirType::Named(name) if matches!(name.as_str(), "int" | "bool" | "float" | "char" | "dec")
+                    ) || matches!(t, HirType::Unit | HirType::Decimal)
+                });
+
+                if is_copy {
+                    n.clone()
+                } else if usage.is_some_and(|u| u.is_last_use(n, *span)) {
+                    // Last use of a non-Copy type: move it.
+                    n.clone()
+                } else {
+                    match mode {
+                        OwnershipMode::Owned => format!("{}.clone()", n),
+                        OwnershipMode::Borrowed => format!("{}.as_str()", n),
+                    }
+                }
             }
         }
         HirExpr::Binary(op, l, r, _) => {
@@ -292,54 +346,54 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
                 HirBinOp::Is => "==",
                 HirBinOp::Isnt => "!=",
                 HirBinOp::Mod => "%",
-                HirBinOp::Pipe => return format!("{}({})", emit(r), emit(l)),
+                HirBinOp::Pipe => return format!("{}({})", emit(r, OwnershipMode::Owned), emit(l, OwnershipMode::Owned)),
             };
             if matches!(
                 op,
                 HirBinOp::Add | HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div
             ) {
-                format!("({} {} &{})", emit(l), op_str, emit(r))
+                format!("({} {} &{})", emit(l, OwnershipMode::Owned), op_str, emit(r, OwnershipMode::Owned))
             } else {
-                format!("({} {} {})", emit(l), op_str, emit(r))
+                format!("({} {} {})", emit(l, OwnershipMode::Owned), op_str, emit(r, OwnershipMode::Owned))
             }
         }
         HirExpr::Call(callee, args, is_await, _) => {
             if let HirExpr::Ident(n, _) = &**callee {
                 if n == "str" && args.len() == 1 {
-                    return format!("as_string(&{})", emit(&args[0].value));
+                    return format!("as_string(&{})", emit(&args[0].value, OwnershipMode::Owned));
                 }
                 if n == "assert" && args.len() == 1 {
                     if let HirExpr::Binary(HirBinOp::Is, l, r, _) = &args[0].value {
-                        return format!("assert_eq!({}, {})", emit(l), emit(r));
+                        return format!("assert_eq!({}, {})", emit(l, OwnershipMode::Owned), emit(r, OwnershipMode::Owned));
                     }
-                    return format!("assert!({})", emit(&args[0].value));
+                    return format!("assert!({})", emit(&args[0].value, OwnershipMode::Owned));
                 }
                 if n == "assert_eq" && args.len() >= 2 {
                     return format!(
                         "assert_eq!({}, {})",
-                        emit(&args[0].value),
-                        emit(&args[1].value)
+                        emit(&args[0].value, OwnershipMode::Owned),
+                        emit(&args[1].value, OwnershipMode::Owned)
                     );
                 }
                 if n == "assert_ne" && args.len() >= 2 {
                     return format!(
                         "assert_ne!({}, {})",
-                        emit(&args[0].value),
-                        emit(&args[1].value)
+                        emit(&args[0].value, OwnershipMode::Owned),
+                        emit(&args[1].value, OwnershipMode::Owned)
                     );
                 }
                 if n == "print" && args.len() == 1 {
-                    return format!("println!(\"{{}}\", {})", emit(&args[0].value));
+                    return format!("println!(\"{{}}\", {})", emit(&args[0].value, OwnershipMode::Owned));
                 }
                 if n == "len" && args.len() == 1 {
                     // Vec, String, &str, etc. — use Rust `.len()` (db.Table.all() lowers to Vec)
-                    return format!("({}).len()", emit(&args[0].value));
+                    return format!("({}).len()", emit(&args[0].value, OwnershipMode::Owned));
                 }
             }
             // std.* call forms: std.fs.read(path) → FieldAccess(FieldAccess(Ident("std"), "fs"), "read")
             if let HirExpr::FieldAccess(namespace_expr, fn_name, _) = &**callee {
                 if let HirExpr::Ident(module_name, _) = &**namespace_expr {
-                    let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
+                    let a: Vec<_> = args.iter().map(|arg| emit(&arg.value, OwnershipMode::Owned)).collect();
                     if module_name == "OpenClaw" || module_name == "Browser" {
                         if let Some(expr) =
                             emit_openclaw_or_browser_registry_call(module_name, fn_name, &a)
@@ -354,7 +408,26 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
                 }
                 if let HirExpr::Ident(std_kw, _) = &**namespace_expr {
                     if std_kw == "std" {
-                        let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
+                        let a: Vec<_> = args
+                            .iter()
+                            .enumerate()
+                            .map(|(i, arg)| {
+                                let mode = if is_builtin_arg_borrowed("std", fn_name, i) {
+                                    OwnershipMode::Borrowed
+                                } else {
+                                    OwnershipMode::Owned
+                                };
+                                emit_expr_with(
+                                    &arg.value,
+                                    is_route,
+                                    is_actor,
+                                    mutation_tx,
+                                    inferred_types,
+                                    usage,
+                                    mode,
+                                )
+                            })
+                            .collect();
                         if let Some(call) = emit_registry_runtime_call("std", fn_name, &a) {
                             return if *is_await {
                                 format!("{}.await", call)
@@ -367,7 +440,26 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
                 if let HirExpr::FieldAccess(std_expr, ns_name, _) = &**namespace_expr {
                     if let HirExpr::Ident(std_kw, _) = &**std_expr {
                         if std_kw == "std" {
-                            let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
+                            let a: Vec<_> = args
+                                .iter()
+                                .enumerate()
+                                .map(|(i, arg)| {
+                                    let mode = if is_builtin_arg_borrowed(ns_name, fn_name, i) {
+                                        OwnershipMode::Borrowed
+                                    } else {
+                                        OwnershipMode::Owned
+                                    };
+                                    emit_expr_with(
+                                        &arg.value,
+                                        is_route,
+                                        is_actor,
+                                        mutation_tx,
+                                        inferred_types,
+                                        usage,
+                                        mode,
+                                    )
+                                })
+                                .collect();
                             let builtin =
                                 std_namespace_runtime_call(ns_name.as_str(), fn_name.as_str(), &a);
                             if let Some(b) = builtin {
@@ -383,8 +475,8 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
                     }
                 }
             }
-            let c = emit(callee);
-            let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
+            let c = emit(callee, OwnershipMode::Owned);
+            let a: Vec<_> = args.iter().map(|arg| emit(&arg.value, OwnershipMode::Owned)).collect();
             if *is_await {
                 format!("{}({}).await", c, a.join(", "))
             } else {
@@ -392,7 +484,7 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
             }
         }
         HirExpr::Index(obj, idx, _) => {
-            format!("{}[{} as usize]", emit(obj), emit(idx))
+            format!("{}[{} as usize]", emit(obj, OwnershipMode::Owned), emit(idx, OwnershipMode::Owned))
         }
         _ => unreachable!(
             "HIR expr variants not handled in stmt_expr::emit_expr_with must be handled by stmt_expr_tail (delegate order bug)"
@@ -442,5 +534,17 @@ fn emit_openclaw_or_browser_registry_call(
         ))
     } else {
         Some(format!("({inner})"))
+    }
+}
+
+/// Helper to determine if a builtin function argument should be passed by reference.
+fn is_builtin_arg_borrowed(namespace: &str, fn_name: &str, arg_index: usize) -> bool {
+    match (namespace, fn_name, arg_index) {
+        ("fs", "read" | "read_to_string" | "write" | "remove_file", 0) => true,
+        ("path", "exists" | "is_dir" | "is_file", 0) => true,
+        ("env", "get" | "set" | "remove", 0) => true,
+        ("http", "get" | "post" | "put" | "delete", 0) => true,
+        ("std", "print" | "println", _) => true,
+        _ => false,
     }
 }

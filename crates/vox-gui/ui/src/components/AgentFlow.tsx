@@ -74,7 +74,19 @@ const TaskNode = ({ data }: { data: Record<string, unknown> }) => {
         </div>
         <p className="text-xs font-semibold text-white/90 leading-relaxed mb-4">{String(data.description ?? '')}</p>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-400 font-mono italic">@{String(data.agent_id ?? '')}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-400 font-mono italic">@{String(data.agent_id ?? '')}</span>
+            {data.active_skill && (
+              <span className="text-[9px] font-bold uppercase text-emerald-400/80 flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-400/10 border border-emerald-400/20">
+                <Activity size={10} /> {String(data.active_skill)}
+              </span>
+            )}
+            {data.current_phase && (
+              <span className="text-[9px] font-bold uppercase text-cyan-400/80 flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-400/10 border border-cyan-400/20">
+                {String(data.current_phase)}
+              </span>
+            )}
+          </div>
           <div className="flex flex-col items-end gap-1">
             <span className="text-[10px] text-zinc-500 font-mono">{String(data.priority ?? '')}</span>
             {data.mode ? <span className={`text-[9px] font-bold uppercase text-${statusColor}-500 opacity-80`}>{String(data.mode)}</span> : null}
@@ -87,6 +99,17 @@ const TaskNode = ({ data }: { data: Record<string, unknown> }) => {
                     }}
                 >
                     🚩 Doubt
+                </button>
+            )}
+            {(String(data.status).includes('Failed') || String(data.status) === 'Doubted') && (
+                <button
+                    className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border border-emerald-500/50 text-emerald-500/80 hover:bg-emerald-500 hover:text-white transition-all mt-1"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        voxTransport.callTool('vox_overrule_task', { task_id: String(data.id), reason: 'Human overrule from GUI' });
+                    }}
+                >
+                    ✅ Overrule
                 </button>
             )}
           </div>

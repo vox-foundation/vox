@@ -63,30 +63,62 @@ pub use env::TypeEnv;
 pub use ty::ty_display;
 
 /// Run the type Checker on a HirModule (replacement for the removed AST-only path).
+///
+/// # Parallelism
+///
+/// - **Phase 1 (sequential):** `typecheck_hir` — mutates `hir.inferred_types`; must finish
+///   before any lint can read those types.
+/// - **Phase 2 (parallel):** All subsequent read-only lint passes are dispatched in parallel
+///   via [`rayon`], then merged in deterministic declaration order. The wall-clock time for
+///   phase 2 is reduced from O(N·lint_count) to O(max(lint_time)) on multi-core machines.
 #[must_use]
 pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic> {
+    use rayon::prelude::*;
+
+    // ── Phase 1: mutating type-inference pass (sequential) ────────────────
     let mut env = TypeEnv::new();
     let builtins = BuiltinTypes::register_all(&mut env);
     let mut diags = typecheck_hir(hir, &mut env, &builtins, source);
-    diags.extend(effect_check::check_effect_compliance(hir, source));
-    diags.extend(cuda_gate::check_training_cuda_tier(hir, source));
-    diags.extend(state_machine_check::check_state_machines(hir, source));
-    diags.extend(effect_deps_lint::check_effect_deps(hir, source));
-    diags.extend(stale_capture_lint::check_stale_captures(hir, source));
-    diags.extend(async_handler_lint::check_async_handlers(hir, source));
-    diags.extend(form_check::check_forms(hir, source));
-    // GA-20 / CC-23: contrast-ratio validation for design token color pairs.
-    diags.extend(contrast::check_tokens(&hir.token_decls));
-    // GA-19: a11y label enforcement for semantic UI primitives.
-    diags.extend(semantic_ui::check_semantic_ui(
-        &collect_semantic_ui_callsites(hir),
-    ));
-    // GA-01: Async[T] view exhaustiveness (all four arms required).
-    diags.extend(
-        collect_async_views(hir)
-            .into_iter()
-            .filter_map(|v| async_exhaustiveness::check_async_view(&v)),
-    );
+
+    // ── Phase 2: read-only lint passes (parallel fan-out) ─────────────────
+    // Each closure captures a shared reference to `hir` and `source`.  They
+    // are all `Send` because `HirModule` and `&str` are `Sync`.  We collect
+    // into independent `Vec<Diagnostic>` per pass and merge below.
+    //
+    // IMPORTANT: add new lint passes to this list rather than back to the
+    // sequential chain above.
+    type LintFn<'a> = Box<dyn Fn() -> Vec<Diagnostic> + Send + 'a>;
+
+    let passes: Vec<LintFn<'_>> = vec![
+        Box::new(|| effect_check::check_effect_compliance(hir, source)),
+        Box::new(|| cuda_gate::check_training_cuda_tier(hir, source)),
+        Box::new(|| state_machine_check::check_state_machines(hir, source)),
+        Box::new(|| effect_deps_lint::check_effect_deps(hir, source)),
+        Box::new(|| stale_capture_lint::check_stale_captures(hir, source)),
+        Box::new(|| async_handler_lint::check_async_handlers(hir, source)),
+        Box::new(|| form_check::check_forms(hir, source)),
+        // GA-20 / CC-23: contrast-ratio validation for design token color pairs.
+        Box::new(|| contrast::check_tokens(&hir.token_decls)),
+        // GA-19: a11y label enforcement for semantic UI primitives.
+        Box::new(|| semantic_ui::check_semantic_ui(&collect_semantic_ui_callsites(hir))),
+        // GA-01: Async[T] view exhaustiveness (all four arms required).
+        Box::new(|| {
+            collect_async_views(hir)
+                .into_iter()
+                .filter_map(|v| async_exhaustiveness::check_async_view(&v))
+                .collect()
+        }),
+    ];
+
+    // Parallel execution: each pass runs on a rayon worker thread.
+    let parallel_diags: Vec<Vec<Diagnostic>> =
+        passes.into_par_iter().map(|pass| pass()).collect();
+
+    for batch in parallel_diags {
+        diags.extend(batch);
+    }
+
+    // ── Phase 3: per-item passes (still sequential — depend on iteration order) ──
     // GA-16/GA-06/GA-23/GA-26: per-endpoint decorator validation.
     for ep in &hir.endpoint_fns {
         if let Some(w) = &ep.webhook {
@@ -141,6 +173,7 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
     }
     diags
 }
+
 
 /// Walk all statements in a function body looking for `Async[T]` view nodes.
 fn collect_async_views(hir: &HirModule) -> Vec<crate::hir::nodes::async_view::HirAsyncView> {
