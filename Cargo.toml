@@ -151,6 +151,10 @@ vox-drift-check              = { path = "crates/vox-drift-check" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
 vox-dashboard             = { path = "crates/vox-dashboard" }
+vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
+vox-tauri-sherpa          = { path = "crates/vox-tauri-sherpa" }
+vox-release-artifacts     = { path = "crates/vox-release-artifacts" }
+vox-assets                = { path = "crates/vox-assets" }
 vox-inspect-bridge        = { path = "crates/vox-inspect-bridge" }
 
 # External dependencies (centralized versions)
@@ -270,14 +274,16 @@ quick-xml          = "0.31"
 flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
 tokio-tungstenite  = { version = "0.24", default-features = false }
 rubato             = "0.15.0"
-symphonia          = "0.5.4"
+symphonia          = { version = "0.5.4", default-features = false }
 sherpa-onnx        = "1.12"
 syn                = "2"
 prettyplease       = "0.2"
 proc-macro2        = "1"
 semver             = "1"
+cargo_metadata     = "0.18"
 parking_lot        = "0.12"
 secrecy            = "0.10"
+zeroize            = "1"
 rmcp               = "0.16"
 rmp-serde          = "1"
 libloading         = "0.8"
@@ -293,6 +299,28 @@ swc_common         = "21"
 which              = "7"
 ctrlc              = "3.4"
 proptest           = { version = "1", default-features = false, features = ["std"] }
+# File watching
+notify             = "6"
+# Audio
+cpal               = "0.15"
+# Binary / stream utilities
+byteorder          = "1"
+tar                = "0.4"
+libc               = "0.2"
+# CLI UI
+dialoguer          = "0.11"
+pulldown-cmark     = "0.13"
+urlencoding        = "2"
+# Language model / tokenization
+tiktoken-rs        = { version = "0.5", default-features = false }
+# Tower / LSP
+tower              = { version = "0.5", default-features = false }
+tower-lsp-server   = "0.20"
+# Serde schemas (v0.8 alias used by some crates)
+schemars08         = { package = "schemars", version = "0.8" }
+# Rand extras
+rand_distr         = "0.4"
+rand09             = { package = "rand", version = "0.9", features = ["small_rng"] }
 
 
 [patch.crates-io]
