@@ -153,9 +153,7 @@ impl LowerCtx {
                 Decl::TypeDef(t) => {
                     hir.types.push(self.lower_typedef(t));
                 }
-                Decl::HttpRoute(r) => {
-                    hir.routes.push(self.lower_route(r));
-                }
+
                 Decl::McpTool(m) => {
                     let func = self.lower_fn(&m.func);
                     hir.mcp_tools.push(HirMcpTool {

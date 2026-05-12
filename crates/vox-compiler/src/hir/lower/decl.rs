@@ -469,27 +469,7 @@ impl LowerCtx {
         }
     }
 
-    pub(crate) fn lower_route(&mut self, r: &HttpRouteDecl) -> HirRoute {
-        let method = match r.method {
-            HttpMethod::Get => HirHttpMethod::Get,
-            HttpMethod::Post => HirHttpMethod::Post,
-            HttpMethod::Put => HirHttpMethod::Put,
-            HttpMethod::Delete => HirHttpMethod::Delete,
-        };
-        let route_contract = format!("{} {}", method.as_str(), r.path);
-        self.def_map.push_scope();
-        let body = r.body.iter().map(|s| self.lower_stmt(s)).collect();
-        self.def_map.pop_scope();
 
-        HirRoute {
-            method,
-            path: r.path.clone(),
-            route_contract,
-            return_type: r.return_type.as_ref().map(|t| self.lower_type(t)),
-            body,
-            span: r.span,
-        }
-    }
 
     pub(crate) fn lower_url_decl(&mut self, u: &UrlDecl) -> HirUrlDecl {
         let id = self.def_map.define(u.name.clone());
