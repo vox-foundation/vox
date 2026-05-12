@@ -1,7 +1,7 @@
 # Hardcoded values audit — production code
 
-- **Captured**: 2026-05-12T06:23:30.331Z
-- **Total itemized findings**: 1393
+- **Captured**: 2026-05-12T06:25:19.520Z
+- **Total itemized findings**: 1392
 - **Total raw matches (pre-cap)**: 5449
 - **Cap per category**: 100
 
@@ -10,7 +10,7 @@
 1. Open `findings.v1.json` — each entry is self-contained.
 2. Run `verification_command` from the repository root; expect at least one match.
 3. For `confidence: "low"`, confirm in IDE before editing.
-4. Regenerate: `node tools/hardcoded-values-audit.mjs .vox\audit\2026-05-11-hardcoded-values`
+4. Regenerate: `node tools/hardcoded-values-audit.mjs .vox\audit\latest`
 
 ## Category index
 
@@ -21,9 +21,9 @@
 - [05-hardcoded-timeouts.md](./05-hardcoded-timeouts.md) — raw: 151, itemized: 100 (cap)
 - [06-hardcoded-retry-counts.md](./06-hardcoded-retry-counts.md) — raw: 43, itemized: 43
 - [07-hardcoded-buffer-sizes.md](./07-hardcoded-buffer-sizes.md) — raw: 119, itemized: 100 (cap)
-- [08-hardcoded-version-strings.md](./08-hardcoded-version-strings.md) — raw: 1085, itemized: 100 (cap)
+- [08-hardcoded-version-strings.md](./08-hardcoded-version-strings.md) — raw: 1086, itemized: 100 (cap)
 - [09-hardcoded-model-names.md](./09-hardcoded-model-names.md) — raw: 60, itemized: 60
-- [10-hardcoded-env-var-names.md](./10-hardcoded-env-var-names.md) — raw: 87, itemized: 87
+- [10-hardcoded-env-var-names.md](./10-hardcoded-env-var-names.md) — raw: 86, itemized: 86
 - [11-brittle-string-needles.md](./11-brittle-string-needles.md) — raw: 2317, itemized: 100 (cap)
 - [12-brittle-regex-patterns.md](./12-brittle-regex-patterns.md) — raw: 334, itemized: 100 (cap)
 - [13-hardcoded-extensions-globs.md](./13-hardcoded-extensions-globs.md) — raw: 61, itemized: 61

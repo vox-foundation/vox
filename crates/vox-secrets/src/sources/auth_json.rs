@@ -192,8 +192,9 @@ mod tests {
     #[test]
     fn auth_path_uses_override() {
         let _g = ENV_LOCK.lock().expect("env lock");
+        let tmp = std::env::temp_dir().join("vox-secrets-auth.json");
         unsafe {
-            std::env::set_var("VOX_SECRETS_AUTH_PATH", "/tmp/vox-secrets-auth.json");
+            std::env::set_var("VOX_SECRETS_AUTH_PATH", &tmp);
         }
         let got = auth_path();
         assert!(got.to_string_lossy().contains("vox-secrets-auth.json"));

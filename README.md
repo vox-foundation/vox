@@ -44,6 +44,25 @@ Vox is what falls out when you design the language *after* the model: collapse t
 
 ## Install
 
+> [!IMPORTANT]
+> **Pre-Release Status:** Vox has not yet reached version 1.0. Pre-compiled binaries and installers are not yet available. To use Vox today, you must build it from source.
+
+### Building from Source (Current)
+
+Requires **Rust** and **Cargo**.
+
+```bash
+git clone https://github.com/vox-foundation/vox.git
+cd vox
+cargo install --path crates/vox-cli
+```
+
+*To build the native Tauri GUI (`vox-gui`), you will also need Node.js and `pnpm`, as well as Tauri's system dependencies for your platform. Run `cargo build -p vox-gui`.*
+
+### Package Managers (Coming in v1.0)
+
+Once version 1.0 is released, the following installation methods will be supported:
+
 **macOS**
 
 ```bash

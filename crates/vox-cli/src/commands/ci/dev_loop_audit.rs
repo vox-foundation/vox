@@ -177,7 +177,7 @@ mod tests {
     fn classify_outside_repo_is_high() {
         let root = Path::new("/workspace/vox");
         let canonical = root.join("target");
-        let outside = Path::new("/tmp/rust-target");
+        let outside = std::env::temp_dir().join("rust-target");
         assert_eq!(
             classify_fragmentation_risk(root, &canonical, outside, false),
             "high"
