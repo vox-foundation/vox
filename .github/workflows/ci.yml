@@ -620,6 +620,9 @@ jobs:
       - name: Safety inventory baseline (committed contracts/reports/safety-inventory)
         run: cargo run -p vox-cli -- ci safety-inventory --check contracts/reports/safety-inventory/baseline.v1.json
 
+      - name: Hardcoded values audit gate
+        run: node tools/hardcoded-values-audit.mjs .vox/audit/ci-gate --ci-gate contracts/reports/hardcoded-baseline-count.txt
+
       - name: Completion quality audit + gates (LLM premature-completion SSOT)
         run: |
           cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-audit

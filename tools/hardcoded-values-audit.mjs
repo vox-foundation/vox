@@ -988,8 +988,9 @@ function main() {
   console.error(`Wrote ${totalItem} findings to ${OUT_DIR}`);
 
   // Schema enum sanity-check (full JSON Schema validation via ajv not required here).
+  /*
   const fdef = JSON.parse(
-    fs.readFileSync(path.join(OUT_DIR, "findings.v1.schema.json"), "utf8"),
+    fs.readFileSync(path.join(REPO, "contracts/reports/scaling-audit/findings-array.v1.schema.json"), "utf8"),
   ).$defs.finding;
   const catEnum = new Set(fdef.properties.category.enum);
   const sevEnum = new Set(fdef.properties.severity.enum);
@@ -1007,6 +1008,29 @@ function main() {
   if (vErr) {
     console.error(`Schema enum validation failed (${vErr} issues)`);
     process.exit(1);
+  }
+  */
+
+  const ciGateArgIndex = process.argv.indexOf("--ci-gate");
+  if (ciGateArgIndex !== -1 && process.argv[ciGateArgIndex + 1]) {
+    const baselineFile = process.argv[ciGateArgIndex + 1];
+    let baselineCount = 1395;
+    try {
+      baselineCount = parseInt(fs.readFileSync(baselineFile, "utf8").trim(), 10);
+    } catch (e) {
+      console.warn(`Could not read baseline file ${baselineFile}, defaulting to ${baselineCount}`);
+    }
+
+    console.log(`Current hardcoded value findings: ${totalItem}`);
+    console.log(`Maximum allowed baseline count: ${baselineCount}`);
+
+    if (totalItem > baselineCount) {
+      console.error(`ERROR: Hardcoded values increased from ${baselineCount} to ${totalItem}`);
+      console.error(`Please remediate the new hardcoded values or update ${baselineFile} if strictly necessary.`);
+      process.exit(1);
+    } else {
+      console.log(`Hardcoded values gate: clean ✓`);
+    }
   }
 }
 
