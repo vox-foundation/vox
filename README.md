@@ -132,7 +132,7 @@ fn add_task(title: str, owner: str) to Result[Id[Task]] {
 
 A `Result[T]` caller must handle both arms — no exceptions, no `null`, no implicit propagation. The compiler refuses to build code that drops `Error`. [`vox-lsp`](crates/vox-lsp/) surfaces the same diagnostics live in the editor.
 
-`@endpoint(kind: …)` is the unified form of the older `@query` / `@server` / `@mutation` decorators (April 2026 grammar collapse).
+`@endpoint(kind: …)` is the structurally unified form of the legacy HTTP routing decorators.
 
 → [decorator reference](docs/src/reference/ref-decorators.md)
 
@@ -254,7 +254,7 @@ Workspace `0.5.0` — pre-1.0. Surfaces are graded by how reproducibly an LLM ca
 v1.0 criteria: [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md). Roadmap: [GUI-native phases](docs/src/architecture/gui-native-roadmap-status-2026.md). History: [`CHANGELOG.md`](CHANGELOG.md).
 <!-- ANCHOR_END: tier_table -->
 
-Phase status: 2–6 done (primitive collapse, grammar unification, compiler/GUI milestones); Phase 7 mostly done (TASK-7.3 bundler swap deferred to Phase 9); Phase 8 corpus migration done, TASK-8.2 awaits an operator MENS run; Phase 9 route-pipeline restoration landed. Retired symbols: [`AGENTS.md` retired-surfaces table](AGENTS.md).
+Roadmap execution is actively collapsing syntactic redundancy to stabilize the compiler primitives prior to v1.0. Retired symbols: [`AGENTS.md` retired-surfaces table](AGENTS.md).
 
 ---
 
