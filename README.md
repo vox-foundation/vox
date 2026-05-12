@@ -237,19 +237,19 @@ Workspace `0.5.0` — pre-1.0. Surfaces are graded by how reproducibly an LLM ca
 
 🟢 Stable · 🟡 Preview · 🚧 Experimental
 
-| Surface | Tier | Notes |
-|:---|:---|:---|
-| Compiler engine | 🟢 | [AST](crates/vox-compiler/), [HIR](crates/vox-compiler/src/hir/), [type checker](crates/vox-compiler/src/typeck/), [LSP](crates/vox-lsp/), [codegen](crates/vox-codegen/). |
-| `@table` & data layer | 🟢 | [Schema](crates/vox-db/), [migrations](crates/vox-db/), `db.*` query builder, wire types. |
-| `@mcp.tool` / `@mcp.resource` | 🟢 | MCP protocol compliance. |
-| Surface syntax | 🟡 | Top-level forms (`@endpoint(kind: …)`, `@durable`, bare `workflow`/`activity`/`actor`) defined in [`AGENTS.md`](AGENTS.md). |
-| Endpoints | 🟡 | Unified `@endpoint` is recent. |
-| Code-audit rule pack | 🟡 | [See Pillar 5](crates/vox-rule-pack/). |
-| RAG & knowledge curation | 🟡 | [`vox scientia`](crates/vox-schola/), Socrates guards. |
-| Durable execution | 🟡 | Grammar locked; [`vox-workflow-runtime`](crates/vox-workflow-runtime/) behavior maturing. |
-| Local training (MENS) | 🟡 | Hardware coverage expanding ([`vox-mens`](crates/vox-ml-cli/)). |
-| Web UI & rendering | 🟡 | Vox-native [reactivity](https://en.wikipedia.org/wiki/Reactive_programming) for greenfield; [React](https://react.dev/) TSX + `vox-client.ts` for interop. |
-| Distributed node mesh | 🚧 | Cross-machine routing is pre-1.0 design. |
+| Feature Area | Status | What it does | Architecture & Justification |
+|:---|:---|:---|:---|
+| **Compiler & LSP** | 🟢 Stable | Parses `.vox` code and provides editor autocomplete. | [AST/HIR](crates/vox-compiler/src/hir/) unifications complete; legacy HTTP nodes removed. ([`vox-lsp`](crates/vox-lsp/)) |
+| **Database Engine** | 🟢 Stable | Handles typed `@table` schemas and automatic database migrations. | [`vox-db`](crates/vox-db/) APIs are locked; deeply integrated via Tauri `State`. |
+| **API Endpoints** | 🟢 Stable | Safely exposes server logic via `@endpoint(kind: ...)` without manual wiring. | Unified architecture complete. Emits isomorphic TS clients ([`vox-codegen`](crates/vox-codegen/)). |
+| **Agent Interfaces** | 🟢 Stable | Allows AI agents to interact with Vox apps using standard protocols. | Compliant with Anthropic's [Model Context Protocol](https://modelcontextprotocol.io) (`@mcp.tool` / `@mcp.resource`). |
+| **Tauri Desktop UI** | 🟡 Preview | Compiles the `.vox` app directly into a native cross-platform window. | Native IPC (`#[tauri::command]`) bridge merged. App signing still maturing. |
+| **Durable Workflows** | 🟡 Preview | Code that survives crashes and pauses automatically. | Grammar locked; [`vox-workflow-runtime`](crates/vox-workflow-runtime/) checkpointing is actively hardening. |
+| **Local AI (MENS)** | 🟡 Preview | Runs open-source AI models directly on your hardware's GPU. | [`vox-mens`](crates/vox-ml-cli/) training pipelines are operational; Metal/CUDA coverage expanding. |
+| **RAG & Research** | 🟡 Preview | Equips agents with long-term memory and autonomous web searching. | [`vox-schola`](crates/vox-schola/) and Socrates fact-checking pipelines are functional but evolving. |
+| **Web UI & Rendering** | 🟡 Preview | Renders web user interfaces from `.vox` files. | Vox-native [reactivity](https://en.wikipedia.org/wiki/Reactive_programming) for greenfield; [React](https://react.dev/) TSX + `vox-client.ts` for interop. |
+| **Code Validation** | 🟡 Preview | Enforces code quality, security, and repository architecture rules. | [Rule pack](crates/vox-rule-pack/) runs on all PRs but coverage is continually expanding. |
+| **Distributed Mesh** | 🚧 Experim. | Allows Vox nodes on different computers to share inference workloads. | Cross-machine routing protocols are pre-1.0 design. |
 
 v1.0 criteria: [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md). Roadmap: [GUI-native phases](docs/src/architecture/gui-native-roadmap-status-2026.md). History: [`CHANGELOG.md`](CHANGELOG.md).
 <!-- ANCHOR_END: tier_table -->
