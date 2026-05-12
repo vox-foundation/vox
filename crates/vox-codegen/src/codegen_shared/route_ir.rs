@@ -10,7 +10,7 @@
 //!   and return-type presence. Body stmts stay in HIR and are emitted by each backend.
 //! * Lowering is additive: the existing HIR structs ([`HirRoute`], `HirServerFn`) are
 //!   unchanged — `RouteIR` is a read-only projection computed at codegen time.
-use vox_compiler::hir::{HirEndpointFn, HirHttpMethod, HirModule, HirParam, HirRoute};
+use vox_compiler::hir::{HirEndpointFn, HirModule, HirParam};
 
 /// Unified HTTP route contract used by Rust and TypeScript backends.
 ///
@@ -66,16 +66,7 @@ impl RouteMethod {
     }
 }
 
-impl From<HirHttpMethod> for RouteMethod {
-    fn from(m: HirHttpMethod) -> Self {
-        match m {
-            HirHttpMethod::Get => Self::Get,
-            HirHttpMethod::Post => Self::Post,
-            HirHttpMethod::Put => Self::Put,
-            HirHttpMethod::Delete => Self::Delete,
-        }
-    }
-}
+
 
 /// A single named parameter carried by this route.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -106,21 +97,6 @@ pub enum RouteKind {
 }
 
 impl RouteIR {
-    /// Lower a `HirRoute` (explicit route block) into a `RouteIR`.
-    #[must_use]
-    pub fn from_hir_route(route: &HirRoute) -> Self {
-        let method = RouteMethod::from(route.method);
-        let contract_key = format!("{} {}", method.as_uppercase_str(), route.path);
-        Self {
-            method,
-            path: route.path.clone(),
-            contract_key,
-            params: Vec::new(), // explicit routes extract from `request` JSON dynamically
-            has_return_value: route.return_type.is_some(),
-            kind: RouteKind::Explicit,
-        }
-    }
-
     /// Lower a `HirServerFn` into a `RouteIR` with typed params.
     #[must_use]
     pub fn from_server_fn(sf: &HirEndpointFn, kind: RouteKind) -> Self {
@@ -147,17 +123,6 @@ impl RouteIR {
 #[must_use]
 pub fn lower_module_routes(module: &HirModule) -> Vec<RouteIR> {
     let mut out: Vec<RouteIR> = Vec::new();
-
-    // Explicit HTTP routes
-    let mut http_routes: Vec<&HirRoute> = module.routes.iter().collect();
-    http_routes.sort_by(|a, b| {
-        a.path
-            .cmp(&b.path)
-            .then_with(|| (a.method as u8).cmp(&(b.method as u8)))
-    });
-    for r in http_routes {
-        out.push(RouteIR::from_hir_route(r));
-    }
 
     // Server / query / mutation functions
     let mut fns: Vec<(&HirEndpointFn, RouteKind)> = module

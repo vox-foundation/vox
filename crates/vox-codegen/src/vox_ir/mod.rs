@@ -2,7 +2,7 @@ use crate::web_ir::WebIrModule;
 use serde::{Deserialize, Serialize};
 use vox_compiler::hir::HirStateMachineDecl;
 use vox_compiler::hir::{
-    HirAgent, HirEndpointFn, HirFn, HirImport, HirMcpResource, HirMcpTool, HirRoute, HirRustImport,
+    HirAgent, HirEndpointFn, HirFn, HirImport, HirMcpResource, HirMcpTool, HirRustImport,
     HirTable, HirTypeDef, HirUrlDecl,
 };
 
@@ -29,7 +29,7 @@ pub struct VoxIrContent {
     pub rust_imports: Vec<HirRustImport>,
     pub functions: Vec<HirFn>,
     pub types: Vec<HirTypeDef>,
-    pub routes: Vec<HirRoute>,
+
     pub endpoint_fns: Vec<HirEndpointFn>,
     pub tables: Vec<HirTable>,
     pub mcp_tools: Vec<HirMcpTool>,

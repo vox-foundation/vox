@@ -574,31 +574,7 @@ fn lower_styles_from_classic_components(
     }
 }
 
-fn lower_http_routes(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
-    for (i, r) in hir.routes.iter().enumerate() {
-        let slug = slug_path_segment(&r.path);
-        let route_id = format!("http_{i}_{slug}");
-        let return_ty = r
-            .return_type
-            .as_ref()
-            .map(map_hir_type_to_ts)
-            .unwrap_or_else(|| "void".to_string());
-        let contract = json!({
-            "kind": "http",
-            "method": r.method.as_str(),
-            "path": r.path,
-            "route_contract": r.route_contract,
-            "return_type": return_ty,
-        })
-        .to_string();
-        m.route_nodes.push(RouteNode::LoaderContract {
-            route_id,
-            contract,
-            span: None,
-        });
-        summary.http_loader_contracts += 1;
-    }
-}
+
 
 fn lower_endpoint_contracts(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
     for sf in &hir.endpoint_fns {
@@ -672,7 +648,6 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
 
     // Stage R — client `routes { }` blocks + HTTP handlers + RPC-shaped endpoints from HIR
     lower_client_routes(hir, &mut m, &mut summary);
-    lower_http_routes(hir, &mut m, &mut summary);
     lower_endpoint_contracts(hir, &mut m, &mut summary);
     lower_scheduled_jobs(hir, &mut m, &mut summary);
 

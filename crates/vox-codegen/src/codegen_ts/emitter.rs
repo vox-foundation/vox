@@ -17,7 +17,7 @@ use crate::codegen_ts::adt::generate_types;
 use crate::projection_bundle::project_bundle_from_hir;
 
 use crate::codegen_ts::reactive::generate_reactive_component;
-use crate::codegen_ts::routes::generate_routes;
+
 use crate::codegen_ts::tanstack_query_emit::vox_tanstack_query_tsx;
 use crate::codegen_ts::vox_client::{VOX_CLIENT_FILENAME, emit_vox_client};
 use vox_compiler::hir::{HirFn, HirModule};
@@ -309,19 +309,7 @@ pub fn generate_with_options(
         ));
     }
 
-    // Legacy Express server emission (deprecated; Axum + `vox-client.ts` is canonical). Gated on `VOX_EMIT_EXPRESS_SERVER=1`.
-    if options.mode != BuildMode::Library {
-        let routes_content = generate_routes(hir);
-        let emit_express_resolved =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxEmitExpressServer);
-        if !routes_content.is_empty()
-            && emit_express_resolved
-                .expose()
-                .is_some_and(|v: &str| v == "1" || v.eq_ignore_ascii_case("true"))
-        {
-            files.push(("server.ts".to_string(), routes_content));
-        }
-    }
+
 
     // Generate table interfaces + schema from HIR
     if !hir.tables.is_empty() {

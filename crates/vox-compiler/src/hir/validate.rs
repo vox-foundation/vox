@@ -101,17 +101,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         );
     }
 
-    for r in &module.routes {
-        if r.path.trim().is_empty() {
-            errors.push(HirValidationError {
-                message: "HTTP route path is empty".into(),
-                span: r.span,
-                correction_hint: Some(
-                    "Specify a path for the route, e.g. routes { \"/\" to Home }".into(),
-                ),
-            });
-        }
-    }
+
 
     for table in &module.tables {
         if table.name.is_empty() {

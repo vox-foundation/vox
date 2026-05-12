@@ -241,8 +241,6 @@ fn pipeline_express_contract_mapper_fixture_validates_multi_route_hir() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    vox_codegen::codegen_ts::routes::validate_express_route_emit_input(&hir)
-        .expect("MULTI_ROUTE_SRC express validation");
     assert!(
         hir.endpoint_fns
             .iter()
@@ -260,7 +258,7 @@ fn pipeline_route_component_express_and_web_ir_gate() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    vox_codegen::codegen_ts::routes::validate_express_route_emit_input(&hir).expect("express");
+    // Express validation is decommissioned
     let (web, summary) =
         vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary(&hir);
     assert!(

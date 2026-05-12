@@ -1,7 +1,7 @@
 use vox_compiler::app_contract::AppContractModule;
 use vox_compiler::hir::http_ergonomics::{HirCorsPolicy, RateLimitBy};
 use vox_compiler::hir::{
-    DurabilityKind, HirEndpointFn, HirEndpointKind, HirHttpMethod, HirModule, HirRoute,
+    DurabilityKind, HirEndpointFn, HirEndpointKind, HirModule,
 };
 
 use super::stmt_expr::emit_stmt;
@@ -132,21 +132,12 @@ pub fn emit_main(module: &HirModule, package_name: &str, app_contract: &AppContr
 
     let has_tables = !module.tables.is_empty();
 
-    let routes = crate::codegen_shared::lower_module_routes(module);
 
-    // Collect which routing methods are actually used
     let mut needs_get = false;
     let mut needs_post = false;
-    let mut needs_put = false;
-    let mut needs_delete = false;
-    for route in &routes {
-        match route.method {
-            crate::codegen_shared::RouteMethod::Get => needs_get = true,
-            crate::codegen_shared::RouteMethod::Post => needs_post = true,
-            crate::codegen_shared::RouteMethod::Put => needs_put = true,
-            crate::codegen_shared::RouteMethod::Delete => needs_delete = true,
-        }
-    }
+    let needs_put = false;
+    let needs_delete = false;
+
     // `@query` handlers are GET + query-string args; `@server` / `@mutation` stay POST + JSON body.
     for sf in &module.endpoint_fns {
         if sf.kind == vox_compiler::hir::HirEndpointKind::Query {
@@ -345,7 +336,7 @@ pub fn emit_main(module: &HirModule, package_name: &str, app_contract: &AppContr
         out.push_str("    }\n");
     }
 
-    let has_routes = !module.routes.is_empty() || !module.endpoint_fns.is_empty();
+    let has_routes = !module.endpoint_fns.is_empty();
 
     // Setup routes
     if has_routes {
@@ -414,10 +405,7 @@ pub fn emit_main(module: &HirModule, package_name: &str, app_contract: &AppContr
     }
     out.push_str("}\n\n");
 
-    // Generate route handlers
-    for route in &module.routes {
-        out.push_str(&emit_route_handler(route, has_tables));
-    }
+
 
     let mut mutation_idx = 0;
     for sf in &module.endpoint_fns {
@@ -461,54 +449,18 @@ fn route_method_from_contract(method: &str) -> &'static str {
 fn route_handler_name_from_contract(
     route: &vox_compiler::app_contract::AppHttpRouteContract,
 ) -> String {
-    let method = match route.method.as_str() {
-        "GET" => HirHttpMethod::Get,
-        "POST" => HirHttpMethod::Post,
-        "PUT" => HirHttpMethod::Put,
-        "DELETE" => HirHttpMethod::Delete,
-        _ => HirHttpMethod::Get,
-    };
-    route_handler_name(&route.path, &method)
-}
-
-fn route_handler_name(path: &str, method: &HirHttpMethod) -> String {
-    let clean_path = path.replace('/', "_").replace(['{', '}'], "");
-    let m = match method {
-        HirHttpMethod::Get => "get",
-        HirHttpMethod::Post => "post",
-        HirHttpMethod::Put => "put",
-        HirHttpMethod::Delete => "delete",
+    let clean_path = route.path.replace('/', "_").replace(['{', '}'], "");
+    let m = match route.method.as_str() {
+        "GET" => "get",
+        "POST" => "post",
+        "PUT" => "put",
+        "DELETE" => "delete",
+        _ => "get",
     };
     format!("handle_{}{}", m, clean_path)
 }
 
-fn emit_route_handler(route: &HirRoute, has_tables: bool) -> String {
-    let handler_name = route_handler_name(&route.path, &route.method);
-    let mut out = String::new();
-    out.push_str(&format!("async fn {handler_name}("));
-    out.push_str("Extension(vox_rid): Extension<Option<String>>, ");
-    if has_tables {
-        out.push_str("Extension(db): Extension<Arc<Codex>>, ");
-    }
-    out.push_str(
-        "Json(request): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {\n",
-    );
 
-    let rid = Some("vox_rid.clone()");
-    let mut has_return = false;
-    for stmt in &route.body {
-        let emitted = emit_stmt(stmt, 1, true, false, false, rid);
-        if emitted.contains("return Ok(Json(") {
-            has_return = true;
-        }
-        out.push_str(&emitted);
-    }
-    if !has_return {
-        out.push_str("    Ok(Json(serde_json::Value::Null))\n");
-    }
-    out.push_str("}\n\n");
-    out
-}
 
 /// Generate an Axum handler for a server function.
 fn emit_server_fn_handler(

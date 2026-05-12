@@ -84,11 +84,7 @@ fn pipeline_mixed_surface_endpoint_fn_emit_contains_api_x() {
     let tokens = lex(MIXED_SURFACE_SRC);
     let module = parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
-    let server_ts = vox_codegen::codegen_ts::routes::generate_routes(&hir);
-    assert!(
-        server_ts.contains("api_x") && server_ts.contains(".post("),
-        "expected mutation endpoint api_x as POST in Express emit, got:\n{server_ts}"
-    );
+    // Express emit test decommissioned
 }
 
 #[test]

@@ -33,9 +33,7 @@ pub fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut(&HirEx
     for fd in &module.tests {
         walk_stmts(&fd.body, f);
     }
-    for r in &module.routes {
-        walk_stmts(&r.body, f);
-    }
+
     for sf in &module.endpoint_fns {
         walk_stmts(&sf.body, f);
     }
@@ -84,9 +82,7 @@ pub fn for_each_hir_expr_in_module_mut(module: &mut HirModule, f: &mut impl FnMu
     for fd in &mut module.tests {
         walk_stmts_mut(&mut fd.body, f);
     }
-    for r in &mut module.routes {
-        walk_stmts_mut(&mut r.body, f);
-    }
+
     for sf in &mut module.endpoint_fns {
         walk_stmts_mut(&mut sf.body, f);
     }
