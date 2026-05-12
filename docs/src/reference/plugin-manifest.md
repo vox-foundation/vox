@@ -141,7 +141,7 @@ The `vox ci agentskills-compliance` guard runs on every PR and enforces the Agen
 
 Run locally with:
 
-```
+```bash
 vox ci agentskills-compliance
 ```
 

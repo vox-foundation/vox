@@ -57,7 +57,7 @@ A planning change is blocked if any blocker class is violated.
 ### B8: Repo-reality mismatch
 
 - Planning text claims behavior that contradicts current code-path reality without explicitly marking it as target-state.
-- Planning text conflates `VOX_WEBIR_VALIDATE` with `VOX_WEBIR_EMIT_REACTIVE_VIEWS` semantics.
+- Planning text conflates `VOX_WEBIR_VALIDATE` with reactive WebIR emit semantics (there is no separate reactive-view env toggle; validation gates structure, reactive emit is WebIR-first).
 - Planning text references incomplete gate subsets when a canonical full gate table exists.
 
 ## Mandatory planning questions (must be answered for high-risk sections)

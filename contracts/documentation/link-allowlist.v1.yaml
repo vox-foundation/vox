@@ -1,0 +1,4 @@
+# Typed allowlist for `vox ci check-links`: historical pointers where updating prose
+# would erase audit intent. Entries may expire (warn-only past `expires`).
+schema_version: 1
+allowlist: []

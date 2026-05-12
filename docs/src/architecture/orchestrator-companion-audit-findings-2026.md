@@ -590,7 +590,7 @@ Each cluster has a Design Note (architectural context) followed by its FIX items
 `surface: mcp-dispatch` | `axis: risk` | `concern: security` | `P1` | `effort: S`
 - *Problem.* Hardcoded string sentinels `"SYSTEM_INTERVENTION"`, `"LAZY_GENERATION_DETECTED"`, `"RBAC_VIOLATION"` at dispatch.rs:60, 77, 103 are used in conditional logic. A typo breaks gating silently.
 - *Operation.* Define `enum DispatchGateReason { SystemIntervention, LazyGenerationDetected, RbacViolation }`. Replace all string comparisons with enum matching.
-- *Success.* `rg '"SYSTEM_INTERVENTION"\|"RBAC_VIOLATION"' crates/vox-orchestrator/src/mcp_tools/dispatch.rs` returns zero hits.
+- *Success.* `rg '"SYSTEM_INTERVENTION"\|"RBAC_VIOLATION"' crates/vox-orchestrator-mcp/src/dispatch.rs` returns zero hits.
 
 **FIX-G-04** `[OPEN]`
 `surface: mcp-dispatch` | `axis: risk` | `concern: correctness` | `P2` | `effort: S`
@@ -614,7 +614,7 @@ Each cluster has a Design Note (architectural context) followed by its FIX items
 `surface: mcp-dispatch` | `axis: hygiene` | `concern: modularity` | `P3` | `effort: L`
 - *Problem.* All tool registrations live in `dispatch.rs`. The file is a coupling point for all tool groups.
 - *Operation.* Move registration into per-group modules: `chat_tools::register()`, `scientia_tools::register()`, etc. `dispatch.rs` calls each group's register() at startup.
-- *Success.* `wc -l crates/vox-orchestrator/src/mcp_tools/dispatch.rs` < 100.
+- *Success.* `wc -l crates/vox-orchestrator-mcp/src/dispatch.rs` < 100.
 
 **FIX-G-08** `[OPEN]`
 `surface: mcp-dispatch` | `axis: risk` | `concern: correctness` | `P2` | `effort: S`
@@ -991,7 +991,7 @@ The following are grep-able or test-verifiable done-conditions for the audit as 
 - `rg '"SYSTEM_INTERVENTION"\|"RBAC_VIOLATION"\|"LAZY_GENERATION"' crates/vox-orchestrator/src` returns zero.
 - `rg 'target: "vox_dei' crates/ | grep -v archive | wc -l` returns zero.
 - `rg 'dei_shim' crates/vox-orchestrator/src | grep -v 'deprecated\|tombstone' | wc -l` returns zero (Stage 8 gate).
-- `wc -l crates/vox-orchestrator/src/mcp_tools/dispatch.rs` < 100 (post FIX-G-02/G-07).
+- `wc -l crates/vox-orchestrator-mcp/src/dispatch.rs` < 100 (post FIX-G-02/G-07).
 - `curl localhost:<port>/metrics` returns `vox_orchestrator_event_bus_subscribers`, `vox_orchestrator_queue_depth`, `vox_orchestrator_active_agents`.
 - `curl localhost:<port>/healthz` returns 200 (FIX-K-09/O-04).
 - `cargo audit -p vox-orchestrator` returns zero high-severity advisories (FIX-AA-07).

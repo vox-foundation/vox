@@ -27,6 +27,13 @@
 # from the orphan rule and from the convention that workspace surfaces sit at L5.
 # Only product-shipped binaries (the user-visible CLI surface) live at L5.
 
+# Optional: extra directory *names* (final path component) skipped when
+# vox-arch-check walks the repo for Rule 9 + 11. Built-in skips always include
+# target, .git, node_modules, .pnpm-store, __pycache__, .venv, .mypy_cache,
+# .turbo, .next, .parcel-cache, .cargo — extras can only add, never remove.
+[arch_check.walk_prune]
+# extra_skip_dir_names = ["example_vendor"]
+
 [guards]
 # Strictness per rule. Layer ordering is implicitly strict (override with
 # the --warn-only CLI flag). The other seven default to warn.
@@ -117,6 +124,9 @@ vox-db                  = { layer = 3, max_dependents = 25, max_loc = 40_000 }
 vox-corpus              = { layer = 3, max_loc = 15_000 }
 vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 35_000 }
 vox-codegen             = { layer = 3, max_loc = 20_000 }
+vox-tauri-codegen       = { layer = 3, max_loc = 6_000 }
+vox-assets              = { layer = 2, max_loc = 4_000 }
+vox-release-artifacts   = { layer = 2, max_loc = 4_000 }
 vox-scientia-jsonschema-codegen = { layer = 3 }               # offline SCIENTIA JSON Schema → Rust (typify)
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
 vox-publisher           = { layer = 3, max_loc = 20_000 }
@@ -161,6 +171,8 @@ vox-plugin-catalog      = { layer = 3 }
 vox-inspect-bridge      = { layer = 3, max_loc = 15_000 }               # SCIENTIA Phase 5: UK AISI Inspect adapter
 
 # ── L4 — concrete plugins (cdylib only — never compile-time deps for L0..L3) ──
+# Note: Skill-only plugins (e.g., vox-plugin-skill-git) have no Cargo.toml and are
+# exempt from this file. They are validated separately.
 vox-plugin-browser           = { layer = 4, kind = "plugin" }
 vox-plugin-cloud             = { layer = 4, kind = "plugin" }
 vox-plugin-grammar-export    = { layer = 4, kind = "plugin" }
@@ -177,6 +189,7 @@ vox-plugin-webhook           = { layer = 4, kind = "plugin" }
 
 # ── L5 — surfaces ─────────────────────────────────────────────────────────────
 vox-cli               = { layer = 5, kind = "binary", max_loc = 70_000 }
+vox-gui               = { layer = 5, kind = "binary", max_loc = 25_000 } # Tauri desktop shell; depends on vox-cli / vox-orchestrator
 vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
 
@@ -195,6 +208,11 @@ from   = "vox-arch-check"
 to     = "vox-compiler"
 reason = "dev-dependency only (rename-registry integration test added in feat(arch-check) VUV-9 task 8). The tool binary does not ship vox-compiler at runtime; remove once the test can be refactored to not need the full compiler crate."
 
+[[known_inversions]]
+from   = "vox-ml-cli"
+to     = "vox-cli"
+reason = "Optional `mens-dei` workflow path shells out through `vox_cli::commands::build`, `build_service`, and `fs_utils` when `workflow-runtime` is disabled. Prefer extracting a shared L3 driver crate over tightening `vox-cli` deps."
+
 # ── Rule 11 (P3-T7): Forbidden code patterns ─────────────────────────────────
 # Forbid raw git invocations outside the concurrency-policy wrapper.
 # See docs/src/architecture/git-concurrency-policy.md.
@@ -209,3 +227,87 @@ exempt_files     = [
 ]
 allow_annotation = "// vox-arch-check: allow git-exec"
 reason           = "All git invocations must go through GitExec to honor the concurrency policy."
+
+# Emit boundary (ADR 036 / projection bundle): do not re-lower or re-project HIR outside
+# `vox-codegen::projection_bundle` from TypeScript/Rust emitters — use `project_bundle_from_hir`.
+[[forbidden_pattern]]
+name             = "projection-bundle-ts-emit-boundary"
+pattern          = '(?-u)\b(lower_hir_to_web_ir|project_web_from_core|project_app_contract|project_runtime_from_hir|project_shell_from_hir|project_required_capabilities)\s*\('
+file_glob        = "crates/vox-codegen/src/codegen_ts/**/*.rs"
+allow_annotation = "// vox-arch-check: allow-direct-projection"
+reason           = "HIR projections for emit must go through projection_bundle (WebIR/AppContract/Runtime/Shell/RequiredCapabilities SSOT)."
+
+[[forbidden_pattern]]
+name             = "projection-bundle-rust-emit-boundary"
+pattern          = '(?-u)\b(lower_hir_to_web_ir|project_web_from_core|project_app_contract|project_runtime_from_hir|project_shell_from_hir|project_required_capabilities)\s*\('
+file_glob        = "crates/vox-codegen/src/codegen_rust/**/*.rs"
+allow_annotation = "// vox-arch-check: allow-direct-projection"
+reason           = "HIR projections for emit must go through projection_bundle (WebIR/AppContract/Runtime/Shell/RequiredCapabilities SSOT)."
+
+# Crate-level `unsafe_code` allows — keep list short; prefer `EnvScratch`, scoped `#[allow]`, or `// vox-arch-check: allow crate unsafe_code`.
+[[forbidden_pattern]]
+name             = "crate-allow-unsafe-code"
+pattern          = '#!\[allow\([^\]]*unsafe_code[^\]]*\)\]'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    "crates/vox-test-harness/src/env_scratch.rs",
+    "crates/vox-plugin-api/src/lib.rs",
+    "crates/vox-lsp/tests/diagnostic_tests.rs",
+    "crates/vox-share/tests/binary_cache_test.rs",
+    "crates/vox-share/tests/cloudflare_backend_test.rs",
+    "crates/vox-share/tests/consent_test.rs",
+    "crates/vox-populi/tests/ed25519_envelope.rs",
+    "crates/vox-compiler/tests/mens_decorators.rs",
+    "crates/vox-compiler/tests/reactive_smoke_test.rs",
+    "crates/vox-compiler/tests/web_ir_environment_gates_test.rs",
+    "crates/vox-compiler/tests/web_ir_lower_emit_test.rs",
+    "crates/vox-integration-tests/tests/pipeline_env_test.rs",
+    "crates/vox-integration-tests/tests/pipeline_test.rs",
+    "crates/vox-integration-tests/tests/ts_emit_typecheck_test.rs",
+]
+allow_annotation = "// vox-arch-check: allow crate unsafe_code"
+reason           = "New crate-root `#![allow(unsafe_code)]` must be reviewed; centralize test env mutation or document FFI invariants instead of widening the surface."
+
+# Tauri convergence (ADR 037): Capacitor and Axum-as-app surfaces are retired for
+# generated desktop/mobile applications. Current call sites remain as explicit
+# exemptions until the migration plan removes them task by task.
+[[forbidden_pattern]]
+name             = "no-capacitor-in-app-codegen"
+pattern          = '@capacitor/'
+file_glob        = "crates/vox-codegen/**/*.rs"
+allow_annotation = "// vox-arch-check: allow capacitor-codegen"
+reason           = "Generated app code must use @tauri-apps/* per ADR 037."
+
+[[forbidden_pattern]]
+name             = "no-cap-sync-in-cli"
+pattern          = 'npx\s+cap\s+(sync|run|update)'
+file_glob        = "crates/vox-cli/**/*.rs"
+allow_annotation = "// vox-arch-check: allow cap-sync"
+reason           = "`npx cap sync` is retired for app packaging; use Tauri mobile tooling per ADR 037."
+
+[[forbidden_pattern]]
+name             = "no-axum-in-generated-app-emit"
+pattern          = 'axum::serve|axum::Router::new|axum::routing'
+file_glob        = "crates/vox-codegen/src/codegen_rust/emit/**/*.rs"
+exempt_files     = [
+    "crates/vox-codegen/src/codegen_rust/emit/http.rs",
+]
+allow_annotation = "// vox-arch-check: allow axum-app-emit"
+reason           = "Generated desktop/mobile applications must use Tauri; Axum emit is reserved for native-binary, dashboard, server, and daemon/API lanes."
+
+[[forbidden_pattern]]
+name             = "no-rust-embed-in-generated-cargo"
+pattern          = 'rust-embed'
+file_glob        = "crates/vox-codegen/src/codegen_rust/emit/**/*.rs"
+exempt_files     = [
+    "crates/vox-codegen/src/codegen_rust/emit/mod.rs",
+]
+allow_annotation = "// vox-arch-check: allow rust-embed-app-emit"
+reason           = "Generated desktop/mobile applications bundle assets through Tauri `dist/`; rust-embed remains only for non-Tauri targets during migration."
+
+[[forbidden_pattern]]
+name             = "no-capacitor-deps-in-apps"
+pattern          = '"@capacitor/'
+file_glob        = "apps/**/package.json"
+allow_annotation = "// vox-arch-check: allow capacitor-app-dep"
+reason           = "Application package manifests use @tauri-apps/* per ADR 037."

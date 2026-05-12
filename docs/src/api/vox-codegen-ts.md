@@ -7,13 +7,13 @@ status: deprecated
 
 # vox-codegen-ts API (deprecated)
 
-The historical `vox-codegen-ts` crate name is retired. **HIR-to-TypeScript/TSX emission** lives in the monolith crate [`vox-compiler`](../../../crates/vox-compiler) under `codegen_ts` (see `crates/vox-compiler/src/codegen_ts/`).
+The historical `vox-codegen-ts` crate name is retired. **HIR-to-TypeScript/TSX emission** lives in the monolith crate [`vox-compiler`](../../../crates/vox-compiler) under `codegen_ts` (see `crates/vox-codegen/src/codegen_ts/`).
 
 ## Overview
 
 The codegen pipeline lowers HIR through the Web IR layer before final TypeScript emit.
 See [internal-web-ir-implementation-blueprint.md](../architecture/internal-web-ir-implementation-blueprint.md)
-and [internal-web-ir-side-by-side-schema.md](../architecture/internal-web-ir-side-by-side-schema.md)
+and [internal-web-ir-implementation-blueprint.md](../architecture/internal-web-ir-implementation-blueprint.md)
 for the full Web IR specification.
 
 For the strategic rationale, see [ADR 012](../adr/012-internal-web-ir-strategy.md) (`adr/012`).

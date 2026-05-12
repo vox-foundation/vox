@@ -171,12 +171,12 @@ operations:
   - bundle
   status: active
   latin_ns: fabrica
-  product_lane: app
+  product_lane: platform
   feature_gate: null
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
-  handler_rust: commands::bundle
+  handler_rust: commands::plugin_bundle
 - surface: vox-cli
   path:
   - check
@@ -199,6 +199,18 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::ci
+- surface: vox-cli
+  path:
+  - ci
+  - ai-fixtures-coverage
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
 - surface: vox-cli
   path:
   - ci
@@ -346,6 +358,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - compile-matrix
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - completion-audit
   status: active
   latin_ns: null
@@ -479,6 +503,18 @@ operations:
   path:
   - ci
   - doc-inventory
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - docs-reality-audit
   status: active
   latin_ns: null
   product_lane: platform
@@ -773,6 +809,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - parse-status
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - pm-provenance
   status: active
   latin_ns: null
@@ -857,6 +905,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - retirement-audit
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - runtime-regress
   status: active
   latin_ns: null
@@ -870,6 +930,18 @@ operations:
   path:
   - ci
   - rust-ecosystem-policy
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - safety-inventory
   status: active
   latin_ns: null
   product_lane: platform
@@ -956,6 +1028,18 @@ operations:
   path:
   - ci
   - secrets-parity
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - speech-runtime-suite
   status: active
   latin_ns: null
   product_lane: platform
@@ -1178,6 +1262,17 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: command_catalog
+- surface: vox-cli
+  path:
+  - compile
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::compile
 - surface: vox-cli
   path:
   - completions
@@ -1601,6 +1696,18 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::extras::ludus_cli
+- surface: vox-cli
+  path:
+  - memory
+  - search
+  status: active
+  latin_ns: codex
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::memory_cli
 - surface: vox-cli
   path:
   - mens
@@ -2513,6 +2620,18 @@ operations:
   ref_cli_required: true
   reachability_required: false
   handler_rust: null
+- surface: vox-cli
+  path:
+  - research
+  - run
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::research::run_research_query
 - surface: vox-cli
   path:
   - review

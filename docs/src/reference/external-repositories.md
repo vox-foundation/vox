@@ -72,7 +72,7 @@ See also: [Cross-repo querying and observability](../archive/research-2026-q1/cr
 
 - [`orchestration-unified.md`](orchestration-unified.md) — MCP/DeI plan alignment, migration flags, benchmark telemetry env.
 - [`mens.md`](populi.md) — `VOX_MESH_*` contract, local registry, HTTP control plane.
-- ADR 004 (`docs/src/adr/004-codex-arca-turso.md`) — Codex env and Turso.
+- ADR 004 (`docs/src/adr/004-codex-arca-turso-ssot.md`) — Codex env and Turso.
 - `AGENTS.md` §2.2.2 — short agent-oriented summary.
 
 

@@ -60,6 +60,8 @@ Use **`vox ci pre-push`** to run the merge-blocking subset locally. It **always*
 
 **Doctests:** keep **`cargo test --workspace --doc`** for workspace doctest discovery; **`cargo-nextest`** does not run Rust doctests, so CI keeps doctests on the built-in harness until a verified doctest runner path exists for nextest. **`vox ci pre-push --full`** inherits that gap: the extra nextest pass does not substitute for **`cargo test --workspace --doc`**.
 
+<a id="cargo-incremental-cache-troubleshooting-ai-multi-terminal"></a>
+
 ### Cargo incremental cache: troubleshooting (AI / multi-terminal)
 
 Repeated “full rebuild” symptoms are often **cache fragmentation**, not Rust forcing a clean build:

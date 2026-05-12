@@ -28,7 +28,7 @@ Repo-backed **`vox-mcp`** and **`vox-orchestrator-d`** open the primary [`VoxDb`
 
 | Concern | Embedded MCP (`vox-mcp`) | `vox-orchestrator-d` (daemon) | VoxDb / Turso |
 | --- | --- | --- | --- |
-| Session chat transcript (RAM) | Orchestrator [`ContextStore`](../../../crates/vox-orchestrator/src/context.rs) in-process | Same process model per ADR 022 until RPC parity | — |
+| Session chat transcript (RAM) | Orchestrator [`ContextStore`](../../../crates/vox-orchestrator/src/context/mod.rs) in-process | Same process model per ADR 022 until RPC parity | — |
 | Structured chat turns | `chat_append_workspace_message` + journey envelope v1 | Future `orch.*` parity for remote clients | `conversation_messages`, `conversations` |
 | Legacy `chat_transcripts` rows | MCP chat path (dual-write) | Not primary writer today | `chat_transcripts` |
 | Workspace journey attach / diagnostics | `connect_workspace_journey_optional`, MCP tooling | JSON-RPC `orch.workspace_journey` | journey + repo bind rows |
@@ -185,7 +185,7 @@ Effective Socrates thresholds still merge from `vox-socrates-policy` with option
 
 ## Related docs
 
-- [ADR 017: Populi lease-based remote execution](../adr/017-populi-lease-remote-execution.md) — ownership model (design intent).
+- [ADR 017: Populi lease-based remote execution](../adr/017-populi-lease-remote-execution.md) — **Accepted (implemented)**; lease-based authoritative remote execution contract.
 - [ADR 018: Populi GPU truth layering](../adr/018-populi-gpu-truth-layering.md) — verified inventory vs labels.
 - [Populi work-type placement matrix](populi-work-type-placement-matrix.md) — local / LAN / overlay policy.
 - [`external-repositories.md`](external-repositories.md) — `repository_id`, sessions, cache layout.

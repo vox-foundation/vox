@@ -5,12 +5,6 @@ schema_version: 3
 routing_objective:
   kind: quality_first
 
-quality_weights:
-  socrates_factuality: 0.25
-  contradiction_inverse: 0.15
-  success_rate: 0.25
-  p50_latency_inverse: 0.15
-  cost_inverse: 0.2
 
 exploration:
   algorithm: thompson_beta
@@ -69,17 +63,10 @@ task_categories:
   - ToolOrchestration
   - Visus
 
-scoring:
-  weights:
-    efficiency: 1
-    precision: 1
-    latency: 1
-    availability: 1
-    balance: 1
-    mobile: 1
-  latency_bands:
-    excellent_ms: 500
-    poor_ms: 8000
+# VOX_AUTO_ROUTING_PRIORITY env var is the SSOT for weight distributions (efficiency, precision, etc).
+latency_bands:
+  excellent_ms: 500
+  poor_ms: 8000
 
 premium_alias:
   codegen: "claude-mythos-preview-20260407"

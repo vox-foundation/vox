@@ -20,7 +20,7 @@ training_rationale: "Concrete TDD task plan for SP3; companion to the parent des
 
 **Architecture:** `MlBackend` is a `#[sabi_trait]` in `vox-plugin-api::extensions::ml_backend` exposing methods derived from current candle-qlora callsites: `load_model`, `train_step`, `eval_step`, `save_checkpoint`. The new `vox-plugin-mens-candle-cuda` cdylib owns the candle-core / candle-nn / qlora-rs / peft-rs / safetensors / tokenizers / memmap2 deps that today live behind `vox-populi`'s `mens-candle-qlora-cuda` feature. `vox-populi`'s old direct candle calls become `host.ml_backend().ok_or(PluginMissingError { plugin_id: "mens-candle-cuda", … })?.method(...)`.
 
-The CUDA cdylib pattern is already proven by the [SP3 gating spike](../../../crates/vox-plugin-cuda-spike/) — direct cdylib + `libloading` works on Windows MSVC + CUDA 13.1. SP3 generalizes to a real extraction, no further architectural risk expected.
+The CUDA cdylib pattern is already proven by the [SP3 gating spike](plugin-system-redesign-2026.md#sub-project-3-first-code-extension-point-mlbackend) — direct cdylib + `libloading` works on Windows MSVC + CUDA 13.1. SP3 generalizes to a real extraction, no further architectural risk expected.
 
 **Tech Stack:**
 - `abi_stable` (workspace dep, added in SP2 Task 13)

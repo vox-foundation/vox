@@ -71,7 +71,7 @@ Compiler deliverables stop at **manifest + components + client**; frameworks own
 
 ## Acceptance gates (summary)
 
-Full numeric gates (G1–G6) and file/test mapping: [internal-web-ir-implementation-blueprint.md — Acceptance gates](./internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds). Charter-level minimum:
+Full numeric gates (G1–G6) and file/test mapping: [internal-web-ir-implementation-blueprint.md — Acceptance gates](./internal-web-ir-implementation-blueprint.md). Charter-level minimum:
 
 - **G-manifest:** emitted manifest parses and matches HIR/WebIR route set (parity tests).
 - **G-client:** `vox-client.ts` has deterministic HTTP methods and URL shapes; no forbidden substrings in generated TS (`createServerFn`, legacy filenames).

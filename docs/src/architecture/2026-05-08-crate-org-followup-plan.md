@@ -722,7 +722,7 @@ The crate is canonical `vox-gamify`. Every live doc claiming `vox-ludus` is cano
   git push -u origin HEAD
   gh pr create --title "refactor: SSOT/discoverability fixes + crate descriptions + vox-mcp-meta merge" --body "$(cat <<'EOF'
   ## Summary
-  - PR1 of [2026-05-08 crate-org-followup](docs/src/architecture/2026-05-08-crate-org-followup-design.md).
+  - PR1 of [2026-05-08 crate-org-followup](./2026-05-08-crate-org-followup-design.md).
   - Fixes SSOT drift across ~37 live docs + 19 missing Cargo.toml descriptions.
   - Merges vox-mcp-meta into vox-mcp-registry.
 

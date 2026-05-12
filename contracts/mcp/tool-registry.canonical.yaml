@@ -599,7 +599,7 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_memory_search
-  description: Search daily logs and MEMORY.md for a keyword query.
+  description: Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).
   product_lane: ai
   http_read_role_eligible: false
   tier: core
@@ -882,6 +882,26 @@ tools:
   description: Discovered repository root, stable repository_id, stack markers, and sorted Cargo workspace member dirs (parity with `vox repo status` JSON).
   product_lane: platform
   http_read_role_eligible: true
+  tier: core
+- name: vox_research_get
+  description: MCP `vox_research_get` — fetch the completed research payload (answer + sources) for a session when available.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_research_run
+  description: CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_research_start
+  description: MCP `vox_research_start` — creates a persisted research session and runs the same web-retrieval pipeline as `vox_research_run` in the background (returns session_id immediately).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_research_status
+  description: MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.
+  product_lane: ai
+  http_read_role_eligible: false
   tier: core
 - name: vox_resolve_conflict
   description: Resolve a file conflict.

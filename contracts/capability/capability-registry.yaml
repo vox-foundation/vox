@@ -252,9 +252,9 @@ curated:
   - build
   parameters: null
 - id: cli.bundle
-  title: Bundle
+  title: Bundle (plugins)
   description_human: null
-  description_model: CLI operation `vox bundle`
+  description_model: CLI operation `vox bundle` — plugin distribution bundles (`list`, `build`, `apply`)
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -301,6 +301,24 @@ curated:
   mcp_tool: null
   cli_path:
   - ci
+  parameters: null
+- id: cli.ci.ai-fixtures-coverage
+  title: Ci Ai-fixtures-coverage
+  description_human: null
+  description_model: CLI operation `vox ci ai-fixtures-coverage`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - ai-fixtures-coverage
   parameters: null
 - id: cli.ci.artifact-audit
   title: Ci Artifact-audit
@@ -518,6 +536,24 @@ curated:
   - ci
   - command-sync
   parameters: null
+- id: cli.ci.compile-matrix
+  title: Ci Compile-matrix
+  description_human: null
+  description_model: CLI operation `vox ci compile-matrix` — smoke `vox compile --help` via cargo (matches compile-matrix workflow)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - compile-matrix
+  parameters: null
 - id: cli.ci.completion-audit
   title: Ci Completion-audit
   description_human: null
@@ -698,6 +734,24 @@ curated:
   - ci
   - db-schema-coverage
   parameters: null
+- id: cli.ci.dev-loop-audit
+  title: Ci Dev-loop-audit
+  description_human: null
+  description_model: CLI operation `vox ci dev-loop-audit`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - dev-loop-audit
+  parameters: null
 - id: cli.ci.doc-inventory
   title: Ci Doc-inventory
   description_human: null
@@ -715,6 +769,24 @@ curated:
   cli_path:
   - ci
   - doc-inventory
+  parameters: null
+- id: cli.ci.docs-reality-audit
+  title: Ci Docs-reality-audit
+  description_human: null
+  description_model: CLI operation `vox ci docs-reality-audit`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - docs-reality-audit
   parameters: null
 - id: cli.ci.eval-matrix
   title: Ci Eval-matrix
@@ -1140,6 +1212,24 @@ curated:
   - ci
   - operations-verify
   parameters: null
+- id: cli.ci.parse-status
+  title: Ci Parse-status
+  description_human: null
+  description_model: CLI operation `vox ci parse-status`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - parse-status
+  parameters: null
 - id: cli.ci.pm-provenance
   title: Ci Pm-provenance
   description_human: null
@@ -1266,6 +1356,24 @@ curated:
   - ci
   - repo-guards
   parameters: null
+- id: cli.ci.retirement-audit
+  title: Ci Retirement-audit
+  description_human: null
+  description_model: CLI operation `vox ci retirement-audit` — scan `vox-deprecated-since` / `retire-by` markers vs workspace semver
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - retirement-audit
+  parameters: null
 - id: cli.ci.runtime-regress
   title: Ci Runtime-regress
   description_human: null
@@ -1301,6 +1409,24 @@ curated:
   cli_path:
   - ci
   - rust-ecosystem-policy
+  parameters: null
+- id: cli.ci.safety-inventory
+  title: Ci Safety-inventory
+  description_human: null
+  description_model: CLI operation `vox ci safety-inventory`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - safety-inventory
   parameters: null
 - id: cli.ci.scaling-audit
   title: Ci Scaling-audit
@@ -1429,6 +1555,24 @@ curated:
   cli_path:
   - ci
   - secrets-parity
+  parameters: null
+- id: cli.ci.speech-runtime-suite
+  title: Ci Speech-runtime-suite
+  description_human: null
+  description_model: CLI operation `vox ci speech-runtime-suite`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - speech-runtime-suite
   parameters: null
 - id: cli.ci.sql-surface-guard
   title: Ci Sql-surface-guard
@@ -1751,6 +1895,23 @@ curated:
   mcp_tool: null
   cli_path:
   - commands
+  parameters: null
+- id: cli.compile
+  title: Compile
+  description_human: null
+  description_model: CLI operation `vox compile` — native / Tauri / script / workspace packaging umbrella
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - compile
   parameters: null
 - id: cli.completions
   title: Completions
@@ -2394,6 +2555,24 @@ curated:
   cli_path:
   - ludus
   - hud
+  parameters: null
+- id: cli.memory.search
+  title: Memory Search
+  description_human: Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).
+  description_model: null
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - memory
+  - search
   parameters: null
 - id: cli.mens
   title: Mens
@@ -3744,6 +3923,24 @@ curated:
   cli_path:
   - repo
   - status
+  parameters: null
+- id: cli.research.run
+  title: Research Run
+  description_human: CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).
+  description_model: null
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - research
+  - run
   parameters: null
 - id: cli.review
   title: Review
@@ -6692,7 +6889,7 @@ curated:
 - id: mcp.vox_memory_search
   title: Memory Search
   description_human: null
-  description_model: Search daily logs and MEMORY.md for a keyword query.
+  description_model: Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -7617,6 +7814,70 @@ curated:
   human_takeover_friendly: true
   mens_planner_visible: true
   mcp_tool: vox_repo_status
+  cli_path: null
+  parameters: null
+- id: mcp.vox_research_get
+  title: Research Session Result
+  description_human: null
+  description_model: MCP `vox_research_get` — fetch the completed research payload (answer + sources) for a session when available.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_get
+  cli_path: null
+  parameters: null
+- id: mcp.vox_research_run
+  title: Research Run
+  description_human: null
+  description_model: CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_run
+  cli_path: null
+  parameters: null
+- id: mcp.vox_research_start
+  title: Research Start (async MCP)
+  description_human: null
+  description_model: MCP `vox_research_start` — creates a persisted research session and runs the same web-retrieval pipeline as `vox_research_run` in the background (returns session_id immediately).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_start
+  cli_path: null
+  parameters: null
+- id: mcp.vox_research_status
+  title: Research Session Status
+  description_human: null
+  description_model: MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_status
   cli_path: null
   parameters: null
 - id: mcp.vox_resolve_conflict

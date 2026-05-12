@@ -21,6 +21,10 @@ graph TD
   G --> F
 ```
 
+## Gate 1 — Deploy smoke (minimal)
+
+The repository merge gate on **`main`** is **[`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)** (format, clippy, guards, tests). **`deploy-hetzner.yml`** does not repeat fmt/clippy; Gate 1 only runs **`cargo build -p vox-cli --locked`** on **`ubuntu-latest`** so the deploy pipeline catches GitHub-hosted portability or lockfile drift before Coolify is triggered. Use **`workflow_dispatch`** with **`skip_tests: true`** only when that check must be bypassed.
+
 ## Gate 3 — Production HTTPS (eval sandbox)
 
 Compose SSOT for this stack lives at **[`vox-eval.compose.yml`](../../../vox-eval.compose.yml)** (mirror under **`docker/vox-eval.compose.yml`** for compose paths rooted in **`docker/`**). Operators should ensure **`COOLIFY_APP_UUID`** is the Coolify **Docker Compose** application that serves **`eval.vox-lang.org`** (not another app on the same instance). Use **`vox ci coolify-eval discover`** locally with repository secrets mirrored into env to confirm **`uuid`**, **`fqdn`**, and **`docker_compose_raw`** before relying on Gate 3. Full topology and DNS: **[eval sandbox deployment](../architecture/eval-sandbox-deployment.md)**.

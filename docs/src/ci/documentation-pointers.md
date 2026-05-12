@@ -26,7 +26,12 @@ This page is a CI-facing pointer surface for documentation authority. Canonical 
 
 - `vox ci check-docs-ssot`
 - `vox ci command-compliance`
+- `vox ci ssot-drift` (bundle that includes check-docs-ssot, check-codex-ssot, and command-compliance)
 - `vox ci doc-inventory verify`
 - `vox ci check-links`
+
+## RCICD audit
+
+- [RCICD coverage and cost matrix (2026)](rcicd-coverage-cost-matrix-2026.md)
 
 

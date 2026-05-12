@@ -77,7 +77,7 @@ Companion specs (already exist; this doc cross-references them rather than resta
 
 ### 1.2 Dashboard mesh-control surface (today)
 
-**What ships.** [`vox-dashboard`](../../../crates/vox-dashboard/) is Phase-1: an Axum server hosting a React 19 SPA compiled from Vox view-language. Transport is WebSocket (`/v1/ws`) for events + HTTP `POST /v1/tools/call` for commands ([transport.ts:43](../../../crates/vox-dashboard/app/src/transport.ts)). Bearer token injects via meta tag. Localhost auto-binds with `allow_unauthenticated = true`.
+**What ships.** [`vox-dashboard`](../../../crates/vox-dashboard/) is Phase-1: an Axum server hosting a React 19 SPA compiled from Vox view-language. Transport is WebSocket (`/v1/ws`) for events + HTTP `POST /v1/tools/call` for commands ([`transport.ts`](../../../crates/vox-dashboard/src/transport.ts)). Bearer token injects via meta tag. Localhost auto-binds with `allow_unauthenticated = true`.
 
 **What's stub-only.** Mesh routes return fixture JSON acks. The audit table:
 
@@ -421,7 +421,7 @@ Four-tier funnel ordered by latency:
 1. **Patch-commutativity.** Today's `MergePolicyV1` byte-range overlap. Auto-merges the easy ~70%.
 2. **Lock-first.** Hot paths (e.g., `Cargo.toml`, schema files) → `Exclusive`. Queue policy = FIFO with model-tier weighting (higher-trust tie-breaker). Max wait = 60 s soft → re-plan or requeue.
 3. **Three-way merge with LLM arbiter.** "Socrates arbitration" (spec §Phase 4) — two semantically related edits; arbiter scores hallucination + author trust; if Δ > threshold pick a side, else fall through.
-4. **Manual escalation.** `vox vcs conflicts list` materializes navigable artifact (spec Phase 2); human ack required for path-policy class (e.g., [`vox-secrets/src/spec.rs`](../../../crates/vox-secrets/src/spec.rs)).
+4. **Manual escalation.** `vox vcs conflicts list` materializes navigable artifact (spec Phase 2); human ack required for path-policy class (e.g., [`vox-secrets/src/spec/mod.rs`](../../../crates/vox-secrets/src/spec/mod.rs)).
 
 Add a `LockWait` outcome between AutoMerge and SurfaceConflict so tier-2 doesn't masquerade as tier-3.
 

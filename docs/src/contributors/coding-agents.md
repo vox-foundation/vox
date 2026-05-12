@@ -18,7 +18,7 @@ Quick-reference for AI agents operating on the Vox codebase. Deep rationale live
 
 1. **Check SSOT inventories first** — verify similar features aren't retired. Cross-reference `AGENTS.md` and [legacy-retirement-roadmap.md](../archive/research-2026-q1/legacy-retirement-roadmap.md).
 2. **Beware renamed crates** — `vox-dei` was retired; the orchestrator is `vox-orchestrator`. See the retired surfaces table in `AGENTS.md`.
-3. **Do not hallucinate surfaces** — if a crate isn't in `architecture-index.md` or `AGENTS.md`, do not assume it exists.
+3. **Do not hallucinate surfaces** — if a crate isn't in [`where-things-live.md`](../architecture/where-things-live.md) or `AGENTS.md`, do not assume it exists.
 4. **Search before modifying** — use `grep_search` and `view_file` before touching large modules.
 
 ## Structural limits (enforced by TOESTUB, fail CI)

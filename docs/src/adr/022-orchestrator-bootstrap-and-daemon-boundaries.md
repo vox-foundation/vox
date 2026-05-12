@@ -49,9 +49,9 @@ When product requirements justify fixing **cold-start** and **gravity** (one RAM
 - [`crates/vox-orchestrator/src/bootstrap.rs`](../../../crates/vox-orchestrator/src/bootstrap.rs)
 - [`crates/vox-orchestrator/src/orch_daemon/mod.rs`](../../../crates/vox-orchestrator/src/orch_daemon/mod.rs) — TCP RPC + `OrchDaemonClient`
 - [`crates/vox-orchestrator/src/mesh_federation_poll.rs`](../../../crates/vox-orchestrator/src/mesh_federation_poll.rs) — shared Populi federation poll loop (MCP + daemon)
-- [`crates/vox-orchestrator/src/mcp_tools/dei_tools/orchestrator_snapshot.rs`](../../../crates/vox-orchestrator/src/mcp_tools/dei_tools/orchestrator_snapshot.rs) — `VOX_ORCHESTRATOR_EVENT_LOG` JSONL sink
+- [`crates/vox-orchestrator/src/mcp_tools/mod.rs`](../../../crates/vox-orchestrator/src/mcp_tools/mod.rs) — MCP tool wiring (legacy `orchestrator_snapshot` path removed; event/log sinks live alongside tool registration)
 - [`crates/vox-orchestrator/src/clarification_db_inbox_poll.rs`](../../../crates/vox-orchestrator/src/clarification_db_inbox_poll.rs) — Codex clarification inbox drain
-- [`crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs`](../../../crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs) — `vox-orchestrator-d` binary
+- [`crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs`](../../../crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs) — `vox-orchestrator-d` binary
 - [`crates/vox-cli/src/dei_daemon.rs`](../../../crates/vox-cli/src/dei_daemon.rs)
 - [Orphan surface inventory](../archive/research-2026-q1/orphan-surface-inventory.md) — `vox-orchestrator` staging crate vs `vox-orchestrator` SSOT
 

@@ -29,7 +29,7 @@ vox build app.vox -o dist
 Watch mode and other flags may land later; use `vox build --help` and [`ref-cli.md`](../reference/cli.md) for what the binary exposes **now**.
 
 **Typical output layout (minimal CLI)** — filenames vary by program; Rust lands under `target/generated/`:
-```
+```text
 dist/
 ├── backend/      # Generated Rust (Axum server)
 │   ├── src/
@@ -131,7 +131,7 @@ The Vox package manager uses a **Content-Addressable Store (CAS)** backed by lib
 
 ### How It Works
 
-```
+```text
 store(data) → SHA3-256 hash
 get(hash)   → data
 ```
@@ -154,7 +154,7 @@ All artifacts are stored by their content hash:
 
 The package manager includes a **de Bruijn indexing** normalizer that strips identifier names from AST nodes and replaces bound variables with positional indices. This enables detection of semantically identical code regardless of naming differences.
 
-```
+```text
 bind_name(namespace, name, hash)    # Map a name to content
 lookup_name(namespace, name) → hash # Resolve a name to content
 search_code_snippets(query, limit)  # Vector-similarity search
@@ -164,7 +164,7 @@ search_code_snippets(query, limit)  # Vector-similarity search
 
 The store also manages agent memory for AI-powered features:
 
-```
+```text
 recall_async(agent, type, limit, min_importance)  # Query with relevance filtering
 ```
 

@@ -10,6 +10,8 @@ schema_type: "TechArticle"
 
 This page defines the normative portability contract for deployed `.vox` applications.
 
+**Sibling contract (end-user app installers):** shipping desktop/mobile **installable** artifacts (MSI/DMG/APK/IPA, etc.) is documented in [Vox application packaging SSOT (2026)](../architecture/vox-application-packaging-ssot-2026.md). That lane complements this page’s Docker/OCI deploy focus and does not relax server-portability requirements here.
+
 For background and rationale, see:
 
 - [ADR 015](../adr/015-vox-docker-oci-portability-ssot.md)

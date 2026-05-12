@@ -25,7 +25,7 @@ training_eligible: false
 
 ## Part 1 — Current state
 
-[`vox-populi/src/transport/store.rs`](../../../crates/vox-populi/src/transport/store.rs) maintains three independent JSON files:
+[`vox-populi/src/transport/store.rs`](../../../crates/vox-populi/src/transport/store/mod.rs) maintains three independent JSON files:
 
 - `a2a-store.json` — `Vec<A2AStoredMessage>`
 - `exec-lease-store.json` — `Vec<RemoteExecLeaseRow>`

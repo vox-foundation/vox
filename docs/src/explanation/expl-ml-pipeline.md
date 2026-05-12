@@ -24,7 +24,7 @@ End-to-end map from `.vox` sources through goldens and corpus extraction to mode
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  DATA SOURCES                                               │
 │  golden/**/*.vox + examples.ssot.v1.yaml ──┐                │

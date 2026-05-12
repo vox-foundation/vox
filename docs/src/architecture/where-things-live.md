@@ -25,12 +25,12 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 
 | Group | Paths | Notes |
 |-------|-------|-------|
-| Rust workspace | [`Cargo.toml`](../../../Cargo.toml), [`crates/`](../../../crates/) | Implementation + `vox-arch-check` / [`layers.toml`](./layers.toml). |
+| Rust workspace | [`Cargo.toml`](../../../Cargo.toml), [`crates/`](../../../crates/) | Implementation + `vox-arch-check` / [`layers.toml`](./layers.toml). `vox-arch-check` does not recurse into `target/`, `.git/`, `node_modules/`, etc. when scanning (see `[arch_check.walk_prune]`). Reclaim disk from stale artifacts: `cargo clean` or [`scripts/clean-build-artifacts.vox`](../../../scripts/clean-build-artifacts.vox) (syntax-checked in CI via `cargo run -p vox-cli -- check scripts/clean-build-artifacts.vox`). For crates under `workspace.exclude` in root `Cargo.toml`, set `CARGO_TARGET_DIR` to the repo `target/` when running `cargo --manifest-path …` so Cargo does not grow a second `crates/.../target/`. |
 | Contracts | [`contracts/`](../../../contracts/), [`contracts/index.yaml`](../../../contracts/index.yaml) | SSOT bundles; path changes require index + consumer updates. |
 | Docs (source) | [`docs/src/`](../../) under repo `docs/` | Narrative SSOT; `.md` doctests. |
 | Docs (site) | [`docs-astro/`](../../../docs-astro/) | Astro build; sidebar from frontmatter. |
 | Apps & editors | [`apps/`](../../../apps/) | GUI surfaces — registry in [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml). |
-| Examples / fixtures | [`examples/`](../../../examples/), [`tests/fixtures/`](../../../tests/fixtures/) | Non-production sandboxes and bundles. |
+| Examples / fixtures | [`examples/`](../../../examples/), [`tests/fixtures/`](../../../tests/fixtures/) | Non-production sandboxes and bundles. Goldens under [`examples/golden/`](../../../examples/golden/) include [`clean_build_stdlib_reference.vox`](../../../examples/golden/clean_build_stdlib_reference.vox) (pointer to [`scripts/clean-build-artifacts.vox`](../../../scripts/clean-build-artifacts.vox)). |
 | Automation | [`scripts/*.vox`](../../../scripts/) | Prefer `vox run` over new shell/Python glue. |
 | CI / hooks | [`.github/workflows/`](../../../.github/workflows/), [`lefthook.yml`](../../../lefthook.yml) | Runner wiring; see CI docs under `docs/src/ci/`. |
 | Deploy / compose | [`infra/`](../../../infra/), [`docker/`](../../../docker/), root [`docker-compose.yml`](../../../docker-compose.yml) | Overlap is intentional (different compose working dirs); eval SSOT called out in deploy docs. |
@@ -42,7 +42,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 
 | Crate | One-line scope |
 |---|---|
-| [`vox-arch-check`](../../../crates/vox-arch-check/) | CI guard binary; enforces layers.toml. |
+| [`vox-arch-check`](../../../crates/vox-arch-check/) | CI guard binary; enforces layers.toml. Walk-based rules skip artifact trees (built-in + optional `[arch_check.walk_prune]`); Rule 8 staleness uses one batched `git log` when available. |
 | [`vox-build-meta`](../../../crates/vox-build-meta/) | Build-time helper emitting `VOX_BUILD_NUMBER` / `VOX_GIT_HASH`; use as `[build-dependencies]` only. |
 | [`vox-db-types`](../../../crates/vox-db-types/) | Pure-data L0 leaf for vox-db: row types, IDs, schema descriptors. |
 | [`vox-mesh-types`](../../../crates/vox-mesh-types/) | Pure-data mesh transport types. |
@@ -59,6 +59,9 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 |---|---|
 | [`vox-bounded-fs`](../../../crates/vox-bounded-fs/) | UTF-8 file reads capped by vox-scaling-policy max_file_bytes_hint. |
 | [`vox-checksum-manifest`](../../../crates/vox-checksum-manifest/) | SHA-256 release asset verification against checksums.txt manifests. |
+| [`vox-release-artifacts`](../../../crates/vox-release-artifacts/) | Portable `.tar.gz` / `.zip` packaging + `checksums.txt` line helpers for `vox compile` and `vox ci release-build`. |
+| [`vox-tauri-codegen`](../../../crates/vox-tauri-codegen/) | Hint-only Tauri 2 packaging under `target/generated/tauri-packaging/` (`tauri.conf.json` + `runtime-capabilities.projection.json` from [`contracts/capability/runtime-capabilities.v1.yaml`](../../../contracts/capability/runtime-capabilities.v1.yaml); not a full `src-tauri` crate yet). |
+| [`vox-assets`](../../../crates/vox-assets/) | `[bundle.assets]` manifest validation + staged copy tree for compile outputs. |
 | [`vox-crypto`](../../../crates/vox-crypto/) | Pure-Rust crypto primitives (chacha20poly1305 AEAD, ed25519, x25519); sole crypto SSOT per AGENTS.md §Cryptography Policy. |
 | [`vox-exec-grammar`](../../../crates/vox-exec-grammar/) | AST parser and risk classifier for shell/Vox command invocations; backs exec-policy.v1.yaml enforcement. |
 | [`vox-grammar-export`](../../../crates/vox-grammar-export/) | Exports the Vox grammar artifact for downstream tooling. |
@@ -85,7 +88,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 |---|---|
 | [`vox-capability-registry`](../../../crates/vox-capability-registry/) | Transport-independent capability registry (YAML SSOT) + Mens chat tool descriptors. |
 | [`vox-claim-extractor`](../../../crates/vox-claim-extractor/) | SCIENTIA claim extraction pipeline: VeriScore, atomic decomposition, MiniCheck verification. |
-| [`vox-config`](../../../crates/vox-config/) | Centralized configuration and env/default resolution for Vox tooling. |
+| [`vox-config`](../../../crates/vox-config/) | Centralized configuration and env/default resolution for Vox tooling; `project_manifest` parses `[workspace]` / `[bundle]` slices from `Vox.toml` for `vox compile`. |
 | [`vox-constrained-gen`](../../../crates/vox-constrained-gen/) | Grammar-constrained inference engine — Earley/PDA backends, deadlock watchdog, stream-of-revision. |
 | [`vox-doc-inventory`](../../../crates/vox-doc-inventory/) | Generate and verify docs/agents/doc-inventory.json (schema v3) without Python. |
 | [`vox-eval`](../../../crates/vox-eval/) | Vox expression evaluator (interpreter for vox run --interp). |
@@ -104,13 +107,16 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Crate | One-line scope |
 |---|---|
 | [`vox-actor-runtime`](../../../crates/vox-actor-runtime/) | Process-oriented runtime: actors, mailboxes, supervision, scheduling, LLM/Mens activity primitives. |
-| [`vox-cli-ci`](../../../crates/vox-cli-ci/) | vox CLI 'ci' subcommand dispatcher (sync-ignore-files, secret-env-guard, etc.). Extracted from vox-cli to isolate CI-only edits. Implementation files remain in vox-cli/src/commands/ci/ pending bounded_read refactor; this crate is the workspace boundary marker. |
+| [`vox-cli-ci`](../../../crates/vox-cli-ci/) | Staging crate for `vox ci` extraction: ships `src/lib.rs` as a boundary marker; dispatch + validators still live in [`vox-cli`](../../../crates/vox-cli/src/commands/ci/) until bounded_read / registry coupling is split. |
 | [`vox-cli-core`](../../../crates/vox-cli-core/) | Shared internals for the vox CLI binary (argv parsing helpers, exit-code policy). |
 | [`vox-code-audit`](../../../crates/vox-code-audit/) | AI code quality stub detector — finds stubs, magic values, empty bodies, missing references, and DRY violations. |
 | [`vox-drift-check`](../../../crates/vox-drift-check/) | Workspace drift and pattern-repetition linter (multi-language: Rust, TypeScript, Vox). |
 | [`vox-codegen`](../../../crates/vox-codegen/) | Codegen + WebIR + vox_ir extracted from vox-compiler. Consumes analysis types from vox-compiler. |
+| [`vox-codegen/src/projection_bundle.rs`](../../../crates/vox-codegen/src/projection_bundle.rs) | **`project_bundle_from_hir`** — SSOT assembly of WebIR, AppContract, RuntimeProjection, ShellProjection, and RequiredRuntimeCapabilities for emitters. |
+| [`vox-compiler/src/shell_projection.rs`](../../../crates/vox-compiler/src/shell_projection.rs) | Typed shell/mobile primitive projection from HIR (`@back_button`, `@deep_link`, `@push`). |
+| [`vox-compiler/src/required_capabilities.rs`](../../../crates/vox-compiler/src/required_capabilities.rs) | HIR-derived sorted capability id list for packaging / filtered Tauri `runtime-capabilities.projection.json`. |
 | [`vox-scientia-jsonschema-codegen`](../../../crates/vox-scientia-jsonschema-codegen/) | Offline `cargo run` tool: `contracts/scientia/*.schema.json` → `vox-research-events` typify bundle (`schema_types.generated.rs`). |
-| [`vox-compiler`](../../../crates/vox-compiler/) | Unified Vox compiler: lexer, parser, AST, HIR, typechecker, and codegen. MENS decorators `@inference`, `@training_step`, `@distributed_train` parse in `parser/descent`, effects + CUDA gate in `typeck/`. |
+| [`vox-compiler`](../../../crates/vox-compiler/) | Unified Vox compiler: lexer, parser, AST, HIR, typechecker, and codegen. MENS decorators `@inference`, `@training_step`, `@distributed_train` parse in `parser/descent`, effects + CUDA gate in `typeck/`. Orientation: [`vox-compiler-architecture-research-2026.md`](./vox-compiler-architecture-research-2026.md). |
 | [`vox-compiler/src/eval/shell_stdlib.rs`](../../../crates/vox-compiler/src/eval/shell_stdlib.rs) | Interpreter (`--interp`) mirror of shell‑tier `std.*` builtins — **must stay aligned** with `vox-actor-runtime` (Cargo cycle prevents a direct dep). See [`vox-shell-stdlib-ssot-2026.md`](./vox-shell-stdlib-ssot-2026.md). |
 | [`vox-actor-runtime/src/builtins/mod.rs`](../../../crates/vox-actor-runtime/src/builtins/mod.rs) | SSOT Rust lowering targets for `std.fs` / `std.process` / structured formats (`std.csv`, `std.toml`, `std.yaml`, `std.io`) used by native codegen. |
 | [`vox-shell-stdlib-ssot-2026.md`](./vox-shell-stdlib-ssot-2026.md) | Architecture SSOT: argv‑first shell‑tier stdlib vs host shells / `vox_run_shell`. |
@@ -119,16 +125,17 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-dashboard`](../../../crates/vox-dashboard/) | Local Axum-served orchestration dashboard (SPA host). |
 | [`vox-db`](../../../crates/vox-db/) | Codex / VoxDb facade: schema migrations, store ops, Turso/libSQL access for the Vox workspace. |
 | [`vox-deploy-codegen`](../../../crates/vox-deploy-codegen/) | Deployment artifact codegen: Dockerfile, Compose, K8s, Fly, Coolify, systemd. Pure text generation. |
-| [`vox-doc-pipeline`](../../../crates/vox-doc-pipeline/) | Doc generator: regenerates SUMMARY.md, architecture-index.md, feed.xml from frontmatter. |
+| [`vox-doc-pipeline`](../../../crates/vox-doc-pipeline/) | Docs lint + doctest helpers for `docs/src/`; Starlight sidebar and RSS are built at **docs-astro** publish time (see root `AGENTS.md`). |
 | [`vox-package`](../../../crates/vox-package/) | Vox package manager runtime: content-addressed artifact cache, registry HTTP client, workspace discovery. |
 | [`vox-inference`](../../../crates/vox-inference/) | MENS Mn-T2: `InferenceBackend` trait, capability metadata, multi-backend dispatcher (stubs until CandleMetal/CUDA wiring). |
 | [`vox-distributed-training`](../../../crates/vox-distributed-training/) | MENS Mn-T1/Mn-T6: `TrainingSession`, signed `GradientShard` / `CheckpointBundle`, `OperationKind::TrainingCheckpoint` mapping. |
 | [`vox-mens-eval`](../../../crates/vox-mens-eval/) | Mn-T12 eval harness types (`CompileVerdict`); CLI/CI wiring expands here. |
+| [`vox-ml-cli`](../../../crates/vox-ml-cli/) | ML / Oratio / Populi / telemetry CLI binary (`vox-ml-cli`); Mens training, GPU features, optional workflow glue. |
 | [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, GitLab, Gitea, Forgejo. |
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |
 | [`vox-git`](../../../crates/vox-git/) | Pure-Rust Git bridge using gix (no C, no libgit2). |
 | [`vox-inspect-bridge`](../../../crates/vox-inspect-bridge/) | SCIENTIA Phase 5: UK AISI Inspect task adapter, atomic-NEI novelty scoring. |
-| [`vox-lsp`](../../../crates/vox-lsp/) | Vox Language Server (stdio JSON-RPC). |
+| [`vox-lsp`](../../../crates/vox-lsp/) | Vox Language Server (stdio JSON-RPC). Capability matrix: [`vox-lsp-capabilities-ssot-2026.md`](./vox-lsp-capabilities-ssot-2026.md). |
 | [`vox-openclaw-runtime`](../../../crates/vox-openclaw-runtime/) | OpenClaw client + ARS runtime adapter, executor, context bundles, hooks. |
 | [`vox-orchestrator`](../../../crates/vox-orchestrator/) | Glue crate for the multi-agent file-affinity router: dei_shim, planning, services, runtime glue. Core router lives in vox-orchestrator-core, queue/lock/oplog in vox-orchestrator-queue, MCP in vox-orchestrator-mcp. |
 | [`vox-orchestrator-core`](../../../crates/vox-orchestrator-core/) | Workspace boundary marker for the core router/dispatcher of vox-orchestrator (the `orchestrator/` subdir, ~11.5K LoC). Full extraction blocked by 30+ `crate::` cross-cuts into sibling modules; code remains in vox-orchestrator until a broader L3 split lands. |
@@ -140,7 +147,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-plugin-catalog`](../../../crates/vox-plugin-catalog/) | SSOT catalog of all first-party Vox plugins and distribution bundles. |
 | [`vox-plugin-host`](../../../crates/vox-plugin-host/) | Host-side plugin discovery, loading, and registry. |
 | [`vox-populi`](../../../crates/vox-populi/) | Vox Populi: multi-node worker registry, HTTP control plane, and Mens native ML (Burn / Candle QLoRA). |
-| [`vox-publisher`](../../../crates/vox-publisher/) | Unified news syndication and publishing for Vox. |
+| [`vox-publisher`](../../../crates/vox-publisher/) | Unified news syndication and publishing for Vox. SCIENTIA mesh intake from orchestrator research events: `research_mesh.rs` (+ contract `contracts/scientia/research-mesh-intake.v1.schema.json`). |
 | [`vox-scientia-ingest`](../../../crates/vox-scientia-ingest/) | Scientia corpus ingestion pipeline. |
 | [`vox-search`](../../../crates/vox-search/) | Local-first retrieval execution: memory hybrid, repo inventory, Codex chunks, policy, and optional lexical/vector backends. |
 | [`vox-skills`](../../../crates/vox-skills/) | Skill marketplace and plugin architecture for the Vox agent system. |
@@ -169,10 +176,14 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Add a CLI subcommand | `crates/vox-cli/src/commands/<group>.rs` + register in [`commands/mod.rs`](../../../crates/vox-cli/src/commands/mod.rs) |
 | Add a CI subcommand under `vox ci` | `crates/vox-cli/src/commands/ci/` |
 | Add a new CI/db guard | `crates/vox-cli/src/commands/ci/<name>.rs` + register in `cmd_enums.rs` and `run_body.rs`. Mirror `db_schema_coverage.rs`. |
+| Add a speech-to-code audit artifact | Contracts under `contracts/speech-to-code/`; narrative findings under `docs/src/architecture/vox-speech-*-2026.md`; cross-crate tests under `crates/vox-integration-tests/tests/speech_*`. |
+| AI-first language fixtures (taxonomy + seed catalog + lifecycle) | [`contracts/agentos/ai-first-fixtures.v1.yaml`](../../../contracts/agentos/ai-first-fixtures.v1.yaml) (JSON Schema: `contracts/agentos/ai-first-fixtures.v1.schema.json`) + narrative SSOT [`ai-first-fixtures-research-2026.md`](./ai-first-fixtures-research-2026.md). |
 | Local `act` configuration (catalog image pin, platform map) | `.actrc` (repo root) |
 | Self-hosted CI runner image | `Dockerfile.ci-runner` (repo root); published via `.github/workflows/publish-ci-runner.yml` to GHCR |
 | Extend `vox ci pre-push` modes / timing JSON | `crates/vox-cli/src/commands/ci/pre_push.rs` — add `Step` to `build_steps` or extend `PrePushOpts` |
 | `vox ci dev-loop-audit` (AI/local compile-loop diagnostics) | `crates/vox-cli/src/commands/ci/dev_loop_audit.rs` |
+| `vox ci docs-reality-audit` (doc/code audit artifacts + metrics) | `crates/vox-cli/src/commands/ci/docs_reality_audit.rs` + `contracts/reports/docs-reality-audit/` |
+| `vox ci parse-status` (golden parse matrix → `examples/PARSE_STATUS.md`) | `crates/vox-cli/src/commands/ci/parse_status.rs` |
 | Find the canonical path for GUI surfaces (interop app, experimental visualizer, fixtures, VS Code host) | [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml) — `apps/interop/marquee_app`, `apps/experimental/visualizer`, `tests/fixtures/frontend/test_app_bundle`, `apps/editor/vox-vscode` |
 | Add a `Db<Entity>Id` newtype | `crates/vox-db-types/src/ids.rs` (use the `string_id!` macro). |
 | Add a DB store operation | `crates/vox-db/src/<concept>.rs` (impl block on `VoxDb`) |
@@ -180,7 +191,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Add a pure-data DB type | `crates/vox-db-types/src/` |
 | Add an orchestrator type (Agent/Task/etc.) | `crates/vox-orchestrator-types/src/agent_types/` |
 | Add an orchestrator policy module (D1–D10) | `crates/vox-orchestrator/src/<module>.rs` + register in `lib.rs` + add row to this table |
-| Add a research-pipeline stage (claims/gate/planner/provider/types/verifier) | `crates/vox-orchestrator/src/dei_shim/research/<module>.rs`. Phase 0a stubs; Phase 1 replaces claim/verifier with `vox-claim-extractor` calls. |
+| Add a research-pipeline stage (claims/gate/planner/provider/types/verifier) | `crates/vox-orchestrator/src/dei_shim/research/<module>.rs`. **`web_gather`** delegates to `vox-search` (`WebSearchDispatcher`, `CragRouter`); planner/claims/verifier remain Phase 0a stubs until `vox-claim-extractor`. CLI: `vox research run`; MCP: `vox_research_run`. **Telemetry bridge / policy feedback / mesh tap:** `research_event_metrics_bridge.rs`, `search_policy_feedback.rs`, `mesh_subscriber.rs`; narrative [`research-scientia-telemetry-channels.md`](./research-scientia-telemetry-channels.md). |
 | Orchestrator policy façade (all D1–D10) | `crates/vox-orchestrator/src/orchestrator_policy.rs` |
 | Circuit breaker — doom-loop detection (D6) | `crates/vox-orchestrator/src/circuit_breaker.rs` |
 | Confidence fusion — Socrates trigger (D3) | `crates/vox-orchestrator/src/confidence_fusion.rs` |

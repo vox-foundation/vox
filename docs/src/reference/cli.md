@@ -1,23 +1,10 @@
 ---
-title: "cli"
-description: "Documentation for cli.md"
-category: "reference"
-last_updated: "2026-03-24"
-training_eligible: true
-
-schema_type: "TechArticle"
----
-
-
-
-<!-- Merged from ref-cli.md -->
-
----
 title: "Reference: `vox` CLI (minimal compiler binary)"
-description: "Official documentation for Reference: `vox` CLI (minimal compiler binary) for the Vox language. Detailed technical reference, architectur"
+description: "Official documentation for the `vox` CLI — compiler driver, package manager, CI guards, and delegated toolchain binaries."
 category: "reference"
 last_updated: "2026-03-24"
 training_eligible: true
+schema_type: "TechArticle"
 ---
 # Reference: `vox` CLI (minimal compiler binary)
 
@@ -31,7 +18,8 @@ To minimize binary bloat and dependency sprawl, the Vox toolchain is split into 
 |--------|-------------|------|
 | `vox` | `build`, `check`, `run`, `pm`, `ci`, `dei`, `db` | Compiler core, package manager, and local orchestration. |
 | `vox-ml-cli` | `mens`, `train`, `populi`, `oratio` | Native ML training (QLoRA), inference serving, and mesh coordination. |
-| `vox-schola` | `schola`, `scientia` | Scientific publication, finding candidates, and novelty ledger management. |
+| `vox-schola` | `schola` | Scholarship / publication workflows invoked via `vox schola …`. |
+| `vox` (core) | `scientia` | Research DB / capability-map facade (`commands::scientia`); stays in the main binary. |
 
 If a delegated binary is missing from your `PATH`, the `vox` CLI prints actionable installation instructions.
 
@@ -58,7 +46,15 @@ dispatch automatically — no rebuild of the core required.
 - **Completions:** **`vox completions bash`** | **`zsh`** | **`fish`** | **`powershell`** | **`elvish`** — print to stdout and install per your shell (e.g. bash: `vox completions bash > /path/to/bash_completion.d/vox`).
 - **Dynamic command catalog:** **`vox commands`** — clap-derived list from the actual compiled binary; add `--recommended` for first-time essentials or `--format json --include-nested` for tooling.
 - **Secrets namespace:** **`vox secrets`** (deprecated alias **`vox clavis`**) centralizes token health checks and credential compatibility storage.
-- **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/bundle/fmt/script; **`vox diag`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus; **`vox recensio`** (`rec`, feature **`coderabbit`**) — same as **`vox review`**.
+- **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/**`bundle` (web app)** /fmt/script; top-level **`vox bundle`** is **plugin** bundles (`list` / `build` / `apply`), not the web-app bundler. **`vox diag`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus; **`vox recensio`** (`rec`, feature **`coderabbit`**) — same as **`vox review`**.
+
+### Naming, aliases, and discovery (maintainer rules)
+
+- **One canonical path per operation** in [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml); regenerate **`contracts/cli/command-registry.yaml`** with **`vox ci operations-sync --target cli --write`**, then keep **`vox ci command-compliance`** green (see [Command compliance](command-compliance.md)).
+- **Latin mirrors** (`fabrica`, `diag`, `ars`, …) are intentional — do not delete them for “simplicity”; add English docs/examples beside them when introducing new verbs.
+- **Aliases:** prefer **hidden** `alias = "…"` for legacy spellings; use **`visible_alias`** only when the alias is part of the supported learning path.
+- **Disambiguate overloaded nouns in docs:** **`vox review`** (feature **`coderabbit`**) is batch PR review; **`vox mens review`** is the MENS lane (different feature gates). **`vox doctor`** is toolchain/environment diagnostics; **`vox secrets status`** may accept the hidden alias `doctor` for legacy scripts — prefer **`vox secrets status`** in new docs.
+- **Machine vs human output:** prefer **`--json`** + stable stderr for progress; global **`--quiet` / `-q`** sets **`VOX_CLI_QUIET=1`** for commands that honor it.
 
 ### Product lanes
 
@@ -68,7 +64,7 @@ The command registry also carries a separate **`product_lane`** value used for b
 |----------------|---------|-------------------------|
 | `app` | typed app construction | `vox build`, `vox run`, `vox deploy` |
 | `workflow` | automation and background execution | `vox script`, `vox populi` |
-| `ai` | generation, review, eval, orchestration | `vox mens`, `vox review`, `vox dei`, `vox oratio` |
+| `ai` | generation, review, eval, orchestration | `vox mens`, `vox review`, `vox orchestrator` (`vox dei`), `vox oratio` |
 | `interop` | approved integration surfaces | `vox openclaw`, `vox skill`, `vox share` |
 | `data` | database and publication workflows | `vox db`, `vox codex`, `vox scientia` |
 | `platform` | packaging, diagnostics, compliance, secrets | `vox pm`, `vox ci`, `vox doctor`, `vox secrets`, `vox telemetry` |
@@ -196,9 +192,12 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `check-links` | Fails on broken internal Markdown links under `docs/src` and root-level guides |
 | `artifact-audit [--json]` | Inventory of workspace artifact classes (stale renames, repo-root `target-*` sprawl, OS-temp Cargo targets, `mens/runs/*`, root scratch files, canonical `target/`). JSON optional. Policy defaults: [`contracts/operations/workspace-artifact-retention.v1.yaml`](../../../contracts/operations/workspace-artifact-retention.v1.yaml) |
 | `artifact-prune --dry-run \| --apply [--policy <path>]` | Prune untracked artifact paths per retention policy (requires exactly one of `--dry-run` or `--apply`). Skips git-tracked paths; Windows delete failures may rename to `*.stale-<epoch>`. |
+| `ai-fixtures-coverage` | Static parity between [`contracts/agentos/ai-first-fixtures.v1.yaml`](../../../contracts/agentos/ai-first-fixtures.v1.yaml) and lexer tokens, `HirAiFixture` grafts, Rust AI fixture diagnostics, and TS emitter markers. |
 | `backend-tests` | Runs `cargo test -p vox-runtime`, `cargo test -p vox-orchestrator model_route_policy`, and `cargo test -p vox-db research_metrics_contract` (routing, orchestrator policy tests, research metrics contract). |
 | `doc-inventory generate \| verify` | Regenerate or verify `docs/agents/doc-inventory.json` (Rust; replaces retired Python scripts) |
+| `docs-reality-audit verify \| metrics [--write]` | Documentation Reality Audit: validates [`contracts/reports/docs-reality-audit/`](../../../contracts/reports/docs-reality-audit/) JSON against schemas + inventory path hints; **`metrics`** refreshes `metrics.v1.json`. See [Documentation Reality Audit Program](../contributors/docs-reality-audit-program.md). Also runs inside **`ssot-drift`**. |
 | `test-inventory [--json] [--output <path>] [--markdown <path>] [--check <path>]` | Regenerable workspace test inventory (Rust test attrs, ignores, golden Vox `@test`, app E2E paths, doctest candidates, harness-pattern totals). **`--check`** parses committed JSON and the fresh report and fails on structured inequality (not a raw text compare). |
+| `safety-inventory [--json] [--output <path>] [--check <path>]` | Machine-readable safety / suppression snapshot (Rust `unsafe {` counts, ignored-test totals + governance violations, crate-root `#![allow]`, TS `eslint-disable` / `as any`). Committed baseline: [`contracts/reports/safety-inventory/baseline.v1.json`](../../../contracts/reports/safety-inventory/baseline.v1.json). |
 | `test-runtime-report --junit <path> [--json] [--markdown <path>] [--top N]` | Parses nextest/JUnit XML (e.g. CI artifact under `target/nextest/ci/junit.xml`). Emits JSON or a human summary: totals, top slow tests (max time per classname+name), retry/flaky **heuristics** (duplicate `<testcase>` rows; `<flakyFailure>` / `<rerunFailure>` children). **`--fail-over-ms`** / **`--fail-retry-count`** log warnings only (no non-zero exit). |
 | `ignored-test-age [--mode <warn|enforce>] [--inventory <test-inventory.json>] [--json]` | Governance gate on `#[ignore]` usage under `crates/` (unit/integration/bench paths). **`--mode warn`** (default): prints violations to stderr, exits 0. **`--mode enforce`**: fails if any ignored test uses bare `#[ignore]` or an `#[ignore = "..."]` reason without owner/sunset/date-style markers. Optional **`--inventory`** checks `summary.cargo_ignored_test_functions` matches the live scan. |
 | `flake-budget (--report-json <path> \| --junit <path>) [--mode <warn|enforce>] [--max-candidates N] [--top N] [--json]` | Governance gate on retry/flaky candidate rows from **`test-runtime-report` JSON** or raw JUnit (same parser as `test-runtime-report`). Default **`warn`**. **`--mode enforce`** fails when candidate count exceeds **`--max-candidates`** (default 50). |
@@ -209,6 +208,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `feature-matrix` / `no-dei-import` | `vox-cli` compile matrix + import guard (alias: `no-vox-orchestrator-import`) |
 | `workflow-scripts` | Fail if `.github/workflows/*.yml` references `scripts/…` not in `docs/agents/workflow-script-allowlist.txt` |
 | `line-endings` | Forward-only: changed LF-policy files must not contain CR/CRLF (`*.ps1` exempt). Env: `GITHUB_BASE_SHA` / `GITHUB_SHA`, or `VOX_LINE_ENDINGS_BASE` (+ optional `VOX_LINE_ENDINGS_HEAD`). Flags: `--all`, `--base <ref>` |
+| `parse-status [--write]` | Regenerate or verify [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md) from `examples/golden/*.vox` parse results (`--write` updates the file). |
 | `mesh-gate --profile ci_full \| m1m4 \| training` | Runs `scripts/populi/gates.yaml` steps (CLI falls back to `scripts/mens/gates.yaml` if present). **`--isolated-runner`** builds `vox-cli` under OS temp `…/vox-targets/<repo-hash>/mens-gate-safe` by default (override `--gate-build-target-dir`), copies `vox` to a temp path, and re-invokes the gate (**Windows + Unix**; avoids file locks). Hidden alias: `--windows-isolated-runner`. Legacy argv alias: `mens-gate`. Optional `--gate-log-file <path>` tees child output. |
 | `mens-corpus-health`, `grpo-reward-baseline`, `collateral-damage-gate`, `constrained-gen-smoke` | **Placeholders** (print-only; no DB, corpus, or GRPO checks). Prefer **`mesh-gate`** and **`vox mens corpus …`** for real gates. Clap `--help` on each subcommand also marks placeholder intent. |
 | `toestub-self-apply` | `cargo build -p vox-code-audit --release` then full-repo `toestub` scan (replaces `scripts/toestub_self_apply.*`) |
@@ -236,7 +236,8 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `completion-ingest [--report <path>] [--workflow …] [--run-kind …]` | Inserts the audit report into VoxDB **`ci_completion_*`** tables (optional telemetry; requires a working local/default DB) |
 | `rust-ecosystem-policy` | Runs focused rust ecosystem contract parity checks (`cargo test -p vox-compiler --test rust_ecosystem_support_parity`) for faster local iteration than full CI suites |
 | `policy-smoke` | Fast bundle: `cargo check -p vox-orchestrator`, in-process `command-compliance`, and `cargo test -p vox-compiler --test rust_ecosystem_support_parity` (same parity test as `rust-ecosystem-policy`) |
-| `pre-push [--dry-run] [--quick] [--full] [--report-json <path>]` | Local merge-blocking aggregate: always runs `cargo fmt --check`, `line-endings`, `ssot-drift`, **`vox-doc-pipeline --lint-only`**, **`vox ci doctest-md --strict`**, and **`vox-drift-check`** (docs-quality parity). By default also **`vox ci doc-inventory verify`**, workspace **`clippy -D warnings`**, and scoped TOESTUB on changed paths. **`--quick`** skips **only** doc-inventory, clippy, and TOESTUB (doc lint + doctest-md + drift-check still run). **`--full`** appends **`cargo nextest run --workspace --profile ci --no-fail-fast`** (same nextest profile as GitHub `ci.yml`). **`--full`** still does not run Rust library doctests (`cargo test --doc`); run that separately when needed. **`--dry-run`** prints planned steps only. **`--report-json`** writes per-step timings (`contracts/reports/pre-push-report.v1.schema.json`). Env **`VOX_PREPUSH_AUDIT_LOG`**: append one JSON line per successful run for frequency auditing. |
+| `compile-matrix` | Smoke-checks `vox compile --help` through the CLI binary for cross-host parity with `compile-matrix.yml`. |
+| `pre-push [--dry-run] [--quick] [--complete] [--full] [--report-json <path>]` | **Default (fast):** `cargo fmt --check`, line-endings, ssot-drift, **scoped** doc lint + doctest on changed `docs/src/**/*.md` (excludes `archive/`), and **`vox-drift-check`** — tuned for responsive `git push`. **`--complete`:** full static gate (whole-tree doc lint + doctest under `docs/src/`, doc-inventory, workspace **`clippy -D warnings`**, scoped TOESTUB). **`--full`:** **`--complete`** plus **`cargo nextest run --workspace --profile ci --no-fail-fast`**. **`--quick`** is a legacy alias for the default fast profile (conflicts with **`--complete`** / **`--full`**). Long steps print a ~3s heartbeat on stderr. **`--dry-run`** prints planned steps only. **`--report-json`** writes timings (`contracts/reports/pre-push-report.v1.schema.json`, `schema_version` 2 adds `profile`). Env **`VOX_PREPUSH_AUDIT_LOG`**: append one JSON line per successful run. CI still runs full docs-quality / merge gates. |
 | `dev-loop-audit [--json]` | Heuristics for AI/local **inner-loop** overhead: detects **`CARGO_TARGET_DIR`** fragmentation vs repo **`target/`**, prints hints (use **`cargo check -p` / `cargo nextest run -p`** before **`vox ci pre-push`**). **`--json`** matches **`contracts/reports/dev-loop-audit.v1.schema.json`**. |
 | `gui-smoke` | GUI regression bundle: runs ignored-only **`cargo nextest`** on **`web_ir_lower_emit_test`** (TanStack/router codegen guard — matches compiler CI smoke); when **`VOX_WEB_VITE_SMOKE=1`**, also ignored-only **`web_vite_smoke_test`**; when **`VOX_GUI_PLAYWRIGHT=1`**, ignored-only **`playwright_golden_route_test`** (requires `pnpm install` + `pnpm exec playwright install chromium` under `crates/vox-integration-tests`). Requires **`cargo-nextest`** on `PATH`. |
 | `coverage-gates` | Compares `cargo llvm-cov report --json --summary-only` output to `.config/coverage-gates.toml`: `--summary-json <path>`, `--config` (default `.config/coverage-gates.toml`), `--mode warn\|enforce` (GitHub/GitLab CI uses **`enforce`** with `workspace_min_lines_percent` in `.config/coverage-gates.toml`). Run this **after** `cargo llvm-cov nextest --workspace --profile ci`; the **`report`** subcommand does not accept `--workspace` (it merges the prior instrumented run’s profraw data). |
@@ -251,7 +252,8 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `openclaw-contract` | Validates OpenClaw protocol fixture contracts under `contracts/openclaw/protocol/` (required event/response shapes). |
 | `scientia-worthiness-contract` | Validates `contracts/scientia/publication-worthiness.default.yaml` against `publication-worthiness.schema.json` and publisher invariants (weights sum, threshold ordering) |
 | `scientia-novelty-ledger-contracts` | Validates example `contracts/reports/scientia-finding-candidate.example.v1.json` and `scientia-novelty-evidence-bundle.example.v1.json` against `finding-candidate.v1.schema.json` and `novelty-evidence-bundle.v1.schema.json` |
-| `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all`, `query-all-guard --all`, `turso-import-guard --all`, `operations-verify`, `command-compliance`, `capability-sync` (verify-only), `contracts-index`, `exec-policy-contract`, in-process completion-policy Tier A scan (no audit JSON write), `scientia-worthiness-contract`, `scientia-novelty-ledger-contracts`, and `data-ssot-guards` in one pass |
+| `speech-runtime-suite [--run-id <id>] [--plugins-dir <dir>] [--limit <n>] [--skip-runtime]` | Runs the speech-to-code MUST+SHOULD audit matrix from `contracts/speech-to-code/audit-matrix.v1.yaml`, executes the CPU Candle Oratio eval when runtime is enabled, and writes per-cell `cell_result.json`, `cell_result.kpi.json`, and aggregate `scorecard.json` under `.vox/audit/<run-id>/`. |
+| `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all`, `query-all-guard --all`, `turso-import-guard --all`, `operations-verify`, `command-compliance`, `capability-sync` (verify-only), `contracts-index`, **`docs-reality-audit verify`**, `exec-policy-contract`, in-process completion-policy Tier A scan (no audit JSON write), `scientia-worthiness-contract`, `scientia-novelty-ledger-contracts`, and `data-ssot-guards` in one pass |
 
 ### Bootstrap / dev launcher (missing `vox` on `PATH`)
 
@@ -336,7 +338,7 @@ Why this exists: it is the discoverability source for first-timers, editor integ
 | `--search PATTERN` | — | Fuzzy-search commands by name, alias, or description; implies `--include-nested` |
 
 **Example — search for shell-related commands:**
-```
+```bash
 vox commands --search shell
 vox commands --search shell --format json
 ```
@@ -370,6 +372,23 @@ Terminal dashboard subscribed to an in-process `vox-orchestrator` event bus (dem
 
 Set **`VOX_ORCHESTRATOR_EVENT_LOG`** to a file path to tail the same JSONL stream **`vox-mcp`** appends when that variable is set (shared runtime view across MCP and CLI).
 
+### `vox compile [file]`
+
+Product-facing **native compile** umbrella: combines codegen, optional `[bundle]` / `[workspace]` hints from `Vox.toml`, Tauri packaging **hints** (`target/generated/tauri-packaging/`), optional release archives (`.tar.gz` / `.zip` + checksum sidecar), and delegates script/WASI/server flows where noted.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--target` | `native-binary` | `native-binary` (bundle-style binary), `desktop`, `mobile-android`, `mobile-ios`, `script`, `wasi`; `server` prints delegation hint to deploy/OCI |
+| `--triple` | _(host)_ | Rust target triple for cross-compilation |
+| `--out-dir`, `-o` | `dist` | Frontend / codegen output directory (same family as `build`) |
+| `--workspace` | `false` | Build every `[workspace].members` entry from repo-root `Vox.toml` |
+| `--release` | `true` | Release vs debug backend build |
+| `--archive` | `false` | Emit `.zip` or `.tar.gz` plus `checksums-compile.txt` beside the binary |
+
+Lower-level **`vox bundle <file>`** remains the Axum + embedded frontend path; **`vox compile`** is the stable UX entry point for multi-target packaging.
+
+**Invocation hint:** put flags (`--target`, `--triple`, …) **before** the optional `FILE` positional — e.g. `vox compile --target desktop src/main.vox`.
+
 ### `vox bundle <file>`
 
 End-to-end **shipping** flow: build → scaffold `dist/app` (Vite + React) → **`pnpm install`** + **`pnpm run build`** → copy static assets → `cargo build` on the backend → copy the resulting binary into `dist/<stem>` (plus `.exe` on Windows when applicable).
@@ -393,6 +412,7 @@ Automated codemod runner for migrating legacy web concepts into standardized Pat
 
 Lex, parse, and type-check only. Prints diagnostics to stderr; exits with error if any **error**-severity diagnostic exists.
 
+- **`--for-llm`**: print one JSON envelope to stdout (`CheckForLlmEnvelope` — structured diagnostics via `vox_compiler::pipeline::check_file`) and exit non-zero if any error-level diagnostic exists. See [`vox-diagnostic-ux-ssot-2026.md`](../architecture/vox-diagnostic-ux-ssot-2026.md#cli-envelope-vox-check---for-llm).
 - `--emit-training-jsonl <PATH>`: append successful frontend records to JSONL for training corpus generation.
 
 ### `vox test <file>`
@@ -410,6 +430,8 @@ Formats a **`.vox`** file using [`vox_compiler::fmt::try_format`](../../../crate
 **Grouped Latin path:** `vox diag doctor …` — identical behavior; `diag` is the **registry `latin_ns`** bucket for diagnostics (see [Nomenclature migration map](../archive/research-2026-q1/nomenclature-migration-map.md#latin_ns-command-registry-group-labels)). Prefer `vox doctor` in new prose; use `vox diag doctor` when teaching the Latin lane.
 
 Development environment checks (Rust/Cargo, Node/pnpm, Git, optional Docker/Podman, `Vox.toml`, Codex workspace registration, API keys, etc.). With **`VOX_WEB_TS_OUT`** set to your **`vox build`** TypeScript output directory, doctor also verifies **`@v0`** components use **named** exports for TanStack **`routes {`** (see [`env-vars.md`](env-vars.md#web--vite--tanstack-codegen)).
+
+**Cross-compile preflight:** **`--compile-target <TRIPLE>`** runs rustup-target / Android SDK / Xcode probes aligned with **`vox compile --triple`** (e.g. `aarch64-linux-android`, `aarch64-apple-ios-sim`).
 
 | Build | Flags |
 |-------|--------|
@@ -433,6 +455,10 @@ Common subcommands { `status`, `audit`, `schema`, `sample`, `migrate`, `export` 
 Discovery/data-prep operator commands: `vox db publication-discovery-scan`, `vox db publication-discovery-explain`, `vox db publication-transform-preview`, and `vox db publication-discovery-refresh-evidence`. **`publication-discovery-explain` JSON** adds assist-only `impact_readership_projection` (not a publish gate) when `scientia_novelty_bundle` is present on the manifest. **Prior-art / worthiness operator JSON:** `vox db publication-novelty-fetch` (federated OpenAlex/Crossref/Semantic Scholar bundle; optional `--persist-metadata`; query limits/tunables from `contracts/scientia/impact-readership-projection.seed.v1.yaml`), `vox db publication-decision-explain` (Socrates/sidecar enrich + heuristic preflight + worthiness + discovery rank; optional `--live-prior-art`; includes the same assist-only projection when a novelty bundle is available), and `vox db publication-novelty-happy-path` (prior art + enrich + stdout: finding-candidate + bundle + merged rank + worthiness + `calibration_telemetry` + assist-only `impact_readership_projection`).
 
 `vox db mirror-search-corpus` mirrors markdown into the Codex search corpus (delegates to the same implementation as `vox scientia mirror-search-corpus`).
+
+### `vox memory`
+
+**Hybrid retrieval** — runs the shared `vox-search` bundle against repository-discovered roots, default orchestrator memory paths (`.vox/memory/...`), and an optional local VoxDb (`VOX_DB_*`). **`vox memory search <words…>`** prints structured retrieval diagnostics JSON (policy version, backends used, evidence quality). Catalog: [`memory.search`](../../../contracts/operations/catalog.v1.yaml) (`commands::memory_cli`).
 
 ### `vox telemetry`
 
@@ -508,7 +534,7 @@ PowerShell-first guardrails for autonomous IDE terminals (see [`AGENTS.md`](../.
 | Structured data | `ConvertTo-Json`, `ConvertFrom-Json` (when allowlisted) |
 | Approved externals | `vox`, `cargo`, `rustc`, `git`, `pwsh`, `powershell` (see policy YAML) |
 
-Optional IDE wiring: [`.vscode/settings.json`](../../../.vscode/settings.json) adds terminal profiles **Vox Exec policy (PSReadLine)** (loads [`.agents/workflows/vox_interceptor_profile.ps1`](../../../.agents/workflows/vox_interceptor_profile.ps1)) and **Vox pwsh proxy (check only)** ([`.vox/bin/vox-pwsh-proxy.cmd`](../../../.vox/bin/vox-pwsh-proxy.cmd) — set `VOX_SHELL_CHECK_PAYLOAD` to the line to validate). See also [`terminal-ast-validation-research-2026.md`](../archive/research-2026-q1/terminal-ast-validation-research-2026.md).
+Optional IDE wiring: [`.vscode/settings.json`](../../../.vscode/settings.json) adds terminal profiles **Vox Exec policy (PSReadLine)** (profile scripts live alongside editor config — see [`terminal exec policy SSOT`](../architecture/terminal-exec-policy-ssot.md)) and **Vox pwsh proxy (check only)** ([`.vox/bin/vox-pwsh-proxy.cmd`](../../../.vox/bin/vox-pwsh-proxy.cmd) — set `VOX_SHELL_CHECK_PAYLOAD` to the line to validate). See also [`terminal-ast-validation-research-2026.md`](../archive/research-2026-q1/terminal-ast-validation-research-2026.md).
 
 ### `vox codex`
 
@@ -595,7 +621,7 @@ With default features (**`mens-base` only** — corpus + `vox-runtime`, **no** O
 - **Corpus mix `tool_trace`** — set `record_format { tool_trace` for JSONL lines shaped like **`ToolTraceRecord`** in `vox-corpus` (`task_prompt`, `tool_name`, `arguments_json`, `result_json`, `success`, optional `followup_text`); schema **`mens/schemas/tool_trace_record.schema.json`**, example lines **`mens/data/tool_traces.example.jsonl`**. Emitted rows use **`category`: `tool_trace`** for **`--context-filter tool_trace`** during training.
 
 - **`--features mens-dei`**: enables **`vox train`** (local provider **bails** with the canonical **`vox mens train --backend qlora …`** command; Together API; **`--native`** Burn scratch) and `vox mens` surfaces that call **`vox-orchestrator-d`** (generate, review, workflow, check, fix). RPC **method names** are centralized in [`crates/vox-cli/src/dei_daemon.rs`](../../../crates/vox-cli/src/dei_daemon.rs) (`crate::dei_daemon::method::*`) so CLI and daemon stay aligned. **`vox mens review`** uses `ai.review`; it does **not** embed the old TOESTUB/Fabrica/CodeRabbit tree.
-- **`--features dei`**: **`vox dei`** (alias **`vox orchestrator`**) — DEI orchestrator CLI (`commands::dei`); build with `cargo build -p vox-cli --features dei`. Subcommands include **`status`**, **`submit <description> [--files …] [--priority urgent|background] [--session-id <id>]`** (session groups context like MCP `session_id`), **`assistant`**: multi-line stdin submit loop with **`--session-id`** (default `cli-assistant`) and optional **`--files`** / **`--priority`**, **`queue`**, **`rebalance`**, **`config`**, **`pause`/`resume`**, **`save`/`load`**, **`undo`/`redo`**. Workspace/snapshot/oplog (JSON on stdout, same payloads as MCP **`vox_workspace_*`**, **`vox_snapshot_*`**, **`vox_oplog`**): **`vox dei workspace create <agent_id>`**, **`vox dei workspace status <agent_id>`**, **`vox dei workspace merge <agent_id>`**, **`vox dei snapshot list [--agent-id <id>] [--limit <n>]`**, **`vox dei snapshot diff <before> <after>`**, **`vox dei snapshot restore <snapshot_id>`** (`S-` prefix optional), **`vox dei oplog list [--agent-id <id>] [--limit <n>]`**, **`vox dei takeover-status [--agent-id <id>] [--human]`** (repo + workspace + short snapshot/oplog tails; **`--human`** prints a short summary before the JSON).
+- **`--features dei`**: **`vox orchestrator`** (`vox dei` compat alias) — orchestrator CLI (`commands::dei`); build with `cargo build -p vox-cli --features dei`. Subcommands include **`status`**, **`submit <description> [--files …] [--priority urgent|background] [--session-id <id>]`** (session groups context like MCP `session_id`), **`assistant`**: multi-line stdin submit loop with **`--session-id`** (default `cli-assistant`) and optional **`--files`** / **`--priority`**, **`queue`**, **`rebalance`**, **`config`**, **`pause`/`resume`**, **`save`/`load`**, **`undo`/`redo`**. Workspace/snapshot/oplog (JSON on stdout, same payloads as MCP **`vox_workspace_*`**, **`vox_snapshot_*`**, **`vox_oplog`**): **`vox dei workspace create <agent_id>`**, **`vox dei workspace status <agent_id>`**, **`vox dei workspace merge <agent_id>`**, **`vox dei snapshot list [--agent-id <id>] [--limit <n>]`**, **`vox dei snapshot diff <before> <after>`**, **`vox dei snapshot restore <snapshot_id>`** (`S-` prefix optional), **`vox dei oplog list [--agent-id <id>] [--limit <n>]`**, **`vox dei takeover-status [--agent-id <id>] [--human]`** (repo + workspace + short snapshot/oplog tails; **`--human`** prints a short summary before the JSON).
 - **`--features coderabbit`**: enables **`vox review coderabbit`** — GitHub/CodeRabbit batch flows in Rust (`crates/vox-cli/src/commands/review/coderabbit/`). Build: `cargo build -p vox-cli --features coderabbit` (often pair with `mens-base` if you omit default features: `--no-default-features --features coderabbit,mens-base`). Set **`GITHUB_TOKEN`** or **`GH_TOKEN`**.
 
 ### `vox review coderabbit` (feature `coderabbit`)
@@ -642,29 +668,20 @@ For full-repo waves (`--full-repo`), the semantic manifest persists coverage cou
 
 - **Rustdoc / layout**: [`docs/src/reference/cli.md`](#)
 - **Ecosystem narrative** (may include commands beyond this binary): [`how-to-cli-ecosystem.md`](../how-to/how-to-cli-ecosystem.md)
-- **Compiler pipeline** (HIR path): [`reference/compiler-internals.md`](#)
+- **Compiler pipeline** (orientation): [`architecture/vox-compiler-architecture-research-2026.md`](../architecture/vox-compiler-architecture-research-2026.md)
 
 
-<!-- Merged from vox-cli.md -->
-
----
-title: "Crate: `vox-cli`"
-description: "Official documentation for Crate: `vox-cli` for the Vox language. Detailed technical reference, architecture guides, and implementation p"
-category: "reference"
-last_updated: "2026-03-24"
-training_eligible: true
----
-# Crate: `vox-cli`
+## Crate: `vox-cli`
 
 Rust package path: **`crates/vox-cli`**. Produces the **`vox`** binary (`src/main.rs`) and **`vox-compilerd`** (`src/bin/vox-compilerd.rs`, stdio JSON dispatcher for `dev` and compiler-subcommand RPC).
 
-## Scope
+### Scope
 
 This checkout’s `vox-cli` is a **minimal** compiler driver: clap dispatch, codegen orchestration, and a growing set of subcommands (including **`vox init`**). Feature-gated surfaces (Mens, review, MCP server, etc.) still depend on `Cargo` features — see [`reference/cli.md`](cli.md).
 
 Authoritative **user-facing** command list: [`reference/cli.md`](cli.md).
 
-## Subcommands → source
+### Subcommands → source
 
 | CLI | Module |
 |-----|--------|
@@ -680,7 +697,7 @@ Authoritative **user-facing** command list: [`reference/cli.md`](cli.md).
 
 **Library / dispatch modules (not always exposed as `vox` subcommands):** `src/commands/info.rs` (registry metadata), `src/commands/runtime/**` (extended run/dev/info/tree/shell). Inline script execution (`runtime/run/{script,backend,sandbox}`) builds with **`--features script-execution`**; Axum Mens inference server (`commands/ai/serve`) builds with **`--features execution-api`** (implies `script-execution` + `gpu` + Axum + `vox-corpus` validation helpers).
 
-## Shared modules
+### Shared modules
 
 | Path | Role |
 |------|------|
@@ -695,11 +712,11 @@ Authoritative **user-facing** command list: [`reference/cli.md`](cli.md).
 | `src/watcher.rs` | `notify` watch helper for `compilerd` `dev` rebuilds |
 | `src/v0.rs` | Obsolete generation bridge (now handled by direct `npx v0 add` sidecar) |
 
-## Library target
+### Library target
 
 `src/lib.rs` owns the `Cli` parser, `run_vox_cli()`, and shared modules; `src/main.rs` only initializes tracing and calls `run_vox_cli()`.
 
-## Build
+### Build
 
 ```bash
 cargo build -p vox-cli
@@ -713,21 +730,11 @@ cargo install --locked --path crates/vox-cli
 ```
 
 
-<!-- Merged from cli-design-rules.md -->
+## CLI design rules
 
----
-title: "CLI design rules"
-description: "Official documentation for CLI design rules for the Vox language. Detailed technical reference, architecture guides, and implementation p"
-category: "reference"
-last_updated: "2026-03-24"
-training_eligible: true
----
+Single source for **shipped `vox` CLI** conventions (see also [`reference/cli.md`](cli.md), [`cli-scope-policy.md`](../archive/research-2026-q1/cli-scope-policy.md), [`CLI command reachability`](cli.md#cli-command-reachability)).
 
-# CLI design rules
-
-Single source for **shipped `vox` CLI** conventions (see also [`reference/cli.md`](cli.md), [`cli-scope-policy.md`](../archive/research-2026-q1/cli-scope-policy.md), [`cli-reachability.md`](../archive/research-2026-q1/cli-reachability.md)).
-
-## Hierarchy and naming
+### Hierarchy and naming
 
 - **One primary tree** of nouns/verbs; avoid near-synonyms (`update` vs `upgrade`) for the same action.
 - **One canonical spelling per command** in docs/registries/scripts; preserve compatibility aliases in clap (example: canonical `mesh-gate`, alias `mens-gate`).
@@ -735,14 +742,14 @@ Single source for **shipped `vox` CLI** conventions (see also [`reference/cli.md
 - **Subcommand depth** should stay ≤ 2 for most flows; deeper trees only for dense domains (e.g. `mens corpus`).
 - **Retired / deprecated** commands stay in the registry with `status` and doc’d migration (see [`command-surface-duals.md`](../ci/command-surface-duals.md)).
 
-## Help, output, and exit codes
+### Help, output, and exit codes
 
 - Every subcommand supports **`--help`**; root supports **`--version`** (via clap on `VoxCliRoot`).
 - **Machine-readable / JSON** output belongs on **stdout** where a command documents it; **diagnostics and errors** on **stderr**.
 - Prefer **`--json`**, **`--quiet`**, **`--verbose`** on subcommands that emit structured or noisy output; root sets hints via env (`VOX_CLI_GLOBAL_JSON`, `VOX_CLI_QUIET`) when using global flags.
 - **Non-zero exits** must mean something actionable (document in help where non-obvious).
 
-## Description style standard
+### Description style standard
 
 Use one canonical command description in clap for each command, then reuse it in docs/editor surfaces.
 
@@ -750,7 +757,7 @@ Use one canonical command description in clap for each command, then reuse it in
 - **Why/When**: one short phrase for first-time guidance when non-obvious.
 - Keep wording stable so `vox commands` output, docs tables, and editor quick-picks do not drift.
 
-## Global flags (root)
+### Global flags (root)
 
 - **`--color auto|always|never`** — forwarded to `vox_cli::diagnostics` (`NO_COLOR` still wins when set).
 - **`--json`** — sets `VOX_CLI_GLOBAL_JSON=1` for subcommands that honor it.
@@ -758,33 +765,23 @@ Use one canonical command description in clap for each command, then reuse it in
 - **`--quiet` / `-q`** — sets `VOX_CLI_QUIET=1` for supported commands.
 - **`doctor --json`** is the subcommand’s own machine JSON; **`vox --json doctor`** only sets `VOX_CLI_GLOBAL_JSON` for code paths that read it — do not assume they are interchangeable.
 
-## Completions
+### Completions
 
 - **`vox completions <shell>`** — use **`clap_complete`**; shells: **bash**, **zsh**, **fish**, **powershell**, **elvish**. Install by redirecting stdout to the appropriate completion path for your shell (see [`reference/cli.md`](cli.md)).
 
-## Adding or renaming commands
+### Adding or renaming commands
 
 1. Implement in `crates/vox-cli` (and internal surfaces as needed).
 2. Add or update the **`vox-cli` projection** in **`contracts/operations/catalog.v1.yaml`** (schema: **`contracts/operations/catalog.v1.schema.json`**), then run **`vox ci operations-sync --target cli --write`** (or **`--target all`**) so **`contracts/cli/command-registry.yaml`** stays generated.
-3. Update **`docs/src/reference/cli.md`** and, for top-level reachability, **`cli-reachability.md`** when `reachability_required` is not `false`.
+3. Update **`docs/src/reference/cli.md`** (including the **CLI command reachability** section) when `reachability_required` is not `false`.
 4. Run **`vox ci operations-verify`** and **`vox ci command-compliance`** before merge (also enforced in CI).
 
 
-<!-- Merged from cli-reachability.md -->
-
----
-title: "CLI command reachability"
-description: "Official documentation for CLI command reachability for the Vox language. Detailed technical reference, architecture guides, and implemen"
-category: "reference"
-last_updated: "2026-03-24"
-training_eligible: true
----
-
-# CLI command reachability
+## CLI command reachability
 
 This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../crates/vox-cli/src/lib.rs) -> their **implementation modules** under [`crates/vox-cli/src/commands/`](../../../crates/vox-cli/src/commands).
 
-## Reachable from default / feature matrix
+### Reachable from default / feature matrix
 
 | CLI variant | Feature gate | Handler module |
 |-------------|--------------|----------------|
@@ -796,6 +793,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `dev` | default | `commands::dev` |
 | `live` | `live` | `commands::live` |
 | `bundle` | default | `commands::bundle` |
+| `compile` | default | `commands::compile` — **`vox compile`** packaging umbrella (also **`vox fabrica compile`**) |
 | `fmt` | default | `commands::fmt` (`vox_compiler::fmt::try_format`; `--check` supported) |
 | `add` | default | `commands::add` |
 | `audit` | default | `commands::audit` |
@@ -819,6 +817,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `share` | default | `commands::extras::share_cli` |
 | `codex` | default | `commands::codex` |
 | `repo` | default | `commands::repo` |
+| `research` | default | `commands::research`: infra **`vox research up`** / **`vox research down`** / **`vox research status`** / **`vox research eval`**; **`vox research run`** calls orchestrator `run_research` (`--json`, `--scope`, `--site-scope`, …) |
 | `db` | default | `commands::db` + `commands::db_cli` dispatch |
 | `scientia` | default | `commands::scientia` (facade over `db_cli` research helpers) |
 | `telemetry` | default | `commands::telemetry` (optional upload queue; ADR 023) |
@@ -836,11 +835,11 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `train` | `gpu` + `mens-dei` | `commands::ai::train` |
 | `dei` | `dei` | `commands::dei` (alias `orchestrator`) |
 
-## `vox-compilerd` RPC (not CLI variants)
+### `vox-compilerd` RPC (not CLI variants)
 
 Daemon dispatch lives in [`crates/vox-cli/src/compilerd.rs`](../../../crates/vox-cli/src/compilerd.rs). Methods call **`commands::build`**, **`check`**, **`bundle`**, **`fmt`**, **`doc`**, **`test`**, **`run`**, **`dev`** — not the removed `commands/compiler/` tree.
 
-## `vox-orchestrator-d` (orchestrator daemon sidecar)
+### `vox-orchestrator-d` (orchestrator daemon sidecar)
 
 `vox-orchestrator-d` is built from the orchestrator crate (not `vox-cli`) and exposes JSON-line `orch.*` methods for MCP sidecar pilots. Optional ADR 022 sidecar: **`vox-orchestrator-d`** can run as a long-lived process (`VOX_ORCHESTRATOR_DAEMON_SOCKET` TCP/stdio). MCP currently uses a split-plane transition model: daemon-aligned RPC pilots may own task/agent lifecycle slices, but many VCS/context/event/session features still read embedded stores unless explicitly moved behind daemon contracts.
 
@@ -850,7 +849,7 @@ Daemon dispatch lives in [`crates/vox-cli/src/compilerd.rs`](../../../crates/vox
 
 When using with MCP, set MCP-side `VOX_ORCHESTRATOR_DAEMON_SOCKET` to the same TCP peer and optionally enable pilots with `VOX_MCP_ORCHESTRATOR_RPC_READS=1` / `VOX_MCP_ORCHESTRATOR_RPC_WRITES=1`. Repo-id mismatch warning/error behavior is controlled by `VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT`.
 
-## Removed / non-compiled trees (historical)
+### Removed / non-compiled trees (historical)
 
 The following directories under `commands/` were **not** referenced from `commands/mod.rs` or the CLI and have been **removed** to reduce dead surface {
 
@@ -860,7 +859,7 @@ The following directories under `commands/` were **not** referenced from `comman
 - `commands/infra/` — legacy unwired tree; **`vox deploy`** is implemented in **`commands::deploy`** (delegates to **`vox-container`**).
 - `commands/learn.rs`, `commands/dashboard.rs` — orphan modules with no `mod` declaration.
 
-## Shared subtrees
+### Shared subtrees
 
 - `commands::runtime` — used by `run` (script lane), `dev` re-exports, and feature-gated script execution.
 - `commands::extras` — snippet, share, skill, ludus, ARS helpers.

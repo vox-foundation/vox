@@ -838,7 +838,7 @@ Anchored once at the bottom for the index walker:
 - v0.5 core SSOT: [v0.5-core-ssot.md](v0.5-core-ssot.md)
 - GUI native roadmap status: [gui-native-roadmap-status-2026.md](gui-native-roadmap-status-2026.md)
 - Phase 3 HTTP ergonomics spec: [phase3-http-ergonomics-spec-2026.md](phase3-http-ergonomics-spec-2026.md)
-- Phase 5 React interop spec: [phase5-react-interop-spec-2026.md](phase5-react-interop-spec-2026.md)
+- Phase 5 React interop spec: [phase5-react-interop-spec-2026.md](../archive/phase5-react-interop-spec-2026.md)
 
 # Open questions
 

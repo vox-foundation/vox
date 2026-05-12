@@ -575,8 +575,8 @@ instead of `GitExec::new(cwd)`. To disable the gix backend globally,
 build without the `gix-backend` feature.
 
 `jj-lib` is **not** used as a backend in Phase 5. Benchmark data and
-the Phase 5.5 reconsider criteria live in
-[agentic-vcs-phase5-bench-results.md](agentic-vcs-phase5-bench-results.md).
+the Phase 5.5 reconsider criteria live in `agentic-vcs-phase5-bench-results.md`
+once that artifact is generated (not committed yet when this plan was written).
 ```
 
 - [ ] **Step 3: Regenerate**

@@ -23,7 +23,7 @@ vox populi serve --enable
 
 On the very first run, Vox generates a random bearer token and saves it to `~/.vox/config.toml` under the key `mesh.token`.  The token is printed once — copy it somewhere safe:
 
-```
+```text
 vox populi: generated mesh bearer token (saved to ~/.vox/config.toml):
   VOX_MESH_TOKEN=a3f7c2...  ← copy this
   Keep this secret — it authenticates all control-plane requests.

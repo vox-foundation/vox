@@ -14,7 +14,7 @@ training_rationale: "Project architecture context."
 - Do not place golden examples inline without the include directive
 
 ## Frontmatter requirements (all new pages)
-- `title`, `description`, `category`, `status`, `last_updated`, `training_eligible` are required
+- `title`, `description`, `category`, `status`, `training_eligible` are required (`last_updated` is optional metadata; Git history is authoritative per `documentation-governance.md`)
 - Use `status: research` for evidence docs; `status: roadmap` for unshipped plans
 - Do NOT label a page SSOT unless it is the sole B-canon in `contracts/documentation/canonical-map.v1.yaml`
 

@@ -229,7 +229,7 @@ Escalation format: see Appendix C.
 | Term | Meaning |
 |------|---------|
 | **HIR** | High-level IR. Crate: `vox-compiler`. Path: `crates/vox-compiler/src/hir/`. Sits between parse and typed lowering. |
-| **Web IR** | Second-stage IR specific to UI emission. Path: `crates/vox-compiler/src/web_ir/`. Lowers to TSX via `codegen_ts`. |
+| **Web IR** | Second-stage IR specific to UI emission. Path: `crates/vox-codegen/src/web_ir/`. Lowers to TSX via `codegen_ts`. |
 | **Path B** | Legacy UI model: decorator-on-fn component syntax (Path B). Retired per AGENTS.md but HIR fields still exist. Phase 2 removes them. |
 | **Path C** | Current UI model: `component Name() { state; view }`. Replaces Path B. |
 | **Secrets** | Secret resolution crate. Path: `crates/vox-secrets/`. Call site: `vox_secrets::resolve_secret(SecretId::...)`. |
@@ -1127,15 +1127,15 @@ signal.
 - `crates/vox-compiler/src/hir/nodes/decl.rs` — `HirModule` definition.
 - `crates/vox-compiler/src/hir/lowering/mod.rs` — where the fields are
   populated.
-- `crates/vox-compiler/src/codegen_ts/` — where they're consumed.
-- `crates/vox-compiler/src/web_ir/lower.rs` — the Path C lowering.
+- `crates/vox-codegen/src/codegen_ts/` — where they're consumed.
+- `crates/vox-codegen/src/web_ir/lower.rs` — the Path C lowering.
 - `examples/golden/` — verify no `.vox` file uses Path B syntax.
 - `AGENTS.md` §Retired Surfaces — confirmation the symbols are retired.
 
 **Files to modify**:
 - `crates/vox-compiler/src/hir/nodes/decl.rs`
 - `crates/vox-compiler/src/hir/lowering/mod.rs`
-- `crates/vox-compiler/src/codegen_ts/` (every file that reads the deleted
+- `crates/vox-codegen/src/codegen_ts/` (every file that reads the deleted
   fields)
 - Any other crate that reads `HirModule.components`, `.hooks`, etc.
 
@@ -1224,7 +1224,7 @@ different constraints. Unification reduces the decorator surface from 14 to
   `mutation_fns` / `server_fns` fields.
 - `crates/vox-compiler/src/parser/` — where the three decorators parse.
 - `crates/vox-compiler/src/hir/lowering/` — where they lower.
-- `crates/vox-compiler/src/web_ir/lower.rs` lines 493-561 — loader / server
+- `crates/vox-codegen/src/web_ir/lower.rs` lines 493-561 — loader / server
   function contract construction.
 - `examples/golden/*.vox` — every file using the three decorators.
 
@@ -1298,7 +1298,7 @@ operation set extensible without AST surgery.
   definition (around line 117).
 - `crates/vox-compiler/src/hir/lowering/` — where DbTableOp variants are
   constructed.
-- `crates/vox-compiler/src/codegen_ts/` and codegen_rust — consumers.
+- `crates/vox-codegen/src/codegen_ts/` and codegen_rust — consumers.
 - `crates/vox-compiler/src/typeck/` — type-checking paths.
 
 **Files to modify**:
@@ -1557,9 +1557,9 @@ state_machine AgentLifecycle {
   `StateDecl`, `TransitionDecl`, `EventDecl`.
 - `crates/vox-compiler/src/typeck/state_machine_check.rs` — exhaustiveness
   + reachability + coverage analysis.
-- `crates/vox-compiler/src/web_ir/lower_state_machine.rs` — lower to
+- `crates/vox-codegen/src/web_ir/lower_state_machine.rs` — lower to
   `BehaviorNode::StateMachine` (new variant).
-- `crates/vox-compiler/src/codegen_ts/state_machine_emit.rs` — emit a
+- `crates/vox-codegen/src/codegen_ts/state_machine_emit.rs` — emit a
   typed reducer + hook when embedded in a component.
 
 **Files to modify**:
@@ -1879,7 +1879,7 @@ literal CSS values in `Raw` become errors, not warnings. Fallback path is
 explicit `raw_css { }` escape hatch.
 
 **Files to modify**:
-- `crates/vox-compiler/src/web_ir/validate.rs` (Style stage).
+- `crates/vox-codegen/src/web_ir/validate.rs` (Style stage).
 
 **Step-by-step work**:
 
@@ -1911,7 +1911,7 @@ declared route, that every `routes { }` entry's component exists, and that
 there are no dead routes.
 
 **Files to modify**:
-- `crates/vox-compiler/src/web_ir/validate.rs` (Routes stage).
+- `crates/vox-codegen/src/web_ir/validate.rs` (Routes stage).
 
 **Step-by-step work**:
 
@@ -1945,9 +1945,9 @@ named.
 the precedent. Vox should match.
 
 **Files to create**:
-- `crates/vox-compiler/src/web_ir/nodes/aria.rs` — `AriaNode`, `Role`,
+- `crates/vox-codegen/src/web_ir/nodes/aria.rs` — `AriaNode`, `Role`,
   `KeyAffordance`.
-- `crates/vox-compiler/src/web_ir/validate_a11y.rs`.
+- `crates/vox-codegen/src/web_ir/validate_a11y.rs`.
 
 **Step-by-step work**:
 
@@ -2062,8 +2062,8 @@ Each primitive:
 - Accepts typed token refs for visual properties.
 
 **Files to create**:
-- `crates/vox-compiler/src/web_ir/primitives/mod.rs`
-- `crates/vox-compiler/src/web_ir/primitives/<primitive>.rs` — one per
+- `crates/vox-codegen/src/web_ir/primitives/mod.rs`
+- `crates/vox-codegen/src/web_ir/primitives/<primitive>.rs` — one per
   primitive with its signature and emission rules.
 
 **Files to modify**:
@@ -2174,7 +2174,7 @@ overlay {
 ```
 
 **Files to create**:
-- `crates/vox-compiler/src/web_ir/validate_overlay.rs` — DAG +
+- `crates/vox-codegen/src/web_ir/validate_overlay.rs` — DAG +
   AABB check.
 
 **Acceptance**:
@@ -2195,7 +2195,7 @@ surfaces can override; a `text` that inherits fg from an ancestor surface
 but sits on a descendant's bg is where contrast bugs hide.
 
 **Files to modify**:
-- `crates/vox-compiler/src/web_ir/validate_a11y.rs`.
+- `crates/vox-codegen/src/web_ir/validate_a11y.rs`.
 
 **Step-by-step work**:
 1. Walk the primitive tree once, tracking the current (fg, bg) pair per
@@ -2365,6 +2365,59 @@ invisible to the downstream model.
    corpus gap or a primitive collapse that lost signal).
 
 **Acceptance**: Eval scores ≥ previous run or within 5%.
+
+---
+
+<a id="phase-9--native-bundler-swap"></a>
+## Phase 9 — Native Bundler Swap (Node.js Elimination)
+
+> The final step in achieving a true zero-dependency "single command install" for GUI-native development. Replaces Vite and the Node.js/`pnpm` ecosystem with a native Rust bundler (like Rolldown or Oxc) integrated directly into the `vox` binary.
+
+### TASK-9.1 — Integrate Rolldown core into `vox-compiler`
+
+**Phase**: 9.
+**Estimated effort**: 2-3 weeks.
+**Preconditions**: Phase 7 complete.
+
+**Why**: `vox build` currently relies on shelling out to `pnpm` and `vite` to process the emitted TSX files. Integrating a native Rust bundler (like `rolldown`) eliminates the Node.js dependency and provides a fully self-contained build step.
+
+**Files to create**:
+- `crates/vox-codegen/src/bundler/mod.rs`
+- `crates/vox-codegen/src/bundler/rolldown_adapter.rs`
+
+**Files to modify**:
+- `crates/vox-compiler/Cargo.toml` (add `rolldown` dependencies).
+- `crates/vox-cli/src/commands/build.rs` (invoke internal bundler instead of Node process).
+
+**Step-by-step work**:
+1. Add `rolldown` as a workspace dependency.
+2. Build an adapter in `crates/vox-codegen/src/bundler/` that takes the in-memory or on-disk emitted TSX and routes it through Rolldown.
+3. Replace the `pnpm install` and `vite build` shell execution paths in `vox build` with a direct Rust call to the internal bundler.
+4. Migrate Tailwind compilation to a pure Rust equivalent (`lightningcss` or similar) if needed, or emit pre-computed static CSS from Phase 6 design tokens.
+
+**Acceptance**:
+- `vox build` completes successfully on a machine with no Node.js installed.
+- No `node_modules` directory is generated.
+
+---
+
+### TASK-9.2 — Retire NPM / Vite artifacts
+
+**Phase**: 9.
+**Estimated effort**: 1 week.
+**Preconditions**: TASK-9.1 complete.
+
+**Why**: Clean up the legacy JavaScript ecosystem files now that the native bundler is operational.
+
+**Step-by-step work**:
+1. Remove `package.json` generation logic from `vox init`.
+2. Remove Vite config template generation.
+3. Update `vox doctor` to no longer require `node` or `pnpm` for the `frontend` target.
+4. Drop Node.js and `pnpm` from the required dependency matrix in `README.md`.
+
+**Acceptance**:
+- New Vox projects initialize and build purely with `.vox` and `Cargo.toml`.
+- Node.js is formally dropped from the required dependency matrix.
 
 ---
 

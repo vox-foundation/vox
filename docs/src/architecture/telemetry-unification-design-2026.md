@@ -32,7 +32,7 @@ This document closes those questions. It defines a runtime architecture that:
 ## Status
 
 - **Type:** design (not yet implemented)
-- **Supersedes:** the open questions in [Telemetry unification research findings 2026](archive/research-2026-q1/telemetry-unification-research-findings-2026.md)
+- **Supersedes:** the open questions in [Telemetry unification research findings 2026](../archive/research-2026-q1/telemetry-unification-research-findings-2026.md)
 - **Builds on:** [Telemetry trust SSoT](telemetry-trust-ssot.md), [ADR 023](../adr/023-optional-telemetry-remote-upload.md)
 - **Next step:** implementation plan via the writing-plans skill, then phased PRs
 
@@ -253,7 +253,7 @@ This design preserves the trust posture established by the 2026-Q1 effort:
 Each phase MUST satisfy:
 
 - `cargo run -p vox-arch-check` green (layer enforcement).
-- Existing `vox ci` gates green; `data-ssot-guards` extended in Phase A to require new metric type constants are documented in [telemetry-metric-contract](../reference/telemetry-metric-contract.md) and [telemetry-taxonomy-contracts-ssot](telemetry-taxonomy-contracts-ssot.md).
+- Existing `vox ci` gates green; `data-ssot-guards` extended in Phase A to require new metric type constants are documented in [telemetry-metric-contract](../reference/telemetry-metric-contract.md) and [telemetry-taxonomy-contracts-ssot](../archive/research-2026-q1/telemetry-taxonomy-contracts-ssot.md).
 - CHANGELOG entries under the Telemetry subsection for any user-visible behavior change.
 - For Phase B: a test that asserts `cache_read_input_tokens` from a recorded model call survives round-trip to `research_metrics`.
 - For Phase C: a test that asserts a synthetic 3-deep agent call tree records correct `parent_task_id` and `span_depth` at every level.
@@ -262,7 +262,7 @@ Each phase MUST satisfy:
 
 - [Telemetry trust SSoT](telemetry-trust-ssot.md) — overriding policy
 - [ADR 023 — optional telemetry remote upload](../adr/023-optional-telemetry-remote-upload.md) — unchanged
-- [Telemetry implementation blueprint 2026](archive/research-2026-q1/telemetry-implementation-blueprint-2026.md) — completed governance pass
-- [Telemetry unification research findings 2026](archive/research-2026-q1/telemetry-unification-research-findings-2026.md) — original research; this design closes its open questions
+- [Telemetry implementation blueprint 2026](../archive/research-2026-q1/telemetry-implementation-blueprint-2026.md) — completed governance pass
+- [Telemetry unification research findings 2026](../archive/research-2026-q1/telemetry-unification-research-findings-2026.md) — original research; this design closes its open questions
 - [where-things-live.md](where-things-live.md) — to be updated with `vox-telemetry` row in Phase A
 - [layers.toml](layers.toml) — L1 placement enforcement

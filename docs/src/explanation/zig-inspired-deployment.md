@@ -70,7 +70,7 @@ replicas  = 3
 
 Vox stores build outputs in a content-addressed cache, keyed by SHA-3/512 of all inputs:
 
-```
+```text
 .vox-cache/
 ├── manifests/    # <input-hash> → artifact metadata (JSON)
 └── artifacts/    # <input-hash>/ directories with build outputs

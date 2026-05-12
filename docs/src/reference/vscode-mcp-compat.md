@@ -13,11 +13,11 @@ schema_type: "TechArticle"
 | Artifact | Role |
 |----------|------|
 | [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml) | Canonical MCP tool **names**, descriptions, and **`product_lane`** (builds `vox-mcp-registry`; each listed tool exposes `_meta.vox_product_lane` in its tool descriptor) |
-| [`apps/editor/vox-vscode/scripts/check-mcp-tool-parity.mjs`](../../../apps/editor/vox-vscode/scripts/check-mcp-tool-parity.mjs) | **`npm run compile`** (and CI) runs this after registry generation: every `call('…')` / `callTool({ name: … })` in extension sources resolves to the canonical registry; aliases from [`tool_aliases.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tool_aliases.rs) |
+| [`apps/editor/vox-vscode/scripts/check-mcp-tool-parity.mjs`](../../../apps/editor/vox-vscode/scripts/check-mcp-tool-parity.mjs) | **`npm run compile`** (and CI) runs this after registry generation: every `call('…')` / `callTool({ name: … })` in extension sources resolves to the canonical registry; aliases from [`tool_aliases.rs`](../../../crates/vox-orchestrator-mcp/src/tool_aliases.rs) |
 | `apps/editor/vox-vscode/scripts/check-activation-parity.mjs` | **`npm run compile`** (and CI): every `contributes.commands` id has matching `onCommand:…` in `activationEvents` |
 | [`apps/editor/vox-vscode/scripts/generate-mcp-tool-registry.mjs`](../../../apps/editor/vox-vscode/scripts/generate-mcp-tool-registry.mjs) | First step of **`npm run compile`**: emits `mcpToolRegistry.generated.ts` (canonical tool names + `MCP_EXTENSION_EXPECTED_TOOLS`) |
 | Runtime `list_tools` | **Actual** advertised tools (includes skill-merged tools); `CapabilityRegistry` stores a fingerprint |
-| [`apps/editor/vox-vscode/src/protocol/hostToWebviewMessages.ts`](../../../apps/editor/vox-vscode/src/protocol/hostToWebviewMessages.ts) | zod schema for **host → webview** posts (`SidebarProvider.postMessage` validates before `postMessage`) |
+| [`apps/editor/vox-vscode/src/types/index.ts`](../../../apps/editor/vox-vscode/src/types/index.ts) (`WebviewMessage` and related protocol types) | zod schema for **host → webview** posts (`SidebarProvider.postMessage` validates before `postMessage`) |
 | [`apps/editor/vox-vscode/scripts/smoke-host-messages.mjs`](../../../apps/editor/vox-vscode/scripts/smoke-host-messages.mjs) | Runs after `tsc` to ensure the host schema still accepts representative payloads |
 
 ## Activation (lazy load)
@@ -35,7 +35,7 @@ The extension is **not** `onStartupFinished`. It activates when:
 - `vox_budget_history` → `vox_cost_history`
 - `vox_model_list` → `vox_list_models`
 - `vox_map_vscode_session` → `vox_map_agent_session`
-- (etc. — keep parity script in sync with [`crates/vox-orchestrator/src/mcp_tools/tool_aliases.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tool_aliases.rs))
+- (etc. — keep parity script in sync with [`crates/vox-orchestrator-mcp/src/tool_aliases.rs`](../../../crates/vox-orchestrator-mcp/src/tool_aliases.rs))
 
 ## Client disclosure (telemetry / debug surfaces)
 

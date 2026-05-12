@@ -20,7 +20,7 @@ This page defines how Vox documentation is organized and how to keep it from dri
 | Surface | Primary audience | Owns | Must not become |
 | --- | --- | --- | --- |
 | [`README.md`](../../../README.md) | evaluators, first-time visitors | short front door, quick start, tone, links into the book | a second FAQ or architecture dump |
-| [`docs/src/index.md`](../index.md) | site visitors | site landing page, current product narrative, reader-first navigation | a contributor policy page |
+| [`docs-astro`](../../../docs-astro/README.md) | site visitors | Starlight site entry + local preview (`pnpm dev` under `docs-astro/`) | a contributor policy page |
 | [`docs/src/explanation/faq.md`](../explanation/faq.md) | readers and evaluators | common product and architecture questions | a troubleshooting runbook |
 | [`docs/src/how-to/troubleshooting-faq.md`](../how-to/troubleshooting-faq.md) | operators and contributors | operational fixes and environment troubleshooting | the main public FAQ |
 | [`AGENTS.md`](../../../AGENTS.md) | contributors and agents | required cross-tool contributor policy, secret-management entry point, short architecture pointers | the general table of contents for the whole repo or a tool-specific troubleshooting log |
@@ -59,6 +59,7 @@ Use `status` when the distinction matters to readers:
 
 | `status` | Use for |
 | --- | --- |
+| `approved` | accepted ADR or policy text that is normative but not yet reflected everywhere in code/docs |
 | `current` | documented behavior or process the repo actively relies on |
 | `experimental` | implemented but intentionally unstable or gated |
 | `legacy` | still present but not the preferred path |
@@ -92,6 +93,10 @@ Fast local lint loop:
 Authoring guardrail:
 
 - Do not start a line with a single backtick in prose (for example `` `vox ...`` at line start). Use normal prose with inline code or a full triple-backtick fence.
+
+## Documentation Reality Audit
+
+For a sustained **doc vs code vs contract** triage loop (aspiration vs fulfillment, historicity, and prioritized backlog), use the [Documentation Reality Audit Program](docs-reality-audit-program.md). Machine-readable claims and findings live under `contracts/reports/docs-reality-audit/`; CI validates them via `vox ci docs-reality-audit verify` (also included in `vox ci ssot-drift`).
 
 ## Authority tiers (A-D)
 
@@ -148,7 +153,7 @@ Use this lightweight review matrix for high-drift surfaces:
 | `crates/vox-cli/src/**` command surface | [`docs/src/reference/cli.md`](../reference/cli.md), command-compliance docs, contributor references that mention the command |
 | secret or env handling | [`AGENTS.md`](../../../AGENTS.md), [Secrets SSOT](../reference/secrets-ssot.md) |
 | agent instruction layering or shell-discipline policy | [`AGENTS.md`](../../../AGENTS.md), [Agent instruction architecture](agent-instruction-architecture.md), and relevant tool-specific overlays such as `GEMINI.md` |
-| doc structure, nav, or new pages | this page, [`docs/src/adr/002-diataxis-doc-architecture.md`](../adr/002-diataxis-doc-architecture.md), [`docs/src/SUMMARY.md`](../SUMMARY.md) |
+| doc structure, nav, or new pages | this page, [`docs/src/adr/002-diataxis-doc-architecture.md`](../adr/002-diataxis-doc-architecture.md), [`docs-astro sidebar`](../../../docs-astro/README.md) |
 | architecture claims | [Doc-to-code acceptance checklist](../archive/research-2026-q1/doc-to-code-acceptance-checklist.md), relevant explanation/reference pages |
 | contracts or schema-backed behavior | matching `contracts/` files and the mirrored reference pages |
 | communication protocols, transport routes, or streaming semantics | [`contracts/communication/protocol-catalog.yaml`](../../../contracts/communication/protocol-catalog.yaml), [Communication protocols reference](../reference/communication-protocols.md), and the owning protocol page such as MCP / Populi / runtime docs |
@@ -178,4 +183,4 @@ Before committing documentation to the repository, verify the following constrai
 2. **Authority registration**: New canonical pages must be reflected in `contracts/documentation/canonical-map.v1.yaml`; aliases must remain link-only.
 3. **Status marker**: Use `status` only when needed (`current`, `experimental`, `legacy`, `research`, `roadmap`, `deprecated`).
 4. **Terminology**: Use established nomenclature (Codex vs Arca, Mens vs Populi, Islands vs Components).
-5. **Navigation integrity**: If creating a user-facing document, verify `SUMMARY.md` is updated and passes `vox-doc-pipeline --check`.
+5. **Navigation integrity**: If creating a user-facing document, update Starlight nav metadata (frontmatter `title` / `category` / `sort_order`) and run `vox-doc-pipeline --lint-only` or `pnpm --dir docs-astro build` as appropriate.

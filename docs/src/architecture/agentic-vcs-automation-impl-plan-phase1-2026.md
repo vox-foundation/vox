@@ -1356,7 +1356,7 @@ Modify `docs/agents/git-concurrency-policy.md` — append a new section after `#
 
 As of 2026-05-08, the banned-command list in §2 is enforced in code:
 
-- All orchestrator-process git invocations route through [`vox_orchestrator_mcp::git_exec::GitExec`](../../crates/vox-orchestrator-mcp/src/git_exec.rs).
+- All orchestrator-process git invocations route through [`vox_orchestrator_mcp::git_exec::GitExec`](../../../crates/vox-orchestrator-mcp/src/git_exec.rs).
 - Banned prefixes (`stash`, `reset --hard`, `clean -fd`, `clean -fdx`, `restore .`, `checkout .`, `checkout -- .`, `checkout -f`) are rejected before spawn and emit a `vox.vcs.exec` warning event.
 - Direct `tokio::process::Command::new("git")` calls in non-test code outside `git_exec.rs` are a code-review regression; `cargo run -p vox-arch-check` will gain a rule for this in Phase 2.
 

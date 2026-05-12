@@ -26,7 +26,7 @@ training_rationale: "Defines the probe trait shape and test pattern that subsequ
 `vox-populi/src/mens/hardware/` has six modules ([mod.rs](../../../crates/vox-populi/src/mens/hardware/mod.rs:47), `nvml.rs`, `wgpu_probe.rs`, `linux_drm.rs`, `macos_metal.rs`, `win_dxgi.rs`) and a shared `types.rs`. Dispatch is imperative inside `probe_internal()` with platform `cfg` gates. Result is cached in a `tokio::sync::OnceCell` for the process lifetime. Output type is `HardwareSummary` (model_name, vram_mb, gpu_count, vendor, backend, driver_version, pci_bus_id).
 
 **What's wrong.**
-1. Zero inline tests in any probe module ([nvml.rs](../../../crates/vox-populi/src/mens/hardware/nvml.rs), wgpu_probe.rs, linux_drm.rs, macos_metal.rs, win_dxgi.rs).
+1. Zero inline tests in any probe module ([nvml.rs](../../../crates/vox-populi/src/mens/hardware/mod.rs), wgpu_probe.rs, linux_drm.rs, macos_metal.rs, win_dxgi.rs).
 2. Probe failures degrade silently to "Host CPU" with no event emitted — operators cannot tell whether a node *has* no GPU vs. its NVML library is missing.
 3. No way to inject a probe for testing — the cache makes test ordering matter, and concrete imperative dispatch defies mocking.
 4. Probe order is hard-coded; an operator on a Linux box with both an NVML-visible GPU and DRM cannot influence which one wins (DRM does, today).

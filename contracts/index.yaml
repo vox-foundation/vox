@@ -69,6 +69,16 @@ contracts:
     enforced_by:
       - vox ci command-compliance
 
+  - id: runtime-capabilities-v1
+    path: contracts/capability/runtime-capabilities.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: >-
+      Maps @uses-style capability ids to Tauri permissions, Android/iOS manifest hints, and web CSP notes;
+      consumed by packaging/codegen to emit runtime-capabilities.projection.json.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: operations-catalog
     path: contracts/operations/catalog.v1.yaml
     owner: platform-ci
@@ -109,6 +119,74 @@ contracts:
     description: Retired identifier patterns consumed by vox ci retired-symbol-check (docs hygiene).
     enforced_by:
       - vox ci retired-symbol-check
+
+  - id: documentation-link-allowlist
+    path: contracts/documentation/link-allowlist.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Allowlisted historical Markdown link pairs for vox ci check-links.
+    enforced_by:
+      - vox ci check-links
+
+  - id: documentation-docs-reality-audit-program-v1
+    path: contracts/documentation/docs-reality-audit.program.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: Documentation Reality Audit taxonomy, scoring, cadence, and artifact paths.
+    enforced_by:
+      - vox ci docs-reality-audit verify
+      - vox ci contracts-index
+
+  - id: reports-docs-reality-audit-inventory-schema
+    path: contracts/reports/docs-reality-audit/inventory.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for docs-reality-audit claim inventory.
+    enforced_by:
+      - vox ci docs-reality-audit verify
+      - vox ci contracts-index
+
+  - id: reports-docs-reality-audit-findings-schema
+    path: contracts/reports/docs-reality-audit/findings.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for docs-reality-audit findings backlog.
+    enforced_by:
+      - vox ci docs-reality-audit verify
+      - vox ci contracts-index
+
+  - id: reports-docs-reality-audit-metrics-schema
+    path: contracts/reports/docs-reality-audit/metrics.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for docs-reality-audit rollout metrics snapshot.
+    enforced_by:
+      - vox ci docs-reality-audit verify
+      - vox ci contracts-index
+
+  - id: reports-docs-reality-audit-inventory-v1
+    path: contracts/reports/docs-reality-audit/inventory.v1.json
+    owner: platform-ci
+    kind: json
+    description: Seed claim inventory for Documentation Reality Audit cycles.
+    enforced_by:
+      - vox ci docs-reality-audit verify
+
+  - id: reports-docs-reality-audit-findings-v1
+    path: contracts/reports/docs-reality-audit/findings.v1.json
+    owner: platform-ci
+    kind: json
+    description: Triaged doc/code mismatch findings (CodeDeficit, DocDeficit, …).
+    enforced_by:
+      - vox ci docs-reality-audit verify
+
+  - id: reports-docs-reality-audit-metrics-v1
+    path: contracts/reports/docs-reality-audit/metrics.v1.json
+    owner: platform-ci
+    kind: json
+    description: Rollout metrics for Documentation Reality Audit (regenerated via metrics subcommand).
+    enforced_by:
+      - vox ci docs-reality-audit verify
 
   - id: frontend-surface-ownership-v1
     path: contracts/frontend/surface-ownership.v1.yaml
@@ -192,6 +270,48 @@ contracts:
       - vox ci contracts-index
       - cargo test -p vox-publisher scientia_novelty
 
+  - id: telemetry-fixture-model-intent-resolved-v1-schema
+    path: contracts/telemetry/fixture-model-intent-resolved.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: >-
+      Reserved JSON shape for extended @ai model-intent routing telemetry (fixture-model-intent-resolved).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: telemetry-orch-subagent-dispatch-v1-schema
+    path: contracts/telemetry/orch-subagent-dispatch.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: >-
+      JSON shape for subagent dispatch payloads (orch.subagent.dispatch; SubAgentDispatchEvent).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: telemetry-fixture-prompt-dispatch-v1-schema
+    path: contracts/telemetry/fixture-prompt-dispatch.v1.schema.json
+    owner: platform-observability
+    kind: json-schema
+    description: JSON Schema for @prompt fixture prompt-dispatch telemetry envelope.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: telemetry-fixture-search-dispatch-v1-schema
+    path: contracts/telemetry/fixture-search-dispatch.v1.schema.json
+    owner: platform-observability
+    kind: json-schema
+    description: JSON Schema for @search fixture search-dispatch telemetry envelope.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: telemetry-fixture-hole-observed-v1-schema
+    path: contracts/telemetry/fixture-hole-observed.v1.schema.json
+    owner: platform-observability
+    kind: json-schema
+    description: JSON Schema for @hole fixture hole-observed telemetry envelope.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: data-storage-policy-v1
     path: contracts/db/data-storage-policy.v1.yaml
     owner: platform-ci
@@ -250,11 +370,37 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: agent-computer-interface-v1-ssot-schema
+    path: contracts/aci/agent-computer-interface-ssot.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for contracts/aci/agent-computer-interface.v1.yaml (metadata SSOT only).
+    enforced_by:
+      - vox ci contracts-index
+
   - id: agentos-aci-benchmark-suite-v1
     path: contracts/benchmarks/agentos-aci-suite.v1.yaml
     owner: orchestrator
     kind: yaml
     description: Manifest for AgentOS ACI integration harness (schema + guardrail + envelope).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: agentos-ai-first-fixtures-v1
+    path: contracts/agentos/ai-first-fixtures.v1.yaml
+    owner: orchestrator
+    kind: yaml
+    description: >-
+      Research catalog of AI-first language fixtures (taxonomy, runtime hooks, MCP/ACI alignment,
+      seed examples). Paired with ai-first-fixtures.v1.schema.json.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: agentos-ai-first-fixtures-v1-schema
+    path: contracts/agentos/ai-first-fixtures.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for contracts/agentos/ai-first-fixtures.v1.yaml.
     enforced_by:
       - vox ci contracts-index
 
@@ -936,6 +1082,24 @@ contracts:
       - vox ci scientia-novelty-ledger-contracts
       - vox ci contracts-index
 
+  - id: scientia-research-mesh-intake-v1-schema
+    path: contracts/scientia/research-mesh-intake.v1.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Orchestrator mesh tap → on-disk SCIENTIA intake JSON (finding proposed / publication outcomes).
+    enforced_by:
+      - cargo test -p vox-publisher research_mesh
+      - vox ci contracts-index
+
+  - id: scientia-research-mesh-promoted-line-v1-schema
+    path: contracts/scientia/research-mesh-promoted-line.v1.schema.json
+    owner: scientia
+    kind: json-schema
+    description: Single JSON line appended to research-mesh-promoted/events.v1.jsonl after intake promotion.
+    enforced_by:
+      - cargo test -p vox-publisher research_mesh
+      - vox ci contracts-index
+
   - id: scientia-novelty-evidence-bundle-v1-schema
     path: contracts/scientia/novelty-evidence-bundle.v1.schema.json
     owner: scientia
@@ -1062,6 +1226,22 @@ contracts:
     owner: platform-ci
     kind: json-schema
     description: JSON Schema for `vox ci pre-push --report-json` timing artifacts.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: ai-fixture-holes-ledger-v1-schema
+    path: contracts/reports/ai-fixture-holes/ledger.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for `@hole` staleness ledger (`ledger.v1.json`).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: ai-fixture-holes-ledger-v1
+    path: contracts/reports/ai-fixture-holes/ledger.v1.json
+    owner: platform-ci
+    kind: json
+    description: Staleness ledger for AI-first `@hole` fixtures (cache_key → stale flag).
     enforced_by:
       - vox ci contracts-index
 
@@ -1198,3 +1378,27 @@ contracts:
     description: Venue catalog for Scientia publication workflows.
     enforced_by:
       - vox ci contracts-index
+
+  - id: speech-to-code-audit-matrix-v1
+    path: contracts/speech-to-code/audit-matrix.v1.yaml
+    owner: oratio
+    kind: yaml
+    description: Broad-wave ASR-primary speech-to-code audit matrix.
+    enforced_by:
+      - cargo test -p vox-integration-tests --test speech_audit_contract_test
+
+  - id: speech-to-code-audit-matrix-schema
+    path: contracts/speech-to-code/audit-matrix.schema.json
+    owner: oratio
+    kind: json-schema
+    description: JSON Schema for audit-matrix.v1.yaml.
+    enforced_by:
+      - cargo test -p vox-integration-tests --test speech_audit_contract_test
+
+  - id: speech-to-code-canary-kpi
+    path: contracts/speech-to-code/canary.kpi.json
+    owner: oratio
+    kind: json
+    description: Committed speech-to-code KPI threshold snapshot for CI canary validation.
+    enforced_by:
+      - cargo test -p vox-integration-tests --test speech_canary_test

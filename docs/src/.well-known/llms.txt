@@ -15,8 +15,8 @@
 - [Secrets (Secret Management)](https://vox-lang.org/reference/secrets-ssot/): API keys and credentials
 
 ## Architecture Authority
-- [Architecture Index](https://vox-lang.org/architecture/architecture-index/): Master architecture map
-- [Research Index](https://vox-lang.org/architecture/research-index/): All research documents
+- [Research Index](https://vox-lang.org/architecture/research-index/): Architecture and research document map (hand-maintained)
+- [Where things live](https://vox-lang.org/architecture/where-things-live/): Concept → crate lookup table
 - [Classification SSOT](https://vox-lang.org/architecture/classification-ssot-2026/): Canonical surface classifications
 
 ## Contributor Hub

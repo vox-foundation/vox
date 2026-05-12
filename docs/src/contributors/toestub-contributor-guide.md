@@ -180,18 +180,18 @@ with `// toestub-ignore(security/hardcoded-secret) — SHA256 test fixture`.
 
 **Fix:**
 
-````markdown
 <!-- Option A: include from golden (preferred — gets compiled in CI) -->
+
 ```vox
 {{#include ../../../examples/golden/hello.vox:display}}
 ```
 
 <!-- Option B: illustrative snippet not meant to compile -->
+
 ```vox
 // vox:skip
 fn illustrative_example() { ... }
 ```
-````
 
 ---
 

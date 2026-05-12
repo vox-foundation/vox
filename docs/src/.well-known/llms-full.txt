@@ -20,8 +20,8 @@
 - [MCP Tool Reference](https://vox-lang.org/reference/mcp-tool-reference/)
 
 ## Architecture Authority
-- [Architecture Index](https://vox-lang.org/architecture/architecture-index/)
 - [Research Index](https://vox-lang.org/architecture/research-index/)
+- [Where things live](https://vox-lang.org/architecture/where-things-live/)
 - [Classification SSOT](https://vox-lang.org/architecture/classification-ssot-2026/)
 - [Cryptography SSOT](https://vox-lang.org/architecture/cryptography-ssot-2026/)
 - [Telemetry Trust SSOT](https://vox-lang.org/architecture/telemetry-trust-ssot/)

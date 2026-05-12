@@ -19,7 +19,7 @@ Minimal **four-check** row per critical crate: compile, unit tests, lint (when e
 | `vox-codex` | default | via `vox-db` / consumers | same | Facade over `vox_db` — SQL lives in `vox-pm` |
 | `vox-codex-api` | default | manual / dashboard smoke | same | `/health`, `/ready` (baseline V1 + required tables + digest), `/api/search/status`; Codex SSE + Oratio |
 | `vox-runtime` | `database` feature if touching db | targeted | same | Optional `crate::db` behind feature |
-| `vox-tensor` | `--features gpu` when touching Burn stack | `--lib` + `vox_nn::` subset under `gpu` | same | [vox_nn.rs](../../../crates/vox-tensor/src/vox_nn.rs); legacy `nn.rs` removed |
+| `vox-tensor` | `--features gpu` when touching Burn stack | `--lib` + `vox_nn::` subset under `gpu` | same | [vox_nn.rs](../../../crates/vox-tensor/src/lib.rs); legacy `nn.rs` removed |
 | `vox-compiler` | default | `--test golden_examples_strict_parse` (with `VOX_EXAMPLES_STRICT_PARSE=1`) + unit / parity tests | same | Parser/HIR/typeck/codegen monolith; golden examples under `examples/golden/` |
 | `vox-integration-tests` | N/A (integration) | full crate; env tests serialized | same | `venv_detection` mutex for `VIRTUAL_ENV` |
 | `vox-cli` | default + `--bins` (`vox` + `vox-compilerd` + `vox-mens` shim when `mens-base`) + `--features gpu` for Mens train/merge tests + `script-execution` / `execution-api` when touching serve | targeted (`--lib` / `merge_` Mens tests incl. `merge_qlora_cli_roundtrip_lm_head_subset`, needs `--features gpu`) | `clippy -p vox-cli --features execution-api -- -D warnings` for HTTP path | [ref-cli.md](../reference/cli.md), [vox-cli build feature inventory](../archive/research-2026-q1/vox-cli-build-feature-inventory.md) |

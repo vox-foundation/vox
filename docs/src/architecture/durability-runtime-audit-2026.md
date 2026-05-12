@@ -58,7 +58,7 @@ training_rationale: "Audit establishing that all Vox durability/scheduling featu
 
 ### `actor` / `workflow` / `activity` Keywords — Phase 2 Syntax Unification
 
-Per [AGENTS.md §Grammar Unification](../../AGENTS.md): "They lower to `HirFn { durability: Some(DurabilityKind::_) }` — no separate HIR node types."
+Per [AGENTS.md §Grammar Unification](../../../AGENTS.md): "They lower to `HirFn { durability: Some(DurabilityKind::_) }` — no separate HIR node types."
 
 - **Actor:** Handler splitting into per-handler `HirFn` entries works at HIR level (`hir/lower/mod.rs:305-314`). `vox-runtime/src/scheduler.rs` has actor mailbox/spawn/dispatch logic, but the generated Rust functions do not connect to it — the wiring is manual.
 - **Workflow / Activity:** Parsed, lowered with correct `DurabilityKind`. Generated Rust is a plain `async fn`. `examples/golden/checkout_workflow.vox` does **not** use the `workflow`/`activity` keywords — it uses plain `fn`.

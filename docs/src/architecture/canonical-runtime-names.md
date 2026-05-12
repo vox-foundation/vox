@@ -10,7 +10,7 @@ training_rationale: "Reduces agent/human drift when renaming crates, binaries, t
 # Canonical runtime names
 
 **Machine registry for env keys:** [`contracts/config/env-vars.v1.yaml`](../../../contracts/config/env-vars.v1.yaml).  
-**Human prose tables:** [`docs/src/reference/env-vars.md`](../../reference/env-vars.md).  
+**Human prose tables:** [`docs/src/reference/env-vars.md`](../reference/env-vars.md).  
 CI enforces that prose cites only registered names (`vox ci command-compliance`).
 
 ## Orchestrator daemon binary

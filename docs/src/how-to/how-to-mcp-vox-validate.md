@@ -140,7 +140,7 @@ The validator emits codes from several namespaces. The most useful for AI-genera
 | `dep_inference.over_track` | (single code) | a `derived` / `effect` calls a non-`@reactive` function whose body might read reactive state the analyzer can't see |
 | `web_ir_validate.island.*` | `prop_key_empty`, `unknown_island` | `@island` boundary errors |
 
-Full list and severity rules: [crates/vox-compiler/src/web_ir/validate.rs](../../../crates/vox-compiler/src/web_ir/validate.rs).
+Full list and severity rules: [crates/vox-codegen/src/web_ir/validate.rs](../../../crates/vox-codegen/src/web_ir/validate.rs).
 
 ## When to use which tool
 

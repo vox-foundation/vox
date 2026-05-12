@@ -23,7 +23,7 @@ training_rationale: "Defines the trace and span-attribute conventions used by al
 
 ## Part 1 — Current state
 
-- **`tracing` crate** is used for structured logs throughout `vox-populi` ([example](../../../crates/vox-populi/src/transport/handlers.rs:722)).
+- **`tracing` crate** is used for structured logs throughout `vox-populi` ([example](../../../crates/vox-populi/src/transport/handlers/mod.rs:722)).
 - **`trace_id` column** exists in `vox-db`'s `llm_interactions` and `attempt_log` tables as a TEXT field. It's populated for LLM calls, queried by `get_last_interaction_trace_id` ([crates/vox-db/src/store/ops_scientia.rs](../../../crates/vox-db/src/store/ops_scientia.rs)).
 - **No OpenTelemetry crate** is in use.
 - **No `traceparent` field** on `A2ADeliverRequest` ([transport/mod.rs:55-88](../../../crates/vox-populi/src/transport/mod.rs:55)).

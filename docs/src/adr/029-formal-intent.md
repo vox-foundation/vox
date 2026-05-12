@@ -2,7 +2,7 @@
 title: "ADR-029: Formal Intent and Tool Receipt Auditing"
 description: "Architecture Decision Record for formal intent and cryptographic tool receipts in the Vox ecosystem."
 category: "architecture"
-status: "current"
+status: "research"
 ---
 # ADR 029: Formal Intent and Tool Receipt Auditing
 

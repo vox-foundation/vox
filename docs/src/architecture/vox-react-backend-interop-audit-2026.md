@@ -151,7 +151,7 @@ Reference: [`phase1-build-targets-spec-2026.md`](phase1-build-targets-spec-2026.
 | CLI `--target=fullstack|server|client` | Phase 1 spec | Forwarded from [`cli_dispatch/lanes.rs`](../../../crates/vox-cli/src/cli_dispatch/lanes.rs) into `build::run(..., a.build_target.map(Into::into), …)` and `dev::run(..., a.build_target)` | **Landed** |
 | `vox build` codegen branches on target | Phase 1 spec §1 | [`commands/build.rs`](../../../crates/vox-cli/src/commands/build.rs): **`server`** → Rust only; **`client`** → Library TS (`openapi.json`, `vox-client.ts`, `package.json`, …); **`fullstack`** → TS + Rust | **Landed** |
 | `vox dev --target=…` | Phase 1 spec §3 | [`commands/dev.rs`](../../../crates/vox-cli/src/commands/dev.rs) accepts `build_target`, forwards **`target`** on the daemon JSON params; **`server`** suppresses browser open by default | **Landed** |
-| `vox emit client` | Phase 1 spec §1.2 | [`Cli::Emit`](../../../crates/vox-cli/src/lib.rs) + [`commands/emit.rs`](../../../crates/vox-cli/src/commands/emit.rs) — Library TS SDK only | **Landed** |
+| `vox emit client` | Phase 1 spec §1.2 | [`Cli::Emit`](../../../crates/vox-cli/src/lib.rs) + [`commands/emit.rs`](../../../crates/vox-cli/src/commands/emit/mod.rs) — Library TS SDK only | **Landed** |
 | `vox init --kind=backend` | Phase 1 spec §1.4 | Not present in CLI surface. | **Missing** |
 | `vox bundle` skipping Vite when `target=server` | Implied | [`commands/run.rs`](../../../crates/vox-cli/src/commands/run.rs) `resolve_has_frontend` honors `BuildTarget::Server` — works at run-time only. | **Partial (run only)** |
 | Lean Dockerfile for backend-only | Phase 1 spec §1.5 | [`crates/vox-container`](../../../crates/vox-container/) emits a Rust-first image regardless of target. | **Out of scope today** |
@@ -191,7 +191,7 @@ Severity follows `P0` (blocker for an external React+backend team) → `P3` (pap
 | G3 | Error envelope unimplemented | P0 | M | `vox-codegen`, `vox-runtime` | §3.2 C3 |
 | G4 | `BuildArgs.build_target` not threaded into `build::run`; `vox build` does not branch | P0 | M | `vox-cli`, `vox-codegen` | **Resolved:** `lanes.rs` → `build::run`; server/client/fullstack branches in [`build.rs`](../../../crates/vox-cli/src/commands/build.rs) |
 | G5 | `VOX_BUILD_TARGET` env var documented but unread | P1 | S | `vox-config` | **Resolved:** [`impl_ops.rs`](../../../crates/vox-config/src/config/impl_ops.rs) (`apply_build_target_env_override`) |
-| G6 | `vox emit client` subcommand does not exist | P1 | M | `vox-cli` | **Resolved:** [`commands/emit.rs`](../../../crates/vox-cli/src/commands/emit.rs) |
+| G6 | `vox emit client` subcommand does not exist | P1 | M | `vox-cli` | **Resolved:** [`commands/emit.rs`](../../../crates/vox-cli/src/commands/emit/mod.rs) |
 | G7 | Two divergent TS client files (`api.ts` + `vox-client.ts`) | P1 | S–M | `vox-codegen` | **Resolved:** §3.2 C4 — only **`vox-client.ts`** is emitted |
 | G8 | CORS/rate-limit lowered into HIR but not emitted | P1 | M | `vox-codegen` | §5 row 1–2 |
 | G9 | `vox dev --target=server` missing | P1 | S | `vox-cli` | **Resolved:** [`dev.rs`](../../../crates/vox-cli/src/commands/dev.rs) |

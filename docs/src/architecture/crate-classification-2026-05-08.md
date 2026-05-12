@@ -73,7 +73,7 @@ This audit classifies every crate in `crates/` against five labels:
 | vox-scientia-core | DEAD | 0 | no consumers in workspace |
 | vox-scientia-social | DEAD | 0 | no consumers in workspace |
 | vox-scientia-ingest | DEAD | 0 | no consumers; ingestion pipeline unused |
-| vox-search | DEAD | 0 | search surface; no consumer |
+| vox-search | CORE | many | agent retrieval execution (`execute_search_plan`, MCP); see [search-retrieval-ssot-2026.md](search-retrieval-ssot-2026.md) |
 | vox-socrates-policy | DEAD | 0 | policy engine; no consumer |
 | vox-spool | DEAD | 0 | spool subsystem; no consumer |
 | vox-tools | DEAD | 0 | tools crate; re-exported via oratio (orphaned) |
@@ -129,7 +129,6 @@ The following crates have zero consumers in `Cargo.toml` files across the worksp
 | `vox-scientia-core` | No consumers; social/ingestion pipeline not wired |
 | `vox-scientia-social` | No consumers |
 | `vox-scientia-ingest` | No consumers |
-| `vox-search` | No consumers |
 | `vox-socrates-policy` | No consumers |
 | `vox-spool` | No consumers |
 | `vox-webhook` | No consumers |

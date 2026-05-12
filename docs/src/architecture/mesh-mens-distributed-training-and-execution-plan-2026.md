@@ -133,7 +133,7 @@ What follows is what these crates *actually* do today, file by file.
 
 ### 1.1 The distributed training stub
 
-**File:** [`crates/vox-populi/src/mens/tensor/populi_train.rs`](../../../crates/vox-populi/src/mens/tensor/populi_train.rs)
+**File:** [`crates/vox-populi/src/mens/tensor/populi_train.rs`](../../../crates/vox-populi/src/mens/tensor/mod.rs)
 (~30 LoC).
 
 The entire distributed-mens-training surface in-tree is:
@@ -185,7 +185,7 @@ nothing. Mn-T1 deletes it and replaces it with a real crate.
 
 | Concept | Today | Gap |
 |---|---|---|
-| Distributed training | env-var stub at [`populi_train.rs`](../../../crates/vox-populi/src/mens/tensor/populi_train.rs) | No gradient sync, no rank coordination, no signed checkpoint exchange — Mn-T1 |
+| Distributed training | env-var stub at [`populi_train.rs`](../../../crates/vox-populi/src/mens/tensor/mod.rs) | No gradient sync, no rank coordination, no signed checkpoint exchange — Mn-T1 |
 | Inference backend trait | Ad-hoc dispatch in `execution_planner.rs` | No common trait; each call site re-shapes the dispatch — Mn-T2 |
 | Content-addressed model bundles | None | Models are loaded by file path; no bundle-by-hash, no mesh-CAS — Mn-T3 |
 | `@inference` / `@training_step` / `@distributed_train` annotations | None | Compiler does not know about model effects; routing is runtime-only — Mn-T4, Mn-T5 |
@@ -591,7 +591,7 @@ test → make it pass), an acceptance gate, and SSOT dependencies.
 ### Mn-T1 — `vox-distributed-training` (L2 crate)
 
 **Goal.** Replace
-[`crates/vox-populi/src/mens/tensor/populi_train.rs`](../../../crates/vox-populi/src/mens/tensor/populi_train.rs)
+[`crates/vox-populi/src/mens/tensor/populi_train.rs`](../../../crates/vox-populi/src/mens/tensor/mod.rs)
 with a real distributed-training crate.
 
 **Files Create.**
@@ -1484,11 +1484,11 @@ v1.0 ships.
 
 - [Mesh & Language Distribution SSOT (2026-05-09)](mesh-and-language-distribution-ssot-2026.md) — the umbrella plan-of-record.
 - [Mesh Phase 0 — Foundations Plan (2026)](mesh-phase0-foundations-plan-2026.md)
-- [Mesh Phase 1 — Language Primitives Plan (2026)](mesh-phase1-language-primitives-plan-2026.md)
+- [Mesh Phase 1 — Language Spine Plan (2026)](mesh-phase1-language-spine-plan-2026.md)
 - [Mesh Phase 2 — Code Mobility Plan (2026)](mesh-phase2-code-mobility-plan-2026.md)
-- [Mesh Phase 3 — Multi-agent VCS Plan (2026)](mesh-phase3-multi-agent-vcs-plan-2026.md)
-- [Mesh Phase 4 — Dashboard Plan (2026)](mesh-phase4-dashboard-plan-2026.md)
-- [Mesh Phase 5 — Public Internet Trust Plan (2026)](mesh-phase5-public-internet-trust-plan-2026.md)
+- [Mesh Phase 3 — VCS Gossip Plan (2026)](mesh-phase3-vcs-gossip-plan-2026.md)
+- [Mesh Phase 4 — Dashboard Control Plan (2026)](mesh-phase4-dashboard-control-plan-2026.md)
+- [Mesh Phase 5 — Public Internet Plan (2026)](mesh-phase5-public-internet-plan-2026.md)
 - [Mesh Phase 6 — Grand Network Plan (2026)](mesh-phase6-grand-network-plan-2026.md)
 - [Populi Mesh Probe Correctness Spec (2026)](populi-mesh-probe-correctness-spec-2026.md)
 - [Populi Mesh Probe Correctness Plan (2026)](populi-mesh-probe-correctness-plan-2026.md)

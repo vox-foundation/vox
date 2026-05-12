@@ -2,13 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "contracts/reports/pre-push-report.v1.schema.json",
   "title": "pre-push-report-v1",
-  "description": "Structured timing output from `vox ci pre-push --report-json`.",
+  "description": "Structured timing output from `vox ci pre-push --report-json`. schema_version 2 adds `profile` and `complete`.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schema_version",
+    "profile",
     "ok",
     "quick",
+    "complete",
     "full",
     "dry_run",
     "total_ms",
@@ -17,12 +19,19 @@
   "properties": {
     "schema_version": {
       "type": "integer",
-      "const": 1
+      "enum": [1, 2]
+    },
+    "profile": {
+      "type": "string",
+      "enum": ["fast", "complete", "full"]
     },
     "ok": {
       "type": "boolean"
     },
     "quick": {
+      "type": "boolean"
+    },
+    "complete": {
       "type": "boolean"
     },
     "full": {
