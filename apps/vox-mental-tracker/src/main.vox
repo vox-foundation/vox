@@ -1,4 +1,4 @@
-// vox-mental-tracker — append-only HealthEventLog SSOT, exports (see src/ts/export_contract.ts for row projection), on-device STT via Capacitor.
+// vox-mental-tracker — append-only HealthEventLog SSOT, exports (see src/ts/export_contract.ts for row projection), on-device STT via Tauri (`vox-tauri-sherpa-guest`).
 import std.mobile
 
 /// Structured parser output. Mirrors apps/vox-mental-tracker/src/ts/intent_parser.ts.
@@ -357,7 +357,7 @@ component Home() {
     view: column(raw_class="mh-root") {
         NavBar()
         heading(level=1) { "Mental Health Tracker" }
-        text(raw_class="mh-sub") { "Local-first • append-only log • corrections via record_correction • on-device STT when the Capacitor plugin is registered" }
+        text(raw_class="mh-sub") { "Local-first • append-only log • corrections via record_correction • on-device STT when the Tauri Sherpa plugin is registered" }
         row(raw_class="mh-actions") {
             button(on_click={fn() {
                 let ms = std.time.now_ms()

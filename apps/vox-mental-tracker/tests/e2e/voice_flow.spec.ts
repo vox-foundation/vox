@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test";
  * Stubs Speech.transcribe_microphone via globalThis.__VOX_TEST_TRANSCRIPT__
  * (consumed by src/runtime.ts) so we exercise the parse → save loop with
  * a deterministic transcript and no microphone dependency. Native STT is
- * exercised by the Capacitor build pipeline, not here.
+ * exercised by the Tauri mobile build pipeline, not here.
  *
  * The save step doesn't actually persist — the @endpoint calls go through
  * the Vox-emitted vox-client.ts which talks to the (not-yet-running) Rust

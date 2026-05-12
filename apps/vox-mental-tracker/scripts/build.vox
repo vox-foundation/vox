@@ -7,6 +7,6 @@ fn main() to int {
     shell_exec("node scripts/postbuild-fixup.mjs")
     shell_exec("pnpm build:web")
     shell_exec("vox run scripts/generate-icons.vox")
-    shell_exec("npx cap sync")
+    // Native shell: use `vox compile --target desktop|mobile-android|mobile-ios` (Tauri 2). Capacitor `cap sync` retired.
     return 0
 }

@@ -3,6 +3,33 @@ import * as cp from 'child_process';
 import { VoxMcpClient } from '../core/VoxMcpClient';
 import { ModelRegistryClient } from '../models/ModelRegistry';
 import { ConfigManager } from './ConfigManager';
+import type { BudgetStatus, ProviderStatus, VoxStatus } from '../types';
+
+/** CLI `vox status --json` and MCP `budgetStatus` both expose provider rows; CLI adds `cost_today_usd`. */
+type BudgetSnapshot = BudgetStatus & Partial<Pick<VoxStatus, 'cost_today_usd'>>;
+
+function asBudgetSnapshot(raw: unknown): BudgetSnapshot | null {
+    if (raw == null || typeof raw !== 'object') {
+        return null;
+    }
+    const o = raw as Record<string, unknown>;
+    if (!Array.isArray(o.providers)) {
+        return null;
+    }
+    const snap: BudgetSnapshot = {
+        providers: o.providers as ProviderStatus[],
+    };
+    if (typeof o.cost_today_usd === 'number') {
+        snap.cost_today_usd = o.cost_today_usd;
+    }
+    if (typeof o.total_tokens_used === 'number') {
+        snap.total_tokens_used = o.total_tokens_used;
+    }
+    if (typeof o.total_cost_usd === 'number') {
+        snap.total_cost_usd = o.total_cost_usd;
+    }
+    return snap;
+}
 
 export class StatusBarManager {
     private _statusBar: vscode.StatusBarItem;
@@ -53,7 +80,7 @@ export class StatusBarManager {
         }
 
         // Look up provider status matching the active model prefix
-        const activeProvider = (budget.providers as any[]).find(
+        const activeProvider = budget.providers.find(
             p => activeModelId.startsWith(p.provider) || activeModelId.includes(p.provider)
         );
 
@@ -76,7 +103,7 @@ export class StatusBarManager {
         const md = new vscode.MarkdownString();
         md.isTrusted = true;
         md.appendMarkdown('**Vox AI Provider Status**\n\n');
-        for (const p of (budget.providers as any[])) {
+        for (const p of budget.providers) {
             if (!p.configured) continue;
             const rem = p.remaining === -1 ? '∞' : `${p.remaining}/${p.daily_limit} remaining`;
             md.appendMarkdown(`• ${p.provider}: ${p.model} — ${rem}\n`);

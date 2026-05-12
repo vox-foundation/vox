@@ -22,13 +22,13 @@ Every file under `apps/vox-mental-tracker/contracts/event-payloads/*.json` parse
 
 ## Manual gates
 
-### G5 — Capacitor Android build succeeds
+### G5 — Tauri Android build succeeds
 
-Follow `docs/how-to/build-android.md`; a debug `.apk` is produced. Smoke-test it on a connected device: home screen renders, a quick-add (Mood 3) increments the saved counter, the voice page round-trips a transcript.
+Follow `docs/how-to/build-android.md`; a debug `.apk` is produced via **`vox compile --target mobile-android`** and Tauri Android tooling (`cargo tauri android build` from the generated workspace under the repo `target/generated/` tree). Smoke-test on a connected device: home screen renders, a quick-add (Mood 3) increments the saved counter, the voice page round-trips a transcript.
 
-### G6 — Capacitor iOS build succeeds
+### G6 — Tauri iOS build succeeds
 
-If an Apple toolchain is available: `npx cap add ios && npx cap sync ios && npx cap open ios`, build for a simulator. If unavailable, document the gap in the release notes; iOS parity returns when the toolchain is back online.
+If an Apple toolchain is available: use `vox compile --target mobile-ios`, then `cargo tauri ios build` / Xcode per Tauri 2 mobile docs. If unavailable, document the gap in the release notes; iOS parity returns when the toolchain is back online.
 
 ### G7 — Privacy doc current
 

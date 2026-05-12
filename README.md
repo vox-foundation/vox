@@ -3,7 +3,7 @@
 
   <br><br>
 
-  <p><strong>One <code>.vox</code> file compiles to a database schema, a typed server, a browser app, and the artifacts to deploy them.</strong> Initiated by Bertrand Reyna-Brainerd.</p>
+  <p><strong>Write one <code>.vox</code> file. Automatically generate your database, server, user interface, and deployment configuration.</strong> Initiated by Bertrand Reyna-Brainerd.</p>
 
   <p><a href="https://vox-lang.org"><strong>vox-lang.org</strong></a></p>
 </div>
@@ -30,44 +30,33 @@
 ---
 
 <!-- ANCHOR: why_vox -->
-## Why Vox
+## Why Vox?
 
-Mainstream languages predate LLMs by decades. They tolerate implicit state — nulls, exceptions, schemas restated three times across the stack. That's tractable for a person; it's a minefield for a statistical code generator. A million-token context window doesn't help when most of it is integration boilerplate.
+Most programming languages were designed decades before AI existed. They require you to write the same logic in three different places—your database, your server, and your frontend—and they allow for hidden errors (like missing values or unexpected crashes). This is manageable for a human, but it creates a minefield for AI code generators like ChatGPT or Claude. When an AI gets confused by this complexity, it handles it poorly, causing bugs that are incredibly hard to track down.
 
-Vox is what falls out when you design the language *after* the model: collapse the duplications, push errors into the type system, draw the browser/server boundary in one place, and build durability and tool exposure into the grammar instead of layering them on top.
+<div align="center">
+  <img src="docs/src/assets/legacy_internet_knot.png" alt="The legacy internet architecture: A fragile, tangled knot of duplicated logic across database, backend, and frontend." width="80%">
+</div>
+
+Vox was built from the ground up to be written by AI. It eliminates duplication and forces all rules to be explicit. If an AI writes invalid code, Vox physically rejects it before it can ever run. Instead of hoping the AI gives you a "good vibe" completion, Vox acts as a strict guardrail, ensuring that whatever the AI builds is structurally sound and guaranteed to work.
 <!-- ANCHOR_END: why_vox -->
 
 ## Install
 
-**macOS**
+Download the unified Tauri installer for your operating system from the [Releases page](https://github.com/vox-foundation/vox/releases):
+- **Windows:** `.msi`
+- **macOS:** `.dmg`
+- **Linux:** `.AppImage` or `.deb`
 
-```bash
-brew install vox-foundation/vox/vox
-```
+Upon launching the Vox Desktop app, it will automatically download and install the required system toolchains (Rust for [WASM](https://en.wikipedia.org/wiki/WebAssembly) — high-performance binary code for browsers — and machine learning, and Node.js v22+ for React / TypeScript bundling) to guarantee your environment perfectly matches the workspace requirements. No manual terminal setup is required.
 
-**Linux (Debian/Ubuntu)**
-
-```bash
-curl -fsSLO https://github.com/vox-foundation/vox/releases/latest/download/vox-cli-amd64.deb
-sudo dpkg -i vox-cli-amd64.deb
-```
-
-**Windows** — download the `.msi` from the [Releases page](https://github.com/vox-foundation/vox/releases).
+Once installed, you can initialize your first project via the CLI bundled with the GUI:
 
 ```bash
 vox init my-app
 cd my-app
 vox run src/main.vox
 ```
-
-### Optional plugins
-
-The core binary covers compile, run, bundle, package. Heavier subsystems ship as separate binaries that `vox` dispatches to from `$PATH`; if missing, `vox` tells you what to install.
-
-| Plugin | Adds | Why separate |
-|---|---|---|
-| `vox-ml-cli` | `vox mens`, `vox oratio`, `vox populi`, `vox speech`, `vox train` | Candle, Whisper, HF hub |
-| `vox-schola` | `vox schola`, `vox scientia` | Research and capability-map subsystem |
 
 ## The CLI
 
@@ -76,13 +65,13 @@ The full CLI surface, including every `vox ci`, `vox populi`, and `vox mens` sub
 ---
 
 <div align="center">
-  <img src="docs/src/assets/vox_unification_diagram.png" alt="Vox architecture unification vs. legacy fragmentation">
+  <img src="docs/src/assets/vox_language_pipeline.png" alt="The Vox Language Pipeline: Sound waves purified by the compiler prism into perfectly structured pillars." width="90%">
 </div>
 
 <!-- ANCHOR: how_vox -->
 ## How Vox works
 
-### Pillar 1: One source of truth
+### Pillar 1: The Single Source of Truth
 
 ```vox
 @table type Task {
@@ -92,11 +81,11 @@ The full CLI surface, including every `vox ci`, `vox populi`, and `vox mens` sub
 }
 ```
 
-The declaration is the schema, the wire format, and the typed client. `@index Task.by_owner on (owner)` lives next to it. Migrations come from the diff against the previous schema.
+In Vox, the code above *is* the [schema](https://en.wikipedia.org/wiki/Database_schema), the [wire format](https://en.wikipedia.org/wiki/Wire_format), and the typed client. When you change this type, Vox generates the [Migrations](https://en.wikipedia.org/wiki/Schema_migration) automatically by comparing your new code against the previous version.
 
-→ [`@table` reference](docs/src/reference/ref-decorators.md) · [migration guide](docs/src/how-to/how-to-database.md)
+→ [`@table` reference](docs/src/reference/ref-decorators.md) · [Database guide](docs/src/how-to/how-to-database.md)
 
-### Pillar 2: Errors in the type system
+### Pillar 2: Safety First
 
 ```vox
 @endpoint(kind: query)
@@ -111,13 +100,11 @@ fn add_task(title: str, owner: str) to Result[Id[Task]] {
 }
 ```
 
-A `Result[T]` caller must handle both arms — no exceptions, no `null`, no implicit propagation. The compiler refuses to build code that drops `Error`. [`vox-lsp`](crates/vox-lsp/) surfaces the same diagnostics live in the editor.
+Vox uses a [`Result[T]`](crates/vox-core/src/result.rs) type to handle errors. This means you are *forced* to handle both success and failure cases. There are no "exceptions" that crash your app at runtime, and no `null` values to track down. If you forget to handle an error, the compiler simply won't build your app.
 
-`@endpoint(kind: …)` is the unified form of the older `@query` / `@server` / `@mutation` decorators (April 2026 grammar collapse).
+→ [API Decorators](docs/src/reference/ref-decorators.md) · [Error handling guide](docs/src/how-to/how-to-errors.md)
 
-→ [decorator reference](docs/src/reference/ref-decorators.md)
-
-### Pillar 3: One file → running deployment
+### Pillar 3: Full-Stack Generation
 
 ```vox
 component TaskPage(tasks: List[Task]) {
@@ -129,13 +116,14 @@ component TaskPage(tasks: List[Task]) {
 routes { "/" to TaskPage }
 ```
 
-`vox build` emits React/TSX components, a generated `vox-client.ts` RPC bridge, and — via [`vox-deploy-codegen`](crates/vox-deploy-codegen/) — Dockerfile, Compose, Kubernetes, Fly, Coolify, and systemd targets, all derived from the same module graph. External React, TanStack, or mobile apps can import the emitted components or call the endpoints over the bridge.
+Running `vox build` takes your logic and emits everything you need:
+- **Frontend:** [React](https://en.wikipedia.org/wiki/React_(software)) components and a generated bridge for your API.
+- **Backend:** A high-performance [RPC bridge](https://en.wikipedia.org/wiki/Remote_procedure_call) (server calls).
+- **Infrastructure:** Dockerfiles, Kubernetes manifests, and cloud-native deployment targets (Fly.io, systemd).
 
-→ [external interop plan](docs/src/architecture/external-frontend-interop-plan-2026.md) · [deployment](docs/src/reference/deployment-compose.md)
+→ [Frontend interop](docs/src/architecture/external-frontend-interop-plan-2026.md) · [Deployment guide](docs/src/reference/deployment-compose.md)
 
-### Pillar 4: Durability, agents, skills
-
-`@durable` lowers to checkpointed execution under [`vox-workflow-runtime`](crates/vox-workflow-runtime/) — retried on transient faults, restarted on node death.<sup>[2](#ref2), [3](#ref3)</sup> `@mcp.tool` exposes a function to any Model Context Protocol client.<sup>[4](#ref4)</sup>
+### Pillar 4: AI-Native Durability
 
 ```vox
 @durable
@@ -150,23 +138,31 @@ fn checkout(amount: int) to Result[str] {
 }
 ```
 
+The `@durable` decorator turns any function into a [checkpointed](https://en.wikipedia.org/wiki/Application_checkpointing) workflow. This means if your server crashes or the network drops mid-function, Vox automatically recovers and resumes exactly where it left off. Meanwhile, the `@mcp.tool` decorator makes these functions instantly available to AI assistants using the [Model Context Protocol (MCP)](https://en.wikipedia.org/wiki/Model_Context_Protocol).
+
+→ [Orchestration research](docs/src/architecture/autonomous-orchestration-policy-research-2026.md) · [`vox-skills`](crates/vox-skills/)
+
 <div align="center">
   <img src="docs/src/assets/durable_essentialist_loop.webp" alt="Durable execution loop: commit, execute, recover, complete" width="60%">
 </div>
 
-The same primitives drive multi-agent work. [`vox-orchestrator`](crates/vox-orchestrator/) routes tasks to agents by file affinity and ten policy modules (tier cascade, plan-mode trigger, risk matrix, budget gate, circuit breaker, calibration, …). Capabilities are extensible: ~25 first-party plugins (compiler, git, memory, RAG, testing, Mens-Candle-CUDA, WASM and OCI runtimes) load through [`vox-plugin-host`](crates/vox-plugin-host/) behind a stable ABI.
+The same primitives drive multi-agent work via [`vox-orchestrator`](crates/vox-orchestrator/), which routes tasks by file affinity across ten policy modules (tier cascade, budget gate, circuit breaker (stops calls to failing systems), …).
+
+- **AgentOS.** An execution [sandbox](https://en.wikipedia.org/wiki/Sandbox_(computer_security)) (isolated safety zone) that enforces strict data-mutation rules (`read_only`, `local_mutation`, `external_side_effect`) and safety guardrails to prevent AI-driven side effects (changes to files or network) damaging your system.
+- **Deep Research (SCIENTIA).** Driven by `vox-search`, this uses [Corrective RAG (CRAG)](https://arxiv.org/abs/2401.15884)<sup>[4](#ref4)</sup>—a technique for iterative query expansion and fact-checking—mirroring proprietary deep-research agents entirely locally.
+- **Confidence Fusion (Socrates).** A validation layer that cross-checks AI model outputs across multiple providers, pausing to request [human-in-the-loop (HITL)](https://en.wikipedia.org/wiki/Human-in-the-loop) review when certainty drops below a safe threshold.
+
 
 → [orchestration policy research](docs/src/architecture/autonomous-orchestration-policy-research-2026.md) · [`vox-skills`](crates/vox-skills/)
 
-### Pillar 5: Built for LLM authorship
+The four pillars above are designed for one goal: **Reliable AI Code Generation.** We solve the "AI hallucination" problem by giving the AI a strict, machine-verified environment:
 
-The shape of the four pillars above is downstream of one decision: *design the language after the model*. Three subsystems make that concrete.
+- **Grammar-constrained decoding.** Vox ensures the AI *cannot* physically output invalid syntax, stopping errors before they reach your files.
+- **Test-First Enforcement (TOESTUB).** We enforce a strict "Failing Test First" policy. No code can be committed without an adjacent test that defines exactly what "done" looks like.
+- **Measurable Detectors.** The `vox audit` command evaluates code for quality, catching "AI Laziness" (stubs) and security risks automatically.
+- **Local Training (MENS).** Verified code becomes training data for our local model, creating a self-improving loop where the AI learns from its own successes.
 
-- **Grammar-constrained decoding.** [`vox-constrained-gen`](crates/vox-constrained-gen/) is an Earley/PDA decoder with a deadlock watchdog. Token-stream constraint, not post-hoc validation — invalid Vox cannot be sampled.
-- **Measurable detectors.** Rules live in [`rules.v1.yaml`](crates/vox-rule-pack/rules/rules.v1.yaml) with a JSON Schema and an F1 bench scorer over fixture corpora. Stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system rules are all scored against ground truth, not vibes.
-- **Local training.** Vox is new; mainstream languages saturate the public training corpus, Vox doesn't. `vox populi` runs QLoRA fine-tunes and OpenAI-compatible serving on detected CUDA / Metal / WebGPU — Burn + Candle, no Python. Requires the `gpu` cargo feature.
-
-→ [`examples/golden/`](examples/golden/) · [Rosetta comparison](docs/src/explanation/expl-rosetta-inventory.md) · [why Vox for AI](docs/src/explanation/why-vox-for-ai.md)
+→ [Why Vox for AI](docs/src/explanation/why-vox-for-ai.md) · [TOESTUB Guide](docs/src/contributors/toestub-contributor-guide.md)
 
 ---
 
@@ -174,16 +170,27 @@ The shape of the four pillars above is downstream of one decision: *design the l
 
 Properties enforced on the project itself, invisible from the language surface:
 
-- **Layered crate graph.** All 101 workspace crates declare a layer (L0 pure types → L5 surfaces) in [`layers.toml`](docs/src/architecture/layers.toml). [`vox-arch-check`](crates/vox-arch-check/) blocks inversions, fan-in violations, LoC budget overruns, and orphaned modules.
-- **Sandboxed execution.** [`vox-wasm-engine`](crates/vox-wasm-engine/) (Wasmtime), [`vox-container`](crates/vox-container/) (OCI), [`vox-bounded-fs`](crates/vox-bounded-fs/) (size-capped reads), [`vox-exec-grammar`](crates/vox-exec-grammar/) (shell risk classifier). Tiers are selectable on `vox run`.
-- **Declared capabilities.** [`vox-capability-registry`](crates/vox-capability-registry/) gates what tools can do; [`vox-identity`](crates/vox-identity/) signs with ed25519 against a trust ledger; [`vox-secrets`](crates/vox-secrets/) is the only path to a secret value.
+- **Layered crate graph.** All 112 workspace crates (Rust libraries) declare a layer (L0 pure types → L5 surfaces) in [`layers.toml`](docs/src/architecture/layers.toml). [`vox-arch-check`](crates/vox-arch-check/) blocks [inversions](https://en.wikipedia.org/wiki/Dependency_inversion_principle), fan-in (how many things depend on a module), [LoC](https://en.wikipedia.org/wiki/Source_lines_of_code) budget overruns, and orphaned modules.
+- **Sandboxed execution.** Tools run in isolated environments using WebAssembly (Wasmtime) or Docker (OCI). Read access is size-capped (`vox-bounded-fs`), and CLI commands are scanned for risks (detecting command injection via `vox-exec-grammar`).
+- **Declared capabilities.** Agents must declare what they intend to do via the `vox-capability-registry`. All secure keys and tokens are retrieved exclusively through **Clavis** (`vox-secrets`), our encrypted secrets vault.
+- **SCIENTIA research integrity.** A built-in framework that extracts verifiable claims from AI research, formats them as standard "nanopublications" (machine-readable single-fact snippets), and enforces pre-registration to ensure AI-generated research outputs are factually grounded and not hallucinated.
 <!-- ANCHOR_END: how_vox -->
 
 ---
 
-## Automation: VoxScript-first
+## Workflow & Diagnostics
 
-Project automation is `.vox`, not `.ps1` / `.sh` / `.py`. The same file runs on Windows, Linux, and macOS; it's type-checked before execution (`vox check scripts/foo.vox`); it emits `vox.script.*` telemetry; and it can run in a WASM sandbox for untrusted input.
+```bash
+vox research run "query"               # deep research + fact-checking (SCIENTIA)
+vox plan create "task"                 # generate [agentic](https://en.wikipedia.org/wiki/Autonomous_agent) (autonomous goal-seeking) multi-step execution plan
+vox secrets set [ID]                   # securely store API keys in the Clavis vault
+vox mens train [dataset]               # train/fine-tune (adjusting model for specific tasks) local AI models
+vox share                              # create a public URL tunnel for local apps
+vox doctor                             # check toolchain and workspace integrity
+vox audit                              # scan code for stubs and AI-native rule violations
+vox pm search [query]                  # search the Vox package manager registry
+vox ci pre-push                        # run the machine-verified code audit suite
+```
 
 ```bash
 vox run scripts/clean-cache.vox
@@ -192,15 +199,42 @@ vox run --isolation wasm scripts/process-untrusted-data.vox
 
 Other commands worth knowing:
 
-- `vox share publish file.vox` — short-lived public preview tunnel (Cloudflare, localhost.run, Tailscale).
-- `vox audit` — runs the rule pack against your tree.
-- `vox telemetry doctor` — diagnoses `VOX_TELEMETRY` and per-sink wiring.
+- `vox ci pre-push` — Run the full machine-verification suite (layer checks, secret guards, multi-language drift checks).
+- `vox pm search [query]` — Search the first-party and community Vox package registry.
+- `vox deploy --target fly` — Generate and execute a deployment plan for cloud providers like Fly.io.
+- `vox login` — Authenticate with the Vox cloud and initialize your local secrets session.
+- `vox telemetry doctor` — Diagnose the health of agent event tracking and metrics.
+
+---
+
+## Extensibility & Plugins
+
+Vox is highly modular. The core binary (`vox`) handles compiling, running, and deploying code. Advanced capabilities are provided through optional **CLI Extensions** and **Runtime Plugins**.
+
+### CLI Extensions
+Heavier subsystems ship as separate binaries that the core `vox` command dispatches to. If you try to run a command you don't have, Vox will tell you what to install.
+
+| Extension | Subcommands | Purpose |
+|---|---|---|
+| `vox-ml-cli` | `vox mens`, `vox populi` | Rust-native ML frameworks (Candle, [Whisper](https://en.wikipedia.org/wiki/Whisper_(speech_recognition_system))) for training and serving AI models locally without Python. |
+| `vox-schola` | `vox schola`, `vox scientia` | Autonomous AI research, fact-checking, and capability-map subsystems. |
+
+### Runtime Plugins (Agent Skills)
+The Vox AgentOS and orchestration engine dynamically load capabilities through a stable ABI (the binary interface between program modules) using `vox-plugin-host`. There are currently 26 first-party plugins that grant your agents access to the outside world:
+
+- **Core Infrastructure**: `api`, `catalog`, `cloud`, `host`, `types`, `webhook`
+- **Execution Sandboxes**: `runtime-container` (Docker), `runtime-wasm`, `script-execution`
+- **Machine Learning & Audio**: `mens-candle-cuda` (NVIDIA hardware acceleration), `nvml-probe`, `oratio`, `oratio-mic`, `populi-mesh`
+- **Agent Skills**: `skill-compiler`, `skill-git`, `skill-memory`, `skill-orchestrator`, `skill-rag`, `skill-testing`, `skill-testing-validate`, `skill-v0`, `browser`, `noop-skill`
+- **Publishing**: `publication`, `grammar-export`
+
+*→ See the [Plugin Catalog](docs/src/reference/plugin-catalog.generated.md) for detailed tool signatures.*
 
 ---
 
 ## Mesh and provider routing
 
-Cross-machine work is opt-in. Nodes advertise CPU/CUDA/Metal/VRAM on startup and the orchestrator routes training and inference jobs to whichever machines can take them. Agent-to-agent messages are in-process by default; the `populi-transport` feature enables relay. Both ends declare the same Vox type, so wire mismatches fail at compile time.
+Cross-machine work is opt-in. Nodes advertise CPU/CUDA/Metal/VRAM on startup and the orchestrator routes training and inference jobs to whichever machines can take them. Agent-to-agent messages are in-process (shared memory communication) by default; the `populi-transport` feature enables relay. Both ends declare the same Vox type, so wire mismatches fail at compile time.
 
 ```bash
 VOX_MESH_ENABLED=1 VOX_MESH_NODE_ID=my-node vox populi serve
@@ -214,23 +248,23 @@ Local models (Ollama) and the major cloud providers go through one policy layer 
 ## Stability
 
 <!-- ANCHOR: tier_table -->
-Workspace `0.5.0` — pre-1.0. Surfaces are graded by how reproducibly an LLM can target them: data and tool contracts lock first, rendering surfaces last.
+Workspace `0.5.0` — pre-1.0. Surfaces are graded by how reproducibly an [LLM](https://en.wikipedia.org/wiki/Large_language_model) can target them: data and tool [contracts](https://en.wikipedia.org/wiki/Design_by_contract) lock first, rendering surfaces last.
 
 🟢 Stable · 🟡 Preview · 🚧 Experimental
 
 | Surface | Tier | Notes |
 |:---|:---|:---|
-| Compiler engine | 🟢 | AST, HIR, type checker, LSP, codegen. |
+| Compiler engine | 🟢 | AST (logic tree), [HIR](crates/vox-compiler/src/hir/) (high-level IR), type checker, LSP, codegen (auto-writing code). |
 | `@table` & data layer | 🟢 | Schema, migrations, `db.*` query builder, wire types. |
 | `@mcp.tool` / `@mcp.resource` | 🟢 | MCP protocol compliance. |
 | Surface syntax | 🟡 | Top-level forms (`@endpoint(kind: …)`, `@durable`, bare `workflow`/`activity`/`actor`) defined in [`AGENTS.md`](AGENTS.md). |
 | Endpoints | 🟡 | Unified `@endpoint` is recent. |
 | Code-audit rule pack | 🟡 | See Pillar 5. |
-| RAG & knowledge curation | 🟡 | `vox scientia`, Socrates guards. |
-| Durable execution | 🟡 | Grammar locked; `vox-workflow-runtime` behavior maturing. |
-| Local training (MENS) | 🟡 | Hardware coverage expanding. |
-| Web UI & rendering | 🟡 | Vox-native reactivity for greenfield; React TSX + `vox-client.ts` for interop. |
-| Distributed node mesh | 🚧 | Cross-machine routing is pre-1.0 design. |
+| RAG & knowledge curation | 🟡 | `vox scientia`, Socrates confidence fusion. |
+| Durable execution | 🟡 | Grammar locked; runtime behavior maturing. |
+| Local training (MENS) | 🟡 | QLoRA parity; hardware coverage expanding. |
+| Web UI & rendering | 🟡 | Vox-native reactivity (automatic UI updates) + React interop. |
+| Distributed node mesh | 🚧 | Cross-machine job routing via [mesh networking](https://en.wikipedia.org/wiki/Mesh_networking). |
 
 v1.0 criteria: [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md). Roadmap: [GUI-native phases](docs/src/architecture/gui-native-roadmap-status-2026.md). History: [`CHANGELOG.md`](CHANGELOG.md).
 <!-- ANCHOR_END: tier_table -->
@@ -241,7 +275,7 @@ Phase status: 2–6 done (primitive collapse, grammar unification, compiler/GUI 
 
 ## Documentation
 
-Docs follow the **Diátaxis** framework.
+Docs follow the [**Diátaxis**](https://diataxis.fr/) framework (Tutorials, How-To, Explanation, Reference).
 
 | Intent | Start here |
 |---|---|
@@ -249,7 +283,7 @@ Docs follow the **Diátaxis** framework.
 | Task recipes | [How-To Guides](docs/src/how-to/) · [AI Agents & MCP](docs/src/how-to/how-to-ai-agents.md) |
 | Understanding | [Why Vox for AI](docs/src/explanation/why-vox-for-ai.md) · [Compiler architecture](docs/src/explanation/expl-architecture.md) |
 | Reference | [CLI](docs/src/reference/cli.md) · [Decorators](docs/src/reference/ref-decorators.md) |
-| Architecture | [Master index](docs/src/architecture/architecture-index.md) · [Contributor hub](docs/src/contributors/contributor-hub.md) |
+| Architecture | [Research index](docs/src/architecture/research-index.md) · [Where things live](docs/src/architecture/where-things-live.md) · [Contributor hub](docs/src/contributors/contributor-hub.md) |
 | Operations | [Deployment](docs/src/reference/deployment-compose.md) · [CI runner](docs/src/ci/runner-contract.md) |
 
 ---
@@ -282,15 +316,21 @@ Funded via [Open Collective](https://opencollective.com/vox-foundation) — ever
 
 Apache 2.0: commercial use, patent grant, modification with attribution. [`LICENSE`](https://github.com/vox-foundation/vox/blob/main/LICENSE).
 
-Discussion: [GitHub Discussions](https://github.com/vox-foundation/vox/discussions). Changelogs and ADRs: [RSS](https://vox-lang.org/feed.xml).
+Discussion: [GitHub Discussions](https://github.com/vox-foundation/vox/discussions). Changelogs and [ADRs](docs/src/adr/): RSS (<https://vox-lang.org/feed.xml>).
 <!-- ANCHOR_END: community_license -->
 
 ---
 
 ## References
 
-<a id="ref2"></a>**[2]** Fateev, M., & Abbas, S. (2019). *Temporal*. Temporal Technologies. <https://temporal.io>
+<a id="ref1"></a>**[1]** Fateev, M., & Abbas, S. (2019). *Temporal*. Temporal Technologies. <https://temporal.io>
 
-<a id="ref3"></a>**[3]** Armstrong, J. (2003). *Making reliable distributed systems in the presence of software errors* [Ph.D. thesis, Royal Institute of Technology, Stockholm]. <https://erlang.org/download/armstrong_thesis_2003.pdf>
+<a id="ref2"></a>**[2]** Armstrong, J. (2003). *Making reliable distributed systems in the presence of software errors* [Ph.D. thesis, Royal Institute of Technology, Stockholm]. <https://erlang.org/download/armstrong_thesis_2003.pdf>
 
-<a id="ref4"></a>**[4]** Anthropic. (2024). *Model Context Protocol*. <https://modelcontextprotocol.io>
+<a id="ref3"></a>**[3]** Anthropic. (2024). *Model Context Protocol*. <https://modelcontextprotocol.io>
+
+<a id="ref4"></a>**[4]** Yan, S. Q., Gu, J. C., Zhu, Y., & Ling, Z. H. (2024). *Corrective Retrieval Augmented Generation*. arXiv:2401.15884. <https://arxiv.org/abs/2401.15884>
+
+<a id="ref5"></a>**[5]** Tracel AI & Hugging Face. (2023). *Burn & Candle: High-performance ML frameworks for Rust*. <https://github.com/tracel-ai/burn> · <https://github.com/huggingface/candle>
+
+<a id="ref6"></a>**[6]** Earley, J. (1970). *An efficient context-free parsing algorithm*. Communications of the ACM, 13(2), 94-102. <https://doi.org/10.1145/362007.362035>
