@@ -69,8 +69,7 @@ mod tests {
     use super::collect_table_select_projections;
     use vox_compiler::ast::span::Span;
     use vox_compiler::hir::{
-        DefId, HirDbPlanCapabilities, HirDbQueryPlan, HirDbTableOp, HirDerived, HirExpr, HirModule,
-        HirReactiveComponent, HirReactiveMember,
+        DefId, HirDbPlanCapabilities, HirDbQueryPlan, HirDbTableOp, HirExpr, HirModule,
     };
 
     #[test]

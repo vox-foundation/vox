@@ -69,7 +69,7 @@ pub struct ImportDecl {
     pub span: Span,
 }
 
-/// One item in a [`Module`]: any construct that can appear at column 0 (after indentation) in a file.
+/// One item in a [`crate::Module`]: any construct that can appear at column 0 (after indentation) in a file.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Decl {
     /// Top-level or nested function.

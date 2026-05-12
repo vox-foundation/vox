@@ -65,6 +65,72 @@ pub struct FnDecl {
     /// `max_iterations: N` arg from `@ai(max_iterations = N)` (GA-21). Default 3.
     #[serde(default)]
     pub ai_max_iterations: u32,
+    /// `task_category: Name` arg from extended `@ai(...)` fixture routing.
+    #[serde(default)]
+    pub ai_task_category: Option<String>,
+    /// `strengths: [name, ...]` arg from extended `@ai(...)` fixture routing.
+    #[serde(default)]
+    pub ai_strengths: Vec<String>,
+    /// `tier_max: Local|Light|Pro|Elite` arg from extended `@ai(...)` fixture routing.
+    #[serde(default)]
+    pub ai_tier_max: Option<String>,
+    /// `cost_ceiling_usd_per_call: N` arg from extended `@ai(...)` fixture routing.
+    #[serde(default)]
+    pub ai_cost_ceiling_usd_per_call: Option<f64>,
+    /// `@prompt(stage = ..., schema = ...)` proposed fixture stage.
+    #[serde(default)]
+    pub prompt_stage: Option<String>,
+    /// `@prompt(stage = ..., schema = ...)` proposed fixture schema type.
+    #[serde(default)]
+    pub prompt_schema: Option<String>,
+    /// Optional `redact` list from `@prompt(...)`.
+    #[serde(default)]
+    pub prompt_redact: Vec<String>,
+    /// `@subagent(policy = ..., max_depth = ...)` proposed fixture policy.
+    #[serde(default)]
+    pub subagent_policy: Option<String>,
+    /// Optional max dispatch chain depth from `@subagent`.
+    #[serde(default)]
+    pub subagent_max_depth: Option<u32>,
+    /// Optional per-call budget ceiling from `@subagent`.
+    #[serde(default)]
+    pub subagent_budget_usd: Option<f64>,
+    /// Optional dispatch description from `@subagent`.
+    #[serde(default)]
+    pub subagent_description: Option<String>,
+    /// Optional explicit parallel fan-out toggle from `@subagent`.
+    #[serde(default)]
+    pub subagent_parallel: bool,
+    /// Optional task complexity 0–10 for `@subagent(complexity = N)` dispatch routing.
+    #[serde(default)]
+    pub subagent_complexity: Option<u8>,
+    /// `@search(corpus = ...)` corpus selector.
+    #[serde(default)]
+    pub search_corpus: Option<String>,
+    /// `@search(query = ...)` query template.
+    #[serde(default)]
+    pub search_query: Option<String>,
+    /// `@search(into = ...)` projection target type.
+    #[serde(default)]
+    pub search_into: Option<String>,
+    /// Optional top-k count for search corpus calls.
+    #[serde(default)]
+    pub search_top_k: Option<u32>,
+    /// Optional policy string for search routing guardrails.
+    #[serde(default)]
+    pub search_policy: Option<String>,
+    /// `@hole(spec = ...)` deferred-fill spec text.
+    #[serde(default)]
+    pub hole_spec: Option<String>,
+    /// `@hole(reviewer = ...)` reviewer mode.
+    #[serde(default)]
+    pub hole_reviewer: Option<String>,
+    /// `@hole(cache_key = ...)` deterministic key.
+    #[serde(default)]
+    pub hole_cache_key: Option<String>,
+    /// Optional constraints list from `@hole(...)`.
+    #[serde(default)]
+    pub hole_constraints: Vec<String>,
     /// `@embed(model: "...", dimensions: N, source_field: "...")` decorator (GA-24).
     #[serde(default)]
     pub embed: Option<super::embed_decorator::AstEmbedSpec>,

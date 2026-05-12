@@ -1,6 +1,6 @@
-//! Request parameters and row shapes for [`crate::VoxDb`] (Arca on Turso).
+//! Request parameters and row shapes for `vox_db::VoxDb` (Arca on Turso).
 //!
-//! **SSOT:** Schema versions live under [`crate::schema`]. Public Codex naming and env vars are
+//! **SSOT:** Schema versions live under `vox_db::schema`. Public Codex naming and env vars are
 //! defined in ADR 004 and the repo-root `AGENTS.md`—do not restate deployment semantics on
 //! every struct; link those docs when adding new persisted fields.
 //!
@@ -35,7 +35,7 @@ pub struct LogExecutionParams<'a> {
     pub options: Option<&'a str>,
 }
 
-/// Parameters for [`crate::VoxDb::save_memory`].
+/// Parameters for `vox_db::VoxDb::save_memory`.
 #[derive(Debug, Clone)]
 pub struct SaveMemoryParams<'a> {
     /// Owning agent id.
@@ -54,7 +54,7 @@ pub struct SaveMemoryParams<'a> {
     pub vcs_snapshot_id: Option<&'a str>,
 }
 
-/// Parameters for [`crate::VoxDb::log_interaction`].
+/// Parameters for `vox_db::VoxDb::log_interaction`.
 #[derive(Debug, Clone)]
 pub struct LogInteractionParams<'a> {
     /// Session id for the interaction.
@@ -73,7 +73,7 @@ pub struct LogInteractionParams<'a> {
     pub token_count: Option<i64>,
 }
 
-/// Parameters for [`crate::VoxDb::record_llm_outcome`].
+/// Parameters for `vox_db::VoxDb::record_llm_outcome`.
 #[derive(Debug, Clone)]
 pub struct ModelOutcome<'a> {
     pub session_id: &'a str,
@@ -107,7 +107,7 @@ pub struct ModelAttempt<'a> {
     pub error_class: Option<&'a str>,
 }
 
-/// Parameters for [`crate::VoxDb::save_snippet`].
+/// Parameters for `vox_db::VoxDb::save_snippet`.
 #[derive(Debug, Clone)]
 pub struct SaveSnippetParams<'a> {
     /// Programming language tag.
@@ -128,7 +128,7 @@ pub struct SaveSnippetParams<'a> {
     pub embedding_ref: Option<&'a str>,
 }
 
-/// Parameters for [`crate::VoxDb::publish_artifact`].
+/// Parameters for `vox_db::VoxDb::publish_artifact`.
 #[derive(Debug, Clone)]
 pub struct PublishArtifactParams<'a> {
     /// Stable artifact id.
@@ -151,7 +151,7 @@ pub struct PublishArtifactParams<'a> {
     pub status: &'a str,
 }
 
-/// Parameters for [`crate::VoxDb::upsert_publication_manifest`].
+/// Parameters for `vox_db::VoxDb::upsert_publication_manifest`.
 #[derive(Debug, Clone)]
 pub struct PublicationManifestParams<'a> {
     /// Stable publication id (e.g. news id or scientia artifact id).
@@ -179,7 +179,7 @@ pub struct PublicationManifestParams<'a> {
     pub state: &'a str,
 }
 
-/// Parameters for [`crate::VoxDb::upsert_publication_media_asset`].
+/// Parameters for `vox_db::VoxDb::upsert_publication_media_asset`.
 #[derive(Debug, Clone)]
 pub struct PublicationMediaAssetParams<'a> {
     /// Stable publication id owning this asset.
@@ -196,7 +196,7 @@ pub struct PublicationMediaAssetParams<'a> {
     pub metadata_json: Option<&'a str>,
 }
 
-/// Parameters for inserting or updating one [`external_submission_jobs`] row by idempotency key.
+/// Parameters for inserting or updating one `external_submission_jobs` row by idempotency key.
 #[derive(Debug, Clone)]
 pub struct ExternalSubmissionJobUpsertParams<'a> {
     pub publication_id: &'a str,
@@ -214,7 +214,7 @@ pub struct ExternalSubmissionJobUpsertParams<'a> {
     pub metadata_json: Option<&'a str>,
 }
 
-/// Parameters for [`crate::VoxDb::record_external_submission_attempt`].
+/// Parameters for `vox_db::VoxDb::record_external_submission_attempt`.
 #[derive(Debug, Clone)]
 pub struct ExternalSubmissionAttemptParams<'a> {
     pub job_id: i64,
@@ -226,7 +226,7 @@ pub struct ExternalSubmissionAttemptParams<'a> {
     pub detail_json: Option<&'a str>,
 }
 
-/// Parameters for [`crate::VoxDb::insert_external_status_snapshot`].
+/// Parameters for `vox_db::VoxDb::insert_external_status_snapshot`.
 #[derive(Debug, Clone)]
 pub struct ExternalStatusSnapshotParams<'a> {
     pub adapter: &'a str,
@@ -236,7 +236,7 @@ pub struct ExternalStatusSnapshotParams<'a> {
     pub snapshot_json: &'a str,
 }
 
-/// Parameters for [`crate::VoxDb::upsert_publication_external_link`].
+/// Parameters for `vox_db::VoxDb::upsert_publication_external_link`.
 #[derive(Debug, Clone)]
 pub struct PublicationExternalLinkUpsertParams<'a> {
     pub publication_id: &'a str,
@@ -247,7 +247,7 @@ pub struct PublicationExternalLinkUpsertParams<'a> {
     pub metadata_json: Option<&'a str>,
 }
 
-/// Parameters for [`crate::VoxDb::upsert_publication_external_revision`].
+/// Parameters for `vox_db::VoxDb::upsert_publication_external_revision`.
 #[derive(Debug, Clone)]
 pub struct PublicationExternalRevisionUpsertParams<'a> {
     pub publication_id: &'a str,
@@ -257,7 +257,7 @@ pub struct PublicationExternalRevisionUpsertParams<'a> {
     pub metadata_json: Option<&'a str>,
 }
 
-/// Parameters for [`crate::VoxDb::register_agent`].
+/// Parameters for `vox_db::VoxDb::register_agent`.
 #[derive(Debug, Clone)]
 pub struct RegisterAgentParams<'a> {
     /// Agent id (primary key).
@@ -400,7 +400,7 @@ pub struct UpsertAccountSecretCiphertextParams<'a> {
     pub checksum_blake3: &'a str,
 }
 
-/// Parameters for [`crate::VoxDb::insert_external_review_run`].
+/// Parameters for `vox_db::VoxDb::insert_external_review_run`.
 #[derive(Debug, Clone)]
 pub struct ExternalReviewRunParams<'a> {
     pub provider: &'a str,
@@ -415,7 +415,7 @@ pub struct ExternalReviewRunParams<'a> {
     pub metadata_json: Option<&'a str>,
 }
 
-/// Parameters for [`crate::VoxDb::upsert_external_review_thread`].
+/// Parameters for `vox_db::VoxDb::upsert_external_review_thread`.
 #[derive(Debug, Clone)]
 pub struct ExternalReviewThreadParams<'a> {
     pub provider: &'a str,
@@ -433,7 +433,7 @@ pub struct ExternalReviewThreadParams<'a> {
     pub raw_payload_json: &'a str,
 }
 
-/// Parameters for [`crate::VoxDb::upsert_external_review_finding`].
+/// Parameters for `vox_db::VoxDb::upsert_external_review_finding`.
 #[derive(Debug, Clone)]
 pub struct ExternalReviewFindingParams<'a> {
     pub run_id: i64,
@@ -460,7 +460,7 @@ pub struct ExternalReviewFindingParams<'a> {
     pub status: &'a str,
 }
 
-/// Parameters for [`crate::VoxDb::append_external_review_finding_state`].
+/// Parameters for `vox_db::VoxDb::append_external_review_finding_state`.
 #[derive(Debug, Clone)]
 pub struct ExternalReviewFindingStateParams<'a> {
     pub finding_id: i64,
@@ -471,7 +471,7 @@ pub struct ExternalReviewFindingStateParams<'a> {
     pub evidence_ref: Option<&'a str>,
 }
 
-/// Parameters for [`crate::VoxDb::insert_external_review_outcome`].
+/// Parameters for `vox_db::VoxDb::insert_external_review_outcome`.
 #[derive(Debug, Clone)]
 pub struct ExternalReviewOutcomeParams<'a> {
     pub finding_id: i64,
@@ -480,7 +480,7 @@ pub struct ExternalReviewOutcomeParams<'a> {
     pub outcome_json: Option<&'a str>,
 }
 
-/// Parameters for [`crate::VoxDb::insert_external_review_deadletter`].
+/// Parameters for `vox_db::VoxDb::insert_external_review_deadletter`.
 #[derive(Debug, Clone)]
 pub struct ExternalReviewDeadletterParams<'a> {
     pub provider: &'a str,
@@ -494,7 +494,7 @@ pub struct ExternalReviewDeadletterParams<'a> {
     pub raw_payload_json: &'a str,
 }
 
-/// Parameters for [`crate::VoxDb::insert_external_review_kpi_snapshot`].
+/// Parameters for `vox_db::VoxDb::insert_external_review_kpi_snapshot`.
 #[derive(Debug, Clone)]
 pub struct ExternalReviewKpiSnapshotParams<'a> {
     pub repository_id: &'a str,

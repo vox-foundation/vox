@@ -21,6 +21,6 @@ mod mesh;
 
 #[cfg(feature = "populi-transport")]
 pub use mesh::{
-    drain_populi_remote_task_results, gate_local_fallback, relay_remote_task_cancel,
-    relay_remote_task_envelope, relay_to_mesh,
+    drain_populi_remote_task_results, gate_local_fallback, relay_ai_fixture_distributed_subagent,
+    relay_remote_task_cancel, relay_remote_task_envelope, relay_to_mesh,
 };

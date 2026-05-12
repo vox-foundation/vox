@@ -56,8 +56,10 @@ fn dei_resolve_respects_registry_arm_stats_shape() {
     reg.inject_arm_stats(stats);
 
     // Force the Thompson exploration branch (skip `best_for_with_filter` primary path).
-    let mut cfg = InferenceConfig::default();
-    cfg.tier = TierProfile::Manual("definitely-not-in-registry".into());
+    let cfg = InferenceConfig {
+        tier: TierProfile::Manual("definitely-not-in-registry".into()),
+        ..InferenceConfig::default()
+    };
     let params = RegistryModelResolutionParams {
         task: TaskCategory::CodeGen,
         complexity: 5,

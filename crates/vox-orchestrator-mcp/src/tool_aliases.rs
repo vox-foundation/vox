@@ -1,6 +1,6 @@
 //! Wire-level MCP tool name aliases (same JSON args as canonical tools).
 //!
-//! `(alias, canonical)` pairs accepted by [`super::handle_tool_call`] and [`super::input_schemas::tool_input_schema`].
+//! `(alias, canonical)` pairs accepted by `super::handle_tool_call` and `super::input_schemas::tool_input_schema`.
 include!(concat!(env!("OUT_DIR"), "/tool_aliases_wire.rs"));
 
 /// Resolve an incoming tool name to the canonical handler name.

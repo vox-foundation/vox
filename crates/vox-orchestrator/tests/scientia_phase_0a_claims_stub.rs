@@ -1,9 +1,12 @@
 use vox_orchestrator::dei_shim::research::claims::{Claim, extract_claims_with_model};
 
 #[tokio::test]
-async fn extract_claims_stub_returns_empty() {
+async fn extract_claims_without_available_model_falls_back_to_empty() {
     let claims = extract_claims_with_model("test query", None, None, None, None).await;
-    assert!(claims.is_empty(), "Phase 0a stub must return Vec::new()");
+    assert!(
+        claims.is_empty(),
+        "offline claim extraction should fail closed when no LLM candidate succeeds"
+    );
 }
 
 #[test]

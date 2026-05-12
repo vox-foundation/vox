@@ -541,7 +541,7 @@ pub async fn vox_scientia_publication_novelty_happy_path(
     let (worthiness_decision, worthiness_score, hard_metrics_ok) = match report.worthiness.as_ref()
     {
         Some(w) => (
-            serde_json::to_value(&w.decision)
+            serde_json::to_value(w.decision)
                 .ok()
                 .and_then(|v| match v {
                     serde_json::Value::String(s) => Some(s),

@@ -29,6 +29,7 @@ path = "src/bin/vox-compilerd.rs"
 
 [features]
 default = []
+ai-fixtures-v1 = []
 # Fast fuzzy ranking for command catalog, MCP tool picker, dashboard palette.
 # Uses nucleo-matcher (same scorer as Helix/Zed). Adds ~300KB to binary.
 fuzzy-search = ["dep:nucleo"]
@@ -68,7 +69,8 @@ stub-check = [
 completion-toestub = ["dep:vox-code-audit"]
 # No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to `vox-dei` (still do not add `vox-dei` as a dependency; see `vox ci no-vox-dei-import`).
 # Dashboard UX is the VS Code extension (see `docs/src/reference/cli.md`).
-dashboard = ["dep:vox-dashboard"]
+# Native Tauri 2 GUI (replaces dashboard SPA)
+gui = []
 # OpenClaw / skill registry (`openclaw`); ARS runtime types live in `vox-openclaw-runtime`; `vox-skills` is the marketplace registry.
 ars = ["dep:vox-skills", "dep:vox-openclaw-runtime"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-gamify` (uses `vox-db`).
@@ -140,13 +142,14 @@ vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
 vox-db = { workspace = true }
-vox-search = { workspace = true }
+# Narrow retrieval features for CLI (avoid default qdrant/tavily stacks).
+vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape"] }
 # `vox-plugin-publication` is intentionally NOT a direct dep here. The CLI
 # routes `db/publication/ingest.rs` through `vox-plugin-host`'s ABI surface
 # (the `Publication` extension point on `VoxPlugin`) to keep the heavy
 # `feed-rs` / `vox-publisher` transitive deps out of the default CLI build.
 # Scholarly / DB-backed jobs only; Reddit/YouTube adapter code stays out of default CLI compile.
-vox-publisher = { workspace = true, default-features = false, features = ["scholarly-external-jobs"] }
+vox-publisher = { workspace = true, features = ["scholarly-external-jobs"] }
 vox-doc-inventory = { workspace = true }
 vox-code-audit = { workspace = true, optional = true }
 vox-drift-check = { workspace = true }
@@ -165,12 +168,14 @@ abi_stable = { workspace = true }
 vox-populi = { workspace = true }
 vox-mesh-types = { workspace = true }
 vox-workflow-runtime = { workspace = true, optional = true }
-vox-dashboard = { workspace = true, optional = true }
 
 vox-repository = { workspace = true }
 vox-project-scaffold = { workspace = true }
 vox-checksum-manifest = { workspace = true }
 vox-install-policy = { workspace = true }
+vox-release-artifacts = { workspace = true }
+vox-tauri-codegen = { workspace = true }
+vox-assets = { workspace = true }
 turso = { workspace = true }
 owo-colors = { workspace = true }
 comfy-table = { workspace = true }
@@ -190,31 +195,31 @@ vox-protocol = { workspace = true }
 vox-constrained-gen = { workspace = true }
 rand = { workspace = true }
 
-uuid = { version = "1.22.0", features = ["v4"] }
+uuid = { workspace = true, features = ["v4"] }
 vox-mcp-registry = { path = "../vox-mcp-registry" }
 vox-capability-registry = { path = "../vox-capability-registry" }
-rmcp = { version = "0.16", optional = true, features = ["server", "client", "transport-io"] }
-axum = { version = "0.8", optional = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
+rmcp = { workspace = true, optional = true, features = ["server", "client", "transport-io"] }
+axum = { workspace = true, optional = true, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
 vox-grammar-export = { workspace = true }
-axum-extra = { version = "0.12.5", optional = true, features = ["typed-header"] }
-notify = "7"
-tokio-stream = { version = "0.1", optional = true }
-dirs = { version = "6" }
-walkdir = "2"
+axum-extra = { workspace = true, optional = true, features = ["typed-header"] }
+notify = { workspace = true }
+tokio-stream = { workspace = true, optional = true }
+dirs = { workspace = true }
+walkdir = { workspace = true }
 sysinfo = { workspace = true }
 vox-eval = { workspace = true }
 vox-forge = { workspace = true, optional = true, features = ["github", "gitlab"] }
 vox-git = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
 xxhash-rust = { workspace = true, optional = true }
-which = "8"
-wasmtime = { version = "42.0.1", optional = true }
-wasmtime-wasi = { version = "42.0.1", optional = true }
-flate2 = "1.1.9"
-tar = "0.4.45"
-zip = { version = "8.4.0", default-features = false, features = ["deflate"] }
-self_update = { version = "0.43.1", default-features = false, features = [
+which = { workspace = true }
+wasmtime = { workspace = true, optional = true }
+wasmtime-wasi = { workspace = true, optional = true }
+flate2 = { workspace = true }
+tar = { workspace = true }
+zip = { workspace = true, features = ["deflate"] }
+self_update = { workspace = true, features = [
     "reqwest",
     "rustls",
     "archive-tar",
@@ -235,21 +240,22 @@ nucleo = { workspace = true, optional = true }
 tempfile = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-landlock = { version = "0.4.4", optional = true }
+landlock = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-win32job = { version = "2", optional = true }
+win32job = { workspace = true, optional = true }
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
+libc = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_System_Threading"] }
+windows-sys = { workspace = true, features = ["Win32_System_Threading"] }
 
 [build-dependencies]
 vox-build-meta = { workspace = true }
 
 [dev-dependencies]
+insta = { workspace = true }
 safetensors = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }

@@ -54,6 +54,9 @@ pub struct DurablePromise<T> {
 
 enum PromiseState<T> {
     /// Live execution: result will arrive via the oneshot channel.
+    /// Only constructed by `DurablePromise::pending`, which is currently
+    /// exercised by tests; the live dispatch wiring is staged.
+    #[cfg_attr(not(test), allow(dead_code))]
     Pending(oneshot::Receiver<Result<T, JournalError>>),
     /// Replay: result was loaded from the journal immediately.
     Replayed(Result<T, JournalError>),
@@ -63,6 +66,9 @@ enum PromiseState<T> {
 
 impl<T> DurablePromise<T> {
     /// Mint a promise for a live activity dispatch — resolves when the sender fires.
+    /// Currently only used by in-crate tests; the live dispatch path will call
+    /// this when activity dispatch is wired through the runtime.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn pending(
         activity_id: String,
         rx: oneshot::Receiver<Result<T, JournalError>>,
@@ -156,7 +162,7 @@ mod tests {
     async fn pending_resolves_when_sender_completes() {
         let (tx, rx) = oneshot::channel();
         let p: DurablePromise<i32> = DurablePromise::pending("act2".into(), rx);
-        let handle = tokio::spawn(async move { p.await });
+        let handle = tokio::spawn(p);
         tx.send(Ok(7)).unwrap();
         assert_eq!(handle.await.unwrap().unwrap(), 7);
     }

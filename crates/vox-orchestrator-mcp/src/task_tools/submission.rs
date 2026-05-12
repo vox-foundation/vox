@@ -552,14 +552,13 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             .map(str::trim)
             .filter(|s| !s.is_empty())
     {
-        let base: Option<vox_orchestrator::ContextEnvelope> =
-            if let Some((ref env, _)) = explicit_context_envelope {
-                Some(env.clone())
-            } else if let Some(retrieval) = explicit_retrieval {
-                Some(retrieval.to_context_envelope(repo_id, Some(sid)))
-            } else {
-                None
-            };
+        let base: Option<vox_orchestrator::ContextEnvelope> = if let Some((ref env, _)) =
+            explicit_context_envelope
+        {
+            Some(env.clone())
+        } else {
+            explicit_retrieval.map(|retrieval| retrieval.to_context_envelope(repo_id, Some(sid)))
+        };
         if let Some(mut base) = base {
             if base.agentos.is_none() {
                 base = base.with_agentos_intent_hints(&description, 4);
@@ -814,7 +813,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             .to_json()
         }
         Err(e) => {
-            let msg = format!("{e}");
+            let msg = e.to_string();
             let remediation =
                 if msg.contains("scope") || msg.contains("Scope") || msg.contains("outside") {
                     REM_TASK_SCOPE

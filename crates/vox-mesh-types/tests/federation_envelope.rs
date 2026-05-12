@@ -63,7 +63,8 @@ fn canonical_bytes_are_deterministic() {
     assert_eq!(a, b, "canonical bytes must be deterministic");
 }
 
-#[cfg(feature = "ed25519-dalek")]
+// `ed25519-dalek` is a workspace dev-dependency (see this crate's Cargo.toml),
+// not a feature flag — always available in the test build.
 #[test]
 fn sign_and_verify_roundtrip() {
     use ed25519_dalek::{Signer, SigningKey};

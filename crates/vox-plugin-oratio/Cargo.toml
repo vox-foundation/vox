@@ -19,7 +19,7 @@ stt-candle = [
     "dep:tokenizers",
     "dep:symphonia",
     "dep:rubato",
-    "dep:rand",
+    "dep:rand09",
     "dep:byteorder",
 ]
 # CUDA acceleration (opt-in).
@@ -43,12 +43,12 @@ candle-nn           = { workspace = true, optional = true }
 candle-transformers = { workspace = true, optional = true }
 hf-hub        = { workspace = true, optional = true }
 tokenizers    = { workspace = true, optional = true }
-symphonia     = { version = "0.5.4", optional = true, default-features = false, features = [
+symphonia     = { workspace = true, optional = true, default-features = false, features = [
     "aac", "alac", "flac", "mp3", "ogg", "pcm", "vorbis", "wav",
 ] }
-rubato        = { version = "0.15.0", optional = true }
-rand          = { version = "0.9", optional = true }
-byteorder     = { version = "1.5", optional = true }
+rubato        = { workspace = true, optional = true }
+rand09        = { workspace = true, optional = true }
+byteorder     = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
 
 [lints]

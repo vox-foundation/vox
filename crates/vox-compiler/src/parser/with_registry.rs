@@ -74,7 +74,7 @@ impl ParseResult {
 ///
 /// Deprecated primitive names are rewritten to their canonical equivalents and
 /// a [`Warning`] is emitted for each rewrite site. The returned [`ParseResult`]
-/// exposes the rewritten [`Module`], the warnings, and a `uses_primitive` query.
+/// exposes the rewritten [`crate::Module`], the warnings, and a `uses_primitive` query.
 ///
 /// Returns `Err(Vec<ParseError>)` if the source has actual parse errors.
 pub fn parse_with_registry(

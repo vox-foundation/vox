@@ -26,8 +26,8 @@ async fn wait_until_async<F, Fut>(
         }
         if tokio::time::Instant::now() >= deadline {
             panic!("{label}: timed out after {timeout:?}");
-    }
-    tokio::time::sleep(interval).await;
+        }
+        tokio::time::sleep(interval).await;
     }
 }
 

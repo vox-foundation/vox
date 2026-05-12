@@ -6,11 +6,19 @@
 //! Optional **`--scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) writes user-owned Vite/app files via
 //! [`vox_codegen::codegen_ts::scaffold`]. `@v0` uses `V0_API_KEY` when set — see `crate::v0::generate_component`.
 
+use crate::cli_args::BuildMode;
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use vox_bounded_fs::read_utf8_path_capped;
+use vox_codegen::codegen_rust::RustAppShell;
+
+fn generated_backend_dir(start: Option<&Path>) -> PathBuf {
+    crate::fs_utils::strip_windows_verbatim_path(
+        crate::fs_utils::run_target_dir_for_workspace(start).join("generated"),
+    )
+}
 
 /// Run the build pipeline for `file`, writing TS to `out_dir` and Rust to `target/generated`.
 ///
@@ -25,7 +33,8 @@ pub async fn run(
     cli_build_target: Option<vox_config::BuildTarget>,
     emit_scaffold: bool,
     emit_ir: bool,
-    mode: crate::cli_args::BuildMode,
+    mode: BuildMode,
+    rust_app_shell: RustAppShell,
 ) -> Result<()> {
     let frontend = crate::pipeline::run_frontend(file, false).await?;
     crate::pipeline::print_diagnostics(&frontend, file, false);
@@ -51,10 +60,14 @@ pub async fn run(
         .with_context(|| format!("Failed to create output directory: {}", out_dir.display()))?;
 
     if resolved_target == vox_config::BuildTarget::Server {
-        let rust_output = vox_codegen::codegen_rust::generate(&hir, "vox_generated_app")
+        let rust_output = vox_codegen::codegen_rust::generate(
+            &hir,
+            "vox_generated_app",
+            rust_app_shell,
+        )
             .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
 
-        let generated_dir = std::path::Path::new("target").join("generated");
+        let generated_dir = generated_backend_dir(file.parent());
         fs::create_dir_all(generated_dir.join("src"))
             .context("Failed to create generated src directory")?;
 
@@ -107,9 +120,13 @@ pub async fn run(
             tanstack_start: vox_config::VoxConfig::load().web_tanstack_start,
             target: mobile_target.clone(),
             mode: vox_codegen::codegen_ts::emitter::BuildMode::Library,
+            ..Default::default()
         };
         let ts_output = vox_codegen::codegen_ts::generate_with_options(&hir, ts_opts)
             .map_err(|e| anyhow::anyhow!("TypeScript codegen error: {}", e))?;
+        for d in &ts_output.diagnostics {
+            eprintln!("warning[{}]: {}", d.code, d.message);
+        }
 
         for (filename, content) in &ts_output.files {
             let path = out_dir.join(filename);
@@ -165,17 +182,23 @@ pub async fn run(
         tanstack_start: vox_config::VoxConfig::load().web_tanstack_start,
         target: mobile_target.clone(),
         mode: match mode {
-            crate::cli_args::BuildMode::App => vox_codegen::codegen_ts::emitter::BuildMode::App,
-            crate::cli_args::BuildMode::Library => {
-                vox_codegen::codegen_ts::emitter::BuildMode::Library
-            }
+            BuildMode::App => vox_codegen::codegen_ts::emitter::BuildMode::App,
+            BuildMode::Library => vox_codegen::codegen_ts::emitter::BuildMode::Library,
         },
+        ..Default::default()
     };
     let ts_output = vox_codegen::codegen_ts::generate_with_options(&hir, ts_opts)
         .map_err(|e| anyhow::anyhow!("TypeScript codegen error: {}", e))?;
+    for d in &ts_output.diagnostics {
+        eprintln!("warning[{}]: {}", d.code, d.message);
+    }
 
     // 6. Generate Rust (Backend)
-    let rust_output = vox_codegen::codegen_rust::generate(&hir, "vox_generated_app")
+    let rust_output = vox_codegen::codegen_rust::generate(
+        &hir,
+        "vox_generated_app",
+        rust_app_shell,
+    )
         .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
 
     // Write generated TS files
@@ -194,7 +217,7 @@ pub async fn run(
         let written_names: std::collections::HashSet<&str> =
             ts_output.files.iter().map(|(n, _)| n.as_str()).collect();
         let mut to_remove = vec!["App.tsx", "VoxTanStackRouter.tsx", "serverFns.ts"];
-        if mode == crate::cli_args::BuildMode::Library {
+        if mode == BuildMode::Library {
             to_remove.push("routes.manifest.ts");
         }
         for stale_name in to_remove {
@@ -295,7 +318,7 @@ pub async fn run(
         .context("generated TS import graph (routes.manifest / App)")?;
 
     // Rust goes to target/generated
-    let generated_dir = std::path::Path::new("target").join("generated");
+    let generated_dir = generated_backend_dir(file.parent());
     fs::create_dir_all(generated_dir.join("src"))
         .context("Failed to create generated src directory")?;
 
@@ -339,44 +362,9 @@ pub async fn run(
 
     if let Some(t) = mobile_target {
         if t == "ios" || t == "android" {
-            println!("Synchronizing Capacitor project for {}...", t);
-            let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            let status = tokio::process::Command::new("npx")
-                .arg("cap")
-                .arg("sync")
-                .arg(&t)
-                .current_dir(&cwd)
-                .status()
-                .await;
-            match status {
-                Ok(s) if s.success() => println!("  Capacitor sync complete."),
-                Ok(s) => eprintln!("  Capacitor sync exited with {s}"),
-                Err(e) => eprintln!("  Failed to execute npx cap sync: {e}"),
-            }
-
-            if t == "android" {
-                let res_dir = cwd.join("android/app/src/main/res/xml");
-                if std::fs::create_dir_all(&res_dir).is_ok() {
-                    let xml = r#"<?xml version="1.0" encoding="utf-8"?>
-<network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">127.0.0.1</domain>
-        <domain includeSubdomains="true">localhost</domain>
-    </domain-config>
-</network-security-config>"#;
-                    let _ = std::fs::write(res_dir.join("network_security_config.xml"), xml);
-                }
-
-                // WAKE_LOCK injection
-                let manifest_path = cwd.join("android/app/src/main/AndroidManifest.xml");
-                if manifest_path.is_file() {
-                    let mut m = std::fs::read_to_string(&manifest_path).unwrap_or_default();
-                    if !m.contains("android.permission.WAKE_LOCK") {
-                        m = m.replace("<application", "<uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n    <application");
-                        let _ = std::fs::write(&manifest_path, m);
-                    }
-                }
-            }
+            println!(
+                "Mobile target `{t}`: legacy Capacitor `cap sync` is retired — use `vox compile --target mobile-{t}` (Tauri 2) and `cargo tauri android` / `cargo tauri ios` from the generated workspace under the repo `target/generated/` tree (see docs/src/architecture/vox-application-packaging-ssot-2026.md)."
+            );
         }
     }
 
@@ -386,6 +374,25 @@ pub async fn run(
         rust_output.files.len()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generated_backend_dir_uses_repo_target_from_nested_compile_suite() {
+        let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("workspace root")
+            .to_path_buf();
+        let nested = repo.join("examples/compile-suite");
+        assert_eq!(
+            generated_backend_dir(Some(&nested)),
+            repo.join("target/generated")
+        );
+    }
 }
 
 /// After `scaffold_react_app`, ensure `main.tsx` / `routes/index.tsx` only import existing files.

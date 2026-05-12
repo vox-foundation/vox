@@ -16,7 +16,8 @@ vox-db = { workspace = true }
 # NOTE: `vox-actor-runtime` is intentionally NOT a dependency. Plugins must not pull
 # the core agent runtime. The `LlmConfig` type used in `ingest.rs` is reached
 # through `vox-search`'s re-export.
-vox-search = { workspace = true }
+# Path dep (not `workspace = true`): Cargo forbids `default-features = false` overrides on inherited workspace deps.
+vox-search = { path = "../vox-search", default-features = false, features = ["tantivy-lexical", "web-scrape"] }
 abi_stable = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

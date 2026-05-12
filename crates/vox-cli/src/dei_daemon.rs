@@ -1,7 +1,7 @@
 //! External **DeI JSON-line RPC** integration boundary.
 //!
-//! The resolved process binary is **`vox-orchestrator-d`** ([`BINARY`]); docs and hints may still
-//! Historical docs may say `vox-dei-d`; the shipped binary is [`BINARY`] (`vox-orchestrator-d`).
+//! The resolved process binary is **`vox-orchestrator-d`** (see `BINARY`); docs and hints may still
+//! Historical docs may say `vox-dei-d`; the shipped binary is `BINARY` (`vox-orchestrator-d`).
 //!
 //! The staging `crates/vox-dei` library is not linked into `vox-cli` (see `vox ci no-dei-import`). All DeI RPC that the
 //! slim CLI performs goes through the same JSON-line [`DispatchRequest`] / [`DispatchResponse`]
@@ -34,7 +34,7 @@ pub mod method {
     pub const AI_PLAN_EXECUTE: &str = "ai.plan.execute";
 }
 
-/// Invoke [`BINARY`] with `method` / `params` and return the final `Result` JSON value.
+/// Invoke `BINARY` (the daemon binary) with `method` / `params` and return the final `Result` JSON value.
 ///
 /// Maps common spawn failures to an actionable hint (install / PATH / sibling binary).
 pub async fn call(method: &str, params: Value, auto_open: bool) -> anyhow::Result<Value> {

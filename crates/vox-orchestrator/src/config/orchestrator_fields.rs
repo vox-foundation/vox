@@ -11,6 +11,7 @@ use vox_orchestrator_types::socrates_policy::ConfidencePolicyOverride;
 use super::defaults::*;
 use super::enums::{CostPreference, OverflowStrategy, ScalingProfile};
 use super::news::NewsConfig;
+use super::scientia_research_mesh::ScientiaResearchMeshConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
@@ -59,7 +60,7 @@ pub struct OrchestratorConfig {
     /// Blend `agent_reliability` (Arca V10) into routing when a VoxDb is attached (default: false).
     #[serde(default = "default_false")]
     pub socrates_reputation_routing: bool,
-    /// Optional Socrates confidence thresholds merged onto [`ConfidencePolicy::workspace_default`].
+    /// Optional Socrates confidence thresholds merged onto `ConfidencePolicy::workspace_default`.
     #[serde(default)]
     pub socrates_policy: Option<ConfidencePolicyOverride>,
     /// Prefer the dedicated research synthesis lane when orchestrator wiring exposes it (Lane G).
@@ -222,7 +223,7 @@ pub struct OrchestratorConfig {
     )]
     pub populi_rebalance_on_remote_schedulable_drop: bool,
     /// When [`Self::populi_routing_experimental`] is on and federation-schedulable remote node count
-    /// **drops**, re-run [`RoutingService::route`] for each **queued** (not in-progress) task and move
+    /// **drops**, re-run `RoutingService::route` for each **queued** (not in-progress) task and move
     /// tasks whose preferred agent changed (after optional rebalance). Default off.
     #[serde(
         default = "default_false",
@@ -405,6 +406,9 @@ pub struct OrchestratorConfig {
     /// Configuration for the unified news publisher (docs/news/ → RSS/X/GitHub).
     #[serde(default)]
     pub news: NewsConfig,
+    /// SCIENTIA research mesh on-disk intake and optional promoted-ledger consumer.
+    #[serde(default)]
+    pub scientia_research_mesh: ScientiaResearchMeshConfig,
 
     // ── Phase 16: OAPV Observer ─────────────────────────────────────────────
     /// Enable the autonomous Observer loop (OAPV). Default: false.

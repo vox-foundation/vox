@@ -69,7 +69,6 @@ pub struct ContextIngestExpectations<'a> {
 }
 
 /// Structural and policy validation without config branching.
-#[must_use]
 pub(crate) fn validate_context_envelope_ingest(
     envelope: &ContextEnvelope,
     expectations: ContextIngestExpectations<'_>,

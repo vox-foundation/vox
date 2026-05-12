@@ -1,4 +1,4 @@
-//! Lower AST [`Module`] to [`HirModule`] / [`crate::hir::TypedCoreIR_v2`].
+//! Lower AST [`crate::Module`] to [`HirModule`] / [`crate::hir::TypedCoreIR_v2`].
 //!
 //! This module is the **HIR boundary** before `vox_codegen::web_ir::lower::project_web_from_core`.
 //! Declaration arms here define what structured data reaches WebIR (`HirRoutes`,
@@ -548,7 +548,7 @@ impl LowerCtx {
         db_select_normalize::normalize_db_select_projections(&mut hir);
 
         // Drain synthesised side_effect activities (P1-T7) into the function list.
-        hir.functions.extend(self.synthesised_fns.drain(..));
+        hir.functions.append(&mut self.synthesised_fns);
 
         hir
     }
@@ -648,7 +648,7 @@ mod tests {
 
     /// Fully lowered web constructs must not pile into `legacy_ast_nodes` (Path C / HIR bridge).
     #[test]
-    #[ignore = "Path B removed"]
+    #[ignore = "Path B removed — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_leaves_no_legacy_nodes_for_core_web_decls() {
         let src = r#"
 import react.use_state
@@ -681,7 +681,7 @@ http post "/chat" to Result { return Ok(0) }
     }
 
     #[test]
-    #[ignore = "Path B removed"]
+    #[ignore = "Path B removed — owner: compiler sunset: 2026-12-31"]
     fn golden_crud_api_vox_lowers_without_legacy_nodes() {
         let src = include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -701,7 +701,7 @@ http post "/chat" to Result { return Ok(0) }
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "HIR db filter record lowering parity — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_filter_becomes_filter_record_ir() {
         let src = r#"
 @table type User { name: str active: bool }
@@ -734,7 +734,7 @@ fn f() to int {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "HIR db filter+count chain lowering — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_filter_count_chain_becomes_count_with_filter_args() {
         let src = r#"
 @table type User { name: str active: bool }
@@ -788,7 +788,7 @@ fn f() to Unit {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "HIR db all().select projection — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_all_select_sets_projection() {
         let src = r#"
 @table type User { name: str active: bool }
@@ -821,7 +821,7 @@ fn f() to int {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "HIR db where object predicate plan — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_where_object_builds_predicate_plan() {
         let src = r#"
 @table type User { name: str age: int active: bool }
@@ -976,7 +976,7 @@ fn f() to Unit {
     }
 
     #[test]
-    #[ignore = "Path B removed"]
+    #[ignore = "Path B removed — owner: compiler sunset: 2026-12-31"]
     fn test_hir_lowering_environment() {
         let tokens = crate::lexer::lex(
             r#"

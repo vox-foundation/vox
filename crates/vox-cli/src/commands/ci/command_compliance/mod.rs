@@ -96,8 +96,8 @@ pub fn run(repo_root: &Path) -> Result<()> {
         read_utf8_path_capped(&repo_root.join("crates/vox-orchestrator-mcp/src/dispatch.rs"))
             .context("read vox-orchestrator-mcp dispatch.rs")?;
     let mcp_tool_aliases =
-        read_utf8_path_capped(&repo_root.join("crates/vox-orchestrator-mcp/src/tool_aliases.rs"))
-            .context("read vox-orchestrator-mcp tool_aliases.rs")?;
+        read_utf8_path_capped(&repo_root.join("contracts/mcp/tool-wire-aliases.v1.yaml"))
+            .context("read contracts/mcp/tool-wire-aliases.v1.yaml")?;
     let scripts_readme = read_utf8_path_capped(&repo_root.join("scripts/README.md"))
         .context("read scripts/README.md")?;
     let root_readme =

@@ -1,10 +1,10 @@
 //! Lower [`vox_compiler::hir::HirModule`] into [`super::WebIrModule`] (ADR 012 Phase 1).
 //!
 //! **Lowering stages (OP-0065):**
-//! - **R (routes)** — `hir.client_routes` → [`super::RouteNode`] via [`lower_routes`]; HIR HTTP routes
+//! - **R (routes)** — `hir.client_routes` → [`super::RouteNode`] via `lower_routes`; HIR HTTP routes
 //!   and RPC endpoints → [`super::RouteNode::LoaderContract`] / [`super::ServerFnContract`] /
 //!   [`super::MutationContract`] (OP-0072).
-//! - **S (style)** — `@component` `style { }` blocks on [`vox_compiler::hir::HirComponent`] → [`super::StyleNode::Rule`]
+//! - **S (style)** — `@component` `style { }` blocks on `vox_compiler::hir::HirComponent` → [`super::StyleNode::Rule`]
 //!   with [`super::StyleSelector::Unparsed`] selectors (OP-0070).
 //! - **B (behavior)** — reactive state/derived/effect/mount/cleanup → [`super::BehaviorNode`].
 //! - **D (DOM)** — reactive `view:` [`HirExpr`] → [`super::DomNode`] arena + [`super::WebIrModule::view_roots`].
@@ -14,12 +14,12 @@
 //!
 //!
 //! **AST `HirComponent` (OP-0179):** JSX-shaped classic `@component fn` bodies lower into
-//! [`WebIrModule::view_roots`] using [`vox_compiler::hir::lower_classic_component_view`]. Components that
+//! [`WebIrModule::view_roots`] using `vox_compiler::hir::lower_classic_component_view`. Components that
 //! do not end in a supported JSX tail remain counted in [`WebIrLowerSummary::classic_components_deferred`].
 //!
 //! ## Blueprint batch OP-S057 / S085 / S133 / S155 / S189 / S052-route-style (supplemental)
-//! Keep style-only TODOs inside [`lower_styles_from_classic_components`] and HTTP/client route splits inside
-//! [`lower_http_routes`] / [`lower_routes`] — do not add parallel style string emit here. Interop hatch lowering
+//! Keep style-only TODOs inside `lower_styles_from_classic_components` (private) and HTTP/client route splits inside
+//! `lower_http_routes` / `lower_routes` — do not add parallel style string emit here. Interop hatch lowering
 //! stays denormalized into [`crate::web_ir::InteropNode`] when introduced; route contract ids must match
 //! validate-stage uniqueness.
 

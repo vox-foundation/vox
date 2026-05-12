@@ -1,9 +1,9 @@
 //! Emit CSS and TypeScript artifacts from design-token declarations.
 //!
 //! Two entry points:
-//! - [`emit_tokens_css`] / [`emit_tokens_ts`] — from a loaded `TokenRegistry`
+//! - `emit_tokens_css` / `emit_tokens_ts` — from a loaded `TokenRegistry`
 //!   (JSON-file-based legacy path; called when `vox.tokens.json` is present).
-//! - [`emit_hir_tokens_css`] / [`emit_hir_tokens_ts`] — from `HirTokensDecl`
+//! - `emit_hir_tokens_css` / `emit_hir_tokens_ts` — from `HirTokensDecl`
 //!   nodes lowered from `tokens { … }` source blocks (GA-20 / CC-23).
 
 use vox_compiler::hir::nodes::tokens::HirTokensDecl;

@@ -403,6 +403,7 @@ async fn seed_legacy_schema_version_only(path: &std::path::Path, version: i64) {
 
 /// [`VoxDb::connect_default`] returns [`StoreError::LegacySchemaChain`] when the primary DB is not on baseline (no sidecar fallback).
 #[allow(unsafe_code)] // Rust 2024: `set_var` / `remove_var` are `unsafe`; mutex serializes this test.
+#[allow(clippy::await_holding_lock)] // Lock intentionally held across awaits to serialize env-mutating tests.
 #[tokio::test]
 async fn connect_default_errors_when_primary_legacy_schema_chain() {
     use std::sync::{Mutex, OnceLock};

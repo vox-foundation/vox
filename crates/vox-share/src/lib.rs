@@ -6,6 +6,8 @@
 //! - [`backends::localhost_run`] — SSH-based public URL via `*.lhr.life` (fallback; added in S3)
 //! - [`backends::tailscale`] — Tailscale Funnel via `*.ts.net` (explicit; added in S4)
 
+#![forbid(unsafe_code)]
+
 pub mod auth;
 pub mod backend;
 pub mod backends;

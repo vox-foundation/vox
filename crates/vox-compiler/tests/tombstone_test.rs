@@ -6,7 +6,7 @@ use vox_compiler::parser::{ParseErrorClass, parse};
 // happens at pipeline level via ADR-028's `check_adr028_reserved_keywords`. The negative-path
 // contract for those keywords is covered by `pipeline::tests::test_reject_*_adr028`.
 #[test]
-#[ignore = "TASK-2.6 / ADR-028: `actor` parses; rejection moved to pipeline (see test_reject_*_adr028)"]
+#[ignore = "TASK-2.6 / ADR-028: `actor` parses; rejection moved to pipeline (see test_reject_*_adr028) — owner: compiler sunset: 2026-12-31"]
 fn actor_is_tombstoned() {
     let src = "actor MyActor {}";
     let tokens = lex(src);
@@ -17,7 +17,7 @@ fn actor_is_tombstoned() {
 }
 
 #[test]
-#[ignore = "TASK-2.6 / ADR-028: `workflow` parses; rejection moved to pipeline"]
+#[ignore = "TASK-2.6 / ADR-028: `workflow` parses; rejection moved to pipeline — owner: compiler sunset: 2026-12-31"]
 fn workflow_is_tombstoned() {
     let src = "workflow MyWorkflow {}";
     let tokens = lex(src);

@@ -1,6 +1,6 @@
 //! `vox scientia` — Vox Scientia facade over Codex research and capability-map tools.
 //!
-//! Delegates to [`super::db_cli::DbCli`] so `vox db …` remains the implementation SSOT.
+//! Delegates to `super::db_cli::DbCli` so `vox db …` remains the implementation SSOT.
 
 pub use vox_cli_core::scientia::ScientiaCmd;
 

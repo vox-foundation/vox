@@ -251,12 +251,6 @@ fn emit_route_path_builder(top: &[&RouteContract]) -> String {
     s
 }
 
-/// Emit a route manifest via WebIR (lowers HIR once). Kept for call sites without a cached [`WebIrModule`].
-pub fn emit_route_manifest(hir: &HirModule) -> Result<Option<String>, String> {
-    let web = crate::web_ir::lower::lower_hir_to_web_ir(hir);
-    try_emit_route_manifest_from_web_ir(&web, hir)
-}
-
 fn meta_str(meta: &serde_json::Value, key: &str) -> Option<String> {
     meta.get(key)
         .and_then(|v| v.as_str())
@@ -408,7 +402,7 @@ mod tests {
 
     #[test]
     fn route_path_builder_emits_known_route_union_with_all_patterns() {
-        let contracts = vec![
+        let contracts = [
             rc("/", "Home"),
             rc("/users/:id", "User"),
             rc("/edit", "Editor"),
@@ -423,7 +417,7 @@ mod tests {
 
     #[test]
     fn route_path_builder_emits_typed_builder_for_param_routes() {
-        let contracts = vec![rc("/users/:id", "User")];
+        let contracts = [rc("/users/:id", "User")];
         let refs: Vec<&RouteContract> = contracts.iter().collect();
         let out = emit_route_path_builder(&refs);
         assert!(
@@ -434,7 +428,7 @@ mod tests {
 
     #[test]
     fn route_path_builder_emits_identity_for_literal_routes() {
-        let contracts = vec![rc("/edit", "Editor")];
+        let contracts = [rc("/edit", "Editor")];
         let refs: Vec<&RouteContract> = contracts.iter().collect();
         let out = emit_route_path_builder(&refs);
         assert!(out.contains("\"/edit\": (): string => \"/edit\""), "{out}");
@@ -444,7 +438,7 @@ mod tests {
     fn route_path_builder_skips_substitution_for_wildcard_routes() {
         // Wildcard routes are exposed as identity (no substitution); they appear in
         // KnownRoute but their builder returns the literal pattern.
-        let contracts = vec![rc("/files/*", "Files")];
+        let contracts = [rc("/files/*", "Files")];
         let refs: Vec<&RouteContract> = contracts.iter().collect();
         let out = emit_route_path_builder(&refs);
         assert!(

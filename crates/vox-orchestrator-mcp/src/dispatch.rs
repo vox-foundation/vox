@@ -848,6 +848,18 @@ async fn handle_tool_call_inner(
         "vox_knowledge_query" => {
             Ok(crate::memory::knowledge_query(state, serde_json::from_value(args)?).await)
         }
+        "vox_research_run" => {
+            Ok(crate::memory::research_run(state, serde_json::from_value(args)?).await)
+        }
+        "vox_research_start" => {
+            Ok(crate::memory::research_start(state, serde_json::from_value(args)?).await)
+        }
+        "vox_research_status" => {
+            Ok(crate::memory::research_status(state, serde_json::from_value(args)?).await)
+        }
+        "vox_research_get" => {
+            Ok(crate::memory::research_get(state, serde_json::from_value(args)?).await)
+        }
         "vox_memory_save_db" => {
             Ok(crate::memory::memory_save_db(state, serde_json::from_value(args)?).await)
         }

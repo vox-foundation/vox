@@ -26,9 +26,9 @@ pub(super) fn now_ms() -> i64 {
 impl FileLockManager {
     /// Create a lock manager backed by a vox-db instance for persistence.
     ///
-    /// All mutations via [`try_acquire_persisted`] and [`release_persisted`]
+    /// All mutations via [`Self::try_acquire_persisted`] and [`Self::release_persisted`]
     /// write through to the `vcs_lock` table. On daemon start, call
-    /// [`hydrate_from_db`] to replay the on-disk state into memory.
+    /// [`Self::hydrate_from_db`] to replay the on-disk state into memory.
     pub fn with_db(db: vox_db::VoxDb, node_id: &str, repository_id: &str) -> Self {
         Self {
             locks: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
@@ -122,13 +122,12 @@ impl FileLockManager {
     pub async fn release_persisted(&self, path: &Path, agent: AgentId) {
         self.release(path, agent);
 
-        if let Some(db) = &self.db {
-            if let Err(e) = db
+        if let Some(db) = &self.db
+            && let Err(e) = db
                 .mesh_locks_release(&path.to_string_lossy(), &self.node_id)
                 .await
-            {
-                tracing::warn!(path = %path.display(), error = %e, "write-through DB release failed");
-            }
+        {
+            tracing::warn!(path = %path.display(), error = %e, "write-through DB release failed");
         }
     }
 }

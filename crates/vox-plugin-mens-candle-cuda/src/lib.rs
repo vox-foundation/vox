@@ -1,7 +1,7 @@
 //! vox-plugin-mens-candle-cuda — Candle + CUDA ML backend plugin.
 //!
 //! Implements `MlBackend` from vox-plugin-api. The model handle stores
-//! a Box<CandleModel>; methods recover it via the opaque pointer field.
+//! a `Box<CandleModel>`; methods recover it via the opaque pointer field.
 //!
 //! # SP3 sub-batch C — QLoRA training fully ported from vox-populi
 //!

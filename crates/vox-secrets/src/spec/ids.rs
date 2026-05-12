@@ -127,6 +127,9 @@ pub enum SecretId {
     VoxOpenReviewHttpMaxAttempts,
     VoxScholarlyJobLockOwner,
     VoxScientiaCrossrefMailto,
+    VoxScientiaResearchMeshConsumerPollEnabled,
+    VoxScientiaResearchMeshConsumerPollIntervalMs,
+    VoxScientiaResearchMeshIntakeWriterEnabled,
     VoxMeshBootstrapToken,
     VoxMeshBootstrapExpiresUnixMs,
     VoxIdentityKeyPath,
@@ -363,6 +366,10 @@ pub enum SecretId {
     VoxSearchScraperRobotsRespect,
     VoxSearchScraperMinDensity,
     VoxSearchMaxHops,
+    /// When truthy, skip persisting SearXNG/DDG/Tavily web hits into `search_documents`.
+    VoxSearchPersistWebHitsDisabled,
+    /// Embedding model id (`VOX_EMBEDDING_MODEL`); non-secret config surfaced via secrets resolver for parity.
+    VoxEmbeddingModel,
     VoxSocialWorthinessEnforce,
     VoxReviewRepositoryId,
     VoxRegistryToken,

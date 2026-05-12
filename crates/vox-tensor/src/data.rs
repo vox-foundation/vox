@@ -24,7 +24,7 @@ pub struct ChatmlTurn {
 
 /// A single prompt→response training pair or multi-turn sequence (matches dogfood JSONL schema).
 ///
-/// Deserializes via [`TrainingPairRaw`] so that `instruction` → `prompt` and `output` → `response`
+/// Deserializes via `TrainingPairRaw` (private struct) so that `instruction` → `prompt` and `output` → `response`
 /// normalization happens on the way in, even when both canonical and alias keys are present.
 #[derive(Debug, Serialize, Clone, Default)]
 pub struct TrainingPair {
@@ -70,10 +70,10 @@ struct TrainingPairRaw {
     pub interruption_decision: Option<String>,
     pub agent_trust_score: Option<f64>,
     pub syntax_spans: Option<Vec<SyntaxSpan>>,
-    /// Accepted but discarded — present in some dogfood rows alongside `prompt`.
-    pub origin: Option<String>,
-    pub schema_version: Option<String>,
-    pub source: Option<String>,
+    // Note: `origin`, `schema_version`, and `source` keys appear in some dogfood
+    // rows but are intentionally not declared here. Serde silently ignores
+    // unknown fields by default (no `#[serde(deny_unknown_fields)]`), so they
+    // are absorbed without warning and without occupying a struct field.
 }
 
 impl<'de> Deserialize<'de> for TrainingPair {

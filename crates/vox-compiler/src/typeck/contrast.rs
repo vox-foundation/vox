@@ -96,6 +96,11 @@ fn invalid_hex_diag(name: &str, value: &str, span: Span) -> Diagnostic {
 }
 
 /// Parse a hex color string (`#RRGGBB` or `#RGB`) into its WCAG relative luminance.
+///
+/// Returns `Err(())` for any parse failure; callers treat hex-validity as a
+/// boolean signal rather than a structured error, so a unit error is the
+/// minimum-allocation choice here.
+#[allow(clippy::result_unit_err)]
 pub fn parse_hex_luminance(hex: &str) -> Result<f64, ()> {
     let hex = hex.trim_start_matches('#');
     let (r, g, b) = match hex.len() {

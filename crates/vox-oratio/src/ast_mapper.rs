@@ -95,8 +95,10 @@ mod tests {
 
     #[test]
     fn test_map_this_function_with_context() {
-        let mut ctx = IdeContext::default();
-        ctx.cursor_line = Some(10);
+        let ctx = IdeContext {
+            cursor_line: Some(10),
+            ..IdeContext::default()
+        };
         let target = map_to_ast_target("edit this function", Some(&ctx)).unwrap();
         assert_eq!(target.node_kind, "function");
         assert!(target.symbol_name.is_none());

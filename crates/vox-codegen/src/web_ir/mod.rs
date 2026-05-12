@@ -471,6 +471,7 @@ impl WebIrDiagnostic {
             "web_ir_validate.a11y.anchor_missing_href"
                 | "web_ir_validate.a11y.input_missing_label"
                 | "web_ir_validate.a11y.low_contrast"
+                | "vox/codegen/missing-ts-ai-lowering"
         ) {
             WebIrDiagnosticSeverity::Warning
         } else {

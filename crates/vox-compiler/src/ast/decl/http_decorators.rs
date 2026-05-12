@@ -59,6 +59,13 @@ pub enum AstPiiClass {
 }
 
 impl AstPiiClass {
+    /// Loose parser used by decorator lowering — never fails because unknown
+    /// labels are absorbed via the `Other(String)` variant. We keep the
+    /// `from_str` name for symmetry with the rest of the AST surface; the
+    /// `should_implement_trait` lint is suppressed because implementing
+    /// `FromStr` would require choosing an `Err` type that nothing here ever
+    /// produces.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "name" => Self::Name,

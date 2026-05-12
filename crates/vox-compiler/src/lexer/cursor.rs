@@ -135,6 +135,19 @@ mod tests {
     }
 
     #[test]
+    fn test_string_literal_with_backticks_and_colon() {
+        // Regression: markdown-style `…` inside strings must not break lexing (match arms, prints).
+        let tokens = lex_tokens(r#""  [err] `cargo clean` failed to spawn: ""#);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::StringLit("  [err] `cargo clean` failed to spawn: ".into()),
+                Token::Eof,
+            ]
+        );
+    }
+
+    #[test]
     fn test_numeric_literals() {
         let tokens = lex_tokens("42 2.75");
         assert_eq!(

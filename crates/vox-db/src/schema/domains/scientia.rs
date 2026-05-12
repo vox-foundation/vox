@@ -186,6 +186,15 @@ CREATE TABLE IF NOT EXISTS scientia_research_sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_scientia_sessions_status ON scientia_research_sessions(status, started_at_ms);
 
+-- Durable deep-research result artifact for async/CLI/MCP result retrieval.
+CREATE TABLE IF NOT EXISTS scientia_research_artifacts (
+    session_id        INTEGER PRIMARY KEY,
+    artifact_json     TEXT    NOT NULL,
+    report_markdown   TEXT    NOT NULL,
+    created_at_ms     INTEGER NOT NULL,
+    updated_at_ms     INTEGER NOT NULL
+);
+
 -- Atomic claims extracted from T1 aggregates (Phase 0d).
 CREATE TABLE IF NOT EXISTS scientia_claims (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -8,7 +8,7 @@ use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{HirHttpMethod, HirModule, HirRoute};
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn validate_rejects_duplicate_http_routes_same_method_path() {
     // Two identical literal paths are reported as ambiguous (Phase C upgraded the
     // exact-match HashSet check to segment-aware overlap detection; identical
@@ -41,7 +41,7 @@ fn route(method: HirHttpMethod, path: &str) -> HirRoute {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn validate_rejects_two_param_routes_with_same_method_and_arity() {
     // /:a/:b vs /:x/:y on the same method has no specificity tiebreaker → error.
     let mut m = HirModule::default();
@@ -52,7 +52,7 @@ fn validate_rejects_two_param_routes_with_same_method_and_arity() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn validate_allows_literal_shadowing_param_route() {
     // /users/me is more specific than /users/:id; allowed (precedence by source order).
     let mut m = HirModule::default();
@@ -62,7 +62,7 @@ fn validate_allows_literal_shadowing_param_route() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn validate_allows_overlapping_routes_on_different_methods() {
     // GET /users/:id and POST /users/:id are not in conflict.
     let mut m = HirModule::default();
@@ -72,7 +72,7 @@ fn validate_allows_overlapping_routes_on_different_methods() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn validate_allows_routes_with_disjoint_literal_prefixes() {
     let mut m = HirModule::default();
     m.routes.push(route(HirHttpMethod::Get, "/users/:id"));
@@ -81,7 +81,7 @@ fn validate_allows_routes_with_disjoint_literal_prefixes() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn generate_routes_orders_http_paths_lexically() {
     let sp = Span::new(0, 0);
     let mut m = HirModule::default();
@@ -112,14 +112,14 @@ fn generate_routes_orders_http_paths_lexically() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn express_route_emit_ctx_validates() {
     let m = HirModule::default();
     assert!(ExpressRouteEmitCtx::new(&m).validate().is_ok());
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn hir_http_route_lowering_populates_web_ir_route_nodes() {
     let sp = Span::new(0, 0);
     let mut m = HirModule::default();

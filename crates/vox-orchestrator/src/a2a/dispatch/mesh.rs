@@ -104,6 +104,42 @@ pub async fn relay_to_mesh(
         .map_err(|e: vox_populi::PopuliRegistryError| e.to_string())
 }
 
+/// AI-first `@subagent(policy = distributed)` fixture hook: best-effort mesh relay after local dispatch.
+///
+/// When [`vox_populi::http_lifecycle::populi_http_control_base_from_env`] resolves a control-plane URL,
+/// sends a small [`A2AMessageType::HelpRequest`] tagging the dispatch decision. Otherwise returns
+/// `{decision}|mesh=skipped_no_control_url` so fixture crates compile and run without Populi.
+pub async fn relay_ai_fixture_distributed_subagent(
+    dispatch_decision: &str,
+    prompt_len: usize,
+) -> String {
+    let Some(base) = vox_populi::http_lifecycle::populi_http_control_base_from_env() else {
+        return format!("{dispatch_decision}|mesh=skipped_no_control_url");
+    };
+    let timeout_ms = vox_populi::http_lifecycle::populi_http_timeout_ms_from_env();
+    let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
+        &base,
+        std::time::Duration::from_millis(timeout_ms),
+    )
+    .with_env_deliver_token();
+    let sender = AgentId(1);
+    let receiver = AgentId(2);
+    let payload =
+        format!("ai_fixture_subagent dispatch={dispatch_decision} prompt_len={prompt_len}");
+    match relay_to_mesh(
+        &client,
+        sender,
+        receiver,
+        A2AMessageType::HelpRequest,
+        payload,
+    )
+    .await
+    {
+        Ok(()) => format!("{dispatch_decision}|mesh=relayed"),
+        Err(e) => format!("{dispatch_decision}|mesh=error:{e}"),
+    }
+}
+
 /// Relay a structured remote task envelope over the mesh A2A transport.
 pub async fn relay_remote_task_envelope(
     client: &vox_populi::http_client::PopuliHttpClient,

@@ -105,6 +105,7 @@ pub enum ScientiaCmd {
         #[arg(long, default_value_t = false)]
         with_worthiness: bool,
     },
+    /// Print Zenodo metadata
     #[command(name = "publication-zenodo-metadata")]
     PublicationZenodoMetadata {
         #[arg(long)]
@@ -116,6 +117,7 @@ pub enum ScientiaCmd {
         #[arg(long)]
         publication_id: String,
     },
+    /// Export scholarly staging files
     #[command(name = "publication-scholarly-staging-export")]
     PublicationScholarlyStagingExport {
         #[arg(long)]
@@ -183,11 +185,13 @@ pub enum ScientiaCmd {
         #[arg(long, default_value_t = false)]
         json: bool,
     },
+    /// Explain the heuristic scoring for publication discovery
     #[command(name = "publication-discovery-explain")]
     PublicationDiscoveryExplain {
         #[arg(long)]
         publication_id: String,
     },
+    /// Emit destination transform preview JSON
     #[command(name = "publication-transform-preview")]
     PublicationTransformPreview {
         #[arg(long)]
@@ -263,6 +267,7 @@ pub enum ScientiaCmd {
         #[arg(long)]
         arxiv_id: Option<String>,
     },
+    /// List due scholarly outbound jobs
     #[command(name = "publication-external-jobs-due")]
     PublicationExternalJobsDue {
         #[arg(long, default_value_t = PUBLICATION_EXTERNAL_JOBS_DEFAULT_LIMIT)]
@@ -280,6 +285,7 @@ pub enum ScientiaCmd {
         #[arg(long)]
         job_id: i64,
     },
+    /// Run one batch of due scholarly submit jobs
     #[command(name = "publication-external-jobs-tick")]
     PublicationExternalJobsTick {
         #[arg(long, default_value_t = PUBLICATION_EXTERNAL_JOBS_TICK_DEFAULT_LIMIT)]

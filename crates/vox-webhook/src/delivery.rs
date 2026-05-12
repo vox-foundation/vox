@@ -3,8 +3,6 @@
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
-use crate::WebhookError;
-
 /// An outbound webhook configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutboundWebhook {

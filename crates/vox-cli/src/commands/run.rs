@@ -1,4 +1,5 @@
 // toestub-ignore(arch/sprawl)
+use crate::cli_args::BuildMode;
 use crate::commands::build;
 use crate::config;
 use crate::frontend;
@@ -134,7 +135,8 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
         None,
         false,
         false,
-        crate::cli_args::BuildMode::App,
+        BuildMode::App,
+        vox_codegen::codegen_rust::RustAppShell::default(),
     )
     .await?;
 

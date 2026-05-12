@@ -91,6 +91,9 @@ pub struct WorkingTreeWrite {
 
 impl WorkingTreeWrite {
     /// Crate-internal constructor. External callers must use `vox-orchestrator-cap-mint`.
+    /// Currently only exercised by in-crate tests; the runtime path goes through
+    /// `sealed::__mint_working_tree_write`.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn mint(workspace: WorkspaceId, branch: BranchName) -> Self {
         Self { workspace, branch }
     }
@@ -112,6 +115,9 @@ pub struct BranchCreate {
 
 impl BranchCreate {
     /// Crate-internal constructor. External callers must use `vox-orchestrator-cap-mint`.
+    /// Currently only exercised by in-crate tests; the runtime path goes through
+    /// `sealed::__mint_branch_create`.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn mint(workspace: WorkspaceId, parent: BranchName) -> Self {
         Self { workspace, parent }
     }

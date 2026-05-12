@@ -39,6 +39,7 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         is_llm: false,
         llm_model: None,
         ai_structured_output: None,
+        ai_fixture: None,
         embed: None,
         schedule_interval: None,
         durability: None,

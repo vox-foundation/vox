@@ -1,7 +1,7 @@
 //! Composite confidence fusion for Socrates invocation decision (D3).
 //!
 //! Blends five evidence signals into a single score, then applies thresholds
-//! from [`FusionConfig`] to decide whether to invoke Socrates or answer directly.
+//! from `FusionConfig` to decide whether to invoke Socrates or answer directly.
 //! Thresholds mirror `contracts/orchestration/socrates-fusion.v1.yaml`.
 //! All checks are pure: no async, no I/O.
 
@@ -265,7 +265,7 @@ mod tests {
             entropy_score: 2.0,
         };
         let score = f.score(&extreme);
-        assert!(score >= 0.0 && score <= 1.0);
+        assert!((0.0..=1.0).contains(&score));
     }
 
     #[test]

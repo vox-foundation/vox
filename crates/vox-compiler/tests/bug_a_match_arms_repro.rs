@@ -25,7 +25,7 @@ component VoicePage() {
 "#;
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn match_result_arms_emit_tagged_union_dispatch() {
     let tokens = vox_compiler::lexer::lex(FIXTURE);
     let module = vox_compiler::parser::parse(tokens).expect("parse");

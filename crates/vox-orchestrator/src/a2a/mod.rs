@@ -27,8 +27,8 @@ pub use dispatch::{
 };
 #[cfg(feature = "populi-transport")]
 pub use dispatch::{
-    drain_populi_remote_task_results, relay_remote_task_cancel, relay_remote_task_envelope,
-    relay_to_mesh,
+    drain_populi_remote_task_results, relay_ai_fixture_distributed_subagent,
+    relay_remote_task_cancel, relay_remote_task_envelope, relay_to_mesh,
 };
 pub use envelope::{
     A2ADeliveryPlane, A2AInboxPlane, A2ARoute, DbA2AMessage, REMOTE_TASK_ACK_TYPE,

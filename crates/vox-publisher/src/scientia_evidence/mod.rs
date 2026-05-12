@@ -13,7 +13,7 @@ pub use worthiness::*;
 
 use crate::scientific_metadata::ScientificPublicationMetadata;
 
-/// Inline snapshot compatible with [`vox_db::socrates_telemetry::SocratesSurfaceAggregate`] JSON.
+/// Inline snapshot compatible with `vox_db::socrates_telemetry::SocratesSurfaceAggregate` JSON.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 pub struct SocratesAggregateSnapshot {
     #[serde(default)]

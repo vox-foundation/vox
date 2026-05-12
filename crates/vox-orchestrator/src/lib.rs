@@ -177,8 +177,6 @@ pub mod orchestration_feature_flags;
 pub mod orchestrator;
 /// PII-aware redacting filter for sensitive data.
 pub mod pii_filter;
-/// Optional JSONL sink for orchestrator agent events (`VOX_ORCHESTRATOR_EVENT_LOG`).
-
 /// Dynamic planning domain (router, synthesis, policies, replanning).
 pub mod planning;
 /// Read-only mens HTTP federation snapshot types (filled by MCP / embedders).

@@ -24,7 +24,7 @@ pub struct DoiVersion {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LivingReviewManifest {
     pub title: String,
-    /// Always points to the latest published version (updated by [`add_version`]).
+    /// Always points to the latest published version (updated by [`Self::add_version`]).
     pub canonical_url: String,
     /// DOI of the most recently added version.
     pub latest_doi: String,
@@ -36,7 +36,7 @@ impl LivingReviewManifest {
     /// Create an empty manifest with no versions.
     ///
     /// `canonical_url` should be the stable "latest" URL that will be updated
-    /// each time [`add_version`] is called.
+    /// each time [`Self::add_version`] is called.
     pub fn new(title: String, canonical_url: String) -> Self {
         Self {
             title,

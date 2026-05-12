@@ -1,6 +1,6 @@
 //! Vox **populi** — node registry, optional HTTP control plane, and (feature **`mens`**) native ML.
 //!
-//! CPU-first: each [`NodeRecord`] carries [`vox_orchestrator::TaskCapabilityHints`]. See
+//! CPU-first: each [`NodeRecord`] carries `vox_orchestrator::TaskCapabilityHints`. See
 //! `docs/src/architecture/populi-ssot.md` for environment variables.
 //! The **`mens`** module holds Burn/Candle QLoRA training (`--features mens …`).
 

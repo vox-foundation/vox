@@ -51,6 +51,9 @@ pub fn check_training_cuda_tier(module: &HirModule, source: &str) -> Vec<Diagnos
 }
 
 #[cfg(test)]
+// Rust 2024 made `std::env::remove_var` `unsafe`. The single test below runs
+// in this module's exclusive scope; SAFETY rationale lives at each block.
+#[allow(unsafe_code)]
 mod tests {
     use super::*;
     use crate::ast::Span;
@@ -77,6 +80,7 @@ mod tests {
             is_llm: false,
             llm_model: None,
             ai_structured_output: None,
+            ai_fixture: None,
             embed: None,
             is_deprecated: false,
             schedule_interval: None,

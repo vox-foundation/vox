@@ -75,7 +75,7 @@ fn task_result_with_attestation_and_tee() {
 
 #[test]
 fn stub_verifier_returns_unsupported() {
-    let verifier = StubTeeVerifier::default();
+    let verifier = StubTeeVerifier;
     let quote = make_tee_quote(TeeQuoteKind::AmdSevSnp);
     let result = verifier.verify(&quote);
     assert!(result.is_err());
@@ -87,7 +87,7 @@ fn stub_verifier_returns_unsupported() {
 
 #[test]
 fn stub_verifier_rejects_all_kinds() {
-    let verifier = StubTeeVerifier::default();
+    let verifier = StubTeeVerifier;
     for kind in [
         TeeQuoteKind::IntelTdx,
         TeeQuoteKind::AmdSevSnp,

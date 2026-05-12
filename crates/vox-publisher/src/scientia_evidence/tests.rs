@@ -74,8 +74,10 @@ fn evidence_bumps_epistemic_when_socrates_clean() {
 
 #[test]
 fn g2_low_citation_coverage_skips_contradiction_epistemic_shrink() {
-    let mut h = crate::scientia_heuristics::ScientiaHeuristics::default();
-    h.worthiness_contradiction_coverage_gate = 0.3;
+    let h = crate::scientia_heuristics::ScientiaHeuristics {
+        worthiness_contradiction_coverage_gate: 0.3,
+        ..crate::scientia_heuristics::ScientiaHeuristics::default()
+    };
     let agg_noisy = SocratesAggregateSnapshot {
         sample_size: 20,
         parsed_metadata_rows: 15,

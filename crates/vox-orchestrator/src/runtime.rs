@@ -154,7 +154,7 @@ impl TaskProcessor for AiTaskProcessor {
         let cost_pref = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
         let mut allowed_providers = std::collections::HashSet::new();
         if let Some(db) = self.orchestrator.db() {
-            let tracker = crate::usage::UsageTracker::new_ref(&*db);
+            let tracker = crate::usage::UsageTracker::new_ref(&db);
             if let Ok(budgets) = tracker.remaining_all().await {
                 for b in budgets {
                     if b.remaining > 0 && !b.rate_limited {
@@ -167,10 +167,21 @@ impl TaskProcessor for AiTaskProcessor {
         let models_handle = self.orchestrator.models_handle();
         let routed = {
             let registry = crate::sync_lock::rw_read(&*models_handle);
+            let exploration_spent = crate::sync_lock::rw_read(&*self.orchestrator.budget_manager).global_exploration_cost_usd();
+            let exploration_limit = vox_config::load_model_routing_config().exploration.budget_usd_per_day;
+
             if allowed_providers.is_empty() {
-                registry.best_for_task(&task, cost_pref)
+                registry.best_for_task_with_filter(&task, cost_pref, |m| {
+                    if m.pricing_source == crate::models::spec::PricingSource::Unknown && exploration_spent >= exploration_limit {
+                        return false;
+                    }
+                    true
+                })
             } else {
                 registry.best_for_task_with_filter(&task, cost_pref, |m| {
+                    if m.pricing_source == crate::models::spec::PricingSource::Unknown && exploration_spent >= exploration_limit {
+                        return false;
+                    }
                     let provider_str = match m.provider_type {
                         crate::models::ProviderType::OpenRouter => "openrouter",
                         crate::models::ProviderType::Ollama => "ollama",
@@ -394,6 +405,7 @@ impl TaskProcessor for AiTaskProcessor {
                     .lock()
                     .ok()
                     .and_then(|lock| if *lock > 0.0 { Some(*lock) } else { None }),
+                routed.as_ref().map(|m| m.pricing_source.clone()),
             )
             .await;
 

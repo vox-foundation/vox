@@ -20,6 +20,8 @@
 //!   8. **Staleness** (warn) — flags crates with no commits since the last
 //!      release date in `CHANGELOG.md`. Mark stable utility crates with
 //!      `staleness_exempt = true` in `layers.toml` to silence the warning.
+//!      Implemented with one batched `git log` over the repo when possible,
+//!      falling back to per-crate `git log` if the batch query fails.
 //!   9. **Generated-file drift** (warn) — files containing a
 //!      `@generated-hash <hex>` header whose content hash no longer matches,
 //!      indicating a hand-edit of a machine-generated file.
@@ -59,6 +61,22 @@ struct LayersConfig {
     forbidden_pattern: Vec<ForbiddenPatternRule>,
     #[serde(default)]
     guards: GuardsConfig,
+    #[serde(default)]
+    arch_check: ArchCheckConfig,
+}
+
+/// Optional knobs for `vox-arch-check` itself (see `[arch_check.walk_prune]` in layers.toml).
+#[derive(Debug, Default, Deserialize)]
+struct ArchCheckConfig {
+    #[serde(default)]
+    walk_prune: WalkPruneConfig,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct WalkPruneConfig {
+    /// Extra directory *names* (not full paths) to skip when recursing.
+    #[serde(default)]
+    extra_skip_dir_names: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -158,8 +176,8 @@ struct Report {
     generated_file_drift_warns: Vec<(PathBuf, String, String)>,
     /// Rule 10: (crate, forbidden_dep) pairs for direct forbidden-dep violations.
     forbidden_dep_violations: Vec<(String, String)>,
-    /// Rule 11 (P3-T7): (rule_name, file, line, matched) tuples.
-    forbidden_pattern_hits: Vec<(String, PathBuf, usize, String)>,
+    /// Rule 11 (P3-T7): (rule_name, file, line, matched, reason) tuples.
+    forbidden_pattern_hits: Vec<(String, PathBuf, usize, String, String)>,
     /// Whether each rule's failure should be treated as strict (vs. warn-only).
     strict_layer: bool,
     strict_fan_in: bool,
@@ -357,8 +375,14 @@ impl Report {
                 "[{label}] forbidden_pattern violations ({}):",
                 self.forbidden_pattern_hits.len()
             );
-            for (rule, file, line, matched) in &self.forbidden_pattern_hits {
-                eprintln!("  [{}] {}:{} — {}", rule, file.display(), line, matched);
+            for (rule, file, line, matched, reason) in &self.forbidden_pattern_hits {
+                eprintln!(
+                    "  [{}] {}:{} — {}\n    reason: {reason}",
+                    rule,
+                    file.display(),
+                    line,
+                    matched
+                );
             }
         }
         if !any {
@@ -385,6 +409,123 @@ fn parse_strictness(setting: Option<&String>, default_strict: bool) -> bool {
     }
 }
 
+/// Built-in directory *names* (final path component) never recursed into by Rule 3/9/11.
+const WALK_PRUNE_DEFAULT_DIR_NAMES: &[&str] = &[
+    "target",
+    ".git",
+    "node_modules",
+    ".pnpm-store",
+    "__pycache__",
+    ".venv",
+    ".mypy_cache",
+    ".turbo",
+    ".next",
+    ".parcel-cache",
+    ".cargo",
+];
+
+fn built_in_walk_prune_names() -> HashSet<String> {
+    WALK_PRUNE_DEFAULT_DIR_NAMES
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect()
+}
+
+fn walk_prune_dir_names(cfg: &LayersConfig) -> HashSet<String> {
+    let mut s = built_in_walk_prune_names();
+    for extra in &cfg.arch_check.walk_prune.extra_skip_dir_names {
+        let t = extra.trim();
+        if !t.is_empty() {
+            s.insert(t.to_string());
+        }
+    }
+    s
+}
+
+fn dir_entry_should_be_pruned(path: &Path, prune_dir_names: &HashSet<String>) -> bool {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|name| prune_dir_names.contains(name))
+}
+
+/// Recursive file listing for repo scans; skips heavy artifact trees (see `walk_prune_dir_names`).
+fn walk_repo_files(root: &Path, prune_dir_names: &HashSet<String>) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(p) = stack.pop() {
+        let entries = match std::fs::read_dir(&p) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for e in entries.flatten() {
+            let path = e.path();
+            if path.is_dir() {
+                if !dir_entry_should_be_pruned(&path, prune_dir_names) {
+                    stack.push(path);
+                }
+            } else {
+                out.push(path);
+            }
+        }
+    }
+    out
+}
+
+/// Parent directory of `manifest_path`, relative to `repo`, using `/` separators.
+fn manifest_parent_rel_to_repo(repo: &Path, manifest_path: &Path) -> Option<String> {
+    let parent = manifest_path.parent()?;
+    let rel = parent.strip_prefix(repo).ok()?;
+    if rel.as_os_str().is_empty() {
+        return Some(String::new());
+    }
+    let mut s = rel.to_string_lossy().replace('\\', "/");
+    while s.ends_with('/') {
+        s.pop();
+    }
+    Some(s)
+}
+
+/// True if a path reported by `git log --name-only` lies under the crate root `rel_dir`.
+fn git_path_touches_crate_root(git_path: &str, rel_dir: &str) -> bool {
+    let p = git_path.trim_start_matches("./").replace('\\', "/");
+    let rel = rel_dir.trim_matches('/');
+    if rel.is_empty() {
+        // Root package (manifest at workspace root): touches are top-level source paths.
+        return p == "Cargo.toml" || p.starts_with("src/") || p.starts_with("benches/");
+    }
+    p == rel || p.starts_with(&format!("{rel}/"))
+}
+
+/// Paths touched in commits selected by `git log --since {release_date}T00:00:00Z`
+/// (`--name-only`, empty `--pretty`); matches Git's author-date `--since` semantics.
+fn git_paths_touched_since(repo: &Path, release_date: &str) -> Option<HashSet<String>> {
+    let since = format!("{release_date}T00:00:00Z");
+    let out = Command::new("git")
+        .current_dir(repo)
+        .args([
+            "log",
+            "--since",
+            &since,
+            "--name-only",
+            "--pretty=format:",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&out.stdout);
+    let mut paths = HashSet::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        paths.insert(line.replace('\\', "/"));
+    }
+    Some(paths)
+}
+
 fn run(warn_only_flag: bool) -> Result<Report> {
     let metadata = MetadataCommand::new()
         .no_deps()
@@ -398,6 +539,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         .with_context(|| format!("reading {}", layers_path.display()))?;
     let layers: LayersConfig = toml::from_str(&layers_text)
         .with_context(|| format!("parsing {}", layers_path.display()))?;
+    let prune_dirs = walk_prune_dir_names(&layers);
 
     let workspace_members: HashSet<&str> = metadata
         .workspace_packages()
@@ -505,7 +647,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             .parent()
             .unwrap_or(Path::new("."));
         let src_dir = manifest_dir.join("src");
-        let loc = count_loc(&src_dir).unwrap_or(0);
+        let loc = count_loc(&src_dir, &prune_dirs).unwrap_or(0);
         if loc > budget {
             report.loc_warns.push((name.to_string(), loc, budget));
         }
@@ -568,22 +710,49 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     let changelog_path = workspace_root.join("CHANGELOG.md");
     if let Some((release_version, release_date)) = parse_release_date(&changelog_path) {
         report.staleness_since = format!("v{release_version} ({release_date})");
-        for pkg in metadata_full.workspace_packages() {
-            let name = pkg.name.as_str();
-            let entry = match layers.crates.get(name) {
-                Some(e) => e,
-                None => continue,
-            };
-            if entry.staleness_exempt || entry.kind == "plugin" {
-                continue;
+        if let Some(ref touched) = git_paths_touched_since(&workspace_root, &release_date) {
+            for pkg in metadata_full.workspace_packages() {
+                let name = pkg.name.as_str();
+                let entry = match layers.crates.get(name) {
+                    Some(e) => e,
+                    None => continue,
+                };
+                if entry.staleness_exempt || entry.kind == "plugin" {
+                    continue;
+                }
+                let manifest_path = Path::new(pkg.manifest_path.as_str());
+                let Some(rel_dir) = manifest_parent_rel_to_repo(&workspace_root, manifest_path)
+                else {
+                    continue;
+                };
+                let touched_this_crate = touched
+                    .iter()
+                    .any(|p| git_path_touches_crate_root(p, &rel_dir));
+                if !touched_this_crate {
+                    report.staleness_warns.push((
+                        name.to_string(),
+                        format!("no commits touching crate on/after {release_date}"),
+                    ));
+                }
             }
-            let manifest_dir = Path::new(pkg.manifest_path.as_str())
-                .parent()
-                .unwrap_or(Path::new("."));
-            if let Some(last_commit) = git_last_commit_date(manifest_dir) {
-                // ISO date strings compare lexicographically: "2026-03-01" < "2026-04-18"
-                if last_commit < release_date {
-                    report.staleness_warns.push((name.to_string(), last_commit));
+        } else {
+            // vox-arch-check: allow git-exec — batched log failed; fall back to per-crate probe.
+            for pkg in metadata_full.workspace_packages() {
+                let name = pkg.name.as_str();
+                let entry = match layers.crates.get(name) {
+                    Some(e) => e,
+                    None => continue,
+                };
+                if entry.staleness_exempt || entry.kind == "plugin" {
+                    continue;
+                }
+                let manifest_dir = Path::new(pkg.manifest_path.as_str())
+                    .parent()
+                    .unwrap_or(Path::new("."));
+                if let Some(last_commit) = git_last_commit_date(manifest_dir) {
+                    if last_commit < release_date {
+                        report.staleness_warns.push((name.to_string(), last_commit));
+                    }
                 }
             }
         }
@@ -592,7 +761,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
 
     // ── Rule 9: Generated-file drift ──
     report.generated_file_drift_warns =
-        check_generated_file_drift(&workspace_root).unwrap_or_else(|e| {
+        check_generated_file_drift(&workspace_root, &prune_dirs).unwrap_or_else(|e| {
             eprintln!("warn: generated-file-drift check skipped: {e:#}");
             Vec::new()
         });
@@ -637,7 +806,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     // ── Rule 11: Forbidden code patterns (P3-T7) ──
     if !layers.forbidden_pattern.is_empty() {
         for rule in &layers.forbidden_pattern {
-            match scan_forbidden_pattern(&workspace_root, rule) {
+            match scan_forbidden_pattern(&workspace_root, rule, &prune_dirs) {
                 Ok(hits) => {
                     for hit in hits {
                         report.forbidden_pattern_hits.push((
@@ -645,6 +814,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                             hit.file,
                             hit.line,
                             hit.matched,
+                            hit.reason,
                         ));
                     }
                 }
@@ -664,11 +834,12 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     Ok(report)
 }
 
-/// Return the YYYY-MM-DD date of the last commit touching `dir`, or `None` if git is unavailable.
+/// Return the YYYY-MM-DD **author** date of the last commit touching `dir`, or `None` if git is unavailable.
+/// Uses author date so it matches `git log --since` filtering used by Rule 8 batching.
 fn git_last_commit_date(dir: &Path) -> Option<String> {
     // vox-arch-check: allow git-exec
     let out = Command::new("git")
-        .args(["log", "-n", "1", "--format=%cd", "--date=short"])
+        .args(["log", "-n", "1", "--format=%ad", "--date=short"])
         .arg("--")
         .arg(dir)
         .output()
@@ -779,12 +950,12 @@ fn check_where_things_live_coverage(
 }
 
 /// Count non-blank, non-comment-only lines under `dir/**/*.rs` (best-effort).
-fn count_loc(dir: &Path) -> Result<usize> {
+fn count_loc(dir: &Path, prune_dir_names: &HashSet<String>) -> Result<usize> {
     if !dir.exists() {
         return Ok(0);
     }
     let mut total = 0usize;
-    for entry in walkdir(dir) {
+    for entry in walk_repo_files(dir, prune_dir_names) {
         if entry.extension().and_then(|s| s.to_str()) != Some("rs") {
             continue;
         }
@@ -813,6 +984,7 @@ fn fnv1a_hex(bytes: &[u8]) -> String {
 /// (`//`, `#`, `<!--`, etc.).
 fn check_generated_file_drift(
     workspace_root: &Path,
+    prune_dir_names: &HashSet<String>,
 ) -> anyhow::Result<Vec<(PathBuf, String, String)>> {
     const MARKER: &str = "@generated-hash ";
     const HASH_LEN: usize = 16;
@@ -821,20 +993,11 @@ fn check_generated_file_drift(
 
     let mut warns = Vec::new();
 
-    for path in walkdir(workspace_root) {
-        // Skip binary-likely files and hidden dirs quickly.
+    for path in walk_repo_files(workspace_root, prune_dir_names) {
         let rel = match path.strip_prefix(workspace_root) {
             Ok(r) => r,
             Err(_) => path.as_path(),
         };
-        // Skip target/, .git/, node_modules/
-        let rel_str = rel.to_string_lossy();
-        if rel_str.starts_with("target")
-            || rel_str.starts_with(".git")
-            || rel_str.contains("node_modules")
-        {
-            continue;
-        }
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         if !TRACKED_EXTS.contains(&ext) {
             continue;
@@ -881,22 +1044,70 @@ fn check_generated_file_drift(
     Ok(warns)
 }
 
-fn walkdir(root: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    let mut stack = vec![root.to_path_buf()];
-    while let Some(p) = stack.pop() {
-        let entries = match std::fs::read_dir(&p) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-        for e in entries.flatten() {
-            let path = e.path();
-            if path.is_dir() {
-                stack.push(path);
-            } else {
-                out.push(path);
-            }
-        }
+#[cfg(test)]
+mod walk_and_staleness_tests {
+    use super::*;
+
+    #[test]
+    fn walk_prune_skips_target_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("crates/foo/src")).unwrap();
+        std::fs::write(root.join("crates/foo/src/lib.rs"), "x").unwrap();
+        std::fs::create_dir_all(root.join("crates/foo/target/debug")).unwrap();
+        std::fs::write(root.join("crates/foo/target/debug/huge.bin"), [0u8; 4096]).unwrap();
+        let prune = built_in_walk_prune_names();
+        let files: Vec<_> = walk_repo_files(root, &prune)
+            .into_iter()
+            .map(|p| p.strip_prefix(root).unwrap().to_path_buf())
+            .collect();
+        assert!(
+            files.iter().any(|p| p == Path::new("crates/foo/src/lib.rs")),
+            "{files:?}"
+        );
+        assert!(
+            !files.iter().any(|p| p.to_string_lossy().contains("target")),
+            "must not descend into target/: {files:?}"
+        );
     }
-    out
+
+    #[test]
+    fn walk_prune_extra_from_layers_toml() {
+        let cfg: LayersConfig = toml::from_str(
+            r#"
+[crates.dummy]
+layer = 0
+[arch_check.walk_prune]
+extra_skip_dir_names = ["my_vendor"]
+"#,
+        )
+        .expect("parse minimal layers");
+        let prune = walk_prune_dir_names(&cfg);
+        assert!(prune.contains("target"));
+        assert!(prune.contains("my_vendor"));
+    }
+
+    #[test]
+    fn git_path_touches_crate_root_prefix() {
+        assert!(git_path_touches_crate_root(
+            "crates/vox-cli/src/main.rs",
+            "crates/vox-cli"
+        ));
+        assert!(git_path_touches_crate_root("crates/vox-cli/Cargo.toml", "crates/vox-cli"));
+        assert!(!git_path_touches_crate_root(
+            "crates/vox-other/src/lib.rs",
+            "crates/vox-cli"
+        ));
+    }
+
+    #[test]
+    fn manifest_parent_rel_to_repo_normalizes() {
+        let tmp = tempfile::tempdir().unwrap();
+        let repo = tmp.path();
+        let mf = repo.join("crates/foo/Cargo.toml");
+        assert_eq!(
+            manifest_parent_rel_to_repo(repo, &mf).as_deref(),
+            Some("crates/foo")
+        );
+    }
 }

@@ -41,7 +41,7 @@ const PROPTEST_ASYNC_TIMEOUT: Duration = Duration::from_secs(180);
 fn stress_debug_enabled() -> bool {
     vox_secrets::resolve_secret(SecretId::VoxOrchestratorStressDebug)
         .expose()
-        .map(|s| orchestrator_env_truthy(&s))
+        .map(orchestrator_env_truthy)
         .unwrap_or(false)
 }
 

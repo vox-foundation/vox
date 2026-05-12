@@ -1,7 +1,7 @@
 //! Contract IR — the wire-format projection of HIR.
 //!
 //! Sits between [`crate::hir`] and the wire-format emitters
-//! ([`crate::codegen_ts::zod_emit`], the future OpenAPI emitter, JSON Schema, the
+//! (`vox_codegen::codegen_ts::zod_emit`, the future OpenAPI emitter, JSON Schema, the
 //! TS client SDK). Each consumer reads `ContractIr` rather than walking HIR
 //! independently — so the wire-format-v1 rules
 //! ([`docs/src/architecture/wire-format-v1-ssot.md`](../../../../docs/src/architecture/wire-format-v1-ssot.md))
@@ -238,7 +238,7 @@ pub fn wire_type_to_ts(wt: &WireType) -> String {
 /// Map a [`WireType`] to a Zod schema expression string.
 ///
 /// This is the single authoritative `WireType → Zod` mapping.
-/// [`crate::codegen_ts::zod_emit`] delegates here so the rule lives in one place.
+/// `vox_codegen::codegen_ts::zod_emit` delegates here so the rule lives in one place.
 ///
 /// `DecimalString` and `BigIntString` validate as plain strings (precision is
 /// preserved in the string; downstream parsing is a client responsibility).

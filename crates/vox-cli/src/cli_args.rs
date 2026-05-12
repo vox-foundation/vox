@@ -4,6 +4,8 @@ use clap::{Args, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+pub use vox_cli_core::cli_args::{BuildMode, BundleMode, CompileKind, UpgradeLane};
+
 /// Build target for `vox build` / `vox dev`. See `vox_config::BuildTarget` for semantics.
 ///
 /// `fullstack` is the default build mode. Use `--target=server` for Rust-only (no `dist/` TS),
@@ -30,16 +32,6 @@ impl From<BuildTargetArg> for vox_config::BuildTarget {
     }
 }
 
-/// Build mode (`app` or `library`).
-#[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize, PartialEq)]
-pub enum BuildMode {
-    /// Emit app code + components (default).
-    #[default]
-    App,
-    /// Emit UI-agnostic models, schemas, and client fetchers.
-    Library,
-}
-
 /// `vox build` / `vox fabrica build`
 #[derive(Args, Clone, Debug)]
 pub struct BuildArgs {
@@ -47,8 +39,8 @@ pub struct BuildArgs {
     #[arg(required = true)]
     pub file: PathBuf,
     /// Build mode (App or Library)
-    #[arg(long, value_enum, default_value_t = crate::cli_args::BuildMode::App)]
-    pub mode: crate::cli_args::BuildMode,
+    #[arg(long, value_enum, default_value_t = BuildMode::App)]
+    pub mode: BuildMode,
     /// Output directory for generated TypeScript
     #[arg(short, long, default_value = "dist")]
     pub out_dir: PathBuf,
@@ -87,6 +79,11 @@ pub struct CheckArgs {
     /// (HIR module fields plus `module.web_ir` when present).
     #[arg(long)]
     pub emit_ir: bool,
+
+    /// Emit a single **stable JSON envelope** for LLM healing loops (includes structured diagnostics).
+    /// Implies machine-readable output on stdout; does not change rustc-style stderr for parse failures.
+    #[arg(long)]
+    pub for_llm: bool,
 }
 
 /// `vox test` / `vox fabrica test`
@@ -185,16 +182,6 @@ pub struct EmitClientArgs {
     pub emit_ir: bool,
 }
 
-/// Bundling mode: `app` (web + backend) or `script` (binary only).
-#[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize)]
-pub enum BundleMode {
-    /// Web application with React frontend and Axum backend.
-    #[default]
-    App,
-    /// Native binary script for mesh/CLI execution.
-    Script,
-}
-
 /// `vox bundle` / `vox fabrica bundle`
 #[derive(Args, Clone, Debug)]
 pub struct BundleArgs {
@@ -209,6 +196,63 @@ pub struct BundleArgs {
     pub target: Option<String>,
     #[arg(long, default_value = "true")]
     pub release: bool,
+}
+
+/// `vox compile` / `vox fabrica compile`
+#[derive(Args, Clone, Debug)]
+pub struct CompileArgs {
+    /// Packaging target (`native-binary` matches `vox bundle-app`).
+    #[arg(long = "target", value_enum, default_value_t = CompileKind::NativeBinary)]
+    pub kind: CompileKind,
+    #[arg(short, long, default_value = "dist")]
+    pub out_dir: PathBuf,
+    /// Rust target triple for cross-compilation (archive layout uses `vox-release-artifacts`).
+    #[arg(long)]
+    pub triple: Option<String>,
+    #[arg(long, default_value_t = true)]
+    pub release: bool,
+    /// Build every `[workspace].members` package from repo-root `Vox.toml`.
+    #[arg(long, default_value_t = false)]
+    pub workspace: bool,
+    /// After compile, emit `.zip` / `.tar.gz` + `checksums-compile.txt` beside the binary.
+    #[arg(long, default_value_t = false)]
+    pub archive: bool,
+    /// Entry `.vox` file (optional when `--workspace`; positional must trail flags for stable clap parsing).
+    #[arg(value_name = "FILE")]
+    pub file: Option<PathBuf>,
+}
+
+#[cfg(test)]
+mod compile_args_parse_tests {
+    use super::CompileArgs;
+    use clap::Parser;
+    use vox_cli_core::cli_args::CompileKind;
+
+    /// Minimal wrapper so `CompileArgs` can be exercised without building the full `VoxCliRoot` tree.
+    /// Integration coverage for the full root parser lives in `tests/vox_cli_root_parsing.rs` (Windows:
+    /// those tests run clap work on an 8 MiB stack thread).
+    #[derive(Debug, Parser)]
+    #[command(name = "vox-compile-args-test")]
+    struct CompileArgsHarness {
+        #[command(flatten)]
+        inner: CompileArgs,
+    }
+
+    #[test]
+    fn desktop_target_and_trailing_file() {
+        let c = CompileArgsHarness::try_parse_from([
+            "vox-compile-args-test",
+            "--target",
+            "desktop",
+            "foo.vox",
+        ])
+        .expect("parse compile args");
+        assert_eq!(c.inner.kind, CompileKind::Desktop);
+        assert_eq!(
+            c.inner.file.as_deref(),
+            Some(std::path::Path::new("foo.vox"))
+        );
+    }
 }
 
 /// `vox fmt` / `vox fabrica fmt`
@@ -241,6 +285,9 @@ pub struct RepairArgs {
 /// `vox doctor` / `vox mens doctor`
 #[derive(Args, Clone, Debug)]
 pub struct DoctorArgs {
+    /// Preflight checks for `vox compile` / cross-target toolchains (rustup target, ANDROID_HOME, Xcode).
+    #[arg(long, value_name = "TRIPLE")]
+    pub compile_target: Option<String>,
     #[arg(long, default_value_t = false)]
     pub auto_heal: bool,
     #[arg(long, default_value_t = false)]
@@ -390,16 +437,6 @@ pub enum UpgradeReleaseProvider {
     Http,
 }
 
-/// `vox upgrade` lane: release binary vs local repository checkout.
-#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
-pub enum UpgradeLane {
-    /// Checksums-verified release archive into `CARGO_HOME/bin` (default).
-    #[default]
-    Release,
-    /// Fetch / fast-forward (or explicit `--ref`) then `cargo install --locked --path crates/vox-cli`.
-    Repo,
-}
-
 /// `vox upgrade` — toolchain only (never `Vox.toml` / `vox.lock`).
 #[derive(Args, Clone, Debug)]
 pub struct UpgradeToolchainArgs {
@@ -475,4 +512,11 @@ pub struct GenerateArgs {
     /// Inference server base URL (only used with `--legacy-direct`; default: http://127.0.0.1:7863).
     #[arg(long, value_name = "URL", requires = "legacy_direct")]
     pub server_url: Option<String>,
+}
+
+#[derive(clap::Args, Clone, Debug)]
+pub struct GuiArgs {
+    /// Open directly to a specific command panel.
+    #[arg(long, value_name = "COMMAND", help = "Open to a specific command panel")]
+    pub command: Option<String>,
 }

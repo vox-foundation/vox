@@ -14,8 +14,12 @@ use super::emit;
 use super::manifest::{CodegenOutput, manifest_dependency_path};
 
 /// Generate a full Rust project from a HIR module.
-pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput, miette::Error> {
-    let out = emit::generate(module, package_name)?;
+pub fn generate(
+    module: &HirModule,
+    package_name: &str,
+    shell: super::RustAppShell,
+) -> Result<CodegenOutput, miette::Error> {
+    let out = emit::generate(module, package_name, shell)?;
     Ok(CodegenOutput {
         files: out.files,
         api_client_ts: out.api_client_ts,

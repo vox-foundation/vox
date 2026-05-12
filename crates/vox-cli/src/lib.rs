@@ -197,6 +197,12 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::BuildArgs,
     },
+    /// Compile native / mobile packaging artifacts (`vox fabrica compile`).
+    Compile {
+        /// Arguments.
+        #[command(flatten)]
+        args: cli_args::CompileArgs,
+    },
     /// Type-check a Vox source file without producing output
     Check {
         /// Arguments.
@@ -223,6 +229,7 @@ pub enum Cli {
         args: cli_args::ScriptArgs,
     },
     #[cfg(not(feature = "script-execution"))]
+    /// Execute a standalone Vox script
     #[command(name = "script")]
     ScriptStub {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
@@ -379,11 +386,11 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::visus::VisusCmd,
     },
-    /// Launch the local orchestration dashboard in a browser (`vox dashboard`).
-    #[cfg(feature = "dashboard")]
-    Dashboard {
+    /// Launch the Vox native GUI (Tauri 2 desktop app).
+    #[cfg(feature = "gui")]
+    Gui {
         #[command(flatten)]
-        args: crate::commands::dashboard::DashboardArgs,
+        args: cli_args::GuiArgs,
     },
     /// Toolchain upgrade: `--source release` (checksums.txt binary) or `--source repo` (git + `cargo install --locked`); never edits `Vox.toml` / `vox.lock`.
     Upgrade {
@@ -463,6 +470,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::db_cli::DbCli,
     },
+    /// Hybrid retrieval over memory logs and project DB (`memory search`).
+    Memory {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::memory_cli::MemoryCmd,
+    },
     /// Manage the `.vox/repositories.yaml` cross-repo catalog.
     Catalog {
         /// Subcommand.
@@ -525,7 +538,7 @@ pub enum Cli {
         args: commands::drift_check::DriftCheckArgs,
     },
 
-    /// Unified research operations: infrastructure (up/down/status) and eval.
+    /// Unified research operations: infrastructure (up/down/status), eval harness, and `run` (`run_research`).
     Research {
         /// Subcommand.
         #[command(subcommand)]
@@ -628,13 +641,23 @@ pub async fn run_vox_cli() -> anyhow::Result<()> {
     run_vox_cli_from_parsed(root).await
 }
 
-/// Run after parsing a [`VoxCliRoot`]: optional `RUST_LOG=debug` for `--verbose`, [`init_tracing_for_cli`], then dispatch.
+/// Run after parsing a [`VoxCliRoot`]: global env hints (`VOX_CLI_*`, `RUST_LOG`), [`init_tracing_for_cli`], then dispatch.
 #[allow(unsafe_code)]
 pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
-    if root.global.verbose > 0 && std::env::var_os("RUST_LOG").is_none() {
-        // SAFETY: CLI startup is single-threaded before Tokio workers read `RUST_LOG`.
-        unsafe {
-            crate::config::set_process_env("RUST_LOG", "debug");
+    // SAFETY: CLI startup is single-threaded before Tokio workers read env vars used by tracing/subcommands.
+    unsafe {
+        if root.global.json {
+            crate::config::set_process_env("VOX_CLI_GLOBAL_JSON", "1");
+        }
+        if root.global.quiet {
+            crate::config::set_process_env("VOX_CLI_QUIET", "1");
+        }
+        if std::env::var_os("RUST_LOG").is_none() {
+            if root.global.verbose > 0 {
+                crate::config::set_process_env("RUST_LOG", "debug");
+            } else if root.global.quiet {
+                crate::config::set_process_env("RUST_LOG", "warn");
+            }
         }
     }
     init_tracing_for_cli();

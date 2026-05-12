@@ -18,7 +18,7 @@ fn feature_sets_include_script_execution_lane() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — feature matrix lane until oratio dep stable in CI"]
 fn feature_sets_include_populi_oratio_lane() {
     assert!(
         FEATURE_SETS.contains(&"oratio"),

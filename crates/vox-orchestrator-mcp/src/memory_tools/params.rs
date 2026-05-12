@@ -1,4 +1,4 @@
-﻿use schemars::JsonSchema;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// MCP arguments: persist a fact into MEMORY.md / optional Codex graph.
@@ -30,7 +30,7 @@ pub struct KnowledgeQueryParams {
 /// MCP arguments: fetch one MEMORY.md entry by key.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct MemoryRecallParams {
-    /// Key previously stored via [`memory_store`].
+    /// Key previously stored via `memory_store`.
     pub key: String,
 }
 
@@ -44,6 +44,52 @@ pub struct MemorySearchParams {
     pub trace_id: Option<String>,
     #[serde(default)]
     pub correlation_id: Option<String>,
+}
+
+/// MCP arguments: full `run_research` pipeline (web gather + synthesis + judge when LLM configured).
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ResearchRunParams {
+    /// Natural-language research topic or question.
+    pub query: String,
+    /// `both` (default), `web`, or `local`.
+    #[serde(default)]
+    pub scope: Option<String>,
+    /// Max sources per planner subquery (default 10).
+    #[serde(default)]
+    pub max_sources: Option<usize>,
+    /// When true, attempt claim verification on deep tier (stubbed until Phase 1).
+    #[serde(default)]
+    pub verify_claims: Option<bool>,
+    /// Optional domain filter (`example.com`, no scheme).
+    #[serde(default)]
+    pub site_scope: Option<String>,
+    /// When true (default), return JSON-serialized [`vox_orchestrator::dei_shim::research::ResearchResult`].
+    #[serde(default = "default_research_json")]
+    pub json: bool,
+}
+
+/// MCP arguments: start a long-running research job.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ResearchStartParams {
+    pub query: String,
+    #[serde(default)]
+    pub scope: Option<String>,
+    #[serde(default)]
+    pub max_sources: Option<usize>,
+    #[serde(default)]
+    pub verify_claims: Option<bool>,
+    #[serde(default)]
+    pub site_scope: Option<String>,
+}
+
+/// MCP arguments: inspect a research session.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ResearchSessionParams {
+    pub session_id: i64,
+}
+
+fn default_research_json() -> bool {
+    true
 }
 
 /// MCP arguments: semantic-fs path discovery from an intent string.

@@ -40,7 +40,7 @@ xxhash-rust = { workspace = true }
 blake3 = { workspace = true }
 rust_decimal = { workspace = true }
 workspace-hack = { workspace = true }
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-subscriber = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 regex = { workspace = true }
 vox-agentos-mutation.workspace = true

@@ -35,6 +35,10 @@ pub(crate) fn deliver_bearer_string() -> Option<String> {
 }
 
 #[cfg(test)]
+// Rust 2024 made env mutation primitives `unsafe`. Tests in this module are
+// gated by `serial_test::serial`, which is the SAFETY contract for every
+// `unsafe` block touching `VOX_MESH_*`.
+#[allow(unsafe_code)]
 mod tests {
     use super::*;
     use serial_test::serial;

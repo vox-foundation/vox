@@ -1,7 +1,6 @@
 //! End-to-end: build noop-code (assumed pre-built), copy artifact + manifest
 //! to a tempdir, discover, load, exercise the trait object.
 
-use abi_stable::std_types::*;
 use std::path::PathBuf;
 use vox_plugin_host::{Loader, discover};
 

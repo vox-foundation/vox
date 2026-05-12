@@ -66,7 +66,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "db manifest topic-pack hydration; owner: publisher sunset: 2026-12-31"]
     fn publication_item_from_manifest_hydrates_topic_pack() {
         let row = vox_db::PublicationManifestRow {
             publication_id: "p1".to_string(),

@@ -1,8 +1,8 @@
 //! Calibration loop: Welford drift detection + greedy Beta-posterior bandit (D10).
 //!
-//! [`CalibrationLoop`] tracks a running mean/variance over latency or quality scores
+//! `CalibrationLoop` tracks a running mean/variance over latency or quality scores
 //! and alerts when the z-score of a new observation exceeds the drift threshold.
-//! [`ContextualBandit`] picks the arm with the highest expected reward under each
+//! `ContextualBandit` picks the arm with the highest expected reward under each
 //! arm's Beta(α, β) posterior — i.e. greedy exploitation. Thompson draws live in
 //! [`crate::routing::ModelSelectionEngine`] using aligned `(successes, failures)` counts.
 

@@ -15,6 +15,7 @@
 // commands::ci
 // commands::codex
 // commands::db_cli
+// commands::memory_cli
 // commands::dei
 // commands::deploy
 // commands::dev
@@ -45,6 +46,7 @@
 // commands::pm
 // commands::remove
 // commands::repo
+// commands::research::run_research_query
 // commands::review
 // commands::run
 // commands::runtime::run::script

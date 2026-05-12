@@ -1,7 +1,7 @@
 //! Right-of-reply window gate — SCIENTIA Phase 3.
 //!
 //! Enforces a 14-day right-of-reply window before a provider_atlas topic-pack
-//! may be published. Mirrors the [`PreregGate`] pattern: call before publishing,
+//! may be published. Mirrors the [`crate::gate::PreregGate`] pattern: call before publishing,
 //! receive a [`crate::gate::GateResult`].
 
 use crate::gate::GateResult;

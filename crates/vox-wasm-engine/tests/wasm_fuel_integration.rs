@@ -78,8 +78,10 @@ fn per_execution_fuel_override_cuts_budget() {
     tmp.flush().expect("flush wasm temp");
 
     let host = WasmHost::with_fuel(500_000).expect("WasmHost::with_fuel");
-    let mut opts = WasmExecOpts::default();
-    opts.fuel_override = Some(500);
+    let opts = WasmExecOpts {
+        fuel_override: Some(500),
+        ..WasmExecOpts::default()
+    };
     let err = host
         .execute(Path::new(tmp.path()), &opts)
         .expect_err("expected early fuel exhaustion via fuel_override");

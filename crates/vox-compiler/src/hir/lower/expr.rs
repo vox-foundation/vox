@@ -348,6 +348,7 @@ impl LowerCtx {
                     is_llm: false,
                     llm_model: None,
                     ai_structured_output: None,
+                    ai_fixture: None,
                     embed: None,
                     is_deprecated: false,
                     schedule_interval: None,

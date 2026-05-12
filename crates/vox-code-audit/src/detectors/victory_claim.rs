@@ -115,7 +115,7 @@ mod tests {
     fn detects_victory_comment() {
         let d = VictoryClaimDetector::new();
         let snippet = concat!("// ", "D", "one!", " Implementation complete\nfn foo() {}");
-        let f = source("rs", &snippet);
+        let f = source("rs", snippet);
         let findings = d.detect(&f, None);
         assert!(
             findings
@@ -143,7 +143,7 @@ mod tests {
     fn detects_fixme() {
         let d = VictoryClaimDetector::new();
         let snippet = concat!("// ", "FIX", "ME this is broken\nconst x = 1;");
-        let f = source("ts", &snippet);
+        let f = source("ts", snippet);
         let findings = d.detect(&f, None);
         assert!(
             findings.iter().any(|f| f.rule_id == "victory-claim/fixme"),

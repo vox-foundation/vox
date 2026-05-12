@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use schemars::schema::RootSchema;
+use schemars08::schema::RootSchema;
 use typify::TypeSpace;
 use walkdir::WalkDir;
 

@@ -7,7 +7,7 @@ pub(super) fn emit_stmt(
     is_route: bool,
     is_actor: bool,
     mutation_tx: bool,
-    // Rust expression for `Option<String>` request id (e.g. `vox_rid.0.clone()`), or omit with `None`.
+    // Rust expression for `Option<String>` request id (e.g. `vox_rid.clone()`), or omit with `None`.
     http_error_rid: Option<&str>,
 ) -> String {
     let pad = " ".repeat(indent * 4);
@@ -73,9 +73,9 @@ pub(super) fn emit_stmt(
                 } else {
                     format!("{pad}return {};\n", expr_str)
                 }
-            } else if is_route && mutation_tx {
-                format!("{pad}return Ok(Json(serde_json::Value::Null));\n")
             } else if is_route {
+                // Both `mutation_tx` and non-mutation routes return the same null
+                // body when no expression is supplied; collapsed to a single arm.
                 format!("{pad}return Ok(Json(serde_json::Value::Null));\n")
             } else {
                 format!("{pad}return;\n")

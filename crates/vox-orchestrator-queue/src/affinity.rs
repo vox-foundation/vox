@@ -1,6 +1,6 @@
 //! File-level affinity: which agent may write which paths.
 //!
-//! [`FileAffinityMap`](crate::affinity::FileAffinityMap) enforces single-writer ownership and records pattern
+//! [`crate::affinity::FileAffinityMap`] enforces single-writer ownership and records pattern
 //! experience so routing can prefer agents that have touched similar files.
 //!
 //! **Affinity is a hint, lock is hard.** Callers wishing to write must additionally hold a
@@ -75,7 +75,7 @@ impl FileAffinityMap {
     ///
     /// Conflict resolution:
     /// 1. If the current owner is a different daemon and the entry is less than
-    ///    [`HOLD_DOWN_MS`] old, the new claim is **ignored** (local stability wins).
+    ///    `HOLD_DOWN_MS` old, the new claim is **ignored** (local stability wins).
     /// 2. After the hold-down, the entry with the higher `lamport` wins;
     ///    equal lamports break ties by daemon-id bytes (deterministic total order).
     ///

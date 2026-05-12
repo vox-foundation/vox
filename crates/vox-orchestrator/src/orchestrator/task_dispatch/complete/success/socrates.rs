@@ -255,15 +255,14 @@ mod autonomous_research_short_circuit_tests {
         cfg.max_agents = 4;
 
         let orch = Orchestrator::new(cfg);
-        orch
-            .submit_task(
-                "explore factual claims about rust async runtimes",
-                vec![FileAffinity::write("src/a.rs")],
-                Some(TaskPriority::Normal),
-                None,
-            )
-            .await
-            .unwrap();
+        orch.submit_task(
+            "explore factual claims about rust async runtimes",
+            vec![FileAffinity::write("src/a.rs")],
+            Some(TaskPriority::Normal),
+            None,
+        )
+        .await
+        .unwrap();
 
         let aid = orch.agent_ids()[0];
         let task_id = {

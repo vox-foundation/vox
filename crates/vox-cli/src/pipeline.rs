@@ -5,6 +5,12 @@
 //! results. All CLI commands (`build`, `check`) and the LSP use this so
 //! that error formatting stays consistent and pipeline changes need to be
 //! made in exactly one place.
+//!
+//! **Separation of concerns:** this module owns compiler integration and
+//! human/JSON rendering helpers for diagnostics. Domain policy (what counts
+//! as a successful build artifact, deploy graphs, etc.) stays in command
+//! adapters under `commands/` and downstream crates — keep new presentation-only
+//! tweaks here and push reusable compiler logic toward `vox-compiler`.
 
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
@@ -136,6 +142,41 @@ pub fn format_diagnostics_json_pretty(result: &FrontendResult, file: &Path) -> S
         .map(|d| VoxCompilerDiagnosticPayload::from_diagnostic(d, &file_path, &result.source))
         .collect();
     serde_json::to_string_pretty(&output).unwrap_or_default()
+}
+
+/// Stable JSON envelope for `vox check --for-llm` (machine / LLM consumers).
+#[derive(serde::Serialize)]
+pub struct CheckForLlmEnvelope {
+    pub envelope_version: u32,
+    pub file_path: String,
+    pub ok: bool,
+    pub error_count: usize,
+    pub warning_count: usize,
+    pub diagnostics: Vec<vox_compiler::typeck::diagnostics::VoxCompilerDiagnosticPayload>,
+}
+
+/// Full frontend diagnostics as one JSON object (`check_file`), including parse failures.
+#[must_use]
+pub fn format_check_for_llm_json(source: &str, file: &Path) -> String {
+    let file_path = file.to_string_lossy().to_string();
+    let diagnostics = vox_compiler::pipeline::check_file(source, &file_path);
+    let error_count = diagnostics
+        .iter()
+        .filter(|d| d.severity == TypeckSeverity::Error)
+        .count();
+    let warning_count = diagnostics
+        .iter()
+        .filter(|d| d.severity == TypeckSeverity::Warning)
+        .count();
+    let env = CheckForLlmEnvelope {
+        envelope_version: 1,
+        file_path,
+        ok: error_count == 0,
+        error_count,
+        warning_count,
+        diagnostics,
+    };
+    serde_json::to_string_pretty(&env).unwrap_or_default()
 }
 
 /// Print diagnostics in rustc-style to stderr, or JSON to stdout if `json` is true.

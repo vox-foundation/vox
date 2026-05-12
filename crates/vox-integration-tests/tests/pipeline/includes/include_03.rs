@@ -159,7 +159,12 @@ fn pipeline_multi_route_rust_codegen() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    let output = vox_codegen::codegen_rust::generate(&hir, "multi_route_app").unwrap();
+    let output = vox_codegen::codegen_rust::generate(
+        &hir,
+        "multi_route_app",
+        vox_codegen::codegen_rust::RustAppShell::AxumLocalServer,
+    )
+    .unwrap();
     let main_rs = output.files.get("src/main.rs").expect("main.rs");
     insta::assert_snapshot!("multi_route_rust_main_rs_emit", main_rs);
 }

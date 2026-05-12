@@ -320,6 +320,10 @@ fn merge_vox_toml_path_for_test(cfg: &mut VoxConfig, path: &Path) {
 }
 
 #[cfg(test)]
+// Rust 2024 made `std::env::set_var` / `remove_var` `unsafe`. The
+// `vox_build_target_env_overrides_toml_after_merge` test serializes via
+// `VOX_BUILD_TARGET_ENV_MUTEX` (declared in this module).
+#[allow(unsafe_code)]
 mod tests {
     use super::super::gamify_web::BuildTarget;
     use super::*;
@@ -480,7 +484,6 @@ db_extra = "de"
 
     #[test]
     fn build_target_from_str_parses_all_variants() {
-        use std::str::FromStr;
         assert_eq!(
             "fullstack".parse::<BuildTarget>().unwrap(),
             BuildTarget::Fullstack
@@ -506,7 +509,6 @@ db_extra = "de"
 
     #[test]
     fn build_target_from_str_unknown_is_none() {
-        use std::str::FromStr;
         assert!("".parse::<BuildTarget>().is_err());
         assert!("ios".parse::<BuildTarget>().is_err());
         assert!("backend".parse::<BuildTarget>().is_err());

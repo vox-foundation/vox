@@ -11,7 +11,7 @@ axum = { workspace = true, features = ["http1", "tokio", "json"] }
 hyper = { workspace = true }
 hyper-util = { workspace = true }
 tokio = { workspace = true }
-tower = { version = "0.5", features = ["util"] }
+tower = { workspace = true, features = ["util"] }
 tower-http = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }

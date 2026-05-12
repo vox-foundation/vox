@@ -2,7 +2,7 @@
 //!
 //! Moved from `vox_db::circuit_breaker` so consumers can pattern-match on the
 //! state without pulling in the heavy `vox-db` crate. The breaker driver
-//! ([`vox_db::circuit_breaker::DbCircuitBreaker`]) stays in `vox-db` because it
+//! (`vox_db::circuit_breaker::DbCircuitBreaker`) stays in `vox-db` because it
 //! owns `Arc<RwLock<...>>` and `AtomicU32`. The companion error type
 //! (`CircuitBreakerError`) also stays in `vox-db` because it depends on
 //! `thiserror`, which is not a `vox-db-types` dependency.

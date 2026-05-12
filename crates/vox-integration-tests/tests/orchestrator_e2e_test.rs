@@ -458,7 +458,7 @@ where
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "requires running orchestrator stack with npm test infrastructure"]
+#[ignore = "requires running orchestrator stack with npm test infrastructure — owner: integration-tests sunset: 2026-12-31"]
 async fn e2e_multi_agent_concurrent_edits() {
     run_e2e_body("e2e_multi_agent_concurrent_edits", |fe, orch| async move {
         let _tmp = e2e_temp_root();
@@ -489,7 +489,7 @@ async fn e2e_multi_agent_concurrent_edits() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "requires running orchestrator stack with npm test infrastructure"]
+#[ignore = "requires running orchestrator stack with npm test infrastructure — owner: integration-tests sunset: 2026-12-31"]
 async fn e2e_task_queue_drain() {
     run_e2e_body("e2e_task_queue_drain", |fe, orch| async move {
         let _tmp = e2e_temp_root();
@@ -578,7 +578,7 @@ async fn e2e_timeout_and_retry() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "requires running orchestrator stack with npm test infrastructure"]
+#[ignore = "requires running orchestrator stack with npm test infrastructure — owner: integration-tests sunset: 2026-12-31"]
 async fn e2e_dependency_chain() {
     run_e2e_body("e2e_dependency_chain", |fe, orch| async move {
         let _tmp = e2e_temp_root();
@@ -601,7 +601,7 @@ async fn e2e_dependency_chain() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "requires running orchestrator stack with npm test infrastructure"]
+#[ignore = "requires running orchestrator stack with npm test infrastructure — owner: integration-tests sunset: 2026-12-31"]
 async fn e2e_lock_contention_resolved() {
     run_e2e_body("e2e_lock_contention_resolved", |fe, orch| async move {
         let _tmp = e2e_temp_root();
@@ -635,7 +635,7 @@ async fn e2e_lock_contention_resolved() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "requires running orchestrator stack with npm test infrastructure"]
+#[ignore = "requires running orchestrator stack with npm test infrastructure — owner: integration-tests sunset: 2026-12-31"]
 async fn e2e_batch_submission() {
     run_e2e_body("e2e_batch_submission", |fe, orch| async move {
         let _tmp = e2e_temp_root();

@@ -122,6 +122,10 @@ impl Default for TelemetryConfig {
 }
 
 #[cfg(test)]
+// Rust 2024 made `std::env::set_var` / `remove_var` `unsafe`. Each test below
+// is gated by `#[serial]` (single-threaded execution against this crate's env
+// surface), which is the SAFETY contract for the env mutation blocks.
+#[allow(unsafe_code)]
 mod tests {
     use super::*;
     use serial_test::serial;

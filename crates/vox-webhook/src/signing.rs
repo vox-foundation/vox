@@ -2,8 +2,8 @@
 
 use data_encoding::HEXLOWER;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use sha2::{Digest as Sha2Digest, Sha256};
-use sha3::{Digest as Sha3Digest, Sha3_256};
+use sha2::{Digest as _, Sha256};
+use sha3::Sha3_256;
 
 use crate::WebhookError;
 
@@ -137,7 +137,7 @@ fn now_unix() -> u64 {
 /// Verify a payload against a generic or source-specific signature scheme.
 ///
 /// Sources that bind a timestamp into the signed message (`discord`, `slack`)
-/// also enforce a replay window via [`require_fresh_timestamp`]; an empty,
+/// also enforce a replay window via the private `require_fresh_timestamp`; an empty,
 /// non-numeric, or stale timestamp is now a hard rejection rather than being
 /// silently coerced to the empty string. This closes a replay/signature-bypass
 /// hole where attackers could resubmit captured webhooks indefinitely.

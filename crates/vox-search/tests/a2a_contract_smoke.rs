@@ -34,9 +34,11 @@ fn a2a_retrieval_request_roundtrips_json() {
 
 #[test]
 fn search_policy_clamps_out_of_range_fusion_weights() {
-    let mut p = SearchPolicy::default();
-    p.memory_vector_fusion_weight = -0.4;
-    p.chunk_vector_fusion_weight = 1.7;
+    let p = SearchPolicy {
+        memory_vector_fusion_weight: -0.4,
+        chunk_vector_fusion_weight: 1.7,
+        ..SearchPolicy::default()
+    };
 
     let m = p.clamped_memory_vector_weight();
     let c = p.clamped_chunk_vector_weight();

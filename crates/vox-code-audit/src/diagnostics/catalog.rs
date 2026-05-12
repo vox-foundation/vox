@@ -168,6 +168,29 @@ pub const CODEGEN_GENERATED_FILE_DRIFT: &str = "vox/codegen/generated-file-drift
 /// lacks a `#[vox_decorator]` attribute.
 pub const CODEGEN_DECORATOR_WITHOUT_ATTRIBUTE: &str = "vox/codegen/decorator-without-attribute";
 
+/// `@ai(task_category=...)` payload contains an unrecognized category.
+pub const AI_UNKNOWN_TASK_CATEGORY: &str = "vox/ai/unknown-task-category";
+/// `@prompt(stage=...)` stage value is invalid.
+pub const PROMPT_INVALID_STAGE: &str = "vox/prompt/invalid-stage";
+/// `@prompt(...)` omitted required redaction policy for sensitive payloads.
+pub const PROMPT_SECRET_LEAKAGE: &str = "vox/prompt/secret-leakage";
+/// `@subagent(...)` requested chain depth exceeds configured limits.
+pub const SUBAGENT_CHAIN_DEPTH_EXCEEDED: &str = "vox/subagent/chain-depth-exceeded";
+/// `@subagent(policy = distributed)` requires mesh / `populi-transport` workspace wiring.
+pub const SUBAGENT_DISTRIBUTED_NOT_WIRED: &str = "vox/subagent/distributed-not-wired";
+/// `@search(corpus=...)` attempted a denied or unsupported corpus.
+pub const SEARCH_CORPUS_DENIED: &str = "vox/search/corpus-denied";
+/// `@search(corpus=memory, ...)` used an invalid memory key.
+pub const SEARCH_MEMORY_KEY_INVALID: &str = "vox/search/memory-key-invalid";
+/// `@search(corpus=web, ...)` violated web policy constraints.
+pub const SEARCH_WEB_POLICY_DENIED: &str = "vox/search/web-policy-denied";
+/// `@hole(...)` fixture has not been filled.
+pub const FIXTURE_UNFILLED_HOLE: &str = "vox/fixture/unfilled-hole";
+/// `@hole(...)` fixture is stale per ledger policy.
+pub const FIXTURE_STALE_HOLE: &str = "vox/fixture/stale-hole";
+/// TypeScript codegen observed AI fixtures without TS lowering support.
+pub const CODEGEN_MISSING_TS_AI_LOWERING: &str = "vox/codegen/missing-ts-ai-lowering";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -224,6 +247,17 @@ pub const ALL_KNOWN_IDS: &[&str] = &[
     SYNTAX_DECORATOR_POSITION_POLICY,
     CODEGEN_GENERATED_FILE_DRIFT,
     CODEGEN_DECORATOR_WITHOUT_ATTRIBUTE,
+    AI_UNKNOWN_TASK_CATEGORY,
+    PROMPT_INVALID_STAGE,
+    PROMPT_SECRET_LEAKAGE,
+    SUBAGENT_CHAIN_DEPTH_EXCEEDED,
+    SUBAGENT_DISTRIBUTED_NOT_WIRED,
+    SEARCH_CORPUS_DENIED,
+    SEARCH_MEMORY_KEY_INVALID,
+    SEARCH_WEB_POLICY_DENIED,
+    FIXTURE_UNFILLED_HOLE,
+    FIXTURE_STALE_HOLE,
+    CODEGEN_MISSING_TS_AI_LOWERING,
 ];
 
 /// Find the explain URL for a given diagnostic ID.

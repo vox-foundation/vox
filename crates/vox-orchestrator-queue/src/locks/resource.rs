@@ -15,7 +15,7 @@ pub enum ResourceLockKind {
 /// A generic resource lock (e.g. database row, URI, logical semaphore).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceLock {
-    /// Unique resource identifier (e.g. "db://users/1", "http://api.com/resource").
+    /// Unique resource identifier (e.g. `"db://users/1"`, `"http://api.com/resource"`).
     pub resource_id: String,
     pub kind: ResourceLockKind,
     pub holder: AgentId,

@@ -209,7 +209,7 @@ pub async fn publication_novelty_fetch(
 /// Auto-publish `auto_draft_eligible` Scientia findings to the local RSS feed.
 ///
 /// Scans publication manifests ranked by the Scientia discovery heuristics and
-/// appends each [`DiscoveryIntakeTier::StrongCandidate`] finding as an RSS item in
+/// appends each `DiscoveryIntakeTier::StrongCandidate` finding as an RSS item in
 /// `feed.xml`.  This is the **owned** channel (a local file), so no gate / dual
 /// approval is required.  The insert is idempotent: items already present in the
 /// feed (matched by GUID) are skipped silently.

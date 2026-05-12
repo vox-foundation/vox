@@ -9,6 +9,7 @@ use super::defaults::*;
 use super::enums::{OverflowStrategy, ScalingProfile};
 use super::news::NewsConfig;
 use super::orchestrator_fields::OrchestratorConfig;
+use super::scientia_research_mesh::ScientiaResearchMeshConfig;
 
 impl Default for OrchestratorConfig {
     fn default() -> Self {
@@ -95,7 +96,7 @@ impl Default for OrchestratorConfig {
                 vox_secrets::SecretId::VoxOrchestratorPlanningLlmSynthesisEnabled,
             )
             .expose()
-            .map(|v| v != "0" && v.to_ascii_lowercase() != "false")
+            .map(|v| v != "0" && !v.eq_ignore_ascii_case("false"))
             .unwrap_or(false),
             planning_shadow_mode: default_false(),
             research_model_enabled: default_false(),
@@ -133,6 +134,7 @@ impl Default for OrchestratorConfig {
             tier_gate: crate::attention::TierGateConfig::default(),
             interruption_calibration: crate::attention::InterruptionCalibrationConfig::default(),
             news: NewsConfig::default(),
+            scientia_research_mesh: ScientiaResearchMeshConfig::default(),
             observer_enabled: false,
             observer_model: None,
             observer_poll_interval_ms: default_observer_poll_interval_ms(),

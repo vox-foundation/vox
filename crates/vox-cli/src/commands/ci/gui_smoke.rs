@@ -11,7 +11,7 @@ use super::cargo_bin;
 const WEB_IR_LOWER_EMIT_SMOKE_FILTER: &str =
     "test(codegen_output_never_includes_vox_tanstack_router_or_server_fns)";
 
-/// Run the GUI smoke bundle from repo `root`.
+/// Run the GUI smoke bundle (web-ir-smoke) from repo `root`.
 pub fn run(root: &Path) -> Result<()> {
     let cargo = cargo_bin();
 
@@ -37,6 +37,21 @@ pub fn run(root: &Path) -> Result<()> {
         ));
     }
     println!("gui-smoke: web_ir_lower_emit_test (ignored TanStack/router guard) OK");
+
+    if std::env::var("VOX_GUI_PNPM_BUILD").ok().as_deref() == Some("1") {
+        let st = Command::new(if cfg!(windows) { "pnpm.cmd" } else { "pnpm" })
+            .current_dir(root.join("crates/vox-gui/ui"))
+            .args(["run", "build"])
+            .status()?;
+        if !st.success() {
+            return Err(anyhow!(
+                "gui-smoke: `pnpm run build` in crates/vox-gui/ui failed"
+            ));
+        }
+        println!("gui-smoke: pnpm run build OK");
+    } else {
+        println!("gui-smoke: skip pnpm build lane (set VOX_GUI_PNPM_BUILD=1)");
+    }
 
     if std::env::var("VOX_WEB_VITE_SMOKE").ok().as_deref() == Some("1") {
         let st = Command::new(&cargo)

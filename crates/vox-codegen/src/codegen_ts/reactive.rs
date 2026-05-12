@@ -1,17 +1,22 @@
 //! Path C reactive components → React TSX via `hir_emit`.
 //!
-//! **Web IR (OP-0193+):** by default, the `view:` body may be taken from
-//! [`crate::web_ir::emit_tsx::emit_component_view_tsx`] after [`lower_hir_to_web_ir`](crate::web_ir::lower::lower_hir_to_web_ir)
-//! **only if** [`validate_web_ir`](crate::web_ir::validate::validate_web_ir) is clean and the normalized
-//! JSX matches the legacy [`emit_hir_expr`](crate::codegen_ts::hir_emit::emit_hir_expr) string (whitespace-insensitive parity guard).
-//! Set `VOX_WEBIR_EMIT_REACTIVE_VIEWS=0` / `false` / `no` / `off` to force legacy `emit_hir_expr` for views.
+//! **Web IR (OP-0193+):** the `view:` body is taken from
+//! [`crate::web_ir::emit_tsx::emit_component_view_tsx`] after lowering the module Web IR graph.
+//! When [`validate_web_ir`](crate::web_ir::validate::validate_web_ir) reports **blocking** diagnostics
+//! (non-advisory), or when no Web IR view root exists for the component, emit **fails fast**: the
+//! return uses a small placeholder fragment and the diagnostics are appended to
+//! `ReactiveViewBridgeStats::reactive_view_emit_failures`.
+//!
+//! Legacy [`emit_hir_expr`](crate::codegen_ts::hir_emit::emit_hir_expr) is computed **only** to
+//! classify `ReactiveViewEmitPathway::WebIrViewEmittedParityMismatch` vs `WebIrViewEmitted`
+//! (whitespace-normalized compare); it is never selected as the emitted view body.
 //!
 //! **Diagnostics:** `VOX_WEBIR_REACTIVE_TRACE=1` logs one stderr line per reactive view decision
-//! (component name + pathway). Aggregate counts: [`reactive_view_bridge_stats`].
+//! (component name + pathway). Aggregate counts: `ReactiveViewBridgeStats`.
 //!
-//! **Behavior adapter (OP-S037):** `view:` bodies still flow through [`emit_block_stmts`] /
-//! [`emit_hir_expr`] when the Web IR bridge is off or falls back; `behavior_nodes` / preview emit from
-//! [`crate::web_ir`] is the structural mirror—keep pathway counters and parity guards updated together.
+//! **Behavior adapter (OP-S037):** non-`view:` reactive members still flow through `emit_block_stmts` /
+//! `emit_hir_expr`; `behavior_nodes` / preview emit from [`crate::web_ir`] is the structural mirror—keep
+//! pathway counters and parity guards updated together.
 //!
 //! **Route→behavior map (OP-S073) + notes B/C (OP-S163 / S195):** reactive `view:` bodies are keyed by component
 //! name for [`crate::web_ir::emit_tsx::emit_component_view_tsx`] selection; do not rename without updating
@@ -21,16 +26,12 @@ use crate::codegen_ts::hir_emit::{
     EmitCtx, emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps_with_diagnostics,
     map_hir_type_to_ts,
 };
-use crate::web_ir::WebIrModule;
+use crate::web_ir::{WebIrDiagnostic, WebIrModule};
 use std::collections::HashSet;
 use vox_compiler::hir::*;
 use vox_compiler::react_bridge::react_exports::{
     USE_CALLBACK, USE_EFFECT, USE_MEMO, USE_REF, USE_STATE,
 };
-
-fn web_ir_reactive_views_env_enabled() -> bool {
-    crate::web_migration_env::web_ir_emit_reactive_views_enabled()
-}
 
 fn web_ir_reactive_trace_enabled() -> bool {
     std::env::var("VOX_WEBIR_REACTIVE_TRACE")
@@ -38,41 +39,26 @@ fn web_ir_reactive_trace_enabled() -> bool {
         .unwrap_or(false)
 }
 
-/// Which codegen path selected the reactive `view:` body (Web IR bridge vs legacy).
+/// Which codegen path classified the reactive `view:` body after Web IR preview emit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ReactiveViewEmitPathway {
-    /// `VOX_WEBIR_EMIT_REACTIVE_VIEWS` explicitly disabled (`0` / `false` / `no` / `off`).
-    LegacyEnvDisabled,
-    /// Env on, but Web IR module validation returned diagnostics.
-    LegacyFallbackValidateFailed,
-    /// Env on, validate clean, but no preview TSX for this component.
-    LegacyFallbackNoComponentTsx,
-    /// Env on, clean TSX emitted, but whitespace-normalized string ≠ legacy `emit_hir_expr`.
-    /// Migration policy now keeps the Web IR view to converge on a single canonical path.
+    /// Clean Web IR TSX emitted; whitespace-normalized string ≠ legacy `emit_hir_expr` (stats-only).
     WebIrViewEmittedParityMismatch,
-    /// Web IR preview TSX used for the view body.
+    /// Web IR preview TSX used for the view body (parity match).
     WebIrViewEmitted,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
 pub struct ReactiveViewBridgeStats {
-    pub legacy_env_disabled: u64,
-    pub legacy_fallback_validate_failed: u64,
-    pub legacy_fallback_no_component_tsx: u64,
     pub web_ir_view_emitted_parity_mismatch: u64,
     pub web_ir_view_emitted: u64,
+    /// Blocking Web IR validate failures and missing view roots for this codegen run.
+    pub reactive_view_emit_failures: Vec<WebIrDiagnostic>,
 }
 
 impl ReactiveViewBridgeStats {
     pub fn record_pathway(&mut self, p: ReactiveViewEmitPathway) {
         match p {
-            ReactiveViewEmitPathway::LegacyEnvDisabled => self.legacy_env_disabled += 1,
-            ReactiveViewEmitPathway::LegacyFallbackValidateFailed => {
-                self.legacy_fallback_validate_failed += 1
-            }
-            ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx => {
-                self.legacy_fallback_no_component_tsx += 1
-            }
             ReactiveViewEmitPathway::WebIrViewEmittedParityMismatch => {
                 self.web_ir_view_emitted_parity_mismatch += 1
             }
@@ -105,67 +91,62 @@ fn indent_view_for_return(view: &str) -> String {
 
 fn emit_reactive_view_body(
     component_name: &str,
-    hir: &HirModule,
     rc: &HirReactiveComponent,
     ctx: &EmitCtx<'_>,
-    web_projection: Option<&WebIrModule>,
+    web: &WebIrModule,
     stats: &mut ReactiveViewBridgeStats,
 ) -> String {
     let Some(view) = &rc.view else {
         return String::new();
     };
-    let legacy = emit_hir_expr(view, ctx);
-    if !web_ir_reactive_views_env_enabled() {
-        stats.record_pathway(ReactiveViewEmitPathway::LegacyEnvDisabled);
-        if web_ir_reactive_trace_enabled() {
-            eprintln!("[vox-webir-reactive] component={component_name} pathway=LegacyEnvDisabled");
-        }
-        return legacy;
-    }
-    let owned_web;
-    let web: &WebIrModule = if let Some(w) = web_projection {
-        w
-    } else {
-        owned_web = crate::web_ir::lower::lower_hir_to_web_ir(hir);
-        &owned_web
-    };
-    if !crate::web_ir::validate::validate_web_ir(web).is_empty() {
-        stats.record_pathway(ReactiveViewEmitPathway::LegacyFallbackValidateFailed);
+    const FAIL_PLACEHOLDER: &str = "<>{/* webir reactive view emit failed */}</>";
+    let diags = crate::web_ir::validate::validate_web_ir(web);
+    let error_diags: Vec<WebIrDiagnostic> = diags
+        .into_iter()
+        .filter(|d| !crate::web_ir::validate::is_advisory_diagnostic(d))
+        .collect();
+    if !error_diags.is_empty() {
+        stats.reactive_view_emit_failures.extend(error_diags);
         if web_ir_reactive_trace_enabled() {
             eprintln!(
-                "[vox-webir-reactive] component={component_name} pathway=LegacyFallbackValidateFailed"
+                "[vox-webir-reactive] component={component_name} pathway=WebIrValidateFailedFailFast"
             );
         }
-        return legacy;
+        return indent_view_for_return(FAIL_PLACEHOLDER);
     }
     let Some(tsx) = crate::web_ir::emit_tsx::emit_component_view_tsx(web, &rc.name) else {
-        stats.record_pathway(ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx);
+        stats.reactive_view_emit_failures.push(WebIrDiagnostic {
+            code: "codegen.reactive.no_web_ir_view_root".to_string(),
+            message: format!("no Web IR view root for reactive component `{component_name}`"),
+            span: None,
+            category: Some("reactive".to_string()),
+        });
         if web_ir_reactive_trace_enabled() {
             eprintln!(
-                "[vox-webir-reactive] component={component_name} pathway=LegacyFallbackNoComponentTsx"
+                "[vox-webir-reactive] component={component_name} pathway=NoWebIrViewRootFailFast"
             );
         }
-        return legacy;
+        return indent_view_for_return(FAIL_PLACEHOLDER);
     };
+    let legacy = emit_hir_expr(view, ctx);
     let n_legacy = normalize_reactive_view_jsx_ws(&legacy);
     let n_tsx = normalize_reactive_view_jsx_ws(&tsx);
-    if n_legacy == n_tsx {
-        stats.record_pathway(ReactiveViewEmitPathway::WebIrViewEmitted);
-        if web_ir_reactive_trace_enabled() {
-            eprintln!("[vox-webir-reactive] component={component_name} pathway=WebIrViewEmitted");
-        }
-        indent_view_for_return(&tsx)
+    let pathway = if n_legacy == n_tsx {
+        ReactiveViewEmitPathway::WebIrViewEmitted
     } else {
-        stats.record_pathway(ReactiveViewEmitPathway::WebIrViewEmittedParityMismatch);
-        if web_ir_reactive_trace_enabled() {
-            eprintln!(
-                "[vox-webir-reactive] component={component_name} pathway=WebIrViewEmittedParityMismatch"
-            );
-        }
-        // Convergence policy: keep Web IR output even when legacy string parity differs.
-        // This prevents long-lived dual-emitter drift and makes Web IR the canonical view source.
-        indent_view_for_return(&tsx)
+        ReactiveViewEmitPathway::WebIrViewEmittedParityMismatch
+    };
+    stats.record_pathway(pathway);
+    if web_ir_reactive_trace_enabled() {
+        let label = if n_legacy == n_tsx {
+            "WebIrViewEmitted"
+        } else {
+            "WebIrViewEmittedParityMismatch"
+        };
+        eprintln!("[vox-webir-reactive] component={component_name} pathway={label}");
     }
+    // Convergence policy: Web IR output is canonical; parity is tracked for CI / migration only.
+    indent_view_for_return(&tsx)
 }
 
 fn scan_hir_expr_for_react_imports(
@@ -867,14 +848,14 @@ fn collect_jsx_component_refs_stmt(
     }
 }
 
-/// `hir` must be the full module (needed for optional Web IR view bridge).
+/// `hir` must be the full module (imports, endpoints, `@reactive` callees, etc.).
 ///
-/// When `web_projection` is `Some`, it must be [`crate::web_ir::lower::lower_hir_to_web_ir`]`(hir)` (or
-/// [`crate::web_ir::lower::project_web_from_core`]) so reactive emit avoids N× full-module lowers.
+/// `web_projection` must be the same Web IR graph as [`crate::projection_bundle::project_bundle_from_hir`]`(hir).web`
+/// so reactive emit does not re-lower the module per component.
 pub fn generate_reactive_component(
     hir: &HirModule,
     rc: &HirReactiveComponent,
-    web_projection: Option<&WebIrModule>,
+    web_projection: &WebIrModule,
     stats: &mut ReactiveViewBridgeStats,
 ) -> (String, String) {
     let name = &rc.name;
@@ -1051,7 +1032,7 @@ pub fn generate_reactive_component(
     }
 
     if rc.view.is_some() {
-        let view_js = emit_reactive_view_body(name, hir, rc, &view_ctx, web_projection, stats);
+        let view_js = emit_reactive_view_body(name, rc, &view_ctx, web_projection, stats);
         out.push_str(&format!("  return (\n{}\n  );\n", view_js));
     }
 
@@ -1070,10 +1051,11 @@ mod tests {
         let tokens = lex(src);
         let module = parse(tokens).expect("parse error");
         let hir = lower_module(&module);
+        let bundle = crate::projection_bundle::project_bundle_from_hir(&hir);
         let mut stats = ReactiveViewBridgeStats::default();
         hir.components
             .iter()
-            .map(|rc| generate_reactive_component(&hir, rc, None, &mut stats))
+            .map(|rc| generate_reactive_component(&hir, rc, &bundle.web, &mut stats))
             .collect()
     }
 

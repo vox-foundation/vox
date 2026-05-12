@@ -24,6 +24,9 @@ pub struct GlobalOpts {
     /// More verbose logs.
     #[arg(short, long, global = true, action = clap::ArgAction::Count)]
     pub verbose: u8,
+    /// Less noisy logs and hints (`VOX_CLI_QUIET=1` for supported subcommands).
+    #[arg(short = 'q', long, global = true)]
+    pub quiet: bool,
 }
 
 /// Initialize [`tracing`] for CLI tools.
@@ -35,5 +38,29 @@ pub fn init_tracing_for_cli() {
 pub fn apply_global_opts(opts: &GlobalOpts) {
     if let Some(color) = opts.color {
         crate::diagnostics::set_color_choice(color);
+    }
+}
+
+#[cfg(test)]
+mod global_opts_tests {
+    use super::GlobalOpts;
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct Root {
+        #[command(flatten)]
+        global: GlobalOpts,
+    }
+
+    #[test]
+    fn quiet_short_flag_parses() {
+        let r = Root::try_parse_from(["vox", "-q"]).expect("parse");
+        assert!(r.global.quiet);
+    }
+
+    #[test]
+    fn quiet_long_flag_parses() {
+        let r = Root::try_parse_from(["vox", "--quiet"]).expect("parse");
+        assert!(r.global.quiet);
     }
 }

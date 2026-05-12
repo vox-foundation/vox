@@ -8,6 +8,7 @@
 //! False positives we tolerate: string literals in doc comments. The annotation
 //! suppression is the escape hatch.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -33,17 +34,27 @@ pub struct ForbiddenPatternHit {
     pub file: PathBuf,
     pub line: usize,
     pub matched: String,
+    /// Cloned from [`ForbiddenPatternRule::reason`] so the report layer can
+    /// surface the rationale alongside each hit.
+    pub reason: String,
 }
 
 /// Scan every file under `repo_root` that matches `rule.file_glob` for the
 /// forbidden regex pattern. Returns all hits that are not suppressed by an
 /// `allow_annotation` within a ±2 line window.
-pub fn scan(repo_root: &Path, rule: &ForbiddenPatternRule) -> Result<Vec<ForbiddenPatternHit>> {
+///
+/// `prune_dir_names` is the merged built-in + `layers.toml` directory-name skip set
+/// (see `walk_prune_dir_names` in `main.rs`).
+pub fn scan(
+    repo_root: &Path,
+    rule: &ForbiddenPatternRule,
+    prune_dir_names: &HashSet<String>,
+) -> Result<Vec<ForbiddenPatternHit>> {
     let regex = Regex::new(&rule.pattern).context("compile forbidden_pattern regex")?;
     let glob = Glob::new(&rule.file_glob)?.compile_matcher();
     let mut hits = Vec::new();
 
-    for path in super::walkdir(repo_root) {
+    for path in super::walk_repo_files(repo_root, prune_dir_names) {
         if !path.is_file() {
             continue;
         }
@@ -52,7 +63,7 @@ pub fn scan(repo_root: &Path, rule: &ForbiddenPatternRule) -> Result<Vec<Forbidd
             continue;
         }
         let rel_unix = rel.to_string_lossy().replace('\\', "/");
-        if rule.exempt_files.iter().any(|e| rel_unix == *e) {
+        if rule.exempt_files.contains(&rel_unix) {
             continue;
         }
         let body = match std::fs::read_to_string(&path) {
@@ -79,6 +90,7 @@ pub fn scan(repo_root: &Path, rule: &ForbiddenPatternRule) -> Result<Vec<Forbidd
                     .find(line)
                     .map(|m| m.as_str().to_string())
                     .unwrap_or_default(),
+                reason: rule.reason.clone(),
             });
         }
     }
@@ -118,7 +130,7 @@ mod tests {
             r#"fn bad() { let _ = Command::new("git"); }"#,
         );
         let rule = make_rule();
-        let hits = scan(dir.path(), &rule).unwrap();
+        let hits = scan(dir.path(), &rule, &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].rule, "raw-git-exec");
         assert!(hits[0].matched.contains("Command::new(\"git\")"));
@@ -133,7 +145,7 @@ mod tests {
             r#"fn run() { let _ = Command::new("git"); }"#,
         );
         let rule = make_rule();
-        let hits = scan(dir.path(), &rule).unwrap();
+        let hits = scan(dir.path(), &rule, &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 0, "exempt file must not produce hits");
     }
 
@@ -146,7 +158,7 @@ mod tests {
             "// vox-arch-check: allow git-exec\nlet _ = Command::new(\"git\");\n",
         );
         let rule = make_rule();
-        let hits = scan(dir.path(), &rule).unwrap();
+        let hits = scan(dir.path(), &rule, &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 0, "annotated call must be suppressed");
     }
 
@@ -159,7 +171,7 @@ mod tests {
             "let _ = Command::new(\"git\"); // vox-arch-check: allow git-exec\n",
         );
         let rule = make_rule();
-        let hits = scan(dir.path(), &rule).unwrap();
+        let hits = scan(dir.path(), &rule, &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 0, "inline annotation must be suppressed");
     }
 
@@ -170,8 +182,21 @@ mod tests {
         write_fixture(&dir, "crates/my-crate/Cargo.toml", r#"[package]"#);
         let rule = make_rule();
         // No .rs files → no hits.
-        let hits = scan(dir.path(), &rule).unwrap();
+        let hits = scan(dir.path(), &rule, &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 0);
+    }
+
+    #[test]
+    fn nested_target_rs_not_scanned_even_if_matches_glob() {
+        let dir = tempfile::tempdir().unwrap();
+        write_fixture(
+            &dir,
+            "crates/my-crate/target/out/generated.rs",
+            r#"fn x() { let _ = Command::new("git"); }"#,
+        );
+        let rule = make_rule();
+        let hits = scan(dir.path(), &rule, &crate::built_in_walk_prune_names()).unwrap();
+        assert_eq!(hits.len(), 0, "must not recurse into target/: {hits:?}");
     }
 
     #[test]
@@ -183,7 +208,7 @@ mod tests {
             "let a = Command::new(\"git\");\nlet b = Command::new(\"git\");\n",
         );
         let rule = make_rule();
-        let hits = scan(dir.path(), &rule).unwrap();
+        let hits = scan(dir.path(), &rule, &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 2);
     }
 }

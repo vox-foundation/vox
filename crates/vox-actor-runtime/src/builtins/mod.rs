@@ -450,15 +450,98 @@ pub fn vox_csv_render(rows: &[Vec<String>]) -> Result<String, String> {
         .and_then(|b| String::from_utf8(b).map_err(|e| e.to_string()))
 }
 
+/// TOML documents must be tables at the root. Json arrays/scalars are wrapped for render and
+/// unwrapped on parse — kept in sync with `vox_compiler::eval::shell_stdlib`.
+const VOX_TOML_JSON_ROOT_KEY: &str = "__vox_json_root";
+
+fn json_value_to_toml(j: &serde_json::Value) -> Result<toml::Value, String> {
+    Ok(match j {
+        serde_json::Value::Null => toml::Value::String(String::new()),
+        serde_json::Value::Bool(b) => toml::Value::Boolean(*b),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                toml::Value::Integer(i)
+            } else if let Some(u) = n.as_u64() {
+                toml::Value::Integer(
+                    i64::try_from(u).map_err(|_| "json number too large for TOML Integer".to_string())?,
+                )
+            } else {
+                toml::Value::Float(n.as_f64().unwrap_or(0.0))
+            }
+        }
+        serde_json::Value::String(s) => toml::Value::String(s.clone()),
+        serde_json::Value::Array(arr) => {
+            let mut out = Vec::with_capacity(arr.len());
+            for item in arr {
+                out.push(json_value_to_toml(item)?);
+            }
+            toml::Value::Array(out)
+        }
+        serde_json::Value::Object(map) => {
+            let mut table = toml::map::Map::new();
+            for (k, v) in map {
+                table.insert(k.clone(), json_value_to_toml(v)?);
+            }
+            toml::Value::Table(table)
+        }
+    })
+}
+
+fn toml_value_to_json(v: &toml::Value) -> Result<serde_json::Value, String> {
+    Ok(match v {
+        toml::Value::String(s) => serde_json::Value::String(s.clone()),
+        toml::Value::Integer(i) => serde_json::Value::Number((*i).into()),
+        toml::Value::Float(f) => serde_json::Number::from_f64(*f)
+            .map(serde_json::Value::Number)
+            .unwrap_or(serde_json::Value::Null),
+        toml::Value::Boolean(b) => serde_json::Value::Bool(*b),
+        toml::Value::Datetime(dt) => serde_json::Value::String(dt.to_string()),
+        toml::Value::Array(arr) => {
+            let mut out = Vec::with_capacity(arr.len());
+            for item in arr {
+                out.push(toml_value_to_json(item)?);
+            }
+            serde_json::Value::Array(out)
+        }
+        toml::Value::Table(t) => {
+            let mut map = serde_json::Map::new();
+            for (k, val) in t {
+                map.insert(k.clone(), toml_value_to_json(val)?);
+            }
+            serde_json::Value::Object(map)
+        }
+    })
+}
+
 /// Parse TOML text to JSON (`std.toml.parse`).
 pub fn vox_toml_parse(text: &str) -> Result<serde_json::Value, String> {
     let v: toml::Value = toml::from_str(text).map_err(|e| e.to_string())?;
-    serde_json::to_value(&v).map_err(|e| e.to_string())
+    let j = toml_value_to_json(&v)?;
+    Ok(match j {
+        serde_json::Value::Object(ref map)
+            if map.len() == 1 && map.contains_key(VOX_TOML_JSON_ROOT_KEY) =>
+        {
+            map.get(VOX_TOML_JSON_ROOT_KEY).cloned().unwrap_or(j)
+        }
+        _ => j,
+    })
 }
 
 /// Render JSON as pretty TOML (`std.toml.render`).
 pub fn vox_toml_render(value: &serde_json::Value) -> Result<String, String> {
-    let tv: toml::Value = serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
+    let wrapped = match value {
+        serde_json::Value::Object(_) => value.clone(),
+        serde_json::Value::Array(_)
+        | serde_json::Value::String(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Null => {
+            let mut m = serde_json::Map::new();
+            m.insert(VOX_TOML_JSON_ROOT_KEY.to_string(), value.clone());
+            serde_json::Value::Object(m)
+        }
+    };
+    let tv = json_value_to_toml(&wrapped)?;
     toml::to_string_pretty(&tv).map_err(|e| e.to_string())
 }
 

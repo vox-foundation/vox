@@ -45,7 +45,7 @@ pub struct ResearchIngestRequest {
     pub embeddings: Vec<Vec<f32>>,
 }
 
-/// Row ids returned from [`VoxDb::ingest_research_document`](crate::VoxDb::ingest_research_document).
+/// Row ids returned from `vox_db::VoxDb::ingest_research_document`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResearchIngestResult {
     /// `knowledge_nodes` row id from the insert.

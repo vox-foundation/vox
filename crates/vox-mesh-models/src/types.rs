@@ -26,6 +26,12 @@ impl ModelKind {
         }
     }
 
+    /// Loose parser used by mesh wire/discovery — never fails because unknown
+    /// labels collapse to `Self::Other`. The `from_str` name is kept for
+    /// symmetry with `as_str`; `clippy::should_implement_trait` is suppressed
+    /// because implementing `FromStr` would require an `Err` type that this
+    /// loose mapping never produces.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "ollama" => Self::Ollama,

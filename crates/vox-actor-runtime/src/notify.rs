@@ -6,7 +6,7 @@
 //! is a compile error, not a runtime exception.
 //!
 //! This module is the runtime trait surface; concrete adapter implementations
-//! (Resend, SES, Twilio, web-push) plug in via the [`NotifyDispatcher`]
+//! (Resend, SES, Twilio, web-push) plug in via the `NotifyDispatcher`
 //! trait. Adapters live in feature-gated submodules so users don't pay the
 //! transitive dependency cost for channels they don't use.
 
@@ -172,6 +172,47 @@ mod tests {
         let n = Notification {
             recipient: Recipient::Email {
                 address: "x@example.com".into(),
+            },
+            subject: None,
+            body: "hi".into(),
+            metadata: HashMap::new(),
+        };
+        assert!(reg.dispatch(&n).is_none());
+    }
+
+    #[test]
+    fn registered_dispatcher_handles_matching_channel() {
+        let mut reg = NotifyRegistry::new();
+        reg.register(Arc::new(MockDispatcher {
+            channel: Channel::Email,
+        }));
+        let n = Notification {
+            recipient: Recipient::Email {
+                address: "x@example.com".into(),
+            },
+            subject: None,
+            body: "hello".into(),
+            metadata: HashMap::new(),
+        };
+        let outcome = reg.dispatch(&n).expect("dispatcher resolved");
+        match outcome {
+            DeliveryOutcome::Delivered {
+                provider_message_id,
+                ..
+            } => assert_eq!(provider_message_id, "mock-id"),
+            other => panic!("unexpected outcome: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn registered_dispatcher_does_not_handle_other_channels() {
+        let mut reg = NotifyRegistry::new();
+        reg.register(Arc::new(MockDispatcher {
+            channel: Channel::Email,
+        }));
+        let n = Notification {
+            recipient: Recipient::Sms {
+                phone: "+15551234567".into(),
             },
             subject: None,
             body: "hi".into(),

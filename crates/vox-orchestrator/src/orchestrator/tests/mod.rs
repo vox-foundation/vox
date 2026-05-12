@@ -390,12 +390,7 @@ mod orch_smoke {
             )
             .await
             .unwrap();
-        let agent_id = *orch
-            .task_assignments
-            .read()
-            .unwrap()
-            .get(&task_id)
-            .unwrap();
+        let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
         orch.agent_queue(agent_id)
             .unwrap()
             .write()

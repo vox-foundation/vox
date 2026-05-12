@@ -114,7 +114,7 @@ pub(crate) fn check_no_vox_dei(root: &Path) -> Result<()> {
         let text = read_utf8_path_capped(p)?;
         if re.is_match(&text) {
             return Err(anyhow!(
-                "vox-cli must not reference the staging vox-dei crate via Rust `use`/paths (forbidden `vox_dei` + `::`). Offender: {}",
+                "vox-cli must not import the retired orchestrator shim as `vox_dei::` (forbidden in-tree). Offender: {}",
                 p.display()
             ));
         }

@@ -18,6 +18,8 @@ pub enum HirFieldOwnership {
     MigrationOnly,
     /// Data that can be projected into an externalized app surface contract.
     AppContract,
+    /// Native shell / mobile primitives (`@back_button`, `@deep_link`, `@push`) projected to `ShellProjectionModule`.
+    Shell,
 }
 
 /// A fully lowered Vox module: every declaration category is collected into its own vector.
@@ -152,22 +154,30 @@ impl HirModule {
             ("types", HirFieldOwnership::SemanticCore),
             ("routes", HirFieldOwnership::AppContract),
             ("tests", HirFieldOwnership::SemanticCore),
+            ("foralls", HirFieldOwnership::SemanticCore),
             ("endpoint_fns", HirFieldOwnership::AppContract),
             ("tables", HirFieldOwnership::SemanticCore),
             ("indexes", HirFieldOwnership::SemanticCore),
             ("collections", HirFieldOwnership::SemanticCore),
             ("vector_indexes", HirFieldOwnership::SemanticCore),
             ("search_indexes", HirFieldOwnership::SemanticCore),
-            ("mcp_tools", HirFieldOwnership::SemanticCore),
-            ("mcp_resources", HirFieldOwnership::SemanticCore),
+            ("mcp_tools", HirFieldOwnership::AppContract),
+            ("mcp_resources", HirFieldOwnership::AppContract),
             ("agents", HirFieldOwnership::SemanticCore),
             ("environments", HirFieldOwnership::SemanticCore),
-            ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
             ("components", HirFieldOwnership::SemanticCore),
+            ("client_routes", HirFieldOwnership::SemanticCore),
             ("url_decls", HirFieldOwnership::SemanticCore),
+            ("state_machines", HirFieldOwnership::SemanticCore),
             ("fragments", HirFieldOwnership::SemanticCore),
             ("reactive_modules", HirFieldOwnership::SemanticCore),
             ("forms", HirFieldOwnership::AppContract),
+            ("back_button", HirFieldOwnership::Shell),
+            ("deep_link", HirFieldOwnership::Shell),
+            ("push", HirFieldOwnership::Shell),
+            ("token_decls", HirFieldOwnership::SemanticCore),
+            ("route_ids", HirFieldOwnership::SemanticCore),
+            ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
         ]
     }
 
@@ -319,6 +329,9 @@ pub struct HirFn {
     /// When `Some`, `check_ai_return_shape()` verifies the return type has a wire codec.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ai_structured_output: Option<crate::hir::nodes::boilerplate_grafts::HirAiStructuredOutput>,
+    /// Unified AI fixture surface attached to this function.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_fixture: Option<crate::hir::nodes::boilerplate_grafts::HirAiFixture>,
     /// Embedding spec from `@embed(model:, dimensions:, source_field:)` (GA-24).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub embed: Option<crate::hir::nodes::boilerplate_grafts::HirEmbedDecl>,
@@ -890,6 +903,16 @@ mod tests {
             map.iter()
                 .any(|(name, own)| *name == "functions" && *own == HirFieldOwnership::SemanticCore)
         );
+        assert!(map.iter().any(|(name, own)| *name == "back_button" && *own == HirFieldOwnership::Shell));
+        assert!(map.iter().any(|(name, own)| *name == "deep_link" && *own == HirFieldOwnership::Shell));
+        assert!(map.iter().any(|(name, own)| *name == "push" && *own == HirFieldOwnership::Shell));
+        assert!(map.iter().any(|(name, own)| *name == "state_machines" && *own == HirFieldOwnership::SemanticCore));
+        assert!(map.iter().any(|(name, own)| *name == "route_ids" && *own == HirFieldOwnership::SemanticCore));
+        assert!(map.iter().any(|(name, own)| *name == "token_decls" && *own == HirFieldOwnership::SemanticCore));
+        assert!(map.iter().any(|(name, own)| *name == "mcp_tools" && *own == HirFieldOwnership::AppContract));
+        assert!(map.iter().any(|(name, own)| *name == "mcp_resources" && *own == HirFieldOwnership::AppContract));
+        assert!(map.iter().any(|(name, own)| *name == "foralls" && *own == HirFieldOwnership::SemanticCore));
+        assert!(map.iter().any(|(name, own)| *name == "client_routes" && *own == HirFieldOwnership::SemanticCore));
     }
 
     #[test]

@@ -3,7 +3,7 @@ use vox_orchestrator::dei_shim::research::{
 };
 
 #[tokio::test]
-async fn verify_claims_stub_returns_empty() {
+async fn verify_claims_without_evidence_returns_empty() {
     let claims = vec![Claim {
         text: "X".into(),
         claim_id: 0,
@@ -13,9 +13,9 @@ async fn verify_claims_stub_returns_empty() {
     }];
     let registry = ProviderRegistry::default();
     let cfg = vox_orchestrator::dei_shim::research::verifier::VerifierConfig::default();
-    let verdicts = verify_claims_with_config(&claims, "q", &registry, &cfg, None, None).await;
+    let verdicts = verify_claims_with_config(&claims, "q", &[], &registry, &cfg, None, None).await;
     assert!(
         verdicts.is_empty(),
-        "Phase 0a verifier stub must return Vec::new()"
+        "verifier needs retrieved evidence before producing claim verdicts"
     );
 }

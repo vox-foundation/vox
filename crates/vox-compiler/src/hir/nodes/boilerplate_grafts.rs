@@ -210,6 +210,81 @@ pub struct HirAiStructuredOutput {
     pub span: Span,
 }
 
+/// Unified AI fixture carrier attached to `HirFn`.
+///
+/// This enum centralizes AI-adjacent language surfaces so we do not continue
+/// growing independent sibling fields on `HirFn`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum HirAiFixture {
+    /// Current shipping `@ai(model=..., structured_output=..., max_iterations=...)` surface.
+    ModelPin(HirAiModelPinFixture),
+    /// Intent-routed model-selection extension for `@ai(...)`.
+    IntentRouted(HirAiIntentFixture),
+    /// Stage-aware prompt fixture (proposed).
+    Prompt(HirPromptFixture),
+    /// Subagent dispatch fixture (proposed).
+    Subagent(HirSubagentFixture),
+    /// Deferred fill / hole fixture (proposed).
+    Hole(HirHoleFixture),
+    /// Search substitution fixture (proposed).
+    Search(HirSearchFixture),
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirAiModelPinFixture {
+    pub model: Option<String>,
+    pub structured_output: Option<HirAiStructuredOutput>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirAiIntentFixture {
+    pub task_category: Option<String>,
+    pub strengths: Vec<String>,
+    pub tier_max: Option<String>,
+    pub cost_ceiling_usd_per_call: Option<f64>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirPromptFixture {
+    pub stage: String,
+    pub schema: String,
+    pub redact: Vec<String>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirSubagentFixture {
+    pub policy: String,
+    pub max_depth: u32,
+    pub budget_usd: Option<f64>,
+    pub description: Option<String>,
+    pub parallel: bool,
+    /// Override dispatch complexity (0–10); when `None`, codegen derives a default.
+    pub complexity: Option<u8>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirHoleFixture {
+    pub spec: String,
+    pub reviewer: String,
+    pub cache_key: String,
+    pub constraints: Vec<String>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirSearchFixture {
+    pub corpus: String,
+    pub query: String,
+    pub into_type: String,
+    pub top_k: Option<u32>,
+    pub policy: Option<String>,
+    pub span: Span,
+}
+
 // ── GA-24 — Vector[N] + @embed ────────────────────────────────────────────
 
 /// A `Vector[N]` typed primitive with statically known dimension `N`.

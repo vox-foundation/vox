@@ -14,7 +14,7 @@ component VoicePage() {
 "#;
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn speech_transcribe_microphone_emits_speech_namespace() {
     let tokens = vox_compiler::lexer::lex(FIXTURE);
     let module = vox_compiler::parser::parse(tokens).expect("parse");

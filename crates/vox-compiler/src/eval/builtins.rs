@@ -140,6 +140,42 @@ pub fn call_builtin_method(
                 owned.reverse();
                 Some(VoxValue::List(owned))
             }
+            // Json-shaped arrays (`std.json.parse`, `std.csv.parse`, …) use these names in typecheck + native `VoxJson`.
+            "length" => Some(VoxValue::Int(v.len() as i64)),
+            "at" => {
+                let idx = match args.first().cloned() {
+                    Some(VoxValue::Int(i)) => i,
+                    _ => {
+                        return Some(VoxValue::Result(Err(
+                            "json: invalid array index".into(),
+                        )));
+                    }
+                };
+                if idx < 0 {
+                    return Some(VoxValue::Result(Err(format!(
+                        "json: negative array index {idx}"
+                    ))));
+                }
+                let i = idx as usize;
+                match v.get(i) {
+                    Some(el) => Some(VoxValue::Result(Ok(Box::new(el.clone())))),
+                    None => Some(VoxValue::Result(Err(format!(
+                        "json: index {idx} out of bounds (len={})",
+                        v.len()
+                    )))),
+                }
+            }
+            "is_null" => Some(VoxValue::Bool(false)),
+            "keys" => Some(VoxValue::List(vec![])),
+            "to_string" => {
+                let j = vox_to_json(VoxValue::List(v.clone()));
+                Some(VoxValue::Str(serde_json::to_string(&j).unwrap_or_default()))
+            }
+            "get_str" | "get_int" | "get_float" | "get_bool" | "get_object" | "get_array" => {
+                Some(VoxValue::Result(Err(
+                    "json: receiver is not an object".into(),
+                )))
+            }
             _ => None,
         },
 
@@ -389,6 +425,31 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Bool(std::path::Path::new(&path).exists()))
                     }
+                    "is_file" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Bool(false)),
+                        };
+                        Some(VoxValue::Bool(std::path::Path::new(&path).is_file()))
+                    }
+                    "is_dir" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Bool(false)),
+                        };
+                        Some(VoxValue::Bool(std::path::Path::new(&path).is_dir()))
+                    }
+                    "remove_dir_all" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = match std::fs::remove_dir_all(&path) {
+                            Ok(()) => Ok(Box::new(VoxValue::Null)),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
                     "list_dir" => {
                         let path = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,
@@ -472,6 +533,17 @@ pub fn call_builtin_method(
                                 ("is_symlink".into(), VoxValue::Bool(r.is_symlink)),
                             ]))),
                             Err(e) => Err(e),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
+                    "mkdir" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = match std::fs::create_dir_all(&path) {
+                            Ok(()) => Ok(Box::new(VoxValue::Bool(true))),
+                            Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -595,6 +667,41 @@ pub fn call_builtin_method(
                             }
                             Err(_) => Some(VoxValue::Null),
                         }
+                    }
+                    "run_ex" => {
+                        let mut it = args.into_iter();
+                        let cmd_name = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let cmd_args = match it.next() {
+                            Some(VoxValue::List(ls)) => ls
+                                .into_iter()
+                                .filter_map(|v| {
+                                    if let VoxValue::Str(s) = v {
+                                        Some(s)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>(),
+                            _ => vec![],
+                        };
+                        let cwd = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let _env_list = it.next();
+
+                        let status = std::process::Command::new(&cmd_name)
+                            .args(&cmd_args)
+                            .current_dir(&cwd)
+                            .status();
+                        let res = match status {
+                            Ok(st) => Ok(Box::new(VoxValue::Int(st.code().unwrap_or(0) as i64))),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
                     }
                     "spawn_background" => {
                         let mut it = args.into_iter();
@@ -916,10 +1023,126 @@ pub fn call_builtin_method(
                     }
                     _ => None,
                 },
-                _ => None,
+                _ => {
+                    if ns.is_none() {
+                        interp_json_object_methods(fields, method, args.as_slice())
+                    } else {
+                        None
+                    }
+                }
             }
         }
 
+        _ => None,
+    }
+}
+
+fn lookup_json_field<'a>(
+    fields: &'a [(String, VoxValue)],
+    key: &str,
+) -> Option<&'a VoxValue> {
+    fields.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+}
+
+/// Json accessor surface for plain `Object` values produced by `json_to_vox` (no `__namespace__`).
+/// Matches [`vox_actor_runtime::builtins::VoxJson`] behavior for scripts running in the interpreter.
+fn interp_json_object_methods(
+    fields: &[(String, VoxValue)],
+    method: &str,
+    args: &[VoxValue],
+) -> Option<VoxValue> {
+    let res_ok = |v: VoxValue| Some(VoxValue::Result(Ok(Box::new(v))));
+    let res_err = |msg: String| Some(VoxValue::Result(Err(msg)));
+
+    match method {
+        "get_str" => {
+            let key = match args.first() {
+                Some(VoxValue::Str(s)) => s.as_str(),
+                Some(_) => return res_err("json: expected string key".into()),
+                None => return res_err("json: missing key argument".into()),
+            };
+            match lookup_json_field(fields, key) {
+                Some(VoxValue::Str(s)) => res_ok(VoxValue::Str(s.clone())),
+                Some(_) => res_err(format!("json: key '{key}' is not a string")),
+                None => res_err(format!("json: missing key '{key}'")),
+            }
+        }
+        "get_int" => {
+            let key = match args.first() {
+                Some(VoxValue::Str(s)) => s.as_str(),
+                Some(_) => return res_err("json: expected string key".into()),
+                None => return res_err("json: missing key argument".into()),
+            };
+            match lookup_json_field(fields, key) {
+                Some(VoxValue::Int(i)) => res_ok(VoxValue::Int(*i)),
+                Some(VoxValue::Float(f)) => res_ok(VoxValue::Int(*f as i64)),
+                Some(_) => res_err(format!("json: key '{key}' is not an integer")),
+                None => res_err(format!("json: missing key '{key}'")),
+            }
+        }
+        "get_float" => {
+            let key = match args.first() {
+                Some(VoxValue::Str(s)) => s.as_str(),
+                Some(_) => return res_err("json: expected string key".into()),
+                None => return res_err("json: missing key argument".into()),
+            };
+            match lookup_json_field(fields, key) {
+                Some(VoxValue::Int(i)) => res_ok(VoxValue::Float(*i as f64)),
+                Some(VoxValue::Float(f)) => res_ok(VoxValue::Float(*f)),
+                Some(_) => res_err(format!("json: key '{key}' is not a number")),
+                None => res_err(format!("json: missing key '{key}'")),
+            }
+        }
+        "get_bool" => {
+            let key = match args.first() {
+                Some(VoxValue::Str(s)) => s.as_str(),
+                Some(_) => return res_err("json: expected string key".into()),
+                None => return res_err("json: missing key argument".into()),
+            };
+            match lookup_json_field(fields, key) {
+                Some(VoxValue::Bool(b)) => res_ok(VoxValue::Bool(*b)),
+                Some(_) => res_err(format!("json: key '{key}' is not a bool")),
+                None => res_err(format!("json: missing key '{key}'")),
+            }
+        }
+        "get_object" => {
+            let key = match args.first() {
+                Some(VoxValue::Str(s)) => s.as_str(),
+                Some(_) => return res_err("json: expected string key".into()),
+                None => return res_err("json: missing key argument".into()),
+            };
+            match lookup_json_field(fields, key) {
+                Some(VoxValue::Object(o)) => res_ok(VoxValue::Object(o.clone())),
+                Some(_) => res_err(format!("json: key '{key}' is not an object")),
+                None => res_err(format!("json: missing key '{key}'")),
+            }
+        }
+        "get_array" => {
+            let key = match args.first() {
+                Some(VoxValue::Str(s)) => s.as_str(),
+                Some(_) => return res_err("json: expected string key".into()),
+                None => return res_err("json: missing key argument".into()),
+            };
+            match lookup_json_field(fields, key) {
+                Some(VoxValue::List(l)) => res_ok(VoxValue::List(l.clone())),
+                Some(_) => res_err(format!("json: key '{key}' is not an array")),
+                None => res_err(format!("json: missing key '{key}'")),
+            }
+        }
+        "is_null" => Some(VoxValue::Bool(false)),
+        "length" => Some(VoxValue::Int(0)),
+        "at" => res_err("json: receiver is not an array".into()),
+        "keys" => {
+            let ks: Vec<VoxValue> = fields
+                .iter()
+                .map(|(k, _)| VoxValue::Str(k.clone()))
+                .collect();
+            Some(VoxValue::List(ks))
+        }
+        "to_string" => {
+            let j = vox_to_json(VoxValue::Object(fields.to_vec()));
+            Some(VoxValue::Str(serde_json::to_string(&j).unwrap_or_default()))
+        }
         _ => None,
     }
 }

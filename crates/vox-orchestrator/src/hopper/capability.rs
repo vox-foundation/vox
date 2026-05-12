@@ -10,11 +10,11 @@
 /// A token proving the holder is authorized to override the orchestrator's
 /// classified priority. Constructed only via `DeveloperOverrideMint::mint`.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct DeveloperOverride {
     pub actor: String,
     pub reason: String,
     pub audit_id: String,
-    _sealed: (),
 }
 
 /// The minter. Hold this to be able to produce `DeveloperOverride` tokens.
@@ -41,7 +41,6 @@ impl DeveloperOverrideMint {
             actor: actor.into(),
             reason: reason.into(),
             audit_id: audit_id.into(),
-            _sealed: (),
         }
     }
 }

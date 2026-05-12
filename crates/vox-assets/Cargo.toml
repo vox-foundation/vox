@@ -1,0 +1,17 @@
+[package]
+name = "vox-assets"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Declarative asset manifest resolution for vox compile ([bundle.assets])."
+
+[dependencies]
+anyhow = "1"
+serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

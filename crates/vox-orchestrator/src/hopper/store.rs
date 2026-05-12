@@ -115,11 +115,11 @@ impl HopperIntake for InMemoryHopper {
 
         self.bus.emit(AgentEventKind::HopperItemAdmitted {
             item_id: item.item_id.clone(),
-            classified_priority: item.classified_priority.clone(),
+            classified_priority: item.classified_priority,
             classified_affinity: item
                 .affinity_hints
                 .iter()
-                .map(|s| std::path::PathBuf::from(s))
+                .map(std::path::PathBuf::from)
                 .collect(),
             confidence: item.confidence,
             session_id: item.session_id.clone(),
@@ -175,13 +175,13 @@ impl HopperIntake for InMemoryHopper {
             return Err(HopperError::Terminal);
         }
 
-        let old_priority = item.classified_priority.clone();
-        item.classified_priority = new_priority.clone();
+        let old_priority = item.classified_priority;
+        item.classified_priority = new_priority;
         item.override_history.push(PriorityOverrideRecord {
             ts_micros: now_micros(),
             actor: cap.actor.clone(),
-            original_priority: old_priority.clone(),
-            new_priority: new_priority.clone(),
+            original_priority: old_priority,
+            new_priority,
             reason: cap.reason.clone(),
             audit_id: cap.audit_id.clone(),
         });

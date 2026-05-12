@@ -216,7 +216,7 @@ fn codegen_ts_table_produces_schema_file() {
 // --- @v0 codegen tests ---
 
 #[test]
-#[ignore = "@v0 components dropped from HIR (Path B removed); no TSX generated"]
+#[ignore = "@v0 components dropped from HIR (Path B removed); no TSX generated — owner: integration-tests sunset: 2026-12-31"]
 fn codegen_v0_placeholder_from_prompt() {
     let src = r#"@v0 "A stats dashboard with charts" Stats {}"#;
     let tokens = lex(src);
@@ -236,7 +236,7 @@ fn codegen_v0_placeholder_from_prompt() {
 }
 
 #[test]
-#[ignore = "@v0 components dropped from HIR (Path B removed); no TSX generated"]
+#[ignore = "@v0 components dropped from HIR (Path B removed); no TSX generated — owner: integration-tests sunset: 2026-12-31"]
 fn codegen_v0_placeholder_from_image() {
     let src = r#"@v0 from "design.png" Dashboard {}"#;
     let tokens = lex(src);
@@ -305,7 +305,12 @@ fn pipeline_table_rust_codegen_e2e() {
     let tokens = lex(DATA_LAYER_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    let output = vox_codegen::codegen_rust::generate(&hir, "test_data").unwrap();
+    let output = vox_codegen::codegen_rust::generate(
+        &hir,
+        "test_data",
+        vox_codegen::codegen_rust::RustAppShell::AxumLocalServer,
+    )
+    .unwrap();
 
     let lib_rs = output.files.get("src/lib.rs").expect("lib.rs");
     insta::assert_snapshot!("table_task_lib_rs_emit", lib_rs);

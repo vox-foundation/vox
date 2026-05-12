@@ -1,6 +1,6 @@
 //! MCP-style registry resolution — canonical implementation for model pick/fallback.
 //!
-//! [`crate::dei_shim::selection`] re-exports these symbols for legacy module paths; do not duplicate logic there.
+//! `crate::dei_shim::selection` re-exports these symbols for legacy module paths; do not duplicate logic there.
 
 use crate::config::CostPreference;
 use crate::mode::{InferenceConfig, TierProfile};
@@ -110,7 +110,6 @@ fn model_matches_task_strength(m: &ModelSpec, task: TaskCategory) -> bool {
         .any(|s| *s == strength || *s == StrengthTag::Generalist)
 }
 
-#[must_use]
 pub fn resolve_model_with_registry_fallbacks(
     models: &ModelRegistry,
     cost_preference_override: Option<CostPreference>,
@@ -155,7 +154,7 @@ pub fn resolve_model_with_registry_fallbacks(
             }
         }
     }
-    let complexity = params.complexity.min(10).max(1);
+    let complexity = params.complexity.clamp(1, 10);
     let preference = cost_preference_override.unwrap_or_else(|| cfg.quality.to_cost_preference());
 
     let manual_enforced_id: Option<&str> = match &cfg.tier {

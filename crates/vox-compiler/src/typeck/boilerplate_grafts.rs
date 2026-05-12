@@ -295,6 +295,329 @@ pub fn check_ai_return_shape(
     })
 }
 
+/// Reject unresolved `@hole(...)` fixtures until explicitly filled/suppressed.
+pub fn check_unfilled_fixture_hole(
+    hole: &crate::hir::nodes::boilerplate_grafts::HirHoleFixture,
+) -> Diagnostic {
+    Diagnostic {
+        severity: TypeckSeverity::Error,
+        message: format!(
+            "`@hole` fixture (`cache_key = {}`) is unfilled; resolve it or suppress intentionally.",
+            hole.cache_key
+        ),
+        span: hole.span,
+        code: Some("vox/fixture/unfilled-hole".into()),
+        category: DiagnosticCategory::Typecheck,
+        suggestions: vec![
+            "Replace `@hole(...)` with a concrete implementation.".into(),
+            "For temporary suppression only, add `// toestub-ignore(vox/fixture/unfilled-hole)` with rationale.".into(),
+        ],
+        fixes: vec![],
+        line_col: None,
+        missing_cases: vec![],
+        expected_type: Some("filled fixture".into()),
+        found_type: Some("unfilled hole".into()),
+        context: None,
+        ast_node_kind: Some("HirAiFixture::Hole".into()),
+    }
+}
+
+/// Optional stale-hole guard backed by `contracts/reports/ai-fixture-holes/ledger.v1.json`.
+pub fn check_fixture_hole_staleness(
+    hole: &crate::hir::nodes::boilerplate_grafts::HirHoleFixture,
+) -> Option<Diagnostic> {
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let ledger_path =
+        repo_root.join("contracts/reports/ai-fixture-holes/ledger.v1.json");
+    let raw = std::fs::read_to_string(&ledger_path).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    let entries = json.get("entries")?.as_array()?;
+    let stale = entries.iter().any(|entry| {
+        let cache_key = entry.get("cache_key").and_then(|v| v.as_str());
+        let is_stale = entry.get("stale").and_then(|v| v.as_bool()).unwrap_or(false);
+        cache_key == Some(hole.cache_key.as_str()) && is_stale
+    });
+    if !stale {
+        return None;
+    }
+    Some(Diagnostic {
+        severity: TypeckSeverity::Warning,
+        message: format!(
+            "`@hole` fixture cache key `{}` is marked stale in the hole ledger.",
+            hole.cache_key
+        ),
+        span: hole.span,
+        code: Some("vox/fixture/stale-hole".into()),
+        category: DiagnosticCategory::Typecheck,
+        suggestions: vec![
+            "Refresh the hole fixture output and update the stale-hole ledger entry.".into(),
+        ],
+        fixes: vec![],
+        line_col: None,
+        missing_cases: vec![],
+        expected_type: Some("fresh hole fixture".into()),
+        found_type: Some("stale hole fixture".into()),
+        context: None,
+        ast_node_kind: Some("HirAiFixture::Hole".into()),
+    })
+}
+
+// ── AI-first fixtures — structural typecheck (catalog-backed IDs) ─────────
+
+/// Task categories accepted for `@ai(task_category = …)`.
+///
+/// Keep in sync with `contracts/orchestration/model-routing.v1.yaml` (`task_categories`).
+const AI_ROUTING_TASK_CATEGORIES: &[&str] = &[
+    "CodeGen",
+    "Testing",
+    "Debugging",
+    "TypeChecking",
+    "Research",
+    "Parsing",
+    "Review",
+    "General",
+    "Ars",
+    "Planning",
+    "InterAgent",
+    "ToolOrchestration",
+    "Visus",
+];
+
+/// Must match `DispatchConfig::default().max_chain_depth` in `vox-orchestrator`.
+const AI_SUBAGENT_DEFAULT_MAX_CHAIN_DEPTH: u32 = 5;
+
+const VALID_PROMPT_STAGES: &[&str] = &[
+    "Planner",
+    "ClaimExtraction",
+    "Verification",
+    "Synthesis",
+    "Judge",
+    "SelfVerification",
+];
+
+#[inline]
+fn redact_token_requires_env_capability(token: &str) -> bool {
+    let t = token.trim();
+    t.starts_with("OPENROUTER_")
+        || t.starts_with("ANTHROPIC_")
+        || t.starts_with("OPENAI_")
+}
+
+#[inline]
+fn memory_lookup_key_well_formed(query: &str) -> bool {
+    let q = query.trim();
+    let parts: Vec<&str> = q.split(':').collect();
+    parts.len() >= 3 && parts.iter().all(|p| !p.is_empty())
+}
+
+fn fn_declares_env_capability(f: &crate::hir::HirFn) -> bool {
+    f.capabilities
+        .iter()
+        .any(|c| matches!(c, crate::hir::HirCapability::Env))
+}
+
+fn fn_declares_net_capability(f: &crate::hir::HirFn) -> bool {
+    f.capabilities
+        .iter()
+        .any(|c| matches!(c, crate::hir::HirCapability::Net))
+}
+
+/// Emit diagnostics for `@ai` / `@prompt` / `@subagent` / `@search` fixtures attached to `f`.
+#[must_use]
+pub fn collect_ai_fixture_diagnostics(f: &crate::hir::HirFn) -> Vec<Diagnostic> {
+    use crate::hir::nodes::boilerplate_grafts::HirAiFixture;
+
+    let Some(fixture) = &f.ai_fixture else {
+        return Vec::new();
+    };
+
+    let mut out = Vec::new();
+    match fixture {
+        HirAiFixture::IntentRouted(intent) => {
+            if let Some(cat) = intent.task_category.as_deref() {
+                if !AI_ROUTING_TASK_CATEGORIES.contains(&cat) {
+                    out.push(Diagnostic {
+                        severity: TypeckSeverity::Error,
+                        message: format!(
+                            "Unknown `@ai` task_category `{cat}`; expected one of the `task_categories` entries in `contracts/orchestration/model-routing.v1.yaml`."
+                        ),
+                        span: intent.span,
+                        code: Some("vox/ai/unknown-task-category".into()),
+                        category: DiagnosticCategory::Typecheck,
+                        suggestions: vec![
+                            "Pick a supported category such as `CodeGen`, `Research`, or `Review`.".into(),
+                            "If you need a new category, extend `contracts/orchestration/model-routing.v1.yaml` first.".into(),
+                        ],
+                        fixes: vec![],
+                        line_col: None,
+                        missing_cases: vec![],
+                        expected_type: Some("known task category".into()),
+                        found_type: Some(cat.to_string()),
+                        context: None,
+                        ast_node_kind: Some("HirAiFixture::IntentRouted".into()),
+                    });
+                }
+            }
+        }
+        HirAiFixture::Prompt(prompt) => {
+            if !VALID_PROMPT_STAGES.contains(&prompt.stage.as_str()) {
+                out.push(Diagnostic {
+                    severity: TypeckSeverity::Error,
+                    message: format!(
+                        "Invalid `@prompt` stage `{}`; expected one of: {}.",
+                        prompt.stage,
+                        VALID_PROMPT_STAGES.join(", ")
+                    ),
+                    span: prompt.span,
+                    code: Some("vox/prompt/invalid-stage".into()),
+                    category: DiagnosticCategory::Typecheck,
+                    suggestions: vec![
+                        "Use a `ResearchStage` variant name such as `Planner` or `Verification`."
+                            .into(),
+                    ],
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    expected_type: Some("ResearchStage".into()),
+                    found_type: Some(prompt.stage.clone()),
+                    context: None,
+                    ast_node_kind: Some("HirAiFixture::Prompt".into()),
+                });
+            }
+            for token in &prompt.redact {
+                if redact_token_requires_env_capability(token) && !fn_declares_env_capability(f) {
+                    out.push(Diagnostic {
+                        severity: TypeckSeverity::Warning,
+                        message: format!(
+                            "`@prompt` redact token `{token}` looks like a secret/env name; declare `uses env` (and resolve via Clavis) so this stays explicit."
+                        ),
+                        span: prompt.span,
+                        code: Some("vox/prompt/secret-leakage".into()),
+                        category: DiagnosticCategory::Typecheck,
+                        suggestions: vec!["Add `env` to the function `uses (...)` clause.".into()],
+                        fixes: vec![],
+                        line_col: None,
+                        missing_cases: vec![],
+                        expected_type: Some("uses env".into()),
+                        found_type: Some("missing env capability".into()),
+                        context: None,
+                        ast_node_kind: Some("HirAiFixture::Prompt".into()),
+                    });
+                }
+            }
+        }
+        HirAiFixture::Subagent(sub) => {
+            if sub.max_depth >= AI_SUBAGENT_DEFAULT_MAX_CHAIN_DEPTH {
+                out.push(Diagnostic {
+                    severity: TypeckSeverity::Error,
+                    message: format!(
+                        "`@subagent(max_depth = {})` exceeds the default dispatch chain bound (< {}).",
+                        sub.max_depth, AI_SUBAGENT_DEFAULT_MAX_CHAIN_DEPTH
+                    ),
+                    span: sub.span,
+                    code: Some("vox/subagent/chain-depth-exceeded".into()),
+                    category: DiagnosticCategory::Typecheck,
+                    suggestions: vec![format!(
+                        "Lower `max_depth` to strictly less than {AI_SUBAGENT_DEFAULT_MAX_CHAIN_DEPTH}."
+                    )],
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    expected_type: Some(format!("max_depth < {AI_SUBAGENT_DEFAULT_MAX_CHAIN_DEPTH}")),
+                    found_type: Some(format!("{}", sub.max_depth)),
+                    context: None,
+                    ast_node_kind: Some("HirAiFixture::Subagent".into()),
+                });
+            }
+            if sub.policy.eq_ignore_ascii_case("distributed") {
+                out.push(Diagnostic {
+                    severity: TypeckSeverity::Warning,
+                    message: "`@subagent(policy = distributed)` requires mesh wiring (`populi-transport` on `vox-orchestrator` and bundle deps). Ensure your workspace enables it before relying on remote relay.".into(),
+                    span: sub.span,
+                    code: Some("vox/subagent/distributed-not-wired".into()),
+                    category: DiagnosticCategory::Typecheck,
+                    suggestions: vec![
+                        "Enable `populi-transport` on `vox-orchestrator` for mesh-capable bundles.".into(),
+                    ],
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    expected_type: Some("mesh-ready orchestrator build".into()),
+                    found_type: Some("distributed policy".into()),
+                    context: None,
+                    ast_node_kind: Some("HirAiFixture::Subagent".into()),
+                });
+            }
+        }
+        HirAiFixture::Search(search) => {
+            let corpus = search.corpus.trim();
+            let corpus_lower = corpus.to_ascii_lowercase();
+            if !matches!(corpus_lower.as_str(), "memory" | "docs" | "web") {
+                out.push(Diagnostic {
+                    severity: TypeckSeverity::Error,
+                    message: format!(
+                        "Unsupported `@search` corpus `{corpus}`; allowed: `memory`, `docs`, `web`."
+                    ),
+                    span: search.span,
+                    code: Some("vox/search/corpus-denied".into()),
+                    category: DiagnosticCategory::Typecheck,
+                    suggestions: vec![
+                        "Use `corpus = memory` for RAG keys, `docs` for repo markdown search, or `web` for cascade-backed retrieval.".into(),
+                    ],
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    expected_type: Some("memory|docs|web".into()),
+                    found_type: Some(corpus.to_string()),
+                    context: None,
+                    ast_node_kind: Some("HirAiFixture::Search".into()),
+                });
+            } else if corpus_lower == "memory" && !memory_lookup_key_well_formed(&search.query) {
+                out.push(Diagnostic {
+                    severity: TypeckSeverity::Error,
+                    message: format!(
+                        "`@search(corpus = memory)` query `{}` must look like `scope:account:key` (three non-empty segments).",
+                        search.query.trim()
+                    ),
+                    span: search.span,
+                    code: Some("vox/search/memory-key-invalid".into()),
+                    category: DiagnosticCategory::Typecheck,
+                    suggestions: vec![
+                        "Example: `project:default:onboarding`.".into(),
+                    ],
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    expected_type: Some("scope:account:key".into()),
+                    found_type: Some(search.query.clone()),
+                    context: None,
+                    ast_node_kind: Some("HirAiFixture::Search".into()),
+                });
+            } else if corpus_lower == "web" && !fn_declares_net_capability(f) {
+                out.push(Diagnostic {
+                    severity: TypeckSeverity::Error,
+                    message: "`@search(corpus = web)` performs networked retrieval; declare `@uses(net)`."
+                        .into(),
+                    span: search.span,
+                    code: Some("vox/search/web-policy-denied".into()),
+                    category: DiagnosticCategory::Typecheck,
+                    suggestions: vec!["Add `net` to the function `uses (...)` clause.".into()],
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    expected_type: Some("uses net".into()),
+                    found_type: Some("missing net capability".into()),
+                    context: None,
+                    ast_node_kind: Some("HirAiFixture::Search".into()),
+                });
+            }
+        }
+        HirAiFixture::ModelPin(_) | HirAiFixture::Hole(_) => {}
+    }
+
+    out
+}
+
 // ── GA-12 — Upload size / MIME structural check ──────────────────────────
 
 /// Refuse compile when a static literal `Upload[T]` configuration declares a

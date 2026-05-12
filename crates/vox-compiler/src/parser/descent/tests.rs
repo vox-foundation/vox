@@ -119,6 +119,68 @@ fn test_parse_match() {
 }
 
 #[test]
+fn test_parse_match_arm_print_string_with_backticks() {
+    let m = parse_str(
+        r#"fn f() {
+            match x {
+                Error(e) => print("  [err] `cargo clean` failed to spawn: " + e),
+            }
+        }"#,
+    );
+    let Decl::Function(f) = &m.declarations[0] else {
+        panic!("expected function");
+    };
+    let Stmt::Expr {
+        expr: Expr::Match { arms, .. },
+        ..
+    } = &f.body[0] else {
+        panic!("expected match expr");
+    };
+    assert_eq!(arms.len(), 1);
+    let body = arms[0].body.as_ref();
+    let Expr::Call { callee, args, .. } = body else {
+        panic!("expected call, got {body:?}");
+    };
+    assert!(matches!(callee.as_ref(), Expr::Ident { name, .. } if name == "print"));
+    assert_eq!(args.len(), 1);
+    let Expr::Binary {
+        op: BinOp::Add,
+        left,
+        right,
+        ..
+    } = &args[0].value
+    else {
+        panic!("expected string + ident, got {:?}", args[0].value);
+    };
+    assert!(matches!(
+        left.as_ref(),
+        Expr::StringLit { value, .. }
+            if value == "  [err] `cargo clean` failed to spawn: "
+    ));
+    assert!(matches!(
+        right.as_ref(),
+        Expr::Ident { name, .. } if name == "e"
+    ));
+}
+
+#[test]
+fn test_parse_match_trailing_comma_after_arm() {
+    let m = parse_str(
+        "fn f() { match x { Ok(r) => r,\n Error(e) => e,\n } }",
+    );
+    let Decl::Function(f) = &m.declarations[0] else {
+        panic!("expected function");
+    };
+    let Stmt::Expr {
+        expr: Expr::Match { arms, .. },
+        ..
+    } = &f.body[0] else {
+        panic!("expected match");
+    };
+    assert_eq!(arms.len(), 2);
+}
+
+#[test]
 fn test_parse_type_def() {
     let m = parse_str("type Shape =\n    | Circle(r: float)\n    | Point");
     if let Decl::TypeDef(t) = &m.declarations[0] {
@@ -669,7 +731,7 @@ fn test_web_surface_syntax_inventory_non_empty() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: compiler — sunset: 2026-08-01 — agent/environment decl parse not in active grammar path"]
 fn test_parse_agent_and_environment() {
     let m = parse_str(
         r#"
@@ -855,6 +917,18 @@ fn test_parse_uses_multiple_effects() {
     match &m.declarations[0] {
         Decl::Function(f) => {
             assert_eq!(f.effects, vec![EffectAnnotation::Net, EffectAnnotation::Db]);
+        }
+        other => panic!("Expected Decl::Function, got {other:?}"),
+    }
+}
+
+/// `@uses(net, env)` — `env` is a dedicated lexer keyword (`Token::Env`), not `Ident`.
+#[test]
+fn test_parse_at_uses_decorator_accepts_env_keyword_token() {
+    let m = parse_str("@uses(net, env)\nfn x() to str { \"\" }");
+    match &m.declarations[0] {
+        Decl::Function(f) => {
+            assert_eq!(f.effects, vec![EffectAnnotation::Net, EffectAnnotation::Env]);
         }
         other => panic!("Expected Decl::Function, got {other:?}"),
     }

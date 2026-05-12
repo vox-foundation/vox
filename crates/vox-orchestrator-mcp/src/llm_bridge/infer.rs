@@ -211,6 +211,7 @@ pub async fn mcp_infer_completion(
 }
 
 /// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.) with explicit tools/tool_choice.
+#[allow(clippy::too_many_arguments)]
 pub async fn mcp_infer_tool_completion(
     state: &ServerState,
     mut model: ModelSpec,
@@ -689,7 +690,7 @@ pub async fn call_llm(
         (model, free_only, resolution_template)
     };
 
-    let max_tokens = model.max_tokens.min(HTTP_MAX_OUTPUT_TOKENS_CAP).max(1);
+    let max_tokens = model.max_tokens.clamp(1, HTTP_MAX_OUTPUT_TOKENS_CAP);
     let routing = McpInferRouting {
         user_prompt,
         sticky_model_pref: pref.as_deref(),

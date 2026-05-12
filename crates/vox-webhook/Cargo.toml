@@ -19,7 +19,7 @@ sha2             = { workspace = true }
 ed25519-dalek    = { workspace = true }
 data-encoding    = { workspace = true }
 # HTTP server
-axum             = { version = "0.8", features = ["macros"] }
+axum             = { workspace = true, features = ["macros"] }
 # HTTP client (for outbound webhooks)
 reqwest          = { workspace = true }
 vox-reqwest-defaults = { workspace = true }

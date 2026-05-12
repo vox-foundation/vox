@@ -4,6 +4,11 @@
 //! delay, mimicking real cloudflared behavior. Set VOX_CLOUDFLARED_PATH to the
 //! mock binary path for the test.
 
+// Rust 2024: env mutation primitives are `unsafe`. Each `unsafe` block in this
+// file is single-threaded by virtue of the test binary's serial execution
+// pattern (no cross-test parallelism touches `VOX_CLOUDFLARED_PATH`).
+#![allow(unsafe_code)]
+
 use std::time::Duration;
 use vox_share::backends::cloudflare::CloudflareBackend;
 use vox_share::{BackendKind, TunnelBackend};

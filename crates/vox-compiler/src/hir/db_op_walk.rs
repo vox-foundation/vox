@@ -1,4 +1,4 @@
-//! Walk [`HirExpr`] trees to find every [`HirExpr::DbTableOp`] site (shared by runtime projection).
+//! Walk [`HirExpr`] trees to find every `HirExpr::DbTableOp` site (shared by runtime projection).
 
 use crate::hir::{
     HirArg, HirDbQueryPlan, HirDbTableOp, HirExpr, HirModule, HirReactiveMember, HirStmt,

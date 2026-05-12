@@ -1,7 +1,7 @@
 //! `vox-prereg` — SCIENTIA Phase 2 pre-registration crate.
 //!
 //! # Responsibilities
-//! - Compute Trusty URIs (content-hash-in-URI) for [`PreregistrationV1`] records.
+//! - Compute Trusty URIs (content-hash-in-URI) for `PreregistrationV1` records.
 //! - Sign and verify pre-registrations with Ed25519 via [`vox_crypto`].
 //! - Detect analysis-plan deviations between a signed prereg and the actual run.
 //! - Provide symbolic verifiers for numeric claims and Bayesian sequential stopping.

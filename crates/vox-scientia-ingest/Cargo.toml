@@ -8,7 +8,7 @@ authors.workspace = true
 
 [dependencies]
 vox-db = { path = "../vox-db" }
-vox-search = { path = "../vox-search" }
+vox-search = { path = "../vox-search", default-features = false, features = ["tantivy-lexical", "web-scrape"] }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

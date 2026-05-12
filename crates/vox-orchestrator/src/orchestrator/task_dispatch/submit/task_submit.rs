@@ -406,8 +406,7 @@ impl Orchestrator {
         #[cfg_attr(not(feature = "populi-transport"), allow(unused_variables))]
         let (lease_gated, remote_params, agent_busy) = {
             let c = crate::sync_lock::rw_read(&*self.config);
-            let lease_gated =
-                crate::populi_remote::task_matches_populi_remote_lease_gate(&task, &c);
+            let lease_gated = crate::populi_remote::task_matches_populi_remote_lease_gate(task, &c);
             let rp = if !cfg!(feature = "populi-transport") || !c.populi_remote_execute_experimental
             {
                 None
@@ -855,7 +854,7 @@ impl Orchestrator {
                 self.attach_goal_search_context_with_retrieval(
                     task_id,
                     &lineage_desc_preview,
-                    &file_manifest,
+                    file_manifest,
                 )
                 .await;
             }

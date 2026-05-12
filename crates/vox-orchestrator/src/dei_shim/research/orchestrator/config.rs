@@ -67,6 +67,8 @@ pub struct ResearchConfig {
     pub training_pair_min_confidence: f64,
     /// Minimum citation count to write a Mens training pair.
     pub training_pair_min_citations: usize,
+    /// Max age in seconds for a cached research result.
+    pub cache_ttl_secs: u64,
     /// Provider configuration (high-trust domains, timeout, etc.).
     pub provider: super::super::config::ProviderConfig,
     /// Optional embedding service for indexing chunks.
@@ -77,6 +79,11 @@ pub struct ResearchConfig {
     pub claim_detection_enabled: bool,
     /// Optional callback for progress reporting.
     pub progress_callback: Option<Arc<ProgressCallback>>,
+    /// Optional SCIENTIA event sink for mesh signal emission.
+    pub event_emitter: Option<Arc<dyn vox_research_events::ResearchEventEmitter>>,
+    /// Optional retrieval feedback (caller-supplied). When unset and a DB is attached, the pipeline
+    /// loads a short rolling window from `research_metrics` before applying [`vox_search::SearchPolicy::with_scientia_feedback`].
+    pub search_policy_feedback: Option<vox_search::SearchPolicyFeedback>,
     /// Optional snapshot of workspace inference policy for registry stage picks.
     ///
     /// Phase 0a STUB: uses `super::super::model_select::InferenceConfig` (static fallbacks).
@@ -94,6 +101,11 @@ impl std::fmt::Debug for ResearchConfig {
             .field("judge_model", &self.judge_model)
             .field("chunk_max_chars", &self.chunk_max_chars)
             .field("fusion_weights", &self.fusion_weights)
+            .field("event_emitter", &self.event_emitter.is_some())
+            .field(
+                "search_policy_feedback",
+                &self.search_policy_feedback.is_some(),
+            )
             .finish_non_exhaustive()
     }
 }
@@ -105,8 +117,10 @@ impl Default for ResearchConfig {
         let reg = crate::models::ModelRegistry::new();
         let base = super::super::model_select::InferenceConfig::default();
         let r = super::super::model_select::resolve_research_models(&reg, &base);
-        let mut verifier = super::super::config::VerifierConfig::default();
-        verifier.nli_model_id = r.claim_model.clone();
+        let verifier = super::super::config::VerifierConfig {
+            nli_model_id: r.claim_model.clone(),
+            ..super::super::config::VerifierConfig::default()
+        };
         Self {
             llm_endpoint: None,
             api_key: None,
@@ -135,10 +149,13 @@ impl Default for ResearchConfig {
             fusion_weights: (0.65, 0.50, 0.80),
             training_pair_min_confidence: ConfidencePolicy::DEFAULT_MIN_TRAINING_PAIR_CONFIDENCE,
             training_pair_min_citations: 2,
+            cache_ttl_secs: 3600,
             provider: super::super::config::ProviderConfig::default(),
             embedder: None,
             claim_detection_enabled: true,
             progress_callback: None,
+            event_emitter: None,
+            search_policy_feedback: None,
             model_pick_inference: None,
         }
     }

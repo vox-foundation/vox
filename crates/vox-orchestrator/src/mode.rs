@@ -29,17 +29,14 @@ impl QualityLevel {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum TierProfile {
+    #[default]
     Automatic,
     Manual(String),
-    BringYourOwnKey { provider: String },
-}
-
-impl Default for TierProfile {
-    fn default() -> Self {
-        Self::Automatic
-    }
+    BringYourOwnKey {
+        provider: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,24 +48,13 @@ pub enum ExecutionModeProfile {
     Precision,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct InferenceConfig {
     pub modalities: Modalities,
     pub quality: QualityLevel,
     pub tier: TierProfile,
     #[serde(default)]
     pub free_only: bool,
-}
-
-impl Default for InferenceConfig {
-    fn default() -> Self {
-        Self {
-            modalities: Modalities::default(),
-            quality: QualityLevel::default(),
-            tier: TierProfile::default(),
-            free_only: false,
-        }
-    }
 }
 
 impl InferenceConfig {

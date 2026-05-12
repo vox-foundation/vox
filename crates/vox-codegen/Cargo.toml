@@ -9,8 +9,13 @@ rust-version.workspace = true
 description = "Codegen + WebIR + vox_ir extracted from vox-compiler. Consumes analysis types from vox-compiler."
 publish = false
 
+[features]
+default = []
+ai-fixtures-v1 = []
+
 [dependencies]
 vox-compiler = { workspace = true }
+vox-tauri-codegen = { workspace = true }
 workspace-hack = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

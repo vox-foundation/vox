@@ -34,5 +34,5 @@ pub fn check_campaign_prereg(
     prereg: Option<&vox_research_events::preregistration::PreregistrationV1>,
     signature_hex: Option<&str>,
 ) -> GateResult {
-    PreregGate::default().check_campaign(prereg, signature_hex)
+    PreregGate.check_campaign(prereg, signature_hex)
 }

@@ -134,7 +134,7 @@ const AGENT_KIND: &str = "# A Vox AI agent\n\n@agent_def fn MyAgent(query: str) 
 const WORKFLOW_KIND: &str =
     "# A Vox Workflow\n\n@workflow_def fn DataPipeline() {\n    return\n}\n";
 
-const MOBILE_PWA_TEMPLATE: &str = r#"# Vox Mobile PWA — Capacitor shell (Android/iOS) + browser
+const MOBILE_PWA_TEMPLATE: &str = r#"# Vox Mobile — web-first UI + native packaging via Tauri 2 (see `vox compile` / application-packaging SSOT)
 
 import std.mobile
 
@@ -315,9 +315,9 @@ fn main_vox_content(package_kind: &str, template: Option<&str>) -> Cow<'static, 
             "chatbot" => Cow::Borrowed(CHATBOT_TEMPLATE),
             "web" | "dashboard" => Cow::Borrowed(DASHBOARD_TEMPLATE),
             "api" => Cow::Borrowed(API_TEMPLATE),
-            "mobile-pwa" => Cow::Borrowed(MOBILE_PWA_TEMPLATE),
+            "mobile-pwa" | "tauri-mobile" => Cow::Borrowed(MOBILE_PWA_TEMPLATE),
             other => Cow::Owned(format!(
-                "# My Vox App\n\ncomponent App() {{\n    <div><h1>\"My Vox App\"</h1></div>\n}}\n\nroutes:\n    \"/\" to App\n\n# Unknown template '{other}'; use web, chatbot, dashboard, api, or mobile-pwa.\n"
+                "# My Vox App\n\ncomponent App() {{\n    <div><h1>\"My Vox App\"</h1></div>\n}}\n\nroutes:\n    \"/\" to App\n\n# Unknown template '{other}'; use web, chatbot, dashboard, api, mobile-pwa, or tauri-mobile.\n"
             )),
         };
     }

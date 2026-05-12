@@ -406,41 +406,6 @@ pub fn build_container_target(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_resolve_target_kind() {
-        assert_eq!(resolve_target_kind(None, None), "container");
-        assert_eq!(resolve_target_kind(Some("bare-metal"), None), "bare-metal");
-        assert_eq!(resolve_target_kind(None, Some("docker-compose")), "compose");
-        assert_eq!(
-            resolve_target_kind(Some("k8s"), Some("docker")),
-            "kubernetes"
-        );
-        assert_eq!(resolve_target_kind(Some("auto"), None), "container");
-    }
-
-    #[test]
-    fn test_build_container_target() {
-        let t = build_container_target(
-            "myapp",
-            "prod",
-            None,
-            Some("ghcr.io/test"),
-            None,
-            &[("FOO".into(), "bar".into())],
-            Path::new("/tmp"),
-        );
-
-        assert_eq!(t.image_tag, "myapp:prod");
-        assert_eq!(t.registry_tag.as_deref(), Some("ghcr.io/test/myapp:prod"));
-        assert_eq!(t.registry_host.as_deref(), Some("ghcr.io"));
-        assert_eq!(t.context_dir, Path::new("/tmp"));
-        assert_eq!(t.build_args, vec![("FOO".into(), "bar".into())]);
-    }
-}
 // ─── Fly.io ──────────────────────────────────────────────────────────────────
 
 fn execute_fly(cfg: &FlyTarget, dry_run: bool) -> Result<()> {
@@ -617,4 +582,40 @@ fn execute_coolify(cfg: &CoolifyTarget, dry_run: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_target_kind() {
+        assert_eq!(resolve_target_kind(None, None), "container");
+        assert_eq!(resolve_target_kind(Some("bare-metal"), None), "bare-metal");
+        assert_eq!(resolve_target_kind(None, Some("docker-compose")), "compose");
+        assert_eq!(
+            resolve_target_kind(Some("k8s"), Some("docker")),
+            "kubernetes"
+        );
+        assert_eq!(resolve_target_kind(Some("auto"), None), "container");
+    }
+
+    #[test]
+    fn test_build_container_target() {
+        let t = build_container_target(
+            "myapp",
+            "prod",
+            None,
+            Some("ghcr.io/test"),
+            None,
+            &[("FOO".into(), "bar".into())],
+            Path::new("/tmp"),
+        );
+
+        assert_eq!(t.image_tag, "myapp:prod");
+        assert_eq!(t.registry_tag.as_deref(), Some("ghcr.io/test/myapp:prod"));
+        assert_eq!(t.registry_host.as_deref(), Some("ghcr.io"));
+        assert_eq!(t.context_dir, Path::new("/tmp"));
+        assert_eq!(t.build_args, vec![("FOO".into(), "bar".into())]);
+    }
 }

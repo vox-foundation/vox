@@ -132,14 +132,13 @@ component T() {
         "legacy vs Web IR preview (whitespace-normalized):\n{legacy}\n{preview}"
     );
 
-    with_reactive_emit_views_enabled(|| {
-        let out = generate(&hir).expect("codegen with VOX_WEBIR_EMIT_REACTIVE_VIEWS=1");
-        let after = out.reactive_stats;
-        assert!(
-            after.web_ir_view_emitted >= 1,
-            "expected WebIrViewEmitted after parity match; after={after:?}"
-        );
-    });
+    let _env_guard = ENV_MUTEX.lock().expect("ENV_MUTEX poisoned");
+    let out = generate(&hir).expect("codegen");
+    let after = out.reactive_stats;
+    assert!(
+        after.web_ir_view_emitted >= 1,
+        "expected WebIrViewEmitted after parity match; after={after:?}"
+    );
 }
 
 #[test]

@@ -532,9 +532,9 @@ impl OrchestratorConfig {
                 self.completion_grounding_enforce,
             );
         }
-        if let Some(val) = secrets_opt(
-            vox_secrets::SecretId::VoxOrchestratorCompletionMarkdownLinkAuditEnabled,
-        ) {
+        if let Some(val) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorCompletionMarkdownLinkAuditEnabled)
+        {
             self.completion_markdown_link_audit_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_COMPLETION_MARKDOWN_LINK_AUDIT_ENABLED",
                 &val,
@@ -910,6 +910,35 @@ impl OrchestratorConfig {
                 "VOX_ORCHESTRATOR_AGENTOS_CHECKPOINT_HINTS_ENABLED",
                 &v,
                 self.agentos_checkpoint_hints_enabled,
+            );
+        }
+
+        // SCIENTIA research mesh intake (see docs/architecture/research-scientia-telemetry-channels.md)
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxScientiaResearchMeshIntakeWriterEnabled)
+        {
+            self.scientia_research_mesh.intake_writer_enabled = parse_or_warn(
+                "VOX_SCIENTIA_RESEARCH_MESH_INTAKE_WRITER",
+                &v,
+                self.scientia_research_mesh.intake_writer_enabled,
+            );
+        }
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxScientiaResearchMeshConsumerPollEnabled)
+        {
+            self.scientia_research_mesh.intake_consumer_poll_enabled = parse_or_warn(
+                "VOX_SCIENTIA_RESEARCH_MESH_CONSUMER_POLL",
+                &v,
+                self.scientia_research_mesh.intake_consumer_poll_enabled,
+            );
+        }
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxScientiaResearchMeshConsumerPollIntervalMs)
+        {
+            self.scientia_research_mesh.intake_consumer_poll_interval_ms = parse_or_warn(
+                "VOX_SCIENTIA_RESEARCH_MESH_CONSUMER_POLL_INTERVAL_MS",
+                &v,
+                self.scientia_research_mesh.intake_consumer_poll_interval_ms,
             );
         }
     }

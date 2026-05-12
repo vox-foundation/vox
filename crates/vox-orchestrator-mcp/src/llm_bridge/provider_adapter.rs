@@ -164,11 +164,7 @@ impl ProviderAdapter for AnthropicNativeAdapter {
             use super::providers::http_anthropic_direct;
             let url = endpoint_for(model)?;
             let bearer = super::provider_auth::bearer_for(model)?;
-            let api_key = if bearer.starts_with("Bearer ") {
-                &bearer[7..]
-            } else {
-                &bearer
-            };
+            let api_key = bearer.strip_prefix("Bearer ").unwrap_or(&bearer);
 
             let (text, prompt_tokens, completion_tokens, meta) = http_anthropic_direct(
                 client,

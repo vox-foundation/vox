@@ -14,7 +14,7 @@ fn emit(src: &str) -> String {
 }
 
 #[test]
-fn back_button_decl_emits_capacitor_app_listener() {
+fn back_button_decl_emits_tauri_listen() {
     let src = r#"
 @endpoint(kind: query) fn handle_back() to bool { return true }
 @back_button {
@@ -22,8 +22,12 @@ fn back_button_decl_emits_capacitor_app_listener() {
 }
 "#;
     let ts = emit(src);
-    assert!(ts.contains("App.addListener('backButton'"), "got:\n{ts}");
+    assert!(ts.contains("listen('vox-back-button'"), "got:\n{ts}");
     assert!(ts.contains("handle_back("), "got:\n{ts}");
+    assert!(
+        ts.contains("@tauri-apps/api/event"),
+        "expected Tauri event API, got:\n{ts}"
+    );
 }
 
 #[test]
@@ -37,6 +41,6 @@ fn back_button_with_fallback_emits_fallback_call() {
 }
 "#;
     let ts = emit(src);
-    assert!(ts.contains("App.addListener('backButton'"), "got:\n{ts}");
+    assert!(ts.contains("listen('vox-back-button'"), "got:\n{ts}");
     assert!(ts.contains("navigate_home("), "got:\n{ts}");
 }

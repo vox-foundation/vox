@@ -712,7 +712,7 @@ impl Parser {
     pub(crate) fn parse_v0_prop_line(&mut self) -> Result<crate::ast::decl::V0Prop, ()> {
         let pname = self.parse_ident_name()?;
         if std::env::var_os("VOX_PARSER_DEBUG").is_some() {
-            eprintln!("[vox-parser:v0.prop] name={pname:?} next={:?}", self.peek());
+            eprintln!("[vox-compiler:v0.prop] name={pname:?} next={:?}", self.peek());
         }
         let is_optional = self.eat(&Token::Question);
         self.expect(&Token::Colon)?;
@@ -968,6 +968,28 @@ impl Parser {
         let mut llm_model = None;
         let mut ai_structured_output_type: Option<String> = None;
         let mut ai_max_iterations: u32 = 3;
+        let mut ai_task_category: Option<String> = None;
+        let mut ai_strengths: Vec<String> = Vec::new();
+        let mut ai_tier_max: Option<String> = None;
+        let mut ai_cost_ceiling_usd_per_call: Option<f64> = None;
+        let mut prompt_stage: Option<String> = None;
+        let mut prompt_schema: Option<String> = None;
+        let mut prompt_redact: Vec<String> = Vec::new();
+        let mut subagent_policy: Option<String> = None;
+        let mut subagent_max_depth: Option<u32> = None;
+        let mut subagent_budget_usd: Option<f64> = None;
+        let mut subagent_description: Option<String> = None;
+        let mut subagent_parallel = false;
+        let mut subagent_complexity: Option<u8> = None;
+        let mut search_corpus: Option<String> = None;
+        let mut search_query: Option<String> = None;
+        let mut search_into: Option<String> = None;
+        let mut search_top_k: Option<u32> = None;
+        let mut search_policy: Option<String> = None;
+        let mut hole_spec: Option<String> = None;
+        let mut hole_reviewer: Option<String> = None;
+        let mut hole_cache_key: Option<String> = None;
+        let mut hole_constraints: Vec<String> = Vec::new();
         let mut embed_model: Option<String> = None;
         let mut embed_dimensions: usize = 0;
         let mut embed_source_field: Option<String> = None;
@@ -1047,11 +1069,11 @@ impl Parser {
                                 let key = key.clone();
                                 self.advance();
                                 self.eat(&Token::Eq);
-                                if key == "model" {
-                                    if let Token::StringLit(m) = self.peek().clone() {
-                                        self.advance();
-                                        inference_model = Some(m);
-                                    }
+                                if key == "model"
+                                    && let Token::StringLit(m) = self.peek().clone()
+                                {
+                                    self.advance();
+                                    inference_model = Some(m);
                                 }
                             } else {
                                 self.advance();
@@ -1066,6 +1088,299 @@ impl Parser {
                 Token::AtTrainingStep => {
                     self.advance();
                     training_step = true;
+                }
+                Token::AtPrompt => {
+                    self.advance();
+                    is_llm = true;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                self.eat(&Token::Eq);
+                                match key.as_str() {
+                                    "stage" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            prompt_stage = Some(v);
+                                        }
+                                    }
+                                    "schema" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            prompt_schema = Some(v);
+                                        }
+                                    }
+                                    "redact" => {
+                                        if self.eat(&Token::LBracket) {
+                                            let mut redact: Vec<String> = vec![];
+                                            loop {
+                                                self.skip_newlines();
+                                                if matches!(
+                                                    self.peek(),
+                                                    Token::RBracket | Token::Eof
+                                                ) {
+                                                    break;
+                                                }
+                                                match self.peek().clone() {
+                                                    Token::Ident(v)
+                                                    | Token::TypeIdent(v)
+                                                    | Token::StringLit(v) => {
+                                                        self.advance();
+                                                        redact.push(v);
+                                                    }
+                                                    _ => {
+                                                        self.advance();
+                                                    }
+                                                }
+                                                if !self.eat(&Token::Comma) {
+                                                    break;
+                                                }
+                                            }
+                                            let _ = self.expect(&Token::RBracket);
+                                            prompt_redact = redact;
+                                        }
+                                    }
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        self.expect(&Token::RParen)?;
+                    }
+                }
+                Token::AtSubagent => {
+                    self.advance();
+                    is_llm = true;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                self.eat(&Token::Eq);
+                                match key.as_str() {
+                                    "policy" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            subagent_policy = Some(v);
+                                        }
+                                    }
+                                    "max_depth" => {
+                                        if let Token::IntLit(v) = self.peek().clone() {
+                                            self.advance();
+                                            if v >= 0 {
+                                                subagent_max_depth = Some(v as u32);
+                                            }
+                                        }
+                                    }
+                                    "budget_usd" => match self.peek().clone() {
+                                        Token::FloatLit(v) => {
+                                            self.advance();
+                                            subagent_budget_usd = Some(v);
+                                        }
+                                        Token::IntLit(v) => {
+                                            self.advance();
+                                            subagent_budget_usd = Some(v as f64);
+                                        }
+                                        _ => {}
+                                    },
+                                    "description" => {
+                                        if let Token::StringLit(v) = self.peek().clone() {
+                                            self.advance();
+                                            subagent_description = Some(v);
+                                        }
+                                    },
+                                    "parallel" => match self.peek().clone() {
+                                        Token::True => {
+                                            self.advance();
+                                            subagent_parallel = true;
+                                        }
+                                        Token::False => {
+                                            self.advance();
+                                            subagent_parallel = false;
+                                        }
+                                        _ => {}
+                                    },
+                                    "complexity" => {
+                                        if let Token::IntLit(v) = self.peek().clone() {
+                                            self.advance();
+                                            if (0..=10).contains(&v) {
+                                                subagent_complexity = Some(v as u8);
+                                            }
+                                        }
+                                    },
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        self.expect(&Token::RParen)?;
+                    }
+                }
+                Token::AtSearch => {
+                    self.advance();
+                    is_llm = true;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                self.eat(&Token::Eq);
+                                match key.as_str() {
+                                    "corpus" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            search_corpus = Some(v);
+                                        }
+                                    }
+                                    "query" => match self.peek().clone() {
+                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                            self.advance();
+                                            search_query = Some(v);
+                                        }
+                                        _ => {}
+                                    },
+                                    "into" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            search_into = Some(v);
+                                        }
+                                    }
+                                    "top_k" => {
+                                        if let Token::IntLit(v) = self.peek().clone() {
+                                            self.advance();
+                                            if v >= 0 {
+                                                search_top_k = Some(v as u32);
+                                            }
+                                        }
+                                    }
+                                    "policy" => match self.peek().clone() {
+                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                            self.advance();
+                                            search_policy = Some(v);
+                                        }
+                                        _ => {}
+                                    },
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        self.expect(&Token::RParen)?;
+                    }
+                }
+                Token::AtHole => {
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                self.eat(&Token::Eq);
+                                match key.as_str() {
+                                    "spec" => match self.peek().clone() {
+                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                            self.advance();
+                                            hole_spec = Some(v);
+                                        }
+                                        _ => {}
+                                    },
+                                    "reviewer" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            hole_reviewer = Some(v);
+                                        }
+                                    }
+                                    "cache_key" => match self.peek().clone() {
+                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                            self.advance();
+                                            hole_cache_key = Some(v);
+                                        }
+                                        _ => {}
+                                    },
+                                    "constraints" => {
+                                        if self.eat(&Token::LBracket) {
+                                            let mut constraints: Vec<String> = vec![];
+                                            loop {
+                                                self.skip_newlines();
+                                                if matches!(self.peek(), Token::RBracket | Token::Eof)
+                                                {
+                                                    break;
+                                                }
+                                                match self.peek().clone() {
+                                                    Token::Ident(v)
+                                                    | Token::TypeIdent(v)
+                                                    | Token::StringLit(v) => {
+                                                        self.advance();
+                                                        constraints.push(v);
+                                                    }
+                                                    _ => {
+                                                        self.advance();
+                                                    }
+                                                }
+                                                if !self.eat(&Token::Comma) {
+                                                    break;
+                                                }
+                                            }
+                                            let _ = self.expect(&Token::RBracket);
+                                            hole_constraints = constraints;
+                                        }
+                                    }
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        self.expect(&Token::RParen)?;
+                    }
                 }
                 Token::AtAi => {
                     self.advance();
@@ -1105,6 +1420,63 @@ impl Parser {
                                             }
                                         }
                                     }
+                                    "task_category" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            ai_task_category = Some(v);
+                                        }
+                                    }
+                                    "strengths" => {
+                                        if self.eat(&Token::LBracket) {
+                                            let mut strengths: Vec<String> = vec![];
+                                            loop {
+                                                self.skip_newlines();
+                                                if matches!(self.peek(), Token::RBracket | Token::Eof)
+                                                {
+                                                    break;
+                                                }
+                                                if let Token::Ident(v) | Token::TypeIdent(v) =
+                                                    self.peek().clone()
+                                                {
+                                                    self.advance();
+                                                    strengths.push(v);
+                                                } else {
+                                                    self.advance();
+                                                }
+                                                if !self.eat(&Token::Comma) {
+                                                    break;
+                                                }
+                                            }
+                                            let _ = self.expect(&Token::RBracket);
+                                            ai_strengths = strengths;
+                                        }
+                                    }
+                                    "tier_max" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            match v.as_str() {
+                                                "Local" | "Light" | "Pro" | "Elite" => {
+                                                    ai_tier_max = Some(v);
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+                                    "cost_ceiling_usd_per_call" => match self.peek().clone() {
+                                        Token::FloatLit(v) => {
+                                            self.advance();
+                                            ai_cost_ceiling_usd_per_call = Some(v);
+                                        }
+                                        Token::IntLit(v) => {
+                                            self.advance();
+                                            ai_cost_ceiling_usd_per_call = Some(v as f64);
+                                        }
+                                        _ => {}
+                                    },
                                     _ => {
                                         self.advance();
                                     }
@@ -1127,28 +1499,40 @@ impl Parser {
                             if matches!(self.peek(), Token::RParen | Token::Eof) {
                                 break;
                             }
-                            if let Token::Ident(ref name) = self.peek().clone() {
-                                let name = name.clone();
-                                self.advance();
-                                if let Some(eff) =
-                                    crate::ast::decl::effect::EffectAnnotation::from_keyword(&name)
-                                {
-                                    if name == "mcp" && self.eat(&Token::LParen) {
-                                        if let Token::Ident(tool) = self.peek().clone() {
-                                            self.advance();
-                                            decorator_effects.push(
-                                                crate::ast::decl::effect::EffectAnnotation::Mcp(
-                                                    tool,
-                                                ),
-                                            );
+                            match self.peek().clone() {
+                                Token::Ident(ref name) => {
+                                    let name = name.clone();
+                                    self.advance();
+                                    if let Some(eff) =
+                                        crate::ast::decl::effect::EffectAnnotation::from_keyword(
+                                            &name,
+                                        )
+                                    {
+                                        if name == "mcp" && self.eat(&Token::LParen) {
+                                            if let Token::Ident(tool) = self.peek().clone() {
+                                                self.advance();
+                                                decorator_effects.push(
+                                                    crate::ast::decl::effect::EffectAnnotation::Mcp(
+                                                        tool,
+                                                    ),
+                                                );
+                                            }
+                                            let _ = self.expect(&Token::RParen);
+                                        } else {
+                                            decorator_effects.push(eff);
                                         }
-                                        let _ = self.expect(&Token::RParen);
-                                    } else {
-                                        decorator_effects.push(eff);
                                     }
                                 }
-                            } else {
-                                self.advance();
+                                // `env` lexes as a keyword (`Token::Env`) — mirror `parse_uses_clause`.
+                                Token::Env => {
+                                    self.advance();
+                                    decorator_effects.push(
+                                        crate::ast::decl::effect::EffectAnnotation::Env,
+                                    );
+                                }
+                                _ => {
+                                    self.advance();
+                                }
                             }
                             if !self.eat(&Token::Comma) {
                                 break;
@@ -1555,6 +1939,28 @@ impl Parser {
             llm_model,
             ai_structured_output_type,
             ai_max_iterations,
+            ai_task_category,
+            ai_strengths,
+            ai_tier_max,
+            ai_cost_ceiling_usd_per_call,
+            prompt_stage,
+            prompt_schema,
+            prompt_redact,
+            subagent_policy,
+            subagent_max_depth,
+            subagent_budget_usd,
+            subagent_description,
+            subagent_parallel,
+            subagent_complexity,
+            search_corpus,
+            search_query,
+            search_into,
+            search_top_k,
+            search_policy,
+            hole_spec,
+            hole_reviewer,
+            hole_cache_key,
+            hole_constraints,
             embed: embed_span.map(|sp| crate::ast::decl::embed_decorator::AstEmbedSpec {
                 model: embed_model.unwrap_or_default(),
                 dimensions: embed_dimensions,
@@ -1635,6 +2041,28 @@ impl Parser {
             llm_model: None,
             ai_structured_output_type: None,
             ai_max_iterations: 3,
+            ai_task_category: None,
+            ai_strengths: vec![],
+            ai_tier_max: None,
+            ai_cost_ceiling_usd_per_call: None,
+            prompt_stage: None,
+            prompt_schema: None,
+            prompt_redact: vec![],
+            subagent_policy: None,
+            subagent_max_depth: None,
+            subagent_budget_usd: None,
+            subagent_description: None,
+            subagent_parallel: false,
+            subagent_complexity: None,
+            search_corpus: None,
+            search_query: None,
+            search_into: None,
+            search_top_k: None,
+            search_policy: None,
+            hole_spec: None,
+            hole_reviewer: None,
+            hole_cache_key: None,
+            hole_constraints: vec![],
             embed: None,
             is_pub: true,
             auth_provider: None,

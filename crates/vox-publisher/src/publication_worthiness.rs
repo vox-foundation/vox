@@ -356,7 +356,7 @@ pub fn machine_venue_profile_violations(
 
 /// Aggregate worthiness score for [`crate::PublisherConfig::worthiness_score`] (per-channel policy floors).
 ///
-/// Matches the orchestrator news service probe: default contract under `repo_root`, [`PreflightProfile::Default`].
+/// Matches the orchestrator news service probe: default contract under `repo_root`, `PreflightProfile::Default`.
 pub fn worthiness_score_for_publication_manifest(
     manifest: &crate::publication::PublicationManifest,
     repo_root: &Path,

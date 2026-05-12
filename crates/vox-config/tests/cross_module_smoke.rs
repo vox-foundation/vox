@@ -36,7 +36,7 @@ fn bootstrap_inference_pins_known_aliases() {
 fn operator_registry_exports_non_empty_env_catalog() {
     let names = operator_registry::all_operator_env_names();
     assert!(
-        names.iter().any(|n| *n == "VOX_SEARCH_POLICY_VERSION"),
+        names.contains(&"VOX_SEARCH_POLICY_VERSION"),
         "expected at least one known operator env name in catalog"
     );
 }

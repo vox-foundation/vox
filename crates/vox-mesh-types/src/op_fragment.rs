@@ -41,13 +41,13 @@ impl OpFragmentEnvelope {
     /// `serde_json`. This is deterministic across platforms and Rust versions.
     pub fn canonical_signing_bytes(&self) -> Vec<u8> {
         let mut v = serde_json::to_value(self).expect("OpFragmentEnvelope is always serialisable");
-        if let Some(sig) = v.get_mut("signature") {
-            if let Some(obj) = sig.as_object_mut() {
-                obj.insert(
-                    "signature_b64".to_string(),
-                    serde_json::Value::String(String::new()),
-                );
-            }
+        if let Some(sig) = v.get_mut("signature")
+            && let Some(obj) = sig.as_object_mut()
+        {
+            obj.insert(
+                "signature_b64".to_string(),
+                serde_json::Value::String(String::new()),
+            );
         }
         // Sort keys for canonical form.
         let canonical = sort_json_keys(v);

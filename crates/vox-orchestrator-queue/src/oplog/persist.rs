@@ -111,7 +111,7 @@ impl OpLog {
 
         write_entry(&ctx, &entry).await?;
 
-        if id.0 % ctx.compaction_interval == 0 {
+        if id.0.is_multiple_of(ctx.compaction_interval) {
             super::checkpoint::compact_now(ctx, id).await?;
         }
 
@@ -152,7 +152,7 @@ impl OpLog {
                 context_snapshot_before: None,
                 context_snapshot_after: None,
                 undone: row.undone,
-                change_id: row.change_id.map(|c| ChangeId(c)),
+                change_id: row.change_id.map(ChangeId),
                 model_id: row.model_id,
                 predecessor_hash: row.predecessor_hash,
                 signature: None,

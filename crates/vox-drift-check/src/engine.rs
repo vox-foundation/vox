@@ -153,7 +153,7 @@ mod tests {
         let rust_files: Vec<_> = ws
             .files
             .iter()
-            .filter(|f| f.file.extension().map_or(false, |e| e == "rs"))
+            .filter(|f| f.file.extension().is_some_and(|e| e == "rs"))
             .collect();
         assert!(!rust_files.is_empty());
         assert!(

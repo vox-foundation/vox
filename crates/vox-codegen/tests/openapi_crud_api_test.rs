@@ -35,6 +35,7 @@ fn crud_api_openapi_lists_error_envelope_and_default_response() {
         tanstack_start: false,
         target: None,
         mode: BuildMode::Library,
+        ..Default::default()
     };
     let out = generate_with_options(&hir, opts).expect("codegen");
     let openapi_str = out

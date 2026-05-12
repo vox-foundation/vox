@@ -374,6 +374,12 @@ pub struct HuggingFaceCatalog {
     client: reqwest::Client,
 }
 
+impl Default for HuggingFaceCatalog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HuggingFaceCatalog {
     pub fn new() -> Self {
         Self {
@@ -429,6 +435,12 @@ impl ModelCatalog for HuggingFaceCatalog {
 pub struct PopuliMeshCatalog {
     #[allow(dead_code)]
     client: reqwest::Client,
+}
+
+impl Default for PopuliMeshCatalog {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PopuliMeshCatalog {
@@ -524,6 +536,12 @@ pub struct AnthropicDirectCatalog {
     client: reqwest::Client,
 }
 
+impl Default for AnthropicDirectCatalog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnthropicDirectCatalog {
     pub fn new() -> Self {
         Self {
@@ -582,7 +600,6 @@ impl ModelCatalog for AnthropicDirectCatalog {
             // routing. Mark pricing_unknown=true so the spec is treated as a placeholder and
             // excluded from cost-ranked routing until the next LiteLLM patch arrives.
             let (c_in, c_out) = (0.0_f64, 0.0_f64);
-            let pricing_unknown = c_in == 0.0 && c_out == 0.0;
 
             // Classify tier by model name since we no longer hardcode prices here.
             let is_opus = m.id.contains("opus");
@@ -600,9 +617,9 @@ impl ModelCatalog for AnthropicDirectCatalog {
                 cost_per_1k: c_out,
                 cost_per_1k_input: c_in,
                 cost_per_1k_output: c_out,
-                // Treat as free placeholder until LiteLLM supplies real pricing; this prevents
+                // Treat as unknown until LiteLLM supplies real pricing; this prevents
                 // zero-priced non-free models from topping economy routing before prices arrive.
-                is_free: pricing_unknown,
+                is_free: false,
                 strengths: infer_strengths(&m.id, Some(&m.display_name), &[]),
                 capabilities: ModelCapabilities {
                     supports_native_tools: true,
@@ -620,7 +637,7 @@ impl ModelCatalog for AnthropicDirectCatalog {
                 cache_creation_cost_per_1k: 0.0,
                 cache_read_cost_per_1k: 0.0,
                 supports_prompt_caching: false, // LiteLLM will fill this in
-                pricing_source: crate::models::spec::PricingSource::Bootstrap,
+                pricing_source: crate::models::spec::PricingSource::Unknown,
             });
         }
         Ok(specs)
@@ -630,6 +647,12 @@ impl ModelCatalog for AnthropicDirectCatalog {
 /// A catalog that pulls available models directly from Google's Generative Language API.
 pub struct GoogleDirectCatalog {
     client: reqwest::Client,
+}
+
+impl Default for GoogleDirectCatalog {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GoogleDirectCatalog {

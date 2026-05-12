@@ -8,7 +8,7 @@
 use vox_share::binary_cache::{CLOUDFLARED_VERSION, cloudflared_url_and_checksum};
 
 #[test]
-#[ignore = "network test — run with --ignored in CI"]
+#[ignore = "network test — run with --ignored in CI — owner: vox-share sunset: 2026-12-31"]
 fn cloudflared_version_constant_is_reasonable() {
     // Just verify the version string looks like a cloudflared release version.
     assert!(

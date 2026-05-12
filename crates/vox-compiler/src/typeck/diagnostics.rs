@@ -404,4 +404,109 @@ pub mod codes {
         WORKFLOW_SIDE_EFFECT_OUTSIDE_WORKFLOW,
         EFFECT_MISSING_DECLARATION,
     ];
+
+    /// Every `Diagnostic.code` string used by the compiler frontend that must stay disjoint
+    /// from `vox-code-audit` rule ids (`contracts/code-audit/rules.v1.yaml`).
+    ///
+    /// When adding a new stable diagnostic code in `vox-compiler`, append it here and run
+    /// `cargo test -p vox-code-audit no_audit_rule_collides_with_compiler_diagnostic_code`.
+    pub const ALL_COMPILER_DIAGNOSTIC_CODES: &[&str] = &[
+        TYPES_DURABLE_PROMISE_ARITY,
+        TYPES_FUTURE_DEPRECATED,
+        TYPES_PROMISE_DEPRECATED,
+        API_MESH_PREFIX_DEPRECATED,
+        REMOTE_NON_SERIALIZABLE_PARAM,
+        REMOTE_NON_SERIALIZABLE_RETURN,
+        WORKFLOW_WITH_ID_NON_DETERMINISTIC,
+        WORKFLOW_NON_DETERMINISTIC_CALL,
+        WORKFLOW_SIDE_EFFECT_OUTSIDE_WORKFLOW,
+        EFFECT_MISSING_DECLARATION,
+        // Pipeline / parse / hygiene / ADR-028 reserved-keyword gate
+        "E0001",
+        "E028",
+        "E091",
+        "W092",
+        "W093",
+        // Effects
+        "E_EFFECT_PURE_CONFLICT",
+        "E_EFFECT_DUPLICATE",
+        // Match / state machine / URL
+        "E0301",
+        "E_SM_UNKNOWN_STATE",
+        "E200",
+        "E201",
+        "E202",
+        // Lint namespace
+        "lint.theme_contrast",
+        "lint.search_index_unknown_table",
+        "lint.search_index_not_table",
+        "lint.search_index_unknown_field",
+        "lint.search_index_field_type",
+        "lint.table_id_column",
+        "lint.index_unknown_table",
+        "lint.pure_shallow_violation",
+        "lint.handler.uncancellable_async",
+        "lint.legacy_component_fn",
+        "lint.effect.unresolvable_deps",
+        "lint.query_not_readonly",
+        "lint.closure.stale_capture",
+        "lint.form.unknown_endpoint",
+        "lint.form.field_unmatched",
+        "lint.form.field_type_mismatch",
+        // Typecheck namespace
+        "typecheck.deprecated_ident",
+        "typecheck.arg_mismatch",
+        // vox/* semantic checks
+        "vox/auth/capability-leak",
+        "vox/effect/pure-violation",
+        "vox/taint/pii-leak",
+        "vox/vector/dimension-mismatch",
+        "vox/embed/zero-dimensions",
+        "vox/ai/return-shape-not-codec'd",
+        "vox/upload/empty-mime",
+        "vox/upload/zero-max-bytes",
+        "vox/webhook/replay-window-out-of-range",
+        "vox/webhook/missing-secret-var",
+        "vox/cors/credentials-with-wildcard",
+        "vox/pii/unannotated-net-effect",
+        "vox/tokens/contrast-violation",
+        "vox/tokens/invalid-hex",
+        "vox/async/missing-arm",
+        "vox/train/cuda-required",
+        "vox/layer/tier-inversion",
+        "vox/layer/duplicate-mark",
+        "vox/layer/reserved-tier",
+        "vox/layer/dangling-mark",
+        "vox/form/missing-label",
+        // Missing `@uses(...)` effect declarations (HIR graft)
+        "vox/effect/missing-net-decl",
+        "vox/effect/missing-fs-decl",
+        "vox/effect/missing-time-decl",
+        "vox/effect/missing-random-decl",
+        "vox/effect/missing-secret-decl",
+        "vox/effect/missing-llm-decl",
+        // Semantic UI labels (`semantic_ui.rs`)
+        "vox/a11y/dialog-missing-label",
+        "vox/a11y/menu-missing-label",
+        "vox/a11y/listbox-missing-label",
+        "vox/a11y/combobox-missing-label",
+        "vox/a11y/tabs-missing-label",
+    ];
+
+    #[cfg(test)]
+    mod guard_tests {
+        use super::ALL_COMPILER_DIAGNOSTIC_CODES;
+        use std::collections::HashSet;
+
+        #[test]
+        fn compiler_diagnostic_codes_are_unique() {
+            let mut seen = HashSet::new();
+            for code in ALL_COMPILER_DIAGNOSTIC_CODES {
+                assert!(
+                    seen.insert(*code),
+                    "duplicate compiler diagnostic code in ALL_COMPILER_DIAGNOSTIC_CODES: {code}"
+                );
+            }
+        }
+    }
 }

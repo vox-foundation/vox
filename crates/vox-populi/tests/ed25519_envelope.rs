@@ -1,5 +1,10 @@
 //! Ed25519 envelope round-trip and trust-gate tests (P5-T1a, P5-T1b, P5-T1c).
 
+// Rust 2024: `std::env::set_var` / `remove_var` are `unsafe`. Each `unsafe`
+// block below documents serialization assumptions (these tests do not run
+// concurrently with anything else that touches the same env vars).
+#![allow(unsafe_code)]
+
 use base64::Engine as _;
 use vox_crypto::{generate_signing_keypair, verifying_key_to_bytes};
 use vox_populi::transport::envelope::{EnvelopeVerifyError, SignedA2AEnvelope};

@@ -273,6 +273,15 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_knowledge_query" => parse_obj(
             r#"{"type":"object","properties":{"query":{"type":"string"},"limit":{"type":"integer"}},"required":["query"],"additionalProperties":false}"#,
         ),
+        "vox_research_run" => parse_obj(
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"},"json":{"type":"boolean"}},"required":["query"],"additionalProperties":false}"#,
+        ),
+        "vox_research_start" => parse_obj(
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"}},"required":["query"],"additionalProperties":false}"#,
+        ),
+        "vox_research_status" | "vox_research_get" => parse_obj(
+            r#"{"type":"object","properties":{"session_id":{"type":"integer","minimum":1}},"required":["session_id"],"additionalProperties":false}"#,
+        ),
 
         // ── Sessions & compaction ─────────────────────────────────────────────
         "vox_session_create" => parse_obj(

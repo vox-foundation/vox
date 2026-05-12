@@ -4,7 +4,7 @@ use vox_orchestrator::dei_shim::research::{
 };
 
 #[tokio::test]
-async fn planner_stub_returns_single_subquery() {
+async fn planner_without_available_model_falls_back_to_single_subquery() {
     let q = ResearchQuery {
         query: "test".into(),
         scope: ResearchScope::Both,
@@ -15,7 +15,7 @@ async fn planner_stub_returns_single_subquery() {
     };
     let plan = decompose_query_with_config(&q, None, None, None, None, None)
         .await
-        .expect("stub returns Ok");
+        .expect("planner fallback returns Ok");
     assert_eq!(plan.original_query, "test");
     assert_eq!(plan.subqueries, vec!["test".to_string()]);
 }

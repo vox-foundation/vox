@@ -15,7 +15,7 @@ use axum::{
     response::{IntoResponse, Json, Response},
     routing::{get, post},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use tracing::{info, warn};
 
@@ -162,16 +162,9 @@ async fn list_channels(State(state): State<WebhookState>) -> Json<ChannelListRes
     })
 }
 
-#[derive(Serialize)]
-struct WebhookResponse {
-    event_id: String,
-    accepted: bool,
-}
-
-#[derive(Deserialize)]
-struct WebhookQuery {
-    // optional event_type override from query param
-}
+// `WebhookResponse` / `WebhookQuery` placeholders were removed (unused).
+// `receive_webhook` returns a `serde_json::Value` directly until the response
+// shape is needed; reintroduce typed structs at the same time as their fields.
 
 async fn receive_webhook(
     State(state): State<WebhookState>,

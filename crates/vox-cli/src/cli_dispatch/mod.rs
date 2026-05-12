@@ -36,6 +36,7 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         | Cli::Run { .. }
         | Cli::Dev { .. }
         | Cli::BundleApp { .. }
+        | Cli::Compile { .. }
         | Cli::Fmt { .. } => {
             std::unreachable!("top-level fabrica shims are routed before this match")
         }
@@ -242,6 +243,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Db { cmd } => {
             crate::commands::db_cli::run(cmd).await?;
         }
+        Cli::Memory { cmd } => {
+            crate::commands::memory_cli::run(cmd).await?;
+        }
         Cli::Scientia { cmd } => {
             crate::commands::scientia::run(cmd).await?;
         }
@@ -358,9 +362,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
                 .await
                 .map_err(|e| anyhow::anyhow!("{:?}", e))?;
         }
-        #[cfg(feature = "dashboard")]
-        Cli::Dashboard { args } => {
-            crate::commands::dashboard::run(args).await?;
+        #[cfg(feature = "gui")]
+        Cli::Gui { args } => {
+            crate::commands::gui::run(args).await?;
         }
         Cli::DriftCheck { args } => {
             crate::commands::drift_check::run(args).await?;

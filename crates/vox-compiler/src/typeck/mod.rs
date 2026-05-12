@@ -107,14 +107,29 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
             }
         }
     }
-    // GA-21: @ai structured-output codec check — reject @ai fns whose return type has no codec.
+    // GA-21 + AI fixtures: structural checks on every semantic-core function-like surface.
     let declared_type_names: std::collections::HashSet<&str> =
         hir.types.iter().map(|t| t.name.as_str()).collect();
-    for f in &hir.functions {
+    let ai_fixture_fn_sources = hir
+        .functions
+        .iter()
+        .chain(hir.tests.iter())
+        .chain(hir.foralls.iter().map(|p| &p.func))
+        .chain(hir.mcp_tools.iter().map(|t| &t.func))
+        .chain(hir.mcp_resources.iter().map(|r| &r.func));
+    for f in ai_fixture_fn_sources {
         if let Some(ao) = &f.ai_structured_output {
             let has_codec = declared_type_names.contains(ao.return_type.as_str());
             if let Some(d) = boilerplate_grafts::check_ai_return_shape(ao, has_codec) {
                 diags.push(d);
+            }
+        }
+        diags.extend(boilerplate_grafts::collect_ai_fixture_diagnostics(f));
+        if let Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::Hole(hole)) = &f.ai_fixture
+        {
+            diags.push(boilerplate_grafts::check_unfilled_fixture_hole(hole));
+            if let Some(stale) = boilerplate_grafts::check_fixture_hole_staleness(hole) {
+                diags.push(stale);
             }
         }
         // GA-24: @embed dimension validity.

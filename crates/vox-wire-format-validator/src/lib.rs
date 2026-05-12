@@ -1,8 +1,8 @@
 //! Wire-format SSOT drift detector.
 //!
-//! Checks that [`docs/src/architecture/wire-format-v1-ssot.md`] has not been
+//! Checks that `docs/src/architecture/wire-format-v1-ssot.md` has not been
 //! modified without a corresponding update to the Contract IR implementation
-//! ([`vox_compiler::contract_ir`]).
+//! (`vox_compiler::contract_ir`).
 //!
 //! **How the lock works:**
 //! - [`EXPECTED_SSOT_HASH`] contains the blake3 hex digest of the SSOT doc as

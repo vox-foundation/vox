@@ -16,7 +16,30 @@ use crate::cli_args::CheckArgs;
 pub async fn run(args: &CheckArgs) -> Result<()> {
     let file = &args.file;
     let json = args.output_format == "json"
+        || args.for_llm
         || std::env::var("VOX_CLI_GLOBAL_JSON").ok().as_deref() == Some("1");
+
+    if args.for_llm {
+        let source = vox_bounded_fs::read_utf8_path_capped(file)?;
+        let llm_json = crate::pipeline::format_check_for_llm_json(&source, file);
+        println!("{}", llm_json);
+        let envelope: serde_json::Value =
+            serde_json::from_str(&llm_json).unwrap_or_else(|_| serde_json::json!({}));
+        let error_count = envelope
+            .get("error_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        if error_count > 0 {
+            anyhow::bail!("Check failed (--for-llm): {error_count} error-level diagnostic(s)");
+        }
+        let warning_count = envelope
+            .get("warning_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        println!("Check passed (--for-llm) with {warning_count} warning(s)");
+        return Ok(());
+    }
+
     let result = crate::pipeline::run_frontend(file, json).await?;
     crate::pipeline::print_diagnostics(&result, file, json);
     let error_count = result.error_count();

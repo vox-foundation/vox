@@ -1,5 +1,6 @@
 //! `vox test` — runs `cargo test` in the generated Rust crate under `target/generated`.
 
+use crate::cli_args::BuildMode;
 use crate::commands::build;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
@@ -32,7 +33,8 @@ async fn run_once(args: &crate::cli_args::TestArgs) -> Result<()> {
         None,
         false,
         false,
-        crate::cli_args::BuildMode::App,
+        BuildMode::App,
+        vox_codegen::codegen_rust::RustAppShell::default(),
     )
     .await?;
 

@@ -197,8 +197,8 @@ impl OrchestratorPolicyConfig {
 
 /// Single entry-point for all orchestrator policy decisions.
 ///
-/// Construct once and call [`evaluate`] after each loop iteration.
-/// The [`CalibrationLoop`] is stateful — it accumulates observations across calls.
+/// Construct once and call `evaluate` after each loop iteration.
+/// The `CalibrationLoop` is stateful — it accumulates observations across calls.
 pub struct OrchestratorPolicy {
     feature_flags: OrchestrationFeatureFlags,
     cb: CircuitBreaker,

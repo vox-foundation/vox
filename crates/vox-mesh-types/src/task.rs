@@ -42,7 +42,7 @@ impl TaskKind {
             "speech_transcribe" => Self::SpeechTranscribe,
             "train_qlora" => Self::TrainQLoRA,
             "embed" => Self::Embed,
-            "vox_script" | _ => Self::VoxScript,
+            _ => Self::VoxScript,
         }
     }
 }

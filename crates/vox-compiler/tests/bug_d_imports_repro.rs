@@ -29,7 +29,7 @@ component VoicePage() {
 "#;
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn endpoint_calls_emit_imports() {
     let tokens = vox_compiler::lexer::lex(FIXTURE);
     let module = vox_compiler::parser::parse(tokens).expect("parse");

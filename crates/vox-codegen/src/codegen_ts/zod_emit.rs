@@ -3,7 +3,7 @@
 //! This module reads [`vox_compiler::contract_ir::ContractIr`] rather than walking HIR
 //! directly. The wire-format-v1 rules (Decimal/BigInt → string, Option →
 //! optional, sum types → `_tag`-discriminated unions) live in
-//! [`vox_compiler::contract_ir::project`] — Zod, OpenAPI, JSON Schema, and the TS
+//! `vox_compiler::contract_ir::project` (the function) — Zod, OpenAPI, JSON Schema, and the TS
 //! client SDK all share that single projection.
 
 use vox_compiler::contract_ir::{

@@ -646,6 +646,9 @@ impl Parser {
                 span: arm_start.merge(self.span()),
             });
             self.skip_newlines();
+            // Rust-style separators: `arm => expr,` (including trailing comma before `}`).
+            let _ = self.eat(&Token::Comma);
+            self.skip_newlines();
         }
         self.eat(&Token::RBrace);
         Ok(Expr::Match {

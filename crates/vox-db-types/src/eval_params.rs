@@ -1,6 +1,6 @@
 //! Structured eval-run recording (RLHF / dogfood tooling).
 
-/// Parameters for [`crate::VoxDb::record_eval_run`].
+/// Parameters for `vox_db::VoxDb::record_eval_run`.
 #[derive(Debug, Clone)]
 pub struct EvalRunParams<'a> {
     /// Stable id for this eval run (e.g. UUID or batch key).

@@ -30,7 +30,7 @@ fn extract_codegen_activity_names(lib_src: &str) -> Vec<String> {
 }
 
 #[test]
-#[ignore = "@server bare shorthand is not in the parser; use @endpoint(kind: server) fn instead"]
+#[ignore = "@server bare shorthand is not in the parser; use @endpoint(kind: server) fn instead — owner: integration-tests sunset: 2026-12-31"]
 fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
     let src = r#"
 @server fn chat(prompt: str) to str {
@@ -38,14 +38,14 @@ fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
 }
 "#;
     let hir = lower(src);
-    let out = generate_rust(&hir, "parity_app").expect("rust codegen should succeed");
+    let out = generate_rust(&hir, "parity_app", vox_codegen::codegen_rust::RustAppShell::default()).expect("rust codegen should succeed");
     let main_rs = out.files.get("src/main.rs").expect("main.rs should exist");
 
     insta::assert_snapshot!("parity_app_main_rs_emit", main_rs);
 }
 
 #[test]
-#[ignore = "@server bare shorthand is not in the parser; use @endpoint(kind: server) fn instead"]
+#[ignore = "@server bare shorthand is not in the parser; use @endpoint(kind: server) fn instead — owner: integration-tests sunset: 2026-12-31"]
 fn parity_contract_api_client_supports_secure_headers_and_streaming() {
     let src = r#"
 @server fn summarize(input: str) to str {
@@ -133,7 +133,7 @@ workflow main_flow() to Result[str] {
     let steps = plan_workflow_activities(&hir, "main_flow").expect("interpreted plan should build");
     let planned_names: Vec<String> = steps.iter().map(|s| s.name.clone()).collect();
 
-    let generated = generate_rust(&hir, "parity_app").expect("rust codegen should succeed");
+    let generated = generate_rust(&hir, "parity_app", vox_codegen::codegen_rust::RustAppShell::default()).expect("rust codegen should succeed");
     let lib_rs = generated
         .files
         .get("src/lib.rs")
@@ -186,7 +186,7 @@ workflow main_flow() to Result[str] {
         Some("email-step-alias"),
         "planner should map `id` alias to activity_id"
     );
-    let generated = generate_rust(&hir, "parity_app").expect("rust codegen should succeed");
+    let generated = generate_rust(&hir, "parity_app", vox_codegen::codegen_rust::RustAppShell::default()).expect("rust codegen should succeed");
     let lib_rs = generated
         .files
         .get("src/lib.rs")

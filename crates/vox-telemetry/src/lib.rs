@@ -36,8 +36,15 @@ pub use recorder::{CompositeRecorder, TelemetryRecorder, global_recorder, set_gl
 pub use span::{TRACE_CTX, TraceContext, current_trace_ctx};
 pub use types::{
     // event types
+    AiFixtureEvent,
     BuildSummaryEvent,
     ErrorEvent,
+    FixtureModelIntentResolvedEvent,
+    HoleObservedTelemetryEvent,
+    OrchSubagentDispatchEvent,
+    PromptDispatchTelemetryEvent,
+    SearchDispatchTelemetryEvent,
+    SubagentDispatchTelemetryPayload,
     METRIC_TYPE_AGENT_EXEC_TIME,
     // existing metric types
     METRIC_TYPE_AGENTOS_GUARDRAIL_DENY,
@@ -52,6 +59,10 @@ pub use types::{
     METRIC_TYPE_CIRCUIT_BREAKER_TRIP,
     METRIC_TYPE_DRIFT_ALERT,
     METRIC_TYPE_ERROR_EVENT,
+    METRIC_TYPE_FIXTURE_HOLE_OBSERVED,
+    METRIC_TYPE_FIXTURE_MODEL_INTENT,
+    METRIC_TYPE_FIXTURE_PROMPT_DISPATCH,
+    METRIC_TYPE_FIXTURE_SEARCH_DISPATCH,
     METRIC_TYPE_HITL_INTERRUPT,
     METRIC_TYPE_MEMORY_HYBRID_FUSION,
     METRIC_TYPE_MODEL_CALL_EVENT,
@@ -97,8 +108,8 @@ pub use types::{
 ///
 /// No-op (zero cost) when no recorder has been registered via [`set_global_recorder`].
 ///
-/// ```rust,ignore
-/// record_event!(&TelemetryEvent::ResearchMetric(ResearchMetricEvent { … }));
+/// ```text
+/// record_event!(&TelemetryEvent::ResearchMetric(ResearchMetricEvent { ... }));
 /// ```
 #[macro_export]
 macro_rules! record_event {

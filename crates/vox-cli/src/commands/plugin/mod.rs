@@ -45,7 +45,7 @@ pub enum PluginCmd {
     Publish {
         /// Plugin id to publish, e.g. `my-skill`.
         id: String,
-        /// OpenClaw gateway URL (defaults to https://api.clawhub.ai).
+        /// OpenClaw gateway URL (defaults to <https://api.clawhub.ai>).
         #[arg(long, value_name = "URL")]
         gateway: Option<String>,
         /// API key for the gateway (overrides OPENCLAW_API_KEY env var).

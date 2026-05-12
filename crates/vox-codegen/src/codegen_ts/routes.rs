@@ -2,13 +2,13 @@
 //!
 //! ## Adapter seam (OP-0161..OP-0176)
 //!
-//! - **Input:** [`ExpressRouteEmitCtx`] wraps [`HirModule`] for validation + deterministic emission order.
+//! - **Input:** `ExpressRouteEmitCtx` wraps `HirModule` for validation + deterministic emission order.
 //! - **Contracts:** [`crate::web_ir::lower::lower_hir_to_web_ir`] is the structural SSOT for route IDs and
 //!   client/tree tooling; this module remains **body-driven** Express glue (actor `send`, `spawn`, etc.).
-//! - **TanStack Start / SPA:** unchanged here — [`super::emitter::CodegenOptions::tanstack_start`] only
+//! - **TanStack Start / SPA:** unchanged here — `super::emitter::CodegenOptions::tanstack_start` only
 //!   affects client route-tree files (OP-0168).
 //!
-//! Use [`validate_express_route_emit_input`] before enabling `VOX_EMIT_EXPRESS_SERVER` when you need
+//! Use `validate_express_route_emit_input` before enabling `VOX_EMIT_EXPRESS_SERVER` when you need
 //! fail-fast checks (tests, CI).
 //!
 //! ## Route contract mapper (OP-S033)
@@ -21,7 +21,7 @@
 //!   orthogonal to client route family validation inside [`validate_web_ir`](crate::web_ir::validate::validate_web_ir).
 //!
 //! **Route contract + diff policy (OP-S061 / S089 / S117 / S139 / S159 / S191):** deterministic sort orders
-//! in this module must stay aligned with duplicate-detection in [`validate_express_route_emit_input`] and Web IR
+//! in this module must stay aligned with duplicate-detection in `validate_express_route_emit_input` and Web IR
 //! route id policy — changing sort keys requires dual updates in `validate_web_ir` route stage.
 
 use crate::codegen_ts::hir_emit::{EmitCtx, emit_hir_expr, emit_hir_pattern};

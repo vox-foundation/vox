@@ -1,6 +1,6 @@
 //! `vox emit client` — same artifacts as `vox build --target=client`.
 
-use crate::cli_args::EmitClientArgs;
+use crate::cli_args::{BuildMode, EmitClientArgs};
 use anyhow::Result;
 use std::path::Path;
 
@@ -12,7 +12,8 @@ pub async fn run(args: &EmitClientArgs) -> Result<()> {
         Some(vox_config::BuildTarget::Client),
         false,
         args.emit_ir,
-        crate::cli_args::BuildMode::Library,
+        BuildMode::Library,
+        vox_codegen::codegen_rust::RustAppShell::default(),
     )
     .await
 }

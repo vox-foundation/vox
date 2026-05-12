@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 description = "Unified Vox compiler crate containing lexer, parser, AST, HIR, typechecker, and codegen."
 
+[features]
+default = []
+ai-fixtures-v1 = []
+
 [dependencies]
 logos = { workspace = true }
 vox-eval = { workspace = true }

@@ -9,6 +9,7 @@ use owo_colors::OwoColorize;
 use vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_async};
 use vox_code_audit::detectors::all_rules;
 use vox_code_audit::diagnostics::catalog::{ALL_KNOWN_IDS, explain_url, is_known_id};
+use vox_code_audit::diagnostics::explain_ai_fixture_diagnostic;
 use vox_code_audit::rules::DetectionRule;
 use vox_code_audit::rules::{Language, Severity};
 use vox_code_audit::{Finding, OutputFormat, ToestubConfig, ToestubEngine};
@@ -539,11 +540,13 @@ pub fn explain_diagnostic(id: &str) -> anyhow::Result<()> {
 
     // Find the registered detector to get its explain() text
     let rules = all_rules(None);
-    let explain_text = rules
-        .iter()
-        .find(|r| r.diagnostic_id() == Some(id))
-        .map(|r| r.explain())
-        .unwrap_or("");
+    let explain_text = explain_ai_fixture_diagnostic(id).unwrap_or_else(|| {
+        rules
+            .iter()
+            .find(|r| r.diagnostic_id() == Some(id))
+            .map(|r| r.explain())
+            .unwrap_or("")
+    });
 
     println!("{}", "─".repeat(70));
     println!("  Diagnostic: {}", id.bright_cyan().bold());

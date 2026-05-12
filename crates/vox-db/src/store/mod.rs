@@ -1,15 +1,15 @@
 //! Turso-backed Arca [`VoxDb`]: CAS (`objects`), logical `names`, and typed SQL tables.
 //!
-//! **Cross-crate SQL access:** the connection lives in the public field [`VoxDb::conn`]. For a
+//! **Cross-crate SQL access:** the connection lives in the public field `VoxDb::conn`. For a
 //! stable borrowed accessor (used by `vox-db` research paths and other crates), prefer
-//! [`VoxDb::connection`](crate::store::VoxDb::connection) (see `store/ops.rs`) instead of
+//! `VoxDb::connection` (see `store/ops.rs`) instead of
 //! reaching for `.conn` ad hoc in new call sites.
 
 pub mod types;
 
 mod row_cols;
 
-/// Default relative path for the project Arca [`VoxDb`] SQLite file (under the repo/working tree).
+/// Default relative path for the project Arca `VoxDb` SQLite file (under the repo/working tree).
 pub const DEFAULT_PROJECT_STORE_PATH: &str = ".vox/store.db";
 
 pub use types::{

@@ -5,7 +5,7 @@
 //! - **`repl` is not a shell emulator**: no pipelines, session `cd`, robust quoting, or
 //!   policy-enforced passthrough of arbitrary shell lines.
 //! - **Host / agent shell work**: use real **`pwsh`** when available and validate with
-//!   [`check_terminal::run_check`] against `contracts/terminal/exec-policy.v1.yaml` (repo root).
+//!   `check_terminal::run_check` against `contracts/terminal/exec-policy.v1.yaml` (repo root).
 //! - **Inside `.vox`**: use typed `std.process` / `std.fs` / `std.path` (argv-first), not a
 //!   shell-string interpreter.
 //!

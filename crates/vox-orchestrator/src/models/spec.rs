@@ -16,6 +16,8 @@ pub enum PricingSource {
     /// Compile-time bootstrap JSON (may be stale). Used only as a cold-start fallback.
     #[default]
     Bootstrap,
+    /// We know this model exists but have no pricing data.
+    Unknown,
     /// Fetched from OpenRouter `/api/v1/models` at runtime.
     OpenRouter,
     /// Fetched directly from the Anthropic `/v1/models` API (key-gated).
@@ -245,25 +247,7 @@ impl ModelSpec {
     }
 }
 
-/// Default [`ModelConfig::premium_alias`] entries (portable defaults; override in `models.toml`).
-pub(super) fn built_in_premium_alias() -> HashMap<String, String> {
-    let mut map = HashMap::new();
-    let mythos_id = "claude-mythos-preview-20260407".to_string();
-    let sonnet_id = "anthropic/claude-sonnet-4.6".to_string();
-    let pro_planning_id = "google/gemini-2.5-pro-preview".to_string();
-    let r1_id = "deepseek/deepseek-r1".to_string();
 
-    map.insert("codegen".to_string(), mythos_id.clone());
-    map.insert("debugging".to_string(), mythos_id.clone());
-    map.insert("security".to_string(), mythos_id.clone());
-    map.insert("research".to_string(), pro_planning_id.clone());
-    map.insert("planning".to_string(), pro_planning_id.clone());
-    map.insert("review".to_string(), sonnet_id.clone());
-    map.insert("logic".to_string(), r1_id.clone());
-    map.insert("visus".to_string(), "qwen/qwen-3.5-vl".to_string());
-    // Fallback aliases will be handled by the updated registry logic soon
-    map
-}
 
 fn premium_alias_toml_default() -> HashMap<String, String> {
     let m = HashMap::new();
@@ -299,11 +283,14 @@ impl Default for ModelConfig {
                 m.id = local_model.clone();
                 m.canonical_slug = format!("local/{}", local_model);
             }
+            if m.capabilities.max_context == 0 {
+                m.capabilities.max_context = m.max_tokens;
+            }
         }
 
         Self {
             models,
-            premium_alias: built_in_premium_alias(),
+            premium_alias: vox_config::load_model_routing_config().premium_alias,
         }
     }
 }

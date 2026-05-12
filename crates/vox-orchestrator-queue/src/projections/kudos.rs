@@ -25,11 +25,11 @@ impl Projection for KudosProjection {
                 // Format: "kudos.add:<primitive>:<amount>"
                 let rest = label.trim_start_matches("kudos.add:");
                 let mut parts = rest.splitn(2, ':');
-                if let (Some(primitive), Some(amount_str)) = (parts.next(), parts.next()) {
-                    if let Ok(amount) = amount_str.parse::<i64>() {
-                        let key = (e.agent_id.0, primitive.to_string());
-                        *self.state.lock().unwrap().entry(key).or_default() += amount;
-                    }
+                if let (Some(primitive), Some(amount_str)) = (parts.next(), parts.next())
+                    && let Ok(amount) = amount_str.parse::<i64>()
+                {
+                    let key = (e.agent_id.0, primitive.to_string());
+                    *self.state.lock().unwrap().entry(key).or_default() += amount;
                 }
             }
             _ => {}

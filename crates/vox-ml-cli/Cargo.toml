@@ -59,21 +59,21 @@ clap = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "macros", "rt-multi-thread"] }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-tokio-stream = { version = "0.1" }
+tokio-stream = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 blake3 = { workspace = true, optional = true }
-cpal = { version = "0.15", optional = true }
-hound = { version = "3.5", optional = true }
-uuid = { version = "1.22.0", features = ["v4"] }
+cpal = { workspace = true, optional = true }
+hound = { workspace = true, optional = true }
+uuid = { workspace = true, features = ["v4"] }
 vox-bounded-fs.workspace = true
 reqwest.workspace = true
 owo-colors.workspace = true
 regex.workspace = true
 walkdir.workspace = true
 vox-corpus.workspace = true
-dialoguer = "0.12.0"
+dialoguer = { workspace = true }
 vox-actor-runtime.workspace = true
 vox-scaling-policy.workspace = true
 vox-repository.workspace = true
@@ -90,7 +90,7 @@ vox-constrained-gen = { workspace = true }
 axum = { workspace = true, optional = true }
 
 [dev-dependencies]
-tempfile = "3.10"
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

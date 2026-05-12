@@ -67,12 +67,11 @@ fn find_repo_root() -> Option<PathBuf> {
     let mut dir = start.as_path();
     loop {
         let candidate = dir.join("Cargo.toml");
-        if candidate.exists() {
-            if let Ok(content) = std::fs::read_to_string(&candidate) {
-                if content.contains("[workspace]") {
-                    return Some(dir.to_path_buf());
-                }
-            }
+        if candidate.exists()
+            && let Ok(content) = std::fs::read_to_string(&candidate)
+            && content.contains("[workspace]")
+        {
+            return Some(dir.to_path_buf());
         }
         dir = dir.parent()?;
     }

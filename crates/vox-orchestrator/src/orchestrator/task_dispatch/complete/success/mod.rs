@@ -97,8 +97,8 @@ impl Orchestrator {
             }
         }
 
-        let link_audit_enabled = crate::sync_lock::rw_read(&*self.config)
-            .completion_markdown_link_audit_enabled;
+        let link_audit_enabled =
+            crate::sync_lock::rw_read(&*self.config).completion_markdown_link_audit_enabled;
         let broken_links_report = if task_clone_opt.is_some() && link_audit_enabled {
             crate::orchestrator::task_dispatch::complete::audit_reporter::verify_broken_links(
                 &write_files,
@@ -154,11 +154,11 @@ impl Orchestrator {
             let mut auto_debug_requeue: Option<(crate::types::AgentTask, String, usize, usize)> =
                 None;
 
-            if let Some(ref task) = queue.current_task() {
+            if let Some(task) = queue.current_task() {
                 // Behavioral gate
                 if let Some(msg) = gates::check_behavioral_gate(&mut behavioral_failure) {
                     if task.debug_iterations < max_debug_iterations {
-                        let mut t = (*task).clone();
+                        let mut t = task.clone();
                         t.debug_iterations += 1;
                         t.description.push_str(&format!(
                             "\n\n[BEHAVIORAL GATE]\nBehavioral tests failed. Fix and retry:\n{}",
@@ -334,7 +334,7 @@ impl Orchestrator {
                 task_id,
                 &phase_label,
                 "toestub_requeue",
-                requeue_task.debug_iterations as u8,
+                requeue_task.debug_iterations,
             );
             queue.enqueue(requeue_task);
             return Ok(());

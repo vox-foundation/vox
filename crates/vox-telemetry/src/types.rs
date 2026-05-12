@@ -92,6 +92,15 @@ pub const METRIC_TYPE_BUILD_SUMMARY_EVENT: &str = "build.summary";
 /// S1 — Generic subsystem error / retry event. (Phase D)
 pub const METRIC_TYPE_ERROR_EVENT: &str = "telemetry.error";
 
+/// S1 — AI-first `@ai` fixture: intent routing metadata (task category, strengths).
+pub const METRIC_TYPE_FIXTURE_MODEL_INTENT: &str = "fixture.model.intent_resolved";
+/// S1 — AI-first `@prompt` fixture: cascade dispatch observation.
+pub const METRIC_TYPE_FIXTURE_PROMPT_DISPATCH: &str = "fixture.prompt.dispatch";
+/// S1 — AI-first `@search` fixture: retrieval dispatch observation.
+pub const METRIC_TYPE_FIXTURE_SEARCH_DISPATCH: &str = "fixture.search.dispatch";
+/// S1 — AI-first `@hole` fixture: compile-time hole observed (staleness / inventory).
+pub const METRIC_TYPE_FIXTURE_HOLE_OBSERVED: &str = "fixture.hole.observed";
+
 // ── Session id prefixes ──────────────────────────────────────────────────────
 
 pub const SESSION_PREFIX_BENCH: &str = "bench:";
@@ -159,7 +168,7 @@ fn valid_metric_type_chars(s: &str) -> bool {
 
 /// Validate inputs before `INSERT INTO research_metrics`.
 ///
-/// Called by [`vox_db::VoxDb::append_research_metric`] on every write.
+/// Called by `vox_db::VoxDb::append_research_metric` on every write.
 pub fn validate_research_metric_row(
     session_id: &str,
     metric_type: &str,
@@ -231,7 +240,86 @@ pub enum TelemetryEvent {
     BuildSummary(BuildSummaryEvent),
     /// Subsystem error / retry event (Phase D).
     Error(ErrorEvent),
+    /// AI-first language fixtures (`@ai`, `@prompt`, `@subagent`, `@search`, `@hole`).
+    AiFixture(AiFixtureEvent),
 }
+
+/// Payload aligned with `contracts/telemetry/fixture-model-intent-resolved.v1.schema.json`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct FixtureModelIntentResolvedEvent {
+    pub task_category: String,
+    #[serde(default)]
+    pub strengths: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tier_max: Option<String>,
+    pub resolved_model_hint: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+}
+
+/// Payload aligned with `contracts/telemetry/orch-subagent-dispatch.v1.schema.json`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct SubagentDispatchTelemetryPayload {
+    pub metric_type: String,
+    pub decision: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub complexity: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chain_depth: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_task_id: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub span_depth: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dispatch_latency_ms: Option<u64>,
+}
+
+/// Payload aligned with `contracts/telemetry/fixture-prompt-dispatch.v1.schema.json`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct PromptDispatchTelemetryEvent {
+    pub stage: String,
+    pub outcome: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(default)]
+    pub redact_count: u32,
+}
+
+/// Payload aligned with `contracts/telemetry/fixture-search-dispatch.v1.schema.json`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct SearchDispatchTelemetryEvent {
+    pub corpus: String,
+    pub outcome: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<u32>,
+}
+
+/// Payload aligned with `contracts/telemetry/fixture-hole-observed.v1.schema.json`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct HoleObservedTelemetryEvent {
+    pub cache_key: String,
+    pub observation: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewer: Option<String>,
+}
+
+/// Tagged union for AI fixture telemetry (serialized as JSON `metadata_json` in research_metrics).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(tag = "fixture_kind", rename_all = "snake_case")]
+pub enum AiFixtureEvent {
+    ModelIntent(FixtureModelIntentResolvedEvent),
+    SubagentDispatch(SubagentDispatchTelemetryPayload),
+    PromptDispatch(PromptDispatchTelemetryEvent),
+    SearchDispatch(SearchDispatchTelemetryEvent),
+    HoleObserved(HoleObservedTelemetryEvent),
+}
+
+/// Back-compat alias for older docs / actor-runtime re-exports.
+pub type OrchSubagentDispatchEvent = SubagentDispatchTelemetryPayload;
 
 /// Payload for a `TelemetryEvent::ResearchMetric`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -389,12 +477,35 @@ mod tests {
             METRIC_TYPE_TASK_ROOT_SUMMARY,
             METRIC_TYPE_BUILD_SUMMARY_EVENT,
             METRIC_TYPE_ERROR_EVENT,
+            METRIC_TYPE_FIXTURE_MODEL_INTENT,
+            METRIC_TYPE_FIXTURE_PROMPT_DISPATCH,
+            METRIC_TYPE_FIXTURE_SEARCH_DISPATCH,
+            METRIC_TYPE_FIXTURE_HOLE_OBSERVED,
         ] {
             assert!(
                 validate_research_metric_row("sess", mt, None).is_ok(),
                 "{mt} failed validation"
             );
         }
+    }
+
+    #[test]
+    fn ai_fixture_event_round_trip() {
+        let ev = AiFixtureEvent::ModelIntent(FixtureModelIntentResolvedEvent {
+            task_category: "CodeGen".into(),
+            strengths: vec!["codegen".into()],
+            tier_max: Some("Pro".into()),
+            resolved_model_hint: "openrouter/auto".into(),
+            trace_id: Some("t1".into()),
+        });
+        let outer = TelemetryEvent::AiFixture(ev.clone());
+        let json = serde_json::to_string(&outer).expect("serialize");
+        let back: TelemetryEvent = serde_json::from_str(&json).expect("deserialize");
+        let TelemetryEvent::AiFixture(AiFixtureEvent::ModelIntent(m)) = back else {
+            panic!("variant lost");
+        };
+        assert_eq!(m.task_category, "CodeGen");
+        assert_eq!(m.resolved_model_hint, "openrouter/auto");
     }
 
     #[test]

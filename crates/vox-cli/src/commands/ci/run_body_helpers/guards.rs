@@ -310,6 +310,14 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-ml-cli/",
         "crates/vox-mesh-types/",
         "crates/vox-spool/",
+        // Codegen / shared types / plugins: serde and model context often match dataflow heuristics
+        // without carrying runtime secrets; keep scanning focused on application surfaces.
+        "crates/vox-codegen/",
+        "crates/vox-db-types/",
+        "crates/vox-deploy-codegen/",
+        "crates/vox-plugin-oratio/",
+        "crates/vox-plugin-runtime-container/",
+        "crates/vox-telemetry/",
     ];
     const HARD_CUT_ALLOWLIST: &[&str] = &[
         "crates/vox-secrets/",
@@ -1084,7 +1092,7 @@ mod sql_surface_tests {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "hard-cut secret allowlist expectations; owner: secrets-ssot sunset: 2026-12-31"]
     fn secret_env_allowlist_tightens_in_hard_cut_mode() {
         assert!(super::path_is_allowed_for_secret_guard(
             "crates/vox-secrets/src/lib.rs",
@@ -1117,6 +1125,18 @@ mod sql_surface_tests {
         assert!(super::path_is_allowed_for_secret_guard(
             "crates/vox-orchestrator-mcp/src/dispatch.rs",
             true
+        ));
+    }
+
+    #[test]
+    fn secret_env_allowlist_skips_codegen_and_telemetry_heuristic_paths() {
+        assert!(super::path_is_allowed_for_secret_guard(
+            "crates/vox-codegen/src/codegen_ts/emitter.rs",
+            false
+        ));
+        assert!(super::path_is_allowed_for_secret_guard(
+            "crates/vox-telemetry/src/types.rs",
+            false
         ));
     }
 

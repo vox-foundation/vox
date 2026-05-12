@@ -1,3 +1,8 @@
+// Rust 2024: env mutation primitives are `unsafe`. Each test redirects
+// `VOX_SHARE_STATE_PATH` to a tempdir before mutating state; the SAFETY
+// rationale is documented at every `unsafe` block.
+#![allow(unsafe_code)]
+
 use tempfile::TempDir;
 use vox_share::state::ShareState;
 
@@ -16,9 +21,10 @@ fn share_state_round_trips_via_json() {
     unsafe {
         std::env::set_var("VOX_SHARE_STATE_PATH", path.to_str().unwrap());
     }
-    let mut state = ShareState::default();
-    state.cloudflare_consent_v1 = true;
-    state.consent_text_version = 1;
+    let state = ShareState {
+        cloudflare_consent_v1: true,
+        consent_text_version: 1,
+    };
     state.save().unwrap();
     unsafe {
         std::env::remove_var("VOX_SHARE_STATE_PATH");

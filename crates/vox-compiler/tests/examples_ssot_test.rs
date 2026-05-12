@@ -8,6 +8,8 @@ use std::path::{Path, PathBuf};
 struct ExamplesSsot {
     schema_version: u32,
     golden_roots: Vec<String>,
+    #[serde(default)]
+    sandbox_roots: Vec<String>,
     negative_roots: Vec<String>,
     doc_roots: Vec<String>,
 }
@@ -83,6 +85,9 @@ fn examples_tree_has_no_orphan_vox_files() {
             continue;
         }
         if is_under_any(&rel, &ssot.golden_roots) {
+            continue;
+        }
+        if is_under_any(&rel, &ssot.sandbox_roots) {
             continue;
         }
         panic!(

@@ -197,7 +197,8 @@ impl Orchestrator {
             vox_db::SearchIntent::FactualLookup => Some("retry_hybrid".to_string()),
             vox_db::SearchIntent::Verification => Some("retry_hybrid".to_string()),
         };
-        let ctx = crate::socrates::SocratesTaskContext {
+
+        crate::socrates::SocratesTaskContext {
             risk_budget: "normal".to_string(),
             factual_mode: true,
             required_citations: 1,
@@ -218,11 +219,10 @@ impl Orchestrator {
             answered_questions: vec![],
             research_model_enabled: false,
             fabricated_tool_claims: None,
-        };
-        ctx
+        }
     }
 
-    /// Goal intake retrieval: run shared `vox-search` when Codex is attached, else heuristic hints.
+    /// Goal intake retrieval: run shared `vox-search` when `VoxDb` is attached, else heuristic hints.
     pub(crate) async fn generate_goal_search_context(
         &self,
         description: &str,

@@ -65,7 +65,7 @@ fn test_ir_emission_with_hashing_and_inference() {
 /// `@scheduled` is restored to the public grammar (per ADR-028 it is reserved-for-future, not
 /// permanently removed).
 #[test]
-#[ignore = "ADR-028 reserves @scheduled; restore when the keyword returns to public grammar"]
+#[ignore = "ADR-028 reserves @scheduled; restore when the keyword returns to public grammar — owner: compiler sunset: 2026-12-31"]
 fn test_ir_emission_includes_scheduled_jobs_in_web_ir() {
     let source = r#"
 @scheduled("1h")

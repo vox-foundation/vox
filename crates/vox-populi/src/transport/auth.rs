@@ -86,7 +86,6 @@ impl AuthScheme {
     pub fn from_env() -> Self {
         match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshAuthScheme)
             .expose()
-            .as_deref()
             .map(str::trim)
             .unwrap_or("")
             .to_ascii_lowercase()

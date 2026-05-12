@@ -7,7 +7,7 @@
 //!   `CatchUp`. Per the gap analysis, these are first-class types, not
 //!   stringly-typed config.
 //! - **In-memory job registry** with deterministic next-fire-time computation.
-//! - **At-least-once persistence trait** ([`DurableJobStore`]) — implementations
+//! - **At-least-once persistence trait** (`DurableJobStore`) — implementations
 //!   live in `vox-db` and are wired up by codegen in a follow-up PR.
 //!
 //! What this module is *not*:

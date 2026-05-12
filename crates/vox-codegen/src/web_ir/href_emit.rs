@@ -32,8 +32,10 @@ pub fn emit_route_id_module(routes: &[HirRouteId]) -> String {
     if routes.is_empty() {
         out.push_str("  never;\n\n");
     } else {
-        for (i, r) in routes.iter().enumerate() {
-            let prefix = if i == 0 { "  | " } else { "  | " };
+        for r in routes.iter() {
+            // Every variant uses the same prefix; the leading `|` keeps the
+            // generated TS readable even on the first line.
+            let prefix = "  | ";
             if r.params.is_empty() {
                 out.push_str(&format!("{prefix}{{ _route: \"{}\" }}\n", r.name));
             } else {

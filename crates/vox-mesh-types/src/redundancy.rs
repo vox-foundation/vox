@@ -102,10 +102,10 @@ pub enum VoteOutcome {
 
 /// Decide how many replicas to dispatch given a policy and the peer's trust tier.
 pub fn decide_replicas(policy: &RedundancyPolicy, peer_tier: TrustTier) -> u8 {
-    if let Some(skip) = policy.skip_above {
-        if peer_tier >= skip {
-            return 1;
-        }
+    if let Some(skip) = policy.skip_above
+        && peer_tier >= skip
+    {
+        return 1;
     }
     policy.min_replicas.max(1)
 }

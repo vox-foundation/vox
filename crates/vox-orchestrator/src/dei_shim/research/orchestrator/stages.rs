@@ -15,13 +15,6 @@ pub(super) struct JudgeParams<'a> {
 }
 
 pub(super) async fn judge_quality(params: JudgeParams<'_>) -> i32 {
-    let Some(ep) = params.endpoint else {
-        return params.fallback_score;
-    };
-    let Some(key) = params.api_key else {
-        return params.fallback_score;
-    };
-
     let citation_snippets: String = params
         .citations
         .iter()
@@ -69,30 +62,22 @@ Scoring rubric:
         sanitize_chatml(&citation_snippets)
     );
 
-    let client = reqwest::Client::new();
-    let url = format!("{}/v1/chat/completions", ep.trim_end_matches('/'));
-    let res = client
-        .post(&url)
-        .bearer_auth(key)
-        .json(&serde_json::json!({
-            "model": params.model,
-            "messages": [
-                {"role": "system", "content": sys_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            "max_tokens": params.max_tokens,
-            "temperature": params.temperature
-        }))
-        .send()
-        .await;
-
-    if let Ok(resp) = res
-        && let Ok(json) = resp.json::<serde_json::Value>().await
-        && let Some(content) = json
-            .pointer("/choices/0/message/content")
-            .and_then(|v| v.as_str())
+    if let Ok(content) = chat_stage(
+        vox_actor_runtime::llm::cascade::ResearchStage::Judge,
+        params.endpoint,
+        params.api_key,
+        params.model,
+        params.temperature,
+        params.max_tokens,
+        vec![
+            ("system".to_string(), sys_prompt),
+            ("user".to_string(), user_prompt),
+        ],
+        Some(serde_json::json!({"type": "json_object"})),
+    )
+    .await
     {
-        let mut block = content;
+        let mut block = content.as_str();
         if let Some(start) = content.find("```json") {
             let rest = &content[start + 7..];
             if let Some(end) = rest.find("```") {
@@ -197,13 +182,6 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
         String::new()
     };
 
-    let endpoint = params
-        .endpoint
-        .ok_or_else(|| anyhow::anyhow!("no endpoint configured"))?;
-    let api_key = params
-        .api_key
-        .ok_or_else(|| anyhow::anyhow!("no api_key configured"))?;
-
     let system = format!(
         "You are a precise research synthesizer. Using ONLY the provided evidence \
          snippets, write a thorough, well-structured answer to the user's question. \
@@ -223,34 +201,17 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
         }
     );
 
-    let url = format!("{}/v1/chat/completions", endpoint.trim_end_matches('/'));
-    let resp = reqwest::Client::new()
-        .post(&url)
-        .bearer_auth(api_key)
-        .json(&serde_json::json!({
-            "model": params.model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user}
-            ],
-            "max_tokens": params.max_tokens,
-            "temperature": params.temperature
-        }))
-        .send()
-        .await
-        .map_err(|e| anyhow::anyhow!("synthesis request: {e}"))?;
-
-    let json: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| anyhow::anyhow!("synthesis parse: {e}"))?;
-
-    let content = json
-        .pointer("/choices/0/message/content")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow::anyhow!("no content in synthesis response"))?;
-
-    Ok(content.to_string())
+    chat_stage(
+        vox_actor_runtime::llm::cascade::ResearchStage::Synthesis,
+        params.endpoint,
+        params.api_key,
+        params.model,
+        params.temperature,
+        params.max_tokens,
+        vec![("system".to_string(), system), ("user".to_string(), user)],
+        None,
+    )
+    .await
 }
 
 /// Template synthesis fallback (always succeeds, no network call).
@@ -322,23 +283,6 @@ pub(super) async fn run_self_verification(
     api_key: Option<&str>,
     model: &str,
 ) -> SelfVerificationResult {
-    let Some(ep) = endpoint else {
-        return SelfVerificationResult {
-            checked: false,
-            questions_generated: 0,
-            inconsistency_count: 0,
-            critical_inconsistency: false,
-        };
-    };
-    let Some(key) = api_key else {
-        return SelfVerificationResult {
-            checked: false,
-            questions_generated: 0,
-            inconsistency_count: 0,
-            critical_inconsistency: false,
-        };
-    };
-
     // Build a compact context from top-5 hits.
     let context: String = hits
         .iter()
@@ -360,26 +304,17 @@ that target specific factual claims in the answer. Return one question per line,
 Answer: {answer}\n\nQuestions:"
     );
 
-    let client = reqwest::Client::new();
-    let url = format!("{}/v1/chat/completions", ep.trim_end_matches('/'));
-
-    let question_res = client
-        .post(&url)
-        .bearer_auth(key)
-        .json(&serde_json::json!({
-            "model": model,
-            "messages": [{"role": "user", "content": question_prompt}],
-            "max_tokens": 300,
-            "temperature": 0.3
-        }))
-        .send()
-        .await;
-
-    let questions: Vec<String> = if let Ok(resp) = question_res
-        && let Ok(json) = resp.json::<serde_json::Value>().await
-        && let Some(content) = json
-            .pointer("/choices/0/message/content")
-            .and_then(|v| v.as_str())
+    let questions: Vec<String> = if let Ok(content) = chat_stage(
+        vox_actor_runtime::llm::cascade::ResearchStage::SelfVerification,
+        endpoint,
+        api_key,
+        model,
+        0.3,
+        300,
+        vec![("user".to_string(), question_prompt)],
+        None,
+    )
+    .await
     {
         content
             .lines()
@@ -413,23 +348,17 @@ Answer: {answer}\n\nQuestions:"
             "Based ONLY on the following sources, answer this yes/no question.\n\
 Sources:\n{context}\n\nQuestion: {q}\n\nAnswer with only 'yes', 'no', or 'unknown'."
         );
-        let ans_res = client
-            .post(&url)
-            .bearer_auth(key)
-            .json(&serde_json::json!({
-                "model": model,
-                "messages": [{"role": "user", "content": verify_prompt}],
-                "max_tokens": 10,
-                "temperature": 0.0
-            }))
-            .send()
-            .await;
-
-        if let Ok(resp) = ans_res
-            && let Ok(json) = resp.json::<serde_json::Value>().await
-            && let Some(ans) = json
-                .pointer("/choices/0/message/content")
-                .and_then(|v| v.as_str())
+        if let Ok(ans) = chat_stage(
+            vox_actor_runtime::llm::cascade::ResearchStage::SelfVerification,
+            endpoint,
+            api_key,
+            model,
+            0.0,
+            10,
+            vec![("user".to_string(), verify_prompt)],
+            None,
+        )
+        .await
         {
             let cleaned = ans.trim().to_lowercase();
             // "unknown" counts as a soft inconsistency (answer claimed something the context can't confirm)
@@ -446,4 +375,56 @@ Sources:\n{context}\n\nQuestion: {q}\n\nAnswer with only 'yes', 'no', or 'unknow
         inconsistency_count,
         critical_inconsistency,
     }
+}
+
+#[cfg(feature = "runtime")]
+async fn chat_stage(
+    stage: vox_actor_runtime::llm::cascade::ResearchStage,
+    endpoint: Option<&str>,
+    api_key: Option<&str>,
+    model: &str,
+    temperature: f32,
+    max_tokens: u32,
+    messages: Vec<(String, String)>,
+    response_format: Option<serde_json::Value>,
+) -> anyhow::Result<String> {
+    use vox_actor_runtime::ActivityOptions;
+    use vox_actor_runtime::llm::LlmChatMessage;
+    use vox_actor_runtime::llm::cascade::{cascade_with_optional_manual, chat_with_cascade};
+    use vox_actor_runtime::model_resolution::RouteResolutionInput;
+
+    let input = RouteResolutionInput {
+        openrouter_model: model.to_string(),
+        ..RouteResolutionInput::default()
+    };
+    let mut candidates =
+        cascade_with_optional_manual(stage, &input, endpoint, api_key, Some(model));
+    for candidate in &mut candidates {
+        candidate.temperature = Some(temperature);
+        candidate.max_tokens = Some(max_tokens.into());
+        candidate.response_format = response_format.clone();
+    }
+    let messages = messages
+        .into_iter()
+        .map(|(role, content)| LlmChatMessage { role, content })
+        .collect();
+    let opts = ActivityOptions::new().with_timeout_secs(45);
+    chat_with_cascade(&opts, messages, candidates, None)
+        .await
+        .map(|response| response.content)
+        .map_err(|e| anyhow::anyhow!(e))
+}
+
+#[cfg(not(feature = "runtime"))]
+async fn chat_stage(
+    _stage: vox_actor_runtime::llm::cascade::ResearchStage,
+    _endpoint: Option<&str>,
+    _api_key: Option<&str>,
+    _model: &str,
+    _temperature: f32,
+    _max_tokens: u32,
+    _messages: Vec<(String, String)>,
+    _response_format: Option<serde_json::Value>,
+) -> anyhow::Result<String> {
+    anyhow::bail!("research runtime feature is disabled")
 }

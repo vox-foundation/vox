@@ -14,7 +14,7 @@ fn count_and_load_jsonl_with_instruction_alias() {
         "{{\"instruction\":\"prompt\",\"output\":\"resp\",\"rating\":5}}"
     )
     .unwrap();
-    writeln!(f, "").unwrap(); // empty line ignored by count
+    writeln!(f).unwrap(); // empty line ignored by count
     writeln!(f, "{{\"invalid\":").unwrap(); // malformed skipped by load_all
 
     let path = f.path();

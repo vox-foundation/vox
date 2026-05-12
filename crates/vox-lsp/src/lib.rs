@@ -2,17 +2,23 @@
 //!
 //! Shared validation helpers used by the LSP binary and MCP / orchestrator quality gates.
 
-use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range};
+use tower_lsp_server::ls_types::{
+    CodeAction, CodeActionKind, CodeActionOrCommand, Diagnostic, DiagnosticSeverity, NumberOrString,
+    Position, Range, TextEdit, Uri, WorkspaceEdit,
+};
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
 use vox_compiler::typeck::Diagnostic as TypeckDiagnostic;
 use vox_compiler::typeck::diagnostics::TypeckSeverity;
 use vox_compiler::typeck::typecheck_ast_module;
 
+pub mod capabilities;
 pub mod code_lens;
 pub mod completions;
 pub mod grammar;
 pub mod symbols;
+
+pub use capabilities::server_capabilities;
 
 /// Convert UTF-8 byte index to LSP line / column (character count per line, not UTF-16 code units).
 pub fn byte_index_to_line_col(text: &str, index: usize) -> (u32, u32) {
@@ -127,6 +133,61 @@ pub fn validate_document(text: &str) -> Vec<Diagnostic> {
 #[must_use]
 pub fn validate_document_with_hir(text: &str) -> Vec<Diagnostic> {
     validate_document_impl(text, true)
+}
+
+/// Build quick-fix [`CodeAction`]s from diagnostics that carry structured `data.fixes`
+/// (parity with the stdio LSP `textDocument/codeAction` handler).
+#[must_use]
+pub fn quickfixes_for_diagnostics(uri: Uri, diagnostics: &[Diagnostic]) -> Vec<CodeActionOrCommand> {
+    let mut actions = Vec::new();
+
+    for diagnostic in diagnostics {
+        let Some(ref data) = diagnostic.data else {
+            continue;
+        };
+        let Ok(data) = serde_json::from_value::<serde_json::Value>(data.clone()) else {
+            continue;
+        };
+        let Some(fixes) = data.get("fixes").and_then(|f| f.as_array()) else {
+            continue;
+        };
+        for fix in fixes {
+            let label = fix.get("label").and_then(|l| l.as_str()).unwrap_or("Fix");
+            let replacement = fix
+                .get("replacement")
+                .and_then(|r| r.as_str())
+                .unwrap_or("");
+            let range = fix
+                .get("range")
+                .and_then(|r| serde_json::from_value::<Range>(r.clone()).ok());
+
+            if let Some(range) = range {
+                let mut changes = std::collections::HashMap::new();
+                changes.insert(
+                    uri.clone(),
+                    vec![TextEdit {
+                        range,
+                        new_text: replacement.to_string(),
+                    }],
+                );
+
+                let action = CodeAction {
+                    title: label.to_string(),
+                    kind: Some(CodeActionKind::QUICKFIX),
+                    diagnostics: Some(vec![diagnostic.clone()]),
+                    edit: Some(WorkspaceEdit {
+                        changes: Some(changes),
+                        ..Default::default()
+                    }),
+                    is_preferred: Some(true),
+                    ..Default::default()
+                };
+                actions.push(CodeActionOrCommand::CodeAction(action));
+            }
+        }
+    }
+
+    actions
 }
 
 fn vox_populi_enabled_from_env() -> bool {

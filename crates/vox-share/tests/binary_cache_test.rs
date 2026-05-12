@@ -4,6 +4,11 @@
 //! Note: tests using `std::env::set_var` are not thread-safe in parallel test runs.
 //! Run with `-- --test-threads=1` or use the `serial_test` crate if isolation is needed.
 
+// Rust 2024: `std::env::set_var` / `remove_var` are `unsafe`. The workspace
+// policy is `unsafe_code = "warn"`; here we serialize each test's mutation
+// with the SAFETY rationale documented at every `unsafe` block.
+#![allow(unsafe_code)]
+
 use tempfile::TempDir;
 use vox_share::binary_cache::{CLOUDFLARED_VERSION, cached_binary_name, verify_sha256};
 

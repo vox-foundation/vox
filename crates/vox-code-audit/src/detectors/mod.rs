@@ -133,6 +133,8 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(file_organization::FileOrganizationDetector::default()),
         Box::new(stringly_typed_enum::StringlyTypedEnumDetector::new()),
         Box::new(unwrap_call::UnwrapCallDetector::new()),
+        Box::new(unwrap_call::ExpectCallDetector::new()),
+        Box::new(unwrap_call::PanicCallDetector::new()),
         Box::new(line_endings::LineEndingDetector::new()),
         Box::new(scaling::ScalingSurfacesDetector::new()),
         Box::new(hollow_fn::HollowFnDetector::new()),

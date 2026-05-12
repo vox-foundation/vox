@@ -52,7 +52,7 @@ fn tokenize_for_training_masks_prompt_with_minus_100() {
     assert_eq!(labels.len(), max_len);
 
     assert!(
-        labels.iter().any(|&l| l == -100),
+        labels.contains(&-100),
         "prompt region must be masked with -100"
     );
     assert!(

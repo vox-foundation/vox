@@ -226,10 +226,10 @@ pub struct TaskEnqueueHints {
     /// Optional portable harness contract supplied by the caller.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub harness_spec_json: Option<String>,
-    /// Optional tool declaration hints (e.g. [[tool:vox_run_tests]]).
+    /// Optional tool declaration hints (e.g. `[[tool:vox_run_tests]]`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_hints: Vec<String>,
-    /// Optional research intent hints (e.g. [[research:vector]]).
+    /// Optional research intent hints (e.g. `[[research:vector]]`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub research_hints: Vec<String>,
     /// Optional labels for mesh capability routing.

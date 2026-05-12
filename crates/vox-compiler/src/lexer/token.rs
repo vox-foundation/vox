@@ -166,6 +166,14 @@ pub enum Token {
     AtV0,
     #[token("@ai")]
     AtAi,
+    #[token("@prompt")]
+    AtPrompt,
+    #[token("@subagent")]
+    AtSubagent,
+    #[token("@search")]
+    AtSearch,
+    #[token("@hole")]
+    AtHole,
     #[token("@cancellable")]
     AtCancellable,
     #[token("@form")]
@@ -320,6 +328,8 @@ pub enum Token {
     #[regex(r"[0-9]+", priority = 2, callback = |lex| lex.slice().parse::<i64>().ok())]
     IntLit(i64),
 
+    // Double-quoted string: any run of non-quote / non-backslash bytes, or standard escapes.
+    // Backticks (U+0060) are literal — markdown-style `cmd` fragments do not close the string.
     #[regex(r#""([^"\\]|\\.)*""#, allow_greedy = true, callback = |lex| {
         let s = lex.slice();
         let inner = &s[1..s.len()-1];
@@ -467,6 +477,10 @@ impl std::fmt::Display for Token {
             Token::AtDeprecated => write!(f, "@deprecated"),
             Token::AtV0 => write!(f, "@v0"),
             Token::AtAi => write!(f, "@ai"),
+            Token::AtPrompt => write!(f, "@prompt"),
+            Token::AtSubagent => write!(f, "@subagent"),
+            Token::AtSearch => write!(f, "@search"),
+            Token::AtHole => write!(f, "@hole"),
             Token::AtCancellable => write!(f, "@cancellable"),
             Token::AtForm => write!(f, "@form"),
             Token::AtBackButton => write!(f, "@back_button"),

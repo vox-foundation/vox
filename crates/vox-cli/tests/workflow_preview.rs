@@ -1,6 +1,6 @@
 //! P1-T8 acceptance: `vox workflow preview` dry-run projector.
 
-use vox_cli::commands::workflow::preview::{WorkflowPreviewArgs, project_workflow_from_source};
+use vox_cli::commands::workflow::preview::project_workflow_from_source;
 
 /// Helper: run the projector on Vox source string for the named workflow.
 fn preview(

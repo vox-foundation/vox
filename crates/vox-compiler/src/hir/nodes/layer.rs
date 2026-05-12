@@ -52,6 +52,11 @@ impl LayerTier {
 
     /// Parse a tier from its short name (used by the parser when lowering
     /// `@layer(tier: …)`). Returns `None` for unknown names.
+    ///
+    /// Suppress `clippy::should_implement_trait`: this returns `Option<Self>`,
+    /// not `Result<Self, _>`, so it does not fit the `FromStr` shape; the
+    /// `from_str` name is kept for parity with the surrounding parser surface.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "background" | "Background" => Some(LayerTier::Background),

@@ -7,6 +7,7 @@
 //! Plain `println!` from subcommands may interleave with JSON lines; the CLI client treats
 //! non-JSON lines as human-readable output.
 
+use crate::cli_args::{BuildMode, BundleMode};
 use crate::config;
 use crate::dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 use crate::watcher;
@@ -37,7 +38,7 @@ struct BundleParams {
     #[serde(default = "default_release")]
     release: bool,
     #[serde(default)]
-    mode: crate::cli_args::BundleMode,
+    mode: BundleMode,
 }
 
 fn default_release() -> bool {
@@ -210,7 +211,8 @@ async fn handle_build(req: &DispatchRequest) -> anyhow::Result<()> {
         None,
         false,
         false,
-        crate::cli_args::BuildMode::App,
+        BuildMode::App,
+        vox_codegen::codegen_rust::RustAppShell::default(),
     )
     .await
     .context("build failed")?;
@@ -266,7 +268,14 @@ async fn handle_check(req: &DispatchRequest) -> anyhow::Result<()> {
 async fn handle_bundle(req: &DispatchRequest) -> anyhow::Result<()> {
     let p: BundleParams = serde_json::from_value(req.params.clone())
         .context("params must be {{ \"file\", \"out_dir\", \"target\"?, \"release\"? }}")?;
-    crate::commands::bundle::run(&p.file, &p.out_dir, p.target.as_deref(), p.release, p.mode)
+    crate::commands::bundle::run(
+        &p.file,
+        &p.out_dir,
+        p.target.as_deref(),
+        p.release,
+        p.mode,
+        vox_codegen::codegen_rust::RustAppShell::default(),
+    )
         .await
         .context("bundle failed")?;
     finish_ok(&req.id, Value::Null).await
@@ -341,23 +350,16 @@ async fn handle_profile(req: &DispatchRequest) -> anyhow::Result<()> {
         file: p.file.clone(),
         emit_ir: false,
         output_format: "text".to_string(),
+        for_llm: false,
     };
     crate::commands::check::run(&args)
         .await
         .context("check (profile) failed")?;
     let t_check = t0.elapsed();
     let t1 = Instant::now();
-    crate::commands::build::run(
-        &p.file,
-        &out_dir,
-        None,
-        None,
-        false,
-        false,
-        crate::cli_args::BuildMode::App,
-    )
-    .await
-    .context("build (profile) failed")?;
+    crate::commands::build::run(&p.file, &out_dir, None, None, false, false, BuildMode::App, vox_codegen::codegen_rust::RustAppShell::default())
+        .await
+        .context("build (profile) failed")?;
     let t_build = t1.elapsed();
     let total = t0.elapsed();
 
@@ -402,7 +404,8 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
         cli_build_target,
         false,
         false,
-        crate::cli_args::BuildMode::App,
+        BuildMode::App,
+        vox_codegen::codegen_rust::RustAppShell::default(),
     )
     .await
     .context("initial dev build failed")?;
@@ -440,7 +443,6 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
         let file = file.clone();
         let out_dir = out_dir.clone();
         let req_id = req_id.clone();
-        let cli_build_target = cli_build_target;
         async move {
             if let Err(e) = crate::commands::build::run(
                 &file,
@@ -449,7 +451,8 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
                 cli_build_target,
                 false,
                 false,
-                crate::cli_args::BuildMode::App,
+                BuildMode::App,
+                vox_codegen::codegen_rust::RustAppShell::default(),
             )
             .await
             {

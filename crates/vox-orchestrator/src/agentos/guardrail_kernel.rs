@@ -16,7 +16,6 @@ pub struct GuardrailDenyDetail {
 }
 
 /// Evaluate preflight; returns structured detail when the tool must not run.
-#[must_use]
 pub fn evaluate_mcp_tool_preflight(tool: &str, args: &Value) -> Result<(), GuardrailDenyDetail> {
     let score = tool_risk_score(tool, args);
     if score >= GUARDRAIL_CRITICAL_SCORE {

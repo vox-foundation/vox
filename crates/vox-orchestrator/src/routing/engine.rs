@@ -94,7 +94,7 @@ impl ModelSelectionEngine {
                 context_fill_ratio,
                 preference,
                 availability_hint,
-            ) as f64;
+            );
             if prefer_reasoning_from_secrets() && m.capabilities.supports_reasoning {
                 base += 0.02;
             }
@@ -153,7 +153,7 @@ impl ModelSelectionEngine {
             m.id != best.id
                 && arm_stats
                     .get(&m.id)
-                    .map_or(true, |&(a, b)| a + b < min_samples)
+                    .is_none_or(|&(a, b)| a + b < min_samples)
         }) {
             return PickReason::PolicyExplore;
         }

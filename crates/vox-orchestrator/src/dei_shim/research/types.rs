@@ -89,6 +89,25 @@ pub struct Citation {
     pub confidence: f64,
 }
 
+/// Claim-to-evidence support relation used by citation auditing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClaimSupport {
+    pub claim_id: u64,
+    pub citation_source_id: i64,
+    pub quote: String,
+    pub support_type: SpanType,
+}
+
+/// Post-synthesis check that citations are backed by verifier evidence spans.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CitationAuditResult {
+    pub checked_citations: usize,
+    pub supported_citations: usize,
+    pub unsupported_citation_indices: Vec<usize>,
+    pub precision: f64,
+    pub supports: Vec<ClaimSupport>,
+}
+
 /// Routing tier the gate selects per query.
 ///
 /// **Stability guarantee:** the `Debug` representation of each variant is
@@ -155,6 +174,7 @@ pub struct ResearchMetadata {
     pub quality_score: i32,
     pub competence: Option<CompetenceSignal>,
     pub self_verification: Option<SelfVerificationResult>,
+    pub citation_audit: Option<CitationAuditResult>,
 }
 
 /// Final research result.
@@ -164,4 +184,14 @@ pub struct ResearchResult {
     pub sources: Vec<ResearchHit>,
     pub citations: Vec<Citation>,
     pub research_metadata: ResearchMetadata,
+}
+
+/// Durable artifact persisted for CLI/MCP result retrieval and report export.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResearchRunArtifact {
+    pub schema_version: u32,
+    pub query: ResearchQuery,
+    pub plan: ResearchPlan,
+    pub result: ResearchResult,
+    pub report_markdown: String,
 }

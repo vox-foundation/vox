@@ -198,8 +198,8 @@ fn run_telemetry_events_catalog_guard(root: &Path) -> Result<()> {
     let catalog_path = root.join("contracts/telemetry/events.v1.yaml");
     let raw = read_utf8_path_capped(&catalog_path)
         .with_context(|| format!("read {}", catalog_path.display()))?;
-    let y: serde_yaml::Value = serde_yaml::from_str(&raw)
-        .with_context(|| format!("parse {}", catalog_path.display()))?;
+    let y: serde_yaml::Value =
+        serde_yaml::from_str(&raw).with_context(|| format!("parse {}", catalog_path.display()))?;
     let events = y
         .get("events")
         .and_then(serde_yaml::Value::as_sequence)

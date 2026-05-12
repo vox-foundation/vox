@@ -52,9 +52,18 @@ pub enum CiCmd {
     /// Validate `contracts/index.yaml` against JSON Schema and listed file paths.
     #[command(name = "contracts-index")]
     ContractsIndex,
+    /// Verify AI fixture catalog parity with lexer tokens and HIR fixture variants.
+    #[command(name = "ai-fixtures-coverage")]
+    AiFixturesCoverage,
     /// Validate `contracts/terminal/exec-policy.v1.yaml` against schema (+ pwsh smoke when available).
     #[command(name = "exec-policy-contract")]
     ExecPolicyContract,
+    /// Enforce GUI / CLI synchronization (Taure configuration parity and command descriptions).
+    #[command(name = "gui-catalog-parity")]
+    GuiCatalogParity,
+    /// Validate the YAML contract schema against the system's expected defaults.
+    #[command(name = "model-routing-check")]
+    ModelRoutingCheck,
     /// Validate OpenClaw gateway protocol fixture contracts.
     #[command(name = "openclaw-contract")]
     OpenClawContract,
@@ -80,20 +89,47 @@ pub enum CiCmd {
     /// Validate SCIENTIA finding-candidate + novelty-evidence example JSON against v1 schemas.
     #[command(name = "scientia-novelty-ledger-contracts")]
     ScientiaNoveltyLedgerContracts,
+    /// Execute the speech-to-code MUST+SHOULD runtime matrix and emit KPI artifacts.
+    #[command(name = "speech-runtime-suite")]
+    SpeechRuntimeSuite {
+        /// Stable run id under `.vox/audit/<run-id>`.
+        #[arg(long)]
+        run_id: Option<String>,
+        /// JSONL runtime eval manifest.
+        #[arg(
+            long,
+            default_value = "tests/speech-to-code/fixtures/corpus_v1/eval_audio_runtime_no_lang.jsonl"
+        )]
+        eval_manifest: PathBuf,
+        /// Limit audio samples for the CPU Candle runtime eval.
+        #[arg(long, default_value_t = 30)]
+        limit: usize,
+        /// Plugin install root containing `oratio/0.1.0/Plugin.toml` and native artifact.
+        #[arg(long)]
+        plugins_dir: Option<PathBuf>,
+        /// Emit classification artifacts without running the audio runtime.
+        #[arg(long)]
+        skip_runtime: bool,
+    },
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
-    /// Local pre-push aggregate: runs the merge-blocking subset (fmt, clippy,
-    /// ssot-drift, line-endings, doc-inventory verify, scoped TOESTUB). Mirrors
-    /// the `check-and-test` guards cluster so failures match CI before pushing.
+    /// Local pre-push aggregate. **Default (fast):** fmt, line-endings, ssot-drift,
+    /// **scoped** doc lint + doctest on changed `docs/src/**/*.md` (excludes `archive/`),
+    /// and workspace drift-check — tuned for responsive `git push`.
+    /// Use **`--complete`** for the historical full static gate (whole-tree docs, clippy,
+    /// doc-inventory, scoped TOESTUB). **`--full`** adds workspace nextest (CI profile).
     #[command(name = "pre-push")]
     PrePush {
-        /// Skip doc-inventory, workspace clippy, and scoped TOESTUB (still runs fmt,
-        /// line-endings, ssot-drift, doc frontmatter lint, doctest-md strict, drift-check).
-        #[arg(long, conflicts_with = "full")]
+        /// Legacy alias for the default **fast** profile (same as omitting `--complete`/`--full`).
+        #[arg(long, conflicts_with_all = ["complete", "full"])]
         quick: bool,
-        /// Append **`cargo nextest run --workspace --profile ci --no-fail-fast`** (slow). Off by default.
-        #[arg(long)]
+        /// Full static analysis: whole-tree doc lint + doctest, doc-inventory, workspace clippy,
+        /// scoped TOESTUB (same shape as the pre-2026-05-11 default pre-push, without nextest).
+        #[arg(long, conflicts_with = "quick")]
+        complete: bool,
+        /// Implies **`--complete`** and appends **`cargo nextest run --workspace --profile ci --no-fail-fast`**.
+        #[arg(long, conflicts_with = "quick")]
         full: bool,
         /// Print commands without executing.
         #[arg(long)]
@@ -126,6 +162,12 @@ pub enum CiCmd {
     /// `cargo check -p vox-cli` for each supported feature set.
     #[command(name = "feature-matrix")]
     FeatureMatrix,
+    /// Smoke `vox compile --help` via `cargo run -p vox-cli` (cross-host parity with `compile-matrix.yml`).
+    #[command(name = "compile-matrix")]
+    CompileMatrix,
+    /// Scan `vox-deprecated-since` markers and fail when `retire-by` semver is <= the workspace version.
+    #[command(name = "retirement-audit")]
+    RetirementAudit,
     /// Ensures `vox-cli` sources do not reference the staging `vox-dei` crate via a Rust path import.
     #[command(name = "no-dei-import", visible_alias = "no-vox-dei-import")]
     NoDeiImport,
@@ -140,6 +182,13 @@ pub enum CiCmd {
         /// Subcommand execution variant.
         #[command(subcommand)]
         cmd: DocInventoryCmd,
+    },
+    /// Documentation Reality Audit — validate inventory/findings/metrics JSON + path hints (`contracts/documentation/docs-reality-audit.program.v1.yaml`).
+    #[command(name = "docs-reality-audit")]
+    DocsRealityAudit {
+        /// Subcommand execution variant.
+        #[command(subcommand)]
+        cmd: DocsRealityAuditCmd,
     },
     /// Milestone benchmark matrix (`contracts/eval/benchmark-matrix.json`).
     #[command(name = "eval-matrix")]
@@ -174,6 +223,13 @@ pub enum CiCmd {
         /// Automatically convert CRLF -> LF in violating files and stage them via `git add`.
         #[arg(long)]
         autofix: bool,
+    },
+    /// Regenerate or verify `examples/PARSE_STATUS.md` from `examples/golden/*.vox`.
+    #[command(name = "parse-status")]
+    ParseStatus {
+        /// Write `examples/PARSE_STATUS.md` if it differs from the generator output.
+        #[arg(long)]
+        write: bool,
     },
     /// Run mesh / Populi CI gate steps from `scripts/populi/gates.yaml` (with legacy fallback).
     #[command(name = "mesh-gate", visible_alias = "mens-gate")]
@@ -323,6 +379,7 @@ pub enum CiCmd {
         #[arg(long)]
         all: bool,
     },
+    /// Fail when changed files add direct secret env reads outside Clavis-owned modules.
     #[command(name = "secret-env-guard")]
     SecretEnvGuard {
         /// Scan all crate Rust files instead of only changed files.
@@ -359,7 +416,7 @@ pub enum CiCmd {
     /// Verify all public Row/Entry/Result/Summary/Pair/Report/Rollup/Snapshot/Profile/Job structs derive Serialize+Deserialize.
     #[command(name = "row-serde-lint")]
     RowSerdeLint,
-    /// Report (never fail) stringly-typed *_id fields in vox-db-types rows that have a Db<Entity>Id newtype.
+    /// Report (never fail) stringly-typed *_id fields in vox-db-types rows that have a `DbEntityId` newtype.
     #[command(name = "string-id-lint")]
     StringIdLint,
     /// Verify Secrets SSOT parity between managed secret spec and docs/guards.
@@ -463,6 +520,9 @@ pub enum CiCmd {
         #[arg(long)]
         target: Option<PathBuf>,
     },
+    /// Validate `contracts/documentation/canonical-map.v1.yaml` structure (B-canon paths, aliases, globs).
+    #[command(name = "canonical-map-verify")]
+    CanonicalMapVerify,
     /// Build and package release artifacts for a target triple (binary + checksum manifest).
     #[command(name = "release-build")]
     ReleaseBuild {
@@ -588,6 +648,16 @@ pub enum CiCmd {
         #[arg(long)]
         check: Option<PathBuf>,
     },
+    /// Safety / suppression-debt baseline (unsafe-ish counts, ignored tests, crate `#![allow]`, TS eslint-disable).
+    #[command(name = "safety-inventory")]
+    SafetyInventory {
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        output: Option<PathBuf>,
+        #[arg(long)]
+        check: Option<PathBuf>,
+    },
     /// Summarize nextest/JUnit XML: slow tests, retries/flaky heuristics, optional threshold warnings (report-only).
     #[command(name = "test-runtime-report")]
     TestRuntimeReport {
@@ -681,6 +751,9 @@ pub enum CiCmd {
     /// Verify every in-tree `Plugin.toml` has a matching entry in the plugin catalog. Passes trivially when no Plugin.toml files exist (SP1).
     #[command(name = "plugin-catalog-parity")]
     PluginCatalogParity,
+    /// Enforce no-tauri-in-core architectural boundary.
+    #[command(name = "no-tauri-in-core")]
+    NoTauriInCore,
     /// Walk crates/ for code/composite Plugin.toml files and assert ABI matches the host. Skips intentionally-broken `noop-bad-*` fixtures.
     #[command(name = "plugin-abi-parity")]
     PluginAbiParity,
@@ -740,6 +813,19 @@ pub enum DocInventoryCmd {
     },
     /// Fail if committed inventory differs from a fresh generation (ignores `generated_at`).
     Verify,
+}
+
+/// Subcommands for [`CiCmd::DocsRealityAudit`].
+#[derive(Subcommand)]
+pub enum DocsRealityAuditCmd {
+    /// Validate JSON artifacts against schemas; ensure inventory path hints resolve.
+    Verify,
+    /// Emit rollout metrics for `findings.v1.json` (stdout; use `--write` to refresh `metrics.v1.json`).
+    Metrics {
+        /// Write `contracts/reports/docs-reality-audit/metrics.v1.json`.
+        #[arg(long)]
+        write: bool,
+    },
 }
 
 /// `vox ci toestub-scoped --mode` ↔ `toestub --mode`.

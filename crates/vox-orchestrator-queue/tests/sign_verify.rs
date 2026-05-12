@@ -34,7 +34,7 @@ fn make_entry() -> OperationEntry {
 
 #[test]
 fn signed_entry_round_trips_and_tampered_payload_fails() {
-    let mut ring = KeyRing::ephemeral_for_tests();
+    let ring = KeyRing::ephemeral_for_tests();
     let daemon = ring.local_daemon_id();
 
     let mut entry = make_entry();

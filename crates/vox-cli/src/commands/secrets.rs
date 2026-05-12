@@ -132,7 +132,8 @@ pub enum SecretsCmd {
         args: crate::commands::login_shared::LoginArgs,
     },
     /// Show secret readiness for a workflow (credentials / env resolution).
-    #[command(name = "status", visible_alias = "doctor")]
+    /// Compatibility: `vox secrets doctor` remains accepted but hidden from help (use top-level `vox doctor` for toolchain checks).
+    #[command(name = "status", alias = "doctor")]
     Status {
         #[arg(long, value_enum, default_value_t = WorkflowArg::Chat)]
         workflow: WorkflowArg,

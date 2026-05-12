@@ -1,5 +1,5 @@
 //! HIR → TypeScript file bundle (production path). **WebIR bridge (OP-S025):** after assembling
-//! artifacts, [`maybe_web_ir_validate`] may lower + validate [`crate::web_ir::WebIrModule`] when
+//! artifacts, `maybe_web_ir_validate` may validate the module [`crate::web_ir::WebIrModule`] when
 //! **`VOX_WEBIR_VALIDATE`** (default **on**): CI and local builds fail codegen when
 //! [`validate_web_ir`](crate::web_ir::validate::validate_web_ir) returns diagnostics. Set to `0` / `false` /
 //! `no` / `off` to skip the gate (escape hatch).
@@ -8,13 +8,13 @@
 //! only after the validator runs when the gate is enabled (so a failing gate never writes the manifest).
 //!
 //! **Style + route printer bridge (OP-S059 / S091 / S111 / S137 / S171 / S199):** classic CSS emission and
-//! TanStack route files are still assembled here alongside [`super::routes`]; migrating printers to consume
+//! TanStack route files are still assembled here alongside `super::routes`; migrating printers to consume
 //! only validated [`crate::web_ir::WebIrModule`] slices is tracked in the internal Web IR blueprint.
 //!
-//! **Frontend convergence (2026):** OpenAPI / Zod lanes should consume [`crate::contract_ir`] types before adding new direct HIR scrape paths — see `docs/src/architecture/frontend-convergence-findings-2026.md`.
+//! **Frontend convergence (2026):** OpenAPI / Zod lanes should consume `vox_compiler::contract_ir` types before adding new direct HIR scrape paths — see `docs/src/architecture/frontend-convergence-findings-2026.md`.
 
 use crate::codegen_ts::adt::generate_types;
-use vox_compiler::app_contract::project_app_contract;
+use crate::projection_bundle::project_bundle_from_hir;
 
 use crate::codegen_ts::reactive::generate_reactive_component;
 use crate::codegen_ts::routes::generate_routes;
@@ -28,6 +28,8 @@ pub struct CodegenOutput {
     pub files: Vec<(String, String)>,
     /// Web IR bridge emit statistics
     pub reactive_stats: crate::codegen_ts::reactive::ReactiveViewBridgeStats,
+    /// Non-fatal codegen diagnostics (e.g. AI fixtures missing TS lowering).
+    pub diagnostics: Vec<crate::web_ir::WebIrDiagnostic>,
 }
 
 /// Build mode target for codegen.
@@ -43,17 +45,19 @@ pub enum BuildMode {
 /// Options for [`generate_with_options`].
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CodegenOptions {
-    /// Legacy flag (TanStack Start tree emission). **Ignored** — `routes:` now emits [`routes.manifest.ts`] only.
+    /// Legacy flag (TanStack Start tree emission). **Ignored** — `routes:` now emits `routes.manifest.ts` only.
     pub tanstack_start: bool,
     /// Build Target
     pub target: Option<String>,
     /// Build Mode
     pub mode: BuildMode,
+    /// Fail TS codegen when AI fixtures are present but not lowered (`VOX_TS_STRICT_AI` when using [`Self::from_env`]).
+    pub strict_ai: bool,
 }
 
 impl CodegenOptions {
     /// Reads **`VOX_WEB_TANSTACK_START`** for callers that still thread the flag (**ignored** for TS emit —
-    /// route output is always [`route_manifest`] + components).
+    /// route output is always `route_manifest` + components).
     #[must_use]
     pub fn from_env() -> Self {
         let tanstack_start_resolved =
@@ -64,6 +68,7 @@ impl CodegenOptions {
                 .is_some_and(|v: &str| v == "1" || v.eq_ignore_ascii_case("true")),
             target: None,
             mode: BuildMode::App,
+            strict_ai: crate::web_migration_env::ts_strict_ai_gate_enabled(),
         }
     }
 }
@@ -167,6 +172,27 @@ pub fn generate_with_options(
     hir: &HirModule,
     options: CodegenOptions,
 ) -> Result<CodegenOutput, String> {
+    let mut ts_diagnostics = Vec::<crate::web_ir::WebIrDiagnostic>::new();
+    let has_ai_fixture = hir
+        .functions
+        .iter()
+        .chain(hir.tests.iter())
+        .chain(hir.foralls.iter().map(|p| &p.func))
+        .chain(hir.mcp_tools.iter().map(|t| &t.func))
+        .chain(hir.mcp_resources.iter().map(|r| &r.func))
+        .any(|f| f.ai_fixture.is_some());
+    if has_ai_fixture {
+        let diag = crate::web_ir::WebIrDiagnostic {
+            code: "vox/codegen/missing-ts-ai-lowering".to_string(),
+            message: "TypeScript target does not yet lower AI fixtures; see docs/src/architecture/ai-fixtures-ts-lowering-follow-on-2026.md".to_string(),
+            span: None,
+            category: Some("codegen".to_string()),
+        };
+        if options.strict_ai {
+            return Err(format!("{}: {}", diag.code, diag.message));
+        }
+        ts_diagnostics.push(diag);
+    }
     // Validate: every for-loop in a component view must have a key clause (validate.list_key.required).
     check_for_missing_keys(hir)?;
     // Validate: routes with loaders must have pending + error components.
@@ -174,13 +200,15 @@ pub fn generate_with_options(
 
     let mut files = Vec::new();
     let mut reactive_stats = crate::codegen_ts::reactive::ReactiveViewBridgeStats::default();
-    let app_contract = project_app_contract(hir);
+
+    let bundle = project_bundle_from_hir(hir);
+    let web_projection = &bundle.web;
+    let app_contract = &bundle.app;
 
     if options.mode != BuildMode::Library && !hir.components.is_empty() {
-        let web_projection = crate::web_ir::lower::project_web_from_core(hir);
         for rc in &hir.components {
             let (filename, content) =
-                generate_reactive_component(hir, rc, Some(&web_projection), &mut reactive_stats);
+                generate_reactive_component(hir, rc, web_projection, &mut reactive_stats);
             files.push((filename, content));
             if !rc.styles.is_empty() {
                 let mut css = String::new();
@@ -260,8 +288,8 @@ pub fn generate_with_options(
         files.push(("forms.tsx".into(), format!("{header}\n{forms_content}")));
     }
 
-    // Emit mobile Capacitor setup (Tasks D2-D4: @back_button, @deep_link, @push).
-    if let Some(mobile_content) = super::mobile_emit::emit_mobile_setup(hir) {
+    // Emit mobile Capacitor setup (Tasks D2-D4: @back_button, `@deep_link`, `@push`).
+    if let Some(mobile_content) = super::mobile_emit::emit_mobile_setup(&bundle.shell) {
         files.push(("mobile.ts".into(), mobile_content));
     }
 
@@ -365,14 +393,13 @@ pub fn generate_with_options(
         ));
     }
 
-    let web_projection = crate::web_ir::lower::project_web_from_core(hir);
-    maybe_web_ir_validate(hir, Some(&web_projection), token_registry.as_ref())?;
+    maybe_web_ir_validate(web_projection, token_registry.as_ref())?;
 
     let (manifest_filename, route_manifest) = if options.mode == BuildMode::Library {
         (
             "routes.manifest.json",
             crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(
-                &web_projection,
+                web_projection,
                 hir,
             )?,
         )
@@ -380,7 +407,7 @@ pub fn generate_with_options(
         (
             "routes.manifest.ts",
             crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(
-                &web_projection,
+                web_projection,
                 hir,
             )?,
         )
@@ -407,7 +434,8 @@ pub fn generate_with_options(
         if !mobile_fns.is_empty() {
             let mut mobile_bridge =
                 String::from("// Mobile native bridge generated by Vox compiler\n");
-            mobile_bridge.push_str("import { Capacitor } from \"@capacitor/core\";\n\n");
+            mobile_bridge
+                .push_str("import { invoke } from \"@tauri-apps/api/core\";\n\n");
             for f in mobile_fns {
                 mobile_bridge.push_str(&crate::codegen_ts::hir_emit::emit_mobile_bridge_fn(f));
                 mobile_bridge.push('\n');
@@ -480,6 +508,7 @@ pub fn generate_with_options(
     Ok(CodegenOutput {
         files,
         reactive_stats,
+        diagnostics: ts_diagnostics,
     })
 }
 
@@ -489,21 +518,12 @@ pub fn generate_with_options(
 /// When a [`vox_compiler::tokens::TokenRegistry`] is supplied, token reference resolution and
 /// WCAG contrast validation run as part of the style stage (TASK-4.4).
 fn maybe_web_ir_validate(
-    hir: &HirModule,
-    cached_web: Option<&crate::web_ir::WebIrModule>,
+    web: &crate::web_ir::WebIrModule,
     registry: Option<&vox_compiler::tokens::TokenRegistry>,
 ) -> Result<(), String> {
     if !crate::web_migration_env::web_ir_validate_gate_enabled() {
         return Ok(());
     }
-    let fallback;
-    let web: &crate::web_ir::WebIrModule = match cached_web {
-        Some(w) => w,
-        None => {
-            fallback = crate::web_ir::lower::project_web_from_core(hir);
-            &fallback
-        }
-    };
     let diags = crate::web_ir::validate::validate_web_ir_with_registry(web, registry);
     // Advisory diagnostics must not block codegen — only hard errors gate the build.
     let error_diags: Vec<crate::web_ir::WebIrDiagnostic> =

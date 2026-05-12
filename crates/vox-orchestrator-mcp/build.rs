@@ -31,10 +31,7 @@ fn main() {
     buf.push_str("// @generated from contracts/mcp/tool-wire-aliases.v1.yaml\n");
     buf.push_str("pub const TOOL_WIRE_ALIASES: &[(&str, &str)] = &[\n");
     for row in root.aliases {
-        buf.push_str(&format!(
-            "    ({:?}, {:?}),\n",
-            row.alias, row.canonical
-        ));
+        buf.push_str(&format!("    ({:?}, {:?}),\n", row.alias, row.canonical));
     }
     buf.push_str("];\n");
     let dest = out_dir.join("tool_aliases_wire.rs");

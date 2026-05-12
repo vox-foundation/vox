@@ -1,6 +1,6 @@
 //! Interpreter-only implementations for structured shell-tier stdlib (`std.fs.*`, `std.csv`, etc.).
 //!
-//! Codegen lowers the same surface to [`vox_actor_runtime::builtins`]. This module exists only to
+//! Codegen lowers the same surface to `vox_actor_runtime::builtins`. This module exists only to
 //! avoid a Cargo cycle (`vox-compiler` → `vox-actor-runtime` → … → `vox-compiler`).
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -119,13 +119,96 @@ pub(crate) fn interp_csv_render(rows: &[Vec<String>]) -> Result<String, String> 
         .and_then(|b| String::from_utf8(b).map_err(|e| e.to_string()))
 }
 
+/// TOML documents must be tables at the root. Json arrays/scalars from `std.csv` / `std.yaml`
+/// are wrapped under this key for `std.toml.render` and peeled by `std.toml.parse`.
+const VOX_TOML_JSON_ROOT_KEY: &str = "__vox_json_root";
+
 pub(crate) fn interp_toml_parse(text: &str) -> Result<serde_json::Value, String> {
     let v: toml::Value = toml::from_str(text).map_err(|e| e.to_string())?;
-    serde_json::to_value(&v).map_err(|e| e.to_string())
+    let j = toml_value_to_json(&v)?;
+    Ok(match j {
+        serde_json::Value::Object(ref map)
+            if map.len() == 1 && map.contains_key(VOX_TOML_JSON_ROOT_KEY) =>
+        {
+            map.get(VOX_TOML_JSON_ROOT_KEY).cloned().unwrap_or(j)
+        }
+        _ => j,
+    })
+}
+
+fn toml_value_to_json(v: &toml::Value) -> Result<serde_json::Value, String> {
+    Ok(match v {
+        toml::Value::String(s) => serde_json::Value::String(s.clone()),
+        toml::Value::Integer(i) => serde_json::Value::Number((*i).into()),
+        toml::Value::Float(f) => serde_json::Number::from_f64(*f)
+            .map(serde_json::Value::Number)
+            .unwrap_or(serde_json::Value::Null),
+        toml::Value::Boolean(b) => serde_json::Value::Bool(*b),
+        toml::Value::Datetime(dt) => serde_json::Value::String(dt.to_string()),
+        toml::Value::Array(arr) => {
+            let mut out = Vec::with_capacity(arr.len());
+            for item in arr {
+                out.push(toml_value_to_json(item)?);
+            }
+            serde_json::Value::Array(out)
+        }
+        toml::Value::Table(t) => {
+            let mut map = serde_json::Map::new();
+            for (k, val) in t {
+                map.insert(k.clone(), toml_value_to_json(val)?);
+            }
+            serde_json::Value::Object(map)
+        }
+    })
+}
+
+fn json_value_to_toml(j: &serde_json::Value) -> Result<toml::Value, String> {
+    Ok(match j {
+        serde_json::Value::Null => toml::Value::String(String::new()),
+        serde_json::Value::Bool(b) => toml::Value::Boolean(*b),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                toml::Value::Integer(i)
+            } else if let Some(u) = n.as_u64() {
+                toml::Value::Integer(
+                    i64::try_from(u).map_err(|_| "json number too large for TOML Integer".to_string())?,
+                )
+            } else {
+                toml::Value::Float(n.as_f64().unwrap_or(0.0))
+            }
+        }
+        serde_json::Value::String(s) => toml::Value::String(s.clone()),
+        serde_json::Value::Array(arr) => {
+            let mut out = Vec::with_capacity(arr.len());
+            for item in arr {
+                out.push(json_value_to_toml(item)?);
+            }
+            toml::Value::Array(out)
+        }
+        serde_json::Value::Object(map) => {
+            let mut table = toml::map::Map::new();
+            for (k, v) in map {
+                table.insert(k.clone(), json_value_to_toml(v)?);
+            }
+            toml::Value::Table(table)
+        }
+    })
 }
 
 pub(crate) fn interp_toml_render(value: &serde_json::Value) -> Result<String, String> {
-    let tv: toml::Value = serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
+    let wrapped = match value {
+        serde_json::Value::Object(_) => value.clone(),
+        serde_json::Value::Array(_)
+        | serde_json::Value::String(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Null => {
+            let mut m = serde_json::Map::new();
+            m.insert(VOX_TOML_JSON_ROOT_KEY.to_string(), value.clone());
+            serde_json::Value::Object(m)
+        }
+    };
+    let tv = json_value_to_toml(&wrapped)?;
     toml::to_string_pretty(&tv).map_err(|e| e.to_string())
 }
 
@@ -275,5 +358,15 @@ mod shell_stdlib_interp_tests {
         let s = interp_csv_render(&rows).unwrap();
         let v = interp_csv_parse(&s).unwrap();
         assert!(v.is_array());
+    }
+
+    /// Mirrors `examples/golden/format_conversion.vox::csv_toml_yaml_roundtrip_smoke`.
+    #[test]
+    fn csv_yaml_toml_roundtrip_smoke() {
+        let recs = interp_csv_parse_records("k,v\na,1\n").unwrap();
+        let y = interp_yaml_render(&recs).unwrap();
+        let back = interp_yaml_parse(&y).unwrap();
+        let t = interp_toml_render(&back).unwrap();
+        interp_toml_parse(&t).expect("toml parse final step should succeed");
     }
 }

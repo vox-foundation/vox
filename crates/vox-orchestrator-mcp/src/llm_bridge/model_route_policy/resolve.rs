@@ -233,7 +233,7 @@ pub fn resolve_mcp_chat_model_sync(
             .into_iter()
             .filter(|m| caps_ok(m))
             .filter(|m| matches!(m.provider_type, ProviderType::VoxLocal))
-            .filter(|m| mcp_local_model_allowed(m))
+            .filter(mcp_local_model_allowed)
             .filter(|m| routing_allows(m))
             .max_by(|a, b| a.max_tokens.cmp(&b.max_tokens))
         {

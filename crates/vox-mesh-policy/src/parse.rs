@@ -174,33 +174,33 @@ pub fn parse_source(src: &str, origin: &str) -> Result<WorkerDonationPolicy, Par
             }
         }
         // `slot <kind> { max_concurrent = N, weight_pct = M }` declarations
-        else if let Some(rest) = line.strip_prefix("slot ") {
-            if let Some(brace_start) = rest.find('{') {
-                let kind = rest[..brace_start].trim().to_string();
-                let inner = rest[brace_start + 1..].trim_end_matches('}').trim();
-                let mut max_concurrent: u8 = 1;
-                let mut weight_pct: u8 = 50;
-                for field in inner.split(',') {
-                    if let Some((k, v)) = field.trim().split_once('=') {
-                        match k.trim() {
-                            "max_concurrent" => {
-                                max_concurrent = v.trim().parse().unwrap_or(1);
-                            }
-                            "weight_pct" => {
-                                weight_pct = v.trim().parse().unwrap_or(50);
-                            }
-                            _ => {}
+        else if let Some(rest) = line.strip_prefix("slot ")
+            && let Some(brace_start) = rest.find('{')
+        {
+            let kind = rest[..brace_start].trim().to_string();
+            let inner = rest[brace_start + 1..].trim_end_matches('}').trim();
+            let mut max_concurrent: u8 = 1;
+            let mut weight_pct: u8 = 50;
+            for field in inner.split(',') {
+                if let Some((k, v)) = field.trim().split_once('=') {
+                    match k.trim() {
+                        "max_concurrent" => {
+                            max_concurrent = v.trim().parse().unwrap_or(1);
                         }
+                        "weight_pct" => {
+                            weight_pct = v.trim().parse().unwrap_or(50);
+                        }
+                        _ => {}
                     }
                 }
-                use vox_mesh_types::task::TaskKind;
-                let task_kind = TaskKind::from_str_loose(&kind);
-                policy.slots.push(DonationSlot {
-                    task_kind,
-                    max_concurrent,
-                    weight_pct,
-                });
             }
+            use vox_mesh_types::task::TaskKind;
+            let task_kind = TaskKind::from_str_loose(&kind);
+            policy.slots.push(DonationSlot {
+                task_kind,
+                max_concurrent,
+                weight_pct,
+            });
         }
     }
 

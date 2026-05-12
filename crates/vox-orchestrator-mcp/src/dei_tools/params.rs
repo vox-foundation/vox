@@ -55,7 +55,7 @@ pub struct SubmitTaskParams {
 /// MCP arguments: correlate IDE session ids with orchestrator agents.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct HeartbeatParams {
-    /// Client session string previously mapped via [`map_agent_session`].
+    /// Client session string previously mapped via `map_agent_session`.
     pub session_id: String,
 }
 

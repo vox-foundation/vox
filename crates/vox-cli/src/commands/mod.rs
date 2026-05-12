@@ -27,6 +27,8 @@ pub mod check;
 pub mod ci;
 /// Codex integration logic for `vox db` subcommands.
 pub mod codex;
+/// Native / workspace compile umbrella (`vox compile`).
+pub mod compile;
 /// `vox config` CLI endpoint logic.
 pub mod config;
 /// Training data extraction / mixing pipelines (`vox corpus`).
@@ -62,6 +64,8 @@ pub mod emit;
 pub mod ext;
 /// Supplemental subcommands (snippet, share, ars).
 pub mod extras;
+/// Hybrid retrieval CLI (`vox memory search`).
+pub mod memory_cli;
 /// Socrates / evidence fusion for scientia worthiness (`metadata_json.scientia_evidence`).
 pub mod scientia_worthiness_enrich;
 /// ARS `vox skill` implementation (`extras::ars`); re-exported for internal call sites and any out-of-tree dispatch shims.
@@ -152,9 +156,10 @@ pub mod generate;
 #[cfg(feature = "dei")]
 pub mod visus;
 
-/// Local orchestration dashboard (`vox dashboard`).
-#[cfg(feature = "dashboard")]
-pub mod dashboard;
+
+/// Native Tauri 2 GUI (`vox gui`).
+#[cfg(feature = "gui")]
+pub mod gui;
 
 /// Workspace drift and pattern-repetition linter (`vox drift-check`).
 pub mod drift_check;

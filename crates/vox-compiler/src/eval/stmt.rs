@@ -74,7 +74,7 @@ pub fn eval_pattern(
                     } else {
                         Err(EvalError::AssertionFailed("Matched Ok on Err".into()))
                     }
-                } else if name == "Err" && args.len() == 1 {
+                } else if (name == "Err" || name == "Error") && args.len() == 1 {
                     if let Err(msg) = res {
                         eval_pattern(interp, &args[0], VoxValue::Str(msg))?;
                         Ok(())

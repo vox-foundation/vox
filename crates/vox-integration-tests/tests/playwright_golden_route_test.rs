@@ -8,7 +8,7 @@ use vox_cli::commands::build;
 use vox_cli::frontend;
 
 #[tokio::test]
-#[ignore = "set VOX_GUI_PLAYWRIGHT=1; run `pnpm install` + `pnpm exec playwright install chromium` in crates/vox-integration-tests"]
+#[ignore = "set VOX_GUI_PLAYWRIGHT=1; run `pnpm install` + `pnpm exec playwright install chromium` in crates/vox-integration-tests — owner: integration-tests sunset: 2026-12-31"]
 async fn golden_route_screenshot_and_a11y() {
     let playwright_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGuiPlaywright);
     assert_eq!(
@@ -39,6 +39,7 @@ async fn golden_route_screenshot_and_a11y() {
         false,
         false,
         vox_cli::cli_args::BuildMode::App,
+        vox_codegen::codegen_rust::RustAppShell::default(),
     )
     .await
     .expect("vox build");

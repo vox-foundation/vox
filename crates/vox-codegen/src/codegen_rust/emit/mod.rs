@@ -4,10 +4,13 @@
 
 use std::collections::HashMap;
 
-use vox_compiler::app_contract::project_app_contract;
+use crate::projection_bundle::project_bundle_from_hir;
 use vox_compiler::hir::HirModule;
 use vox_compiler::rust_interop_support::{classify_rust_crate, is_template_managed_app_dependency};
 
+use super::RustAppShell;
+
+mod ai_fixture;
 mod client;
 mod durability_lower;
 mod http;
@@ -18,6 +21,53 @@ pub mod tables;
 mod types;
 mod with_emit;
 mod workflow;
+
+/// Generated bundles that call `execute_search_plan` need local path resolution.
+fn module_has_distributed_subagent(module: &HirModule) -> bool {
+    use vox_compiler::hir::nodes::boilerplate_grafts::HirAiFixture;
+    let scan = |f: &vox_compiler::hir::HirFn| {
+        matches!(
+            &f.ai_fixture,
+            Some(HirAiFixture::Subagent(s)) if s.policy.eq_ignore_ascii_case("distributed")
+        )
+    };
+    module.functions.iter().any(scan)
+        || module.tests.iter().any(scan)
+        || module.mcp_tools.iter().any(|t| scan(&t.func))
+        || module.mcp_resources.iter().any(|r| scan(&r.func))
+        || module
+            .foralls
+            .iter()
+            .any(|forall| scan(&forall.func))
+}
+
+fn module_needs_vox_search_docs(module: &HirModule) -> bool {
+    use vox_compiler::hir::nodes::boilerplate_grafts::HirAiFixture;
+    let scan = |f: &vox_compiler::hir::HirFn| {
+        matches!(
+            &f.ai_fixture,
+            Some(HirAiFixture::Search(s)) if s.corpus.eq_ignore_ascii_case("docs")
+        )
+    };
+    module.functions.iter().any(scan)
+        || module.tests.iter().any(scan)
+        || module.mcp_tools.iter().any(|t| scan(&t.func))
+        || module.mcp_resources.iter().any(|r| scan(&r.func))
+        || module
+            .foralls
+            .iter()
+            .any(|forall| scan(&forall.func))
+}
+
+fn emit_generated_extra_deps(module: &HirModule) -> String {
+    let mut out = String::new();
+    out.push_str("vox-telemetry = { path = \"../../crates/vox-telemetry\" }\n");
+    if module_needs_vox_search_docs(module) {
+        out.push_str("vox-search = { path = \"../../crates/vox-search\", default-features = false }\n");
+        out.push_str("vox-repository = { path = \"../../crates/vox-repository\" }\n");
+    }
+    out
+}
 
 pub use client::{emit_api_client, emit_mcp_server};
 pub use http::emit_main;
@@ -42,7 +92,30 @@ fn format_generated_lib_rs(src: &str) -> String {
     }
 }
 
-pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput, miette::Error> {
+fn rust_app_shell_marker(shell: RustAppShell) -> &'static str {
+    match shell {
+        RustAppShell::AxumLocalServer => "// vox-generated rust_app_shell=AxumLocalServer\n",
+        RustAppShell::TauriApp => "// vox-generated rust_app_shell=TauriApp\n",
+    }
+}
+
+pub fn generate(
+    module: &HirModule,
+    package_name: &str,
+    shell: RustAppShell,
+) -> Result<CodegenOutput, miette::Error> {
+    match shell {
+        RustAppShell::TauriApp => generate_tauri_workspace(module, package_name),
+        RustAppShell::AxumLocalServer => generate_axum_local_server(module, package_name, shell),
+    }
+}
+
+/// Axum + embedded static assets (`native-binary` / default `vox build`).
+fn generate_axum_local_server(
+    module: &HirModule,
+    package_name: &str,
+    shell: RustAppShell,
+) -> Result<CodegenOutput, miette::Error> {
     let mut files = HashMap::new();
 
     let table_projections = tables::collect_table_select_projections(module);
@@ -58,13 +131,19 @@ pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput,
         emit_cargo_toml(package_name, module),
     );
 
+    let bundle = project_bundle_from_hir(module);
+
     // src/main.rs (Entry point + Routes)
-    files.insert("src/main.rs".to_string(), emit_main(module, package_name));
+    let main_rs = emit_main(module, package_name, &bundle.app);
+    files.insert(
+        "src/main.rs".to_string(),
+        format!("{}{}", rust_app_shell_marker(shell), main_rs),
+    );
 
     // src/lib.rs (Types, Actors, Workflows, Functions)
     let lib_rs = emit_lib(module);
     files.insert("src/lib.rs".to_string(), format_generated_lib_rs(&lib_rs));
-    if let Ok(contract_json) = serde_json::to_string_pretty(&project_app_contract(module)) {
+    if let Ok(contract_json) = serde_json::to_string_pretty(&bundle.app) {
         files.insert("app_contract.json".to_string(), contract_json);
     }
 
@@ -79,10 +158,239 @@ pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput,
         );
     }
 
+    // Minimal static tree so `rust_embed::Embed` on `public/` always has compile-time inputs
+    // (empty/missing folders break `#[derive(Embed)]` in generated `main.rs`).
+    files.insert(
+        "public/index.html".to_string(),
+        concat!(
+            "<!doctype html><html lang=\"en\"><head>",
+            "<meta charset=\"utf-8\"/><title>Vox</title>",
+            "</head><body></body></html>\n",
+        )
+        .to_string(),
+    );
+
     Ok(CodegenOutput {
         files,
         api_client_ts,
     })
+}
+
+/// Tauri 2 desktop/mobile shell: workspace root + `src-tauri/` binary crate (no Axum in `main`).
+///
+/// HTTP `@endpoint` functions are not lowered to Tauri commands yet — use [`RustAppShell::AxumLocalServer`].
+fn generate_tauri_workspace(
+    module: &HirModule,
+    package_name: &str,
+) -> Result<CodegenOutput, miette::Error> {
+    if !module.endpoint_fns.is_empty() {
+        return Err(miette::miette!(
+            "Tauri app shell does not yet support `@endpoint` functions; use `vox compile --target native-binary` or remove HTTP endpoints."
+        ));
+    }
+
+    let mut files = HashMap::new();
+
+    let table_projections = tables::collect_table_select_projections(module);
+    for table in &module.tables {
+        if let Some(projs) = table_projections.get(&table.name) {
+            tables::validate_db_projection_suffixes_unique(&table.name, projs)?;
+        }
+    }
+
+    files.insert(
+        "Cargo.toml".to_string(),
+        emit_workspace_root_toml(),
+    );
+
+    files.insert(
+        "src-tauri/Cargo.toml".to_string(),
+        emit_cargo_toml_tauri_app(package_name, module),
+    );
+
+    files.insert(
+        "src-tauri/build.rs".to_string(),
+        emit_tauri_build_rs(),
+    );
+
+    let marker = rust_app_shell_marker(RustAppShell::TauriApp);
+    files.insert(
+        "src-tauri/src/main.rs".to_string(),
+        emit_tauri_main_rs(marker),
+    );
+
+    let lib_rs = emit_lib(module);
+    files.insert(
+        "src-tauri/src/lib.rs".to_string(),
+        format_generated_lib_rs(&lib_rs),
+    );
+
+    let bundle = project_bundle_from_hir(module);
+    if let Ok(contract_json) = serde_json::to_string_pretty(&bundle.app) {
+        files.insert("app_contract.json".to_string(), contract_json);
+    }
+
+    let display = package_name.replace('_', " ");
+    let tauri_params = vox_tauri_codegen::TauriEmitParams {
+        identifier: "com.vox.generated",
+        display_name: &display,
+        frontend_dist_relative: "../public",
+    };
+    let tauri_conf = vox_tauri_codegen::serialize_tauri_desktop_config(&tauri_params)
+        .map_err(|e| miette::miette!("{:#}", e))?;
+    files.insert(
+        "src-tauri/tauri.conf.json".to_string(),
+        tauri_conf,
+    );
+
+    files.insert(
+        "src-tauri/capabilities/default.json".to_string(),
+        emit_tauri_default_capability_json(),
+    );
+
+    if !module.mcp_tools.is_empty() || !module.mcp_resources.is_empty() {
+        files.insert(
+            "src-tauri/src/mcp_server.rs".to_string(),
+            emit_mcp_server(module, package_name),
+        );
+    }
+
+    files.insert(
+        "public/index.html".to_string(),
+        concat!(
+            "<!doctype html><html lang=\"en\"><head>",
+            "<meta charset=\"utf-8\"/><title>Vox</title>",
+            "</head><body></body></html>\n",
+        )
+        .to_string(),
+    );
+
+    Ok(CodegenOutput {
+        files,
+        api_client_ts: String::new(),
+    })
+}
+
+fn emit_workspace_root_toml() -> String {
+    r#"[workspace]
+resolver = "2"
+members = ["src-tauri"]
+"#
+    .to_string()
+}
+
+fn emit_tauri_build_rs() -> String {
+    r#"fn main() {
+    tauri_build::try_build(
+        tauri_build::Attributes::new().plugin(
+            "vox-sherpa",
+            tauri_build::InlinedPlugin::new()
+                .commands(&["transcribe"])
+                .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
+        ),
+    )
+    .expect("failed to run tauri-build (ACL / codegen)");
+}
+"#
+    .to_string()
+}
+
+fn emit_tauri_main_rs(shell_header: &str) -> String {
+    format!(
+        r#"{shell_header}// Generated by Vox Compiler — Tauri 2 application entry
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+fn main() {{
+    tauri::Builder::default()
+        .plugin(vox_tauri_sherpa::plugin::init())
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}}
+"#
+    )
+}
+
+fn emit_tauri_default_capability_json() -> String {
+    r#"{
+  "$schema": "https://schema.tauri.app/config/2/capability.json",
+  "identifier": "default",
+  "description": "Default permissions for the main window",
+  "windows": ["main"],
+  "permissions": ["core:default", "vox-sherpa:default"]
+}
+"#
+    .to_string()
+}
+
+/// Path deps in `src-tauri/Cargo.toml` must reach the repo `crates/` tree (`..` ×3 from `target/generated/src-tauri/`).
+fn adjust_crate_paths_for_src_tauri_manifest(deps: &str) -> String {
+    deps.replace("../../crates/", "../../../crates/")
+}
+
+/// `src-tauri/Cargo.toml` — Tauri binary + library; omits Axum/rust-embed server stack.
+fn emit_cargo_toml_tauri_app(name: &str, module: &HirModule) -> String {
+    let rust_import_deps = adjust_crate_paths_for_src_tauri_manifest(&emit_rust_import_dependencies(module));
+    let fixture_deps = adjust_crate_paths_for_src_tauri_manifest(&emit_generated_extra_deps(module));
+    let features_section = if module_has_distributed_subagent(module) {
+        "[features]\ndefault = [\"populi-transport\"]\npopuli-transport = [\"vox-orchestrator/populi-transport\"]\n\n"
+    } else {
+        ""
+    };
+    let mcp_bin = if !module.mcp_tools.is_empty() || !module.mcp_resources.is_empty() {
+        r#"
+
+[[bin]]
+name = "mcp_server"
+path = "src/mcp_server.rs"
+"#
+    } else {
+        ""
+    };
+    format!(
+        r#"[package]
+name = "{name}"
+version = "0.1.0"
+edition = "{edition}"
+default-run = "{name}"
+
+[lib]
+name = "{lib_name}"
+path = "src/lib.rs"
+
+[[bin]]
+name = "{name}"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = "2"
+
+{features_section}[dependencies]
+tauri = "2"
+tokio = {{ version = "1", features = ["full"] }}
+serde = {{ version = "1", features = ["derive"] }}
+serde_json = "1"
+reqwest = {{ version = "0.12", default-features = false, features = ["rustls-tls"] }}
+vox-reqwest-defaults = {{ path = "../../../crates/vox-reqwest-defaults" }}
+tracing = "0.1"
+tracing-subscriber = "0.3"
+turso = {{ version = "0.4", default-features = false }}
+vox-db = {{ path = "../../../crates/vox-db" }}
+vox-actor-runtime = {{ path = "../../../crates/vox-actor-runtime" }}
+vox-orchestrator = {{ path = "../../../crates/vox-orchestrator" }}
+vox-oratio = {{ path = "../../../crates/vox-oratio" }}
+vox-tauri-sherpa = {{ path = "../../../crates/vox-tauri-sherpa", features = ["tauri-plugin"] }}
+{fixture_deps}{rust_import_deps}
+
+[dev-dependencies]
+proptest = "1"
+{mcp_bin}"#,
+        lib_name = name.replace('-', "_"),
+        features_section = features_section,
+        fixture_deps = fixture_deps,
+        rust_import_deps = rust_import_deps,
+        mcp_bin = mcp_bin,
+        edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
+    )
 }
 
 fn emit_rust_import_dependencies(module: &HirModule) -> String {
@@ -122,9 +430,15 @@ fn emit_rust_import_dependencies(module: &HirModule) -> String {
     }
 }
 
-/// `Cargo.toml` body for the generated Rust package `name`.
+/// `Cargo.toml` body for the generated Rust package `name` (Axum local-server shell).
 pub fn emit_cargo_toml(name: &str, module: &HirModule) -> String {
     let rust_import_deps = emit_rust_import_dependencies(module);
+    let fixture_deps = emit_generated_extra_deps(module);
+    let features_section = if module_has_distributed_subagent(module) {
+        "[features]\ndefault = [\"populi-transport\"]\npopuli-transport = [\"vox-orchestrator/populi-transport\"]\n\n"
+    } else {
+        ""
+    };
     let mcp_bin = if !module.mcp_tools.is_empty() || !module.mcp_resources.is_empty() {
         r#"
 
@@ -141,7 +455,7 @@ name = "{name}"
 version = "0.1.0"
 edition = "{edition}"
 
-[workspace]
+{features_section}[workspace]
 
 [dependencies]
 tokio = {{ version = "1", features = ["full"] }}
@@ -161,8 +475,11 @@ tracing-subscriber = "0.3"
 turso = {{ version = "0.4", default-features = false }}
 vox-db = {{ path = "../../crates/vox-db" }}
 vox-actor-runtime = {{ path = "../../crates/vox-actor-runtime" }}
+vox-orchestrator = {{ path = "../../crates/vox-orchestrator" }}
 vox-oratio = {{ path = "../../crates/vox-oratio" }}
-{rust_import_deps}{mcp_bin}"#,
+{fixture_deps}{rust_import_deps}{mcp_bin}"#,
+        features_section = features_section,
+        fixture_deps = fixture_deps,
         rust_import_deps = rust_import_deps,
         mcp_bin = mcp_bin,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,

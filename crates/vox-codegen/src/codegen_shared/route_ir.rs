@@ -1,14 +1,14 @@
 //! Shared Route Intermediate Representation — the single source of truth for HTTP route
 //! contracts that both Rust (Axum) and TypeScript (Express) codegen emit against.
 //!
-//! Neither [`crate::codegen_rust::emit::http`] nor [`crate::codegen_ts::routes`] should
+//! Neither `crate::codegen_rust::emit::http` nor [`crate::codegen_ts::routes`] should
 //! re-derive route metadata independently — they should consume [`RouteIR`] slices instead.
 //!
 //! ## Design Contract
 //!
 //! * `RouteIR` carries only what both Rust and TS backends need: method, path, param names,
 //!   and return-type presence. Body stmts stay in HIR and are emitted by each backend.
-//! * Lowering is additive: the existing HIR structs ([`HirRoute`], [`HirServerFn`]) are
+//! * Lowering is additive: the existing HIR structs ([`HirRoute`], `HirServerFn`) are
 //!   unchanged — `RouteIR` is a read-only projection computed at codegen time.
 use vox_compiler::hir::{HirEndpointFn, HirHttpMethod, HirModule, HirParam, HirRoute};
 

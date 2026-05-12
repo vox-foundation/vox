@@ -8,9 +8,9 @@
 //! | Sub-module | Responsibility |
 //! |---|---|
 //! | [`core`] | `new`, `with_groups`, `init_db`, `record_ai_usage` |
-//! | [`agent_lifecycle`] | `spawn_agent`, `retire_agent`, `pause/resume`, `heartbeat`, `handoff` |
-//! | [`scaling`] | `rebalance`, `tick` |
-//! | [`vcs_ops`] | `capture_snapshot`, `take_db_snapshot`, `undo/redo_operation` |
+//! | `agent_lifecycle` | `spawn_agent`, `retire_agent`, `pause/resume`, `heartbeat`, `handoff` |
+//! | `scaling` | `rebalance`, `tick` |
+//! | `vcs_ops` | `capture_snapshot`, `take_db_snapshot`, `undo/redo_operation` |
 
 mod agent;
 mod campaigns;

@@ -285,19 +285,28 @@ fn classify_ignored_test_issue(attrs: &[String]) -> Option<IgnoredTestGovernance
     }
 }
 
-/// Scan `crates/**/*.rs` (unit / integration / bench paths) for ignored tests missing governance markers.
-///
-/// Returns `(total_ignored_tests, findings)` where `findings` is non-empty when bare `#[ignore]` or
-/// a string reason lacks owner/sunset-style documentation.
-pub fn scan_ignored_test_governance_findings(
+/// Histogram of ignored tests per repo-relative Rust path (same walk as governance scan).
+pub fn scan_ignored_tests_per_file(root: &Path) -> Result<BTreeMap<String, u64>> {
+    let (_total, _findings, per_file) = scan_ignored_test_governance_findings_with_histogram(root)?;
+    Ok(per_file)
+}
+
+/// Internal: shared walk for ignored-test governance + per-file histogram.
+pub(super) fn scan_ignored_test_governance_findings_with_histogram(
     root: &Path,
-) -> Result<(u64, Vec<IgnoredTestGovernanceFinding>)> {
-    let mut total_ignored = 0u64;
-    let mut findings: Vec<IgnoredTestGovernanceFinding> = Vec::new();
+) -> Result<(
+    u64,
+    Vec<IgnoredTestGovernanceFinding>,
+    BTreeMap<String, u64>,
+)> {
     let crates_path = root.join("crates");
     if !crates_path.is_dir() {
-        return Ok((0, findings));
+        return Ok((0, Vec::new(), BTreeMap::new()));
     }
+
+    let mut total_ignored = 0u64;
+    let mut per_file: BTreeMap<String, u64> = BTreeMap::new();
+    let mut findings: Vec<IgnoredTestGovernanceFinding> = Vec::new();
 
     for ent in WalkDir::new(&crates_path)
         .into_iter()
@@ -373,6 +382,7 @@ pub fn scan_ignored_test_governance_findings(
             }
 
             total_ignored += 1;
+            *per_file.entry(rel.clone()).or_insert(0) += 1;
             if let Some(issue) = classify_ignored_test_issue(&attrs) {
                 let test_function =
                     extract_rust_fn_name(raw_line).unwrap_or_else(|| "<unknown>".to_string());
@@ -394,7 +404,15 @@ pub fn scan_ignored_test_governance_findings(
             .then_with(|| a.test_function.cmp(&b.test_function))
     });
 
-    Ok((total_ignored, findings))
+    Ok((total_ignored, findings, per_file))
+}
+
+/// Scan `crates/**/*.rs` for ignored tests and governance markers (wrapper).
+pub fn scan_ignored_test_governance_findings(
+    root: &Path,
+) -> Result<(u64, Vec<IgnoredTestGovernanceFinding>)> {
+    let (total, findings, _per_file) = scan_ignored_test_governance_findings_with_histogram(root)?;
+    Ok((total, findings))
 }
 
 fn looks_like_retired_webir_note(reason: &str) -> bool {
@@ -882,7 +900,7 @@ fn emit_markdown(report: &TestInventoryReport) -> String {
         "| Doctest fence lines counted | {} |\n",
         report.doctest_candidates.rust_doc_fence_lines
     ));
-    s.push_str("\n");
+    s.push('\n');
 
     s.push_str("### Test harness patterns (Rust files in unit/integration/bench paths)\n\n");
     let p = &report.test_file_patterns;
@@ -904,7 +922,7 @@ fn emit_markdown(report: &TestInventoryReport) -> String {
         p.quickcheck_colon_colon
     ));
     s.push_str(&format!("| `insta::` | {} |\n", p.insta_colon_colon));
-    s.push_str("\n");
+    s.push('\n');
 
     s.push_str("## Caveats\n\n");
     s.push_str(&format!(
@@ -923,7 +941,7 @@ fn emit_markdown(report: &TestInventoryReport) -> String {
         "- **WebIR ignores with retired/tombstone-style reasons:** {}\n",
         sum.webir_ignored_tests_likely_retired_note
     ));
-    s.push_str("\n");
+    s.push('\n');
 
     s.push_str("## Zero-test crates\n\n");
     if report.zero_test_crates.is_empty() {
@@ -1057,17 +1075,16 @@ mod tests {
 
     #[test]
     fn scan_counts_tests_and_ignores() {
-        let src = r#"
-#[ignore = "slow"]
-#[test]
-fn a() {}
-
-#[tokio::test]
-async fn b() {}
-
-#[test]
-fn c() {}
-"#;
+        let src = concat!(
+            "\n",
+            "#[ignore = \"slow\"]\n",
+            "#[test]\n",
+            "fn a() {}\n\n",
+            "#[tokio::test]\n",
+            "async fn b() {}\n\n",
+            "#[test]\n",
+            "fn c() {}\n",
+        );
         let scan = scan_rust_source(src, RustFileKind::Integration, "crates/x/tests/t.rs");
         assert_eq!(scan.integration_tests, 3);
         assert_eq!(scan.ignored_tests, 1);
@@ -1145,15 +1162,15 @@ fn c() {}
 
     #[test]
     fn webir_ignore_counts_split_retired() {
-        let src = r#"
-#[ignore = "tombstone web_ir"]
-#[test]
-fn a() {}
-
-#[ignore = "web_ir pipeline"]
-#[test]
-fn b() {}
-"#;
+        let src = concat!(
+            "\n",
+            "#[ignore = \"tombstone web_ir\"]\n",
+            "#[test]\n",
+            "fn a() {}\n\n",
+            "#[ignore = \"web_ir pipeline\"]\n",
+            "#[test]\n",
+            "fn b() {}\n",
+        );
         let (active, retired) = count_webir_ignore_metadata(src, "crates/foo/src/lib.rs");
         assert_eq!(retired, 1);
         assert_eq!(active, 1);
@@ -1180,19 +1197,18 @@ fn b() {}
         )?;
         fs::write(
             root.join("crates/demo/tests/g.rs"),
-            r#"
-#[ignore]
-#[test]
-fn bare() {}
-
-#[ignore = "just slow"]
-#[test]
-fn weak() {}
-
-#[ignore = "owner: qa — track in TASK-1"]
-#[test]
-fn ok() {}
-"#,
+            concat!(
+                "\n",
+                "#[ignore]\n",
+                "#[test]\n",
+                "fn bare() {}\n\n",
+                "#[ignore = \"just slow\"]\n",
+                "#[test]\n",
+                "fn weak() {}\n\n",
+                "#[ignore = \"owner: qa — track in TASK-1\"]\n",
+                "#[test]\n",
+                "fn ok() {}\n",
+            ),
         )?;
 
         let (total, findings) = scan_ignored_test_governance_findings(root)?;

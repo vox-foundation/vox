@@ -1,7 +1,6 @@
 use crate::orchestrator::Orchestrator;
 use crate::socrates::SocratesTaskContext;
 use tracing::{info, warn};
-use vox_search::web_dispatcher::WebSearchDispatcher;
 
 impl Orchestrator {
     /// Performs autonomous research based on Socrates policy requests or CRAG routing.
@@ -24,66 +23,14 @@ impl Orchestrator {
             (cfg.effective_search_policy(), cfg.research_quality_target)
         };
 
-        let mut research_results = Vec::new();
-        let mut hops_remaining = policy.web_search_max_hops;
-        let mut active_queries = queries.clone();
-        let mut visited_urls = std::collections::HashSet::new();
-
-        while hops_remaining > 0 && !active_queries.is_empty() {
-            let mut hop_hits = Vec::new();
-            info!(
-                hop = policy.web_search_max_hops - hops_remaining + 1,
-                query_count = active_queries.len(),
-                "starting research hop"
-            );
-
-            for query in &active_queries {
-                match WebSearchDispatcher::search(&query, &policy).await {
-                    Ok(hits) => {
-                        for hit in hits {
-                            if visited_urls.insert(hit.path.clone()) {
-                                let engine = hit
-                                    .provenance
-                                    .iter()
-                                    .find_map(|p| p.strip_prefix("engine:"))
-                                    .unwrap_or("unknown");
-
-                                research_results.push(format!(
-                                    "[autonomous_research:{}] {} (score: {:.3}; engine: {}) - {}",
-                                    hit.path,
-                                    hit.title,
-                                    hit.score,
-                                    engine,
-                                    hit.content_snippet.replace('\n', " ")
-                                ));
-                                hop_hits.push(hit);
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        warn!(query = %query, error = %e, "research query failed");
-                    }
-                }
-            }
-
-            // Calculate current evidence quality (simplified heuristic)
-            let current_quality = (research_results.len() as f64 * 0.1).min(1.0);
-
-            if !vox_search::crag::CragRouter::should_continue(
-                current_quality,
-                quality_target,
-                hops_remaining,
-            ) {
-                break;
-            }
-
-            // Expand queries for next hop
-            active_queries = vox_search::crag::CragRouter::expand_queries_from_partial_evidence(
-                &queries[0],
-                &hop_hits,
-            );
-            hops_remaining -= 1;
-        }
+        let anchor = queries.first().map(|s| s.as_str()).unwrap_or("");
+        let mut research_results = vox_search::research::run_multi_hop_web_research(
+            &policy,
+            &queries,
+            quality_target,
+            anchor,
+        )
+        .await;
 
         let research_model_enabled =
             crate::sync_lock::rw_read(&*self.config).research_model_enabled;

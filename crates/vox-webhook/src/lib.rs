@@ -4,7 +4,6 @@
 //! and a `Channel` abstraction for Discord/Slack/WebSocket integrations.
 //!
 //! Public re-exports are thin facades; see submodule files for behavior.
-#![allow(unused)]
 
 /// Bridge: routes broadcast webhook events into a WebhookEventSink.
 pub mod bridge;

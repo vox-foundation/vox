@@ -7,6 +7,7 @@ use crate::latin_cmd;
 
 pub(crate) async fn run_doctor_command(args: &cli_args::DoctorArgs) -> anyhow::Result<()> {
     commands::diagnostics::doctor::run(
+        args.compile_target.as_deref(),
         args.auto_heal,
         args.test_health,
         args.build_perf,
@@ -123,6 +124,7 @@ pub(crate) fn cli_top_level_into_fabrica_or_self(
         Cli::Run { args } => Ok(FabricaCmd::Run(args)),
         Cli::Dev { args } => Ok(FabricaCmd::Dev(args)),
         Cli::BundleApp { args } => Ok(FabricaCmd::Bundle(args)),
+        Cli::Compile { args } => Ok(FabricaCmd::Compile(args)),
         Cli::Fmt { args } => Ok(FabricaCmd::Fmt(args)),
         other => Err(other),
     }
@@ -140,6 +142,7 @@ pub(crate) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
                 a.scaffold,
                 a.emit_ir,
                 a.mode,
+                vox_codegen::codegen_rust::RustAppShell::default(),
             )
             .await?;
         }
@@ -167,8 +170,18 @@ pub(crate) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
             commands::dev::run(&a.file, &a.out_dir, a.port, a.open, a.build_target).await?;
         }
         FabricaCmd::Bundle(a) => {
-            commands::bundle::run(&a.file, &a.out_dir, a.target.as_deref(), a.release, a.mode)
+            commands::bundle::run(
+                &a.file,
+                &a.out_dir,
+                a.target.as_deref(),
+                a.release,
+                a.mode,
+                vox_codegen::codegen_rust::RustAppShell::default(),
+            )
                 .await?;
+        }
+        FabricaCmd::Compile(a) => {
+            commands::compile::run(&a).await?;
         }
         FabricaCmd::Fmt(a) => {
             commands::fmt::run(&a.file, a.check)?;

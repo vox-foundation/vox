@@ -10,12 +10,11 @@ pub fn find_workspace_root(start: impl AsRef<Path>) -> Option<PathBuf> {
     let mut dir = start.as_ref().to_path_buf();
     loop {
         let manifest = dir.join("Cargo.toml");
-        if manifest.is_file() {
-            if let Ok(txt) = std::fs::read_to_string(&manifest) {
-                if txt.lines().any(|l| l.trim() == "[workspace]") {
-                    return Some(dir);
-                }
-            }
+        if manifest.is_file()
+            && let Ok(txt) = std::fs::read_to_string(&manifest)
+            && txt.lines().any(|l| l.trim() == "[workspace]")
+        {
+            return Some(dir);
         }
         if !dir.pop() {
             break;
@@ -24,10 +23,11 @@ pub fn find_workspace_root(start: impl AsRef<Path>) -> Option<PathBuf> {
     None
 }
 
-/// Prefer `VOX_REPO_ROOT` when it points at a checkout root; otherwise walk up from `start`.
+/// Prefer [`vox_secrets::SecretId::VoxRepositoryRoot`] (`VOX_REPO_ROOT`) when it points at a checkout root; otherwise walk up from `start`.
 pub fn repo_root_for_tests(start: impl AsRef<Path>) -> PathBuf {
-    if let Ok(root) = std::env::var("VOX_REPO_ROOT") {
-        let p = PathBuf::from(root.trim());
+    if let Some(raw) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot).expose()
+    {
+        let p = PathBuf::from(raw.trim());
         if p.join("Cargo.toml").is_file() {
             return p;
         }

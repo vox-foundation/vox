@@ -228,6 +228,7 @@ pub use types::now_unix_ms;
 pub use vox_db_types::EvalRunParams;
 pub use vox_db_types::{
     DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId,
+    ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary,
 };
 pub use workspace_journey_store::{
     WorkspaceJourneyStoreMode, connect_workspace_journey_optional,

@@ -12,7 +12,7 @@ use crate::handler::WebhookEvent;
 /// Abstract surface that a webhook bridge dispatches validated events to.
 ///
 /// Implement this trait on your consumer (e.g. `Orchestrator`) and pass an
-/// `Arc<dyn WebhookEventSink>` to [`WebhookEventSinkBridge::new`].
+/// `Arc<dyn WebhookEventSink>` to the bridge constructor in `crate::bridge`.
 #[async_trait]
 pub trait WebhookEventSink: Send + Sync {
     /// Dispatch a validated webhook event.

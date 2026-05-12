@@ -1,19 +1,11 @@
 use vox_compiler::hir::{HirFn, HirForall, HirModule, HirType};
 
-use super::stmt_expr::emit_expr;
 use super::tables::{collect_table_select_projections, emit_table_struct};
 use super::types::emit_type;
 
 pub fn emit_lib(module: &HirModule) -> String {
     let mut out = String::new();
     out.push_str("use serde::{Serialize, Deserialize};\n");
-
-    if module.functions.iter().any(|f| f.is_llm) {
-        out.push_str("use vox_secrets::{SecretId, resolve_secret};\n");
-        out.push_str(
-            "use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};\n",
-        );
-    }
 
     if !module.tables.is_empty() {
         out.push_str("use vox_db::Codex;\n");
@@ -136,7 +128,11 @@ fn emit_forall(forall: &HirForall) -> String {
 pub fn emit_fn(func: &HirFn) -> String {
     let mut out = String::new();
     let pub_kw = if func.is_pub { "pub " } else { "" };
-    let async_kw = if func.is_async { "async " } else { "" };
+    let async_kw = if func.is_async || func.is_llm {
+        "async "
+    } else {
+        ""
+    };
     out.push_str(&format!("{}{}fn {}(", pub_kw, async_kw, func.name));
     for param in &func.params {
         out.push_str(&format!(
@@ -156,70 +152,7 @@ pub fn emit_fn(func: &HirFn) -> String {
     }
     out.push_str("{\n");
     if func.is_llm {
-        let model_init = if let Some(m) = func.llm_model.as_deref() {
-            format!(
-                "\"{}\".to_string()",
-                m.replace('\\', "\\\\").replace('"', "\\\"")
-            )
-        } else {
-            "openrouter_chat_model_preference()".to_string()
-        };
-        out.push_str("    let client = reqwest::Client::new();\n");
-        out.push_str("    let token = resolve_secret(SecretId::OpenRouterApiKey).expose().expect(\"LLM function requires OpenRouterApiKey\").to_string();\n");
-        out.push_str(&format!("    let model = {};\n", model_init));
-
-        // Build the prompt from parameters
-        out.push_str("    let mut prompt = String::new();\n");
-        out.push_str(&format!(
-            "    prompt.push_str(\"Implement the function: {}\\n\");\n",
-            func.name
-        ));
-        out.push_str("    prompt.push_str(\"Arguments:\\n\");\n");
-        for param in &func.params {
-            out.push_str(&format!(
-                "    prompt.push_str(&format!(\"- {}: {{:?}}\\n\", {}));\n",
-                param.name, param.name
-            ));
-        }
-        out.push_str("    prompt.push_str(\"\\nReturn ONLY the result as a valid JSON object matching the return type schema. Do not explain.\\n\");\n");
-
-        out.push_str("    let runtime = tokio::runtime::Handle::current();\n");
-        out.push_str("    let res = runtime.block_on(async {\n");
-        out.push_str("        client.post(OPENROUTER_CHAT_COMPLETIONS_URL)\n");
-        out.push_str("            .header(\"Authorization\", format!(\"Bearer {}\", token))\n");
-        out.push_str("            .json(&serde_json::json!({\n");
-        out.push_str("                \"model\": model,\n");
-        out.push_str(
-            "                \"messages\": [{ \"role\": \"user\", \"content\": prompt }],\n",
-        );
-        out.push_str("                \"temperature\": 0.1\n");
-        out.push_str("            }))\n");
-        out.push_str("            .send().await.unwrap()\n");
-        out.push_str("            .json::<serde_json::Value>().await.unwrap()\n");
-        out.push_str("    });\n");
-
-        out.push_str("    let content = res[\"choices\"][0][\"message\"][\"content\"].as_str().unwrap_or_default();\n");
-        if let Some(ret) = &func.return_type {
-            let ret_ty = emit_type(ret);
-            out.push_str(&format!("    let it = serde_json::from_str::<{}> (content.trim_matches('`').trim_start_matches(\"json\").trim()).expect(\"Failed to parse LLM response\");\n", ret_ty));
-
-            // Check postconditions for @ai functions
-            for pc in &func.postconditions {
-                let cond = emit_expr(&pc.condition);
-                if let Some(fb) = &pc.fallback {
-                    out.push_str(&format!("    if !({}) {{ return {}(", cond, fb));
-                    // Pass through same arguments if signatures match, but for now we assume zero-arg fallback or specific contract.
-                    // A better implementation would match signatures, but this fulfills the 'logic' requirement.
-                    out.push_str(").await; }\n");
-                } else {
-                    out.push_str(&format!(
-                        "    assert!({}, \"Postcondition failed\");\n",
-                        cond
-                    ));
-                }
-            }
-            out.push_str("    it\n");
-        }
+        super::ai_fixture::emit_llm_function_body(&mut out, func);
     } else {
         out.push_str(&super::durability_lower::emit_durable_body(func));
     }

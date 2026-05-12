@@ -12,10 +12,10 @@ vox-test-harness = { path = "../vox-test-harness" }
 tokio = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 jsonschema = { workspace = true, default-features = false, features = ["resolve-file"] }
 wiremock = { workspace = true }
-tower-lsp = "0.20"
-tower-lsp-server = "0.23"
+tower-lsp-server = { workspace = true }
 vox-config = { workspace = true }
 vox-repository = { workspace = true }
 vox-orchestrator = { workspace = true }
@@ -31,6 +31,7 @@ vox-skills = { workspace = true }
 vox-cli = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-secrets = { workspace = true }
+vox-oratio = { workspace = true }
 
 
 [lints]

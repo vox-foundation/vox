@@ -132,10 +132,6 @@ impl WebhookOrchestratorBridge {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use tokio::sync::{broadcast, mpsc};
-
     use crate::handler::{InboundPayload, WebhookEvent};
 
     use super::*;

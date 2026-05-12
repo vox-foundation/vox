@@ -85,7 +85,7 @@ impl LegacyImportSource {
     }
 }
 
-/// Tables never exported: Turso/Arca owns `schema_version` via [`crate::VoxDb::migrate`].
+/// Tables never exported: Turso/Arca owns `schema_version` via `crate::VoxDb::migrate`.
 /// A fresh target DB must already hold [`crate::schema::BASELINE_VERSION`] before [`import_legacy_jsonl`].
 pub const LEGACY_EXPORT_SKIP_TABLES: &[&str] = &[
     "convergence_op_log", // mesh replication state — not portable across peers

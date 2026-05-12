@@ -34,6 +34,7 @@ impl MeshNodeStatus {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "active" => Self::Active,
@@ -62,6 +63,7 @@ impl MeshNodeKind {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "orchestrator" => Self::Orchestrator,
@@ -74,8 +76,10 @@ impl MeshNodeKind {
 /// Privacy class assigned to a node — determines which jobs it can accept.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum MeshPrivacyClass {
     Public,
+    #[default]
     Private,
     Confidential,
 }
@@ -87,12 +91,6 @@ impl MeshPrivacyClass {
             Self::Private => "private",
             Self::Confidential => "confidential",
         }
-    }
-}
-
-impl Default for MeshPrivacyClass {
-    fn default() -> Self {
-        Self::Private
     }
 }
 
@@ -134,6 +132,7 @@ impl MeshEdgeKind {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "delegation" => Self::Delegation,
@@ -161,6 +160,7 @@ impl MeshEdgeStatus {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "active" => Self::Active,
@@ -401,10 +401,7 @@ impl MeshRegistry {
             .as_millis() as u64;
 
         let g = self.inner.read().await;
-        match g.bearers.get(token) {
-            Some(entry) if entry.expires_at_ms >= now_ms => true,
-            _ => false,
-        }
+        matches!(g.bearers.get(token), Some(entry) if entry.expires_at_ms >= now_ms)
     }
 
     /// Validate and consume a one-shot bearer token.

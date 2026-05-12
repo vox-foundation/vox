@@ -7,6 +7,7 @@ use vox_openai_wire::{
     ChatMessageTurn as OpenAiMsg,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn http_openai_compatible_with_headers(
     client: &reqwest::Client,
     url: &str,

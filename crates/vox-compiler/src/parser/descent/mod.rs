@@ -1,6 +1,6 @@
 //! Single-module recursive-descent parser implementation.
 //!
-//! **This is the only parser implementation** for `vox-parser`. There is no
+//! **This is the only parser implementation** for the Vox compiler (`vox-compiler`). There is no
 //! secondary parser, no multi-module rewrite, and no separate LSP tree-sitter
 //! layer in this crate. The public entry point is [`parse`].
 //!
@@ -12,17 +12,17 @@ use crate::lexer::cursor::Spanned;
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass, ParseSeverity};
 
-/// Strict parse: returns [`Module`] or **all** accumulated [`ParseError`] values.
+/// Strict parse: returns [`crate::Module`] or **all** accumulated [`ParseError`] values.
 ///
-/// Defaults to [`FileKind::Source`] semantics. Use [`parse_with_kind`] when the file
+/// Defaults to [`crate::module::FileKind::Source`] semantics. Use [`parse_with_kind`] when the file
 /// path's classification (e.g., `.vox.ui`) needs to relax the grammar — see
 /// [ADR-032](../../../../../docs/src/adr/032-vox-ui-reactive-modules.md).
 pub fn parse(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
     parse_with_kind(tokens, crate::module::FileKind::Source)
 }
 
-/// Like [`parse`] but additionally tells the descent which [`FileKind`] the source
-/// belongs to. Currently only [`FileKind::ReactiveModule`] changes behavior — it
+/// Like [`parse`] but additionally tells the descent which [`crate::module::FileKind`] the source
+/// belongs to. Currently only [`crate::module::FileKind::ReactiveModule`] changes behavior — it
 /// permits module-scope reactive members per ADR-032.
 pub fn parse_with_kind(
     tokens: Vec<Spanned>,
@@ -126,7 +126,7 @@ impl Parser {
     /// Debug-only trace when `VOX_PARSER_DEBUG` is set in the environment (OP-0008 / OP-0031).
     pub(crate) fn maybe_parser_trace(&self, label: &'static str) {
         if std::env::var_os("VOX_PARSER_DEBUG").is_some() {
-            eprintln!("[vox-parser:{label}] {:?}", self.peek());
+            eprintln!("[vox-compiler:{label}] {:?}", self.peek());
         }
     }
 
@@ -303,6 +303,28 @@ impl Parser {
                 llm_model: None,
                 ai_structured_output_type: None,
                 ai_max_iterations: 3,
+                ai_task_category: None,
+                ai_strengths: vec![],
+                ai_tier_max: None,
+                ai_cost_ceiling_usd_per_call: None,
+                prompt_stage: None,
+                prompt_schema: None,
+                prompt_redact: vec![],
+                subagent_policy: None,
+                subagent_max_depth: None,
+                subagent_budget_usd: None,
+                subagent_description: None,
+                subagent_parallel: false,
+                subagent_complexity: None,
+                search_corpus: None,
+                search_query: None,
+                search_into: None,
+                search_top_k: None,
+                search_policy: None,
+                hole_spec: None,
+                hole_reviewer: None,
+                hole_cache_key: None,
+                hole_constraints: vec![],
                 embed: None,
                 is_pub: false,
                 auth_provider: None,
@@ -387,6 +409,10 @@ impl Parser {
                 | Token::AtReactive
                 | Token::AtRemote
                 | Token::AtAi
+                | Token::AtPrompt
+                | Token::AtSubagent
+                | Token::AtSearch
+                | Token::AtHole
                 | Token::AtDeprecated
                 | Token::AtLoading
                 | Token::AtTokens
@@ -475,6 +501,10 @@ impl Parser {
                     | Token::AtPure
                     | Token::AtRemote
                     | Token::AtAi
+                    | Token::AtPrompt
+                    | Token::AtSubagent
+                    | Token::AtSearch
+                    | Token::AtHole
                     | Token::AtInference
                     | Token::AtTrainingStep
                     | Token::AtDeprecated
@@ -514,6 +544,10 @@ impl Parser {
             | Token::AtReactive
             | Token::AtRemote
             | Token::AtAi
+            | Token::AtPrompt
+            | Token::AtSubagent
+            | Token::AtSearch
+            | Token::AtHole
             | Token::AtInference
             | Token::AtTrainingStep
             | Token::AtDeprecated
@@ -542,6 +576,10 @@ impl Parser {
                     | Token::AtPure
                     | Token::AtRemote
                     | Token::AtAi
+                    | Token::AtPrompt
+                    | Token::AtSubagent
+                    | Token::AtSearch
+                    | Token::AtHole
                     | Token::AtInference
                     | Token::AtTrainingStep
                     | Token::AtDeprecated

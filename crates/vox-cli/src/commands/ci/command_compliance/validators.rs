@@ -176,7 +176,7 @@ fn extract_env_var_tokens_from_prose_md(md: &str) -> HashSet<String> {
         }
         for cap in btick.captures_iter(line) {
             let inner = cap.get(1).unwrap().as_str();
-            for part in inner.split(|c| c == '/' || c == '|' || c == ',' || c == ' ') {
+            for part in inner.split(['/', '|', ',', ' ']) {
                 let p = part.trim();
                 if p.is_empty() || p.contains('*') {
                     continue;
@@ -666,6 +666,27 @@ pub(crate) fn check_dei(reg: &RegistryFile, dei: &str) -> Result<()> {
     Ok(())
 }
 
+/// Resolve `commands::<first_segment>::…` to the primary Rust module file for that segment.
+///
+/// This tightens compliance vs substring-only matches (comments / unrelated mentions).
+fn resolve_commands_handler_module_file(vox_cli_src: &Path, handler: &str) -> Option<PathBuf> {
+    let rest = handler.strip_prefix("commands::")?;
+    let first = rest.split("::").next()?.trim();
+    if first.is_empty() {
+        return None;
+    }
+    let commands_dir = vox_cli_src.join("commands");
+    let direct_rs = commands_dir.join(format!("{first}.rs"));
+    if direct_rs.is_file() {
+        return Some(direct_rs);
+    }
+    let nested_mod = commands_dir.join(first).join("mod.rs");
+    if nested_mod.is_file() {
+        return Some(nested_mod);
+    }
+    None
+}
+
 fn vox_cli_src_contains_needle(root: &Path, needle: &str) -> Result<bool> {
     fn walk(dir: &Path, needle: &str, found: &mut bool) -> Result<()> {
         use anyhow::Context;
@@ -721,6 +742,14 @@ pub(crate) fn check_registry_latin_and_handlers(
         if let Some(ref h) = op.handler_rust {
             if matches!(op.status.as_str(), "deprecated") {
                 continue;
+            }
+            if h.starts_with("commands::") {
+                if resolve_commands_handler_module_file(vox_cli_src, h).is_none() {
+                    return Err(anyhow!(
+                        "command-registry: handler_rust `{h}` for path {:?} does not resolve to crates/vox-cli/src/commands/{{segment}}.rs or commands/{{segment}}/mod.rs",
+                        op.path
+                    ));
+                }
             }
             if !vox_cli_src_contains_needle(vox_cli_src, h)? {
                 return Err(anyhow!(
@@ -1136,4 +1165,29 @@ pub(crate) fn check_latin_alias_parity_with_catalog(repo_root: &Path, lib_rs: &s
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod handler_module_resolution_tests {
+    use super::resolve_commands_handler_module_file;
+    use std::path::Path;
+
+    #[test]
+    fn resolves_plugin_bundle_module() {
+        let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let p = resolve_commands_handler_module_file(&src, "commands::plugin_bundle::run")
+            .expect("plugin_bundle module path");
+        assert!(
+            p.ends_with("plugin_bundle.rs") || p.ends_with(Path::new("plugin_bundle/mod.rs")),
+            "{p:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_commands_segment() {
+        let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        assert!(
+            resolve_commands_handler_module_file(&src, "commands::not_a_real_module::x").is_none()
+        );
+    }
 }

@@ -92,6 +92,10 @@ impl ZenodoHttpClient {
         )
     }
 
+    /// URL for issuing a new version of an existing Zenodo deposition.
+    /// Currently only exercised by `tests::url_new_version_is_correct` until
+    /// the multi-version deposition flow is wired into the publisher service.
+    #[cfg_attr(not(test), allow(dead_code))]
     fn url_new_version(&self, id: &str) -> String {
         format!(
             "{}/deposit/depositions/{id}/actions/newversion",

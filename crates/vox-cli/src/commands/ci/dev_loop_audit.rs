@@ -57,7 +57,8 @@ fn gather(root: &Path) -> DevLoopAuditV1 {
                 );
             } else {
                 hints.push(
-                    "CARGO_TARGET_DIR matches the repo `target/` — shared incremental cache.".into(),
+                    "CARGO_TARGET_DIR matches the repo `target/` — shared incremental cache."
+                        .into(),
                 );
             }
         }
