@@ -60,14 +60,29 @@ cd my-app
 vox run src/main.vox
 ```
 
-### Optional plugins
+### Ecosystem & Plugins
 
-The core binary covers compile, run, bundle, package. Heavier subsystems ship as separate binaries that `vox` dispatches to from `$PATH`; if missing, `vox` tells you what to install.
+Vox is highly modular. The core binary covers compile, run, bundle, package. Heavier capabilities are provided through optional **CLI Extensions** and **Runtime Plugins**.
 
-| Plugin | Adds | Why separate |
+#### CLI Extensions
+These ship as separate binaries that `vox` dispatches to from `$PATH`; if missing, `vox` tells you what to install.
+
+| Extension | Adds | Purpose |
 |---|---|---|
-| `vox-ml-cli` | `vox mens`, `vox oratio`, `vox populi`, `vox speech`, `vox train` | Candle, Whisper, HF hub |
-| `vox-schola` | `vox schola`, `vox scientia` | Research and capability-map subsystem |
+| `vox-ml-cli` | `vox mens`, `vox oratio`, `vox populi`, `vox speech`, `vox train` | Rust-native ML frameworks ([Candle](https://github.com/huggingface/candle), [Whisper](https://en.wikipedia.org/wiki/Whisper_(speech_recognition_system)), [HF hub](https://huggingface.co/docs/hub/index)) for training and serving without Python. |
+| `vox-schola` | `vox schola`, `vox scientia` | Autonomous AI research, fact-checking, and capability-map subsystems. |
+| `vox-gui` | `vox gui` | Native Tauri desktop application and visual environment. |
+
+#### Runtime Plugins (Agent Skills)
+The Vox AgentOS dynamically loads capabilities through a stable ABI using `vox-plugin-host`. There are currently 27 first-party plugins granting your agents access to the outside world:
+
+- **Machine Learning & Audio**: `mens-candle-cuda` (NVIDIA acceleration), `mens-candle-metal` (Apple Silicon acceleration), `nvml-probe`, `oratio`, `oratio-mic`, `populi-mesh`
+- **Execution Sandboxes**: `runtime-container` (Docker), `runtime-wasm`, `script-execution`
+- **Agent Skills**: `skill-compiler`, `skill-git`, `skill-memory`, `skill-orchestrator`, `skill-rag`, `skill-testing`, `skill-testing-validate`, `skill-v0`, `browser`, `noop-skill`
+- **Core Infrastructure**: `api`, `catalog`, `cloud`, `host`, `types`, `webhook`
+- **Publishing**: `publication`, `grammar-export`
+
+*→ See the [Plugin Catalog](docs/src/reference/plugin-catalog.generated.md) for detailed tool signatures.*
 
 ## The CLI
 
@@ -92,7 +107,7 @@ The full CLI surface, including every `vox ci`, `vox populi`, and `vox mens` sub
 }
 ```
 
-The declaration is the schema, the wire format, and the typed client. `@index Task.by_owner on (owner)` lives next to it. Migrations come from the diff against the previous schema.
+The declaration is the [schema](crates/vox-db/), the [wire format](crates/vox-types/), and the typed client. `@index Task.by_owner on (owner)` lives next to it. [Migrations](crates/vox-db/) come from the diff against the previous schema.
 
 → [`@table` reference](docs/src/reference/ref-decorators.md) · [migration guide](docs/src/how-to/how-to-database.md)
 
@@ -129,13 +144,13 @@ component TaskPage(tasks: List[Task]) {
 routes { "/" to TaskPage }
 ```
 
-`vox build` emits React/TSX components, a generated `vox-client.ts` RPC bridge, and — via [`vox-deploy-codegen`](crates/vox-deploy-codegen/) — Dockerfile, Compose, Kubernetes, Fly, Coolify, and systemd targets, all derived from the same module graph. External React, TanStack, or mobile apps can import the emitted components or call the endpoints over the bridge.
+`vox build` emits [React](https://react.dev/)/[TSX](https://www.typescriptlang.org/) components, a generated `vox-client.ts` RPC bridge, and — via [`vox-deploy-codegen`](crates/vox-deploy-codegen/) — Dockerfile, Compose, Kubernetes, Fly, Coolify, and systemd targets, all derived from the same module graph. External React, TanStack, or mobile apps can import the emitted components or call the endpoints over the bridge.
 
 → [external interop plan](docs/src/architecture/external-frontend-interop-plan-2026.md) · [deployment](docs/src/reference/deployment-compose.md)
 
 ### Pillar 4: Durability, agents, skills
 
-`@durable` lowers to checkpointed execution under [`vox-workflow-runtime`](crates/vox-workflow-runtime/) — retried on transient faults, restarted on node death.<sup>[2](#ref2), [3](#ref3)</sup> `@mcp.tool` exposes a function to any Model Context Protocol client.<sup>[4](#ref4)</sup>
+`@durable` lowers to checkpointed execution under [`vox-workflow-runtime`](crates/vox-workflow-runtime/) — retried on transient faults, restarted on node death.<sup>[1](#ref1), [2](#ref2)</sup> `@mcp.tool` exposes a function to any [Model Context Protocol](https://modelcontextprotocol.io) client.<sup>[3](#ref3)</sup>
 
 ```vox
 @durable
@@ -154,7 +169,7 @@ fn checkout(amount: int) to Result[str] {
   <img src="docs/src/assets/durable_essentialist_loop.webp" alt="Durable execution loop: commit, execute, recover, complete" width="60%">
 </div>
 
-The same primitives drive multi-agent work. [`vox-orchestrator`](crates/vox-orchestrator/) routes tasks to agents by file affinity and ten policy modules (tier cascade, plan-mode trigger, risk matrix, budget gate, circuit breaker, calibration, …). Capabilities are extensible: ~25 first-party plugins (compiler, git, memory, RAG, testing, Mens-Candle-CUDA, WASM and OCI runtimes) load through [`vox-plugin-host`](crates/vox-plugin-host/) behind a stable ABI.
+The same primitives drive multi-agent work. [`vox-orchestrator`](crates/vox-orchestrator/) routes tasks to agents by file affinity and ten policy modules (tier cascade, plan-mode trigger, risk matrix, budget gate, circuit breaker, calibration, …). Capabilities are extensible: 27 first-party plugins (compiler, git, memory, RAG, testing, Mens-Candle-CUDA/Metal, WASM and OCI runtimes) load through [`vox-plugin-host`](crates/vox-plugin-host/) behind a stable ABI.
 
 → [orchestration policy research](docs/src/architecture/autonomous-orchestration-policy-research-2026.md) · [`vox-skills`](crates/vox-skills/)
 
@@ -162,9 +177,9 @@ The same primitives drive multi-agent work. [`vox-orchestrator`](crates/vox-orch
 
 The shape of the four pillars above is downstream of one decision: *design the language after the model*. Three subsystems make that concrete.
 
-- **Grammar-constrained decoding.** [`vox-constrained-gen`](crates/vox-constrained-gen/) is an Earley/PDA decoder with a deadlock watchdog. Token-stream constraint, not post-hoc validation — invalid Vox cannot be sampled.
-- **Measurable detectors.** Rules live in [`rules.v1.yaml`](crates/vox-rule-pack/rules/rules.v1.yaml) with a JSON Schema and an F1 bench scorer over fixture corpora. Stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system rules are all scored against ground truth, not vibes.
-- **Local training.** Vox is new; mainstream languages saturate the public training corpus, Vox doesn't. `vox populi` runs QLoRA fine-tunes and OpenAI-compatible serving on detected CUDA / Metal / WebGPU — Burn + Candle, no Python. Requires the `gpu` cargo feature.
+- **Grammar-constrained decoding.** [`vox-constrained-gen`](crates/vox-constrained-gen/) is an [Earley/PDA decoder](https://en.wikipedia.org/wiki/Earley_parser) with a deadlock watchdog. Token-stream constraint, not post-hoc validation — invalid Vox cannot be sampled.
+- **Measurable detectors.** Rules live in [`rules.v1.yaml`](crates/vox-rule-pack/rules/rules.v1.yaml) with a JSON Schema and an [F1 bench scorer](https://en.wikipedia.org/wiki/F-score) over fixture corpora. Stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system rules are all scored against ground truth, not vibes.
+- **Local training.** Vox is new; mainstream languages saturate the public training corpus, Vox doesn't. `vox populi` runs [QLoRA](https://arxiv.org/abs/2305.14314) fine-tunes and OpenAI-compatible serving on detected CUDA / Metal / WebGPU — [Burn](https://github.com/tracel-ai/burn) + [Candle](https://github.com/huggingface/candle), no Python. Requires the `gpu` cargo feature.
 
 → [`examples/golden/`](examples/golden/) · [Rosetta comparison](docs/src/explanation/expl-rosetta-inventory.md) · [why Vox for AI](docs/src/explanation/why-vox-for-ai.md)
 
@@ -175,15 +190,15 @@ The shape of the four pillars above is downstream of one decision: *design the l
 Properties enforced on the project itself, invisible from the language surface:
 
 - **Layered crate graph.** All 101 workspace crates declare a layer (L0 pure types → L5 surfaces) in [`layers.toml`](docs/src/architecture/layers.toml). [`vox-arch-check`](crates/vox-arch-check/) blocks inversions, fan-in violations, LoC budget overruns, and orphaned modules.
-- **Sandboxed execution.** [`vox-wasm-engine`](crates/vox-wasm-engine/) (Wasmtime), [`vox-container`](crates/vox-container/) (OCI), [`vox-bounded-fs`](crates/vox-bounded-fs/) (size-capped reads), [`vox-exec-grammar`](crates/vox-exec-grammar/) (shell risk classifier). Tiers are selectable on `vox run`.
-- **Declared capabilities.** [`vox-capability-registry`](crates/vox-capability-registry/) gates what tools can do; [`vox-identity`](crates/vox-identity/) signs with ed25519 against a trust ledger; [`vox-secrets`](crates/vox-secrets/) is the only path to a secret value.
+- **Sandboxed execution.** [`vox-wasm-engine`](crates/vox-wasm-engine/) ([Wasmtime](https://wasmtime.dev/)), [`vox-container`](crates/vox-container/) ([OCI](https://opencontainers.org/)), [`vox-bounded-fs`](crates/vox-bounded-fs/) (size-capped reads), [`vox-exec-grammar`](crates/vox-exec-grammar/) (shell risk classifier). Tiers are selectable on `vox run`.
+- **Declared capabilities.** [`vox-capability-registry`](crates/vox-capability-registry/) gates what tools can do; [`vox-identity`](crates/vox-identity/) signs with [ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519) against a trust ledger; [`vox-secrets`](crates/vox-secrets/) is the only path to a secret value.
 <!-- ANCHOR_END: how_vox -->
 
 ---
 
 ## Automation: VoxScript-first
 
-Project automation is `.vox`, not `.ps1` / `.sh` / `.py`. The same file runs on Windows, Linux, and macOS; it's type-checked before execution (`vox check scripts/foo.vox`); it emits `vox.script.*` telemetry; and it can run in a WASM sandbox for untrusted input.
+Project automation is `.vox`, not `.ps1` / `.sh` / `.py`. The same file runs on Windows, Linux, and macOS; it's type-checked before execution (`vox check scripts/foo.vox`); it emits `vox.script.*` [telemetry](crates/vox-telemetry/); and it can run in a WASM sandbox for untrusted input.
 
 ```bash
 vox run scripts/clean-cache.vox
@@ -220,16 +235,16 @@ Workspace `0.5.0` — pre-1.0. Surfaces are graded by how reproducibly an LLM ca
 
 | Surface | Tier | Notes |
 |:---|:---|:---|
-| Compiler engine | 🟢 | AST, HIR, type checker, LSP, codegen. |
-| `@table` & data layer | 🟢 | Schema, migrations, `db.*` query builder, wire types. |
+| Compiler engine | 🟢 | [AST](crates/vox-compiler/), [HIR](crates/vox-compiler/src/hir/), [type checker](crates/vox-compiler/src/typeck/), [LSP](crates/vox-lsp/), [codegen](crates/vox-codegen/). |
+| `@table` & data layer | 🟢 | [Schema](crates/vox-db/), [migrations](crates/vox-db/), `db.*` query builder, wire types. |
 | `@mcp.tool` / `@mcp.resource` | 🟢 | MCP protocol compliance. |
 | Surface syntax | 🟡 | Top-level forms (`@endpoint(kind: …)`, `@durable`, bare `workflow`/`activity`/`actor`) defined in [`AGENTS.md`](AGENTS.md). |
 | Endpoints | 🟡 | Unified `@endpoint` is recent. |
-| Code-audit rule pack | 🟡 | See Pillar 5. |
-| RAG & knowledge curation | 🟡 | `vox scientia`, Socrates guards. |
-| Durable execution | 🟡 | Grammar locked; `vox-workflow-runtime` behavior maturing. |
-| Local training (MENS) | 🟡 | Hardware coverage expanding. |
-| Web UI & rendering | 🟡 | Vox-native reactivity for greenfield; React TSX + `vox-client.ts` for interop. |
+| Code-audit rule pack | 🟡 | [See Pillar 5](crates/vox-rule-pack/). |
+| RAG & knowledge curation | 🟡 | [`vox scientia`](crates/vox-schola/), Socrates guards. |
+| Durable execution | 🟡 | Grammar locked; [`vox-workflow-runtime`](crates/vox-workflow-runtime/) behavior maturing. |
+| Local training (MENS) | 🟡 | Hardware coverage expanding ([`vox-mens`](crates/vox-ml-cli/)). |
+| Web UI & rendering | 🟡 | Vox-native [reactivity](https://en.wikipedia.org/wiki/Reactive_programming) for greenfield; [React](https://react.dev/) TSX + `vox-client.ts` for interop. |
 | Distributed node mesh | 🚧 | Cross-machine routing is pre-1.0 design. |
 
 v1.0 criteria: [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md). Roadmap: [GUI-native phases](docs/src/architecture/gui-native-roadmap-status-2026.md). History: [`CHANGELOG.md`](CHANGELOG.md).
@@ -280,7 +295,7 @@ Rationale and the full detector inventory live in [`AGENTS.md`](AGENTS.md).
 
 Funded via [Open Collective](https://opencollective.com/vox-foundation) — every transaction is public. Sponsorships fund developer grants, MENS training hardware, and academic bounties.
 
-Apache 2.0: commercial use, patent grant, modification with attribution. [`LICENSE`](https://github.com/vox-foundation/vox/blob/main/LICENSE).
+[Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0): commercial use, patent grant, modification with attribution. [`LICENSE`](https://github.com/vox-foundation/vox/blob/main/LICENSE).
 
 Discussion: [GitHub Discussions](https://github.com/vox-foundation/vox/discussions). Changelogs and ADRs: [RSS](https://vox-lang.org/feed.xml).
 <!-- ANCHOR_END: community_license -->
@@ -289,8 +304,8 @@ Discussion: [GitHub Discussions](https://github.com/vox-foundation/vox/discussio
 
 ## References
 
-<a id="ref2"></a>**[2]** Fateev, M., & Abbas, S. (2019). *Temporal*. Temporal Technologies. <https://temporal.io>
+<a id="ref1"></a>**[1]** Fateev, M., & Abbas, S. (2019). *Temporal*. Temporal Technologies. <https://temporal.io>
 
-<a id="ref3"></a>**[3]** Armstrong, J. (2003). *Making reliable distributed systems in the presence of software errors* [Ph.D. thesis, Royal Institute of Technology, Stockholm]. <https://erlang.org/download/armstrong_thesis_2003.pdf>
+<a id="ref2"></a>**[2]** Armstrong, J. (2003). *Making reliable distributed systems in the presence of software errors* [Ph.D. thesis, Royal Institute of Technology, Stockholm]. <https://erlang.org/download/armstrong_thesis_2003.pdf>
 
-<a id="ref4"></a>**[4]** Anthropic. (2024). *Model Context Protocol*. <https://modelcontextprotocol.io>
+<a id="ref3"></a>**[3]** Anthropic. (2024). *Model Context Protocol*. <https://modelcontextprotocol.io>
