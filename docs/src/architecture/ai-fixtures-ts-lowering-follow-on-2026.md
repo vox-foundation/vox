@@ -4,6 +4,7 @@ description: "Follow-on plan for implementing TypeScript target lowering for AI 
 category: "architecture"
 status: "roadmap"
 training_eligible: true
+training_rationale: "Plans for TypeScript lowering of AI fixtures."
 ---
 
 # AI Fixtures TS Lowering Follow-on (2026)

@@ -1,4 +1,4 @@
-# Workspace architectural source of truth — read by `vox-arch-check`.
+﻿# Workspace architectural source of truth — read by `vox-arch-check`.
 # See docs/src/architecture/2026-05-08-workspace-reorg-design.md and
 # docs/src/architecture/2026-05-08-naming-and-guards-design.md.
 #
@@ -340,3 +340,4 @@ exempt_files     = [
 ]
 allow_annotation = "// vox-arch-check: allow capacitor-app-dep"
 reason           = "Application package manifests use @tauri-apps/* per ADR 037."
+
