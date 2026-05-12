@@ -315,7 +315,7 @@ urlencoding        = "2"
 tiktoken-rs        = { version = "0.5", default-features = false }
 # Tower / LSP
 tower              = { version = "0.5", default-features = false }
-tower-lsp-server   = "0.20"
+tower-lsp-server   = "0.23"
 # Serde schemas (v0.8 alias used by some crates)
 schemars08         = { package = "schemars", version = "0.8" }
 # Rand extras
