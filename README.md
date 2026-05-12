@@ -95,7 +95,7 @@ The full CLI surface, including every `vox ci`, `vox populi`, and `vox mens` sub
 ---
 
 <div align="center">
-  <img src="docs/src/assets/archive/vox_unification_diagram.png" alt="Vox architecture unification vs. legacy fragmentation">
+  <img src="docs/src/assets/vox_voice_to_app.png" alt="A highly abstract, semiotic vector-art diagram. A person's voice flows into a central AI matrix actively engineering code, surrounded by strong, protective 'Vox' energy shields. The output flows into a clean, organic computer screen displaying a modern website/application UI.">
 </div>
 
 <!-- ANCHOR: how_vox -->
