@@ -237,19 +237,19 @@ Workspace `0.5.0` — pre-1.0. Surfaces are graded by how reproducibly an LLM ca
 
 🟢 Stable · 🟡 Preview · 🚧 Experimental
 
-| Feature Area | Status | Description | Audit Justification |
+| Feature Area | Status | Description | Architecture & Stability Context |
 |:---|:---|:---|:---|
-| **Agent Integrations** | 🟢 Stable | Allows AI agents to interact with Vox apps via standard protocols. | Anthropic's [Model Context Protocol](https://modelcontextprotocol.io) (`@mcp.tool`) is compliant and structurally locked. |
-| **Code Validation** | 🟡 Preview | Enforces code quality, security, and repository architecture rules. | The [Rule pack](crates/vox-rule-pack/) actively guards all PRs, though coverage of new architectural standards continues to expand. |
-| **Compiler & LSP** | 🟡 Preview | Parses `.vox` code and provides editor autocomplete. | **Volatile:** AST/HIR unifications are actively rewriting the typechecker and lowering pipelines (Phases 2-4). |
-| **Database Engine** | 🟡 Preview | Handles typed schemas and automatic database migrations. | While schemas are functional, query primitives were recently collapsed into standard method calls. |
-| **Durable Workflows** | 🟡 Preview | Code that survives crashes and pauses automatically. | Grammar shifted massively; legacy `workflow`/`activity` nodes were just replaced by unified `@durable fn` patterns. |
-| **RAG & Research** | 🟡 Preview | Equips agents with long-term memory and autonomous web searching. | [`vox-schola`](crates/vox-schola/) and Socrates fact-checking pipelines are functional but evolving. |
-| **Web UI & Rendering** | 🟡 Preview | Renders web user interfaces from `.vox` files. | **Volatile:** Legacy routing nodes (`routes`) were just decommissioned; reactive pipeline restoration is still ongoing. |
-| **API Endpoints** | 🚧 Experim. | Safely exposes server logic via `@endpoint(kind: ...)` without manual wiring. | Just transitioned to a unified architecture. Cross-platform Tauri IPC bridge was merged within the last 24 hours. |
-| **Local AI (MENS)** | 🚧 Experim. | Runs open-source AI models directly on your hardware's GPU. | Core pipelines exist, but a verified operator fine-tuning run on the migrated corpus (Phase 8) is still pending. |
-| **Tauri Desktop UI** | 🚧 Experim. | Compiles the `.vox` app directly into a native cross-platform window. | Native IPC bridge (`#[tauri::command]`) was just unblocked; desktop app deployment and signing are untested in production. |
-| **Distributed Mesh** | 🚧 Experim. | Allows Vox nodes on different computers to share inference workloads. | Cross-machine routing protocols are purely in pre-1.0 design. |
+| **Agent Integrations** | 🟢 Stable | Allows AI agents to interact with Vox apps via standard protocols. | Anthropic's [Model Context Protocol](https://modelcontextprotocol.io) (`@mcp.tool`) is structurally locked and robust. |
+| **Code Validation** | 🟡 Preview | Enforces code quality, security, and repository architecture rules. | The [Rule pack](crates/vox-rule-pack/) actively guards all PRs, though coverage of structural rules expands continuously prior to 1.0. |
+| **Compiler & LSP** | 🟡 Preview | Parses `.vox` code and provides editor autocomplete. | The compiler is undergoing a multi-phase structural collapse (AST/HIR unifications) to reduce semantic complexity. |
+| **Database Engine** | 🟡 Preview | Handles typed schemas and automatic database migrations. | Foundational data structures are mature, but query primitives and ORM boundaries are still being unified. |
+| **Durable Workflows** | 🟡 Preview | Code that survives crashes and pauses automatically. | Syntactic grammar is converging toward standard function decorators (`@durable`). Runtime checkpointing is hardening. |
+| **RAG & Research** | 🟡 Preview | Equips agents with long-term memory and autonomous web searching. | [`vox-schola`](crates/vox-schola/) and Socrates fact-checking pipelines are functionally complete but optimizing for scale. |
+| **Web UI & Rendering** | 🟡 Preview | Renders web user interfaces from `.vox` files. | Currently transitioning to a reactive DOM projection pipeline; legacy routing structures are actively being removed. |
+| **API Endpoints** | 🚧 Experim. | Safely exposes server logic via `@endpoint(kind: ...)` without manual wiring. | The isomorphic transport layer is unifying cross-platform IPC boundaries. Awaiting stabilization through expanded testing. |
+| **Local AI (MENS)** | 🚧 Experim. | Runs open-source AI models directly on your hardware's GPU. | Core inference pipelines are established; awaiting verified operator fine-tuning runs to achieve formal evaluation parity. |
+| **Tauri Desktop UI** | 🚧 Experim. | Compiles the `.vox` app directly into a native cross-platform window. | Native IPC generation is functional, but packaging, notarization, and cross-platform deployment are pre-production. |
+| **Distributed Mesh** | 🚧 Experim. | Allows Vox nodes on different computers to share inference workloads. | Cross-machine routing protocols remain purely in conceptual and pre-1.0 design phases. |
 
 v1.0 criteria: [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md). Roadmap: [GUI-native phases](docs/src/architecture/gui-native-roadmap-status-2026.md). History: [`CHANGELOG.md`](CHANGELOG.md).
 <!-- ANCHOR_END: tier_table -->
