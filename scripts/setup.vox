@@ -2,12 +2,69 @@
 // Primary repository setup script.
 // Run via: `vox run scripts/setup.vox` or `cargo run -p vox-cli -- run scripts/setup.vox`
 
-println("Initializing Vox workspace setup...");
-println("1. Checking for existing configuration files...");
+fn check_command(cmd: str, args: [str], name: str) {
+  let result = exec(cmd, args);
+  if result.exit_code != 0 {
+    println("❌ Missing dependency: " + name);
+    return false;
+  }
+  println("✅ Found: " + name);
+  return true;
+}
 
-// Additional setup like copying .env.example, creating directories,
-// or downloading test fixtures goes here natively in Vox script.
+fn main() {
+  println("=========================================");
+  println("🚀 Initializing Vox Workspace Setup");
+  println("=========================================");
+  
+  println("\n[1] Verifying Rust Toolchain SSoT...");
+  let rustc_ok = check_command("rustc", ["--version"], "Rust Toolchain");
+  if !rustc_ok {
+    println("Please install rustup: https://rustup.rs/");
+    exit(1);
+  }
+  
+  println("\n[2] Ensuring WASM sysroots (wasm32-wasip1)...");
+  let wasm_result = exec("rustup", ["target", "add", "wasm32-wasip1"]);
+  if wasm_result.exit_code != 0 {
+    println("⚠️ Failed to add WASM target. Isolated workloads may fail.");
+  } else {
+    println("✅ WASM sysroots configured.");
+  }
 
-println("Setup complete! You can now build Vox using standard Rust tooling:");
-println("  cargo build");
-println("  cargo run -p vox-cli -- <args>");
+  println("\n[3] Verifying Node & PNPM...");
+  let node_ok = check_command("node", ["--version"], "Node.js (v22+)");
+  let pnpm_ok = check_command("pnpm", ["--version"], "pnpm (v9+)");
+  
+  if !node_ok {
+    println("⚠️ Node.js missing! The frontend build may fail. Install via fnm or nvm.");
+  }
+  if !pnpm_ok && node_ok {
+    println("⚠️ pnpm missing! Run `corepack enable` to install it.");
+  }
+
+  println("\n[4] Verifying CUDA toolkit (for ML / vox-populi)...");
+  let nvcc_ok = check_command("nvcc", ["--version"], "NVIDIA CUDA Toolkit");
+  if !nvcc_ok {
+    println("⚠️ CUDA (nvcc) not found on PATH. GPU acceleration will fallback to CPU or Metal (macOS).");
+    println("👉 To install CUDA (Windows/Linux only): https://developer.nvidia.com/cuda-downloads");
+  } else {
+    println("✅ CUDA Toolkit detected. GPU acceleration enabled.");
+  }
+
+  println("\n[5] Installing Git Pre-commit Hooks...");
+  let hooks = exec("vox", ["run", "scripts/install-hooks.vox"]);
+  if hooks.exit_code != 0 {
+    println("⚠️ Hook installation failed. Ensure lefthook is installed.");
+  }
+
+  println("\n[6] Validating Workspace Integrity...");
+  println("Running `cargo check --workspace`...");
+  let check = exec("cargo", ["check", "--workspace"]);
+  if check.exit_code != 0 {
+    println("❌ Workspace verification failed! Please resolve the compilation errors above.");
+    exit(1);
+  }
+
+  println("\n🎉 Setup complete! The Vox workspace is ready.");
+}

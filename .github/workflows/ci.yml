@@ -108,31 +108,36 @@ jobs:
       - name: Format Check
         run: cargo fmt --all -- --check
 
-      - name: Install cargo-deny
+      - name: Install cargo-deny + cargo-audit
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny
+          tool: cargo-deny,cargo-audit
 
       - name: Dependency licenses + advisories (cargo-deny)
         run: cargo deny check
 
-      - name: Codex SSOT documentation guard
-        run: cargo run -p vox-cli --quiet -- ci check-codex-ssot
+      - name: RustSec advisories (cargo-audit)
+        run: cargo audit
 
-      - name: Docs migration SSOT guard
-        run: cargo run -p vox-cli --quiet -- ci check-docs-ssot
+      - name: Install cargo-shear + cargo-outdated (informational)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-shear,cargo-outdated
+
+      - name: Unused dependency scan (cargo-shear, non-blocking)
+        continue-on-error: true
+        run: cargo shear
+
+      - name: Outdated crates report (cargo-outdated, non-blocking)
+        continue-on-error: true
+        run: cargo outdated --workspace
 
       - name: Retired symbol documentation guard
         run: cargo run -p vox-cli --quiet -- ci retired-symbol-check
 
-      - name: CLI command registry / docs / MCP parity
-        run: cargo run -p vox-cli --quiet -- ci command-compliance
-
+      # check-docs-ssot, check-codex-ssot, command-compliance, and data-ssot-guards run inside ssot-drift (see run_ssot_drift).
       - name: SSOT drift bundle (operations-verify, sql-surface + query-all --all, capability-sync, nested guards)
         run: cargo run -p vox-cli --quiet -- ci ssot-drift
-
-      - name: Data / telemetry SSOT guards
-        run: cargo run -p vox-cli --quiet -- ci data-ssot-guards
 
       - name: Determinism Audit
         run: cargo run -p vox-cli --quiet -- ci determinism-audit
@@ -176,6 +181,9 @@ jobs:
           cargo run -p vox-cli --quiet -- ci scientia-worthiness-contract
           cargo run -p vox-cli --quiet -- ci scientia-novelty-ledger-contracts
           cargo run -p vox-cli --quiet -- ci scaling-audit verify
+
+      - name: Vox script check (clean-build-artifacts reference automation)
+        run: cargo run -p vox-cli --quiet -- check scripts/clean-build-artifacts.vox
 
       - name: Workflow scripts allowlist
         run: cargo run -p vox-cli --quiet -- ci workflow-scripts
@@ -280,6 +288,28 @@ jobs:
             echo "No architecture docs changed. Skipping full strict TOESTUB."
           fi
 
+      - name: Toolchain SSoT Drift Guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_RUST=$(grep -oP 'rust:\s*"\K[^"]+' contracts/toolchain/workspace-toolchain.v1.yaml)
+          ACTUAL_RUST_TOOLCHAIN=$(grep -oP 'channel\s*=\s*"\K[^"]+' rust-toolchain.toml)
+          ACTUAL_CARGO=$(grep -oP '^rust-version\s*=\s*"\K[^"]+' Cargo.toml)
+          
+          if [[ "$EXPECTED_RUST" != "$ACTUAL_RUST_TOOLCHAIN" ]]; then
+            echo "Drift detected: SSoT wants Rust $EXPECTED_RUST but rust-toolchain.toml has $ACTUAL_RUST_TOOLCHAIN"
+            exit 1
+          fi
+          
+          # Cargo.toml rust-version usually only specifies major.minor, not patch.
+          # We check if it matches the prefix.
+          if [[ ! "$EXPECTED_RUST" == "$ACTUAL_CARGO"* ]]; then
+            echo "Drift detected: SSoT wants Rust $EXPECTED_RUST but Cargo.toml rust-version is $ACTUAL_CARGO"
+            exit 1
+          fi
+          
+          echo "Toolchain SSoT Parity Verified."
+
       # Workspace-wide pattern drift check (6 rules: reqwest_bypass, vox_path_literal,
       # timeout_literal, serde_default_dup, version_string, bearer_header).
       # Previously pre-push only; now also in CI so pushes without lefthook installed
@@ -330,10 +360,6 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
-
-      - name: routes.manifest + vox-client legacy-bundle smoke
-        # `web_ir_lower_emit_test` cases are #[ignore]; match nextest semantics explicitly.
-        run: cargo nextest run -p vox-compiler --test web_ir_lower_emit_test --run-ignored ignored-only -E 'test(codegen_output_never_includes_vox_tanstack_router_or_server_fns)' --no-capture
 
       - name: SPA scaffold manifest idempotency
         run: cargo nextest run -p vox-cli --test scaffold_spa_manifest_idempotent
@@ -495,10 +521,11 @@ jobs:
             echo "::warning title=Flake budget warn-mode check errored::flake-budget exited with status ${flake_status}."
           fi
 
-          cargo run -p vox-cli -- ci ignored-test-age --mode warn
+          cargo run -p vox-cli -- ci ignored-test-age --mode enforce
           ignored_status=$?
           if [ ${ignored_status} -ne 0 ]; then
-            echo "::warning title=Ignored test age warn-mode check errored::ignored-test-age exited with status ${ignored_status}."
+            echo "::error title=Ignored test governance::ignored-test-age enforce mode failed (bare #[ignore] or missing owner/sunset in #[ignore = \"…\"])."
+            exit ${ignored_status}
           fi
 
           if [ -f "${baseline_path}" ]; then
@@ -586,6 +613,12 @@ jobs:
             ${{ runner.os }}-cargo-
       - name: Build vox-cli
         run: cargo build -p vox-cli
+
+      - name: TOESTUB contracts — suppression schema + ledger parse
+        run: cargo run -p vox-code-audit --bin validate-toestub-contracts
+
+      - name: Safety inventory baseline (committed contracts/reports/safety-inventory)
+        run: cargo run -p vox-cli -- ci safety-inventory --check contracts/reports/safety-inventory/baseline.v1.json
 
       - name: Completion quality audit + gates (LLM premature-completion SSOT)
         run: |

@@ -1,0 +1,43 @@
+name: Mobile E2E (iOS)
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * *' # Run nightly
+
+jobs:
+  build-ios:
+    name: Build iOS App
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios, x86_64-apple-ios, aarch64-apple-ios-sim
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: apps/mobile/vox-tauri
+
+      - name: Cargo Cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-tauri-ios-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build iOS
+        # Using --no-sign because we do not have Apple Developer credentials in CI
+        run: cargo tauri ios build --no-sign
+        working-directory: apps/mobile/vox-tauri

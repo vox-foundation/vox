@@ -55,6 +55,15 @@ jobs:
       - name: Doctest extraction and check (SSG-agnostic)
         run: cargo run -p vox-cli -- ci doctest-md --strict
 
+      - name: Internal Markdown link check
+        run: cargo run -p vox-cli -- ci check-links
+
+      - name: Retired symbol prose guard
+        run: cargo run -p vox-cli -- ci retired-symbol-check
+
+      - name: Canonical documentation map verify
+        run: cargo run -p vox-cli -- ci canonical-map-verify
+
       - name: Install docs-astro deps
         working-directory: docs-astro
         run: pnpm install --frozen-lockfile
