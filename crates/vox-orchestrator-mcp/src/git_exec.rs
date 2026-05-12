@@ -40,7 +40,7 @@ pub enum GitExecError {
 /// `-c key=val` configuration overrides. See `is_banned` for the matcher.
 ///
 /// Phase 2 will add an arch-check rule covering `// vox-arch-check: allow git-exec
-        Command::new("git")`
+///         Command::new("git")`
 /// outside `git_exec.rs`, which removes the need to enumerate every
 /// destructive variant here. Until then, additions to this list should
 /// also include the `-ffd` / permuted-flag forms when the bypass risk is

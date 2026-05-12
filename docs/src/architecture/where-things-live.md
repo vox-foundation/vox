@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Where Things Live"
 description: "Flat lookup table — concept to crate. Consult before adding code. Referenced by AGENTS.md and CLAUDE.md."
 category: "architecture"
@@ -70,13 +70,14 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-identity`](../../../crates/vox-identity/) | Identity primitives: signing keys, trust ledger entries. |
 | [`vox-jsonschema-util`](../../../crates/vox-jsonschema-util/) | Shared JSON Schema compile + validate helpers for CLI, contracts, and tooling. |
 | [`vox-openai-sse`](../../../crates/vox-openai-sse/) | OpenAI-compat SSE line reassembly and chat completion delta extraction. |
+| [`vox-openai`](../../../crates/vox-openai/) | Core OpenAI integrations and abstractions. |
 | [`vox-openai-wire`](../../../crates/vox-openai-wire/) | OpenAI-compatible chat completions JSON types (non-streaming wire) shared across MCP and runtime. |
 | [`vox-package-types`](../../../crates/vox-package-types/) | Pure-data L1 leaf for vox-package: manifest, lockfile, package_kind, resolver types. |
 | [`vox-plugin-api`](../../../crates/vox-plugin-api/) | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
 | [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro. Zero domain dependencies. |
 | [`vox-tracing-init`](../../../crates/vox-tracing-init/) | Shared `tracing_subscriber` fmt + env-filter bootstrap for CLIs (default `info`) and daemons / LSP (`RUST_LOG` only, stderr option). |
-| [`vox-reqwest-defaults`](../../../crates/vox-reqwest-defaults/) | Shared reqwest ClientBuilder presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
+| [`vox-http-client`](../../../crates/vox-http-client/) | Shared HTTP client presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
 | [`vox-research-events`](../../../crates/vox-research-events/) | Typed SCIENTIA research event types and `PreregistrationV1`. |
 | [`vox-rule-pack`](../../../crates/vox-rule-pack/) | Declarative YAML rule-pack loader for code-audit detector patterns and Scientia heuristics. Zero heavy deps. |
 | [`vox-scaling-policy`](../../../crates/vox-scaling-policy/) | Compile-time and runtime accessors for scaling SSOT (contracts/scaling/policy.yaml). |
@@ -158,6 +159,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-webhook`](../../../crates/vox-webhook/) | HTTP webhook gateway for the Vox agent system. |
 | [`vox-wire-format-validator`](../../../crates/vox-wire-format-validator/) | CI guard: enforces Wire Format v1 SSOT and Contract IR implementation parity. |
 | [`vox-workflow-runtime`](../../../crates/vox-workflow-runtime/) | Interpreted workflow execution MVP (local + mens activity hooks). |
+| [`vox-mesh`](../../../crates/vox-mesh/) | Distributed service mesh models and policies. |
+| [`vox-tauri-sherpa`](../../../crates/vox-tauri-sherpa/) | Tauri mobile sherpa components. |
 
 ### L5 — surfaces
 
@@ -166,6 +169,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-cli`](../../../crates/vox-cli/) | Vox command-line interface: compile, run, bundle, and workspace diagnostics. |
 | [`vox-integration-tests`](../../../crates/vox-integration-tests/) | Cross-crate integration test harness (test-only L5). |
 | [`vox-orchestrator-d`](../../../crates/vox-orchestrator-d/) | Vox orchestrator daemon binary. Extracted from vox-orchestrator in 2026-05-08 reorg Phase 4. |
+| [`vox-gui`](../../../crates/vox-gui/) | Tauri desktop shell; depends on vox-cli / vox-orchestrator. |
+| [`voxup`](../../../crates/voxup/) | Desktop & CLI environment installer. |
 
 ## Common tasks → exact path
 
@@ -253,6 +258,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | [`vox-plugin-cloud`](../../../crates/vox-plugin-cloud/) | CloudSync plugin stub: HF Hub / S3 model artifact sync. |
 | [`vox-plugin-grammar-export`](../../../crates/vox-plugin-grammar-export/) | Export Vox grammar in standard formats (Lark, EBNF, JSON Schema, XGrammar-2, etc.). |
 | [`vox-plugin-mens-candle-cuda`](../../../crates/vox-plugin-mens-candle-cuda/) | ML training backend plugin: Candle + CUDA. Implements MlBackend. |
+| [`vox-plugin-mens-candle-metal`](../../../crates/vox-plugin-mens-candle-metal/) | MENS Apple Silicon Metal execution plugin. |
 | [`vox-plugin-nvml-probe`](../../../crates/vox-plugin-nvml-probe/) | Hardware probe plugin: NVML for NVIDIA GPU introspection. |
 | [`vox-plugin-oratio`](../../../crates/vox-plugin-oratio/) | Speech-to-text plugin: Candle Whisper backend extracted from vox-oratio. |
 | [`vox-plugin-oratio-mic`](../../../crates/vox-plugin-oratio-mic/) | AudioCapture plugin stub: Oratio microphone device backend. |
@@ -280,3 +286,11 @@ Crates with `kind = "binary"` in `layers.toml` (e.g., `vox-arch-check`, `vox-pop
 add one, expect that warning to land on your PR until you wire it up — that's
 working as intended.
 
+
+| crates/vox-gui/ | UI | Desktop shell |
+| crates/vox-http-client/ | HTTP | Client |
+| crates/vox-mesh/ | Networking | Mesh |
+| crates/vox-openai/ | AI | OpenAI bindings |
+| crates/vox-plugin-mens-candle-metal/ | ML | Apple Silicon |
+| crates/vox-tauri-sherpa/ | Tauri | Sherpa desktop |
+| crates/voxup/ | CLI | Installer |
