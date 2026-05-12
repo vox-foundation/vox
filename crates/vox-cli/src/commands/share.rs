@@ -7,8 +7,8 @@ use crate::cli_args::BundleMode;
 use anyhow::{Context as _, Result};
 use clap::Args;
 use std::time::Duration;
-use vox_share::auth::AuthMode;
-use vox_share::{BackendKind, ShareConfig, ShareSession};
+use crate::utils::share::auth::AuthMode;
+use crate::utils::share::{BackendKind, ShareConfig, ShareSession};
 
 /// Timeout for the initial connection from the share proxy to the upstream app.
 /// Configurable at compile time; override via `VOX_SHARE_CONNECT_TIMEOUT_SECS` at runtime
@@ -70,7 +70,7 @@ pub async fn run(args: ShareArgs) -> Result<()> {
     println!("[vox share] Backend: {}", backend);
 
     if matches!(backend, BackendKind::Cloudflare) {
-        vox_share::consent::ensure_consent(args.accept_tos, false)
+        crate::utils::share::consent::ensure_consent(args.accept_tos, false)
             .map_err(|e| anyhow::anyhow!("{}", e))?;
     }
 
@@ -136,7 +136,7 @@ pub async fn run(args: ShareArgs) -> Result<()> {
     if let Some(d) = duration {
         println!(
             "[vox share] Auto-shutdown in {}",
-            vox_share::lifecycle::format_duration(d)
+            crate::utils::share::lifecycle::format_duration(d)
         );
     }
     session.wait().await;

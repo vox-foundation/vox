@@ -3,13 +3,13 @@ use clap::ValueEnum;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use vox_release_artifacts::{
+use crate::utils::release_artifacts::{
     artifact_filename as release_artifact_filename, checksum_line, is_windows_target,
     package_tar_gz, package_zip, sha256_file,
 };
 
 /// Supported release triples (SSOT: `vox-install-policy`; keep workflow/docs aligned via `vox ci command-compliance`).
-pub use vox_install_policy::SUPPORTED_RELEASE_TARGETS;
+pub use crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 pub enum ReleasePackage {
@@ -218,7 +218,7 @@ fn build_and_package_binary(
 #[cfg(test)]
 mod tests {
     use vox_bounded_fs::read_utf8_path_capped;
-    use vox_release_artifacts::artifact_filename;
+    use crate::utils::release_artifacts::artifact_filename;
 
     use super::{
         bootstrap_executable_name, checksum_line, executable_name, plugin_executable_name,
@@ -358,7 +358,7 @@ mod tests {
         assert_eq!(
             from_workflow,
             from_ssot,
-            "release-binaries.yml matrix targets must match `vox_install_policy::SUPPORTED_RELEASE_TARGETS` (workflow files: {})",
+            "release-binaries.yml matrix targets must match `crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS` (workflow files: {})",
             wf.display()
         );
     }

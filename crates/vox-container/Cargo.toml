@@ -11,7 +11,7 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-vox-exec-grammar.workspace = true
+
 anyhow.workspace = true
 thiserror.workspace = true
 serde = { workspace = true }

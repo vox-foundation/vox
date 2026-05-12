@@ -30,6 +30,9 @@ vox-config = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 prettyplease = { workspace = true }
 syn = { workspace = true, features = ["full"] }
+walkdir.workspace = true
+vox-repository.workspace = true
+anyhow.workspace = true
 
 [dev-dependencies]
 insta = "1"

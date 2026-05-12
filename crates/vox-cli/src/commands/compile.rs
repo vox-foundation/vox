@@ -294,7 +294,7 @@ fn emit_tauri_and_assets(
     })?;
 
     if let Some(ref b) = proj.bundle {
-        let assets = vox_assets::AssetManifest::from_bundle_fragment(
+        let assets = vox_codegen::assets::AssetManifest::from_bundle_fragment(
             manifest_dir,
             b.assets.as_ref().and_then(|a| a.icons.as_deref()),
             b.assets.as_ref().and_then(|a| a.splash.as_deref()),
@@ -316,7 +316,7 @@ fn maybe_archive_dist_binary(args: &CompileArgs, file: &Path) -> Result<()> {
     }
     let triple = match args.triple.as_deref() {
         Some(t) => t,
-        None => vox_install_policy::host_triple_for_release_binary_install()
+        None => crate::utils::install_policy::host_triple_for_release_binary_install()
             .context("archive requires `--triple` or a supported host triple")?,
     };
 
@@ -336,16 +336,16 @@ fn maybe_archive_dist_binary(args: &CompileArgs, file: &Path) -> Result<()> {
     }
 
     let version = env!("CARGO_PKG_VERSION");
-    let archive_base = vox_release_artifacts::artifact_filename(stem, version, triple);
+    let archive_base = crate::utils::release_artifacts::artifact_filename(stem, version, triple);
     let archive_path = args.out_dir.join(&archive_base);
-    if vox_release_artifacts::is_windows_target(triple) {
-        vox_release_artifacts::package_zip(&bin_path, &archive_path, &bin_name)?;
+    if crate::utils::release_artifacts::is_windows_target(triple) {
+        crate::utils::release_artifacts::package_zip(&bin_path, &archive_path, &bin_name)?;
     } else {
-        vox_release_artifacts::package_tar_gz(&bin_path, &archive_path, &bin_name)?;
+        crate::utils::release_artifacts::package_tar_gz(&bin_path, &archive_path, &bin_name)?;
     }
-    let digest = vox_release_artifacts::sha256_file(&archive_path)?;
+    let digest = crate::utils::release_artifacts::sha256_file(&archive_path)?;
     let chk = args.out_dir.join("checksums-compile.txt");
-    let line = vox_release_artifacts::checksum_line(&digest, &archive_base);
+    let line = crate::utils::release_artifacts::checksum_line(&digest, &archive_base);
     std::fs::write(&chk, line).context("write checksums-compile.txt")?;
     println!("  archive: {}", archive_path.display());
     println!("  checksums-compile.txt");

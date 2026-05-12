@@ -23,10 +23,10 @@ pub use runtime::{BuildOpts, ContainerRuntime, RunOpts};
 ///
 /// Called before any container run dispatch. Uses `vox-exec-grammar`'s risk classifier.
 pub fn log_exec_risk(raw_command: &str) {
-    match vox_exec_grammar::parse(raw_command) {
+    match crate::exec_grammar::parse(raw_command) {
         Ok(mut ast) => {
-            let policy = vox_exec_grammar::ExecPolicy::default();
-            vox_exec_grammar::risk::classify(&mut ast, &policy);
+            let policy = crate::exec_grammar::ExecPolicy::default();
+            crate::exec_grammar::risk::classify(&mut ast, &policy);
             tracing::info!(
                 command = raw_command,
                 risk = ?ast.risk,
@@ -42,3 +42,5 @@ pub fn log_exec_risk(raw_command: &str) {
         }
     }
 }
+
+pub mod exec_grammar;

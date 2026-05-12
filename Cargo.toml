@@ -68,14 +68,14 @@ vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
 vox-deploy-codegen        = { path = "crates/vox-deploy-codegen" }
 vox-skill-runtime         = { path = "crates/vox-skill-runtime" }
-vox-checksum-manifest     = { path = "crates/vox-checksum-manifest" }
-vox-install-policy        = { path = "crates/vox-install-policy" }
+
+
 vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }
 vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
 vox-db-types              = { path = "crates/vox-db-types" }
 vox-eval                  = { path = "crates/vox-eval" }
-vox-exec-grammar          = { path = "crates/vox-exec-grammar" }
+
 vox-forge                 = { path = "crates/vox-forge" }
 vox-crypto                = { path = "crates/vox-crypto" }
 vox-identity              = { path = "crates/vox-identity" }
@@ -143,9 +143,9 @@ vox-repository            = { path = "crates/vox-repository" }
 vox-rule-pack             = { path = "crates/vox-rule-pack" }
 vox-actor-runtime               = { path = "crates/vox-actor-runtime" }
 vox-scaling-policy        = { path = "crates/vox-scaling-policy" }
-vox-share                 = { path = "crates/vox-share" }
+
 vox-skills                = { path = "crates/vox-skills" }
-vox-ssg                   = { path = "crates/vox-ssg" }
+
 vox-tensor                = { path = "crates/vox-tensor" }
 vox-code-audit               = { path = "crates/vox-code-audit" }
 vox-drift-check              = { path = "crates/vox-drift-check" }
@@ -154,8 +154,8 @@ vox-search                = { path = "crates/vox-search" }
 vox-dashboard             = { path = "crates/vox-dashboard" }
 vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
 vox-tauri-sherpa          = { path = "crates/vox-tauri-sherpa" }
-vox-release-artifacts     = { path = "crates/vox-release-artifacts" }
-vox-assets                = { path = "crates/vox-assets" }
+
+
 
 
 # External dependencies (centralized versions)

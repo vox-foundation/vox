@@ -18,7 +18,7 @@ use super::registry::{
 use crate::command_contract::{
     EMBEDDED_COMMAND_REGISTRY_YAML, merged_feature_gate_from_vox_cli_ops,
 };
-use vox_install_policy::{
+use crate::utils::install_policy::{
     DEFAULT_RELEASE_GITHUB_OWNER, DEFAULT_RELEASE_GITHUB_REPO, SOURCE_INSTALL_CLI_REL_PATH,
     SUPPORTED_RELEASE_TARGETS,
 };
@@ -770,7 +770,7 @@ pub(crate) fn check_install_policy_surfaces(repo_root: &Path) -> Result<()> {
     for triple in SUPPORTED_RELEASE_TARGETS {
         if !contract.contains(triple) {
             return Err(anyhow!(
-                "{}: missing release target `{triple}` (must match `vox_install_policy::SUPPORTED_RELEASE_TARGETS`)",
+                "{}: missing release target `{triple}` (must match `crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS`)",
                 contract_path.display()
             ));
         }
@@ -799,7 +799,7 @@ pub(crate) fn check_install_policy_surfaces(repo_root: &Path) -> Result<()> {
     let repo_up = repo_root.join("crates/vox-cli/src/commands/repo_upgrade.rs");
     let repo_up_txt =
         read_utf8_path_capped(&repo_up).with_context(|| format!("read {}", repo_up.display()))?;
-    if !repo_up_txt.contains("vox_install_policy::") {
+    if !repo_up_txt.contains("crate::utils::install_policy::") {
         return Err(anyhow!(
             "{}: must import `vox_install_policy` for `cargo install` argv + layout checks",
             repo_up.display()
@@ -808,7 +808,7 @@ pub(crate) fn check_install_policy_surfaces(repo_root: &Path) -> Result<()> {
 
     let tu = repo_root.join("crates/vox-cli/src/commands/toolchain_upgrade.rs");
     let tu_txt = read_utf8_path_capped(&tu).with_context(|| format!("read {}", tu.display()))?;
-    if !tu_txt.contains("vox_install_policy::") {
+    if !tu_txt.contains("crate::utils::install_policy::") {
         return Err(anyhow!(
             "{}: must import `vox_install_policy` for default GitHub release coordinates",
             tu.display()
@@ -842,7 +842,7 @@ pub(crate) fn check_project_pm_commands_no_toolchain_lane(repo_root: &Path) -> R
         "repo_upgrade",
         "self_update",
         "UpgradeToolchainArgs",
-        "vox_install_policy::",
+        "crate::utils::install_policy::",
     ];
     for rel in FILES {
         let p = repo_root.join(rel);

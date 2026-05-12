@@ -8,7 +8,7 @@
 //! - List and resolve pending approval requests from the approval broker
 
 use clap::Subcommand;
-use vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME;
+use crate::utils::install_policy::OPENCLAW_SIDECAR_BIN_BASENAME;
 use vox_openclaw_runtime::{
     DefaultOpenClawRuntimeAdapter, OpenClawClient, OpenClawConnectionOverrides,
     OpenClawDiscoveryOverrides, OpenClawRemoteConfig, OpenClawRuntimeAdapter,

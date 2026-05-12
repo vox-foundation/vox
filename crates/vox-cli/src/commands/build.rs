@@ -93,7 +93,7 @@ pub async fn run(
 
         let public_dir = generated_dir.join("public").join("ssg-shells");
         fs::create_dir_all(&public_dir).context("Failed to create public/ssg-shells")?;
-        for (rel_path, html) in vox_ssg::generate_static_site(&module) {
+        for (rel_path, html) in crate::utils::ssg::generate_static_site(&module) {
             let out = public_dir.join(&rel_path);
             if let Some(parent) = out.parent() {
                 fs::create_dir_all(parent)?;
@@ -345,7 +345,7 @@ pub async fn run(
 
     let public_dir = generated_dir.join("public").join("ssg-shells");
     fs::create_dir_all(&public_dir).context("Failed to create public/ssg-shells")?;
-    for (rel_path, html) in vox_ssg::generate_static_site(&module) {
+    for (rel_path, html) in crate::utils::ssg::generate_static_site(&module) {
         let out = public_dir.join(&rel_path);
         if let Some(parent) = out.parent() {
             fs::create_dir_all(parent)?;

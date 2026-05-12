@@ -40,7 +40,6 @@ fuzzy-search = ["dep:nucleo"]
 mcp-server = [
     "vox-orchestrator/populi-transport",
     "vox-orchestrator-mcp/populi-transport",
-    "dep:axum",
     "dep:rmcp",
     "dep:vox-orchestrator-mcp",
 ]
@@ -59,7 +58,7 @@ script-execution = [
     "dep:win32job",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
-execution-api = ["script-execution", "dep:axum", "dep:axum-extra", "dep:tokio-stream"]
+execution-api = ["script-execution", "dep:tokio-stream"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
     "dep:vox-code-audit",
@@ -113,7 +112,6 @@ broken_inference_stub = []
 [dependencies]
 vox-compiler = { workspace = true }
 vox-codegen = { workspace = true }
-vox-ssg = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }
 miette = { workspace = true }
@@ -125,7 +123,7 @@ vox-http-client = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-sha2 = { workspace = true }
+sha2.workspace = true
 tokio = { workspace = true, features = ["io-std"] }
 vox-cli-core = { workspace = true }
 base64 = { workspace = true }
@@ -171,11 +169,7 @@ vox-workflow-runtime = { workspace = true, optional = true }
 
 vox-repository = { workspace = true }
 vox-project-scaffold = { workspace = true }
-vox-checksum-manifest = { workspace = true }
-vox-install-policy = { workspace = true }
-vox-release-artifacts = { workspace = true }
 vox-tauri-codegen = { workspace = true }
-vox-assets = { workspace = true }
 turso = { workspace = true }
 owo-colors = { workspace = true }
 comfy-table = { workspace = true }
@@ -187,7 +181,6 @@ vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
 
 vox-actor-runtime = { workspace = true }
 vox-primitives = { workspace = true }
-vox-exec-grammar = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-bounded-fs = { workspace = true, features = ["async"] }
 vox-jsonschema-util = { workspace = true }
@@ -199,10 +192,10 @@ uuid = { workspace = true, features = ["v4"] }
 vox-mcp-registry = { path = "../vox-mcp-registry" }
 vox-capability-registry = { path = "../vox-capability-registry" }
 rmcp = { workspace = true, optional = true, features = ["server", "client", "transport-io"] }
-axum = { workspace = true, optional = true, features = ["http1", "json", "tokio", "ws"] }
+axum = { workspace = true, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
 vox-grammar-export = { workspace = true }
-axum-extra = { workspace = true, optional = true, features = ["typed-header"] }
+axum-extra = { workspace = true, features = ["typed-header"] }
 notify = { workspace = true }
 tokio-stream = { workspace = true, optional = true }
 dirs = { workspace = true }
@@ -216,9 +209,9 @@ xxhash-rust = { workspace = true, optional = true }
 which = { workspace = true }
 wasmtime = { workspace = true, optional = true }
 wasmtime-wasi = { workspace = true, optional = true }
-flate2 = { workspace = true }
-tar = { workspace = true }
-zip = { workspace = true, features = ["deflate"] }
+flate2.workspace = true
+tar.workspace = true
+zip = { features = ["deflate"], version = "2" }
 self_update = { workspace = true, features = [
     "reqwest",
     "rustls",
@@ -234,10 +227,13 @@ vox-rule-pack = { workspace = true }
 vox-telemetry = { workspace = true }
 vox-identity.workspace = true
 vox-crypto.workspace = true
-vox-share = { workspace = true }
-hex = { workspace = true }
+hex.workspace = true
 nucleo = { workspace = true, optional = true }
 tempfile = { workspace = true }
+hyper-util.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+form_urlencoded = "1.2.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 landlock = { workspace = true, optional = true }

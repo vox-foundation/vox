@@ -1,7 +1,7 @@
 //! Local repository upgrade lane for `vox upgrade --source repo`.
 //!
 //! Check-only by default; `--apply` runs `git fetch`, fast-forward or explicit `--ref`, then
-//! `cargo install --locked --path` the primary CLI crate ([`vox_install_policy::SOURCE_INSTALL_CLI_REL_PATH`]).
+//! `cargo install --locked --path` the primary CLI crate ([`crate::utils::install_policy::SOURCE_INSTALL_CLI_REL_PATH`]).
 //! Roll back `HEAD` on install failure.
 
 use crate::cli_args::UpgradeToolchainArgs;
@@ -10,7 +10,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use vox_install_policy::{CARGO_INSTALL_CLI_FROM_SOURCE, SOURCE_INSTALL_CLI_REL_PATH};
+use crate::utils::install_policy::{CARGO_INSTALL_CLI_FROM_SOURCE, SOURCE_INSTALL_CLI_REL_PATH};
 use vox_repository::resolve_repo_root_for_ci;
 
 const ROLLBACK_REL: &str = ".vox/toolchain-upgrade-rollback.json";
