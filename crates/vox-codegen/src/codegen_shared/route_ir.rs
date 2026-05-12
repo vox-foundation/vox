@@ -66,8 +66,6 @@ impl RouteMethod {
     }
 }
 
-
-
 /// A single named parameter carried by this route.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouteParam {

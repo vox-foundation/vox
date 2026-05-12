@@ -149,6 +149,20 @@ async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: 
   return schema ? schema.parse(data) : (data as T);
 }
 
+function isTauri(): boolean {
+  return typeof window !== "undefined" && typeof (window as any).__TAURI_INVOKE__ !== "undefined";
+}
+
+async function $tauri<T>(cmd: string, args: Record<string, unknown>, schema?: { parse: (x: any) => T }): Promise<T> {
+  try {
+    // @ts-ignore
+    const data = await (window as any).__TAURI_INVOKE__(cmd, { request: args });
+    return schema ? schema.parse(data) : (data as T);
+  } catch (e: any) {
+    throw new VoxApiError(500, cmd, e.toString(), undefined);
+  }
+}
+
 "#,
     );
 
@@ -179,11 +193,11 @@ fn emit_one_endpoint(ep: &contract_ir::ContractEndpoint, is_query: bool) -> Stri
     if ep.params.is_empty() {
         if is_query {
             return format!(
-                "/** @query `{name}` → `{path}` (GET) */\nexport async function {name}(init?: RequestInit): Promise<{return_ts}> {{\n  return $get<{return_ts}>(\"{path}\", {return_schema}, undefined, init);\n}}\n\n"
+                "/** @query `{name}` → `{path}` (GET) */\nexport async function {name}(init?: RequestInit): Promise<{return_ts}> {{\n  if (isTauri()) return $tauri<{return_ts}>(\"{name}\", {{}}, {return_schema});\n  return $get<{return_ts}>(\"{path}\", {return_schema}, undefined, init);\n}}\n\n"
             );
         }
         return format!(
-            "/** Server fn `{name}` → `{path}` (POST) */\nexport async function {name}(init?: RequestInit): Promise<{return_ts}> {{\n  return $post<{return_ts}>(\"{path}\", {return_schema}, {{}}, init);\n}}\n\n"
+            "/** Server fn `{name}` → `{path}` (POST) */\nexport async function {name}(init?: RequestInit): Promise<{return_ts}> {{\n  if (isTauri()) return $tauri<{return_ts}>(\"{name}\", {{}}, {return_schema});\n  return $post<{return_ts}>(\"{path}\", {return_schema}, {{}}, init);\n}}\n\n"
         );
     }
 
@@ -209,11 +223,11 @@ fn emit_one_endpoint(ep: &contract_ir::ContractEndpoint, is_query: bool) -> Stri
 
     if is_query {
         format!(
-            "/** @query `{name}` → `{path}` (GET) */\nexport async function {name}(args: {{ {arg_type} }}, init?: RequestInit): Promise<{return_ts}> {{\n  return $get<{return_ts}>(\"{path}\", {return_schema}, {{ {body_obj} }}, init);\n}}\n\n"
+            "/** @query `{name}` → `{path}` (GET) */\nexport async function {name}(args: {{ {arg_type} }}, init?: RequestInit): Promise<{return_ts}> {{\n  if (isTauri()) return $tauri<{return_ts}>(\"{name}\", {{ {body_obj} }}, {return_schema});\n  return $get<{return_ts}>(\"{path}\", {return_schema}, {{ {body_obj} }}, init);\n}}\n\n"
         )
     } else {
         format!(
-            "/** Server fn `{name}` → `{path}` (POST) */\nexport async function {name}(args: {{ {arg_type} }}, init?: RequestInit): Promise<{return_ts}> {{\n  return $post<{return_ts}>(\"{path}\", {return_schema}, {{ {body_obj} }}, init);\n}}\n\n"
+            "/** Server fn `{name}` → `{path}` (POST) */\nexport async function {name}(args: {{ {arg_type} }}, init?: RequestInit): Promise<{return_ts}> {{\n  if (isTauri()) return $tauri<{return_ts}>(\"{name}\", {{ {body_obj} }}, {return_schema});\n  return $post<{return_ts}>(\"{path}\", {return_schema}, {{ {body_obj} }}, init);\n}}\n\n"
         )
     }
 }

@@ -437,10 +437,7 @@ mod tests {
         let module = empty_module();
         let out = pipeline::generate(&module, "pkg", RustAppShell::AxumLocalServer).unwrap();
         let main = out.files.get("src/main.rs").expect("main.rs");
-        assert!(
-            main.contains("rust_app_shell=AxumLocalServer"),
-            "{main}"
-        );
+        assert!(main.contains("rust_app_shell=AxumLocalServer"), "{main}");
     }
 
     #[test]

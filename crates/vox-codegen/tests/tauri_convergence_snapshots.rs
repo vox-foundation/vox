@@ -5,7 +5,8 @@ use vox_compiler::hir::HirModule;
 
 #[test]
 fn tauri_convergence_snapshots() {
-    let out = generate(&HirModule::default(), "pkg", RustAppShell::TauriApp).expect("generate Tauri shell");
+    let out = generate(&HirModule::default(), "pkg", RustAppShell::TauriApp)
+        .expect("generate Tauri shell");
     let main = out
         .files
         .get("src-tauri/src/main.rs")

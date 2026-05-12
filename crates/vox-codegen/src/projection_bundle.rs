@@ -5,7 +5,9 @@
 
 use vox_compiler::app_contract::{AppContractModule, project_app_contract};
 use vox_compiler::hir::HirModule;
-use vox_compiler::required_capabilities::{RequiredRuntimeCapabilities, project_required_capabilities};
+use vox_compiler::required_capabilities::{
+    RequiredRuntimeCapabilities, project_required_capabilities,
+};
 use vox_compiler::runtime_projection::{RuntimeProjectionModule, project_runtime_from_hir};
 use vox_compiler::shell_projection::{ShellProjectionModule, project_shell_from_hir};
 

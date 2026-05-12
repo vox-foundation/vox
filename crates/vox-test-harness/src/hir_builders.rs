@@ -3,7 +3,7 @@
 //! Provides zero-boilerplate constructors for common HIR nodes so that
 //! `minimal_module()` and similar helpers are never redefined per-file.
 
-use vox_compiler::hir::{HirFn, HirModule, HirRoute, HirTable};
+use vox_compiler::hir::{HirFn, HirModule, HirTable};
 
 use crate::spans::dummy_span;
 
@@ -55,21 +55,6 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
     }
 }
 
-/// Build a minimal GET [`HirRoute`] for the given path with no body.
-pub fn hir_get_route(path: impl Into<String>) -> HirRoute {
-    use vox_compiler::hir::HirHttpMethod;
-    let path = path.into();
-    let method = HirHttpMethod::Get;
-    let route_contract = format!("{} {}", method.as_str(), path);
-    HirRoute {
-        method,
-        path,
-        route_contract,
-        return_type: None,
-        body: vec![],
-        span: dummy_span(),
-    }
-}
 
 /// Build a minimal [`HirTable`] with the given name and no fields.
 pub fn hir_table(name: impl Into<String>) -> HirTable {

@@ -183,8 +183,23 @@ async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: 
   return schema ? schema.parse(data) : (data as T);
 }
 
+function isTauri(): boolean {
+  return typeof window !== "undefined" && typeof (window as any).__TAURI_INVOKE__ !== "undefined";
+}
+
+async function $tauri<T>(cmd: string, args: Record<string, unknown>, schema?: { parse: (x: any) => T }): Promise<T> {
+  try {
+    // @ts-ignore
+    const data = await (window as any).__TAURI_INVOKE__(cmd, { request: args });
+    return schema ? schema.parse(data) : (data as T);
+  } catch (e: any) {
+    throw new VoxApiError(500, cmd, e.toString(), undefined);
+  }
+}
+
 /** @query `on_back` → `/api/query/on_back` (GET) */
 export async function on_back(init?: RequestInit): Promise<boolean> {
+  if (isTauri()) return $tauri<boolean>("on_back", {}, z.boolean());
   return $get<boolean>("/api/query/on_back", z.boolean(), undefined, init);
 }
 

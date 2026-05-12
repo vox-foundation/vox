@@ -574,8 +574,6 @@ fn lower_styles_from_classic_components(
     }
 }
 
-
-
 fn lower_endpoint_contracts(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
     for sf in &hir.endpoint_fns {
         match sf.kind {

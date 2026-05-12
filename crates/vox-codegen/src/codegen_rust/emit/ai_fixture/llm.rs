@@ -1,14 +1,17 @@
-use vox_compiler::hir::nodes::boilerplate_grafts::HirAiFixture;
 use vox_compiler::hir::HirFn;
+use vox_compiler::hir::nodes::boilerplate_grafts::HirAiFixture;
 
 use super::super::stmt_expr::emit_expr;
 use super::super::types::emit_type;
 
 pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
-    let structured_output = func.ai_structured_output.as_ref().or(match &func.ai_fixture {
-        Some(HirAiFixture::ModelPin(v)) => v.structured_output.as_ref(),
-        _ => None,
-    });
+    let structured_output = func
+        .ai_structured_output
+        .as_ref()
+        .or(match &func.ai_fixture {
+            Some(HirAiFixture::ModelPin(v)) => v.structured_output.as_ref(),
+            _ => None,
+        });
     let intent_routed = match &func.ai_fixture {
         Some(HirAiFixture::IntentRouted(v)) => Some(v),
         _ => None,
@@ -71,7 +74,9 @@ pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
                 out.push_str("    let mem_hit = mgr.lookup_fact_by_key(search_query).await.expect(\"ai @search: lookup_fact_by_key\");\n");
                 out.push_str("    let outcome = if mem_hit.as_ref().map(|s| !s.is_empty()).unwrap_or(false) { \"hit\" } else { \"miss\" };\n");
                 out.push_str("    let content = mem_hit.unwrap_or_default();\n");
-                out.push_str("    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n");
+                out.push_str(
+                    "    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n",
+                );
                 out.push_str("        vox_telemetry::AiFixtureEvent::SearchDispatch(vox_telemetry::SearchDispatchTelemetryEvent {\n");
                 out.push_str("            corpus: \"memory\".into(),\n");
                 out.push_str("            outcome: outcome.into(),\n");
@@ -98,14 +103,14 @@ pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
                 out.push_str(
                     "        content: format!(\"Web retrieval query: {}\\n\\n{}\", search_query, prompt),\n",
                 );
-                out.push_str(
-                    "    }], candidates, Some(web_stage)).await;\n",
-                );
+                out.push_str("    }], candidates, Some(web_stage)).await;\n");
                 out.push_str("    let (outcome, err_note) = match &web_res {\n");
                 out.push_str("        Ok(_) => (\"ok\", None),\n");
                 out.push_str("        Err(e) => (\"error\", Some(e.clone())),\n");
                 out.push_str("    };\n");
-                out.push_str("    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n");
+                out.push_str(
+                    "    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n",
+                );
                 out.push_str("        vox_telemetry::AiFixtureEvent::SearchDispatch(vox_telemetry::SearchDispatchTelemetryEvent {\n");
                 out.push_str("            corpus: \"web\".into(),\n");
                 out.push_str("            outcome: outcome.into(),\n");
@@ -116,13 +121,13 @@ pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
                 ));
                 out.push_str("        })\n");
                 out.push_str("    ));\n");
-                out.push_str("    let content = web_res.expect(\"ai @search web cascade\").content;\n");
+                out.push_str(
+                    "    let content = web_res.expect(\"ai @search web cascade\").content;\n",
+                );
             }
             _ => {
                 out.push_str(&format!("    let search_query = \"{}\";\n", query));
-                out.push_str(
-                    "    let repo_root = vox_repository::resolve_repo_root_for_ci();\n",
-                );
+                out.push_str("    let repo_root = vox_repository::resolve_repo_root_for_ci();\n");
                 out.push_str(
                     "    let memory_base = repo_root.join(\".vox\").join(\"memory\").join(\"global\");\n",
                 );
@@ -138,7 +143,9 @@ pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
                     top_k
                 ));
                 out.push_str("    let content = format!(\"{:?}\", exec);\n");
-                out.push_str("    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n");
+                out.push_str(
+                    "    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n",
+                );
                 out.push_str("        vox_telemetry::AiFixtureEvent::SearchDispatch(vox_telemetry::SearchDispatchTelemetryEvent {\n");
                 out.push_str("            corpus: \"docs\".into(),\n");
                 out.push_str("            outcome: \"ok\".into(),\n");
@@ -165,7 +172,10 @@ pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
                 "            let mut signal = vox_orchestrator::subagent_dispatch::DispatchSignal::default();\n",
             );
             let sig_complexity = subagent.complexity.unwrap_or(8);
-            out.push_str(&format!("            signal.complexity = {};\n", sig_complexity));
+            out.push_str(&format!(
+                "            signal.complexity = {};\n",
+                sig_complexity
+            ));
             out.push_str(&format!(
                 "            signal.chain_depth = {};\n",
                 subagent.max_depth
@@ -195,9 +205,7 @@ pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
                 "    signal.chain_depth = {};\n",
                 subagent.max_depth
             ));
-            out.push_str(
-                "    let decision = router.route_with_telemetry(&signal, None);\n",
-            );
+            out.push_str("    let decision = router.route_with_telemetry(&signal, None);\n");
             out.push_str("    let decision_str = decision.to_string();\n");
             out.push_str(
                 "    vox_orchestrator::a2a::bus::MessageBus::global().record_ai_subagent_fixture_routing(&decision_str, prompt.len());\n",
@@ -318,7 +326,9 @@ pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
             } else {
                 format!("vec![{strengths_inner}]")
             };
-            out.push_str("    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n");
+            out.push_str(
+                "    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n",
+            );
             out.push_str("        vox_telemetry::AiFixtureEvent::ModelIntent(vox_telemetry::FixtureModelIntentResolvedEvent {\n");
             out.push_str(&format!(
                 "            task_category: \"{}\".into(),\n",

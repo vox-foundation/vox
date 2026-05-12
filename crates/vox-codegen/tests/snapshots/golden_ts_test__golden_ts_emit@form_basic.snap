@@ -207,8 +207,23 @@ async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: 
   return schema ? schema.parse(data) : (data as T);
 }
 
+function isTauri(): boolean {
+  return typeof window !== "undefined" && typeof (window as any).__TAURI_INVOKE__ !== "undefined";
+}
+
+async function $tauri<T>(cmd: string, args: Record<string, unknown>, schema?: { parse: (x: any) => T }): Promise<T> {
+  try {
+    // @ts-ignore
+    const data = await (window as any).__TAURI_INVOKE__(cmd, { request: args });
+    return schema ? schema.parse(data) : (data as T);
+  } catch (e: any) {
+    throw new VoxApiError(500, cmd, e.toString(), undefined);
+  }
+}
+
 /** Server fn `submit_item` → `/api/mutation/submit_item` (POST) */
 export async function submit_item(args: { name: string }, init?: RequestInit): Promise<number> {
+  if (isTauri()) return $tauri<number>("submit_item", { name: args.name }, z.number());
   return $post<number>("/api/mutation/submit_item", z.number(), { name: args.name }, init);
 }
 

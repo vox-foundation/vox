@@ -23,7 +23,9 @@ fn ts_emit_records_missing_ai_lowering_diagnostic() {
     )
     .expect("codegen");
     assert!(
-        out.diagnostics.iter().any(|d| d.code == "vox/codegen/missing-ts-ai-lowering"),
+        out.diagnostics
+            .iter()
+            .any(|d| d.code == "vox/codegen/missing-ts-ai-lowering"),
         "expected TS AI lowering diagnostic, got {:?}",
         out.diagnostics
     );

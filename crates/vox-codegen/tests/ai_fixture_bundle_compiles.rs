@@ -7,8 +7,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-use vox_codegen::codegen_rust::emit::generate;
 use vox_codegen::codegen_rust::RustAppShell;
+use vox_codegen::codegen_rust::emit::generate;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
@@ -37,7 +37,8 @@ fn generated_ai_fixture_bundle_passes_cargo_check() {
     let ast = parse(lex(src)).expect("parse");
     let hir = lower_module(&ast);
 
-    let out = generate(&hir, "ai_fixture_bundle_gen", RustAppShell::AxumLocalServer).expect("generate");
+    let out =
+        generate(&hir, "ai_fixture_bundle_gen", RustAppShell::AxumLocalServer).expect("generate");
     let uniq = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()

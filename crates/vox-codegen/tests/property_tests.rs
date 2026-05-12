@@ -32,9 +32,12 @@ const SIMPLE_SNIPPETS: &[&str] = &[
 fn generate_rust_output(src: &str) -> Result<String, String> {
     let m = parse(lex(src)).map_err(|e| format!("parse error: {e:?}"))?;
     let hir = lower_module(&m);
-    let out =
-        codegen_rust::generate(&hir, "test_pkg", codegen_rust::RustAppShell::AxumLocalServer)
-            .map_err(|e| format!("codegen error: {e}"))?;
+    let out = codegen_rust::generate(
+        &hir,
+        "test_pkg",
+        codegen_rust::RustAppShell::AxumLocalServer,
+    )
+    .map_err(|e| format!("codegen error: {e}"))?;
     // Concatenate all file contents to a single comparable string.
     let mut keys: Vec<_> = out.files.keys().collect();
     keys.sort();

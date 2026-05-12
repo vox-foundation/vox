@@ -192,18 +192,35 @@ async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: 
   return schema ? schema.parse(data) : (data as T);
 }
 
+function isTauri(): boolean {
+  return typeof window !== "undefined" && typeof (window as any).__TAURI_INVOKE__ !== "undefined";
+}
+
+async function $tauri<T>(cmd: string, args: Record<string, unknown>, schema?: { parse: (x: any) => T }): Promise<T> {
+  try {
+    // @ts-ignore
+    const data = await (window as any).__TAURI_INVOKE__(cmd, { request: args });
+    return schema ? schema.parse(data) : (data as T);
+  } catch (e: any) {
+    throw new VoxApiError(500, cmd, e.toString(), undefined);
+  }
+}
+
 /** @query `get_price` → `/api/query/get_price` (GET) */
 export async function get_price(args: { item_id: string }, init?: RequestInit): Promise<Price> {
+  if (isTauri()) return $tauri<Price>("get_price", { item_id: args.item_id }, PriceSchema);
   return $get<Price>("/api/query/get_price", PriceSchema, { item_id: args.item_id }, init);
 }
 
 /** @query `list_prices` → `/api/query/list_prices` (GET) */
 export async function list_prices(args: { category: string, limit?: number }, init?: RequestInit): Promise<readonly string[]> {
+  if (isTauri()) return $tauri<readonly string[]>("list_prices", { category: args.category, limit: args.limit }, z.array(z.string()));
   return $get<readonly string[]>("/api/query/list_prices", z.array(z.string()), { category: args.category, limit: args.limit }, init);
 }
 
 /** Server fn `record_payment` → `/api/mutation/record_payment` (POST) */
 export async function record_payment(args: { item_id: string, amount: string, note?: string }, init?: RequestInit): Promise<boolean> {
+  if (isTauri()) return $tauri<boolean>("record_payment", { item_id: args.item_id, amount: args.amount, note: args.note }, z.boolean());
   return $post<boolean>("/api/mutation/record_payment", z.boolean(), { item_id: args.item_id, amount: args.amount, note: args.note }, init);
 }
 

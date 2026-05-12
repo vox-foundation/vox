@@ -184,8 +184,23 @@ async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: 
   return schema ? schema.parse(data) : (data as T);
 }
 
+function isTauri(): boolean {
+  return typeof window !== "undefined" && typeof (window as any).__TAURI_INVOKE__ !== "undefined";
+}
+
+async function $tauri<T>(cmd: string, args: Record<string, unknown>, schema?: { parse: (x: any) => T }): Promise<T> {
+  try {
+    // @ts-ignore
+    const data = await (window as any).__TAURI_INVOKE__(cmd, { request: args });
+    return schema ? schema.parse(data) : (data as T);
+  } catch (e: any) {
+    throw new VoxApiError(500, cmd, e.toString(), undefined);
+  }
+}
+
 /** @query `get_count` → `/api/query/get_count` (GET) */
 export async function get_count(init?: RequestInit): Promise<number> {
+  if (isTauri()) return $tauri<number>("get_count", {}, z.number());
   return $get<number>("/api/query/get_count", z.number(), undefined, init);
 }
 
