@@ -1,9 +1,9 @@
 # 14 — hardcoded date literals
 
 **Severity**: info  
-**Itemized**: 62
+**Itemized**: 57
 
-### hv-1035 — `contracts/reports/completion-audit.v1.json:4`
+### hv-1033 — `contracts/reports/completion-audit.v1.json:4`
 
 **Substring**
 
@@ -21,7 +21,7 @@
 
 ---
 
-### hv-1036 — `contracts/reports/docs-reality-audit/metrics.v1.json:8`
+### hv-1034 — `contracts/reports/docs-reality-audit/metrics.v1.json:8`
 
 **Substring**
 
@@ -39,7 +39,7 @@
 
 ---
 
-### hv-1037 — `contracts/reports/scaling-audit/audit-parse-latest.json:2`
+### hv-1035 — `contracts/reports/scaling-audit/audit-parse-latest.json:2`
 
 **Substring**
 
@@ -57,7 +57,7 @@
 
 ---
 
-### hv-1038 — `contracts/reports/scaling-audit/findings-latest.json:39981`
+### hv-1036 — `contracts/reports/scaling-audit/findings-latest.json:39981`
 
 **Substring**
 
@@ -75,7 +75,7 @@
 
 ---
 
-### hv-1039 — `contracts/reports/sql-write-ownership-rev-c.json:4`
+### hv-1037 — `contracts/reports/sql-write-ownership-rev-c.json:4`
 
 **Substring**
 
@@ -93,7 +93,7 @@
 
 ---
 
-### hv-1040 — `contracts/reports/toestub-remediation/baseline-freeze.json:3`
+### hv-1038 — `contracts/reports/toestub-remediation/baseline-freeze.json:3`
 
 **Substring**
 
@@ -111,7 +111,7 @@
 
 ---
 
-### hv-1041 — `contracts/reports/toestub-remediation/delta-after-remediation.json:2`
+### hv-1039 — `contracts/reports/toestub-remediation/delta-after-remediation.json:2`
 
 **Substring**
 
@@ -129,7 +129,7 @@
 
 ---
 
-### hv-1042 — `contracts/reports/toestub-remediation/promotion-metrics.json:89`
+### hv-1040 — `contracts/reports/toestub-remediation/promotion-metrics.json:89`
 
 **Substring**
 
@@ -147,7 +147,7 @@
 
 ---
 
-### hv-1043 — `contracts/reports/toestub-remediation/promotion-metrics.json:113`
+### hv-1041 — `contracts/reports/toestub-remediation/promotion-metrics.json:113`
 
 **Substring**
 
@@ -165,7 +165,7 @@
 
 ---
 
-### hv-1044 — `contracts/scaling/policy.yaml:4`
+### hv-1042 — `contracts/scaling/policy.yaml:4`
 
 **Substring**
 
@@ -183,7 +183,7 @@
 
 ---
 
-### hv-1045 — `contracts/speech-to-code/audit-matrix.v1.yaml:2`
+### hv-1043 — `contracts/speech-to-code/audit-matrix.v1.yaml:2`
 
 **Substring**
 
@@ -201,7 +201,7 @@
 
 ---
 
-### hv-1046 — `contracts/speech-to-code/canary.kpi.json:3`
+### hv-1044 — `contracts/speech-to-code/canary.kpi.json:3`
 
 **Substring**
 
@@ -219,7 +219,7 @@
 
 ---
 
-### hv-1047 — `contracts/speech-to-code/canary.kpi.json:4`
+### hv-1045 — `contracts/speech-to-code/canary.kpi.json:4`
 
 **Substring**
 
@@ -237,7 +237,7 @@
 
 ---
 
-### hv-1048 — `crates/vox-cli/src/commands/ci/nomenclature_guard.rs:40`
+### hv-1046 — `crates/vox-cli/src/commands/ci/nomenclature_guard.rs:40`
 
 **Substring**
 
@@ -255,7 +255,7 @@
 
 ---
 
-### hv-1049 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:141`
+### hv-1047 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:141`
 
 **Substring**
 
@@ -273,7 +273,7 @@
 
 ---
 
-### hv-1050 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:142`
+### hv-1048 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:142`
 
 **Substring**
 
@@ -291,7 +291,7 @@
 
 ---
 
-### hv-1051 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:277`
+### hv-1049 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:277`
 
 **Substring**
 
@@ -309,7 +309,7 @@
 
 ---
 
-### hv-1052 — `crates/vox-cli/src/commands/ci/test_inventory.rs:1184`
+### hv-1050 — `crates/vox-cli/src/commands/ci/test_inventory.rs:1184`
 
 **Substring**
 
@@ -327,7 +327,7 @@
 
 ---
 
-### hv-1053 — `crates/vox-cli/src/commands/ci/test_inventory.rs:1185`
+### hv-1051 — `crates/vox-cli/src/commands/ci/test_inventory.rs:1185`
 
 **Substring**
 
@@ -345,7 +345,7 @@
 
 ---
 
-### hv-1054 — `crates/vox-cli/src/commands/review/coderabbit/github/comments.rs:31`
+### hv-1052 — `crates/vox-cli/src/commands/review/coderabbit/github/comments.rs:31`
 
 **Substring**
 
@@ -363,7 +363,7 @@
 
 ---
 
-### hv-1055 — `crates/vox-cli/src/commands/review/coderabbit/ingest.rs:127`
+### hv-1053 — `crates/vox-cli/src/commands/review/coderabbit/ingest.rs:127`
 
 **Substring**
 
@@ -381,7 +381,7 @@
 
 ---
 
-### hv-1056 — `crates/vox-cli/src/commands/review/coderabbit/run_state.rs:83`
+### hv-1054 — `crates/vox-cli/src/commands/review/coderabbit/run_state.rs:83`
 
 **Substring**
 
@@ -399,7 +399,7 @@
 
 ---
 
-### hv-1057 — `crates/vox-codegen/src/codegen_rust/emit/client.rs:374`
+### hv-1055 — `crates/vox-codegen/src/codegen_rust/emit/client.rs:374`
 
 **Substring**
 
@@ -417,7 +417,7 @@
 
 ---
 
-### hv-1058 — `crates/vox-codegen/src/codegen_ts/routes.rs:43`
+### hv-1056 — `crates/vox-codegen/src/codegen_ts/routes.rs:43`
 
 **Substring**
 
@@ -435,97 +435,7 @@
 
 ---
 
-### hv-1059 — `crates/vox-dashboard/src/api/runs.rs:44`
-
-**Substring**
-
-```text
-2026-05-04
-```
-
-**Why it matters**: Date constants in logic look like stale placeholders or wrong-era defaults.
-
-**Fix** (review-intentional): If not a real release date / contract version, derive from build metadata or user input.
-
-**Verify**: `rg -nF "2026-05-04" "crates/vox-dashboard/src/api/runs.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-1060 — `crates/vox-dashboard/src/api/runs.rs:60`
-
-**Substring**
-
-```text
-2026-05-04
-```
-
-**Why it matters**: Date constants in logic look like stale placeholders or wrong-era defaults.
-
-**Fix** (review-intentional): If not a real release date / contract version, derive from build metadata or user input.
-
-**Verify**: `rg -nF "2026-05-04" "crates/vox-dashboard/src/api/runs.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-1061 — `crates/vox-dashboard/src/api/runs.rs:78`
-
-**Substring**
-
-```text
-2026-05-04
-```
-
-**Why it matters**: Date constants in logic look like stale placeholders or wrong-era defaults.
-
-**Fix** (review-intentional): If not a real release date / contract version, derive from build metadata or user input.
-
-**Verify**: `rg -nF "2026-05-04" "crates/vox-dashboard/src/api/runs.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-1062 — `crates/vox-dashboard/src/api/runs.rs:92`
-
-**Substring**
-
-```text
-2026-05-04
-```
-
-**Why it matters**: Date constants in logic look like stale placeholders or wrong-era defaults.
-
-**Fix** (review-intentional): If not a real release date / contract version, derive from build metadata or user input.
-
-**Verify**: `rg -nF "2026-05-04" "crates/vox-dashboard/src/api/runs.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-1063 — `crates/vox-dashboard/src/api/runs.rs:107`
-
-**Substring**
-
-```text
-2026-05-04
-```
-
-**Why it matters**: Date constants in logic look like stale placeholders or wrong-era defaults.
-
-**Fix** (review-intentional): If not a real release date / contract version, derive from build metadata or user input.
-
-**Verify**: `rg -nF "2026-05-04" "crates/vox-dashboard/src/api/runs.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-1064 — `crates/vox-db/src/codex_chat.rs:608`
+### hv-1057 — `crates/vox-db/src/codex_chat.rs:608`
 
 **Substring**
 
@@ -543,7 +453,7 @@
 
 ---
 
-### hv-1065 — `crates/vox-db/src/schema/domains/vox_mesh.rs:29`
+### hv-1058 — `crates/vox-db/src/schema/domains/vox_mesh.rs:29`
 
 **Substring**
 
@@ -561,7 +471,7 @@
 
 ---
 
-### hv-1066 — `crates/vox-doc-pipeline/src/pipeline/lint.rs:579`
+### hv-1059 — `crates/vox-doc-pipeline/src/pipeline/lint.rs:580`
 
 **Substring**
 
@@ -579,7 +489,7 @@
 
 ---
 
-### hv-1067 — `crates/vox-doc-pipeline/src/pipeline/lint.rs:582`
+### hv-1060 — `crates/vox-doc-pipeline/src/pipeline/lint.rs:583`
 
 **Substring**
 
@@ -597,7 +507,7 @@
 
 ---
 
-### hv-1068 — `crates/vox-doc-pipeline/src/pipeline/lint.rs:588`
+### hv-1061 — `crates/vox-doc-pipeline/src/pipeline/lint.rs:589`
 
 **Substring**
 
@@ -615,7 +525,7 @@
 
 ---
 
-### hv-1069 — `crates/vox-forge/src/github.rs:55`
+### hv-1062 — `crates/vox-forge/src/github.rs:55`
 
 **Substring**
 
@@ -633,7 +543,7 @@
 
 ---
 
-### hv-1070 — `crates/vox-forge/src/github.rs:100`
+### hv-1063 — `crates/vox-forge/src/github.rs:100`
 
 **Substring**
 
@@ -651,7 +561,7 @@
 
 ---
 
-### hv-1071 — `crates/vox-forge/src/types.rs:320`
+### hv-1064 — `crates/vox-forge/src/types.rs:320`
 
 **Substring**
 
@@ -669,7 +579,7 @@
 
 ---
 
-### hv-1072 — `crates/vox-forge/src/types.rs:321`
+### hv-1065 — `crates/vox-forge/src/types.rs:321`
 
 **Substring**
 
@@ -687,7 +597,7 @@
 
 ---
 
-### hv-1073 — `crates/vox-forge/src/types.rs:343`
+### hv-1066 — `crates/vox-forge/src/types.rs:343`
 
 **Substring**
 
@@ -705,7 +615,7 @@
 
 ---
 
-### hv-1074 — `crates/vox-forge/src/types.rs:344`
+### hv-1067 — `crates/vox-forge/src/types.rs:344`
 
 **Substring**
 
@@ -723,7 +633,7 @@
 
 ---
 
-### hv-1075 — `crates/vox-orchestrator-mcp/src/llm_bridge/providers/anthropic.rs:86`
+### hv-1068 — `crates/vox-orchestrator-mcp/src/llm_bridge/providers/anthropic.rs:86`
 
 **Substring**
 
@@ -741,7 +651,7 @@
 
 ---
 
-### hv-1076 — `crates/vox-orchestrator/src/catalog.rs:552`
+### hv-1069 — `crates/vox-orchestrator/src/catalog.rs:570`
 
 **Substring**
 
@@ -759,7 +669,7 @@
 
 ---
 
-### hv-1077 — `crates/vox-orchestrator/src/occ.rs:228`
+### hv-1070 — `crates/vox-orchestrator/src/occ.rs:228`
 
 **Substring**
 
@@ -777,7 +687,7 @@
 
 ---
 
-### hv-1078 — `crates/vox-orchestrator/src/occ.rs:229`
+### hv-1071 — `crates/vox-orchestrator/src/occ.rs:229`
 
 **Substring**
 
@@ -795,7 +705,7 @@
 
 ---
 
-### hv-1079 — `crates/vox-orchestrator/src/occ.rs:230`
+### hv-1072 — `crates/vox-orchestrator/src/occ.rs:230`
 
 **Substring**
 
@@ -813,7 +723,7 @@
 
 ---
 
-### hv-1080 — `crates/vox-orchestrator/src/occ.rs:250`
+### hv-1073 — `crates/vox-orchestrator/src/occ.rs:250`
 
 **Substring**
 
@@ -831,7 +741,7 @@
 
 ---
 
-### hv-1081 — `crates/vox-orchestrator/src/occ.rs:251`
+### hv-1074 — `crates/vox-orchestrator/src/occ.rs:251`
 
 **Substring**
 
@@ -849,7 +759,7 @@
 
 ---
 
-### hv-1082 — `crates/vox-orchestrator/src/occ.rs:273`
+### hv-1075 — `crates/vox-orchestrator/src/occ.rs:273`
 
 **Substring**
 
@@ -867,7 +777,7 @@
 
 ---
 
-### hv-1083 — `crates/vox-orchestrator/src/usage.rs:739`
+### hv-1076 — `crates/vox-orchestrator/src/usage.rs:739`
 
 **Substring**
 
@@ -885,7 +795,7 @@
 
 ---
 
-### hv-1084 — `crates/vox-populi/src/mens/discovery_publish.rs:113`
+### hv-1077 — `crates/vox-populi/src/mens/discovery_publish.rs:113`
 
 **Substring**
 
@@ -903,7 +813,7 @@
 
 ---
 
-### hv-1085 — `crates/vox-populi/src/mens/discovery_publish.rs:123`
+### hv-1078 — `crates/vox-populi/src/mens/discovery_publish.rs:123`
 
 **Substring**
 
@@ -921,7 +831,7 @@
 
 ---
 
-### hv-1086 — `crates/vox-populi/src/mens/discovery_publish.rs:136`
+### hv-1079 — `crates/vox-populi/src/mens/discovery_publish.rs:136`
 
 **Substring**
 
@@ -939,7 +849,7 @@
 
 ---
 
-### hv-1087 — `crates/vox-publisher/src/atlas/manifest.rs:97`
+### hv-1080 — `crates/vox-publisher/src/atlas/manifest.rs:97`
 
 **Substring**
 
@@ -957,7 +867,7 @@
 
 ---
 
-### hv-1088 — `crates/vox-publisher/src/atlas/manifest.rs:121`
+### hv-1081 — `crates/vox-publisher/src/atlas/manifest.rs:121`
 
 **Substring**
 
@@ -975,7 +885,7 @@
 
 ---
 
-### hv-1089 — `crates/vox-publisher/src/atlas/submission.rs:92`
+### hv-1082 — `crates/vox-publisher/src/atlas/submission.rs:92`
 
 **Substring**
 
@@ -993,7 +903,7 @@
 
 ---
 
-### hv-1090 — `crates/vox-publisher/src/atlas/submission.rs:143`
+### hv-1083 — `crates/vox-publisher/src/atlas/submission.rs:143`
 
 **Substring**
 
@@ -1011,7 +921,7 @@
 
 ---
 
-### hv-1091 — `crates/vox-publisher/src/scholarly/crossref_deposit.rs:209`
+### hv-1084 — `crates/vox-publisher/src/scholarly/crossref_deposit.rs:209`
 
 **Substring**
 
@@ -1029,7 +939,7 @@
 
 ---
 
-### hv-1092 — `crates/vox-publisher/src/switching.rs:549`
+### hv-1085 — `crates/vox-publisher/src/switching.rs:549`
 
 **Substring**
 
@@ -1047,7 +957,7 @@
 
 ---
 
-### hv-1093 — `crates/vox-publisher/src/templates.rs:116`
+### hv-1086 — `crates/vox-publisher/src/templates.rs:116`
 
 **Substring**
 
@@ -1065,7 +975,7 @@
 
 ---
 
-### hv-1094 — `crates/vox-ro-crate/src/metadata.rs:186`
+### hv-1087 — `crates/vox-ro-crate/src/metadata.rs:186`
 
 **Substring**
 
@@ -1083,7 +993,7 @@
 
 ---
 
-### hv-1095 — `crates/vox-share/src/backends/cloudflare.rs:138`
+### hv-1088 — `crates/vox-share/src/backends/cloudflare.rs:138`
 
 **Substring**
 
@@ -1101,7 +1011,7 @@
 
 ---
 
-### hv-1096 — `examples/golden/iot_telemetry.vox:32`
+### hv-1089 — `examples/golden/iot_telemetry.vox:32`
 
 **Substring**
 

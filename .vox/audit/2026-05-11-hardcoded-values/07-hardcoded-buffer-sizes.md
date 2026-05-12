@@ -3,7 +3,7 @@
 **Severity**: warning  
 **Itemized**: 100
 
-### hv-0428 — `contracts/reports/scaling-audit/findings-latest.json:26819`
+### hv-0425 — `contracts/reports/scaling-audit/findings-latest.json:26819`
 
 **Substring**
 
@@ -21,7 +21,7 @@ BufReader::with_capacity(128
 
 ---
 
-### hv-0429 — `contracts/reports/scaling-audit/findings-latest.json:27529`
+### hv-0426 — `contracts/reports/scaling-audit/findings-latest.json:27529`
 
 **Substring**
 
@@ -39,7 +39,7 @@ channel(1024)
 
 ---
 
-### hv-0430 — `contracts/reports/scaling-audit/findings-latest.json:28057`
+### hv-0427 — `contracts/reports/scaling-audit/findings-latest.json:28057`
 
 **Substring**
 
@@ -57,7 +57,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0431 — `contracts/reports/scaling-audit/findings-latest.json:28069`
+### hv-0428 — `contracts/reports/scaling-audit/findings-latest.json:28069`
 
 **Substring**
 
@@ -75,7 +75,7 @@ with_capacity(8192)
 
 ---
 
-### hv-0432 — `contracts/reports/scaling-audit/findings-latest.json:28092`
+### hv-0429 — `contracts/reports/scaling-audit/findings-latest.json:28092`
 
 **Substring**
 
@@ -93,7 +93,7 @@ with_capacity(8192)
 
 ---
 
-### hv-0433 — `contracts/reports/scaling-audit/findings-latest.json:28104`
+### hv-0430 — `contracts/reports/scaling-audit/findings-latest.json:28104`
 
 **Substring**
 
@@ -111,7 +111,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0434 — `crates/vox-actor-runtime/src/routing_telemetry.rs:103`
+### hv-0431 — `crates/vox-actor-runtime/src/routing_telemetry.rs:103`
 
 **Substring**
 
@@ -129,7 +129,25 @@ bounded(200)
 
 ---
 
-### hv-0435 — `crates/vox-cli/src/commands/mcp_server/wasm.rs:168`
+### hv-0432 — `crates/vox-arch-check/src/main.rs:1058`
+
+**Substring**
+
+```text
+[0u8; 4096]
+```
+
+**Why it matters**: Buffer/channel sizes tied to protocol; literals obscure backpressure semantics.
+
+**Fix** (extract-named-constant): const BUF_CAP: usize = …; // name ties size to protocol / device limits
+
+**Verify**: `rg -nF "[0u8; 4096]" "crates/vox-arch-check/src/main.rs"`
+
+**Confidence**: medium
+
+---
+
+### hv-0433 — `crates/vox-cli/src/commands/mcp_server/wasm.rs:168`
 
 **Substring**
 
@@ -147,7 +165,7 @@ channel(100)
 
 ---
 
-### hv-0436 — `crates/vox-cli/src/commands/mcp_server/wasm.rs:169`
+### hv-0434 — `crates/vox-cli/src/commands/mcp_server/wasm.rs:169`
 
 **Substring**
 
@@ -165,7 +183,7 @@ channel(100)
 
 ---
 
-### hv-0437 — `crates/vox-cli/src/commands/secrets.rs:765`
+### hv-0435 — `crates/vox-cli/src/commands/secrets.rs:765`
 
 **Substring**
 
@@ -183,7 +201,7 @@ channel(100)
 
 ---
 
-### hv-0438 — `crates/vox-cli/src/commands/workflow/drain.rs:30`
+### hv-0436 — `crates/vox-cli/src/commands/workflow/drain.rs:30`
 
 **Substring**
 
@@ -201,7 +219,7 @@ channel(100)
 
 ---
 
-### hv-0439 — `crates/vox-code-audit/src/detectors/victory_claim.rs:21`
+### hv-0437 — `crates/vox-code-audit/src/detectors/victory_claim.rs:21`
 
 **Substring**
 
@@ -219,7 +237,7 @@ with_capacity(4)
 
 ---
 
-### hv-0440 — `crates/vox-corpus/src/training/preflight.rs:41`
+### hv-0438 — `crates/vox-corpus/src/training/preflight.rs:41`
 
 **Substring**
 
@@ -237,7 +255,7 @@ BufReader::with_capacity(128
 
 ---
 
-### hv-0441 — `crates/vox-crypto/src/facades.rs:34`
+### hv-0439 — `crates/vox-crypto/src/facades.rs:34`
 
 **Substring**
 
@@ -255,7 +273,7 @@ BufReader::with_capacity(128
 
 ---
 
-### hv-0442 — `crates/vox-crypto/src/facades.rs:43`
+### hv-0440 — `crates/vox-crypto/src/facades.rs:43`
 
 **Substring**
 
@@ -273,7 +291,7 @@ BufReader::with_capacity(128
 
 ---
 
-### hv-0443 — `crates/vox-crypto/src/facades.rs:198`
+### hv-0441 — `crates/vox-crypto/src/facades.rs:198`
 
 **Substring**
 
@@ -291,7 +309,7 @@ BufReader::with_capacity(128
 
 ---
 
-### hv-0444 — `crates/vox-crypto/src/facades.rs:202`
+### hv-0442 — `crates/vox-crypto/src/facades.rs:202`
 
 **Substring**
 
@@ -309,7 +327,7 @@ BufReader::with_capacity(128
 
 ---
 
-### hv-0445 — `crates/vox-crypto/src/facades.rs:295`
+### hv-0443 — `crates/vox-crypto/src/facades.rs:295`
 
 **Substring**
 
@@ -327,7 +345,7 @@ BufReader::with_capacity(128
 
 ---
 
-### hv-0446 — `crates/vox-crypto/src/facades.rs:303`
+### hv-0444 — `crates/vox-crypto/src/facades.rs:303`
 
 **Substring**
 
@@ -345,7 +363,7 @@ BufReader::with_capacity(128
 
 ---
 
-### hv-0447 — `crates/vox-crypto/src/facades.rs:317`
+### hv-0445 — `crates/vox-crypto/src/facades.rs:317`
 
 **Substring**
 
@@ -363,7 +381,7 @@ BufReader::with_capacity(128
 
 ---
 
-### hv-0448 — `crates/vox-crypto/src/facades.rs:328`
+### hv-0446 — `crates/vox-crypto/src/facades.rs:328`
 
 **Substring**
 
@@ -381,7 +399,7 @@ BufReader::with_capacity(128
 
 ---
 
-### hv-0449 — `crates/vox-db/src/writer_actor.rs:255`
+### hv-0447 — `crates/vox-db/src/writer_actor.rs:255`
 
 **Substring**
 
@@ -399,7 +417,7 @@ channel(1024)
 
 ---
 
-### hv-0450 — `crates/vox-distributed-training/src/checkpoint.rs:93`
+### hv-0448 — `crates/vox-distributed-training/src/checkpoint.rs:93`
 
 **Substring**
 
@@ -417,7 +435,7 @@ channel(1024)
 
 ---
 
-### hv-0451 — `crates/vox-distributed-training/src/checkpoint.rs:94`
+### hv-0449 — `crates/vox-distributed-training/src/checkpoint.rs:94`
 
 **Substring**
 
@@ -435,7 +453,7 @@ channel(1024)
 
 ---
 
-### hv-0452 — `crates/vox-distributed-training/src/checkpoint.rs:103`
+### hv-0450 — `crates/vox-distributed-training/src/checkpoint.rs:103`
 
 **Substring**
 
@@ -453,7 +471,7 @@ channel(1024)
 
 ---
 
-### hv-0453 — `crates/vox-distributed-training/src/gradient.rs:67`
+### hv-0451 — `crates/vox-distributed-training/src/gradient.rs:67`
 
 **Substring**
 
@@ -471,7 +489,7 @@ channel(1024)
 
 ---
 
-### hv-0454 — `crates/vox-distributed-training/src/strategy/data_parallel.rs:37`
+### hv-0452 — `crates/vox-distributed-training/src/strategy/data_parallel.rs:37`
 
 **Substring**
 
@@ -489,7 +507,7 @@ channel(1024)
 
 ---
 
-### hv-0455 — `crates/vox-grammar-export/src/compact_prompt.rs:20`
+### hv-0453 — `crates/vox-grammar-export/src/compact_prompt.rs:20`
 
 **Substring**
 
@@ -507,7 +525,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0456 — `crates/vox-grammar-export/src/ebnf.rs:14`
+### hv-0454 — `crates/vox-grammar-export/src/ebnf.rs:14`
 
 **Substring**
 
@@ -525,7 +543,7 @@ with_capacity(8192)
 
 ---
 
-### hv-0457 — `crates/vox-grammar-export/src/lark.rs:11`
+### hv-0455 — `crates/vox-grammar-export/src/lark.rs:11`
 
 **Substring**
 
@@ -543,7 +561,7 @@ with_capacity(8192)
 
 ---
 
-### hv-0458 — `crates/vox-grammar-export/src/ssot_markdown.rs:71`
+### hv-0456 — `crates/vox-grammar-export/src/ssot_markdown.rs:71`
 
 **Substring**
 
@@ -561,7 +579,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0459 — `crates/vox-identity/src/challenge.rs:5`
+### hv-0457 — `crates/vox-identity/src/challenge.rs:5`
 
 **Substring**
 
@@ -579,7 +597,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0460 — `crates/vox-identity/src/storage.rs:17`
+### hv-0458 — `crates/vox-identity/src/storage.rs:17`
 
 **Substring**
 
@@ -597,7 +615,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0461 — `crates/vox-identity/src/storage.rs:26`
+### hv-0459 — `crates/vox-identity/src/storage.rs:26`
 
 **Substring**
 
@@ -615,7 +633,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0462 — `crates/vox-identity/src/storage.rs:31`
+### hv-0460 — `crates/vox-identity/src/storage.rs:31`
 
 **Substring**
 
@@ -633,7 +651,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0463 — `crates/vox-identity/src/storage.rs:92`
+### hv-0461 — `crates/vox-identity/src/storage.rs:92`
 
 **Substring**
 
@@ -651,7 +669,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0464 — `crates/vox-inference/src/dispatcher.rs:57`
+### hv-0462 — `crates/vox-inference/src/dispatcher.rs:57`
 
 **Substring**
 
@@ -669,7 +687,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0465 — `crates/vox-inference/src/dispatcher.rs:59`
+### hv-0463 — `crates/vox-inference/src/dispatcher.rs:59`
 
 **Substring**
 
@@ -687,7 +705,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0466 — `crates/vox-inference/src/dispatcher.rs:60`
+### hv-0464 — `crates/vox-inference/src/dispatcher.rs:60`
 
 **Substring**
 
@@ -705,7 +723,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0467 — `crates/vox-inference/src/dispatcher.rs:61`
+### hv-0465 — `crates/vox-inference/src/dispatcher.rs:61`
 
 **Substring**
 
@@ -723,7 +741,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0468 — `crates/vox-mesh-types/src/trace.rs:29`
+### hv-0466 — `crates/vox-mesh-types/src/trace.rs:29`
 
 **Substring**
 
@@ -741,7 +759,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0469 — `crates/vox-mesh-types/src/trace.rs:40`
+### hv-0467 — `crates/vox-mesh-types/src/trace.rs:40`
 
 **Substring**
 
@@ -759,7 +777,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0470 — `crates/vox-mesh-types/src/trace.rs:49`
+### hv-0468 — `crates/vox-mesh-types/src/trace.rs:49`
 
 **Substring**
 
@@ -777,7 +795,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0471 — `crates/vox-mesh-types/src/trace.rs:60`
+### hv-0469 — `crates/vox-mesh-types/src/trace.rs:60`
 
 **Substring**
 
@@ -795,7 +813,7 @@ with_capacity(4096)
 
 ---
 
-### hv-0472 — `crates/vox-ml-cli/src/commands/ai/serve/handlers.rs:195`
+### hv-0470 — `crates/vox-ml-cli/src/commands/ai/serve/handlers.rs:195`
 
 **Substring**
 
@@ -813,7 +831,7 @@ channel(32)
 
 ---
 
-### hv-0473 — `crates/vox-nanopub/src/signing.rs:23`
+### hv-0471 — `crates/vox-nanopub/src/signing.rs:23`
 
 **Substring**
 
@@ -831,7 +849,7 @@ channel(32)
 
 ---
 
-### hv-0474 — `crates/vox-orchestrator-mcp/src/http_gateway/mod.rs:724`
+### hv-0472 — `crates/vox-orchestrator-mcp/src/http_gateway/mod.rs:704`
 
 **Substring**
 
@@ -849,7 +867,7 @@ channel(32)
 
 ---
 
-### hv-0475 — `crates/vox-orchestrator-mcp/src/http_gateway/mod.rs:730`
+### hv-0473 — `crates/vox-orchestrator-mcp/src/http_gateway/mod.rs:710`
 
 **Substring**
 
@@ -867,7 +885,7 @@ channel(32)
 
 ---
 
-### hv-0476 — `crates/vox-orchestrator-mcp/src/http_gateway/token.rs:37`
+### hv-0474 — `crates/vox-orchestrator-mcp/src/http_gateway/token.rs:37`
 
 **Substring**
 
@@ -885,7 +903,7 @@ channel(32)
 
 ---
 
-### hv-0477 — `crates/vox-orchestrator-mcp/src/server_state.rs:154`
+### hv-0475 — `crates/vox-orchestrator-mcp/src/server_state.rs:154`
 
 **Substring**
 
@@ -903,7 +921,7 @@ channel(256)
 
 ---
 
-### hv-0478 — `crates/vox-orchestrator-mcp/src/server_state.rs:202`
+### hv-0476 — `crates/vox-orchestrator-mcp/src/server_state.rs:204`
 
 **Substring**
 
@@ -921,7 +939,7 @@ channel(256)
 
 ---
 
-### hv-0479 — `crates/vox-orchestrator-mcp/src/server_state.rs:435`
+### hv-0477 — `crates/vox-orchestrator-mcp/src/server_state.rs:474`
 
 **Substring**
 
@@ -939,7 +957,7 @@ channel(256)
 
 ---
 
-### hv-0480 — `crates/vox-orchestrator-queue/src/affinity.rs:386`
+### hv-0478 — `crates/vox-orchestrator-queue/src/affinity.rs:386`
 
 **Substring**
 
@@ -957,7 +975,7 @@ channel(256)
 
 ---
 
-### hv-0481 — `crates/vox-orchestrator-queue/src/affinity.rs:387`
+### hv-0479 — `crates/vox-orchestrator-queue/src/affinity.rs:387`
 
 **Substring**
 
@@ -975,7 +993,7 @@ channel(256)
 
 ---
 
-### hv-0482 — `crates/vox-orchestrator-queue/src/affinity.rs:418`
+### hv-0480 — `crates/vox-orchestrator-queue/src/affinity.rs:418`
 
 **Substring**
 
@@ -993,7 +1011,7 @@ channel(256)
 
 ---
 
-### hv-0483 — `crates/vox-orchestrator-queue/src/affinity.rs:432`
+### hv-0481 — `crates/vox-orchestrator-queue/src/affinity.rs:432`
 
 **Substring**
 
@@ -1011,7 +1029,7 @@ channel(256)
 
 ---
 
-### hv-0484 — `crates/vox-orchestrator-queue/src/affinity.rs:433`
+### hv-0482 — `crates/vox-orchestrator-queue/src/affinity.rs:433`
 
 **Substring**
 
@@ -1029,7 +1047,7 @@ channel(256)
 
 ---
 
-### hv-0485 — `crates/vox-orchestrator-queue/src/affinity.rs:444`
+### hv-0483 — `crates/vox-orchestrator-queue/src/affinity.rs:444`
 
 **Substring**
 
@@ -1047,7 +1065,7 @@ channel(256)
 
 ---
 
-### hv-0486 — `crates/vox-orchestrator-queue/src/affinity.rs:445`
+### hv-0484 — `crates/vox-orchestrator-queue/src/affinity.rs:445`
 
 **Substring**
 
@@ -1065,7 +1083,7 @@ channel(256)
 
 ---
 
-### hv-0487 — `crates/vox-orchestrator-queue/src/oplog/checkpoint.rs:16`
+### hv-0485 — `crates/vox-orchestrator-queue/src/oplog/checkpoint.rs:16`
 
 **Substring**
 
@@ -1083,7 +1101,7 @@ channel(256)
 
 ---
 
-### hv-0488 — `crates/vox-orchestrator-queue/src/oplog/persist.rs:57`
+### hv-0486 — `crates/vox-orchestrator-queue/src/oplog/persist.rs:57`
 
 **Substring**
 
@@ -1101,7 +1119,7 @@ channel(256)
 
 ---
 
-### hv-0489 — `crates/vox-orchestrator-queue/src/oplog/persist.rs:160`
+### hv-0487 — `crates/vox-orchestrator-queue/src/oplog/persist.rs:160`
 
 **Substring**
 
@@ -1119,7 +1137,7 @@ channel(256)
 
 ---
 
-### hv-0490 — `crates/vox-orchestrator-queue/src/oplog/query.rs:66`
+### hv-0488 — `crates/vox-orchestrator-queue/src/oplog/query.rs:66`
 
 **Substring**
 
@@ -1137,7 +1155,7 @@ channel(256)
 
 ---
 
-### hv-0491 — `crates/vox-orchestrator-queue/src/oplog/sign.rs:88`
+### hv-0489 — `crates/vox-orchestrator-queue/src/oplog/sign.rs:88`
 
 **Substring**
 
@@ -1155,7 +1173,7 @@ channel(256)
 
 ---
 
-### hv-0492 — `crates/vox-orchestrator-queue/src/oplog/sign.rs:125`
+### hv-0490 — `crates/vox-orchestrator-queue/src/oplog/sign.rs:125`
 
 **Substring**
 
@@ -1173,7 +1191,7 @@ channel(256)
 
 ---
 
-### hv-0493 — `crates/vox-orchestrator-queue/src/oplog/store.rs:182`
+### hv-0491 — `crates/vox-orchestrator-queue/src/oplog/store.rs:182`
 
 **Substring**
 
@@ -1191,7 +1209,7 @@ channel(256)
 
 ---
 
-### hv-0494 — `crates/vox-orchestrator-types/src/merge_outcome.rs:82`
+### hv-0492 — `crates/vox-orchestrator-types/src/merge_outcome.rs:82`
 
 **Substring**
 
@@ -1209,7 +1227,7 @@ channel(256)
 
 ---
 
-### hv-0495 — `crates/vox-orchestrator-types/src/merge_outcome.rs:108`
+### hv-0493 — `crates/vox-orchestrator-types/src/merge_outcome.rs:108`
 
 **Substring**
 
@@ -1227,7 +1245,7 @@ channel(256)
 
 ---
 
-### hv-0496 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:333`
+### hv-0494 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:333`
 
 **Substring**
 
@@ -1245,7 +1263,7 @@ channel(256)
 
 ---
 
-### hv-0497 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:359`
+### hv-0495 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:359`
 
 **Substring**
 
@@ -1263,7 +1281,7 @@ channel(256)
 
 ---
 
-### hv-0498 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:360`
+### hv-0496 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:360`
 
 **Substring**
 
@@ -1281,7 +1299,7 @@ channel(256)
 
 ---
 
-### hv-0499 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:374`
+### hv-0497 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:374`
 
 **Substring**
 
@@ -1299,7 +1317,7 @@ channel(256)
 
 ---
 
-### hv-0500 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:392`
+### hv-0498 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:392`
 
 **Substring**
 
@@ -1317,7 +1335,7 @@ channel(256)
 
 ---
 
-### hv-0501 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:410`
+### hv-0499 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:410`
 
 **Substring**
 
@@ -1335,7 +1353,7 @@ channel(256)
 
 ---
 
-### hv-0502 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:411`
+### hv-0500 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:411`
 
 **Substring**
 
@@ -1353,7 +1371,7 @@ channel(256)
 
 ---
 
-### hv-0503 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:412`
+### hv-0501 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:412`
 
 **Substring**
 
@@ -1371,7 +1389,7 @@ channel(256)
 
 ---
 
-### hv-0504 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:419`
+### hv-0502 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:419`
 
 **Substring**
 
@@ -1389,7 +1407,7 @@ channel(256)
 
 ---
 
-### hv-0505 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:425`
+### hv-0503 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:425`
 
 **Substring**
 
@@ -1407,7 +1425,7 @@ channel(256)
 
 ---
 
-### hv-0506 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:429`
+### hv-0504 — `crates/vox-orchestrator/src/a2a/dispatch/op_fragment_sync.rs:429`
 
 **Substring**
 
@@ -1425,7 +1443,7 @@ channel(256)
 
 ---
 
-### hv-0507 — `crates/vox-orchestrator/src/a2a/jwe.rs:32`
+### hv-0505 — `crates/vox-orchestrator/src/a2a/jwe.rs:32`
 
 **Substring**
 
@@ -1443,7 +1461,7 @@ channel(256)
 
 ---
 
-### hv-0508 — `crates/vox-orchestrator/src/a2a/traceparent.rs:23`
+### hv-0506 — `crates/vox-orchestrator/src/a2a/traceparent.rs:23`
 
 **Substring**
 
@@ -1461,7 +1479,7 @@ channel(256)
 
 ---
 
-### hv-0509 — `crates/vox-orchestrator/src/a2a/traceparent.rs:24`
+### hv-0507 — `crates/vox-orchestrator/src/a2a/traceparent.rs:24`
 
 **Substring**
 
@@ -1479,7 +1497,7 @@ channel(256)
 
 ---
 
-### hv-0510 — `crates/vox-orchestrator/src/dei_shim/research/emitter.rs:33`
+### hv-0508 — `crates/vox-orchestrator/src/dei_shim/research/emitter.rs:33`
 
 **Substring**
 
@@ -1497,7 +1515,7 @@ channel(4)
 
 ---
 
-### hv-0511 — `crates/vox-orchestrator/src/mesh.rs:347`
+### hv-0509 — `crates/vox-orchestrator/src/mesh.rs:347`
 
 **Substring**
 
@@ -1515,7 +1533,7 @@ channel(4)
 
 ---
 
-### hv-0512 — `crates/vox-orchestrator/src/mesh.rs:365`
+### hv-0510 — `crates/vox-orchestrator/src/mesh.rs:365`
 
 **Substring**
 
@@ -1533,7 +1551,7 @@ with_capacity(22)
 
 ---
 
-### hv-0513 — `crates/vox-orchestrator/src/tool_receipt.rs:47`
+### hv-0511 — `crates/vox-orchestrator/src/tool_receipt.rs:47`
 
 **Substring**
 
@@ -1551,7 +1569,7 @@ with_capacity(22)
 
 ---
 
-### hv-0514 — `crates/vox-orchestrator/src/tool_receipt.rs:61`
+### hv-0512 — `crates/vox-orchestrator/src/tool_receipt.rs:61`
 
 **Substring**
 
@@ -1569,7 +1587,7 @@ with_capacity(22)
 
 ---
 
-### hv-0515 — `crates/vox-package/src/bundle.rs:34`
+### hv-0513 — `crates/vox-package/src/bundle.rs:34`
 
 **Substring**
 
@@ -1587,7 +1605,7 @@ with_capacity(128)
 
 ---
 
-### hv-0516 — `crates/vox-package/src/bundle.rs:64`
+### hv-0514 — `crates/vox-package/src/bundle.rs:64`
 
 **Substring**
 
@@ -1605,7 +1623,7 @@ with_capacity(128)
 
 ---
 
-### hv-0517 — `crates/vox-package/src/bundle.rs:76`
+### hv-0515 — `crates/vox-package/src/bundle.rs:76`
 
 **Substring**
 
@@ -1623,7 +1641,7 @@ with_capacity(128)
 
 ---
 
-### hv-0518 — `crates/vox-package/src/model_bundle.rs:19`
+### hv-0516 — `crates/vox-package/src/model_bundle.rs:19`
 
 **Substring**
 
@@ -1641,7 +1659,7 @@ with_capacity(128)
 
 ---
 
-### hv-0519 — `crates/vox-package/src/model_bundle.rs:35`
+### hv-0517 — `crates/vox-package/src/model_bundle.rs:35`
 
 **Substring**
 
@@ -1659,7 +1677,7 @@ with_capacity(128)
 
 ---
 
-### hv-0520 — `crates/vox-package/src/model_bundle.rs:162`
+### hv-0518 — `crates/vox-package/src/model_bundle.rs:162`
 
 **Substring**
 
@@ -1677,7 +1695,7 @@ with_capacity(128)
 
 ---
 
-### hv-0521 — `crates/vox-plugin-mens-candle-cuda/src/qlora_preflight.rs:69`
+### hv-0519 — `crates/vox-plugin-mens-candle-cuda/src/qlora_preflight.rs:69`
 
 **Substring**
 
@@ -1695,7 +1713,7 @@ with_capacity(128)
 
 ---
 
-### hv-0522 — `crates/vox-plugin-mens-candle-cuda/src/qlora_weights.rs:94`
+### hv-0520 — `crates/vox-plugin-mens-candle-cuda/src/qlora_weights.rs:94`
 
 **Substring**
 
@@ -1708,6 +1726,42 @@ with_capacity(128)
 **Fix** (extract-named-constant): const BUF_CAP: usize = …; // name ties size to protocol / device limits
 
 **Verify**: `rg -nF "[0u8; 8]" "crates/vox-plugin-mens-candle-cuda/src/qlora_weights.rs"`
+
+**Confidence**: medium
+
+---
+
+### hv-0521 — `crates/vox-plugin-mens-candle-metal/src/qlora_preflight.rs:69`
+
+**Substring**
+
+```text
+[0u8; 8]
+```
+
+**Why it matters**: Buffer/channel sizes tied to protocol; literals obscure backpressure semantics.
+
+**Fix** (extract-named-constant): const BUF_CAP: usize = …; // name ties size to protocol / device limits
+
+**Verify**: `rg -nF "[0u8; 8]" "crates/vox-plugin-mens-candle-metal/src/qlora_preflight.rs"`
+
+**Confidence**: medium
+
+---
+
+### hv-0522 — `crates/vox-plugin-mens-candle-metal/src/qlora_weights.rs:94`
+
+**Substring**
+
+```text
+[0u8; 8]
+```
+
+**Why it matters**: Buffer/channel sizes tied to protocol; literals obscure backpressure semantics.
+
+**Fix** (extract-named-constant): const BUF_CAP: usize = …; // name ties size to protocol / device limits
+
+**Verify**: `rg -nF "[0u8; 8]" "crates/vox-plugin-mens-candle-metal/src/qlora_weights.rs"`
 
 **Confidence**: medium
 
@@ -1744,60 +1798,6 @@ with_capacity(128)
 **Fix** (extract-named-constant): const BUF_CAP: usize = …; // name ties size to protocol / device limits
 
 **Verify**: `rg -nF "[0u8; 32]" "crates/vox-plugin-populi-mesh/src/transport/mod.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-0525 — `crates/vox-plugin-populi-mesh/src/transport/result_attestation.rs:13`
-
-**Substring**
-
-```text
-[0u8; 32]
-```
-
-**Why it matters**: Buffer/channel sizes tied to protocol; literals obscure backpressure semantics.
-
-**Fix** (extract-named-constant): const BUF_CAP: usize = …; // name ties size to protocol / device limits
-
-**Verify**: `rg -nF "[0u8; 32]" "crates/vox-plugin-populi-mesh/src/transport/result_attestation.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-0526 — `crates/vox-populi/src/transport/handlers/federation.rs:45`
-
-**Substring**
-
-```text
-[0u8; 64]
-```
-
-**Why it matters**: Buffer/channel sizes tied to protocol; literals obscure backpressure semantics.
-
-**Fix** (extract-named-constant): const BUF_CAP: usize = …; // name ties size to protocol / device limits
-
-**Verify**: `rg -nF "[0u8; 64]" "crates/vox-populi/src/transport/handlers/federation.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-0527 — `crates/vox-populi/src/transport/mod.rs:700`
-
-**Substring**
-
-```text
-[0u8; 32]
-```
-
-**Why it matters**: Buffer/channel sizes tied to protocol; literals obscure backpressure semantics.
-
-**Fix** (extract-named-constant): const BUF_CAP: usize = …; // name ties size to protocol / device limits
-
-**Verify**: `rg -nF "[0u8; 32]" "crates/vox-populi/src/transport/mod.rs"`
 
 **Confidence**: medium
 

@@ -3,7 +3,7 @@
 **Severity**: info  
 **Itemized**: 91
 
-### hv-1302 — `crates/vox-actor-runtime/src/llm/chat.rs:39`
+### hv-1295 — `crates/vox-actor-runtime/src/llm/chat.rs:39`
 
 **Substring**
 
@@ -23,7 +23,7 @@
 
 ---
 
-### hv-1303 — `crates/vox-actor-runtime/src/llm/chat.rs:40`
+### hv-1296 — `crates/vox-actor-runtime/src/llm/chat.rs:40`
 
 **Substring**
 
@@ -43,7 +43,7 @@
 
 ---
 
-### hv-1304 — `crates/vox-actor-runtime/src/llm/embed.rs:60`
+### hv-1297 — `crates/vox-actor-runtime/src/llm/embed.rs:60`
 
 **Substring**
 
@@ -63,7 +63,7 @@
 
 ---
 
-### hv-1305 — `crates/vox-actor-runtime/src/llm/embed.rs:61`
+### hv-1298 — `crates/vox-actor-runtime/src/llm/embed.rs:61`
 
 **Substring**
 
@@ -83,7 +83,7 @@
 
 ---
 
-### hv-1306 — `crates/vox-actor-runtime/src/llm/stream.rs:30`
+### hv-1299 — `crates/vox-actor-runtime/src/llm/stream.rs:30`
 
 **Substring**
 
@@ -103,7 +103,7 @@
 
 ---
 
-### hv-1307 — `crates/vox-actor-runtime/src/llm/stream.rs:31`
+### hv-1300 — `crates/vox-actor-runtime/src/llm/stream.rs:31`
 
 **Substring**
 
@@ -123,7 +123,7 @@
 
 ---
 
-### hv-1308 — `crates/vox-actor-runtime/src/llm/types.rs:62`
+### hv-1301 — `crates/vox-actor-runtime/src/llm/types.rs:62`
 
 **Substring**
 
@@ -143,7 +143,7 @@
 
 ---
 
-### hv-1309 — `crates/vox-actor-runtime/src/llm/types.rs:86`
+### hv-1302 — `crates/vox-actor-runtime/src/llm/types.rs:86`
 
 **Substring**
 
@@ -163,7 +163,7 @@
 
 ---
 
-### hv-1310 — `crates/vox-actor-runtime/src/llm/types.rs:142`
+### hv-1303 — `crates/vox-actor-runtime/src/llm/types.rs:142`
 
 **Substring**
 
@@ -183,7 +183,7 @@
 
 ---
 
-### hv-1311 — `crates/vox-actor-runtime/src/llm/types.rs:145`
+### hv-1304 — `crates/vox-actor-runtime/src/llm/types.rs:145`
 
 **Substring**
 
@@ -203,7 +203,7 @@
 
 ---
 
-### hv-1312 — `crates/vox-actor-runtime/src/llm/types.rs:148`
+### hv-1305 — `crates/vox-actor-runtime/src/llm/types.rs:148`
 
 **Substring**
 
@@ -223,7 +223,7 @@
 
 ---
 
-### hv-1313 — `crates/vox-actor-runtime/src/llm/types.rs:167`
+### hv-1306 — `crates/vox-actor-runtime/src/llm/types.rs:167`
 
 **Substring**
 
@@ -243,7 +243,7 @@
 
 ---
 
-### hv-1314 — `crates/vox-actor-runtime/src/llm/types.rs:168`
+### hv-1307 — `crates/vox-actor-runtime/src/llm/types.rs:168`
 
 **Substring**
 
@@ -263,7 +263,7 @@
 
 ---
 
-### hv-1315 — `crates/vox-actor-runtime/src/llm/types.rs:289`
+### hv-1308 — `crates/vox-actor-runtime/src/llm/types.rs:289`
 
 **Substring**
 
@@ -283,7 +283,7 @@
 
 ---
 
-### hv-1316 — `crates/vox-actor-runtime/src/llm/wire.rs:28`
+### hv-1309 — `crates/vox-actor-runtime/src/llm/wire.rs:28`
 
 **Substring**
 
@@ -303,7 +303,7 @@
 
 ---
 
-### hv-1317 — `crates/vox-actor-runtime/src/llm/wire.rs:32`
+### hv-1310 — `crates/vox-actor-runtime/src/llm/wire.rs:32`
 
 **Substring**
 
@@ -323,7 +323,7 @@
 
 ---
 
-### hv-1318 — `crates/vox-actor-runtime/src/llm/wire.rs:36`
+### hv-1311 — `crates/vox-actor-runtime/src/llm/wire.rs:36`
 
 **Substring**
 
@@ -343,7 +343,7 @@
 
 ---
 
-### hv-1319 — `crates/vox-actor-runtime/src/llm/wire.rs:48`
+### hv-1312 — `crates/vox-actor-runtime/src/llm/wire.rs:48`
 
 **Substring**
 
@@ -363,7 +363,7 @@
 
 ---
 
-### hv-1320 — `crates/vox-actor-runtime/src/model_resolution.rs:180`
+### hv-1313 — `crates/vox-actor-runtime/src/model_resolution.rs:180`
 
 **Substring**
 
@@ -383,7 +383,7 @@
 
 ---
 
-### hv-1321 — `crates/vox-actor-runtime/src/model_resolution.rs:461`
+### hv-1314 — `crates/vox-actor-runtime/src/model_resolution.rs:461`
 
 **Substring**
 
@@ -403,7 +403,7 @@
 
 ---
 
-### hv-1322 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/llm_routing.rs:21`
+### hv-1315 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/llm_routing.rs:21`
 
 **Substring**
 
@@ -423,7 +423,7 @@
 
 ---
 
-### hv-1323 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/llm_routing.rs:28`
+### hv-1316 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/llm_routing.rs:28`
 
 **Substring**
 
@@ -443,7 +443,7 @@
 
 ---
 
-### hv-1324 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/llm_routing.rs:42`
+### hv-1317 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/llm_routing.rs:42`
 
 **Substring**
 
@@ -463,7 +463,7 @@
 
 ---
 
-### hv-1325 — `crates/vox-cli/src/commands/diagnostics/doctor/common.rs:104`
+### hv-1318 — `crates/vox-cli/src/commands/diagnostics/doctor/common.rs:104`
 
 **Substring**
 
@@ -483,7 +483,7 @@
 
 ---
 
-### hv-1326 — `crates/vox-cli/src/commands/diagnostics/doctor/provider_policy.rs:58`
+### hv-1319 — `crates/vox-cli/src/commands/diagnostics/doctor/provider_policy.rs:58`
 
 **Substring**
 
@@ -503,7 +503,7 @@
 
 ---
 
-### hv-1327 — `crates/vox-cli/src/commands/diagnostics/doctor/provider_policy.rs:63`
+### hv-1320 — `crates/vox-cli/src/commands/diagnostics/doctor/provider_policy.rs:63`
 
 **Substring**
 
@@ -523,7 +523,7 @@
 
 ---
 
-### hv-1328 — `crates/vox-cli/src/commands/diagnostics/doctor/provider_policy.rs:68`
+### hv-1321 — `crates/vox-cli/src/commands/diagnostics/doctor/provider_policy.rs:68`
 
 **Substring**
 
@@ -543,7 +543,7 @@
 
 ---
 
-### hv-1329 — `crates/vox-cli/src/commands/diagnostics/doctor/provider_policy.rs:73`
+### hv-1322 — `crates/vox-cli/src/commands/diagnostics/doctor/provider_policy.rs:73`
 
 **Substring**
 
@@ -563,7 +563,7 @@
 
 ---
 
-### hv-1330 — `crates/vox-cli/src/commands/model/pricing.rs:249`
+### hv-1323 — `crates/vox-cli/src/commands/model/pricing.rs:249`
 
 **Substring**
 
@@ -583,7 +583,7 @@
 
 ---
 
-### hv-1331 — `crates/vox-cli/src/commands/status.rs:11`
+### hv-1324 — `crates/vox-cli/src/commands/status.rs:11`
 
 **Substring**
 
@@ -603,7 +603,7 @@
 
 ---
 
-### hv-1332 — `crates/vox-cli/src/commands/status.rs:44`
+### hv-1325 — `crates/vox-cli/src/commands/status.rs:44`
 
 **Substring**
 
@@ -623,7 +623,7 @@
 
 ---
 
-### hv-1333 — `crates/vox-cli/src/commands/status.rs:100`
+### hv-1326 — `crates/vox-cli/src/commands/status.rs:100`
 
 **Substring**
 
@@ -643,7 +643,7 @@
 
 ---
 
-### hv-1334 — `crates/vox-code-audit/src/ai_analyze.rs:71`
+### hv-1327 — `crates/vox-code-audit/src/ai_analyze.rs:71`
 
 **Substring**
 
@@ -663,7 +663,7 @@
 
 ---
 
-### hv-1335 — `crates/vox-code-audit/src/detectors/llm_provider_call.rs:216`
+### hv-1328 — `crates/vox-code-audit/src/detectors/llm_provider_call.rs:216`
 
 **Substring**
 
@@ -683,7 +683,7 @@
 
 ---
 
-### hv-1336 — `crates/vox-code-audit/src/review/providers.rs:93`
+### hv-1329 — `crates/vox-code-audit/src/review/providers.rs:93`
 
 **Substring**
 
@@ -703,7 +703,7 @@
 
 ---
 
-### hv-1337 — `crates/vox-gamify/src/ai/provider.rs:72`
+### hv-1330 — `crates/vox-gamify/src/ai/provider.rs:72`
 
 **Substring**
 
@@ -723,7 +723,7 @@
 
 ---
 
-### hv-1338 — `crates/vox-gamify/src/cost.rs:191`
+### hv-1331 — `crates/vox-gamify/src/cost.rs:191`
 
 **Substring**
 
@@ -743,7 +743,7 @@
 
 ---
 
-### hv-1339 — `crates/vox-gamify/src/cost.rs:199`
+### hv-1332 — `crates/vox-gamify/src/cost.rs:199`
 
 **Substring**
 
@@ -763,7 +763,7 @@
 
 ---
 
-### hv-1340 — `crates/vox-gamify/src/cost.rs:231`
+### hv-1333 — `crates/vox-gamify/src/cost.rs:231`
 
 **Substring**
 
@@ -783,7 +783,7 @@
 
 ---
 
-### hv-1341 — `crates/vox-gamify/src/cost.rs:241`
+### hv-1334 — `crates/vox-gamify/src/cost.rs:241`
 
 **Substring**
 
@@ -803,7 +803,7 @@
 
 ---
 
-### hv-1342 — `crates/vox-gamify/src/cost.rs:265`
+### hv-1335 — `crates/vox-gamify/src/cost.rs:265`
 
 **Substring**
 
@@ -823,7 +823,7 @@
 
 ---
 
-### hv-1343 — `crates/vox-hf-layout/src/lib.rs:262`
+### hv-1336 — `crates/vox-hf-layout/src/lib.rs:262`
 
 **Substring**
 
@@ -843,7 +843,7 @@
 
 ---
 
-### hv-1344 — `crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs:673`
+### hv-1337 — `crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs:673`
 
 **Substring**
 
@@ -863,7 +863,7 @@
 
 ---
 
-### hv-1345 — `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs:281`
+### hv-1338 — `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs:281`
 
 **Substring**
 
@@ -883,7 +883,7 @@
 
 ---
 
-### hv-1346 — `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs:337`
+### hv-1339 — `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs:337`
 
 **Substring**
 
@@ -903,7 +903,7 @@
 
 ---
 
-### hv-1347 — `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs:420`
+### hv-1340 — `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs:420`
 
 **Substring**
 
@@ -923,7 +923,7 @@
 
 ---
 
-### hv-1348 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_auth.rs:29`
+### hv-1341 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_auth.rs:29`
 
 **Substring**
 
@@ -943,7 +943,7 @@
 
 ---
 
-### hv-1349 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_auth.rs:31`
+### hv-1342 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_auth.rs:31`
 
 **Substring**
 
@@ -963,7 +963,7 @@
 
 ---
 
-### hv-1350 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_auth.rs:35`
+### hv-1343 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_auth.rs:35`
 
 **Substring**
 
@@ -983,7 +983,7 @@
 
 ---
 
-### hv-1351 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_auth.rs:43`
+### hv-1344 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_auth.rs:43`
 
 **Substring**
 
@@ -1003,7 +1003,7 @@
 
 ---
 
-### hv-1352 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_auth.rs:175`
+### hv-1345 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_auth.rs:175`
 
 **Substring**
 
@@ -1023,7 +1023,7 @@
 
 ---
 
-### hv-1353 — `crates/vox-orchestrator-types/build.rs:64`
+### hv-1346 — `crates/vox-orchestrator-types/build.rs:64`
 
 **Substring**
 
@@ -1043,7 +1043,7 @@
 
 ---
 
-### hv-1354 — `crates/vox-orchestrator-types/src/lib.rs:106`
+### hv-1347 — `crates/vox-orchestrator-types/src/lib.rs:106`
 
 **Substring**
 
@@ -1063,7 +1063,7 @@
 
 ---
 
-### hv-1355 — `crates/vox-orchestrator/src/catalog_classifier.rs:39`
+### hv-1348 — `crates/vox-orchestrator/src/catalog_classifier.rs:39`
 
 **Substring**
 
@@ -1083,7 +1083,7 @@
 
 ---
 
-### hv-1356 — `crates/vox-orchestrator/src/catalog_classifier.rs:41`
+### hv-1349 — `crates/vox-orchestrator/src/catalog_classifier.rs:41`
 
 **Substring**
 
@@ -1103,7 +1103,7 @@
 
 ---
 
-### hv-1357 — `crates/vox-orchestrator/src/catalog_classifier.rs:42`
+### hv-1350 — `crates/vox-orchestrator/src/catalog_classifier.rs:42`
 
 **Substring**
 
@@ -1123,7 +1123,7 @@
 
 ---
 
-### hv-1358 — `crates/vox-orchestrator/src/catalog.rs:597`
+### hv-1351 — `crates/vox-orchestrator/src/catalog.rs:614`
 
 **Substring**
 
@@ -1143,7 +1143,7 @@
 
 ---
 
-### hv-1359 — `crates/vox-orchestrator/src/dei_shim/selection/virtual_models.rs:13`
+### hv-1352 — `crates/vox-orchestrator/src/dei_shim/selection/virtual_models.rs:13`
 
 **Substring**
 
@@ -1163,7 +1163,7 @@
 
 ---
 
-### hv-1360 — `crates/vox-orchestrator/src/dei_shim/selection/virtual_models.rs:61`
+### hv-1353 — `crates/vox-orchestrator/src/dei_shim/selection/virtual_models.rs:61`
 
 **Substring**
 
@@ -1183,7 +1183,7 @@
 
 ---
 
-### hv-1361 — `crates/vox-orchestrator/src/events.rs:833`
+### hv-1354 — `crates/vox-orchestrator/src/events.rs:833`
 
 **Substring**
 
@@ -1203,7 +1203,7 @@
 
 ---
 
-### hv-1362 — `crates/vox-orchestrator/src/models/registry.rs:974`
+### hv-1355 — `crates/vox-orchestrator/src/models/registry.rs:994`
 
 **Substring**
 
@@ -1223,7 +1223,7 @@
 
 ---
 
-### hv-1363 — `crates/vox-orchestrator/src/models/scoring.rs:133`
+### hv-1356 — `crates/vox-orchestrator/src/models/scoring.rs:133`
 
 **Substring**
 
@@ -1243,7 +1243,7 @@
 
 ---
 
-### hv-1364 — `crates/vox-orchestrator/src/models/scoring.rs:387`
+### hv-1357 — `crates/vox-orchestrator/src/models/scoring.rs:387`
 
 **Substring**
 
@@ -1263,7 +1263,7 @@
 
 ---
 
-### hv-1365 — `crates/vox-orchestrator/src/models/spec.rs:196`
+### hv-1358 — `crates/vox-orchestrator/src/models/spec.rs:198`
 
 **Substring**
 
@@ -1283,7 +1283,7 @@
 
 ---
 
-### hv-1366 — `crates/vox-orchestrator/src/models/spec.rs:213`
+### hv-1359 — `crates/vox-orchestrator/src/models/spec.rs:215`
 
 **Substring**
 
@@ -1303,7 +1303,7 @@
 
 ---
 
-### hv-1367 — `crates/vox-orchestrator/src/models/spec.rs:221`
+### hv-1360 — `crates/vox-orchestrator/src/models/spec.rs:223`
 
 **Substring**
 
@@ -1323,7 +1323,7 @@
 
 ---
 
-### hv-1368 — `crates/vox-orchestrator/src/models/spec.rs:233`
+### hv-1361 — `crates/vox-orchestrator/src/models/spec.rs:235`
 
 **Substring**
 
@@ -1343,7 +1343,7 @@
 
 ---
 
-### hv-1369 — `crates/vox-orchestrator/src/models/tests.rs:30`
+### hv-1362 — `crates/vox-orchestrator/src/models/tests.rs:30`
 
 **Substring**
 
@@ -1363,7 +1363,7 @@
 
 ---
 
-### hv-1370 — `crates/vox-orchestrator/src/models/tests.rs:41`
+### hv-1363 — `crates/vox-orchestrator/src/models/tests.rs:41`
 
 **Substring**
 
@@ -1383,7 +1383,7 @@
 
 ---
 
-### hv-1371 — `crates/vox-orchestrator/src/models/tests.rs:60`
+### hv-1364 — `crates/vox-orchestrator/src/models/tests.rs:60`
 
 **Substring**
 
@@ -1403,7 +1403,7 @@
 
 ---
 
-### hv-1372 — `crates/vox-orchestrator/src/privacy_router.rs:174`
+### hv-1365 — `crates/vox-orchestrator/src/privacy_router.rs:174`
 
 **Substring**
 
@@ -1423,7 +1423,7 @@ openrouter
 
 ---
 
-### hv-1373 — `crates/vox-orchestrator/src/routing/policy.rs:171`
+### hv-1366 — `crates/vox-orchestrator/src/routing/policy.rs:171`
 
 **Substring**
 
@@ -1443,7 +1443,7 @@ openrouter
 
 ---
 
-### hv-1374 — `crates/vox-orchestrator/src/runtime.rs:175`
+### hv-1367 — `crates/vox-orchestrator/src/runtime.rs:186`
 
 **Substring**
 
@@ -1463,7 +1463,7 @@ openrouter
 
 ---
 
-### hv-1375 — `crates/vox-orchestrator/src/runtime.rs:178`
+### hv-1368 — `crates/vox-orchestrator/src/runtime.rs:189`
 
 **Substring**
 
@@ -1483,7 +1483,7 @@ openrouter
 
 ---
 
-### hv-1376 — `crates/vox-orchestrator/src/runtime.rs:180`
+### hv-1369 — `crates/vox-orchestrator/src/runtime.rs:191`
 
 **Substring**
 
@@ -1503,7 +1503,7 @@ openrouter
 
 ---
 
-### hv-1377 — `crates/vox-orchestrator/src/runtime.rs:183`
+### hv-1370 — `crates/vox-orchestrator/src/runtime.rs:194`
 
 **Substring**
 
@@ -1523,7 +1523,7 @@ openrouter
 
 ---
 
-### hv-1378 — `crates/vox-orchestrator/src/usage_policy.rs:56`
+### hv-1371 — `crates/vox-orchestrator/src/usage_policy.rs:56`
 
 **Substring**
 
@@ -1543,7 +1543,7 @@ openrouter
 
 ---
 
-### hv-1379 — `crates/vox-orchestrator/src/usage_policy.rs:58`
+### hv-1372 — `crates/vox-orchestrator/src/usage_policy.rs:58`
 
 **Substring**
 
@@ -1563,7 +1563,7 @@ openrouter
 
 ---
 
-### hv-1380 — `crates/vox-orchestrator/src/usage_policy.rs:60`
+### hv-1373 — `crates/vox-orchestrator/src/usage_policy.rs:60`
 
 **Substring**
 
@@ -1583,7 +1583,7 @@ openrouter
 
 ---
 
-### hv-1381 — `crates/vox-orchestrator/src/usage_policy.rs:69`
+### hv-1374 — `crates/vox-orchestrator/src/usage_policy.rs:69`
 
 **Substring**
 
@@ -1603,7 +1603,7 @@ openrouter
 
 ---
 
-### hv-1382 — `crates/vox-orchestrator/src/usage.rs:452`
+### hv-1375 — `crates/vox-orchestrator/src/usage.rs:452`
 
 **Substring**
 
@@ -1623,7 +1623,7 @@ openrouter
 
 ---
 
-### hv-1383 — `crates/vox-orchestrator/src/usage.rs:454`
+### hv-1376 — `crates/vox-orchestrator/src/usage.rs:454`
 
 **Substring**
 
@@ -1643,7 +1643,7 @@ openrouter
 
 ---
 
-### hv-1384 — `crates/vox-orchestrator/src/usage.rs:460`
+### hv-1377 — `crates/vox-orchestrator/src/usage.rs:460`
 
 **Substring**
 
@@ -1663,7 +1663,7 @@ openrouter
 
 ---
 
-### hv-1385 — `crates/vox-orchestrator/src/usage.rs:489`
+### hv-1378 — `crates/vox-orchestrator/src/usage.rs:489`
 
 **Substring**
 
@@ -1683,7 +1683,7 @@ openrouter
 
 ---
 
-### hv-1386 — `crates/vox-orchestrator/src/usage.rs:722`
+### hv-1379 — `crates/vox-orchestrator/src/usage.rs:722`
 
 **Substring**
 
@@ -1703,7 +1703,7 @@ openrouter
 
 ---
 
-### hv-1387 — `crates/vox-research-events/src/observation.rs:112`
+### hv-1380 — `crates/vox-research-events/src/observation.rs:112`
 
 **Substring**
 
@@ -1723,7 +1723,7 @@ openrouter
 
 ---
 
-### hv-1388 — `crates/vox-research-events/src/observation.rs:121`
+### hv-1381 — `crates/vox-research-events/src/observation.rs:121`
 
 **Substring**
 
@@ -1743,7 +1743,7 @@ openrouter
 
 ---
 
-### hv-1389 — `crates/vox-search/src/embedding_env.rs:46`
+### hv-1382 — `crates/vox-search/src/embedding_env.rs:46`
 
 **Substring**
 
@@ -1763,7 +1763,7 @@ openrouter
 
 ---
 
-### hv-1390 — `crates/vox-search/src/embedding_env.rs:71`
+### hv-1383 — `crates/vox-search/src/embedding_env.rs:71`
 
 **Substring**
 
@@ -1783,7 +1783,7 @@ openrouter
 
 ---
 
-### hv-1391 — `crates/vox-secrets/src/spec/registry/llm.rs:45`
+### hv-1384 — `crates/vox-secrets/src/spec/registry/llm.rs:45`
 
 **Substring**
 
@@ -1803,7 +1803,7 @@ openrouter
 
 ---
 
-### hv-1392 — `crates/vox-telemetry/src/types.rs:515`
+### hv-1385 — `crates/vox-telemetry/src/types.rs:515`
 
 **Substring**
 

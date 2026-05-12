@@ -1,29 +1,9 @@
 # 10 — hardcoded env var names
 
 **Severity**: warning  
-**Itemized**: 85
+**Itemized**: 87
 
-### hv-0689 — `crates/vox-cli-core/src/diagnostics.rs:42`
-
-**Substring**
-
-```text
-NO_COLOR
-```
-
-**Why it matters**: Unregistered VOX_* / env reads violate contracts/config/env-vars SSOT and secret policy boundaries.
-
-**Fix** (register-env-and-use-secrets): Add name to contracts/config/env-vars.v1.yaml; use vox_secrets::resolve_secret where appropriate.
-
-**SSOT**: `contracts/config/env-vars.v1.yaml`
-
-**Verify**: `rg -nF "NO_COLOR" "crates/vox-cli-core/src/diagnostics.rs"`
-
-**Confidence**: high
-
----
-
-### hv-0690 — `crates/vox-cli-core/src/diagnostics.rs:56`
+### hv-0685 — `crates/vox-cli-core/src/diagnostics.rs:42`
 
 **Substring**
 
@@ -43,7 +23,27 @@ NO_COLOR
 
 ---
 
-### hv-0691 — `crates/vox-cli/build.rs:9`
+### hv-0686 — `crates/vox-cli-core/src/diagnostics.rs:56`
+
+**Substring**
+
+```text
+NO_COLOR
+```
+
+**Why it matters**: Unregistered VOX_* / env reads violate contracts/config/env-vars SSOT and secret policy boundaries.
+
+**Fix** (register-env-and-use-secrets): Add name to contracts/config/env-vars.v1.yaml; use vox_secrets::resolve_secret where appropriate.
+
+**SSOT**: `contracts/config/env-vars.v1.yaml`
+
+**Verify**: `rg -nF "NO_COLOR" "crates/vox-cli-core/src/diagnostics.rs"`
+
+**Confidence**: high
+
+---
+
+### hv-0687 — `crates/vox-cli/build.rs:9`
 
 **Substring**
 
@@ -63,7 +63,7 @@ CARGO_CFG_TARGET_OS
 
 ---
 
-### hv-0692 — `crates/vox-cli/build.rs:11`
+### hv-0688 — `crates/vox-cli/build.rs:11`
 
 **Substring**
 
@@ -83,7 +83,7 @@ CARGO_CFG_TARGET_ENV
 
 ---
 
-### hv-0693 — `crates/vox-cli/src/artifact_policy.rs:72`
+### hv-0689 — `crates/vox-cli/src/artifact_policy.rs:72`
 
 **Substring**
 
@@ -103,7 +103,7 @@ USERPROFILE
 
 ---
 
-### hv-0694 — `crates/vox-cli/src/artifact_policy.rs:73`
+### hv-0690 — `crates/vox-cli/src/artifact_policy.rs:73`
 
 **Substring**
 
@@ -123,7 +123,7 @@ HOME
 
 ---
 
-### hv-0695 — `crates/vox-cli/src/build_service.rs:74`
+### hv-0691 — `crates/vox-cli/src/build_service.rs:74`
 
 **Substring**
 
@@ -143,7 +143,7 @@ CARGO
 
 ---
 
-### hv-0696 — `crates/vox-cli/src/commands/ci/compile_matrix.rs:57`
+### hv-0692 — `crates/vox-cli/src/commands/ci/compile_matrix.rs:57`
 
 **Substring**
 
@@ -163,7 +163,7 @@ CARGO
 
 ---
 
-### hv-0697 — `crates/vox-cli/src/commands/ci/completion_quality.rs:642`
+### hv-0693 — `crates/vox-cli/src/commands/ci/completion_quality.rs:642`
 
 **Substring**
 
@@ -183,7 +183,7 @@ GITHUB_HEAD_REF
 
 ---
 
-### hv-0698 — `crates/vox-cli/src/commands/ci/completion_quality.rs:643`
+### hv-0694 — `crates/vox-cli/src/commands/ci/completion_quality.rs:643`
 
 **Substring**
 
@@ -203,7 +203,7 @@ GITHUB_REF_NAME
 
 ---
 
-### hv-0699 — `crates/vox-cli/src/commands/ci/completion_quality.rs:645`
+### hv-0695 — `crates/vox-cli/src/commands/ci/completion_quality.rs:645`
 
 **Substring**
 
@@ -223,7 +223,7 @@ GITHUB_SHA
 
 ---
 
-### hv-0700 — `crates/vox-cli/src/commands/ci/dev_loop_audit.rs:35`
+### hv-0696 — `crates/vox-cli/src/commands/ci/dev_loop_audit.rs:35`
 
 **Substring**
 
@@ -243,7 +243,27 @@ CARGO_TARGET_DIR
 
 ---
 
-### hv-0701 — `crates/vox-cli/src/commands/ci/line_endings.rs:157`
+### hv-0697 — `crates/vox-cli/src/commands/ci/gui_smoke.rs:41`
+
+**Substring**
+
+```text
+VOX_GUI_PNPM_BUILD
+```
+
+**Why it matters**: Unregistered VOX_* / env reads violate contracts/config/env-vars SSOT and secret policy boundaries.
+
+**Fix** (register-env-and-use-secrets): Add name to contracts/config/env-vars.v1.yaml; use vox_secrets::resolve_secret where appropriate.
+
+**SSOT**: `contracts/config/env-vars.v1.yaml`
+
+**Verify**: `rg -nF "VOX_GUI_PNPM_BUILD" "crates/vox-cli/src/commands/ci/gui_smoke.rs"`
+
+**Confidence**: high
+
+---
+
+### hv-0698 — `crates/vox-cli/src/commands/ci/line_endings.rs:158`
 
 **Substring**
 
@@ -263,7 +283,7 @@ GITHUB_BASE_SHA
 
 ---
 
-### hv-0702 — `crates/vox-cli/src/commands/ci/line_endings.rs:160`
+### hv-0699 — `crates/vox-cli/src/commands/ci/line_endings.rs:161`
 
 **Substring**
 
@@ -283,7 +303,7 @@ GITHUB_SHA
 
 ---
 
-### hv-0703 — `crates/vox-cli/src/commands/ci/mod.rs:88`
+### hv-0700 — `crates/vox-cli/src/commands/ci/mod.rs:92`
 
 **Substring**
 
@@ -303,7 +323,7 @@ USERPROFILE
 
 ---
 
-### hv-0704 — `crates/vox-cli/src/commands/ci/mod.rs:108`
+### hv-0701 — `crates/vox-cli/src/commands/ci/mod.rs:112`
 
 **Substring**
 
@@ -323,7 +343,7 @@ CUDA_PATH
 
 ---
 
-### hv-0705 — `crates/vox-cli/src/commands/ci/plugin_abi_parity.rs:65`
+### hv-0702 — `crates/vox-cli/src/commands/ci/plugin_abi_parity.rs:65`
 
 **Substring**
 
@@ -343,7 +363,7 @@ CARGO_TARGET_DIR
 
 ---
 
-### hv-0706 — `crates/vox-cli/src/commands/ci/run_body_helpers/cuda.rs:7`
+### hv-0703 — `crates/vox-cli/src/commands/ci/run_body_helpers/cuda.rs:7`
 
 **Substring**
 
@@ -363,7 +383,7 @@ SKIP_CUDA_FEATURE_CHECK
 
 ---
 
-### hv-0707 — `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs:1238`
+### hv-0704 — `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs:1260`
 
 **Substring**
 
@@ -383,7 +403,7 @@ SKIP_CUDA_FEATURE_CHECK
 
 ---
 
-### hv-0708 — `crates/vox-cli/src/commands/ci/speech_runtime_suite.rs:516`
+### hv-0705 — `crates/vox-cli/src/commands/ci/speech_runtime_suite.rs:516`
 
 **Substring**
 
@@ -403,7 +423,7 @@ LOCALAPPDATA
 
 ---
 
-### hv-0709 — `crates/vox-cli/src/commands/clean.rs:48`
+### hv-0706 — `crates/vox-cli/src/commands/clean.rs:48`
 
 **Substring**
 
@@ -423,7 +443,7 @@ HOME
 
 ---
 
-### hv-0710 — `crates/vox-cli/src/commands/clean.rs:49`
+### hv-0707 — `crates/vox-cli/src/commands/clean.rs:49`
 
 **Substring**
 
@@ -443,7 +463,7 @@ USERPROFILE
 
 ---
 
-### hv-0711 — `crates/vox-cli/src/commands/debug.rs:120`
+### hv-0708 — `crates/vox-cli/src/commands/debug.rs:120`
 
 **Substring**
 
@@ -463,7 +483,7 @@ PATH
 
 ---
 
-### hv-0712 — `crates/vox-cli/src/commands/deploy.rs:262`
+### hv-0709 — `crates/vox-cli/src/commands/deploy.rs:262`
 
 **Substring**
 
@@ -483,7 +503,7 @@ USER
 
 ---
 
-### hv-0713 — `crates/vox-cli/src/commands/deploy.rs:263`
+### hv-0710 — `crates/vox-cli/src/commands/deploy.rs:263`
 
 **Substring**
 
@@ -503,7 +523,7 @@ USERNAME
 
 ---
 
-### hv-0714 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/compile_target.rs:39`
+### hv-0711 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/compile_target.rs:39`
 
 **Substring**
 
@@ -523,7 +543,7 @@ ANDROID_HOME
 
 ---
 
-### hv-0715 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/compile_target.rs:40`
+### hv-0712 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/compile_target.rs:40`
 
 **Substring**
 
@@ -543,7 +563,27 @@ ANDROID_SDK_ROOT
 
 ---
 
-### hv-0716 — `crates/vox-cli/src/commands/publish.rs:72`
+### hv-0713 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/compile_target.rs:72`
+
+**Substring**
+
+```text
+CARGO
+```
+
+**Why it matters**: Unregistered VOX_* / env reads violate contracts/config/env-vars SSOT and secret policy boundaries.
+
+**Fix** (register-env-and-use-secrets): Add name to contracts/config/env-vars.v1.yaml; use vox_secrets::resolve_secret where appropriate.
+
+**SSOT**: `contracts/config/env-vars.v1.yaml`
+
+**Verify**: `rg -nF "CARGO" "crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/compile_target.rs"`
+
+**Confidence**: high
+
+---
+
+### hv-0714 — `crates/vox-cli/src/commands/publish.rs:72`
 
 **Substring**
 
@@ -563,7 +603,7 @@ HOME
 
 ---
 
-### hv-0717 — `crates/vox-cli/src/commands/publish.rs:73`
+### hv-0715 — `crates/vox-cli/src/commands/publish.rs:73`
 
 **Substring**
 
@@ -583,7 +623,7 @@ USERPROFILE
 
 ---
 
-### hv-0718 — `crates/vox-cli/src/commands/repo_upgrade.rs:270`
+### hv-0716 — `crates/vox-cli/src/commands/repo_upgrade.rs:277`
 
 **Substring**
 
@@ -603,7 +643,7 @@ CARGO
 
 ---
 
-### hv-0719 — `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/rules.rs:210`
+### hv-0717 — `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/rules.rs:210`
 
 **Substring**
 
@@ -623,7 +663,7 @@ CARGO
 
 ---
 
-### hv-0720 — `crates/vox-cli/src/commands/runtime/run/backend/native.rs:125`
+### hv-0718 — `crates/vox-cli/src/commands/runtime/run/backend/native.rs:125`
 
 **Substring**
 
@@ -643,7 +683,27 @@ CARGO
 
 ---
 
-### hv-0721 — `crates/vox-cli/src/commands/toolchain_upgrade.rs:571`
+### hv-0719 — `crates/vox-cli/src/commands/share.rs:109`
+
+**Substring**
+
+```text
+VOX_SHARE_CONNECT_TIMEOUT_SECS
+```
+
+**Why it matters**: Unregistered VOX_* / env reads violate contracts/config/env-vars SSOT and secret policy boundaries.
+
+**Fix** (register-env-and-use-secrets): Add name to contracts/config/env-vars.v1.yaml; use vox_secrets::resolve_secret where appropriate.
+
+**SSOT**: `contracts/config/env-vars.v1.yaml`
+
+**Verify**: `rg -nF "VOX_SHARE_CONNECT_TIMEOUT_SECS" "crates/vox-cli/src/commands/share.rs"`
+
+**Confidence**: high
+
+---
+
+### hv-0720 — `crates/vox-cli/src/commands/toolchain_upgrade.rs:571`
 
 **Substring**
 
@@ -663,7 +723,7 @@ CARGO_HOME
 
 ---
 
-### hv-0722 — `crates/vox-cli/src/commands/toolchain_upgrade.rs:575`
+### hv-0721 — `crates/vox-cli/src/commands/toolchain_upgrade.rs:575`
 
 **Substring**
 
@@ -683,7 +743,7 @@ USERPROFILE
 
 ---
 
-### hv-0723 — `crates/vox-cli/src/commands/toolchain_upgrade.rs:579`
+### hv-0722 — `crates/vox-cli/src/commands/toolchain_upgrade.rs:579`
 
 **Substring**
 
@@ -703,7 +763,7 @@ HOME
 
 ---
 
-### hv-0724 — `crates/vox-cli/src/diagnostics.rs:114`
+### hv-0723 — `crates/vox-cli/src/diagnostics.rs:114`
 
 **Substring**
 
@@ -723,7 +783,7 @@ RUST_BACKTRACE
 
 ---
 
-### hv-0725 — `crates/vox-cli/src/lib.rs:654`
+### hv-0724 — `crates/vox-cli/src/lib.rs:655`
 
 **Substring**
 
@@ -743,7 +803,7 @@ RUST_LOG
 
 ---
 
-### hv-0726 — `crates/vox-cli/src/lock_telemetry.rs:15`
+### hv-0725 — `crates/vox-cli/src/lock_telemetry.rs:15`
 
 **Substring**
 
@@ -763,7 +823,7 @@ HOME
 
 ---
 
-### hv-0727 — `crates/vox-cli/src/lock_telemetry.rs:16`
+### hv-0726 — `crates/vox-cli/src/lock_telemetry.rs:16`
 
 **Substring**
 
@@ -783,7 +843,7 @@ USERPROFILE
 
 ---
 
-### hv-0728 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:199`
+### hv-0727 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:199`
 
 **Substring**
 
@@ -803,7 +863,7 @@ OPENAI_API_KEY
 
 ---
 
-### hv-0729 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:223`
+### hv-0728 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:223`
 
 **Substring**
 
@@ -823,7 +883,7 @@ DB_PASSWORD
 
 ---
 
-### hv-0730 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:232`
+### hv-0729 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:232`
 
 **Substring**
 
@@ -843,7 +903,7 @@ EXAMPLE_SECRET_KEY
 
 ---
 
-### hv-0731 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:241`
+### hv-0730 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:241`
 
 **Substring**
 
@@ -863,7 +923,7 @@ DATABASE_HOST
 
 ---
 
-### hv-0732 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:250`
+### hv-0731 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:250`
 
 **Substring**
 
@@ -883,7 +943,7 @@ API_KEY
 
 ---
 
-### hv-0733 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:259`
+### hv-0732 — `crates/vox-code-audit/src/detectors/env_secret_shape.rs:259`
 
 **Substring**
 
@@ -903,7 +963,7 @@ FAKE_API_KEY
 
 ---
 
-### hv-0734 — `crates/vox-code-audit/src/detectors/secrets.rs:238`
+### hv-0733 — `crates/vox-code-audit/src/detectors/secrets.rs:238`
 
 **Substring**
 
@@ -923,7 +983,7 @@ STUB_API_KEY
 
 ---
 
-### hv-0735 — `crates/vox-compiler/build.rs:60`
+### hv-0734 — `crates/vox-compiler/build.rs:60`
 
 **Substring**
 
@@ -943,7 +1003,7 @@ CARGO_MANIFEST_DIR
 
 ---
 
-### hv-0736 — `crates/vox-compiler/build.rs:156`
+### hv-0735 — `crates/vox-compiler/build.rs:156`
 
 **Substring**
 
@@ -963,7 +1023,7 @@ OUT_DIR
 
 ---
 
-### hv-0737 — `crates/vox-config/src/inference.rs:72`
+### hv-0736 — `crates/vox-config/src/inference.rs:72`
 
 **Substring**
 
@@ -983,7 +1043,7 @@ POPULI_URL
 
 ---
 
-### hv-0738 — `crates/vox-config/src/inference.rs:73`
+### hv-0737 — `crates/vox-config/src/inference.rs:73`
 
 **Substring**
 
@@ -1003,7 +1063,7 @@ OLLAMA_URL
 
 ---
 
-### hv-0739 — `crates/vox-config/src/paths.rs:59`
+### hv-0738 — `crates/vox-config/src/paths.rs:59`
 
 **Substring**
 
@@ -1023,7 +1083,7 @@ USERNAME
 
 ---
 
-### hv-0740 — `crates/vox-config/src/paths.rs:65`
+### hv-0739 — `crates/vox-config/src/paths.rs:65`
 
 **Substring**
 
@@ -1043,7 +1103,7 @@ USER
 
 ---
 
-### hv-0741 — `crates/vox-config/src/paths.rs:75`
+### hv-0740 — `crates/vox-config/src/paths.rs:75`
 
 **Substring**
 
@@ -1063,7 +1123,7 @@ APPDATA
 
 ---
 
-### hv-0742 — `crates/vox-config/src/paths.rs:95`
+### hv-0741 — `crates/vox-config/src/paths.rs:95`
 
 **Substring**
 
@@ -1083,7 +1143,7 @@ USERPROFILE
 
 ---
 
-### hv-0743 — `crates/vox-config/src/paths.rs:100`
+### hv-0742 — `crates/vox-config/src/paths.rs:100`
 
 **Substring**
 
@@ -1103,7 +1163,7 @@ HOMEDRIVE
 
 ---
 
-### hv-0744 — `crates/vox-config/src/paths.rs:110`
+### hv-0743 — `crates/vox-config/src/paths.rs:110`
 
 **Substring**
 
@@ -1123,7 +1183,7 @@ HOME
 
 ---
 
-### hv-0745 — `crates/vox-corpus/build.rs:190`
+### hv-0744 — `crates/vox-corpus/build.rs:190`
 
 **Substring**
 
@@ -1143,7 +1203,7 @@ CARGO_MANIFEST_DIR
 
 ---
 
-### hv-0746 — `crates/vox-corpus/build.rs:191`
+### hv-0745 — `crates/vox-corpus/build.rs:191`
 
 **Substring**
 
@@ -1163,12 +1223,12 @@ OUT_DIR
 
 ---
 
-### hv-0747 — `crates/vox-dashboard/src/api/settings.rs:67`
+### hv-0746 — `crates/vox-http-client/src/lib.rs:12`
 
 **Substring**
 
 ```text
-HOME
+CARGO_PKG_VERSION
 ```
 
 **Why it matters**: Unregistered VOX_* / env reads violate contracts/config/env-vars SSOT and secret policy boundaries.
@@ -1177,33 +1237,13 @@ HOME
 
 **SSOT**: `contracts/config/env-vars.v1.yaml`
 
-**Verify**: `rg -nF "HOME" "crates/vox-dashboard/src/api/settings.rs"`
+**Verify**: `rg -nF "CARGO_PKG_VERSION" "crates/vox-http-client/src/lib.rs"`
 
 **Confidence**: high
 
 ---
 
-### hv-0748 — `crates/vox-dashboard/src/api/settings.rs:68`
-
-**Substring**
-
-```text
-USERPROFILE
-```
-
-**Why it matters**: Unregistered VOX_* / env reads violate contracts/config/env-vars SSOT and secret policy boundaries.
-
-**Fix** (register-env-and-use-secrets): Add name to contracts/config/env-vars.v1.yaml; use vox_secrets::resolve_secret where appropriate.
-
-**SSOT**: `contracts/config/env-vars.v1.yaml`
-
-**Verify**: `rg -nF "USERPROFILE" "crates/vox-dashboard/src/api/settings.rs"`
-
-**Confidence**: high
-
----
-
-### hv-0749 — `crates/vox-mcp-registry/build.rs:49`
+### hv-0747 — `crates/vox-mcp-registry/build.rs:49`
 
 **Substring**
 
@@ -1223,7 +1263,7 @@ CARGO_MANIFEST_DIR
 
 ---
 
-### hv-0750 — `crates/vox-mcp-registry/build.rs:90`
+### hv-0748 — `crates/vox-mcp-registry/build.rs:90`
 
 **Substring**
 
@@ -1243,7 +1283,7 @@ OUT_DIR
 
 ---
 
-### hv-0751 — `crates/vox-ml-cli/src/commands/corpus/generate.rs:513`
+### hv-0749 — `crates/vox-ml-cli/src/commands/corpus/generate.rs:513`
 
 **Substring**
 
@@ -1263,7 +1303,7 @@ USERPROFILE
 
 ---
 
-### hv-0752 — `crates/vox-ml-cli/src/commands/corpus/generate.rs:514`
+### hv-0750 — `crates/vox-ml-cli/src/commands/corpus/generate.rs:514`
 
 **Substring**
 
@@ -1283,7 +1323,7 @@ HOME
 
 ---
 
-### hv-0753 — `crates/vox-ml-cli/src/commands/oratio_cmd.rs:181`
+### hv-0751 — `crates/vox-ml-cli/src/commands/oratio_cmd.rs:181`
 
 **Substring**
 
@@ -1303,7 +1343,7 @@ ACTIVE_FILE
 
 ---
 
-### hv-0754 — `crates/vox-ml-cli/src/commands/schola/train/run_train.rs:202`
+### hv-0752 — `crates/vox-ml-cli/src/commands/schola/train/run_train.rs:202`
 
 **Substring**
 
@@ -1323,7 +1363,7 @@ RUST_LOG
 
 ---
 
-### hv-0755 — `crates/vox-orchestrator-mcp/build.rs:18`
+### hv-0753 — `crates/vox-orchestrator-mcp/build.rs:18`
 
 **Substring**
 
@@ -1343,7 +1383,7 @@ CARGO_MANIFEST_DIR
 
 ---
 
-### hv-0756 — `crates/vox-orchestrator-mcp/build.rs:29`
+### hv-0754 — `crates/vox-orchestrator-mcp/build.rs:29`
 
 **Substring**
 
@@ -1363,7 +1403,7 @@ OUT_DIR
 
 ---
 
-### hv-0757 — `crates/vox-orchestrator-types/build.rs:26`
+### hv-0755 — `crates/vox-orchestrator-types/build.rs:26`
 
 **Substring**
 
@@ -1383,7 +1423,7 @@ CARGO_MANIFEST_DIR
 
 ---
 
-### hv-0758 — `crates/vox-orchestrator-types/build.rs:27`
+### hv-0756 — `crates/vox-orchestrator-types/build.rs:27`
 
 **Substring**
 
@@ -1403,7 +1443,7 @@ OUT_DIR
 
 ---
 
-### hv-0759 — `crates/vox-orchestrator/build.rs:14`
+### hv-0757 — `crates/vox-orchestrator/build.rs:14`
 
 **Substring**
 
@@ -1423,7 +1463,7 @@ CARGO_MANIFEST_DIR
 
 ---
 
-### hv-0760 — `crates/vox-orchestrator/build.rs:24`
+### hv-0758 — `crates/vox-orchestrator/build.rs:24`
 
 **Substring**
 
@@ -1443,7 +1483,7 @@ OUT_DIR
 
 ---
 
-### hv-0761 — `crates/vox-orchestrator/src/populi_remote.rs:42`
+### hv-0759 — `crates/vox-orchestrator/src/populi_remote.rs:42`
 
 **Substring**
 
@@ -1463,7 +1503,7 @@ COMPUTERNAME
 
 ---
 
-### hv-0762 — `crates/vox-orchestrator/src/populi_remote.rs:43`
+### hv-0760 — `crates/vox-orchestrator/src/populi_remote.rs:43`
 
 **Substring**
 
@@ -1483,7 +1523,7 @@ HOSTNAME
 
 ---
 
-### hv-0763 — `crates/vox-populi/src/node_registry.rs:177`
+### hv-0761 — `crates/vox-populi/src/node_registry.rs:177`
 
 **Substring**
 
@@ -1503,7 +1543,7 @@ HOME
 
 ---
 
-### hv-0764 — `crates/vox-populi/src/node_registry.rs:178`
+### hv-0762 — `crates/vox-populi/src/node_registry.rs:178`
 
 **Substring**
 
@@ -1523,7 +1563,7 @@ USERPROFILE
 
 ---
 
-### hv-0765 — `crates/vox-repository/src/capabilities.rs:191`
+### hv-0763 — `crates/vox-repository/src/capabilities.rs:191`
 
 **Substring**
 
@@ -1543,7 +1583,7 @@ HOSTNAME
 
 ---
 
-### hv-0766 — `crates/vox-repository/src/capabilities.rs:192`
+### hv-0764 — `crates/vox-repository/src/capabilities.rs:192`
 
 **Substring**
 
@@ -1563,27 +1603,7 @@ COMPUTERNAME
 
 ---
 
-### hv-0767 — `crates/vox-reqwest-defaults/src/lib.rs:10`
-
-**Substring**
-
-```text
-CARGO_PKG_VERSION
-```
-
-**Why it matters**: Unregistered VOX_* / env reads violate contracts/config/env-vars SSOT and secret policy boundaries.
-
-**Fix** (register-env-and-use-secrets): Add name to contracts/config/env-vars.v1.yaml; use vox_secrets::resolve_secret where appropriate.
-
-**SSOT**: `contracts/config/env-vars.v1.yaml`
-
-**Verify**: `rg -nF "CARGO_PKG_VERSION" "crates/vox-reqwest-defaults/src/lib.rs"`
-
-**Confidence**: high
-
----
-
-### hv-0768 — `crates/vox-secrets/src/backend/infisical.rs:17`
+### hv-0765 — `crates/vox-secrets/src/backend/infisical.rs:17`
 
 **Substring**
 
@@ -1603,7 +1623,7 @@ INFISICAL_TOKEN
 
 ---
 
-### hv-0769 — `crates/vox-secrets/src/backend/infisical.rs:18`
+### hv-0766 — `crates/vox-secrets/src/backend/infisical.rs:18`
 
 **Substring**
 
@@ -1623,7 +1643,7 @@ INFISICAL_SERVICE_TOKEN
 
 ---
 
-### hv-0770 — `crates/vox-secrets/src/backend/vault.rs:17`
+### hv-0767 — `crates/vox-secrets/src/backend/vault.rs:17`
 
 **Substring**
 
@@ -1643,7 +1663,7 @@ VAULT_ADDR
 
 ---
 
-### hv-0771 — `crates/vox-secrets/src/sources/auth_json.rs:26`
+### hv-0768 — `crates/vox-secrets/src/sources/auth_json.rs:26`
 
 **Substring**
 
@@ -1663,7 +1683,7 @@ HOME
 
 ---
 
-### hv-0772 — `crates/vox-secrets/src/sources/auth_json.rs:27`
+### hv-0769 — `crates/vox-secrets/src/sources/auth_json.rs:27`
 
 **Substring**
 
@@ -1683,7 +1703,7 @@ USERPROFILE
 
 ---
 
-### hv-0773 — `crates/vox-share/src/consent.rs:83`
+### hv-0770 — `crates/vox-share/src/consent.rs:83`
 
 **Substring**
 
@@ -1698,6 +1718,26 @@ CI
 **SSOT**: `contracts/config/env-vars.v1.yaml`
 
 **Verify**: `rg -nF "CI" "crates/vox-share/src/consent.rs"`
+
+**Confidence**: high
+
+---
+
+### hv-0771 — `crates/voxup/src/install.rs:91`
+
+**Substring**
+
+```text
+PATH
+```
+
+**Why it matters**: Unregistered VOX_* / env reads violate contracts/config/env-vars SSOT and secret policy boundaries.
+
+**Fix** (register-env-and-use-secrets): Add name to contracts/config/env-vars.v1.yaml; use vox_secrets::resolve_secret where appropriate.
+
+**SSOT**: `contracts/config/env-vars.v1.yaml`
+
+**Verify**: `rg -nF "PATH" "crates/voxup/src/install.rs"`
 
 **Confidence**: high
 

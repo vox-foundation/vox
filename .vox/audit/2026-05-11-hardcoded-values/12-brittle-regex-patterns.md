@@ -3,7 +3,7 @@
 **Severity**: info  
 **Itemized**: 100
 
-### hv-0874 — `contracts/code-audit/rules.v1.yaml:626`
+### hv-0872 — `contracts/code-audit/rules.v1.yaml:626`
 
 **Substring**
 
@@ -21,7 +21,7 @@ Regex::new(
 
 ---
 
-### hv-0875 — `contracts/code-audit/rules.v1.yaml:633`
+### hv-0873 — `contracts/code-audit/rules.v1.yaml:633`
 
 **Substring**
 
@@ -39,7 +39,7 @@ Regex::new(
 
 ---
 
-### hv-0876 — `contracts/reports/scaling-audit/findings-latest.json:5330`
+### hv-0874 — `contracts/reports/scaling-audit/findings-latest.json:5330`
 
 **Substring**
 
@@ -57,7 +57,7 @@ Regex::new(
 
 ---
 
-### hv-0877 — `contracts/reports/scaling-audit/findings-latest.json:16294`
+### hv-0875 — `contracts/reports/scaling-audit/findings-latest.json:16294`
 
 **Substring**
 
@@ -75,7 +75,7 @@ Regex::new(
 
 ---
 
-### hv-0878 — `contracts/reports/scaling-audit/findings-latest.json:16305`
+### hv-0876 — `contracts/reports/scaling-audit/findings-latest.json:16305`
 
 **Substring**
 
@@ -93,7 +93,7 @@ Regex::new(
 
 ---
 
-### hv-0879 — `contracts/reports/scaling-audit/findings-latest.json:16317`
+### hv-0877 — `contracts/reports/scaling-audit/findings-latest.json:16317`
 
 **Substring**
 
@@ -111,7 +111,7 @@ Regex::new(
 
 ---
 
-### hv-0880 — `contracts/reports/scaling-audit/findings-latest.json:16328`
+### hv-0878 — `contracts/reports/scaling-audit/findings-latest.json:16328`
 
 **Substring**
 
@@ -129,7 +129,7 @@ Regex::new(
 
 ---
 
-### hv-0881 — `contracts/reports/scaling-audit/findings-latest.json:16340`
+### hv-0879 — `contracts/reports/scaling-audit/findings-latest.json:16340`
 
 **Substring**
 
@@ -147,7 +147,7 @@ Regex::new(
 
 ---
 
-### hv-0882 — `contracts/reports/scaling-audit/findings-latest.json:16352`
+### hv-0880 — `contracts/reports/scaling-audit/findings-latest.json:16352`
 
 **Substring**
 
@@ -165,7 +165,7 @@ Regex::new(
 
 ---
 
-### hv-0883 — `contracts/reports/scaling-audit/findings-latest.json:16364`
+### hv-0881 — `contracts/reports/scaling-audit/findings-latest.json:16364`
 
 **Substring**
 
@@ -183,7 +183,7 @@ Regex::new(
 
 ---
 
-### hv-0884 — `contracts/reports/scaling-audit/findings-latest.json:16376`
+### hv-0882 — `contracts/reports/scaling-audit/findings-latest.json:16376`
 
 **Substring**
 
@@ -201,7 +201,7 @@ Regex::new(
 
 ---
 
-### hv-0885 — `contracts/reports/scaling-audit/findings-latest.json:16388`
+### hv-0883 — `contracts/reports/scaling-audit/findings-latest.json:16388`
 
 **Substring**
 
@@ -219,7 +219,7 @@ Regex::new(
 
 ---
 
-### hv-0886 — `contracts/reports/scaling-audit/findings-latest.json:17035`
+### hv-0884 — `contracts/reports/scaling-audit/findings-latest.json:17035`
 
 **Substring**
 
@@ -237,7 +237,7 @@ Regex::new(
 
 ---
 
-### hv-0887 — `contracts/reports/scaling-audit/findings-latest.json:17243`
+### hv-0885 — `contracts/reports/scaling-audit/findings-latest.json:17243`
 
 **Substring**
 
@@ -255,7 +255,7 @@ Regex::new(
 
 ---
 
-### hv-0888 — `contracts/reports/scaling-audit/findings-latest.json:17255`
+### hv-0886 — `contracts/reports/scaling-audit/findings-latest.json:17255`
 
 **Substring**
 
@@ -273,7 +273,7 @@ Regex::new(
 
 ---
 
-### hv-0889 — `contracts/reports/scaling-audit/findings-latest.json:17290`
+### hv-0887 — `contracts/reports/scaling-audit/findings-latest.json:17290`
 
 **Substring**
 
@@ -291,7 +291,7 @@ Regex::new(
 
 ---
 
-### hv-0890 — `contracts/reports/scaling-audit/findings-latest.json:17302`
+### hv-0888 — `contracts/reports/scaling-audit/findings-latest.json:17302`
 
 **Substring**
 
@@ -309,7 +309,7 @@ Regex::new(
 
 ---
 
-### hv-0891 — `contracts/reports/scaling-audit/findings-latest.json:17314`
+### hv-0889 — `contracts/reports/scaling-audit/findings-latest.json:17314`
 
 **Substring**
 
@@ -327,7 +327,7 @@ Regex::new(
 
 ---
 
-### hv-0892 — `contracts/reports/scaling-audit/findings-latest.json:17326`
+### hv-0890 — `contracts/reports/scaling-audit/findings-latest.json:17326`
 
 **Substring**
 
@@ -345,7 +345,7 @@ Regex::new(
 
 ---
 
-### hv-0893 — `contracts/reports/scaling-audit/findings-latest.json:17338`
+### hv-0891 — `contracts/reports/scaling-audit/findings-latest.json:17338`
 
 **Substring**
 
@@ -363,7 +363,7 @@ Regex::new(
 
 ---
 
-### hv-0894 — `contracts/reports/scaling-audit/findings-latest.json:18260`
+### hv-0892 — `contracts/reports/scaling-audit/findings-latest.json:18260`
 
 **Substring**
 
@@ -381,7 +381,7 @@ Regex::new(
 
 ---
 
-### hv-0895 — `contracts/reports/scaling-audit/findings-latest.json:18385`
+### hv-0893 — `contracts/reports/scaling-audit/findings-latest.json:18385`
 
 **Substring**
 
@@ -399,7 +399,7 @@ Regex::new(
 
 ---
 
-### hv-0896 — `contracts/reports/scaling-audit/findings-latest.json:18409`
+### hv-0894 — `contracts/reports/scaling-audit/findings-latest.json:18409`
 
 **Substring**
 
@@ -417,7 +417,7 @@ Regex::new(
 
 ---
 
-### hv-0897 — `contracts/reports/scaling-audit/findings-latest.json:18421`
+### hv-0895 — `contracts/reports/scaling-audit/findings-latest.json:18421`
 
 **Substring**
 
@@ -435,7 +435,7 @@ Regex::new(
 
 ---
 
-### hv-0898 — `contracts/reports/scaling-audit/findings-latest.json:18433`
+### hv-0896 — `contracts/reports/scaling-audit/findings-latest.json:18433`
 
 **Substring**
 
@@ -453,7 +453,7 @@ Regex::new(
 
 ---
 
-### hv-0899 — `contracts/reports/scaling-audit/findings-latest.json:18445`
+### hv-0897 — `contracts/reports/scaling-audit/findings-latest.json:18445`
 
 **Substring**
 
@@ -471,7 +471,7 @@ Regex::new(
 
 ---
 
-### hv-0900 — `contracts/reports/scaling-audit/findings-latest.json:18457`
+### hv-0898 — `contracts/reports/scaling-audit/findings-latest.json:18457`
 
 **Substring**
 
@@ -489,7 +489,7 @@ Regex::new(
 
 ---
 
-### hv-0901 — `contracts/reports/scaling-audit/findings-latest.json:18469`
+### hv-0899 — `contracts/reports/scaling-audit/findings-latest.json:18469`
 
 **Substring**
 
@@ -507,7 +507,7 @@ Regex::new(
 
 ---
 
-### hv-0902 — `contracts/reports/scaling-audit/findings-latest.json:18481`
+### hv-0900 — `contracts/reports/scaling-audit/findings-latest.json:18481`
 
 **Substring**
 
@@ -525,7 +525,7 @@ Regex::new(
 
 ---
 
-### hv-0903 — `contracts/reports/scaling-audit/findings-latest.json:18493`
+### hv-0901 — `contracts/reports/scaling-audit/findings-latest.json:18493`
 
 **Substring**
 
@@ -543,7 +543,7 @@ Regex::new(
 
 ---
 
-### hv-0904 — `contracts/reports/scaling-audit/findings-latest.json:18523`
+### hv-0902 — `contracts/reports/scaling-audit/findings-latest.json:18523`
 
 **Substring**
 
@@ -561,7 +561,7 @@ Regex::new(
 
 ---
 
-### hv-0905 — `contracts/reports/scaling-audit/findings-latest.json:18535`
+### hv-0903 — `contracts/reports/scaling-audit/findings-latest.json:18535`
 
 **Substring**
 
@@ -579,7 +579,7 @@ Regex::new(
 
 ---
 
-### hv-0906 — `contracts/reports/scaling-audit/findings-latest.json:18656`
+### hv-0904 — `contracts/reports/scaling-audit/findings-latest.json:18656`
 
 **Substring**
 
@@ -597,7 +597,7 @@ Regex::new(
 
 ---
 
-### hv-0907 — `contracts/reports/scaling-audit/findings-latest.json:18668`
+### hv-0905 — `contracts/reports/scaling-audit/findings-latest.json:18668`
 
 **Substring**
 
@@ -615,7 +615,7 @@ Regex::new(
 
 ---
 
-### hv-0908 — `contracts/reports/scaling-audit/findings-latest.json:19894`
+### hv-0906 — `contracts/reports/scaling-audit/findings-latest.json:19894`
 
 **Substring**
 
@@ -633,7 +633,7 @@ Regex::new(
 
 ---
 
-### hv-0909 — `contracts/reports/scaling-audit/findings-latest.json:19906`
+### hv-0907 — `contracts/reports/scaling-audit/findings-latest.json:19906`
 
 **Substring**
 
@@ -651,7 +651,7 @@ Regex::new(
 
 ---
 
-### hv-0910 — `contracts/reports/scaling-audit/findings-latest.json:20285`
+### hv-0908 — `contracts/reports/scaling-audit/findings-latest.json:20285`
 
 **Substring**
 
@@ -669,7 +669,7 @@ Regex::new(
 
 ---
 
-### hv-0911 — `contracts/reports/scaling-audit/findings-latest.json:21526`
+### hv-0909 — `contracts/reports/scaling-audit/findings-latest.json:21526`
 
 **Substring**
 
@@ -687,7 +687,7 @@ Regex::new(
 
 ---
 
-### hv-0912 — `contracts/reports/scaling-audit/findings-latest.json:21538`
+### hv-0910 — `contracts/reports/scaling-audit/findings-latest.json:21538`
 
 **Substring**
 
@@ -705,7 +705,7 @@ Regex::new(
 
 ---
 
-### hv-0913 — `contracts/reports/scaling-audit/findings-latest.json:21550`
+### hv-0911 — `contracts/reports/scaling-audit/findings-latest.json:21550`
 
 **Substring**
 
@@ -723,7 +723,7 @@ Regex::new(
 
 ---
 
-### hv-0914 — `contracts/reports/scaling-audit/findings-latest.json:21562`
+### hv-0912 — `contracts/reports/scaling-audit/findings-latest.json:21562`
 
 **Substring**
 
@@ -741,7 +741,7 @@ Regex::new(
 
 ---
 
-### hv-0915 — `contracts/reports/scaling-audit/findings-latest.json:21574`
+### hv-0913 — `contracts/reports/scaling-audit/findings-latest.json:21574`
 
 **Substring**
 
@@ -759,7 +759,7 @@ Regex::new(
 
 ---
 
-### hv-0916 — `contracts/reports/scaling-audit/findings-latest.json:21586`
+### hv-0914 — `contracts/reports/scaling-audit/findings-latest.json:21586`
 
 **Substring**
 
@@ -777,7 +777,7 @@ Regex::new(
 
 ---
 
-### hv-0917 — `contracts/reports/scaling-audit/findings-latest.json:21610`
+### hv-0915 — `contracts/reports/scaling-audit/findings-latest.json:21610`
 
 **Substring**
 
@@ -795,7 +795,7 @@ Regex::new(
 
 ---
 
-### hv-0918 — `contracts/reports/scaling-audit/findings-latest.json:21758`
+### hv-0916 — `contracts/reports/scaling-audit/findings-latest.json:21758`
 
 **Substring**
 
@@ -813,7 +813,7 @@ Regex::new(
 
 ---
 
-### hv-0919 — `contracts/reports/scaling-audit/findings-latest.json:21850`
+### hv-0917 — `contracts/reports/scaling-audit/findings-latest.json:21850`
 
 **Substring**
 
@@ -831,7 +831,7 @@ Regex::new(
 
 ---
 
-### hv-0920 — `contracts/reports/scaling-audit/findings-latest.json:21862`
+### hv-0918 — `contracts/reports/scaling-audit/findings-latest.json:21862`
 
 **Substring**
 
@@ -849,7 +849,7 @@ Regex::new(
 
 ---
 
-### hv-0921 — `contracts/reports/scaling-audit/findings-latest.json:25504`
+### hv-0919 — `contracts/reports/scaling-audit/findings-latest.json:25504`
 
 **Substring**
 
@@ -867,7 +867,7 @@ Regex::new(
 
 ---
 
-### hv-0922 — `contracts/reports/scaling-audit/findings-latest.json:25516`
+### hv-0920 — `contracts/reports/scaling-audit/findings-latest.json:25516`
 
 **Substring**
 
@@ -885,7 +885,7 @@ Regex::new(
 
 ---
 
-### hv-0923 — `contracts/reports/scaling-audit/findings-latest.json:25538`
+### hv-0921 — `contracts/reports/scaling-audit/findings-latest.json:25538`
 
 **Substring**
 
@@ -903,7 +903,7 @@ Regex::new(
 
 ---
 
-### hv-0924 — `contracts/reports/scaling-audit/findings-latest.json:25550`
+### hv-0922 — `contracts/reports/scaling-audit/findings-latest.json:25550`
 
 **Substring**
 
@@ -921,7 +921,7 @@ Regex::new(
 
 ---
 
-### hv-0925 — `contracts/reports/scaling-audit/findings-latest.json:25868`
+### hv-0923 — `contracts/reports/scaling-audit/findings-latest.json:25868`
 
 **Substring**
 
@@ -939,7 +939,7 @@ Regex::new(
 
 ---
 
-### hv-0926 — `contracts/reports/scaling-audit/findings-latest.json:26521`
+### hv-0924 — `contracts/reports/scaling-audit/findings-latest.json:26521`
 
 **Substring**
 
@@ -957,7 +957,7 @@ Regex::new(
 
 ---
 
-### hv-0927 — `contracts/reports/scaling-audit/findings-latest.json:26533`
+### hv-0925 — `contracts/reports/scaling-audit/findings-latest.json:26533`
 
 **Substring**
 
@@ -975,7 +975,7 @@ Regex::new(
 
 ---
 
-### hv-0928 — `contracts/reports/scaling-audit/findings-latest.json:26544`
+### hv-0926 — `contracts/reports/scaling-audit/findings-latest.json:26544`
 
 **Substring**
 
@@ -993,7 +993,7 @@ Regex::new(
 
 ---
 
-### hv-0929 — `contracts/reports/scaling-audit/findings-latest.json:26556`
+### hv-0927 — `contracts/reports/scaling-audit/findings-latest.json:26556`
 
 **Substring**
 
@@ -1011,7 +1011,7 @@ Regex::new(
 
 ---
 
-### hv-0930 — `contracts/reports/scaling-audit/findings-latest.json:27541`
+### hv-0928 — `contracts/reports/scaling-audit/findings-latest.json:27541`
 
 **Substring**
 
@@ -1029,7 +1029,7 @@ Regex::new(
 
 ---
 
-### hv-0931 — `contracts/reports/scaling-audit/findings-latest.json:28607`
+### hv-0929 — `contracts/reports/scaling-audit/findings-latest.json:28607`
 
 **Substring**
 
@@ -1047,7 +1047,7 @@ Regex::new(
 
 ---
 
-### hv-0932 — `contracts/reports/scaling-audit/findings-latest.json:29425`
+### hv-0930 — `contracts/reports/scaling-audit/findings-latest.json:29425`
 
 **Substring**
 
@@ -1065,7 +1065,7 @@ Regex::new(
 
 ---
 
-### hv-0933 — `contracts/reports/scaling-audit/findings-latest.json:33724`
+### hv-0931 — `contracts/reports/scaling-audit/findings-latest.json:33724`
 
 **Substring**
 
@@ -1083,7 +1083,7 @@ Regex::new(
 
 ---
 
-### hv-0934 — `contracts/reports/scaling-audit/findings-latest.json:33770`
+### hv-0932 — `contracts/reports/scaling-audit/findings-latest.json:33770`
 
 **Substring**
 
@@ -1101,7 +1101,7 @@ Regex::new(
 
 ---
 
-### hv-0935 — `contracts/reports/scaling-audit/findings-latest.json:37507`
+### hv-0933 — `contracts/reports/scaling-audit/findings-latest.json:37507`
 
 **Substring**
 
@@ -1119,7 +1119,7 @@ Regex::new(
 
 ---
 
-### hv-0936 — `contracts/reports/scaling-audit/findings-latest.json:37519`
+### hv-0934 — `contracts/reports/scaling-audit/findings-latest.json:37519`
 
 **Substring**
 
@@ -1137,7 +1137,7 @@ Regex::new(
 
 ---
 
-### hv-0937 — `contracts/reports/scaling-audit/findings-latest.json:39787`
+### hv-0935 — `contracts/reports/scaling-audit/findings-latest.json:39787`
 
 **Substring**
 
@@ -1155,7 +1155,7 @@ Regex::new(
 
 ---
 
-### hv-0938 — `contracts/reports/scaling-audit/findings-latest.json:40308`
+### hv-0936 — `contracts/reports/scaling-audit/findings-latest.json:40308`
 
 **Substring**
 
@@ -1173,7 +1173,7 @@ Regex::new(
 
 ---
 
-### hv-0939 — `contracts/reports/scaling-audit/findings-latest.json:40320`
+### hv-0937 — `contracts/reports/scaling-audit/findings-latest.json:40320`
 
 **Substring**
 
@@ -1191,7 +1191,7 @@ Regex::new(
 
 ---
 
-### hv-0940 — `contracts/reports/scaling-audit/findings-latest.json:40499`
+### hv-0938 — `contracts/reports/scaling-audit/findings-latest.json:40499`
 
 **Substring**
 
@@ -1209,7 +1209,7 @@ Regex::new(
 
 ---
 
-### hv-0941 — `contracts/reports/scaling-audit/findings-latest.json:40511`
+### hv-0939 — `contracts/reports/scaling-audit/findings-latest.json:40511`
 
 **Substring**
 
@@ -1227,7 +1227,7 @@ Regex::new(
 
 ---
 
-### hv-0942 — `contracts/reports/scaling-audit/findings-latest.json:40523`
+### hv-0940 — `contracts/reports/scaling-audit/findings-latest.json:40523`
 
 **Substring**
 
@@ -1245,7 +1245,7 @@ Regex::new(
 
 ---
 
-### hv-0943 — `contracts/reports/scaling-audit/findings-latest.json:40547`
+### hv-0941 — `contracts/reports/scaling-audit/findings-latest.json:40547`
 
 **Substring**
 
@@ -1263,7 +1263,7 @@ Regex::new(
 
 ---
 
-### hv-0944 — `contracts/reports/scaling-audit/findings-latest.json:40559`
+### hv-0942 — `contracts/reports/scaling-audit/findings-latest.json:40559`
 
 **Substring**
 
@@ -1281,7 +1281,7 @@ Regex::new(
 
 ---
 
-### hv-0945 — `contracts/reports/scaling-audit/findings-latest.json:40571`
+### hv-0943 — `contracts/reports/scaling-audit/findings-latest.json:40571`
 
 **Substring**
 
@@ -1299,7 +1299,7 @@ Regex::new(
 
 ---
 
-### hv-0946 — `contracts/reports/scaling-audit/findings-latest.json:40583`
+### hv-0944 — `contracts/reports/scaling-audit/findings-latest.json:40583`
 
 **Substring**
 
@@ -1317,7 +1317,7 @@ Regex::new(
 
 ---
 
-### hv-0947 — `contracts/reports/scaling-audit/findings-latest.json:40595`
+### hv-0945 — `contracts/reports/scaling-audit/findings-latest.json:40595`
 
 **Substring**
 
@@ -1335,7 +1335,7 @@ Regex::new(
 
 ---
 
-### hv-0948 — `contracts/reports/scaling-audit/findings-latest.json:40607`
+### hv-0946 — `contracts/reports/scaling-audit/findings-latest.json:40607`
 
 **Substring**
 
@@ -1353,7 +1353,7 @@ Regex::new(
 
 ---
 
-### hv-0949 — `contracts/reports/scaling-audit/findings-latest.json:40619`
+### hv-0947 — `contracts/reports/scaling-audit/findings-latest.json:40619`
 
 **Substring**
 
@@ -1371,7 +1371,7 @@ Regex::new(
 
 ---
 
-### hv-0950 — `contracts/reports/scaling-audit/findings-latest.json:40631`
+### hv-0948 — `contracts/reports/scaling-audit/findings-latest.json:40631`
 
 **Substring**
 
@@ -1389,7 +1389,7 @@ Regex::new(
 
 ---
 
-### hv-0951 — `contracts/reports/scaling-audit/findings-latest.json:40643`
+### hv-0949 — `contracts/reports/scaling-audit/findings-latest.json:40643`
 
 **Substring**
 
@@ -1407,7 +1407,7 @@ Regex::new(
 
 ---
 
-### hv-0952 — `contracts/reports/scaling-audit/findings-latest.json:40655`
+### hv-0950 — `contracts/reports/scaling-audit/findings-latest.json:40655`
 
 **Substring**
 
@@ -1425,7 +1425,7 @@ Regex::new(
 
 ---
 
-### hv-0953 — `contracts/reports/scaling-audit/findings-latest.json:40667`
+### hv-0951 — `contracts/reports/scaling-audit/findings-latest.json:40667`
 
 **Substring**
 
@@ -1443,7 +1443,7 @@ Regex::new(
 
 ---
 
-### hv-0954 — `contracts/reports/scaling-audit/findings-latest.json:40679`
+### hv-0952 — `contracts/reports/scaling-audit/findings-latest.json:40679`
 
 **Substring**
 
@@ -1461,7 +1461,7 @@ Regex::new(
 
 ---
 
-### hv-0955 — `contracts/reports/scaling-audit/findings-latest.json:40691`
+### hv-0953 — `contracts/reports/scaling-audit/findings-latest.json:40691`
 
 **Substring**
 
@@ -1479,7 +1479,7 @@ Regex::new(
 
 ---
 
-### hv-0956 — `contracts/reports/scaling-audit/findings-latest.json:40703`
+### hv-0954 — `contracts/reports/scaling-audit/findings-latest.json:40703`
 
 **Substring**
 
@@ -1497,7 +1497,7 @@ Regex::new(
 
 ---
 
-### hv-0957 — `contracts/reports/scaling-audit/findings-latest.json:40715`
+### hv-0955 — `contracts/reports/scaling-audit/findings-latest.json:40715`
 
 **Substring**
 
@@ -1515,7 +1515,7 @@ Regex::new(
 
 ---
 
-### hv-0958 — `contracts/reports/scaling-audit/findings-latest.json:40727`
+### hv-0956 — `contracts/reports/scaling-audit/findings-latest.json:40727`
 
 **Substring**
 
@@ -1533,7 +1533,7 @@ Regex::new(
 
 ---
 
-### hv-0959 — `contracts/reports/scaling-audit/findings-latest.json:40768`
+### hv-0957 — `contracts/reports/scaling-audit/findings-latest.json:40768`
 
 **Substring**
 
@@ -1551,7 +1551,7 @@ Regex::new(
 
 ---
 
-### hv-0960 — `contracts/reports/scaling-audit/findings-latest.json:40780`
+### hv-0958 — `contracts/reports/scaling-audit/findings-latest.json:40780`
 
 **Substring**
 
@@ -1569,7 +1569,7 @@ Regex::new(
 
 ---
 
-### hv-0961 — `contracts/reports/scaling-audit/findings-latest.json:40792`
+### hv-0959 — `contracts/reports/scaling-audit/findings-latest.json:40792`
 
 **Substring**
 
@@ -1587,7 +1587,7 @@ Regex::new(
 
 ---
 
-### hv-0962 — `contracts/reports/scaling-audit/findings-latest.json:40872`
+### hv-0960 — `contracts/reports/scaling-audit/findings-latest.json:40872`
 
 **Substring**
 
@@ -1605,7 +1605,7 @@ Regex::new(
 
 ---
 
-### hv-0963 — `contracts/reports/scaling-audit/findings-latest.json:40884`
+### hv-0961 — `contracts/reports/scaling-audit/findings-latest.json:40884`
 
 **Substring**
 
@@ -1623,7 +1623,7 @@ Regex::new(
 
 ---
 
-### hv-0964 — `contracts/reports/scaling-audit/findings-latest.json:40896`
+### hv-0962 — `contracts/reports/scaling-audit/findings-latest.json:40896`
 
 **Substring**
 
@@ -1641,7 +1641,7 @@ Regex::new(
 
 ---
 
-### hv-0965 — `contracts/reports/scaling-audit/findings-latest.json:40908`
+### hv-0963 — `contracts/reports/scaling-audit/findings-latest.json:40908`
 
 **Substring**
 
@@ -1659,7 +1659,7 @@ Regex::new(
 
 ---
 
-### hv-0966 — `contracts/reports/scaling-audit/findings-latest.json:40920`
+### hv-0964 — `contracts/reports/scaling-audit/findings-latest.json:40920`
 
 **Substring**
 
@@ -1677,7 +1677,7 @@ Regex::new(
 
 ---
 
-### hv-0967 — `contracts/reports/scaling-audit/findings-latest.json:40932`
+### hv-0965 — `contracts/reports/scaling-audit/findings-latest.json:40932`
 
 **Substring**
 
@@ -1695,7 +1695,7 @@ Regex::new(
 
 ---
 
-### hv-0968 — `contracts/reports/scaling-audit/findings-latest.json:40944`
+### hv-0966 — `contracts/reports/scaling-audit/findings-latest.json:40944`
 
 **Substring**
 
@@ -1713,7 +1713,7 @@ Regex::new(
 
 ---
 
-### hv-0969 — `contracts/reports/scaling-audit/findings-latest.json:40956`
+### hv-0967 — `contracts/reports/scaling-audit/findings-latest.json:40956`
 
 **Substring**
 
@@ -1731,7 +1731,7 @@ Regex::new(
 
 ---
 
-### hv-0970 — `contracts/reports/scaling-audit/findings-latest.json:40968`
+### hv-0968 — `contracts/reports/scaling-audit/findings-latest.json:40968`
 
 **Substring**
 
@@ -1749,7 +1749,7 @@ Regex::new(
 
 ---
 
-### hv-0971 — `contracts/reports/scaling-audit/findings-latest.json:40980`
+### hv-0969 — `contracts/reports/scaling-audit/findings-latest.json:40980`
 
 **Substring**
 
@@ -1767,7 +1767,7 @@ Regex::new(
 
 ---
 
-### hv-0972 — `contracts/reports/scaling-audit/findings-latest.json:40992`
+### hv-0970 — `contracts/reports/scaling-audit/findings-latest.json:40992`
 
 **Substring**
 
@@ -1785,7 +1785,7 @@ Regex::new(
 
 ---
 
-### hv-0973 — `contracts/reports/scaling-audit/findings-latest.json:41015`
+### hv-0971 — `contracts/reports/scaling-audit/findings-latest.json:41015`
 
 **Substring**
 

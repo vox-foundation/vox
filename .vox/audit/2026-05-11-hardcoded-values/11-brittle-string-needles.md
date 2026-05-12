@@ -3,7 +3,7 @@
 **Severity**: warning  
 **Itemized**: 100
 
-### hv-0774 — `apps/editor/vox-vscode/src/agents/AgentController.ts:150`
+### hv-0772 — `apps/editor/vox-vscode/src/agents/AgentController.ts:150`
 
 **Substring**
 
@@ -21,7 +21,7 @@ complete
 
 ---
 
-### hv-0775 — `apps/editor/vox-vscode/src/agents/AgentController.ts:151`
+### hv-0773 — `apps/editor/vox-vscode/src/agents/AgentController.ts:151`
 
 **Substring**
 
@@ -39,7 +39,7 @@ fail
 
 ---
 
-### hv-0776 — `apps/editor/vox-vscode/src/agents/AgentController.ts:152`
+### hv-0774 — `apps/editor/vox-vscode/src/agents/AgentController.ts:152`
 
 **Substring**
 
@@ -57,7 +57,7 @@ start
 
 ---
 
-### hv-0777 — `apps/editor/vox-vscode/src/agents/AgentController.ts:153`
+### hv-0775 — `apps/editor/vox-vscode/src/agents/AgentController.ts:153`
 
 **Substring**
 
@@ -75,7 +75,7 @@ wait
 
 ---
 
-### hv-0778 — `apps/editor/vox-vscode/src/agents/AgentController.ts:159`
+### hv-0776 — `apps/editor/vox-vscode/src/agents/AgentController.ts:159`
 
 **Substring**
 
@@ -93,7 +93,7 @@ build
 
 ---
 
-### hv-0779 — `apps/editor/vox-vscode/src/agents/AgentController.ts:160`
+### hv-0777 — `apps/editor/vox-vscode/src/agents/AgentController.ts:160`
 
 **Substring**
 
@@ -111,7 +111,7 @@ plan
 
 ---
 
-### hv-0780 — `apps/editor/vox-vscode/src/agents/AgentController.ts:161`
+### hv-0778 — `apps/editor/vox-vscode/src/agents/AgentController.ts:161`
 
 **Substring**
 
@@ -129,7 +129,7 @@ debug
 
 ---
 
-### hv-0781 — `apps/editor/vox-vscode/src/agents/AgentController.ts:162`
+### hv-0779 — `apps/editor/vox-vscode/src/agents/AgentController.ts:162`
 
 **Substring**
 
@@ -147,7 +147,7 @@ research
 
 ---
 
-### hv-0782 — `apps/editor/vox-vscode/src/agents/AgentController.ts:163`
+### hv-0780 — `apps/editor/vox-vscode/src/agents/AgentController.ts:163`
 
 **Substring**
 
@@ -165,7 +165,7 @@ review
 
 ---
 
-### hv-0783 — `apps/editor/vox-vscode/src/commands/model.ts:25`
+### hv-0781 — `apps/editor/vox-vscode/src/commands/model.ts:25`
 
 **Substring**
 
@@ -183,7 +183,7 @@ Pull Ollama Model
 
 ---
 
-### hv-0784 — `apps/editor/vox-vscode/src/commands/model.ts:40`
+### hv-0782 — `apps/editor/vox-vscode/src/commands/model.ts:40`
 
 **Substring**
 
@@ -201,7 +201,7 @@ Set API Keys
 
 ---
 
-### hv-0785 — `apps/editor/vox-vscode/src/context/WorkspaceContextEngine.ts:50`
+### hv-0783 — `apps/editor/vox-vscode/src/context/WorkspaceContextEngine.ts:50`
 
 **Substring**
 
@@ -219,7 +219,7 @@ extension-output-
 
 ---
 
-### hv-0786 — `apps/editor/vox-vscode/src/core/VoxMcpClient.ts:151`
+### hv-0784 — `apps/editor/vox-vscode/src/core/VoxMcpClient.ts:151`
 
 **Substring**
 
@@ -237,7 +237,7 @@ Connection
 
 ---
 
-### hv-0787 — `apps/editor/vox-vscode/src/extension.ts:150`
+### hv-0785 — `apps/editor/vox-vscode/src/extension.ts:150`
 
 **Substring**
 
@@ -255,7 +255,7 @@ Yes
 
 ---
 
-### hv-0788 — `apps/editor/vox-vscode/src/features/linkDiagnostics.ts:27`
+### hv-0786 — `apps/editor/vox-vscode/src/features/linkDiagnostics.ts:27`
 
 **Substring**
 
@@ -273,7 +273,7 @@ http
 
 ---
 
-### hv-0789 — `apps/editor/vox-vscode/src/features/webArtifactDiagnostics.ts:25`
+### hv-0787 — `apps/editor/vox-vscode/src/features/webArtifactDiagnostics.ts:25`
 
 **Substring**
 
@@ -291,7 +291,7 @@ import type
 
 ---
 
-### hv-0790 — `apps/editor/vox-vscode/src/speech/registerOratioSpeechCommands.ts:28`
+### hv-0788 — `apps/editor/vox-vscode/src/speech/registerOratioSpeechCommands.ts:28`
 
 **Substring**
 
@@ -309,7 +309,7 @@ import type
 
 ---
 
-### hv-0791 — `apps/editor/vox-vscode/src/speech/registerOratioSpeechCommands.ts:145`
+### hv-0789 — `apps/editor/vox-vscode/src/speech/registerOratioSpeechCommands.ts:145`
 
 **Substring**
 
@@ -327,7 +327,7 @@ Yes
 
 ---
 
-### hv-0792 — `apps/editor/vox-vscode/src/VisualEditorPanel.ts:109`
+### hv-0790 — `apps/editor/vox-vscode/src/VisualEditorPanel.ts:109`
 
 **Substring**
 
@@ -345,7 +345,7 @@ http
 
 ---
 
-### hv-0793 — `apps/experimental/visualizer/src/components/AgentFlow.tsx:21`
+### hv-0791 — `apps/experimental/visualizer/src/components/AgentFlow.tsx:21`
 
 **Substring**
 
@@ -363,7 +363,7 @@ Failed
 
 ---
 
-### hv-0794 — `apps/experimental/visualizer/src/components/AgentFlow.tsx:32`
+### hv-0792 — `apps/experimental/visualizer/src/components/AgentFlow.tsx:32`
 
 **Substring**
 
@@ -381,7 +381,7 @@ Failed
 
 ---
 
-### hv-0795 — `crates/vox-actor-runtime/src/builtins/tests.rs:53`
+### hv-0793 — `crates/vox-actor-runtime/src/builtins/tests.rs:53`
 
 **Substring**
 
@@ -399,7 +399,7 @@ hi
 
 ---
 
-### hv-0796 — `crates/vox-actor-runtime/src/builtins/tests.rs:85`
+### hv-0794 — `crates/vox-actor-runtime/src/builtins/tests.rs:85`
 
 **Substring**
 
@@ -417,7 +417,7 @@ invalid params_json
 
 ---
 
-### hv-0797 — `crates/vox-actor-runtime/src/builtins/tests.rs:98`
+### hv-0795 — `crates/vox-actor-runtime/src/builtins/tests.rs:98`
 
 **Substring**
 
@@ -435,7 +435,7 @@ openclaw worker send failed
 
 ---
 
-### hv-0798 — `crates/vox-actor-runtime/src/builtins/tests.rs:115`
+### hv-0796 — `crates/vox-actor-runtime/src/builtins/tests.rs:115`
 
 **Substring**
 
@@ -453,7 +453,7 @@ openclaw worker recv failed
 
 ---
 
-### hv-0799 — `crates/vox-actor-runtime/src/builtins/tests.rs:141`
+### hv-0797 — `crates/vox-actor-runtime/src/builtins/tests.rs:141`
 
 **Substring**
 
@@ -471,7 +471,7 @@ vox-
 
 ---
 
-### hv-0800 — `crates/vox-actor-runtime/src/builtins/tests.rs:173`
+### hv-0798 — `crates/vox-actor-runtime/src/builtins/tests.rs:173`
 
 **Substring**
 
@@ -489,7 +489,7 @@ hello
 
 ---
 
-### hv-0801 — `crates/vox-actor-runtime/src/builtins/tests.rs:196`
+### hv-0799 — `crates/vox-actor-runtime/src/builtins/tests.rs:196`
 
 **Substring**
 
@@ -507,7 +507,7 @@ a.txt
 
 ---
 
-### hv-0802 — `crates/vox-actor-runtime/src/builtins/tests.rs:230`
+### hv-0800 — `crates/vox-actor-runtime/src/builtins/tests.rs:230`
 
 **Substring**
 
@@ -525,7 +525,7 @@ invalid JSON body
 
 ---
 
-### hv-0803 — `crates/vox-actor-runtime/src/builtins/tests.rs:260`
+### hv-0801 — `crates/vox-actor-runtime/src/builtins/tests.rs:260`
 
 **Substring**
 
@@ -543,7 +543,7 @@ http worker send failed
 
 ---
 
-### hv-0804 — `crates/vox-actor-runtime/src/builtins/tests.rs:282`
+### hv-0802 — `crates/vox-actor-runtime/src/builtins/tests.rs:282`
 
 **Substring**
 
@@ -561,7 +561,7 @@ http worker recv failed
 
 ---
 
-### hv-0805 — `crates/vox-actor-runtime/src/builtins/tests.rs:304`
+### hv-0803 — `crates/vox-actor-runtime/src/builtins/tests.rs:304`
 
 **Substring**
 
@@ -579,7 +579,7 @@ ok
 
 ---
 
-### hv-0806 — `crates/vox-actor-runtime/src/inference_env.rs:233`
+### hv-0804 — `crates/vox-actor-runtime/src/inference_env.rs:233`
 
 **Substring**
 
@@ -597,7 +597,7 @@ cuda
 
 ---
 
-### hv-0807 — `crates/vox-actor-runtime/src/llm_result.rs:171`
+### hv-0805 — `crates/vox-actor-runtime/src/llm_result.rs:171`
 
 **Substring**
 
@@ -615,7 +615,7 @@ cuda
 
 ---
 
-### hv-0808 — `crates/vox-actor-runtime/src/llm_result.rs:264`
+### hv-0806 — `crates/vox-actor-runtime/src/llm_result.rs:264`
 
 **Substring**
 
@@ -633,7 +633,7 @@ EOF
 
 ---
 
-### hv-0809 — `crates/vox-actor-runtime/src/llm_result.rs:267`
+### hv-0807 — `crates/vox-actor-runtime/src/llm_result.rs:267`
 
 **Substring**
 
@@ -651,7 +651,7 @@ rate limited
 
 ---
 
-### hv-0810 — `crates/vox-actor-runtime/src/llm_result.rs:270`
+### hv-0808 — `crates/vox-actor-runtime/src/llm_result.rs:270`
 
 **Substring**
 
@@ -669,7 +669,7 @@ activity failed
 
 ---
 
-### hv-0811 — `crates/vox-actor-runtime/src/llm/chat.rs:46`
+### hv-0809 — `crates/vox-actor-runtime/src/llm/chat.rs:46`
 
 **Substring**
 
@@ -687,7 +687,7 @@ chat/completions
 
 ---
 
-### hv-0812 — `crates/vox-actor-runtime/src/llm/embed.rs:68`
+### hv-0810 — `crates/vox-actor-runtime/src/llm/embed.rs:68`
 
 **Substring**
 
@@ -705,7 +705,7 @@ embeddings
 
 ---
 
-### hv-0813 — `crates/vox-actor-runtime/src/llm/stream.rs:36`
+### hv-0811 — `crates/vox-actor-runtime/src/llm/stream.rs:36`
 
 **Substring**
 
@@ -723,7 +723,7 @@ chat/completions
 
 ---
 
-### hv-0814 — `crates/vox-actor-runtime/src/observability.rs:72`
+### hv-0812 — `crates/vox-actor-runtime/src/observability.rs:72`
 
 **Substring**
 
@@ -741,7 +741,7 @@ vox-
 
 ---
 
-### hv-0815 — `crates/vox-actor-runtime/src/pid.rs:50`
+### hv-0813 — `crates/vox-actor-runtime/src/pid.rs:50`
 
 **Substring**
 
@@ -759,7 +759,7 @@ vox-
 
 ---
 
-### hv-0816 — `crates/vox-actor-runtime/src/prompt_canonical.rs:273`
+### hv-0814 — `crates/vox-actor-runtime/src/prompt_canonical.rs:273`
 
 **Substring**
 
@@ -777,7 +777,7 @@ parser
 
 ---
 
-### hv-0817 — `crates/vox-actor-runtime/src/prompt_canonical.rs:287`
+### hv-0815 — `crates/vox-actor-runtime/src/prompt_canonical.rs:287`
 
 **Substring**
 
@@ -795,7 +795,7 @@ Objectives
 
 ---
 
-### hv-0818 — `crates/vox-actor-runtime/src/prompt_canonical.rs:288`
+### hv-0816 — `crates/vox-actor-runtime/src/prompt_canonical.rs:288`
 
 **Substring**
 
@@ -813,79 +813,7 @@ Objectives
 
 ---
 
-### hv-0819 — `crates/vox-agentos-mutation/src/lib.rs:59`
-
-**Substring**
-
-```text
-vox_db_
-```
-
-**Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
-
-**Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
-
-**Verify**: `rg -nF "vox_db_" "crates/vox-agentos-mutation/src/lib.rs"`
-
-**Confidence**: low
-
----
-
-### hv-0820 — `crates/vox-agentos-mutation/src/lib.rs:60`
-
-**Substring**
-
-```text
-append
-```
-
-**Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
-
-**Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
-
-**Verify**: `rg -nF "append" "crates/vox-agentos-mutation/src/lib.rs"`
-
-**Confidence**: low
-
----
-
-### hv-0821 — `crates/vox-agentos-mutation/src/lib.rs:61`
-
-**Substring**
-
-```text
-insert
-```
-
-**Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
-
-**Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
-
-**Verify**: `rg -nF "insert" "crates/vox-agentos-mutation/src/lib.rs"`
-
-**Confidence**: low
-
----
-
-### hv-0822 — `crates/vox-agentos-mutation/src/lib.rs:65`
-
-**Substring**
-
-```text
-vox_openclaw_
-```
-
-**Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
-
-**Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
-
-**Verify**: `rg -nF "vox_openclaw_" "crates/vox-agentos-mutation/src/lib.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-0823 — `crates/vox-arch-check/src/forbidden_patterns.rs:128`
+### hv-0817 — `crates/vox-arch-check/src/forbidden_patterns.rs:136`
 
 **Substring**
 
@@ -903,7 +831,25 @@ Command::new("git")
 
 ---
 
-### hv-0824 — `crates/vox-arch-check/src/main.rs:551`
+### hv-0818 — `crates/vox-arch-check/src/main.rs:494`
+
+**Substring**
+
+```text
+src/
+```
+
+**Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
+
+**Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
+
+**Verify**: `rg -nF "src/" "crates/vox-arch-check/src/main.rs"`
+
+**Confidence**: low
+
+---
+
+### hv-0819 — `crates/vox-arch-check/src/main.rs:687`
 
 **Substring**
 
@@ -921,7 +867,7 @@ Command::new("git")
 
 ---
 
-### hv-0825 — `crates/vox-arch-check/src/main.rs:698`
+### hv-0820 — `crates/vox-arch-check/src/main.rs:862`
 
 **Substring**
 
@@ -939,7 +885,7 @@ Command::new("git")
 
 ---
 
-### hv-0826 — `crates/vox-arch-check/src/main.rs:839`
+### hv-0821 — `crates/vox-arch-check/src/main.rs:1069`
 
 **Substring**
 
@@ -957,43 +903,43 @@ target
 
 ---
 
-### hv-0827 — `crates/vox-arch-check/src/main.rs:840`
+### hv-0822 — `crates/vox-arch-check/src/main.rs:1086`
 
 **Substring**
 
 ```text
-.git
+target
 ```
 
 **Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
 
 **Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
 
-**Verify**: `rg -nF ".git" "crates/vox-arch-check/src/main.rs"`
+**Verify**: `rg -nF "target" "crates/vox-arch-check/src/main.rs"`
 
 **Confidence**: low
 
 ---
 
-### hv-0828 — `crates/vox-arch-check/src/main.rs:841`
+### hv-0823 — `crates/vox-arch-check/src/main.rs:1087`
 
 **Substring**
 
 ```text
-node_modules
+my_vendor
 ```
 
 **Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
 
 **Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
 
-**Verify**: `rg -nF "node_modules" "crates/vox-arch-check/src/main.rs"`
+**Verify**: `rg -nF "my_vendor" "crates/vox-arch-check/src/main.rs"`
 
 **Confidence**: medium
 
 ---
 
-### hv-0829 — `crates/vox-bounded-fs/src/lib.rs:74`
+### hv-0824 — `crates/vox-bounded-fs/src/lib.rs:74`
 
 **Substring**
 
@@ -1011,7 +957,7 @@ exceeds scaling policy max_file_bytes_hint
 
 ---
 
-### hv-0830 — `crates/vox-cli-core/src/daemon_ipc/dispatch.rs:220`
+### hv-0825 — `crates/vox-cli-core/src/daemon_ipc/dispatch.rs:220`
 
 **Substring**
 
@@ -1029,7 +975,7 @@ http://
 
 ---
 
-### hv-0831 — `crates/vox-cli/src/artifact_policy.rs:95`
+### hv-0826 — `crates/vox-cli/src/artifact_policy.rs:95`
 
 **Substring**
 
@@ -1047,7 +993,7 @@ target-
 
 ---
 
-### hv-0832 — `crates/vox-cli/src/autofix.rs:51`
+### hv-0827 — `crates/vox-cli/src/autofix.rs:51`
 
 **Substring**
 
@@ -1065,7 +1011,7 @@ target-
 
 ---
 
-### hv-0833 — `crates/vox-cli/src/autofix.rs:52`
+### hv-0828 — `crates/vox-cli/src/autofix.rs:52`
 
 **Substring**
 
@@ -1083,7 +1029,7 @@ fn
 
 ---
 
-### hv-0834 — `crates/vox-cli/src/command_catalog.rs:418`
+### hv-0829 — `crates/vox-cli/src/command_catalog.rs:441`
 
 **Substring**
 
@@ -1101,7 +1047,7 @@ vox build
 
 ---
 
-### hv-0835 — `crates/vox-cli/src/command_catalog.rs:419`
+### hv-0830 — `crates/vox-cli/src/command_catalog.rs:442`
 
 **Substring**
 
@@ -1119,7 +1065,7 @@ recommended
 
 ---
 
-### hv-0836 — `crates/vox-cli/src/command_catalog.rs:432`
+### hv-0831 — `crates/vox-cli/src/command_catalog.rs:455`
 
 **Substring**
 
@@ -1137,7 +1083,7 @@ shell
 
 ---
 
-### hv-0837 — `crates/vox-cli/src/commands/agent.rs:110`
+### hv-0832 — `crates/vox-cli/src/commands/agent.rs:110`
 
 **Substring**
 
@@ -1155,25 +1101,7 @@ description
 
 ---
 
-### hv-0838 — `crates/vox-cli/src/commands/build.rs:387`
-
-**Substring**
-
-```text
-android.permission.WAKE_LOCK
-```
-
-**Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
-
-**Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
-
-**Verify**: `rg -nF "android.permission.WAKE_LOCK" "crates/vox-cli/src/commands/build.rs"`
-
-**Confidence**: high
-
----
-
-### hv-0839 — `crates/vox-cli/src/commands/build.rs:477`
+### hv-0833 — `crates/vox-cli/src/commands/build.rs:452`
 
 **Substring**
 
@@ -1191,7 +1119,7 @@ android.permission.WAKE_LOCK
 
 ---
 
-### hv-0840 — `crates/vox-cli/src/commands/build.rs:538`
+### hv-0834 — `crates/vox-cli/src/commands/build.rs:513`
 
 **Substring**
 
@@ -1209,7 +1137,7 @@ Missing.tsx
 
 ---
 
-### hv-0841 — `crates/vox-cli/src/commands/bundle.rs:63`
+### hv-0835 — `crates/vox-cli/src/commands/bundle.rs:65`
 
 **Substring**
 
@@ -1227,7 +1155,7 @@ wasi
 
 ---
 
-### hv-0842 — `crates/vox-cli/src/commands/bundle.rs:170`
+### hv-0836 — `crates/vox-cli/src/commands/bundle.rs:174`
 
 **Substring**
 
@@ -1245,7 +1173,7 @@ windows
 
 ---
 
-### hv-0843 — `crates/vox-cli/src/commands/bundle.rs:285`
+### hv-0837 — `crates/vox-cli/src/commands/bundle.rs:353`
 
 **Substring**
 
@@ -1263,7 +1191,7 @@ windows
 
 ---
 
-### hv-0844 — `crates/vox-cli/src/commands/ci/agentskills_compliance.rs:88`
+### hv-0838 — `crates/vox-cli/src/commands/ci/agentskills_compliance.rs:88`
 
 **Substring**
 
@@ -1281,7 +1209,7 @@ windows
 
 ---
 
-### hv-0845 — `crates/vox-cli/src/commands/ci/agentskills_compliance.rs:115`
+### hv-0839 — `crates/vox-cli/src/commands/ci/agentskills_compliance.rs:115`
 
 **Substring**
 
@@ -1299,7 +1227,7 @@ vox-plugin-
 
 ---
 
-### hv-0846 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:33`
+### hv-0840 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:33`
 
 **Substring**
 
@@ -1317,7 +1245,7 @@ evaluate_interruption
 
 ---
 
-### hv-0847 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:34`
+### hv-0841 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:34`
 
 **Substring**
 
@@ -1335,7 +1263,7 @@ record_attention_event
 
 ---
 
-### hv-0848 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:35`
+### hv-0842 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:35`
 
 **Substring**
 
@@ -1353,7 +1281,7 @@ AttentionEventType::
 
 ---
 
-### hv-0849 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:36`
+### hv-0843 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:36`
 
 **Substring**
 
@@ -1371,7 +1299,7 @@ interruption_policy.rs
 
 ---
 
-### hv-0850 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:37`
+### hv-0844 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:37`
 
 **Substring**
 
@@ -1389,7 +1317,7 @@ lib.rs
 
 ---
 
-### hv-0851 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:38`
+### hv-0845 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:38`
 
 **Substring**
 
@@ -1407,7 +1335,7 @@ mod.rs
 
 ---
 
-### hv-0852 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:39`
+### hv-0846 — `crates/vox-cli/src/commands/ci/attention_ledger_parity.rs:39`
 
 **Substring**
 
@@ -1425,7 +1353,7 @@ attention_policy.rs
 
 ---
 
-### hv-0853 — `crates/vox-cli/src/commands/ci/build_timings.rs:315`
+### hv-0847 — `crates/vox-cli/src/commands/ci/build_timings.rs:315`
 
 **Substring**
 
@@ -1443,7 +1371,7 @@ vox-
 
 ---
 
-### hv-0854 — `crates/vox-cli/src/commands/ci/canonical_docs.rs:91`
+### hv-0848 — `crates/vox-cli/src/commands/ci/canonical_docs.rs:91`
 
 **Substring**
 
@@ -1461,7 +1389,7 @@ docs/src/archive/
 
 ---
 
-### hv-0855 — `crates/vox-cli/src/commands/ci/canonical_docs.rs:102`
+### hv-0849 — `crates/vox-cli/src/commands/ci/canonical_docs.rs:102`
 
 **Substring**
 
@@ -1481,7 +1409,7 @@ category:" "crates/vox-cli/src/commands/ci/canonical_docs.rs"`
 
 ---
 
-### hv-0856 — `crates/vox-cli/src/commands/ci/canonical_docs.rs:145`
+### hv-0850 — `crates/vox-cli/src/commands/ci/canonical_docs.rs:145`
 
 **Substring**
 
@@ -1501,7 +1429,7 @@ status: legacy" "crates/vox-cli/src/commands/ci/canonical_docs.rs"`
 
 ---
 
-### hv-0857 — `crates/vox-cli/src/commands/ci/check_links.rs:166`
+### hv-0851 — `crates/vox-cli/src/commands/ci/check_links.rs:166`
 
 **Substring**
 
@@ -1519,7 +1447,7 @@ status: legacy" "crates/vox-cli/src/commands/ci/canonical_docs.rs"`
 
 ---
 
-### hv-0858 — `crates/vox-cli/src/commands/ci/check_links.rs:178`
+### hv-0852 — `crates/vox-cli/src/commands/ci/check_links.rs:178`
 
 **Substring**
 
@@ -1537,7 +1465,7 @@ http
 
 ---
 
-### hv-0859 — `crates/vox-cli/src/commands/ci/check_links.rs:180`
+### hv-0853 — `crates/vox-cli/src/commands/ci/check_links.rs:180`
 
 **Substring**
 
@@ -1555,7 +1483,7 @@ mailto:
 
 ---
 
-### hv-0860 — `crates/vox-cli/src/commands/ci/command_compliance/mcp_wiring.rs:23`
+### hv-0854 — `crates/vox-cli/src/commands/ci/command_compliance/mcp_wiring.rs:23`
 
 **Substring**
 
@@ -1573,7 +1501,7 @@ mailto:
 
 ---
 
-### hv-0861 — `crates/vox-cli/src/commands/ci/command_compliance/mcp_wiring.rs:57`
+### hv-0855 — `crates/vox-cli/src/commands/ci/command_compliance/mcp_wiring.rs:57`
 
 **Substring**
 
@@ -1591,7 +1519,7 @@ mailto:
 
 ---
 
-### hv-0862 — `crates/vox-cli/src/commands/ci/command_compliance/mcp_wiring.rs:60`
+### hv-0856 — `crates/vox-cli/src/commands/ci/command_compliance/mcp_wiring.rs:60`
 
 **Substring**
 
@@ -1609,7 +1537,7 @@ mailto:
 
 ---
 
-### hv-0863 — `crates/vox-cli/src/commands/ci/command_compliance/mcp_wiring.rs:97`
+### hv-0857 — `crates/vox-cli/src/commands/ci/command_compliance/mcp_wiring.rs:97`
 
 **Substring**
 
@@ -1627,7 +1555,7 @@ vox_
 
 ---
 
-### hv-0864 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:81`
+### hv-0858 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:81`
 
 **Substring**
 
@@ -1645,7 +1573,7 @@ vox_
 
 ---
 
-### hv-0865 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:126`
+### hv-0859 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:126`
 
 **Substring**
 
@@ -1663,7 +1591,7 @@ vox_config_get
 
 ---
 
-### hv-0866 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:127`
+### hv-0860 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:127`
 
 **Substring**
 
@@ -1681,7 +1609,7 @@ vox_get_config
 
 ---
 
-### hv-0867 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:128`
+### hv-0861 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:128`
 
 **Substring**
 
@@ -1699,7 +1627,7 @@ vox_other
 
 ---
 
-### hv-0868 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:140`
+### hv-0862 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:140`
 
 **Substring**
 
@@ -1717,7 +1645,7 @@ vox_indented_only
 
 ---
 
-### hv-0869 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:147`
+### hv-0863 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:147`
 
 **Substring**
 
@@ -1735,7 +1663,7 @@ vox_indented_only
 
 ---
 
-### hv-0870 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:148`
+### hv-0864 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:148`
 
 **Substring**
 
@@ -1753,7 +1681,7 @@ verify
 
 ---
 
-### hv-0871 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:155`
+### hv-0865 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:155`
 
 **Substring**
 
@@ -1771,7 +1699,7 @@ verify
 
 ---
 
-### hv-0872 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:223`
+### hv-0866 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:223`
 
 **Substring**
 
@@ -1789,7 +1717,7 @@ visible_alias = "orchestrator"
 
 ---
 
-### hv-0873 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:228`
+### hv-0867 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:228`
 
 **Substring**
 
@@ -1804,6 +1732,78 @@ visible_alias = "clavis"
 **Verify**: `rg -nF "visible_alias = \"clavis\"" "crates/vox-cli/src/commands/ci/command_compliance/tests.rs"`
 
 **Confidence**: high
+
+---
+
+### hv-0868 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:233`
+
+**Substring**
+
+```text
+visible_alias = "speech"
+```
+
+**Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
+
+**Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
+
+**Verify**: `rg -nF "visible_alias = \"speech\"" "crates/vox-cli/src/commands/ci/command_compliance/tests.rs"`
+
+**Confidence**: high
+
+---
+
+### hv-0869 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:249`
+
+**Substring**
+
+```text
+fabrica
+```
+
+**Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
+
+**Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
+
+**Verify**: `rg -nF "fabrica" "crates/vox-cli/src/commands/ci/command_compliance/tests.rs"`
+
+**Confidence**: low
+
+---
+
+### hv-0870 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:253`
+
+**Substring**
+
+```text
+secrets
+```
+
+**Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
+
+**Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
+
+**Verify**: `rg -nF "secrets" "crates/vox-cli/src/commands/ci/command_compliance/tests.rs"`
+
+**Confidence**: low
+
+---
+
+### hv-0871 — `crates/vox-cli/src/commands/ci/command_compliance/tests.rs:258`
+
+**Substring**
+
+```text
+clavis
+```
+
+**Why it matters**: Case-sensitive substring checks often fail on real user or OS input.
+
+**Fix** (normalize-input-or-casefold): Normalize (trim + lower) before compare, or use str::eq_ignore_ascii_case / unicase as appropriate.
+
+**Verify**: `rg -nF "clavis" "crates/vox-cli/src/commands/ci/command_compliance/tests.rs"`
+
+**Confidence**: low
 
 ---
 

@@ -1,9 +1,9 @@
 # 09 — hardcoded model names
 
 **Severity**: warning  
-**Itemized**: 61
+**Itemized**: 60
 
-### hv-0628 — `contracts/orchestration/model-catalog.bootstrap.v1.json:184`
+### hv-0625 — `contracts/orchestration/model-catalog.bootstrap.v1.json:184`
 
 **Substring**
 
@@ -23,7 +23,7 @@
 
 ---
 
-### hv-0629 — `contracts/orchestration/model-routing.v1.yaml:85`
+### hv-0626 — `contracts/orchestration/model-routing.v1.yaml:72`
 
 **Substring**
 
@@ -43,7 +43,7 @@
 
 ---
 
-### hv-0630 — `contracts/orchestration/model-routing.v1.yaml:86`
+### hv-0627 — `contracts/orchestration/model-routing.v1.yaml:73`
 
 **Substring**
 
@@ -63,7 +63,7 @@
 
 ---
 
-### hv-0631 — `contracts/orchestration/model-routing.v1.yaml:87`
+### hv-0628 — `contracts/orchestration/model-routing.v1.yaml:74`
 
 **Substring**
 
@@ -83,7 +83,7 @@
 
 ---
 
-### hv-0632 — `contracts/speech-to-code/audit-matrix.schema.json:36`
+### hv-0629 — `contracts/speech-to-code/audit-matrix.schema.json:36`
 
 **Substring**
 
@@ -103,7 +103,7 @@
 
 ---
 
-### hv-0633 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:298`
+### hv-0630 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:298`
 
 **Substring**
 
@@ -123,7 +123,7 @@
 
 ---
 
-### hv-0634 — `crates/vox-cli/src/commands/ci/speech_runtime_suite.rs:154`
+### hv-0631 — `crates/vox-cli/src/commands/ci/speech_runtime_suite.rs:154`
 
 **Substring**
 
@@ -143,7 +143,7 @@
 
 ---
 
-### hv-0635 — `crates/vox-code-audit/src/detectors/llm_provider_call.rs:208`
+### hv-0632 — `crates/vox-code-audit/src/detectors/llm_provider_call.rs:208`
 
 **Substring**
 
@@ -163,7 +163,7 @@
 
 ---
 
-### hv-0636 — `crates/vox-code-audit/src/review/providers.rs:72`
+### hv-0633 — `crates/vox-code-audit/src/review/providers.rs:72`
 
 **Substring**
 
@@ -183,7 +183,7 @@
 
 ---
 
-### hv-0637 — `crates/vox-codegen/src/codegen_ts/routes.rs:46`
+### hv-0634 — `crates/vox-codegen/src/codegen_ts/routes.rs:46`
 
 **Substring**
 
@@ -203,7 +203,7 @@
 
 ---
 
-### hv-0638 — `crates/vox-compiler/src/typeck/builtins.rs:391`
+### hv-0635 — `crates/vox-compiler/src/typeck/builtins.rs:391`
 
 **Substring**
 
@@ -223,7 +223,7 @@
 
 ---
 
-### hv-0639 — `crates/vox-compiler/src/typeck/builtins.rs:393`
+### hv-0636 — `crates/vox-compiler/src/typeck/builtins.rs:393`
 
 **Substring**
 
@@ -243,7 +243,7 @@
 
 ---
 
-### hv-0640 — `crates/vox-config/src/operator_registry.rs:341`
+### hv-0637 — `crates/vox-config/src/operator_registry.rs:341`
 
 **Substring**
 
@@ -263,7 +263,7 @@
 
 ---
 
-### hv-0641 — `crates/vox-config/src/operator_registry.rs:586`
+### hv-0638 — `crates/vox-config/src/operator_registry.rs:586`
 
 **Substring**
 
@@ -283,7 +283,7 @@
 
 ---
 
-### hv-0642 — `crates/vox-corpus/src/synthetic_gen/bodies/_tool_pairs_body.rs:135`
+### hv-0639 — `crates/vox-corpus/src/synthetic_gen/bodies/_tool_pairs_body.rs:135`
 
 **Substring**
 
@@ -303,7 +303,7 @@
 
 ---
 
-### hv-0643 — `crates/vox-gamify/src/cost.rs:192`
+### hv-0640 — `crates/vox-gamify/src/cost.rs:192`
 
 **Substring**
 
@@ -323,7 +323,7 @@
 
 ---
 
-### hv-0644 — `crates/vox-gamify/src/cost.rs:200`
+### hv-0641 — `crates/vox-gamify/src/cost.rs:200`
 
 **Substring**
 
@@ -343,7 +343,7 @@
 
 ---
 
-### hv-0645 — `crates/vox-ml-cli/src/commands/mens/system_prompt_template.rs:34`
+### hv-0642 — `crates/vox-ml-cli/src/commands/mens/system_prompt_template.rs:34`
 
 **Substring**
 
@@ -363,7 +363,7 @@
 
 ---
 
-### hv-0646 — `crates/vox-oratio/src/backend_dispatch.rs:40`
+### hv-0643 — `crates/vox-oratio/src/backend_dispatch.rs:40`
 
 **Substring**
 
@@ -383,7 +383,7 @@
 
 ---
 
-### hv-0647 — `crates/vox-oratio/src/backends/candle_engine.rs:198`
+### hv-0644 — `crates/vox-oratio/src/backends/candle_engine.rs:198`
 
 **Substring**
 
@@ -403,7 +403,7 @@
 
 ---
 
-### hv-0648 — `crates/vox-oratio/src/backends/candle_engine.rs:341`
+### hv-0645 — `crates/vox-oratio/src/backends/candle_engine.rs:341`
 
 **Substring**
 
@@ -423,7 +423,7 @@
 
 ---
 
-### hv-0649 — `crates/vox-oratio/src/backends/candle_engine.rs:363`
+### hv-0646 — `crates/vox-oratio/src/backends/candle_engine.rs:363`
 
 **Substring**
 
@@ -443,7 +443,7 @@
 
 ---
 
-### hv-0650 — `crates/vox-oratio/src/backends/candle_engine.rs:628`
+### hv-0647 — `crates/vox-oratio/src/backends/candle_engine.rs:628`
 
 **Substring**
 
@@ -463,7 +463,7 @@
 
 ---
 
-### hv-0651 — `crates/vox-oratio/src/backends/candle_engine.rs:645`
+### hv-0648 — `crates/vox-oratio/src/backends/candle_engine.rs:645`
 
 **Substring**
 
@@ -483,7 +483,7 @@
 
 ---
 
-### hv-0652 — `crates/vox-oratio/src/backends/candle_whisper.rs:179`
+### hv-0649 — `crates/vox-oratio/src/backends/candle_whisper.rs:179`
 
 **Substring**
 
@@ -503,7 +503,7 @@
 
 ---
 
-### hv-0653 — `crates/vox-oratio/src/backends/candle_whisper.rs:556`
+### hv-0650 — `crates/vox-oratio/src/backends/candle_whisper.rs:556`
 
 **Substring**
 
@@ -523,7 +523,7 @@
 
 ---
 
-### hv-0654 — `crates/vox-oratio/src/backends/candle_whisper.rs:626`
+### hv-0651 — `crates/vox-oratio/src/backends/candle_whisper.rs:626`
 
 **Substring**
 
@@ -543,7 +543,7 @@
 
 ---
 
-### hv-0655 — `crates/vox-oratio/src/backends/candle_whisper.rs:659`
+### hv-0652 — `crates/vox-oratio/src/backends/candle_whisper.rs:659`
 
 **Substring**
 
@@ -563,7 +563,7 @@
 
 ---
 
-### hv-0656 — `crates/vox-oratio/src/backends/candle_whisper.rs:689`
+### hv-0653 — `crates/vox-oratio/src/backends/candle_whisper.rs:689`
 
 **Substring**
 
@@ -583,7 +583,7 @@
 
 ---
 
-### hv-0657 — `crates/vox-oratio/src/backends/candle_whisper.rs:702`
+### hv-0654 — `crates/vox-oratio/src/backends/candle_whisper.rs:702`
 
 **Substring**
 
@@ -603,7 +603,7 @@
 
 ---
 
-### hv-0658 — `crates/vox-oratio/src/backends/candle_whisper.rs:745`
+### hv-0655 — `crates/vox-oratio/src/backends/candle_whisper.rs:745`
 
 **Substring**
 
@@ -623,7 +623,7 @@
 
 ---
 
-### hv-0659 — `crates/vox-oratio/src/backends/multilingual.rs:142`
+### hv-0656 — `crates/vox-oratio/src/backends/multilingual.rs:142`
 
 **Substring**
 
@@ -643,7 +643,7 @@
 
 ---
 
-### hv-0660 — `crates/vox-oratio/src/refine/rules.rs:54`
+### hv-0657 — `crates/vox-oratio/src/refine/rules.rs:54`
 
 **Substring**
 
@@ -663,7 +663,7 @@
 
 ---
 
-### hv-0661 — `crates/vox-orchestrator-mcp/src/vcs_tools/commit_tools.rs:126`
+### hv-0658 — `crates/vox-orchestrator-mcp/src/vcs_tools/commit_tools.rs:126`
 
 **Substring**
 
@@ -683,7 +683,7 @@
 
 ---
 
-### hv-0662 — `crates/vox-orchestrator/src/events.rs:834`
+### hv-0659 — `crates/vox-orchestrator/src/events.rs:834`
 
 **Substring**
 
@@ -703,27 +703,7 @@
 
 ---
 
-### hv-0663 — `crates/vox-orchestrator/src/models/spec.rs:251`
-
-**Substring**
-
-```text
-"claude-mythos-preview-20260407"
-```
-
-**Why it matters**: Model ids should follow registry / user config to avoid lock-in to one provider spelling.
-
-**Fix** (centralize-in-contract): Resolve model id from runtime manifest / capability registry / user config instead of string literals.
-
-**SSOT**: `contracts/capability/capability-registry.yaml`
-
-**Verify**: `rg -nF "\"claude-mythos-preview-20260407\"" "crates/vox-orchestrator/src/models/spec.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-0664 — `crates/vox-orchestrator/src/models/tests.rs:40`
+### hv-0660 — `crates/vox-orchestrator/src/models/tests.rs:40`
 
 **Substring**
 
@@ -743,7 +723,7 @@
 
 ---
 
-### hv-0665 — `crates/vox-orchestrator/src/models/tests.rs:154`
+### hv-0661 — `crates/vox-orchestrator/src/models/tests.rs:154`
 
 **Substring**
 
@@ -763,7 +743,7 @@
 
 ---
 
-### hv-0666 — `crates/vox-orchestrator/src/session/manager/tests.rs:88`
+### hv-0662 — `crates/vox-orchestrator/src/session/manager/tests.rs:88`
 
 **Substring**
 
@@ -783,7 +763,7 @@
 
 ---
 
-### hv-0667 — `crates/vox-orchestrator/src/session/manager/tests.rs:91`
+### hv-0663 — `crates/vox-orchestrator/src/session/manager/tests.rs:91`
 
 **Substring**
 
@@ -803,7 +783,7 @@
 
 ---
 
-### hv-0668 — `crates/vox-plugin-oratio/src/backends/candle_engine.rs:198`
+### hv-0664 — `crates/vox-plugin-oratio/src/backends/candle_engine.rs:198`
 
 **Substring**
 
@@ -823,7 +803,7 @@
 
 ---
 
-### hv-0669 — `crates/vox-plugin-oratio/src/backends/candle_engine.rs:341`
+### hv-0665 — `crates/vox-plugin-oratio/src/backends/candle_engine.rs:341`
 
 **Substring**
 
@@ -843,7 +823,7 @@
 
 ---
 
-### hv-0670 — `crates/vox-plugin-oratio/src/backends/candle_engine.rs:363`
+### hv-0666 — `crates/vox-plugin-oratio/src/backends/candle_engine.rs:363`
 
 **Substring**
 
@@ -863,7 +843,7 @@
 
 ---
 
-### hv-0671 — `crates/vox-plugin-oratio/src/backends/candle_engine.rs:628`
+### hv-0667 — `crates/vox-plugin-oratio/src/backends/candle_engine.rs:628`
 
 **Substring**
 
@@ -883,7 +863,7 @@
 
 ---
 
-### hv-0672 — `crates/vox-plugin-oratio/src/backends/candle_engine.rs:645`
+### hv-0668 — `crates/vox-plugin-oratio/src/backends/candle_engine.rs:645`
 
 **Substring**
 
@@ -903,7 +883,7 @@
 
 ---
 
-### hv-0673 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:173`
+### hv-0669 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:173`
 
 **Substring**
 
@@ -923,7 +903,7 @@
 
 ---
 
-### hv-0674 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:512`
+### hv-0670 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:512`
 
 **Substring**
 
@@ -943,7 +923,7 @@
 
 ---
 
-### hv-0675 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:582`
+### hv-0671 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:582`
 
 **Substring**
 
@@ -963,7 +943,7 @@
 
 ---
 
-### hv-0676 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:613`
+### hv-0672 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:613`
 
 **Substring**
 
@@ -983,7 +963,7 @@
 
 ---
 
-### hv-0677 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:643`
+### hv-0673 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:643`
 
 **Substring**
 
@@ -1003,7 +983,7 @@
 
 ---
 
-### hv-0678 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:656`
+### hv-0674 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:656`
 
 **Substring**
 
@@ -1023,7 +1003,7 @@
 
 ---
 
-### hv-0679 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:685`
+### hv-0675 — `crates/vox-plugin-oratio/src/backends/candle_whisper.rs:685`
 
 **Substring**
 
@@ -1043,7 +1023,7 @@
 
 ---
 
-### hv-0680 — `crates/vox-plugin-oratio/src/backends/multilingual.rs:142`
+### hv-0676 — `crates/vox-plugin-oratio/src/backends/multilingual.rs:142`
 
 **Substring**
 
@@ -1063,7 +1043,7 @@
 
 ---
 
-### hv-0681 — `crates/vox-plugin-publication/src/ingest.rs:34`
+### hv-0677 — `crates/vox-plugin-publication/src/ingest.rs:34`
 
 **Substring**
 
@@ -1083,7 +1063,7 @@
 
 ---
 
-### hv-0682 — `crates/vox-publisher/src/atlas/manifest.rs:87`
+### hv-0678 — `crates/vox-publisher/src/atlas/manifest.rs:87`
 
 **Substring**
 
@@ -1103,7 +1083,7 @@
 
 ---
 
-### hv-0683 — `crates/vox-research-events/src/observation.rs:113`
+### hv-0679 — `crates/vox-research-events/src/observation.rs:113`
 
 **Substring**
 
@@ -1123,7 +1103,7 @@
 
 ---
 
-### hv-0684 — `crates/vox-ro-crate/src/ai_disclosure.rs:65`
+### hv-0680 — `crates/vox-ro-crate/src/ai_disclosure.rs:65`
 
 **Substring**
 
@@ -1143,7 +1123,7 @@
 
 ---
 
-### hv-0685 — `crates/vox-ro-crate/src/ai_disclosure.rs:71`
+### hv-0681 — `crates/vox-ro-crate/src/ai_disclosure.rs:71`
 
 **Substring**
 
@@ -1163,7 +1143,7 @@
 
 ---
 
-### hv-0686 — `crates/vox-search/src/embedding_env.rs:47`
+### hv-0682 — `crates/vox-search/src/embedding_env.rs:47`
 
 **Substring**
 
@@ -1183,7 +1163,7 @@
 
 ---
 
-### hv-0687 — `crates/vox-search/src/embedding_env.rs:72`
+### hv-0683 — `crates/vox-search/src/embedding_env.rs:72`
 
 **Substring**
 
@@ -1203,7 +1183,7 @@
 
 ---
 
-### hv-0688 — `crates/vox-telemetry/src/types.rs:514`
+### hv-0684 — `crates/vox-telemetry/src/types.rs:514`
 
 **Substring**
 

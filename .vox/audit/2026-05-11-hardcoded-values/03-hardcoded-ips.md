@@ -1,7 +1,7 @@
 # 03 — hardcoded ips
 
 **Severity**: warning  
-**Itemized**: 91
+**Itemized**: 88
 
 ### hv-0174 — `apps/editor/vox-vscode/src/extension.ts:44`
 
@@ -43,7 +43,7 @@
 
 ---
 
-### hv-0176 — `contracts/config/env-vars.v1.yaml:3915`
+### hv-0176 — `contracts/config/env-vars.v1.yaml:3933`
 
 **Substring**
 
@@ -63,7 +63,7 @@
 
 ---
 
-### hv-0177 — `contracts/config/env-vars.v1.yaml:4089`
+### hv-0177 — `contracts/config/env-vars.v1.yaml:4107`
 
 **Substring**
 
@@ -443,67 +443,7 @@
 
 ---
 
-### hv-0196 — `crates/vox-cli/src/commands/build.rs:376`
-
-**Substring**
-
-```text
-127.0.0.1
-```
-
-**Why it matters**: Bare IPs are environment-specific and often wrong on IPv6-only or container networks.
-
-**Fix** (extract-named-constant): Move IP to a named const or config struct field; avoid bare literals in listen/connect calls.
-
-**SSOT**: `contracts/config/env-vars.v1.yaml`
-
-**Verify**: `rg -nF "127.0.0.1" "crates/vox-cli/src/commands/build.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-0197 — `crates/vox-cli/src/commands/dashboard.rs:89`
-
-**Substring**
-
-```text
-127.0.0.1
-```
-
-**Why it matters**: Bare IPs are environment-specific and often wrong on IPv6-only or container networks.
-
-**Fix** (extract-named-constant): Move IP to a named const or config struct field; avoid bare literals in listen/connect calls.
-
-**SSOT**: `contracts/config/env-vars.v1.yaml`
-
-**Verify**: `rg -nF "127.0.0.1" "crates/vox-cli/src/commands/dashboard.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-0198 — `crates/vox-cli/src/commands/dashboard.rs:90`
-
-**Substring**
-
-```text
-127.0.0.1
-```
-
-**Why it matters**: Bare IPs are environment-specific and often wrong on IPv6-only or container networks.
-
-**Fix** (extract-named-constant): Move IP to a named const or config struct field; avoid bare literals in listen/connect calls.
-
-**SSOT**: `contracts/config/env-vars.v1.yaml`
-
-**Verify**: `rg -nF "127.0.0.1" "crates/vox-cli/src/commands/dashboard.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-0199 — `crates/vox-cli/src/commands/run.rs:163`
+### hv-0196 — `crates/vox-cli/src/commands/run.rs:173`
 
 **Substring**
 
@@ -523,7 +463,7 @@
 
 ---
 
-### hv-0200 — `crates/vox-cli/src/commands/run.rs:165`
+### hv-0197 — `crates/vox-cli/src/commands/run.rs:175`
 
 **Substring**
 
@@ -543,7 +483,7 @@
 
 ---
 
-### hv-0201 — `crates/vox-cli/src/commands/share.rs:122`
+### hv-0198 — `crates/vox-cli/src/commands/share.rs:132`
 
 **Substring**
 
@@ -563,7 +503,7 @@
 
 ---
 
-### hv-0202 — `crates/vox-cli/src/commands/share.rs:248`
+### hv-0199 — `crates/vox-cli/src/commands/share.rs:260`
 
 **Substring**
 
@@ -583,7 +523,7 @@
 
 ---
 
-### hv-0203 — `crates/vox-cli/src/compilerd.rs:319`
+### hv-0200 — `crates/vox-cli/src/compilerd.rs:327`
 
 **Substring**
 
@@ -603,7 +543,7 @@
 
 ---
 
-### hv-0204 — `crates/vox-cli/src/compilerd.rs:405`
+### hv-0201 — `crates/vox-cli/src/compilerd.rs:414`
 
 **Substring**
 
@@ -623,7 +563,7 @@
 
 ---
 
-### hv-0205 — `crates/vox-cli/src/frontend.rs:57`
+### hv-0202 — `crates/vox-cli/src/frontend.rs:57`
 
 **Substring**
 
@@ -643,7 +583,7 @@
 
 ---
 
-### hv-0206 — `crates/vox-cli/src/templates/spa.rs:350`
+### hv-0203 — `crates/vox-cli/src/templates/spa.rs:350`
 
 **Substring**
 
@@ -663,7 +603,7 @@
 
 ---
 
-### hv-0207 — `crates/vox-cli/src/templates/spa.rs:380`
+### hv-0204 — `crates/vox-cli/src/templates/spa.rs:380`
 
 **Substring**
 
@@ -683,7 +623,7 @@
 
 ---
 
-### hv-0208 — `crates/vox-code-audit/src/detectors/magic_value.rs:142`
+### hv-0205 — `crates/vox-code-audit/src/detectors/magic_value.rs:142`
 
 **Substring**
 
@@ -703,7 +643,7 @@
 
 ---
 
-### hv-0209 — `crates/vox-code-audit/src/detectors/magic_value.rs:143`
+### hv-0206 — `crates/vox-code-audit/src/detectors/magic_value.rs:143`
 
 **Substring**
 
@@ -723,7 +663,7 @@
 
 ---
 
-### hv-0210 — `crates/vox-code-audit/src/detectors/magic_value.rs:213`
+### hv-0207 — `crates/vox-code-audit/src/detectors/magic_value.rs:213`
 
 **Substring**
 
@@ -743,7 +683,7 @@
 
 ---
 
-### hv-0211 — `crates/vox-code-audit/src/detectors/magic_value.rs:241`
+### hv-0208 — `crates/vox-code-audit/src/detectors/magic_value.rs:241`
 
 **Substring**
 
@@ -763,7 +703,7 @@
 
 ---
 
-### hv-0212 — `crates/vox-codegen/src/codegen_ts/scaffold.rs:108`
+### hv-0209 — `crates/vox-codegen/src/codegen_ts/scaffold.rs:108`
 
 **Substring**
 
@@ -783,7 +723,7 @@
 
 ---
 
-### hv-0213 — `crates/vox-ml-cli/src/commands/ai/serve/mod.rs:250`
+### hv-0210 — `crates/vox-ml-cli/src/commands/ai/serve/mod.rs:250`
 
 **Substring**
 
@@ -803,7 +743,7 @@
 
 ---
 
-### hv-0214 — `crates/vox-ml-cli/src/commands/populi_cli.rs:975`
+### hv-0211 — `crates/vox-ml-cli/src/commands/populi_cli.rs:975`
 
 **Substring**
 
@@ -823,7 +763,7 @@
 
 ---
 
-### hv-0215 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:412`
+### hv-0212 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:412`
 
 **Substring**
 
@@ -843,7 +783,7 @@
 
 ---
 
-### hv-0216 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:414`
+### hv-0213 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:414`
 
 **Substring**
 
@@ -863,7 +803,7 @@
 
 ---
 
-### hv-0217 — `crates/vox-openclaw-runtime/src/openclaw_adapter.rs:36`
+### hv-0214 — `crates/vox-openclaw-runtime/src/openclaw_adapter.rs:36`
 
 **Substring**
 
@@ -883,7 +823,7 @@
 
 ---
 
-### hv-0218 — `crates/vox-openclaw-runtime/src/openclaw_adapter.rs:42`
+### hv-0215 — `crates/vox-openclaw-runtime/src/openclaw_adapter.rs:42`
 
 **Substring**
 
@@ -903,7 +843,7 @@
 
 ---
 
-### hv-0219 — `crates/vox-openclaw-runtime/src/openclaw_discovery.rs:274`
+### hv-0216 — `crates/vox-openclaw-runtime/src/openclaw_discovery.rs:274`
 
 **Substring**
 
@@ -923,7 +863,7 @@
 
 ---
 
-### hv-0220 — `crates/vox-openclaw-runtime/src/openclaw_discovery.rs:278`
+### hv-0217 — `crates/vox-openclaw-runtime/src/openclaw_discovery.rs:278`
 
 **Substring**
 
@@ -943,7 +883,7 @@
 
 ---
 
-### hv-0221 — `crates/vox-openclaw-runtime/src/openclaw_gateway_ws.rs:38`
+### hv-0218 — `crates/vox-openclaw-runtime/src/openclaw_gateway_ws.rs:38`
 
 **Substring**
 
@@ -963,7 +903,7 @@
 
 ---
 
-### hv-0222 — `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs:56`
+### hv-0219 — `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs:56`
 
 **Substring**
 
@@ -983,7 +923,7 @@
 
 ---
 
-### hv-0223 — `crates/vox-orchestrator-mcp/src/http_gateway/origin_guard.rs:69`
+### hv-0220 — `crates/vox-orchestrator-mcp/src/http_gateway/origin_guard.rs:69`
 
 **Substring**
 
@@ -1003,7 +943,7 @@
 
 ---
 
-### hv-0224 — `crates/vox-orchestrator-mcp/src/http_gateway/origin_guard.rs:109`
+### hv-0221 — `crates/vox-orchestrator-mcp/src/http_gateway/origin_guard.rs:109`
 
 **Substring**
 
@@ -1023,7 +963,7 @@
 
 ---
 
-### hv-0225 — `crates/vox-orchestrator-mcp/src/http_gateway/origin_guard.rs:170`
+### hv-0222 — `crates/vox-orchestrator-mcp/src/http_gateway/origin_guard.rs:170`
 
 **Substring**
 
@@ -1043,7 +983,7 @@
 
 ---
 
-### hv-0226 — `crates/vox-orchestrator-mcp/src/llm_bridge/mod.rs:64`
+### hv-0223 — `crates/vox-orchestrator-mcp/src/llm_bridge/mod.rs:64`
 
 **Substring**
 
@@ -1063,7 +1003,7 @@
 
 ---
 
-### hv-0227 — `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs:186`
+### hv-0224 — `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs:186`
 
 **Substring**
 
@@ -1083,7 +1023,7 @@
 
 ---
 
-### hv-0228 — `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs:325`
+### hv-0225 — `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs:325`
 
 **Substring**
 
@@ -1103,7 +1043,7 @@
 
 ---
 
-### hv-0229 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_endpoints.rs:81`
+### hv-0226 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_endpoints.rs:81`
 
 **Substring**
 
@@ -1123,7 +1063,7 @@
 
 ---
 
-### hv-0230 — `crates/vox-orchestrator-mcp/src/llm_bridge/providers/probe.rs:18`
+### hv-0227 — `crates/vox-orchestrator-mcp/src/llm_bridge/providers/probe.rs:18`
 
 **Substring**
 
@@ -1143,7 +1083,7 @@
 
 ---
 
-### hv-0231 — `crates/vox-orchestrator-mcp/src/oratio_tools.rs:497`
+### hv-0228 — `crates/vox-orchestrator-mcp/src/oratio_tools.rs:497`
 
 **Substring**
 
@@ -1163,7 +1103,7 @@
 
 ---
 
-### hv-0232 — `crates/vox-orchestrator/src/config/tests.rs:108`
+### hv-0229 — `crates/vox-orchestrator/src/config/tests.rs:108`
 
 **Substring**
 
@@ -1183,7 +1123,7 @@
 
 ---
 
-### hv-0233 — `crates/vox-orchestrator/src/config/tests.rs:122`
+### hv-0230 — `crates/vox-orchestrator/src/config/tests.rs:122`
 
 **Substring**
 
@@ -1203,7 +1143,7 @@
 
 ---
 
-### hv-0234 — `crates/vox-orchestrator/src/pii_filter.rs:50`
+### hv-0231 — `crates/vox-orchestrator/src/pii_filter.rs:50`
 
 **Substring**
 
@@ -1223,7 +1163,7 @@
 
 ---
 
-### hv-0235 — `crates/vox-plugin-populi-mesh/src/mesh.rs:27`
+### hv-0232 — `crates/vox-plugin-populi-mesh/src/mesh.rs:27`
 
 **Substring**
 
@@ -1243,7 +1183,7 @@
 
 ---
 
-### hv-0236 — `crates/vox-plugin-populi-mesh/src/transport/mod.rs:533`
+### hv-0233 — `crates/vox-plugin-populi-mesh/src/transport/mod.rs:533`
 
 **Substring**
 
@@ -1263,7 +1203,7 @@
 
 ---
 
-### hv-0237 — `crates/vox-plugin-populi-mesh/src/transport/router.rs:229`
+### hv-0234 — `crates/vox-plugin-populi-mesh/src/transport/router.rs:229`
 
 **Substring**
 
@@ -1283,7 +1223,7 @@
 
 ---
 
-### hv-0238 — `crates/vox-plugin-populi-mesh/src/transport/router.rs:274`
+### hv-0235 — `crates/vox-plugin-populi-mesh/src/transport/router.rs:274`
 
 **Substring**
 
@@ -1303,7 +1243,7 @@
 
 ---
 
-### hv-0239 — `crates/vox-plugin-populi-mesh/src/transport/router.rs:322`
+### hv-0236 — `crates/vox-plugin-populi-mesh/src/transport/router.rs:322`
 
 **Substring**
 
@@ -1323,7 +1263,7 @@
 
 ---
 
-### hv-0240 — `crates/vox-plugin-populi-mesh/src/transport/router.rs:353`
+### hv-0237 — `crates/vox-plugin-populi-mesh/src/transport/router.rs:353`
 
 **Substring**
 
@@ -1343,7 +1283,7 @@
 
 ---
 
-### hv-0241 — `crates/vox-plugin-webhook/src/lib.rs:63`
+### hv-0238 — `crates/vox-plugin-webhook/src/lib.rs:63`
 
 **Substring**
 
@@ -1363,7 +1303,7 @@
 
 ---
 
-### hv-0242 — `crates/vox-populi/src/lib.rs:160`
+### hv-0239 — `crates/vox-populi/src/lib.rs:160`
 
 **Substring**
 
@@ -1383,7 +1323,7 @@
 
 ---
 
-### hv-0243 — `crates/vox-populi/src/lib.rs:404`
+### hv-0240 — `crates/vox-populi/src/lib.rs:404`
 
 **Substring**
 
@@ -1403,7 +1343,7 @@
 
 ---
 
-### hv-0244 — `crates/vox-populi/src/lib.rs:415`
+### hv-0241 — `crates/vox-populi/src/lib.rs:415`
 
 **Substring**
 
@@ -1423,7 +1363,7 @@
 
 ---
 
-### hv-0245 — `crates/vox-populi/src/lib.rs:416`
+### hv-0242 — `crates/vox-populi/src/lib.rs:416`
 
 **Substring**
 
@@ -1443,7 +1383,7 @@
 
 ---
 
-### hv-0246 — `crates/vox-populi/src/mens/cloud/local_provider.rs:60`
+### hv-0243 — `crates/vox-populi/src/mens/cloud/local_provider.rs:60`
 
 **Substring**
 
@@ -1463,7 +1403,7 @@
 
 ---
 
-### hv-0247 — `crates/vox-populi/src/mens/cloud/local_provider.rs:122`
+### hv-0244 — `crates/vox-populi/src/mens/cloud/local_provider.rs:122`
 
 **Substring**
 
@@ -1483,7 +1423,7 @@
 
 ---
 
-### hv-0248 — `crates/vox-populi/src/transport/mod.rs:688`
+### hv-0245 — `crates/vox-populi/src/transport/mod.rs:688`
 
 **Substring**
 
@@ -1503,7 +1443,7 @@
 
 ---
 
-### hv-0249 — `crates/vox-populi/src/transport/router.rs:258`
+### hv-0246 — `crates/vox-populi/src/transport/router.rs:258`
 
 **Substring**
 
@@ -1523,7 +1463,7 @@
 
 ---
 
-### hv-0250 — `crates/vox-populi/src/transport/router.rs:303`
+### hv-0247 — `crates/vox-populi/src/transport/router.rs:303`
 
 **Substring**
 
@@ -1543,7 +1483,7 @@
 
 ---
 
-### hv-0251 — `crates/vox-populi/src/transport/router.rs:351`
+### hv-0248 — `crates/vox-populi/src/transport/router.rs:351`
 
 **Substring**
 
@@ -1563,7 +1503,7 @@
 
 ---
 
-### hv-0252 — `crates/vox-populi/src/transport/router.rs:382`
+### hv-0249 — `crates/vox-populi/src/transport/router.rs:382`
 
 **Substring**
 
@@ -1583,7 +1523,7 @@
 
 ---
 
-### hv-0253 — `crates/vox-repository/src/populi_toml.rs:140`
+### hv-0250 — `crates/vox-repository/src/populi_toml.rs:140`
 
 **Substring**
 
@@ -1603,7 +1543,7 @@
 
 ---
 
-### hv-0254 — `crates/vox-repository/src/populi_toml.rs:148`
+### hv-0251 — `crates/vox-repository/src/populi_toml.rs:148`
 
 **Substring**
 
@@ -1623,7 +1563,7 @@
 
 ---
 
-### hv-0255 — `crates/vox-repository/src/populi_toml.rs:162`
+### hv-0252 — `crates/vox-repository/src/populi_toml.rs:162`
 
 **Substring**
 
@@ -1643,7 +1583,7 @@
 
 ---
 
-### hv-0256 — `crates/vox-repository/src/populi_toml.rs:164`
+### hv-0253 — `crates/vox-repository/src/populi_toml.rs:164`
 
 **Substring**
 
@@ -1663,7 +1603,7 @@
 
 ---
 
-### hv-0257 — `crates/vox-repository/src/populi_toml.rs:169`
+### hv-0254 — `crates/vox-repository/src/populi_toml.rs:169`
 
 **Substring**
 
@@ -1683,7 +1623,7 @@
 
 ---
 
-### hv-0258 — `crates/vox-repository/src/populi_toml.rs:173`
+### hv-0255 — `crates/vox-repository/src/populi_toml.rs:173`
 
 **Substring**
 
@@ -1703,7 +1643,7 @@
 
 ---
 
-### hv-0259 — `crates/vox-repository/src/populi_toml.rs:209`
+### hv-0256 — `crates/vox-repository/src/populi_toml.rs:209`
 
 **Substring**
 
@@ -1723,7 +1663,7 @@
 
 ---
 
-### hv-0260 — `crates/vox-share/src/backends/cloudflare.rs:48`
+### hv-0257 — `crates/vox-share/src/backends/cloudflare.rs:48`
 
 **Substring**
 
@@ -1743,7 +1683,7 @@
 
 ---
 
-### hv-0261 — `crates/vox-share/src/backends/lan.rs:36`
+### hv-0258 — `crates/vox-share/src/backends/lan.rs:36`
 
 **Substring**
 
@@ -1763,7 +1703,7 @@
 
 ---
 
-### hv-0262 — `crates/vox-share/src/backends/lan.rs:55`
+### hv-0259 — `crates/vox-share/src/backends/lan.rs:55`
 
 **Substring**
 
@@ -1783,7 +1723,7 @@
 
 ---
 
-### hv-0263 — `crates/vox-share/src/sse_detect.rs:12`
+### hv-0260 — `crates/vox-share/src/sse_detect.rs:12`
 
 **Substring**
 
@@ -1803,7 +1743,7 @@
 
 ---
 
-### hv-0264 — `crates/vox-test-harness/src/portpicker.rs:8`
+### hv-0261 — `crates/vox-test-harness/src/portpicker.rs:8`
 
 **Substring**
 

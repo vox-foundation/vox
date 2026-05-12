@@ -1,9 +1,9 @@
 # 04 — hardcoded filesystem paths
 
 **Severity**: warning  
-**Itemized**: 19
+**Itemized**: 20
 
-### hv-0265 — `contracts/reports/scaling-audit/findings-latest.json:10191`
+### hv-0262 — `contracts/reports/scaling-audit/findings-latest.json:10191`
 
 **Substring**
 
@@ -23,7 +23,7 @@
 
 ---
 
-### hv-0266 — `contracts/scaling/policy.yaml:17`
+### hv-0263 — `contracts/scaling/policy.yaml:17`
 
 **Substring**
 
@@ -43,7 +43,7 @@
 
 ---
 
-### hv-0267 — `crates/vox-cli/src/commands/ci/dev_loop_audit.rs:180`
+### hv-0264 — `crates/vox-cli/src/commands/ci/dev_loop_audit.rs:180`
 
 **Substring**
 
@@ -63,7 +63,7 @@
 
 ---
 
-### hv-0268 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/tail.rs:254`
+### hv-0265 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/tail.rs:254`
 
 **Substring**
 
@@ -83,7 +83,7 @@
 
 ---
 
-### hv-0269 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/tail.rs:295`
+### hv-0266 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/tail.rs:295`
 
 **Substring**
 
@@ -103,7 +103,7 @@
 
 ---
 
-### hv-0270 — `crates/vox-code-audit/src/detectors/magic_value.rs:170`
+### hv-0267 — `crates/vox-code-audit/src/detectors/magic_value.rs:170`
 
 **Substring**
 
@@ -123,7 +123,7 @@
 
 ---
 
-### hv-0271 — `crates/vox-compiler/src/fmt/mod.rs:60`
+### hv-0268 — `crates/vox-compiler/src/fmt/mod.rs:60`
 
 **Substring**
 
@@ -143,7 +143,7 @@
 
 ---
 
-### hv-0272 — `crates/vox-compiler/src/fmt/mod.rs:74`
+### hv-0269 — `crates/vox-compiler/src/fmt/mod.rs:74`
 
 **Substring**
 
@@ -163,7 +163,7 @@
 
 ---
 
-### hv-0273 — `crates/vox-compiler/src/typeck/effect_check.rs:694`
+### hv-0270 — `crates/vox-compiler/src/typeck/effect_check.rs:694`
 
 **Substring**
 
@@ -183,7 +183,7 @@
 
 ---
 
-### hv-0274 — `crates/vox-config/src/operator_registry.rs:831`
+### hv-0271 — `crates/vox-config/src/operator_registry.rs:831`
 
 **Substring**
 
@@ -203,7 +203,7 @@
 
 ---
 
-### hv-0275 — `crates/vox-config/src/operator_registry.rs:845`
+### hv-0272 — `crates/vox-config/src/operator_registry.rs:845`
 
 **Substring**
 
@@ -223,7 +223,7 @@
 
 ---
 
-### hv-0276 — `crates/vox-exec-grammar/src/ast.rs:453`
+### hv-0273 — `crates/vox-exec-grammar/src/ast.rs:453`
 
 **Substring**
 
@@ -243,7 +243,7 @@
 
 ---
 
-### hv-0277 — `crates/vox-ml-cli/src/commands/mens/pipeline.rs:187`
+### hv-0274 — `crates/vox-ml-cli/src/commands/mens/pipeline.rs:187`
 
 **Substring**
 
@@ -263,7 +263,7 @@
 
 ---
 
-### hv-0278 — `crates/vox-plugin-mens-candle-cuda/src/checkpoint_state.rs:174`
+### hv-0275 — `crates/vox-plugin-mens-candle-cuda/src/checkpoint_state.rs:174`
 
 **Substring**
 
@@ -283,7 +283,27 @@
 
 ---
 
-### hv-0279 — `crates/vox-populi/src/mens/tensor/checkpoint_state.rs:170`
+### hv-0276 — `crates/vox-plugin-mens-candle-metal/src/checkpoint_state.rs:174`
+
+**Substring**
+
+```text
+"/tmp/
+```
+
+**Why it matters**: Absolute or home-relative paths fail cross-platform and on CI sandboxes.
+
+**Fix** (use-config-path): Use vox_config::paths or std::path::PathBuf built from config; no hard-coded C:\ or /home paths.
+
+**SSOT**: `docs/src/architecture/data-storage-ssot-2026.md`
+
+**Verify**: `rg -nF "\"/tmp/" "crates/vox-plugin-mens-candle-metal/src/checkpoint_state.rs"`
+
+**Confidence**: medium
+
+---
+
+### hv-0277 — `crates/vox-populi/src/mens/tensor/checkpoint_state.rs:170`
 
 **Substring**
 
@@ -303,7 +323,7 @@
 
 ---
 
-### hv-0280 — `crates/vox-repository/src/populi_toml.rs:211`
+### hv-0278 — `crates/vox-repository/src/populi_toml.rs:211`
 
 **Substring**
 
@@ -323,7 +343,7 @@
 
 ---
 
-### hv-0281 — `crates/vox-repository/src/populi_toml.rs:212`
+### hv-0279 — `crates/vox-repository/src/populi_toml.rs:212`
 
 **Substring**
 
@@ -343,7 +363,7 @@
 
 ---
 
-### hv-0282 — `crates/vox-repository/src/populi_toml.rs:221`
+### hv-0280 — `crates/vox-repository/src/populi_toml.rs:221`
 
 **Substring**
 
@@ -363,7 +383,7 @@
 
 ---
 
-### hv-0283 — `crates/vox-secrets/src/sources/auth_json.rs:196`
+### hv-0281 — `crates/vox-secrets/src/sources/auth_json.rs:196`
 
 **Substring**
 

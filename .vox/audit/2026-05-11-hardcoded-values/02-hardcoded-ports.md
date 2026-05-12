@@ -43,7 +43,7 @@ http://127.0.0.1:3847
 
 ---
 
-### hv-0103 — `contracts/config/env-vars.v1.yaml:4089`
+### hv-0103 — `contracts/config/env-vars.v1.yaml:4107`
 
 **Substring**
 
@@ -323,7 +323,7 @@ http://127.0.0.1:11434
 
 ---
 
-### hv-0117 — `crates/vox-cli/src/commands/bundle.rs:190`
+### hv-0117 — `crates/vox-cli/src/commands/bundle.rs:194`
 
 **Substring**
 

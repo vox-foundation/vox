@@ -1523,7 +1523,47 @@
 
 ---
 
-### hv-0077 — `contracts/scientia/research-snapshot.v1.schema.json:4`
+### hv-0077 — `contracts/scientia/research-mesh-intake.v1.schema.json:3`
+
+**Substring**
+
+```text
+"https://vox-lang.org/contracts/scientia/research-mesh-intake.v1.schema.json"
+```
+
+**Why it matters**: Hardcoded URLs bypass environment-specific endpoints and complicate secret/config policy.
+
+**Fix** (register-env-and-use-secrets): // Read base URL from vox_secrets / config; add VOX_* to contracts/config/env-vars.v1.yaml if new.
+
+**SSOT**: `contracts/config/env-vars.v1.yaml`
+
+**Verify**: `rg -nF "\"https://vox-lang.org/contracts/scientia/research-mesh-intake.v1.schema.json\"" "contracts/scientia/research-mesh-intake.v1.schema.json"`
+
+**Confidence**: medium
+
+---
+
+### hv-0078 — `contracts/scientia/research-mesh-promoted-line.v1.schema.json:3`
+
+**Substring**
+
+```text
+"https://vox-lang.org/contracts/scientia/research-mesh-promoted-line.v1.schema.json"
+```
+
+**Why it matters**: Hardcoded URLs bypass environment-specific endpoints and complicate secret/config policy.
+
+**Fix** (register-env-and-use-secrets): // Read base URL from vox_secrets / config; add VOX_* to contracts/config/env-vars.v1.yaml if new.
+
+**SSOT**: `contracts/config/env-vars.v1.yaml`
+
+**Verify**: `rg -nF "\"https://vox-lang.org/contracts/scientia/research-mesh-promoted-line.v1.schema.json\"" "contracts/scientia/research-mesh-promoted-line.v1.schema.json"`
+
+**Confidence**: medium
+
+---
+
+### hv-0079 — `contracts/scientia/research-snapshot.v1.schema.json:4`
 
 **Substring**
 
@@ -1543,7 +1583,7 @@
 
 ---
 
-### hv-0078 — `contracts/scientia/scientia-evidence-graph.schema.json:3`
+### hv-0080 — `contracts/scientia/scientia-evidence-graph.schema.json:3`
 
 **Substring**
 
@@ -1563,7 +1603,7 @@
 
 ---
 
-### hv-0079 — `contracts/scientia/worthiness-signals.v2.schema.json:4`
+### hv-0081 — `contracts/scientia/worthiness-signals.v2.schema.json:4`
 
 **Substring**
 
@@ -1583,7 +1623,7 @@
 
 ---
 
-### hv-0080 — `contracts/speech-to-code/audit-matrix.schema.json:3`
+### hv-0082 — `contracts/speech-to-code/audit-matrix.schema.json:3`
 
 **Substring**
 
@@ -1603,7 +1643,7 @@
 
 ---
 
-### hv-0081 — `contracts/speech-to-code/failure-taxonomy.schema.json:3`
+### hv-0083 — `contracts/speech-to-code/failure-taxonomy.schema.json:3`
 
 **Substring**
 
@@ -1623,7 +1663,7 @@
 
 ---
 
-### hv-0082 — `contracts/speech-to-code/kpi-baseline.schema.json:3`
+### hv-0084 — `contracts/speech-to-code/kpi-baseline.schema.json:3`
 
 **Substring**
 
@@ -1643,7 +1683,7 @@
 
 ---
 
-### hv-0083 — `contracts/speech-to-code/lexicon.schema.json:3`
+### hv-0085 — `contracts/speech-to-code/lexicon.schema.json:3`
 
 **Substring**
 
@@ -1663,7 +1703,7 @@
 
 ---
 
-### hv-0084 — `contracts/speech-to-code/speech_trace.mens.schema.json:3`
+### hv-0086 — `contracts/speech-to-code/speech_trace.mens.schema.json:3`
 
 **Substring**
 
@@ -1683,7 +1723,7 @@
 
 ---
 
-### hv-0085 — `contracts/speech-to-code/speech_trace.schema.json:3`
+### hv-0087 — `contracts/speech-to-code/speech_trace.schema.json:3`
 
 **Substring**
 
@@ -1703,7 +1743,7 @@
 
 ---
 
-### hv-0086 — `contracts/telemetry/agentos-guardrail-deny.v1.schema.json:3`
+### hv-0088 — `contracts/telemetry/agentos-guardrail-deny.v1.schema.json:3`
 
 **Substring**
 
@@ -1723,7 +1763,7 @@
 
 ---
 
-### hv-0087 — `contracts/telemetry/completion-detector-snapshot.v1.schema.json:4`
+### hv-0089 — `contracts/telemetry/completion-detector-snapshot.v1.schema.json:4`
 
 **Substring**
 
@@ -1743,7 +1783,7 @@
 
 ---
 
-### hv-0088 — `contracts/telemetry/completion-finding.v1.schema.json:4`
+### hv-0090 — `contracts/telemetry/completion-finding.v1.schema.json:4`
 
 **Substring**
 
@@ -1763,7 +1803,7 @@
 
 ---
 
-### hv-0089 — `contracts/telemetry/completion-run.v1.schema.json:4`
+### hv-0091 — `contracts/telemetry/completion-run.v1.schema.json:4`
 
 **Substring**
 
@@ -1783,7 +1823,7 @@
 
 ---
 
-### hv-0090 — `contracts/telemetry/events.v1.schema.json:4`
+### hv-0092 — `contracts/telemetry/events.v1.schema.json:4`
 
 **Substring**
 
@@ -1803,7 +1843,7 @@
 
 ---
 
-### hv-0091 — `contracts/telemetry/fixture-hole-observed.v1.schema.json:4`
+### hv-0093 — `contracts/telemetry/fixture-hole-observed.v1.schema.json:4`
 
 **Substring**
 
@@ -1823,7 +1863,7 @@
 
 ---
 
-### hv-0092 — `contracts/telemetry/fixture-model-intent-resolved.v1.schema.json:4`
+### hv-0094 — `contracts/telemetry/fixture-model-intent-resolved.v1.schema.json:4`
 
 **Substring**
 
@@ -1843,7 +1883,7 @@
 
 ---
 
-### hv-0093 — `contracts/telemetry/fixture-prompt-dispatch.v1.schema.json:4`
+### hv-0095 — `contracts/telemetry/fixture-prompt-dispatch.v1.schema.json:4`
 
 **Substring**
 
@@ -1863,7 +1903,7 @@
 
 ---
 
-### hv-0094 — `contracts/telemetry/fixture-search-dispatch.v1.schema.json:4`
+### hv-0096 — `contracts/telemetry/fixture-search-dispatch.v1.schema.json:4`
 
 **Substring**
 
@@ -1883,7 +1923,7 @@
 
 ---
 
-### hv-0095 — `contracts/telemetry/orch-subagent-dispatch.v1.schema.json:4`
+### hv-0097 — `contracts/telemetry/orch-subagent-dispatch.v1.schema.json:4`
 
 **Substring**
 
@@ -1903,7 +1943,27 @@
 
 ---
 
-### hv-0096 — `contracts/telemetry/scientia-novelty-decision-calibration.v1.schema.json:4`
+### hv-0098 — `contracts/telemetry/research-event-bridge.v1.schema.json:3`
+
+**Substring**
+
+```text
+"https://vox.dev/contracts/telemetry/research-event-bridge.v1.schema.json"
+```
+
+**Why it matters**: Hardcoded URLs bypass environment-specific endpoints and complicate secret/config policy.
+
+**Fix** (register-env-and-use-secrets): // Read base URL from vox_secrets / config; add VOX_* to contracts/config/env-vars.v1.yaml if new.
+
+**SSOT**: `contracts/config/env-vars.v1.yaml`
+
+**Verify**: `rg -nF "\"https://vox.dev/contracts/telemetry/research-event-bridge.v1.schema.json\"" "contracts/telemetry/research-event-bridge.v1.schema.json"`
+
+**Confidence**: medium
+
+---
+
+### hv-0099 — `contracts/telemetry/scientia-novelty-decision-calibration.v1.schema.json:4`
 
 **Substring**
 
@@ -1923,7 +1983,7 @@
 
 ---
 
-### hv-0097 — `contracts/terminal/exec-policy.v1.schema.json:4`
+### hv-0100 — `contracts/terminal/exec-policy.v1.schema.json:4`
 
 **Substring**
 
@@ -1938,66 +1998,6 @@
 **SSOT**: `contracts/config/env-vars.v1.yaml`
 
 **Verify**: `rg -nF "\"https://vox-lang.org/contracts/terminal/exec-policy.v1.schema.json\"" "contracts/terminal/exec-policy.v1.schema.json"`
-
-**Confidence**: medium
-
----
-
-### hv-0098 — `contracts/toestub/gold-dataset.v1.schema.json:4`
-
-**Substring**
-
-```text
-"https://vox.local/contracts/toestub/gold-dataset.v1.schema.json"
-```
-
-**Why it matters**: Hardcoded URLs bypass environment-specific endpoints and complicate secret/config policy.
-
-**Fix** (register-env-and-use-secrets): // Read base URL from vox_secrets / config; add VOX_* to contracts/config/env-vars.v1.yaml if new.
-
-**SSOT**: `contracts/config/env-vars.v1.yaml`
-
-**Verify**: `rg -nF "\"https://vox.local/contracts/toestub/gold-dataset.v1.schema.json\"" "contracts/toestub/gold-dataset.v1.schema.json"`
-
-**Confidence**: medium
-
----
-
-### hv-0099 — `contracts/toestub/suppression.v1.schema.json:4`
-
-**Substring**
-
-```text
-"https://vox.local/contracts/toestub/suppression.v1.schema.json"
-```
-
-**Why it matters**: Hardcoded URLs bypass environment-specific endpoints and complicate secret/config policy.
-
-**Fix** (register-env-and-use-secrets): // Read base URL from vox_secrets / config; add VOX_* to contracts/config/env-vars.v1.yaml if new.
-
-**SSOT**: `contracts/config/env-vars.v1.yaml`
-
-**Verify**: `rg -nF "\"https://vox.local/contracts/toestub/suppression.v1.schema.json\"" "contracts/toestub/suppression.v1.schema.json"`
-
-**Confidence**: medium
-
----
-
-### hv-0100 — `contracts/toestub/toestub-run-json.v1.schema.json:4`
-
-**Substring**
-
-```text
-"https://vox.local/contracts/toestub/toestub-run-json.v1.schema.json"
-```
-
-**Why it matters**: Hardcoded URLs bypass environment-specific endpoints and complicate secret/config policy.
-
-**Fix** (register-env-and-use-secrets): // Read base URL from vox_secrets / config; add VOX_* to contracts/config/env-vars.v1.yaml if new.
-
-**SSOT**: `contracts/config/env-vars.v1.yaml`
-
-**Verify**: `rg -nF "\"https://vox.local/contracts/toestub/toestub-run-json.v1.schema.json\"" "contracts/toestub/toestub-run-json.v1.schema.json"`
 
 **Confidence**: medium
 

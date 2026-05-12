@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use tracing::{info, warn};
 use directories::UserDirs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::fs;
 
 pub async fn run_install(_profile: &str) -> Result<()> {

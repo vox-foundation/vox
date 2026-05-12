@@ -3,7 +3,7 @@
 **Severity**: warning  
 **Itemized**: 8
 
-### hv-1393 — `crates/vox-actor-runtime/src/notify.rs:148`
+### hv-1386 — `crates/vox-actor-runtime/src/notify.rs:148`
 
 **Substring**
 
@@ -21,7 +21,7 @@
 
 ---
 
-### hv-1394 — `crates/vox-actor-runtime/src/notify.rs:174`
+### hv-1387 — `crates/vox-actor-runtime/src/notify.rs:174`
 
 **Substring**
 
@@ -39,7 +39,7 @@
 
 ---
 
-### hv-1395 — `crates/vox-actor-runtime/src/notify.rs:191`
+### hv-1388 — `crates/vox-actor-runtime/src/notify.rs:191`
 
 **Substring**
 
@@ -57,7 +57,7 @@
 
 ---
 
-### hv-1396 — `crates/vox-corpus/src/synthetic_gen/bodies/_routing_body.rs:226`
+### hv-1389 — `crates/vox-corpus/src/synthetic_gen/bodies/_routing_body.rs:226`
 
 **Substring**
 
@@ -75,7 +75,7 @@
 
 ---
 
-### hv-1397 — `crates/vox-git/src/object.rs:121`
+### hv-1390 — `crates/vox-git/src/object.rs:121`
 
 **Substring**
 
@@ -93,7 +93,7 @@
 
 ---
 
-### hv-1398 — `crates/vox-git/src/object.rs:123`
+### hv-1391 — `crates/vox-git/src/object.rs:123`
 
 **Substring**
 
@@ -111,7 +111,7 @@
 
 ---
 
-### hv-1399 — `crates/vox-orchestrator/src/pii_filter.rs:43`
+### hv-1392 — `crates/vox-orchestrator/src/pii_filter.rs:43`
 
 **Substring**
 
@@ -129,7 +129,7 @@
 
 ---
 
-### hv-1400 — `crates/vox-publisher/src/publication_preflight/tests.rs:93`
+### hv-1393 — `crates/vox-publisher/src/publication_preflight/tests.rs:93`
 
 **Substring**
 

@@ -3,7 +3,7 @@
 **Severity**: info  
 **Itemized**: 61
 
-### hv-0974 — `contracts/config/env-vars.v1.yaml:375`
+### hv-0972 — `contracts/config/env-vars.v1.yaml:375`
 
 **Substring**
 
@@ -23,7 +23,7 @@
 
 ---
 
-### hv-0975 — `contracts/documentation/canonical-map.v1.yaml:17`
+### hv-0973 — `contracts/documentation/canonical-map.v1.yaml:17`
 
 **Substring**
 
@@ -43,7 +43,7 @@
 
 ---
 
-### hv-0976 — `contracts/documentation/canonical-map.v1.yaml:18`
+### hv-0974 — `contracts/documentation/canonical-map.v1.yaml:18`
 
 **Substring**
 
@@ -63,7 +63,7 @@
 
 ---
 
-### hv-0977 — `contracts/documentation/canonical-map.v1.yaml:36`
+### hv-0975 — `contracts/documentation/canonical-map.v1.yaml:36`
 
 **Substring**
 
@@ -83,7 +83,7 @@
 
 ---
 
-### hv-0978 — `contracts/documentation/canonical-map.v1.yaml:53`
+### hv-0976 — `contracts/documentation/canonical-map.v1.yaml:53`
 
 **Substring**
 
@@ -103,7 +103,7 @@
 
 ---
 
-### hv-0979 — `contracts/documentation/canonical-map.v1.yaml:54`
+### hv-0977 — `contracts/documentation/canonical-map.v1.yaml:54`
 
 **Substring**
 
@@ -123,7 +123,7 @@
 
 ---
 
-### hv-0980 — `contracts/documentation/canonical-map.v1.yaml:55`
+### hv-0978 — `contracts/documentation/canonical-map.v1.yaml:55`
 
 **Substring**
 
@@ -143,7 +143,7 @@
 
 ---
 
-### hv-0981 — `contracts/documentation/canonical-map.v1.yaml:68`
+### hv-0979 — `contracts/documentation/canonical-map.v1.yaml:68`
 
 **Substring**
 
@@ -163,7 +163,7 @@
 
 ---
 
-### hv-0982 — `contracts/documentation/canonical-map.v1.yaml:69`
+### hv-0980 — `contracts/documentation/canonical-map.v1.yaml:69`
 
 **Substring**
 
@@ -183,7 +183,7 @@
 
 ---
 
-### hv-0983 — `contracts/documentation/canonical-map.v1.yaml:88`
+### hv-0981 — `contracts/documentation/canonical-map.v1.yaml:88`
 
 **Substring**
 
@@ -203,7 +203,7 @@
 
 ---
 
-### hv-0984 — `contracts/documentation/canonical-map.v1.yaml:89`
+### hv-0982 — `contracts/documentation/canonical-map.v1.yaml:89`
 
 **Substring**
 
@@ -223,7 +223,7 @@
 
 ---
 
-### hv-0985 — `contracts/documentation/canonical-map.v1.yaml:105`
+### hv-0983 — `contracts/documentation/canonical-map.v1.yaml:105`
 
 **Substring**
 
@@ -243,7 +243,7 @@
 
 ---
 
-### hv-0986 — `contracts/documentation/canonical-map.v1.yaml:106`
+### hv-0984 — `contracts/documentation/canonical-map.v1.yaml:106`
 
 **Substring**
 
@@ -263,7 +263,7 @@
 
 ---
 
-### hv-0987 — `contracts/documentation/canonical-map.v1.yaml:218`
+### hv-0985 — `contracts/documentation/canonical-map.v1.yaml:218`
 
 **Substring**
 
@@ -283,7 +283,7 @@
 
 ---
 
-### hv-0988 — `contracts/documentation/canonical-map.v1.yaml:219`
+### hv-0986 — `contracts/documentation/canonical-map.v1.yaml:219`
 
 **Substring**
 
@@ -303,7 +303,7 @@
 
 ---
 
-### hv-0989 — `contracts/documentation/canonical-map.v1.yaml:229`
+### hv-0987 — `contracts/documentation/canonical-map.v1.yaml:229`
 
 **Substring**
 
@@ -323,7 +323,7 @@
 
 ---
 
-### hv-0990 — `contracts/documentation/canonical-map.v1.yaml:239`
+### hv-0988 — `contracts/documentation/canonical-map.v1.yaml:239`
 
 **Substring**
 
@@ -343,7 +343,7 @@
 
 ---
 
-### hv-0991 — `contracts/documentation/canonical-map.v1.yaml:240`
+### hv-0989 — `contracts/documentation/canonical-map.v1.yaml:240`
 
 **Substring**
 
@@ -363,7 +363,7 @@
 
 ---
 
-### hv-0992 — `contracts/operations/completion-policy.v1.yaml:47`
+### hv-0990 — `contracts/operations/completion-policy.v1.yaml:47`
 
 **Substring**
 
@@ -383,7 +383,7 @@
 
 ---
 
-### hv-0993 — `contracts/reports/docs-reality-audit/inventory.v1.json:42`
+### hv-0991 — `contracts/reports/docs-reality-audit/inventory.v1.json:42`
 
 **Substring**
 
@@ -403,7 +403,7 @@
 
 ---
 
-### hv-0994 — `contracts/reports/docs-reality-audit/inventory.v1.json:43`
+### hv-0992 — `contracts/reports/docs-reality-audit/inventory.v1.json:43`
 
 **Substring**
 
@@ -423,7 +423,7 @@
 
 ---
 
-### hv-0995 — `contracts/reports/docs-reality-audit/inventory.v1.json:58`
+### hv-0993 — `contracts/reports/docs-reality-audit/inventory.v1.json:58`
 
 **Substring**
 
@@ -443,7 +443,7 @@
 
 ---
 
-### hv-0996 — `contracts/reports/docs-reality-audit/inventory.v1.json:74`
+### hv-0994 — `contracts/reports/docs-reality-audit/inventory.v1.json:74`
 
 **Substring**
 
@@ -463,7 +463,7 @@
 
 ---
 
-### hv-0997 — `contracts/reports/docs-reality-audit/inventory.v1.json:85`
+### hv-0995 — `contracts/reports/docs-reality-audit/inventory.v1.json:85`
 
 **Substring**
 
@@ -483,7 +483,7 @@
 
 ---
 
-### hv-0998 — `contracts/reports/docs-reality-audit/inventory.v1.json:121`
+### hv-0996 — `contracts/reports/docs-reality-audit/inventory.v1.json:121`
 
 **Substring**
 
@@ -503,7 +503,7 @@
 
 ---
 
-### hv-0999 — `contracts/reports/scaling-audit/findings-latest.json:10345`
+### hv-0997 — `contracts/reports/scaling-audit/findings-latest.json:10345`
 
 **Substring**
 
@@ -523,7 +523,7 @@
 
 ---
 
-### hv-1000 — `contracts/reports/sql-write-ownership-rev-c.json:6`
+### hv-0998 — `contracts/reports/sql-write-ownership-rev-c.json:6`
 
 **Substring**
 
@@ -543,7 +543,7 @@
 
 ---
 
-### hv-1001 — `crates/vox-arch-check/src/forbidden_patterns.rs:102`
+### hv-0999 — `crates/vox-arch-check/src/forbidden_patterns.rs:110`
 
 **Substring**
 
@@ -563,7 +563,7 @@
 
 ---
 
-### hv-1002 — `crates/vox-cli/src/commands/ci/db_schema_coverage.rs:77`
+### hv-1000 — `crates/vox-cli/src/commands/ci/db_schema_coverage.rs:77`
 
 **Substring**
 
@@ -583,7 +583,7 @@
 
 ---
 
-### hv-1003 — `crates/vox-cli/src/commands/ci/db_schema_coverage.rs:98`
+### hv-1001 — `crates/vox-cli/src/commands/ci/db_schema_coverage.rs:98`
 
 **Substring**
 
@@ -603,7 +603,7 @@
 
 ---
 
-### hv-1004 — `crates/vox-cli/src/commands/ci/pre_push.rs:502`
+### hv-1002 — `crates/vox-cli/src/commands/ci/pre_push.rs:503`
 
 **Substring**
 
@@ -623,7 +623,7 @@
 
 ---
 
-### hv-1005 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:348`
+### hv-1003 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:348`
 
 **Substring**
 
@@ -643,7 +643,7 @@
 
 ---
 
-### hv-1006 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:377`
+### hv-1004 — `crates/vox-cli/src/commands/ci/retired_symbol_check.rs:377`
 
 **Substring**
 
@@ -663,7 +663,7 @@
 
 ---
 
-### hv-1007 — `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs:59`
+### hv-1005 — `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs:59`
 
 **Substring**
 
@@ -683,7 +683,7 @@
 
 ---
 
-### hv-1008 — `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs:128`
+### hv-1006 — `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs:128`
 
 **Substring**
 
@@ -703,7 +703,7 @@
 
 ---
 
-### hv-1009 — `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs:660`
+### hv-1007 — `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs:669`
 
 **Substring**
 
@@ -723,7 +723,7 @@
 
 ---
 
-### hv-1010 — `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs:677`
+### hv-1008 — `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs:687`
 
 **Substring**
 
@@ -743,7 +743,7 @@
 
 ---
 
-### hv-1011 — `crates/vox-cli/src/commands/ci/test_inventory.rs:152`
+### hv-1009 — `crates/vox-cli/src/commands/ci/test_inventory.rs:152`
 
 **Substring**
 
@@ -763,7 +763,7 @@
 
 ---
 
-### hv-1012 — `crates/vox-cli/src/commands/ci/test_inventory.rs:864`
+### hv-1010 — `crates/vox-cli/src/commands/ci/test_inventory.rs:864`
 
 **Substring**
 
@@ -783,7 +783,7 @@
 
 ---
 
-### hv-1013 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_codex.rs:167`
+### hv-1011 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_codex.rs:167`
 
 **Substring**
 
@@ -803,7 +803,7 @@
 
 ---
 
-### hv-1014 — `crates/vox-cli/src/commands/diagnostics/stub_check/mod.rs:345`
+### hv-1012 — `crates/vox-cli/src/commands/diagnostics/stub_check/mod.rs:345`
 
 **Substring**
 
@@ -823,7 +823,7 @@
 
 ---
 
-### hv-1015 — `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/groups.rs:38`
+### hv-1013 — `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/groups.rs:38`
 
 **Substring**
 
@@ -843,7 +843,7 @@
 
 ---
 
-### hv-1016 — `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/types.rs:209`
+### hv-1014 — `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/types.rs:209`
 
 **Substring**
 
@@ -863,7 +863,7 @@
 
 ---
 
-### hv-1017 — `crates/vox-cli/src/commands/review/coderabbit/stack_planner/heuristics.rs:69`
+### hv-1015 — `crates/vox-cli/src/commands/review/coderabbit/stack_planner/heuristics.rs:69`
 
 **Substring**
 
@@ -883,7 +883,7 @@
 
 ---
 
-### hv-1018 — `crates/vox-cli/src/commands/review/coderabbit/stack_planner/heuristics.rs:190`
+### hv-1016 — `crates/vox-cli/src/commands/review/coderabbit/stack_planner/heuristics.rs:190`
 
 **Substring**
 
@@ -903,7 +903,7 @@
 
 ---
 
-### hv-1019 — `crates/vox-cli/src/v0.rs:26`
+### hv-1017 — `crates/vox-cli/src/v0.rs:26`
 
 **Substring**
 
@@ -923,7 +923,7 @@
 
 ---
 
-### hv-1020 — `crates/vox-corpus/src/corpus/mix/mod.rs:368`
+### hv-1018 — `crates/vox-corpus/src/corpus/mix/mod.rs:368`
 
 **Substring**
 
@@ -943,7 +943,7 @@
 
 ---
 
-### hv-1021 — `crates/vox-db/src/retrieval.rs:200`
+### hv-1019 — `crates/vox-db/src/retrieval.rs:200`
 
 **Substring**
 
@@ -963,7 +963,7 @@
 
 ---
 
-### hv-1022 — `crates/vox-doc-inventory/src/file_entry.rs:21`
+### hv-1020 — `crates/vox-doc-inventory/src/file_entry.rs:21`
 
 **Substring**
 
@@ -983,7 +983,7 @@
 
 ---
 
-### hv-1023 — `crates/vox-doc-inventory/src/file_entry.rs:23`
+### hv-1021 — `crates/vox-doc-inventory/src/file_entry.rs:23`
 
 **Substring**
 
@@ -1003,7 +1003,7 @@
 
 ---
 
-### hv-1024 — `crates/vox-doc-inventory/src/file_entry.rs:25`
+### hv-1022 — `crates/vox-doc-inventory/src/file_entry.rs:25`
 
 **Substring**
 
@@ -1023,7 +1023,7 @@
 
 ---
 
-### hv-1025 — `crates/vox-orchestrator/src/observer.rs:351`
+### hv-1023 — `crates/vox-orchestrator/src/observer.rs:351`
 
 **Substring**
 
@@ -1043,7 +1043,7 @@
 
 ---
 
-### hv-1026 — `crates/vox-orchestrator/src/planning/plan_adequacy.rs:330`
+### hv-1024 — `crates/vox-orchestrator/src/planning/plan_adequacy.rs:330`
 
 **Substring**
 
@@ -1063,7 +1063,7 @@
 
 ---
 
-### hv-1027 — `crates/vox-orchestrator/src/planning/synthesizer.rs:25`
+### hv-1025 — `crates/vox-orchestrator/src/planning/synthesizer.rs:25`
 
 **Substring**
 
@@ -1083,7 +1083,7 @@
 
 ---
 
-### hv-1028 — `crates/vox-publisher/src/scholarly/zenodo.rs:294`
+### hv-1026 — `crates/vox-publisher/src/scholarly/zenodo.rs:294`
 
 **Substring**
 
@@ -1103,7 +1103,7 @@
 
 ---
 
-### hv-1029 — `crates/vox-publisher/src/scholarly/zenodo.rs:297`
+### hv-1027 — `crates/vox-publisher/src/scholarly/zenodo.rs:297`
 
 **Substring**
 
@@ -1123,7 +1123,7 @@
 
 ---
 
-### hv-1030 — `crates/vox-publisher/src/submission/validation.rs:188`
+### hv-1028 — `crates/vox-publisher/src/submission/validation.rs:188`
 
 **Substring**
 
@@ -1143,7 +1143,7 @@
 
 ---
 
-### hv-1031 — `crates/vox-publisher/src/submission/validation.rs:203`
+### hv-1029 — `crates/vox-publisher/src/submission/validation.rs:203`
 
 **Substring**
 
@@ -1163,7 +1163,7 @@
 
 ---
 
-### hv-1032 — `crates/vox-publisher/src/submission/validation.rs:205`
+### hv-1030 — `crates/vox-publisher/src/submission/validation.rs:205`
 
 **Substring**
 
@@ -1183,7 +1183,7 @@
 
 ---
 
-### hv-1033 — `crates/vox-repository/src/workspace_path_migration.rs:87`
+### hv-1031 — `crates/vox-repository/src/workspace_path_migration.rs:87`
 
 **Substring**
 
@@ -1203,7 +1203,7 @@
 
 ---
 
-### hv-1034 — `crates/vox-search/src/execution.rs:95`
+### hv-1032 — `crates/vox-search/src/execution.rs:95`
 
 **Substring**
 

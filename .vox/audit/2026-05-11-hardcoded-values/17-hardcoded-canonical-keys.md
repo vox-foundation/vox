@@ -3,7 +3,7 @@
 **Severity**: info  
 **Itemized**: 100
 
-### hv-1202 — `crates/vox-capability-registry/src/command_registry.rs:28`
+### hv-1195 — `crates/vox-capability-registry/src/command_registry.rs:28`
 
 **Substring**
 
@@ -23,7 +23,7 @@
 
 ---
 
-### hv-1203 — `crates/vox-cli/src/artifact_policy.rs:80`
+### hv-1196 — `crates/vox-cli/src/artifact_policy.rs:80`
 
 **Substring**
 
@@ -43,7 +43,7 @@
 
 ---
 
-### hv-1204 — `crates/vox-cli/src/command_catalog.rs:402`
+### hv-1197 — `crates/vox-cli/src/command_catalog.rs:425`
 
 **Substring**
 
@@ -63,7 +63,7 @@
 
 ---
 
-### hv-1205 — `crates/vox-cli/src/command_contract.rs:25`
+### hv-1198 — `crates/vox-cli/src/command_contract.rs:25`
 
 **Substring**
 
@@ -83,7 +83,7 @@
 
 ---
 
-### hv-1206 — `crates/vox-cli/src/command_contract.rs:72`
+### hv-1199 — `crates/vox-cli/src/command_contract.rs:72`
 
 **Substring**
 
@@ -103,7 +103,7 @@
 
 ---
 
-### hv-1207 — `crates/vox-cli/src/command_contract.rs:79`
+### hv-1200 — `crates/vox-cli/src/command_contract.rs:79`
 
 **Substring**
 
@@ -123,7 +123,7 @@
 
 ---
 
-### hv-1208 — `crates/vox-cli/src/command_contract.rs:80`
+### hv-1201 — `crates/vox-cli/src/command_contract.rs:80`
 
 **Substring**
 
@@ -143,7 +143,7 @@
 
 ---
 
-### hv-1209 — `crates/vox-cli/src/command_contract.rs:94`
+### hv-1202 — `crates/vox-cli/src/command_contract.rs:94`
 
 **Substring**
 
@@ -163,7 +163,7 @@
 
 ---
 
-### hv-1210 — `crates/vox-cli/src/command_contract.rs:95`
+### hv-1203 — `crates/vox-cli/src/command_contract.rs:95`
 
 **Substring**
 
@@ -183,7 +183,7 @@
 
 ---
 
-### hv-1211 — `crates/vox-cli/src/command_contract.rs:171`
+### hv-1204 — `crates/vox-cli/src/command_contract.rs:171`
 
 **Substring**
 
@@ -203,7 +203,7 @@
 
 ---
 
-### hv-1212 — `crates/vox-cli/src/command_contract.rs:172`
+### hv-1205 — `crates/vox-cli/src/command_contract.rs:172`
 
 **Substring**
 
@@ -223,7 +223,7 @@
 
 ---
 
-### hv-1213 — `crates/vox-cli/src/commands/ci/capability_sync.rs:34`
+### hv-1206 — `crates/vox-cli/src/commands/ci/capability_sync.rs:34`
 
 **Substring**
 
@@ -243,7 +243,7 @@
 
 ---
 
-### hv-1214 — `crates/vox-cli/src/commands/ci/command_compliance/capability_registry.rs:29`
+### hv-1207 — `crates/vox-cli/src/commands/ci/command_compliance/capability_registry.rs:29`
 
 **Substring**
 
@@ -263,7 +263,7 @@
 
 ---
 
-### hv-1215 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:28`
+### hv-1208 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:28`
 
 **Substring**
 
@@ -283,7 +283,7 @@
 
 ---
 
-### hv-1216 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:56`
+### hv-1209 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:56`
 
 **Substring**
 
@@ -303,7 +303,7 @@
 
 ---
 
-### hv-1217 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:508`
+### hv-1210 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:508`
 
 **Substring**
 
@@ -323,7 +323,7 @@
 
 ---
 
-### hv-1218 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:557`
+### hv-1211 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:557`
 
 **Substring**
 
@@ -343,7 +343,7 @@
 
 ---
 
-### hv-1219 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:610`
+### hv-1212 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:610`
 
 **Substring**
 
@@ -363,7 +363,7 @@
 
 ---
 
-### hv-1220 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:622`
+### hv-1213 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:622`
 
 **Substring**
 
@@ -383,7 +383,7 @@
 
 ---
 
-### hv-1221 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:718`
+### hv-1214 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:718`
 
 **Substring**
 
@@ -403,7 +403,7 @@
 
 ---
 
-### hv-1222 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:1113`
+### hv-1215 — `crates/vox-cli/src/commands/ci/command_compliance/validators.rs:1113`
 
 **Substring**
 
@@ -423,7 +423,7 @@
 
 ---
 
-### hv-1223 — `crates/vox-cli/src/commands/ci/command_sync.rs:49`
+### hv-1216 — `crates/vox-cli/src/commands/ci/command_sync.rs:49`
 
 **Substring**
 
@@ -443,7 +443,7 @@
 
 ---
 
-### hv-1224 — `crates/vox-cli/src/commands/ci/command_sync.rs:57`
+### hv-1217 — `crates/vox-cli/src/commands/ci/command_sync.rs:57`
 
 **Substring**
 
@@ -463,7 +463,7 @@
 
 ---
 
-### hv-1225 — `crates/vox-cli/src/commands/ci/compile_matrix.rs:60`
+### hv-1218 — `crates/vox-cli/src/commands/ci/compile_matrix.rs:60`
 
 **Substring**
 
@@ -483,7 +483,7 @@
 
 ---
 
-### hv-1226 — `crates/vox-cli/src/commands/ci/dep_sprawl.rs:32`
+### hv-1219 — `crates/vox-cli/src/commands/ci/dep_sprawl.rs:32`
 
 **Substring**
 
@@ -503,7 +503,7 @@
 
 ---
 
-### hv-1227 — `crates/vox-cli/src/commands/ci/dep_sprawl.rs:36`
+### hv-1220 — `crates/vox-cli/src/commands/ci/dep_sprawl.rs:36`
 
 **Substring**
 
@@ -523,7 +523,7 @@
 
 ---
 
-### hv-1228 — `crates/vox-cli/src/commands/ci/deploy_status.rs:22`
+### hv-1221 — `crates/vox-cli/src/commands/ci/deploy_status.rs:22`
 
 **Substring**
 
@@ -543,7 +543,7 @@
 
 ---
 
-### hv-1229 — `crates/vox-cli/src/commands/ci/deploy_status.rs:64`
+### hv-1222 — `crates/vox-cli/src/commands/ci/deploy_status.rs:64`
 
 **Substring**
 
@@ -563,7 +563,7 @@
 
 ---
 
-### hv-1230 — `crates/vox-cli/src/commands/ci/determinism_audit.rs:47`
+### hv-1223 — `crates/vox-cli/src/commands/ci/determinism_audit.rs:47`
 
 **Substring**
 
@@ -583,7 +583,7 @@
 
 ---
 
-### hv-1231 — `crates/vox-cli/src/commands/ci/determinism_audit.rs:66`
+### hv-1224 — `crates/vox-cli/src/commands/ci/determinism_audit.rs:66`
 
 **Substring**
 
@@ -603,7 +603,7 @@
 
 ---
 
-### hv-1232 — `crates/vox-cli/src/commands/ci/mens_scorecard.rs:452`
+### hv-1225 — `crates/vox-cli/src/commands/ci/mens_scorecard.rs:452`
 
 **Substring**
 
@@ -623,7 +623,7 @@
 
 ---
 
-### hv-1233 — `crates/vox-cli/src/commands/ci/nomenclature_guard.rs:30`
+### hv-1226 — `crates/vox-cli/src/commands/ci/nomenclature_guard.rs:30`
 
 **Substring**
 
@@ -643,7 +643,7 @@
 
 ---
 
-### hv-1234 — `crates/vox-cli/src/commands/ci/nomenclature_guard.rs:31`
+### hv-1227 — `crates/vox-cli/src/commands/ci/nomenclature_guard.rs:31`
 
 **Substring**
 
@@ -663,7 +663,7 @@
 
 ---
 
-### hv-1235 — `crates/vox-cli/src/commands/ci/nomenclature_guard.rs:34`
+### hv-1228 — `crates/vox-cli/src/commands/ci/nomenclature_guard.rs:34`
 
 **Substring**
 
@@ -683,7 +683,7 @@
 
 ---
 
-### hv-1236 — `crates/vox-cli/src/commands/ci/nomenclature_guard.rs:43`
+### hv-1229 — `crates/vox-cli/src/commands/ci/nomenclature_guard.rs:43`
 
 **Substring**
 
@@ -703,7 +703,7 @@
 
 ---
 
-### hv-1237 — `crates/vox-cli/src/commands/ci/operations_catalog.rs:332`
+### hv-1230 — `crates/vox-cli/src/commands/ci/operations_catalog.rs:332`
 
 **Substring**
 
@@ -723,7 +723,7 @@
 
 ---
 
-### hv-1238 — `crates/vox-cli/src/commands/ci/operations_catalog.rs:461`
+### hv-1231 — `crates/vox-cli/src/commands/ci/operations_catalog.rs:461`
 
 **Substring**
 
@@ -743,7 +743,7 @@
 
 ---
 
-### hv-1239 — `crates/vox-cli/src/commands/ci/operations_catalog.rs:740`
+### hv-1232 — `crates/vox-cli/src/commands/ci/operations_catalog.rs:740`
 
 **Substring**
 
@@ -763,7 +763,7 @@
 
 ---
 
-### hv-1240 — `crates/vox-cli/src/commands/ci/operations_catalog.rs:756`
+### hv-1233 — `crates/vox-cli/src/commands/ci/operations_catalog.rs:756`
 
 **Substring**
 
@@ -783,7 +783,7 @@
 
 ---
 
-### hv-1241 — `crates/vox-cli/src/commands/ci/pm_provenance.rs:123`
+### hv-1234 — `crates/vox-cli/src/commands/ci/pm_provenance.rs:123`
 
 **Substring**
 
@@ -803,7 +803,7 @@
 
 ---
 
-### hv-1242 — `crates/vox-cli/src/commands/ci/pre_push.rs:522`
+### hv-1235 — `crates/vox-cli/src/commands/ci/pre_push.rs:523`
 
 **Substring**
 
@@ -823,7 +823,7 @@
 
 ---
 
-### hv-1243 — `crates/vox-cli/src/commands/ci/pre_push.rs:529`
+### hv-1236 — `crates/vox-cli/src/commands/ci/pre_push.rs:530`
 
 **Substring**
 
@@ -843,7 +843,7 @@
 
 ---
 
-### hv-1244 — `crates/vox-cli/src/commands/ci/pre_push.rs:536`
+### hv-1237 — `crates/vox-cli/src/commands/ci/pre_push.rs:537`
 
 **Substring**
 
@@ -863,7 +863,7 @@
 
 ---
 
-### hv-1245 — `crates/vox-cli/src/commands/ci/pre_push.rs:547`
+### hv-1238 — `crates/vox-cli/src/commands/ci/pre_push.rs:548`
 
 **Substring**
 
@@ -883,7 +883,7 @@
 
 ---
 
-### hv-1246 — `crates/vox-cli/src/commands/ci/pre_push.rs:562`
+### hv-1239 — `crates/vox-cli/src/commands/ci/pre_push.rs:563`
 
 **Substring**
 
@@ -903,7 +903,7 @@
 
 ---
 
-### hv-1247 — `crates/vox-cli/src/commands/ci/pre_push.rs:577`
+### hv-1240 — `crates/vox-cli/src/commands/ci/pre_push.rs:578`
 
 **Substring**
 
@@ -923,7 +923,7 @@
 
 ---
 
-### hv-1248 — `crates/vox-cli/src/commands/ci/pre_push.rs:612`
+### hv-1241 — `crates/vox-cli/src/commands/ci/pre_push.rs:613`
 
 **Substring**
 
@@ -943,7 +943,7 @@
 
 ---
 
-### hv-1249 — `crates/vox-cli/src/commands/ci/pre_push.rs:664`
+### hv-1242 — `crates/vox-cli/src/commands/ci/pre_push.rs:665`
 
 **Substring**
 
@@ -963,7 +963,7 @@
 
 ---
 
-### hv-1250 — `crates/vox-cli/src/commands/ci/pre_push.rs:683`
+### hv-1243 — `crates/vox-cli/src/commands/ci/pre_push.rs:684`
 
 **Substring**
 
@@ -983,7 +983,7 @@
 
 ---
 
-### hv-1251 — `crates/vox-cli/src/commands/ci/release_build.rs:72`
+### hv-1244 — `crates/vox-cli/src/commands/ci/release_build.rs:72`
 
 **Substring**
 
@@ -1003,7 +1003,7 @@
 
 ---
 
-### hv-1252 — `crates/vox-cli/src/commands/ci/run_body_helpers/cuda_release_build.rs:29`
+### hv-1245 — `crates/vox-cli/src/commands/ci/run_body_helpers/cuda_release_build.rs:29`
 
 **Substring**
 
@@ -1023,7 +1023,7 @@
 
 ---
 
-### hv-1253 — `crates/vox-cli/src/commands/ci/run_body_helpers/cuda.rs:32`
+### hv-1246 — `crates/vox-cli/src/commands/ci/run_body_helpers/cuda.rs:32`
 
 **Substring**
 
@@ -1043,7 +1043,7 @@
 
 ---
 
-### hv-1254 — `crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs:248`
+### hv-1247 — `crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs:248`
 
 **Substring**
 
@@ -1063,7 +1063,7 @@
 
 ---
 
-### hv-1255 — `crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs:354`
+### hv-1248 — `crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs:354`
 
 **Substring**
 
@@ -1083,7 +1083,7 @@
 
 ---
 
-### hv-1256 — `crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs:560`
+### hv-1249 — `crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs:560`
 
 **Substring**
 
@@ -1103,7 +1103,7 @@
 
 ---
 
-### hv-1257 — `crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs:570`
+### hv-1250 — `crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs:570`
 
 **Substring**
 
@@ -1123,7 +1123,7 @@
 
 ---
 
-### hv-1258 — `crates/vox-cli/src/commands/ci/run_body_helpers/matrix/tests.rs:24`
+### hv-1251 — `crates/vox-cli/src/commands/ci/run_body_helpers/matrix/tests.rs:24`
 
 **Substring**
 
@@ -1143,7 +1143,7 @@
 
 ---
 
-### hv-1259 — `crates/vox-cli/src/commands/ci/run_body_helpers/timings.rs:117`
+### hv-1252 — `crates/vox-cli/src/commands/ci/run_body_helpers/timings.rs:117`
 
 **Substring**
 
@@ -1163,7 +1163,7 @@
 
 ---
 
-### hv-1260 — `crates/vox-cli/src/commands/ci/run_body_helpers/timings.rs:132`
+### hv-1253 — `crates/vox-cli/src/commands/ci/run_body_helpers/timings.rs:132`
 
 **Substring**
 
@@ -1183,7 +1183,7 @@
 
 ---
 
-### hv-1261 — `crates/vox-cli/src/commands/ci/run_body_helpers/timings.rs:142`
+### hv-1254 — `crates/vox-cli/src/commands/ci/run_body_helpers/timings.rs:142`
 
 **Substring**
 
@@ -1203,7 +1203,7 @@
 
 ---
 
-### hv-1262 — `crates/vox-cli/src/commands/ci/run_body.rs:345`
+### hv-1255 — `crates/vox-cli/src/commands/ci/run_body.rs:348`
 
 **Substring**
 
@@ -1223,7 +1223,7 @@
 
 ---
 
-### hv-1263 — `crates/vox-cli/src/commands/ci/run_body.rs:379`
+### hv-1256 — `crates/vox-cli/src/commands/ci/run_body.rs:382`
 
 **Substring**
 
@@ -1243,7 +1243,7 @@
 
 ---
 
-### hv-1264 — `crates/vox-cli/src/commands/ci/speech_runtime_suite.rs:146`
+### hv-1257 — `crates/vox-cli/src/commands/ci/speech_runtime_suite.rs:146`
 
 **Substring**
 
@@ -1263,7 +1263,7 @@
 
 ---
 
-### hv-1265 — `crates/vox-cli/src/commands/ci/watch_run.rs:227`
+### hv-1258 — `crates/vox-cli/src/commands/ci/watch_run.rs:227`
 
 **Substring**
 
@@ -1283,7 +1283,7 @@
 
 ---
 
-### hv-1266 — `crates/vox-cli/src/commands/ci/watch_run.rs:256`
+### hv-1259 — `crates/vox-cli/src/commands/ci/watch_run.rs:256`
 
 **Substring**
 
@@ -1303,7 +1303,7 @@
 
 ---
 
-### hv-1267 — `crates/vox-cli/src/commands/ci/workspace_artifacts/mod.rs:202`
+### hv-1260 — `crates/vox-cli/src/commands/ci/workspace_artifacts/mod.rs:203`
 
 **Substring**
 
@@ -1323,7 +1323,7 @@
 
 ---
 
-### hv-1268 — `crates/vox-cli/src/commands/ci/workspace_artifacts/mod.rs:445`
+### hv-1261 — `crates/vox-cli/src/commands/ci/workspace_artifacts/mod.rs:446`
 
 **Substring**
 
@@ -1343,7 +1343,7 @@
 
 ---
 
-### hv-1269 — `crates/vox-cli/src/commands/ci/workspace_artifacts/retention.rs:156`
+### hv-1262 — `crates/vox-cli/src/commands/ci/workspace_artifacts/retention.rs:156`
 
 **Substring**
 
@@ -1363,7 +1363,7 @@
 
 ---
 
-### hv-1270 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_codex.rs:50`
+### hv-1263 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_codex.rs:50`
 
 **Substring**
 
@@ -1383,7 +1383,7 @@
 
 ---
 
-### hv-1271 — `crates/vox-cli/src/commands/review/coderabbit/config.rs:134`
+### hv-1264 — `crates/vox-cli/src/commands/review/coderabbit/config.rs:134`
 
 **Substring**
 
@@ -1403,7 +1403,7 @@
 
 ---
 
-### hv-1272 — `crates/vox-cli/src/commands/review/coderabbit/ingest.rs:129`
+### hv-1265 — `crates/vox-cli/src/commands/review/coderabbit/ingest.rs:129`
 
 **Substring**
 
@@ -1423,7 +1423,7 @@
 
 ---
 
-### hv-1273 — `crates/vox-cli/src/lib.rs:561`
+### hv-1266 — `crates/vox-cli/src/lib.rs:562`
 
 **Substring**
 
@@ -1443,7 +1443,7 @@
 
 ---
 
-### hv-1274 — `crates/vox-cli/src/main.rs:60`
+### hv-1267 — `crates/vox-cli/src/main.rs:60`
 
 **Substring**
 
@@ -1463,7 +1463,7 @@
 
 ---
 
-### hv-1275 — `crates/vox-cli/src/main.rs:66`
+### hv-1268 — `crates/vox-cli/src/main.rs:66`
 
 **Substring**
 
@@ -1483,7 +1483,7 @@
 
 ---
 
-### hv-1276 — `crates/vox-cli/src/main.rs:80`
+### hv-1269 — `crates/vox-cli/src/main.rs:80`
 
 **Substring**
 
@@ -1503,7 +1503,7 @@
 
 ---
 
-### hv-1277 — `crates/vox-code-audit/src/detectors/adr_citation.rs:36`
+### hv-1270 — `crates/vox-code-audit/src/detectors/adr_citation.rs:36`
 
 **Substring**
 
@@ -1523,7 +1523,7 @@
 
 ---
 
-### hv-1278 — `crates/vox-compiler/src/hir/lower/mod.rs:857`
+### hv-1271 — `crates/vox-compiler/src/hir/lower/mod.rs:857`
 
 **Substring**
 
@@ -1543,7 +1543,7 @@
 
 ---
 
-### hv-1279 — `crates/vox-compiler/src/hir/lower/mod.rs:870`
+### hv-1272 — `crates/vox-compiler/src/hir/lower/mod.rs:870`
 
 **Substring**
 
@@ -1563,7 +1563,7 @@
 
 ---
 
-### hv-1280 — `crates/vox-compiler/src/typeck/checker/expr_ops.rs:119`
+### hv-1273 — `crates/vox-compiler/src/typeck/checker/expr_ops.rs:119`
 
 **Substring**
 
@@ -1583,7 +1583,7 @@
 
 ---
 
-### hv-1281 — `crates/vox-corpus/build.rs:399`
+### hv-1274 — `crates/vox-corpus/build.rs:399`
 
 **Substring**
 
@@ -1603,7 +1603,7 @@
 
 ---
 
-### hv-1282 — `crates/vox-corpus/src/synthetic_gen/bodies/_tool_pairs_body.rs:77`
+### hv-1275 — `crates/vox-corpus/src/synthetic_gen/bodies/_tool_pairs_body.rs:77`
 
 **Substring**
 
@@ -1623,7 +1623,7 @@
 
 ---
 
-### hv-1283 — `crates/vox-corpus/src/synthetic_gen/bodies/_tool_pairs_body.rs:79`
+### hv-1276 — `crates/vox-corpus/src/synthetic_gen/bodies/_tool_pairs_body.rs:79`
 
 **Substring**
 
@@ -1643,7 +1643,7 @@
 
 ---
 
-### hv-1284 — `crates/vox-drift-check/src/rules/timeout_literal.rs:73`
+### hv-1277 — `crates/vox-drift-check/src/rules/timeout_literal.rs:73`
 
 **Substring**
 
@@ -1663,7 +1663,7 @@
 
 ---
 
-### hv-1285 — `crates/vox-drift-check/src/rules/vox_path_literal.rs:77`
+### hv-1278 — `crates/vox-drift-check/src/rules/vox_path_literal.rs:77`
 
 **Substring**
 
@@ -1683,7 +1683,7 @@
 
 ---
 
-### hv-1286 — `crates/vox-exec-grammar/src/ast.rs:393`
+### hv-1279 — `crates/vox-exec-grammar/src/ast.rs:393`
 
 **Substring**
 
@@ -1703,7 +1703,7 @@
 
 ---
 
-### hv-1287 — `crates/vox-gamify/src/quest/slots.rs:7`
+### hv-1280 — `crates/vox-gamify/src/quest/slots.rs:7`
 
 **Substring**
 
@@ -1723,7 +1723,7 @@
 
 ---
 
-### hv-1288 — `crates/vox-gamify/src/quest/slots.rs:9`
+### hv-1281 — `crates/vox-gamify/src/quest/slots.rs:9`
 
 **Substring**
 
@@ -1743,7 +1743,7 @@
 
 ---
 
-### hv-1289 — `crates/vox-gamify/src/quest/slots.rs:44`
+### hv-1282 — `crates/vox-gamify/src/quest/slots.rs:44`
 
 **Substring**
 
@@ -1763,7 +1763,7 @@
 
 ---
 
-### hv-1290 — `crates/vox-ml-cli/src/commands/ai/generate.rs:40`
+### hv-1283 — `crates/vox-ml-cli/src/commands/ai/generate.rs:40`
 
 **Substring**
 
@@ -1783,7 +1783,7 @@
 
 ---
 
-### hv-1291 — `crates/vox-ml-cli/src/commands/ai/train.rs:71`
+### hv-1284 — `crates/vox-ml-cli/src/commands/ai/train.rs:71`
 
 **Substring**
 
@@ -1803,7 +1803,7 @@
 
 ---
 
-### hv-1292 — `crates/vox-ml-cli/src/commands/corpus/stats.rs:184`
+### hv-1285 — `crates/vox-ml-cli/src/commands/corpus/stats.rs:184`
 
 **Substring**
 
@@ -1823,7 +1823,7 @@
 
 ---
 
-### hv-1293 — `crates/vox-ml-cli/src/commands/mens/populi/action_populi_enum.rs:5`
+### hv-1286 — `crates/vox-ml-cli/src/commands/mens/populi/action_populi_enum.rs:5`
 
 **Substring**
 
@@ -1843,7 +1843,7 @@
 
 ---
 
-### hv-1294 — `crates/vox-ml-cli/src/commands/oratio_cmd.rs:27`
+### hv-1287 — `crates/vox-ml-cli/src/commands/oratio_cmd.rs:27`
 
 **Substring**
 
@@ -1863,7 +1863,7 @@
 
 ---
 
-### hv-1295 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:40`
+### hv-1288 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:40`
 
 **Substring**
 
@@ -1883,7 +1883,7 @@
 
 ---
 
-### hv-1296 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:180`
+### hv-1289 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:180`
 
 **Substring**
 
@@ -1903,7 +1903,7 @@
 
 ---
 
-### hv-1297 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:220`
+### hv-1290 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:220`
 
 **Substring**
 
@@ -1923,7 +1923,7 @@
 
 ---
 
-### hv-1298 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:235`
+### hv-1291 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:235`
 
 **Substring**
 
@@ -1943,7 +1943,7 @@
 
 ---
 
-### hv-1299 — `crates/vox-openclaw-runtime/src/openclaw_gateway_ws.rs:42`
+### hv-1292 — `crates/vox-openclaw-runtime/src/openclaw_gateway_ws.rs:42`
 
 **Substring**
 
@@ -1963,7 +1963,7 @@
 
 ---
 
-### hv-1300 — `crates/vox-oratio/src/contextual_bias.rs:73`
+### hv-1293 — `crates/vox-oratio/src/contextual_bias.rs:73`
 
 **Substring**
 
@@ -1983,7 +1983,7 @@
 
 ---
 
-### hv-1301 — `crates/vox-oratio/src/refine/rules.rs:15`
+### hv-1294 — `crates/vox-oratio/src/refine/rules.rs:15`
 
 **Substring**
 

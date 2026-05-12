@@ -1,9 +1,9 @@
 # 06 — hardcoded retry counts
 
 **Severity**: warning  
-**Itemized**: 44
+**Itemized**: 43
 
-### hv-0384 — `contracts/reports/scaling-audit/findings-latest.json:25763`
+### hv-0382 — `contracts/reports/scaling-audit/findings-latest.json:25763`
 
 **Substring**
 
@@ -21,7 +21,7 @@ for _ in 0..100
 
 ---
 
-### hv-0385 — `contracts/reports/scaling-audit/findings-latest.json:36851`
+### hv-0383 — `contracts/reports/scaling-audit/findings-latest.json:36851`
 
 **Substring**
 
@@ -39,25 +39,7 @@ for i in 0..5
 
 ---
 
-### hv-0386 — `crates/vox-cli/src/commands/dashboard.rs:95`
-
-**Substring**
-
-```text
-for _ in 0..40
-```
-
-**Why it matters**: Implicit retry limits cause flaky recovery or excessive load.
-
-**Fix** (extract-named-constant): const MAX_RETRIES: u32 = …; // tune via config when needed
-
-**Verify**: `rg -nF "for _ in 0..40" "crates/vox-cli/src/commands/dashboard.rs"`
-
-**Confidence**: medium
-
----
-
-### hv-0387 — `crates/vox-code-audit/src/detectors/long_range_coupling.rs:204`
+### hv-0384 — `crates/vox-code-audit/src/detectors/long_range_coupling.rs:204`
 
 **Substring**
 
@@ -75,7 +57,7 @@ for _ in 0..100
 
 ---
 
-### hv-0388 — `crates/vox-code-audit/src/detectors/long_range_coupling.rs:222`
+### hv-0385 — `crates/vox-code-audit/src/detectors/long_range_coupling.rs:222`
 
 **Substring**
 
@@ -93,7 +75,7 @@ for _ in 0..5
 
 ---
 
-### hv-0389 — `crates/vox-code-audit/src/detectors/mod.rs:213`
+### hv-0386 — `crates/vox-code-audit/src/detectors/mod.rs:213`
 
 **Substring**
 
@@ -111,7 +93,7 @@ for _ in 0..600
 
 ---
 
-### hv-0390 — `crates/vox-constrained-gen/src/deadlock.rs:33`
+### hv-0387 — `crates/vox-constrained-gen/src/deadlock.rs:33`
 
 **Substring**
 
@@ -129,7 +111,7 @@ max_retries: 3
 
 ---
 
-### hv-0391 — `crates/vox-corpus/src/codegen_vox/part_03.rs:61`
+### hv-0388 — `crates/vox-corpus/src/codegen_vox/part_03.rs:61`
 
 **Substring**
 
@@ -147,7 +129,7 @@ for v in 0..5
 
 ---
 
-### hv-0392 — `crates/vox-corpus/src/corpus/augment/tests_mod.rs:83`
+### hv-0389 — `crates/vox-corpus/src/corpus/augment/tests_mod.rs:83`
 
 **Substring**
 
@@ -165,7 +147,7 @@ for _ in 0..100
 
 ---
 
-### hv-0393 — `crates/vox-db/src/circuit_breaker.rs:176`
+### hv-0390 — `crates/vox-db/src/circuit_breaker.rs:176`
 
 **Substring**
 
@@ -183,7 +165,7 @@ for _ in 0..3
 
 ---
 
-### hv-0394 — `crates/vox-db/src/circuit_breaker.rs:217`
+### hv-0391 — `crates/vox-db/src/circuit_breaker.rs:217`
 
 **Substring**
 
@@ -201,7 +183,7 @@ for _ in 0..10
 
 ---
 
-### hv-0395 — `crates/vox-db/src/store/ops_retention.rs:128`
+### hv-0392 — `crates/vox-db/src/store/ops_retention.rs:128`
 
 **Substring**
 
@@ -219,7 +201,7 @@ for _ in 0..10
 
 ---
 
-### hv-0396 — `crates/vox-gamify/src/achievement/tracker.rs:144`
+### hv-0393 — `crates/vox-gamify/src/achievement/tracker.rs:144`
 
 **Substring**
 
@@ -237,7 +219,7 @@ for _ in 0..4
 
 ---
 
-### hv-0397 — `crates/vox-gamify/src/reward_policy.rs:619`
+### hv-0394 — `crates/vox-gamify/src/reward_policy.rs:619`
 
 **Substring**
 
@@ -255,7 +237,7 @@ for _ in 0..10
 
 ---
 
-### hv-0398 — `crates/vox-gamify/src/teaching.rs:387`
+### hv-0395 — `crates/vox-gamify/src/teaching.rs:387`
 
 **Substring**
 
@@ -273,7 +255,7 @@ for _ in 0..3
 
 ---
 
-### hv-0399 — `crates/vox-gamify/src/teaching.rs:400`
+### hv-0396 — `crates/vox-gamify/src/teaching.rs:400`
 
 **Substring**
 
@@ -291,7 +273,7 @@ for _ in 0..3
 
 ---
 
-### hv-0400 — `crates/vox-gamify/src/teaching.rs:412`
+### hv-0397 — `crates/vox-gamify/src/teaching.rs:412`
 
 **Substring**
 
@@ -309,7 +291,7 @@ for _ in 0..5
 
 ---
 
-### hv-0401 — `crates/vox-orchestrator-mcp/src/compiler_tools.rs:467`
+### hv-0398 — `crates/vox-orchestrator-mcp/src/compiler_tools.rs:467`
 
 **Substring**
 
@@ -327,7 +309,7 @@ retry_count = 0
 
 ---
 
-### hv-0402 — `crates/vox-orchestrator-mcp/src/compiler_tools.rs:936`
+### hv-0399 — `crates/vox-orchestrator-mcp/src/compiler_tools.rs:936`
 
 **Substring**
 
@@ -345,7 +327,7 @@ max_retries = 3
 
 ---
 
-### hv-0403 — `crates/vox-orchestrator-mcp/src/compiler_tools.rs:937`
+### hv-0400 — `crates/vox-orchestrator-mcp/src/compiler_tools.rs:937`
 
 **Substring**
 
@@ -363,7 +345,7 @@ retry_count = 0
 
 ---
 
-### hv-0404 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_adapter.rs:278`
+### hv-0401 — `crates/vox-orchestrator-mcp/src/llm_bridge/provider_adapter.rs:278`
 
 **Substring**
 
@@ -381,7 +363,7 @@ max_retries: 3
 
 ---
 
-### hv-0405 — `crates/vox-orchestrator-queue/src/oplog/mod.rs:271`
+### hv-0402 — `crates/vox-orchestrator-queue/src/oplog/mod.rs:271`
 
 **Substring**
 
@@ -399,7 +381,7 @@ for i in 0..5
 
 ---
 
-### hv-0406 — `crates/vox-orchestrator/src/attention/mod.rs:75`
+### hv-0403 — `crates/vox-orchestrator/src/attention/mod.rs:75`
 
 **Substring**
 
@@ -417,7 +399,7 @@ for _ in 0..5
 
 ---
 
-### hv-0407 — `crates/vox-orchestrator/src/calibration.rs:303`
+### hv-0404 — `crates/vox-orchestrator/src/calibration.rs:303`
 
 **Substring**
 
@@ -435,7 +417,7 @@ for _ in 0..4
 
 ---
 
-### hv-0408 — `crates/vox-orchestrator/src/calibration.rs:341`
+### hv-0405 — `crates/vox-orchestrator/src/calibration.rs:341`
 
 **Substring**
 
@@ -453,7 +435,7 @@ for _ in 0..100
 
 ---
 
-### hv-0409 — `crates/vox-orchestrator/src/observer.rs:447`
+### hv-0406 — `crates/vox-orchestrator/src/observer.rs:447`
 
 **Substring**
 
@@ -471,7 +453,7 @@ for _ in 0..25
 
 ---
 
-### hv-0410 — `crates/vox-orchestrator/src/orchestrator/persistence/lifecycle.rs:37`
+### hv-0407 — `crates/vox-orchestrator/src/orchestrator/persistence/lifecycle.rs:39`
 
 **Substring**
 
@@ -489,7 +471,7 @@ max_retries: 128
 
 ---
 
-### hv-0411 — `crates/vox-orchestrator/src/orchestrator/persistence/lifecycle.rs:245`
+### hv-0408 — `crates/vox-orchestrator/src/orchestrator/persistence/lifecycle.rs:247`
 
 **Substring**
 
@@ -507,7 +489,7 @@ max_retries: 10
 
 ---
 
-### hv-0412 — `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/goal.rs:28`
+### hv-0409 — `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/goal.rs:28`
 
 **Substring**
 
@@ -525,7 +507,7 @@ for _ in 0..24
 
 ---
 
-### hv-0413 — `crates/vox-orchestrator/src/planning/synthesizer.rs:357`
+### hv-0410 — `crates/vox-orchestrator/src/planning/synthesizer.rs:357`
 
 **Substring**
 
@@ -543,7 +525,7 @@ for i in 0..50
 
 ---
 
-### hv-0414 — `crates/vox-orchestrator/src/planning/types.rs:88`
+### hv-0411 — `crates/vox-orchestrator/src/planning/types.rs:88`
 
 **Substring**
 
@@ -561,7 +543,7 @@ max_retries: 1
 
 ---
 
-### hv-0415 — `crates/vox-orchestrator/src/queue/mod.rs:215`
+### hv-0412 — `crates/vox-orchestrator/src/queue/mod.rs:215`
 
 **Substring**
 
@@ -579,7 +561,7 @@ retry_count = 3
 
 ---
 
-### hv-0416 — `crates/vox-orchestrator/src/rebalance.rs:193`
+### hv-0413 — `crates/vox-orchestrator/src/rebalance.rs:193`
 
 **Substring**
 
@@ -597,7 +579,7 @@ for i in 0..15
 
 ---
 
-### hv-0417 — `crates/vox-orchestrator/src/routing/bandit.rs:28`
+### hv-0414 — `crates/vox-orchestrator/src/routing/bandit.rs:28`
 
 **Substring**
 
@@ -615,7 +597,7 @@ for _ in 0..100
 
 ---
 
-### hv-0418 — `crates/vox-orchestrator/src/security.rs:400`
+### hv-0415 — `crates/vox-orchestrator/src/security.rs:400`
 
 **Substring**
 
@@ -633,7 +615,7 @@ for _ in 0..5
 
 ---
 
-### hv-0419 — `crates/vox-orchestrator/src/security.rs:433`
+### hv-0416 — `crates/vox-orchestrator/src/security.rs:433`
 
 **Substring**
 
@@ -651,7 +633,7 @@ for i in 0..5
 
 ---
 
-### hv-0420 — `crates/vox-orchestrator/src/types/tasks.rs:483`
+### hv-0417 — `crates/vox-orchestrator/src/types/tasks.rs:483`
 
 **Substring**
 
@@ -669,7 +651,7 @@ retry_count: 0
 
 ---
 
-### hv-0421 — `crates/vox-scaling-policy/src/cost_defense.rs:302`
+### hv-0418 — `crates/vox-scaling-policy/src/cost_defense.rs:302`
 
 **Substring**
 
@@ -687,7 +669,7 @@ for _ in 0..3
 
 ---
 
-### hv-0422 — `crates/vox-secrets/src/tests.rs:278`
+### hv-0419 — `crates/vox-secrets/src/tests.rs:278`
 
 **Substring**
 
@@ -705,7 +687,7 @@ for _ in 0..8
 
 ---
 
-### hv-0423 — `crates/vox-tensor/src/data.rs:600`
+### hv-0420 — `crates/vox-tensor/src/data.rs:600`
 
 **Substring**
 
@@ -723,7 +705,7 @@ for i in 0..7
 
 ---
 
-### hv-0424 — `crates/vox-tensor/src/replay.rs:292`
+### hv-0421 — `crates/vox-tensor/src/replay.rs:292`
 
 **Substring**
 
@@ -741,7 +723,7 @@ for i in 0..5
 
 ---
 
-### hv-0425 — `crates/vox-tensor/src/replay.rs:314`
+### hv-0422 — `crates/vox-tensor/src/replay.rs:314`
 
 **Substring**
 
@@ -759,7 +741,7 @@ for i in 0..10
 
 ---
 
-### hv-0426 — `crates/vox-tensor/src/replay.rs:363`
+### hv-0423 — `crates/vox-tensor/src/replay.rs:363`
 
 **Substring**
 
@@ -777,7 +759,7 @@ for i in 0..5
 
 ---
 
-### hv-0427 — `crates/vox-webhook/src/delivery.rs:28`
+### hv-0424 — `crates/vox-webhook/src/delivery.rs:28`
 
 **Substring**
 

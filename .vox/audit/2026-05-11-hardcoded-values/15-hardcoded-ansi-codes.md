@@ -3,7 +3,7 @@
 **Severity**: warning  
 **Itemized**: 5
 
-### hv-1097 — `contracts/reports/scaling-audit/findings-scaling-latest.json:1639`
+### hv-1090 — `contracts/reports/scaling-audit/findings-scaling-latest.json:1639`
 
 **Substring**
 
@@ -21,7 +21,7 @@
 
 ---
 
-### hv-1098 — `crates/vox-cli/src/commands/status.rs:120`
+### hv-1091 — `crates/vox-cli/src/commands/status.rs:120`
 
 **Substring**
 
@@ -39,7 +39,7 @@
 
 ---
 
-### hv-1099 — `crates/vox-cli/src/commands/status.rs:122`
+### hv-1092 — `crates/vox-cli/src/commands/status.rs:122`
 
 **Substring**
 
@@ -57,7 +57,7 @@
 
 ---
 
-### hv-1100 — `crates/vox-cli/src/commands/status.rs:124`
+### hv-1093 — `crates/vox-cli/src/commands/status.rs:124`
 
 **Substring**
 
@@ -75,7 +75,7 @@
 
 ---
 
-### hv-1101 — `crates/vox-ml-cli/src/commands/mens/status.rs:410`
+### hv-1094 — `crates/vox-ml-cli/src/commands/mens/status.rs:410`
 
 **Substring**
 

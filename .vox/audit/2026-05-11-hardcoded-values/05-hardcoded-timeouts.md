@@ -3,7 +3,7 @@
 **Severity**: warning  
 **Itemized**: 100
 
-### hv-0284 — `apps/editor/vox-vscode/src/VisualEditorPanel.ts:197`
+### hv-0282 — `apps/editor/vox-vscode/src/VisualEditorPanel.ts:197`
 
 **Substring**
 
@@ -21,7 +21,7 @@ setTimeout(findServer, 5000)
 
 ---
 
-### hv-0285 — `contracts/reports/scaling-audit/findings-latest.json:20177`
+### hv-0283 — `contracts/reports/scaling-audit/findings-latest.json:20177`
 
 **Substring**
 
@@ -39,7 +39,7 @@ Duration::from_millis(250)
 
 ---
 
-### hv-0286 — `contracts/reports/scaling-audit/findings-scaling-latest.json:1584`
+### hv-0284 — `contracts/reports/scaling-audit/findings-scaling-latest.json:1584`
 
 **Substring**
 
@@ -57,7 +57,7 @@ Duration::from_millis(250)
 
 ---
 
-### hv-0287 — `crates/vox-actor-runtime/src/activity.rs:29`
+### hv-0285 — `crates/vox-actor-runtime/src/activity.rs:29`
 
 **Substring**
 
@@ -75,7 +75,7 @@ Duration::from_millis(100)
 
 ---
 
-### hv-0288 — `crates/vox-actor-runtime/src/activity.rs:30`
+### hv-0286 — `crates/vox-actor-runtime/src/activity.rs:30`
 
 **Substring**
 
@@ -93,7 +93,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0289 — `crates/vox-actor-runtime/src/activity.rs:306`
+### hv-0287 — `crates/vox-actor-runtime/src/activity.rs:306`
 
 **Substring**
 
@@ -111,7 +111,7 @@ Duration::from_millis(100)
 
 ---
 
-### hv-0290 — `crates/vox-actor-runtime/src/activity.rs:307`
+### hv-0288 — `crates/vox-actor-runtime/src/activity.rs:307`
 
 **Substring**
 
@@ -129,7 +129,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0291 — `crates/vox-actor-runtime/src/activity.rs:317`
+### hv-0289 — `crates/vox-actor-runtime/src/activity.rs:317`
 
 **Substring**
 
@@ -147,7 +147,7 @@ Duration::from_millis(200)
 
 ---
 
-### hv-0292 — `crates/vox-actor-runtime/src/activity.rs:321`
+### hv-0290 — `crates/vox-actor-runtime/src/activity.rs:321`
 
 **Substring**
 
@@ -165,7 +165,7 @@ Duration::from_secs(10)
 
 ---
 
-### hv-0293 — `crates/vox-actor-runtime/src/activity.rs:322`
+### hv-0291 — `crates/vox-actor-runtime/src/activity.rs:322`
 
 **Substring**
 
@@ -183,7 +183,7 @@ Duration::from_millis(200)
 
 ---
 
-### hv-0294 — `crates/vox-actor-runtime/src/activity.rs:330`
+### hv-0292 — `crates/vox-actor-runtime/src/activity.rs:330`
 
 **Substring**
 
@@ -201,7 +201,7 @@ Duration::from_secs(10)
 
 ---
 
-### hv-0295 — `crates/vox-actor-runtime/src/activity.rs:334`
+### hv-0293 — `crates/vox-actor-runtime/src/activity.rs:334`
 
 **Substring**
 
@@ -219,7 +219,7 @@ Duration::from_millis(500)
 
 ---
 
-### hv-0296 — `crates/vox-actor-runtime/src/activity.rs:338`
+### hv-0294 — `crates/vox-actor-runtime/src/activity.rs:338`
 
 **Substring**
 
@@ -237,7 +237,7 @@ Duration::from_secs(120)
 
 ---
 
-### hv-0297 — `crates/vox-actor-runtime/src/activity.rs:342`
+### hv-0295 — `crates/vox-actor-runtime/src/activity.rs:342`
 
 **Substring**
 
@@ -255,7 +255,7 @@ Duration::from_secs(3600)
 
 ---
 
-### hv-0298 — `crates/vox-actor-runtime/src/activity.rs:346`
+### hv-0296 — `crates/vox-actor-runtime/src/activity.rs:346`
 
 **Substring**
 
@@ -273,7 +273,7 @@ Duration::from_secs(30)
 
 ---
 
-### hv-0299 — `crates/vox-actor-runtime/src/activity.rs:353`
+### hv-0297 — `crates/vox-actor-runtime/src/activity.rs:353`
 
 **Substring**
 
@@ -291,7 +291,7 @@ Duration::from_secs(5)
 
 ---
 
-### hv-0300 — `crates/vox-actor-runtime/src/activity.rs:356`
+### hv-0298 — `crates/vox-actor-runtime/src/activity.rs:356`
 
 **Substring**
 
@@ -309,7 +309,7 @@ Duration::from_secs(4)
 
 ---
 
-### hv-0301 — `crates/vox-actor-runtime/src/activity.rs:360`
+### hv-0299 — `crates/vox-actor-runtime/src/activity.rs:360`
 
 **Substring**
 
@@ -327,7 +327,7 @@ Duration::from_secs(5)
 
 ---
 
-### hv-0302 — `crates/vox-actor-runtime/src/activity.rs:379`
+### hv-0300 — `crates/vox-actor-runtime/src/activity.rs:379`
 
 **Substring**
 
@@ -345,7 +345,7 @@ Duration::from_millis(1)
 
 ---
 
-### hv-0303 — `crates/vox-actor-runtime/src/activity.rs:406`
+### hv-0301 — `crates/vox-actor-runtime/src/activity.rs:406`
 
 **Substring**
 
@@ -363,7 +363,7 @@ Duration::from_millis(1)
 
 ---
 
-### hv-0304 — `crates/vox-actor-runtime/src/activity.rs:427`
+### hv-0302 — `crates/vox-actor-runtime/src/activity.rs:427`
 
 **Substring**
 
@@ -381,7 +381,7 @@ Duration::from_millis(10)
 
 ---
 
-### hv-0305 — `crates/vox-actor-runtime/src/activity.rs:430`
+### hv-0303 — `crates/vox-actor-runtime/src/activity.rs:430`
 
 **Substring**
 
@@ -399,7 +399,7 @@ Duration::from_secs(10)
 
 ---
 
-### hv-0306 — `crates/vox-actor-runtime/src/durable_scheduler.rs:83`
+### hv-0304 — `crates/vox-actor-runtime/src/durable_scheduler.rs:83`
 
 **Substring**
 
@@ -417,7 +417,7 @@ Duration::from_secs(3600)
 
 ---
 
-### hv-0307 — `crates/vox-actor-runtime/src/durable_scheduler.rs:86`
+### hv-0305 — `crates/vox-actor-runtime/src/durable_scheduler.rs:86`
 
 **Substring**
 
@@ -435,7 +435,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0308 — `crates/vox-actor-runtime/src/durable_scheduler.rs:185`
+### hv-0306 — `crates/vox-actor-runtime/src/durable_scheduler.rs:185`
 
 **Substring**
 
@@ -453,7 +453,7 @@ Duration::from_secs(10)
 
 ---
 
-### hv-0309 — `crates/vox-actor-runtime/src/durable_scheduler.rs:187`
+### hv-0307 — `crates/vox-actor-runtime/src/durable_scheduler.rs:187`
 
 **Substring**
 
@@ -471,7 +471,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0310 — `crates/vox-actor-runtime/src/durable_scheduler.rs:195`
+### hv-0308 — `crates/vox-actor-runtime/src/durable_scheduler.rs:195`
 
 **Substring**
 
@@ -489,7 +489,7 @@ Duration::from_secs(7200)
 
 ---
 
-### hv-0311 — `crates/vox-actor-runtime/src/durable_scheduler.rs:198`
+### hv-0309 — `crates/vox-actor-runtime/src/durable_scheduler.rs:198`
 
 **Substring**
 
@@ -507,7 +507,7 @@ Duration::from_secs(3600)
 
 ---
 
-### hv-0312 — `crates/vox-actor-runtime/src/durable_scheduler.rs:208`
+### hv-0310 — `crates/vox-actor-runtime/src/durable_scheduler.rs:208`
 
 **Substring**
 
@@ -525,7 +525,7 @@ Duration::from_secs(3600)
 
 ---
 
-### hv-0313 — `crates/vox-actor-runtime/src/inference_env.rs:90`
+### hv-0311 — `crates/vox-actor-runtime/src/inference_env.rs:90`
 
 **Substring**
 
@@ -543,7 +543,7 @@ Duration::from_secs(30)
 
 ---
 
-### hv-0314 — `crates/vox-actor-runtime/src/inference_env.rs:129`
+### hv-0312 — `crates/vox-actor-runtime/src/inference_env.rs:129`
 
 **Substring**
 
@@ -561,7 +561,7 @@ Duration::from_secs(5)
 
 ---
 
-### hv-0315 — `crates/vox-actor-runtime/src/presence.rs:120`
+### hv-0313 — `crates/vox-actor-runtime/src/presence.rs:120`
 
 **Substring**
 
@@ -579,7 +579,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0316 — `crates/vox-actor-runtime/src/presence.rs:131`
+### hv-0314 — `crates/vox-actor-runtime/src/presence.rs:131`
 
 **Substring**
 
@@ -597,7 +597,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0317 — `crates/vox-actor-runtime/src/presence.rs:141`
+### hv-0315 — `crates/vox-actor-runtime/src/presence.rs:141`
 
 **Substring**
 
@@ -615,7 +615,7 @@ Duration::from_millis(1)
 
 ---
 
-### hv-0318 — `crates/vox-actor-runtime/src/presence.rs:142`
+### hv-0316 — `crates/vox-actor-runtime/src/presence.rs:142`
 
 **Substring**
 
@@ -633,7 +633,7 @@ Duration::from_secs(10)
 
 ---
 
-### hv-0319 — `crates/vox-actor-runtime/src/presence.rs:154`
+### hv-0317 — `crates/vox-actor-runtime/src/presence.rs:154`
 
 **Substring**
 
@@ -651,7 +651,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0320 — `crates/vox-actor-runtime/src/rate_limit.rs:54`
+### hv-0318 — `crates/vox-actor-runtime/src/rate_limit.rs:54`
 
 **Substring**
 
@@ -669,7 +669,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0321 — `crates/vox-actor-runtime/src/resilient_http.rs:130`
+### hv-0319 — `crates/vox-actor-runtime/src/resilient_http.rs:130`
 
 **Substring**
 
@@ -687,7 +687,7 @@ Duration::from_millis(50)
 
 ---
 
-### hv-0322 — `crates/vox-actor-runtime/src/resilient_http.rs:131`
+### hv-0320 — `crates/vox-actor-runtime/src/resilient_http.rs:131`
 
 **Substring**
 
@@ -705,7 +705,7 @@ Duration::from_millis(100)
 
 ---
 
-### hv-0323 — `crates/vox-actor-runtime/src/resilient_http.rs:132`
+### hv-0321 — `crates/vox-actor-runtime/src/resilient_http.rs:132`
 
 **Substring**
 
@@ -723,7 +723,7 @@ Duration::from_millis(200)
 
 ---
 
-### hv-0324 — `crates/vox-actor-runtime/src/subscription.rs:146`
+### hv-0322 — `crates/vox-actor-runtime/src/subscription.rs:146`
 
 **Substring**
 
@@ -741,7 +741,7 @@ Duration::from_millis(100)
 
 ---
 
-### hv-0325 — `crates/vox-actor-runtime/src/subscription.rs:158`
+### hv-0323 — `crates/vox-actor-runtime/src/subscription.rs:158`
 
 **Substring**
 
@@ -759,7 +759,7 @@ Duration::from_millis(50)
 
 ---
 
-### hv-0326 — `crates/vox-actor-runtime/src/supervisor.rs:158`
+### hv-0324 — `crates/vox-actor-runtime/src/supervisor.rs:158`
 
 **Substring**
 
@@ -777,7 +777,25 @@ Duration::from_millis(100)
 
 ---
 
-### hv-0327 — `crates/vox-cli/src/commands/ci/pre_push.rs:174`
+### hv-0325 — `crates/vox-claim-extractor/src/minicheck.rs:84`
+
+**Substring**
+
+```text
+Duration::from_secs(10)
+```
+
+**Why it matters**: Magic timeouts are hard to tune for slow networks or large models.
+
+**Fix** (extract-named-constant): const CONNECT_TIMEOUT: Duration = Duration::from_millis(…); // document rationale
+
+**Verify**: `rg -nF "Duration::from_secs(10)" "crates/vox-claim-extractor/src/minicheck.rs"`
+
+**Confidence**: high
+
+---
+
+### hv-0326 — `crates/vox-cli/src/commands/ci/pre_push.rs:174`
 
 **Substring**
 
@@ -795,7 +813,7 @@ Duration::from_secs(3)
 
 ---
 
-### hv-0328 — `crates/vox-cli/src/commands/ci/test_inventory.rs:1115`
+### hv-0327 — `crates/vox-cli/src/commands/ci/test_inventory.rs:1115`
 
 **Substring**
 
@@ -813,43 +831,7 @@ Duration::from_millis(1)
 
 ---
 
-### hv-0329 — `crates/vox-cli/src/commands/dashboard.rs:102`
-
-**Substring**
-
-```text
-Duration::from_millis(250)
-```
-
-**Why it matters**: Magic timeouts are hard to tune for slow networks or large models.
-
-**Fix** (extract-named-constant): const CONNECT_TIMEOUT: Duration = Duration::from_millis(…); // document rationale
-
-**Verify**: `rg -nF "Duration::from_millis(250)" "crates/vox-cli/src/commands/dashboard.rs"`
-
-**Confidence**: high
-
----
-
-### hv-0330 — `crates/vox-cli/src/commands/dashboard.rs:223`
-
-**Substring**
-
-```text
-Duration::from_secs(5)
-```
-
-**Why it matters**: Magic timeouts are hard to tune for slow networks or large models.
-
-**Fix** (extract-named-constant): const CONNECT_TIMEOUT: Duration = Duration::from_millis(…); // document rationale
-
-**Verify**: `rg -nF "Duration::from_secs(5)" "crates/vox-cli/src/commands/dashboard.rs"`
-
-**Confidence**: high
-
----
-
-### hv-0331 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/tail.rs:213`
+### hv-0328 — `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/tail.rs:213`
 
 **Substring**
 
@@ -867,7 +849,7 @@ Duration::from_millis(300)
 
 ---
 
-### hv-0332 — `crates/vox-cli/src/commands/extras/ludus/hud.rs:22`
+### hv-0329 — `crates/vox-cli/src/commands/extras/ludus/hud.rs:22`
 
 **Substring**
 
@@ -885,7 +867,7 @@ Duration::from_secs(1)
 
 ---
 
-### hv-0333 — `crates/vox-cli/src/commands/extras/ludus/hud.rs:80`
+### hv-0330 — `crates/vox-cli/src/commands/extras/ludus/hud.rs:80`
 
 **Substring**
 
@@ -903,7 +885,7 @@ Duration::from_secs(3)
 
 ---
 
-### hv-0334 — `crates/vox-cli/src/commands/generate.rs:30`
+### hv-0331 — `crates/vox-cli/src/commands/generate.rs:30`
 
 **Substring**
 
@@ -921,7 +903,7 @@ Duration::from_secs(120)
 
 ---
 
-### hv-0335 — `crates/vox-cli/src/commands/live.rs:235`
+### hv-0332 — `crates/vox-cli/src/commands/live.rs:235`
 
 **Substring**
 
@@ -939,7 +921,7 @@ Duration::from_millis(250)
 
 ---
 
-### hv-0336 — `crates/vox-cli/src/commands/live.rs:298`
+### hv-0333 — `crates/vox-cli/src/commands/live.rs:298`
 
 **Substring**
 
@@ -957,7 +939,7 @@ Duration::from_millis(250)
 
 ---
 
-### hv-0337 — `crates/vox-cli/src/commands/openclaw.rs:552`
+### hv-0334 — `crates/vox-cli/src/commands/openclaw.rs:552`
 
 **Substring**
 
@@ -975,7 +957,7 @@ Duration::from_secs(5)
 
 ---
 
-### hv-0338 — `crates/vox-cli/src/commands/openclaw.rs:596`
+### hv-0335 — `crates/vox-cli/src/commands/openclaw.rs:596`
 
 **Substring**
 
@@ -993,7 +975,7 @@ Duration::from_secs(5)
 
 ---
 
-### hv-0339 — `crates/vox-cli/src/commands/openclaw.rs:795`
+### hv-0336 — `crates/vox-cli/src/commands/openclaw.rs:795`
 
 **Substring**
 
@@ -1011,7 +993,7 @@ Duration::from_secs(5)
 
 ---
 
-### hv-0340 — `crates/vox-cli/src/commands/plugin/publish.rs:143`
+### hv-0337 — `crates/vox-cli/src/commands/plugin/publish.rs:143`
 
 **Substring**
 
@@ -1029,7 +1011,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0341 — `crates/vox-cli/src/commands/repair.rs:47`
+### hv-0338 — `crates/vox-cli/src/commands/repair.rs:47`
 
 **Substring**
 
@@ -1047,7 +1029,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0342 — `crates/vox-cli/src/commands/research/mod.rs:261`
+### hv-0339 — `crates/vox-cli/src/commands/research/mod.rs:261`
 
 **Substring**
 
@@ -1065,7 +1047,7 @@ Duration::from_secs(3)
 
 ---
 
-### hv-0343 — `crates/vox-cli/src/commands/review/coderabbit/github/comments.rs:52`
+### hv-0340 — `crates/vox-cli/src/commands/review/coderabbit/github/comments.rs:52`
 
 **Substring**
 
@@ -1083,7 +1065,7 @@ Duration::from_secs(30)
 
 ---
 
-### hv-0344 — `crates/vox-cli/src/commands/review/coderabbit/github/reviews/worktree.rs:45`
+### hv-0341 — `crates/vox-cli/src/commands/review/coderabbit/github/reviews/worktree.rs:46`
 
 **Substring**
 
@@ -1101,25 +1083,7 @@ Duration::from_millis(400)
 
 ---
 
-### hv-0345 — `crates/vox-cli/src/commands/share.rs:110`
-
-**Substring**
-
-```text
-Duration::from_secs(10)
-```
-
-**Why it matters**: Magic timeouts are hard to tune for slow networks or large models.
-
-**Fix** (extract-named-constant): const CONNECT_TIMEOUT: Duration = Duration::from_millis(…); // document rationale
-
-**Verify**: `rg -nF "Duration::from_secs(10)" "crates/vox-cli/src/commands/share.rs"`
-
-**Confidence**: high
-
----
-
-### hv-0346 — `crates/vox-cli/src/commands/share.rs:239`
+### hv-0342 — `crates/vox-cli/src/commands/share.rs:251`
 
 **Substring**
 
@@ -1137,7 +1101,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0347 — `crates/vox-cli/src/commands/share.rs:261`
+### hv-0343 — `crates/vox-cli/src/commands/share.rs:273`
 
 **Substring**
 
@@ -1155,7 +1119,7 @@ Duration::from_millis(200)
 
 ---
 
-### hv-0348 — `crates/vox-cli/src/commands/status.rs:32`
+### hv-0344 — `crates/vox-cli/src/commands/status.rs:32`
 
 **Substring**
 
@@ -1173,7 +1137,7 @@ Duration::from_millis(300)
 
 ---
 
-### hv-0349 — `crates/vox-cli/src/commands/test.rs:86`
+### hv-0345 — `crates/vox-cli/src/commands/test.rs:96`
 
 **Substring**
 
@@ -1191,7 +1155,7 @@ Duration::from_millis(300)
 
 ---
 
-### hv-0350 — `crates/vox-cli/src/compilerd.rs:321`
+### hv-0346 — `crates/vox-cli/src/compilerd.rs:329`
 
 **Substring**
 
@@ -1209,7 +1173,7 @@ Duration::from_secs(2)
 
 ---
 
-### hv-0351 — `crates/vox-cli/src/compilerd.rs:407`
+### hv-0347 — `crates/vox-cli/src/compilerd.rs:416`
 
 **Substring**
 
@@ -1227,7 +1191,7 @@ Duration::from_secs(2)
 
 ---
 
-### hv-0352 — `crates/vox-cli/src/frontend.rs:56`
+### hv-0348 — `crates/vox-cli/src/frontend.rs:56`
 
 **Substring**
 
@@ -1245,7 +1209,7 @@ Duration::from_secs(2)
 
 ---
 
-### hv-0353 — `crates/vox-cli/src/fs_utils.rs:175`
+### hv-0349 — `crates/vox-cli/src/fs_utils.rs:175`
 
 **Substring**
 
@@ -1263,7 +1227,7 @@ Duration::from_secs(120)
 
 ---
 
-### hv-0354 — `crates/vox-cli/src/progress.rs:40`
+### hv-0350 — `crates/vox-cli/src/progress.rs:40`
 
 **Substring**
 
@@ -1281,7 +1245,7 @@ Duration::from_millis(80)
 
 ---
 
-### hv-0355 — `crates/vox-cli/src/progress.rs:73`
+### hv-0351 — `crates/vox-cli/src/progress.rs:73`
 
 **Substring**
 
@@ -1299,7 +1263,7 @@ Duration::from_millis(80)
 
 ---
 
-### hv-0356 — `crates/vox-code-audit/src/review/client.rs:20`
+### hv-0352 — `crates/vox-code-audit/src/review/client.rs:20`
 
 **Substring**
 
@@ -1317,7 +1281,7 @@ Duration::from_secs(120)
 
 ---
 
-### hv-0357 — `crates/vox-codegen/src/codegen_rust/emit/http.rs:250`
+### hv-0353 — `crates/vox-codegen/src/codegen_rust/emit/http.rs:250`
 
 **Substring**
 
@@ -1335,7 +1299,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0358 — `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs:929`
+### hv-0354 — `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs:950`
 
 **Substring**
 
@@ -1353,7 +1317,7 @@ setTimeout(() => resolve({ Error: "Timeout" }), 2000)
 
 ---
 
-### hv-0359 — `crates/vox-db/src/circuit_breaker.rs:92`
+### hv-0355 — `crates/vox-db/src/circuit_breaker.rs:92`
 
 **Substring**
 
@@ -1371,7 +1335,7 @@ Duration::from_secs(30)
 
 ---
 
-### hv-0360 — `crates/vox-db/src/circuit_breaker.rs:175`
+### hv-0356 — `crates/vox-db/src/circuit_breaker.rs:175`
 
 **Substring**
 
@@ -1389,7 +1353,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0361 — `crates/vox-db/src/circuit_breaker.rs:186`
+### hv-0357 — `crates/vox-db/src/circuit_breaker.rs:186`
 
 **Substring**
 
@@ -1407,7 +1371,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0362 — `crates/vox-db/src/circuit_breaker.rs:203`
+### hv-0358 — `crates/vox-db/src/circuit_breaker.rs:203`
 
 **Substring**
 
@@ -1425,7 +1389,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0363 — `crates/vox-db/src/circuit_breaker.rs:215`
+### hv-0359 — `crates/vox-db/src/circuit_breaker.rs:215`
 
 **Substring**
 
@@ -1443,7 +1407,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0364 — `crates/vox-deploy-codegen/src/deploy_target.rs:527`
+### hv-0360 — `crates/vox-deploy-codegen/src/deploy_target.rs:527`
 
 **Substring**
 
@@ -1461,7 +1425,7 @@ Duration::from_secs(10)
 
 ---
 
-### hv-0365 — `crates/vox-drift-check/src/extractors/rust.rs:194`
+### hv-0361 — `crates/vox-drift-check/src/extractors/rust.rs:194`
 
 **Substring**
 
@@ -1479,7 +1443,7 @@ Duration::from_secs(30)
 
 ---
 
-### hv-0366 — `crates/vox-drift-check/src/extractors/rust.rs:205`
+### hv-0362 — `crates/vox-drift-check/src/extractors/rust.rs:205`
 
 **Substring**
 
@@ -1497,7 +1461,7 @@ Duration::from_millis(100)
 
 ---
 
-### hv-0367 — `crates/vox-gamify/src/output_policy.rs:71`
+### hv-0363 — `crates/vox-gamify/src/output_policy.rs:71`
 
 **Substring**
 
@@ -1515,25 +1479,43 @@ Duration::from_secs(3600)
 
 ---
 
-### hv-0368 — `crates/vox-integration-tests/target.stale-2026-05-11/generated/src/main.rs:42`
+### hv-0364 — `crates/vox-http-client/src/lib.rs:20`
 
 **Substring**
 
 ```text
-Duration::from_secs(60)
+Duration::from_secs(15)
 ```
 
 **Why it matters**: Magic timeouts are hard to tune for slow networks or large models.
 
 **Fix** (extract-named-constant): const CONNECT_TIMEOUT: Duration = Duration::from_millis(…); // document rationale
 
-**Verify**: `rg -nF "Duration::from_secs(60)" "crates/vox-integration-tests/target.stale-2026-05-11/generated/src/main.rs"`
+**Verify**: `rg -nF "Duration::from_secs(15)" "crates/vox-http-client/src/lib.rs"`
 
 **Confidence**: high
 
 ---
 
-### hv-0369 — `crates/vox-ml-cli/src/commands/populi_cli.rs:941`
+### hv-0365 — `crates/vox-http-client/src/lib.rs:21`
+
+**Substring**
+
+```text
+Duration::from_secs(90)
+```
+
+**Why it matters**: Magic timeouts are hard to tune for slow networks or large models.
+
+**Fix** (extract-named-constant): const CONNECT_TIMEOUT: Duration = Duration::from_millis(…); // document rationale
+
+**Verify**: `rg -nF "Duration::from_secs(90)" "crates/vox-http-client/src/lib.rs"`
+
+**Confidence**: high
+
+---
+
+### hv-0366 — `crates/vox-ml-cli/src/commands/populi_cli.rs:941`
 
 **Substring**
 
@@ -1551,7 +1533,7 @@ Duration::from_secs(3600)
 
 ---
 
-### hv-0370 — `crates/vox-ml-cli/src/commands/populi_cli.rs:1172`
+### hv-0367 — `crates/vox-ml-cli/src/commands/populi_cli.rs:1172`
 
 **Substring**
 
@@ -1569,7 +1551,7 @@ Duration::from_secs(3600)
 
 ---
 
-### hv-0371 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:518`
+### hv-0368 — `crates/vox-ml-cli/src/commands/populi_lifecycle.rs:518`
 
 **Substring**
 
@@ -1587,7 +1569,7 @@ Duration::from_secs(2)
 
 ---
 
-### hv-0372 — `crates/vox-openclaw-runtime/src/openclaw_discovery.rs:156`
+### hv-0369 — `crates/vox-openclaw-runtime/src/openclaw_discovery.rs:156`
 
 **Substring**
 
@@ -1605,7 +1587,7 @@ Duration::from_secs(8)
 
 ---
 
-### hv-0373 — `crates/vox-openclaw-runtime/src/openclaw.rs:73`
+### hv-0370 — `crates/vox-openclaw-runtime/src/openclaw.rs:73`
 
 **Substring**
 
@@ -1623,7 +1605,7 @@ Duration::from_secs(60)
 
 ---
 
-### hv-0374 — `crates/vox-oratio/src/backends/cloud_offload.rs:25`
+### hv-0371 — `crates/vox-oratio/src/backends/cloud_offload.rs:25`
 
 **Substring**
 
@@ -1641,7 +1623,7 @@ Duration::from_secs(300)
 
 ---
 
-### hv-0375 — `crates/vox-orchestrator-mcp/src/http_gateway/eval.rs:110`
+### hv-0372 — `crates/vox-orchestrator-mcp/src/http_gateway/eval.rs:110`
 
 **Substring**
 
@@ -1659,7 +1641,7 @@ Duration::from_secs(5)
 
 ---
 
-### hv-0376 — `crates/vox-orchestrator-mcp/src/openclaw_tools.rs:152`
+### hv-0373 — `crates/vox-orchestrator-mcp/src/openclaw_tools.rs:152`
 
 **Substring**
 
@@ -1677,7 +1659,7 @@ Duration::from_secs(5)
 
 ---
 
-### hv-0377 — `crates/vox-orchestrator-mcp/src/server_state.rs:132`
+### hv-0374 — `crates/vox-orchestrator-mcp/src/server_state.rs:132`
 
 **Substring**
 
@@ -1695,7 +1677,7 @@ Duration::from_secs(120)
 
 ---
 
-### hv-0378 — `crates/vox-orchestrator-mcp/src/server_state.rs:180`
+### hv-0375 — `crates/vox-orchestrator-mcp/src/server_state.rs:182`
 
 **Substring**
 
@@ -1713,7 +1695,7 @@ Duration::from_secs(120)
 
 ---
 
-### hv-0379 — `crates/vox-orchestrator-mcp/src/visus_tools.rs:74`
+### hv-0376 — `crates/vox-orchestrator-mcp/src/visus_tools.rs:74`
 
 **Substring**
 
@@ -1731,7 +1713,7 @@ Duration::from_secs(3)
 
 ---
 
-### hv-0380 — `crates/vox-orchestrator-mcp/src/visus_tools.rs:135`
+### hv-0377 — `crates/vox-orchestrator-mcp/src/visus_tools.rs:135`
 
 **Substring**
 
@@ -1749,7 +1731,7 @@ Duration::from_secs(3)
 
 ---
 
-### hv-0381 — `crates/vox-orchestrator/src/bulletin.rs:79`
+### hv-0378 — `crates/vox-orchestrator/src/bulletin.rs:79`
 
 **Substring**
 
@@ -1767,7 +1749,7 @@ Duration::from_millis(100)
 
 ---
 
-### hv-0382 — `crates/vox-orchestrator/src/catalog.rs:19`
+### hv-0379 — `crates/vox-orchestrator/src/catalog.rs:19`
 
 **Substring**
 
@@ -1785,7 +1767,7 @@ Duration::from_secs(10)
 
 ---
 
-### hv-0383 — `crates/vox-orchestrator/src/catalog.rs:305`
+### hv-0380 — `crates/vox-orchestrator/src/catalog.rs:305`
 
 **Substring**
 
@@ -1798,6 +1780,24 @@ Duration::from_secs(5)
 **Fix** (extract-named-constant): const CONNECT_TIMEOUT: Duration = Duration::from_millis(…); // document rationale
 
 **Verify**: `rg -nF "Duration::from_secs(5)" "crates/vox-orchestrator/src/catalog.rs"`
+
+**Confidence**: high
+
+---
+
+### hv-0381 — `crates/vox-orchestrator/src/catalog.rs:387`
+
+**Substring**
+
+```text
+Duration::from_secs(10)
+```
+
+**Why it matters**: Magic timeouts are hard to tune for slow networks or large models.
+
+**Fix** (extract-named-constant): const CONNECT_TIMEOUT: Duration = Duration::from_millis(…); // document rationale
+
+**Verify**: `rg -nF "Duration::from_secs(10)" "crates/vox-orchestrator/src/catalog.rs"`
 
 **Confidence**: high
 
