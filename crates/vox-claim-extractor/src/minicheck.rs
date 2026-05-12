@@ -13,15 +13,13 @@ pub struct MiniCheckVerifier {
     pub abstain_threshold: f64,
 }
 
-// TODO(Phase 5): These structs are used by the Http backend once MiniCheck-FT5 is wired.
-#[allow(dead_code)]
+// Serialization types for the MiniCheck HTTP API.
 #[derive(Serialize)]
 struct MiniCheckRequest<'a> {
     claim: &'a str,
     context: &'a str,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 struct MiniCheckResponse {
     support_score: f64,
@@ -82,9 +80,24 @@ impl MiniCheckVerifier {
                 })
             }
             MiniCheckBackend::Http { endpoint } => {
-                // Phase 5: replace with actual reqwest call
-                let _ = endpoint;
-                Err("HTTP MiniCheck backend not yet wired (Phase 5)".into())
+                let client = reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(10))
+                    .build()?;
+                let payload = MiniCheckRequest { claim, context };
+                let resp = client
+                    .post(endpoint)
+                    .json(&payload)
+                    .send()
+                    .await?
+                    .error_for_status()?;
+                let body: MiniCheckResponse = resp.json().await?;
+                let score = body.support_score.clamp(0.0, 1.0);
+                Ok(VerifierOutput {
+                    claim_id,
+                    support_score: score,
+                    abstained: score < self.abstain_threshold,
+                    verifier_model: endpoint.clone(),
+                })
             }
         }
     }
