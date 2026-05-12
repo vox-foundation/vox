@@ -2,7 +2,7 @@
 title: "AI Fixtures TS Lowering Follow-on (2026)"
 description: "Follow-on plan for implementing TypeScript target lowering for AI fixture variants."
 category: "architecture"
-status: "proposed"
+status: "roadmap"
 training_eligible: true
 ---
 

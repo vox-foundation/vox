@@ -2,7 +2,7 @@
 title: "ADR 040 — AI fixture `@search` decorator"
 description: "Proposes retrieval fixture composition across docs, memory, and web search surfaces."
 category: "architecture"
-status: "accepted"
+status: "current"
 last_updated: "2026-05-11"
 training_eligible: true
 ---
