@@ -43,17 +43,19 @@ Vox is what falls out when you design the language *after* the model: collapse t
 
 ## Install
 
-The recommended way to install Vox is via `voxup`, the official toolchain manager (similar to `rustup` or `nvm`). It handles downloading the compiler, native GUI, and ML extensions for your specific operating system.
+Vox is currently in pre-1.0 active development. Official installation packages (`voxup`, `.msi`, `.deb`, Homebrew) are configured in the CI pipeline but have not yet been formally released. 
 
-**macOS / Linux**
+To use Vox today, you must build the CLI from source:
+
+**Prerequisites:**
+Ensure you have [Rust and Cargo](https://rustup.rs/) installed.
+
+**Building from Source**
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://vox-lang.org/voxup/install.sh | sh
+git clone https://github.com/vox-foundation/vox.git
+cd vox
+cargo install --path crates/vox-cli
 ```
-*(Alternatively, macOS users can use Homebrew: `brew install vox-foundation/vox/vox`)*
-
-**Windows**
-Download and run `voxup-init.exe` or the official `.msi` installer from the [Releases page](https://github.com/vox-foundation/vox/releases). 
-*Note: The Windows installer is securely signed via Azure Trusted Signing.*
 
 **Getting Started**
 ```bash
@@ -193,10 +195,10 @@ fn checkout(amount: int) to Result[str] {
 ```
 
 <div align="center">
-  <img src="docs/src/assets/vox_durable_state_diagram.png" alt="Durable execution state diagram: commit, execute, recover, complete" width="60%">
+  <img src="docs/src/assets/durable_essentialist_loop.webp" alt="Durable execution loop: commit, execute, recover, complete" width="60%">
 </div>
 
-The same primitives drive multi-agent work. [`vox-orchestrator`](crates/vox-orchestrator/) routes tasks to agents by file affinity and ten policy modules (tier cascade, plan-mode trigger, risk matrix, budget gate, circuit breaker, calibration, …). Capabilities are extensible: 27 first-party plugins (compiler, git, memory, RAG, testing, Mens-Candle-CUDA/Metal, WASM and OCI runtimes) load through [`vox-plugin-host`](crates/vox-plugin-host/) behind a stable ABI.
+The same primitives drive multi-agent work. [`vox-orchestrator`](crates/vox-orchestrator/) routes tasks to agents by file affinity and ten policy modules (tier cascade, plan-mode trigger, risk matrix, budget gate, circuit breaker, calibration, …). Capabilities are extensible: dozens of first-party plugins (compiler, git, memory, RAG, testing, Mens-Candle-CUDA/Metal, WASM and OCI runtimes) load through [`vox-plugin-host`](crates/vox-plugin-host/) behind a stable ABI.
 
 → [orchestration policy research](docs/src/architecture/autonomous-orchestration-policy-research-2026.md) · [`vox-skills`](crates/vox-skills/)
 
