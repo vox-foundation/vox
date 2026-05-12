@@ -1,13 +1,17 @@
 # Examples layout — single source of truth for CI and contributors.
 # Policy:
-# - Every `*.vox` under `examples/` must lie under `golden_roots` (full golden pipeline)
-#   or `negative_roots` (intentionally invalid parser fixtures).
+# - Every `*.vox` under `examples/` must lie under `golden_roots` (full golden pipeline),
+#   `sandbox_roots` (scaffolded sample apps, not corpus goldens), or `negative_roots`
+#   (intentionally invalid parser fixtures).
 # - mdBook `{{#include}}` paths in `doc_roots` must resolve to files under `examples/golden/`.
 schema_version: 1
 
 golden_roots:
   - examples/golden
   - examples/golden-ts
+
+sandbox_roots:
+  - examples/sandboxes
 
 negative_roots:
   - examples/parser-inventory
