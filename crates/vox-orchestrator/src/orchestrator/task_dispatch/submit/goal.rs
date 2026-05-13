@@ -418,6 +418,7 @@ impl Orchestrator {
         planning_mode: Option<PlanningMode>,
         session_id: Option<String>,
         enqueue_hints: Option<crate::types::TaskEnqueueHints>,
+        tenant_id: Option<String>,
     ) -> Result<TaskId, OrchestratorError> {
         let goal = goal.into();
         let cfg = crate::sync_lock::rw_read(&*self.config).clone();
@@ -433,6 +434,7 @@ impl Orchestrator {
                     None,
                     enqueue_hints.clone(),
                     session_id,
+                    tenant_id,
                 )
                 .await;
         }
@@ -448,6 +450,7 @@ impl Orchestrator {
                         None,
                         enqueue_hints.clone(),
                         session_id,
+                        tenant_id,
                     )
                     .await;
             }
@@ -471,6 +474,7 @@ impl Orchestrator {
                     None,
                     enqueue_hints.clone(),
                     session_id,
+                    tenant_id,
                 )
                 .await;
         }
@@ -485,6 +489,7 @@ impl Orchestrator {
                     priority,
                     session_id,
                     enqueue_hints,
+                    tenant_id,
                 )
                 .await;
         }
@@ -709,6 +714,7 @@ impl Orchestrator {
                 &plan_session_id,
                 plan_version,
                 session_id.clone(),
+                tenant_id.clone(),
             )
             .await?;
             return enqueued.into_iter().next().ok_or_else(|| {
@@ -735,6 +741,7 @@ impl Orchestrator {
             &plan_session_id,
             plan_version,
             session_id,
+            tenant_id,
         )
         .await
     }

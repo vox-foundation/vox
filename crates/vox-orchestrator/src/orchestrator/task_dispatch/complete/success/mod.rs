@@ -383,6 +383,7 @@ impl Orchestrator {
                 current.benchmark_tier,
                 current.audit_report.clone(),
                 bandit_model_id,
+                current.tenant_id.clone(),
             )
         };
 
@@ -397,6 +398,7 @@ impl Orchestrator {
             benchmark_tier,
             audit_report,
             bandit_model_id,
+            tenant_id,
         ) = completion_data;
 
         let (snap_before, db_snap_before) =
@@ -433,6 +435,7 @@ impl Orchestrator {
             plan_meta,
             campaign_id,
             benchmark_tier,
+            tenant_id.clone(),
         )
         .await;
 

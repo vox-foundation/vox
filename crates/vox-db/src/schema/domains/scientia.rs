@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS agent_telemetry_flat (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id          TEXT    NOT NULL,
     session_id        TEXT    NOT NULL,
+    tenant_id         TEXT,
     repository_id     TEXT    NOT NULL DEFAULT '',
     event_kind        TEXT    NOT NULL,           -- 'exec', 'cost', 'trust_obs', 'a2a', 'budget_alert'
     tool_name         TEXT,

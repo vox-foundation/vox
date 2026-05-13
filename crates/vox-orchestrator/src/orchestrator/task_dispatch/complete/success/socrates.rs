@@ -260,6 +260,7 @@ mod autonomous_research_short_circuit_tests {
             vec![FileAffinity::write("src/a.rs")],
             Some(TaskPriority::Normal),
             None,
+            None,
         )
         .await
         .unwrap();

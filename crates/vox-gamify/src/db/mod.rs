@@ -20,9 +20,9 @@ mod teaching;
 
 pub use agent_telemetry::{
     AgentEventRecord, AgentSessionRecord, CostRecord, acknowledge_message, end_agent_session,
-    get_agent_cost_usd, get_agent_metrics, get_events, insert_agent_session, insert_cost_record,
-    insert_event, list_active_sessions, list_cost_records, update_agent_session,
-    upsert_agent_metric,
+    get_agent_cost_usd, get_agent_metrics, get_agent_session, get_events,
+    get_tenant_monthly_token_usage, insert_agent_session, insert_cost_record, insert_event,
+    list_active_sessions, list_cost_records, update_agent_session, upsert_agent_metric,
 };
 pub use arena::{
     ArenaEvent, arena_event_leaderboard, get_active_arena_event, get_arena_contribution,

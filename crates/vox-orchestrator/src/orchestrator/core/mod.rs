@@ -84,6 +84,11 @@ impl crate::orchestrator::Orchestrator {
             ))),
             agentos_policy_ledger: crate::agentos::policy_runtime::AgentosPolicyLedger::shared(),
             skill_registry,
+            tenant_budget_gate: Arc::new(RwLock::new(
+                crate::budget_gate::OrchestratorBudgetGate::new(
+                    config.budget_gate_config.clone().unwrap_or_default(),
+                ),
+            )),
         }
     }
 
@@ -158,6 +163,11 @@ impl crate::orchestrator::Orchestrator {
             ))),
             agentos_policy_ledger: crate::agentos::policy_runtime::AgentosPolicyLedger::shared(),
             skill_registry,
+            tenant_budget_gate: Arc::new(RwLock::new(
+                crate::budget_gate::OrchestratorBudgetGate::new(
+                    config.budget_gate_config.clone().unwrap_or_default(),
+                ),
+            )),
         }
     }
 

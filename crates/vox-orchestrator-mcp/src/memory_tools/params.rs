@@ -121,8 +121,10 @@ pub struct CompactParams {
 /// MCP arguments: create a new persisted session for an agent.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SessionCreateParams {
-    /// Agent that owns the session.
+    /// Agent ID to create the session for.
     pub agent_id: u64,
+    /// Optional tenant ID for budget tracking.
+    pub tenant_id: Option<String>,
 }
 
 /// MCP arguments: refer to an existing session by opaque id string.
@@ -153,20 +155,29 @@ pub struct SessionAddTurnParams {
 }
 
 /// Serializable session row for MCP list/info tools.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct SessionInfo {
-    /// Session id string.
     pub id: String,
-    /// Owning agent id.
-    pub agent_id: u64,
-    /// Lifecycle state label.
+    pub agent_id: String,
+    pub tenant_id: Option<String>,
     pub state: String,
-    /// Number of turns stored.
     pub turn_count: usize,
-    /// Accumulated token estimate.
-    pub total_tokens: usize,
-    /// Last activity timestamp (epoch ms).
-    pub last_active: u64,
+    pub token_count: usize,
+    pub created_at: u64,
+}
+
+impl SessionInfo {
+    pub fn from_session(s: &vox_orchestrator::session::Session) -> Self {
+        Self {
+            id: s.id.clone(),
+            agent_id: s.agent_id.0.to_string(),
+            tenant_id: s.tenant_id.clone(),
+            state: s.state.to_string(),
+            turn_count: s.turn_count,
+            token_count: s.total_tokens,
+            created_at: s.created_at,
+        }
+    }
 }
 
 /// MCP arguments: read one `user_preferences` row.

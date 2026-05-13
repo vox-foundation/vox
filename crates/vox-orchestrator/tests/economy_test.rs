@@ -50,6 +50,7 @@ async fn test_economy_preference_rebalancing() {
                 vec![],
                 Some(TaskPriority::Normal),
                 None,
+                None,
             )
             .await
             .unwrap();

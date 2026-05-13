@@ -433,6 +433,7 @@ pub fn spawn_socrates_research_poller(orch: std::sync::Arc<crate::Orchestrator>)
                                 None,
                                 Some(hints),
                                 None,
+                                None,
                             )
                             .await;
                         if let Ok(task_id) = task_res {

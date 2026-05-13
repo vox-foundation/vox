@@ -57,6 +57,7 @@ pub async fn enqueue_recovery_first_node(
     reason: &str,
     failed_desc: &str,
     session_id: Option<String>,
+    tenant_id: Option<String>,
 ) -> Result<(), crate::orchestrator::OrchestratorError> {
     let mut nodes = synthesize_recovery_nodes(reason, failed_desc).await;
     if let Some(first) = nodes.first_mut() {
@@ -84,6 +85,7 @@ pub async fn enqueue_recovery_first_node(
                 budget: None,
                 trace_id: None,
                 active_skill: None,
+                tenant_id: tenant_id.clone(),
             });
         }
         let next_version = meta.plan_version.saturating_add(1);
@@ -93,6 +95,7 @@ pub async fn enqueue_recovery_first_node(
             &meta.plan_session_id,
             next_version,
             session_id,
+            tenant_id,
         )
         .await?;
     }

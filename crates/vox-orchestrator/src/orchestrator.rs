@@ -129,4 +129,7 @@ pub struct Orchestrator {
     pub agentos_policy_ledger: std::sync::Arc<crate::agentos::policy_runtime::AgentosPolicyLedger>,
     /// Skill registry for procedural workflow tracking and continuation instruction injection.
     pub skill_registry: std::sync::Arc<vox_skills::SkillRegistry>,
+    /// Orchestrator-policy token/cost budget gate (D7).
+    pub tenant_budget_gate:
+        std::sync::Arc<std::sync::RwLock<crate::budget_gate::OrchestratorBudgetGate>>,
 }

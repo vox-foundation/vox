@@ -280,7 +280,7 @@ async fn submit_task_traced(
         forensic,
         orch,
         &format!("{phase}.submit_task"),
-        orch.submit_task(d, file_manifest, priority, session_id),
+        orch.submit_task(d, file_manifest, priority, session_id, None),
     )
     .await;
     let tid = match res {
@@ -656,6 +656,7 @@ async fn e2e_batch_submission() {
                     thread_id: None,
                     requires_approval: false,
                     test_decision: None,
+                    tenant_id: None,
                 },
                 TaskDescriptor {
                     description: "Batch 2".to_string(),
@@ -668,6 +669,7 @@ async fn e2e_batch_submission() {
                     thread_id: None,
                     requires_approval: false,
                     test_decision: None,
+                    tenant_id: None,
                 },
             ],
         )

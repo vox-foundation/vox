@@ -21,6 +21,7 @@ use crate::server_state::ServerState;
 pub(crate) struct LlmSurfaceTelemetry {
     pub session_id: String,
     pub user_id: Option<String>,
+    pub tenant_id: Option<String>,
     pub prompt: String,
     pub response: String,
     pub model_id: String,
@@ -183,6 +184,7 @@ pub(crate) fn spawn_socrates_telemetry_with_llm(
                 output_tokens: l.output_tokens,
                 cache_read_tokens: l.cache_read_tokens,
                 trace_id: l.trace_id.as_deref(),
+                tenant_id: None,
                 context_utilization_pct: None,
                 success: l.success,
                 cost_usd: l.cost_usd,

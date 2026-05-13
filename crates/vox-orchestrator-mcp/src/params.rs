@@ -272,6 +272,10 @@ pub struct SubmitTaskParams {
     #[serde(default)]
     #[schemars(length(max = 256))]
     pub active_skill: Option<String>,
+    /// Optional tenant identifier for budget attribution.
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub tenant_id: Option<String>,
 }
 
 /// Heuristic plan-adequacy snapshot for direct [`SubmitTaskParams`] submits when shadow mode is on.

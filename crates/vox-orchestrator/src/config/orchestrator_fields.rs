@@ -467,4 +467,7 @@ pub struct OrchestratorConfig {
     /// If empty, a new key is generated each session (ephemeral).
     #[serde(default)]
     pub tool_ledger_key: String,
+    /// Optional configuration for the orchestrator-policy budget gate (D7).
+    #[serde(default)]
+    pub budget_gate_config: Option<crate::budget_gate::BudgetGateConfig>,
 }

@@ -32,6 +32,7 @@ impl Orchestrator {
         file_manifest: Vec<FileAffinity>,
         priority: Option<TaskPriority>,
         session_id: Option<String>,
+        tenant_id: Option<String>,
     ) -> Result<TaskId, OrchestratorError> {
         self.submit_task_with_agent(
             description,
@@ -41,6 +42,7 @@ impl Orchestrator {
             None,
             None,
             session_id,
+            tenant_id,
         )
         .await
     }
@@ -55,6 +57,7 @@ impl Orchestrator {
         capability_requirements: Option<crate::contract::TaskCapabilityHints>,
         enqueue_hints: Option<TaskEnqueueHints>,
         session_id: Option<String>,
+        tenant_id: Option<String>,
     ) -> Result<TaskId, OrchestratorError> {
         let (default_priority, _scope_enforcement) = {
             let config_guard = crate::sync_lock::rw_read(&*self.config);
@@ -76,6 +79,7 @@ impl Orchestrator {
         let mut task = AgentTask::new(task_id, description, priority, file_manifest.clone());
         task.capability_requirements = capability_requirements.clone();
         task.session_id = session_id.clone();
+        task.tenant_id = tenant_id.clone();
         if let Some(h) = &enqueue_hints {
             task.apply_hints(h);
         }
@@ -179,6 +183,29 @@ impl Orchestrator {
         // gate evaluation, persistence). Per CodeRabbit review on PR #61: an agent
         // already in a doom loop or already over budget should be rejected before
         // it can incur additional Socrates / autonomous-research cost.
+
+        // Tenant budget enforcement (D7).
+        if let Some(ref tenant_id) = task.tenant_id {
+            let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
+            if let Some(db) = db_opt {
+                let monthly_usage: i64 = vox_gamify::db::get_tenant_monthly_token_usage(&db, tenant_id)
+                    .await
+                    .unwrap_or(0);
+                let estimated_tokens = task.estimated_token_count();
+
+                // For now, assume "free" tier. A future lookup table in VoxDb will resolve this.
+                let tier = "free";
+
+                let gate = crate::sync_lock::rw_read(&*self.tenant_budget_gate);
+                if let Err(msg) =
+                    gate.check_tenant_monthly_budget(tier, monthly_usage, estimated_tokens as i64)
+                {
+                    tracing::error!(tenant_id = %tenant_id, %msg, "blocking submission: tenant budget exceeded");
+                    return Err(OrchestratorError::BudgetExceeded(msg));
+                }
+            }
+        }
+
         let gate_result = {
             let bm = crate::sync_lock::rw_read(&*self.budget_manager);
             crate::gate::BudgetGate::check_doom_loop(&bm, agent_id)
@@ -1001,6 +1028,7 @@ impl Orchestrator {
         capability_requirements: Option<crate::contract::TaskCapabilityHints>,
         session_id: Option<String>,
         enqueue_hints: Option<TaskEnqueueHints>,
+        tenant_id: Option<String>,
         planning_meta: Option<PlanningTaskMeta>,
     ) -> Result<TaskId, OrchestratorError> {
         let task_id = self
@@ -1012,6 +1040,7 @@ impl Orchestrator {
                 capability_requirements,
                 enqueue_hints,
                 session_id,
+                tenant_id,
             )
             .await?;
         if let Some(meta) = planning_meta

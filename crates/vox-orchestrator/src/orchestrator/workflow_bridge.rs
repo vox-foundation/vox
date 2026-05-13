@@ -13,6 +13,7 @@ impl Orchestrator {
         priority: Option<TaskPriority>,
         session_id: Option<String>,
         enqueue_hints: Option<TaskEnqueueHints>,
+        tenant_id: Option<String>,
     ) -> Result<TaskId, OrchestratorError> {
         let plan_session_id = format!("wf-{}", uuid::Uuid::new_v4());
         let meta = PlanningTaskMeta {
@@ -70,6 +71,7 @@ impl Orchestrator {
                 None,
                 session_id,
                 enqueue_hints,
+                tenant_id,
                 Some(meta),
             )
             .await?;

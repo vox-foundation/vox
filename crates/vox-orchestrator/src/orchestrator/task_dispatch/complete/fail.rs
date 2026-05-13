@@ -36,6 +36,7 @@ impl Orchestrator {
             failed_write_paths,
             audit_report,
             bandit_model_id,
+            tenant_id,
         ) = {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             let queue_lock = agents
@@ -91,6 +92,7 @@ impl Orchestrator {
                     .clone()
                     .or_else(|| t.model_preference.clone())
             });
+            let tenant_id = queue.current_task().and_then(|t| t.tenant_id.clone());
             if failed_desc.contains("[PHASE:SHARD_VALIDATE]") {
                 queue.recent_shard_validation_failures =
                     queue.recent_shard_validation_failures.saturating_add(1);
@@ -105,6 +107,7 @@ impl Orchestrator {
                 failed_write_paths,
                 audit_report.clone(),
                 bandit_model_id,
+                tenant_id,
             )
         };
 
@@ -421,10 +424,14 @@ impl Orchestrator {
                 &reason,
                 &failed_desc,
                 session_id.clone(),
+                tenant_id,
             )
             .await
             {
-                self.record_persistence_degradation("plan/replan_recovery_enqueue", &e.to_string());
+                self.record_persistence_degradation(
+                    "plan/replan_recovery_enqueue",
+                    &e.to_string(),
+                );
             }
         }
 

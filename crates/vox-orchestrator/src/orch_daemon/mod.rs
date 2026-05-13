@@ -199,6 +199,11 @@ pub async fn dispatch_request(
                 .get("session_id")
                 .and_then(|x| x.as_str())
                 .map(ToString::to_string);
+            let tenant_id = req
+                .params
+                .get("tenant_id")
+                .and_then(|x| x.as_str())
+                .map(ToString::to_string);
             match orch
                 .submit_task_with_agent(
                     description.to_string(),
@@ -208,6 +213,7 @@ pub async fn dispatch_request(
                     capability_requirements,
                     enqueue_hints,
                     session_id,
+                    tenant_id,
                 )
                 .await
             {

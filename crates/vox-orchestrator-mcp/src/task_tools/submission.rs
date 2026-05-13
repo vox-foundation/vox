@@ -141,6 +141,7 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         return None;
     }
     Some(TaskEnqueueHints {
+        tenant_id: params.tenant_id.clone(),
         task_category: category,
         complexity: params.complexity.map(|c| c.clamp(1, 10)),
         model_preference: params.model_preference.clone(),
@@ -648,6 +649,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             planning_mode,
             normalized_session_id.clone(),
             enqueue_hints,
+            params.tenant_id.clone(),
         )
         .await
         .map_err(|e| e.to_string())
@@ -662,6 +664,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                 params.capabilities.clone(),
                 enqueue_hints,
                 normalized_session_id.clone(),
+                params.tenant_id.clone(),
             )
             .await
             .map_err(|e| e.to_string())

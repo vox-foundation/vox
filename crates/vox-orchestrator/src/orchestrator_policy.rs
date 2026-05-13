@@ -78,9 +78,9 @@ impl Default for PolicyContext {
             fusion_inputs: FusionInputs {
                 evidence_quality: 0.75,
                 citation_coverage: 0.75,
-                source_diversity_norm: 0.4,
-                contradiction_ratio: 0.0,
-                entropy_score: 0.7,
+                logprob_entropy: 0.70,
+                sep_estimate: 0.50,
+                self_consistency: 0.80,
             },
             complexity: 5,
             budget_token_fraction: 0.0,
@@ -266,7 +266,7 @@ impl OrchestratorPolicy {
         let (fusion_score, fusion_decision) = if flags.socrates_fusion {
             self.fuser.evaluate(&ctx.fusion_inputs)
         } else {
-            (0.75, FusionDecision::AnswerDirectly)
+            (0.85, FusionDecision::Ship)
         };
 
         let budget_decision = if flags.tenant_budget {

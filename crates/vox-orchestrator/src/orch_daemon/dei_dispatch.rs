@@ -192,11 +192,16 @@ async fn handle_plan_execute(
         Err(e) => return response_err(id, format!("db: {e}")),
     };
     let ver_u32: u32 = ver.clamp(1, i64::from(u32::MAX)) as u32;
+    let tenant_id = params
+        .get("tenant_id")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
     match crate::planning::schedule::enqueue_runnable_plan_nodes(
         orch.as_ref(),
         &session_id,
         ver_u32,
         origin,
+        tenant_id,
     )
     .await
     {

@@ -42,6 +42,7 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
             vec![FileAffinity::write("src/lib.rs")],
             None,
             None,
+            None,
         )
         .await
         .expect("submit should succeed");
@@ -64,6 +65,7 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
         .submit_task(
             "test task",
             vec![FileAffinity::write("src/lib.rs")],
+            None,
             None,
             None,
         )

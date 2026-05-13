@@ -78,6 +78,7 @@ pub struct LogInteractionParams<'a> {
 pub struct ModelOutcome<'a> {
     pub session_id: &'a str,
     pub user_id: Option<&'a str>,
+    pub tenant_id: Option<&'a str>,
     pub prompt: &'a str,
     pub response: &'a str,
     pub model_id: &'a str,
