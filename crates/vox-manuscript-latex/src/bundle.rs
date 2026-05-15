@@ -15,7 +15,6 @@
 
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use std::io::Write;
 use thiserror::Error;
 use vox_manuscript_scaffold::ScaffoldInput;
 
