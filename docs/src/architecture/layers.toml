@@ -113,6 +113,12 @@ vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
 vox-eval                = { layer = 2 }
 vox-mens-eval           = { layer = 2 }
+vox-manuscript-scaffold = { layer = 2, staleness_exempt = true }    # Phase C: IMRaD safe-slots renderer (pure; no DB/network).
+vox-critic-gate         = { layer = 2, staleness_exempt = true }    # Phase D: solo-author critic gate (ApproverRole + ModelFingerprint exclusion).
+vox-class-routing       = { layer = 2, staleness_exempt = true }    # Phase E: per-class venue routing + reply-window / quota / critic-allowed config.
+vox-findings-site       = { layer = 2, staleness_exempt = true }    # Phase G: pure HTML page builder for /findings/<trusty-uri>.
+vox-scientia-dashboard  = { layer = 2, staleness_exempt = true }    # Phase H: queue/cost JSON builders for /api/v2/scientia/{queue,cost}.
+vox-manuscript-latex    = { layer = 2, staleness_exempt = true }    # Phase 3+4: markdown→LaTeX renderer (PDF source + arXiv bundle body).
 
 
 
@@ -132,6 +138,8 @@ vox-scientia-jsonschema-codegen = { layer = 3, kind = "binary" }               #
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
 vox-publisher           = { layer = 3, max_loc = 20_000 }
 vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 70_000 }
+vox-scientia-producers  = { layer = 3, staleness_exempt = true }    # Phase A: signal producers; vox-cli scout (Phase F) is the first consumer.
+vox-replay-runner       = { layer = 3, staleness_exempt = true }    # Phase B: re-executes RO-Crate mainEntity in a sandbox; vox-cli publication-replay (follow-up) will consume.
 
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }

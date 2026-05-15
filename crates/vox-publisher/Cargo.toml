@@ -25,6 +25,9 @@ live-api-canary = []
 
 [dependencies]
 vox-scientia = { workspace = true }
+# Phase E micro-track config — consumed by `JournalFitRecommender` to apply
+# per-`FindingClass` venue routing on top of topic-overlap ranking.
+vox-class-routing = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
@@ -66,3 +69,7 @@ tempfile = { workspace = true }
 axum = { workspace = true, features = ["http1", "tokio", "json", "query"] }
 jsonschema = { workspace = true, default-features = false }
 wiremock = { workspace = true }
+# Force deadpool's `rt_tokio_1` feature (see root Cargo.toml). Without it
+# `cargo test` builds (which pull wiremock + deadpool transitively) hit a
+# rustc-1.92 inference failure inside `deadpool::unmanaged::Pool::timeout_get`.
+deadpool = { workspace = true }

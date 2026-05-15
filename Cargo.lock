@@ -2677,6 +2677,9 @@ name = "deadpool-runtime"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
+dependencies = [
+ "tokio",
+]
 
 [[package]]
 name = "debugid"
@@ -13031,6 +13034,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-class-routing"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "vox-cli"
 version = "0.5.0"
 dependencies = [
@@ -13045,6 +13058,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "comfy-table",
+ "deadpool",
  "dirs",
  "flate2",
  "form_urlencoded",
@@ -13088,6 +13102,7 @@ dependencies = [
  "vox-bounded-fs",
  "vox-build-meta",
  "vox-capability-registry",
+ "vox-class-routing",
  "vox-cli-core",
  "vox-code-audit",
  "vox-codegen",
@@ -13096,6 +13111,7 @@ dependencies = [
  "vox-constrained-gen",
  "vox-container",
  "vox-corpus",
+ "vox-critic-gate",
  "vox-crypto",
  "vox-db",
  "vox-deploy-codegen",
@@ -13103,6 +13119,7 @@ dependencies = [
  "vox-doc-pipeline",
  "vox-drift-check",
  "vox-eval",
+ "vox-findings-site",
  "vox-forge",
  "vox-gamify",
  "vox-git",
@@ -13110,6 +13127,8 @@ dependencies = [
  "vox-http-client",
  "vox-identity",
  "vox-jsonschema-util",
+ "vox-manuscript-latex",
+ "vox-manuscript-scaffold",
  "vox-mcp-registry",
  "vox-mesh-types",
  "vox-openclaw-runtime",
@@ -13123,9 +13142,14 @@ dependencies = [
  "vox-project-scaffold",
  "vox-protocol",
  "vox-publisher",
+ "vox-replay-runner",
  "vox-repository",
+ "vox-research-events",
  "vox-rule-pack",
  "vox-scaling-policy",
+ "vox-scientia",
+ "vox-scientia-dashboard",
+ "vox-scientia-producers",
  "vox-search",
  "vox-secrets",
  "vox-skills",
@@ -13335,6 +13359,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-critic-gate"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "vox-crypto"
 version = "0.5.0"
 dependencies = [
@@ -13475,6 +13508,15 @@ dependencies = [
  "tempfile",
  "workspace-hack",
  "xxhash-rust",
+]
+
+[[package]]
+name = "vox-findings-site"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -13623,6 +13665,7 @@ dependencies = [
 name = "vox-integration-tests"
 version = "0.5.0"
 dependencies = [
+ "deadpool",
  "insta",
  "jsonschema",
  "pulldown-cmark",
@@ -13687,6 +13730,28 @@ dependencies = [
  "vox-secrets",
  "vox-tracing-init",
  "workspace-hack",
+]
+
+[[package]]
+name = "vox-manuscript-latex"
+version = "0.5.0"
+dependencies = [
+ "flate2",
+ "pulldown-cmark",
+ "serde",
+ "serde_json",
+ "tar",
+ "thiserror 1.0.69",
+ "vox-manuscript-scaffold",
+]
+
+[[package]]
+name = "vox-manuscript-scaffold"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -14533,6 +14598,7 @@ dependencies = [
  "axum",
  "bsky-sdk",
  "chrono",
+ "deadpool",
  "flate2",
  "hex",
  "jsonschema",
@@ -14552,6 +14618,7 @@ dependencies = [
  "tracing",
  "unicode-segmentation",
  "vox-bounded-fs",
+ "vox-class-routing",
  "vox-config",
  "vox-db",
  "vox-forge",
@@ -14562,6 +14629,22 @@ dependencies = [
  "vox-secrets",
  "wiremock",
  "workspace-hack",
+]
+
+[[package]]
+name = "vox-replay-runner"
+version = "0.5.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha3",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "vox-crypto",
+ "vox-scientia",
 ]
 
 [[package]]
@@ -14648,6 +14731,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-scientia-dashboard"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "vox-scientia-jsonschema-codegen"
 version = "0.5.0"
 dependencies = [
@@ -14662,11 +14754,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-scientia-producers"
+version = "0.5.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "gix",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha3",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "turso",
+ "vox-crypto",
+ "vox-db",
+ "vox-db-types",
+ "vox-research-events",
+]
+
+[[package]]
 name = "vox-search"
 version = "0.5.0"
 dependencies = [
  "anyhow",
  "blake3",
+ "deadpool",
  "html2text",
  "regex",
  "reqwest 0.12.28",

@@ -1,0 +1,16 @@
+[package]
+name = "vox-critic-gate"
+description = "SCIENTIA Phase D — solo-author critic gate: ApproverRole, ModelFingerprint exclusion, venue-allowance check; lets a single developer clear the dual-approver gate via an audited LLM critic with explicit disclosure."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+thiserror  = { workspace = true }
+
+[dev-dependencies]

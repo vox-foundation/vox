@@ -140,6 +140,18 @@ vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
 vox-db = { workspace = true }
+vox-research-events = { workspace = true }
+vox-scientia-producers = { workspace = true }
+vox-manuscript-latex = { workspace = true }
+vox-replay-runner = { workspace = true }
+vox-manuscript-scaffold = { workspace = true }
+vox-critic-gate = { workspace = true }
+vox-class-routing = { workspace = true }
+vox-findings-site = { workspace = true }
+vox-scientia-dashboard = { workspace = true }
+# `vox-scientia::ro_crate::MainEntity` is the input shape for the replay
+# handler; not pulled in via the producers crate.
+vox-scientia = { workspace = true }
 # Narrow retrieval features for CLI (avoid default qdrant/tavily stacks).
 vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape"] }
 # `vox-plugin-publication` is intentionally NOT a direct dep here. The CLI
@@ -257,6 +269,11 @@ serial_test = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "macros", "rt-multi-thread"] }
 wiremock = { workspace = true }
+# Force deadpool's `rt_tokio_1` feature (see root Cargo.toml). wiremock pulls
+# deadpool 0.12 without activating a runtime backend, which under rustc 1.92
+# leaves `Runtime::timeout` returning the never type and breaks inference in
+# `deadpool::unmanaged::Pool::timeout_get`.
+deadpool = { workspace = true }
 vox-db = { workspace = true }
 vox-orchestrator = { workspace = true }
 

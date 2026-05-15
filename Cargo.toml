@@ -136,6 +136,14 @@ vox-protocol              = { path = "crates/vox-protocol" }
 vox-http-client        = { path = "crates/vox-http-client" }
 
 vox-research-events       = { path = "crates/vox-research-events" }
+vox-scientia-producers    = { path = "crates/vox-scientia-producers" }
+vox-replay-runner         = { path = "crates/vox-replay-runner" }
+vox-manuscript-scaffold   = { path = "crates/vox-manuscript-scaffold" }
+vox-critic-gate           = { path = "crates/vox-critic-gate" }
+vox-class-routing         = { path = "crates/vox-class-routing" }
+vox-findings-site         = { path = "crates/vox-findings-site" }
+vox-scientia-dashboard    = { path = "crates/vox-scientia-dashboard" }
+vox-manuscript-latex      = { path = "crates/vox-manuscript-latex" }
 
 
 
@@ -284,7 +292,15 @@ semver             = "1"
 cargo_metadata     = "0.18"
 parking_lot        = "0.12"
 secrecy            = "0.10"
-zeroize            = "1"
+zeroize            = { version = "1", features = ["derive"] }
+# wiremock 0.6.5 pulls in deadpool 0.12.3 with no runtime backend feature.
+# Under rustc 1.92, `Runtime::timeout`'s body cfg-strips both arms and ends
+# up returning `!`, which then breaks type inference inside
+# `deadpool::unmanaged::Pool::timeout_get` even though that code path is
+# never instantiated by wiremock. Forcing `rt_tokio_1` here gives the match
+# a concrete arm so inference succeeds. Tracked upstream — remove once
+# wiremock activates a runtime explicitly.
+deadpool           = { version = "0.12", features = ["rt_tokio_1"] }
 rmcp               = "0.16"
 rmp-serde          = "1"
 libloading         = "0.8"

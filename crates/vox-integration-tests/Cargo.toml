@@ -15,6 +15,8 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 jsonschema = { workspace = true, default-features = false, features = ["resolve-file"] }
 wiremock = { workspace = true }
+# Force deadpool's `rt_tokio_1` feature (see root Cargo.toml).
+deadpool = { workspace = true }
 tower-lsp-server = { workspace = true }
 vox-config = { workspace = true }
 vox-repository = { workspace = true }

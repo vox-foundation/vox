@@ -1,0 +1,16 @@
+[package]
+name = "vox-scientia-dashboard"
+description = "SCIENTIA Phase H — pure builders for the Scientia dashboard panel: queue and cost JSON shapes served at /api/v2/scientia/queue and /api/v2/scientia/cost, plus stall detection over the candidate ledger."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+thiserror  = { workspace = true }
+
+[dev-dependencies]
