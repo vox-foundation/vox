@@ -118,7 +118,7 @@ Five sequenced phases. Each phase lists its **gate** — the condition for movin
 |---|---|---|---|
 | **P5.1** Run all eight `vox audit` subcommands quarterly + on every release-candidate tag. Lock the report shape; ensure release notes auto-cite the report. | Lang platform lead | 1 week | |
 | **P5.2** Per-CR-L bar-or-demote decision per §6 policy below. Council reviews actual numbers. | Council | 2 weeks | |
-| **P5.3** Update [`AGENTS.md` §Retired Surfaces](../../../AGENTS.md), [`docs/agents/vox-language-surface.v1.json`](../agents/vox-language-surface.v1.json), [`.well-known/llms.txt`](../.well-known/llms.txt), and `cli-command-surface.generated.md` to reflect v1.0 reality. | Lang platform lead | 1 week | |
+| **P5.3** Update [`AGENTS.md` §Retired Surfaces](../../../AGENTS.md), `docs/agents/vox-language-surface.v1.json` (to be created in P5.3), `.well-known/llms.txt` (to be created in P5.3), and `cli-command-surface.generated.md` to reflect v1.0 reality. | Lang platform lead | 1 week | |
 | **P5.4** Publish v1.0 with full CR table including measured numbers (not just bars), CR-L0 result called out prominently. | Release manager | — | |
 
 **P5 gate.** v1.0 GA.
