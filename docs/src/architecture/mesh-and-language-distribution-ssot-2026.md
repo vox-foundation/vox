@@ -31,6 +31,28 @@ vox_relevance:
 
 # Mesh & Language-Level Distribution — SSOT & Upgrade Plan
 
+> ### Council ratification 2026-05-15 — mesh demoted from v1.0 to v1.1
+>
+> Per council decision D16 in
+> [`v1-llm-target-implementation-plan-2026.md`](v1-llm-target-implementation-plan-2026.md)
+> §8 ratification log:
+>
+> - **v1.0 acceptance contract no longer includes mesh Phase 2 LAN.**
+>   The release contract previously named "v1.0 internet-facing personal mesh"
+>   is **demoted to v1.1**. v1.0 ships as single-machine + the LLM-target story
+>   ([`v1-release-criteria.md`](v1-release-criteria.md) §5 CR-L0..CR-L8).
+> - **v0.6 (single-machine multi-agent) and v0.7 (two-daemon LAN mesh) targets
+>   remain unchanged.** Phase 0–1 work proceeds as scheduled; Phase 2–6 work
+>   continues but is not on the v1.0 critical path.
+> - Rationale: shipping both mesh and LLM-target stories in one release
+>   weakens both — they compete for code budget, attention, and field-testing
+>   time. One coherent story per release ages better.
+>
+> Sections below referring to "v1.0 = internet-facing personal mesh" should be
+> read as "v1.1 = internet-facing personal mesh" until the body of this SSOT
+> is rewritten in full. This banner is normative; inline body references are
+> not retroactively edited to avoid invalidating phase-plan cross-references.
+
 > **What this is.** The single source of truth for how the Vox mesh and the
 > Vox language converge into a runtime where durable, distributable workflows
 > are a one-liner — for human and AI authors alike. It pins the canonical

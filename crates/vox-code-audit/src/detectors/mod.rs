@@ -111,6 +111,22 @@ pub mod effect_net_decl;
 /// `@pure fn` that calls an impure builtin (HTTP, I/O, random, log, etc.).
 pub mod pure_fn_impure;
 
+/// Retired decorator / import forms per AGENTS.md §Retired Surfaces (CR-L6 parity gate).
+/// First 5 patterns: `@component fn`, `@server fn`, `@query fn`, `@mutation fn`, `@py.import`.
+pub mod retired_decorator;
+
+/// Retired Vox crate names (`vox-ludus`, `vox-sherpa-transcribe`). P1.4 detector.
+pub mod retired_crate_import;
+
+/// Retired TURSO_* env-var names (call-site + bare-literal). P1.4 detector.
+pub mod retired_env_var;
+
+/// Retired memory-API call-sites (`recall()` / `recall_async()`). P1.4 detector.
+pub mod retired_memory_api;
+
+/// Retired `@capacitor/*` imports + `npx cap sync` CLI invocations. P1.4 detector.
+pub mod retired_capacitor;
+
 use crate::rules::DetectionRule;
 
 /// Returns all built-in detectors.
@@ -166,12 +182,19 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(workflow_nondeterministic::WorkflowNondeterministicDetector::new()),
         Box::new(effect_net_decl::EffectNetDeclDetector::new()),
         Box::new(pure_fn_impure::PureFnImpureDetector::new()),
+        // CR-L6 retirement-guard parity gate (ratified 2026-05-15).
+        Box::new(retired_decorator::RetiredDecoratorDetector::new()),
+        // P1.4: remaining retirement-guard detectors (council ratified 2026-05-15).
+        Box::new(retired_crate_import::RetiredCrateImportDetector::new()),
+        Box::new(retired_env_var::RetiredEnvVarDetector::new()),
+        Box::new(retired_memory_api::RetiredMemoryApiDetector::new()),
+        Box::new(retired_capacitor::RetiredCapacitorDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    44
+    51
 }
 
 #[cfg(test)]

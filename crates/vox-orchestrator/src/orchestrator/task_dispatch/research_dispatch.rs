@@ -44,9 +44,15 @@ impl Orchestrator {
 
                 let combined_evidence = research_results.join("\n\n");
 
-                // Configure Lane G endpoint
-                // In production, this might map to a custom local inference server or an external expert model.
-                let config = LlmConfig::openrouter("anthropic/claude-3.5-sonnet:beta");
+                // Configure Lane G endpoint — pick via SSOT `select()` so the
+                // 3-axis user knob + premium_alias drive the choice.
+                // 2026-Q2 refresh: claude-3.5-sonnet:beta retired.
+                let model_id = crate::models::select_with_default_registry(
+                    &crate::models::SelectionIntent::research(),
+                )
+                .map(|o| o.model_id)
+                .unwrap_or_else(|| "google/gemini-3.1-pro".to_string());
+                let config = LlmConfig::openrouter(&model_id);
                 if let Some(_key) =
                     vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken).expose()
                 {

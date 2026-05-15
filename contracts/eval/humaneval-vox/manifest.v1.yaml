@@ -1,0 +1,73 @@
+x-vox-version: 1
+schema_version: 1
+
+# HumanEval-Vox manifest (CR-L1).
+#
+# References:
+#   - docs/src/architecture/v1-release-criteria.md [CR-L1]
+#   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.4 P3.1, §3
+#
+# Status as of 2026-05-15: EMPTY STUB. Fixtures land during P3.1
+# (corpus engineering, target close 2026-09).
+
+corpus:
+  id: humaneval-vox
+  schema_version: 1
+  status: stub                            # stub | minimum-viable | complete
+  bar:
+    target: 0.80                          # >= 80% pass rate (median of panel)
+    sub_bar_block_demote: 0.60            # < 60% -> demote CR-L1 to v1.1
+  count_target: 164                       # anchored to HumanEval-Python
+  held_out_target: 30                     # 30 of 164 must be training_eligible:false
+  count_current: 0
+  held_out_current: 0
+  corpus_hash: "blake3:0000000000000000000000000000000000000000000000000000000000000000"
+  measured_against_panel: "see contracts/eval/llm-panel.v1.yaml"
+
+# Fixtures (empty stub).
+fixtures: []
+
+# Provenance taxonomy enforced when fixtures land.
+provenance_kinds:
+  - id: "examples-golden-lift"
+    training_eligible_default: false      # MENS likely already ingested
+    rationale: "Mechanically derived from examples/golden/*.vox — assumed in MENS training corpus."
+  - id: "hand-authored"
+    training_eligible_default: true
+    rationale: "Net-new problems authored 2026 specifically for the eval."
+  - id: "ast-mutation"
+    training_eligible_default: true
+    rationale: "Programmatic mutation of a held-out hand-authored problem."
+
+# CI policy.
+ci:
+  # While status: stub, `vox audit humaneval` returns exit 2 (infra-not-ready).
+  # Once corpus reaches minimum-viable (e.g. 50 problems with 10 held-out),
+  # `vox audit humaneval` flips to exit 0/1 per bar comparison.
+  minimum_viable:
+    count: 50
+    held_out_count: 10
+  rate_measurement:
+    temperature: 0.0
+    seed: 42
+    attempts_per_fixture: 5
+    scoring: "median-of-panel"
+
+# Council ratification log (D10, D25 — 2026-05-15).
+council_ratification_log:
+  - id: humaneval-vox-count-anchor
+    decision: "164 problems (matches HumanEval-Python for direct comparability)."
+    ratified_at: "2026-05-15"
+    rationale: >
+      Direct comparability with HumanEval-Python settles "Vox is a better
+      LLM target than Python" without per-paper-correction debate. 200 was
+      arbitrary.
+  - id: humaneval-vox-mutation-policy
+    decision: >
+      AST-mutations count toward the held-out budget ONLY if the source
+      problem was itself hand-authored AND held-out. Mutations derived from
+      public/training-eligible examples remain training-eligible.
+    ratified_at: "2026-05-15"
+    rationale: >
+      Prevents contamination-via-mutation-laundering: a model trained on
+      problem X being quizzed on a slight variant of X is still a leak.

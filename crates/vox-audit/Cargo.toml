@@ -1,0 +1,29 @@
+[package]
+name = "vox-audit"
+description = "Umbrella CR-L gate runner. Hosts the `vox audit <thing>` subcommand registry and implements the canonical JSON report shape defined in contracts/ci/vox-audit-contract.v1.yaml."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+blake3 = { workspace = true }
+tracing = { workspace = true }
+vox-code-audit = { workspace = true }
+vox-telemetry = { workspace = true }
+workspace-hack = { workspace = true }
+
+[[bin]]
+name = "vox-audit"
+path = "src/main.rs"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

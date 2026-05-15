@@ -1,0 +1,54 @@
+x-vox-version: 1
+schema_version: 1
+
+# Plan-fidelity manifest (CR-L4).
+#
+# References:
+#   - docs/src/architecture/v1-release-criteria.md [CR-L4] (and the [CR-D1] number it operationalizes)
+#   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.4 P3.4
+
+corpus:
+  id: plan-fidelity
+  schema_version: 1
+  status: stub
+  bar:
+    target: 0.85                          # matches [CR-D1] 85% Wave-2 success
+    sub_bar_block_demote: 0.65
+  count_target: 50
+  count_current: 0
+  corpus_hash: "blake3:0000000000000000000000000000000000000000000000000000000000000000"
+
+wave_distribution:
+  wave_1: 10                              # single-file, no cross-cutting
+  wave_2: 30                              # the [CR-D1] wave — multi-file, decorator coverage
+  wave_3: 10                              # cross-cutting (effects / workflow purity / retirement)
+
+fixtures: []
+
+ci:
+  minimum_viable:
+    count: 15                             # 3 wave-1 + 9 wave-2 + 3 wave-3 to land harness
+    wave_distribution_required: true
+  rate_measurement:
+    temperature: 0.0
+    seed: 42
+    attempts_per_fixture: 5
+    scoring: "majority-success"
+    plan_loop_iteration_budget: 5         # plan_loop.rs default; tunable per fixture
+    cost_ceiling_per_plan_usd: 0.75       # subordinate to CR-L0's $5/spec ceiling
+
+council_ratification_log:
+  - id: plan-fidelity-wave-definition
+    decision: >
+      Wave 1 = single-file edits; Wave 2 = multi-file with decorator
+      discipline (matches [CR-D1] usage); Wave 3 = cross-cutting
+      (effects/workflow purity/retirement migration).
+    ratified_at: "2026-05-15"
+    rationale: "Preserves existing [CR-D1] 'Wave 2' semantics; renaming would re-open the April approval."
+  - id: plan-fidelity-source
+    decision: >
+      Harvest from orchestrator session transcripts (post-P2.1 telemetry) +
+      hand-curate for quality. Author-from-scratch reserved for filling
+      wave-distribution gaps if harvested transcripts skew toward one wave.
+    ratified_at: "2026-05-15"
+    rationale: "Real transcripts produce realistic plans; gaps filled by hand."

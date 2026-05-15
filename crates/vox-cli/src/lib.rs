@@ -55,6 +55,7 @@ pub mod process_supervision {
 }
 /// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
 pub(crate) mod render;
+pub mod telemetry_corpus_feedback_sink;
 pub mod telemetry_sink;
 pub mod telemetry_spool;
 pub mod templates;
@@ -639,6 +640,19 @@ pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>) {
     sinks.push(Arc::new(crate::telemetry_sink::SpoolSink::new(
         crate::telemetry_spool::spool_root(),
     )));
+
+    // CR-L8 corpus-feedback events sink (P2.1c, ratified 2026-05-15).
+    // Filters to the four CR-L8 telemetry variants (LintFinding, LintAutofix,
+    // RepairAttempt, RepairOutcome) and persists them to
+    // `<cwd>/contracts/reports/corpus-feedback-events/<YYYY-MM-DD>.jsonl`. The
+    // `vox audit corpus-feedback` subcommand reads these files to aggregate
+    // the quarterly substantive report. Override / disable via
+    // `$VOX_CORPUS_FEEDBACK_EVENTS_DIR`.
+    if let Some(root) = crate::telemetry_corpus_feedback_sink::resolve_events_root() {
+        sinks.push(Arc::new(
+            crate::telemetry_corpus_feedback_sink::CorpusFeedbackJsonlSink::new(root),
+        ));
+    }
 
     vox_telemetry::set_global_recorder(Arc::new(CompositeRecorder::new(sinks)));
 }

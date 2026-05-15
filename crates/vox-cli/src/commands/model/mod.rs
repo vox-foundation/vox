@@ -3,7 +3,9 @@
 use clap::{Parser, Subcommand};
 
 pub mod cas;
+pub mod classify;
 pub mod costs;
+pub mod council_report;
 pub mod discover;
 pub mod explain;
 pub mod list;
@@ -45,6 +47,10 @@ pub enum ModelCmd {
     Costs(costs::CostsArgs),
     /// Manage and view observed pricing SSOT.
     Pricing(pricing::PricingArgs),
+    /// L2 — Build/inspect the classifier prompt for a model id (autonomic system).
+    Classify(classify::ClassifyArgs),
+    /// L3 — Render the quarterly model-council report (autonomic system).
+    CouncilReport(council_report::CouncilReportArgs),
 }
 
 pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
@@ -59,5 +65,7 @@ pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
         ModelCmd::Explain(args) => explain::run(args).await,
         ModelCmd::Costs(args) => costs::run(args).await,
         ModelCmd::Pricing(args) => pricing::run(args).await,
+        ModelCmd::Classify(args) => classify::run(args).await,
+        ModelCmd::CouncilReport(args) => council_report::run(args).await,
     }
 }

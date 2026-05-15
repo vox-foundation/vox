@@ -27,6 +27,12 @@ pub mod run_context;
 /// Structured suppression store (`contracts/toestub/suppression.v1.schema.json`).
 pub mod suppression;
 
+/// CR-L6 retirement-guard parity check — cross-references
+/// `contracts/retirement/retired-surfaces.v1.yaml` against the registered
+/// detectors and diagnostic IDs. Library home of the planned
+/// `vox ci retirement-audit` CLI command.
+pub mod retirement_parity;
+
 /// Runs configured detectors over a [`scanner::Scanner`] snapshot and aggregates [`rules::Finding`]s.
 pub mod engine;
 /// Renders findings to the terminal, JSON, or Markdown for CI and local CLI output.
