@@ -237,6 +237,7 @@ keyring.workspace = true
 workspace-hack = { workspace = true }
 vox-rule-pack = { workspace = true }
 vox-telemetry = { workspace = true }
+vox-audit = { workspace = true }
 vox-identity.workspace = true
 vox-crypto.workspace = true
 hex.workspace = true
@@ -296,6 +297,11 @@ required-features = ["workflow-runtime"]
 name = "workflow_cli_durability_ux"
 path = "tests/workflow_cli_durability_ux.rs"
 required-features = ["mens-dei"]
+
+[[test]]
+name = "cr_l8_flywheel_e2e"
+path = "tests/cr_l8_flywheel_e2e.rs"
+required-features = ["completion-toestub"]
 
 [lints]
 workspace = true

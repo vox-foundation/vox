@@ -97,6 +97,32 @@ pub use types::{
     // error
     TelemetryError,
     TelemetryEvent,
+    // CR-L8 corpus-feedback (P2.1)
+    LintAutofixEvent,
+    LintFindingEvent,
+    METRIC_TYPE_LINT_AUTOFIX_APPLIED,
+    METRIC_TYPE_LINT_AUTOFIX_REJECTED,
+    METRIC_TYPE_LINT_FINDING,
+    METRIC_TYPE_REPAIR_ATTEMPT,
+    METRIC_TYPE_REPAIR_OUTCOME,
+    RepairAttemptEvent,
+    RepairOutcomeEvent,
+    SESSION_PREFIX_LINT,
+    SESSION_PREFIX_REPAIR,
+    // vox audit run telemetry (A11)
+    AuditRunEvent,
+    METRIC_TYPE_AUDIT_RUN,
+    SESSION_PREFIX_AUDIT,
+    // model-autonomic system (L0/L1/L2/L3) — 2026-05-15
+    ClassificationEvent,
+    ConfidencePromotionEvent,
+    DiscoveryEvent,
+    METRIC_TYPE_CONFIDENCE_PROMOTION,
+    METRIC_TYPE_MODEL_CLASSIFICATION,
+    METRIC_TYPE_MODEL_DISCOVERY,
+    METRIC_TYPE_SELECTION_DECISION,
+    SESSION_PREFIX_MODEL_AUTONOMIC,
+    SelectionDecisionEvent,
     // write helpers
     TelemetryWriteOptions,
     validate_research_metric_row,

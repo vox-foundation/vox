@@ -213,5 +213,55 @@ pub fn resolve_model_with_registry_fallbacks(
         selected = selected.or_else(|| models.cheapest());
     }
     let model = selected.ok_or_else(|| "No models available in registry".to_string())?;
+    emit_legacy_decision_event(&params, preferred_id, &cfg, &model);
     Ok((model, free_only))
+}
+
+/// Emit a [`vox_telemetry::SelectionDecisionEvent`] from the legacy resolver
+/// so its decisions show up in the same L3 council report as the new
+/// `models::select::select()` path.
+///
+/// `intent_caller` is set to `"legacy_registry_resolve"` to disambiguate
+/// from the new SSOT in dashboards. Axes are reconstructed from the
+/// `InferenceConfig.quality` knob; the legacy resolver doesn't carry the
+/// 3-axis user knob, so this is a best-effort projection.
+fn emit_legacy_decision_event(
+    params: &RegistryModelResolutionParams,
+    preferred_id: Option<&str>,
+    cfg: &InferenceConfig,
+    model: &ModelSpec,
+) {
+    use vox_telemetry::{SelectionDecisionEvent, TelemetryEvent};
+
+    let reason = if preferred_id
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .is_some()
+    {
+        "preferred_id"
+    } else if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingHardPinModel)
+        .expose()
+        .map(|p| !p.trim().is_empty())
+        .unwrap_or(false)
+    {
+        "hard_pin_secret"
+    } else {
+        "scored"
+    };
+    // Approximate axes from the legacy CostPreference projection.
+    let cost_pref = cfg.quality.to_cost_preference();
+    let axes = match cost_pref {
+        CostPreference::Economy => (70u8, 15u8, 15u8),
+        CostPreference::Performance => (15u8, 15u8, 70u8),
+    };
+    let event = SelectionDecisionEvent {
+        intent_caller: Some("legacy_registry_resolve".to_string()),
+        task: format!("{:?}", params.task).to_ascii_lowercase(),
+        axes,
+        chosen_model: model.id.clone(),
+        reason: reason.to_string(),
+        premium_alias_key: None,
+        repository_id: None,
+    };
+    vox_telemetry::record_event!(&TelemetryEvent::SelectionDecision(event));
 }

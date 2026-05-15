@@ -143,7 +143,8 @@
       "Bash(Select-Object FullName)",
       "Bash(/tmp/extract_tasks.sh \"C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\zealous-ardinghelli-b01e11\\\\docs\\\\src\\\\architecture\\\\mesh-phase0-foundations-plan-2026.md\")",
       "Bash(n)",
-      "Bash(echo \"//! Durable orchestrator state logs: drain records and similar operational entries.`n`npub mod workflow_drain;\")"
+      "Bash(echo \"//! Durable orchestrator state logs: drain records and similar operational entries.`n`npub mod workflow_drain;\")",
+      "Bash(awk '/^\\\\?\\\\?/ {print $2}')"
     ]
   }
 }

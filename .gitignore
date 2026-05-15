@@ -26,6 +26,14 @@ docs-astro/public/.well-known
 /.vox/audit/**/vox_plugin_*.so
 /.vox/audit/**/vox_plugin_*.dylib
 
+# CR-L8 corpus-feedback per-run events (P2.1c, ratified 2026-05-15).
+# Per-day JSONL files written by `CorpusFeedbackJsonlSink` are measurement
+# noise — not source-of-truth. The substantive quarterly report at
+# contracts/reports/corpus-feedback/<quarter>.json IS the gated v1.0
+# artifact and remains committed. See
+# docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.3 P2.1c.
+/contracts/reports/corpus-feedback-events/
+
 # === SCRATCH / EPHEMERAL / LOGS ===
 .tmp_metadata.json
 scratch/*

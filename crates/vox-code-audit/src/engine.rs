@@ -59,6 +59,11 @@ pub struct ToestubConfig {
     pub prelude_allowlist_path: Option<PathBuf>,
     /// Staged detector flags (e.g. `unwired-graph`, `scaling-fs-ast-only`).
     pub feature_flags: Vec<String>,
+    /// Workspace / repository identifier surfaced in `vox.lint.*` telemetry
+    /// events so the CR-L8 aggregator can roll up by repo. `None` = unset
+    /// (events are emitted with `repository_id: None`). Council-ratified
+    /// 2026-05-15 (P2.1c); landed alongside the engine emission hookup.
+    pub repository_id: Option<String>,
 }
 
 impl Default for ToestubConfig {
@@ -79,6 +84,7 @@ impl Default for ToestubConfig {
             tests_mode: crate::run_context::ToestubTestsMode::default(),
             prelude_allowlist_path: None,
             feature_flags: Vec::new(),
+            repository_id: None,
         }
     }
 }
@@ -275,6 +281,12 @@ impl ToestubEngine {
                 .then_with(|| a.deterministic_key().cmp(&b.deterministic_key()))
         });
 
+        // 4b. CR-L8 corpus-feedback: emit one `vox.lint.finding` event per
+        // emitted finding. `record_event!` is a no-op when no recorder is
+        // registered (the v0.5.x default), so this adds zero overhead to
+        // existing toestub runs. Council-ratified 2026-05-15 (P2.1b).
+        emit_lint_finding_telemetry(&all_findings, self.config.repository_id.as_deref());
+
         // 5. Build the task queue
         let task_queue = if self.config.suggest_fixes {
             TaskQueue::from_findings(&all_findings)
@@ -397,4 +409,61 @@ pub struct SeveritySummary {
     pub warning: usize,
     pub error: usize,
     pub critical: usize,
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// CR-L8 corpus-feedback telemetry emission (P2.1b).
+// ───────────────────────────────────────────────────────────────────────────
+
+/// Emit one `vox.lint.finding` event per emitted finding.
+///
+/// `vox_telemetry::record_event!` is a no-op when no global recorder has been
+/// registered, so this function adds zero observable cost to existing toestub
+/// runs (the v0.5.x default). When the CR-L8 export pipeline registers a
+/// recorder, every finding flows into the quarterly corpus-feedback artifact
+/// at `contracts/reports/corpus-feedback/<quarter>.json`.
+///
+/// Council-ratified 2026-05-15 (D8 / §1.3 P2.1b in
+/// `docs/src/architecture/v1-llm-target-implementation-plan-2026.md`).
+///
+/// `repository_id` is the workspace identifier from `ToestubConfig`; when
+/// `None`, events are emitted without a repo label (P2.1c lands the threading,
+/// callers configure it).
+fn emit_lint_finding_telemetry(findings: &[Finding], repository_id: Option<&str>) {
+    use vox_telemetry::{LintFindingEvent, TelemetryEvent, record_event};
+
+    for finding in findings {
+        let event = TelemetryEvent::LintFinding(LintFindingEvent {
+            rule_id: finding.rule_id.clone(),
+            diagnostic_id: finding.diagnostic_id.clone(),
+            severity: severity_label(finding.severity).to_string(),
+            relative_path: finding.file.to_string_lossy().into_owned(),
+            line: finding.line as u32,
+            // Autofix is "available" if the rule supplied either a suggestion
+            // string or alternative fix descriptors. The aggregator uses this
+            // bit to compute per-rule autofix-coverage rates.
+            autofix_available: finding.suggestion.is_some() || !finding.alternatives.is_empty(),
+            confidence: finding.confidence.map(|c| confidence_label(c).to_string()),
+            repository_id: repository_id.map(str::to_string),
+        });
+        record_event!(&event);
+    }
+}
+
+fn severity_label(s: Severity) -> &'static str {
+    match s {
+        Severity::Info => "info",
+        Severity::Warning => "warning",
+        Severity::Error => "error",
+        Severity::Critical => "critical",
+    }
+}
+
+fn confidence_label(c: crate::rules::FindingConfidence) -> &'static str {
+    use crate::rules::FindingConfidence;
+    match c {
+        FindingConfidence::High => "high",
+        FindingConfidence::Medium => "medium",
+        FindingConfidence::Low => "low",
+    }
 }

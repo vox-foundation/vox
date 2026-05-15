@@ -23,7 +23,8 @@ pub use bootstrap_inference::{
     REVIEW_PREMIUM_FALLBACK,
 };
 pub use model_routing::{
-    ExplorationConfig, LatencyBands, ModelRoutingConfig, SafetyConfig, load_model_routing_config,
+    ClassifierPinConfig, ExplorationConfig, LatencyBands, ModelPinsConfig, ModelRoutingConfig,
+    PromotionThresholds, SafetyConfig, load_model_pins_config, load_model_routing_config,
 };
 pub use config::{BuildTarget, GamifyMode, VoxConfig, WebRunMode};
 pub use inference::{

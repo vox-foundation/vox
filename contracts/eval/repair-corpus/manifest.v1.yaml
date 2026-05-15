@@ -1,0 +1,63 @@
+x-vox-version: 1
+schema_version: 1
+
+# Repair corpus manifest (CR-L3).
+#
+# References:
+#   - docs/src/architecture/v1-release-criteria.md [CR-L3]
+#   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.4 P3.3, §3
+
+corpus:
+  id: repair-corpus
+  schema_version: 1
+  status: stub
+  bar:
+    project_scope_target: 0.70
+    single_file_aim: 0.90
+    sub_bar_block_project_scope: 0.50
+  count_target: 50
+  count_current: 0
+  corpus_hash: "blake3:0000000000000000000000000000000000000000000000000000000000000000"
+
+# Target distribution: 10 fixtures per bug class.
+bug_class_distribution:
+  type-error: 10
+  effect-violation: 10
+  logic: 10
+  exhaustiveness: 10
+  api-misuse: 10
+
+# Difficulty distribution within each class.
+difficulty_distribution:
+  easy: 0.30                              # 3 of 10 per class
+  medium: 0.50                            # 5 of 10 per class
+  hard: 0.20                              # 2 of 10 per class
+
+# Fixtures (empty stub).
+fixtures: []
+
+# CI policy.
+ci:
+  minimum_viable:
+    count: 15                             # 3 per class minimum to land harness
+    distribution_required: true
+  rate_measurement:
+    temperature: 0.0
+    seed: 42
+    attempts_per_fixture: 5
+    scoring: "majority-success"           # >= 3 of 5 attempts passing = fixture passed
+    per_file_budget_attempts: 3           # vox repair's existing default
+    project_iteration_budget: 10          # outer loop attempts
+
+# Council ratification log (D13, 2026-05-15).
+council_ratification_log:
+  - id: repair-corpus-iteration-budget
+    decision: "10 outer attempts per project (vox repair . retry budget)."
+    ratified_at: "2026-05-15"
+    rationale: "Aligned with vox-cli/src/commands/repair.rs existing 3-attempt-per-file × ~3 files cap."
+  - id: repair-corpus-cost-ceiling
+    decision: "$1.50 per project median across panel."
+    ratified_at: "2026-05-15"
+    rationale: >
+      Subordinate to CR-L0's $5/spec ceiling; a single CR-L0 spec may invoke
+      project-scope repair once or twice during its outer agent loop.

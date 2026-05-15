@@ -89,3 +89,8 @@ file://.*docs/src/feed\.xml
 
 # ScienceDirect article URLs often return 400 to automated clients; citations remain valid
 .*sciencedirect\.com/science/article/.*
+
+# Upstream-vendored CHANGELOG (patches/webview2-com-sys-0.38.2/CHANGELOG.md) references
+# wravery/webview2-rs compare URLs that 404 because upstream restructured tag layout.
+# We don't control the vendored content; ignore the specific 404 paths.
+https://github\.com/wravery/webview2-rs/compare/.*

@@ -158,6 +158,33 @@ pub const CORPUS_TRAINING_INELIGIBLE_IMPORT: &str = "vox/corpus/training-ineligi
 pub const SYNTAX_DECORATOR_POSITION_POLICY: &str = "vox/syntax/decorator-position-policy";
 
 // ---------------------------------------------------------------------------
+// Retirement guard (CR-L6) — `Warning` at land, `Error` after one minor
+// ---------------------------------------------------------------------------
+
+/// Source file uses a retired decorator or import form per AGENTS.md §Retired Surfaces.
+/// First 5 patterns covered: `@component fn`, `@server fn`, `@query fn`,
+/// `@mutation fn`, `@py.import`. Remaining 5 (`recall()`, `@capacitor/*`,
+/// `axum::serve`, `rust-embed`, `vox-sherpa-transcribe`) land in P1.4.
+pub const RETIRED_DECORATOR_USAGE: &str = "vox/retired/decorator-usage";
+
+/// Source file references a retired Vox crate name (vox-ludus, vox-sherpa-transcribe).
+/// Covers the `vox-ludus-crate` and `vox-sherpa-transcribe-plugin` rows of
+/// `contracts/retirement/retired-surfaces.v1.yaml`. Phase 1.4 detector.
+pub const RETIRED_CRATE_IMPORT: &str = "vox/retired/crate-import";
+
+/// Source file references a retired Vox env-var name (TURSO_URL / VOX_TURSO_URL /
+/// VOX_TURSO_TOKEN). Covers the `turso-env-vars` row. Phase 1.4 detector.
+pub const RETIRED_ENV_VAR: &str = "vox/retired/env-var";
+
+/// Source file calls a retired memory-API (`recall()` / `recall_async()`).
+/// Covers the `recall-fn-api` row. Phase 1.4 detector.
+pub const RETIRED_MEMORY_API: &str = "vox/retired/memory-api";
+
+/// Source file imports a retired `@capacitor/*` package or runs `npx cap sync`.
+/// Covers the `capacitor-imports` and `cap-sync-cli` rows. Phase 1.4 detector.
+pub const RETIRED_CAPACITOR: &str = "vox/retired/capacitor";
+
+// ---------------------------------------------------------------------------
 // Codegen (Phase 1)
 // ---------------------------------------------------------------------------
 
@@ -258,6 +285,11 @@ pub const ALL_KNOWN_IDS: &[&str] = &[
     FIXTURE_UNFILLED_HOLE,
     FIXTURE_STALE_HOLE,
     CODEGEN_MISSING_TS_AI_LOWERING,
+    RETIRED_DECORATOR_USAGE,
+    RETIRED_CRATE_IMPORT,
+    RETIRED_ENV_VAR,
+    RETIRED_MEMORY_API,
+    RETIRED_CAPACITOR,
 ];
 
 /// Find the explain URL for a given diagnostic ID.

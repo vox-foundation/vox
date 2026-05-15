@@ -942,6 +942,13 @@ impl ModelRegistry {
         self.models.get(model_id).cloned()
     }
 
+    /// Lookup the premium-alias model id for a routing key
+    /// (see `contracts/orchestration/model-routing.v1.yaml`).
+    /// Used by `select()` to honor task-pinned premium aliases.
+    pub fn premium_alias_for(&self, key: &str) -> Option<&str> {
+        self.premium_alias.get(key).map(String::as_str)
+    }
+
     /// Set an explicit model override for a specific agent.
     pub fn set_override(&mut self, agent_id: u64, model_id: String) {
         self.agent_overrides.insert(agent_id, model_id);

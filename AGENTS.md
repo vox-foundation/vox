@@ -136,12 +136,13 @@ Vox source follows one rule for top-level declarations:
 > **Bare-keyword blocks declare scope. Decorators modify declarations.**
 
 **Bare-keyword blocks** (each opens a scope with its own rules):
-`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`,
-`workflow`, `activity`.
+`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`.
+**Reserved (ADR-028, not yet implemented):** `workflow`, `activity`.
 
 **Decorators** (modifiers composed on top of a declaration):
 `@table`, `@endpoint`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`,
-`@durable`, `@v0`, `@test`, `@scheduled`.
+`@v0`, `@test`.
+**Reserved (ADR-028, not yet implemented):** `@durable`, `@scheduled`.
 
 Decorators compose with bare-keyword blocks:
 
@@ -149,20 +150,34 @@ Decorators compose with bare-keyword blocks:
 // vox:skip
 @table type Task { … }                        // decorator on a type declaration
 @endpoint(kind: query) fn list_tasks() { … }  // decorator on a function
-@durable fn process_order(id: OrderId) { … }  // durability via decorator, not keyword
+@pure fn checksum(payload: bytes) { … }       // purity declared via decorator
 ```
 
 **Rule for new features:** Do NOT introduce a new bare keyword for behavior
 that can be expressed as a decorator. New execution semantics (durability,
 tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 
-**Implementation status (Phase 2):** `actor`, `workflow`, and `activity` are
-fully supported bare keywords as of **TASK-2.6 Path A** (commit `080b3f86`).
-They lower to `HirFn { durability: Some(DurabilityKind::_) }` — no separate
-HIR node types. The tombstone that previously rejected these keywords has been
-removed; source files may freely use `actor`, `workflow`, and `activity` forms.
+**Implementation status (2026-05-15, corrects earlier drift).** `actor` is fully
+supported as a bare keyword and lowers to runtime mailbox dispatch. `workflow`,
+`activity`, `@durable`, and `@scheduled` are **reserved per ADR-028** and
+**rejected at parse time** with error code `E028` — see
+[`crates/vox-compiler/src/pipeline.rs`](crates/vox-compiler/src/pipeline.rs)
+function `check_adr028_reserved_keywords`. Source files MUST NOT declare these
+forms; use a plain `fn` until the durability runtime lands per
+[`mesh-phase1-language-spine-plan-2026.md`](docs/src/architecture/mesh-phase1-language-spine-plan-2026.md).
+A previous revision of this section claimed they were "fully supported as of
+TASK-2.6 Path A" — that claim was incorrect and is corrected here. The
+[`durability-runtime-audit-2026.md`](docs/src/architecture/durability-runtime-audit-2026.md)
+audit confirms parse-only with zero runtime implementation.
 
-See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/architecture/gui-native-roadmap-status-2026.md) §Phase 2.
+The `vox ci retirement-audit` gate (planned per
+[CR-L6](docs/src/architecture/v1-llm-target-implementation-plan-2026.md) P1.3)
+will fail CI on drift between this section and the actual parse-time enforcement
+in `pipeline.rs`. Until that gate lands, the
+[`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md)
+catches this drift quarterly.
+
+See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/architecture/gui-native-roadmap-status-2026.md) §Phase 2; [`docs/src/architecture/durability-runtime-audit-2026.md`](docs/src/architecture/durability-runtime-audit-2026.md).
 
 ## Cross-Platform Shell Discipline (Stable Rules)
 

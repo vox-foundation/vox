@@ -58,6 +58,7 @@ vox-telemetry             = { path = "crates/vox-telemetry" }
 vox-tracing-init          = { path = "crates/vox-tracing-init" }
 
 
+vox-audit                 = { path = "crates/vox-audit" }
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-secrets                = { path = "crates/vox-secrets" }
 vox-cli                   = { path = "crates/vox-cli" }

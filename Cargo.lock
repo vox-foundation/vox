@@ -13008,6 +13008,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-audit"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "chrono",
+ "clap",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
+ "vox-code-audit",
+ "vox-telemetry",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-bounded-fs"
 version = "0.5.0"
 dependencies = [
@@ -13099,6 +13118,7 @@ dependencies = [
  "turso",
  "uuid",
  "vox-actor-runtime",
+ "vox-audit",
  "vox-bounded-fs",
  "vox-build-meta",
  "vox-capability-registry",
@@ -13209,8 +13229,10 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "serde_yaml",
  "similar",
  "syn 2.0.117",
+ "tempfile",
  "thiserror 1.0.69",
  "tracing",
  "vox-bounded-fs",
@@ -13221,6 +13243,7 @@ dependencies = [
  "vox-rule-pack",
  "vox-scaling-policy",
  "vox-secrets",
+ "vox-telemetry",
  "walkdir",
  "workspace-hack",
 ]

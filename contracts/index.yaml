@@ -1402,3 +1402,99 @@ contracts:
     description: Committed speech-to-code KPI threshold snapshot for CI canary validation.
     enforced_by:
       - cargo test -p vox-integration-tests --test speech_canary_test
+
+  # ---------------------------------------------------------------------------
+  # v1.0 LLM-Target Fidelity contracts (CR-L0..CR-L8).
+  # Added 2026-05-15 per docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.1 P0.
+  # ---------------------------------------------------------------------------
+
+  - id: marquee-app-manifest
+    path: contracts/marquee/manifest.v1.yaml
+    owner: platform-release
+    kind: yaml
+    description: >
+      Canonical Marquee app list for CR-P1, CR-P3, CR-E2, CR-L0, CR-L7. Status
+      draft as of 2026-05-15; council approval pending (OQ-9).
+    enforced_by:
+      - vox audit deploy           # CR-L7, lands P4.7
+
+  - id: eval-llm-panel
+    path: contracts/eval/llm-panel.v1.yaml
+    owner: platform-release
+    kind: yaml
+    description: >
+      Reference-LLM panel pinning for CR-L0..CR-L4 measurement (members,
+      pricing, rate limits, fallback policy). Status draft 2026-05-15 (OQ-7).
+    enforced_by:
+      - vox audit spec-to-app      # CR-L0
+      - vox audit humaneval        # CR-L1
+      - vox audit mens-on-distribution   # CR-L2
+      - vox audit repair-corpus    # CR-L3
+      - vox audit plan-fidelity    # CR-L4
+
+  - id: eval-humaneval-vox
+    path: contracts/eval/humaneval-vox/manifest.v1.yaml
+    owner: platform-language
+    kind: yaml
+    description: >
+      HumanEval-Vox fixture manifest (CR-L1). 164-problem target with 30
+      held-out for MENS contamination guard. Status stub 2026-05-15.
+    enforced_by:
+      - vox audit humaneval
+
+  - id: eval-repair-corpus
+    path: contracts/eval/repair-corpus/manifest.v1.yaml
+    owner: platform-runtime
+    kind: yaml
+    description: >
+      Multi-file broken-project corpus (CR-L3). 50 projects across 5 bug
+      classes. Status stub 2026-05-15.
+    enforced_by:
+      - vox audit repair-corpus
+
+  - id: eval-plan-fidelity
+    path: contracts/eval/plan-fidelity/manifest.v1.yaml
+    owner: platform-agent-infra
+    kind: yaml
+    description: >
+      Plan-fidelity fixture manifest (CR-L4 / [CR-D1] 85% Wave-2). 50 plans
+      across 3 waves. Status stub 2026-05-15.
+    enforced_by:
+      - vox audit plan-fidelity
+
+  - id: eval-spec-to-app
+    path: contracts/eval/spec-to-app/manifest.v1.yaml
+    owner: platform-agent-infra
+    kind: yaml
+    description: >
+      End-to-end agent loop fixture manifest (CR-L0). 10 English specs across
+      3 difficulty tiers. CR-L0 is the integration test whose sub-bar blocks
+      GA. Status stub 2026-05-15.
+    enforced_by:
+      - vox audit spec-to-app
+
+  - id: vox-audit-contract
+    path: contracts/ci/vox-audit-contract.v1.yaml
+    owner: platform-ci
+    kind: yaml
+    description: >
+      Normative `vox audit <thing>` subcommand contract. Single CLI surface,
+      exit-code convention, canonical JSON report shape, telemetry namespace.
+      Consumed by all CR-L gate subcommands.
+    enforced_by:
+      - vox audit all              # umbrella, lands P1.5
+
+  - id: retired-surfaces
+    path: contracts/retirement/retired-surfaces.v1.yaml
+    owner: platform-language
+    kind: yaml
+    description: >
+      CR-L6 retirement-surface registry. One row per pattern in
+      AGENTS.md §Retired Surfaces with its enforcement mechanism
+      (detector / cli-check / documentation-only / deferred). Parity
+      with the detector registry asserted by
+      `vox_code_audit::retirement_parity::check_parity` and (planned, P1.5)
+      the `vox ci retirement-audit` CLI command.
+    enforced_by:
+      - cargo test -p vox-code-audit --lib retirement_parity
+      - vox ci retirement-audit    # planned P1.5

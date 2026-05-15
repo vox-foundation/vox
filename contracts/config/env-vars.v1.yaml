@@ -3744,6 +3744,23 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_CORPUS_FEEDBACK_EVENTS_DIR"
+    owner_crate: "vox-cli"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: >
+      Override the directory where the CR-L8 corpus-feedback JSONL sink
+      (`vox_cli::telemetry_corpus_feedback_sink::CorpusFeedbackJsonlSink`)
+      appends one line per emitted `vox.lint.*` / `vox.repair.*` event.
+      Defaults to `<cwd>/contracts/reports/corpus-feedback-events/`. Set
+      to the literal string `disabled` (case-insensitive) to suppress the
+      sink entirely. The `vox audit corpus-feedback` subcommand reads
+      from this directory to aggregate the quarterly substantive report
+      at `contracts/reports/corpus-feedback/<YYYY-QN>.json`. Per-day
+      JSONL files are `.gitignore`d; the quarterly report IS committed.
+      Council-ratified 2026-05-15 (P2.1c in
+      docs/src/architecture/v1-llm-target-implementation-plan-2026.md).
   - name: "VOX_TELEMETRY_UPLOAD_TOKEN"
     owner_crate: "vox-secrets"
     kind: "string"
