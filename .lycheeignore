@@ -14,6 +14,11 @@
 docs/src/archive/
 crates/.*
 scripts/.*
+# Vendored upstream patches — READMEs reference compare URLs and docs.rs
+# badges that drift independently of our tree (pre-existing 404s for
+# webview2-com-sys version-compare links). Treat as archival, mirroring
+# the policy already applied to `crates/.*` and `scripts/.*`.
+patches/.*
 \.agents/.*
 docs/news/templates/.*
 .*iclr\.cc/.*
