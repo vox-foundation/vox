@@ -1,0 +1,23 @@
+[package]
+name = "vox-replay-runner"
+description = "SCIENTIA Phase B — re-executes a manifest's RO-Crate mainEntity in a sandbox and writes a measured artifact_replayability score."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+vox-scientia = { workspace = true }
+vox-crypto   = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+sha3         = { workspace = true }
+hex          = { workspace = true }
+tokio        = { workspace = true }
+thiserror    = { workspace = true }
+tracing      = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

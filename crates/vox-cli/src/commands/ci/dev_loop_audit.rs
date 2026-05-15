@@ -179,7 +179,7 @@ mod tests {
         let canonical = root.join("target");
         let outside = std::env::temp_dir().join("rust-target");
         assert_eq!(
-            classify_fragmentation_risk(root, &canonical, outside, false),
+            classify_fragmentation_risk(root, &canonical, &outside, false),
             "high"
         );
     }

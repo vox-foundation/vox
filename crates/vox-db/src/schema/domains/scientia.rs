@@ -285,4 +285,35 @@ CREATE TABLE IF NOT EXISTS scientia_training_pairs (
     created_at_ms     INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_scientia_training_pairs_session ON scientia_training_pairs(session_id);
+
+-- Phase A — self-observation signal producers ledger.
+-- `vox-scientia-producers` writes rows here from commit-graph, benchmark-history,
+-- and Socrates-telemetry detectors. Schema mirrors
+-- `contracts/scientia/finding-candidate.v1.schema.json`.
+CREATE TABLE IF NOT EXISTS scientia_finding_candidates (
+    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+    candidate_id                TEXT    NOT NULL UNIQUE,
+    -- candidate_class enum: 'algorithmic_improvement' | 'reproducibility_infra'
+    --                      | 'policy_governance' | 'telemetry_trust' | 'other'.
+    -- Validity is enforced by `vox_db::FindingCandidateClass::from_str` in
+    -- ops_finding_candidates.rs; Turso does not support CHECK constraints.
+    candidate_class             TEXT    NOT NULL,
+    publication_id              TEXT,
+    title_hint                  TEXT,
+    internal_signals_json       TEXT    NOT NULL,
+    novelty_evidence_bundle_id  TEXT,
+    worthiness_decision_ref     TEXT,
+    confidence_json             TEXT,
+    repository_id               TEXT,
+    producer_name               TEXT    NOT NULL,
+    signal_fingerprint          TEXT    NOT NULL,
+    created_at_ms               INTEGER NOT NULL,
+    updated_at_ms               INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scientia_finding_candidates_class
+    ON scientia_finding_candidates(candidate_class);
+CREATE INDEX IF NOT EXISTS idx_scientia_finding_candidates_repo
+    ON scientia_finding_candidates(repository_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_scientia_finding_candidates_fingerprint
+    ON scientia_finding_candidates(producer_name, signal_fingerprint);
 "#;

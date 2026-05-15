@@ -1,0 +1,15 @@
+[package]
+name = "vox-class-routing"
+description = "SCIENTIA Phase E — per-class venue routing + reply-window / negative-result-quota / critic-allowed defaults for AI/SWE micro-publications (non-Atlas)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde       = { workspace = true }
+serde_json  = { workspace = true }
+serde_yaml  = { workspace = true }
+thiserror   = { workspace = true }

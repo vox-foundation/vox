@@ -1,0 +1,20 @@
+[package]
+name = "vox-manuscript-latex"
+description = "SCIENTIA Phase 3+4 — render a ScaffoldInput to LaTeX (article class) for PDF generation via tectonic/pdflatex AND arXiv staging bundles. Pure-text pipeline; no rendering engine pulled in."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+vox-manuscript-scaffold = { workspace = true }
+serde      = { workspace = true }
+serde_json = { workspace = true }
+thiserror  = { workspace = true }
+pulldown-cmark = { workspace = true }
+tar        = { workspace = true }
+flate2     = { workspace = true }
+
+[dev-dependencies]

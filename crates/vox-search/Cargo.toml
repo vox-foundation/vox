@@ -40,6 +40,8 @@ serde_json = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
 wiremock = { workspace = true }
+# Force deadpool's `rt_tokio_1` feature (see root Cargo.toml).
+deadpool = { workspace = true }
 
 [lints]
 workspace = true

@@ -67,6 +67,11 @@ mod ops_planning;
 mod ops_publication;
 mod ops_questioning;
 mod ops_retention;
+mod ops_finding_candidates;
 mod ops_scientia;
+
+pub use ops_finding_candidates::{
+    FindingCandidateClass, FindingCandidateRow, InsertOutcome,
+};
 mod ops_secrets_cloudless;
 mod ops_visus;
