@@ -2,6 +2,7 @@ use crate::locks::LockKind;
 use crate::oplog::OperationKind;
 use crate::planning::PlanningTaskMeta;
 use crate::scope::ScopeEnforcement;
+use crate::services::persistence_obs::log_persistence_failure;
 use crate::services::{PolicyCheckResult, PolicyEngine, PolicyTrustRelax};
 use crate::types::{AccessKind, AgentTask, FileAffinity, TaskEnqueueHints, TaskId, TaskPriority};
 use std::path::PathBuf;
@@ -94,14 +95,22 @@ impl Orchestrator {
         let _relay_harness_spec_json_seed = task.harness_spec_json.clone();
         task.start(); // ensure started_at_ms is populated for orchestrator-submitted tasks
         if let (Some(campaign_id), Some(tier)) = (task.campaign_id.clone(), task.benchmark_tier) {
-            let _ = self
+            if let Err(e) = self
                 .begin_reconstruction_campaign(
-                    campaign_id,
+                    campaign_id.clone(),
                     tier,
                     task.description.clone(),
                     session_id.as_deref(),
                 )
-                .await;
+                .await
+            {
+                // Campaign init failed; downstream lookups against this campaign_id would
+                // dangle. Surface the failure to operators and clear the id from the task
+                // so subsequent code paths don't reference a non-existent campaign row.
+                // Refs: docs/src/architecture/semantic-gap-audit-2026.md F5.
+                log_persistence_failure("submit.campaign_init", e);
+                task.campaign_id = None;
+            }
         }
 
         // Route to the right agent via RoutingService
@@ -999,7 +1008,7 @@ impl Orchestrator {
                     payload["orchestration_campaign_id"] = serde_json::Value::String(cid);
                 }
                 let payload_str = payload.to_string();
-                let _ = db
+                if let Err(e) = db
                     .append_orchestration_lineage_event(
                         &repo,
                         "task_submitted",
@@ -1011,7 +1020,13 @@ impl Orchestrator {
                         None,
                         Some(payload_str.as_str()),
                     )
-                    .await;
+                    .await
+                {
+                    // Lineage write failures leave a permanent gap in the audit trail;
+                    // surface to operators rather than swallow.
+                    // Refs: docs/src/architecture/semantic-gap-audit-2026.md F4.
+                    log_persistence_failure("lineage.task_submitted", e);
+                }
             }
         }
 

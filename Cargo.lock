@@ -13985,6 +13985,7 @@ dependencies = [
  "tower-lsp-server",
  "tracing",
  "tracing-subscriber",
+ "tracing-test",
  "uuid",
  "vox-actor-runtime",
  "vox-bounded-fs",
