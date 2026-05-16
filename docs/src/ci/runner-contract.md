@@ -154,7 +154,7 @@ Optional governance gates (default **warn**, non-blocking) reuse that JSON or JU
 
 For routing/telemetry/capability-policy changes, prefer narrow reruns before full workspace passes:
 
-- `cargo test -p vox-runtime`
+- `cargo test -p vox-actor-runtime`
 - `cargo test -p vox-db`
 - `cargo test -p vox-orchestrator`
 

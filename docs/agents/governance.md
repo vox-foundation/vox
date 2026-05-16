@@ -31,7 +31,7 @@ GitHub CI runs the **scoped** TOESTUB pass above (`toestub_scoped.sh`). When you
 
 ## Enforced Rules
 
-TOESTUB rule IDs are emitted as shown below (see `crates/vox-toestub/src/detectors/`). Policy names in prose map to these IDs.
+TOESTUB rule IDs are emitted as shown below (see `crates/vox-code-audit/src/detectors/`). Policy names in prose map to these IDs.
 
 | Rule ID (TOESTUB) | Description | Default severity |
 |---|---|---|

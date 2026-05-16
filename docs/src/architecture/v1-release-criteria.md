@@ -12,7 +12,7 @@ To reach a stable v1.0, the Vox foundation must satisfy the following machine-ve
 
 ## 1. Production Validation
 - **[CR-P1]** At least 3 "Marquee" applications must be deployed and live on OCI-compliant infrastructure with zero manual configuration.
-- **[CR-P2]** 99.9% uptime for the `vox-mens` inference endpoint over a 7-day soak test.
+- **[CR-P2]** 99.9% uptime for the `vox-ml-cli` inference endpoint over a 7-day soak test.
 - **[CR-P3]** Full "Zero-DX" deployment loop: `vox new web → vox deploy` must take under 120 seconds end-to-end.
 
 ## 2. Architectural Integrity

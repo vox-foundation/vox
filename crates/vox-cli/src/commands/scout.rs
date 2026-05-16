@@ -9,7 +9,7 @@ use vox_cli_core::scientia::ScoutOutput;
 use vox_db::store::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};
 use vox_db::VoxDb;
 use vox_research_events::ResearchEvent;
-use vox_scientia_producers::{ProducerContext, ProducerRegistry};
+use vox_scientia::producers::{ProducerContext, ProducerRegistry};
 
 /// Entry point invoked from `commands::scientia`.
 pub async fn run(

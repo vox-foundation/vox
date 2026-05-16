@@ -49,7 +49,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
    - `--target=client` emits the TS client SDK only (see below).
 2. New subcommand `vox emit client --lang=ts --out=./api-client` produces a self-contained, npm-publishable package:
    - Own `package.json` with `name`, `version`, `exports` (ESM + CJS + `.d.ts`).
-   - Zero imports from `vox-runtime`, internal Vox surfaces, or the full-stack client emit. Lives in its own crate so the dependency graph is clean.
+   - Zero imports from `vox-actor-runtime`, internal Vox surfaces, or the full-stack client emit. Lives in its own crate so the dependency graph is clean.
    - Emits: types, optional Zod validators (flag), a fetch client class. Configurable `baseUrl` and a pluggable `fetch` (so users can wire RTK Query / TanStack Query / their own auth interceptor).
    - Reproducible output: identical input HIR → byte-identical files. Golden tests pin this.
 3. `vox dev --target=server` — dev-loop that doesn't touch a frontend. Hot-reloads the Axum binary.
@@ -147,7 +147,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
    - In the emitted TS output, the import passes through unchanged — no marshaling layer, the React component is rendered as-is.
    - Props passed from Vox to the React component are serialized through the wire-format SSOT (Phase 2) when they cross a serialization boundary; in-process they pass as native JS values.
 2. **React imports Vox (external React app uses emitted Vox components):**
-   - Vox component compilation produces `.tsx` files that are first-class React components: real `export`, real prop type aliases, no hidden runtime dependency on `vox-runtime` for component code.
+   - Vox component compilation produces `.tsx` files that are first-class React components: real `export`, real prop type aliases, no hidden runtime dependency on `vox-actor-runtime` for component code.
    - Output directory has a generated `package.json` so it can be a workspace package (or published to npm) and consumed via standard `import { MyVoxComponent } from "@myorg/vox-ui"`.
    - Re-emit-stable: re-running the compiler produces a clean diff. Developers should generally not hand-edit emitted files (the source of truth is the `.vox` source); a designated `// vox:user-edit` zone or sidecar override file is the escape hatch — exact mechanism in the sub-spec.
    - Emitted components are typed against the Phase-1 client SDK, so a button bound to a mutation gets the typed call for free.

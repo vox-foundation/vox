@@ -151,7 +151,7 @@ C:\Users\Owner\vox\                        — repo root
 │   ├── vox-gamify/                        — gamification (formerly vox-ludus)
 │   ├── vox-scientia/                      — RAG / knowledge curation
 │   ├── vox-db/                            — Codex / Arca Vault / Turso bindings
-│   └── vox-runtime/                       — process primitives, telemetry
+│   └── vox-actor-runtime/                       — process primitives, telemetry
 ├── apps/editor/vox-vscode/                            — VS Code extension (to be shrunk)
 ├── contracts/
 │   ├── mcp/tool-registry.canonical.yaml   — MCP tool SSOT (247 tools)

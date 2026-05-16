@@ -162,7 +162,7 @@ Each archetype lists:
 ### A8. Knowledge base / RAG-driven Q&A
 
 **Status:** Tier 2.
-**What works today:** `vox-runtime` has `retrieval.rs` per the substrate audit, but it's not surfaced to user code. MENS embeddings exist in pipeline form.
+**What works today:** `vox-actor-runtime` has `retrieval.rs` per the substrate audit, but it's not surfaced to user code. MENS embeddings exist in pipeline form.
 **Blockers:**
 - **A8-01 No vector type / vector-search operator** — `db.filter(by: similarity(...))` doesn't exist. Slot: CC-16 (vector search).
 - **A8-02 No `@embed(model: ...)` decorator** — embedding generation on insert is hand-coded. Slot: decorator on a `@table` field, runs at insert/update.
@@ -246,7 +246,7 @@ Each archetype lists:
 - **A13-01 No WebSocket server primitive** — see CC-00 (WebSocket). Single most blocking gap in this tier.
 - **A13-02 No presence primitive** — "user is online" / "user is typing" is a real-time state shape with no abstraction. Slot: stdlib `Presence[UserId]` type, backed by CC-00.
 - **A13-03 No message-history pagination** — infinite-scroll with key-based cursors is hand-coded. Slot: stdlib `cursor_paginated[T]` view on top of `@table`.
-- **A13-04 No reactive table subscription** — `subscription.rs` exists in `vox-runtime` but isn't surfaced to user code per substrate audit. Slot: surface the existing internal primitive with a `db.Table.subscribe(filter: ...)` API.
+- **A13-04 No reactive table subscription** — `subscription.rs` exists in `vox-actor-runtime` but isn't surfaced to user code per substrate audit. Slot: surface the existing internal primitive with a `db.Table.subscribe(filter: ...)` API.
 - **A13-05 No read-receipt / unread-count primitive** — every chat reimplements the ledger. Slot: stdlib pattern; couples to CC-09.
 - **A13-06 No file-attachment in messages** — see CC-01.
 - **A13-07 No image-thumbnail generation** — see A2-04.
@@ -410,7 +410,7 @@ The 21 archetypes above bottleneck on a small set of shared primitives. Building
 ### CC-01. File upload + blob storage
 
 **Unblocks:** A6, A7, A11, A13, A14, A16, A19, A20.
-- **CC-01-D Design** — typed `Upload[T]` value (not raw multipart) with content-type and size structurally bounded at the type level. Storage backends abstracted via a `BlobStore` trait surface in `vox-runtime`.
+- **CC-01-D Design** — typed `Upload[T]` value (not raw multipart) with content-type and size structurally bounded at the type level. Storage backends abstracted via a `BlobStore` trait surface in `vox-actor-runtime`.
 - **CC-01-R Runtime** — multipart handler in Axum integration; backends for local disk + S3-compatible (R2, B2). Streaming uploads (no full-buffer).
 - **CC-01-C Codegen** — TS client emits a typed `upload(file: File)` call; OpenAPI emit handles `multipart/form-data` correctly.
 - **CC-01-E Eval** — fixture fuzzer for filename / mime-type spoofing; large-file streaming pass; partial-upload resume. Couples to security fuzz.
@@ -531,7 +531,7 @@ The 21 archetypes above bottleneck on a small set of shared primitives. Building
 
 **Unblocks:** A8, A17 partial.
 - **CC-16-D Design** — `Vector[N]` value type (statically dimensioned). `@embed(model: ...)` decorator on a `@table` field. `db.search(by: similarity(query_vec, top_k: ...))`. Single canonical shape; backend is pgvector / sqlite-vss / in-memory.
-- **CC-16-R Runtime** — embedding generation hooks (provider via `vox-mens` for local, or remote provider). Index types (HNSW / IVF) surfaced as decorator config.
+- **CC-16-R Runtime** — embedding generation hooks (provider via `vox-ml-cli` for local, or remote provider). Index types (HNSW / IVF) surfaced as decorator config.
 - **CC-16-C Codegen** — none distinct from CC-14.
 - **CC-16-E Eval** — recall@k harness; embedding-drift detection across model upgrades.
 
@@ -612,7 +612,7 @@ These are *meta* gaps — independent of any archetype, they degrade the prompt 
 
 **What's missing:** `vox init` ships ~5 kinds (chatbot, web, api, mobile-pwa, fullstack) per the substrate scan. None correspond directly to the 21 archetypes above. MENS has no archetype-aware scaffold prompt set.
 **Why it blocks:** A user asking "build me a marketplace" gets a generic full-stack scaffold; MENS then has to invent the marketplace shape from scratch every time. High decision-point burden. Higher hallucination rate.
-**Slot:** Build per-archetype prompt + scaffold template pairs, owned by `vox-project-scaffold` and consumed by `vox-mens` as system-prompt context.
+**Slot:** Build per-archetype prompt + scaffold template pairs, owned by `vox-project-scaffold` and consumed by `vox-ml-cli` as system-prompt context.
 
 ### M2. Feature-pack composition (no "add auth + payments to existing repo")
 

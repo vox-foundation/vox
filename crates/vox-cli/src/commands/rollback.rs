@@ -1,6 +1,6 @@
 use anyhow::Result;
 use vox_cli_core::daemon_ipc::dispatch;
-use vox_protocol::orch_daemon_method;
+use vox_foundation::protocol::orch_daemon_method;
 
 pub async fn run(id: Option<String>) -> Result<()> {
     let target = match id {

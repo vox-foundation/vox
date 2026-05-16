@@ -1,16 +1,16 @@
 //! DeI JSON-line RPC methods (`ai.*`, `config.get`) for `vox-orchestrator-d` stdio/TCP transport.
 //!
-//! These method ids are shared with `vox-cli` / `vox-mcp` ([`vox_protocol::dei_method`]).
+//! These method ids are shared with `vox-cli` / `vox-mcp` ([`vox_foundation::protocol::dei_method`]).
 
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use vox_protocol::dei_method;
+use vox_foundation::protocol::dei_method;
 
 use super::{response_err, response_result};
 use crate::Orchestrator;
 use crate::orchestrator::task_dispatch::submit::dei_plan_materialize;
-use vox_protocol::{DispatchRequest, DispatchResponse};
+use vox_foundation::protocol::{DispatchRequest, DispatchResponse};
 
 /// Dispatch `ai.*` / `config.get` when the incoming [`DispatchRequest::method`] matches DeI.
 pub async fn try_dispatch_dei(

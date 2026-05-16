@@ -848,7 +848,7 @@ async fn cmd_doctor(
                         break;
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
-                    backoff_ms = vox_primitives::backoff::next_backoff_ms_double_clamped(
+                    backoff_ms = vox_foundation::primitives::backoff::next_backoff_ms_double_clamped(
                         backoff_ms, 100, 30_000,
                     );
                 }

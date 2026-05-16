@@ -1,6 +1,6 @@
 //! Newline JSON protocol — re-export wire types from [`vox_protocol`].
 
-pub use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
+pub use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 #[cfg(test)]
 mod tests {
@@ -44,7 +44,7 @@ mod tests {
 
         let req = DispatchRequest {
             id: "req-1".into(),
-            method: vox_protocol::dei_method::AI_GENERATE.into(),
+            method: vox_foundation::protocol::dei_method::AI_GENERATE.into(),
             params: serde_json::json!({ "prompt": "hello" }),
         };
         let instance = serde_json::to_value(&req).expect("serialize DispatchRequest");
@@ -75,7 +75,7 @@ mod tests {
             .map(|v| v.as_str().expect("enum string"))
             .collect();
 
-        use vox_protocol::dei_method as method;
+        use vox_foundation::protocol::dei_method as method;
         for m in [
             method::AI_CHECK,
             method::AI_FIX,

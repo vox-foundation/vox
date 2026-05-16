@@ -1,4 +1,4 @@
-//! JSON-line orchestrator daemon (ADR 022 Phase B): newline-delimited [`vox_protocol::DispatchRequest`].
+//! JSON-line orchestrator daemon (ADR 022 Phase B): newline-delimited [`vox_foundation::protocol::DispatchRequest`].
 //!
 //! **Transport (`vox-orchestrator-d` process):** set **`VOX_ORCHESTRATOR_DAEMON_SOCKET`** to
 //! `127.0.0.1:9745`, optional `tcp://` prefix, or **`stdio`** / **`-`** / **`stdin`** for one line in, one line out on stdio.
@@ -14,8 +14,8 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
-use vox_protocol::orch_daemon_method;
-use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
+use vox_foundation::protocol::orch_daemon_method;
+use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 use crate::Orchestrator;
 use crate::types::TaskId;

@@ -879,7 +879,7 @@ pub fn call_builtin_method(
                             _ => return Some(VoxValue::Str("read_only".to_string())),
                         };
                         Some(VoxValue::Str(
-                            vox_primitives::agentos_mutation::mutation_kind_for_tool(&name).to_string(),
+                            vox_foundation::primitives::agentos_mutation::mutation_kind_for_tool(&name).to_string(),
                         ))
                     }
                     _ => None,

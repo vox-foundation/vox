@@ -25,9 +25,6 @@ live-api-canary = []
 
 [dependencies]
 vox-scientia = { workspace = true }
-# Phase E micro-track config — consumed by `JournalFitRecommender` to apply
-# per-`FindingClass` venue routing on top of topic-overlap ranking.
-vox-class-routing = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
@@ -49,7 +46,7 @@ sha3 = { workspace = true }
 regex = { workspace = true }
 pulldown-cmark = { workspace = true }
 vox-bounded-fs = { workspace = true }
-vox-primitives = { workspace = true }
+vox-foundation = { workspace = true }
 vox-secrets = { path = "../vox-secrets" }
 vox-config = { path = "../vox-config" }
 vox-jsonschema-util.workspace = true

@@ -86,7 +86,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 vox-repository = { workspace = true }
-vox-primitives = { workspace = true }
+vox-foundation = { workspace = true }
 vox-secrets = { workspace = true }
 vox-plugin-host = { workspace = true, optional = true }
 vox-constrained-gen = { workspace = true }

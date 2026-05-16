@@ -142,12 +142,12 @@ impl<'a> JournalFitRecommender<'a> {
     pub fn rank_venues_for_class(
         &self,
         finding_topics: &[&str],
-        class: vox_class_routing::FindingClass,
-        defaults: &vox_class_routing::ClassDefaults,
+        class: vox_scientia::class_routing::FindingClass,
+        defaults: &vox_scientia::class_routing::ClassDefaults,
     ) -> Vec<VenueFitScore> {
         const CLASS_BOOST: f64 = 1.0;
         let class_recommended: std::collections::HashSet<&str> =
-            vox_class_routing::recommended_venues_for(defaults, class)
+            vox_scientia::class_routing::recommended_venues_for(defaults, class)
                 .iter()
                 .map(String::as_str)
                 .collect();
@@ -170,8 +170,8 @@ impl<'a> JournalFitRecommender<'a> {
     pub fn top_venue_for_class(
         &self,
         finding_topics: &[&str],
-        class: vox_class_routing::FindingClass,
-        defaults: &vox_class_routing::ClassDefaults,
+        class: vox_scientia::class_routing::FindingClass,
+        defaults: &vox_scientia::class_routing::ClassDefaults,
     ) -> Option<&'a VenueEntry> {
         self.rank_venues_for_class(finding_topics, class, defaults)
             .into_iter()
@@ -264,14 +264,14 @@ venues:
 
     /// Build a `ClassDefaults` map where `algorithmic_improvement` has
     /// `imc` as its recommended venue. Verifies class-boost logic.
-    fn defaults_recommending(class: vox_class_routing::FindingClass, venue_id: &str)
-        -> vox_class_routing::ClassDefaults
+    fn defaults_recommending(class: vox_scientia::class_routing::FindingClass, venue_id: &str)
+        -> vox_scientia::class_routing::ClassDefaults
     {
-        let mut d = vox_class_routing::builtin_class_defaults();
+        let mut d = vox_scientia::class_routing::builtin_class_defaults();
         d.by_class
             .entry(class.as_str().to_string())
             .and_modify(|p| p.recommended_venues = vec![venue_id.to_string()])
-            .or_insert(vox_class_routing::ClassPolicy {
+            .or_insert(vox_scientia::class_routing::ClassPolicy {
                 reply_window_days: 7,
                 negative_result_quota: 0,
                 critic_allowed: true,
@@ -285,12 +285,12 @@ venues:
         let cat = VenueCatalog::from_yaml(SAMPLE_YAML).expect("parse");
         let rec = JournalFitRecommender::new(&cat);
         let defaults = defaults_recommending(
-            vox_class_routing::FindingClass::AlgorithmicImprovement,
+            vox_scientia::class_routing::FindingClass::AlgorithmicImprovement,
             "imc",
         );
         let scores = rec.rank_venues_for_class(
             &["measurement"],
-            vox_class_routing::FindingClass::AlgorithmicImprovement,
+            vox_scientia::class_routing::FindingClass::AlgorithmicImprovement,
             &defaults,
         );
         let imc = scores.iter().find(|s| s.venue_id == "imc").unwrap();
@@ -312,10 +312,10 @@ venues:
         let cat = VenueCatalog::from_yaml(SAMPLE_YAML).expect("parse");
         let rec = JournalFitRecommender::new(&cat);
         // `Other` class has no recommended_venues in builtin defaults.
-        let defaults = vox_class_routing::builtin_class_defaults();
+        let defaults = vox_scientia::class_routing::builtin_class_defaults();
         let scores = rec.rank_venues_for_class(
             &["machine-learning"],
-            vox_class_routing::FindingClass::Other,
+            vox_scientia::class_routing::FindingClass::Other,
             &defaults,
         );
         // No venue should have `class_recommended` reason.
@@ -335,14 +335,14 @@ venues:
         let cat = VenueCatalog::from_yaml(SAMPLE_YAML).expect("parse");
         let rec = JournalFitRecommender::new(&cat);
         let defaults = defaults_recommending(
-            vox_class_routing::FindingClass::ReproducibilityInfra,
+            vox_scientia::class_routing::FindingClass::ReproducibilityInfra,
             "tmlr",
         );
         // No topic match for `unrelated-topic`, but class recommendation
         // still surfaces tmlr.
         let top = rec.top_venue_for_class(
             &["unrelated-topic"],
-            vox_class_routing::FindingClass::ReproducibilityInfra,
+            vox_scientia::class_routing::FindingClass::ReproducibilityInfra,
             &defaults,
         );
         assert!(top.is_some(), "class-recommended venue should surface");
@@ -355,12 +355,12 @@ venues:
         let rec = JournalFitRecommender::new(&cat);
         // Empty defaults map for a class with no class-recommendations,
         // and no topic match.
-        let defaults = vox_class_routing::ClassDefaults {
+        let defaults = vox_scientia::class_routing::ClassDefaults {
             by_class: Default::default(),
         };
         let top = rec.top_venue_for_class(
             &["unrelated-topic"],
-            vox_class_routing::FindingClass::Other,
+            vox_scientia::class_routing::FindingClass::Other,
             &defaults,
         );
         assert!(top.is_none());

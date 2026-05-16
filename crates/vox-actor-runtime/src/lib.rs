@@ -68,7 +68,7 @@ pub use resilient_http::RetryPolicy;
 pub use retrieval::{ContextBudget, ProvenanceRecord, RetrievedChunk, apply_context_budget};
 pub use subscription::SubscriptionManager;
 
-/// Re-exported pure backoff math ([`vox_primitives::backoff`]).
-pub use vox_primitives::backoff;
-/// Re-exported cheap hex ids ([`vox_primitives::id`]).
-pub use vox_primitives::id as simple_id;
+/// Re-exported pure backoff math ([`vox_foundation::primitives::backoff`]).
+pub use vox_foundation::primitives::backoff;
+/// Re-exported cheap hex ids ([`vox_foundation::primitives::id`]).
+pub use vox_foundation::primitives::id as simple_id;

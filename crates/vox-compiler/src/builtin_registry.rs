@@ -861,7 +861,7 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("agentos", "mutation_kind_for_tool") if !args.is_empty() => Some(format!(
-            "vox_actor_runtime::builtins::vox_primitives::agentos_mutation_kind_for_tool(({}).as_str())",
+            "vox_actor_runtime::builtins::vox_foundation::primitives::agentos_mutation_kind_for_tool(({}).as_str())",
             args[0]
         )),
         _ => None,
@@ -887,7 +887,7 @@ mod agentos_std_surface_tests {
         )
         .expect("runtime lowering");
         assert!(
-            rust.contains("vox_primitives::agentos_mutation_kind_for_tool"),
+            rust.contains("vox_foundation::primitives::agentos_mutation_kind_for_tool"),
             "{rust}"
         );
     }

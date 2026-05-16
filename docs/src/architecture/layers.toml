@@ -39,10 +39,14 @@
 # the --warn-only CLI flag). The other seven default to warn.
 fan_in            = "warn"
 loc_budget        = "warn"
-orphan            = "warn"
+orphan            = "error"  # promoted from warn post-Tier-A; no legitimate orphan libraries should exist
 docstring         = "warn"
 description       = "error"
 where_things_live = "error"
+# Rule 12: WTL / layers.toml / disk three-way parity.
+wtl_parity        = "error"
+# Rule 13: LoC delta regression. Warns when any budgeted crate has grown >15% vs last release tag.
+loc_delta         = "warn"
 # Rule 8: warns when a crate has no commits since the last CHANGELOG.md release date.
 # Silence for individual crates with staleness_exempt = true.
 staleness         = "warn"
@@ -65,19 +69,16 @@ forbidden = ["vox-search", "tantivy", "qdrant"]
 reason   = "vox-code-audit detectors must not pull search/vector deps (build-time neutrality)"
 
 [crates]
-vox-scientia = { layer = 3, staleness_exempt = true }
+vox-scientia = { layer = 3, staleness_exempt = true, max_loc = 15_000 }  # umbrella: +8 SCIENTIA sub-crates folded in (was ~2.5K, now ~8.8K)
 
 # ── L0 — pure types ───────────────────────────────────────────────────────────
 vox-orchestrator-types = { layer = 0 }
 
 vox-db-types           = { layer = 0 }
-vox-protocol           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
-vox-primitives         = { layer = 0 }
-vox-agentos-mutation   = { layer = 0, max_dependents = 12 }
 workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
-vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable
+vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable — must not be folded into vox-foundation
 
 # ── L1 — primitives & utilities ───────────────────────────────────────────────
 vox-bounded-fs        = { layer = 1, max_dependents = 25 }
@@ -86,6 +87,7 @@ vox-crypto            = { layer = 1 }
 vox-secrets           = { layer = 1, max_dependents = 25 }
 
 vox-jsonschema-util   = { layer = 1 }
+vox-foundation        = { layer = 1, staleness_exempt = true }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
 
 vox-identity          = { layer = 1 }
 vox-http-client  = { layer = 1, staleness_exempt = true }
@@ -99,7 +101,6 @@ vox-plugin-api        = { layer = 1 }                            # type/trait su
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
 vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
-vox-tracing-init      = { layer = 1 }                            # tracing_subscriber bootstrap presets (CLI vs daemon)
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2 }
@@ -112,13 +113,6 @@ vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
 vox-eval                = { layer = 2 }
-vox-mens-eval           = { layer = 2 }
-vox-manuscript-scaffold = { layer = 2, staleness_exempt = true }    # Phase C: IMRaD safe-slots renderer (pure; no DB/network).
-vox-critic-gate         = { layer = 2, staleness_exempt = true }    # Phase D: solo-author critic gate (ApproverRole + ModelFingerprint exclusion).
-vox-class-routing       = { layer = 2, staleness_exempt = true }    # Phase E: per-class venue routing + reply-window / quota / critic-allowed config.
-vox-findings-site       = { layer = 2, staleness_exempt = true }    # Phase G: pure HTML page builder for /findings/<trusty-uri>.
-vox-scientia-dashboard  = { layer = 2, staleness_exempt = true }    # Phase H: queue/cost JSON builders for /api/v2/scientia/{queue,cost}.
-vox-manuscript-latex    = { layer = 2, staleness_exempt = true }    # Phase 3+4: markdown→LaTeX renderer (PDF source + arXiv bundle body).
 
 
 
@@ -136,11 +130,8 @@ vox-tauri-sherpa        = { layer = 3, kind = "plugin" }
 
 vox-scientia-jsonschema-codegen = { layer = 3, kind = "binary" }               # offline SCIENTIA JSON Schema → Rust (typify)
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
-vox-publisher           = { layer = 3, max_loc = 20_000 }
+vox-publisher           = { layer = 3, max_loc = 22_000 }  # raised from 20_000 (was at 19,951 / 20,000 headroom)
 vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 70_000 }
-vox-scientia-producers  = { layer = 3, staleness_exempt = true }    # Phase A: signal producers; vox-cli scout (Phase F) is the first consumer.
-vox-replay-runner       = { layer = 3, staleness_exempt = true }    # Phase B: re-executes RO-Crate mainEntity in a sandbox; vox-cli publication-replay (follow-up) will consume.
-
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }
@@ -151,7 +142,6 @@ vox-forge               = { layer = 3 }
 vox-git                 = { layer = 3 }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
-vox-dashboard           = { layer = 3 }
 vox-mesh         = { layer = 3, kind = "plugin", staleness_exempt = true }
 vox-webhook             = { layer = 3 }
 vox-code-audit          = { layer = 3, max_loc = 25_000 }
@@ -201,6 +191,7 @@ vox-cli               = { layer = 5, kind = "binary", max_loc = 90_000 }
 vox-gui               = { layer = 5, kind = "binary", max_loc = 25_000 } # Tauri desktop shell; depends on vox-cli / vox-orchestrator
 vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
+vox-audit             = { layer = 5, kind = "binary" }                   # umbrella CR-L gate runner; contracts/ci/vox-audit-contract.v1.yaml
 voxup                 = { layer = 5, kind = "binary" }
 
 
@@ -346,4 +337,38 @@ pattern          = '"@capacitor/'
 file_glob        = "apps/**/package.json"
 allow_annotation = "// vox-arch-check: allow capacitor-app-dep"
 reason           = "Application package manifests use @tauri-apps/* per ADR 037."
+
+# ── Planned crates (in-flight design docs; not yet on disk) ──────────────────
+# Rule 12 (WTL parity check) consults this table before flagging a
+# where-things-live.md reference as a ghost.  Each entry must point to the
+# plan doc that owns the work so the next contributor can pick it up cold.
+#
+# Format: <crate-name> = { plan = "<doc path>", layer = <intended layer> }
+[planned]
+vox-claim-extractor      = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
+vox-inspect-bridge       = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 3 }
+vox-nanopub              = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
+vox-prereg               = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
+vox-ro-crate             = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
+vox-scientia-ingest      = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 3 }
+vox-mesh-models          = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 0 }
+vox-orchestrator-core    = { plan = "docs/src/architecture/2026-05-15-orchestrator-tier-d-plan.md", layer = 3 }
+vox-orchestrator-cap-mint = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 3 }
+vox-checksum-manifest    = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+vox-release-artifacts    = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+vox-assets               = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+vox-exec-grammar         = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+vox-http-envelope        = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+vox-openai-sse           = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+vox-openai-wire          = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+vox-share                = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
+vox-ssg                  = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
+vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
+vox-mesh-policy          = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 1 }
+vox-distributed-training = { plan = "docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md", layer = 3 }
+vox-inference            = { plan = "docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md", layer = 3 }
+vox-cli-ci               = { plan = "docs/src/architecture/2026-05-15-cli-ci-extraction-plan.md", layer = 3 }
+vox-dashboard            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
+vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
+vox-agentos-mutation     = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 0 }
 

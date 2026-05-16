@@ -12978,12 +12978,12 @@ dependencies = [
  "uuid",
  "vox-config",
  "vox-db",
+ "vox-foundation",
  "vox-http-client",
  "vox-openai",
  "vox-openclaw-runtime",
  "vox-orchestrator-types",
  "vox-plugin-host",
- "vox-primitives",
  "vox-secrets",
  "vox-skills",
  "vox-telemetry",
@@ -13053,16 +13053,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-class-routing"
-version = "0.5.0"
-dependencies = [
- "serde",
- "serde_json",
- "serde_yaml",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "vox-cli"
 version = "0.5.0"
 dependencies = [
@@ -13122,7 +13112,6 @@ dependencies = [
  "vox-bounded-fs",
  "vox-build-meta",
  "vox-capability-registry",
- "vox-class-routing",
  "vox-cli-core",
  "vox-code-audit",
  "vox-codegen",
@@ -13131,7 +13120,6 @@ dependencies = [
  "vox-constrained-gen",
  "vox-container",
  "vox-corpus",
- "vox-critic-gate",
  "vox-crypto",
  "vox-db",
  "vox-deploy-codegen",
@@ -13139,16 +13127,14 @@ dependencies = [
  "vox-doc-pipeline",
  "vox-drift-check",
  "vox-eval",
- "vox-findings-site",
  "vox-forge",
+ "vox-foundation",
  "vox-gamify",
  "vox-git",
  "vox-grammar-export",
  "vox-http-client",
  "vox-identity",
  "vox-jsonschema-util",
- "vox-manuscript-latex",
- "vox-manuscript-scaffold",
  "vox-mcp-registry",
  "vox-mesh-types",
  "vox-openclaw-runtime",
@@ -13158,18 +13144,13 @@ dependencies = [
  "vox-plugin-catalog",
  "vox-plugin-host",
  "vox-populi",
- "vox-primitives",
  "vox-project-scaffold",
- "vox-protocol",
  "vox-publisher",
- "vox-replay-runner",
  "vox-repository",
  "vox-research-events",
  "vox-rule-pack",
  "vox-scaling-policy",
  "vox-scientia",
- "vox-scientia-dashboard",
- "vox-scientia-producers",
  "vox-search",
  "vox-secrets",
  "vox-skills",
@@ -13205,12 +13186,11 @@ dependencies = [
  "vox-bounded-fs",
  "vox-config",
  "vox-db",
+ "vox-foundation",
  "vox-gamify",
  "vox-jsonschema-util",
- "vox-protocol",
  "vox-repository",
  "vox-secrets",
- "vox-tracing-init",
  "which 7.0.3",
 ]
 
@@ -13306,9 +13286,9 @@ dependencies = [
  "vox-config",
  "vox-deploy-codegen",
  "vox-eval",
+ "vox-foundation",
  "vox-grammar-export",
  "vox-jsonschema-util",
- "vox-primitives",
  "vox-repository",
  "vox-secrets",
  "vox-test-harness",
@@ -13379,15 +13359,6 @@ dependencies = [
  "vox-mcp-registry",
  "vox-repository",
  "xxhash-rust",
-]
-
-[[package]]
-name = "vox-critic-gate"
-version = "0.5.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -13534,15 +13505,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-findings-site"
-version = "0.5.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "vox-forge"
 version = "0.5.0"
 dependencies = [
@@ -13555,6 +13517,17 @@ dependencies = [
  "tokio",
  "tracing",
  "vox-http-client",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-foundation"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
  "workspace-hack",
 ]
 
@@ -13636,9 +13609,9 @@ dependencies = [
  "vox-build-meta",
  "vox-cli",
  "vox-cli-core",
+ "vox-foundation",
  "vox-orchestrator",
  "vox-package-types",
- "vox-protocol",
  "vox-repository",
 ]
 
@@ -13749,32 +13722,10 @@ dependencies = [
  "vox-bounded-fs",
  "vox-compiler",
  "vox-db",
+ "vox-foundation",
  "vox-gamify",
  "vox-secrets",
- "vox-tracing-init",
  "workspace-hack",
-]
-
-[[package]]
-name = "vox-manuscript-latex"
-version = "0.5.0"
-dependencies = [
- "flate2",
- "pulldown-cmark",
- "serde",
- "serde_json",
- "tar",
- "thiserror 1.0.69",
- "vox-manuscript-scaffold",
-]
-
-[[package]]
-name = "vox-manuscript-scaffold"
-version = "0.5.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -13849,6 +13800,7 @@ dependencies = [
  "vox-crypto",
  "vox-db",
  "vox-eval",
+ "vox-foundation",
  "vox-http-client",
  "vox-jsonschema-util",
  "vox-mesh-types",
@@ -13856,8 +13808,6 @@ dependencies = [
  "vox-orchestrator",
  "vox-plugin-host",
  "vox-populi",
- "vox-primitives",
- "vox-protocol",
  "vox-repository",
  "vox-scaling-policy",
  "vox-secrets",
@@ -13992,6 +13942,7 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
+ "vox-foundation",
  "vox-gamify",
  "vox-http-client",
  "vox-lsp",
@@ -14001,8 +13952,6 @@ dependencies = [
  "vox-orchestrator-types",
  "vox-package",
  "vox-populi",
- "vox-primitives",
- "vox-protocol",
  "vox-publisher",
  "vox-repository",
  "vox-research-events",
@@ -14027,12 +13976,12 @@ dependencies = [
  "tracing",
  "vox-config",
  "vox-db",
+ "vox-foundation",
  "vox-orchestrator",
  "vox-orchestrator-mcp",
  "vox-repository",
  "vox-secrets",
  "vox-skills",
- "vox-tracing-init",
  "workspace-hack",
 ]
 
@@ -14089,6 +14038,7 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
+ "vox-foundation",
  "vox-gamify",
  "vox-grammar-export",
  "vox-http-client",
@@ -14106,7 +14056,6 @@ dependencies = [
  "vox-plugin-types",
  "vox-populi",
  "vox-project-scaffold",
- "vox-protocol",
  "vox-publisher",
  "vox-repository",
  "vox-research-events",
@@ -14423,11 +14372,11 @@ dependencies = [
  "vox-bounded-fs",
  "vox-crypto",
  "vox-db",
+ "vox-foundation",
  "vox-http-client",
  "vox-mesh-types",
  "vox-plugin-api",
  "vox-populi",
- "vox-primitives",
  "vox-repository",
  "vox-secrets",
  "workspace-hack",
@@ -14571,6 +14520,7 @@ dependencies = [
  "vox-crypto",
  "vox-db",
  "vox-eval",
+ "vox-foundation",
  "vox-grammar-export",
  "vox-hf-layout",
  "vox-http-client",
@@ -14579,17 +14529,12 @@ dependencies = [
  "vox-orchestrator-queue",
  "vox-package",
  "vox-plugin-host",
- "vox-primitives",
  "vox-publisher",
  "vox-repository",
  "vox-secrets",
  "vox-tensor",
  "workspace-hack",
 ]
-
-[[package]]
-name = "vox-primitives"
-version = "0.5.0"
 
 [[package]]
 name = "vox-project-scaffold"
@@ -14601,14 +14546,6 @@ dependencies = [
  "vox-package-types",
  "vox-repository",
  "workspace-hack",
-]
-
-[[package]]
-name = "vox-protocol"
-version = "0.5.0"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -14641,33 +14578,16 @@ dependencies = [
  "tracing",
  "unicode-segmentation",
  "vox-bounded-fs",
- "vox-class-routing",
  "vox-config",
  "vox-db",
  "vox-forge",
+ "vox-foundation",
  "vox-http-client",
  "vox-jsonschema-util",
- "vox-primitives",
  "vox-scientia",
  "vox-secrets",
  "wiremock",
  "workspace-hack",
-]
-
-[[package]]
-name = "vox-replay-runner"
-version = "0.5.0"
-dependencies = [
- "hex",
- "serde",
- "serde_json",
- "sha3",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "vox-crypto",
- "vox-scientia",
 ]
 
 [[package]]
@@ -14731,35 +14651,35 @@ name = "vox-scientia"
 version = "0.5.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64 0.22.1",
  "chrono",
  "feed-rs",
+ "flate2",
+ "gix",
  "hex",
+ "pulldown-cmark",
  "regex",
  "reqwest 0.12.28",
  "scraper",
  "serde",
  "serde_json",
+ "serde_yaml",
  "sha2",
+ "sha3",
+ "tar",
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
  "tracing",
+ "turso",
  "url",
  "uuid",
  "vox-crypto",
  "vox-db",
+ "vox-db-types",
  "vox-research-events",
  "vox-search",
-]
-
-[[package]]
-name = "vox-scientia-dashboard"
-version = "0.5.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -14774,28 +14694,6 @@ dependencies = [
  "typify",
  "walkdir",
  "workspace-hack",
-]
-
-[[package]]
-name = "vox-scientia-producers"
-version = "0.5.0"
-dependencies = [
- "async-trait",
- "chrono",
- "gix",
- "hex",
- "serde",
- "serde_json",
- "sha3",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "turso",
- "vox-crypto",
- "vox-db",
- "vox-db-types",
- "vox-research-events",
 ]
 
 [[package]]
@@ -14943,15 +14841,6 @@ dependencies = [
  "vox-codegen",
  "vox-compiler",
  "vox-secrets",
- "workspace-hack",
-]
-
-[[package]]
-name = "vox-tracing-init"
-version = "0.5.0"
-dependencies = [
- "tracing",
- "tracing-subscriber",
  "workspace-hack",
 ]
 

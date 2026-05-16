@@ -31,7 +31,7 @@ pub struct GlobalOpts {
 
 /// Initialize [`tracing`] for CLI tools.
 pub fn init_tracing_for_cli() {
-    vox_tracing_init::try_init_cli_default_info_fallback();
+    vox_foundation::tracing::try_init_cli_default_info_fallback();
 }
 
 /// Apply global opts to the environment.

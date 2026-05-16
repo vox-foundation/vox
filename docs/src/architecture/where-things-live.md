@@ -49,14 +49,13 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-mesh-policy`](../../../crates/vox-mesh-policy/) | Parse/print `donations.vox` and mesh donation policy fragments (SSOT P4-T3). |
 | [`vox-mesh-models`](../../../crates/vox-mesh-models/) | Mesh model registry aggregation types (`ModelRegistry`) for dashboard `/api/v2/mesh/models` (P4-T12). |
 | [`vox-orchestrator-types`](../../../crates/vox-orchestrator-types/) | Pure-data L0 leaf for vox-orchestrator: agent/task IDs, file affinity, switch actions, provider catalogs, VCS capability tokens (WorkingTreeWrite, BranchCreate, etc.). |
-| [`vox-primitives`](../../../crates/vox-primitives/) | Dependency-neutral id and backoff helpers shared across workspace crates. |
-| [`vox-protocol`](../../../crates/vox-protocol/) | Daemon wire-protocol pure-data types. |
 | [`workspace-hack`](../../../crates/workspace-hack/) | Cargo-hakari unification crate; do not edit by hand. |
 
 ### L1 — primitives & utilities
 
 | Crate | One-line scope |
 |---|---|
+| [`vox-foundation`](../../../crates/vox-foundation/) | Utility umbrella: cheap trace ids, exponential backoff, AgentOS mutation kinds (was `vox-primitives`), daemon wire-protocol types (was `vox-protocol`), `tracing_subscriber` bootstrap presets (was `vox-tracing-init`). Excluded from workspace-hack for fast-leaf compile. |
 | [`vox-bounded-fs`](../../../crates/vox-bounded-fs/) | UTF-8 file reads capped by vox-scaling-policy max_file_bytes_hint. |
 | [`vox-checksum-manifest`](../../../crates/vox-checksum-manifest/) | SHA-256 release asset verification against checksums.txt manifests. |
 | [`vox-release-artifacts`](../../../crates/vox-release-artifacts/) | Portable `.tar.gz` / `.zip` packaging + `checksums.txt` line helpers for `vox compile` and `vox ci release-build`. |
@@ -76,17 +75,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-plugin-api`](../../../crates/vox-plugin-api/) | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
 | [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro. Zero domain dependencies. |
-| [`vox-tracing-init`](../../../crates/vox-tracing-init/) | Shared `tracing_subscriber` fmt + env-filter bootstrap for CLIs (default `info`) and daemons / LSP (`RUST_LOG` only, stderr option). |
 | [`vox-http-client`](../../../crates/vox-http-client/) | Shared HTTP client presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
 | [`vox-research-events`](../../../crates/vox-research-events/) | Typed SCIENTIA research event types and `PreregistrationV1`. |
-| [`vox-scientia-producers`](../../../crates/vox-scientia-producers/) | SCIENTIA Phase A: self-observation signal producers (commit-graph subject classifier, benchmark-history p95 delta, Socrates-telemetry trust delta) emitting `FindingCandidateProposed` events. |
-| [`vox-replay-runner`](../../../crates/vox-replay-runner/) | SCIENTIA Phase B: re-executes a manifest's RO-Crate `mainEntity` (entry-point + expected output hashes) in a sandboxed `tokio::process::Command` with `kill_on_drop` + wall-clock timeout, producing a measured `artifact_replayability` value. |
-| [`vox-manuscript-scaffold`](../../../crates/vox-manuscript-scaffold/) | SCIENTIA Phase C: pure IMRaD manuscript scaffolder. Fills provenance-bound safe slots (Methods/Results/Limitations/References/AI-disclosure) and emits `<!-- TODO(narrative): -->` blocks for sections the worthiness rubric forbids auto-generating (Introduction/Discussion/Significance/Conclusion). |
-| [`vox-critic-gate`](../../../crates/vox-critic-gate/) | SCIENTIA Phase D: solo-author critic gate. Pure `evaluate_gate(GateInputs) -> GateOutcome` evaluator implementing `≥2 humans OR (≥1 human + ≥1 audited-LLM-critic with non-colliding ModelFingerprint and approving recommendation, venue permitting)`. Closes the GPT-4-grades-GPT-4 hole. |
-| [`vox-class-routing`](../../../crates/vox-class-routing/) | SCIENTIA Phase E: per-`FindingClass` venue mapping, reply-window length, negative-result quota, and critic-allowed default. Atlas gate (3:1 null-result quota, 14-day window) applies only to `ModelCapabilityAtlas` / `ProviderReliabilityAtlas`. |
-| [`vox-findings-site`](../../../crates/vox-findings-site/) | SCIENTIA Phase G: pure HTML page builder for `/findings/<trusty-uri>`. Highwire `citation_*` meta tags for Google Scholar pickup, version-history table, retraction banner (COPE-aligned), verified-claims sidebar, reply thread. |
-| [`vox-scientia-dashboard`](../../../crates/vox-scientia-dashboard/) | SCIENTIA Phase H: pure JSON builders for `GET /api/v2/scientia/{queue,cost}` and the `scientia.queue.changed` WS topic. `QueueSnapshot` (candidates by class + claims pending + reply-window + retraction queue + stalls), `CostRollup` (per-quarter, per-provider, per-finding average). 30-day `evidence_incomplete` stall detection. |
-| [`vox-manuscript-latex`](../../../crates/vox-manuscript-latex/) | SCIENTIA Phase 3+4: markdown→LaTeX (`article` class) renderer that consumes the same `ScaffoldInput` as `vox-manuscript-scaffold`. Emits a complete `.tex` document suitable for PDF generation via `tectonic`/`pdflatex` and for arXiv staging bundles. Escapes LaTeX specials canonically; preserves forbidden-section TODO discipline. |
 | [`vox-rule-pack`](../../../crates/vox-rule-pack/) | Declarative YAML rule-pack loader for code-audit detector patterns and Scientia heuristics. Zero heavy deps. |
 | [`vox-scaling-policy`](../../../crates/vox-scaling-policy/) | Compile-time and runtime accessors for scaling SSOT (contracts/scaling/policy.yaml). |
 | [`vox-secrets`](../../../crates/vox-secrets/) | Central secret resolution and compatibility adapters for Vox. |
@@ -116,7 +106,6 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Crate | One-line scope |
 |---|---|
 | [`vox-actor-runtime`](../../../crates/vox-actor-runtime/) | Process-oriented runtime: actors, mailboxes, supervision, scheduling, LLM/Mens activity primitives. |
-| [`vox-cli-ci`](../../../crates/vox-cli-ci/) | Staging crate for `vox ci` extraction: ships `src/lib.rs` as a boundary marker; dispatch + validators still live in [`vox-cli`](../../../crates/vox-cli/src/commands/ci/) until bounded_read / registry coupling is split. |
 | [`vox-cli-core`](../../../crates/vox-cli-core/) | Shared internals for the vox CLI binary (argv parsing helpers, exit-code policy). |
 | [`vox-code-audit`](../../../crates/vox-code-audit/) | AI code quality stub detector — finds stubs, magic values, empty bodies, missing references, and DRY violations. |
 | [`vox-drift-check`](../../../crates/vox-drift-check/) | Workspace drift and pattern-repetition linter (multi-language: Rust, TypeScript, Vox). |
@@ -146,8 +135,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-inspect-bridge`](../../../crates/vox-inspect-bridge/) | SCIENTIA Phase 5: UK AISI Inspect task adapter, atomic-NEI novelty scoring. |
 | [`vox-lsp`](../../../crates/vox-lsp/) | Vox Language Server (stdio JSON-RPC). Capability matrix: [`vox-lsp-capabilities-ssot-2026.md`](./vox-lsp-capabilities-ssot-2026.md). |
 | [`vox-openclaw-runtime`](../../../crates/vox-openclaw-runtime/) | OpenClaw client + ARS runtime adapter, executor, context bundles, hooks. |
-| [`vox-orchestrator`](../../../crates/vox-orchestrator/) | Glue crate for the multi-agent file-affinity router: dei_shim, planning, services, runtime glue. Core router lives in vox-orchestrator-core, queue/lock/oplog in vox-orchestrator-queue, MCP in vox-orchestrator-mcp. |
-| [`vox-orchestrator-core`](../../../crates/vox-orchestrator-core/) | Workspace boundary marker for the core router/dispatcher of vox-orchestrator (the `orchestrator/` subdir, ~11.5K LoC). Full extraction blocked by 30+ `crate::` cross-cuts into sibling modules; code remains in vox-orchestrator until a broader L3 split lands. |
+| [`vox-orchestrator`](../../../crates/vox-orchestrator/) | Multi-agent file-affinity router: Orchestrator struct + all impl blocks, task dispatch, dei_shim, planning, services, models, config, runtime glue. 65,560 LoC (budget 70K, 7% headroom as of 2026-05-15). queue/lock/oplog in vox-orchestrator-queue, MCP in vox-orchestrator-mcp. Extraction plan: see [2026-05-15-orchestrator-tier-d-plan.md](./2026-05-15-orchestrator-tier-d-plan.md). |
+| [`vox-orchestrator-core`](../../../crates/vox-orchestrator-core/) | **Planned — not yet landed.** Will hold the `Orchestrator` struct + `orchestrator/` impl blocks (~35K LoC) once Tier D executes. Extraction blocked by 20 sibling `crate::` imports in `orchestrator/**/*.rs`; requires co-moving Orchestrator struct + ~8 modules. See [2026-05-15-orchestrator-tier-d-plan.md](./2026-05-15-orchestrator-tier-d-plan.md) §3. |
 | [`vox-orchestrator-mcp`](../../../crates/vox-orchestrator-mcp/) | MCP (Model Context Protocol) tool layer for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 4. |
 | [`vox-orchestrator-cap-mint`](../../../crates/vox-orchestrator-cap-mint/) | Sealed-trait facade for capability minting (WorkingTreeWrite, BranchCreate). The only crate that may call the `sealed::__mint_*` friend hooks in vox-orchestrator-types. (P3-T6) |
 | [`vox-orchestrator-queue`](../../../crates/vox-orchestrator-queue/) | Locks, oplog, and affinity tracking for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 5. |
@@ -157,6 +146,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-plugin-host`](../../../crates/vox-plugin-host/) | Host-side plugin discovery, loading, and registry. |
 | [`vox-populi`](../../../crates/vox-populi/) | Vox Populi: multi-node worker registry, HTTP control plane, and Mens native ML (Burn / Candle QLoRA). |
 | [`vox-publisher`](../../../crates/vox-publisher/) | Unified news syndication and publishing for Vox. SCIENTIA mesh intake from orchestrator research events: `research_mesh.rs` (+ contract `contracts/scientia/research-mesh-intake.v1.schema.json`). |
+| [`vox-scientia`](../../../crates/vox-scientia/) | SCIENTIA cluster umbrella — all Phases A–H as sub-modules: `producers` (Phase A signal emitters), `replay` (Phase B re-executor), `manuscript` (Phases C+3+4 IMRaD/LaTeX scaffolders), `critic_gate` (Phase D gate), `class_routing` (Phase E venue routing), `findings_site` (Phase G HTML builder), `dashboard` (Phase H JSON builders). |
 | [`vox-scientia-ingest`](../../../crates/vox-scientia-ingest/) | Scientia corpus ingestion pipeline. |
 | [`vox-search`](../../../crates/vox-search/) | Local-first retrieval execution: memory hybrid, repo inventory, Codex chunks, policy, and optional lexical/vector backends. |
 | [`vox-skills`](../../../crates/vox-skills/) | Skill marketplace and plugin architecture for the Vox agent system. |
@@ -178,6 +168,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-integration-tests`](../../../crates/vox-integration-tests/) | Cross-crate integration test harness (test-only L5). |
 | [`vox-orchestrator-d`](../../../crates/vox-orchestrator-d/) | Vox orchestrator daemon binary. Extracted from vox-orchestrator in 2026-05-08 reorg Phase 4. |
 | [`vox-gui`](../../../crates/vox-gui/) | Tauri desktop shell; depends on vox-cli / vox-orchestrator. |
+| [`vox-audit`](../../../crates/vox-audit/) | CR-L gate runner binary (`vox audit <thing>`); implements the JSON report shape from `contracts/ci/vox-audit-contract.v1.yaml`. |
 | [`voxup`](../../../crates/voxup/) | Desktop & CLI environment installer. |
 
 ## Common tasks → exact path
@@ -294,12 +285,87 @@ Crates with `kind = "binary"` in `layers.toml` (e.g., `vox-arch-check`, `vox-pop
 add one, expect that warning to land on your PR until you wire it up — that's
 working as intended.
 
+## Skill-only plugins (no `Cargo.toml` — exempt from `layers.toml`)
 
-| crates/vox-gui/ | UI | Desktop shell |
-| crates/vox-http-client/ | HTTP | Client |
-| crates/vox-mesh/ | Networking | Mesh |
-| crates/vox-openai/ | AI | OpenAI bindings |
-| crates/vox-plugin-mens-candle-metal/ | ML | Apple Silicon |
-| crates/vox-tauri-sherpa/ | Tauri | Sherpa desktop |
-| crates/voxup/ | CLI | Installer |
-| [crates/vox-scientia/](../../../crates/vox-scientia/) | SCIENTIA cluster for ingestion, extraction, and ro-crate formatting. |
+These live under `crates/` but are **not Cargo crates**. Each has a `Plugin.toml`
+and one or more `.skill.md` files. They are loaded at runtime via the plugin
+host, not compiled as Rust library crates.
+
+| Dir | Purpose |
+|---|---|
+| `crates/vox-plugin-noop-skill/` | No-op stub skill used in plugin-host integration tests. |
+| `crates/vox-plugin-skill-compiler/` | Compiler skill — wraps `vox compile` as a Vox skill. |
+| `crates/vox-plugin-skill-git/` | Git skill — wraps common git operations as Vox skills. |
+| `crates/vox-plugin-skill-memory/` | Memory skill — CLAUDE.md / MEMORY.md management as a Vox skill. |
+| `crates/vox-plugin-skill-orchestrator/` | Orchestrator skill — agent lifecycle management via Vox skill API. |
+| `crates/vox-plugin-skill-rag/` | RAG skill — retrieval-augmented generation pipeline as a Vox skill. |
+| `crates/vox-plugin-skill-testing/` | Testing skill — test-run orchestration as a Vox skill. |
+| `crates/vox-plugin-skill-testing-validate/` | Test-validate skill — validates test outputs against expected results. |
+| `crates/vox-plugin-skill-v0/` | Legacy v0 skill format shim — compatibility bridge. |
+
+## Planned but not yet landed
+
+Crates documented in architecture plan docs but with **no directory on disk yet**.
+The [`[planned]` table in `layers.toml`](./layers.toml) is the canonical index;
+each row there points to the plan document that owns the work.
+
+Do **not** create a new crate whose name matches these before checking the linked
+plan document — the design context and API shape are likely already specified.
+
+### SCIENTIA pipeline phases
+
+These will be folded into `vox-scientia` sub-modules when implemented (Phase I onwards):
+
+| Planned crate | Notes |
+|---|---|
+| `vox-claim-extractor` | SCIENTIA claim extraction: VeriScore, MiniCheck, T1→T2. |
+| `vox-inspect-bridge` | UK AISI Inspect adapter, atomic-NEI novelty, ChronoFact. |
+| `vox-nanopub` | Nanopublication builder: TriG, Ed25519 signing, Trusty URI. |
+| `vox-prereg` | Pre-registration: Trusty URI signing, deviation detection. |
+| `vox-ro-crate` | RO-Crate 1.2 JSON-LD metadata builder. |
+| `vox-scientia-ingest` | SCIENTIA corpus ingestion pipeline. |
+
+### MENS / distributed training
+
+| Planned crate | Notes |
+|---|---|
+| `vox-distributed-training` | MENS Mn-T1/Mn-T6: `TrainingSession`, gradient shards. See [mesh MENS plan](./mesh-mens-distributed-training-and-execution-plan-2026.md). |
+| `vox-inference` | MENS Mn-T2: `InferenceBackend` trait + multi-backend dispatcher. |
+
+### Orchestrator extractions
+
+| Planned crate | Notes |
+|---|---|
+| `vox-cli-ci` | **Planned — not yet landed.** `vox ci` subcommand extraction from `vox-cli/src/commands/ci/` (22K LoC, 74 files). Blocked by 3 shared modules that must move to `vox-cli-core` first. See [2026-05-15-cli-ci-extraction-plan.md](./2026-05-15-cli-ci-extraction-plan.md). |
+| `vox-orchestrator-core` | **Planned — not yet landed.** Extract `src/orchestrator/` (12,825 LoC) + `Orchestrator` struct into new crate. Blocked by Rust coherence (all inherent `impl` blocks must co-move with the struct); minimum co-move set ~17K LoC. See [2026-05-15-orchestrator-tier-d-plan.md](./2026-05-15-orchestrator-tier-d-plan.md). |
+| `vox-orchestrator-cap-mint` | Sealed-trait façade for capability minting (P3-T6). |
+
+### Mesh / release packaging
+
+| Planned crate | Notes |
+|---|---|
+| `vox-mesh-models` | Mesh model registry aggregation types. |
+| `vox-mesh-policy` | Parse/print `donations.vox` and mesh donation policy fragments. |
+| `vox-agentos-mutation` | AgentOS mutation-kind SSOT — code currently lives in `vox-primitives::agentos_mutation`. Extract when fan-in ≥ 3. |
+| `vox-checksum-manifest` | SHA-256 release asset verification. |
+| `vox-release-artifacts` | `.tar.gz`/`.zip` packaging helpers for `vox compile`. |
+| `vox-assets` | `[bundle.assets]` manifest validation + staged copy tree. |
+
+### OpenAI / HTTP surface splits
+
+| Planned crate | Notes |
+|---|---|
+| `vox-openai-sse` | OpenAI-compat SSE line reassembly. |
+| `vox-openai-wire` | OpenAI-compatible chat completions JSON types. |
+| `vox-http-envelope` | Wire-format v1 §6 JSON error envelope for generated Axum handlers. |
+
+### Misc
+
+| Planned crate | Notes |
+|---|---|
+| `vox-share` | Public-URL tunneling (Cloudflare Quick Tunnels, localhost.run, Tailscale). |
+| `vox-ssg` | Static site generator for Vox docs surface. |
+| `vox-exec-grammar` | AST parser and risk classifier for shell/Vox command invocations. |
+| `vox-install-policy` | SSOT constants for Vox install/update surfaces. |
+| `vox-dashboard` | Local Axum-served orchestration dashboard (SPA host). |
+| `vox-mens-eval` | Mn-T12 eval harness types (`CompileVerdict`). |

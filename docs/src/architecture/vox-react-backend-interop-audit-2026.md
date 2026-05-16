@@ -188,7 +188,7 @@ Severity follows `P0` (blocker for an external React+backend team) → `P3` (pap
 |----|-----|-----|--------|----------------|----------|
 | G1 | OpenAPI `servers` + paths compose to a duplicate `/api/` segment | P0 | S | `vox-codegen` | §3.2 C1 |
 | G2 | SSOT path examples disagree with emitted routes | P0 | S | docs | §3.2 C2 |
-| G3 | Error envelope unimplemented | P0 | M | `vox-codegen`, `vox-runtime` | §3.2 C3 |
+| G3 | Error envelope unimplemented | P0 | M | `vox-codegen`, `vox-actor-runtime` | §3.2 C3 |
 | G4 | `BuildArgs.build_target` not threaded into `build::run`; `vox build` does not branch | P0 | M | `vox-cli`, `vox-codegen` | **Resolved:** `lanes.rs` → `build::run`; server/client/fullstack branches in [`build.rs`](../../../crates/vox-cli/src/commands/build.rs) |
 | G5 | `VOX_BUILD_TARGET` env var documented but unread | P1 | S | `vox-config` | **Resolved:** [`impl_ops.rs`](../../../crates/vox-config/src/config/impl_ops.rs) (`apply_build_target_env_override`) |
 | G6 | `vox emit client` subcommand does not exist | P1 | M | `vox-cli` | **Resolved:** [`commands/emit.rs`](../../../crates/vox-cli/src/commands/emit/mod.rs) |

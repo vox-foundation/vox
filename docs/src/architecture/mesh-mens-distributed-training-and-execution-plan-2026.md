@@ -826,7 +826,7 @@ and is routed through the InferenceBackend dispatcher.
   `{GpuCompute, Random, Net?}` for `@inference` functions.
 - `crates/vox-codegen/src/lower.rs` — lower `@inference` calls to a
   `vox-inference::dispatch(...)` runtime call.
-- `crates/vox-runtime/src/inference.rs` (or wherever the runtime hooks
+- `crates/vox-actor-runtime/src/inference.rs` (or wherever the runtime hooks
   live) — bridge to `vox-inference`.
 
 **Sketch (Vox source).**
@@ -1647,7 +1647,7 @@ Create: `crates/vox-compiler/src/annotations/inference.rs`.
 Modify: `crates/vox-compiler/src/parser/mod.rs`,
 `crates/vox-compiler/src/typeck/effect_check.rs`,
 `crates/vox-codegen/src/lower.rs`,
-`crates/vox-runtime/src/inference.rs` (or equivalent).
+`crates/vox-actor-runtime/src/inference.rs` (or equivalent).
 
 ### Mn-T5 files
 

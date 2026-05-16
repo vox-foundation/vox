@@ -12,7 +12,7 @@ This guide walks you through running a local Vox mesh control plane — no envir
 
 ## Prerequisites
 
-- `vox-mens` built with the `populi` feature: `cargo build -p vox-mens --features populi`
+- `vox-ml-cli` built with the `populi` feature: `cargo build -p vox-ml-cli --features populi`
 - A writable `~/.vox/` directory (created automatically on first run)
 
 ## Step 1 — Start the control plane

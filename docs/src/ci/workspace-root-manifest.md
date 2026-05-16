@@ -35,7 +35,7 @@ With `members = ["crates/*"]`, every `crates/<name>/` with a `Cargo.toml` become
 
 ## Root `Vox.toml` `[workspace]` (not Cargo)
 
-The committed **`Vox.toml`** at the repo root is the manifest for **Vox package / deploy / orchestrator** settings. Its optional **`[workspace].members`** is used only by **`vox-pm::VoxWorkspace`** to discover per-crate **`crates/<name>/Vox.toml`** files via a glob (see the comment block in root `Vox.toml`). It does **not** define the Rust workspace graph — that remains **`Cargo.toml`** above.
+The committed **`Vox.toml`** at the repo root is the manifest for **Vox package / deploy / orchestrator** settings. Its optional **`[workspace].members`** is used only by **`vox-package::VoxWorkspace`** to discover per-crate **`crates/<name>/Vox.toml`** files via a glob (see the comment block in root `Vox.toml`). It does **not** define the Rust workspace graph — that remains **`Cargo.toml`** above.
 
 ## Related
 

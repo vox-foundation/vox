@@ -57,7 +57,7 @@ Downstream **`vox-codegen`** consumes analysis artifacts for Web IR and extracte
 
 - **New syntax / keywords:** Prefer decorators over bare keywords per root [`AGENTS.md`](../../../AGENTS.md); any new bare keyword should go through ADR + xtask flow described in Phase 1 plan.
 - **New diagnostics:** Stable IDs and catalog discipline — [Phase 2 lint extension](vox-language-rules-phase2-lint-extension-2026.md) and [diagnostic UX (research)](vox-diagnostic-ux-ssot-2026.md).
-- **Runtime-visible behavior:** Separately tracked in runtime crates (`vox-runtime`, orchestrator, mesh plans); compiler-only parses do not imply execution — see durability audit.
+- **Runtime-visible behavior:** Separately tracked in runtime crates (`vox-actor-runtime`, orchestrator, mesh plans); compiler-only parses do not imply execution — see durability audit.
 
 ## Related docs
 

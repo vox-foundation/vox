@@ -91,7 +91,7 @@ This is a *coherent* posture. The plan collapses significantly.
 
 ### The reshaped week-by-week
 
-1. **Week 1 — bleed stops, scope honest.** 1, 2, 3, 4, 93, 94, 69 (archive stale research). Publish a `crates/_frozen.md` list. Publish three-criterion v1.0 gate: (a) 3 external solo-dev apps in production for 30 days, (b) `vox new web` → public URL in under 10 minutes, (c) zero P0 open on `vox-compiler`/`vox-runtime`.
+1. **Week 1 — bleed stops, scope honest.** 1, 2, 3, 4, 93, 94, 69 (archive stale research). Publish a `crates/_frozen.md` list. Publish three-criterion v1.0 gate: (a) 3 external solo-dev apps in production for 30 days, (b) `vox new web` → public URL in under 10 minutes, (c) zero P0 open on `vox-compiler`/`vox-actor-runtime`.
 2. **Weeks 2–3 — the product *is* `vox new web`.** 28, 33, 40. One command from empty dir to a deployed TanStack Start app on a free tier (Fly.io / Vercel / Cloudflare). Golden path in docs. Record the video.
 3. **Weeks 4–6 — the first real user.** 84, 85, 86. Find one solo dev externally (could be a friend, could be you in a second persona) and walk them through shipping a real app. File every paper-cut as an issue. Fix it or freeze it within the week.
 4. **Months 2–3 — keep the app up.** 49, 50, 51, 62, 63, 64. Runtime recovery, observability, error reporting. Users on production = support channel.

@@ -118,7 +118,7 @@ A bundle is *the same host binary* + a curated `plugins/` directory. `vox bundle
 | `vox-populi`                | CHANGED  | `mens-*` features extracted to plugin crates. `default = []`.                        |
 | `vox-tensor`                | CHANGED  | `gpu`/`train` features extracted into a plugin crate. `default = []`.                |
 | `vox-orchestrator`          | CHANGED  | Skill consumption migrates from `vox-skills` to `vox-plugin-host`.                   |
-| `vox-runtime`               | CHANGED  | Same migration.                                                                      |
+| `vox-actor-runtime`               | CHANGED  | Same migration.                                                                      |
 | `vox-cli`                   | CHANGED  | New `plugin` and `bundle` subcommands. Removes `--features` plumbing.                |
 
 ### Plugin manifest schema (`Plugin.toml`)
@@ -531,7 +531,7 @@ For skill plugins, the dispatch path on a missing skill returns `SkillNotInstall
 2. `vox-orchestrator` changes:
    - Replace `vox_skills::SkillRegistry` use with `vox_plugin_host::SkillRegistry`.
    - Bootstrap path no longer calls `install_builtins()`; instead it scans the install dir.
-3. `vox-runtime` changes: same migration.
+3. `vox-actor-runtime` changes: same migration.
 4. MCP tool aliasing: `vox_skill_install` etc. start emitting deprecation warnings; new `vox_plugin_install` surfaces the unified path.
 5. End-to-end test: orchestrator + the migrated skill plugin installed → `vox_validate_file` works through the new plugin host registry.
 
@@ -592,7 +592,7 @@ The catalog's `bundled-in = […]` field is advisory: it tells `vox plugin info 
 
 **Deliverables.**
 
-1. `vox-populi`, `vox-tensor`, `vox-mens` (if still present), and any other identified crate: `default = []`.
+1. `vox-populi`, `vox-tensor`, `vox-ml-cli` (if still present), and any other identified crate: `default = []`.
 2. Delete `vox-cuda-release`, `vox-mens-dev`, `vox-mens-release`, `vox-schola-cuda` aliases from [`.cargo/config.toml`](../../../.cargo/config.toml). Replace the comment block with a pointer to the new plugin docs.
 3. Delete `vox-build-meta` entirely. Remove from `[workspace.members]`. Audit no dependent remains.
 4. Delete `vox-skills` entirely. The remaining 8 skills (`testing`, `testing.validate`, `memory`, `git`, `orchestrator`, `populi`, `v0`, `rag`) get migrated to standalone skill plugins as part of this sub-project (mechanical — same shape as SP4's `skill-compiler`).
@@ -707,7 +707,7 @@ Honest enumeration. Every item has a documented migration in SP6's `how-to-migra
 
 **Code consumers:**
 
-4. Any code importing `vox_skills::*` — four known importers (`vox-orchestrator`, `vox-runtime`, `vox-cli` under feature `ars`, `vox-integration-tests`); migrated in SP4 and SP6.
+4. Any code importing `vox_skills::*` — four known importers (`vox-orchestrator`, `vox-actor-runtime`, `vox-cli` under feature `ars`, `vox-integration-tests`); migrated in SP4 and SP6.
 5. Any code calling `vox_build_meta::has()` / `require()` / `active_features()` — replaced by host registry queries via `vox-plugin-host`.
 6. `vox-capability-registry` consumers — unchanged in SP1–SP6 (registry stays as the contract surface); a follow-up sub-project may collapse it once the plugin registry is proven.
 7. The ARS shim in `vox-skills/src/ars_shim/` — bridges OpenClaw to the skill registry. Either ports to `vox-plugin-host`'s skill registry or is retired with the OpenClaw integration. Decided in SP4 implementation plan.

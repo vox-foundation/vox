@@ -46,7 +46,7 @@ vox-mesh-types = { workspace = true }
 vox-compiler = { workspace = true }
 vox-db = { workspace = true }
 vox-orchestrator = { workspace = true, optional = true }
-vox-primitives = { workspace = true }
+vox-foundation = { workspace = true }
 vox-eval = { workspace = true }
 vox-populi = { workspace = true, optional = true }
 vox-tensor = { workspace = true, optional = true }
@@ -79,7 +79,6 @@ vox-scaling-policy.workspace = true
 vox-repository.workspace = true
 vox-jsonschema-util.workspace = true
 vox-crypto.workspace = true
-vox-protocol.workspace = true
 vox-http-client.workspace = true
 sysinfo = { workspace = true }
 which = { workspace = true }

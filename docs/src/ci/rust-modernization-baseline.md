@@ -33,13 +33,13 @@ Priority set from the master plan (error handling / async / tracing / process):
 
 - `crates/vox-orchestrator/src/mcp_tools/tools/codex_tools.rs`
 - `crates/vox-cli/src/dispatch_protocol.rs`
-- `crates/vox-runtime/src/llm_result.rs`
+- `crates/vox-actor-runtime/src/llm_result.rs`
 - `crates/vox-orchestrator/src/models.rs`
 - `crates/vox-codegen-rust/src/emit.rs`
 
 ## TOESTUB
 
-- Crate: `vox-toestub`; CLI entry: `vox` diagnostics / stub-check (see plan § Wave 5–6).
+- Crate: `vox-code-audit`; CLI entry: `vox` diagnostics / stub-check (see plan § Wave 5–6).
 - CI: default job uses `ci toestub-scoped --mode legacy` (see `.github/workflows/ci.yml`). **Tightening:** switch to stricter modes only after backlog burn-down and cross-provider parity review.
 
 ## Verification commands
