@@ -1,0 +1,51 @@
+# Vox Chatbot Demo — v0.3 brace syntax
+# A full-stack AI chatbot: React frontend + Axum backend + Claude LLM
+
+import react.use_state
+
+type ChatResult =
+    | Success(text: str)
+    | Error(message: str)
+
+component Chat() {
+    let (messages, set_messages) = use_state([{role: "bot", text: ""}])
+    let (input, set_input) = use_state("")
+    let send = fn (_e) set_messages(messages.append({role: "user", text: input}))
+    view: column(raw_class="chat_container") {
+        column(raw_class="messages") {
+            for msg in messages key=msg.text {
+                column(raw_class="message") {
+                    msg.text
+                }
+            }
+        }
+        row(raw_class="input_area") {
+            input(raw_class="chat_input", bind=input, placeholder="Type a message...", aria_label="Chat message")
+            button(raw_class="send_btn", on_click=send) { "Send" }
+        }
+    }
+}
+
+style {
+    .chat_container {
+        display: "flex"
+        flexDirection: "column"
+    }
+    .messages {
+        flex: "1"
+        overflowY: "auto"
+        display: "flex"
+        flexDirection: "column"
+    }
+    .input_area {
+        display: "flex"
+    }
+}
+
+routes {
+    "/" to Chat
+}
+
+@endpoint(kind: mutation) fn api_chat(prompt: str) to ChatResult {
+    return Success("Hello from Vox! You said: " + prompt)
+}

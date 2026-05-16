@@ -1,0 +1,22 @@
+# Two client `routes { }` blocks → duplicate WebIR route contract ids (`route_0`).
+# Used with `VOX_WEBIR_VALIDATE=1` so `vox build` must fail codegen (OP-0312).
+
+import react.use_state
+
+component A() {
+    state n: int = 0
+    view: text() { n }
+}
+
+component B() {
+    state n: int = 0
+    view: text() { n }
+}
+
+routes {
+    "/" to A
+}
+
+routes {
+    "/b" to B
+}

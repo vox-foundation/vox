@@ -13685,6 +13685,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-integration-tests"
+version = "0.5.0"
+dependencies = [
+ "deadpool",
+ "insta",
+ "jsonschema",
+ "pulldown-cmark",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "serial_test",
+ "tempfile",
+ "tokio",
+ "tower-lsp-server",
+ "vox-actor-runtime",
+ "vox-bounded-fs",
+ "vox-cli",
+ "vox-codegen",
+ "vox-compiler",
+ "vox-config",
+ "vox-deploy-codegen",
+ "vox-lsp",
+ "vox-oratio",
+ "vox-orchestrator",
+ "vox-orchestrator-mcp",
+ "vox-repository",
+ "vox-scaling-policy",
+ "vox-secrets",
+ "vox-skills",
+ "vox-test-harness",
+ "vox-workflow-runtime",
+ "walkdir",
+ "wiremock",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-jsonschema-util"
 version = "0.5.0"
 dependencies = [
