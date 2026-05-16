@@ -45,10 +45,7 @@ mod tests {
     #[traced_test]
     #[test]
     fn log_persistence_failure_emits_structured_error_event() {
-        log_persistence_failure(
-            "reliability.endpoint_observation",
-            "simulated db failure",
-        );
+        log_persistence_failure("reliability.endpoint_observation", "simulated db failure");
         assert!(logs_contain("reliability.endpoint_observation"));
         assert!(logs_contain("simulated db failure"));
         assert!(logs_contain("persistence write failed"));
