@@ -4,7 +4,7 @@
 use std::collections::BTreeSet;
 
 use crate::web_ir::{RouteContract, RouteNode, WebIrModule};
-use vox_compiler::hir::HirModule;
+use vox_compiler::hir::{HirEndpointKind, HirModule};
 
 pub const ROUTE_MANIFEST_FILENAME: &str = "routes.manifest.ts";
 
@@ -22,11 +22,44 @@ fn route_tree_top_contracts(web: &WebIrModule) -> Vec<&RouteContract> {
 
 /// Fail-fast checks for manifest imports: HIR must define every component/loader/pending referenced
 /// by the WebIR route tree when `routes { }` is present.
-pub fn validate_manifest_symbols(_web: &WebIrModule, _hir: &HirModule) -> Result<(), String> {
-    Ok(())
+pub fn validate_manifest_symbols(web: &WebIrModule, hir: &HirModule) -> Result<(), String> {
+    let top = route_tree_top_contracts(web);
+    if top.is_empty() {
+        // No client routes declared → no manifest will be emitted, nothing to validate.
+        return Ok(());
+    }
+
+    // Components live in two HirModule fields (per HirModule's own doc comment): reactive
+    // `component Name()` declarations land in `hir.components`, while `@component` fn bodies
+    // land in `hir.functions`. Collect both to avoid false positives.
+    let mut component_names: BTreeSet<String> = BTreeSet::new();
+    for c in &hir.components {
+        component_names.insert(c.name.clone());
+    }
+    for f in &hir.functions {
+        component_names.insert(f.name.clone());
+    }
+
+    // Loaders referenced by routes must be declared as `@query` endpoint functions.
+    let mut query_names: BTreeSet<String> = BTreeSet::new();
+    for ef in &hir.endpoint_fns {
+        if matches!(ef.kind, HirEndpointKind::Query) {
+            query_names.insert(ef.name.clone());
+        }
+    }
+
+    let mut errors: Vec<String> = Vec::new();
+    for c in &top {
+        validate_contract_branch(c, &component_names, &query_names, &mut errors);
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("\n"))
+    }
 }
 
-#[allow(dead_code)]
 fn validate_contract_branch(
     e: &RouteContract,
     component_names: &BTreeSet<String>,
@@ -450,5 +483,160 @@ mod tests {
     #[test]
     fn route_path_builder_returns_empty_when_no_routes() {
         assert_eq!(emit_route_path_builder(&[]), "");
+    }
+
+    // -- validate_manifest_symbols / validate_contract_branch tests ----------
+    //
+    // These exercise the previously-dead validation logic that was wired
+    // 2026-05-16 (see docs/src/architecture/semantic-gap-audit-2026.md F1).
+    //
+    // Negative cases drive `validate_contract_branch` directly with
+    // hand-built BTreeSets because HirReactiveComponent / HirEndpointFn do
+    // not derive Default and constructing full fixtures here would be brittle.
+    // The integration cases at the bottom exercise the public entry point
+    // with an empty HirModule (which does derive Default).
+
+    use crate::web_ir::RouteNode;
+    use std::collections::BTreeSet;
+
+    fn rc_with_meta(pattern: &str, meta: serde_json::Value) -> RouteContract {
+        RouteContract {
+            id: pattern.to_string(),
+            pattern: pattern.to_string(),
+            meta,
+            children: vec![],
+        }
+    }
+
+    fn names(items: &[&str]) -> BTreeSet<String> {
+        items.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn validate_contract_branch_flags_missing_component() {
+        let route = rc("/", "NonExistentComponent");
+        let mut errors = Vec::new();
+        validate_contract_branch(&route, &names(&[]), &names(&[]), &mut errors);
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(
+            errors[0].contains("NonExistentComponent"),
+            "error should name the missing component; got: {errors:?}"
+        );
+        assert!(
+            errors[0].contains("no matching generated .tsx"),
+            "error should mention generated .tsx; got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn validate_contract_branch_flags_loader_not_declared_as_query() {
+        let route = rc_with_meta(
+            "/items",
+            serde_json::json!({ "component": "Items", "loader": "fetchItems" }),
+        );
+        let mut errors = Vec::new();
+        validate_contract_branch(
+            &route,
+            &names(&["Items"]),
+            &names(&["somethingElse"]), // not "fetchItems"
+            &mut errors,
+        );
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(
+            errors[0].contains("fetchItems"),
+            "error should name the missing loader; got: {errors:?}"
+        );
+        assert!(
+            errors[0].contains("not declared as @query"),
+            "error should explain the @query requirement; got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn validate_contract_branch_flags_missing_pending_component() {
+        let route = rc_with_meta(
+            "/slow",
+            serde_json::json!({ "component": "SlowPage", "pending": "MissingSpinner" }),
+        );
+        let mut errors = Vec::new();
+        validate_contract_branch(
+            &route,
+            &names(&["SlowPage"]), // SlowPage exists, MissingSpinner does not
+            &names(&[]),
+            &mut errors,
+        );
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(
+            errors[0].contains("MissingSpinner"),
+            "error should name the missing pending component; got: {errors:?}"
+        );
+        assert!(
+            errors[0].contains("pendingComponent"),
+            "error should identify the failure as a pendingComponent case; got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn validate_contract_branch_recurses_into_children() {
+        let mut parent = rc("/", "Root");
+        parent.children = vec![rc("/orphan", "OrphanedChild")];
+        let mut errors = Vec::new();
+        validate_contract_branch(
+            &parent,
+            &names(&["Root"]), // Root defined, OrphanedChild not
+            &names(&[]),
+            &mut errors,
+        );
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(
+            errors[0].contains("OrphanedChild"),
+            "error should surface from recursion into children; got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn validate_contract_branch_accepts_valid_route() {
+        let route = rc_with_meta(
+            "/items",
+            serde_json::json!({ "component": "Items", "loader": "fetchItems" }),
+        );
+        let mut errors = Vec::new();
+        validate_contract_branch(
+            &route,
+            &names(&["Items"]),
+            &names(&["fetchItems"]),
+            &mut errors,
+        );
+        assert!(errors.is_empty(), "expected no errors; got: {errors:?}");
+    }
+
+    #[test]
+    fn validate_manifest_symbols_returns_err_when_components_missing_from_empty_hir() {
+        // Public entry point integration test: an empty HirModule has no defined
+        // components, so any route referencing a component must produce an Err.
+        let web = WebIrModule {
+            route_nodes: vec![RouteNode::RouteTree {
+                routes: vec![rc("/", "NonExistentComponent")],
+                span: None,
+            }],
+            ..Default::default()
+        };
+        let hir = HirModule::default();
+
+        let err = validate_manifest_symbols(&web, &hir)
+            .expect_err("expected validation error from empty hir + non-empty routes");
+        assert!(
+            err.contains("NonExistentComponent"),
+            "error should name the missing component; got: {err}"
+        );
+    }
+
+    #[test]
+    fn validate_manifest_symbols_passes_when_no_routes_declared() {
+        // No route_nodes at all → nothing to validate.
+        let web = WebIrModule::default();
+        let hir = HirModule::default();
+        validate_manifest_symbols(&web, &hir)
+            .expect("expected validation to pass when no client routes are declared");
     }
 }

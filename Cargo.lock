@@ -13264,6 +13264,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "syn 2.0.117",
+ "tempfile",
  "vox-compiler",
  "vox-config",
  "vox-deploy-codegen",
