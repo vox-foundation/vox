@@ -282,6 +282,16 @@ git commit -m "refactor(orchestrator-mcp): split cache tokens (read vs creation)
 
 ## Task 3 — Emit `model_call_event` from `infer.rs` after cost reconciliation
 
+> **Reader note (added 2026-05-16):** the `task_id` / `parent_task_id` /
+> `trace_id` / `caller_agent_id` fields described below are intentionally
+> emitted as `None` in Phase B — see the [Phase C preview](#phase-c-preview)
+> at the bottom of this doc. Phase C wires `TRACE_CTX::scope` through MCP
+> dispatch so `current_trace_ctx()` returns a populated context here. Until
+> Phase C lands, the example code in this task that references
+> `trace_ctx.task_id` etc. should be read as forward-looking; the actual
+> shipped Phase B emit leaves all four fields as `None`. Refs:
+> docs/src/architecture/semantic-gap-audit-2026.md F8.
+
 **Files:**
 - Modify: `crates/vox-orchestrator-mcp/Cargo.toml`
 - Modify: `crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs`
