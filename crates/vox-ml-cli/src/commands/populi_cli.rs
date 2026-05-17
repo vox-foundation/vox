@@ -1127,7 +1127,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 let id = env
                     .node_id
                     .clone()
-                    .unwrap_or_else(|| format!("node-{}", vox_primitives::id::simple_hex_id()));
+                    .unwrap_or_else(|| format!("node-{}", vox_foundation::primitives::id::simple_hex_id()));
 
                 let mut record =
                     vox_populi::node_record_for_current_process(id, Some(bind.clone()));

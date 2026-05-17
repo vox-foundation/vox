@@ -188,12 +188,12 @@ Reproducible per-token-class computation:
 |-------|---------|
 | `vox-cli` | `vox` command-line entry point — see [`ref-cli.md`](../reference/cli.md) for the implemented subcommand set |
 | `vox-lsp` | Language Server Protocol implementation |
-| `vox-runtime` | Tokio/Axum runtime: actors, scheduler, subscriptions, storage |
-| `vox-pm` | Package manager: CAS store, dependency resolution, caching |
+| `vox-actor-runtime` | Tokio/Axum runtime: actors, scheduler, subscriptions, storage |
+| `vox-package` | Package manager: CAS store, dependency resolution, caching |
 | `vox-db` | Database abstraction layer |
-| `vox-ludus` | Gamification system |
+| `vox-gamify` | Gamification system |
 | `vox-orchestrator` | Multi-agent orchestration |
-| `vox-toestub` | AI anti-pattern detector |
+| `vox-code-audit` | AI anti-pattern detector |
 | `vox-tensor` | Native ML tensors via Burn 0.19 (Wgpu/NdArray backends) |
 | `vox-eval` | Automated evaluation of training data quality |
 | `vox-doc-pipeline` | Rust-native doc extraction + SUMMARY.md generation |

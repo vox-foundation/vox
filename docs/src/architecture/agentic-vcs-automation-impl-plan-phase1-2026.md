@@ -557,7 +557,7 @@ Create `crates/vox-orchestrator-mcp/src/vcs_tools/secret_scan.rs`:
 ```rust
 //! Minimal secret scanner for staged diff content. Phase 1: regex over a
 //! curated list of well-known credential shapes. Phase 2 will plug into
-//! `vox-clavis` for environment-derived blocklists.
+//! `vox-secrets` for environment-derived blocklists.
 
 use regex::Regex;
 use std::sync::OnceLock;

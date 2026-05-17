@@ -6,7 +6,7 @@
 
 **Architecture.** Eleven sequential phases on the existing `crates/vox-orchestrator` surface. Phase 1 lands instrumentation, fixtures, benchmarks, and contract scaffolds with **zero behavior change**. Phases 2–10 each ship one decision rule (D6 → D3 → D1 → D2 → D5/D9 → D8 → D7 → D10 → D4 — ordered by dependency). Phase 11 is hygiene consolidation. Every phase passes the same five quality gates (§3) and updates the same telemetry contract (`research_metrics_contract.rs`).
 
-**Tech Stack.** Rust workspace; `vox-orchestrator` crate (L3, no LoC cap, max_dependents=25); `vox-orchestrator-types::socrates_policy` (L0, pure types); `vox-db` (telemetry & DB ops); `vox-clavis` (secrets); `vox-arch-check` (layer enforcement); `vox-doc-pipeline` (docs); `criterion` (benchmarks); `proptest` (property tests where applicable); `serde_yaml` for contract files.
+**Tech Stack.** Rust workspace; `vox-orchestrator` crate (L3, no LoC cap, max_dependents=25); `vox-orchestrator-types::socrates_policy` (L0, pure types); `vox-db` (telemetry & DB ops); `vox-secrets` (secrets); `vox-arch-check` (layer enforcement); `vox-doc-pipeline` (docs); `criterion` (benchmarks); `proptest` (property tests where applicable); `serde_yaml` for contract files.
 
 ---
 
@@ -148,7 +148,7 @@ The phase plan files for P2–P11 are **not yet written** — they're written wh
 
 **P8 — Cache-aware routing + compaction layers + per-tenant budgets (D7).** Three nested concerns. (a) Adds an approximate radix tree per provider for prompt-prefix tracking; routing scorer reads this as a new dimension. (b) Replaces the single-threshold compaction trigger in `compaction.rs` with the five-layer pipeline from research doc §7.2 (budget-reduction → snip → microcompact → context-collapse → auto-compact); adds an agent-driven `compact_context` MCP tool callable proactively at task boundaries. (c) Adds per-tenant budget tracking with hierarchical buckets (per-tenant > per-app > per-call) in-memory at the gateway, with token-based limits.
 
-**P9 — Calibration loop + drift detection + bandit upgrade (D10).** Adds a daily background calibration job (in the orchestrator daemon, not as a separate service) that samples recent completions, recomputes per-tier ECE, and updates router weights. Adds Sentence-BERT-free drift detection (cosine-on-pooled-embeddings will do — no new deps required because `vox-mens` already has an embedding pipeline). Upgrades the existing Thompson `arm_stats` to a contextual-bandit-with-preference-vector (BaRP-style, research doc §10.1). Optional: dueling-bandit pairwise feedback if the data substrate supports it. The earned-autonomy threshold expansion runs here, reading from 30+ days of decision logs.
+**P9 — Calibration loop + drift detection + bandit upgrade (D10).** Adds a daily background calibration job (in the orchestrator daemon, not as a separate service) that samples recent completions, recomputes per-tier ECE, and updates router weights. Adds Sentence-BERT-free drift detection (cosine-on-pooled-embeddings will do — no new deps required because `vox-ml-cli` already has an embedding pipeline). Upgrades the existing Thompson `arm_stats` to a contextual-bandit-with-preference-vector (BaRP-style, research doc §10.1). Optional: dueling-bandit pairwise feedback if the data substrate supports it. The earned-autonomy threshold expansion runs here, reading from 30+ days of decision logs.
 
 **P10 — Sub-agent dispatch + chain-length cap (D4).** Implements description-driven sub-agent selection consistent with the existing `vox-skills/skills/*.skill.md` surface. Adds a chain-length tracker that escalates to HITL once cumulative agent-chain reliability drops below a threshold (research doc §5.3). Adds the parallel-fan-out path for independent subtasks. The existing `clarification_db_inbox_poll` and `populi-mesh` A2A surfaces are the transport — this phase only adds *trigger logic*, not transport mechanics.
 
@@ -277,8 +277,8 @@ These apply to **every** file touched by **every** phase, not just net-new code.
 
 ### 8.11 Secret hygiene
 
-- No new `std::env::var("ANTHROPIC_API_KEY")` etc. — secrets resolve via `vox_clavis::resolve_secret(SecretId::*)`. Per AGENTS.md §Secret Management.
-- New secrets need a `SecretSpec` entry in `crates/vox-clavis/src/spec.rs`.
+- No new `std::env::var("ANTHROPIC_API_KEY")` etc. — secrets resolve via `vox_secrets::resolve_secret(SecretId::*)`. Per AGENTS.md §Secret Management.
+- New secrets need a `SecretSpec` entry in `crates/vox-secrets/src/spec.rs`.
 
 ### 8.12 Crypto hygiene
 

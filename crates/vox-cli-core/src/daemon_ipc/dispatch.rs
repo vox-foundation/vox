@@ -1,4 +1,4 @@
-//! Spawn a managed daemon, send one [`vox_protocol::DispatchRequest`], stream payloads.
+//! Spawn a managed daemon, send one [`vox_foundation::protocol::DispatchRequest`], stream payloads.
 
 use super::dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 use super::process_supervision::{resolve_managed_binary_path, terminate_process_tree};

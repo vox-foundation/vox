@@ -75,7 +75,7 @@ to `vox-orchestrator-types` so the queue crate has only L0 deps.
 | Queue isolated (touch lib.rs) | 6.84s* | new (*first build) |
 | CLI incremental | 6.99s | **−74%** (cumulative from Phase 1) |
 
-## Phase 6 — Orchestrator runtime split (deferred) (2026-05-08)
+## Phase 6 — Orchestrator runtime split (deferred → C5 / Tier D) (2026-05-08)
 
 `runtime.rs`, `orch_daemon/`, `dei_shim/` form the orchestrator's CORE — they
 reference the `Orchestrator` struct directly along with `events`, `models`,
@@ -85,8 +85,15 @@ Orchestrator struct out (which empties the parent crate). Either approach
 exceeds reasonable scope.
 
 The previously-completed Phase 4 + Phase 5 already cut 36K LoC out of the
-orchestrator. The remaining ~52K LoC is dominated by this runtime/daemon
-core, which is the part that genuinely benefits from co-location.
+orchestrator. The remaining core is dominated by the runtime/daemon layer,
+which is the part that genuinely benefits from co-location.
+
+> **Superseded (2026-05-15):** The correct extraction wedge is `src/orchestrator/`
+> (12,825 LoC, the densest subdir) — not the full runtime split. The Rust coherence
+> constraint (all `impl Orchestrator { }` blocks must live in the defining crate)
+> requires co-moving the struct. Full analysis and 7-task plan at
+> [`2026-05-15-orchestrator-tier-d-plan.md`](2026-05-15-orchestrator-tier-d-plan.md).
+> Start when Rule 13 fires (>15% LoC growth since last release tag).
 
 ## Phase 7 — vox-cli decoupling (partial) (2026-05-08)
 
@@ -117,6 +124,13 @@ Layer-check flipped from `--warn-only` to strict in CI. Three known
 inversions documented in `layers.toml`:
 - `vox-cli → vox-orchestrator` (deliberate; runtime/observability surfaces)
 - `vox-pm → vox-compiler`, `vox-pm → vox-db` (transitional; future re-tier)
+
+> **Update (2026-05-15):** The `vox-pm` inversions were removed when C2 from the
+> followup design split `vox-package` → `vox-package-types` (L1 pure-data leaf)
+> + `vox-package` (L3 build/registry). Current known inversions: `vox-cli →
+> vox-orchestrator`, `vox-arch-check → vox-compiler` (dev-dep only),
+> `vox-ml-cli → vox-cli` (optional mens-dei workflow). See `layers.toml`
+> `[[known_inversions]]` for the authoritative list.
 
 ## Headline outcome
 

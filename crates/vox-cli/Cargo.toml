@@ -141,14 +141,6 @@ vox-config = { workspace = true }
 vox-secrets = { workspace = true }
 vox-db = { workspace = true }
 vox-research-events = { workspace = true }
-vox-scientia-producers = { workspace = true }
-vox-manuscript-latex = { workspace = true }
-vox-replay-runner = { workspace = true }
-vox-manuscript-scaffold = { workspace = true }
-vox-critic-gate = { workspace = true }
-vox-class-routing = { workspace = true }
-vox-findings-site = { workspace = true }
-vox-scientia-dashboard = { workspace = true }
 # `vox-scientia::ro_crate::MainEntity` is the input shape for the replay
 # handler; not pulled in via the producers crate.
 vox-scientia = { workspace = true }
@@ -192,11 +184,10 @@ glob = { workspace = true }
 vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
 
 vox-actor-runtime = { workspace = true }
-vox-primitives = { workspace = true }
+vox-foundation = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-bounded-fs = { workspace = true, features = ["async"] }
 vox-jsonschema-util = { workspace = true }
-vox-protocol = { workspace = true }
 vox-constrained-gen = { workspace = true }
 rand = { workspace = true }
 

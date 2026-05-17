@@ -378,7 +378,7 @@ See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-sso
 | `VOX_TELEMETRY_UPLOAD_TOKEN` | Bearer token for ingest when required (Secrets `SecretId::VoxTelemetryUploadToken`). |
 | `VOX_TELEMETRY_SPOOL_DIR` | Override directory for the upload queue (default: `<cwd>/.vox/telemetry-upload-queue`). Non-secret path override. |
 
-## TOESTUB / scaling-audit (`vox-toestub`, `emit-reports`)
+## Code-Audit / scaling-audit (`vox-code-audit`, `emit-reports`)
 
 | Variable | Role |
 |----------|------|

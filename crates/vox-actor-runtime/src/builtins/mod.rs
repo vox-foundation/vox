@@ -710,7 +710,7 @@ pub fn vox_process_which(cmd: &str) -> Option<String> {
 /// MCP canonical tool name → ACI `mutation_kind` string (`std.agentos.mutation_kind_for_tool`).
 #[must_use]
 pub fn agentos_mutation_kind_for_tool(name: &str) -> String {
-    vox_primitives::agentos_mutation::mutation_kind_for_tool(name).to_string()
+    vox_foundation::primitives::agentos_mutation::mutation_kind_for_tool(name).to_string()
 }
 
 /// Terminate the current process with an exit code (`std.process.exit` in Vox scripts).

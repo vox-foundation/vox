@@ -36,7 +36,7 @@ If the eval shows a real gap and the gap matters for a downstream Vox feature, t
 
 ## Eval shape
 
-**Tasks (n=20).** Pulled from real agent transcripts in this repo's session logs. Each task is a one-shot operational request: "list crates with stale lockfiles," "find files modified in the last week under `crates/vox-mens` larger than 10 KB," "extract the `version` field from every `Cargo.toml` under `crates/`," etc. Mix of file inspection, text processing, process introspection, and network fetch.
+**Tasks (n=20).** Pulled from real agent transcripts in this repo's session logs. Each task is a one-shot operational request: "list crates with stale lockfiles," "find files modified in the last week under `crates/vox-ml-cli` larger than 10 KB," "extract the `version` field from every `Cargo.toml` under `crates/`," etc. Mix of file inspection, text processing, process introspection, and network fetch.
 
 **Conditions (n=2).** Identical task prompt, only the shell instruction differs:
 - `bash` — "Solve this with a single bash command (or bash one-liner pipeline). Output only the command."

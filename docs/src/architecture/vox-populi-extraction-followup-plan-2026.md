@@ -53,7 +53,7 @@ The foundation is sound: ABI-versioned `vox-plugin-host` loader works end-to-end
 - **vox-dashboard**: Axum SPA host with embedded assets.
 - **vox-publisher**: social/news publishing adapters.
 - **vox-scientia-***: scholarly ingestion + publishing pipeline.
-- **vox-ludus**: gamification.
+- **vox-gamify**: gamification.
 - **vox-audio-ingress**: standalone binary that unconditionally pulls `stt-candle` from vox-oratio.
 
 ## Slim-core diagnostic
@@ -144,7 +144,7 @@ These accompany or follow Unit 1–5:
 
 **ARS shim relocation — DONE (2026-05-03).**
 Created `crates/vox-openclaw-runtime` as the ARS/OpenClaw facade (successor to the retired three-letter ARS crate name).
-All external consumers (vox-cli, vox-runtime, vox-orchestrator) migrated to canonical OpenClaw runtime import paths.
+All external consumers (vox-cli, vox-actor-runtime, vox-orchestrator) migrated to canonical OpenClaw runtime import paths.
 Physical move of the 12 `ars_shim/` files out of vox-skills is **deferred** — `ars_shim/mod.rs` re-exports
 `crate::parser::parse_skill_md`, `crate::SkillRegistry`, and `crate::install_builtins` from the vox-skills
 crate root, creating a circular dependency if extracted. Those types need to move into `vox-plugin-host` first.

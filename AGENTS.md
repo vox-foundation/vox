@@ -122,7 +122,7 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 **Security invariants:**
 - Scripts that modify the Vox repository MUST be committed to VCS before an agent executes them
 - No `.vox` script may use `shell_exec` to bypass the compiler sandbox
-- Subprocess calls go through `vox-runtime` process primitives (telemetry-observable)
+- Subprocess calls go through `vox-actor-runtime` process primitives (telemetry-observable)
 - Use the secrets crate (`vox_secrets::resolve_secret(...)`) for secrets — never `env.get("MY_KEY")` for sensitive values
 
 **Do NOT use Python or shell for glue.** Vox is the glue language. Python and shell are retired glue surfaces in this repository.

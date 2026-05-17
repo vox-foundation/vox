@@ -6,12 +6,12 @@ use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 
-use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
+use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 pub const BINARY: &str = "vox-orchestrator-d";
 
 /// Method constants (`ai.check`, `config.get`, …) — SSOT in `vox-protocol`.
-pub use vox_protocol::dei_method as method;
+pub use vox_foundation::protocol::dei_method as method;
 
 pub async fn call(method: &str, params: Value, _auto_open: bool) -> anyhow::Result<Value> {
     let mut child = Command::new(BINARY)

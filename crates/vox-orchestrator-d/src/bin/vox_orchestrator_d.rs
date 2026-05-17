@@ -47,7 +47,7 @@ fn load_config() -> OrchestratorConfig {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    vox_tracing_init::try_init_from_default_env();
+    vox_foundation::tracing::try_init_from_default_env();
 
     let bind_raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)
         .expose()

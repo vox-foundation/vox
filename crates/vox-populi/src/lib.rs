@@ -336,7 +336,7 @@ pub fn populi_registration_record_for_process() -> NodeRecord {
     let id = env
         .node_id
         .clone()
-        .unwrap_or_else(|| format!("local-{}", vox_primitives::id::simple_hex_id()));
+        .unwrap_or_else(|| format!("local-{}", vox_foundation::primitives::id::simple_hex_id()));
     let listen = env.control_addr.clone();
     node_record_for_current_process(id, listen)
 }

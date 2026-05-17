@@ -33,11 +33,11 @@ Repo-backed **`vox-mcp`** and **`vox-orchestrator-d`** open the primary [`VoxDb`
 | Legacy `chat_transcripts` rows | MCP chat path (dual-write) | Not primary writer today | `chat_transcripts` |
 | Workspace journey attach / diagnostics | `connect_workspace_journey_optional`, MCP tooling | JSON-RPC `orch.workspace_journey` | journey + repo bind rows |
 | Routing decisions (`routing_decisions`) | MCP chat / codegen tools; **orchestrator `AiTaskProcessor`** when DB attached | Same table when daemon shares DB | local-first SQLite |
-| Unified routing experiment flag | — | — | `VOX_UNIFIED_ROUTING` (telemetry reason shape in `vox-runtime::routing_telemetry`) |
+| Unified routing experiment flag | — | — | `VOX_UNIFIED_ROUTING` (telemetry reason shape in `vox-actor-runtime::routing_telemetry`) |
 
 ## HITL Doubt Flow
 
-When agents detect ambiguity, they invoke the `vox_doubt_task` MCP tool. This transitions the task to `TaskStatus::Doubted` and emits a `TaskDoubted` event; the resolution agent inside `vox-orchestrator` (see [`crates/vox-orchestrator/src/orchestrator/agent/doubt.rs`](../../../crates/vox-orchestrator/src/orchestrator/agent/doubt.rs)) takes over to resolve the doubt with the user and submits an audit report that hooks into the gamification system (`vox-ludus`). For structural details, see the canonical [HITL & Doubt reference](hitl-and-doubt.md).
+When agents detect ambiguity, they invoke the `vox_doubt_task` MCP tool. This transitions the task to `TaskStatus::Doubted` and emits a `TaskDoubted` event; the resolution agent inside `vox-orchestrator` (see [`crates/vox-orchestrator/src/orchestrator/agent/doubt.rs`](../../../crates/vox-orchestrator/src/orchestrator/agent/doubt.rs)) takes over to resolve the doubt with the user and submits an audit report that hooks into the gamification system (`vox-gamify`). For structural details, see the canonical [HITL & Doubt reference](hitl-and-doubt.md).
 
 ## Contract surfaces
 

@@ -69,7 +69,7 @@ pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), St
     tokio::spawn(async move {
         let _ = vox_cli_core::daemon_ipc::dispatch::call_daemon(
             "vox-orchestrator-d",
-            vox_protocol::orch_daemon_method::RELOAD_CONFIG,
+            vox_foundation::protocol::orch_daemon_method::RELOAD_CONFIG,
             serde_json::json!({}),
             false,
         ).await;

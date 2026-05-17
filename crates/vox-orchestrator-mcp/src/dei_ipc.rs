@@ -1,7 +1,7 @@
 ﻿//! Minimal JSON-line RPC client for **`vox-orchestrator-d`** (DeI `ai.*` / `config.get` surfaces).
 //! Logical daemon binary: `vox-orchestrator-d` (legacy docs may say `vox-dei-d`).
 //!
-//! Wire shape `{ id, method, params }` is [`vox_protocol::DispatchRequest`] (same as CLI dispatch); validates against
+//! Wire shape `{ id, method, params }` is [`vox_foundation::protocol::DispatchRequest`] (same as CLI dispatch); validates against
 //! `contracts/dei/rpc-methods.schema.json` (`$id`: `https://vox-lang.org/schemas/dei/rpc-methods.schema.json`).
 //! No `vox-cli` dependency — types come from `vox-protocol` only.
 
@@ -14,7 +14,7 @@ use tokio::process::Command;
 const DAEMON_BINARY: &str = "vox-orchestrator-d";
 const SPAWN_ERR: &str = "Failed to spawn daemon";
 
-use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
+use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 fn resolve_daemon_path(daemon: &str) -> std::path::PathBuf {
     if let Ok(p) = std::env::current_exe() {

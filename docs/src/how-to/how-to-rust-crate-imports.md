@@ -145,7 +145,7 @@ These are ordered by **value / effort**:
    When script codegen fails, surface Cargo’s error with a hint { “dependency X declared via `import rust:X` at line L.” Ties the mental model to the line they wrote.
 
 3. **Curated `vox-*` or shims for 5–10 hot crates (medium)**  
-   Instead of full `rustdoc` typing, expose **`std`-style namespaces** for e.g. JSON, time, UUID (wrappers in `vox-runtime` or a small `vox-shims` crate). **K win:** Users learn one Vox API; compiler stays small. **Big win:** Works today under the existing builtin pattern.
+   Instead of full `rustdoc` typing, expose **`std`-style namespaces** for e.g. JSON, time, UUID (wrappers in `vox-actor-runtime` or a small `vox-shims` crate). **K win:** Users learn one Vox API; compiler stays small. **Big win:** Works today under the existing builtin pattern.
 
 4. **Single escape hatch: embedded Rust snippet with explicit unsafe boundary (medium–high)**  
    A block or decl that copies almost verbatim into generated `main` / module, with **scoped** `use` generated from adjacent `import rust:…`. **Compatibility:** Opt-in, clearly marked; keeps the main language pure. **K win:** Power users stop fighting the compiler; everyone else ignores it.

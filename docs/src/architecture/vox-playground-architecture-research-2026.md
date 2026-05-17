@@ -29,7 +29,7 @@ A **playground** closes the zero-install loop while staying inside telemetry + s
 
 1. **Syntax & diagnostics tier** — Wasm bundle of lexer/parser/typecheck **read-only** stages (mirrors [`crates/vox-compiler`](../../../crates/vox-compiler) algorithms). Emits the same structured payloads as [`VoxCompilerDiagnosticPayload`](../../../crates/vox-compiler/src/typeck/diagnostics.rs) / [`vox check --for-llm`](../../../crates/vox-cli/src/pipeline.rs).
 2. **Formatter tier** — Optional second Wasm module wrapping [`vox_compiler::fmt::format`](../../../crates/vox-compiler/src/fmt/mod.rs); must respect idempotency tests ([`format_round_trip.rs`](../../../crates/vox-compiler/tests/format_round_trip.rs)).
-3. **Execution tier (optional)** — Behind explicit **Run** consent: `vox-runtime` wasm/isolation lane (`vox run --isolation wasm` semantics), fuel + allocation caps per Phase 4 plan. No ambient filesystem writes — [`vox-bounded-fs`](../../../crates/vox-bounded-fs) only.
+3. **Execution tier (optional)** — Behind explicit **Run** consent: `vox-actor-runtime` wasm/isolation lane (`vox run --isolation wasm` semantics), fuel + allocation caps per Phase 4 plan. No ambient filesystem writes — [`vox-bounded-fs`](../../../crates/vox-bounded-fs) only.
 4. **Telemetry tier** — Default **local-only** mirrors CLI trust boundaries; remote upload remains opt-in per ADR-023. Planned `vox.idiom.*` families are specified in [`contracts/telemetry/idiom-events.v1.yaml`](../../../contracts/telemetry/idiom-events.v1.yaml).
 
 ## UX contours

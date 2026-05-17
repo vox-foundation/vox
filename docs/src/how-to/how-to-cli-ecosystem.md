@@ -125,7 +125,7 @@ The LSP server integrates the full compiler pipeline — when you save a file, i
 
 ---
 
-## Package Manager (`vox-pm`)
+## Package Manager (`vox-package`)
 
 The Vox package manager uses a **Content-Addressable Store (CAS)** backed by libSQL/Turso.
 

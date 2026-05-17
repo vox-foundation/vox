@@ -15,10 +15,10 @@ Minimal **four-check** row per critical crate: compile, unit tests, lint (when e
 | Crate | `cargo check -p …` | `cargo test -p …` | Clippy / policy | SSOT / notes |
 |-------|--------------------|--------------------|-----------------|--------------|
 | `vox-db` | default + `local` where CI uses DB | `--lib` (+ `local`) | workspace `-D warnings` when run | [Codex boundaries](../archive/research-2026-q1/codex-arca-compatibility-boundaries.md), ADR 004 |
-| `vox-pm` | default | unit + `schema::migration_chain_tests` + `schema::manifest::tests` | same | Arca **manifest** (`SCHEMA_FRAGMENTS` → baseline V1); `execute_batch` only |
-| `vox-codex` | default | via `vox-db` / consumers | same | Facade over `vox_db` — SQL lives in `vox-pm` |
+| `vox-package` | default | unit + `schema::migration_chain_tests` + `schema::manifest::tests` | same | Arca **manifest** (`SCHEMA_FRAGMENTS` → baseline V1); `execute_batch` only |
+| `vox-codex` | default | via `vox-db` / consumers | same | Facade over `vox_db` — SQL lives in `vox-package` |
 | `vox-codex-api` | default | manual / dashboard smoke | same | `/health`, `/ready` (baseline V1 + required tables + digest), `/api/search/status`; Codex SSE + Oratio |
-| `vox-runtime` | `database` feature if touching db | targeted | same | Optional `crate::db` behind feature |
+| `vox-actor-runtime` | `database` feature if touching db | targeted | same | Optional `crate::db` behind feature |
 | `vox-tensor` | `--features gpu` when touching Burn stack | `--lib` + `vox_nn::` subset under `gpu` | same | [vox_nn.rs](../../../crates/vox-tensor/src/lib.rs); legacy `nn.rs` removed |
 | `vox-compiler` | default | `--test golden_examples_strict_parse` (with `VOX_EXAMPLES_STRICT_PARSE=1`) + unit / parity tests | same | Parser/HIR/typeck/codegen monolith; golden examples under `examples/golden/` |
 | `vox-integration-tests` | N/A (integration) | full crate; env tests serialized | same | `venv_detection` mutex for `VIRTUAL_ENV` |

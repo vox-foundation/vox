@@ -34,6 +34,8 @@ training_rationale: "Implementation plan; transient artifact."
 
 ---
 
+> **Status (2026-05-15):** All PRs 1–6 landed in one session (2026-05-15). The 156 checkboxes below were not individually ticked — see the status callout in [2026-05-08-crate-org-followup-design.md](2026-05-08-crate-org-followup-design.md) for the authoritative summary. C3 and Tier D (C5) are deferred with their own plan docs. `vox-arch-check` reports clean.
+
 ## Pre-flight (do once before starting)
 
 - [ ] **Step 0.1: Confirm baseline build is clean.** This is the reference point for all verifications.

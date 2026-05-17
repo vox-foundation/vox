@@ -31,9 +31,9 @@ fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
 /// `ReplayReport` JSON document on stdout.
 pub async fn replay_execute(main_entity_path: &Path, stage_dir: &Path) -> Result<()> {
     let main_entity: vox_scientia::ro_crate::MainEntity = read_json(main_entity_path)?;
-    let report = vox_replay_runner::run_replay(stage_dir, &main_entity)
+    let report = vox_scientia::replay::run_replay(stage_dir, &main_entity)
         .await
-        .context("vox_replay_runner::run_replay")?;
+        .context("vox_scientia::replay::run_replay")?;
     println!("{}", serde_json::to_string_pretty(&report)?);
     Ok(())
 }
@@ -44,20 +44,20 @@ pub async fn replay_execute(main_entity_path: &Path, stage_dir: &Path) -> Result
 ///
 /// Reads a `ScaffoldInput` JSON file and emits the IMRaD markdown to stdout.
 pub fn manuscript_draft(scaffold_path: &Path) -> Result<()> {
-    let input: vox_manuscript_scaffold::ScaffoldInput = read_json(scaffold_path)?;
-    print!("{}", vox_manuscript_scaffold::render_imrad(&input));
+    let input: vox_scientia::manuscript::scaffold::ScaffoldInput = read_json(scaffold_path)?;
+    print!("{}", vox_scientia::manuscript::scaffold::render_imrad(&input));
     Ok(())
 }
 
 // ── Phase D — critic-gate ─────────────────────────────────────────────────────
 
-/// Owned analog of [`vox_critic_gate::GateInputs`] so it can be deserialized
+/// Owned analog of [`vox_scientia::critic_gate::GateInputs`] so it can be deserialized
 /// from JSON. Converted to the borrowed form at call time.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CriticGateInputsJson {
-    pub approvers: Vec<vox_critic_gate::ApproverRecord>,
-    pub artifact_model_fingerprints: Vec<vox_critic_gate::ModelFingerprint>,
-    pub venue_policy: vox_critic_gate::VenueCriticPolicy,
+    pub approvers: Vec<vox_scientia::critic_gate::ApproverRecord>,
+    pub artifact_model_fingerprints: Vec<vox_scientia::critic_gate::ModelFingerprint>,
+    pub venue_policy: vox_scientia::critic_gate::VenueCriticPolicy,
 }
 
 /// `vox scientia publication-critic-gate-check --inputs X.json`
@@ -65,12 +65,12 @@ pub struct CriticGateInputsJson {
 /// Reads a `CriticGateInputsJson` JSON file and emits the `GateOutcome` JSON.
 pub fn critic_gate_check(inputs_path: &Path) -> Result<()> {
     let owned: CriticGateInputsJson = read_json(inputs_path)?;
-    let inputs = vox_critic_gate::GateInputs {
+    let inputs = vox_scientia::critic_gate::GateInputs {
         approvers: &owned.approvers,
         artifact_model_fingerprints: &owned.artifact_model_fingerprints,
         venue_policy: owned.venue_policy,
     };
-    let outcome = vox_critic_gate::evaluate_gate(&inputs);
+    let outcome = vox_scientia::critic_gate::evaluate_gate(&inputs);
     println!("{}", serde_json::to_string_pretty(&outcome)?);
     Ok(())
 }
@@ -82,19 +82,19 @@ pub fn critic_gate_check(inputs_path: &Path) -> Result<()> {
 pub struct CriticApproveInputsJson {
     /// Critic's model fingerprint. Persisted as
     /// `publication_approvals.critic_fingerprint_json`.
-    pub critic_fingerprint: vox_critic_gate::ModelFingerprint,
+    pub critic_fingerprint: vox_scientia::critic_gate::ModelFingerprint,
     /// Critic's signed report URI (recorded as
     /// `publication_approvals.critic_report_uri`).
     #[serde(default)]
     pub critic_report_uri: Option<String>,
     /// Recommendation from the critic's signed report.
-    pub critic_recommendation: vox_critic_gate::CriticRecommendation,
+    pub critic_recommendation: vox_scientia::critic_gate::CriticRecommendation,
     /// Model fingerprints of every artifact-side model whose output
     /// contributed to the manifest content. The gate refuses critics
     /// whose fingerprint collides with any of these.
-    pub artifact_model_fingerprints: Vec<vox_critic_gate::ModelFingerprint>,
+    pub artifact_model_fingerprints: Vec<vox_scientia::critic_gate::ModelFingerprint>,
     /// Venue's critic policy (`Allowed` or `Forbidden`).
-    pub venue_policy: vox_critic_gate::VenueCriticPolicy,
+    pub venue_policy: vox_scientia::critic_gate::VenueCriticPolicy,
 }
 
 /// `vox scientia publication-critic-approve --publication-id X --critic-id Y --inputs Z.json`
@@ -126,19 +126,19 @@ pub async fn critic_approve(
         .list_publication_approvals_for_digest(publication_id, &manifest.content_sha3_256)
         .await
         .context("list existing approvals")?;
-    let mut approver_records: Vec<vox_critic_gate::ApproverRecord> = existing
+    let mut approver_records: Vec<vox_scientia::critic_gate::ApproverRecord> = existing
         .into_iter()
         .map(|row| {
             let role = if row.is_critic() {
-                vox_critic_gate::ApproverRole::AuditedLLMCritic
+                vox_scientia::critic_gate::ApproverRole::AuditedLLMCritic
             } else {
-                vox_critic_gate::ApproverRole::Human
+                vox_scientia::critic_gate::ApproverRole::Human
             };
             let fp = row
                 .critic_fingerprint_json
                 .as_deref()
                 .and_then(|s| serde_json::from_str(s).ok());
-            vox_critic_gate::ApproverRecord {
+            vox_scientia::critic_gate::ApproverRecord {
                 approver_id: row.approver,
                 role,
                 critic_fingerprint: fp,
@@ -147,19 +147,19 @@ pub async fn critic_approve(
         })
         .collect();
     // Append the proposed critic as a *candidate* row for the gate.
-    approver_records.push(vox_critic_gate::ApproverRecord {
+    approver_records.push(vox_scientia::critic_gate::ApproverRecord {
         approver_id: critic_id.to_string(),
-        role: vox_critic_gate::ApproverRole::AuditedLLMCritic,
+        role: vox_scientia::critic_gate::ApproverRole::AuditedLLMCritic,
         critic_fingerprint: Some(inputs.critic_fingerprint.clone()),
         critic_recommendation: Some(inputs.critic_recommendation),
     });
 
-    let gate_inputs = vox_critic_gate::GateInputs {
+    let gate_inputs = vox_scientia::critic_gate::GateInputs {
         approvers: &approver_records,
         artifact_model_fingerprints: &inputs.artifact_model_fingerprints,
         venue_policy: inputs.venue_policy,
     };
-    let outcome = vox_critic_gate::evaluate_gate(&gate_inputs);
+    let outcome = vox_scientia::critic_gate::evaluate_gate(&gate_inputs);
     if !outcome.cleared {
         return Err(anyhow::anyhow!(
             "critic gate not cleared: reason={}, diagnostics={:?}",
@@ -346,8 +346,8 @@ fn merge_extracted_claims_into_metadata(
 /// or stdout. Suitable for piping into `tectonic` / `pdflatex` for PDF
 /// generation.
 pub fn render_latex_handler(scaffold_path: &Path, output: Option<&Path>) -> Result<()> {
-    let input: vox_manuscript_scaffold::ScaffoldInput = read_json(scaffold_path)?;
-    let tex = vox_manuscript_latex::render_latex(&input);
+    let input: vox_scientia::manuscript::scaffold::ScaffoldInput = read_json(scaffold_path)?;
+    let tex = vox_scientia::manuscript::latex::render_latex(&input);
     match output {
         Some(p) => {
             std::fs::write(p, tex.as_bytes())
@@ -375,7 +375,7 @@ pub fn arxiv_bundle_handler(
     figures_dir: &Path,
     output: &Path,
 ) -> Result<()> {
-    let input: vox_manuscript_scaffold::ScaffoldInput = read_json(scaffold_path)?;
+    let input: vox_scientia::manuscript::scaffold::ScaffoldInput = read_json(scaffold_path)?;
 
     let mut figure_blobs: Vec<(String, Vec<u8>)> = Vec::with_capacity(input.figures.len());
     for f in &input.figures {
@@ -390,7 +390,7 @@ pub fn arxiv_bundle_handler(
         figure_blobs.push((f.path.clone(), blob));
     }
 
-    let bytes = vox_manuscript_latex::render_arxiv_bundle(&input, &figure_blobs)
+    let bytes = vox_scientia::manuscript::latex::render_arxiv_bundle(&input, &figure_blobs)
         .map_err(|e| anyhow::anyhow!("render_arxiv_bundle: {e}"))?;
     std::fs::write(output, &bytes)
         .with_context(|| format!("write arXiv bundle to {}", output.display()))?;
@@ -410,7 +410,7 @@ pub fn arxiv_bundle_handler(
 /// Prints the recommended venues, reply-window length, negative-result quota,
 /// and critic-allowed flag for the requested class.
 pub fn venue_recommend(candidate_class: &str, yaml_config: Option<&Path>) -> Result<()> {
-    use vox_class_routing::{
+    use vox_scientia::class_routing::{
         builtin_class_defaults, critic_allowed_for, load_class_defaults_from_yaml,
         negative_result_quota_for, recommended_venues_for, reply_window_days_for, FindingClass,
     };
@@ -443,7 +443,7 @@ pub fn venue_recommend(candidate_class: &str, yaml_config: Option<&Path>) -> Res
         reply_window_days: reply_window_days_for(&defaults, class),
         negative_result_quota: negative_result_quota_for(&defaults, class),
         critic_allowed: critic_allowed_for(&defaults, class),
-        atlas_gate_applies: vox_class_routing::atlas_gate_applies_to(class),
+        atlas_gate_applies: vox_scientia::class_routing::atlas_gate_applies_to(class),
     };
     println!("{}", serde_json::to_string_pretty(&out)?);
     Ok(())
@@ -456,20 +456,20 @@ pub fn venue_recommend(candidate_class: &str, yaml_config: Option<&Path>) -> Res
 /// Reads a `FindingPage` JSON file and emits a complete HTML document on
 /// stdout.
 pub fn finding_page_render(page_path: &Path) -> Result<()> {
-    let page: vox_findings_site::FindingPage = read_json(page_path)?;
-    print!("{}", vox_findings_site::render_finding_page(&page));
+    let page: vox_scientia::findings_site::FindingPage = read_json(page_path)?;
+    print!("{}", vox_scientia::findings_site::render_finding_page(&page));
     Ok(())
 }
 
 // ── Phase H — scientia-dashboard ──────────────────────────────────────────────
 
-/// Owned analog of [`vox_scientia_dashboard::DashboardInputs`].
+/// Owned analog of [`vox_scientia::dashboard::DashboardInputs`].
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DashboardInputsJson {
-    pub candidates: Vec<vox_scientia_dashboard::CandidateRow>,
-    pub claims_pending: vox_scientia_dashboard::ClaimsPendingSummary,
+    pub candidates: Vec<vox_scientia::dashboard::CandidateRow>,
+    pub claims_pending: vox_scientia::dashboard::ClaimsPendingSummary,
     #[serde(default)]
-    pub manifests_in_reply_window: Vec<vox_scientia_dashboard::ReplyWindowEntry>,
+    pub manifests_in_reply_window: Vec<vox_scientia::dashboard::ReplyWindowEntry>,
     #[serde(default)]
     pub retraction_queue: Vec<String>,
     pub now_ms: i64,
@@ -480,14 +480,14 @@ pub struct DashboardInputsJson {
 /// Reads a `DashboardInputsJson` JSON file and emits the `QueueSnapshot` JSON.
 pub fn dashboard_snapshot(inputs_path: &Path) -> Result<()> {
     let owned: DashboardInputsJson = read_json(inputs_path)?;
-    let inputs = vox_scientia_dashboard::DashboardInputs {
+    let inputs = vox_scientia::dashboard::DashboardInputs {
         candidates: &owned.candidates,
         claims_pending: owned.claims_pending.clone(),
         manifests_in_reply_window: &owned.manifests_in_reply_window,
         retraction_queue: &owned.retraction_queue,
         now_ms: owned.now_ms,
     };
-    let snap = vox_scientia_dashboard::build_queue_snapshot(&inputs);
+    let snap = vox_scientia::dashboard::build_queue_snapshot(&inputs);
     println!("{}", serde_json::to_string_pretty(&snap)?);
     Ok(())
 }
@@ -519,7 +519,7 @@ mod tests {
 
     #[test]
     fn manuscript_draft_emits_markdown_for_minimal_input() {
-        let input = vox_manuscript_scaffold::ScaffoldInput {
+        let input = vox_scientia::manuscript::scaffold::ScaffoldInput {
             title_hint: "t".into(),
             authors: vec![],
             results_rows: vec![],
@@ -553,21 +553,21 @@ mod tests {
     fn critic_gate_check_two_humans_clears_outcome() {
         let inputs = CriticGateInputsJson {
             approvers: vec![
-                vox_critic_gate::ApproverRecord {
+                vox_scientia::critic_gate::ApproverRecord {
                     approver_id: "alice".into(),
-                    role: vox_critic_gate::ApproverRole::Human,
+                    role: vox_scientia::critic_gate::ApproverRole::Human,
                     critic_fingerprint: None,
                     critic_recommendation: None,
                 },
-                vox_critic_gate::ApproverRecord {
+                vox_scientia::critic_gate::ApproverRecord {
                     approver_id: "bob".into(),
-                    role: vox_critic_gate::ApproverRole::Human,
+                    role: vox_scientia::critic_gate::ApproverRole::Human,
                     critic_fingerprint: None,
                     critic_recommendation: None,
                 },
             ],
             artifact_model_fingerprints: vec![],
-            venue_policy: vox_critic_gate::VenueCriticPolicy::Forbidden,
+            venue_policy: vox_scientia::critic_gate::VenueCriticPolicy::Forbidden,
         };
         let f = tmp_json(&inputs);
         critic_gate_check(f.path()).unwrap();
@@ -577,7 +577,7 @@ mod tests {
     fn dashboard_snapshot_empty_inputs_succeeds() {
         let inputs = DashboardInputsJson {
             candidates: vec![],
-            claims_pending: vox_scientia_dashboard::ClaimsPendingSummary {
+            claims_pending: vox_scientia::dashboard::ClaimsPendingSummary {
                 verifiable: 0,
                 abstained: 0,
                 extraction_running: 0,
@@ -694,7 +694,7 @@ mod tests {
 
     #[test]
     fn render_latex_handler_writes_documentclass_to_output_file() {
-        let input = vox_manuscript_scaffold::ScaffoldInput {
+        let input = vox_scientia::manuscript::scaffold::ScaffoldInput {
             title_hint: "T".into(),
             authors: vec![],
             results_rows: vec![],
@@ -716,7 +716,7 @@ mod tests {
 
     #[test]
     fn arxiv_bundle_handler_writes_targz_with_main_tex_for_no_figures_input() {
-        let input = vox_manuscript_scaffold::ScaffoldInput {
+        let input = vox_scientia::manuscript::scaffold::ScaffoldInput {
             title_hint: "T".into(),
             authors: vec![],
             results_rows: vec![],
@@ -733,13 +733,13 @@ mod tests {
         let outpath = outdir.path().join("bundle.tar.gz");
         arxiv_bundle_handler(scaffold.path(), figures_dir.path(), &outpath).unwrap();
         let bytes = std::fs::read(&outpath).unwrap();
-        let entries = vox_manuscript_latex::list_bundle_entries(&bytes).unwrap();
+        let entries = vox_scientia::manuscript::latex::list_bundle_entries(&bytes).unwrap();
         assert!(entries.iter().any(|(p, _)| p == "main.tex"));
     }
 
     #[test]
     fn arxiv_bundle_handler_errors_when_declared_figure_missing_from_disk() {
-        let input = vox_manuscript_scaffold::ScaffoldInput {
+        let input = vox_scientia::manuscript::scaffold::ScaffoldInput {
             title_hint: "T".into(),
             authors: vec![],
             results_rows: vec![],
@@ -748,7 +748,7 @@ mod tests {
             limitations: vec![],
             ai_disclosure_markdown: None,
             competing_interests: None,
-            figures: vec![vox_manuscript_scaffold::FigureEntry {
+            figures: vec![vox_scientia::manuscript::scaffold::FigureEntry {
                 path: "figures/missing.svg".into(),
                 sha3_256_hex: "00".into(),
                 source_script: "x".into(),
@@ -767,7 +767,7 @@ mod tests {
 
     #[test]
     fn finding_page_render_emits_html_doctype() {
-        let page = vox_findings_site::FindingPage {
+        let page = vox_scientia::findings_site::FindingPage {
             title: "t".into(),
             authors: vec![],
             abstract_text: "".into(),

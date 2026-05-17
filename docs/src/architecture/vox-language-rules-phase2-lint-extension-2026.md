@@ -94,7 +94,7 @@ pub enum Confidence { Certain, Likely, Speculative }
 | `vox/style/long-range-coupling` | note | warning (next minor) | 2 | — | A.17 |
 | `vox/control-flow/question-mark-opportunity` | note | warning (next minor) | 2 | — | A.19 |
 | `vox/control-flow/option-combinator-opportunity` | note | warning (next minor) | 2 | — | A.20 |
-| `vox/doc/missing-adr-citation` | note | warning in `vox-runtime`/`vox-orchestrator`/`vox-compiler` | 2 | — | A.22 |
+| `vox/doc/missing-adr-citation` | note | warning in `vox-actor-runtime`/`vox-orchestrator`/`vox-compiler` | 2 | — | A.22 |
 | `vox/decorator/position-mismatch` | warning | error (next minor) | 2 | — | A.27 |
 | `vox/require/justification-prose-required` | note | warning (next minor) | 2 | — | A.28 |
 | `vox/handler/panicking-builtin` | warning | error (after 2 minors) | 2 | ADR-019 | A.29 (descoped from A.4) |
@@ -300,13 +300,13 @@ Suppress (audit-required)
 **Files:**
 - Create: `crates/vox-code-audit/src/detectors/doc/missing_adr_citation.rs`
 
-**Rule:** For every public `fn`, `actor`, `workflow`, `activity`, `@table`, `@endpoint` in scope of `crates/vox-runtime/**`, `crates/vox-orchestrator/**`, `crates/vox-compiler/**`: the `///` doc must contain at least one match of `(ADR-\d+|TASK-\d+\.\d+|Phase \d+)`. Outside those scopes: same rule fires as `note`, escalates to `warning` per minor.
+**Rule:** For every public `fn`, `actor`, `workflow`, `activity`, `@table`, `@endpoint` in scope of `crates/vox-actor-runtime/**`, `crates/vox-orchestrator/**`, `crates/vox-compiler/**`: the `///` doc must contain at least one match of `(ADR-\d+|TASK-\d+\.\d+|Phase \d+)`. Outside those scopes: same rule fires as `note`, escalates to `warning` per minor.
 
 **Anti-T-number rule:** Active rejection of `T\d+` references in `///` doc as a corpus-drift signal. Honors anti-recommendation [A.69].
 
 **Suggested fix:** Cannot autofix (the human must pick the citation). Diagnostic emits a list of recently-modified ADRs and TASKs touched in the same PR as candidates (computed from `git log` of the file).
 
-**Why scope matters:** `vox-runtime`/`vox-orchestrator`/`vox-compiler` are the highest-stakes correctness surfaces; doc drift there is more dangerous than in CLIs or examples.
+**Why scope matters:** `vox-actor-runtime`/`vox-orchestrator`/`vox-compiler` are the highest-stakes correctness surfaces; doc drift there is more dangerous than in CLIs or examples.
 
 **Verify:** Golden test with: (a) properly-cited fn, (b) uncited fn fires, (c) T-number cited fires the anti-rule.
 
@@ -469,7 +469,7 @@ Burn-down sequence (do in this order to minimize churn):
 2. `vox/secret/env-get-shape` — audit existing `env.get` callsites; migrate any to `vox_secrets.resolve`.
 3. `vox/style/duplicate-prefix-name` — across `examples/golden/`; autofixable.
 4. `vox/control-flow/question-mark-opportunity` — across all `.vox` files; autofixable.
-5. `vox/doc/missing-adr-citation` — for `vox-runtime`/`vox-orchestrator`/`vox-compiler` `pub fn` only.
+5. `vox/doc/missing-adr-citation` — for `vox-actor-runtime`/`vox-orchestrator`/`vox-compiler` `pub fn` only.
 
 ---
 

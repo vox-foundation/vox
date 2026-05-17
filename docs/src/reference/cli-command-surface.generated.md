@@ -21,7 +21,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 279
+**schema_version:** `1` · **vox-cli operations:** 278
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -243,7 +243,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox repo query history` | active | — | codex | platform | — |
 | `vox repo query text` | active | — | codex | platform | — |
 | `vox repo status` | active | — | codex | platform | — |
-| `vox research mesh-intake consume` | active | — | — | data | — |
 | `vox research run` | active | — | — | ai | — |
 | `vox review` | active | coderabbit | recensio | ai | — |
 | `vox run` | active | — | fabrica | app | — |

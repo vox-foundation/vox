@@ -98,7 +98,7 @@ When `target = "bare-metal"`, `vox deploy` generates and installs a systemd serv
 | Crate | Role |
 |---|---|
 | `vox-container` | `ContainerRuntime` trait, Docker/Podman, bare-metal systemd, `DeployTarget` enum; generated Compose embeds optional mens env from `docker/vox-compose-mens-environment.block.yaml` ([deployment compose SSOT](../reference/deployment-compose.md), [mens SSOT](../reference/populi.md)) |
-| `vox-pm` | `ArtifactCache` (content-addressed build cache), `VoxManifest`/`DeploySection` |
+| `vox-package` | `ArtifactCache` (content-addressed build cache), `VoxManifest`/`DeploySection` |
 | `vox-cli` | Unified `vox deploy` command dispatching to all target types |
 
 ## Reducing Technical Debt

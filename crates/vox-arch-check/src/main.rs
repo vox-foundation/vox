@@ -1,6 +1,6 @@
 //! Architecture check: enforces workspace-wide structural rules.
 //!
-//! Reads `docs/src/architecture/layers.toml` and runs nine rules over the
+//! Reads `docs/src/architecture/layers.toml` and runs thirteen rules over the
 //! current `cargo metadata` snapshot:
 //!
 //!   1. **Layer ordering** (strict by default) — a crate at layer N may depend
@@ -25,10 +25,24 @@
 //!   9. **Generated-file drift** (warn) — files containing a
 //!      `@generated-hash <hex>` header whose content hash no longer matches,
 //!      indicating a hand-edit of a machine-generated file.
+//!  10. **Forbidden direct dependencies** (error) — crates must not directly
+//!      depend on any deps listed under `[[forbidden_deps]]` in `layers.toml`.
+//!  11. **Forbidden code patterns** (warn) — patterns in `[[forbidden_pattern]]`
+//!      that must not appear in source (e.g. raw `Command::new("git")`).
+//!  12. **WTL / layers.toml / disk three-way parity** (error) — (a) every
+//!      `[crates]` entry in `layers.toml` whose directory is absent from
+//!      `crates/` AND is not in the `[planned]` table; (b) every
+//!      `crates/<name>/` reference in `where-things-live.md` whose directory
+//!      is absent from disk AND is not in `[planned]`. Add ghost entries to
+//!      `[planned]` with a `plan =` pointer to suppress the warning.
+//!  13. **LoC delta regression** (warn) — for crates with `max_loc` budgets,
+//!      warns if the current LoC is more than 15% higher than the LoC at the
+//!      last tagged release (`v{version}` from `CHANGELOG.md`). Only fires for
+//!      crates >2000 LoC to avoid noise. Catches regrowth at PR time rather
+//!      than at the hard ceiling.
 //!
 //! Layer ordering is the only rule that fails the build by default; the other
-//! eight are warn-only. Per-rule strictness can be set via `[guards]` in
-//! `layers.toml`.
+//! twelve other rules are warn-only unless promoted via `[guards]` in `layers.toml`.
 //!
 //! Modes:
 //!   default        — strict layer-ordering; warn-only on the other eight
@@ -63,6 +77,23 @@ struct LayersConfig {
     guards: GuardsConfig,
     #[serde(default)]
     arch_check: ArchCheckConfig,
+    /// Rule 12: crates that are documented (in WTL / layers.toml) but not yet on
+    /// disk. Entries here suppress the parity warning; each must point to the plan
+    /// doc that owns the work via `plan = "..."`.
+    #[serde(default)]
+    planned: HashMap<String, PlannedEntry>,
+}
+
+/// A crate that is planned but not yet landed on disk. Used by Rule 12 to suppress
+/// WTL/layers.toml parity warnings for in-flight designs.
+#[derive(Debug, Deserialize)]
+struct PlannedEntry {
+    /// Path to the architecture doc that owns this planned crate.
+    #[allow(dead_code)]
+    plan: String,
+    /// Intended layer when the crate lands.
+    #[allow(dead_code)]
+    layer: Option<u8>,
 }
 
 /// Optional knobs for `vox-arch-check` itself (see `[arch_check.walk_prune]` in layers.toml).
@@ -137,6 +168,12 @@ struct GuardsConfig {
     forbidden_deps: Option<String>,
     #[serde(default)]
     forbidden_pattern: Option<String>,
+    /// Rule 12: WTL / layers.toml / disk three-way parity.
+    #[serde(default)]
+    wtl_parity: Option<String>,
+    /// Rule 13: LoC delta regression check.
+    #[serde(default)]
+    loc_delta: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -178,6 +215,10 @@ struct Report {
     forbidden_dep_violations: Vec<(String, String)>,
     /// Rule 11 (P3-T7): (rule_name, file, line, matched, reason) tuples.
     forbidden_pattern_hits: Vec<(String, PathBuf, usize, String, String)>,
+    /// Rule 12: WTL / layers.toml / disk three-way parity violations.
+    wtl_parity_warns: Vec<String>,
+    /// Rule 13: (crate, current_loc, baseline_loc, pct_growth).
+    loc_delta_warns: Vec<(String, usize, usize, f64)>,
     /// Whether each rule's failure should be treated as strict (vs. warn-only).
     strict_layer: bool,
     strict_fan_in: bool,
@@ -190,6 +231,8 @@ struct Report {
     strict_generated_file_drift: bool,
     strict_forbidden_deps: bool,
     strict_forbidden_pattern: bool,
+    strict_wtl_parity: bool,
+    strict_loc_delta: bool,
 }
 
 impl Report {
@@ -205,6 +248,8 @@ impl Report {
             || (self.strict_generated_file_drift && !self.generated_file_drift_warns.is_empty())
             || (self.strict_forbidden_deps && !self.forbidden_dep_violations.is_empty())
             || (self.strict_forbidden_pattern && !self.forbidden_pattern_hits.is_empty())
+            || (self.strict_wtl_parity && !self.wtl_parity_warns.is_empty())
+            || (self.strict_loc_delta && !self.loc_delta_warns.is_empty())
     }
 
     fn print_summary(&self) {
@@ -384,6 +429,30 @@ impl Report {
                     matched
                 );
             }
+        }
+        if !self.wtl_parity_warns.is_empty() {
+            any = true;
+            let label = if self.strict_wtl_parity { "ERROR" } else { "warn" };
+            eprintln!(
+                "[{label}] WTL/layers.toml/disk parity violations ({}):",
+                self.wtl_parity_warns.len()
+            );
+            for msg in &self.wtl_parity_warns {
+                eprintln!("  {msg}");
+            }
+            eprintln!("  → Add missing entries to [planned] in layers.toml with a `plan =` pointer, or create the crate directory.");
+        }
+        if !self.loc_delta_warns.is_empty() {
+            any = true;
+            let label = if self.strict_loc_delta { "ERROR" } else { "warn" };
+            eprintln!(
+                "[{label}] LoC delta >15% since last release ({}) — review before merging:",
+                self.loc_delta_warns.len()
+            );
+            for (name, current, baseline, pct) in &self.loc_delta_warns {
+                eprintln!("  {name}: {current} LoC (was {baseline} at last release, +{pct:.0}%)");
+            }
+            eprintln!("  → Large deltas indicate scope creep. Consider extracting a sub-crate.");
         }
         if !any {
             println!(
@@ -568,6 +637,8 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         ),
         strict_forbidden_deps: parse_strictness(layers.guards.forbidden_deps.as_ref(), false),
         strict_forbidden_pattern: parse_strictness(layers.guards.forbidden_pattern.as_ref(), false),
+        strict_wtl_parity: parse_strictness(layers.guards.wtl_parity.as_ref(), false),
+        strict_loc_delta: parse_strictness(layers.guards.loc_delta.as_ref(), false),
         ..Report::default()
     };
 
@@ -831,7 +902,162 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             .sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
     }
 
+    // ── Rule 12: WTL / layers.toml / disk three-way parity ──
+    report.wtl_parity_warns = check_wtl_parity(&layers, &workspace_root);
+
+    // ── Rule 13: LoC delta regression ──
+    // Warn if any budgeted crate has grown >15% vs. the last tagged release.
+    // Only fires for crates >2000 LoC to avoid noise from tiny utilities.
+    if let Some((release_version, _)) = parse_release_date(&workspace_root.join("CHANGELOG.md")) {
+        let tag = format!("v{release_version}");
+        for pkg in metadata_full.workspace_packages() {
+            let name = pkg.name.as_str();
+            let entry = match layers.crates.get(name) {
+                Some(e) => e,
+                None => continue,
+            };
+            if entry.max_loc.is_none() {
+                continue;
+            }
+            let manifest_dir = Path::new(pkg.manifest_path.as_str())
+                .parent()
+                .unwrap_or(Path::new("."));
+            let src_dir = manifest_dir.join("src");
+            let current_loc = count_loc(&src_dir, &prune_dirs).unwrap_or(0);
+            if current_loc < 2000 {
+                continue;
+            }
+            if let Some(baseline) = git_loc_at_tag(&tag, &workspace_root, manifest_dir) {
+                if baseline > 0 {
+                    let growth = (current_loc as f64 - baseline as f64) / baseline as f64 * 100.0;
+                    if growth > 15.0 {
+                        report.loc_delta_warns.push((
+                            name.to_string(),
+                            current_loc,
+                            baseline,
+                            growth,
+                        ));
+                    }
+                }
+            }
+        }
+        report.loc_delta_warns.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
+    }
+
     Ok(report)
+}
+
+/// Rule 13 helper — count LoC in a crate's `src/` tree at the given git tag.
+///
+/// Uses `git ls-tree -r --name-only <tag> <rel-src-path>` to enumerate `.rs`
+/// files at the tag, then `git show <tag>:<file>` to count lines in each.
+/// Returns `None` when git is unavailable or the tag doesn't exist yet.
+fn git_loc_at_tag(tag: &str, workspace_root: &Path, manifest_dir: &Path) -> Option<usize> {
+    // vox-arch-check: allow git-exec
+    let rel_src = manifest_dir.join("src");
+    let rel_src_str = rel_src
+        .strip_prefix(workspace_root)
+        .ok()?
+        .to_str()?
+        .replace('\\', "/");
+
+    let ls = Command::new("git")
+        .args(["ls-tree", "-r", "--name-only", tag, &rel_src_str])
+        .current_dir(workspace_root)
+        .output()
+        .ok()?;
+    if !ls.status.success() {
+        return None;
+    }
+
+    let files: Vec<String> = String::from_utf8_lossy(&ls.stdout)
+        .lines()
+        .filter(|l| l.ends_with(".rs"))
+        .map(|l| l.to_string())
+        .collect();
+
+    if files.is_empty() {
+        return None;
+    }
+
+    let mut total = 0usize;
+    for file in &files {
+        let blob_ref = format!("{tag}:{file}");
+        let show = Command::new("git")
+            .args(["show", &blob_ref])
+            .current_dir(workspace_root)
+            .output()
+            .ok()?;
+        if show.status.success() {
+            total += String::from_utf8_lossy(&show.stdout).lines().count();
+        }
+    }
+    Some(total)
+}
+
+/// Rule 12 — three-way parity between `[crates]` in layers.toml, the
+/// `crates/` directory on disk, and `where-things-live.md`.
+///
+/// Two directions are checked:
+///
+/// (a) Every `[crates]` entry in `layers.toml` whose `crates/<name>/`
+///     directory does not exist on disk, unless the name is in `[planned]`.
+/// (b) Every `crates/<name>/` occurrence in `where-things-live.md` whose
+///     directory does not exist on disk, unless `<name>` is in `[planned]`
+///     or in `[crates]` (the latter is already flagged by direction a).
+fn check_wtl_parity(cfg: &LayersConfig, workspace_root: &Path) -> Vec<String> {
+    use regex::Regex;
+
+    let mut warns = Vec::new();
+    let crates_dir = workspace_root.join("crates");
+
+    // (a) layers.toml [crates] entries without a matching directory
+    for name in cfg.crates.keys() {
+        if name == "workspace-hack" {
+            continue;
+        }
+        if !crates_dir.join(name).exists() && !cfg.planned.contains_key(name.as_str()) {
+            warns.push(format!(
+                "layers.toml [crates] has `{name}` but `crates/{name}/` does not exist on disk \
+                 (add to [planned] if intended, or remove the entry)"
+            ));
+        }
+    }
+
+    // (b) where-things-live.md crate references without a matching directory
+    let wtl_path = workspace_root.join("docs/src/architecture/where-things-live.md");
+    if let Ok(wtl_body) = std::fs::read_to_string(&wtl_path) {
+        // Match `crates/<name>/` patterns (name = alphanumeric + hyphens)
+        let re = match Regex::new(r"crates/([a-zA-Z][a-zA-Z0-9-]+)/") {
+            Ok(r) => r,
+            Err(_) => return warns,
+        };
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for cap in re.captures_iter(&wtl_body) {
+            let cname = &cap[1];
+            if !seen.insert(cname.to_string()) {
+                continue;
+            }
+            if crates_dir.join(cname).exists() {
+                continue;
+            }
+            if cfg.planned.contains_key(cname) {
+                continue;
+            }
+            // Also skip if the layers.toml [crates] entry already covers it (direction a)
+            if cfg.crates.contains_key(cname) {
+                continue;
+            }
+            warns.push(format!(
+                "where-things-live.md references `crates/{cname}/` but the directory does not \
+                 exist and `{cname}` is not in [planned] (move row to 'Planned but not landed' \
+                 section and add a [planned] entry)"
+            ));
+        }
+    }
+
+    warns.sort();
+    warns
 }
 
 /// Return the YYYY-MM-DD **author** date of the last commit touching `dir`, or `None` if git is unavailable.

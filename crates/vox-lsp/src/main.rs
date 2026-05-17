@@ -292,7 +292,7 @@ impl Backend {
 #[tokio::main]
 async fn main() {
     // Initialize logging
-    vox_tracing_init::try_init_from_default_env_stderr();
+    vox_foundation::tracing::try_init_from_default_env_stderr();
 
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
