@@ -2,6 +2,7 @@
 
 use anyhow::Context;
 use serde_json::Value;
+use std::mem::ManuallyDrop;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use vox_compiler::eval::Interpreter;
 use vox_compiler::eval::activity_hook::{HostCall, HostDecision as InterpDecision};
@@ -80,8 +81,10 @@ pub enum HostOutcome {
 /// Owns the dedicated interpreter thread and its request/response channels.
 pub struct WorkflowHost {
     req_rx: UnboundedReceiver<HostRequest>,
-    resp_tx: UnboundedSender<HostDecision>,
+    resp_tx: ManuallyDrop<UnboundedSender<HostDecision>>,
     handle: Option<std::thread::JoinHandle<HostOutcome>>,
+    #[cfg(test)]
+    thread_finished: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl WorkflowHost {
@@ -108,11 +111,15 @@ impl WorkflowHost {
         let (req_tx, req_rx) = unbounded_channel::<HostRequest>();
         let (resp_tx, resp_rx) = unbounded_channel::<HostDecision>();
         let name = workflow_name.to_string();
+        #[cfg(test)]
+        let thread_finished = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        #[cfg(test)]
+        let thread_finished_on_thread = std::sync::Arc::clone(&thread_finished);
 
         let handle = std::thread::Builder::new()
             .name(format!("vox-workflow-{name}"))
             .spawn(move || {
-                run_on_thread(
+                let outcome = run_on_thread(
                     hir,
                     name,
                     args,
@@ -120,14 +127,19 @@ impl WorkflowHost {
                     workflow_names,
                     req_tx,
                     resp_rx,
-                )
+                );
+                #[cfg(test)]
+                thread_finished_on_thread.store(true, std::sync::atomic::Ordering::Release);
+                outcome
             })
             .context("spawning the workflow interpreter thread")?;
 
         Ok(Self {
             req_rx,
-            resp_tx,
+            resp_tx: ManuallyDrop::new(resp_tx),
             handle: Some(handle),
+            #[cfg(test)]
+            thread_finished,
         })
     }
 
@@ -159,6 +171,11 @@ impl WorkflowHost {
 impl Drop for WorkflowHost {
     fn drop(&mut self) {
         let _ = self.resp_tx.send(HostDecision::Park("host-dropped".into()));
+        // SAFETY: `resp_tx` is dropped exactly once here, and no later code accesses it.
+        #[allow(unsafe_code)]
+        unsafe {
+            ManuallyDrop::drop(&mut self.resp_tx);
+        }
         if let Some(handle) = self.handle.take() {
             let _ = std::thread::Builder::new()
                 .name("vox-workflow-reap".into())
@@ -356,6 +373,14 @@ workflow wf(amount: int) to int {
         let mut host = WorkflowHost::spawn(hir_of(SRC), "wf", vec![json!(1)]).expect("spawns");
         let first = host.next().await;
         assert!(matches!(first, Some(HostRequest::Begin { .. })));
+        let thread_finished = std::sync::Arc::clone(&host.thread_finished);
         drop(host);
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while !thread_finished.load(std::sync::atomic::Ordering::Acquire) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("Drop must unblock and reap the interpreter thread");
     }
 }
