@@ -143,7 +143,15 @@ impl HfTransformerLayout {
             if layer_types.is_empty() {
                 layer_types = vec!["full_attention".to_string(); nl];
             }
-            let namespace_prefix = if model_l.contains("qwen3") {
+            // The `language_model.` weight-key infix is a property of the
+            // checkpoint's actual on-disk shape (text_config-wrapped, as
+            // Qwen3.5's hybrid stack ships), not of the model family name —
+            // "qwen3" and "qwen3_5" both `.contains("qwen3")`, but only
+            // text_config-wrapped checkpoints use the wrapped prefix. A dense
+            // Qwen3 checkpoint (e.g. Qwen/Qwen3-0.6B) has no `text_config`
+            // block and uses the flat `model.layers` prefix, same as Qwen2/
+            // Llama/Mistral.
+            let namespace_prefix = if qwen35_text_config(v, architecture).is_some() {
                 "model.language_model.layers".to_string()
             } else {
                 "model.layers".to_string()
@@ -403,6 +411,33 @@ impl From<StackedCausalCfg> for ConfigDims {
 #[cfg(test)]
 mod tests {
     use super::{HfArchitecture, HfTransformerLayout};
+
+    #[test]
+    fn dense_qwen3_without_text_config_uses_flat_namespace_prefix() {
+        // A real dense Qwen3 checkpoint (e.g. Qwen/Qwen3-0.6B) has model_type
+        // "qwen3" (which `.contains("qwen3")`) but is NOT wrapped in a
+        // `text_config` block the way Qwen3.5's hybrid stack is — its weight
+        // tensors are named `model.layers.N....`, not
+        // `model.language_model.layers.N....`. Deciding the namespace prefix
+        // from a substring match on the model name (rather than from whether
+        // `text_config` is actually present) misnames every weight key and
+        // makes the checkpoint fail to load with "missing weight".
+        let raw = r#"{
+            "model_type":"qwen3",
+            "architectures":["Qwen3ForCausalLM"],
+            "hidden_size":1024,
+            "num_attention_heads":16,
+            "num_key_value_heads":8,
+            "num_hidden_layers":28,
+            "vocab_size":151936,
+            "intermediate_size":3072
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("dense qwen3 parse");
+        assert_eq!(
+            layout.namespace_prefix, "model.layers",
+            "a checkpoint with no text_config block must use the flat weight-key prefix"
+        );
+    }
 
     #[test]
     fn parses_qwen35_nested_text_config_layout() {
