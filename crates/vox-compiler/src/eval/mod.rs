@@ -59,7 +59,6 @@ pub struct Interpreter {
     pub activity_hook: Option<crate::eval::activity_hook::ActivityHook>,
     /// Stack of `with { }` option objects; the innermost is attached to Begin.
     pub with_options: Vec<crate::eval::value::VoxValue>,
-    current_workflow: Option<String>,
 }
 
 impl Interpreter {
@@ -262,7 +261,6 @@ impl Interpreter {
             workflow_names: std::collections::HashSet::new(),
             activity_hook: None,
             with_options: Vec::new(),
-            current_workflow: None,
         }
     }
 
@@ -540,10 +538,6 @@ impl Interpreter {
             // Temporary variable to hold the old scope context
             let old_scope = self.scope.clone();
             self.scope = env;
-            let old_workflow = self.current_workflow.clone();
-            if self.workflow_names.contains(&fn_name) {
-                self.current_workflow = Some(fn_name.clone());
-            }
 
             // TRACE-D P7: open a tracing span for the duration of the call when
             // the function was decorated with `@traced`. The guard is held until
@@ -578,7 +572,6 @@ impl Interpreter {
             })();
 
             self.scope = old_scope;
-            self.current_workflow = old_workflow;
             let res = result?;
 
             // P5: auto-checkpoint on successful return of a @versioned function.

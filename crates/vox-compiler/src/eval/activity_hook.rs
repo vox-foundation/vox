@@ -86,7 +86,8 @@ pub(crate) fn dispatch_activity(
                         hook = Some(take_hook(interp).ok_or_else(|| {
                             EvalError::Panic("activity hook lost during body execution".into())
                         })?);
-                        let failed = matches!(e, EvalError::Panic(_));
+                        let failed =
+                            matches!(&e, EvalError::Panic(_) | EvalError::AssertionFailed(_));
                         let _ = hook.as_mut().expect("hook is present")(HostCall::End {
                             name: name.to_string(),
                             result: VoxValue::Null,
@@ -98,7 +99,7 @@ pub(crate) fn dispatch_activity(
                 hook = Some(take_hook(interp).ok_or_else(|| {
                     EvalError::Panic("activity hook lost during body execution".into())
                 })?);
-                let failed = false;
+                let failed = matches!(&result, VoxValue::_Panic(_));
                 match hook.as_mut().expect("hook is present")(HostCall::End {
                     name: name.to_string(),
                     result: result.clone(),
@@ -307,6 +308,36 @@ workflow wf(amount: int) to Result[str] { return charge(amount) }
     }
 
     #[test]
+    fn activity_panic_sends_failed_end_before_propagating() {
+        const SRC: &str = r#"
+activity charge() to int {
+    assert(false)
+    return 1
+}
+workflow wf() to int { return charge() }
+"#;
+        let (mut interp, activities) = interp_for(SRC);
+        interp.activity_names = activities;
+        let calls = Rc::new(RefCell::new(Vec::<(&'static str, bool)>::new()));
+        let calls_c = calls.clone();
+        interp.activity_hook = Some(Box::new(move |call| {
+            match &call {
+                HostCall::Begin { .. } => calls_c.borrow_mut().push(("Begin", false)),
+                HostCall::End { failed, .. } => calls_c.borrow_mut().push(("End", *failed)),
+                _ => {}
+            }
+            Ok(match call {
+                HostCall::Begin { .. } => HostDecision::Execute,
+                _ => HostDecision::Ack,
+            })
+        }));
+
+        let err = interp.call("wf", vec![]).expect_err("panic must propagate");
+        assert!(matches!(err, crate::eval::EvalError::AssertionFailed(_)));
+        assert_eq!(*calls.borrow(), vec![("Begin", false), ("End", true)]);
+    }
+
+    #[test]
     fn with_options_reach_begin() {
         const SRC: &str = r#"
 activity charge(amount: int) to int { return amount }
@@ -440,6 +471,26 @@ workflow parent(amount: int) to int { return child(amount) }
         let err = interp
             .call("parent", vec![VoxValue::Int(1)])
             .expect_err("nested workflow must fail");
+        assert!(matches!(
+            err,
+            crate::eval::EvalError::Panic(ref message)
+                if message == "nested workflow calls are not supported"
+        ));
+    }
+
+    #[test]
+    fn recursive_workflow_calls_are_rejected() {
+        const SRC: &str = r#"
+workflow wf() to int { return wf() }
+"#;
+        let hir = lower_module(&parse(lex(SRC)).expect("parses"));
+        let mut interp = Interpreter::new(1_000_000);
+        interp.workflow_names = ["wf".to_string()].into_iter().collect();
+        interp.run_module(&hir).expect("module loads");
+
+        let err = interp
+            .call("wf", vec![])
+            .expect_err("recursive workflow must fail");
         assert!(matches!(
             err,
             crate::eval::EvalError::Panic(ref message)

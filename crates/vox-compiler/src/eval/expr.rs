@@ -454,7 +454,6 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 name: ref fn_name, ..
             } = c
                 && interp.workflow_names.contains(fn_name)
-                && interp.current_workflow.as_deref() != Some(fn_name.as_str())
             {
                 return Err(EvalError::Panic(
                     "nested workflow calls are not supported".into(),
