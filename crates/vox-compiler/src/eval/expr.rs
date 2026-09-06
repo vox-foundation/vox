@@ -53,6 +53,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     | "sum"
                     | "bool"
                     | "type_of"
+                    | "workflow_wait"
+                    | "workflow_wait_signal"
             ) {
                 // Return a placeholder function for builtins
                 Ok(VoxValue::Fn {
@@ -414,6 +416,50 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 }
             }
             let c = eval_expr(interp, callee)?;
+            if let HirExpr::Ident(name, _) = callee.as_ref() {
+                match name.as_str() {
+                    "workflow_wait" => {
+                        let deadline = match eval_args.first() {
+                            Some(VoxValue::Int(n)) => *n,
+                            other => {
+                                return Err(EvalError::Panic(format!(
+                                    "workflow_wait expects int ms, got {other:?}"
+                                )));
+                            }
+                        };
+                        return super::activity_hook::dispatch_wait(interp, deadline);
+                    }
+                    "workflow_wait_signal" => {
+                        let key = match eval_args.first() {
+                            Some(VoxValue::Str(s)) => s.clone(),
+                            other => {
+                                return Err(EvalError::Panic(format!(
+                                    "workflow_wait_signal expects str key, got {other:?}"
+                                )));
+                            }
+                        };
+                        return super::activity_hook::dispatch_wait_signal(interp, key);
+                    }
+                    _ => {}
+                }
+            }
+            if let VoxValue::Fn {
+                name: ref fn_name, ..
+            } = c
+                && interp.activity_names.contains(fn_name)
+            {
+                return super::activity_hook::dispatch_activity(interp, fn_name, eval_args);
+            }
+            if let VoxValue::Fn {
+                name: ref fn_name, ..
+            } = c
+                && interp.workflow_names.contains(fn_name)
+                && interp.current_workflow.as_deref() != Some(fn_name.as_str())
+            {
+                return Err(EvalError::Panic(
+                    "nested workflow calls are not supported".into(),
+                ));
+            }
             match c {
                 VoxValue::Fn {
                     params,
@@ -828,23 +874,15 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 cell.code, cell.message
             )))
         }
-        HirExpr::With(..) => {
-            let cell =
-                unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::Interpreter);
-            Err(EvalError::AssertionFailed(format!(
-                "{}: {}",
-                cell.code, cell.message
-            )))
+        HirExpr::With(inner, opts, _) => {
+            let opts_val = eval_expr(interp, opts)?;
+            interp.with_options.push(opts_val);
+            let result = eval_expr(interp, inner);
+            interp.with_options.pop();
+            result
         }
-        HirExpr::WorkflowVersion(..) => {
-            let cell = unsupported_diagnostic(
-                Feature::Expr(ExprFeature::WorkflowVersion),
-                Target::Interpreter,
-            );
-            Err(EvalError::AssertionFailed(format!(
-                "{}: {}",
-                cell.code, cell.message
-            )))
+        HirExpr::WorkflowVersion(v) => {
+            super::activity_hook::dispatch_patch(interp, &v.change_id, v.min, v.max)
         }
     }
 }
