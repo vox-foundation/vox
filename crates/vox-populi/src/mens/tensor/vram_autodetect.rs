@@ -98,7 +98,7 @@ fn parse_vm_stat(stdout: &str) -> Option<(u64, u64, u64, u64)> {
         let line = line.trim();
         if let Some(rest) = line.strip_prefix("Mach Virtual Memory Statistics: (page size of ") {
             let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
-            page_size = digits.parse::<u64>().ok();
+            page_size = digits.parse::<u64>().ok().filter(|&n| n > 0);
         } else if let Some(rest) = line.strip_prefix("Pages free:") {
             free = trailing_count(rest);
         } else if let Some(rest) = line.strip_prefix("Pages inactive:") {
@@ -305,6 +305,15 @@ impl AcceleratorKind {
 
 /// Select a training preset for an accelerator kind.
 ///
+/// Metal `auto` cuts, aligned to `agentic_default` floors in
+/// `mens/config/gpu-specs.yaml` (`floor_mb / 1024`). Live 16 GB (13926 MB ≈
+/// 13.6 GiB) must land on `qwen3_16g`, not the CPU-smoke preset.
+const METAL_SMOKE_MIN_GIB: f32 = 6.0;
+const METAL_QWEN3_8B_QLORA_GIB: f32 = 12_000.0 / 1024.0;
+const METAL_QWEN3_14B_QLORA_GIB: f32 = 20_000.0 / 1024.0;
+const METAL_QWEN3_14B_LORA_GIB: f32 = 44_000.0 / 1024.0;
+const METAL_QWEN3_32B_QLORA_GIB: f32 = 60_000.0 / 1024.0;
+
 /// The Metal arm maps unified-memory budgets onto the existing `qwen3_*` ladder
 /// in `preset_schema::KNOWN_PRESETS`. The CUDA arm delegates to [`auto_preset`]
 /// so the two paths cannot drift.
@@ -314,11 +323,11 @@ pub fn auto_preset_for(kind: AcceleratorKind, vram_gb: Option<f32>) -> Option<&'
         AcceleratorKind::Cpu => None,
         AcceleratorKind::Cuda => auto_preset(true, vram_gb),
         AcceleratorKind::Metal => match vram_gb {
-            Some(v) if v < 6.0 => None,
-            Some(v) if v < 16.0 => Some("qwen3_dev_cpu"),
-            Some(v) if v < 24.0 => Some("qwen3_16g"),
-            Some(v) if v < 48.0 => Some("qwen3_24g"),
-            Some(v) if v < 96.0 => Some("qwen3_48g"),
+            Some(v) if v < METAL_SMOKE_MIN_GIB => None,
+            Some(v) if v < METAL_QWEN3_8B_QLORA_GIB => Some("qwen3_dev_cpu"),
+            Some(v) if v < METAL_QWEN3_14B_QLORA_GIB => Some("qwen3_16g"),
+            Some(v) if v < METAL_QWEN3_14B_LORA_GIB => Some("qwen3_24g"),
+            Some(v) if v < METAL_QWEN3_32B_QLORA_GIB => Some("qwen3_48g"),
             Some(_) => Some("qwen3_96g"),
             None => None,
         },
@@ -395,18 +404,49 @@ mod tests {
 
     #[test]
     fn metal_tiers_walk_the_qwen3_ladder() {
+        // Cuts follow agentic_default floors, not the old 16/24/48/96 nameplate bands.
         assert_eq!(
-            auto_preset_for(AcceleratorKind::Metal, Some(20.0)),
+            auto_preset_for(AcceleratorKind::Metal, Some(13.6)),
             Some("qwen3_16g")
+        );
+        assert_eq!(
+            auto_preset_for(AcceleratorKind::Metal, Some(20.4)),
+            Some("qwen3_24g")
         );
         assert_eq!(
             auto_preset_for(AcceleratorKind::Metal, Some(32.0)),
             Some("qwen3_24g")
         );
         assert_eq!(
-            auto_preset_for(AcceleratorKind::Metal, Some(64.0)),
+            auto_preset_for(AcceleratorKind::Metal, Some(54.4)),
             Some("qwen3_48g")
         );
+        assert_eq!(
+            auto_preset_for(AcceleratorKind::Metal, Some(81.6)),
+            Some("qwen3_96g")
+        );
+    }
+
+    #[test]
+    fn metal_live_mb_catalogue_selects_qwen3_presets() {
+        let cases: &[(u64, Option<&str>)] = &[
+            (5000, None),
+            (6144, Some("qwen3_dev_cpu")),
+            (13926, Some("qwen3_16g")),
+            (20890, Some("qwen3_24g")),
+            (41779, Some("qwen3_24g")),
+            (55706, Some("qwen3_48g")),
+            (83558, Some("qwen3_96g")),
+            (111411, Some("qwen3_96g")),
+        ];
+        for &(live_mb, expected) in cases {
+            let gb = live_mb as f32 / 1024.0;
+            assert_eq!(
+                auto_preset_for(AcceleratorKind::Metal, Some(gb)),
+                expected,
+                "{live_mb} MB ({gb:.2} GiB) preset mismatch"
+            );
+        }
     }
 
     #[test]
@@ -505,6 +545,13 @@ Pages speculative:                         50.\n";
         assert!(
             parse_vm_stat("Mach Virtual Memory Statistics: (page size of 16384 bytes)\n").is_none()
         );
+        assert!(
+            parse_vm_stat(
+                "Mach Virtual Memory Statistics: (page size of 0 bytes)\n\
+Pages free: 1.\nPages inactive: 1.\nPages speculative: 1.\n"
+            )
+            .is_none()
+        );
     }
 
     #[test]
@@ -530,6 +577,10 @@ Pages speculative:                         50.\n";
     #[test]
     #[serial_test::serial(vox_mens_live_mem_env)]
     fn live_mem_margin_pct_defaults_and_clamps() {
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_MENS_LIVE_MEM_MARGIN_PCT");
+        }
         assert_eq!(live_mem_margin_pct(), 0.15);
     }
 

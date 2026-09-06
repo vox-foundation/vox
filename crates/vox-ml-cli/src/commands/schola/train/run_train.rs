@@ -103,18 +103,19 @@ pub async fn run_train(
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    if model.is_none()
-        && env_default_model.is_none()
-        && vox_populi::mens::tensor::vram_autodetect::AcceleratorKind::from_vendor(&gpu_info.vendor)
-            == vox_populi::mens::tensor::vram_autodetect::AcceleratorKind::Metal
-    {
-        let root = workspace_root.as_deref().ok_or_else(|| {
-            anyhow::anyhow!("cannot locate workspace root to resolve the Metal default base model")
-        })?;
-        let resolved = vox_populi::mens::tensor::spoke_base_resolver::resolve_metal_default_base(
-            root,
+    if let Some(resolved) =
+        vox_populi::mens::tensor::spoke_base_resolver::maybe_resolve_metal_default_base(
+            model.as_deref(),
+            env_default_model.as_deref(),
+            &gpu_info.vendor,
+            matches!(
+                device_kind,
+                vox_populi::mens::DeviceKind::Best | vox_populi::mens::DeviceKind::Metal
+            ),
+            workspace_root.as_deref(),
             gpu_info.vram_mb,
-        )?;
+        )?
+    {
         tracing::info!(
             model = %resolved,
             vram_mb = gpu_info.vram_mb,
@@ -300,7 +301,7 @@ pub async fn run_train(
         device_profile.clone(),
         None,
         cli_overrides.clone(),
-    );
+    )?;
 
     tracing::debug!(
         model = ?model,

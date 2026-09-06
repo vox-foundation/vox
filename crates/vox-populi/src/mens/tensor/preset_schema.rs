@@ -346,12 +346,16 @@ pub fn load_registry() -> Option<serde_yaml::Value> {
 }
 
 /// Resolve preset from `VOX_TRAIN_PROFILE` env, CLI `--preset`, device heuristics, and overrides.
+///
+/// Metal `"auto"` (including the omitted-preset default) fails closed when
+/// live-available memory is below 6 GiB or unknown — it does not silently
+/// fall through to `qwen3_dev_cpu`.
 pub fn resolve_effective_profile(
     preset: Option<&str>,
     device: DeviceProfile,
     sample_count: Option<usize>,
     overrides: CliOverrides,
-) -> TrainPresetProfile {
+) -> anyhow::Result<TrainPresetProfile> {
     let model_hint_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBaseModel);
     let model_hint = model_hint_resolved.expose();
     let env_p_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTrainProfile);
@@ -371,8 +375,13 @@ pub fn resolve_effective_profile(
             // anything below that (or unknown VRAM) fail-closes to the same
             // smoke profile rather than matching `a100`/`h100` by VRAM size.
             let vram_gb = (device.vram_mb > 0).then_some(device.vram_mb as f32 / 1024.0);
-            let metal_name =
-                auto_preset_for(AcceleratorKind::Metal, vram_gb).unwrap_or("qwen3_dev_cpu");
+            let metal_name = auto_preset_for(AcceleratorKind::Metal, vram_gb).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "no Metal training preset for {} MB live-available memory \
+                     (need at least 6 GiB, or pass --preset explicitly)",
+                    device.vram_mb
+                )
+            })?;
             base_for_name(metal_name)
         } else if let Some(specs) = load_gpu_specs() {
             if let Some((_name, preset_spec)) =
@@ -554,7 +563,7 @@ pub fn resolve_effective_profile(
     }
 
     let _ = probe_gpu();
-    p
+    Ok(p)
 }
 
 /// Back-compat alias used in older docs.
@@ -671,7 +680,8 @@ mod preset_tests {
         }
         let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         let profile =
-            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
+            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default())
+                .expect("profile");
         assert_eq!(profile.seq_len, 384);
         assert_eq!(profile.batch_size, 1);
         assert_eq!(profile.grad_accum, 8);
@@ -689,7 +699,8 @@ mod preset_tests {
             std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-7B-Instruct");
         }
         let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
-        let profile = resolve_effective_profile(Some("a100"), dev, None, CliOverrides::default());
+        let profile = resolve_effective_profile(Some("a100"), dev, None, CliOverrides::default())
+            .expect("profile");
         assert!(profile.seq_len < 1024);
         assert!(profile.batch_size < 8);
         #[allow(unsafe_code)]
@@ -702,7 +713,8 @@ mod preset_tests {
     fn test_preset_bounds_dynamically_to_fit_vram() {
         let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         let profile =
-            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
+            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default())
+                .expect("profile");
         // For a 7B model on 16GB, it should safely scale parameters down.
         assert!(profile.seq_len <= 384);
     }
@@ -789,7 +801,8 @@ mod qwen3_preset_tests {
                 "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
             );
         }
-        let p = resolve_effective_profile(Some("qwen3_24g"), dev, None, CliOverrides::default());
+        let p = resolve_effective_profile(Some("qwen3_24g"), dev, None, CliOverrides::default())
+            .expect("profile");
         #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("VOX_BASE_MODEL");
@@ -1084,9 +1097,11 @@ mod metal_auto_default_tests {
         clear_preset_env();
         let none_dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         let explicit_dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
-        let omitted = resolve_effective_profile(None, none_dev, None, CliOverrides::default());
+        let omitted = resolve_effective_profile(None, none_dev, None, CliOverrides::default())
+            .expect("profile");
         let explicit =
-            resolve_effective_profile(Some("4080"), explicit_dev, None, CliOverrides::default());
+            resolve_effective_profile(Some("4080"), explicit_dev, None, CliOverrides::default())
+                .expect("profile");
         assert_eq!(
             core_fields(&omitted),
             core_fields(&explicit),
@@ -1100,9 +1115,11 @@ mod metal_auto_default_tests {
         clear_preset_env();
         let none_dev = DeviceProfile::from_gpu_info("cpu", 0, "cpu");
         let explicit_dev = DeviceProfile::from_gpu_info("cpu", 0, "cpu");
-        let omitted = resolve_effective_profile(None, none_dev, None, CliOverrides::default());
+        let omitted = resolve_effective_profile(None, none_dev, None, CliOverrides::default())
+            .expect("profile");
         let explicit =
-            resolve_effective_profile(Some("4080"), explicit_dev, None, CliOverrides::default());
+            resolve_effective_profile(Some("4080"), explicit_dev, None, CliOverrides::default())
+                .expect("profile");
         assert_eq!(
             core_fields(&omitted),
             core_fields(&explicit),
@@ -1110,7 +1127,8 @@ mod metal_auto_default_tests {
         );
 
         let empty_vendor = DeviceProfile::from_gpu_info("unknown", 0, "");
-        let empty = resolve_effective_profile(None, empty_vendor, None, CliOverrides::default());
+        let empty = resolve_effective_profile(None, empty_vendor, None, CliOverrides::default())
+            .expect("profile");
         assert_eq!(core_fields(&empty), core_fields(&explicit));
     }
 
@@ -1118,8 +1136,9 @@ mod metal_auto_default_tests {
     #[serial(vox_base_model_env)]
     fn metal_16g_auto_is_qwen3_16g() {
         clear_preset_env();
-        let dev = DeviceProfile::from_gpu_info("apple m-series", 16384, "apple");
-        let profile = resolve_effective_profile(None, dev, None, no_budget_clamp());
+        let dev = DeviceProfile::from_gpu_info("apple m-series", 13926, "apple");
+        let profile =
+            resolve_effective_profile(None, dev, None, no_budget_clamp()).expect("profile");
         let expected = base_for_name("qwen3_16g");
         assert_eq!(profile.rank, expected.rank);
         assert_eq!(profile.seq_len, expected.seq_len);
@@ -1139,7 +1158,8 @@ mod metal_auto_default_tests {
     fn metal_116g_auto_is_qwen3_96g() {
         clear_preset_env();
         let dev = DeviceProfile::from_gpu_info("apple m-series", 116 * 1024, "apple");
-        let profile = resolve_effective_profile(None, dev, None, no_budget_clamp());
+        let profile =
+            resolve_effective_profile(None, dev, None, no_budget_clamp()).expect("profile");
         let expected = base_for_name("qwen3_96g");
         assert_eq!(profile.rank, expected.rank);
         assert_eq!(profile.seq_len, expected.seq_len);
@@ -1152,5 +1172,23 @@ mod metal_auto_default_tests {
         assert_ne!(profile.batch_size, 8);
         assert_ne!(profile.lr, 8e-6);
         assert_eq!(profile.lr, expected.lr);
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn metal_auto_fail_closes_below_six_gib() {
+        clear_preset_env();
+        let zero = DeviceProfile::from_gpu_info("apple m-series", 0, "apple");
+        assert!(
+            resolve_effective_profile(None, zero, None, no_budget_clamp()).is_err(),
+            "unknown/zero VRAM must fail-closed, not qwen3_dev_cpu"
+        );
+        let five_k = DeviceProfile::from_gpu_info("apple m-series", 5000, "apple");
+        let err = resolve_effective_profile(None, five_k, None, no_budget_clamp())
+            .expect_err("5 GB live must fail-closed");
+        assert!(
+            err.to_string().contains("6 GiB") || err.to_string().contains("5000"),
+            "error must name the floor or budget, got {err}"
+        );
     }
 }
