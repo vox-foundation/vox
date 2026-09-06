@@ -183,6 +183,50 @@ itself in hub quality alone), external-runtime vision when a real screenshot
 consumer exists, Layer 2 only if that consumer proves load-bearing and the
 external hop becomes the bottleneck. Layer 3 probably never.**
 
+## Revision 7 (2026-09-06) — macOS training-lane selection: live memory, vendor-aware auto, fail-closed 8 GB
+
+The three original bugs on a bare `vox mens train` on Apple Silicon were real:
+`MacosMetalProbe` reported `vram_mb: 0`, omitted `--preset` always used
+`DEFAULT_PRESET = "4080"`, and CandleQlora filled `DEFAULT_MODEL_ID` (Qwen3-8B)
+before any hardware-aware resolve. The first draft of the training-lane plan
+would have fixed the probe and still shipped **CUDA yaml hyperparameters** on
+every Mac with real VRAM.
+
+**The yaml-`"auto"` hole.** `resolve_effective_profile("auto")` walked
+`gpu-specs.yaml` `presets:` via `TrainingPreset::best_for_vram` with no vendor
+filter. After the probe stub was fixed, ~116 GiB live memory would match
+`a100`/`h100` (`batch_size: 8`, `lr: 8e-6`), and 16 GB would match
+`prosumer_16g` (`seq_len: 1024`, `lr: 2e-5`) instead of `qwen3_16g`
+(`seq_len: 512`, `lr: 1.5e-4`). Replacing only the `4080_safe` fallback arms
+does not close this. `"auto"` on Metal now skips that table and calls
+`auto_preset_for(Metal, …)` → `base_for_name`. CUDA explicit `--preset auto`
+is unchanged.
+
+**Live-available vs nameplate.** Training memory on macOS is sized from
+`vm_stat` reclaimable pages (`query_apple_available_memory`), not
+`hw.memsize × 0.85`. `MacosMetalProbe` calls that leaf only — never
+`get_system_vram_info()`, whose Priority 4 recurses into `hardware::probe()`.
+Catalogue tests inject those live-available MB budgets, not a nameplate
+formula.
+
+**8 GB is fail-closed on `agentic_default`.** The lowest rung is 11000 MB
+(Qwen2.5-Coder-7B, outranked at 12000 by Qwen3-8B). 6144 MB (8 GB × 0.75
+live) is `Err`. That is a documented gap, not a missing 0.6B rung — adding
+one is a hub-model debate and out of scope. 48 GB live (~41779 MB) resolves
+**14B QLoRA**, not 14B LoRA (LoRA floor 44000).
+
+**CUDA lane byte-for-byte.** `DEFAULT_PRESET` stays `"4080"`. The omitted-preset
+`"auto"` default is Metal-only. Existing `vram_autodetect` / `preset_schema` /
+`spoke_base_resolver` CUDA tests were not rewritten. `gpu.rs` CUDA auto-inject
+was not expanded to Metal.
+
+**Selection, not Metal-plugin training.** `--device metal` still bails.
+`--device best` uses the existing candle-cuda Metal device path. Goal of this
+lane is model + `qwen3_*` preset selection that fits live unified memory.
+
+Corrected spec:
+[`docs/superpowers/specs/2026-09-06-macos-mens-training-lane-design.md`](../../superpowers/specs/2026-09-06-macos-mens-training-lane-design.md).
+
 ## Revision 6 (2026-09-06) — The plugin path itself fixed; real serving confirmed; Qwen3.8 text-tower loading unblocked
 
 Revision 5 said the documented `vox mens train`/`serve` path was unusable on

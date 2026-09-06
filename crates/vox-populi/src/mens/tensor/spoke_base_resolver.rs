@@ -386,6 +386,52 @@ mod tests {
     }
 
     #[test]
+    fn agentic_default_rungs_pin_live_available_mb() {
+        // Injected values are live-available MB (vm_stat reclaimable after
+        // margin), not nameplate×0.85. 8 GB / 6144 must fail-closed — do not
+        // weaken that assertion if a rung appears.
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let cases: &[(u32, Option<(&str, &str)>)] = &[
+            (6144, None),
+            (13926, Some(("Qwen3-8B", "qlora"))),
+            (20890, Some(("Qwen3-14B", "qlora"))),
+            (27853, Some(("Qwen3-14B", "qlora"))),
+            (31334, Some(("Qwen3-14B", "qlora"))),
+            (41779, Some(("Qwen3-14B", "qlora"))),
+            (55706, Some(("Qwen3-14B", "lora"))),
+            (83558, Some(("Qwen3-32B", "qlora"))),
+            (111411, Some(("Qwen3-32B", "lora"))),
+        ];
+        for &(live_mb, expected) in cases {
+            let got = pick_base(&overlay, "agentic_default", live_mb);
+            match expected {
+                None => {
+                    assert!(
+                        got.is_err(),
+                        "8 GB / {live_mb} MB must fail-closed on agentic_default, got {:?}",
+                        got.ok().map(|b| (&b.hf_id, &b.methods))
+                    );
+                }
+                Some((hf_sub, method)) => {
+                    let base = got.unwrap_or_else(|e| {
+                        panic!("{live_mb} MB should resolve {hf_sub} {method}, got Err: {e}")
+                    });
+                    assert!(
+                        base.hf_id.contains(hf_sub),
+                        "{live_mb} MB: expected hf_id containing {hf_sub}, got {}",
+                        base.hf_id
+                    );
+                    assert!(
+                        base.methods.iter().any(|m| m == method),
+                        "{live_mb} MB: expected methods to contain {method}, got {:?}",
+                        base.methods
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn mac_128g_prefers_unquantized_32b_lora() {
         // 128 GiB physical - 12 GiB GUI reserve = 116 GiB usable = 118_784 MB.
         // At that budget the un-quantized 32B rung must outrank the QLoRA one.
