@@ -52,30 +52,12 @@ pub const DEFAULT_PRESET: &str = "4080";
 
 /// Preset names accepted by `--preset` / planner normalization.
 ///
-/// **Contract SSOT:** mirror every entry in `contracts/mens/training-presets.v1.yaml` (enforced by
-/// `vox-populi` integration test `training_presets_yaml_contract`).
-pub const KNOWN_PRESETS: &[&str] = &[
-    "tiny",
-    "safe",
-    "4080",
-    "4080_safe",
-    "qwen_4080_16g",
-    "qwen_small_8g",
-    "qwen_rtx3090_24g",
-    "qwen_a100_80g",
-    "a100",
-    "default",
-    "distributed",
-    "mobile_edge",
-    // Code-generation fine-tune preset (Vox .box target language).
-    "vox-gen",
-    // Qwen3 dense ladder presets — additive alongside legacy qwen_* presets.
-    "qwen3_dev_cpu", // Qwen3-0.6B r8, CPU smoke — no quality gate
-    "qwen3_16g",     // Qwen3-8B QLoRA r16 (RTX 4080 Super 16GB)
-    "qwen3_24g",     // Qwen3-14B QLoRA r32 (3090/4090 24GB)
-    "qwen3_48g",     // Qwen3-14B LoRA r32 un-quantized (48GB)
-    "qwen3_96g",     // Qwen3-32B QLoRA r64 (96GB)
-];
+/// Definition moved to [`crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS`]
+/// (a lighter `mens`-gated module) so `spoke_validate`'s CI gate can validate
+/// against it without depending on this module's heavier `mens-train`/`mens-cloud`
+/// gate. Re-exported here so existing callers of `preset_schema::KNOWN_PRESETS`
+/// are unaffected.
+pub use crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS;
 
 /// Size classes on the REAL Qwen3 dense ladder (0.6/8/14/32B).
 ///
@@ -614,6 +596,7 @@ impl TrainingPreset {
 #[cfg(test)]
 mod preset_tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn preset_4080_matches_qwen_4080_16g() {
@@ -659,6 +642,7 @@ mod preset_tests {
     }
 
     #[test]
+    #[serial(vox_base_model_env)]
     fn test_prosumer_16g_preset_resolves() {
         #[allow(unsafe_code)]
         unsafe {
@@ -677,6 +661,7 @@ mod preset_tests {
     }
 
     #[test]
+    #[serial(vox_base_model_env)]
     fn presets_are_bounded_by_vram() {
         #[allow(unsafe_code)]
         unsafe {
@@ -705,6 +690,7 @@ mod preset_tests {
 #[cfg(test)]
 mod qwen3_preset_tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn known_presets_contains_all_qwen3_tiers() {
@@ -770,6 +756,7 @@ mod qwen3_preset_tests {
     }
 
     #[test]
+    #[serial(vox_base_model_env)]
     fn size_class_clamp_fires_for_14b_on_16g() {
         // Proves the clamp is now reachable: a 14B hint on a 16 GB card must tighten
         // the envelope (seq_len floored, single micro-batch). Before F2 this never ran.

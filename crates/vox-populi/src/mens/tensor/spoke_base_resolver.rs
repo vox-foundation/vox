@@ -4,6 +4,39 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
+/// Preset names accepted by `--preset` / planner normalization.
+///
+/// **Contract SSOT:** mirror every entry in `contracts/mens/training-presets.v1.yaml` (enforced by
+/// `vox-populi` integration test `training_presets_yaml_contract`).
+///
+/// Lives here (under the plain `mens` feature) rather than in `preset_schema`
+/// (gated behind `mens-train`/`mens-cloud`) so `spoke_validate` — and the
+/// lightweight `vox ci spoke-check` gate that runs it — can validate a spoke's
+/// `base.preset` without pulling in the full Candle/QLoRA stack.
+/// `preset_schema` re-exports this constant so existing callers are unaffected.
+pub const KNOWN_PRESETS: &[&str] = &[
+    "tiny",
+    "safe",
+    "4080",
+    "4080_safe",
+    "qwen_4080_16g",
+    "qwen_small_8g",
+    "qwen_rtx3090_24g",
+    "qwen_a100_80g",
+    "a100",
+    "default",
+    "distributed",
+    "mobile_edge",
+    // Code-generation fine-tune preset (Vox .box target language).
+    "vox-gen",
+    // Qwen3 dense ladder presets — additive alongside legacy qwen_* presets.
+    "qwen3_dev_cpu", // Qwen3-0.6B r8, CPU smoke — no quality gate
+    "qwen3_16g",     // Qwen3-8B QLoRA r16 (RTX 4080 Super 16GB)
+    "qwen3_24g",     // Qwen3-14B QLoRA r32 (3090/4090 24GB)
+    "qwen3_48g",     // Qwen3-14B LoRA r32 un-quantized (48GB)
+    "qwen3_96g",     // Qwen3-32B QLoRA r64 (96GB)
+];
+
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct TrainBase {
     pub hf_id: String,
