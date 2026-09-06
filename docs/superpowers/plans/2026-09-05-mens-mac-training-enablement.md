@@ -503,17 +503,33 @@ Expected: PASS — including the pre-existing `qwen3_code_48g_prefers_unquantize
 
 - [ ] **Step 5: Calibrate `floor_mb` against a measured run**
 
-`--dry-run` lives on `vox mens pipeline`, not `vox mens train`. First confirm the rung resolves:
+Corrected (found while running this step): the binary is `vox-ml-cli`, not
+`vox-cli`, and its feature is `gpu` (which pulls in `vox-populi/mens-train`
+transitively) — `vox-ml-cli` has no `mens-train` feature of its own. Also,
+`--skip-train` stops the pipeline *before* the Train stage, which is exactly
+the code path being verified — use `--stages train` instead so only that
+stage runs, still under `--dry-run` so nothing is downloaded or trained yet:
 
 ```bash
-cargo run -q -p vox-cli --features mens-train -- mens pipeline \
-  --profile rust --dry-run --skip-train 2>&1 | tail -40
+cargo run -q -p vox-ml-cli --features gpu -- mens pipeline \
+  --profile rust --dry-run --stages train 2>&1 | tail -10
 ```
+
+Confirmed on this machine: `resolved training selection
+model=Some("Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137")
+preset=qwen3_16g backend=CandleQlora` — the base model correctly scales to
+32B via the Task 4 rung; **the preset does not** (worth knowing, not a bug):
+`rust`'s `domain-profiles.yaml` entry pins `preset: qwen3_16g` explicitly, so
+`auto_preset_for` (Task 2) is never consulted — a spoke's static preset always
+wins over auto-detection. Training a 32B QLoRA run under 16 GB-tuned
+batch/seq-len hyperparameters is safe (conservative, not incorrect) but wastes
+most of the Mac's headroom; wiring per-machine preset auto-upgrade is a
+reasonable follow-up, out of scope here.
 
 Then get a real resident peak, which requires actually starting training briefly — a plan-only path cannot measure it. Launch a short run and watch memory, then stop it:
 
 ```bash
-cargo run -q -p vox-cli --features mens-train -- mens train \
+cargo run -q -p vox-ml-cli --features gpu -- mens train \
   --model Qwen/Qwen3-32B --preset qwen3_96g --device metal \
   --data-dir target/dogfood --output-dir mens/runs/calib-32b 2>&1 | tail -40
 ```
@@ -549,7 +565,7 @@ Tasks 1-4 are unit-tested in isolation. This proves the whole chain — detect m
 - Consumes: everything produced by Tasks 1-4.
 - Produces: a verified, documented resolution path; no new code items.
 
-- [ ] **Step 1: Confirm the full resolution chain on macOS**
+- [x] **Step 1: Confirm the full resolution chain on macOS**
 
 ```bash
 cargo test -p vox-populi --lib -- vram_autodetect spoke_base_resolver spoke_validate 2>&1 | tail -20
@@ -557,22 +573,27 @@ cargo test -p vox-populi --lib -- vram_autodetect spoke_base_resolver spoke_vali
 
 Expected: PASS, zero failures across all three modules.
 
-- [ ] **Step 2: Confirm the SSOT CI gate is green**
+- [x] **Step 2: Confirm the SSOT CI gate is green**
 
 ```bash
 cargo run -q -p vox-cli -- ci spoke-check
 ```
 
-Expected: exit 0.
+Expected: exit 0. Confirmed: `spoke-check OK`.
 
-- [ ] **Step 3: Confirm a spoke resolves a Mac-sized base end to end**
+- [x] **Step 3: Confirm a spoke resolves a Mac-sized base end to end**
 
-`--profile` and `--dry-run` are `vox mens pipeline` flags (`action_populi_enum.rs:12-48`), not `vox mens train` flags:
+`--profile` and `--dry-run` are `vox mens pipeline` flags (`action_populi_enum.rs:12-48`); the binary is `vox-ml-cli` under the `gpu` feature (see Task 4 Step 5's correction), and `--stages train` — not `--skip-train` — is what actually exercises the resolution path:
 
 ```bash
-cargo run -q -p vox-cli --features mens-train -- mens pipeline \
-  --profile rust --dry-run --skip-train 2>&1 | tail -30
+cargo run -q -p vox-ml-cli --features gpu -- mens pipeline \
+  --profile rust --dry-run --stages train 2>&1 | tail -10
 ```
+
+Confirmed on this machine: `resolved training selection
+model=Some("Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137")
+preset=qwen3_16g backend=CandleQlora` — no "no GPU VRAM detected" error, and
+the base model correctly scales to the Task 4 rung.
 
 Expected: the plan prints a resolved base model and preset without the error
 "no GPU VRAM detected; cannot size base tag". Use `--profile rust` rather than
