@@ -156,7 +156,17 @@ behavior at the low end.
 
 ### 4. `auto` becomes the real default, and stops being two systems
 
-- `preset_schema::DEFAULT_PRESET` changes from `"4080"` to `"auto"`.
+- `preset_schema::DEFAULT_PRESET` (`"4080"`) itself is **not** changed —
+  changing it globally would risk altering hyperparameters for existing bare
+  `vox mens train` invocations on real CUDA hardware, which is exactly the
+  "zero behavior change on the CUDA lane" goal this design must not violate,
+  and nothing in the codebase today proves the `auto` path reproduces
+  `"4080"`'s exact numbers at 16 GiB. Instead, `resolve_effective_profile`
+  picks the fallback-when-omitted **conditionally on detected accelerator
+  kind**: CUDA devices keep using `DEFAULT_PRESET` ("4080") exactly as
+  today; every other kind (Metal, CPU, unknown) uses `"auto"` instead. This
+  is the minimal change that fixes "ignores hardware on Mac" without
+  touching a single code path a CUDA user's bare invocation goes through.
 - `resolve_effective_profile`'s `"auto"` branch's failure fallback changes
   from the hardcoded `"4080_safe"` to consulting
   `vram_autodetect::auto_preset_for` when the GPU-family `presets:` table
@@ -192,7 +202,9 @@ vox mens train  (no flags)
   -> probe_gpu() -> hardware::probe() -> MacosMetalProbe::probe_metal()
        -> vram_autodetect::query_apple_unified_memory()  [was: hardcoded 0]
   -> DeviceProfile { vram_mb: <live, real> }
-  -> resolve_effective_profile(preset=None -> "auto", device, ...)
+  -> resolve_effective_profile(preset=None, device{vendor:"apple"}, ...)
+       -> kind = AcceleratorKind::from_vendor("apple") = Metal (not Cuda)
+       -> default-when-omitted = "auto" (DEFAULT_PRESET stays CUDA-only)
        -> gpu-specs presets: no CUDA-family match on Apple vendor
        -> falls back to auto_preset_for(AcceleratorKind::Metal, vram_gb)
        -> walks the extended qwen3_* ladder -> e.g. "qwen3_48g"
@@ -213,10 +225,13 @@ vox mens train  (no flags)
   resolves the expected model+method under the new live-available formula,
   mirroring the existing `mac_128g_prefers_unquantized_32b_lora`-style
   tests.
-- Regression test: `DEFAULT_PRESET == "auto"` end-to-end through
-  `resolve_effective_profile` reproduces today's exact CUDA 16 GiB
-  behavior (`qwen_4080_16g`) — this is the test that guards "don't break
-  the validated 4080 Super lane."
+- Regression test: `resolve_effective_profile(None, <cuda device>, ...)`
+  still resolves through `DEFAULT_PRESET` ("4080") byte-for-byte identically
+  to today, for every existing CUDA boundary case — this is the test that
+  guards "don't break the validated 4080 Super lane."
+- New test: `resolve_effective_profile(None, <metal device>, ...)` now
+  resolves through `"auto"` instead of `"4080"` — proving the CLI-default
+  fix actually reaches a bare `vox mens train` on a Mac.
 - Regression test: `MacosMetalProbe::probe_metal()` no longer returns
   `vram_mb: 0` unconditionally; on a live macOS test runner it returns a
   positive number consistent with `query_apple_unified_memory`.
