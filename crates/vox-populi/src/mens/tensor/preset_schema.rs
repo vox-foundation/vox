@@ -24,13 +24,18 @@ pub struct CliOverrides {
 pub struct DeviceProfile {
     pub model_name: String,
     pub vram_mb: u64,
+    /// Coarse vendor bucket from `GpuInfo::vendor` (`"nvidia"`, `"apple"`,
+    /// `"amd"`, `"unknown"`, ...) -- used to keep the CUDA lane's defaults
+    /// untouched while giving Metal devices hardware-aware defaults.
+    pub vendor: String,
 }
 
 impl DeviceProfile {
-    pub fn from_gpu_info(model_name: &str, vram_mb: u64) -> Self {
+    pub fn from_gpu_info(model_name: &str, vram_mb: u64, vendor: &str) -> Self {
         Self {
             model_name: model_name.to_string(),
             vram_mb,
+            vendor: vendor.to_string(),
         }
     }
 }
@@ -648,7 +653,7 @@ mod preset_tests {
         unsafe {
             std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-1.5B-Instruct");
         }
-        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         let profile =
             resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
         assert_eq!(profile.seq_len, 384);
@@ -667,7 +672,7 @@ mod preset_tests {
         unsafe {
             std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-7B-Instruct");
         }
-        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         let profile = resolve_effective_profile(Some("a100"), dev, None, CliOverrides::default());
         assert!(profile.seq_len < 1024);
         assert!(profile.batch_size < 8);
@@ -679,7 +684,7 @@ mod preset_tests {
 
     #[test]
     fn test_preset_bounds_dynamically_to_fit_vram() {
-        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         let profile =
             resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
         // For a 7B model on 16GB, it should safely scale parameters down.
@@ -760,7 +765,7 @@ mod qwen3_preset_tests {
     fn size_class_clamp_fires_for_14b_on_16g() {
         // Proves the clamp is now reachable: a 14B hint on a 16 GB card must tighten
         // the envelope (seq_len floored, single micro-batch). Before F2 this never ran.
-        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         #[allow(unsafe_code)]
         unsafe {
             std::env::set_var(

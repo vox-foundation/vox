@@ -289,6 +289,20 @@ pub enum AcceleratorKind {
     Cpu,
 }
 
+impl AcceleratorKind {
+    /// Map a `GpuInfo`/`DeviceProfile` vendor string (as produced by
+    /// `probe_gpu`, e.g. `"nvidia"`, `"apple"`, `"amd"`, `"unknown"`) to the
+    /// accelerator kind `auto_preset_for` expects.
+    #[must_use]
+    pub fn from_vendor(vendor: &str) -> Self {
+        match vendor.to_ascii_lowercase().as_str() {
+            "nvidia" => Self::Cuda,
+            "apple" => Self::Metal,
+            _ => Self::Cpu,
+        }
+    }
+}
+
 /// Select a training preset for an accelerator kind.
 ///
 /// The Metal arm maps unified-memory budgets onto the existing `qwen3_*` ladder
@@ -400,6 +414,32 @@ mod tests {
         assert_eq!(auto_preset_for(AcceleratorKind::Metal, Some(4.0)), None);
         assert_eq!(auto_preset_for(AcceleratorKind::Metal, None), None);
         assert_eq!(auto_preset_for(AcceleratorKind::Cpu, Some(128.0)), None);
+    }
+
+    #[test]
+    fn accelerator_kind_from_vendor_maps_known_vendors() {
+        assert_eq!(
+            AcceleratorKind::from_vendor("nvidia"),
+            AcceleratorKind::Cuda
+        );
+        assert_eq!(
+            AcceleratorKind::from_vendor("NVIDIA"),
+            AcceleratorKind::Cuda
+        );
+        assert_eq!(
+            AcceleratorKind::from_vendor("apple"),
+            AcceleratorKind::Metal
+        );
+        assert_eq!(
+            AcceleratorKind::from_vendor("Apple"),
+            AcceleratorKind::Metal
+        );
+        assert_eq!(AcceleratorKind::from_vendor("amd"), AcceleratorKind::Cpu);
+        assert_eq!(
+            AcceleratorKind::from_vendor("unknown"),
+            AcceleratorKind::Cpu
+        );
+        assert_eq!(AcceleratorKind::from_vendor(""), AcceleratorKind::Cpu);
     }
 
     #[test]

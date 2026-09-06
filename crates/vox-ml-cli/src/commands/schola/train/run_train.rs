@@ -254,8 +254,11 @@ pub async fn run_train(
     });
 
     let gpu_info = vox_populi::mens::probe_gpu();
-    let device_profile =
-        vox_populi::mens::DeviceProfile::from_gpu_info(&gpu_info.model_name, gpu_info.vram_mb);
+    let device_profile = vox_populi::mens::DeviceProfile::from_gpu_info(
+        &gpu_info.model_name,
+        gpu_info.vram_mb,
+        &gpu_info.vendor,
+    );
     let cli_overrides = vox_populi::mens::CliOverrides {
         rank,
         alpha,
