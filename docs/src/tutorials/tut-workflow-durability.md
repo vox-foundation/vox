@@ -10,6 +10,19 @@ schema_type: "HowTo"
 ---
 # Tutorial: Workflow Durability
 
+> [!WARNING]
+> **Known limits as of 2026-09-06.** The interpreted runner does not yet execute
+> local activity bodies — a non-mesh activity records a fixed
+> `{"event":"LocalActivity","status":"executed"}` payload instead of your
+> function's return value. `workflow_wait` sleeps in-process rather than
+> scheduling a durable wake. `workflow_wait_signal` fails the run when the
+> signal is absent instead of parking it. `HirExpr::With` and
+> `HirExpr::WorkflowVersion` error in the interpreter (`PARITY_UNIMPLEMENTED`).
+> Workflows built with `vox build` use an in-memory tracker, so a crash
+> replays from zero. Tracked in
+> [True workflow durability](../architecture/true-workflow-durability-design-2026.md);
+> remove this banner as each phase lands.
+
 Learn how to build resilient, long-running processes using Vox workflows. This tutorial explains the durability story Vox supports today: interpreted workflow step replay, stable activity ids, and idempotent activities.
 
 > [!WARNING]

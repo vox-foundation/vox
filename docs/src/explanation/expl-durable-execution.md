@@ -8,6 +8,19 @@ schema_type: "TechArticle"
 ---
 # Explanation: Durable Execution
 
+> [!WARNING]
+> **Known limits as of 2026-09-06.** The interpreted runner does not yet execute
+> local activity bodies — a non-mesh activity records a fixed
+> `{"event":"LocalActivity","status":"executed"}` payload instead of your
+> function's return value. `workflow_wait` sleeps in-process rather than
+> scheduling a durable wake. `workflow_wait_signal` fails the run when the
+> signal is absent instead of parking it. `HirExpr::With` and
+> `HirExpr::WorkflowVersion` error in the interpreter (`PARITY_UNIMPLEMENTED`).
+> Workflows built with `vox build` use an in-memory tracker, so a crash
+> replays from zero. Tracked in
+> [True workflow durability](../architecture/true-workflow-durability-design-2026.md);
+> remove this banner as each phase lands.
+
 Understand the current durability boundary in Vox. Today, durable execution is a workflow feature of the interpreted runtime used by `vox mens workflow ...`, not a blanket guarantee for every compiled Vox program.
 
 > [!NOTE]
@@ -33,7 +46,9 @@ If the interpreted runtime crashes mid-workflow, recovery currently works like t
 1. Restart the workflow runner with the same workflow, durable `run_id`, and stable activity ids.
 2. Read durable workflow tracking data from Codex / `VoxDb`.
 3. Load stored results for activities that were already recorded as completed for that run.
-4. Continue with the remaining steps.
+4. For completed steps, replay the runtime's own step-record payload from the
+   journal — not the activity function's return value (local activities currently
+   emit a fixed stub payload; see the banner above).
 
 This is narrower than a full workflow virtual machine. Generated Rust workflows do **not** yet replay arbitrary local variables, control-flow decisions, or stack state as a durable state machine.
 
