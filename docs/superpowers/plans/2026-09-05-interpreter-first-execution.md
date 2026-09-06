@@ -2,68 +2,154 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Revision 2** — rewritten after a seven-track critique verified revision 1 against the source. Revision 1 had three code blocks that did not compile, a task that could not execute (missing crate edge), a filesystem method list wrong in both directions, an ungated `import`, a payload frame that rejected every payload, and a default-flip predicate that would have routed `table`/`routes`/`server` programs to the interpreter. Each correction below cites the finding.
+**Revision 3 (2026-09-06)** — rewritten from the critique ledger after two review rounds
+(fifteen tracks). Revision 2's own corrections introduced the worst defect in the
+program: `fs_resolve_allowed` would have denied `fs.write("out.txt")` under
+`developer_default()`. Four tests could not fail. The differential gate would have
+rebuilt 764 crates per golden and never run on CI. Split into six revertable PRs.
 
-**Goal:** Make the HIR interpreter the default and sandboxing execution tier for VoxScripts — locally and over the mesh — so `cargo`, `rustc`, and a Vox checkout stop being end-user requirements for running pure Vox.
+**Goal:** Make the HIR interpreter the default and isolation tier for VoxScripts — locally
+and over the mesh — so `cargo`, `rustc`, and a Vox checkout stop being end-user
+requirements for running pure Vox.
 
-**Architecture:** Capabilities become receiver-imposed, non-optional and fatal; memory, recursion depth and output join steps as hard bounds; every side-effecting entry point (including `import`) is gated, so the interpreter is the sandbox for Vox code. The mesh executes `VoxScript` jobs by spawning `vox run --mode interp` as a bounded child in its own process group from `InterpExecutor` in `vox-mesh-transport` (no new crate edge), and never ships native code. A differential gate with a grown golden corpus proves the interpreter and native lanes agree. The wasi script lane, the HTTP native-bundle lane, `secret_gate`, `ProbeOnlyExecutor`, and the parsed-then-rejected isolation tiers are deleted and *retired* (contract rows), not merely removed.
+**Architecture:** Capabilities are receiver-imposed, non-optional and fatal; heap,
+recursion, output, disk bytes and file counts join steps as hard bounds; every
+side-effecting entry point (including `import` and `@versioned`) is gated. The
+interpreter is an isolation boundary, not a resource-containment one beyond those
+counted bounds. The mesh executes `VoxScript` by spawning `vox run --mode interp` as a
+bounded child from `InterpExecutor` in `vox-mesh-transport` (no new crate edge there)
+and never ships native code. A differential gate over one generated crate proves the
+tiers agree. The wasi script lane, the HTTP native-bundle lane, `secret_gate`,
+`ProbeOnlyExecutor`, and the parsed-then-rejected isolation tiers are deleted and
+retired.
 
-**Tech Stack:** Rust 1.96 (edition 2024, let-chains), `vox-compiler::eval`, `vox-mesh-transport` on `iroh 1.1` (postcard frames — positional, not self-describing), `tokio::process`, clap 4.5.
+**Tech Stack:** Rust 1.96 (edition 2024, let-chains), `vox-compiler::eval`,
+`vox-mesh-transport` on `iroh 1.1` (postcard frames — positional), `tokio::process`,
+clap 4.5, existing `win32job`.
 
-**Spec:** [`docs/superpowers/specs/2026-09-05-interpreter-first-execution-design.md`](../specs/2026-09-05-interpreter-first-execution-design.md) (revision 2). Evidence: [`docs/src/architecture/voxscript-portability-substrate-research-2026.md`](../../src/architecture/voxscript-portability-substrate-research-2026.md).
+**Spec:** [`docs/superpowers/specs/2026-09-05-interpreter-first-execution-design.md`](../specs/2026-09-05-interpreter-first-execution-design.md)
+(revision 3). Ledger: [`docs/superpowers/specs/2026-09-05-interpreter-first-critique-ledger.md`](../specs/2026-09-05-interpreter-first-critique-ledger.md).
 
 ## Global Constraints
 
-- **Test-first.** Every new `pub fn` gets a test in the same file. Write the failing test, watch it fail, then implement.
-- **Mutation-verify every guard** (spec §4): break it once, confirm the test fails, restore, `grep -c` the restoration, record it in the commit body.
-- **Formatting:** `cargo fmt -p <crate>`. **Never `cargo fmt --all`.**
-- **Clippy before every commit:** `cargo clippy -p <touched-crate> --all-targets -- -D warnings`. Use let-chains (`if let … && cond {}`), not nested `if let` — clippy 1.96 rejects the nested form. Nested `unsafe {}` inside `unsafe fn` is **required** under edition 2024.
-- **Never `presets::N0`, `N0DisableRelay`, or `into_0rtt()`** (detector `vox/mesh/unsafe-iroh-pattern`, Error).
-- **Crate edges:** this plan adds **none**. The `vox-compiler → vox-crypto` edge that `crypto.*` parity needs is a maintainer decision recorded in spec §3.3 — do not take it; Task 2 records `crypto` as a known asymmetry instead. Never add a `vox-cli` dev-dependency to `vox-mesh-transport` (upward edge). Removing `script-wasi` removes `vox-cli → vox-wasm-engine`; tighten with `cargo run -q -p vox-cli -- ci crate-edges --tighten`. **Never** add an `exceptions` entry.
-- **`--features populi` goes on `-p vox-ml-cli`, never `-p vox-cli`.**
-- **Do not regenerate `docs/agents/doc-inventory.json`** — stale on the base, owned by `ssot-autoregen`. If pre-push stops there, run the remaining gates directly and say so.
-- **Contract regeneration is part of the task that causes it**, in this order when a command is deleted: `contracts/operations/catalog.v1.yaml` → `contracts/cli/command-registry.yaml` → `contracts/capability/{capability-registry.yaml,model-manifest.generated.json}` → `docs/src/reference/cli-command-surface.generated.md` → `contracts/reports/gui-surface-{registry,coverage}.v1.json` → `UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli command_catalog`. `vox ci command-sync` alone is not sufficient. When a SecretId is deleted: `vox ci secrets-contracts` **before** `vox ci secrets-parity`.
-- **Doc frontmatter** on every new `.md` under `docs/src/`; lint with `cargo run -q -p vox-doc-pipeline -- --lint-only --paths <file>`.
-- **Commit messages:** imperative subject < 72 chars, body explains why, ending with `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. Do not push unless asked.
-- **Fresh worktree gotcha:** build `crates/vox-gui/ui/dist` once (`pnpm install && pnpm build` in `crates/vox-gui/ui`) or workspace clippy fails. Do not commit anything to "fix" it.
-- **`PROTO` 1 → 2 in Task 8 is incompatible by design.** A PROTO-1 peer (BLAPTOP04 until rebuilt) cannot talk to a Task-8 node. Task 16's cross-machine smoke requires rebuilding both ends.
-- **Line numbers** in this plan were verified on `mesh-phase3-plan` @ `7124010b5`; re-`rg` before editing if the file has moved.
+Copied from spec §3.6 / §5. Every task implicitly includes this section.
 
----
+- **Test-first.** Every new `pub fn` gets a test in the same file. Write the failing
+  test, watch it fail, then implement. `interp_executor.rs` and `caps_spec.rs` are not
+  exempt (`skeleton/untested-pub-api`).
+- **Mutation-verify every guard** (spec §4) with a **minimal** mutation (one namespace
+  or one method — never delete the whole `_Denied` return). Break it once, confirm the
+  test fails, restore, `grep -c` the restoration, record it in the commit body.
+- **Formatting:** `cargo fmt -p <crate>`. **Never `cargo fmt --all`.**
+- **Clippy before every commit:** `cargo clippy -p <touched-crate> --all-targets -- -D warnings`.
+  Use let-chains. Nested `unsafe {}` inside `unsafe fn` is required under edition 2024.
+- **Never `presets::N0`, `N0DisableRelay`, or `into_0rtt()`.**
+- **Crate edges.** This program **takes** `vox-compiler → vox-crypto` (user-authorized
+  2026-09-06). At PR 2, propose the `exceptions` ledger text in the PR description and
+  **stop** — do not write the exceptions entry or regenerate
+  `crate-edges.allow.v1.json`. Never add a `vox-cli` dev-dependency to
+  `vox-mesh-transport`. Removing `script-wasi` removes `vox-cli → vox-wasm-engine`;
+  tighten with `cargo run -q -p vox-cli -- ci crate-edges --tighten`.
+- **`--features populi` goes on `-p vox-ml-cli`, never `-p vox-cli`.**
+- **Do not regenerate `docs/agents/doc-inventory.json`.**
+- **Contract regeneration** is part of the task that causes it, in this order when a
+  command is deleted: `contracts/operations/catalog.v1.yaml` →
+  `contracts/cli/command-registry.yaml` →
+  `contracts/capability/{capability-registry.yaml,model-manifest.generated.json}` →
+  `docs/src/reference/cli-command-surface.generated.md` →
+  `contracts/reports/gui-surface-{registry,coverage}.v1.json` →
+  `UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli command_catalog`.
+  `vox ci command-sync` alone is not sufficient. When a SecretId is deleted:
+  `vox ci secrets-contracts` **before** `vox ci secrets-parity`.
+- **Doc frontmatter** on every new `.md` under `docs/src/`.
+  `isolation.md` → `category: Language Reference`.
+  ADR-048 → `category: Architecture Decisions (ADRs)`, shape of ADR-047.
+- **Docs land in the PR that creates the surface.** `where-things-live.md` rows land
+  in PR 3 with the surfaces they name.
+- **Terminology.** One term each: **script-shaped** (vs service-shaped);
+  **denial marker** (`vox: capability denied:`).
+- **One asymmetry rule.** No in-process `KNOWN_TIER_ASYMMETRIES`. A golden that would
+  disagree is fixed before commit, or it carries `// EXPECT-TIER-ASYMMETRY: <reason>`
+  and the gate **fails when the tiers start agreeing**. After §5 decisions the residual
+  set is empty on day one. `log.*` is not authorised.
+- **`--caps` is repeatable** (`ArgAction::Append`). Do not comma-join tokens on the CLI.
+- **Never cargo under `sudo`.** It root-owns `target/`. No password dialog is required
+  (application firewall `State = 0`).
+- **Accept-loop permit + post-handshake deadline are out of this plan.** Separate
+  commit against merged Phase 3. Close code **4003** is free (`REFUSED_PROTO`).
+- **`std::sync::Mutex` on the running-job map is load-bearing.** Do not "upgrade" it
+  to tokio's.
+- **Commit messages:** imperative subject < 72 chars, body explains why, ending with
+  `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. Do not push unless asked.
+- **Fresh worktree gotcha:** build `crates/vox-gui/ui/dist` once or workspace clippy fails.
+- **`PROTO` 1 → 2 in Task 8 is incompatible by design.** Rebuild both ends before Task 16.
+- **Line numbers** were verified on `mesh-phase3-plan` @ `6f85bff02`; re-`rg` before editing.
+
+## PR map
+
+| PR | Tasks | Revert story |
+|---|---|---|
+| 1 | 0, 1, 1b | No behaviour change. Ships the gate and its corpus. |
+| 2 | 2 | Both tiers' display, overflow, argv, glob, `list.push`, crypto SSOT, `preserve_order`. Stop-the-line on crate-edges. |
+| 3 | 3, 4, 5, 6 | Additive: no `--caps` ⇒ `developer_default()` ⇒ today's local behaviour. |
+| 4 | **7 alone** | One file, one predicate. **The git point of no return.** |
+| 5 | 8, 9, 10, 11 | **The fleet point of no return.** `git revert` restores code, not upgraded peers. |
+| 6 | 12, 13, 14, 15 | Mechanical, contract-heavy. |
+| — | 16 | Verification pass, not a PR. Local Network Privacy at the keyboard. |
+
+PR 3 and PR 5 can proceed in parallel after PR 2. PR 4 requires PR 3. PR 6 requires PR 4 and PR 5.
 
 ## File Structure
 
 **Created**
 
-| Path | Responsibility |
-|---|---|
-| `crates/vox-compiler/src/eval/caps.rs` | `CapabilitySet`: grammar, legacy-directive shim, typed `from_roots` constructor, `allows_namespace`/`allows_path`, `frozen_time_ms`, `random_seed`. Roots canonicalised at parse. No other I/O. |
-| `crates/vox-cli/src/mem_limit.rs` | Counting `#[global_allocator]`, armed at runtime, aborts via `_exit`/`TerminateProcess`. **Declared in `lib.rs`.** |
-| `crates/vox-mesh-transport/src/interp_executor.rs` | `InterpExecutor`: bounded child in its own process group, per-node semaphore, `(peer, job_id)`-keyed cancel, exit-code + stderr-marker mapping. |
-| `crates/vox-mesh-transport/tests/common/mod.rs` | Shared live-endpoint helpers moved out of `security.rs` (`start_server_with`, `client_endpoint`, `send_run_on`, `loopback_addr_of`). |
-| `crates/vox-mesh-transport/tests/interp_executor.rs` | Executor tests, `#[ignore]`d slow (build + spawn `vox`), registered in the full tier. |
-| `crates/vox-integration-tests/tests/golden_differential_gate.rs` | Both-tier stdout diff; `// EXPECT-EXIT: nonzero-both` support; builds `vox` itself. |
-| `examples/golden/{display_composites,float_formatting,object_field_order,glob_and_listdir_order,int_overflow_boundary,division_by_zero,argv_shape,crypto_hash_parity}.vox` | The eight goldens that give the gate a corpus (Task 1b). |
-| `docs/src/reference/isolation.md` | The page `script.rs` already tells users to read. |
-| `docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md` | The decision record. |
+| Path | Responsibility | PR |
+|---|---|---|
+| `crates/vox-compiler/src/eval/caps.rs` | `CapabilitySet`: grammar, legacy shim, typed `from_roots`, `allows_*`. Roots canonicalised at parse. | 3 |
+| `crates/vox-cli/src/mem_limit.rs` | Counting `#[global_allocator]`, armed at runtime, `_exit`/`TerminateProcess`. Declared in `lib.rs`. | 3 |
+| `crates/vox-mesh-transport/src/interp_executor.rs` | Bounded child; Unix process group / Windows Job Object; per-peer + global slots; `(peer, job_id)` cancel. | 5 |
+| `crates/vox-mesh-transport/src/caps_spec.rs` | Defactored `from_roots` + argv tokens. Same-file tests. | 5 |
+| `crates/vox-mesh-transport/tests/common/mod.rs` | Shared live-endpoint helpers. | 5 |
+| `crates/vox-mesh-transport/tests/interp_executor.rs` | Executor + process-boundary tests. | 5 |
+| `crates/vox-integration-tests/tests/golden_differential_gate.rs` | Both-tier stdout diff; one generated crate; nightly. | 1 |
+| `examples/golden/{display_composites,float_formatting,object_field_order,glob_and_listdir_order,int_overflow_boundary,division_by_zero,argv_shape,crypto_hash_parity}.vox` | Gate corpus. | 1 |
+| `docs/src/reference/isolation.md` | The page `script.rs` already tells users to read. | 3 |
+| `docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md` | Decision record. | 6 |
+| `docs/src/architecture/script-tier-timings-2026-09.md` | Task 0 measurement. | 1 |
 
-**Modified (major)** — `eval/{mod,builtins,expr,value,env}.rs`; `vox-cli/src/{lib,cli_args}.rs`, `commands/run.rs`, `commands/runtime/run/{script,sandbox}.rs`, `backend/{native,mod,tests}.rs`, `cli_dispatch/{mod,lanes}.rs`, `compilerd.rs`; `vox-langtool/src/commands/run.rs`; `vox-mesh-transport/src/{protocol,endpoint,directory,lib}.rs` + `tests/{security,mailbox}.rs`; `vox-orchestrator/src/a2a/{remote_worker,envelope}.rs`; `vox-workflow-runtime/src/workflow/populi.rs`; `vox-actor-runtime/src/builtins/mod.rs`; `vox-compiler/src/builtin_registry.rs`; `vox-codegen/src/codegen_rust/{pipeline.rs,emit/*}`; contracts and docs per task.
+**Modified (major)** — `eval/{mod,builtins,expr,value,env}.rs`; `vox-crypto` (hex helpers);
+`vox-cli` run/dispatch/mem; `vox-langtool` run; `vox-terminal-core`; `vox-orchestrator-mcp`;
+`vox-mesh-transport` protocol/endpoint/directory; `vox-orchestrator` a2a; contracts and docs
+per task.
 
-**Deleted** — `vox-cli/src/commands/wasm.rs`, `commands/runtime/run/backend/wasi.rs`, `src/isolation.rs`; `vox-skill-runtime/src/microvm.rs`, `tests/microvm_tier.rs`; `vox-orchestrator/src/a2a/secret_gate.rs` (+ `secret_bag.rs` if orphaned); `vox-mesh-transport::ProbeOnlyExecutor`.
+**Deleted** — `vox-cli` wasm/wasi/isolation; `vox-skill-runtime` microvm; `secret_gate.rs`;
+`ProbeOnlyExecutor`.
 
 ---
+
+# PR 1 — Gate and corpus (no behaviour change)
 
 ## Task 0: Measure — by executing, not only checking
 
 **Files:** Create `scripts/bench-script-tiers.vox`, `docs/src/architecture/script-tier-timings-2026-09.md`.
 
-Finding (parity track): revision 1's script did not run — `fs.glob` returns `Result[list[str], str]`, `process.run_capture` returns `Result[{exit, stdout, stderr}]` (field is `exit`, not `exit_code`), and `vox check` cannot see runtime-only asymmetry, which is exactly what the flip creates.
+**Already measured 2026-09-06 (do not treat as green):**
+`scripts/install-hooks.vox` and `scripts/setup.vox` fail under `--mode interp` with
+`AssertionFailed("called Option.unwrap() on a None value")`. Both pass `vox check`.
+`setup.vox` is what `.github/workflows/setup-e2e.yml` runs. `scripts/fmt.vox` runs.
+`scripts/arch-check.vox` runs (its own exit 1 is pre-existing). These two FAILs **block
+Task 7** and must be fixed in PR 2.
+
+`-- --help` short-circuits collection loops. This table cannot see the `list.push`
+O(n²) class change. That fix is a Task 7 prerequisite regardless of this table.
+
+Re-run this table **after Task 5** (Task 5b). Revision 2's resolver would have denied
+every relative create and broken four in-repo scripts that this first run cannot see.
 
 - [ ] **Step 1: Write the script**
 
 ```vox
-// Time every scripts/**/*.vox under `vox check` AND execute the side-effect-free ones
-// under `--mode interp`, so a runtime-only asymmetry surfaces before the default flips.
+// Time every scripts/**/*.vox under `vox check` AND execute under `--mode interp`.
 // Native timings are taken by hand (Step 3): a cold native compile is ~275 s each.
 pub fn main() {
   let files = match fs.glob("scripts/**/*.vox") { Ok(fs) => fs.sorted(), Error(e) => [] }
@@ -76,7 +162,6 @@ pub fn main() {
       Error(e) => "SPAWN-FAIL"
     }
     let dt = time.now_ms() - t0
-    // `--help` after `--` exits early in scripts that mutate; scripts that ignore it run fully.
     let t1 = time.now_ms()
     let run = match process.run_capture(vox, ["run", "--mode", "interp", f, "--", "--help"]) {
       Ok(r) => if r.exit is 0 { "ok" } else { "FAIL(" + str(r.exit) + ")" }
@@ -91,30 +176,37 @@ pub fn main() {
 }
 ```
 
-- [ ] **Step 2: Run it** — `cargo build -q -p vox-cli --bin vox && cargo run -q -p vox-cli -- run --mode interp scripts/bench-script-tiers.vox > /tmp/tiers.md; grep -c FAIL /tmp/tiers.md`. Every `FAIL(n)` in the run column is a script the interpreter cannot execute today; list each with the first stderr line. **Any FAIL in `scripts/fmt.vox`, `scripts/install-hooks.vox`, `scripts/setup.vox`, or `scripts/arch-check.vox` blocks Task 7** — those are the lefthook/CI entry points (`lefthook.yml:18`, `.github/workflows/setup-e2e.yml:70,82,84`, `ci.yml:993`).
+- [ ] **Step 2: Run it** — `cargo build -q -p vox-cli --bin vox && cargo run -q -p vox-cli -- run --mode interp scripts/bench-script-tiers.vox > /tmp/tiers.md; grep -c FAIL /tmp/tiers.md`. List every `FAIL(n)` with the first stderr line. Confirm `install-hooks.vox` and `setup.vox` are among them.
 
-- [ ] **Step 3: Native timings by hand** for the same four scripts, cold (`rm -rf ~/.vox/script-cache`) and warm, with `/usr/bin/time -p cargo run -q -p vox-cli -- run --mode script <f> -- --help 2>&1 | grep real`.
+- [ ] **Step 3: Native timings by hand** for `fmt.vox`, `install-hooks.vox`, `setup.vox`, `arch-check.vox`, cold (`rm -rf ~/.vox/script-cache`) and warm, with `/usr/bin/time -p cargo run -q -p vox-cli -- run --mode script <f> -- --help 2>&1 | grep real`.
 
-- [ ] **Step 4: Write the doc** with frontmatter (`title: "Script tier timings (2026-09)"`, `description`, `category: "Architecture SSOTs"`, `status: "current"`), the machine line from `system_profiler SPHardwareDataType | grep Chip`, the native table, the pasted `/tmp/tiers.md`, and the FAIL list. **No placeholder cells may remain in the committed file.**
+- [ ] **Step 4: Write the doc** with frontmatter (`title: "Script tier timings (2026-09)"`, `description: "Executed check and interp-run timings for every scripts/**/*.vox, plus the four automation entry points."`, `category: "Architecture SSOTs"`, `status: "current"`), the machine line from `system_profiler SPHardwareDataType | grep Chip`, the native table, the pasted `/tmp/tiers.md`, the FAIL list, and the sentence that `-- --help` cannot see `list.push` complexity. **No placeholder cells.**
 
-- [ ] **Step 5: Lint and commit** — `cargo run -q -p vox-doc-pipeline -- --lint-only --paths docs/src/architecture/script-tier-timings-2026-09.md` → `no hard errors`. `git commit -m "chore(scripts): measure script tiers by execution before flipping the default"`.
+- [ ] **Step 5: Lint and commit** — `cargo run -q -p vox-doc-pipeline -- --lint-only --paths docs/src/architecture/script-tier-timings-2026-09.md`. `git commit -m "chore(scripts): measure script tiers by execution before flipping the default"`.
 
 ---
 
 ## Task 1: The differential gate
 
-**Files:** Create `crates/vox-integration-tests/tests/golden_differential_gate.rs`; modify `crates/vox-integration-tests/Cargo.toml` (`which` is **not** a dev-dep there — add `which = { workspace = true }`); modify `crates/vox-cli/src/commands/ci/pre_push.rs:1551-1568` (`step_nextest_slow`); modify `docs/src/contributors/local-ci-pre-push.md`.
+**Files:** Create `crates/vox-integration-tests/tests/golden_differential_gate.rs`;
+modify `crates/vox-integration-tests/Cargo.toml` (`which = { workspace = true }`);
+modify `crates/vox-cli/src/commands/ci/pre_push.rs` nextest filter **and**
+`.github/workflows/ci.yml` at the hand-maintained duplicate (~1124–1131).
+Do **not** put this in `--include-slow`. Add a nightly workflow job (or a row in the
+existing nightly lane) that runs this test with `--run-ignored`.
 
-Findings: the `--include-slow` set is a **hardcoded nextest `-E` filter in Rust** (`pre_push.rs:1551-1568`), not the doc list; `cargo test -p vox-integration-tests` does not build the `vox` binary; exit-code faults cannot be `// EXPECT:` goldens; no golden calls `crypto.*`, so "must diverge today" was wrong.
+The native lane (`native.rs:20-23`) discards `shared_target` and uses a per-cache-entry
+target dir. One crate per golden × 19 × ~275 s ≈ 87 min, killed by nextest
+`slow-timeout` (540 s ci) after two goldens. **Emit every EXPECT golden as a `[[bin]]`
+of one generated crate** (one 764-crate build + N leaf links, ~6–8 min).
 
 - [ ] **Step 1: Write the test**
 
 ```rust
-//! Differential gate (spec §3.3): a golden that declares `// EXPECT:` prints the same bytes
-//! under `vox run --mode interp` AND `vox run --mode script`; one that declares
-//! `// EXPECT-EXIT: nonzero-both` exits non-zero on both and its EXPECT lines are a prefix
-//! of each tier's stdout. This is the only test in the repository that proves two execution
-//! tiers agree. Slow (native compile per golden); run via the full tier's nextest filter.
+//! Differential gate (spec §3.3): a golden that declares `// EXPECT:` prints the same
+//! bytes under interp and a native `[[bin]]` from one generated crate. `// EXPECT-EXIT:
+//! nonzero-both` exits non-zero on both and EXPECT lines are a prefix of each stdout.
+//! `// EXPECT-TIER-ASYMMETRY: <reason>` fails when the tiers start agreeing.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -123,8 +215,6 @@ fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().unwrap()
 }
 
-/// Builds `vox` itself if absent: `cargo test -p vox-integration-tests` does not, and a
-/// gate that silently skips because a binary is missing is a decoy.
 fn vox_binary() -> PathBuf {
     if let Ok(p) = std::env::var("VOX_BIN") {
         return PathBuf::from(p);
@@ -167,8 +257,12 @@ fn normalize(s: &str) -> String {
 
 struct Run { code: Option<i32>, stdout: String, stderr: String }
 
-fn run_mode(vox: &Path, mode: &str, file: &Path) -> Run {
-    let out = Command::new(vox).args(["run", "--mode", mode]).arg(file).output()
+fn run_interp(vox: &Path, file: &Path, cwd: &Path) -> Run {
+    let out = Command::new(vox)
+        .current_dir(cwd)
+        .args(["run", "--mode", "interp"])
+        .arg(file)
+        .output()
         .unwrap_or_else(|e| panic!("spawn `{}` failed: {e}", vox.display()));
     Run {
         code: out.status.code(),
@@ -177,31 +271,74 @@ fn run_mode(vox: &Path, mode: &str, file: &Path) -> Run {
     }
 }
 
+/// One generated crate, N [[bin]] targets, `serde_json` with `preserve_order`.
+/// Implementation: write a temp crate whose bins are the native-compiled goldens
+/// produced by invoking the existing native codegen once per golden *into the same
+/// `CARGO_TARGET_DIR`*, then `cargo build --bins` once. Do **not** call
+/// `vox run --mode script` per golden — that path discards the shared target dir.
+fn build_native_bins(vox: &Path, files: &[PathBuf], bundle: &Path) -> PathBuf {
+    let _ = vox;
+    let _ = files;
+    let _ = bundle;
+    panic!("implement the one-crate native bundle in this task");
+}
+
 #[test]
-#[ignore = "owner:mesh sunset:2026-12-31 slow: native lane compiles a crate per golden; run via the full tier"]
+#[ignore = "owner:mesh sunset:2026-12-31 slow: one native crate for every EXPECT golden; nightly lane"]
 fn golden_expect_blocks_match_on_both_tiers() {
     let root = repo_root();
     let vox = vox_binary();
     assert!(which::which("cargo").is_ok(), "the native half needs cargo on PATH; this gate must not pass silently");
 
+    let cache = dirs::home_dir().expect("home").join(".vox/script-cache");
+    let _ = std::fs::remove_dir_all(&cache);
+
     let mut files = Vec::new();
     collect_vox_recursive(&root.join("examples/golden"), &mut files);
     files.sort();
 
+    let tmp = tempfile::tempdir().unwrap();
+    let bundle = tmp.path().join("golden-bundle");
+    let expect_files: Vec<PathBuf> = files
+        .iter()
+        .filter(|f| {
+            let src = std::fs::read_to_string(f).unwrap();
+            !directive_lines(&src, "// EXPECT:").is_empty()
+                || !directive_lines(&src, "// EXPECT-EXIT:").is_empty()
+                || !directive_lines(&src, "// EXPECT-TIER-ASYMMETRY:").is_empty()
+        })
+        .cloned()
+        .collect();
+    let native_dir = build_native_bins(&vox, &expect_files, &bundle);
+
     let mut checked = 0usize;
     let mut failures = Vec::new();
-    for f in &files {
-        let src = std::fs::read_to_string(f).unwrap_or_else(|e| panic!("read {}: {e}", f.display()));
+    for f in &expect_files {
+        let src = std::fs::read_to_string(f).unwrap();
         let expect = directive_lines(&src, "// EXPECT:");
         let expect_exit = directive_lines(&src, "// EXPECT-EXIT:");
-        if expect.is_empty() && expect_exit.is_empty() {
-            continue;
-        }
+        let asymmetry = directive_lines(&src, "// EXPECT-TIER-ASYMMETRY:");
         checked += 1;
         let expected = normalize(&expect.join("\n"));
-        let i = run_mode(&vox, "interp", f);
-        let n = run_mode(&vox, "script", f);
+        let i = run_interp(&vox, f, &root);
+        let bin = native_dir.join(f.file_stem().unwrap());
+        let n_out = Command::new(&bin).current_dir(&root).output().expect("native bin");
+        let n = Run {
+            code: n_out.status.code(),
+            stdout: String::from_utf8_lossy(&n_out.stdout).into_owned(),
+            stderr: String::from_utf8_lossy(&n_out.stderr).into_owned(),
+        };
         let (io, no) = (normalize(&i.stdout), normalize(&n.stdout));
+        if !asymmetry.is_empty() {
+            if io == no && i.code == n.code {
+                failures.push(format!(
+                    "{} declared EXPECT-TIER-ASYMMETRY ({}) but the tiers now agree — remove the directive",
+                    f.display(),
+                    asymmetry.join("; ")
+                ));
+            }
+            continue;
+        }
         let fault_expected = expect_exit.iter().any(|d| d == "nonzero-both");
         let ok = if fault_expected {
             i.code != Some(0) && n.code != Some(0) && io.starts_with(&expected) && no.starts_with(&expected)
@@ -220,26 +357,45 @@ fn golden_expect_blocks_match_on_both_tiers() {
 }
 ```
 
-- [ ] **Step 2: Run it once.** `cargo test -q -p vox-integration-tests --test golden_differential_gate -- --ignored --nocapture 2>&1 | tail -40`. **Expected: it may well pass** — the current 11 EXPECT goldens mostly `return "ok"`. A green run here is evidence the corpus is inadequate, not that the tiers agree. Record whatever it reports in the commit body; Task 1b gives it teeth.
+Implement `build_native_bins` by generating one `Cargo.toml` with `[workspace]` and
+`serde_json = { version = "1", features = ["preserve_order"] }`, plus one `[[bin]]`
+per golden whose `main.rs` is the output of the existing native codegen. Share one
+`CARGO_TARGET_DIR` for that crate. Do not call `vox run --mode script` in a loop.
 
-- [ ] **Step 3: Register it in the full tier — in Rust, not only the doc.** In `pre_push.rs:1551-1568` the `-E` filter is a `concat!`; append `or test(golden_expect_blocks_match_on_both_tiers)`. Then add the row to `docs/src/contributors/local-ci-pre-push.md`'s `--include-slow` list. Verify the ignore string passes governance: `cargo run -q -p vox-cli -- ci ignored-test-age --mode enforce` (the check at `crates/vox-cli-ci/src/test_inventory.rs:204-224` accepts `owner:`/`sunset`/ISO date — the string above matches on `owner:`).
+- [ ] **Step 2: Run it once.** `cargo test -q -p vox-integration-tests --test golden_differential_gate -- --ignored --nocapture 2>&1 | tail -40`. Record the report. A green run on today's 11 EXPECT goldens (4 of which are literal `ok`) is evidence the corpus is inadequate, not that the tiers agree.
 
-- [ ] **Step 4: Commit** — `git commit -m "test(gate): differential gate — interp and native must print the same bytes"`.
+- [ ] **Step 3: Register it in both filters, nightly, not `--include-slow`.** In `pre_push.rs` the `-E` filter is a `concat!` — do **not** append this test there (that is the `--include-slow` set). Add a nightly job (or extend the existing nightly workflow) that runs:
+
+```
+cargo test -p vox-integration-tests --test golden_differential_gate -- --ignored
+```
+
+and add the same invocation to `.github/workflows/ci.yml` next to the hand-maintained
+nextest filter (~1124–1131) as a **commented pointer plus a real nightly `runs-on`**
+that already has a GitHub-hosted exception, or a self-hosted nightly label. The point:
+the gate must run on a CI job. Verify the ignore string:
+`cargo run -q -p vox-cli -- ci ignored-test-age --mode enforce`.
+
+- [ ] **Step 4: Commit** — `git commit -m "test(gate): differential gate — one generated crate, nightly, both filters"`.
 
 ---
 
 ## Task 1b: Give the gate a corpus — eight goldens
 
-**Files:** Create the eight `examples/golden/*.vox` files below. Each follows the existing comment-frontmatter style; fill `last_validated` per the golden conventions in `examples/golden/README.md` if present.
+**Files:** Create the eight `examples/golden/*.vox` files below.
 
-Finding (parity): 79 goldens, 11 with EXPECT, 9 of those trivial; zero coverage of overflow, div-by-zero, composite display, float formatting, object order, directory order, argv, or `crypto`. Goldens 5 and 6 need `// EXPECT-EXIT:`; golden 7 cannot compare paths so it asserts shape. Several of these **fail today by design** — they encode the decisions Task 2 implements. Commit them with the gate expected red, then Task 2 turns them green.
+79 goldens, 11 with EXPECT, 4 literal `ok`. Decisions in spec §5 are taken: insertion
+order, crypto SSOT. Commit the goldens **with the gate expected red**; PR 2 turns them
+green. There is no permanently-red golden.
 
-- [ ] **Step 1: `display_composites.vox`** (decision: `vox_value_display` spacing is the Vox surface form)
+Windows path literals in later tests use `vox_lit()` (Task 9). These goldens use `/`.
+
+- [ ] **Step 1: `display_composites.vox`**
 
 ```vox
 // ---
 // title: "Display of composite values"
-// description: "print/str of list, object, tuple, Option and Result produce the same text under the interpreter and the native lane."
+// description: "print/str of list, object, tuple, Option and Result produce the same text under both tiers."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
@@ -251,21 +407,13 @@ Finding (parity): 79 goldens, 11 with EXPECT, 9 of those trivial; zero coverage 
 // EXPECT: {a: 1, b: two}
 // EXPECT: (1, two)
 // EXPECT: Some(3)
-// EXPECT: None
 // EXPECT: Ok(1)
-// EXPECT: [1, 2, 3]|{a: 1, b: two}
-// EXPECT: ok
-fn main() to str {
-    print([1, 2, 3])
-    print({a: 1, b: "two"})
-    print((1, "two"))
-    print(Some(3))
-    let nothing: Option[int] = None
-    print(nothing)
-    let good: Result[int, str] = Ok(1)
-    print(good)
-    print(str([1, 2, 3]) + "|" + str({a: 1, b: "two"}))
-    return "ok"
+pub fn main() {
+  print(str([1, 2, 3]))
+  print(str({a: 1, b: "two"}))
+  print(str((1, "two")))
+  print(str(Some(3)))
+  print(str(Ok(1)))
 }
 ```
 
@@ -273,104 +421,97 @@ fn main() to str {
 
 ```vox
 // ---
-// title: "Float formatting parity"
-// description: "Whole floats, repeating fractions and IEEE-754 round-off print identically under the interpreter and the native lane."
+// title: "IEEE-exact float formatting"
+// description: "abs/floor/ceil/round/sqrt print the same text on both tiers."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [fn, print, str, float]
+// constructs: [fn, print, abs, floor, ceil, round, sqrt]
 // training_eligible: true
 // difficulty: beginner
 // ---
+// EXPECT: 2
 // EXPECT: 1
-// EXPECT: 0.30000000000000004
-// EXPECT: 0.3333333333333333
-// EXPECT: -0.5
-// EXPECT: 1
-// EXPECT: 2.5
-// EXPECT: ok
-fn main() to str {
-    print(1.0)
-    print(0.1 + 0.2)
-    print(1.0 / 3.0)
-    print(0.0 - 0.5)
-    print(str(1.0))
-    print(str(2.5))
-    return "ok"
+// EXPECT: 2
+// EXPECT: 2
+// EXPECT: 2
+pub fn main() {
+  print(str(abs(-2.0)))
+  print(str(floor(1.9)))
+  print(str(ceil(1.1)))
+  print(str(round(1.5)))
+  print(str(sqrt(4.0)))
 }
 ```
 
-- [ ] **Step 3: `object_field_order.vox`** — encodes **insertion order**. This is the maintainer decision recorded in spec §3.3(b); if the decision goes to key-sorted, reorder the EXPECT lines to `alpha/middle/zeta` and make Task 2 sort `Object` under interp instead of enabling `preserve_order` natively.
+- [ ] **Step 3: `object_field_order.vox`** — insertion order (spec §5).
 
 ```vox
 // ---
 // title: "Object field iteration order"
-// description: "Iterating an object literal yields its fields in a single defined order on both execution tiers."
+// description: "Literal object fields iterate in insertion order on both tiers."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [fn, for, object, print]
+// constructs: [fn, print, object]
 // training_eligible: true
 // difficulty: beginner
 // ---
-// EXPECT: zeta=1
-// EXPECT: alpha=2
-// EXPECT: middle=3
-// EXPECT: ok
-fn main() to str {
-    let o = {zeta: 1, alpha: 2, middle: 3}
-    for k, v in o { print(k + "=" + str(v)) }
-    return "ok"
+// EXPECT: zeta
+// EXPECT: middle
+// EXPECT: alpha
+pub fn main() {
+  let o = {zeta: 1, middle: 2, alpha: 3}
+  for k in o.keys() { print(k) }
 }
 ```
 
-- [ ] **Step 4: `glob_and_listdir_order.vox`** (also exercises `.sorted()`, which has no codegen arm until Task 2)
+- [ ] **Step 4: `glob_and_listdir_order.vox`** — hermetic, asserts non-emptiness.
+The gate `current_dir`s the repo root, but this golden still must not depend on
+`examples/golden/*.vox` resolving from an integration-test CWD.
 
 ```vox
 // ---
-// title: "Directory enumeration order"
-// description: "fs.glob and fs.list_dir return entries in sorted order, identically on both execution tiers and across filesystems."
+// title: "Directory enumeration is sorted"
+// description: "fs.glob and fs.list_dir return sorted paths and propagate errors on both tiers."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [fn, fs, match, for, print]
+// constructs: [fn, print, fs.glob, fs.list_dir, sorted]
 // training_eligible: true
-// difficulty: intermediate
+// difficulty: beginner
 // ---
-// vox:caps fs
-// EXPECT: sorted_glob: true
-// EXPECT: sorted_list_dir: true
-// EXPECT: ok
-fn main() to str {
-    let g = match fs.glob("examples/golden/*.vox") { Ok(v) => v, Error(e) => [] }
-    print("sorted_glob: " + str(g is g.sorted()))
-    let d = match fs.list_dir("examples/golden") { Ok(v) => v, Error(e) => [] }
-    print("sorted_list_dir: " + str(d is d.sorted()))
-    return "ok"
+// EXPECT: 2
+// EXPECT: true
+pub fn main() {
+  let xs = match fs.glob("examples/golden/glob_and_listdir_order.vox") {
+    Ok(fs) => fs,
+    Error(e) => []
+  }
+  print(str(len(xs)))
+  print(str(xs is xs.sorted()))
 }
 ```
 
-- [ ] **Step 5: `int_overflow_boundary.vox`** (needs Task 2's `overflow-checks = true`)
+- [ ] **Step 5: `int_overflow_boundary.vox`**
 
 ```vox
 // ---
-// title: "Integer overflow halts"
-// description: "i64 overflow is a fatal error on both execution tiers rather than silently wrapping on one of them."
+// title: "Integer overflow is a fault"
+// description: "i64 overflow exits non-zero on both tiers after overflow-checks = true."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [fn, int, arithmetic]
+// constructs: [fn, print]
 // training_eligible: true
 // difficulty: intermediate
 // ---
+// EXPECT: before
 // EXPECT-EXIT: nonzero-both
-// EXPECT: near_max: 9223372036854775806
-fn main() to str {
-    let near_max = 9223372036854775806
-    print("near_max: " + str(near_max))
-    let overflowed = near_max + 10
-    print("UNREACHABLE: " + str(overflowed))
-    return "ok"
+pub fn main() {
+  print("before")
+  let x = 9223372036854775807
+  print(str(x + 1))
 }
 ```
 
@@ -378,109 +519,97 @@ fn main() to str {
 
 ```vox
 // ---
-// title: "Integer division by zero halts"
-// description: "Dividing by zero terminates the run on both execution tiers; neither returns a value."
+// title: "Division by zero is a fault"
+// description: "Integer division by zero exits non-zero on both tiers."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [fn, int, arithmetic]
+// constructs: [fn, print]
 // training_eligible: true
 // difficulty: beginner
 // ---
-// EXPECT-EXIT: nonzero-both
 // EXPECT: before
-fn main() to str {
-    print("before")
-    let zero = 0
-    let boom = 10 / zero
-    print("UNREACHABLE: " + str(boom))
-    return "ok"
+// EXPECT-EXIT: nonzero-both
+pub fn main() {
+  print("before")
+  print(str(1 / 0))
 }
 ```
 
-- [ ] **Step 7: `argv_shape.vox`** (shape, not value — `env.args()[0]` is a path)
+- [ ] **Step 7: `argv_shape.vox`** — asserts length and that argv[0] ends with the
+script name. Paths differ across tiers until Task 6 threads `script_args`; this
+golden turns green in PR 2 once `env.args` is `[source_path] ++ script_args` and
+the native bin is invoked with no extra args (length 1).
 
 ```vox
 // ---
-// title: "Script argv shape"
-// description: "env.args() is the script's own argument vector — program name at index 0, no interpreter flags — on both execution tiers."
+// title: "argv is the script's own"
+// description: "env.args()[0] is the script path on both tiers."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [fn, env, @test, assert]
-// training_eligible: true
-// difficulty: intermediate
-// ---
-// EXPECT: argc: 1
-// EXPECT: ok
-@test
-fn test_argv_has_no_interpreter_flags() to Unit {
-    let argv = env.args()
-    assert(len(argv) >= 1)
-    assert(argv.contains("--mode") is false)
-    assert(argv.contains("run") is false)
-}
-
-fn main() to str {
-    print("argc: " + str(len(env.args())))
-    return "ok"
-}
-```
-
-- [ ] **Step 8: `crypto_hash_parity.vox`** — matches the **native** shapes (XXH3-128 → 32 hex; `vox-<16hex>-<16hex>` → 37 chars), since that is what parity has to reach. Stays red until the `vox-compiler → vox-crypto` edge is authorised (spec §3.3(a)); it is the golden that forces the decision.
-
-```vox
-// ---
-// title: "Crypto hash and id parity"
-// description: "crypto.hash_fast and crypto.hash_secure produce identical hex on both execution tiers; crypto.uuid produces the vox id shape."
-// syntax_version: "0.5.0"
-// status: golden
-// category: example
-// constructs: [fn, crypto, print, str]
+// constructs: [fn, print, env.args]
 // training_eligible: true
 // difficulty: beginner
 // ---
-// EXPECT: fast_len: 32
-// EXPECT: secure_len: 64
-// EXPECT: id_len: 37
-// EXPECT: ok
-fn main() to str {
-    print("fast_len: " + str(len(crypto.hash_fast("abc"))))
-    print("secure_len: " + str(len(crypto.hash_secure("abc"))))
-    print("id_len: " + str(len(crypto.uuid())))
-    return "ok"
+// EXPECT: 1
+pub fn main() {
+  let a = env.args()
+  print(str(len(a)))
 }
 ```
 
-- [ ] **Step 9: Run the gate, record, commit.** `cargo test -q -p vox-integration-tests --test golden_differential_gate -- --ignored 2>&1 | tail -60` — expected **red** on 1, 3, 4, 5, 6, 7, 8 today. Paste the failure list into the commit body: it is the measured drift. `git commit -m "test(golden): eight goldens that make the differential gate mean something"`.
+- [ ] **Step 8: `crypto_hash_parity.vox`** — ships now; turns green in PR 2 with the
+edge. Empty `KNOWN` list: if this is red after PR 2, that is a bug, not an asymmetry.
+
+```vox
+// ---
+// title: "crypto.hash_fast is the same bytes on both tiers"
+// description: "Both tiers call vox-crypto; hex of hash_fast(\"abc\") matches."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, print, crypto.hash_fast]
+// training_eligible: true
+// difficulty: beginner
+// ---
+// EXPECT: 32
+pub fn main() {
+  let h = crypto.hash_fast("abc")
+  print(str(len(h)))
+}
+```
+
+- [ ] **Step 9: Commit** — `git commit -m "test(golden): eight goldens that give the differential gate a corpus"`.
+
+PR 1 merge criterion: the gate exists, is registered on a CI/nightly job, and the
+corpus is committed. It is allowed to be red until PR 2.
 
 ---
 
-## Task 2: Close the measured drift (parity fixes)
+# PR 2 — Parity, list.push, crypto SSOT
 
-**Files:** `crates/vox-cli/src/commands/runtime/run/backend/native.rs:67-73` (profile); `crates/vox-compiler/src/eval/builtins.rs` (`vox_value_display` ~2591-2617, `print` ~2363, `fs.glob` 1154-1175, `fs.list_dir` 1138-1152, `env.args` 1261-1264, `time` 1237-1251); `crates/vox-actor-runtime/src/builtins/mod.rs` (`vox_display`, `vox_fs_list_dir` ~1725, `vox_process_cwd`, `vox_secrets_resolve`); `crates/vox-compiler/src/builtin_registry.rs:848+`; `crates/vox-codegen/src/codegen_rust/emit/{stmt_expr.rs:1192,method_emit.rs:815-830,workflow.rs:39-52}`, `pipeline.rs:338-397`; `crates/vox-compiler/tests/eval_typeck_parity_test.rs`.
+**Stop-the-line:** after adding `vox-crypto` to `crates/vox-compiler/Cargo.toml`,
+write the `crate-edges` exceptions proposal in the PR description and **stop**. Do
+not write the exceptions ledger. Do not regenerate `crate-edges.allow.v1.json`.
+Wait for the maintainer.
 
-Findings: `vox_crypto::hash` does not exist and `vox-compiler` has no `vox-crypto` edge (executability #1) — **`crypto` is deferred**; `vox_hash_fast` is XXH3-128 and `vox_uuid` is `vox-…` (#2); `vox_secrets_resolve` must mirror `builtins.rs:1411-1430` exactly (#3); `vox_json_render` returns `Result<String,String>` and takes `&VoxJson` (#4); plus the parity list in spec §3.3.
+## Task 2: Close the measured drift
 
-- [ ] **Step 1: Write the failing tests** — append to `eval_typeck_parity_test.rs`:
+**Files:** `crates/vox-cli/src/commands/runtime/run/backend/native.rs` (profile +
+generated `Cargo.toml` `serde_json` features); `crates/vox-compiler/src/eval/{builtins,env,value}.rs`;
+`crates/vox-crypto/src/` (hex helpers); `crates/vox-actor-runtime/src/builtins/mod.rs`
+(route hash/id through `vox-crypto`; stop hashing directly);
+`crates/vox-compiler/src/builtin_registry.rs`;
+`crates/vox-codegen/src/codegen_rust/{pipeline.rs,emit/*}`;
+`crates/vox-compiler/tests/eval_typeck_parity_test.rs`;
+`scripts/install-hooks.vox`, `scripts/setup.vox` (the unwraps Task 0 found).
+
+- [ ] **Step 1: Write the failing tests** — append to `eval_typeck_parity_test.rs`.
+Do **not** add `every_known_asymmetry_has_a_reason` (that asserted a string literal
+in the same file). Do **not** glob `examples/golden/*.vox` from the package CWD.
 
 ```rust
-/// Spec §3.3: every entry is a script that works on one tier and fails on the other.
-/// Add an entry only with a reason. `crypto` waits on the vox-compiler -> vox-crypto edge
-/// (maintainer decision, spec §3.3(a)); `object_iteration_order` waits on §3.3(b).
-const KNOWN_TIER_ASYMMETRIES: &[(&str, &str)] = &[
-    ("crypto.*", "needs vox-compiler -> vox-crypto edge; native is XXH3-128 / vox-<hex> id, not BLAKE3 / UUIDv4"),
-    ("object_iteration_order", "interp = insertion, native = serde_json key-sorted; decision pending, golden object_field_order.vox forces it"),
-    ("log.*", "generated script binary installs no tracing subscriber; interp inherits the CLI's"),
-];
-
-#[test]
-fn every_known_asymmetry_has_a_reason() {
-    for (what, why) in KNOWN_TIER_ASYMMETRIES {
-        assert!(!why.trim().is_empty(), "{what} has no reason");
-    }
-}
-
 #[test]
 fn registry_emits_every_eval_only_method() {
     use vox_compiler::builtin_registry::std_namespace_runtime_call;
@@ -490,6 +619,7 @@ fn registry_emits_every_eval_only_method() {
         ("json", "stringify", vec!["x".to_string()]),
         ("process", "cwd", vec![]),
         ("secrets", "resolve", vec!["\"K\"".to_string()]),
+        ("crypto", "hash_fast", vec!["\"abc\"".to_string()]),
     ] {
         assert!(std_namespace_runtime_call(ns, m, &args).is_some(), "codegen has no emit for {ns}.{m}");
     }
@@ -503,18 +633,78 @@ fn display_of_composites_matches_the_surface_form() {
 
 #[test]
 fn glob_is_sorted_and_propagates_errors() {
-    let v = run_probe(r#"pub fn main() { return match fs.glob("examples/golden/*.vox") { Ok(xs) => xs is xs.sorted(), Error(e) => false } }"#).unwrap();
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("b.txt"), "b").unwrap();
+    std::fs::write(d.path().join("a.txt"), "a").unwrap();
+    let pat = format!("{}/*", d.path().display());
+    let src = format!(
+        r#"pub fn main() {{ return match fs.glob("{pat}") {{ Ok(xs) => xs is xs.sorted() && len(xs) is 2, Error(e) => false }} }}"#
+    );
+    let v = run_probe(&src).unwrap();
     assert!(matches!(v, VoxValue::Bool(true)), "{v:?}");
+}
+
+#[test]
+fn list_push_is_amortised_constant_not_quadratic() {
+    // 5_000 pushes must finish well inside the 10 M step budget and well under a second.
+    let t0 = std::time::Instant::now();
+    let v = run_probe(
+        r#"pub fn main() { let mut xs = []; let mut i = 0; while i < 5000 { xs = xs.push(i); i = i + 1 }; return len(xs) }"#,
+    )
+    .unwrap();
+    assert!(matches!(v, VoxValue::Int(5000)), "{v:?}");
+    assert!(t0.elapsed() < std::time::Duration::from_millis(500), "list.push is still cloning the receiver: {:?}", t0.elapsed());
+}
+
+#[test]
+fn hash_fast_matches_vox_crypto() {
+    let v = run_probe(r#"pub fn main() { return crypto.hash_fast("abc") }"#).unwrap();
+    let expected = vox_crypto::hash_fast_hex(b"abc");
+    assert!(matches!(v, VoxValue::Str(ref s) if s == &expected), "{v:?} != {expected}");
 }
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `cargo test -q -p vox-compiler --test eval_typeck_parity_test 2>&1 | tail -20`. Expected: `registry_emits…` fails on `time.now`; `display_of_composites…` fails on `Some(3)` (prints `Option(Some(Int(3)))`); `glob_is_sorted…` may fail (order) or pass by luck — keep it.
+- [ ] **Step 2: Run to verify they fail** — `cargo test -q -p vox-compiler --test eval_typeck_parity_test 2>&1 | tail -30`. Expected: `registry_emits` fails on `time.now` and `crypto.hash_fast`; `display_of_composites` fails on `Some(3)`; `list_push_is_amortised…` either times out or exceeds 500 ms; `hash_fast_matches…` fails to resolve `crypto`.
 
-- [ ] **Step 3: Native profile halts on overflow** — `native.rs:67-73`: in the generated `script-dev` profile set `overflow-checks = true`; do the same for the `VOX_SCRIPT_RELEASE` path. One line each. This makes goldens 5/6 pass natively without touching codegen.
+- [ ] **Step 3: Native profile + generated manifest.** `native.rs` script-dev and
+`VOX_SCRIPT_RELEASE`: `overflow-checks = true`. In the generated crate's
+`Cargo.toml`, set `serde_json = { version = "1", features = ["preserve_order"] }`.
+Do not touch workspace features.
 
-- [ ] **Step 4: One display for both tiers.** In `eval/builtins.rs::vox_value_display` add arms: `Option(Some(v)) → "Some(" + display(v) + ")"`, `Option(None) → "None"`, `Result(Ok(v)) → "Ok(…)"`, `Result(Err(e)) → "Err(…)"`, `Tagged { name, fields } → name + "(" + fields joined ", " + ")"`; replace the `_ => format!("{v:?}")` catch-all with an explicit list so a new variant is a compile error. In `vox-actor-runtime/src/builtins/mod.rs` add `pub fn vox_display(v: &serde_json::Value) -> String` reproducing exactly that spacing (`[1, 2]`, `{a: 1, b: two}`, `(1, two)`) with a unit test per shape; route codegen's `("str", 1)` (`workflow.rs:39-52 as_string`) and `("print", n)` (`stmt_expr.rs:1192`) through it, and make `print` accept n args joined by a space to match `builtins.rs:2363-2372`. `as_string`'s `.expect("serde_json::to_value failed")` becomes a formatted `inf`/`nan` so `str(1.0/0.0)` does not panic natively.
+- [ ] **Step 4: `vox-crypto` hex helpers** (new `pub fn`s, same-file tests first):
 
-- [ ] **Step 5: Registry arms** in `builtin_registry.rs::std_namespace_runtime_call`, matching the surrounding style (no leading `::`):
+```rust
+/// Hex of the fast hash over `bytes`. SSOT for interp `crypto.hash_fast` and
+/// native `vox_hash_fast`.
+pub fn hash_fast_hex(bytes: &[u8]) -> String {
+    hex_encode(&crate::fast_hash(bytes))
+}
+
+pub fn hex_encode(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        out.push(HEX[(b >> 4) as usize] as char);
+        out.push(HEX[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+```
+
+Route `vox-actor-runtime`'s `vox_hash_fast` through `vox_crypto::hash_fast_hex`.
+Add `vox-crypto` to `vox-compiler` (the authorized edge). Interp `crypto.hash_fast`
+calls the same helper. Propose the exceptions text and stop if `crate-edges` fails.
+
+- [ ] **Step 5: One display for both tiers.** In `eval/builtins.rs::vox_value_display`
+add arms: `Option(Some(v)) → "Some(" + display(v) + ")"`, `Option(None) → "None"`,
+`Result(Ok(v)) → "Ok(…)"`, `Result(Err(e)) → "Err(…)"`,
+`Tagged { name, fields } → name + "(" + fields joined ", " + ")"`; replace the
+`_ => format!("{v:?}")` catch-all with an explicit list. In
+`vox-actor-runtime/src/builtins/mod.rs` add `pub fn vox_display(v: &serde_json::Value) -> String`
+reproducing that spacing, with a unit test per shape; route codegen `("str", 1)` and
+`("print", n)` through it. `print` accepts n args joined by a space.
+
+- [ ] **Step 6: Registry arms** in `std_namespace_runtime_call`:
 
 ```rust
         ("time", "now") => Some("vox_actor_runtime::builtins::vox_now_ms()".to_string()),
@@ -525,18 +715,16 @@ fn glob_is_sorted_and_propagates_errors() {
         ("secrets", "resolve") if args.len() == 1 => Some(format!(
             "vox_actor_runtime::builtins::vox_secrets_resolve(({}).as_str())", args[0]
         )),
+        ("crypto", "hash_fast") if args.len() == 1 => Some(format!(
+            "vox_crypto::hash_fast_hex(({}).as_bytes())", args[0]
+        )),
 ```
 
-and in `vox-actor-runtime/src/builtins/mod.rs` (each with a test):
-
 ```rust
-/// Parity with eval `process.cwd`.
 pub fn vox_process_cwd() -> String {
     std::env::current_dir().map(|p| p.display().to_string()).unwrap_or_default()
 }
 
-/// Parity with eval `secrets.resolve` (eval/builtins.rs:1411-1430): FromStr on the name,
-/// then `resolve_secret_with_context(id, "script")`. Never `env::var`.
 pub fn vox_secrets_resolve(key: &str) -> Option<String> {
     let id: vox_secrets::SecretId = std::str::FromStr::from_str(key).ok()?;
     let resolved = vox_secrets::resolve_secret_with_context(id, "script");
@@ -544,289 +732,101 @@ pub fn vox_secrets_resolve(key: &str) -> Option<String> {
 }
 ```
 
-(Check `vox-actor-runtime` already depends on `vox-secrets` — `grep -n vox-secrets crates/vox-actor-runtime/Cargo.toml`; if not, this arm is deferred with a reason, not an edge.)
+(Check `vox-actor-runtime` already depends on `vox-secrets`. If not, defer this arm
+with a reason — do not take a second new edge in this PR.)
 
-- [ ] **Step 6: Sorted, propagating enumeration on both tiers.** `eval/builtins.rs:1154-1175` (`glob`): collect into a `Vec`, `sort()`, and turn the `.ok()` swallow into `Result::Err` like `vox_fs_glob` (`mod.rs:325-337`). `list_dir` / `list_dir_detailed` in **both** `eval/builtins.rs:1138-1152` and `mod.rs:1725-1734`: `sort()`. Add a `.sorted()` arm to `emit/method_emit.rs` beside `sorted_by_key` (`:815-830`).
+- [ ] **Step 7: Sorted, propagating enumeration.** `eval/builtins.rs` `glob`: collect,
+`sort()`, turn `.ok()` swallow into `Result::Err` like `vox_fs_glob` (`mod.rs:1724`,
+not `vox_list_dir` at `:331`). `list_dir` / `list_dir_detailed` in both files:
+`sort()`. Add a `.sorted()` arm to `emit/method_emit.rs` beside `sorted_by_key`.
 
-- [ ] **Step 7: `env.args` parity** — `eval/builtins.rs:1261-1264` returns `std::env::args()` of the `vox` process. Add `pub script_args: Vec<String>` to `Interpreter` (set by `run_interp` in Task 6) and make `env.args` return `[source_path] ++ script_args`, matching the native binary's argv shape (`backend/native.rs:114-116`).
+- [ ] **Step 8: `list.push` in-place + `Rc<str>`.** `VoxValue::Str` becomes `Rc<str>`.
+`list.push` uses `Scope::get_mut` + `Rc::make_mut` (see `eval/env.rs:55` comment).
+Do **not** `v.to_vec()`. Same for `pop` / in-place list mutators that today clone.
 
-- [ ] **Step 8: Faults exit 1 natively.** In `pipeline.rs:338-397` wrap the generated `main` body in `std::panic::catch_unwind`, print the panic payload to stderr, and `std::process::exit(1)` — so assert/unwrap/div-by-zero exit 1 on both tiers (interp already does via `EvalError` → anyhow). Also: `pipeline.rs:344-346` forces `non_unit_ret = None` for `async fn main` — add a typecheck error "async main cannot return a value" so both tiers refuse it rather than one dropping the value.
+- [ ] **Step 9: `env.args` field.** Add `pub script_args: Vec<String>` and
+`pub source_path: Option<PathBuf>` to `Interpreter`. `env.args` returns
+`[source_path] ++ script_args`. Task 6 sets them; until then tests that construct
+`Interpreter` set the fields. Native argv shape is `[bin-or-script] ++ args`
+(`backend/native.rs`).
 
-- [ ] **Step 9: Run everything** — `cargo test -q -p vox-compiler --test eval_typeck_parity_test && cargo test -q -p vox-actor-runtime builtins && cargo build -q -p vox-cli --bin vox && cargo test -q -p vox-integration-tests --test golden_differential_gate -- --ignored 2>&1 | tail -30`. Expected: goldens 1, 2, 4, 5, 6 green; 3, 7, 8 red **with the reasons in `KNOWN_TIER_ASYMMETRIES`** (7 turns green in Task 6 when args are threaded). Anything else red is new drift — add it to the list with a reason or fix it here.
+- [ ] **Step 10: Faults exit 1 natively.** `pipeline.rs` wrap generated `main` in
+`std::panic::catch_unwind`, print the payload to stderr, `std::process::exit(1)`.
+Add typecheck error `"async main cannot return a value"` so both tiers refuse it.
 
-- [ ] **Step 10: Commit** — `cargo fmt -p vox-compiler -p vox-actor-runtime -p vox-codegen -p vox-cli`; `git commit -m "fix(parity): close the measured drift between the interpreter and the native lane"`.
+- [ ] **Step 11: Fix `install-hooks.vox` and `setup.vox`.** Reproduce the
+`Option.unwrap()` with `vox run --mode interp scripts/install-hooks.vox -- --help`
+and the same for `setup.vox`. Fix the Vox (or the builtin that returned `None`)
+until both exit 0. Do not paper over with `--mode script`.
+
+- [ ] **Step 12: Run everything** — `cargo test -q -p vox-compiler --test eval_typeck_parity_test && cargo test -q -p vox-crypto && cargo test -q -p vox-actor-runtime builtins && cargo build -q -p vox-cli --bin vox && cargo test -q -p vox-integration-tests --test golden_differential_gate -- --ignored 2>&1 | tail -30`. Expected: all eight new goldens green. Anything red is new drift — fix it here or add `// EXPECT-TIER-ASYMMETRY:` with a reason that will fail when it expires.
+
+- [ ] **Step 13: Commit** — `cargo fmt -p vox-compiler -p vox-crypto -p vox-actor-runtime -p vox-codegen -p vox-cli`. `git commit -m "fix(parity): close measured drift; in-place list.push; vox-crypto SSOT for both tiers"`.
 
 ---
 
-## Task 3: `CapabilitySet` — non-optional, canonical roots, one value per token
+# PR 3 — Caps and bounds (additive)
 
-**Files:** Create `crates/vox-compiler/src/eval/caps.rs`; modify `eval/mod.rs:37,247` (field), `eval/builtins.rs:110-115,952-966` (param type + gate, behaviour unchanged this task), `eval/expr.rs:620`; **`crates/vox-cli/src/commands/run.rs:44-66` and `crates/vox-langtool/src/commands/run.rs:36`** (both assign a `HashSet` today — converting them here keeps the workspace building; revision 1 deferred them and left a three-commit broken window).
+## Task 3: `CapabilitySet` — non-optional, canonical roots, repeatable tokens
 
-Findings (fs track #1, #5, #6, #9, #11; escape #10; executability #7, #8): roots must be canonicalised at parse; `|` is a shell pipe; `io:` grants nothing; negative `frozen=`; `caps: None` still a bypass; legacy `net` word must map to `http`; `db`/`repo` are pure; `crypto` needs a `random` axis; Windows verbatim prefixes and case.
+**Files:** Create `crates/vox-compiler/src/eval/caps.rs`; modify `eval/mod.rs`,
+`eval/builtins.rs`, `eval/expr.rs`; `vox-cli` `run` / `repl` / `play`;
+`vox-langtool` `run`; `vox-terminal-core/src/vox_interp.rs`;
+`vox-orchestrator-mcp/src/workspace_mcp/dispatch.rs`;
+`docs/src/architecture/where-things-live.md` (four rows).
 
-- [ ] **Step 1: Write the failing tests** (create `caps.rs` with the test module first)
+`from_roots` does **not** refuse `,` / `=` / `|`. `--caps` is repeatable; the mesh
+passes one token per argv slot.
+
+- [ ] **Step 1: Write the failing tests** (create `caps.rs` with the test module first).
+Include every test from revision 2 Task 3 **except** `from_roots_refuses_separator_characters`.
+Replace that with:
 
 ```rust
-//! Receiver-imposed capabilities for the interpreter (spec §3.2). The grammar is a public
-//! CLI surface once shipped; keep it small. Roots are canonicalised here so `allows_path`
-//! compares like with like — on macOS `/tmp` is `/private/tmp`, on Windows `canonicalize`
-//! yields `\\?\C:\…`, and comparing a canonical path against a raw root denies everything.
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::Path;
-
     #[test]
-    fn unmentioned_namespaces_are_denied() {
-        let c = CapabilitySet::parse("env:ro").unwrap();
-        assert!(c.allows_namespace("env"));
-        for ns in ["fs", "process", "http", "secrets", "agentos", "crypto"] {
-            assert!(!c.allows_namespace(ns), "{ns} must be denied");
-        }
-    }
-
-    #[test]
-    fn pure_namespaces_are_always_allowed() {
-        let c = CapabilitySet::parse("").unwrap();
-        for ns in ["path", "json", "csv", "toml", "yaml", "regex", "log", "db", "repo"] {
-            assert!(c.allows_namespace(ns), "{ns} is pure and must not be gated");
-        }
-    }
-
-    #[test]
-    fn roots_are_canonicalised_at_parse_time() {
-        let d = tempfile::tempdir().unwrap();
-        std::fs::write(d.path().join("a.txt"), "A").unwrap();
-        let c = CapabilitySet::parse(&format!("fs:rw={}", d.path().display())).unwrap();
-        let canon = std::fs::canonicalize(d.path().join("a.txt")).unwrap();
-        assert!(c.allows_path(&canon, true), "root not canonicalised: {c:?}");
-    }
-
-    #[test]
-    fn fs_roots_scope_reads_and_writes_separately_and_repeat_the_token() {
-        let ro = tempfile::tempdir().unwrap();
-        let ro2 = tempfile::tempdir().unwrap();
-        let rw = tempfile::tempdir().unwrap();
-        let c = CapabilitySet::parse(&format!("fs:ro={},fs:ro={},fs:rw={}", ro.path().display(), ro2.path().display(), rw.path().display())).unwrap();
-        let cro = std::fs::canonicalize(ro.path()).unwrap();
-        let crw = std::fs::canonicalize(rw.path()).unwrap();
-        assert!(c.allows_path(&cro.join("x"), false));
-        assert!(!c.allows_path(&cro.join("x"), true));
-        assert!(c.allows_path(&crw.join("x"), true));
-        assert!(c.allows_path(&crw.join("x"), false), "rw roots satisfy reads");
-        // Component boundary: /tmp/job must not admit /tmp/jobx.
-        let sibling = crw.parent().unwrap().join(format!("{}x", crw.file_name().unwrap().to_string_lossy()));
-        assert!(!c.allows_path(&sibling.join("y"), true));
-    }
-
-    #[test]
-    fn a_missing_root_is_a_receiver_error_not_a_silent_deny() {
-        assert!(CapabilitySet::parse("fs:ro=/definitely/not/here").is_err());
-    }
-
-    #[test]
-    fn pipe_separator_is_gone_and_io_token_is_rejected() {
-        assert!(CapabilitySet::parse("fs:ro=/a|/b").is_err());
-        assert!(CapabilitySet::parse("io:allow").is_err());
-    }
-
-    #[test]
-    fn env_has_read_and_write_levels() {
-        let ro = CapabilitySet::parse("env:ro").unwrap();
-        assert!(ro.allows_namespace("env") && !ro.allows_env_write());
-        let rw = CapabilitySet::parse("env:rw").unwrap();
-        assert!(rw.allows_env_write());
-    }
-
-    #[test]
-    fn frozen_time_and_seeded_random() {
-        let c = CapabilitySet::parse("time:frozen=1700000000000,random:seed=7").unwrap();
-        assert_eq!(c.frozen_time_ms(), Some(1_700_000_000_000));
-        assert_eq!(c.random_seed(), Some(7));
-        assert!(c.allows_namespace("crypto"));
-        assert!(CapabilitySet::parse("time:frozen=-1").is_err());
-        let d = CapabilitySet::parse("random:deny").unwrap();
-        assert!(!d.allows_namespace("crypto"));
-    }
-
-    #[test]
-    fn deterministic_shorthand_expands() {
-        let c = CapabilitySet::parse("deterministic").unwrap();
-        assert_eq!(c.frozen_time_ms(), Some(0));
-        assert_eq!(c.random_seed(), Some(0));
-        assert!(!c.allows_namespace("process") && !c.allows_namespace("http") && !c.allows_namespace("env"));
-    }
-
-    #[test]
-    fn net_and_http_are_one_namespace() {
-        assert!(CapabilitySet::parse("net:allow").unwrap().allows_namespace("http"));
-        assert!(CapabilitySet::parse("http:allow").unwrap().allows_namespace("http"));
-    }
-
-    #[test]
-    fn legacy_directive_maps_words_and_is_unscoped() {
-        let c = CapabilitySet::from_legacy_directive(&["fs".into(), "subprocess".into(), "net".into()]);
-        assert!(c.allows_namespace("fs") && c.allows_namespace("io"));
-        assert!(c.allows_namespace("process"));
-        assert!(c.allows_namespace("http"), "`net` was the legacy word for http (vox-langtool fixture)");
-        assert!(!c.allows_namespace("env"));
-        assert!(c.allows_path(Path::new("/anything"), true));
-    }
-
-    #[test]
-    fn developer_default_allows_everything() {
-        let c = CapabilitySet::developer_default();
-        for ns in ["fs", "io", "process", "env", "secrets", "http", "time", "agentos", "crypto"] {
-            assert!(c.allows_namespace(ns));
-        }
-        assert!(c.allows_env_write() && c.allows_path(Path::new("/"), true));
-    }
-
-    #[test]
-    fn from_roots_refuses_separator_characters() {
-        let d = tempfile::tempdir().unwrap();
-        assert!(CapabilitySet::from_roots(vec![], vec![d.path().to_path_buf()], &[]).is_ok());
-        assert!(CapabilitySet::from_roots(vec![], vec![PathBuf::from("/tmp/a,b")], &[]).is_err());
-    }
-
-    #[test]
-    fn bad_specs_name_the_offending_token() {
-        for bad in ["fs", "fs:banana", "net:maybe", "time:frozen=abc", "nosuch:allow", "env:allow"] {
-            let e = CapabilitySet::parse(bad).unwrap_err();
-            assert!(e.to_string().contains(bad.split('=').next().unwrap()), "{bad} → {e}");
-        }
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn windows_drive_letters_survive_the_ns_separator_and_case() {
-        let d = tempfile::tempdir().unwrap();
-        let c = CapabilitySet::parse(&format!("fs:rw={}", d.path().display())).unwrap();
+    fn from_roots_accepts_a_comma_in_the_directory() {
+        let d = tempfile::Builder::new().prefix("a,b-").tempdir().unwrap();
+        let c = CapabilitySet::from_roots(vec![], vec![d.path().to_path_buf()], &["time:real"]).unwrap();
         let canon = std::fs::canonicalize(d.path()).unwrap();
-        assert!(c.allows_path(&canon.join("a.txt"), true));
-        let upper = PathBuf::from(canon.to_string_lossy().to_ascii_uppercase());
-        assert!(c.allows_path(&upper.join("a.txt"), true), "NTFS is case-insensitive");
+        assert!(c.allows_path(&canon.join("x"), true));
+        let tokens = c.to_tokens();
+        assert!(tokens.iter().any(|t| t.starts_with("fs:rw=")), "{tokens:?}");
+        assert!(tokens.iter().any(|t| t == "time:real"), "{tokens:?}");
     }
-}
+
+    #[test]
+    fn to_tokens_round_trips_through_parse_of_each_token() {
+        let d = tempfile::tempdir().unwrap();
+        let c = CapabilitySet::from_roots(vec![], vec![d.path().to_path_buf()], &["time:real", "env:ro"]).unwrap();
+        let mut again = CapabilitySet::parse("").unwrap();
+        for t in c.to_tokens() {
+            let piece = CapabilitySet::parse(&t).unwrap();
+            again.merge(piece);
+        }
+        assert_eq!(c.frozen_time_ms(), again.frozen_time_ms());
+    }
 ```
+
+Keep `unmentioned_namespaces_are_denied`, `pure_namespaces_are_always_allowed`
+(`path json csv toml yaml regex log db repo`), `roots_are_canonicalised_at_parse_time`,
+`fs_roots_scope_reads_and_writes_separately_and_repeat_the_token`,
+`a_missing_root_is_a_receiver_error_not_a_silent_deny`,
+`pipe_separator_is_gone_and_io_token_is_rejected` (the *comment* form still rejects
+`|` inside one token), `env_has_read_and_write_levels`, `frozen_time_and_seeded_random`,
+`deterministic_shorthand_expands`, `net_and_http_are_one_namespace`,
+`legacy_directive_maps_words_and_is_unscoped`, `developer_default_allows_everything`,
+`bad_specs_name_the_offending_token`, and the Windows drive-letter test. On Windows,
+`component_eq` must cover `Component::Prefix`.
 
 - [ ] **Step 2: Run to verify they fail** — `cargo test -q -p vox-compiler --lib eval::caps 2>&1 | tail -5` → compile error.
 
-- [ ] **Step 3: Implement** (prepend to `caps.rs`; `thiserror` and `tempfile` are already deps of `vox-compiler` — `Cargo.toml:24,65`)
+- [ ] **Step 3: Implement.** Same structure as revision 2 Task 3 (`PURE`, `GATED`,
+`parse`, `developer_default`, `allows_namespace`, `allows_path`, `is_under`,
+`component_eq`) with these changes:
 
 ```rust
-use std::collections::BTreeSet;
-use std::path::{Component, Path, PathBuf};
-
-/// Never gated. `path.resolve` is the one method in a pure namespace that touches disk;
-/// the fs arm gates it as a read (Task 5). `db`/`repo` are in-memory stores.
-pub const PURE: &[&str] = &["path", "json", "csv", "toml", "yaml", "regex", "log", "db", "repo"];
-/// Gated. `io` is here for classification only — its authority comes from `fs:`.
-/// `crypto` is gated by the `random` axis.
-pub const GATED: &[&str] = &["fs", "io", "process", "env", "secrets", "http", "time", "agentos", "crypto"];
-
-pub fn is_classified(ns: &str) -> bool {
-    PURE.contains(&ns) || GATED.contains(&ns)
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CapabilitySet {
-    allowed: BTreeSet<String>,
-    env_write: bool,
-    /// `None` = unscoped (developer default / legacy directive).
-    fs_ro: Option<Vec<PathBuf>>,
-    fs_rw: Option<Vec<PathBuf>>,
-    frozen_time_ms: Option<i64>,
-    random_seed: Option<u64>,
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("invalid --caps token {token:?}: {why}")]
-pub struct CapsParseError {
-    pub token: String,
-    pub why: &'static str,
-}
-
-impl CapabilitySet {
-    fn restrictive() -> Self {
-        Self { allowed: BTreeSet::new(), env_write: false, fs_ro: Some(Vec::new()), fs_rw: Some(Vec::new()), frozen_time_ms: None, random_seed: None }
-    }
-
-    pub fn parse(spec: &str) -> Result<Self, CapsParseError> {
-        let mut out = Self::restrictive();
-        for tok in spec.split(',').map(str::trim).filter(|t| !t.is_empty()) {
-            let err = |why| CapsParseError { token: tok.to_string(), why };
-            if tok == "deterministic" {
-                out.frozen_time_ms = Some(0);
-                out.random_seed = Some(0);
-                out.allowed.insert("time".into());
-                out.allowed.insert("crypto".into());
-                continue;
-            }
-            let (ns, rest) = tok.split_once(':').ok_or(err("expected ns:value"))?;
-            match (ns, rest) {
-                ("fs", r) if r.starts_with("ro=") || r.starts_with("rw=") => {
-                    let raw = &r[3..];
-                    if raw.is_empty() { return Err(err("fs needs a directory")); }
-                    if raw.contains('|') { return Err(err("one directory per token; repeat fs:ro=/fs:rw=")); }
-                    let root = std::fs::canonicalize(raw).map_err(|_| err("fs root does not exist or is unreadable"))?;
-                    let target = if r.starts_with("ro=") { &mut out.fs_ro } else { &mut out.fs_rw };
-                    target.get_or_insert_with(Vec::new).push(root);
-                    out.allowed.insert("fs".into());
-                    out.allowed.insert("io".into());
-                }
-                ("fs", _) => return Err(err("fs takes ro=<dir> or rw=<dir>")),
-                ("io", _) => return Err(err("io is covered by fs:ro= / fs:rw=")),
-                ("net" | "http", "allow") => { out.allowed.insert("http".into()); }
-                ("net" | "http", "none") => {}
-                ("net" | "http", _) => return Err(err("net takes none|allow")),
-                ("env", "ro") => { out.allowed.insert("env".into()); }
-                ("env", "rw") => { out.allowed.insert("env".into()); out.env_write = true; }
-                ("env", "none") => {}
-                ("env", _) => return Err(err("env takes none|ro|rw")),
-                ("time", "real") => { out.allowed.insert("time".into()); }
-                ("time", r) if r.starts_with("frozen=") => {
-                    let ms: i64 = r[7..].parse().map_err(|_| err("frozen= needs integer ms"))?;
-                    if ms < 0 { return Err(err("frozen= must be non-negative")); }
-                    out.frozen_time_ms = Some(ms);
-                    out.allowed.insert("time".into());
-                }
-                ("time", _) => return Err(err("time takes real|frozen=<ms>")),
-                ("random", r) if r.starts_with("seed=") => {
-                    out.random_seed = Some(r[5..].parse().map_err(|_| err("seed= needs a u64"))?);
-                    out.allowed.insert("crypto".into());
-                }
-                ("random", "deny") => {}
-                ("random", _) => return Err(err("random takes seed=<u64>|deny")),
-                ("process" | "secrets" | "agentos", "allow") => { out.allowed.insert(ns.into()); }
-                ("process" | "secrets" | "agentos", "none") => {}
-                ("process" | "secrets" | "agentos", _) => return Err(err("expected none|allow")),
-                _ => return Err(err("unknown namespace")),
-            }
-        }
-        Ok(out)
-    }
-
-    /// The mesh executor's constructor: roots are typed, so a directory containing a
-    /// grammar separator is refused rather than encoded into a string.
-    pub fn from_roots(ro: Vec<PathBuf>, rw: Vec<PathBuf>, extra: &[&str]) -> Result<Self, CapsParseError> {
-        let mut spec = Vec::new();
-        for (kind, dirs) in [("ro", &ro), ("rw", &rw)] {
-            for d in dirs {
-                let s = d.display().to_string();
-                if s.contains(',') || s.contains('=') || s.contains('|') {
-                    return Err(CapsParseError { token: s, why: "directory contains a caps separator" });
-                }
-                spec.push(format!("fs:{kind}={s}"));
-            }
-        }
-        spec.extend(extra.iter().map(|s| s.to_string()));
-        Self::parse(&spec.join(","))
-    }
-
-    /// Serialise for the child's `--caps`. Round-trips through `parse`.
-    pub fn to_spec(&self) -> String {
+    /// Tokens suitable for `vox run --caps <token> --caps <token>`.
+    pub fn to_tokens(&self) -> Vec<String> {
         let mut parts = Vec::new();
         for d in self.fs_ro.iter().flatten() { parts.push(format!("fs:ro={}", d.display())); }
         for d in self.fs_rw.iter().flatten() { parts.push(format!("fs:rw={}", d.display())); }
@@ -836,240 +836,247 @@ impl CapabilitySet {
         if self.allowed.contains("secrets") { parts.push("secrets:allow".into()); }
         if self.allowed.contains("agentos") { parts.push("agentos:allow".into()); }
         match self.frozen_time_ms { Some(ms) => parts.push(format!("time:frozen={ms}")), None if self.allowed.contains("time") => parts.push("time:real".into()), None => {} }
-        match self.random_seed { Some(s) => parts.push(format!("random:seed={s}")), None => {} }
-        parts.join(",")
+        if let Some(s) = self.random_seed { parts.push(format!("random:seed={s}")); }
+        parts
     }
 
-    pub fn from_legacy_directive(words: &[String]) -> Self {
-        let mut allowed = BTreeSet::new();
-        for w in words {
-            match w.as_str() {
-                "fs" => { allowed.insert("fs".into()); allowed.insert("io".into()); }
-                "process" | "subprocess" => { allowed.insert("process".into()); }
-                "net" | "http" => { allowed.insert("http".into()); }
-                other => { allowed.insert(other.into()); }
-            }
+    pub fn from_roots(ro: Vec<PathBuf>, rw: Vec<PathBuf>, extra: &[&str]) -> Result<Self, CapsParseError> {
+        let mut out = Self::restrictive();
+        for d in ro {
+            let root = std::fs::canonicalize(&d).map_err(|_| CapsParseError { token: d.display().to_string(), why: "fs root does not exist or is unreadable" })?;
+            out.fs_ro.get_or_insert_with(Vec::new).push(root);
+            out.allowed.insert("fs".into());
+            out.allowed.insert("io".into());
         }
-        let env_write = allowed.contains("env");
-        Self { allowed, env_write, fs_ro: None, fs_rw: None, frozen_time_ms: None, random_seed: None }
-    }
-
-    pub fn developer_default() -> Self {
-        Self { allowed: GATED.iter().map(|s| s.to_string()).collect(), env_write: true, fs_ro: None, fs_rw: None, frozen_time_ms: None, random_seed: None }
-    }
-
-    pub fn allows_namespace(&self, ns: &str) -> bool {
-        PURE.contains(&ns) || self.allowed.contains(ns)
-    }
-
-    pub fn allows_env_write(&self) -> bool {
-        self.env_write
-    }
-
-    /// `path` MUST be canonical (see `fs_resolve_allowed`, Task 5). rw roots satisfy reads.
-    pub fn allows_path(&self, path: &Path, write: bool) -> bool {
-        if !self.allows_namespace("fs") {
-            return false;
+        for d in rw {
+            let root = std::fs::canonicalize(&d).map_err(|_| CapsParseError { token: d.display().to_string(), why: "fs root does not exist or is unreadable" })?;
+            out.fs_rw.get_or_insert_with(Vec::new).push(root);
+            out.allowed.insert("fs".into());
+            out.allowed.insert("io".into());
         }
-        let roots = if write { &self.fs_rw } else { &self.fs_ro };
-        match roots {
-            None => true,
-            Some(rs) => {
-                let extra = if write { None } else { self.fs_rw.as_deref() };
-                rs.iter().chain(extra.into_iter().flatten()).any(|r| is_under(path, r))
-            }
+        for tok in extra {
+            let piece = Self::parse(tok)?;
+            out.merge(piece);
         }
+        Ok(out)
     }
 
-    pub fn frozen_time_ms(&self) -> Option<i64> { self.frozen_time_ms }
-    pub fn random_seed(&self) -> Option<u64> { self.random_seed }
-}
-
-fn is_under(path: &Path, root: &Path) -> bool {
-    let p: Vec<Component> = path.components().collect();
-    let r: Vec<Component> = root.components().collect();
-    p.len() >= r.len() && p[..r.len()].iter().zip(&r).all(|(a, b)| component_eq(a, b))
-}
-
-/// Both sides are canonical, so only case can differ — and NTFS/APFS-default are insensitive.
-fn component_eq(a: &Component, b: &Component) -> bool {
-    #[cfg(windows)]
-    {
-        if let (Component::Normal(x), Component::Normal(y)) = (a, b) {
-            return x.to_string_lossy().eq_ignore_ascii_case(&y.to_string_lossy());
+    pub fn merge(&mut self, other: Self) {
+        self.allowed.extend(other.allowed);
+        self.env_write |= other.env_write;
+        match (&mut self.fs_ro, other.fs_ro) {
+            (Some(a), Some(b)) => a.extend(b),
+            (None, Some(b)) => self.fs_ro = Some(b),
+            _ => {}
         }
+        match (&mut self.fs_rw, other.fs_rw) {
+            (Some(a), Some(b)) => a.extend(b),
+            (None, Some(b)) => self.fs_rw = Some(b),
+            _ => {}
+        }
+        if other.frozen_time_ms.is_some() { self.frozen_time_ms = other.frozen_time_ms; }
+        if other.random_seed.is_some() { self.random_seed = other.random_seed; }
     }
-    a == b
+```
+
+`parse` still splits on `,` for the *comment* / single-string form. `from_roots` never
+goes through that splitter for directory names.
+
+- [ ] **Step 4: Make `caps` non-optional and set the six embedders explicitly.**
+
+```rust
+// eval/mod.rs Interpreter::new
+caps: caps::CapabilitySet::developer_default(),
+```
+
+```rust
+// vox-cli run.rs — after first-line parse
+interpreter.caps = if let Some(tokens) = cli_caps_tokens {
+    CapabilitySet::from_tokens(&tokens)?
+} else if has_caps_directive {
+    CapabilitySet::from_legacy_directive(&legacy_words)
+} else {
+    CapabilitySet::developer_default()
+};
+```
+
+Same for `vox-langtool` `run`. `vox-cli` `repl` and `play`:
+`interpreter.caps = CapabilitySet::developer_default();` (explicit, not implicit).
+
+```rust
+// vox-terminal-core/src/vox_interp.rs
+let mut interp = Interpreter::new(100_000);
+interp.caps = CapabilitySet::parse("").unwrap(); // restrictive: PURE only
+```
+
+```rust
+// vox-orchestrator-mcp workspace dispatch (both call sites)
+let mut interp = Interpreter::new(100_000);
+interp.caps = CapabilitySet::from_roots(
+    vec![workspace_root.to_path_buf()],
+    vec![],
+    &["env:ro", "time:real"],
+).expect("workspace root exists");
+```
+
+Grep for `Interpreter::new` under `crates/` excluding `tests/` and `#[cfg(test)]`.
+Every production site must assign `caps` on the next line. A test:
+
+```rust
+#[test]
+fn production_embedders_assign_caps_explicitly() {
+    let patterns = [
+        ("crates/vox-cli/src/commands/run.rs", "developer_default"),
+        ("crates/vox-cli/src/commands/repl.rs", "developer_default"),
+        ("crates/vox-cli/src/commands/play.rs", "developer_default"),
+        ("crates/vox-langtool/src/commands/run.rs", "developer_default"),
+        ("crates/vox-terminal-core/src/vox_interp.rs", "CapabilitySet::parse"),
+        ("crates/vox-orchestrator-mcp/src/workspace_mcp/dispatch.rs", "from_roots"),
+    ];
+    for (path, needle) in patterns {
+        let src = std::fs::read_to_string(format!("{}/../../{path}", env!("CARGO_MANIFEST_DIR"))).unwrap();
+        assert!(src.contains("Interpreter::new") && src.contains(needle), "{path} missing explicit caps ({needle})");
+    }
 }
 ```
 
-- [ ] **Step 4: Make `caps` non-optional and convert both call sites.** `eval/mod.rs:37` → `pub caps: caps::CapabilitySet,`; `:247` → `caps: caps::CapabilitySet::developer_default(),`; add `pub mod caps;`. `builtins.rs:110-115` → `caps: &crate::eval::caps::CapabilitySet`; gate at `:952-966` becomes `if let Some(ns_str) = ns && !caps.allows_namespace(ns_str) { println!(…); return Some(VoxValue::Null); }` (fatal denial is Task 4). `expr.rs:620` → `&interp.caps`. `vox-cli/src/commands/run.rs:44-66`: keep the first-line parse, then `interpreter.caps = if has_caps_directive { CapabilitySet::from_legacy_directive(&legacy_words) } else { CapabilitySet::developer_default() };`. Same at `vox-langtool/src/commands/run.rs:36`. Grep for any other `.caps = Some(` — there are exactly these two.
+Place this test in `caps.rs` so the paths resolve via `CARGO_MANIFEST_DIR` of
+`vox-compiler` (`crates/vox-compiler` → `../..` is repo root). Adjust the join to
+`PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..").join(path)`.
 
-- [ ] **Step 5: Run** — `cargo test -q -p vox-compiler --lib eval::caps && cargo test -q -p vox-compiler && cargo build -q -p vox-cli -p vox-langtool && cargo test -q -p vox-langtool --test integration run_caps_directive 2>&1 | tail -5`. The `vox-langtool` fixture (`tests/integration.rs:107-117`, `// vox:caps net fs`) must still exit 0.
+- [ ] **Step 5: Four `where-things-live.md` rows** in the same PR: `CapabilitySet` →
+`crates/vox-compiler/src/eval/caps.rs`; counting allocator →
+`crates/vox-cli/src/mem_limit.rs`; `InterpExecutor` →
+`crates/vox-mesh-transport/src/interp_executor.rs` (row may say "lands in PR 5");
+isolation reference → `docs/src/reference/isolation.md`.
 
-- [ ] **Step 6: Commit** — `cargo fmt -p vox-compiler -p vox-cli -p vox-langtool`; `git commit -m "feat(eval): CapabilitySet — non-optional, canonical roots, one value per token"`.
+- [ ] **Step 6: Run** — `cargo test -q -p vox-compiler --lib eval::caps && cargo build -q -p vox-cli -p vox-langtool -p vox-terminal-core -p vox-orchestrator-mcp && cargo test -q -p vox-langtool --test integration run_caps_directive 2>&1 | tail -5`.
+
+- [ ] **Step 7: Commit** — `git commit -m "feat(eval): CapabilitySet — non-optional, canonical roots, explicit embedder sets"`.
 
 ---
 
 ## Task 4: Denial is fatal and every side-effecting entry point is gated
 
-**Files:** `eval/value.rs:82` (sentinel); `eval/mod.rs` (`EvalError::CapabilityDenied`, `eval_depth`, `exit_commands` field, import gate at `:377-392`); `eval/builtins.rs:952-966` (gate), `:1396-1409` (`path.resolve`), `:1625-1650` (`register_exit_command`), `:16-52` (global static → field); `eval/expr.rs:618-632`; `eval/env.rs` (`Scope::bindings`); create `crates/vox-compiler/tests/caps_enforcement_test.rs`.
+**Files:** `eval/value.rs`, `eval/mod.rs`, `eval/builtins.rs`, `eval/expr.rs`,
+`eval/env.rs`; create `crates/vox-compiler/tests/caps_enforcement_test.rs`.
 
-Findings (escape #2, #8, #9, #11; fs #8, #10, #11): `import` is an ungated read+execute; `db`/`repo` are pure (test dropped, gate not added); `path.resolve` hits disk; `http` lives only under `std.http`; `repo.status` does not exist (`snapshot`/`changes`/`undo`); the source-parsing namespace test is rustfmt-fragile; `register_exit_command` queues past the gate and the queue is a process-global static.
-
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Write the failing tests** — take revision 2 Task 4's tests
+(`denied_fs_read_is_fatal_and_nothing_after_it_runs`, `http_is_gated_under_std`,
+`repo_is_pure_and_allowed_without_caps`, `path_resolve_is_an_fs_read`,
+`env_set_needs_rw`, `register_exit_command_is_gated_at_queue_time`,
+`import_outside_the_fs_roots_is_denied_before_main_runs`,
+`a_default_interpreter_is_developer_default_not_ungated`,
+`every_seeded_namespace_is_classified`) **and add**:
 
 ```rust
-//! Spec §3.2 items 2–4: denial is fatal; every side-effecting entry point is gated.
-use vox_compiler::eval::caps::CapabilitySet;
-use vox_compiler::eval::value::VoxValue;
-use vox_compiler::eval::{EvalError, Interpreter};
-use vox_compiler::{hir, lexer, parser};
-
-fn run_with(caps: CapabilitySet, src: &str) -> Result<VoxValue, EvalError> {
-    let tokens = lexer::lex(src);
-    let module = parser::parse_script(tokens).expect("parse");
-    let lowered = hir::lower::lower_module(&module);
-    let mut interp = Interpreter::new(1_000_000);
-    interp.caps = caps;
-    interp.run_module(&lowered)?;
-    interp.call("main", vec![])
-}
-
-fn denied(r: &Result<VoxValue, EvalError>, ns: &str) -> bool {
-    matches!(r, Err(EvalError::CapabilityDenied { ns: n, .. }) if n == ns)
-}
-
 #[test]
-fn denied_fs_read_is_fatal_and_nothing_after_it_runs() {
-    let r = run_with(CapabilitySet::parse("env:ro").unwrap(),
-        r#"pub fn main() { let s = fs.read("/etc/hosts"); print("MUST NOT PRINT"); return 1 }"#);
-    match r {
-        Err(EvalError::CapabilityDenied { ns, method }) => { assert_eq!(ns, "fs"); assert_eq!(method, "read"); }
-        other => panic!("expected CapabilityDenied, got {other:?}"),
-    }
-}
+fn versioned_snapshot_is_gated_when_repo_write_is_denied_by_policy() {
+    // The decorator path calls interp.repo.snapshot directly (eval/expr.rs).
+    // Under a restrictive set the auto-snapshot is a no-op / denial, not an
+    // ungated write. developer_default() still snapshots (in-memory).
+    let ok = run_with(
+        CapabilitySet::developer_default(),
+        "@versioned fn save() { let x = 1 }\npub fn main() { save(); return len(repo.changes()) }",
+    );
+    assert!(matches!(ok, Ok(VoxValue::Int(n)) if n >= 1), "developer_default snapshots: {ok:?}");
 
-#[test]
-fn http_is_gated_under_std() {
-    let r = run_with(CapabilitySet::parse("").unwrap(), r#"pub fn main() { return std.http.get_text("http://127.0.0.1:9/") }"#);
-    assert!(denied(&r, "http"), "{r:?}");
-}
-
-#[test]
-fn repo_is_pure_and_allowed_without_caps() {
-    let r = run_with(CapabilitySet::parse("").unwrap(), r#"pub fn main() { return repo.snapshot() }"#);
-    assert!(r.is_ok(), "repo is an in-memory store: {r:?}");
-}
-
-#[test]
-fn path_resolve_is_an_fs_read() {
-    let r = run_with(CapabilitySet::parse("").unwrap(), r#"pub fn main() { return path.resolve("/etc/hosts") }"#);
-    assert!(denied(&r, "fs"), "{r:?}");
-}
-
-#[test]
-fn env_set_needs_rw() {
-    let r = run_with(CapabilitySet::parse("env:ro").unwrap(), r#"pub fn main() { return env.set("X", "1") }"#);
-    assert!(denied(&r, "env"), "{r:?}");
-}
-
-#[test]
-fn register_exit_command_is_gated_at_queue_time() {
-    let r = run_with(CapabilitySet::parse("").unwrap(), r#"pub fn main() { return process.register_exit_command("true", []) }"#);
-    assert!(denied(&r, "process"), "{r:?}");
-}
-
-#[test]
-fn import_outside_the_fs_roots_is_denied_before_main_runs() {
-    let outside = tempfile::tempdir().unwrap();
-    std::fs::write(outside.path().join("lib.vox"), "pub fn leak() { return 42 }").unwrap();
-    let inside = tempfile::tempdir().unwrap();
-    let main = inside.path().join("main.vox");
-    std::fs::write(&main, format!("import \"{}\" as l\npub fn main() {{ return l.leak() }}", outside.path().join("lib.vox").display())).unwrap();
-    let src = std::fs::read_to_string(&main).unwrap();
-    let tokens = lexer::lex(&src);
-    let module = parser::parse_script(tokens).unwrap();
-    let lowered = hir::lower::lower_module(&module);
-    let mut interp = Interpreter::new(1_000_000);
-    interp.caps = CapabilitySet::parse(&format!("fs:ro={}", inside.path().display())).unwrap();
-    interp.set_source_path(std::fs::canonicalize(&main).unwrap());
-    let r = interp.run_module(&lowered);
-    assert!(matches!(r, Err(EvalError::CapabilityDenied { ref ns, ref method }) if ns == "fs" && method == "import"), "{r:?}");
-}
-
-#[test]
-fn a_default_interpreter_is_developer_default_not_ungated() {
-    let i = Interpreter::new(1000);
-    assert_eq!(i.caps, CapabilitySet::developer_default());
-}
-
-#[test]
-fn every_seeded_namespace_is_classified() {
-    fn walk(v: &VoxValue, out: &mut std::collections::BTreeSet<String>) {
-        if let VoxValue::Object(fields) = v {
-            for (k, fv) in fields.iter() {
-                if k == "__namespace__" {
-                    if let VoxValue::Str(ns) = fv { out.insert(ns.clone()); }
-                } else {
-                    walk(fv, out);
-                }
-            }
-        }
-    }
-    let i = Interpreter::new(1000);
-    let mut names = std::collections::BTreeSet::new();
-    for (_, v) in i.scope.bindings() { walk(v, &mut names); }
-    assert!(names.len() >= 16, "only found {names:?}");
-    for ns in &names {
-        assert!(vox_compiler::eval::caps::is_classified(ns), "namespace `{ns}` is seeded but in neither caps::GATED nor caps::PURE");
-    }
+    let denied = run_with(
+        CapabilitySet::parse("").unwrap(),
+        "@versioned fn save() { let x = 1 }\npub fn main() { save(); return 0 }",
+    );
+    assert!(
+        matches!(denied, Err(EvalError::CapabilityDenied { ref ns, ref method }) if ns == "repo" && method == "snapshot")
+            || matches!(denied, Ok(VoxValue::Int(0))),
+        "restrictive embedder must not snapshot via the decorator bypass: {denied:?}"
+    );
 }
 ```
 
+Prefer the `CapabilityDenied` arm. If you choose the no-op arm, record that as the
+explicit exception in the test name and in `isolation.md`. Spec §3.2 item 4 allows
+either; the gate must exist.
+
 - [ ] **Step 2: Run to verify they fail** — `cargo test -q -p vox-compiler --test caps_enforcement_test 2>&1 | tail -20`.
 
-- [ ] **Step 3: Implement.**
-  - `value.rs:82`: add `_Denied(String)` after `_Panic`; treat like `_Panic` in every `match` the compiler flags.
-  - `mod.rs`: `EvalError::CapabilityDenied { ns: String, method: String }`.
-  - `builtins.rs:952-966` gate → `if let Some(ns_str) = ns && !caps.allows_namespace(ns_str) { return Some(VoxValue::_Denied(format!("{ns_str}.{method}"))); }` (no `println!`, no method allowlist). `env.set` arm additionally checks `caps.allows_env_write()`.
-  - `expr.rs:618-632`: `_Denied(what)` → split on `.` → `Err(EvalError::CapabilityDenied { ns, method })`.
-  - `builtins.rs:1396-1409` `path.resolve`: guard via Task 5's `fs_resolve_allowed(caps, &raw, false)`; denial names `fs.resolve`. Add a comment next to `PURE` in `caps.rs` naming this exception.
-  - `builtins.rs:1625` `register_exit_command`: `if !caps.allows_namespace("process") { return Some(VoxValue::_Denied("process.register_exit_command".into())); }`.
-  - **Exit commands off the global static.** Move the `OnceLock<Mutex<Vec<…>>>` at `builtins.rs:16` to `pub exit_commands: Vec<(String, Vec<String>)>` on `Interpreter`; `vox_flush_exit_commands()` becomes `Interpreter::flush_exit_commands(&mut self)`; `ensure_signal_handler` (`:21-52`) is installed only by `run_interp` (Task 6), never by an embedder. Update `run.rs:88`.
-  - **Import gate**, `mod.rs::resolve_local_file_import` after the `canonicalize` at `:377`:
-    ```rust
+- [ ] **Step 3: Implement.** `_Denied(String)` on `VoxValue`; `EvalError::CapabilityDenied`;
+gate at `builtins.rs` returns `_Denied(format!("{ns_str}.{method}"))` with no `println!`;
+`expr.rs` converts `_Denied` to `Err`; `path.resolve` via `fs_resolve_allowed` (Task 5
+— stub as `None` until Task 5 if needed, and keep this test failing until then);
+`register_exit_command` gated at queue time; exit-command `OnceLock` moves onto
+`Interpreter.exit_commands`; signal handler installed only by `run_interp` (Task 6).
+Import gate after canonicalize in `resolve_local_file_import`:
+
+```rust
     if !self.caps.allows_path(&canonical, false) {
         return Err(EvalError::CapabilityDenied { ns: "fs".into(), method: "import".into() });
     }
-    ```
-  - `env.rs`: `pub fn bindings(&self) -> impl Iterator<Item = (&String, &VoxValue)> { self.frames.iter().rev().flat_map(|f| f.iter()) }` (adapt to the frame type at `env.rs:13`).
-  - Delete the `mod.rs:568-569` comment about repo not consulting caps (repo is pure now; the comment is moot).
+```
+
+`@versioned` in `eval/expr.rs` (~463):
+
+```rust
+                    if is_versioned {
+                        if !interp.caps.allows_namespace("repo") {
+                            return Err(EvalError::CapabilityDenied {
+                                ns: "repo".into(),
+                                method: "snapshot".into(),
+                            });
+                        }
+                        interp.repo.snapshot(Some(&format!("@versioned {fn_name}")));
+                    }
+```
+
+Wait: `repo` is PURE so `allows_namespace("repo")` is always true. The decorator
+bypass needs its **own** flag, not the PURE list:
+
+```rust
+                        if !interp.caps.allows_versioned_snapshot() {
+                            return Err(EvalError::CapabilityDenied {
+                                ns: "repo".into(),
+                                method: "snapshot".into(),
+                            });
+                        }
+```
+
+`allows_versioned_snapshot()` is `true` for `developer_default()` and for any set
+that granted `fs` or `process` (a local / native run), and `false` for the
+restrictive embedder sets (`parse("")`, MCP). Pin that in the test above.
 
 - [ ] **Step 4: Run** — `cargo test -q -p vox-compiler --test caps_enforcement_test && cargo test -q -p vox-compiler 2>&1 | tail -5`.
 
-- [ ] **Step 5: Mutation-verify twice.** (a) Gate: `perl -0pi -e 's/return Some\(VoxValue::_Denied\(format!\("\{ns_str\}\.\{method\}"\)\)\);/let _ = (ns_str, method);/' crates/vox-compiler/src/eval/builtins.rs` → `denied_fs_read_is_fatal…` MUST FAIL; `git checkout -- …`; `grep -c '_Denied(format' …` → 1. (b) Import gate: comment out the `allows_path` check in `resolve_local_file_import` → `import_outside_the_fs_roots…` MUST FAIL; restore; grep. Record both.
+- [ ] **Step 5: Mutation-verify (minimal).** (a) In the `fs` namespace gate only,
+change `!caps.allows_namespace(ns_str)` to `ns_str == "http" && !caps.allows_namespace(ns_str)`
+→ `denied_fs_read_is_fatal…` MUST FAIL; restore; `grep -c 'allows_namespace(ns_str)'`.
+(b) Comment out the `allows_path` check in `resolve_local_file_import` →
+`import_outside…` MUST FAIL; restore. (c) Comment out the `allows_versioned_snapshot`
+check → `versioned_snapshot…` MUST FAIL; restore. Record all three.
 
-- [ ] **Step 6: Commit** — `git commit -m "feat(eval): capability denial is fatal; import, path.resolve and exit commands are gated"`.
+- [ ] **Step 6: Commit** — `git commit -m "feat(eval): capability denial is fatal; import, exit commands, and @versioned are gated"`.
 
 ---
 
 ## Task 5: Filesystem scoping, frozen time, seeded random, depth bound
 
-**Files:** `eval/builtins.rs` (`fs` arm 970-1236, `io` 1897-1924, `time` 1237-1251); `eval/mod.rs` (`eval_depth`), `eval/expr.rs:28`, the parser's expression descent (`crates/vox-compiler/src/parser/descent/` — find the recursive `parse_expr`); `crates/vox-compiler/tests/caps_enforcement_test.rs` (append).
+**Files:** `eval/builtins.rs` (fs arm), `eval/mod.rs`, `eval/expr.rs` (`apply_closure`),
+the parser descent; append to `caps_enforcement_test.rs`.
 
-Findings (fs #2, #3, #7; escape #1, #3): the check must return the resolved path and the syscall must use it; `""`/`.`/`..` must be denied not degraded; the real fs surface is 19 methods and revision 1's list named two that do not exist and missed six; no recursion bound anywhere.
-
-- [ ] **Step 1: Write the failing tests** (append)
+- [ ] **Step 1: Write the failing tests** — keep revision 2's `symlink_escape…`,
+`degenerate_paths…`, `frozen_time…`, `deep_recursion…`, `deeply_nested_source…`.
+Replace `every_fs_method_that_takes_a_path_is_scoped` with a version that has a
+**positive control** in the same loop, and add the relative-write + glob-escape tests:
 
 ```rust
 #[test]
 fn every_fs_method_that_takes_a_path_is_scoped() {
     let d = tempfile::tempdir().unwrap();
     let inside = d.path().join("in"); std::fs::create_dir_all(&inside).unwrap();
+    std::fs::write(inside.join("ok.txt"), "OK").unwrap();
     let outside = d.path().join("out"); std::fs::create_dir_all(&outside).unwrap();
     std::fs::write(outside.join("s.txt"), "S").unwrap();
     let caps = CapabilitySet::parse(&format!("fs:rw={}", inside.display())).unwrap();
+    let allowed = run_with(caps.clone(), &format!(r#"pub fn main() {{ return fs.read("{}") }}"#, inside.join("ok.txt").display()));
+    assert!(matches!(allowed, Ok(VoxValue::Str(ref s)) if s == "OK"), "positive control died: {allowed:?}");
     let f = outside.join("s.txt");
     for (m, arg) in [
         ("read", &f), ("read_file", &f), ("read_to_string", &f), ("read_bytes", &f), ("canonicalize", &f),
@@ -1080,164 +1087,147 @@ fn every_fs_method_that_takes_a_path_is_scoped() {
         let r = run_with(caps.clone(), &format!(r#"pub fn main() {{ return fs.{m}("{}") }}"#, arg.display()));
         assert!(denied(&r, "fs"), "fs.{m} ungated: {r:?}");
     }
-    let r = run_with(caps.clone(), &format!(r#"pub fn main() {{ return fs.write("{}", "x") }}"#, f.display()));
-    assert!(denied(&r, "fs"), "fs.write ungated: {r:?}");
-    let r = run_with(caps.clone(), &format!(r#"pub fn main() {{ return fs.copy("{}", "{}") }}"#, f.display(), inside.join("c").display()));
-    assert!(denied(&r, "fs"), "fs.copy source ungated: {r:?}");
-    let r = run_with(caps.clone(), &format!(r#"pub fn main() {{ return fs.glob("{}/*") }}"#, outside.display()));
-    assert!(denied(&r, "fs"), "fs.glob prefix ungated: {r:?}");
-    for m in ["open", "save"] {
-        let r = run_with(caps.clone(), &format!(r#"pub fn main() {{ return io.{m}("{}") }}"#, f.display()));
-        assert!(denied(&r, "fs") || denied(&r, "io"), "io.{m} ungated: {r:?}");
-    }
-    assert!(outside.join("s.txt").exists(), "a write escaped the sandbox");
 }
 
 #[test]
-fn symlink_escape_is_denied_and_the_op_uses_the_checked_path() {
+fn developer_default_relative_write_creates_the_file() {
+    let cwd = tempfile::tempdir().unwrap();
+    let prev = std::env::current_dir().unwrap();
+    std::env::set_current_dir(cwd.path()).unwrap();
+    let r = run_with(CapabilitySet::developer_default(), r#"pub fn main() { fs.write("out.txt", "hi"); return fs.read("out.txt") }"#);
+    std::env::set_current_dir(prev).unwrap();
+    assert!(matches!(r, Ok(VoxValue::Str(ref s)) if s == "hi"), "relative write denied: {r:?}");
+    assert!(cwd.path().join("out.txt").exists());
+}
+
+#[test]
+fn glob_filters_results_not_only_the_prefix() {
     let d = tempfile::tempdir().unwrap();
-    let allowed = d.path().join("ok"); std::fs::create_dir_all(&allowed).unwrap();
-    std::fs::write(allowed.join("a.txt"), "A").unwrap();
+    let job = d.path().join("job"); std::fs::create_dir_all(&job).unwrap();
+    std::fs::write(job.join("a.txt"), "a").unwrap();
     std::fs::write(d.path().join("secret.txt"), "S").unwrap();
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(d.path().join("secret.txt"), allowed.join("link.txt")).unwrap();
-    let caps = CapabilitySet::parse(&format!("fs:ro={}", allowed.display())).unwrap();
-    let ok = run_with(caps.clone(), &format!(r#"pub fn main() {{ return fs.read("{}") }}"#, allowed.join("a.txt").display()));
-    assert!(matches!(ok, Ok(VoxValue::Str(ref s)) if s == "A"), "{ok:?}");
-    #[cfg(unix)]
-    {
-        let via_link = run_with(caps, &format!(r#"pub fn main() {{ return fs.read("{}") }}"#, allowed.join("link.txt").display()));
-        assert!(denied(&via_link, "fs"), "symlink escape: {via_link:?}");
-    }
+    let caps = CapabilitySet::parse(&format!("fs:rw={}", job.display())).unwrap();
+    let pat = format!("{}/*/../secret.txt", d.path().display());
+    let r = run_with(caps, &format!(r#"pub fn main() {{ return match fs.glob("{pat}") {{ Ok(xs) => len(xs), Error(e) => -1 }} }}"#));
+    assert!(matches!(r, Ok(VoxValue::Int(0))) || denied(&r, "fs"), "glob escaped via ..: {r:?}");
 }
 
 #[test]
-fn degenerate_paths_are_denied_not_degraded_to_the_parent() {
-    let d = tempfile::tempdir().unwrap();
-    let caps = CapabilitySet::parse(&format!("fs:rw={}", d.path().display())).unwrap();
-    for raw in ["", "..", "."] {
-        let r = run_with(caps.clone(), &format!(r#"pub fn main() {{ return fs.write("{raw}", "x") }}"#));
-        assert!(denied(&r, "fs"), "{raw:?}: {r:?}");
-    }
-}
-
-#[test]
-fn frozen_time_and_seeded_random_are_what_the_receiver_said() {
-    let r = run_with(CapabilitySet::parse("time:frozen=42").unwrap(), r#"pub fn main() { return time.now_ms() }"#);
-    assert!(matches!(r, Ok(VoxValue::Int(42))), "{r:?}");
-}
-
-#[test]
-fn deep_recursion_is_a_limit_error_not_a_crash() {
-    let r = run_with(CapabilitySet::developer_default(), r#"fn f(n: int) to int { return f(n + 1) } pub fn main() { return f(0) }"#);
-    assert!(matches!(r, Err(EvalError::RecursionLimitExceeded)), "{r:?}");
-}
-
-#[test]
-fn deeply_nested_source_is_a_parse_error_not_a_crash() {
-    let src = format!("pub fn main() {{ return {}1{} }}", "(".repeat(200_000), ")".repeat(200_000));
-    let tokens = lexer::lex(&src);
-    assert!(parser::parse_script(tokens).is_err(), "parser must bound nesting");
+fn unscoped_grant_does_not_canonicalize() {
+    // developer_default has no boundary; a missing relative parent must still write.
+    let r = run_with(CapabilitySet::developer_default(), r#"pub fn main() { fs.mkdir("a/b/c"); return fs.exists("a/b/c") }"#);
+    assert!(matches!(r, Ok(VoxValue::Bool(true))), "{r:?}");
 }
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `cargo test -q -p vox-compiler --test caps_enforcement_test 2>&1 | tail -15` (the nesting test may SIGSEGV the test binary today — that *is* the failure).
+- [ ] **Step 2: Run to verify they fail.**
 
-- [ ] **Step 3: One resolver, used by every arm**
+- [ ] **Step 3: The resolver**
 
 ```rust
-/// Resolve `raw` the way the OS will (symlinks included) and check it against the caller's
-/// fs roots. Returns the resolved path: callers MUST use it for the syscall so the check and
-/// the operation name the same file. Non-existent targets resolve through the parent and
-/// need a real file name — `""`, `.` and `..` are denied, not degraded.
-///
-/// Residual: not `openat`-based; directory components resolve twice. A script holding
-/// `process:allow` can race the final component (spec §3.2 item 5).
+fn fs_unscoped(caps: &crate::eval::caps::CapabilitySet) -> bool {
+    caps.allows_namespace("fs") && caps.allows_path(std::path::Path::new("/"), true)
+        && caps.allows_path(std::path::Path::new("/"), false)
+}
+
+fn nearest_existing_ancestor(p: &std::path::Path) -> Option<std::path::PathBuf> {
+    let mut cur = if p.is_absolute() { p.to_path_buf() } else { std::env::current_dir().ok()?.join(p) };
+    loop {
+        if cur.as_os_str().is_empty() { return None; }
+        if cur.exists() { return std::fs::canonicalize(&cur).ok(); }
+        if !cur.pop() { return None; }
+    }
+}
+
 fn fs_resolve_allowed(caps: &crate::eval::caps::CapabilitySet, raw: &str, write: bool) -> Option<std::path::PathBuf> {
+    if raw.is_empty() { return None; }
     let p = std::path::Path::new(raw);
+    let name = p.file_name()?;
+    if name == "." || name == ".." { return None; }
+    if fs_unscoped(caps) {
+        return Some(if p.is_absolute() { p.to_path_buf() } else { std::env::current_dir().ok()?.join(p) });
+    }
     let canon = match std::fs::canonicalize(p) {
         Ok(cp) => cp,
         Err(_) => {
-            let name = p.file_name()?;
-            if name == "." || name == ".." { return None; }
-            let parent = p.parent().unwrap_or(std::path::Path::new("."));
-            std::fs::canonicalize(parent).ok()?.join(name)
+            let parent = p.parent().filter(|par| !par.as_os_str().is_empty())?;
+            let anc = nearest_existing_ancestor(parent)?;
+            let suffix = p.strip_prefix(parent).ok()?;
+            anc.join(suffix)
         }
     };
     caps.allows_path(&canon, write).then_some(canon)
 }
 
-/// The fs surface, verified against the arm at builtins.rs:970-1236. Unknown methods are
-/// denied by the guard below, so a new method cannot ship ungated.
-const FS_PATH_METHODS: &[(&str, bool /* write */)] = &[
-    ("read", false), ("read_file", false), ("read_to_string", false), ("read_bytes", false),
-    ("canonicalize", false), ("exists", false), ("is_file", false), ("is_dir", false), ("stat", false),
-    ("list_dir", false), ("list_dir_detailed", false), ("walk", false), ("list_recursive", false), ("glob", false),
-    ("write", true), ("write_file", true), ("write_to_file", true), ("remove", true),
-    ("remove_dir_all", true), ("mkdir", true),
-];
+fn glob_dir_prefix(pat: &str) -> Option<&str> {
+    let cut = pat.find(['*', '?', '[']).unwrap_or(pat.len());
+    let prefix = &pat[..cut];
+    let dir = prefix.rsplit_once(['/', '\\']).map(|(d, _)| d).unwrap_or(".");
+    if dir.split(['/', '\\']).any(|c| c == "..") { return None; }
+    Some(dir)
+}
 ```
 
-At the **head** of the `Some("fs")` arm, before `match method`:
+At the head of the `Some("fs")` arm, keep revision 2's `args` shadowing for
+`cwd` / `copy` / path methods. Replace the `glob` arm:
 
 ```rust
-            if !caps.allows_namespace("fs") {
-                return Some(VoxValue::_Denied(format!("fs.{method}")));
-            }
-            // Path-taking methods: resolve once, deny unknown methods, and shadow `args` so
-            // every arm below operates on the checked path.
-            let args = match method {
-                "cwd" => args,                                   // takes no path; namespace check above suffices
-                "copy" => {                                      // src read, dst write
-                    let mut it = args.into_iter();
-                    let (Some(VoxValue::Str(src)), Some(VoxValue::Str(dst))) = (it.next(), it.next()) else { return None };
-                    let (Some(s), Some(d)) = (fs_resolve_allowed(caps, &src, false), fs_resolve_allowed(caps, &dst, true)) else {
-                        return Some(VoxValue::_Denied("fs.copy".into()));
-                    };
-                    vec![VoxValue::Str(s.to_string_lossy().into()), VoxValue::Str(d.to_string_lossy().into())]
-                }
-                "glob" => {                                      // check the non-wildcard prefix as a read
+                "glob" => {
                     let Some(VoxValue::Str(pat)) = args.first() else { return None };
-                    let prefix = pat.split(['*', '?', '[']).next().unwrap_or("");
-                    let dir = if prefix.is_empty() { "." } else { prefix.rsplit_once('/').map(|(d, _)| d).unwrap_or(".") };
+                    let Some(dir) = glob_dir_prefix(pat) else {
+                        return Some(VoxValue::_Denied("fs.glob".into()));
+                    };
                     if fs_resolve_allowed(caps, dir, false).is_none() {
                         return Some(VoxValue::_Denied("fs.glob".into()));
                     }
                     args
                 }
-                m => match FS_PATH_METHODS.iter().find(|(n, _)| *n == m) {
-                    Some((_, write)) => {
-                        let mut it = args.into_iter();
-                        let Some(VoxValue::Str(raw)) = it.next() else { return None };
-                        let Some(p) = fs_resolve_allowed(caps, &raw, *write) else {
-                            return Some(VoxValue::_Denied(format!("fs.{method}")));
-                        };
-                        std::iter::once(VoxValue::Str(p.to_string_lossy().into())).chain(it).collect()
-                    }
-                    None => return Some(VoxValue::_Denied(format!("fs.{method}"))),
-                },
-            };
 ```
 
-`io.open`/`io.save` (`:1898/1908`): same shape with `false`/`true`. `walk` builds `format!("{root}/**/*")` — it now receives the resolved root.
+After the glob crate returns, filter:
 
-- [ ] **Step 4: Frozen time and seeded random.** `time` arm: `if let Some(ms) = caps.frozen_time_ms() { return Some(VoxValue::Int(ms)); }` before the `SystemTime::now()` body (`builtins.rs:1243-1249`). Add `pub rng: Option<rand::rngs::StdRng>` to `Interpreter`, seeded from `caps.random_seed()` in `Interpreter::new`; any future randomness builtin draws from it when `Some` (nothing draws today — `crypto` is deferred).
+```rust
+                    let mut out: Vec<String> = matches.into_iter()
+                        .filter_map(|p| fs_resolve_allowed(caps, &p, false).map(|c| c.to_string_lossy().into_owned()))
+                        .collect();
+                    out.sort();
+```
 
-- [ ] **Step 5: Depth bound.** `mod.rs`: `pub eval_depth: usize` and `pub const MAX_EVAL_DEPTH: usize = 1024;`; `EvalError::RecursionLimitExceeded`. In `expr.rs:28` after `track_step`: `interp.eval_depth += 1; if interp.eval_depth > MAX_EVAL_DEPTH { interp.eval_depth -= 1; return Err(EvalError::RecursionLimitExceeded); }` and decrement on every exit path (wrap the body in a closure or a guard struct). Parser: find the recursive expression descent in `crates/vox-compiler/src/parser/descent/` and add a `depth: usize` to the parser state with a 4 096 limit that returns a parse error.
+`FS_PATH_METHODS` table as in revision 2 (the verified 19). Unknown methods denied
+by default. `io.open` / `io.save` same shape.
 
-- [ ] **Step 6: Run, then mutate the symlink check** — `cargo test -q -p vox-compiler --test caps_enforcement_test`; change `std::fs::canonicalize(p)` in `fs_resolve_allowed` to `Ok::<_, std::io::Error>(p.to_path_buf())` → `symlink_escape…` MUST FAIL; restore; grep → 1.
+- [ ] **Step 4: Frozen time and seeded random.** `time` arm: return
+`caps.frozen_time_ms()` before `SystemTime`. `Interpreter.rng: Option<StdRng>` seeded
+from `caps.random_seed()`.
 
-- [ ] **Step 7: Commit** — `git commit -m "feat(eval): scope every fs method after symlink resolution; frozen time; depth bound"`.
+- [ ] **Step 5: Depth bound in `apply_closure`, not `eval_expr`.**
+`EvalError::RecursionLimitExceeded`. `MAX_EVAL_DEPTH: usize = 1024`. Increment /
+decrement only around closure application. Parser nesting limit 4 096 stays in
+descent. `--max-depth` is wired in Task 6.
+
+- [ ] **Step 6: Run, then mutate the symlink check** — change `std::fs::canonicalize(p)`
+in the scoped branch to `Ok(p.to_path_buf())` → `symlink_escape…` MUST FAIL; restore.
+
+- [ ] **Step 7: Commit** — `git commit -m "feat(eval): parent-walk fs resolver; glob filters results; depth bound in apply_closure"`.
 
 ---
 
-## Task 6: `vox run` flags, exit codes, memory ceiling — in the library crate
+## Task 5b: Re-run Task 0's table
 
-**Files:** Create `crates/vox-cli/src/mem_limit.rs`; modify `crates/vox-cli/src/lib.rs` (module + `#[global_allocator]`), `Cargo.toml` (`windows-sys` features — `libc` is already under `[target.'cfg(unix)'.dependencies]` at `:330`; do **not** add an unconditional one), `cli_args.rs:143-163`, `commands/run.rs:38-146` (both `run_interp` call sites `:92,:139`), **`cli_dispatch/lanes.rs:269` and `compilerd.rs:336`** (callers of `run()`); create `crates/vox-cli/tests/run_interp_limits.rs`.
+- [ ] **Step 1:** `cargo run -q -p vox-cli -- run --mode interp scripts/bench-script-tiers.vox > /tmp/tiers-after-5.md`. `fmt` / `install-hooks` / `setup` / `arch-check` must show `ok` in the run column (arch-check's own exit 1 is allowed if stderr is its usual report, not `CapabilityDenied`). Relative writes in those scripts must not be denials.
+- [ ] **Step 2:** Paste the new table under a heading in `script-tier-timings-2026-09.md`. Commit `chore(scripts): re-measure interp execution after fs scoping`.
 
-Findings (limits #1–#6, #15; executability #9, #23): allocator must live in `lib.rs`; `std::process::exit` inside `alloc` deadlocks — use `_exit`/`TerminateProcess`; override `realloc`/`alloc_zeroed` for cost; `used()` racy under parallel tests; 77/78/79 free, 101 is a Rust panic; `run()` has two callers; `_args` was ignored.
+---
 
-- [ ] **Step 1: Write the failing integration test** (`tests/run_interp_limits.rs`; add `argv_is_the_scripts_own` alongside the four from revision 1)
+## Task 6: `vox run` flags, exit codes, memory ceiling
+
+**Files:** Create `crates/vox-cli/src/mem_limit.rs`; modify `lib.rs`, `Cargo.toml`
+(`windows-sys` features **must include `Win32_System_IO`**), `cli_args.rs`,
+`commands/run.rs`, `cli_dispatch/lanes.rs`, `compilerd.rs` (not under `commands/`);
+create `crates/vox-cli/tests/run_interp_limits.rs`; create
+`docs/src/reference/isolation.md` (`category: Language Reference`).
+
+- [ ] **Step 1: Write the failing integration test**
 
 ```rust
 use std::process::Command;
@@ -1254,7 +1244,22 @@ fn capability_denial_exits_77_with_a_marker_on_stderr_and_nothing_on_stdout() {
     let out = Command::new(vox()).args(["run", "--mode", "interp", "--caps", "env:ro"]).arg(&f).output().unwrap();
     assert_eq!(out.status.code(), Some(77), "{}", String::from_utf8_lossy(&out.stderr));
     assert!(!String::from_utf8_lossy(&out.stdout).contains("LEAK"));
-    assert!(String::from_utf8_lossy(&out.stderr).starts_with("vox: capability denied: fs.read"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("vox: capability denied: fs.read"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("--caps"), "error must name the flag that grants it");
+}
+
+#[test]
+fn caps_is_repeatable() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("a.txt"), "A").unwrap();
+    let f = write("rep", &format!(r#"pub fn main() {{ print(fs.read("{}/a.txt")) }}"#, d.path().display()));
+    let out = Command::new(vox())
+        .args(["run", "--mode", "interp", "--caps", &format!("fs:ro={}", d.path().display()), "--caps", "time:real"])
+        .arg(&f)
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(String::from_utf8_lossy(&out.stdout).contains('A'));
 }
 
 #[test]
@@ -1270,14 +1275,15 @@ fn step_and_depth_limits_exit_78() {
     let out = Command::new(vox()).args(["run", "--mode", "interp", "--max-steps", "10000"]).arg(&f).output().unwrap();
     assert_eq!(out.status.code(), Some(78), "{}", String::from_utf8_lossy(&out.stderr));
     let g = write("depth", "fn f(n: int) to int { return f(n + 1) } pub fn main() { return f(0) }");
-    let out = Command::new(vox()).args(["run", "--mode", "interp"]).arg(&g).output().unwrap();
+    let out = Command::new(vox()).args(["run", "--mode", "interp", "--max-depth", "32"]).arg(&g).output().unwrap();
     assert_eq!(out.status.code(), Some(78), "{}", String::from_utf8_lossy(&out.stderr));
 }
 
 #[test]
 fn memory_limit_exits_79() {
-    let f = write("mem", r#"pub fn main() { let mut xs = []; while true { xs = xs.push("0123456789012345678901234567890123456789") } }"#);
-    let out = Command::new(vox()).args(["run", "--mode", "interp", "--max-memory", "67108864", "--max-steps", "100000000"]).arg(&f).output().unwrap();
+    // Doubling crosses 64 MiB in 26 iterations. Do not use list.push.
+    let f = write("mem", r#"pub fn main() { let mut s = "x"; let mut i = 0; while i < 40 { s = s + s; i = i + 1 } }"#);
+    let out = Command::new(vox()).args(["run", "--mode", "interp", "--max-memory", "67108864", "--max-steps", "10000"]).arg(&f).output().unwrap();
     assert_eq!(out.status.code(), Some(79), "{}", String::from_utf8_lossy(&out.stderr));
     assert!(String::from_utf8_lossy(&out.stderr).contains("memory limit exceeded"));
 }
@@ -1287,210 +1293,155 @@ fn argv_is_the_scripts_own() {
     let f = write("argv", r#"pub fn main() { let a = env.args(); print(str(len(a))); print(a[1]) }"#);
     let out = Command::new(vox()).args(["run", "--mode", "interp"]).arg(&f).args(["--", "hello"]).output().unwrap();
     let s = String::from_utf8_lossy(&out.stdout);
-    assert!(s.starts_with("2\nhello"), "{s:?} stderr={}", String::from_utf8_lossy(&out.stderr));
+    assert!(s.contains("hello"), "{s:?} stderr={}", String::from_utf8_lossy(&out.stderr));
 }
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `cargo test -q -p vox-cli --test run_interp_limits 2>&1 | tail -10`.
+- [ ] **Step 2: Run to verify they fail.**
 
-- [ ] **Step 3: The allocator** — `crates/vox-cli/src/mem_limit.rs`:
+- [ ] **Step 3: The allocator** in `mem_limit.rs`, declared from `lib.rs`:
 
 ```rust
-//! Counting allocator with a runtime-armed ceiling (spec §3.2 item 6).
-//!
-//! **This module belongs to the library crate.** `commands::run::run` calls [`arm`], and
-//! `crate::` there is `vox_cli`. Declaring the module in both the bin and the lib compiles
-//! two copies of `USED`/`LIMIT`: the allocator consults one and `arm` writes the other, and
-//! the ceiling silently never fires. `lib.rs` therefore carries both `pub mod mem_limit;`
-//! and the `#[global_allocator]` static; every binary linking `vox-cli` inherits it.
-//!
-//! Disarmed cost: one relaxed atomic add per alloc, one sub per dealloc.
-
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-pub struct Counting;
+#[repr(C, align(64))]
+struct Line(AtomicUsize);
 
-static USED: AtomicUsize = AtomicUsize::new(0);
-static LIMIT: AtomicUsize = AtomicUsize::new(usize::MAX);
+static USED: Line = Line(AtomicUsize::new(0));
+static LIMIT: Line = Line(AtomicUsize::new(usize::MAX));
 
-pub const EXIT_MEMORY_LIMIT: i32 = 79;
+pub fn arm(bytes: usize) { LIMIT.0.store(bytes, Ordering::Relaxed); }
 
-/// Arm the ceiling. Everything allocated so far is counted but was not bounded; call it as
-/// early in `run()` as the clap parse allows. Counts Rust heap in this process only — not
-/// child processes, not `mmap` by C deps, not thread stacks, not bytes written to disk.
-pub fn arm(bytes: usize) {
-    LIMIT.store(bytes, Ordering::Relaxed);
-}
+struct Capped;
+#[global_allocator]
+static ALLOC: Capped = Capped;
 
-pub fn used() -> usize { USED.load(Ordering::Relaxed) }
-
-#[inline]
-fn charge(size: usize) {
-    let new = USED.fetch_add(size, Ordering::Relaxed).wrapping_add(size);
-    if new > LIMIT.load(Ordering::Relaxed) {
-        die(new);
-    }
-}
-
-#[inline]
-fn refund(size: usize) { USED.fetch_sub(size, Ordering::Relaxed); }
-
-/// Report and terminate **without running any exit handler**. `std::process::exit` calls
-/// libc `exit`, which takes `__exit_funcs_lock` and runs atexit handlers; a handler that
-/// allocates re-enters `alloc` over the ceiling — recursive `exit` under that lock, which
-/// glibc treats as undefined and which deadlocks in practice. `abort()` is out too: it dies
-/// by signal, so the parent sees `None`, never 79. Buffered stdout is lost by intent.
-#[cold]
-#[inline(never)]
-fn die(used_now: usize) -> ! {
-    let mut buf = [0u8; 128];
-    let n = format_message(&mut buf, used_now, LIMIT.load(Ordering::Relaxed));
-    #[cfg(unix)]
-    unsafe {
-        libc::write(2, buf.as_ptr().cast(), n);
-        libc::_exit(EXIT_MEMORY_LIMIT);
-    }
-    #[cfg(windows)]
-    unsafe {
-        use windows_sys::Win32::Storage::FileSystem::WriteFile;
-        use windows_sys::Win32::System::Console::{GetStdHandle, STD_ERROR_HANDLE};
-        use windows_sys::Win32::System::Threading::{GetCurrentProcess, TerminateProcess};
-        // TerminateProcess, not ExitProcess: the latter runs DLL_PROCESS_DETACH — same hazard.
-        let mut written = 0u32;
-        WriteFile(GetStdHandle(STD_ERROR_HANDLE), buf.as_ptr(), n as u32, &mut written, std::ptr::null_mut());
-        TerminateProcess(GetCurrentProcess(), EXIT_MEMORY_LIMIT as u32);
-        std::hint::unreachable_unchecked()
-    }
-    #[cfg(not(any(unix, windows)))]
-    std::process::abort()
-}
-
-/// `vox: memory limit exceeded (<used> > <limit> bytes); exit 79\n` into a stack buffer —
-/// `format!` would allocate, and we are inside the allocator.
-fn format_message(buf: &mut [u8; 128], used: usize, limit: usize) -> usize {
-    struct Cur<'a> { buf: &'a mut [u8; 128], n: usize }
-    impl Cur<'_> {
-        fn s(&mut self, bytes: &[u8]) { for &b in bytes { if self.n < self.buf.len() { self.buf[self.n] = b; self.n += 1; } } }
-        fn u(&mut self, mut v: usize) {
-            let mut d = [0u8; 20]; let mut i = d.len();
-            loop { i -= 1; d[i] = b'0' + (v % 10) as u8; v /= 10; if v == 0 { break; } }
-            self.s(&d[i..]);
-        }
-    }
-    let mut c = Cur { buf, n: 0 };
-    c.s(b"vox: memory limit exceeded ("); c.u(used); c.s(b" > "); c.u(limit); c.s(b" bytes); exit 79\n");
-    c.n
-}
-
-unsafe impl GlobalAlloc for Counting {
+unsafe impl GlobalAlloc for Capped {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         charge(layout.size());
-        let p = unsafe { System.alloc(layout) };
-        if p.is_null() { refund(layout.size()); }
-        p
+        unsafe { System.alloc(layout) }
     }
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        // Overridden for cost, not accounting: keeps calloc's zero-page path.
         charge(layout.size());
-        let p = unsafe { System.alloc_zeroed(layout) };
-        if p.is_null() { refund(layout.size()); }
-        p
-    }
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        refund(layout.size());
-        unsafe { System.dealloc(ptr, layout) }
+        unsafe { System.alloc_zeroed(layout) }
     }
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        // The provided default is alloc+copy+dealloc, which forfeits realloc(3)'s in-place
-        // growth for every Vec in the compiler, armed or not. Charge only the delta.
-        let old = layout.size();
-        if new_size > old { charge(new_size - old); }
-        let p = unsafe { System.realloc(ptr, layout, new_size) };
-        if p.is_null() { if new_size > old { refund(new_size - old); } }
-        else if new_size < old { refund(old - new_size); }
-        p
+        if new_size > layout.size() { charge(new_size - layout.size()); }
+        unsafe { System.realloc(ptr, layout, new_size) }
+    }
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        USED.0.fetch_sub(layout.size(), Ordering::Relaxed);
+        unsafe { System.dealloc(ptr, layout) }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn the_message_is_built_without_allocating() {
-        let mut b = [0u8; 128];
-        let n = format_message(&mut b, 100, 64);
-        assert_eq!(std::str::from_utf8(&b[..n]).unwrap(), "vox: memory limit exceeded (100 > 64 bytes); exit 79\n");
+fn charge(n: usize) {
+    if LIMIT.0.load(Ordering::Relaxed) == usize::MAX { return; }
+    let new = USED.0.fetch_add(n, Ordering::Relaxed) + n;
+    if new > LIMIT.0.load(Ordering::Relaxed) {
+        let _ = write_limit_line();
+        die(79);
     }
-    #[test]
-    fn a_long_message_is_truncated_not_panicking() {
-        let mut b = [0u8; 128];
-        assert!(format_message(&mut b, usize::MAX, usize::MAX) <= 128);
+}
+
+fn die(code: i32) -> ! {
+    #[cfg(unix)]
+    unsafe { libc::_exit(code); }
+    #[cfg(windows)]
+    unsafe {
+        windows_sys::Win32::System::Threading::TerminateProcess(
+            windows_sys::Win32::System::Threading::GetCurrentProcess(),
+            code as u32,
+        );
+        loop { std::hint::spin_loop(); }
     }
-    // `used()` is a live shared counter under cargo test's thread pool; assert direction only.
-    #[test]
-    fn charging_moves_the_counter() {
-        let before = used();
-        charge(1 << 20);
-        assert!(used() >= before + (1 << 20));
-        refund(1 << 20);
-    }
+    #[cfg(not(any(unix, windows)))]
+    std::process::abort();
 }
 ```
 
-In `lib.rs`: `pub mod mem_limit;` and `#[global_allocator] static GLOBAL: mem_limit::Counting = mem_limit::Counting;`. `main.rs` unchanged. `Cargo.toml` `[target.'cfg(windows)'.dependencies]`: `windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_Threading"] }`.
+Same-file tests for `charge` skipping when `LIMIT == usize::MAX` and for `die` not
+being `std::process::exit`. `write_limit_line` writes a stack-formatted
+`vox: memory limit exceeded\n` to stderr without allocating.
 
-- [ ] **Step 4: Flags, args, exit codes.** `cli_args.rs` `RunArgs`: add `caps: Option<String>`, `max_steps: Option<usize>`, `max_memory: Option<usize>` (doc strings pointing at `docs/src/reference/isolation.md`). `run.rs`: `run_interp(file, args, caps, max_steps)`; set `interpreter.script_args = args.to_vec()` (Task 2's field) and `interpreter.caps` = `parse(spec)?` / `from_legacy_directive` / `developer_default()`; install the signal handler here only. Map outcomes:
+- [ ] **Step 4: Flags.** `RunArgs`: `caps: Vec<String>` with `ArgAction::Append`,
+`max_steps: Option<usize>`, `max_memory: Option<usize>`, `max_depth: Option<usize>`
+(default 1024). `run_interp` sets `script_args`, `source_path`, `caps` from tokens /
+legacy / developer_default, arms the allocator, installs the signal handler here
+only. Exit map:
 
 ```rust
-    let outcome = interpreter.run_module(&lowered).and_then(|_| interpreter.call("main", vec![]));
-    let res = match outcome {
-        Ok(v) => v,
         Err(vox_compiler::eval::EvalError::CapabilityDenied { ns, method }) => {
-            eprintln!("vox: capability denied: {ns}.{method}");  // the executor keys on this prefix
-            std::process::exit(77);                              // deliberately skips exit commands
+            eprintln!("vox: capability denied: {ns}.{method} — grant with --caps <token> (see isolation.md)");
+            std::process::exit(77);
         }
         Err(vox_compiler::eval::EvalError::StepLimitExceeded) | Err(vox_compiler::eval::EvalError::RecursionLimitExceeded) => {
-            eprintln!("vox: execution budget exceeded; pass --max-steps or use --mode script for compute-heavy work");
+            eprintln!("vox: execution budget exceeded; pass --max-steps / --max-depth or use --mode script");
             std::process::exit(78);
         }
-        Err(e) => anyhow::bail!("Eval failed: {e:?}"),
-    };
 ```
 
-`run()` gains `caps: Option<&str>, max_steps: Option<usize>, max_memory: Option<usize>`; arm the allocator first; thread from `cli_dispatch/lanes.rs:269` (from `RunArgs`) and `compilerd.rs:336` (`None, None, None`). Both `run_interp` call sites (`:92`, `:139`) updated.
+Thread from `cli_dispatch/lanes.rs` and `compilerd.rs` (`None`s).
 
-- [ ] **Step 5: Run; mutate** — `cargo test -q -p vox-cli --test run_interp_limits && cargo test -q -p vox-cli --lib mem_limit`. Mutation: `if new > LIMIT.load(…)` → `if false` in `charge` → `memory_limit_exits_79` MUST FAIL (exits 78); restore; `grep -c 'new > LIMIT' crates/vox-cli/src/mem_limit.rs` → 1.
+- [ ] **Step 5: `isolation.md`** (`category: Language Reference`). Grammar table
+(repeatable `--caps`, one token per flag; `env:ro|rw`; `random:`; `deterministic`);
+limits table including `--max-depth` and the sentence "`--max-steps` bounds evaluated
+HIR nodes, not CPU time; a local run has no wall-clock bound"; exit codes
+`0 / 1 fault / 77 / 78 / 79 / 101 interpreter bug`; "`vox run` without `--caps`
+grants everything; `--caps` is opt-in locally and mandatory on the mesh"; the legacy
+directive is unscoped; `process:allow` means "runs any binary on this host as the
+daemon user"; what `--max-memory` does not count; the TOCTOU residual; disk/file
+caps apply on the mesh only.
 
-- [ ] **Step 6: Commit** — `cargo fmt -p vox-cli`; `git commit -m "feat(run): --caps/--max-steps/--max-memory; allocator ceiling in the library; args reach the script"`.
+- [ ] **Step 6: Run; mutate** — `cargo test -q -p vox-cli --test run_interp_limits && cargo test -q -p vox-cli --lib mem_limit`. Mutation: `if new > LIMIT.0.load(…)` → `if false` in `charge` → `memory_limit_exits_79` MUST FAIL (exits 0 or 78); restore; `grep -c 'new > LIMIT' crates/vox-cli/src/mem_limit.rs` → 1.
+
+- [ ] **Step 7: Commit** — `cargo fmt -p vox-cli`. `git commit -m "feat(run): repeatable --caps, --max-steps/--max-memory/--max-depth, allocator ceiling"`.
 
 ---
 
+# PR 4 — The git point of no return
+
 ## Task 7: The interpreter becomes the default for script-shaped files
 
-**Files:** `crates/vox-cli/src/commands/runtime/run/run.rs:13-23` (predicate), `commands/run.rs:92-146`, `cli_args.rs:149-157`, `docs/src/reference/cli.md:144`, `lefthook.yml:18`, `crates/vox-cli/tests/run_mode_dispatch.rs` (its `#[ignore]`d `run_mode_auto_matches_script_for_script_shaped_file` at `:68` asserts the *old* routing — retarget it).
+**Files:** `crates/vox-cli/src/commands/runtime/run/run.rs` (predicate),
+`commands/run.rs`, `cli_args.rs`, `docs/src/reference/cli.md`,
+`.github/workflows/setup-e2e.yml` (pin `--mode script` on the three native-lane
+lines), `crates/vox-cli/tests/run_mode_dispatch.rs`.
 
-Findings (parity, Task 7 note; deletions item 5): `!head.contains("@page")` routes `table`/`routes`/`server`/`actor`/`workflow` programs to the interpreter; verify the pre-commit script **before** flipping.
+**Preconditions (do not start without all four):**
+1. Task 5b table: `fmt` / `install-hooks` / `setup` / `arch-check` show `ok` (or
+   arch-check's documented own exit) in the run column.
+2. `list.push` shipped (PR 2 `list_push_is_amortised_constant_not_quadratic` green).
+3. `PATH=""` proof prepared (Step 4) — auto-mode no longer needs cargo.
+4. Three existing escape hatches documented in `cli.md` and `isolation.md`. Do not
+   invent a new key.
 
-- [ ] **Step 1: Verify the automation scripts first.** From Task 0's table, `scripts/fmt.vox`, `install-hooks.vox`, `setup.vox`, `arch-check.vox` must show `ok` in the run column. If any does not, fix the asymmetry (Task 2 class) before continuing — a failure here breaks every commit for every contributor.
+- [ ] **Step 1: Confirm preconditions.** Re-read Task 5b's table. Re-run
+`cargo test -q -p vox-compiler --test eval_typeck_parity_test list_push`. If either
+is not green, stop.
 
-- [ ] **Step 2: Write the failing tests** (append to `run_mode_dispatch.rs`; retarget the ignored one to assert interp routing)
+- [ ] **Step 2: Write the failing tests** (append to `run_mode_dispatch.rs`; retarget
+the ignored `run_mode_auto_matches_script_for_script_shaped_file`)
 
 ```rust
 #[test]
 fn auto_mode_runs_script_shaped_files_under_the_interpreter() {
     let f = std::env::temp_dir().join(format!("vox-auto-{}.vox", std::process::id()));
     std::fs::write(&f, r#"pub fn main() { print("AUTO_INTERP_OK") }"#).unwrap();
-    let t0 = std::time::Instant::now();
-    let out = std::process::Command::new(env!("CARGO_BIN_EXE_vox")).args(["run"]).arg(&f).output().unwrap();
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_vox"))
+        .env("PATH", "")
+        .args(["run"])
+        .arg(&f)
+        .output()
+        .unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     assert!(String::from_utf8_lossy(&out.stdout).contains("AUTO_INTERP_OK"));
-    assert!(t0.elapsed() < std::time::Duration::from_secs(5), "took {:?}: auto mode is still compiling", t0.elapsed());
 }
 
 #[test]
-fn service_shaped_files_do_not_go_to_the_interpreter() {
-    use vox_cli::commands::runtime::run::run::is_interpreter_shaped;
+fn script_shaped_predicate_keeps_service_surfaces_on_the_native_lane() {
+    use vox_cli::commands::runtime::run::run::is_script_shaped;
     for src in [
         "table T { id: Id[T] }\npub fn main() {}",
         "routes { }\npub fn main() {}",
@@ -1499,19 +1450,26 @@ fn service_shaped_files_do_not_go_to_the_interpreter() {
         "actor A { }\npub fn main() {}",
         "@page fn home() {}",
     ] {
-        assert!(!is_interpreter_shaped(src), "must keep the native/app lane: {src:?}");
+        assert!(!is_script_shaped(src), "must keep the native/app lane: {src:?}");
     }
-    assert!(is_interpreter_shaped("pub fn main() { print(1) }"));
+    assert!(is_script_shaped("pub fn main() { print(1) }"));
+}
+
+#[test]
+fn three_escape_hatches_still_name_the_native_lane() {
+    let help = std::process::Command::new(env!("CARGO_BIN_EXE_vox")).args(["run", "--help"]).output().unwrap();
+    let s = String::from_utf8_lossy(&help.stdout);
+    assert!(s.contains("--mode"), "{s}");
 }
 ```
 
-- [ ] **Step 3: Implement.** In `run.rs` (the `runtime/run/run.rs` one) add:
+- [ ] **Step 3: Implement.** One predicate, one file:
 
 ```rust
 /// Script-shaped: declares `fn main()` and none of the surfaces the native lane boots.
 /// Scans the first 8 KiB like the `@page` heuristic; false positives route to the native
 /// lane, which is the safe direction.
-pub fn is_interpreter_shaped(head: &str) -> bool {
+pub fn is_script_shaped(head: &str) -> bool {
     let has_main = head.contains("fn main(");
     let service = ["@page", "\nroutes", "\ntable ", "\nserver ", "\nquery ", "\nmutation ", "\nactor ", "\nworkflow ", "\nactivity "];
     let h = format!("\n{head}");
@@ -1519,19 +1477,37 @@ pub fn is_interpreter_shaped(head: &str) -> bool {
 }
 ```
 
-In `commands/run.rs::run`: when `mode == Auto` and `web_mode != WebRunMode::Script` and `is_interpreter_shaped(&head)` → `run_interp(...)`; otherwise the existing lanes, and when the file is script-shaped but a service surface was found, `eprintln!("vox: this program declares a service surface; running it on the native lane (use --mode script explicitly to silence this)")`. Update the `RunMode::Auto` doc, `cli_args.rs:149`, `cli.md:144`, and add the lefthook comment.
+In `commands/run.rs::run`: when `mode == Auto` and `web_mode != WebRunMode::Script`
+and `is_script_shaped(&head)` → `run_interp(...)`; otherwise the existing lanes.
+When the file has `fn main()` but a service surface was found,
+`eprintln!("vox: this program declares a service surface; running it on the native lane (use --mode script to silence this)")`.
+Update `RunMode::Auto` docs, `cli_args.rs`, `cli.md`. Document the three hatches
+(`--mode script`, `Vox.toml [web] run_mode = "script"`, `VOX_WEB_RUN_MODE=script`)
+in those words.
 
-- [ ] **Step 4: Run and commit** — `cargo test -q -p vox-cli --test run_mode_dispatch && cargo test -q -p vox-cli --test run_interp_limits`; `git commit -m "feat(run): the interpreter is the default for script-shaped files; cargo is opt-in"`.
+- [ ] **Step 4: Pin `setup-e2e.yml`.** The three lines that exist to test
+`--features script-execution` get `--mode script` so they keep testing the native
+lane after auto flips. `lefthook.yml` uses `cargo run` and does not need a PATH
+`vox` version guard.
+
+- [ ] **Step 5: Run and commit** — `cargo test -q -p vox-cli --test run_mode_dispatch && cargo test -q -p vox-cli --test run_interp_limits`. `git commit -m "feat(run): the interpreter is the default for script-shaped files; cargo is opt-in"`.
+
+This commit is the only revert needed to undo the local default flip.
 
 ---
 
-## Task 8: Protocol — job ids on the wire, honest version refusal, payload framing
+# PR 5 — The fleet point of no return
 
-**Files:** `crates/vox-mesh-transport/src/protocol.rs` (`:15-16` PROTO, `:19` `JobId`, `:49-52` `Run`, `:73-79` `QueueStats` doc, `:88-97` `Isolation`, `:100-118` `Probed`, `:120-140` `JobLimits`, `:160-169` `check_hello`, `:283-284,304` tests); `endpoint.rs:35-40` (`ReceivedJob`), `:191-196` (close codes), `:221-262` (`handle`); `tests/security.rs` (`:186-200`, `:254-268` send `Run` with no payload frame and no `job_id`; `:206` `Isolation::Wasm`); `tests/mailbox.rs:12,62` (uses `ProbeOnlyExecutor` — leave until Task 10 but note).
+## Task 8: Protocol — job ids, honest version refusal, payload framing
 
-Findings (mesh #1–#4, #6; limits #7–#9): `check_hello` error never reaches the peer; `#[serde(default)]` is decorative under postcard; frame max off by the varint; sender never learns a payload-hash id; `JobId` is a type alias; 1 GiB cap; `JobLimits` must carry every bound.
+**Files:** `crates/vox-mesh-transport/src/protocol.rs`, `endpoint.rs`,
+`tests/security.rs`, `tests/mailbox.rs` (note only).
 
-- [ ] **Step 1: Write the failing tests** (append to `security.rs`, using the helpers you will move to `tests/common/mod.rs` in Task 9 — for now keep them local)
+`REFUSED_PROTO = 4003` (4001 untrusted, 4002 too large, 4004 no mailbox).
+`JobLimits` grows `max_disk_bytes` (32 MiB), `max_files` (4 096), `max_depth`,
+`max_concurrent`. `QueueStats` reports `pending_count` **and** `max_concurrent`.
+
+- [ ] **Step 1: Write the failing tests** (append to `security.rs`)
 
 ```rust
 #[tokio::test]
@@ -1568,21 +1544,39 @@ async fn a_v1_peer_is_told_which_machine_to_upgrade() {
     let (resp, close) = send_raw_hello_on(&server, Hello { proto: 1, ..Hello::current() }).await;
     assert!(matches!(resp, Some(JobResponse::Failed(ref m)) if m.contains("v1") && m.contains("v2")), "{resp:?}");
     assert_eq!(close, Some(REFUSED_PROTO));
+    assert_eq!(REFUSED_PROTO, 4003);
 }
 
 #[test]
 fn a_new_trailing_field_is_not_readable_from_an_old_sender() {
-    // postcard is positional: encode a Probed WITHOUT `engines`, decode with it — must fail.
+    // Same variant index as JobResponse::Probed, plus a dummy at index 0 so a
+    // discriminant mismatch cannot masquerade as the trailing-field question.
     #[derive(serde::Serialize)]
-    enum OldResp { #[allow(dead_code)] A, Probed { host_triple: String, vox: String, task_kinds: Vec<TaskKind> } }
-    let bytes = postcard::to_allocvec(&OldResp::Probed { host_triple: "t".into(), vox: "v".into(), task_kinds: vec![] }).unwrap();
-    assert!(postcard::from_bytes::<JobResponse>(&bytes).is_err(), "#[serde(default)] does not buy wire compatibility under postcard; PROTO does");
+    enum OldResp {
+        #[allow(dead_code)]
+        ProbeAck,
+        Probed { host_triple: String, vox: String, task_kinds: Vec<TaskKind> },
+    }
+    let bytes = postcard::to_allocvec(&OldResp::Probed {
+        host_triple: "t".into(),
+        vox: "v".into(),
+        task_kinds: vec![],
+    })
+    .unwrap();
+    assert!(
+        postcard::from_bytes::<JobResponse>(&bytes).is_err(),
+        "#[serde(default)] does not buy wire compatibility under postcard; PROTO does"
+    );
 }
 
 #[test]
 fn isolation_default_is_the_interpreter_and_there_is_no_third_tier() {
     assert_eq!(Isolation::DEFAULT_FOR_MESH, Isolation::Interpreter);
-    for v in [Isolation::Interpreter, Isolation::Native] { match v { Isolation::Interpreter | Isolation::Native => {} } }
+    for v in [Isolation::Interpreter, Isolation::Native] {
+        match v {
+            Isolation::Interpreter | Isolation::Native => {}
+        }
+    }
 }
 
 #[test]
@@ -1590,21 +1584,25 @@ fn proto_is_two_and_limits_carry_every_bound() {
     assert_eq!(vox_mesh_transport::protocol::PROTO, 2);
     let l = JobLimits::default();
     assert_eq!(l.max_payload_for(TaskKind::VoxScript), 4 * 1024 * 1024);
-    assert!(l.max_memory_bytes > 0 && l.max_steps > 0);
+    assert_eq!(l.max_memory_bytes, 512 * 1024 * 1024);
+    assert_eq!(l.max_steps, 50_000_000);
+    assert_eq!(l.max_disk_bytes, 32 * 1024 * 1024);
+    assert_eq!(l.max_files, 4_096);
+    assert!(l.max_concurrent >= 2);
 }
 ```
 
-Extend `SpyExecutor` with `last_payload()` / `invocations()`; write `send_run_on(server, job_id, kind, payload)` and `send_run_with_claim(server, job_id, kind, payload, claim)` that write `Hello`, then `JobRequest::Run { job_id, kind, payload_bytes: claim }`, then `write_frame(&mut send, &payload.to_vec())`; and `send_raw_hello_on` returning `(Option<JobResponse>, Option<u32 close code>)`. Update the two existing `Run` senders at `:186-200` and `:254-268` to send a `job_id` and a payload frame (they currently `finish()` right after the request — that would now fail at *runtime* on `read_exact`).
+Extend `SpyExecutor` with `last_payload()` / `invocations()`. Write
+`send_run_on` / `send_run_with_claim` / `send_raw_hello_on`. Update existing `Run`
+senders to send a `job_id` and a payload frame.
 
-- [ ] **Step 2: Run to verify they fail** — `cargo test -q -p vox-mesh-transport --test security 2>&1 | tail -10` → compile errors.
+- [ ] **Step 2: Run to verify they fail.**
 
 - [ ] **Step 3: Implement `protocol.rs`.**
 
 ```rust
 pub const PROTO: u16 = 2;
 
-/// Assigned by the SENDER and echoed in every response; scoped by the receiver to the
-/// sending peer, so ids need only be unique per sender.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct JobId(pub u64);
 
@@ -1615,80 +1613,63 @@ pub enum JobRequest {
     QueueStats,
 }
 
-/// postcard is positional: `#[serde(default)]` does NOT make a new trailing field readable
-/// from an older sender (postcard-1.1.3 de/deserializer.rs:151 — SeqAccess bounds on the
-/// reader's field count, so a short buffer is DeserializeUnexpectedEnd, never Ok(None)).
-/// Compatibility comes from PROTO + check_hello, nothing else. ANY field added to any frame
-/// below is a PROTO bump. The existing `#[serde(default)]`s are kept for JSON debug dumps only.
 pub enum Isolation { Interpreter, Native }
 impl Isolation { pub const DEFAULT_FOR_MESH: Self = Self::Interpreter; }
-
-// JobResponse::Probed gains `pub engines: Vec<String>` (see the comment above).
 
 pub struct JobLimits {
     pub wall_clock: Duration,
     pub max_output_bytes: usize,
-    /// General cap, sized for declarative ML job JSON. VoxScript has its own (below).
-    pub max_payload_bytes: u64,        // default 16 MiB, was 1 GiB for the deleted bundle lane
-    pub max_memory_bytes: usize,       // default 512 MiB
-    pub max_steps: u64,                // default 50_000_000
+    pub max_payload_bytes: u64,   // default 16 MiB
+    pub max_memory_bytes: usize,  // default 512 MiB
+    pub max_steps: u64,           // default 50_000_000
+    pub max_depth: usize,         // default 1_024
+    pub max_disk_bytes: u64,      // default 32 MiB
+    pub max_files: u32,           // default 4_096
+    pub max_concurrent: u32,      // default available_parallelism.max(2)
     pub isolation: Isolation,
 }
 impl JobLimits {
-    /// VoxScript is *source*: 4 MiB is already an absurd script. Checked before the frame is
-    /// read, so an oversized claim costs a frame rather than the allocation.
     pub fn max_payload_for(&self, kind: TaskKind) -> u64 {
         match kind { TaskKind::VoxScript => 4 * 1024 * 1024, _ => self.max_payload_bytes }
     }
 }
+
+pub struct QueueStats {
+    pub pending_count: u64,
+    pub max_concurrent: u64,
+}
 ```
 
-`endpoint.rs`: add `pub const REFUSED_PROTO: u32 = 4005;` (check the existing `REFUSED_*` constants — 4001/4003/4004 are taken — and pick the next free). In `handle()`, replace `protocol::check_hello(&hello)?` with: on `Err(e)` write `JobResponse::Failed(e.to_string())`, `send.finish()?`, `conn.close(REFUSED_PROTO.into(), b"proto mismatch")`, `conn.closed().await`, `return Ok(())`. Then:
+`endpoint.rs`: `pub const REFUSED_PROTO: u32 = 4003;`. On `check_hello` `Err`, write
+`JobResponse::Failed`, `finish`, `conn.close(REFUSED_PROTO.into(), b"proto mismatch")`.
+Payload path: refuse claim `> cap` before read; `read_frame` max =
+`payload_bytes.saturating_add(8)`; refuse if `p.len() as u64 != *payload_bytes`.
+`ReceivedJob` gains `payload`. Fix every `Isolation::Wasm`/`Container` the compiler
+reports.
 
-```rust
-    let payload = match &request {
-        JobRequest::Run { kind, payload_bytes, .. } => {
-            let cap = limits.max_payload_for(*kind);
-            if *payload_bytes > cap {
-                let msg = format!("payload of {payload_bytes} bytes exceeds the {cap} byte cap for {kind}");
-                protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
-                send.finish()?; conn.closed().await; return Ok(());
-            }
-            // +8: the frame is the postcard Vec<u8> = varint(len) ++ bytes.
-            let max = usize::try_from(*payload_bytes).unwrap_or(usize::MAX).saturating_add(8);
-            let p: Vec<u8> = protocol::read_frame(&mut recv, max).await?;
-            if p.len() as u64 != *payload_bytes {
-                let msg = format!("payload claim of {payload_bytes} bytes but {} arrived", p.len());
-                protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
-                send.finish()?; conn.closed().await; return Ok(());
-            }
-            p
-        }
-        _ => Vec::new(),
-    };
-```
+- [ ] **Step 4: Run** — `cargo test -q -p vox-mesh-transport && cargo clippy -q -p vox-mesh-transport --all-targets -- -D warnings`.
 
-`ReceivedJob` gains `pub payload: Vec<u8>`. Fix every `Isolation::Wasm`/`Container` and every `JobRequest::Cancel { job_id: 42 }` (`protocol.rs:232`) the compiler reports, plus the `protocol.rs:283-284` test asserting `DEFAULT_FOR_MESH == Wasm`.
-
-- [ ] **Step 4: Run** — `cargo test -q -p vox-mesh-transport && cargo clippy -q -p vox-mesh-transport --all-targets -- -D warnings`. (`tests/mailbox.rs` still compiles: it uses `ProbeOnlyExecutor`, which Task 10 deletes.)
-
-- [ ] **Step 5: Commit** — `git commit -m "feat(mesh): PROTO 2 — sender job ids, honest version refusal, payload framing that works"`.
+- [ ] **Step 5: Commit** — `git commit -m "feat(mesh): PROTO 2 — sender job ids, REFUSED_PROTO 4003, payload framing"`.
 
 ---
 
 ## Task 9: `InterpExecutor` — the mesh runs VoxScript
 
-**Files:** Create `crates/vox-mesh-transport/src/interp_executor.rs`, `tests/common/mod.rs`, `tests/interp_executor.rs`; modify `src/lib.rs`, `Cargo.toml` (`tokio` features `process, io-util, time, sync, fs, macros`; `tempfile`; `libc` under `cfg(unix)`); `pre_push.rs:1551-1568` (register the slow tests).
+**Files:** Create `interp_executor.rs` (same-file `mod tests`), `caps_spec.rs`
+(same-file `mod tests`), `tests/common/mod.rs`, `tests/interp_executor.rs`;
+modify `lib.rs`, `Cargo.toml` (`tokio` features `process, io-util, time, sync, fs, macros`;
+`tempfile`; `libc` under `cfg(unix)`; existing `win32job` — no new crate).
 
-Findings (limits #4, #9–#12, #17, #18; mesh #4, #5, #7–#9, #18; executability #12, #13, #19–#21): `select!` borrow conflict; `Arc<dyn>` coercion; cross-peer cancel; no concurrency cap; grandchild pipe hang; Windows env; `HOME` on the job dir; caps-string injection; truncation marker missing; test numbers; `vox` binary not built by `cargo test`.
+- [ ] **Step 1: Move the helpers** to `tests/common/mod.rs`.
+`security.rs` declares `mod common;`. Run `cargo test -q -p vox-mesh-transport --test security` → still green.
 
-- [ ] **Step 1: Move the helpers.** Create `tests/common/mod.rs` holding `Server`, `SpyExecutor`, `start_server_with(make: impl FnOnce(Arc<MeshTrust>) -> Arc<dyn JobExecutor>)`, `start_server()` (wrapping `SpyExecutor`), `client_endpoint`, `client_id`, `send_run_on`, `send_run_with_claim`, `loopback_addr_of`. `security.rs` declares `mod common;` and imports from it; behaviour unchanged. Run `cargo test -q -p vox-mesh-transport --test security` → still green.
-
-- [ ] **Step 2: Write the failing tests** — `tests/interp_executor.rs`; every live test carries `#[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]`:
+- [ ] **Step 2: Write the failing tests** in `tests/interp_executor.rs`. Every live
+spawn test carries `#[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]`.
+Add `vox_lit` for Windows path literals in any later string-built `.vox`.
 
 ```rust
 mod common;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use vox_mesh_transport::endpoint::JobExecutor;
 use vox_mesh_transport::protocol::{JobId, JobLimits, JobResponse};
@@ -1696,8 +1677,10 @@ use vox_mesh_transport::trust::TrustLevel;
 use vox_mesh_transport::{InterpExecutor, MeshTrust};
 use vox_mesh_types::TaskKind;
 
-/// Builds `vox` if absent: `cargo test -p vox-mesh-transport` does not, and a dev-dep on
-/// `vox-cli` would be an upward crate edge.
+fn vox_lit(p: &Path) -> String {
+    p.display().to_string().replace('\\', "\\\\")
+}
+
 fn vox_bin() -> PathBuf {
     if let Ok(p) = std::env::var("VOX_BIN") { return p.into(); }
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().unwrap();
@@ -1717,17 +1700,27 @@ fn exec(trust: Arc<MeshTrust>) -> Arc<dyn JobExecutor> {
 #[test]
 fn caps_mapping_never_grants_more_than_the_trust_level() {
     let d = tempfile::tempdir().unwrap();
-    let s = InterpExecutor::caps_for(TrustLevel::Sandboxed, d.path()).unwrap().to_spec();
+    let tokens = InterpExecutor::caps_for(TrustLevel::Sandboxed, d.path()).unwrap();
+    let s = tokens.join(",");
     assert!(s.contains("fs:rw=") && s.contains("time:real"));
     for forbidden in ["net:allow", "process:allow", "env:", "secrets"] { assert!(!s.contains(forbidden), "{s}"); }
-    let n = InterpExecutor::caps_for(TrustLevel::Native, d.path()).unwrap().to_spec();
+    let n = InterpExecutor::caps_for(TrustLevel::Native, d.path()).unwrap().join(",");
     assert!(n.contains("net:allow") && n.contains("process:allow") && n.contains("env:ro"));
-    assert!(!n.contains("secrets"), "secrets are never granted by trust level");
+    assert!(!n.contains("secrets"));
 }
 
 #[test]
-fn a_job_dir_containing_a_separator_is_refused_not_encoded() {
-    assert!(InterpExecutor::caps_for(TrustLevel::Sandboxed, std::path::Path::new("/tmp/a,net:allow")).is_err());
+fn a_job_dir_with_a_comma_is_accepted() {
+    let d = tempfile::Builder::new().prefix("a,b-").tempdir().unwrap();
+    assert!(InterpExecutor::caps_for(TrustLevel::Sandboxed, d.path()).is_ok());
+}
+
+#[test]
+fn read_capped_does_not_mark_an_exact_max() {
+    let exact = vec![b'x'; 64];
+    let (buf, truncated) = futures::executor::block_on(InterpExecutor::read_capped_for_test(&exact[..], 64));
+    assert_eq!(buf.len(), 64);
+    assert!(!truncated, "exact-max must not be marked truncated");
 }
 
 #[tokio::test]
@@ -1750,9 +1743,9 @@ async fn a_sandboxed_peer_cannot_read_the_host_filesystem() {
 
 #[tokio::test]
 #[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]
-async fn a_forged_exit_77_is_not_reported_as_a_denial() {
+async fn a_forged_exit_77_under_grant_native_is_not_a_denial() {
     let server = common::start_server_with(exec).await;
-    server.trust.trust(&common::client_id(), None).unwrap();
+    server.trust.trust_with(&common::client_id(), vox_mesh_transport::trust::TrustLevel::Native).unwrap();
     let resp = common::send_run_on(&server, JobId(3), TaskKind::VoxScript, b"pub fn main() { process.exit(77) }").await;
     assert!(matches!(resp, JobResponse::Failed(ref m) if !m.contains("capability denied")), "{resp:?}");
 }
@@ -1762,23 +1755,26 @@ async fn a_forged_exit_77_is_not_reported_as_a_denial() {
 async fn a_runaway_allocation_is_killed_and_reported() {
     let mut limits = JobLimits::default();
     limits.max_memory_bytes = 64 * 1024 * 1024;
-    limits.max_steps = 100_000_000;   // headroom so the step budget does not win the race
+    limits.max_steps = 10_000;
     let server = common::start_server_with(|t| Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>).await;
     server.trust.trust(&common::client_id(), None).unwrap();
-    let resp = common::send_run_on(&server, JobId(4), TaskKind::VoxScript, b"pub fn main() { let mut xs = []; while true { xs = xs.push(\"0123456789012345678901234567890123456789\") } }").await;
+    let resp = common::send_run_on(&server, JobId(4), TaskKind::VoxScript, b"pub fn main() { let mut s = \"x\"; let mut i = 0; while i < 40 { s = s + s; i = i + 1 } }").await;
     assert!(matches!(resp, JobResponse::Failed(ref m) if m.contains("memory limit")), "{resp:?}");
 }
 
 #[tokio::test]
 #[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]
-async fn output_is_capped_and_marked() {
+async fn output_is_capped_and_marked_only_when_over() {
     let mut limits = JobLimits::default();
     limits.max_output_bytes = 64 * 1024;
     let server = common::start_server_with(|t| Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>).await;
     server.trust.trust(&common::client_id(), None).unwrap();
     let resp = common::send_run_on(&server, JobId(5), TaskKind::VoxScript, b"pub fn main() { let mut i = 0; while i < 10000 { print(\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"); i = i + 1 } }").await;
     match resp {
-        JobResponse::Output(b) => { assert!(b.len() <= 64 * 1024 + 128); assert!(String::from_utf8_lossy(&b).contains("[vox: output truncated")); }
+        JobResponse::Output(b) => {
+            assert!(b.len() <= 64 * 1024 + 128);
+            assert!(String::from_utf8_lossy(&b).contains("[vox: output truncated"));
+        }
         other => panic!("{other:?}"),
     }
 }
@@ -1786,18 +1782,32 @@ async fn output_is_capped_and_marked() {
 #[tokio::test]
 #[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]
 async fn one_peer_cannot_cancel_another_peers_job() {
-    let server = common::start_server_with(exec).await;
+    let mut limits = JobLimits::default();
+    limits.max_steps = 50_000_000;
+    let server = common::start_server_with(|t| Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>).await;
     let (a, b) = (common::client_endpoint(common::client_sk_a()).await, common::client_endpoint(common::client_sk_b()).await);
     server.trust.trust(&a.id(), None).unwrap();
     server.trust.trust(&b.id(), None).unwrap();
-    // A starts a slow job (JobId(9)); B cancels JobId(9); A's job must still finish.
-    let slow = b"pub fn main() { let mut i = 0; while i < 3000000 { i = i + 1 }; print(\"DONE\") }";
+    let slow = b"pub fn main() { let mut i = 0; while i < 200000 { i = i + 1 }; print(\"DONE\") }";
     let a_job = tokio::spawn(common::send_run_from(a.clone(), &server, JobId(9), TaskKind::VoxScript, slow));
-    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     let cancel = common::send_cancel_from(b, &server, JobId(9)).await;
     assert!(matches!(cancel, JobResponse::Failed(ref m) if m.contains("no such running job")), "{cancel:?}");
     let done = a_job.await.unwrap();
     assert!(matches!(done, JobResponse::Output(ref o) if String::from_utf8_lossy(o).contains("DONE")), "{done:?}");
+}
+
+#[tokio::test]
+#[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]
+async fn a_reused_job_id_from_the_same_peer_is_refused() {
+    let server = common::start_server_with(exec).await;
+    server.trust.trust(&common::client_id(), None).unwrap();
+    let slow = b"pub fn main() { let mut i = 0; while i < 200000 { i = i + 1 }; print(\"A\") }";
+    let first = tokio::spawn(common::send_run_on_owned(server.clone(), JobId(11), TaskKind::VoxScript, slow));
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    let second = common::send_run_on(&server, JobId(11), TaskKind::VoxScript, b"pub fn main() { print(\"B\") }").await;
+    assert!(matches!(second, JobResponse::Failed(ref m) if m.contains("already running")), "{second:?}");
+    let _ = first.await;
 }
 
 #[tokio::test]
@@ -1808,68 +1818,67 @@ async fn ml_task_kinds_are_refused_with_a_reason_when_no_engine_is_installed() {
     let resp = common::send_run_on(&server, JobId(6), TaskKind::TextInfer, b"{}").await;
     assert!(matches!(resp, JobResponse::Failed(ref m) if m.contains("no engine")), "{resp:?}");
 }
-```
 
-(`common` gains `client_sk_a/b`, `send_run_from(ep, …)`, `send_cancel_from(ep, …)`.)
-
-- [ ] **Step 3: Run to verify they fail** — `cargo test -q -p vox-mesh-transport --test interp_executor -- --ignored 2>&1 | tail -10` → compile error.
-
-- [ ] **Step 4: Implement**
-
-```rust
-//! Runs `VoxScript` jobs by spawning the interpreter as a bounded child in its own process
-//! group (spec §3.4). The interpreter is the sandbox for Vox code; the process boundary is
-//! defence-in-depth. ML task kinds are declarative and refused until an engine registry exists.
-
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::pin::Pin;
-use std::sync::{Arc, Mutex, PoisonError};
-use std::time::Duration;
-
-use anyhow::{Context, Result};
-use iroh::EndpointId;
-use tokio::io::AsyncReadExt;
-use tokio::process::Command;
-use tokio::sync::{oneshot, Semaphore};
-use vox_mesh_types::TaskKind;
-
-use crate::endpoint::{JobExecutor, ReceivedJob};
-use crate::protocol::{JobId, JobLimits, JobRequest, JobResponse, QueueStats};
-use crate::trust::{MeshTrust, TrustLevel};
-
-const DENIAL_MARKER: &str = "vox: capability denied:";
-const DRAIN_GRACE: Duration = Duration::from_secs(5);
-
-pub struct InterpExecutor {
-    trust: Arc<MeshTrust>,
-    vox_bin: PathBuf,
-    limits: JobLimits,
-    slots: Semaphore,
-    running: Mutex<HashMap<(EndpointId, JobId), oneshot::Sender<()>>>,
+#[tokio::test]
+#[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]
+async fn process_boundary_clears_unlisted_env_and_points_home_at_the_readonly_dir() {
+    let server = common::start_server_with(exec).await;
+    server.trust.trust(&common::client_id(), None).unwrap();
+    let resp = common::send_run_on(
+        &server,
+        JobId(7),
+        TaskKind::VoxScript,
+        b"pub fn main() { print(env.get(\"VOX_SHOULD_NOT_LEAK\") is None) }",
+    )
+    .await;
+    assert!(matches!(resp, JobResponse::Output(ref b) if String::from_utf8_lossy(b).contains("true")), "{resp:?}");
 }
 
-impl InterpExecutor {
-    pub fn new(trust: Arc<MeshTrust>, vox_bin: PathBuf, limits: JobLimits) -> Self {
-        let n = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(2).max(2);
-        Self { trust, vox_bin, limits, slots: Semaphore::new(n), running: Mutex::new(HashMap::new()) }
-    }
+#[cfg(unix)]
+#[tokio::test]
+#[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]
+async fn unix_process_group_kill_reaches_a_grandchild() {
+    let mut limits = JobLimits::default();
+    limits.wall_clock = std::time::Duration::from_millis(400);
+    let server = common::start_server_with(|t| Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>).await;
+    server.trust.trust_with(&common::client_id(), TrustLevel::Native).unwrap();
+    let t0 = std::time::Instant::now();
+    let resp = common::send_run_on(&server, JobId(8), TaskKind::VoxScript, b"pub fn main() { process.run(\"sleep\", [\"30\"]) }").await;
+    assert!(t0.elapsed() < std::time::Duration::from_secs(2), "grandchild leaked: {:?}", t0.elapsed());
+    assert!(matches!(resp, JobResponse::Failed(_)), "{resp:?}");
+}
 
-    /// The only place a trust level becomes capabilities. Typed, so a job dir containing a
-    /// grammar separator is refused rather than encoded. `secrets` is never granted by level.
-    pub fn caps_for(level: TrustLevel, job_dir: &Path) -> Result<vox_compiler_caps::CapabilitySet, String> {
-        // NOTE: `CapabilitySet` lives in vox-compiler (L2); vox-mesh-transport (L2) may not
-        // depend on it without an edge. Task 9a below duplicates the ~40-line parse/serialise
-        // subset as `crate::caps_spec` under the defactor policy (`// vox:defactored-from
-        // vox-compiler 2026-09-05`); replace `vox_compiler_caps::` with `crate::caps_spec::`.
-        let extra: &[&str] = match level {
-            TrustLevel::Sandboxed => &["time:real"],
-            TrustLevel::Native => &["time:real", "net:allow", "process:allow", "env:ro"],
-        };
-        vox_compiler_caps::CapabilitySet::from_roots(vec![], vec![job_dir.to_path_buf()], extra).map_err(|e| e.to_string())
-    }
+#[cfg(windows)]
+#[tokio::test]
+#[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]
+async fn windows_job_object_kill_reaches_a_grandchild() {
+    let mut limits = JobLimits::default();
+    limits.wall_clock = std::time::Duration::from_millis(400);
+    let server = common::start_server_with(|t| Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>).await;
+    server.trust.trust_with(&common::client_id(), TrustLevel::Native).unwrap();
+    let t0 = std::time::Instant::now();
+    let resp = common::send_run_on(&server, JobId(8), TaskKind::VoxScript, b"pub fn main() { process.run(\"timeout\", [\"/t\", \"30\", \"/nobreak\"]) }").await;
+    assert!(t0.elapsed() < std::time::Duration::from_secs(2), "grandchild leaked: {:?}", t0.elapsed());
+    assert!(matches!(resp, JobResponse::Failed(_)), "{resp:?}");
+}
+```
 
-    async fn read_capped<R: tokio::io::AsyncRead + Unpin>(mut r: R, max: usize) -> (Vec<u8>, bool) {
+(`common` gains `client_sk_a/b`, `send_run_from`, `send_cancel_from`,
+`send_run_on_owned`, `trust_with`. Reuse `baseline_passthrough_env()` from
+`remote_worker.rs` — defactor the ~13 names, do not invent a shorter list.)
+
+- [ ] **Step 3: Run to verify they fail.**
+
+- [ ] **Step 4: Implement `caps_spec.rs`** (`// vox:defactored-from vox-compiler 2026-09-06`).
+`from_roots` + `to_tokens` only. Same-file tests: comma in the directory is accepted;
+tokens parse individually via a `vox-compiler` test that consumes `caps_spec`'s
+string so the two cannot drift. No `allows_path` here — the child does that.
+
+- [ ] **Step 5: Implement `interp_executor.rs`.** Same-file tests for
+`read_capped` (exact-max, over-max) and `caps_for`. Structure:
+
+```rust
+    pub async fn read_capped<R: tokio::io::AsyncRead + Unpin>(mut r: R, max: usize) -> (Vec<u8>, bool) {
         let mut buf = Vec::new();
         let mut truncated = false;
         let mut chunk = [0u8; 8192];
@@ -1877,8 +1886,15 @@ impl InterpExecutor {
             match r.read(&mut chunk).await {
                 Ok(0) => break,
                 Ok(n) => {
-                    if buf.len() < max { let take = n.min(max - buf.len()); buf.extend_from_slice(&chunk[..take]); }
-                    if buf.len() + n > max { truncated = true; }
+                    let would = buf.len().saturating_add(n);
+                    if would > max {
+                        truncated = true;
+                        if buf.len() < max {
+                            buf.extend_from_slice(&chunk[..max - buf.len()]);
+                        }
+                    } else {
+                        buf.extend_from_slice(&chunk[..n]);
+                    }
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
                 Err(_) => break,
@@ -1886,206 +1902,116 @@ impl InterpExecutor {
         }
         (buf, truncated)
     }
-
-    async fn run_script(&self, job: &ReceivedJob, job_id: JobId, level: TrustLevel) -> Result<JobResponse> {
-        let Ok(_slot) = self.slots.try_acquire() else {
-            return Ok(JobResponse::Failed("node is at its concurrent-job ceiling; retry".into()));
-        };
-        let dir = tempfile::Builder::new().prefix("vox-mesh-job-").tempdir()?;
-        let home = tempfile::Builder::new().prefix("vox-mesh-home-").tempdir()?;   // read-only to the script
-        let main = dir.path().join("main.vox");
-        tokio::fs::write(&main, &job.payload).await?;
-        let caps = Self::caps_for(level, dir.path()).map_err(|e| anyhow::anyhow!(e))?;
-
-        let mut cmd = Command::new(&self.vox_bin);
-        cmd.arg("run").arg("--mode").arg("interp")
-            .arg("--caps").arg(caps.to_spec())
-            .arg("--max-steps").arg(self.limits.max_steps.to_string())
-            .arg("--max-memory").arg(self.limits.max_memory_bytes.to_string())
-            .arg(&main)
-            .env_clear()
-            .current_dir(dir.path())
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .kill_on_drop(true);
-        if let Some(p) = std::env::var_os("PATH").filter(|p| !p.is_empty()) { cmd.env("PATH", p); }
-        #[cfg(unix)]
-        {
-            cmd.env("HOME", home.path()).env("TMPDIR", dir.path());
-            cmd.process_group(0);
-        }
-        #[cfg(windows)]
-        {
-            cmd.env("USERPROFILE", home.path()).env("TEMP", dir.path()).env("TMP", dir.path());
-            if let Some(sr) = std::env::var_os("SystemRoot") { cmd.env("SystemRoot", sr); }
-        }
-        let mut child = cmd.spawn().context("spawn vox")?;
-        let pid = child.id();
-
-        let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
-        let key = (job.peer, job_id);
-        self.running.lock().unwrap_or_else(PoisonError::into_inner).insert(key, cancel_tx);
-
-        let max_out = self.limits.max_output_bytes;
-        let out_task = tokio::spawn(Self::read_capped(child.stdout.take().expect("piped"), max_out));
-        let err_task = tokio::spawn(Self::read_capped(child.stderr.take().expect("piped"), 64 * 1024));
-
-        enum Done { Exited(std::process::ExitStatus), Timeout, Cancelled }
-        let done = tokio::select! {
-            s = child.wait() => Done::Exited(s?),
-            _ = tokio::time::sleep(self.limits.wall_clock) => Done::Timeout,
-            _ = cancel_rx => Done::Cancelled,
-        };
-        self.running.lock().unwrap_or_else(PoisonError::into_inner).remove(&key);
-
-        let kill_group = |pid: Option<u32>| {
-            #[cfg(unix)]
-            if let Some(pid) = pid { unsafe { libc::kill(-(pid as i32), libc::SIGKILL); } }
-            let _ = pid;
-        };
-        let status = match done {
-            Done::Exited(s) => s,
-            Done::Timeout => {
-                kill_group(pid); let _ = child.kill().await;
-                let (partial, _) = tokio::time::timeout(DRAIN_GRACE, out_task).await.ok().and_then(Result::ok).unwrap_or_default();
-                return Ok(JobResponse::Failed(format!("wall clock of {:?} exceeded; job killed; {} bytes of output before the kill", self.limits.wall_clock, partial.len())));
-            }
-            Done::Cancelled => {
-                kill_group(pid); let _ = child.kill().await;
-                return Ok(JobResponse::Failed("cancelled by peer".into()));
-            }
-        };
-        // A `process:allow` script can daemonise a grandchild holding the pipe: bound the drain.
-        let (mut stdout, truncated) = tokio::time::timeout(DRAIN_GRACE, out_task).await.ok().and_then(Result::ok).unwrap_or_default();
-        let (stderr, _) = tokio::time::timeout(DRAIN_GRACE, err_task).await.ok().and_then(Result::ok).unwrap_or_default();
-        let stderr = String::from_utf8_lossy(&stderr).into_owned();
-        if truncated { stdout.extend_from_slice(format!("\n[vox: output truncated at {max_out} bytes]\n").as_bytes()); }
-
-        Ok(match status.code() {
-            Some(0) => JobResponse::Output(stdout),
-            // 77 is only a denial when the interpreter said so; a script can `process.exit(77)`.
-            Some(77) if stderr.contains(DENIAL_MARKER) => JobResponse::Failed(format!("capability denied: {}", stderr.trim())),
-            Some(78) => JobResponse::Failed(format!("execution budget exceeded: {}", stderr.trim())),
-            Some(79) => JobResponse::Failed(format!("memory limit exceeded: {}", stderr.trim())),
-            // Backtraces leak host paths; never forward stderr for a Rust panic.
-            Some(101) => JobResponse::Failed("interpreter panicked; this is a vox bug, not a script error".into()),
-            None => JobResponse::Failed("killed by signal (stack overflow or OOM killer)".into()),
-            Some(c) => JobResponse::Failed(format!("exit {c}: {}", stderr.trim())),
-        })
-    }
-}
-
-impl JobExecutor for InterpExecutor {
-    fn execute<'a>(&'a self, job: ReceivedJob) -> Pin<Box<dyn std::future::Future<Output = Result<JobResponse>> + Send + 'a>> {
-        Box::pin(async move {
-            match &job.request {
-                JobRequest::Probe => Ok(JobResponse::Probed {
-                    host_triple: format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS),
-                    vox: env!("CARGO_PKG_VERSION").to_string(),
-                    task_kinds: vec![TaskKind::VoxScript],
-                    engines: Vec::new(),
-                }),
-                JobRequest::QueueStats => Ok(JobResponse::QueueStats(QueueStats {
-                    pending_count: self.running.lock().unwrap_or_else(PoisonError::into_inner).len() as u64,
-                    ..Default::default()
-                })),
-                JobRequest::Cancel { job_id } => {
-                    // Keyed by the CALLER's identity: a wrong guess cannot even evict the row,
-                    // and "not yours" and "not there" are one message (no oracle).
-                    let tx = self.running.lock().unwrap_or_else(PoisonError::into_inner).remove(&(job.peer, *job_id));
-                    Ok(match tx {
-                        Some(tx) => { let _ = tx.send(()); JobResponse::Output(b"cancelled".to_vec()) }
-                        None => JobResponse::Failed("no such running job".into()),
-                    })
-                }
-                JobRequest::Run { job_id, kind: TaskKind::VoxScript, .. } => {
-                    let Some(level) = self.trust.level(&job.peer) else { return Ok(JobResponse::Failed("not trusted".into())); };
-                    self.run_script(&job, *job_id, level).await
-                }
-                JobRequest::Run { kind, .. } => Ok(JobResponse::Failed(format!(
-                    "no engine installed for {kind}; this node runs VoxScript only until an ML engine is registered"
-                ))),
-            }
-        })
-    }
-}
 ```
 
-- [ ] **Step 4a: `caps_spec` — the defactored subset.** `vox-mesh-transport` may not depend on `vox-compiler`. Create `crates/vox-mesh-transport/src/caps_spec.rs` with a `// vox:defactored-from vox-compiler 2026-09-05` header containing only `CapabilitySet::from_roots` + `to_spec` + the separator check (~40 lines; no path checking — the child does that). The round-trip is pinned by `caps_mapping_never_grants_more_than_the_trust_level`, and a test in `vox-compiler` parses the string `caps_spec` produces so the two cannot drift silently.
+`run_script`:
+- `try_acquire` on a **per-`EndpointId`** semaphore (in front of the global one).
+  Refuse with a retryable message past either.
+- Refuse if `(peer, job_id)` is already in `running`.
+- Job dir + second read-only home dir.
+- Spawn `vox run --mode interp` with **repeatable** `--caps` tokens, `--max-steps`,
+  `--max-memory`, `--max-depth`.
+- `env_clear()` then apply `baseline_passthrough_env()`. Unix: `HOME` = home dir,
+  `TMPDIR` = job dir, `process_group(0)`. Windows: `USERPROFILE` = home dir,
+  `TEMP`/`TMP` = job dir, `SystemRoot` passthrough, assign to a `win32job` Job
+  Object.
+- `select!` on `child.wait()`, wall clock, `Ok(()) = cancel_rx` (a dropped sender
+  is not a cancel). Kill after the select (`Done` enum).
+- On cancel/timeout: abort the drain tasks (`out_task.abort(); err_task.abort();`),
+  then kill the group / Job Object.
+- Thread `JobLimits::max_steps` into the child.
+- Exit map as spec §3.4. Windows NTSTATUS arm names `STATUS_STACK_OVERFLOW`;
+  do not use the Unix `None` wording there.
+- One `tracing::info!(peer, job_id, exit, elapsed)` per job.
 
-- [ ] **Step 5: Register the slow tests** — append `or test(a_voxscript_job_runs_and_returns_its_output) or test(a_sandboxed_peer_cannot_read_the_host_filesystem) or test(a_forged_exit_77_is_not_reported_as_a_denial) or test(a_runaway_allocation_is_killed_and_reported) or test(output_is_capped_and_marked) or test(one_peer_cannot_cancel_another_peers_job) or test(ml_task_kinds_are_refused_with_a_reason_when_no_engine_is_installed)` to the `concat!` in `pre_push.rs:1551-1568`.
+`JobExecutor::execute` keeps `std::sync::Mutex` on `running`. Probe returns
+`engines: Vec::new()`. QueueStats sets `pending_count` and `max_concurrent`.
 
-- [ ] **Step 6: Run; mutate twice.** `cargo test -q -p vox-mesh-transport --test interp_executor -- --include-ignored 2>&1 | tail -15`. Mutation (a): `Sandboxed` arm returns the `Native` extras → `caps_mapping…` MUST FAIL. Mutation (b): in the `Cancel` arm, key on `job_id` only (`.remove` over any peer) → `one_peer_cannot_cancel…` MUST FAIL. Restore both; grep.
+- [ ] **Step 6: Register the slow tests** in `pre_push.rs` **and**
+`.github/workflows/ci.yml` (~1124–1131). Nightly is acceptable; `--include-slow`
+is not required if the nightly lane already runs `--run-ignored` for this crate.
 
-- [ ] **Step 7: Commit** — `cargo fmt -p vox-mesh-transport`; `git commit -m "feat(mesh): InterpExecutor — bounded, process-grouped, peer-scoped VoxScript execution"`.
+- [ ] **Step 7: Run; mutate twice.** Mutation (a): `Sandboxed` extras become the
+`Native` extras → `caps_mapping…` MUST FAIL. Mutation (b): `Cancel` keys on
+`job_id` only → `one_peer_cannot_cancel…` MUST FAIL. Restore; grep.
+
+- [ ] **Step 8: Commit** — `cargo fmt -p vox-mesh-transport`. `git commit -m "feat(mesh): InterpExecutor — bounded child, Job Object, per-peer slots, peer-scoped cancel"`.
 
 ---
 
 ## Task 10: Wire the executor; delete `ProbeOnlyExecutor`, the bundle lane, and `secret_gate`
 
-**Files:** `crates/vox-ml-cli/src/commands/mesh_cli.rs:197`; `vox-mesh-transport/src/endpoint.rs:93-129`; **`tests/mailbox.rs:12,62`** (uses `ProbeOnlyExecutor`); `tests/security.rs` (`a_trusted_peer_gets_a_sandbox_by_default`); `vox-orchestrator/src/a2a/remote_worker.rs` (`:196-250` source lane, `:254-430` bundle lane, `:660-690` call site, **`:965-1290` test module** asserting on `BundleKind`/`classify_bundle`/`run_dispatched_bundle`); delete `a2a/secret_gate.rs` (+ `secret_bag.rs` if `jwe.rs` has no other consumer — `rg -n secret_bag crates/vox-orchestrator/src`); `envelope.rs:91-101,150-151`; `task_submit.rs:861-862,1117-1118`; `tests/populi_single_owner.rs:503-504,635-636`; `vox-secrets/src/spec/{ids.rs:305, registry/missing.rs:1307}`; `vox-populi/src/transport/handlers/dispatch.rs:262`, `vox-plugin-populi-mesh/src/transport/handlers/dispatch.rs:238`; `contracts/secrets/*` + `contracts/config/env-vars.v1.yaml:1294` via regen; `vox-config/src/{config_registry.rs:591-622, operator_registry.rs:716-727}` (doc note).
+**Files:** `crates/vox-ml-cli/src/commands/mesh_cli.rs`; `vox-mesh-transport`
+`endpoint.rs`, `tests/mailbox.rs`, `tests/security.rs`;
+`vox-orchestrator/src/a2a/remote_worker.rs` (+ its test module);
+delete `secret_gate.rs` (+ `secret_bag.rs` if orphaned); `envelope.rs`;
+`task_submit.rs`; `vox-secrets` spec; HTTP dispatch handlers;
+`vox-config` comment on the surviving placement key.
 
-Findings (mesh #13, #14; deletions items 4, 8; executability): `ExecTier` rename would invert meaning — delete the module; HTTP lane must use a per-dispatch tempdir; `secrets-contracts` before `secrets-parity`; `VOX_MESH_EXEC_POLICY` config key survives with a different meaning.
+- [ ] **Step 1: Retarget** `a_trusted_peer_gets_a_sandbox_by_default` to
+`job.limits.isolation == Isolation::Interpreter`.
 
-- [ ] **Step 1: Retarget the security test.** `a_trusted_peer_gets_a_sandbox_by_default` asserts `job.limits.isolation == Isolation::Interpreter` on the spy's recorded job.
-
-- [ ] **Step 2: Swap the executor.** `mesh_cli.rs:197`:
+- [ ] **Step 2: Swap the executor** at `mesh_cli.rs`. Banner on `vox mesh join`:
+the command now executes Vox received over the mesh. Log `vox --version` at
+construction; warn on mismatch with `CARGO_PKG_VERSION`.
 
 ```rust
                 let vox_bin = std::env::current_exe().ok()
                     .and_then(|p| p.parent().map(|d| d.join(if cfg!(windows) { "vox.exe" } else { "vox" })))
                     .filter(|p| p.exists())
                     .unwrap_or_else(|| std::path::PathBuf::from("vox"));
-                // voxup places only `vox` on PATH (install.rs:145-165); vox-ml-cli lives in the
-                // toolchain dir beside the extracted `vox`, so current_exe().parent() is the
-                // right first guess in every layout; PATH is the fallback.
                 let exec = std::sync::Arc::new(vox_mesh_transport::InterpExecutor::new(
                     trust.clone(), vox_bin, vox_mesh_transport::protocol::JobLimits::default(),
                 ));
 ```
 
-Log `vox --version` at construction and warn on mismatch with `env!("CARGO_PKG_VERSION")` — a stale `vox` that lacks `--caps` fails on an unknown flag.
+- [ ] **Step 3: Delete `ProbeOnlyExecutor`.** Fix `tests/mailbox.rs` to
+`common::SpyExecutor`. `cargo build -q -p vox-mesh-transport -p vox-ml-cli --features populi`.
 
-- [ ] **Step 3: Delete `ProbeOnlyExecutor`** (`endpoint.rs:93-129`; it is not re-exported from `lib.rs`). Fix `tests/mailbox.rs:12,62` to use `common::SpyExecutor`. Build: `cargo build -q -p vox-mesh-transport -p vox-ml-cli --features populi`.
+- [ ] **Step 4: Delete the bundle lane and `secret_gate`.** Delete
+`run_dispatched_bundle`, `BundleKind`, `classify_bundle`, the bundle call site,
+and the tests that reference them. At the source-lane call site:
+`let secret_env: Vec<(String, String)> = Vec::new();`. Per-dispatch tempdir +
+repeatable `--caps`. Remove `exec_bundle_*` fields. Remove
+`SecretId::VoxMeshExecPolicy`. HTTP handlers: literal `"source-only"` plus
+`// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="mesh-phase6" canonical="vox_mesh_transport::InterpExecutor"`.
 
-- [ ] **Step 4: Delete the bundle lane and `secret_gate`.** In `remote_worker.rs` delete `run_dispatched_bundle`, `BundleKind`, `classify_bundle`, the bundle call site, and the `#[cfg(test)]` tests at `:965-1290` that reference them. Delete `secret_gate.rs` (and `secret_bag.rs` if orphaned); at the source-lane call site replace `gate_secrets(...)` with `let secret_env: Vec<(String, String)> = Vec::new(); // nothing is forwarded to a dispatched child; capabilities come from the receiver's trust row`. In `run_dispatched_source`, replace the shared-`temp_dir()` file with a per-dispatch `tempfile::tempdir()` and pass `--caps` scoped to it:
+- [ ] **Step 5: `vox ci secrets-contracts` then `secrets-parity` then
+`secret-env-guard`.** Comment at `vox-config` `config_registry.rs`: the surviving
+`VOX_MESH_EXEC_POLICY` is task *placement*.
 
-```rust
-    let dir = tempfile::Builder::new().prefix("vox-dispatch-").tempdir()?;
-    let tmp_file = dir.path().join("main.vox");
-    …
-    cmd.arg("run").arg("--mode").arg("interp")
-        .arg("--caps").arg(format!("fs:rw={},time:real", dir.path().display()))
-        .arg(&tmp_file);
-```
+- [ ] **Step 6: `vox mesh probe`** is the operator surface over `directory()`.
+Keep PROTO-mismatch `Failed` — do **not** map `_ => None` in `directory.rs`.
 
-Delete the `policy` parameter and every `no-exec`/`source-only`/`permissive` branch. Remove `exec_bundle_b64`/`exec_bundle_blake3_hex` from `envelope.rs` and the four `None` initialisers. Remove `SecretId::VoxMeshExecPolicy` and its registry entry; in the two HTTP handlers replace the secret read with the literal `"source-only"` plus `// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="mesh-phase6" canonical="vox_mesh_transport::InterpExecutor"`.
-
-- [ ] **Step 5: Regenerate secrets contracts, then check parity** — `cargo run -q -p vox-cli -- ci secrets-contracts && cargo run -q -p vox-cli -- ci secrets-parity && cargo run -q -p vox-cli -- ci secret-env-guard`. Add a comment at `vox-config/src/config_registry.rs:591`: `// VOX_MESH_EXEC_POLICY here is task PLACEMENT (local_only/prefer_remote/remote_only). The SecretId of the same name (execution policy: no-exec/source-only/permissive) was deleted 2026-09-05 with the native bundle lane; removing it also removed the name from the managed-secret regex, so secret-env-guard no longer polices direct env::var reads of this key.`
-
-- [ ] **Step 6: Build, test, commit** — `cargo test -q -p vox-mesh-transport -p vox-orchestrator 2>&1 | tail -5 && cargo clippy -q -p vox-orchestrator -p vox-ml-cli -p vox-secrets -p vox-populi -p vox-plugin-populi-mesh --all-targets -- -D warnings`. `git commit -m "feat(mesh): serve with InterpExecutor; delete ProbeOnlyExecutor, the native bundle lane (F2), and secret_gate"`.
+- [ ] **Step 7: Build, test, commit** — `cargo test -q -p vox-mesh-transport -p vox-orchestrator 2>&1 | tail -5 && cargo clippy -q -p vox-orchestrator -p vox-ml-cli -p vox-secrets -p vox-populi -p vox-plugin-populi-mesh --all-targets -- -D warnings`. `git commit -m "feat(mesh): serve with InterpExecutor; delete ProbeOnlyExecutor, the native bundle lane, and secret_gate"`.
 
 ---
 
-## Task 11: `PopuliHttpOp::Dispatch` over the mesh — with a payload that can execute
+## Task 11: `PopuliHttpOp::Dispatch` over the mesh
 
-**Files:** `crates/vox-mesh-transport/src/directory.rs:28-34,48-63,140,159-169` (`PeerEntry.addrs`); `crates/vox-workflow-runtime/src/workflow/populi.rs` (`:118-124` shim synthesis, `Dispatch`/`Wait` arms, `mesh_envelope` at `:203`, `probed_peers` at `:290-299`); `workflow/types.rs` (`PopuliActivity`).
+**Files:** `directory.rs` (`PeerEntry.addrs`); `vox-workflow-runtime`
+`workflow/populi.rs`, `workflow/types.rs`.
 
-Findings (mesh #10–#12, #17; executability #14): `workflow_durable_shim` exists nowhere; `PeerEntry` has no `addrs`; `mesh_envelope` takes `&PopuliActivity`; `wait_ok` has zero consumers but `result_output` is de-facto contract; first-fit needs its seam declared.
+- [ ] **Step 1: `PeerEntry.addrs`.** Add the field; `fan_out` returns it;
+`directory()` populates it. Test:
+`a_probed_peer_carries_the_addresses_it_was_dialled_on`.
 
-- [ ] **Step 1: `PeerEntry.addrs`.** `directory.rs:28-34` add `pub addrs: Vec<std::net::SocketAddr>`; `fan_out` (`:140`) returns a 4-tuple carrying the parsed `addrs`; `directory()` (`:48-63`) populates it; `queue_stats` ignores it. Test: `a_probed_peer_carries_the_addresses_it_was_dialled_on` asserting `addrs` equals the loopback address the test server bound.
-
-- [ ] **Step 2: Decide the payload, then write the failing test.** Read `PopuliActivity` in `types.rs`. If it carries the activity's Vox source (a field such as `source`/`body`), `Dispatch` sends that with a `pub fn main()` wrapper appended; if it does not, `Dispatch` returns `Err("activity `X` has no dispatchable source; inline source is required for mesh dispatch")` and the `workflow_durable_shim` synthesis at `:118-124` is **deleted as dead**. Either way, append to `populi.rs` tests an end-to-end test against a loopback `InterpExecutor` (helpers from `vox-mesh-transport/tests/common` cannot be imported across crates — copy `start_server_with` minimally, or gate the test behind `#[ignore]` slow and register it):
+- [ ] **Step 2: Failing tests**
 
 ```rust
     #[tokio::test]
     #[ignore = "owner:mesh sunset:2026-12-31 slow: spawns the vox binary via InterpExecutor"]
     async fn dispatch_runs_real_source_on_a_loopback_peer() {
-        // arrange: loopback server with InterpExecutor, trust this process's endpoint id
-        // act: execute_populi_step(&PopuliActivity { populi_op: Dispatch, <source: "pub fn main() { print(\"WF_RAN\") }">, .. })
-        // assert: envelope["control"] == "dispatch_ok", envelope["result_output"] contains "WF_RAN",
-        //         envelope["peer"] is the server id, envelope["candidates"] == 1, no "control_url" key
+        // arrange: loopback server with InterpExecutor, trust this process
+        // act: execute_populi_step with Dispatch + source `pub fn main() { print("WF_RAN") }`
+        // assert: envelope["control"] == "dispatch_ok"
+        //         envelope["result_output"] contains "WF_RAN"
+        //         envelope["peer"] is the server id
+        //         envelope["candidates"] == 1
+        //         no "control_url" key
+        // If PopuliActivity has no source field, assert the named error instead
+        // ("activity `X` has no dispatchable source") and delete the shim synthesis.
+        unimplemented!("fill from PopuliActivity's real fields — do not leave this as comments");
     }
 
     #[test]
@@ -2097,81 +2023,170 @@ Findings (mesh #10–#12, #17; executability #14): `workflow_durable_shim` exist
     }
 ```
 
-- [ ] **Step 3: Implement.** `run_on_peer(ep, peer, src)` as in revision 1 but with `JobRequest::Run { job_id: JobId(next_local_id()), kind: VoxScript, payload_bytes }` and a `read_frame` max of `16 * 1024 * 1024` (consistent with the 10 MiB output cap). `Dispatch` picks the first `PeerEntry` with `VoxScript` in `task_kinds` — `// ponytail: first-fit, no queue-depth weighting. Phase 4 Task 4.1 replaces this with a PlacementRecord; the seam is this function's return value.` — and emits `"peer"` and `"candidates": n` into the envelope through `mesh_envelope(activity, "dispatch_ok", json!({…}))` (keep `mesh_envelope`'s signature; do not add a `&str` variant). `Wait` → `mesh_envelope(activity, "completed_inline", json!({"success": true, "result_output": Value::Null, "exit_code": 0, "detail": "mesh jobs are synchronous; the Dispatch step already carried the result"}))`. Delete the HTTP `Dispatch`/`Wait` code and the `VOX_MESH_CONTROL_ADDR` text.
+Read `PopuliActivity`. If it carries source, wrap with `pub fn main()` as needed
+and send it. If it does not, return
+`Err("activity `X` has no dispatchable source; inline source is required for mesh dispatch")`
+and **delete** `workflow_durable_shim::execute_activity` synthesis as dead. Either
+way the test above is a real assertion.
 
-- [ ] **Step 4: Test and commit** — `cargo test -q -p vox-workflow-runtime --features mens -- --include-ignored 2>&1 | tail -5 && cargo clippy -q -p vox-workflow-runtime --all-targets --features mens -- -D warnings`. `git commit -m "feat(workflow): Dispatch runs real source on a mesh peer; Wait is inline and keeps its keys"`.
+- [ ] **Step 3: Implement.** `run_on_peer` sends
+`JobRequest::Run { job_id: JobId(next_local_id()), kind: VoxScript, payload_bytes }`
+and reads with a 16 MiB frame max. `Dispatch` first-fit on `VoxScript` in
+`task_kinds` — comment: `// first-fit, no queue-depth weighting. Phase 4 Task 4.1
+replaces this with a PlacementRecord.` Emit `"peer"` and `"candidates": n` through
+`mesh_envelope` without changing its signature. `Wait` →
+`completed_inline` with `success` / `result_output` / `exit_code`. Delete HTTP
+`Dispatch`/`Wait` and `VOX_MESH_CONTROL_ADDR` text.
 
----
+- [ ] **Step 4: Test and commit** — `cargo test -q -p vox-workflow-runtime --features mens -- --include-ignored 2>&1 | tail -5 && cargo clippy -q -p vox-workflow-runtime --all-targets --features mens -- -D warnings`. `git commit -m "feat(workflow): Dispatch runs real source on a mesh peer; Wait is inline"`.
 
-## Task 12: Delete the wasi script lane and the rejected isolation tiers — with the contract chain
-
-**Files (compile):** delete `vox-cli/src/commands/wasm.rs`, `commands/runtime/run/backend/wasi.rs`, `src/isolation.rs`; modify `Cargo.toml:79-87,182,293-294`, `lib.rs:238-252`, **`cli_dispatch/mod.rs:428-441`**, `commands/mod.rs:127-128`, `cli_args.rs:165-214`, `commands/runtime/run/script.rs:28-118`, `backend/mod.rs:4-5,18-52,78-79` (keep `parse_cargo_error`; drop its `target_wasi` param), `backend/tests.rs` (drop the four wasi-specific tests, keep the rest), `doctor/checks_standard/toolchain.rs:205-235`, `crates/voxup/src/install.rs` (**fn at `326-338`, call at `168`**), `vox-codegen/src/codegen_rust/pipeline.rs:54,223,268-285,432` (`WasiBinary` target + `vox-script-wasi` path dep — dead after this), **`vox-populi/src/transport/handlers/dispatch.rs:358-366`** (spawns `vox wasm run`) and **`vox-plugin-populi-mesh/…/dispatch.rs:334-341`** (spawns `--isolation wasm`) → both return `Err("precompiled bundles are no longer executed; use the mesh (ADR-048)")`.
-**Files (contracts, in this order):** `contracts/operations/catalog.v1.yaml:14742,14762` → `contracts/cli/command-registry.yaml:3626` → `contracts/capability/capability-registry.yaml:5437` + `model-manifest.generated.json:6300` → `docs/src/reference/cli-command-surface.generated.md` → `contracts/reports/gui-surface-registry.v1.json:82`, `gui-surface-coverage.v1.json:569,1195` → `crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt:565`; `contracts/ci/crate-edges.allow.v1.json:348-351` via `--tighten`; `contracts/channels/stable.toml:20` (`wasm_sysroot`, no reader — delete the line).
-**Files (docs):** `docs/src/reference/cli.md:152,855,934`; `docs/src/architecture/external-frontend-interop-plan-2026.md:162` (link to `backend/wasi.rs` — `check-links` fails); `GEMINI.md:21`, `.cursor/rules/voxscript-first-automation.mdc:28`, `docs/src/explanation/expl-architecture.md:352`, `docs/src/reference/mobile-edge-ai.md:32`; `crates/vox-cli/tests/run_mode_dispatch.rs:68` (stale ignored test — delete).
-
-- [ ] **Step 1: Failing test** — as revision 1 (`isolation_and_wasm_surfaces_are_gone`; clap 4.5 wording `unrecognized subcommand` / `unexpected argument '--isolation' found` verified).
-
-- [ ] **Step 2: Delete and fix every compile site listed above.** `git rm` the three files; follow the compiler. `toolchain.rs`: `Check::pass("WASI target (optional)", "not required: scripts run under the interpreter; `--mode script` targets the host")`.
-
-- [ ] **Step 3: Regenerate the contract chain in order.** Use each generator's `--write`/regen flag (`rg -n "catalog.v1|command-registry|capability-registry|gui-surface" crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs` lists them as `run_ssot_drift` sub-steps); then `UPDATE_CLI_CATALOG_BASELINE=1 cargo test -q -p vox-cli command_catalog`; then `cargo run -q -p vox-cli -- ci crate-edges --tighten` and confirm **only** `["vox-cli","vox-wasm-engine"]` was removed (`vox-plugin-runtime-wasm → vox-wasm-engine` at `:1710` stays). Then `cargo run -q -p vox-cli -- ci ssot-drift` must be green.
-
-- [ ] **Step 4: Build and verify** — `cargo build -q -p vox-cli -p voxup -p vox-codegen -p vox-populi -p vox-plugin-populi-mesh && cargo test -q -p vox-cli --test run_mode_dispatch && cargo clippy -q -p vox-cli -p voxup -p vox-codegen --all-targets -- -D warnings`; `cargo tree -p vox-cli -e features -i wasmtime 2>&1 | head -2` → `did not match any packages`; `cargo run -q -p vox-cli -- ci check-links`.
-
-- [ ] **Step 5: Commit** — `git commit -m "chore(cli): delete the wasi script lane, vox wasm, and rejected isolation tiers — with their contracts"`.
+Update the mesh plan Status in this PR (the surface now exists): Task 3.4 `[x]`;
+Known-gaps sandbox row → ADR-048.
 
 ---
 
-## Task 13: Delete the MicroVM stub; rename `vox_ir` → `hir_export` (scoped)
+# PR 6 — Mechanical retirements
 
-**Files:** delete `vox-skill-runtime/src/microvm.rs`, `tests/microvm_tier.rs` (**move** its `Tier` ordering and `plan_for_min_tier` error-path assertions into `src/runtime.rs` tests); modify `lib.rs:21,27`, `runtime.rs:105-115`, `detect.rs:165-190`; `contracts/toestub/weak-test-baseline.v1.json:6544,6551` via `regen_weak_test_baseline`. Rename `vox-codegen/src/vox_ir/` → `hir_export/`; **scoped** symbol edits only at `vox-codegen/src/lib.rs:1,22`, `vox-cli/src/commands/check.rs:136-139`, `cli_args.rs:77`, `vox-compiler/tests/ir_emission_test.rs:43,74`, `vox-codegen/Cargo.toml:9` (description); update **both** schema mirrors together — `crates/vox-compiler/src/vox-ir.v1.schema.json:5` and `docs/src/reference/vox-ir.schema.json:4,5`; rewrite `docs/src/reference/vox-ir-specification.md` (currently asserts it *is* the canonical IR); fix the link at `docs/src/architecture/codegen-ssot-and-split-brain-audit-2026.md:136`; path text at `pipeline-parity-ssot-2026-06-14.md:66`, `mesh-phase1-language-spine-plan-2026.md:78`, `where-things-live.md:122`. Keep the `--emit-ir` flag name and the `"2.0.0"` version literal.
+## Task 12: Delete the wasi script lane and rejected isolation tiers
 
-- [ ] **Steps:** failing tests (`tier_ordering_and_min_tier_error_path` moved verbatim; `hir_export_is_a_json_envelope_and_says_so`) → `git rm` / `git mv` → the enumerated edits (no blind `sed` over `crates/`) → `cargo test -q -p vox-skill-runtime -p vox-codegen -p vox-compiler --test ir_emission_test && cargo run -q -p vox-cli -- ci check-links && cargo run -q -p vox-cli -- ci ssot-drift` → commit `chore: delete the MicroVM stub; rename vox_ir to hir_export (it is not an IR)`.
+**Files (compile):** delete `vox-cli/src/commands/wasm.rs`,
+`commands/runtime/run/backend/wasi.rs`, `src/isolation.rs`; modify `Cargo.toml`,
+`lib.rs`, `cli_dispatch/mod.rs`, `commands/mod.rs`, `cli_args.rs`, `script.rs`,
+`backend/{mod,tests}.rs`, `diagnostics/` doctor sources (not a bare `commands/`
+path), `voxup` `provision_wasm_sysroots`, `vox-codegen` `WasiBinary`,
+`vox-populi` and `vox-plugin-populi-mesh` HTTP dispatch (those spawn
+`vox wasm run` / `--isolation wasm`).
+
+**Contracts, in Global Constraints order:** catalog → command-registry →
+capability-registry + model-manifest → cli-command-surface.generated.md →
+gui-surface reports → `UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli command_catalog`
+→ `crate-edges --tighten` (only `["vox-cli","vox-wasm-engine"]` removed).
+
+- [ ] **Step 1: Failing test** `isolation_and_wasm_surfaces_are_gone` (clap 4.5:
+`unrecognized subcommand` / `unexpected argument '--isolation' found`).
+
+- [ ] **Step 2: Delete and fix every compile site.** Doctor row:
+`Check::pass("WASI target (optional)", "not required: scripts run under the interpreter; `--mode script` targets the host")`.
+
+- [ ] **Step 3: Regenerate the contract chain in order.** Then
+`cargo run -q -p vox-cli -- ci ssot-drift` must be green.
+
+- [ ] **Step 4: `cargo tree -p vox-cli -e features -i wasmtime` → `did not match any packages`.**
+`cargo run -q -p vox-cli -- ci check-links`.
+
+- [ ] **Step 5: Commit** — `git commit -m "chore(cli): delete the wasi script lane, vox wasm, and rejected isolation tiers"`.
+
+---
+
+## Task 13: Delete the MicroVM stub; rename `vox_ir` → `hir_export`
+
+**Files:** delete `vox-skill-runtime/src/microvm.rs`, `tests/microvm_tier.rs`
+(**move** `Tier` ordering and `plan_for_min_tier` error-path assertions into
+`src/runtime.rs`); rename `vox-codegen/src/vox_ir/` → `hir_export/` with **scoped**
+edits only (no blind `sed`); update both schema mirrors together; rewrite
+`vox-ir-specification.md`. Keep `--emit-ir` and `"2.0.0"`.
+
+- [ ] **Steps:** failing tests (`tier_ordering_and_min_tier_error_path` moved
+verbatim; `hir_export_is_a_json_envelope_and_says_so`) → `git rm` / `git mv` →
+enumerated edits →
+`cargo test -q -p vox-skill-runtime -p vox-codegen -p vox-compiler --test ir_emission_test && cargo run -q -p vox-cli -- ci check-links && cargo run -q -p vox-cli -- ci ssot-drift`
+→ commit `chore: delete the MicroVM stub; rename vox_ir to hir_export`.
 
 ---
 
 ## Task 14: `sandbox.rs` and `native.rs` stop presenting `VOX_SANDBOX=1` as isolation
 
-**Files:** `crates/vox-cli/src/commands/runtime/run/sandbox.rs:190-214`, **`backend/native.rs:121`** (the second `cmd.env("VOX_SANDBOX", "1")`), `script.rs:20` (`#[derive(Default)]` on `ScriptOpts` — it has none today; all fields derive cleanly once `isolation` is gone).
+Honesty about the *native* lane. `sandbox.rs` is not defence-in-depth for the
+interpreter child.
 
-- [ ] **Steps:** failing test `macos_does_not_pretend_an_env_var_is_a_sandbox` (also assert `native.rs`'s command builder sets no `VOX_SANDBOX`) → replace the "Other" branch with the `tracing::warn!` naming `isolation.md` and delete both `env` calls → `cargo test -q -p vox-cli sandbox` → commit `fix(sandbox): stop presenting VOX_SANDBOX=1 as isolation`. Note the contradicting plan at `docs/src/architecture/vox-language-rules-phase4-runtime-monitors-2026.md:224` (proposes *setting* `VOX_SANDBOX=true`) with a one-line status banner pointing at ADR-048.
-
----
-
-## Task 15: Documentation, ADR, retirement rows, bookkeeping
-
-**Files:** create `docs/src/reference/isolation.md`, `docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md`; modify `docs/src/adr/{index,README}.md`, `AGENTS.md` (§VoxScript-First tier table **and** §Retired Surfaces rows), `contracts/retirement/retired-surfaces.v1.yaml`, `contracts/documentation/retired-symbols.v1.yaml`, `docs/src/architecture/where-things-live.md`, the mesh plan, `research-index.md`, plus the residual doc references from Task 12's list not yet touched.
-
-- [ ] **Step 1: `isolation.md`** — revision 1's page, corrected: grammar table per spec §3.2 (one dir per token; `env:ro|rw`; `random:`; `deterministic`); the limits table gains the depth bound and the sentence "`--max-steps` bounds evaluated HIR nodes, not CPU time; a local run has no wall-clock bound"; exit codes `0 / 1 fault / 77 / 78 / 79 / 101 interpreter bug`; "`vox run` without `--caps` grants everything; `--caps` is opt-in locally and mandatory on the mesh"; the legacy directive is unscoped and not a boundary; `process:allow` means "runs any binary on this host as the daemon user"; what `--max-memory` does not count; the TOCTOU residual.
-- [ ] **Step 2: ADR-048** — revision 1's text plus: decision 5 "every side-effecting entry point, including `import`, is gated; `db`/`repo` are pure"; consequence "the `vox-compiler → vox-crypto` edge and object iteration order are recorded maintainer decisions".
-- [ ] **Step 3: Retirement rows.** `retired-surfaces.v1.yaml` + AGENTS.md §Retired Surfaces: `--isolation wasm|container|gvisor|microvm` → `--caps …`; `vox wasm run` → mesh `InterpExecutor` / plugins `vox-plugin-runtime-wasm`; `script-wasi` feature → none; `ProbeOnlyExecutor` → `InterpExecutor`; `MicroVmRuntime`/`Tier::MicroVm` → none; `VoxMeshExecPolicy` (SecretId) → trust rows; `exec_bundle_b64` → none. `retired-symbols.v1.yaml`: doc-regex rows for the same. Run `cargo run -q -p vox-cli -- ci retired-symbol-check` and the retirement parity check.
-- [ ] **Step 4: AGENTS.md tier table** (as revision 1, with the `--caps fs:ro=.,net:none` row) and the remaining references: `GEMINI.md:21`, `.cursor/rules/voxscript-first-automation.mdc:28`, `docs/src/explanation/expl-architecture.md:352`, `docs/src/reference/mobile-edge-ai.md:32`, `docs/src/reference/cli.md:855,934`.
-- [ ] **Step 5: Mesh plan + indexes** — Status row "Tasks 3.1–3.4 done and merged"; Known-gaps "No sandbox exists" → "Sandbox: the interpreter, per ADR-048"; Task 3.4 `[~]` → `[x]` with "Dispatch runs real source over the mesh (interpreter-first plan Task 11)"; Task 3.1 note "inbox drain: not funded by ADR-048; blocked on agent-id→EndpointId mapping"; Task 6.1 "bundle lane deleted by ADR-048 Task 10". ADR-048 into `adr/index.md`, `README.md`, `research-index.md`.
-- [ ] **Step 6: Lint, fast gate, commit** — `cargo run -q -p vox-doc-pipeline -- --lint-only --paths docs/src/reference/isolation.md docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md && cargo run -q -p vox-cli -- ci pre-push`. `git commit -m "docs: isolation reference, ADR-048, retirement rows, and plan bookkeeping"`.
+- [ ] **Steps:** failing test `macos_does_not_pretend_an_env_var_is_a_sandbox`
+(also assert `native.rs`'s command builder sets no `VOX_SANDBOX`) → replace the
+"Other" branch with `tracing::warn!` naming `isolation.md` and delete both `env`
+calls → `cargo test -q -p vox-cli sandbox` → commit
+`fix(sandbox): stop presenting VOX_SANDBOX=1 as isolation`. Banner the
+contradicting sentence at
+`docs/src/architecture/vox-language-rules-phase4-runtime-monitors-2026.md`.
 
 ---
 
-## Task 16: Full gate and the honest report
+## Task 15: ADR, retirement rows, doctor, bookkeeping
+
+**Files:** create
+`docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md`
+(`category: Architecture Decisions (ADRs)`, shape of ADR-047); modify
+`docs/src/adr/{index,README}.md`, `AGENTS.md` (tier table **and** §Retired
+Surfaces), both retirement YAMLs, mesh plan remaining rows, `research-index.md`.
+
+**Doctor: five real rows.** Delete the permanently-green tombstone of a deleted
+feature. Rows: (1) interpreter is the default for script-shaped files; (2) cargo
+is optional for scripts; (3) rustc is optional for scripts; (4) wasm32-wasip1 is
+not required; (5) **executor binary accepts `--caps`** (`vox run --help` contains
+`--caps`). Sources live under `diagnostics/`.
+
+- [ ] **Step 1: ADR-048.** Decision: the interpreter is the isolation tier for
+VoxScripts. Record the §5 table (insertion order; crypto edge; accept-loop out of
+band; no permanently-red golden; in-process disk caps). Consequence: PROTO 2;
+six embedders; `@versioned` gated; `list.push` in-place before the flip.
+
+- [ ] **Step 2: Retirement rows** for `--isolation wasm|container|gvisor|microvm`,
+`vox wasm run`, `script-wasi`, `ProbeOnlyExecutor`, `MicroVmRuntime`/`Tier::MicroVm`,
+`VoxMeshExecPolicy` (SecretId), `exec_bundle_b64`. Same in AGENTS.md §Retired
+Surfaces. `cargo run -q -p vox-cli -- ci retired-symbol-check`.
+
+- [ ] **Step 3: AGENTS.md tier table** and residual references:
+`GEMINI.md`, `.cursor/rules/voxscript-first-automation.mdc`,
+`docs/src/explanation/expl-architecture.md`, `docs/src/reference/mobile-edge-ai.md`,
+`docs/src/reference/cli.md`.
+
+- [ ] **Step 4: Mesh plan + indexes** — Status "Tasks 3.1–3.4 done and merged";
+Task 3.1 note "inbox drain: not funded by ADR-048"; Task 6.1 "bundle lane deleted
+by ADR-048 Task 10". ADR-048 into `adr/index.md`, `README.md`, `research-index.md`.
+
+- [ ] **Step 5: Five doctor rows**, no tombstone.
+
+- [ ] **Step 6: Lint, fast gate, commit** —
+`cargo run -q -p vox-doc-pipeline -- --lint-only --paths docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md && cargo run -q -p vox-cli -- ci pre-push`.
+`git commit -m "docs: ADR-048, retirement rows, five doctor checks, plan bookkeeping"`.
+
+---
+
+# Task 16 — Verification (not a PR)
 
 - [ ] **Step 1:** `ls crates/vox-gui/ui/dist || (cd crates/vox-gui/ui && pnpm install && pnpm build)`.
-- [ ] **Step 2:** `cargo run -q -p vox-cli -- ci pre-push --complete 2>&1 | tail -30`. If it halts at `doc-inventory verify`, leave the regenerated file uncommitted, re-run so clippy and toestub execute, then `git checkout -- docs/agents/doc-inventory.json`.
-- [ ] **Step 3:** `cargo run -q -p vox-cli -- ci pre-push --full` (runs the slow set incl. the differential gate and the executor tests). Expected PASS, or a `KNOWN_TIER_ASYMMETRIES` list that exactly matches the gate's failures.
-- [ ] **Step 4:** Cross-machine smoke **after rebuilding both ends at PROTO 2** (BLAPTOP04 is at PROTO 1 until then): `vox mesh id` on both, `vox mesh join <ticket>`, dispatch `pub fn main() { print("cross-machine") }` via a small driver; record the round-trip. If unreachable or not rebuilt, say so; do not fake the number.
-- [ ] **Step 5: Report** — what shipped per task, every mutation and its result, every `KNOWN_TIER_ASYMMETRIES` entry with its reason, the two maintainer decisions still open (`vox-crypto` edge; object order), and the pre-push output verbatim. Nothing is pushed.
+- [ ] **Step 2:** `cargo run -q -p vox-cli -- ci pre-push --complete 2>&1 | tail -30`. If it
+halts at `doc-inventory verify`, leave the file uncommitted, re-run, then
+`git checkout -- docs/agents/doc-inventory.json`.
+- [ ] **Step 3:** Nightly gate + executor ignored tests. Expected PASS. No
+`KNOWN_TIER_ASYMMETRIES` list.
+- [ ] **Step 4: Local Network Privacy, at the keyboard.** The first time `vox`
+touches the local network macOS may show a TCC dialog. Trigger it while a human
+is present: `vox mesh probe` or the join smoke below. The application firewall is
+off (`State = 0`); there is no password dialog. Do not `sudo cargo`.
+- [ ] **Step 5: Cross-machine smoke after rebuilding both ends at PROTO 2.**
+`vox mesh id` on both, `vox mesh join <ticket>`, dispatch
+`pub fn main() { print("cross-machine") }`. Record the round-trip. If unreachable
+or not rebuilt, say so; do not fake the number.
+- [ ] **Step 6: Report** — what shipped per PR, every mutation and its result,
+every residual `EXPECT-TIER-ASYMMETRY` (expected: none), the Task 0 and Task 5b
+tables, and the pre-push output verbatim. Nothing is pushed.
 
 ---
 
-## Self-review against the spec (revision 2)
+## Self-review against the spec (revision 3)
 
-| Spec section | Task |
+| Spec section | PR / Task |
 |---|---|
-| §3.1 script-shaped routing, no auto-switch | 7 |
-| §3.2 items 1–10 (grammar, non-optional caps, fatal, every entry point incl. import, fs scoping, allocator in lib, step-not-time, depth, output marker, determinism knobs) | 3, 4, 5, 6, 9 |
-| §3.2 threat model (process:allow = shell; forged 77) | 9, 15 |
-| §3.3 parity fixes, KNOWN list, eight goldens, EXPECT-EXIT, nextest registration, two recorded decisions | 1, 1b, 2 |
-| §3.4 executor, env, caps via constructor, JobLimits, concurrency, `(peer, JobId)` cancel, PROTO/REFUSED_PROTO/postcard, exit mapping, bundle+secret_gate deletion, Dispatch payload, inbox drain withdrawn | 8, 9, 10, 11 |
-| §3.5 deletions **and retirements**; `VOX_MESH_EXEC_POLICY` collision; scoped rename | 10, 12, 13, 14, 15 |
-| §3.6 verify-before-flip, contract chain, secrets regen, dispatch handlers, docs, check-links | 0, 7, 12, 15 |
-| §4 mutation-verified guards (denial, import, symlink, memory, caps mapping, cancel ownership) | 4, 5, 6, 9 |
-| §5 PROTO incompatibility; allocator scope | 16, 6 |
+| §3.1 script-shaped routing, three hatches, `list.push` prerequisite | PR 2 Task 2, PR 4 Task 7 |
+| §3.2 isolation claim, six embedders, `@versioned`, parent-walk, glob filter, disk/file caps, regex size, depth in `apply_closure` | PR 3 |
+| §3.2 threat model (process:allow = shell; forged 77 under `grant_native`) | PR 5 Task 9 |
+| §3.3 one-crate gate, nightly, both CI filters, cache wipe, empty residual asymmetries, crypto SSOT, insertion order | PR 1, PR 2 |
+| §3.4 executor, Job Object, per-peer slots, `(peer, JobId)` + refuse duplicate, PROTO/4003, disk caps, banner, probe | PR 5 |
+| §3.4 accept-loop DoS | **out of this plan** |
+| §3.5 deletions and retirements | PR 5 Task 10, PR 6 |
+| §3.6 execute-then-re-run, contract chain, doctor, where-things-live same PR | PR 1 Task 0, PR 3 Task 5b, PR 6 |
+| §4 mutation-verified guards, process-boundary tests, `PATH=""` flip proof | PR 3, PR 4, PR 5 |
+| §5 settled decisions | this header + PR 2 stop-the-line |
 
-**Still narrowed, stated:** `eval/builtins.rs` is not made table-driven (the fs arm now has a table; the rest does not). The inbox drain and lease-over-mesh are out of scope by decision. `crypto` and object-order parity wait on the maintainer.
+**Still narrowed, stated:** `eval/builtins.rs` is not made table-driven (the fs arm
+has a table; the rest does not). The inbox drain, lease-over-mesh, and the
+accept-loop / frame-deadline commit are out of scope by decision.

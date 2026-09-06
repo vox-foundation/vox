@@ -17,6 +17,29 @@ is dismissed silently gets rediscovered. Every item below carries a disposition.
 marked FALSE ALARM are as valuable as the bugs: they are the places a future reader will
 suspect a problem, and they record that someone already checked.
 
+## Revision 3 applied (2026-09-06)
+
+Revision 3 of the spec and plan absorbed the dispositions below. Do not re-litigate a
+closed item; if the implementation drifts, file a new finding. Spec:
+[`2026-09-05-interpreter-first-execution-design.md`](2026-09-05-interpreter-first-execution-design.md)
+(Revision 3). Plan:
+[`../plans/2026-09-05-interpreter-first-execution.md`](../plans/2026-09-05-interpreter-first-execution.md)
+(six PRs).
+
+| PR | Tasks | Findings absorbed |
+|---|---|---|
+| 1 | 0, 1, 1b | 1.2 (execute, not check); 5.1, 5.11 (gate CWD + cache wipe); 6.1, 6.2 (both CI filters, one generated crate, nightly); 6.7 (no permanently-red golden; `EXPECT-TIER-ASYMMETRY` only if needed); 8.5 (4 of 11, not nine) |
+| 2 | 2 | 1.3 (`list.push`); 1.10 (take the crypto edge); 5.2, 5.3 (hermetic glob; delete the decoy asymmetry test); §10 object-order + crypto decisions |
+| 3 | 3, 4, 5, 5b, 6 | 1.1, 1.4 (parent-walk + glob filter results); 2.4 (`@versioned`); 2.8 (six embedders); 2.10 (db/repo PURE); 3.7 (depth in `apply_closure`); 4.1, 4.2, 4.3 (Win32_System_IO, spin_loop, repeatable `--caps`); 5.7, 5.13 (positive control; minimal mutations); 2.14, 2.15, 2.17 (in-process disk/file caps + regex size — mesh defaults on `JobLimits`, local uncapped); 7.6 (`--max-depth` is a real flag); 8.2, 8.3 (`where-things-live` + `isolation.md` category) |
+| 4 | 7 | 5.8 (`PATH=""`); 7.2 (three existing hatches); 7.5 (`setup-e2e.yml --mode script`); 7.8 (no PATH version guard) |
+| 5 | 8, 9, 10, 11 | 1.5, 1.8, 1.9, 1.11 (kept from rev 2; doubling + threaded `max_steps`); 3.2, 3.3, 3.4, 3.5, 3.6, 3.9, 3.10; 2.16, 2.18 (per-peer slots; refuse duplicate JobId); 4.4–4.7 (`vox_lit`, NTSTATUS, passthrough env, honest HOME); 5.4, 5.5, 5.6, 5.9, 5.10, 5.12; 6.8 (same-file tests); 7.1, 7.3, 7.4 (`probe`, join banner, `tracing::info!`); 8.6 (`REFUSED_PROTO = 4003`) |
+| 6 | 12–15 | 6.3–6.6 (contract chain, secrets order, check-links, HTTP handlers); 7.7 (five real doctor rows); 8.1, 8.3 (ADR category), 8.4, 8.7, 8.8 |
+| out of plan | — | **3.1** accept-loop permit + missing frame deadline (separate commit against merged Phase 3). **2.9** denial-marker smell (not a blocker). **2.11–2.13** verified closed |
+| Task 16 | verify | Local Network Privacy at the keyboard. No password dialog. No `sudo cargo` |
+
+Round-1 items marked FIXED in rev 2 (1.5–1.9, 2.1–2.3, 2.5–2.7, 3.8, 6.3–6.6) stay
+FIXED; revision 3 keeps those corrections and does not reopen them.
+
 **Verification legend.** **[V]** verified by running it on this machine · **[S]** verified by
 reading the source · **[D]** documented measurement already in the repo · **[R]** reasoned,
 not verified — treat as a hypothesis.
@@ -51,11 +74,11 @@ The claim in revision 1 was *"every side effect passes through `call_builtin_met
 | 2.1 | **`import` reads and executes arbitrary host `.vox`** — `eval/mod.rs:377/392`, before `main`, before any gate. Parser's only constraint is `.ends_with(".vox")`. | CRITICAL | [S] | FIXED in rev 2 — gated in `resolve_local_file_import`, mutation-verified |
 | 2.2 | **`process.exec` replaces the process image** (`CommandExt::exec`) — every in-process bound ceases to exist. `spawn_background` outlives the interpreter. | HIGH | [S] | FIXED in rev 2 — documented as shell access; `process` denied for `Sandboxed`; `grant_native` is the only path |
 | 2.3 | **`process.register_exit_command` writes to a process-global static** whose signal handler runs the commands and hard-exits the *host daemon*, surviving the interpreter that armed it. | HIGH | [S] | FIXED in rev 2 — gated at queue time, moved onto `Interpreter` |
-| 2.4 | **The `@versioned` snapshot** calls `repo.snapshot` directly at `mod.rs:571`, bypassing method dispatch. Named by the spec as one of four bypass paths — **and dropped from the plan without a word**. | HIGH | [S] | **OPEN in rev 2** → rev 3 must gate it or record an explicit exception |
+| 2.4 | **The `@versioned` snapshot** calls `repo.snapshot` directly at `mod.rs:571`, bypassing method dispatch. Named by the spec as one of four bypass paths — **and dropped from the plan without a word**. | HIGH | [S] | **APPLIED in rev 3** — PR 3 Task 4 gates it via `allows_versioned_snapshot()` |
 | 2.5 | **`path.resolve` calls `std::fs::canonicalize`** from a namespace marked pure — a whole-disk existence oracle under `--caps ''`. | HIGH | [S] | FIXED in rev 2 — gated as an fs read |
 | 2.6 | **The fs method list was wrong in both directions.** Two named methods do not exist (`append`, `rename`); six real ones were missing, including **`remove_dir_all`** and `read_bytes`. `fs:ro=<input>` would have permitted `fs.remove_dir_all("/")`. | CRITICAL | [S] | FIXED in rev 2 — verified table, guard at the arm head, unknown methods denied by default |
 | 2.7 | **`caps: None` remained a bypass**, and the test named for it never constructed `None`. | HIGH | [S] | FIXED in rev 2 — `caps` non-optional |
-| 2.8 | **Six in-process embedders run `Interpreter` ungated**, including the MCP dispatch that executes `.vox` tools for an LLM. The spec claims five "each receive an explicit set"; **no task does this**, and Task 3's grep for `.caps = Some(` is true and irrelevant — they never set caps at all. Post-plan they are *more* permissive than today. | HIGH | [S] | **OPEN in rev 2** → rev 3 sets an explicit set at all six sites |
+| 2.8 | **Six in-process embedders run `Interpreter` ungated**, including the MCP dispatch that executes `.vox` tools for an LLM. The spec claims five "each receive an explicit set"; **no task does this**, and Task 3's grep for `.caps = Some(` is true and irrelevant — they never set caps at all. Post-plan they are *more* permissive than today. | HIGH | [S] | **APPLIED in rev 3** — PR 3 Task 3 sets an explicit set at all six sites |
 | 2.9 | **The denial marker is forgeable, but not weaponizable.** `log.error` is `PURE` and writes attacker-controlled text to stderr, so the sentinel string *is* producible. Reaching exit 77 needs `process.exit`, which is gated and denied for `Sandboxed`; `assert` faults to 1 and `log` changes no exit code. The two-factor check holds — only an already-`Native` peer could forge a verdict. | LOW | [S] | DESIGN SMELL — a sentinel should not be producible by a `PURE` builtin. Move it to a channel the script cannot write (fd 3 or a status file) when convenient; not a rev-3 blocker |
 | 2.11 | **Forged `__namespace__` is contained.** A script can build `{__namespace__: "fs"}` and it does reach real namespace dispatch (dict methods are skipped when `ns` is `Some`) — but the gate keys on the same string and `allows_path` still scopes it. Forging a `PURE` name reaches only ops that do no privileged I/O. | — | [S] | **VERIFIED NEGATIVE** — closed. Recorded because it is the obvious first attack |
 | 2.12 | **`_Denied` / `_Panic` cannot be observed as values.** Both are converted at the single `call_builtin_method` return site before any `match`, `Option`/`Result` wrapping, list store, or closure capture. | — | [S] | **VERIFIED NEGATIVE** — closed |
@@ -94,10 +117,10 @@ service is not.
 | 2.17 | **`regex` size limit left at the crate default** (10 MiB compiled program) and a compile is **one step**, so the step budget does not bound it. Unbounded locally, where there is no wall clock. | MED | [S] | FIX — a shared `RegexBuilder` with `size_limit(1<<20)` for the interpreter |
 | 2.18 | **`JobId` reuse within one peer** cancels or orphans that peer's own jobs (self-inflicted; cross-peer is safe). | LOW | [S] | FIX — refuse a `Run` whose `(peer, JobId)` is already live (same fix as 3.2) |
 
-**Spec consequence.** §3.2's threat-model paragraph must say plainly that the interpreter is
-an *isolation* boundary, not a *resource-containment* one: it counts steps and heap, and does
-not count disk, inodes, executor slots, or regex compile time. Availability against a
-trusted-but-malicious peer depends on OS quotas this design does not build.
+**Spec consequence (applied in rev 3).** §3.2 now says the interpreter is an *isolation*
+boundary. Disk bytes, file counts, per-peer executor slots, and regex compile size are
+counted in-process (`JobLimits.max_disk_bytes` / `max_files`, per-`EndpointId` semaphore,
+`RegexBuilder::size_limit(1<<20)`). Size-capped tmpfs is not used — it needs root.
 
 ---
 
@@ -175,7 +198,7 @@ the load-bearing items are 2.4, 2.8, and:
 
 | # | Finding | Disposition |
 |---|---|---|
-| 8.1 | §3.3 says the asymmetry list "must be empty"; §4 says "empty **or** carry a reason". The plan ships three entries, one (`log.*`) authorised by neither | FIX — one rule, two authorised entries |
+| 8.1 | §3.3 says the asymmetry list "must be empty"; §4 says "empty **or** carry a reason". The plan ships three entries, one (`log.*`) authorised by neither | **APPLIED in rev 3** — one rule, empty residual after the crypto edge; `log.*` is not authorised |
 | 8.2 | `where-things-live.md` rows listed in a Files block, written by no step; AGENTS.md requires them in the same PR | FIX — four rows |
 | 8.3 | `isolation.md` and ADR-048 have no `category` specified; ADR template unpinned | FIX — `Language Reference` / `Architecture Decisions (ADRs)`; follow ADR-047's shape |
 | 8.4 | Ten stale citations, two paths that do not exist, two symbol names that do not exist | FIX — all corrected and re-verified [V] |
@@ -221,8 +244,7 @@ Recorded so they are not re-investigated.
 
 ## 11. What this changes about the shape of the work
 
-The plan is 18 tasks on one branch — one CodeRabbit review for ~6 000 lines including
-regenerated contracts. The recommended split, by revertability:
+Revision 3 adopted this split. The plan is no longer 18 tasks on one branch.
 
 | PR | Tasks | Boundary rationale |
 |---|---|---|
