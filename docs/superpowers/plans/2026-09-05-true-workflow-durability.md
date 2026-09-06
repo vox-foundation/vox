@@ -1,5 +1,9 @@
 # True Workflow Durability Implementation Plan
 
+> **SUPERSEDED (2026-09-06).** Do not implement this file. Use
+> [`2026-09-06-true-workflow-durability.md`](2026-09-06-true-workflow-durability.md).
+> Tree audit found unimplementable tasks and tests that would pass for the wrong reason.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make Vox workflow replay real — execute the workflow body, run actual activity code, persist actual results, and survive crashes, timers, and signals.
