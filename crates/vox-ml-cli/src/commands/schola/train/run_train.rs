@@ -95,15 +95,39 @@ pub async fn run_train(
         }
     }
 
+    let gpu_info = vox_populi::mens::probe_gpu();
+    let workspace_root = vox_corpus::training::contract::find_workspace_root();
+
     let mut model = model;
+    let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if model.is_none()
+        && env_default_model.is_none()
+        && vox_populi::mens::tensor::vram_autodetect::AcceleratorKind::from_vendor(&gpu_info.vendor)
+            == vox_populi::mens::tensor::vram_autodetect::AcceleratorKind::Metal
+    {
+        let root = workspace_root.as_deref().ok_or_else(|| {
+            anyhow::anyhow!("cannot locate workspace root to resolve the Metal default base model")
+        })?;
+        let resolved = vox_populi::mens::tensor::spoke_base_resolver::resolve_metal_default_base(
+            root,
+            gpu_info.vram_mb,
+        )?;
+        tracing::info!(
+            model = %resolved,
+            vram_mb = gpu_info.vram_mb,
+            "Using Metal-resolved HF model (`--model` omitted; agentic_default ladder)."
+        );
+        model = Some(resolved);
+    }
     if matches!(
         train_backend,
         vox_populi::mens::PopuliTrainBackend::CandleQlora
     ) && model.is_none()
     {
-        let resolved = vox_populi::mens::resolve_default_model_id(
-            std::env::var("VOX_MENS_DEFAULT_MODEL").ok().as_deref(),
-        );
+        let resolved = vox_populi::mens::resolve_default_model_id(env_default_model.as_deref());
         tracing::info!(
             model = %resolved,
             "Using default HF model for Candle QLoRA (`--model` omitted; see contracts/mens/training-presets.v1.yaml)."
@@ -240,7 +264,6 @@ pub async fn run_train(
         }
     }
 
-    let workspace_root = vox_corpus::training::contract::find_workspace_root();
     let data_dir = vox_corpus::training::contract::normalize_workspace_relative_path(
         data_dir,
         workspace_root.as_deref(),
@@ -253,7 +276,6 @@ pub async fn run_train(
         vox_corpus::training::contract::normalize_training_resume_path(r, workspace_root.as_deref())
     });
 
-    let gpu_info = vox_populi::mens::probe_gpu();
     let device_profile = vox_populi::mens::DeviceProfile::from_gpu_info(
         &gpu_info.model_name,
         gpu_info.vram_mb,

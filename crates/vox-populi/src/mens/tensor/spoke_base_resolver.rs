@@ -129,6 +129,19 @@ pub fn resolve_base_model(
     Ok(pick_base(&overlay, base_model, vram_mb)?.hf_id.clone())
 }
 
+/// Fail-closed Metal default: pick the largest `agentic_default` rung that
+/// fits `vram_mb`. Used by `vox mens train` **before** the CandleQlora
+/// `DEFAULT_MODEL_ID` fill so a Mac does not silently land on Qwen3-8B.
+pub fn resolve_metal_default_base(
+    workspace_root: &std::path::Path,
+    vram_mb: u64,
+) -> anyhow::Result<String> {
+    let overlay = load_overlay(workspace_root)?;
+    let base = pick_base(&overlay, "agentic_default", vram_mb as u32)?;
+    ensure_not_placeholder(&base.hf_id)?;
+    Ok(base.hf_id.clone())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -333,6 +346,42 @@ mod tests {
             base.hf_id.contains("Qwen3-14B"),
             "should be 14B, got: {}",
             base.hf_id
+        );
+    }
+
+    fn workspace_root() -> &'static std::path::Path {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+    }
+
+    #[test]
+    fn resolve_metal_default_base_116g_is_qwen3_32b() {
+        let id = resolve_metal_default_base(workspace_root(), 116_000).expect("116k MB fits");
+        assert!(
+            id.contains("Qwen3-32B"),
+            "116_000 MB agentic_default must resolve Qwen3-32B, got {id}"
+        );
+    }
+
+    #[test]
+    fn resolve_metal_default_base_13926_is_qwen3_8b() {
+        let id = resolve_metal_default_base(workspace_root(), 13926).expect("13926 MB fits");
+        assert!(
+            id.contains("Qwen3-8B"),
+            "13926 MB agentic_default must resolve Qwen3-8B, got {id}"
+        );
+    }
+
+    #[test]
+    fn resolve_metal_default_base_6144_is_fail_closed() {
+        let err =
+            resolve_metal_default_base(workspace_root(), 6144).expect_err("8 GB is below floor");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("agentic_default") || msg.contains("6144"),
+            "fail-closed error must name the tag or budget, got {msg}"
         );
     }
 
