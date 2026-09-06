@@ -183,6 +183,143 @@ itself in hub quality alone), external-runtime vision when a real screenshot
 consumer exists, Layer 2 only if that consumer proves load-bearing and the
 external hop becomes the bottleneck. Layer 3 probably never.**
 
+## Revision 5 (same day) — Real end-to-end text confirmed; three bugs fixed to get there; GUI/orchestrator path traced and blocked at a known point
+
+**The confirmation the whole session was building toward, done for real.** With
+the user's explicit permission, downloaded `Qwen/Qwen3-0.6B` (1.5 GB, real HF
+weights, cached at `~/.cache/huggingface/hub/models--Qwen--Qwen3-0.6B/`),
+quantized it with the now-delegated `vox quantize` CLI, and loaded it through
+`vox-populi::inference::CandleCpuBackend` — the in-crate Mn-T2 inference path
+(no plugin loading required, unlike `vox mens train`/`serve`, both of which
+are blocked — see below). Result, verified on this machine:
+
+```
+Prompt:  "What is the capital of France?"
+Output:  "The capital of France is Paris. The capital of France is Paris. ..."
+```
+
+Correct and coherent (the repetition is expected — greedy decoding,
+temperature 0.0, no repetition penalty, on a 0.6B model). This is real: real
+downloaded weights, real tokenizer, real quantization, real forward pass, on
+this machine's CPU. The test is committed as an `#[ignore]`d manual
+integration test
+(`crates/vox-populi/src/inference/backends/candle_cpu.rs::real_qwen3_checkpoint_produces_real_text`),
+run via `VOX_REAL_MODEL_DIR=<dir> cargo test ... -- --ignored --nocapture`.
+
+**Getting here required finding and fixing three real, previously-latent
+bugs** — the `vox-populi::inference` module's own header comment already
+admitted "No numerical-parity claim is made here" and "tested for shapes +
+finiteness only"; it had never been run against a real checkpoint before this
+session:
+
+1. **Wrong weight-key namespace for dense Qwen3** (`vox-hf-layout`). The
+   prefix decision matched on the model name (`model_l.contains("qwen3")`),
+   which is true for both "qwen3" and "qwen3_5" — but only `text_config`-
+   wrapped checkpoints (Qwen3.5's hybrid stack) use the
+   `model.language_model.layers` prefix. Dense Qwen3 uses the flat
+   `model.layers` prefix, same as Qwen2/Llama/Mistral. Fixed by checking
+   whether `text_config` is actually present, the same signal already used
+   one line above for `cfg_source`. Commit `dd8dd2e91`.
+2. **`q_norm`/`k_norm` silently quantized instead of kept F32**
+   (`vox-quantize`). The tensor-role classifier's `.ends_with(".norm.weight")`
+   check (dot) doesn't match dense Qwen3's `q_norm.weight`/`k_norm.weight`
+   keys (underscore before `norm`), so these small, precision-sensitive
+   per-head normalization vectors fell through to the default `Matrix` role
+   and got quantized to Q8_0. Worst-case tensor MSE went from **1.44e-2 to
+   1.06e-5** after the fix — three orders of magnitude — and this alone was
+   the difference between fluent-looking garbage and a correct answer.
+   Commit `ccb44c09e`.
+3. **Q/K RMSNorm never applied at all** (`vox-populi`). Even with the
+   weights correctly preserved, `FullAttention` had no `q_norm`/`k_norm`
+   fields — the normalization step dense Qwen3 applies to Q and K right
+   after projection, before RoPE, was simply missing from the forward pass.
+   Added as `Option<RmsNorm>` fields (absent on Qwen2.5-style checkpoints),
+   proven with a new test that confirms providing the weights changes the
+   output (a same-random-base-weights A/B comparison, not just "doesn't
+   crash"). Commit `7556b990c`.
+
+**Why the documented `vox mens train`/`vox mens serve` path was not used
+instead:** both route through a dynamically-loaded `MlBackend` plugin
+(`mens-candle-cuda`), and that plugin's `Plugin.toml` declares
+`os = ["windows", "linux"]` with a hard `native-libs` requirement on
+`cudart`/`cublas` — it cannot be installed on macOS at all, CPU-fallback or
+not, independent of the Metal-specific gap in Revision 4. Confirmed directly:
+`vox plugin install --path .../vox-plugin-mens-candle-cuda --yes` fails with
+"plugin 'mens-candle-cuda' declares no artifact for 'macos-aarch64'." (The
+`vox-plugin-mens-candle-metal` plugin, by contrast, *does* declare a correct
+`macos-aarch64` artifact — but its training methods still return
+`unimplemented!()` pending the SP3-D protocol per Revision 4, so installing it
+would not have helped either.) The in-crate `vox-populi::inference` path used
+above needs no plugin at all, which is exactly why it was the way through.
+
+**GUI/orchestrator path, traced and honestly reported, not built further this
+session.** The orchestrator side is real and correctly wired:
+`MensCatalog::refresh` (`crates/vox-orchestrator/src/catalog.rs:583-646`)
+already scans `mens/runs/<name>/` for a `final`/`checkpoint-*` subdirectory
+and registers it as a routable `mens/<name>` model with
+`provider_type: VoxLocal`; `VoxLocalAdapter`
+(`crates/vox-orchestrator-mcp/src/llm_bridge/provider_adapter.rs:230-336`) is
+a real HTTP client that probes health and POSTs to a `/generate` endpoint.
+**Both are correct and would work today** — but they expect a `vox mens
+serve` process already running, and that process loads its model through the
+same blocked `mens-candle-cuda` plugin path described above. Confirming the
+GUI chatbot against a real local Mac-trained model therefore needs one of:
+(a) fixing the plugin manifest/native-lib declaration so a CPU-only build can
+install and run on macOS, (b) finishing the Metal plugin's training methods
+(Revision 4's tracked gap), or (c) building a small HTTP server that speaks
+`VoxLocalAdapter`'s `/generate` protocol on top of the now-proven-working
+`vox-populi::inference::CandleCpuBackend` path — the cheapest of the three,
+since everything under it is now verified correct. None of these were
+attempted this session; each is a real, separately-scoped project, not a
+config change.
+
+## Revision 4 (same day) — Metal training is not actually wired to `vox mens train`
+
+**Critical correction to Revisions 2 and 3.** Both said "Apple Silicon training
+already exists" based on `vox-plugin-mens-candle-metal` containing a full,
+tested QLoRA training port. That plugin's code and unit tests are real, but
+**they are not reachable from the actual `vox mens train` command a user
+would run.** Confirmed directly this session:
+
+```
+$ vox mens train --device metal ...
+error: `--device metal` for Candle QLoRA is not supported yet: there is no
+Metal-enabled Candle training backend in this build.
+```
+
+The rejection is deliberate and self-documenting —
+[`crates/vox-ml-cli/src/commands/schola/train/run_train.rs:150-179`](../../../crates/vox-ml-cli/src/commands/schola/train/run_train.rs):
+`vox-populi`'s own in-crate trainer (feature `mens-candle-qlora-cuda`) has "no
+Metal twin" (no `candle-core/metal` wiring in `vox-populi`'s Cargo.toml at
+all), and while `vox-plugin-mens-candle-metal` does exist, it needs "the SP3-D
+training host protocol" — the abi_stable plugin-loading bridge — which is not
+wired into this CLI command. This is the same "built but not consumed by
+anything live" pattern found repeatedly this session (`DomainRouter`,
+`ScalingService`'s resource guard) — the difference here is that this one
+directly blocks the user's stated goal ("training on Mac OS for the training
+and its GPU, taking full advantage of 128 gigabytes").
+
+**Consequence for this session's end-to-end confirmation:** the real
+training-and-serving smoke test below runs on **CPU**, via the
+`qwen3_dev_cpu` preset (rank 8, seq_len 128, batch 1, 1 epoch — literally
+built for this purpose, per its own comment: "smoke only — no quality gate").
+This proves the pipe end-to-end with real weights and real text, but it does
+**not** use the Mac's GPU. Wiring Metal into `vox mens train` is now the
+single highest-value follow-up in this entire audit relative to the
+originally stated goal — flagged as a follow-up task (see spawn_task in this
+session), scoped as its own project rather than folded into this one, because
+bridging the abi_stable plugin host into the CLI's training dispatch is
+real, non-trivial integration work, not a config change.
+
+**What this changes about §3.1's hub/spoke sizing.** The base-model ladder
+(Task 4, this session) correctly resolves `Qwen3-32B` for a 128 GB Mac — that
+part is real and tested. But *training* it today would still route through
+whatever Candle backend is actually wired, which for CPU-tier presets is CPU,
+not Metal — meaning the Mac cannot yet exercise the 32B rung's un-quantized
+LoRA method in practice at anything resembling reasonable speed. The ladder is
+correctly *sized* for the hardware; the *execution backend* has not caught up
+to it yet.
+
 ## Revision 3 (same day) — Qwen3.8, vision as three petals, quantization laning, and a corrected quantization finding
 
 Three corrections to Revision 2, then new ground: Qwen3.8 adoption tiers, vision
