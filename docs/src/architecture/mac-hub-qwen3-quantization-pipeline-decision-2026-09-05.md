@@ -183,6 +183,102 @@ itself in hub quality alone), external-runtime vision when a real screenshot
 consumer exists, Layer 2 only if that consumer proves load-bearing and the
 external hop becomes the bottleneck. Layer 3 probably never.**
 
+## Revision 6 (2026-09-06) — The plugin path itself fixed; real serving confirmed; Qwen3.8 text-tower loading unblocked
+
+Revision 5 said the documented `vox mens train`/`serve` path was unusable on
+macOS and routed around it via the in-crate `vox-populi::inference` module
+instead. That workaround is no longer necessary — the actual plugin path is
+now fixed, tested, and verified end-to-end, including through the real
+`/generate` HTTP endpoint `VoxLocalAdapter` (the GUI/orchestrator's
+local-model client) speaks to. Four real bugs, found only by actually
+driving the path to completion rather than reading the code:
+
+1. **`vox-plugin-mens-candle-cuda`'s `Plugin.toml` had no macOS artifact at
+   all** (`os = ["windows", "linux"]`, no `macos-aarch64` key) — confirmed
+   `vox plugin install --path ...` fails outright. Fixed by adding the
+   artifact entry; the crate already compiles CPU-only by default (`cuda` is
+   an opt-in Cargo feature), so nothing about this required CUDA.
+2. **`vox-cli`'s local `--path` install checksummed every declared
+   platform's artifact unconditionally**, erroring when a legitimate
+   single-platform local build (exactly what `cargo build --release` on this
+   machine produces) didn't have the *other* platforms' files. Fixed to skip
+   what isn't present, keeping the existing "current triple's artifact must
+   exist" guard as the real requirement.
+3. **`QLoraConfig::default()`'s BF16 compute dtype doesn't work on CPU at
+   all** — Candle's CPU backend has no BF16 matmul kernel. Real symptom:
+   `candle error: unsupported dtype BF16 for op matmul` on every `/generate`
+   call. Fixed with a device-aware override (F32 on CPU, BF16 elsewhere,
+   unit-tested).
+4. **Dense Qwen3's per-head Q/K RMSNorm was missing from both the training
+   and inference code paths** in `vox-plugin-mens-candle-cuda` itself — a
+   second, independent occurrence of the exact bug class found and fixed in
+   `vox-populi::inference` in Revision 5, in a *different* implementation of
+   the same architecture. Symptom after fixing (3): the server ran with no
+   error and produced fluent-looking garbage, not a crash — the same
+   deceptive failure mode as before. Fixed the same way: `Option<RmsNorm>`
+   fields, applied after projection and before RoPE, on both the training
+   (`candle_qlora_train/mod.rs`) and inference (`inference.rs`) construction
+   sites, proven with a same-underlying-weights A/B comparison test.
+
+**Verified end-to-end, for real, over HTTP:** retrained a fresh adapter (the
+Revision-5 one was trained without Q/K norm and would have been numerically
+mismatched against a norm-applying forward), built `vox-ml-cli` with
+`--features gpu,execution-api`, ran `vox mens serve --model
+mens/runs/e2e-smoke`, and curled it:
+
+```
+POST /generate {"prompt": "What is the capital of France?", "temperature": 0.0}
+→ "The capital of France is Paris. The capital of France is Paris. ..."
+```
+
+This is the actual documented golden path (`vox mens train` → `vox mens
+serve`) working correctly on this machine, through the exact protocol the
+orchestrator's `VoxLocalAdapter` consumes
+(`crates/vox-orchestrator-mcp/src/llm_bridge/provider_adapter.rs` — its
+`GenerateResponse` schema comment names `VoxLocalAdapter` as the consumer it
+was built for) — not a bypass of it.
+
+**`--device metal` remains unfixed and is a separate, larger project.**
+Nothing in this revision touches it. Per Revision 4: `vox-plugin-mens-candle-metal`'s
+`Plugin.toml` is already correct (declares `macos-aarch64` properly), but its
+`run_train_step`/`run_eval_step` still return `unimplemented!()` pending "the
+SP3-D training host protocol" — a real implementation gap, not a
+manifest/config problem like the four bugs above. CPU training is real and
+now confirmed correct; Metal acceleration on this Mac is not.
+
+**Qwen3.8 "Minimal tier" (§3.2r) landed.** `vox-hf-layout`'s blanket
+rejection of any `ForConditionalGeneration`/`vision_config` checkpoint is now
+narrowed to only reject when there is no `text_config` block to extract a
+text tower from — verified against Qwen3.8-27B's real `config.json` (fetched
+this session), which has a `text_config` in the same hybrid-attention shape
+`qwen35_text_config` already parses for Qwen3.5. Qwen3.8-27B is now loadable
+as a text-only causal LM, no vision code involved. **Not yet addressed:** the
+weight loader (`inference.rs`'s `get_tensor` closure) reads entire safetensors
+shards into memory via `std::fs::read` before filtering by key — for a real
+27B+vision checkpoint this is the genuinely slow, RAM-hungry path the
+original bail's comment warned about ("~10 minutes force-loading a huge
+multimodal embedding"). That is a memory-efficiency project (stream/mmap and
+filter by key before materializing), separate from and larger than this
+config-parsing fix, and was not attempted here. **Also not attempted:**
+downloading the real Qwen3.8-27B checkpoint to prove this end-to-end the way
+Qwen3-0.6B was proven above — it is tens of GB, and per policy that needs
+explicit go-ahead before starting; the fix is verified today only against
+Qwen3.8's real config shape in a unit test, not against its real weights.
+
+**A concurrency note for whoever picks this up next.** Both follow-up chips
+from this session's earlier revisions (`task_46c6b1f1` — the plugin/list.rs
+clippy fix — and `task_1ca9e5f0` — bridging local MENS models to the GUI)
+were independently started by the user as separate sessions while this one
+was still running, which is almost certainly what caused a real mid-session
+collision: this session's shared (non-worktree) checkout got reset to
+`origin/main` by another process, silently discarding an uncommitted edit
+(recovered by redoing the work in an isolated `git worktree`). **Both of
+those follow-ups are now independently resolved in this session's own
+worktrees** (`fix/items-after-test-module-lint` and the fixes described
+above on `mens/mac-hub-enablement`). Check whether the separately-started
+sessions produced overlapping or conflicting work before merging either
+branch.
+
 ## Revision 5 (same day) — Real end-to-end text confirmed; three bugs fixed to get there; GUI/orchestrator path traced and blocked at a known point
 
 **The confirmation the whole session was building toward, done for real.** With
