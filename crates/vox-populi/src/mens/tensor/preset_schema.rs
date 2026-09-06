@@ -1,6 +1,7 @@
 //! Training hyperparameter presets: 4080, safe, A100-shaped profiles.
 
 use crate::mens::tensor::device::probe_gpu;
+use crate::mens::tensor::vram_autodetect::{AcceleratorKind, auto_preset_for};
 
 /// CLI numeric overrides for auto-tuning.
 #[derive(Debug, Clone, Default)]
@@ -355,10 +356,25 @@ pub fn resolve_effective_profile(
     let model_hint = model_hint_resolved.expose();
     let env_p_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTrainProfile);
     let env_p = env_p_resolved.expose();
-    let name = normalize_preset_name(preset.or(env_p).unwrap_or(DEFAULT_PRESET));
+    let kind = AcceleratorKind::from_vendor(&device.vendor);
+    let default_for_device = if kind == AcceleratorKind::Metal {
+        "auto"
+    } else {
+        DEFAULT_PRESET
+    };
+    let name = normalize_preset_name(preset.or(env_p).unwrap_or(default_for_device));
 
     let mut p = if name == "auto" {
-        if let Some(specs) = load_gpu_specs() {
+        if kind == AcceleratorKind::Metal {
+            // Never walk the CUDA-shaped yaml `presets:` table on Apple.
+            // `auto_preset_for` already maps 6–16 GiB to `qwen3_dev_cpu`;
+            // anything below that (or unknown VRAM) fail-closes to the same
+            // smoke profile rather than matching `a100`/`h100` by VRAM size.
+            let vram_gb = (device.vram_mb > 0).then_some(device.vram_mb as f32 / 1024.0);
+            let metal_name =
+                auto_preset_for(AcceleratorKind::Metal, vram_gb).unwrap_or("qwen3_dev_cpu");
+            base_for_name(metal_name)
+        } else if let Some(specs) = load_gpu_specs() {
             if let Some((_name, preset_spec)) =
                 TrainingPreset::best_for_vram(&specs.presets, device.vram_mb)
             {
@@ -1030,5 +1046,111 @@ mod local_compat_b07_planner_tests {
             PopuliTrainBackend::BurnLora,
             "CandleQlora and BurnLora must be distinct enum variants"
         );
+    }
+}
+
+#[cfg(test)]
+mod metal_auto_default_tests {
+    use super::*;
+    use serial_test::serial;
+
+    fn core_fields(p: &TrainPresetProfile) -> (usize, f32, usize, usize, usize, f64) {
+        (p.rank, p.alpha, p.seq_len, p.batch_size, p.grad_accum, p.lr)
+    }
+
+    /// Bypass the post-resolve VRAM planner so these tests pin the *selected
+    /// preset*, not the subsequent seq/batch clamp (`resolve_effective_profile`
+    /// mins against the planner whenever `vram_mb > 0`).
+    fn no_budget_clamp() -> CliOverrides {
+        CliOverrides {
+            budget_seq_len: Some(8192),
+            budget_batch_size: Some(64),
+            budget_grad_accum: Some(1),
+            ..CliOverrides::default()
+        }
+    }
+
+    fn clear_preset_env() {
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_BASE_MODEL");
+            std::env::remove_var("VOX_TRAIN_PROFILE");
+        }
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn cuda_device_with_no_preset_matches_explicit_4080() {
+        clear_preset_env();
+        let none_dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
+        let explicit_dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
+        let omitted = resolve_effective_profile(None, none_dev, None, CliOverrides::default());
+        let explicit =
+            resolve_effective_profile(Some("4080"), explicit_dev, None, CliOverrides::default());
+        assert_eq!(
+            core_fields(&omitted),
+            core_fields(&explicit),
+            "CUDA omitted-preset default must stay DEFAULT_PRESET=4080"
+        );
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn cpu_device_with_no_preset_still_uses_4080() {
+        clear_preset_env();
+        let none_dev = DeviceProfile::from_gpu_info("cpu", 0, "cpu");
+        let explicit_dev = DeviceProfile::from_gpu_info("cpu", 0, "cpu");
+        let omitted = resolve_effective_profile(None, none_dev, None, CliOverrides::default());
+        let explicit =
+            resolve_effective_profile(Some("4080"), explicit_dev, None, CliOverrides::default());
+        assert_eq!(
+            core_fields(&omitted),
+            core_fields(&explicit),
+            "CPU/unknown omitted-preset default must stay 4080 (Linux CI unchanged)"
+        );
+
+        let empty_vendor = DeviceProfile::from_gpu_info("unknown", 0, "");
+        let empty = resolve_effective_profile(None, empty_vendor, None, CliOverrides::default());
+        assert_eq!(core_fields(&empty), core_fields(&explicit));
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn metal_16g_auto_is_qwen3_16g() {
+        clear_preset_env();
+        let dev = DeviceProfile::from_gpu_info("apple m-series", 16384, "apple");
+        let profile = resolve_effective_profile(None, dev, None, no_budget_clamp());
+        let expected = base_for_name("qwen3_16g");
+        assert_eq!(profile.rank, expected.rank);
+        assert_eq!(profile.seq_len, expected.seq_len);
+        assert_eq!(profile.grad_accum, expected.grad_accum);
+        assert_eq!(profile.lr, expected.lr);
+        assert_eq!(profile.rank, 16);
+        assert_eq!(profile.seq_len, 512);
+        assert_eq!(profile.grad_accum, 8);
+        assert_eq!(profile.lr, 1.5e-4);
+        // yaml prosumer_16g would be seq_len 1024 / lr 2e-5
+        assert_ne!(profile.seq_len, 1024);
+        assert_ne!(profile.lr, 2e-5);
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn metal_116g_auto_is_qwen3_96g() {
+        clear_preset_env();
+        let dev = DeviceProfile::from_gpu_info("apple m-series", 116 * 1024, "apple");
+        let profile = resolve_effective_profile(None, dev, None, no_budget_clamp());
+        let expected = base_for_name("qwen3_96g");
+        assert_eq!(profile.rank, expected.rank);
+        assert_eq!(profile.seq_len, expected.seq_len);
+        assert_eq!(profile.batch_size, expected.batch_size);
+        assert_eq!(profile.rank, 64);
+        assert_eq!(profile.seq_len, 2048);
+        assert_eq!(profile.batch_size, 4);
+        // yaml a100 auto hardcodes rank 16, batch_size 8, lr 8e-6
+        assert_ne!(profile.rank, 16);
+        assert_ne!(profile.batch_size, 8);
+        assert_ne!(profile.lr, 8e-6);
+        assert_eq!(profile.lr, expected.lr);
     }
 }
