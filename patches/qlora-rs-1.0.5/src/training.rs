@@ -50,11 +50,13 @@ pub(crate) fn clip_grad_norm(
         if let Some(grad) = grads.get(var.as_tensor()) {
             let sq = grad.sqr().map_err(QLoraError::Candle)?;
             let s = sq.sum_all().map_err(QLoraError::Candle)?;
+            // Metal has no F32→F64 contiguous kernel. Read the scalar as F32
+            // and widen on the host (CPU path still works).
             let s = s
-                .to_dtype(DType::F64)
+                .to_dtype(DType::F32)
                 .map_err(QLoraError::Candle)?
-                .to_scalar::<f64>()
-                .map_err(QLoraError::Candle)?;
+                .to_scalar::<f32>()
+                .map_err(QLoraError::Candle)? as f64;
             sum_sq += s;
         }
     }

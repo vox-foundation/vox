@@ -227,6 +227,42 @@ lane is model + `qwen3_*` preset selection that fits live unified memory.
 Corrected spec:
 [`docs/superpowers/specs/2026-09-06-macos-mens-training-lane-design.md`](../../superpowers/specs/2026-09-06-macos-mens-training-lane-design.md).
 
+## Revision 7 (2026-09-06) — Metal-first Qwen3-0.6B train + `/generate` on this Mac
+
+`--device metal` is no longer a bail. `mens-candle-cuda` now has an opt-in
+`metal` Cargo feature; `DeviceKind::Metal` / `Best` on Apple Silicon call
+`Device::new_metal(0)`. QLoRA `clip_grad_norm` reads the scalar as F32 (Metal
+has no F32→F64 contiguous kernel). Finalize copies `tokenizer.json` +
+`config.json` into the run dir and writes a local snapshot path into
+`adapter_manifest.json` so serve can load without a second download.
+
+**Verified on this machine (16 GB Mac, live available ~13.6 GiB):**
+
+```
+vox-ml-cli mens train --device metal --model Qwen/Qwen3-0.6B --preset qwen3_dev_cpu
+→ 180 micro-steps / 45 opt steps, adapter at mens/runs/e2e-smoke-metal/
+
+VOX_PLUGINS_DIR=<workspace plugin> vox-ml-cli mens serve --model …/e2e-smoke-metal --port 17863
+POST /generate {"prompt":"What is the capital of France?","temperature":0.0,"max_tokens":32}
+→ { "code": " The capital of France is Paris. …", "valid": true }
+```
+
+That is the `VoxLocalAdapter` schema (`code` / `valid`). GUI chat picker already
+threads `model_override`; `MensCatalog` now treats
+`candle_qlora_adapter.safetensors` at the run root as complete, so
+`mens/e2e-smoke-metal` is listable once the rebuilt orchestrator/GUI refresh
+catalogs from a checkout that contains `mens/runs/`.
+
+**Port collision:** `vox mens serve` and `VOX_LOCAL_ENDPOINT` default to
+`:11434` (Ollama-compat). This host already runs Ollama there, so the smoke
+served on `:17863`. Point the GUI at MENS with
+`VOX_LOCAL_ENDPOINT=http://127.0.0.1:17863` while Ollama keeps `:11434`.
+
+**Still not done:** live Tauri click-through (GUI binary was not rebuilt this
+revision); `vox-secrets` vault panics on the `vox-ml-cli-voxdb` thread during
+train (`can call blocking only when running on the multi-threaded runtime`) —
+non-fatal, side thread only.
+
 ## Revision 6 (2026-09-06) — The plugin path itself fixed; real serving confirmed; Qwen3.8 text-tower loading unblocked
 
 Revision 5 said the documented `vox mens train`/`serve` path was unusable on

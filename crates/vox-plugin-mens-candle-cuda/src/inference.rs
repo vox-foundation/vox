@@ -37,12 +37,51 @@ pub enum InferenceModel {
 /// `QLoraConfig::default()`'s training-tuned BF16. Candle's CPU backend has
 /// no BF16 matmul kernel at all — confirmed by a real serve-time failure
 /// ("unsupported dtype BF16 for op matmul") — so CPU inference must use F32.
-/// CUDA/Metal keep BF16, matching the default's training rationale.
+/// Metal training on this lane also dequants to F32 (no F32→F64 / BF16
+/// kernels on the path we hit). CUDA keeps BF16.
 fn compute_dtype_for_device(device: &Device) -> qlora_rs::ComputeDType {
-    if device.is_cpu() {
-        qlora_rs::ComputeDType::F32
-    } else {
+    if device.is_cuda() {
         qlora_rs::ComputeDType::BF16
+    } else {
+        qlora_rs::ComputeDType::F32
+    }
+}
+
+/// Resolve the Candle device for inference. `Best` on a Metal-featured
+/// macOS build prefers `Device::new_metal(0)` (same rule as training).
+fn resolve_inference_device(device_kind: &crate::device::DeviceKind) -> Result<Device> {
+    match device_kind {
+        crate::device::DeviceKind::Cpu => Ok(Device::Cpu),
+        crate::device::DeviceKind::Cuda => {
+            #[cfg(feature = "cuda")]
+            {
+                Ok(Device::new_cuda(0)?)
+            }
+            #[cfg(not(feature = "cuda"))]
+            {
+                Ok(Device::Cpu)
+            }
+        }
+        crate::device::DeviceKind::Metal | crate::device::DeviceKind::Best => {
+            #[cfg(feature = "metal")]
+            {
+                match Device::new_metal(0) {
+                    Ok(device) => Ok(device),
+                    Err(err) if matches!(device_kind, crate::device::DeviceKind::Best) => {
+                        tracing::warn!(
+                            "Metal unavailable for inference — falling back to CPU: {err}"
+                        );
+                        Ok(Device::Cpu)
+                    }
+                    Err(err) => Err(err.into()),
+                }
+            }
+            #[cfg(not(feature = "metal"))]
+            {
+                let _ = device_kind;
+                Ok(Device::Cpu)
+            }
+        }
     }
 }
 
@@ -82,16 +121,7 @@ impl InferenceEngine {
         let _tokenizer = Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| anyhow::anyhow!("load tokenizer: {e}"))?;
 
-        let _device = match device_kind {
-            crate::device::DeviceKind::Cpu => Device::Cpu,
-            _ => {
-                #[cfg(feature = "cuda")]
-                let dev = Device::new_cuda(0).unwrap_or(Device::Cpu);
-                #[cfg(not(feature = "cuda"))]
-                let dev = Device::Cpu;
-                dev
-            }
-        };
+        let _device = resolve_inference_device(device_kind)?;
 
         let adapter_path = model_dir.join("candle_qlora_adapter.safetensors");
         let meta_path = resolve_adapter_manifest_path(model_dir)
@@ -517,18 +547,31 @@ mod tests {
     use super::{compute_dtype_for_device, resolve_adapter_manifest_path};
 
     #[test]
-    fn compute_dtype_is_f32_on_cpu_bf16_elsewhere() {
+    fn compute_dtype_is_f32_on_cpu_bf16_on_cuda() {
         // Candle's CPU backend cannot matmul BF16 at all — this is the one
         // rung of the device-dtype ladder that MUST be F32, not a tuning
-        // choice. CUDA keeps the training-tuned BF16 default.
+        // choice. CUDA keeps the training-tuned BF16 default. Metal uses
+        // F32 to match this lane's training compute.
         assert!(matches!(
             compute_dtype_for_device(&candle_core::Device::Cpu),
             qlora_rs::ComputeDType::F32
         ));
-        // A CUDA device can't be constructed in a CPU-only CI runner, but the
-        // function is a pure match on `Device::is_cpu()` — asserting the CPU
-        // arm is exact and trusting the else-arm's obviousness is enough
-        // here; a real CUDA/Metal run is covered by the serve smoke test.
+    }
+
+    #[test]
+    fn resolve_inference_device_cpu_is_cpu() {
+        let d = super::resolve_inference_device(&crate::device::DeviceKind::Cpu).unwrap();
+        assert!(d.is_cpu());
+    }
+
+    #[cfg(feature = "metal")]
+    #[test]
+    fn resolve_inference_device_best_prefers_metal_when_available() {
+        let d = super::resolve_inference_device(&crate::device::DeviceKind::Best).unwrap();
+        assert!(
+            d.is_metal() || d.is_cpu(),
+            "Best must land on Metal or CPU fallback, got {d:?}"
+        );
     }
 
     #[test]

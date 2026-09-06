@@ -54,7 +54,7 @@ pub struct VoxLocalGenerateResult {
 /// Generate Vox code via the local MENS inference server.
 ///
 /// Benefits over a raw HTTP call: the health probe result is TTL-cached (30 s),
-/// and the endpoint is resolved from `VOX_LOCAL_ENDPOINT` (default 127.0.0.1:7863).
+/// and the endpoint is resolved from `VOX_LOCAL_ENDPOINT` (default 127.0.0.1:11434).
 pub async fn vox_local_generate(
     client: &reqwest::Client,
     prompt: &str,
@@ -68,8 +68,8 @@ pub async fn vox_local_generate(
         .await
         .map_err(|e: HttpInferError| e.message)?;
 
-    let base =
-        std::env::var("VOX_LOCAL_ENDPOINT").unwrap_or_else(|_| "http://127.0.0.1:7863".to_string());
+    let base = std::env::var("VOX_LOCAL_ENDPOINT")
+        .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
     let endpoint = format!("{}/generate", base.trim_end_matches('/'));
 
     #[derive(serde::Serialize)]

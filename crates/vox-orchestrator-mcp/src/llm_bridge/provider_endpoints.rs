@@ -76,7 +76,7 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
         }
         ProviderType::VoxLocal => {
             let url = std::env::var("VOX_LOCAL_ENDPOINT")
-                .unwrap_or_else(|_| "http://127.0.0.1:7863".to_string());
+                .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
             Ok(format!("{}/generate", url.trim_end_matches('/')))
         }
         ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => {
@@ -123,5 +123,35 @@ mod tests {
             err.message
                 .contains("not applicable to provider PopuliMesh")
         );
+    }
+
+    #[test]
+    #[serial_test::serial(vox_local_endpoint_env)]
+    #[allow(unsafe_code)]
+    fn vox_local_defaults_to_serve_port_11434() {
+        unsafe {
+            std::env::remove_var("VOX_LOCAL_ENDPOINT");
+        }
+        let model = ModelSpec {
+            id: "mens/e2e-smoke".into(),
+            canonical_slug: "mens/e2e-smoke".into(),
+            provider: "populi_local".into(),
+            provider_type: ProviderType::VoxLocal,
+            max_tokens: 8192,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            observed_cost_per_1k: None,
+            strengths: vec![],
+            capabilities: ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: vox_orchestrator::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        };
+        let url = endpoint_for(&model).expect("vox local endpoint");
+        assert_eq!(url, "http://127.0.0.1:11434/generate");
     }
 }

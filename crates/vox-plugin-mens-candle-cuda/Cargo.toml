@@ -45,6 +45,9 @@ default = []
 # Without this feature, the plugin compiles against CPU candle and GPU-only
 # ops return a clear runtime error.
 cuda = ["candle-core/cuda", "candle-nn/cuda"]
+# Opt-in Metal kernels for Apple Silicon. `--device metal` / `--device best`
+# on macOS call Device::new_metal(0); without this feature that errors at runtime.
+metal = ["candle-core/metal", "candle-nn/metal"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

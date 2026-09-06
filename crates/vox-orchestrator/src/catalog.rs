@@ -290,6 +290,30 @@ mod tests {
         assert!(strengths.contains(&StrengthTag::Logic));
         assert!(strengths.contains(&StrengthTag::Debugging));
     }
+
+    #[test]
+    fn mens_run_is_complete_accepts_qlora_adapter_at_run_root() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let run = tmp.path().join("e2e-smoke");
+        std::fs::create_dir_all(&run).expect("run dir");
+        assert!(
+            !mens_run_is_complete(&run),
+            "empty run dir must not register"
+        );
+        std::fs::write(run.join("candle_qlora_adapter.safetensors"), b"stub").expect("adapter");
+        assert!(
+            mens_run_is_complete(&run),
+            "QLoRA adapter at run root is a complete local run"
+        );
+    }
+
+    #[test]
+    fn mens_run_is_complete_accepts_legacy_final_subdir() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let run = tmp.path().join("legacy");
+        std::fs::create_dir_all(run.join("final")).expect("final");
+        assert!(mens_run_is_complete(&run));
+    }
 }
 /// Parses Ollama's `details.parameter_size` field (e.g. `"8.2B"`, `"70M"`,
 /// `"1.5B"`) into billions of parameters. Returns `None` for anything that
@@ -590,6 +614,27 @@ impl MensCatalog {
     }
 }
 
+/// True when a `mens/runs/<name>` directory is a serveable local run.
+///
+/// Training writes `candle_qlora_adapter.safetensors` at the run root.
+/// Older layouts used a `final/` or `checkpoint-*` subdirectory.
+fn mens_run_is_complete(path: &std::path::Path) -> bool {
+    let Ok(rd) = std::fs::read_dir(path) else {
+        return false;
+    };
+    rd.flatten().any(|e| {
+        e.file_name()
+            .to_str()
+            .map(|s| {
+                s == "candle_qlora_adapter.safetensors"
+                    || s == "adapter_manifest.json"
+                    || s == "final"
+                    || s.starts_with("checkpoint-")
+            })
+            .unwrap_or(false)
+    })
+}
+
 #[async_trait::async_trait]
 impl ModelCatalog for MensCatalog {
     async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
@@ -609,15 +654,7 @@ impl ModelCatalog for MensCatalog {
                     .unwrap_or("unknown")
                     .to_string();
 
-                // Look for 'final' or 'checkpoint-*' subdirs to confirm it's a valid run
-                let has_checkpoint = std::fs::read_dir(&path)?.flatten().any(|e| {
-                    e.file_name()
-                        .to_str()
-                        .map(|s| s == "final" || s.starts_with("checkpoint-"))
-                        .unwrap_or(false)
-                });
-
-                if has_checkpoint {
+                if mens_run_is_complete(&path) {
                     specs.push(ModelSpec {
                         id: format!("mens/{}", name),
                         canonical_slug: format!("mens/{}", name),

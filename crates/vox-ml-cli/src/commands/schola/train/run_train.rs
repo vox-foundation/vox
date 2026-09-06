@@ -174,36 +174,10 @@ pub async fn run_train(
             #[cfg(feature = "mens-candle-cuda")]
             crate::commands::mens::plugin_heal::ensure_cuda_plugin(true)?;
         }
-        #[cfg(target_os = "macos")]
-        if matches!(device_kind, vox_populi::mens::DeviceKind::Metal) {
-            // DEAD GATE REMOVED: this used to be `#[cfg(not(feature =
-            // "mens-candle-metal"))]`, but no such Cargo feature exists on
-            // vox-ml-cli (or any crate) — `mens-candle-metal` is a *runtime
-            // plugin* id (crates/vox-plugin-mens-candle-metal, see
-            // vox-plugin-catalog/catalog.toml), not a build feature. The
-            // negation was therefore always true, so the bail always fired
-            // while advertising an unbuildable remediation.
-            //
-            // The gate is now unconditional, which is behaviourally identical
-            // and honest: Metal QLoRA training genuinely has no backend today.
-            // vox-populi exposes `mens-candle-qlora-cuda` but no Metal twin
-            // (no `candle-core/metal` wiring), and the plugin's
-            // `run_train_step`/`run_eval_step` still return unimplemented
-            // pending the SP3-D host protocol
-            // (crates/vox-plugin-mens-candle-metal/src/training.rs). Declaring
-            // a `mens-candle-metal` feature here would only move the dead end.
-            // Re-gate this once vox-populi grows a Metal Candle backend.
-            anyhow::bail!(
-                "`--device metal` for Candle QLoRA is not supported yet: there is no \
-                 Metal-enabled Candle training backend in this build.\n\
-                 Use `--device cpu` instead.\n\
-                 (`--device cuda` needs a separate, NVIDIA-equipped machine — it is not \
-                 an alternative on this host, and this message deliberately does not \
-                 suggest a rebuild: an installed user has no toolchain to rebuild with.)\n\
-                 (Tracking: vox-populi needs a Metal twin of `mens-candle-qlora-cuda`, and \
-                 the `mens-candle-metal` plugin needs the SP3-D training host protocol.)"
-            );
-        }
+        // `--device metal` dispatches through mens-candle-cuda's
+        // `Device::new_metal(0)` path. Install that plugin with
+        // `--features metal` (`cargo build -p vox-plugin-mens-candle-cuda
+        // --release --features metal` then `vox plugin install --path …`).
     }
 
     tracing::debug!(
