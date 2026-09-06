@@ -1,6 +1,7 @@
 //! Interpreted workflow planning and execution (internal).
 
 mod hir_context;
+pub mod host;
 pub mod plan;
 pub mod populi;
 mod return_extract;
@@ -9,6 +10,7 @@ pub mod tracker;
 pub mod types;
 
 pub use hir_context::{current_hir_module, set_current_hir_module};
+pub use host::{HostDecision, HostOutcome, HostRequest, WorkflowHost};
 pub use plan::{plan_workflow_activities, plan_workflow_replay_ir};
 #[cfg(feature = "mens")]
 pub use populi::execute_populi_step;
