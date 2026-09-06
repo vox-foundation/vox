@@ -87,6 +87,13 @@ pub struct Qwen2Attention {
     pub n_heads: usize,
     pub n_kv_heads: usize,
     pub head_dim: usize,
+    /// Dense Qwen3's per-head RMSNorm on Q/K, applied right after projection
+    /// and before RoPE. `None` for Qwen2/Qwen2.5-style checkpoints, which
+    /// don't have it. Confirmed load-bearing: a real Qwen/Qwen3-0.6B
+    /// checkpoint produced fluent-looking garbage output without it (real
+    /// weights, real tokenizer, no crash — just wrong numbers).
+    pub q_norm: Option<RmsNorm>,
+    pub k_norm: Option<RmsNorm>,
 }
 
 impl Qwen2Attention {
@@ -131,12 +138,20 @@ impl Qwen2Attention {
             None => v,
         };
 
-        let q = q
-            .reshape((b, seq_len, self.n_heads, self.head_dim))?
-            .transpose(1, 2)?;
-        let k = k
-            .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
-            .transpose(1, 2)?;
+        let q = q.reshape((b, seq_len, self.n_heads, self.head_dim))?;
+        let q = match &self.q_norm {
+            Some(norm) => rms_norm_f32(norm, &q)?,
+            None => q,
+        };
+        let q = q.transpose(1, 2)?;
+
+        let k = k.reshape((b, seq_len, self.n_kv_heads, self.head_dim))?;
+        let k = match &self.k_norm {
+            Some(norm) => rms_norm_f32(norm, &k)?,
+            None => k,
+        };
+        let k = k.transpose(1, 2)?;
+
         let v = v
             .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
             .transpose(1, 2)?;
@@ -828,6 +843,8 @@ mod gradient_checkpoint_tests {
             n_heads,
             n_kv_heads: n_heads,
             head_dim,
+            q_norm: None,
+            k_norm: None,
         };
         let mlp = Qwen2MLP {
             gate_proj: qlin(vb.pp("g"), d * 2, d, dev),
@@ -999,7 +1016,72 @@ mod bf16_activation_tests {
             n_heads: 2,
             n_kv_heads: 2,
             head_dim: 4,
+            q_norm: None,
+            k_norm: None,
         }
+    }
+
+    /// Dense Qwen3's per-head q_norm/k_norm must actually change the forward
+    /// output when present — confirmed load-bearing on a real Qwen/Qwen3-0.6B
+    /// checkpoint this session: omitting it produced fluent-looking garbage
+    /// text, not a crash. Builds two attention blocks from the SAME
+    /// deterministic weight tensors (quantization is deterministic given the
+    /// same input) so the only difference is q_norm/k_norm's presence.
+    #[test]
+    fn qk_norm_changes_output_when_present() {
+        let device = Device::Cpu;
+        let d = 8usize;
+        let mut cfg = qlora_rs::QLoraConfig::preset_all_bf16(4, 8);
+        cfg.quantization.compute_dtype = qlora_rs::quantization::ComputeDType::F32;
+        let w = Tensor::arange(0u32, (d * d) as u32, &device)
+            .unwrap()
+            .to_dtype(DType::F32)
+            .unwrap()
+            .reshape((d, d))
+            .unwrap()
+            .affine(0.01, 0.0)
+            .unwrap();
+        let build = |q_norm: Option<RmsNorm>, k_norm: Option<RmsNorm>| Qwen2Attention {
+            q_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            k_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            v_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            o_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            q_bias: None,
+            k_bias: None,
+            v_bias: None,
+            n_heads: 2,
+            n_kv_heads: 2,
+            head_dim: 4,
+            q_norm,
+            k_norm,
+        };
+
+        let x = Tensor::randn(0f32, 1f32, (1, 3, d), &device).unwrap();
+        let without_norm = build(None, None)
+            .forward(&x, 0, None, None)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+
+        let norm_weight = Tensor::new(&[2.0f32, 0.5, 3.0, 1.5], &device).unwrap();
+        let with_norm = build(
+            Some(RmsNorm::new(norm_weight.clone(), 1e-6)),
+            Some(RmsNorm::new(norm_weight, 1e-6)),
+        )
+        .forward(&x, 0, None, None)
+        .unwrap()
+        .flatten_all()
+        .unwrap()
+        .to_vec1::<f32>()
+        .unwrap();
+
+        assert_ne!(
+            without_norm, with_norm,
+            "q_norm/k_norm must change the forward output — if this fails, \
+             Qwen2Attention is silently ignoring them"
+        );
     }
 
     /// CPU path: F32 activations in → F32 out, finite. This must NOT regress (BF16 matmul

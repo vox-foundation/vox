@@ -4,6 +4,39 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
+/// Preset names accepted by `--preset` / planner normalization.
+///
+/// **Contract SSOT:** mirror every entry in `contracts/mens/training-presets.v1.yaml` (enforced by
+/// `vox-populi` integration test `training_presets_yaml_contract`).
+///
+/// Lives here (under the plain `mens` feature) rather than in `preset_schema`
+/// (gated behind `mens-train`/`mens-cloud`) so `spoke_validate` — and the
+/// lightweight `vox ci spoke-check` gate that runs it — can validate a spoke's
+/// `base.preset` without pulling in the full Candle/QLoRA stack.
+/// `preset_schema` re-exports this constant so existing callers are unaffected.
+pub const KNOWN_PRESETS: &[&str] = &[
+    "tiny",
+    "safe",
+    "4080",
+    "4080_safe",
+    "qwen_4080_16g",
+    "qwen_small_8g",
+    "qwen_rtx3090_24g",
+    "qwen_a100_80g",
+    "a100",
+    "default",
+    "distributed",
+    "mobile_edge",
+    // Code-generation fine-tune preset (Vox .box target language).
+    "vox-gen",
+    // Qwen3 dense ladder presets — additive alongside legacy qwen_* presets.
+    "qwen3_dev_cpu", // Qwen3-0.6B r8, CPU smoke — no quality gate
+    "qwen3_16g",     // Qwen3-8B QLoRA r16 (RTX 4080 Super 16GB)
+    "qwen3_24g",     // Qwen3-14B QLoRA r32 (3090/4090 24GB)
+    "qwen3_48g",     // Qwen3-14B LoRA r32 un-quantized (48GB)
+    "qwen3_96g",     // Qwen3-32B QLoRA r64 (96GB)
+];
+
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct TrainBase {
     pub hf_id: String,
@@ -35,13 +68,28 @@ struct GpuSpecsTrainBases {
     train_bases: HashMap<String, Vec<TrainBase>>,
 }
 
-pub fn load_overlay(root: &std::path::Path) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
-    let p = root.join("mens/config/gpu-specs.yaml");
-    let s =
-        std::fs::read_to_string(&p).map_err(|e| anyhow::anyhow!("read {}: {e}", p.display()))?;
-    let parsed: GpuSpecsTrainBases = serde_yaml::from_str(&s)
+fn parse_overlay(raw: &str) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
+    let parsed: GpuSpecsTrainBases = serde_yaml::from_str(raw)
         .map_err(|e| anyhow::anyhow!("parse train_bases in gpu-specs.yaml: {e}"))?;
     Ok(parsed.train_bases)
+}
+
+/// Compile-time copy so an installed `vox` can resolve `agentic_default`
+/// without a Vox Cargo workspace checkout.
+fn load_embedded_overlay() -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
+    const EMBEDDED: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../mens/config/gpu-specs.yaml"
+    ));
+    parse_overlay(EMBEDDED)
+}
+
+pub fn load_overlay(root: &std::path::Path) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
+    let p = root.join("mens/config/gpu-specs.yaml");
+    match std::fs::read_to_string(&p) {
+        Ok(s) => parse_overlay(&s),
+        Err(_) => load_embedded_overlay(),
+    }
 }
 
 /// Fail-closed placeholder guard for the real train / dispatch path.
@@ -94,6 +142,58 @@ pub fn resolve_base_model(
         }
     };
     Ok(pick_base(&overlay, base_model, vram_mb)?.hf_id.clone())
+}
+
+/// Fail-closed Metal default: pick the largest `agentic_default` rung that
+/// fits `vram_mb`. Used by `vox mens train` **before** the CandleQlora
+/// `DEFAULT_MODEL_ID` fill so a Mac does not silently land on Qwen3-8B.
+///
+/// `workspace_root` may be `None` (installed binary); the overlay then comes
+/// from the compile-time `gpu-specs.yaml` embed.
+pub fn resolve_metal_default_base(
+    workspace_root: Option<&std::path::Path>,
+    vram_mb: u64,
+) -> anyhow::Result<String> {
+    let overlay = match workspace_root {
+        Some(root) => load_overlay(root)?,
+        None => load_embedded_overlay()?,
+    };
+    let base = pick_base(&overlay, "agentic_default", vram_mb as u32).map_err(|e| {
+        anyhow::anyhow!(
+            "{e} (live-available unified memory: {vram_mb} MB; agentic_default floor is 11000 MB). \
+             Pass --model, set VOX_MENS_DEFAULT_MODEL, free memory, or set \
+             VOX_MENS_DISABLE_LIVE_MEM=1 to use the static nameplate reserve."
+        )
+    })?;
+    ensure_not_placeholder(&base.hf_id)?;
+    Ok(base.hf_id.clone())
+}
+
+/// CLI precedence for the Metal default base: `--model` and
+/// `VOX_MENS_DEFAULT_MODEL` win; explicit `--device cpu`/`cuda` skip; nvidia
+/// never resolves. Fail-closed when the pick itself fails.
+pub fn maybe_resolve_metal_default_base(
+    model: Option<&str>,
+    env_default_model: Option<&str>,
+    vendor: &str,
+    device_best_or_metal: bool,
+    workspace_root: Option<&std::path::Path>,
+    vram_mb: u64,
+) -> anyhow::Result<Option<String>> {
+    let model_set = model.map(str::trim).filter(|s| !s.is_empty()).is_some();
+    let env_set = env_default_model
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .is_some();
+    if model_set || env_set || !device_best_or_metal {
+        return Ok(None);
+    }
+    if crate::mens::tensor::vram_autodetect::AcceleratorKind::from_vendor(vendor)
+        != crate::mens::tensor::vram_autodetect::AcceleratorKind::Metal
+    {
+        return Ok(None);
+    }
+    Ok(Some(resolve_metal_default_base(workspace_root, vram_mb)?))
 }
 
 #[cfg(test)]
@@ -300,6 +400,165 @@ mod tests {
             base.hf_id.contains("Qwen3-14B"),
             "should be 14B, got: {}",
             base.hf_id
+        );
+    }
+
+    fn workspace_root() -> &'static std::path::Path {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+    }
+
+    #[test]
+    fn resolve_metal_default_base_116g_is_qwen3_32b() {
+        let id = resolve_metal_default_base(Some(workspace_root()), 116_000).expect("116k MB fits");
+        assert!(
+            id.contains("Qwen3-32B"),
+            "116_000 MB agentic_default must resolve Qwen3-32B, got {id}"
+        );
+    }
+
+    #[test]
+    fn resolve_metal_default_base_13926_is_qwen3_8b() {
+        let id = resolve_metal_default_base(Some(workspace_root()), 13926).expect("13926 MB fits");
+        assert!(
+            id.contains("Qwen3-8B"),
+            "13926 MB agentic_default must resolve Qwen3-8B, got {id}"
+        );
+    }
+
+    #[test]
+    fn resolve_metal_default_base_6144_is_fail_closed() {
+        let err = resolve_metal_default_base(Some(workspace_root()), 6144)
+            .expect_err("8 GB is below floor");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("agentic_default"),
+            "fail-closed error must name the tag, got {msg}"
+        );
+        assert!(
+            msg.contains("6144"),
+            "fail-closed error must name the live budget, got {msg}"
+        );
+        assert!(
+            msg.contains("11000") && msg.contains("--model"),
+            "fail-closed error must name the floor and a recovery flag, got {msg}"
+        );
+    }
+
+    #[test]
+    fn maybe_resolve_metal_default_base_honors_precedence() {
+        let root = Some(workspace_root());
+        assert_eq!(
+            maybe_resolve_metal_default_base(
+                Some("org/Explicit"),
+                None,
+                "apple",
+                true,
+                root,
+                116_000
+            )
+            .expect("skip"),
+            None
+        );
+        assert_eq!(
+            maybe_resolve_metal_default_base(None, Some("org/Env"), "apple", true, root, 116_000)
+                .expect("skip"),
+            None
+        );
+        assert_eq!(
+            maybe_resolve_metal_default_base(None, None, "nvidia", true, root, 116_000)
+                .expect("skip"),
+            None
+        );
+        assert_eq!(
+            maybe_resolve_metal_default_base(None, None, "apple", false, root, 116_000)
+                .expect("cpu skip"),
+            None
+        );
+        let got = maybe_resolve_metal_default_base(None, None, "apple", true, root, 116_000)
+            .expect("resolve")
+            .expect("some");
+        assert!(got.contains("Qwen3-32B"), "got {got}");
+        assert!(
+            maybe_resolve_metal_default_base(None, None, "apple", true, root, 6144).is_err(),
+            "6144 must fail-closed before any default id"
+        );
+        let embedded = resolve_metal_default_base(None, 116_000).expect("embedded overlay");
+        assert!(
+            embedded.contains("Qwen3-32B"),
+            "installed-binary fallback must still resolve 32B, got {embedded}"
+        );
+    }
+
+    #[test]
+    fn agentic_default_rungs_pin_live_available_mb() {
+        // Injected values are live-available MB (vm_stat reclaimable after
+        // margin), not nameplate×0.85. 8 GB / 6144 must fail-closed — do not
+        // weaken that assertion if a rung appears.
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let cases: &[(u32, Option<(&str, &str)>)] = &[
+            (6144, None),
+            // 11–12 GiB window: Qwen2.5-Coder-7B still outranks nothing Qwen3.
+            (11500, Some(("Qwen2.5-Coder-7B", "qlora"))),
+            (13926, Some(("Qwen3-8B", "qlora"))),
+            (20890, Some(("Qwen3-14B", "qlora"))),
+            (27853, Some(("Qwen3-14B", "qlora"))),
+            (31334, Some(("Qwen3-14B", "qlora"))),
+            (41779, Some(("Qwen3-14B", "qlora"))),
+            (55706, Some(("Qwen3-14B", "lora"))),
+            (83558, Some(("Qwen3-32B", "qlora"))),
+            (111411, Some(("Qwen3-32B", "lora"))),
+        ];
+        for &(live_mb, expected) in cases {
+            let got = pick_base(&overlay, "agentic_default", live_mb);
+            match expected {
+                None => {
+                    assert!(
+                        got.is_err(),
+                        "8 GB / {live_mb} MB must fail-closed on agentic_default, got {:?}",
+                        got.ok().map(|b| (&b.hf_id, &b.methods))
+                    );
+                }
+                Some((hf_sub, method)) => {
+                    let base = got.unwrap_or_else(|e| {
+                        panic!("{live_mb} MB should resolve {hf_sub} {method}, got Err: {e}")
+                    });
+                    assert!(
+                        base.hf_id.contains(hf_sub),
+                        "{live_mb} MB: expected hf_id containing {hf_sub}, got {}",
+                        base.hf_id
+                    );
+                    assert!(
+                        base.methods.iter().any(|m| m == method),
+                        "{live_mb} MB: expected methods to contain {method}, got {:?}",
+                        base.methods
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn mac_128g_prefers_unquantized_32b_lora() {
+        // 128 GiB physical - 12 GiB GUI reserve = 116 GiB usable = 118_784 MB.
+        // At that budget the un-quantized 32B rung must outrank the QLoRA one.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let base = pick_base(&overlay, "strong_code_default", 118_784).expect("a base fits");
+        assert!(
+            base.hf_id.contains("Qwen3-32B"),
+            "116 GiB should resolve Qwen3-32B, got: {}",
+            base.hf_id
+        );
+        assert!(
+            base.methods.iter().any(|m| m == "lora"),
+            "at 116 GiB the un-quantized LoRA rung should win, got methods: {:?}",
+            base.methods
         );
     }
 }

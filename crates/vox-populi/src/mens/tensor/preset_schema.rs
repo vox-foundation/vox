@@ -1,6 +1,7 @@
 //! Training hyperparameter presets: 4080, safe, A100-shaped profiles.
 
 use crate::mens::tensor::device::probe_gpu;
+use crate::mens::tensor::vram_autodetect::{AcceleratorKind, auto_preset_for};
 
 /// CLI numeric overrides for auto-tuning.
 #[derive(Debug, Clone, Default)]
@@ -24,13 +25,18 @@ pub struct CliOverrides {
 pub struct DeviceProfile {
     pub model_name: String,
     pub vram_mb: u64,
+    /// Coarse vendor bucket from `GpuInfo::vendor` (`"nvidia"`, `"apple"`,
+    /// `"amd"`, `"unknown"`, ...) -- used to keep the CUDA lane's defaults
+    /// untouched while giving Metal devices hardware-aware defaults.
+    pub vendor: String,
 }
 
 impl DeviceProfile {
-    pub fn from_gpu_info(model_name: &str, vram_mb: u64) -> Self {
+    pub fn from_gpu_info(model_name: &str, vram_mb: u64, vendor: &str) -> Self {
         Self {
             model_name: model_name.to_string(),
             vram_mb,
+            vendor: vendor.to_string(),
         }
     }
 }
@@ -52,30 +58,12 @@ pub const DEFAULT_PRESET: &str = "4080";
 
 /// Preset names accepted by `--preset` / planner normalization.
 ///
-/// **Contract SSOT:** mirror every entry in `contracts/mens/training-presets.v1.yaml` (enforced by
-/// `vox-populi` integration test `training_presets_yaml_contract`).
-pub const KNOWN_PRESETS: &[&str] = &[
-    "tiny",
-    "safe",
-    "4080",
-    "4080_safe",
-    "qwen_4080_16g",
-    "qwen_small_8g",
-    "qwen_rtx3090_24g",
-    "qwen_a100_80g",
-    "a100",
-    "default",
-    "distributed",
-    "mobile_edge",
-    // Code-generation fine-tune preset (Vox .box target language).
-    "vox-gen",
-    // Qwen3 dense ladder presets — additive alongside legacy qwen_* presets.
-    "qwen3_dev_cpu", // Qwen3-0.6B r8, CPU smoke — no quality gate
-    "qwen3_16g",     // Qwen3-8B QLoRA r16 (RTX 4080 Super 16GB)
-    "qwen3_24g",     // Qwen3-14B QLoRA r32 (3090/4090 24GB)
-    "qwen3_48g",     // Qwen3-14B LoRA r32 un-quantized (48GB)
-    "qwen3_96g",     // Qwen3-32B QLoRA r64 (96GB)
-];
+/// Definition moved to [`crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS`]
+/// (a lighter `mens`-gated module) so `spoke_validate`'s CI gate can validate
+/// against it without depending on this module's heavier `mens-train`/`mens-cloud`
+/// gate. Re-exported here so existing callers of `preset_schema::KNOWN_PRESETS`
+/// are unaffected.
+pub use crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS;
 
 /// Size classes on the REAL Qwen3 dense ladder (0.6/8/14/32B).
 ///
@@ -358,20 +346,44 @@ pub fn load_registry() -> Option<serde_yaml::Value> {
 }
 
 /// Resolve preset from `VOX_TRAIN_PROFILE` env, CLI `--preset`, device heuristics, and overrides.
+///
+/// Metal `"auto"` (including the omitted-preset default) fails closed when
+/// live-available memory is below 6 GiB or unknown — it does not silently
+/// fall through to `qwen3_dev_cpu`.
 pub fn resolve_effective_profile(
     preset: Option<&str>,
     device: DeviceProfile,
     sample_count: Option<usize>,
     overrides: CliOverrides,
-) -> TrainPresetProfile {
+) -> anyhow::Result<TrainPresetProfile> {
     let model_hint_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBaseModel);
     let model_hint = model_hint_resolved.expose();
     let env_p_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTrainProfile);
     let env_p = env_p_resolved.expose();
-    let name = normalize_preset_name(preset.or(env_p).unwrap_or(DEFAULT_PRESET));
+    let kind = AcceleratorKind::from_vendor(&device.vendor);
+    let default_for_device = if kind == AcceleratorKind::Metal {
+        "auto"
+    } else {
+        DEFAULT_PRESET
+    };
+    let name = normalize_preset_name(preset.or(env_p).unwrap_or(default_for_device));
 
     let mut p = if name == "auto" {
-        if let Some(specs) = load_gpu_specs() {
+        if kind == AcceleratorKind::Metal {
+            // Never walk the CUDA-shaped yaml `presets:` table on Apple.
+            // `auto_preset_for` already maps 6–16 GiB to `qwen3_dev_cpu`;
+            // anything below that (or unknown VRAM) fail-closes to the same
+            // smoke profile rather than matching `a100`/`h100` by VRAM size.
+            let vram_gb = (device.vram_mb > 0).then_some(device.vram_mb as f32 / 1024.0);
+            let metal_name = auto_preset_for(AcceleratorKind::Metal, vram_gb).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "no Metal training preset for {} MB live-available memory \
+                     (need at least 6 GiB, or pass --preset explicitly)",
+                    device.vram_mb
+                )
+            })?;
+            base_for_name(metal_name)
+        } else if let Some(specs) = load_gpu_specs() {
             if let Some((_name, preset_spec)) =
                 TrainingPreset::best_for_vram(&specs.presets, device.vram_mb)
             {
@@ -551,7 +563,7 @@ pub fn resolve_effective_profile(
     }
 
     let _ = probe_gpu();
-    p
+    Ok(p)
 }
 
 /// Back-compat alias used in older docs.
@@ -614,6 +626,7 @@ impl TrainingPreset {
 #[cfg(test)]
 mod preset_tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn preset_4080_matches_qwen_4080_16g() {
@@ -659,14 +672,16 @@ mod preset_tests {
     }
 
     #[test]
+    #[serial(vox_base_model_env)]
     fn test_prosumer_16g_preset_resolves() {
         #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-1.5B-Instruct");
         }
-        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         let profile =
-            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
+            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default())
+                .expect("profile");
         assert_eq!(profile.seq_len, 384);
         assert_eq!(profile.batch_size, 1);
         assert_eq!(profile.grad_accum, 8);
@@ -677,13 +692,15 @@ mod preset_tests {
     }
 
     #[test]
+    #[serial(vox_base_model_env)]
     fn presets_are_bounded_by_vram() {
         #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-7B-Instruct");
         }
-        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
-        let profile = resolve_effective_profile(Some("a100"), dev, None, CliOverrides::default());
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
+        let profile = resolve_effective_profile(Some("a100"), dev, None, CliOverrides::default())
+            .expect("profile");
         assert!(profile.seq_len < 1024);
         assert!(profile.batch_size < 8);
         #[allow(unsafe_code)]
@@ -694,9 +711,10 @@ mod preset_tests {
 
     #[test]
     fn test_preset_bounds_dynamically_to_fit_vram() {
-        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         let profile =
-            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default());
+            resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default())
+                .expect("profile");
         // For a 7B model on 16GB, it should safely scale parameters down.
         assert!(profile.seq_len <= 384);
     }
@@ -705,6 +723,7 @@ mod preset_tests {
 #[cfg(test)]
 mod qwen3_preset_tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn known_presets_contains_all_qwen3_tiers() {
@@ -770,10 +789,11 @@ mod qwen3_preset_tests {
     }
 
     #[test]
+    #[serial(vox_base_model_env)]
     fn size_class_clamp_fires_for_14b_on_16g() {
         // Proves the clamp is now reachable: a 14B hint on a 16 GB card must tighten
         // the envelope (seq_len floored, single micro-batch). Before F2 this never ran.
-        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
+        let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         #[allow(unsafe_code)]
         unsafe {
             std::env::set_var(
@@ -781,7 +801,8 @@ mod qwen3_preset_tests {
                 "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
             );
         }
-        let p = resolve_effective_profile(Some("qwen3_24g"), dev, None, CliOverrides::default());
+        let p = resolve_effective_profile(Some("qwen3_24g"), dev, None, CliOverrides::default())
+            .expect("profile");
         #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("VOX_BASE_MODEL");
@@ -1037,6 +1058,137 @@ mod local_compat_b07_planner_tests {
             PopuliTrainBackend::CandleQlora,
             PopuliTrainBackend::BurnLora,
             "CandleQlora and BurnLora must be distinct enum variants"
+        );
+    }
+}
+
+#[cfg(test)]
+mod metal_auto_default_tests {
+    use super::*;
+    use serial_test::serial;
+
+    fn core_fields(p: &TrainPresetProfile) -> (usize, f32, usize, usize, usize, f64) {
+        (p.rank, p.alpha, p.seq_len, p.batch_size, p.grad_accum, p.lr)
+    }
+
+    /// Bypass the post-resolve VRAM planner so these tests pin the *selected
+    /// preset*, not the subsequent seq/batch clamp (`resolve_effective_profile`
+    /// mins against the planner whenever `vram_mb > 0`).
+    fn no_budget_clamp() -> CliOverrides {
+        CliOverrides {
+            budget_seq_len: Some(8192),
+            budget_batch_size: Some(64),
+            budget_grad_accum: Some(1),
+            ..CliOverrides::default()
+        }
+    }
+
+    fn clear_preset_env() {
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_BASE_MODEL");
+            std::env::remove_var("VOX_TRAIN_PROFILE");
+        }
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn cuda_device_with_no_preset_matches_explicit_4080() {
+        clear_preset_env();
+        let none_dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
+        let explicit_dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
+        let omitted = resolve_effective_profile(None, none_dev, None, CliOverrides::default())
+            .expect("profile");
+        let explicit =
+            resolve_effective_profile(Some("4080"), explicit_dev, None, CliOverrides::default())
+                .expect("profile");
+        assert_eq!(
+            core_fields(&omitted),
+            core_fields(&explicit),
+            "CUDA omitted-preset default must stay DEFAULT_PRESET=4080"
+        );
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn cpu_device_with_no_preset_still_uses_4080() {
+        clear_preset_env();
+        let none_dev = DeviceProfile::from_gpu_info("cpu", 0, "cpu");
+        let explicit_dev = DeviceProfile::from_gpu_info("cpu", 0, "cpu");
+        let omitted = resolve_effective_profile(None, none_dev, None, CliOverrides::default())
+            .expect("profile");
+        let explicit =
+            resolve_effective_profile(Some("4080"), explicit_dev, None, CliOverrides::default())
+                .expect("profile");
+        assert_eq!(
+            core_fields(&omitted),
+            core_fields(&explicit),
+            "CPU/unknown omitted-preset default must stay 4080 (Linux CI unchanged)"
+        );
+
+        let empty_vendor = DeviceProfile::from_gpu_info("unknown", 0, "");
+        let empty = resolve_effective_profile(None, empty_vendor, None, CliOverrides::default())
+            .expect("profile");
+        assert_eq!(core_fields(&empty), core_fields(&explicit));
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn metal_16g_auto_is_qwen3_16g() {
+        clear_preset_env();
+        let dev = DeviceProfile::from_gpu_info("apple m-series", 13926, "apple");
+        let profile =
+            resolve_effective_profile(None, dev, None, no_budget_clamp()).expect("profile");
+        let expected = base_for_name("qwen3_16g");
+        assert_eq!(profile.rank, expected.rank);
+        assert_eq!(profile.seq_len, expected.seq_len);
+        assert_eq!(profile.grad_accum, expected.grad_accum);
+        assert_eq!(profile.lr, expected.lr);
+        assert_eq!(profile.rank, 16);
+        assert_eq!(profile.seq_len, 512);
+        assert_eq!(profile.grad_accum, 8);
+        assert_eq!(profile.lr, 1.5e-4);
+        // yaml prosumer_16g would be seq_len 1024 / lr 2e-5
+        assert_ne!(profile.seq_len, 1024);
+        assert_ne!(profile.lr, 2e-5);
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn metal_116g_auto_is_qwen3_96g() {
+        clear_preset_env();
+        let dev = DeviceProfile::from_gpu_info("apple m-series", 116 * 1024, "apple");
+        let profile =
+            resolve_effective_profile(None, dev, None, no_budget_clamp()).expect("profile");
+        let expected = base_for_name("qwen3_96g");
+        assert_eq!(profile.rank, expected.rank);
+        assert_eq!(profile.seq_len, expected.seq_len);
+        assert_eq!(profile.batch_size, expected.batch_size);
+        assert_eq!(profile.rank, 64);
+        assert_eq!(profile.seq_len, 2048);
+        assert_eq!(profile.batch_size, 4);
+        // yaml a100 auto hardcodes rank 16, batch_size 8, lr 8e-6
+        assert_ne!(profile.rank, 16);
+        assert_ne!(profile.batch_size, 8);
+        assert_ne!(profile.lr, 8e-6);
+        assert_eq!(profile.lr, expected.lr);
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn metal_auto_fail_closes_below_six_gib() {
+        clear_preset_env();
+        let zero = DeviceProfile::from_gpu_info("apple m-series", 0, "apple");
+        assert!(
+            resolve_effective_profile(None, zero, None, no_budget_clamp()).is_err(),
+            "unknown/zero VRAM must fail-closed, not qwen3_dev_cpu"
+        );
+        let five_k = DeviceProfile::from_gpu_info("apple m-series", 5000, "apple");
+        let err = resolve_effective_profile(None, five_k, None, no_budget_clamp())
+            .expect_err("5 GB live must fail-closed");
+        assert!(
+            err.to_string().contains("6 GiB") || err.to_string().contains("5000"),
+            "error must name the floor or budget, got {err}"
         );
     }
 }

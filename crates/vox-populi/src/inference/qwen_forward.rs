@@ -115,6 +115,19 @@ fn load_rmsnorm(w: &QwenWeights, name: &str, eps: f64) -> Result<RmsNorm, Forwar
     Ok(RmsNorm::new(weight, eps))
 }
 
+/// Like [`load_rmsnorm`], but `None` (not an error) when the weight is absent —
+/// for norms that only some checkpoints (e.g. dense Qwen3's q_norm/k_norm) provide.
+fn try_load_rmsnorm(
+    w: &QwenWeights,
+    name: &str,
+    eps: f64,
+) -> Result<Option<RmsNorm>, ForwardError> {
+    if !w.contains(name) {
+        return Ok(None);
+    }
+    Ok(Some(load_rmsnorm(w, name, eps)?))
+}
+
 // ── Full attention (GQA + RoPE) ────────────────────────────────────────────────
 
 struct FullAttention {
@@ -125,6 +138,10 @@ struct FullAttention {
     n_heads: usize,
     n_kv_heads: usize,
     head_dim: usize,
+    /// Per-head RMSNorm applied to Q/K right after projection, before RoPE.
+    /// Present on dense Qwen3 checkpoints; absent on Qwen2/Qwen2.5-style ones.
+    q_norm: Option<RmsNorm>,
+    k_norm: Option<RmsNorm>,
 }
 
 impl FullAttention {
@@ -136,12 +153,20 @@ impl FullAttention {
         let k = self.k_proj.forward(x)?;
         let v = self.v_proj.forward(x)?;
 
-        let q = q
-            .reshape((b, seq_len, self.n_heads, self.head_dim))?
-            .transpose(1, 2)?;
-        let k = k
-            .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
-            .transpose(1, 2)?;
+        let q = q.reshape((b, seq_len, self.n_heads, self.head_dim))?;
+        let q = match &self.q_norm {
+            Some(norm) => norm.forward(&q)?,
+            None => q,
+        };
+        let q = q.transpose(1, 2)?;
+
+        let k = k.reshape((b, seq_len, self.n_kv_heads, self.head_dim))?;
+        let k = match &self.k_norm {
+            Some(norm) => norm.forward(&k)?,
+            None => k,
+        };
+        let k = k.transpose(1, 2)?;
+
         let v = v
             .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
             .transpose(1, 2)?;
@@ -540,6 +565,8 @@ impl QwenForward {
                     n_heads: layout.num_attention_heads,
                     n_kv_heads: layout.num_key_value_heads,
                     head_dim,
+                    q_norm: try_load_rmsnorm(w, &format!("{lp}.self_attn.q_norm.weight"), eps)?,
+                    k_norm: try_load_rmsnorm(w, &format!("{lp}.self_attn.k_norm.weight"), eps)?,
                 };
                 (AttentionBlock::Full(attn), Some(inv_freq.clone()))
             };
@@ -719,6 +746,113 @@ mod tests {
         assert_eq!(logits.dims(), &[1, 4, vocab]);
         let flat = logits.flatten_all().unwrap().to_vec1::<f32>().unwrap();
         assert!(flat.iter().all(|v| v.is_finite()), "logits must be finite");
+    }
+
+    /// Real dense Qwen3 checkpoints (e.g. Qwen/Qwen3-0.6B) apply a per-head
+    /// RMSNorm to Q and K right after projection, before RoPE — confirmed
+    /// present in a real downloaded checkpoint's tensor list
+    /// (`self_attn.q_norm.weight` / `k_norm.weight`) this session, and
+    /// confirmed to matter: omitting it produced fluent-looking garbage
+    /// output from real weights, not a crash. `FullAttention` must apply
+    /// q_norm/k_norm when the checkpoint provides them, and must keep working
+    /// (via the `Option`) when it doesn't (Qwen2.5-style checkpoints).
+    #[test]
+    fn full_attention_with_qk_norm_changes_output_vs_without_it() {
+        let dev = Device::Cpu;
+        let hidden = 256usize;
+        let heads = 8usize;
+        let head_dim = hidden / heads; // 32
+        let inter = 256usize;
+        let vocab = 512usize;
+        let p = "model.language_model.layers";
+
+        let cfg = format!(
+            r#"{{"model_type":"qwen3_5","architectures":["Qwen35ForCausalLM"],
+                "text_config":{{"hidden_size":{hidden},"num_attention_heads":{heads},
+                "num_key_value_heads":{heads},"num_hidden_layers":1,"vocab_size":{vocab},
+                "intermediate_size":{inter},"head_dim":{head_dim},
+                "rope_parameters":{{"rope_theta":10000,"partial_rotary_factor":1.0}},
+                "layer_types":["full_attention"]}}}}"#
+        );
+
+        let base_tensors = |dev: &Device| {
+            let mut t = std::collections::HashMap::new();
+            t.insert(
+                "model.language_model.embed_tokens.weight".into(),
+                rand2(vocab, hidden, dev),
+            );
+            t.insert(
+                format!("{p}.0.self_attn.q_proj.weight"),
+                rand2(hidden, hidden, dev),
+            );
+            t.insert(
+                format!("{p}.0.self_attn.k_proj.weight"),
+                rand2(hidden, hidden, dev),
+            );
+            t.insert(
+                format!("{p}.0.self_attn.v_proj.weight"),
+                rand2(hidden, hidden, dev),
+            );
+            t.insert(
+                format!("{p}.0.self_attn.o_proj.weight"),
+                rand2(hidden, hidden, dev),
+            );
+            t.insert(
+                format!("{p}.0.mlp.gate_proj.weight"),
+                rand2(inter, hidden, dev),
+            );
+            t.insert(
+                format!("{p}.0.mlp.up_proj.weight"),
+                rand2(inter, hidden, dev),
+            );
+            t.insert(
+                format!("{p}.0.mlp.down_proj.weight"),
+                rand2(hidden, inter, dev),
+            );
+            t.insert(format!("{p}.0.input_layernorm.weight"), ones1(hidden, dev));
+            t.insert(
+                format!("{p}.0.post_attention_layernorm.weight"),
+                ones1(hidden, dev),
+            );
+            t.insert("model.language_model.norm.weight".into(), ones1(hidden, dev));
+            t.insert("lm_head.weight".into(), rand2(vocab, hidden, dev));
+            t
+        };
+
+        // Built once and reused (cloned) for both runs so the only difference
+        // between them is the presence of q_norm/k_norm — otherwise two calls
+        // to `base_tensors` would draw different random weights and the
+        // outputs would trivially differ regardless of whether norm is applied.
+        let shared_base = base_tensors(&dev);
+
+        let run = |extra: Vec<(String, Tensor)>| -> Vec<f32> {
+            let mut t = shared_base.clone();
+            for (k, v) in extra {
+                t.insert(k, v);
+            }
+            let outdir = build_artifact(&cfg, &t, &dev);
+            let layout = HfTransformerLayout::from_config_json_str(&cfg).unwrap();
+            let weights = QwenWeights::load(outdir.path(), &dev).unwrap();
+            let mut model = QwenForward::new(&layout, weights, &dev).unwrap();
+            let ids = Tensor::from_vec(vec![1u32, 2, 3, 4], (1, 4), &dev).unwrap();
+            let logits = model.forward(&ids, 0).unwrap();
+            assert_eq!(logits.dims(), &[1, 4, vocab]);
+            let flat = logits.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+            assert!(flat.iter().all(|v| v.is_finite()), "logits must be finite");
+            flat
+        };
+
+        let without_norm = run(vec![]);
+        let with_norm = run(vec![
+            (format!("{p}.0.self_attn.q_norm.weight"), rand2(1, head_dim, &dev).flatten_all().unwrap()),
+            (format!("{p}.0.self_attn.k_norm.weight"), rand2(1, head_dim, &dev).flatten_all().unwrap()),
+        ]);
+
+        assert_ne!(
+            without_norm, with_norm,
+            "providing q_norm/k_norm weights must change the forward output — \
+             if this fails, FullAttention is silently ignoring them"
+        );
     }
 
     #[test]

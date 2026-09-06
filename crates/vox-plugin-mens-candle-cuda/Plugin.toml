@@ -16,8 +16,15 @@ abi-version = 12
 extension-points = ["MlBackend"]
 
 [plugin.payload.requires]
-os = ["windows", "linux"]
-arch = ["x86_64"]
+# native-libs (cudart/cublas) applies only to builds compiled with this
+# crate's `cuda` Cargo feature. Without it — the default, and the only
+# option on macOS, which has no CUDA — the crate compiles as a CPU-only
+# Candle backend (see crates/vox-plugin-mens-candle-cuda/Cargo.toml). This
+# `requires` block is informational only: neither `vox plugin install`
+# nor `vox-plugin-host::load_code_plugin` enforces it today, only the
+# per-target `artifacts` map below.
+os = ["windows", "linux", "macos"]
+arch = ["x86_64", "aarch64"]
 native-libs = [
     { name = "cudart", min-version = "12.0" },
     { name = "cublas" },
@@ -26,3 +33,5 @@ native-libs = [
 [plugin.payload.artifacts]
 "windows-x86_64" = "vox_plugin_mens_candle_cuda.dll"
 "linux-x86_64"   = "libvox_plugin_mens_candle_cuda.so"
+# CPU-only build (no `cuda` feature — see note above).
+"macos-aarch64"  = "libvox_plugin_mens_candle_cuda.dylib"

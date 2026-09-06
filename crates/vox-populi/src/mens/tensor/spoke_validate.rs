@@ -28,10 +28,21 @@ pub fn validate(file: &DomainProfilesFile, workspace_root: &Path) -> Vec<SpokeVi
                     "spoke '{name}': fine-tune method requires mix_config"
                 )));
             }
-            if base.preset.is_none() {
-                v.push(SpokeViolation(format!(
+            match &base.preset {
+                None => v.push(SpokeViolation(format!(
                     "spoke '{name}': fine-tune method requires base.preset"
-                )));
+                ))),
+                Some(preset)
+                    if !crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS
+                        .contains(&preset.as_str()) =>
+                {
+                    v.push(SpokeViolation(format!(
+                        "spoke '{name}': base.preset '{preset}' is not in KNOWN_PRESETS — \
+                         add it to spoke_base_resolver::KNOWN_PRESETS and \
+                         contracts/mens/training-presets.v1.yaml, or fix the typo"
+                    )));
+                }
+                Some(_) => {}
             }
         }
         if let Some(mc) = &p.mix_config
@@ -123,6 +134,62 @@ profiles:
                 .any(|x| x.0.contains("failed to load") || x.0.contains("not found")),
             "got {v:?}"
         );
+    }
+
+    #[test]
+    fn flags_unknown_preset() {
+        let yaml = r#"
+profiles:
+  typo:
+    description: "x"
+    mix_config: mens/config/mix-vox-lang.yaml
+    base: { model: strong_code_default, method: qlora, preset: qwen3_16gb }
+"#;
+        let file: DomainProfilesFile = serde_yaml::from_str(yaml).unwrap();
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let v = validate(&file, root);
+        assert!(
+            v.iter().any(|x| x.0.contains("not in KNOWN_PRESETS")),
+            "a typo'd preset must be rejected, got {v:?}"
+        );
+    }
+
+    #[test]
+    fn accepts_known_preset() {
+        let yaml = r#"
+profiles:
+  ok:
+    description: "x"
+    mix_config: mens/config/mix-vox-lang.yaml
+    base: { model: strong_code_default, method: qlora, preset: qwen3_16g }
+"#;
+        let file: DomainProfilesFile = serde_yaml::from_str(yaml).unwrap();
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let v = validate(&file, root);
+        assert!(
+            !v.iter().any(|x| x.0.contains("KNOWN_PRESETS")),
+            "a real preset must pass, got {v:?}"
+        );
+    }
+
+    #[test]
+    fn every_shipped_spoke_preset_is_known() {
+        // Drift guard: the real domain-profiles.yaml must never reference a
+        // preset the trainer would silently default on.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let raw = std::fs::read_to_string(root.join("mens/config/domain-profiles.yaml")).unwrap();
+        let file: DomainProfilesFile = serde_yaml::from_str(&raw).unwrap();
+        let v = validate(&file, root);
+        assert!(v.is_empty(), "shipped spoke SSOT has violations: {v:?}");
     }
 
     #[test]
