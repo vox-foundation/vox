@@ -113,7 +113,8 @@ This keeps Vox from accidentally using one word for several different guarantees
 ## 8. Current Scope
 
 - **Supported durable path today:** interpreted workflows run through `vox mens workflow ...`
-- **Supported today:** stored step-result replay for linear interpreted workflows, deterministic `if` branch decision recording for literal-expression conditions, durable `workflow_wait(<duration>)` timer replay, durable `workflow_wait_signal(\"key\")` signal gating, cancellation-state enforcement for cancelled runs, and retry/backoff for interpreted `mesh_*` activity execution
+- **Supported today:** stored step-result replay for linear interpreted workflows, deterministic `if` branch decision recording for literal-expression conditions, cancellation-state enforcement for cancelled runs, and retry/backoff for interpreted `mesh_*` activity execution
+- **Present but not durable yet:** `workflow_wait(<duration>)` sleeps in-process (no durable wake scheduling); `workflow_wait_signal("key")` fails the run when the signal is absent (no durable parking)
 - **Partially implemented:** workflow syntax, generated Rust lowering, and broader orchestration semantics
 - **Not yet true:** durable execution for arbitrary compiled Vox programs or generated Rust workflow state machines
 - **Deferred on purpose:** generated-workflow parity, arbitrary-process replay, and general branching/loop replay until Vox has a formal replay model and ADR for those features
