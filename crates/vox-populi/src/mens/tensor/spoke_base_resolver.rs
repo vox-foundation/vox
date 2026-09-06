@@ -335,4 +335,26 @@ mod tests {
             base.hf_id
         );
     }
+
+    #[test]
+    fn mac_128g_prefers_unquantized_32b_lora() {
+        // 128 GiB physical - 12 GiB GUI reserve = 116 GiB usable = 118_784 MB.
+        // At that budget the un-quantized 32B rung must outrank the QLoRA one.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let base = pick_base(&overlay, "strong_code_default", 118_784).expect("a base fits");
+        assert!(
+            base.hf_id.contains("Qwen3-32B"),
+            "116 GiB should resolve Qwen3-32B, got: {}",
+            base.hf_id
+        );
+        assert!(
+            base.methods.iter().any(|m| m == "lora"),
+            "at 116 GiB the un-quantized LoRA rung should win, got methods: {:?}",
+            base.methods
+        );
+    }
 }
