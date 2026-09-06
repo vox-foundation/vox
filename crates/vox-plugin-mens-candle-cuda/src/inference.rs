@@ -33,6 +33,19 @@ pub enum InferenceModel {
     Qwen35(Qwen35Model),
 }
 
+/// Compute dtype for QLoRA dequantization, chosen by device rather than by
+/// `QLoraConfig::default()`'s training-tuned BF16. Candle's CPU backend has
+/// no BF16 matmul kernel at all — confirmed by a real serve-time failure
+/// ("unsupported dtype BF16 for op matmul") — so CPU inference must use F32.
+/// CUDA/Metal keep BF16, matching the default's training rationale.
+fn compute_dtype_for_device(device: &Device) -> qlora_rs::ComputeDType {
+    if device.is_cpu() {
+        qlora_rs::ComputeDType::F32
+    } else {
+        qlora_rs::ComputeDType::BF16
+    }
+}
+
 fn resolve_adapter_manifest_path(model_dir: &Path) -> Option<std::path::PathBuf> {
     let manifest = model_dir.join("adapter_manifest.json");
     if manifest.is_file() {
@@ -135,7 +148,13 @@ impl InferenceEngine {
         for b in &all_buffers {
             weight_maps.push(SafeTensors::deserialize(b)?);
         }
-        let qlora_cfg = qlora_rs::qlora::QLoraConfig::default();
+        // QLoraConfig::default() hardcodes BF16 compute ("CRITICAL: BF16 for
+        // stability" — tuned for training on CUDA/Metal, where BF16 matmul is
+        // native). Candle's CPU backend does not support BF16 matmul at all
+        // ("unsupported dtype BF16 for op matmul"), so CPU inference must
+        // override to F32 regardless of the training-tuned default.
+        let mut qlora_cfg = qlora_rs::qlora::QLoraConfig::default();
+        qlora_cfg.quantization.compute_dtype = compute_dtype_for_device(&_device);
 
         // Helper to find a tensor in any map
         let get_tensor = |key: &str| -> Result<Tensor> {
@@ -296,6 +315,16 @@ impl InferenceEngine {
                     let q_bias = get_tensor(&format!("{p}.self_attn.q_proj.bias")).ok();
                     let k_bias = get_tensor(&format!("{p}.self_attn.k_proj.bias")).ok();
                     let v_bias = get_tensor(&format!("{p}.self_attn.v_proj.bias")).ok();
+                    // Dense Qwen3's per-head q_norm/k_norm (optional — absent on
+                    // Qwen2/Qwen2.5). Must match training (mod.rs loads these the
+                    // same way) or a merged/served model drifts, exactly like the
+                    // qkv biases above.
+                    let q_norm = get_tensor(&format!("{p}.self_attn.q_norm.weight"))
+                        .ok()
+                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
+                    let k_norm = get_tensor(&format!("{p}.self_attn.k_norm.weight"))
+                        .ok()
+                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
                     Qwen35AttentionBlock::Full(Qwen2Attention {
                         q_proj,
                         k_proj,
@@ -307,6 +336,8 @@ impl InferenceEngine {
                         n_heads,
                         n_kv_heads,
                         head_dim,
+                        q_norm,
+                        k_norm,
                     })
                 };
 
@@ -483,7 +514,22 @@ pub fn run(model_dir: &str, prompt_json: &str) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_adapter_manifest_path;
+    use super::{compute_dtype_for_device, resolve_adapter_manifest_path};
+
+    #[test]
+    fn compute_dtype_is_f32_on_cpu_bf16_elsewhere() {
+        // Candle's CPU backend cannot matmul BF16 at all — this is the one
+        // rung of the device-dtype ladder that MUST be F32, not a tuning
+        // choice. CUDA keeps the training-tuned BF16 default.
+        assert!(matches!(
+            compute_dtype_for_device(&candle_core::Device::Cpu),
+            qlora_rs::ComputeDType::F32
+        ));
+        // A CUDA device can't be constructed in a CPU-only CI runner, but the
+        // function is a pure match on `Device::is_cpu()` — asserting the CPU
+        // arm is exact and trusting the else-arm's obviousness is enough
+        // here; a real CUDA/Metal run is covered by the serve smoke test.
+    }
 
     #[test]
     fn resolve_adapter_manifest_finds_v3() {

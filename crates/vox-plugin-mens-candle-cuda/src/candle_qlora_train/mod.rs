@@ -801,6 +801,26 @@ pub fn run_candle_qlora_train(
                 let k_bias = load_bias(&k_key, kv_dim, None);
                 let v_bias = load_bias(&v_key, kv_dim, None);
 
+                // Dense Qwen3's per-head q_norm/k_norm (frozen, not LoRA-adapted;
+                // optional — pure Qwen2/Qwen2.5 checkpoints omit them). Must match
+                // inference.rs's loader or a served model drifts from what it
+                // trained against — confirmed load-bearing: a real Qwen/Qwen3-0.6B
+                // checkpoint produced fluent-looking garbage at inference without
+                // this being applied consistently on both sides.
+                let load_norm = |key_w: &str| -> Option<candle_nn::RmsNorm> {
+                    // "...self_attn.q_proj.weight" -> "...self_attn.q_norm.weight"
+                    // (and same for k) — NOT a plain ".weight" suffix replace,
+                    // which would wrongly produce "q_proj_norm.weight".
+                    let norm_key = key_w.replace("_proj.weight", "_norm.weight");
+                    vb_mmap
+                        .get((head_dim,), &norm_key)
+                        .ok()
+                        .and_then(|t| t.to_dtype(DType::F32).ok())
+                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6))
+                };
+                let q_norm = load_norm(&q_key);
+                let k_norm = load_norm(&k_key);
+
                 let q_label = format!("l{i}.q");
                 let k_label = format!("l{i}.k");
                 let v_label = format!("l{i}.v");
@@ -851,6 +871,8 @@ pub fn run_candle_qlora_train(
                     n_heads,
                     n_kv_heads,
                     head_dim,
+                    q_norm,
+                    k_norm,
                 };
                 Some(crate::model::Qwen35AttentionBlock::Full(attn))
             } else {
