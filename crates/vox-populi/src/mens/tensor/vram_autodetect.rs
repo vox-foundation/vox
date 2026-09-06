@@ -40,6 +40,70 @@ pub fn query_nvidia_smi_vram() -> Option<VramInfo> {
     parse_nvidia_smi_output(&String::from_utf8_lossy(&out.stdout))
 }
 
+/// Memory reserved for macOS, WindowServer, the compositor and the Vox GUI on a
+/// unified-memory host.
+///
+/// This is a fixed floor, not a fraction, because the OS/GUI footprint does not
+/// scale with model size — unlike CUDA context overhead, which the fractional
+/// `VOX_MENS_VRAM_SAFETY` knob in `memory_budget.rs` covers.
+pub const DEFAULT_UNIFIED_MEM_RESERVE_GIB: f32 = 12.0;
+
+/// Model-usable memory on a unified-memory host: total minus the OS/GUI reserve.
+/// Clamped at zero so a small machine yields "nothing fits", never a negative budget.
+#[must_use]
+pub fn usable_unified_memory_gb(total_gb: f32, reserve_gb: f32) -> f32 {
+    (total_gb - reserve_gb).max(0.0)
+}
+
+/// Reserve override, in GiB. Plain env var (a memory budget is not a secret),
+/// matching the `VOX_MENS_VRAM_SAFETY` idiom in `memory_budget.rs`.
+fn unified_mem_reserve_gib() -> f32 {
+    std::env::var("VOX_MENS_UNIFIED_MEM_RESERVE_GIB")
+        .ok()
+        .and_then(|v| v.parse::<f32>().ok())
+        .filter(|v| v.is_finite() && *v >= 0.0)
+        .unwrap_or(DEFAULT_UNIFIED_MEM_RESERVE_GIB)
+}
+
+/// Parse `sysctl -n hw.memsize` output (bytes) into GiB. `None` on garbage or zero.
+fn parse_hw_memsize(stdout: &str) -> Option<f32> {
+    let bytes: f64 = stdout.trim().parse().ok()?;
+    if bytes <= 0.0 {
+        return None;
+    }
+    Some((bytes / (1024.0 * 1024.0 * 1024.0)) as f32)
+}
+
+/// Apple Silicon unified memory, reported as the budget available to training.
+///
+/// `total_gb` is deliberately the **usable** figure (physical minus
+/// [`DEFAULT_UNIFIED_MEM_RESERVE_GIB`]): downstream consumers — `pick_base`,
+/// `auto_preset`, `memory_budget` — all read `total_gb` as "what training may
+/// use", and on unified memory that is not the physical total.
+#[cfg(target_os = "macos")]
+pub fn query_apple_unified_memory() -> Option<VramInfo> {
+    let out = std::process::Command::new("sysctl")
+        .args(["-n", "hw.memsize"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let physical_gb = parse_hw_memsize(&String::from_utf8_lossy(&out.stdout))?;
+    let usable_gb = usable_unified_memory_gb(physical_gb, unified_mem_reserve_gib());
+    Some(VramInfo {
+        total_gb: usable_gb,
+        used_gb: physical_gb - usable_gb,
+        free_gb: usable_gb,
+    })
+}
+
+/// Non-macOS hosts have no unified-memory pool to report.
+#[cfg(not(target_os = "macos"))]
+pub fn query_apple_unified_memory() -> Option<VramInfo> {
+    None
+}
+
 /// Query available GPU VRAM info.
 pub fn get_system_vram_info() -> Option<VramInfo> {
     // Priority 1: env override
@@ -59,7 +123,12 @@ pub fn get_system_vram_info() -> Option<VramInfo> {
         return Some(info);
     }
 
-    // Priority 3: hardware SSOT
+    // Priority 3: Apple Silicon unified memory, minus the OS/GUI reserve.
+    if let Some(info) = query_apple_unified_memory() {
+        return Some(info);
+    }
+
+    // Priority 4: hardware SSOT
     let hardware = futures::executor::block_on(crate::mens::hardware::probe());
     if hardware.vram_mb > 0 {
         let gb = hardware.vram_mb as f32 / 1024.0;
@@ -96,6 +165,36 @@ pub fn auto_preset(device_is_cuda: bool, vram_gb: Option<f32>) -> Option<&'stati
     }
 }
 
+/// Which accelerator the training run will actually use.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AcceleratorKind {
+    Cuda,
+    Metal,
+    Cpu,
+}
+
+/// Select a training preset for an accelerator kind.
+///
+/// The Metal arm maps unified-memory budgets onto the existing `qwen3_*` ladder
+/// in `preset_schema::KNOWN_PRESETS`. The CUDA arm delegates to [`auto_preset`]
+/// so the two paths cannot drift.
+#[must_use]
+pub fn auto_preset_for(kind: AcceleratorKind, vram_gb: Option<f32>) -> Option<&'static str> {
+    match kind {
+        AcceleratorKind::Cpu => None,
+        AcceleratorKind::Cuda => auto_preset(true, vram_gb),
+        AcceleratorKind::Metal => match vram_gb {
+            Some(v) if v < 6.0 => None,
+            Some(v) if v < 16.0 => Some("qwen3_dev_cpu"),
+            Some(v) if v < 24.0 => Some("qwen3_16g"),
+            Some(v) if v < 48.0 => Some("qwen3_24g"),
+            Some(v) if v < 96.0 => Some("qwen3_48g"),
+            Some(_) => Some("qwen3_96g"),
+            None => None,
+        },
+    }
+}
+
 /// Human-readable summary of detected VRAM + auto-selected preset.
 pub fn vram_summary(device_is_cuda: bool) -> String {
     let info = get_system_vram_info();
@@ -120,12 +219,83 @@ mod tests {
     use super::*;
 
     #[test]
+    fn usable_unified_memory_subtracts_the_gui_reserve() {
+        // A 128 GiB Mac with the default 12 GiB reserve must budget 116 GiB,
+        // not 128 — the GUI, WindowServer and the compositor share this pool.
+        assert_eq!(usable_unified_memory_gb(128.0, 12.0), 116.0);
+    }
+
+    #[test]
+    fn usable_unified_memory_never_returns_negative() {
+        // Catches: an 8 GiB Mac with a 12 GiB reserve producing -4.0, which
+        // would flow into pick_base as a nonsense budget.
+        assert_eq!(usable_unified_memory_gb(8.0, 12.0), 0.0);
+    }
+
+    #[test]
+    fn parse_hw_memsize_converts_bytes_to_gib() {
+        // `sysctl -n hw.memsize` on a 128 GiB machine prints exactly this.
+        assert_eq!(parse_hw_memsize("137438953472\n"), Some(128.0));
+    }
+
+    #[test]
+    fn parse_hw_memsize_rejects_garbage_and_zero() {
+        assert_eq!(parse_hw_memsize(""), None);
+        assert_eq!(parse_hw_memsize("not-a-number"), None);
+        assert_eq!(parse_hw_memsize("0"), None);
+    }
+
+    #[test]
     fn auto_preset_maps_correctly() {
         assert_eq!(auto_preset(true, Some(16.0)), Some("qwen_4080_16g"));
         assert_eq!(auto_preset(true, Some(8.0)), Some("safe"));
         assert_eq!(auto_preset(true, Some(80.0)), Some("a100"));
         assert_eq!(auto_preset(false, Some(16.0)), None);
         assert_eq!(auto_preset(true, Some(4.0)), None);
+    }
+
+    #[test]
+    fn metal_128g_mac_selects_the_32b_preset() {
+        // 128 GiB physical - 12 GiB reserve = 116 GiB usable -> the top rung.
+        assert_eq!(
+            auto_preset_for(AcceleratorKind::Metal, Some(116.0)),
+            Some("qwen3_96g")
+        );
+    }
+
+    #[test]
+    fn metal_tiers_walk_the_qwen3_ladder() {
+        assert_eq!(
+            auto_preset_for(AcceleratorKind::Metal, Some(20.0)),
+            Some("qwen3_16g")
+        );
+        assert_eq!(
+            auto_preset_for(AcceleratorKind::Metal, Some(32.0)),
+            Some("qwen3_24g")
+        );
+        assert_eq!(
+            auto_preset_for(AcceleratorKind::Metal, Some(64.0)),
+            Some("qwen3_48g")
+        );
+    }
+
+    #[test]
+    fn metal_below_floor_and_cpu_kind_yield_no_preset() {
+        assert_eq!(auto_preset_for(AcceleratorKind::Metal, Some(4.0)), None);
+        assert_eq!(auto_preset_for(AcceleratorKind::Metal, None), None);
+        assert_eq!(auto_preset_for(AcceleratorKind::Cpu, Some(128.0)), None);
+    }
+
+    #[test]
+    fn cuda_kind_matches_the_legacy_boolean_api() {
+        // Catches divergence between the new enum path and the old boolean one.
+        for gb in [8.0_f32, 16.0, 24.0, 80.0] {
+            assert_eq!(
+                auto_preset_for(AcceleratorKind::Cuda, Some(gb)),
+                auto_preset(true, Some(gb)),
+                "enum and boolean CUDA paths disagree at {gb} GiB"
+            );
+        }
     }
 
     #[test]
