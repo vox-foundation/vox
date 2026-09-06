@@ -5,7 +5,7 @@
 //! `interpret_workflow_durable` against the same `run_id`. Verifies the
 //! seeded `charge_card` activity is REPLAYED from the journal (interpreter
 //! emits `ActivityReplayed` and skips re-execution) while `send_receipt`
-//! still executes fresh.
+//! still executes fresh, consuming the *replayed* value.
 //!
 //! This is the durable runtime's core promise: crash mid-workflow, restart
 //! on another node, and completed activities don't re-execute — the journal
@@ -57,24 +57,26 @@ async fn workflow_resumes_seeded_activity_from_journal() {
     // completed in a prior crashed run. The interpreter uses the same
     // BLAKE3-derived activity_id, so a record under that id is what
     // `is_activity_completed` + `load_activity_result` will return on resume.
+    //
+    // The seeded value is a real journal-JSON `Result::Ok` payload (the shape
+    // `VoxValue::to_journal_json` actually produces for `charge_card`'s
+    // `Result[str]` return type) — deliberately DIFFERENT from what a fresh
+    // `charge_card(500)` call would produce (`"tx_500"`), so a passing test
+    // proves replay happened rather than coincidentally matching a fresh
+    // execution.
     let first_charge_id = derive_activity_id("checkout", "charge_card", 0);
-    let seeded_result = json!({
-        "event": "LocalActivity",
-        "activity": "charge_card",
-        "activity_id": first_charge_id.clone(),
-        "status": "executed",
-        "classification": "local",
-        "seeded_marker": "crash-replay-seed",
-    });
+    let seeded_result = json!({"__vox": "Ok", "value": "tx_SEEDED_500"});
 
     tracker
         .on_activity_completed("checkout", "charge_card", &first_charge_id, &seeded_result)
         .await
         .expect("seed charge_card completion into journal");
 
-    // Now run the workflow on the same run_id. The seeded activity should
-    // surface as ActivityReplayed; send_receipt should still execute fresh.
-    let journal = interpret_workflow_durable(&hir, "checkout", &mut tracker)
+    // Now run the workflow on the same run_id, with the same call argument a
+    // real caller would have used (`checkout(amount: int)`). The seeded
+    // activity should surface as ActivityReplayed; send_receipt should still
+    // execute fresh, on top of the replayed (not freshly-computed) value.
+    let journal = interpret_workflow_durable(&hir, "checkout", vec![json!(500)], &mut tracker)
         .await
         .expect("checkout resumes against seeded journal");
 
@@ -107,29 +109,34 @@ async fn workflow_resumes_seeded_activity_from_journal() {
         Some("workflow_activity_log"),
         "replay_source must be workflow_activity_log on journal replay; entry={replayed}"
     );
-
-    // The seeded result payload should be embedded back into the journal
-    // verbatim (carrying the marker we planted at seed time).
-    let saw_seeded_marker = journal
-        .iter()
-        .any(|e| e.get("seeded_marker").and_then(|v| v.as_str()) == Some("crash-replay-seed"));
-    assert!(
-        saw_seeded_marker,
-        "expected seeded result payload to be embedded in resumed journal; full events={event_names:?}"
+    assert_eq!(
+        replayed.get("result"),
+        Some(&seeded_result),
+        "the seeded result payload must be embedded back into the journal verbatim; entry={replayed}"
     );
 
-    // ── Assertion 2: send_receipt still executes fresh ──────────────────────
-    let fresh_for_receipt: Vec<&serde_json::Value> = journal
+    // ── Assertion 2: send_receipt executes fresh, on the REPLAYED value ────
+    // If charge_card had (incorrectly) re-executed instead of replaying, this
+    // would see "tx_500" instead of the seeded "tx_SEEDED_500" — this
+    // assertion is what actually proves the replayed value flowed through the
+    // workflow body, not just that a replay *event* was logged.
+    let completed_for_receipt: Vec<&serde_json::Value> = journal
         .iter()
         .filter(|e| {
-            e.get("event").and_then(|v| v.as_str()) == Some("LocalActivity")
+            e.get("event").and_then(|v| v.as_str()) == Some("ActivityCompleted")
                 && e.get("activity").and_then(|v| v.as_str()) == Some("send_receipt")
         })
         .collect();
     assert_eq!(
-        fresh_for_receipt.len(),
+        completed_for_receipt.len(),
         1,
-        "expected exactly one fresh LocalActivity for un-seeded send_receipt; full events={event_names:?}"
+        "expected exactly one fresh ActivityCompleted for un-seeded send_receipt; full events={event_names:?}"
+    );
+    assert_eq!(
+        completed_for_receipt[0].get("result"),
+        Some(&json!({"__vox": "Ok", "value": "emailed:tx_SEEDED_500"})),
+        "send_receipt must consume the REPLAYED charge_card value, not a freshly computed one; entry={:?}",
+        completed_for_receipt[0]
     );
 
     // send_receipt should NOT have a Replayed entry.
@@ -167,7 +174,7 @@ async fn workflow_runs_fresh_when_journal_is_empty() {
     let db = Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("memory db"));
     let mut tracker = VoxDbTracker::new(db, "crash-replay-control-1");
 
-    let journal = interpret_workflow_durable(&hir, "checkout", &mut tracker)
+    let journal = interpret_workflow_durable(&hir, "checkout", vec![json!(500)], &mut tracker)
         .await
         .expect("checkout runs fresh against empty journal");
 
@@ -181,6 +188,20 @@ async fn workflow_runs_fresh_when_journal_is_empty() {
         !any_replayed,
         "fresh run must not emit ActivityReplayed; got {event_names:?}"
     );
+
+    // Both activities must have actually run (ActivityCompleted), with the
+    // real, freshly-computed values — anchoring against the seeded test's
+    // deliberately-different "tx_SEEDED_500" marker.
+    let charge_completed = journal.iter().find(|e| {
+        e.get("event").and_then(|v| v.as_str()) == Some("ActivityCompleted")
+            && e.get("activity").and_then(|v| v.as_str()) == Some("charge_card")
+    });
+    assert_eq!(
+        charge_completed.and_then(|e| e.get("result")),
+        Some(&json!({"__vox": "Ok", "value": "tx_500"})),
+        "fresh charge_card(500) must compute tx_500; journal={journal:#?}"
+    );
+
     assert_eq!(
         event_names.last().copied(),
         Some("WorkflowCompleted"),

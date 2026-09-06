@@ -17,7 +17,7 @@ async fn workflow_patch_emits_journal_event_first_run() {
     let module = parse(lex(src)).expect("parse");
     let hir = lower_module(&module);
     let mut tracker = DefaultTracker;
-    let journal = interpret_workflow_durable(&hir, "wf", &mut tracker)
+    let journal = interpret_workflow_durable(&hir, "wf", vec![], &mut tracker)
         .await
         .expect("run");
 

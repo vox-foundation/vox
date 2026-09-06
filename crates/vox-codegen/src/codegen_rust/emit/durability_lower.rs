@@ -56,8 +56,19 @@ fn emit_workflow_body(func: &HirFn) -> String {
     out.push_str(
         "    let mut __vox_tracker = ::vox_workflow_runtime::workflow::tracker::DefaultTracker;\n",
     );
+    // G27 / Task 1.4: forward the workflow's actual call arguments (already
+    // bound as Rust locals by the emitted function header) as journal-JSON,
+    // so `interpret_workflow_durable` can persist `args_json` on the run row.
+    out.push_str("    let __vox_args: ::std::vec::Vec<::serde_json::Value> = ::std::vec![");
+    for param in &func.params {
+        out.push_str(&format!(
+            "::serde_json::to_value(&{p}).unwrap_or(::serde_json::Value::Null), ",
+            p = param.name
+        ));
+    }
+    out.push_str("];\n");
     out.push_str(&format!(
-        "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", &mut __vox_tracker).await.map_err(|e| e.to_string())?;\n"
+        "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", __vox_args, &mut __vox_tracker).await.map_err(|e| e.to_string())?;\n"
     ));
     if let Some(ret) = &func.return_type {
         out.push_str(&format!(

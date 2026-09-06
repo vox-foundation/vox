@@ -1,13 +1,22 @@
-//! Interpreted workflow runner: plan → journal.
-
-/// Default idempotency dedup window (24h, in ms) for a step that omits an
-/// explicit `dedup_window_ms`. Cached activity results within this horizon are
-/// replayed instead of re-executed.
-const DEFAULT_DEDUP_WINDOW_MS: u64 = 24 * 60 * 60 * 1000;
+//! Durable workflow runner: drives the workflow body through [`WorkflowHost`].
+//!
+//! Task 1.4 replaces the old plan-walking loop (linearize-then-replay a
+//! static `WorkflowReplayIr`) with a live bridge to the tree-walking
+//! interpreter: every `Begin`/`End`/`Patch`/`Wait`/`WaitSignal` request the
+//! interpreter thread emits is journaled here as a canonical
+//! `workflow-journal.v1` event, and the runner's decision (`Execute` /
+//! `Replay` / `Park` / `Ack`) is fed straight back. The static linearizer
+//! (`workflow::plan`) is untouched — it still backs other durability probes
+//! and is retired in Task 1.5, not here.
 
 use serde_json::{Value, json};
-use std::time::Duration;
 use vox_compiler::hir::HirModule;
+
+use super::host::{HostDecision, HostOutcome, HostRequest, WorkflowHost};
+use super::tracker::{DefaultTracker, WorkflowTracker};
+
+/// Version tag for interpreted workflow journal events emitted by this crate.
+pub const WORKFLOW_JOURNAL_VERSION: u32 = 1;
 
 /// Derive a stable, content-addressed `activity_id` from structural inputs.
 ///
@@ -31,190 +40,201 @@ pub(crate) fn derive_activity_id(
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-use super::plan::plan_workflow_replay_ir;
-use super::tracker::{DefaultTracker, WorkflowTracker};
-#[cfg(feature = "mens")]
-use super::types::PopuliActivity;
-use super::types::{PlannedActivity, ReplayNode, compute_structural_arg_hash};
-
-/// Version tag for interpreted workflow journal events emitted by this crate.
-pub const WORKFLOW_JOURNAL_VERSION: u32 = 1;
-
-/// Execute a planned workflow and append journal entries.
+/// Execute a workflow with the default (no-op, non-durable) tracker.
 pub async fn interpret_workflow(
     hir: &HirModule,
     workflow_name: &str,
 ) -> anyhow::Result<Vec<Value>> {
     let mut tracker = DefaultTracker;
-    interpret_workflow_durable(hir, workflow_name, &mut tracker).await
+    interpret_workflow_durable(hir, workflow_name, Vec::new(), &mut tracker).await
 }
 
-/// Execute a planned workflow with a durable state engine, returning journal entries.
+/// Execute a workflow's real body through [`WorkflowHost`], journaling every
+/// Begin/End/Patch exchange with the dedicated interpreter thread.
+///
+/// `args` are the workflow's call arguments as journal-JSON (strict `__vox`
+/// envelopes for non-primitive values; see [`vox_compiler::eval::value::VoxValue`]).
+/// Returns the ordered list of `workflow-journal.v1` events recorded for this run.
 pub async fn interpret_workflow_durable(
     hir: &HirModule,
     workflow_name: &str,
+    args: Vec<Value>,
     tracker: &mut impl WorkflowTracker,
 ) -> anyhow::Result<Vec<Value>> {
-    let replay_ir = plan_workflow_replay_ir(hir, workflow_name)?;
-    let activity_count = replay_ir
-        .nodes
-        .iter()
-        .filter(|n| matches!(n, ReplayNode::Activity(_)))
-        .count();
-    let mut journal = Vec::new();
-    tracker
-        .on_workflow_started(workflow_name, activity_count)
-        .await?;
-    journal.push(versioned_event(json!({
+    // Spawn first: `WorkflowHost::spawn` validates the workflow exists before
+    // any thread starts, so a bad `workflow_name` fails here without ever
+    // touching the tracker (no spurious `workflow_started` row for a run that
+    // never began).
+    let mut host = WorkflowHost::spawn(hir.clone(), workflow_name, args.clone())?;
+
+    // `on_workflow_started` must land before `persist_run_args`: the
+    // `VoxDbTracker` impl of the latter is an `UPDATE ... WHERE run_id = ?`
+    // against the row the former just inserted.
+    tracker.on_workflow_started(workflow_name, 0).await?;
+    tracker.persist_run_args(&Value::Array(args)).await?;
+
+    // `steps` is required by `workflow-journal.v1.schema.json`'s
+    // `WorkflowStarted` shape. The host discovers activities dynamically as
+    // the interpreter runs, so there is no static plan length to report here;
+    // 0 is the honest value until Phase 3 tracks live progress differently.
+    let mut journal = vec![versioned_event(json!({
         "event": "WorkflowStarted",
         "workflow": workflow_name,
-        "steps": activity_count,
-    })));
-    let mut activity_idx: usize = 0;
-    for node in replay_ir.nodes {
-        match node {
-            ReplayNode::WorkflowPatch {
+        "steps": 0,
+    }))];
+    let mut position: usize = 0;
+
+    while let Some(req) = host.next().await {
+        match req {
+            HostRequest::Patch {
                 change_id,
                 min,
                 max,
             } => {
                 handle_workflow_patch(workflow_name, &change_id, min, max, &mut journal, tracker)
                     .await?;
+                host.respond(HostDecision::Ack)?;
             }
-            ReplayNode::Activity(step) => {
-                let activity_id = step
-                    .activity_id
-                    .clone()
-                    .unwrap_or_else(|| derive_activity_id(workflow_name, &step.name, activity_idx));
-                activity_idx += 1;
-
-                // P2-T5: try the deterministic per-activity dedup cache first.
-                let arg_hash_hex = compute_structural_arg_hash(&step.arguments);
-                let now_ms = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_millis() as u64)
-                    .unwrap_or(0);
-                if let Some(cached) = tracker
-                    .load_cached_activity_result(&activity_id, &arg_hash_hex, now_ms)
-                    .await?
-                {
-                    journal.push(versioned_event(json!({
-                        "event": "ActivityCacheHit",
-                        "workflow": workflow_name,
-                        "activity": step.name,
-                        "activity_id": activity_id,
-                        "arg_hash": arg_hash_hex,
-                    })));
-                    journal.push(versioned_event(json!({
-                        "event": "ActivityCompleted",
-                        "workflow": workflow_name,
-                        "activity": step.name,
-                        "activity_id": activity_id,
-                        "from_cache": true,
-                        "result": cached,
-                    })));
-                    continue;
+            HostRequest::Begin { name, options, .. } => {
+                // G18: mesh / PopuliActivity is a loud error in the body-first
+                // runner, not a silent local execution. Park unblocks the
+                // interpreter thread (which is waiting on this exact
+                // decision), then the host is torn down and we fail loudly.
+                if activity_is_mesh(&name) {
+                    host.respond(HostDecision::Park("unused".into()))?;
+                    let _ = host.finish().await;
+                    anyhow::bail!(
+                        "mesh / PopuliActivity `{name}` is unsupported in the body-first \
+                         runner; use the deferred mens path instead"
+                    );
                 }
+
+                // Phase 1: honor explicit `with { activity_id: "…" }` values
+                // is deferred — Phase 5 also adds duplicate-id detection.
+                let _explicit_id = explicit_activity_id(options.as_ref());
+
+                let activity_id = derive_activity_id(workflow_name, &name, position);
+                position += 1;
 
                 if tracker
                     .is_activity_completed(workflow_name, &activity_id)
                     .await?
                 {
-                    if let Some(replayed_result) = tracker
+                    let prior = tracker
                         .load_activity_result(workflow_name, &activity_id)
                         .await?
-                    {
-                        journal.push(versioned_event(json!({
-                            "event": "ActivityReplayed",
-                            "workflow": workflow_name,
-                            "activity": step.name,
-                            "activity_id": activity_id,
-                            "replay_source": "workflow_activity_log",
-                            "result_event": replayed_result
-                                .get("event")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("unknown"),
-                        })));
-                        journal.push(versioned_event(replayed_result));
-                        journal.push(versioned_event(json!({
-                            "event": "ActivityCompleted",
-                            "workflow": workflow_name,
-                            "activity": step.name,
-                            "activity_id": activity_id,
-                            "replayed": true,
-                        })));
-                    } else {
-                        journal.push(versioned_event(json!({
-                            "event": "ActivitySkipped",
-                            "workflow": workflow_name,
-                            "activity": step.name,
-                            "activity_id": activity_id,
-                            "reason": "already completed in prior durable run",
-                        })));
-                    }
-                    continue;
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "activity `{name}` marked completed but no result stored \
+                                 for `{activity_id}`"
+                            )
+                        })?;
+                    refuse_canned_local_activity(&prior)?;
+                    journal.push(versioned_event(json!({
+                        "event": "ActivityReplayed",
+                        "workflow": workflow_name,
+                        "activity": name,
+                        "activity_id": activity_id,
+                        "replay_source": "workflow_activity_log",
+                        "result_event": prior
+                            .get("event")
+                            .and_then(Value::as_str)
+                            .unwrap_or("unknown"),
+                        "result": prior.clone(),
+                    })));
+                    host.respond(HostDecision::Replay(prior))?;
+                } else {
+                    tracker
+                        .on_activity_started(workflow_name, &name, &activity_id)
+                        .await?;
+                    journal.push(versioned_event(json!({
+                        "event": "ActivityStarted",
+                        "workflow": workflow_name,
+                        "activity": name,
+                        "activity_id": activity_id,
+                    })));
+                    host.respond(HostDecision::Execute)?;
                 }
-
+            }
+            HostRequest::End {
+                name,
+                result,
+                failed: true,
+            } => {
+                // The interpreter thread is already unwinding an
+                // AssertionFailed/Panic at this point (see
+                // `activity_hook::dispatch_activity`); it discards whatever
+                // decision we send and re-raises regardless. We still must
+                // respond — the thread is blocked on `blocking_recv()` — and
+                // we record the failure for observability before it does.
+                let _ = result;
+                let activity_id =
+                    derive_activity_id(workflow_name, &name, position.saturating_sub(1));
+                let error_msg = format!("activity `{name}` panicked during execution");
                 tracker
-                    .on_activity_started(workflow_name, &step.name, &activity_id)
+                    .on_activity_attempt_failed(workflow_name, &name, &activity_id, 1, &error_msg)
                     .await?;
                 journal.push(versioned_event(json!({
-                    "event": "ActivityTask",
+                    "event": "ActivityAttemptFailed",
                     "workflow": workflow_name,
-                    "activity": step.name,
+                    "activity": name,
                     "activity_id": activity_id,
-                    "execution_boundary": if step.mens { "mesh" } else { "local" },
-                    "max_attempts": step.retries.saturating_add(1).max(1),
-                    "timeout_ms": step.timeout_ms,
-                    "idempotency_key": activity_id,
+                    "attempt": 1,
+                    "max_attempts": 1,
+                    "error": error_msg,
                 })));
-                journal.push(versioned_event(json!({
-                    "event": "ActivityStarted",
-                    "workflow": workflow_name,
-                    "activity": step.name,
-                    "activity_id": activity_id,
-                })));
-
-                let entry = execute_step_with_retries(
-                    workflow_name,
-                    &step,
-                    &activity_id,
-                    &mut journal,
-                    tracker,
-                )
-                .await?;
-
+                host.respond(HostDecision::Ack)?;
+            }
+            HostRequest::End {
+                name,
+                result,
+                failed: false,
+            } => {
+                // `Result::Err` reaches here too (`failed` is false — see
+                // `activity_hook::result_err_is_not_failed`): it is a value,
+                // not a runner failure, and flows to `?` like any other Ok.
+                let activity_id =
+                    derive_activity_id(workflow_name, &name, position.saturating_sub(1));
                 tracker
-                    .on_activity_completed(workflow_name, &step.name, &activity_id, &entry)
+                    .on_activity_completed(workflow_name, &name, &activity_id, &result)
                     .await?;
-                let dedup_ms = step.dedup_window_ms.unwrap_or(DEFAULT_DEDUP_WINDOW_MS);
-                let _ = tracker
-                    .record_cached_activity_result(
-                        &activity_id,
-                        &arg_hash_hex,
-                        &entry,
-                        now_ms,
-                        dedup_ms,
-                    )
-                    .await;
-                journal.push(entry);
-
                 journal.push(versioned_event(json!({
                     "event": "ActivityCompleted",
                     "workflow": workflow_name,
-                    "activity": step.name,
+                    "activity": name,
                     "activity_id": activity_id,
+                    "result": result,
                 })));
+                host.respond(HostDecision::Ack)?;
+            }
+            HostRequest::Wait { .. } | HostRequest::WaitSignal { .. } => {
+                // Timer wakers and signal delivery land in Phase 3/4; for now
+                // any wait parks the workflow rather than either blocking
+                // forever or silently completing.
+                host.respond(HostDecision::Park(
+                    "timers and signals land in Phase 3/4".into(),
+                ))?;
             }
         }
     }
-    tracker.on_workflow_completed(workflow_name).await?;
-    journal.push(versioned_event(json!({
-        "event": "WorkflowCompleted",
-        "workflow": workflow_name,
-        "return_value": null,
-    })));
-    Ok(journal)
+
+    match host.finish().await? {
+        HostOutcome::Completed(return_value) => {
+            tracker.on_workflow_completed(workflow_name).await?;
+            journal.push(versioned_event(json!({
+                "event": "WorkflowCompleted",
+                "workflow": workflow_name,
+                "return_value": return_value,
+            })));
+            Ok(journal)
+        }
+        // Parked in this task: return the journal as-is, without
+        // `WorkflowCompleted` and without failing. There is no `WorkflowParked`
+        // event in `workflow-journal.v1.schema.json` — Phase 3 adds a `parked`
+        // run status instead of inventing an unschematized event here.
+        HostOutcome::Parked(_reason) => Ok(journal),
+        HostOutcome::Failed(msg) => anyhow::bail!("{msg}"),
+    }
 }
 
 async fn handle_workflow_patch(
@@ -253,159 +273,38 @@ async fn handle_workflow_patch(
     Ok(max)
 }
 
-async fn execute_step_with_retries(
-    workflow_name: &str,
-    step: &PlannedActivity,
-    activity_id: &str,
-    journal: &mut Vec<Value>,
-    tracker: &mut impl WorkflowTracker,
-) -> anyhow::Result<Value> {
-    let max_attempts = step.retries.saturating_add(1).max(1);
-    let first_attempt = tracker
-        .next_activity_attempt_start(workflow_name, &step.name, activity_id)
-        .await?;
-    let last_attempt_in_window = first_attempt.saturating_add(max_attempts).saturating_sub(1);
-    if first_attempt > 1 {
-        journal.push(versioned_event(json!({
-            "event": "ActivityAttemptRecovered",
-            "workflow": workflow_name,
-            "activity": step.name,
-            "activity_id": activity_id,
-            "resume_attempt": first_attempt,
-            "max_attempts_window": max_attempts,
-        })));
-    }
-    let mut next_delay_ms = step.initial_backoff_ms.unwrap_or(100).max(1);
-    for attempt in first_attempt..=last_attempt_in_window {
-        tracker
-            .on_activity_attempt_started(workflow_name, &step.name, activity_id, attempt)
-            .await?;
-        match execute_step_once(step, activity_id).await {
-            Ok(result) => {
-                tracker
-                    .on_activity_attempt_completed(workflow_name, &step.name, activity_id, attempt)
-                    .await?;
-                return Ok(versioned_event(result));
-            }
-            Err(err) => {
-                tracker
-                    .on_activity_attempt_failed(
-                        workflow_name,
-                        &step.name,
-                        activity_id,
-                        attempt,
-                        &err.to_string(),
-                    )
-                    .await?;
-                journal.push(versioned_event(json!({
-                    "event": "ActivityAttemptFailed",
-                    "workflow": workflow_name,
-                    "activity": step.name,
-                    "activity_id": activity_id,
-                    "attempt": attempt,
-                    "max_attempts": max_attempts,
-                    "error": err.to_string(),
-                })));
-                if attempt >= last_attempt_in_window {
-                    return Err(err);
-                }
-                let delay_ms = next_delay_ms;
-                journal.push(versioned_event(json!({
-                    "event": "ActivityRetryScheduled",
-                    "workflow": workflow_name,
-                    "activity": step.name,
-                    "activity_id": activity_id,
-                    "attempt": attempt,
-                    "next_attempt": attempt + 1,
-                    "delay_ms": delay_ms,
-                })));
-                tokio::time::sleep(Duration::from_millis(delay_ms)).await;
-                next_delay_ms = next_delay_ms.saturating_mul(2).min(60_000);
-            }
-        }
-    }
-    unreachable!("workflow retry loop must return or error")
+/// Match the mesh-activity naming convention the linearizer
+/// (`workflow::plan::collect_from_expr`) already uses: activities named
+/// `mesh_*` are PopuliActivity / mesh calls. `HirFn` carries no
+/// `execution_boundary` field today, so this predicate is name-based, exactly
+/// like `plan.rs`'s `is_mesh` check.
+fn activity_is_mesh(name: &str) -> bool {
+    name.starts_with("mesh_")
 }
 
-async fn execute_step_once(step: &PlannedActivity, activity_id: &str) -> anyhow::Result<Value> {
-    if step.name == "__durable_timer_wait" {
-        let wait_ms = step.timeout_ms.unwrap_or(0);
-        tokio::time::sleep(Duration::from_millis(wait_ms)).await;
-        return Ok(json!({
-            "event": "TimerWaitCompleted",
-            "activity": step.name,
-            "activity_id": activity_id,
-            "waited_ms": wait_ms,
-        }));
-    }
-    if step.mens {
-        #[cfg(feature = "mens")]
-        {
-            let m = PopuliActivity {
-                name: step.name.clone(),
-                populi_op: step.populi_op,
-                timeout_ms: step.timeout_ms,
-                activity_id: activity_id.to_string(),
-                required_labels: step.required_labels.clone(),
-                is_detached: step.is_detached,
-            };
-            super::populi::execute_populi_step(&m).await
-        }
-        #[cfg(not(feature = "mens"))]
-        {
-            Ok(json!({
-                "event": "MeshActivitySkipped",
-                "activity": step.name,
-                "activity_id": activity_id,
-                "reason": "vox-workflow-runtime built without mens feature",
-            }))
-        }
-    } else {
-        Ok(execute_local_activity_step(step, activity_id))
-    }
+/// Read an explicit `with { activity_id: "…" }` override from Begin options.
+fn explicit_activity_id(options: Option<&Value>) -> Option<String> {
+    options
+        .and_then(|o| o.get("activity_id"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
 }
 
-fn execute_local_activity_step(step: &PlannedActivity, activity_id: &str) -> Value {
-    if step.name == "__branch_decision_then" || step.name == "__branch_decision_else" {
-        let branch = if step.name.ends_with("_then") {
-            "then"
-        } else {
-            "else"
-        };
-        return json!({
-            "event": "BranchDecision",
-            "activity": step.name,
-            "activity_id": activity_id,
-            "branch": branch,
-            "decision_source": "deterministic_condition",
-        });
+/// Refuse to replay a pre-Phase-1 canned `LocalActivity` row: those rows are
+/// synthetic markers the old plan-walking runner wrote (`status: "executed"`,
+/// no real return value), not a real activity body's result. Resuming a run
+/// that predates this rewrite against one would silently feed the interpreter
+/// a fake value instead of the real one the workflow body expects.
+fn refuse_canned_local_activity(prior: &Value) -> anyhow::Result<()> {
+    if prior.get("event").and_then(Value::as_str) == Some("LocalActivity")
+        && prior.get("status").and_then(Value::as_str) == Some("executed")
+    {
+        anyhow::bail!(
+            "refusing to replay a pre-Phase-1 canned LocalActivity row; \
+             start a new run_id after upgrading"
+        );
     }
-    if let Some(signal_key) = step.name.strip_prefix("__durable_signal_wait:") {
-        return json!({
-            "event": "SignalWaitSatisfied",
-            "activity": step.name,
-            "activity_id": activity_id,
-            "signal_key": signal_key,
-        });
-    }
-    // Keep local activities deterministic for replay while avoiding generic no-op rows.
-    // This creates clearer evidence for campaign workflows even before full handler wiring.
-    let classification = if step.name.starts_with("recon_") {
-        "reconstruction"
-    } else if step.name.starts_with("verify_") {
-        "verification"
-    } else if step.name.starts_with("plan_") {
-        "planning"
-    } else {
-        "local"
-    };
-    json!({
-        "event": "LocalActivity",
-        "activity": step.name,
-        "activity_id": activity_id,
-        "status": "executed",
-        "classification": classification,
-    })
+    Ok(())
 }
 
 fn versioned_event(mut entry: Value) -> Value {
@@ -415,6 +314,9 @@ fn versioned_event(mut entry: Value) -> Value {
     }
     entry
 }
+
+#[cfg(test)]
+use std::time::Duration;
 
 #[cfg(test)]
 async fn execute_with_retry_logic<T, Work, WorkFut, OnFailed, OnRetry>(
@@ -623,5 +525,40 @@ mod tests {
             id.chars().all(|c| c.is_ascii_hexdigit()),
             "must be lowercase hex"
         );
+    }
+
+    #[test]
+    fn activity_is_mesh_matches_mesh_prefix() {
+        assert!(activity_is_mesh("mesh_join"));
+        assert!(activity_is_mesh("mesh_remote_charge"));
+        assert!(!activity_is_mesh("charge_card"));
+        assert!(!activity_is_mesh(""));
+    }
+
+    #[test]
+    fn refuse_canned_local_activity_rejects_pre_phase1_rows() {
+        let canned = json!({
+            "event": "LocalActivity",
+            "activity": "charge_card",
+            "status": "executed",
+        });
+        assert!(refuse_canned_local_activity(&canned).is_err());
+    }
+
+    #[test]
+    fn refuse_canned_local_activity_accepts_real_return_values() {
+        let real = json!({"__vox": "Ok", "value": "tx_5"});
+        assert!(refuse_canned_local_activity(&real).is_ok());
+    }
+
+    #[test]
+    fn explicit_activity_id_reads_the_with_option() {
+        let opts = json!({"activity_id": "explicit-1"});
+        assert_eq!(
+            explicit_activity_id(Some(&opts)),
+            Some("explicit-1".to_string())
+        );
+        assert_eq!(explicit_activity_id(None), None);
+        assert_eq!(explicit_activity_id(Some(&json!({}))), None);
     }
 }

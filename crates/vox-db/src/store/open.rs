@@ -161,6 +161,28 @@ impl crate::VoxDb {
             )
             .await?;
 
+            // Same idempotent-ALTER pattern as `archived_at` above: `workflow_run_log`
+            // predates `args_json` (G27, added in Task 1.4 of true-workflow-durability),
+            // so existing databases need it added explicitly.
+            let has_args_json = {
+                let mut cols = conn
+                    .query("PRAGMA table_info(workflow_run_log)", ())
+                    .await?;
+                let mut found = false;
+                while let Some(row) = cols.next().await? {
+                    let name: String = row.get(1)?;
+                    if name == "args_json" {
+                        found = true;
+                        break;
+                    }
+                }
+                found
+            };
+            if !has_args_json {
+                conn.execute_batch("ALTER TABLE workflow_run_log ADD COLUMN args_json TEXT;")
+                    .await?;
+            }
+
             crate::schema_extensions::apply_schema_extensions(conn).await?;
 
             conn.execute(

@@ -30,9 +30,10 @@ async fn every_emitted_event_validates_against_v1_schema() {
     let db = Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("memory db"));
     let mut tracker = VoxDbTracker::new(db, "schema-conformance-1");
 
-    let journal = interpret_workflow_durable(&hir, "checkout", &mut tracker)
-        .await
-        .expect("workflow runs");
+    let journal =
+        interpret_workflow_durable(&hir, "checkout", vec![serde_json::json!(500)], &mut tracker)
+            .await
+            .expect("workflow runs");
 
     let schema: Value = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

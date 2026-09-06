@@ -377,4 +377,31 @@ impl WorkflowTracker for VoxDbTracker {
             Ok(())
         }
     }
+
+    fn persist_run_args(
+        &mut self,
+        args_json: &serde_json::Value,
+    ) -> impl Future<Output = Result<()>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        let args_json = args_json.clone();
+        async move {
+            db.workflow_run_set_args_json(&run_id, &args_json)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))?;
+            Ok(())
+        }
+    }
+
+    fn load_run_args(&self) -> impl Future<Output = Result<Option<serde_json::Value>>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        async move {
+            let args = db
+                .workflow_run_args_json(&run_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))?;
+            Ok(args)
+        }
+    }
 }

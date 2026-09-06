@@ -28,7 +28,7 @@ use std::sync::OnceLock;
 // 90: fix(scientia): add a partial unique index enforcing the chat_session pending
 //     dedup rule at the database level (PR review: check-then-insert race between
 //     concurrently-spawned judge tasks)
-pub const BASELINE_VERSION: i64 = 90;
+pub const BASELINE_VERSION: i64 = 91;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

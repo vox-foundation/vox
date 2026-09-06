@@ -147,6 +147,24 @@ pub trait WorkflowTracker: Send + Sync {
     ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
         async { Ok(()) }
     }
+
+    /// G27: persist the workflow's call arguments (journal-JSON) on the run
+    /// row at start, so a crashed/resumed run can be inspected or replayed
+    /// without the original caller. Default: no-op (non-durable tracker).
+    fn persist_run_args(
+        &mut self,
+        _args_json: &Value,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        async { Ok(()) }
+    }
+
+    /// Load the previously persisted call arguments for the current run, when
+    /// available. Default: `None` (non-durable tracker).
+    fn load_run_args(
+        &self,
+    ) -> impl std::future::Future<Output = anyhow::Result<Option<Value>>> + Send {
+        async { Ok(None) }
+    }
 }
 
 /// A default no-op tracker used if none is provided.

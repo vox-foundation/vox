@@ -135,6 +135,57 @@ impl crate::VoxDb {
             .await
     }
 
+    /// Persist the call arguments (journal-JSON) for a workflow run (G27).
+    ///
+    /// The row must already exist (i.e. call after
+    /// [`VoxDb::record_workflow_run_started`]) since this is an `UPDATE`, not
+    /// an upsert — arguments are only ever set once, at run start.
+    pub async fn workflow_run_set_args_json(
+        &self,
+        run_id: &str,
+        args_json: &Value,
+    ) -> Result<(), StoreError> {
+        let now = workflow_now_ms();
+        let run_id = run_id.to_string();
+        let args_json = serde_json::to_string(args_json)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE workflow_run_log SET args_json = ?2, updated_at_ms = ?3 WHERE run_id = ?1",
+                    (run_id, args_json, now),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Load the previously persisted call arguments (journal-JSON) for a workflow run.
+    pub async fn workflow_run_args_json(&self, run_id: &str) -> Result<Option<Value>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT args_json FROM workflow_run_log WHERE run_id = ?1",
+                (run_id.to_string(),),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(None);
+        };
+        let args_json: Option<String> = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        match args_json {
+            Some(json) => {
+                let value = serde_json::from_str(&json)
+                    .map_err(|e| StoreError::Serialization(e.to_string()))?;
+                Ok(Some(value))
+            }
+            None => Ok(None),
+        }
+    }
+
     /// Attach orchestration planning context to a workflow run when available.
     pub async fn record_workflow_run_plan_context(
         &self,
