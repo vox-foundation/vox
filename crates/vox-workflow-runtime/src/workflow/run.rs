@@ -61,17 +61,41 @@ pub async fn interpret_workflow_durable(
     args: Vec<Value>,
     tracker: &mut impl WorkflowTracker,
 ) -> anyhow::Result<Vec<Value>> {
+    let stored_args = tracker.load_run_args().await?;
+    let (effective_args, persist_args) = match stored_args {
+        Some(stored) => {
+            let stored = stored.as_array().cloned().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "stored workflow arguments for `{workflow_name}` are not a JSON array"
+                )
+            })?;
+            if !args.is_empty() && args != stored {
+                anyhow::bail!(
+                    "workflow arguments mismatch for resumed `{workflow_name}` run: \
+                     supplied arguments differ from the persisted arguments"
+                );
+            }
+            (stored, false)
+        }
+        None => (args, true),
+    };
+
     // Spawn first: `WorkflowHost::spawn` validates the workflow exists before
     // any thread starts, so a bad `workflow_name` fails here without ever
     // touching the tracker (no spurious `workflow_started` row for a run that
     // never began).
-    let mut host = WorkflowHost::spawn(hir.clone(), workflow_name, args.clone())?;
+    let mut host = WorkflowHost::spawn(hir.clone(), workflow_name, effective_args.clone())?;
 
-    // `on_workflow_started` must land before `persist_run_args`: the
+    // For a new run, `on_workflow_started` must land before `persist_run_args`: the
     // `VoxDbTracker` impl of the latter is an `UPDATE ... WHERE run_id = ?`
-    // against the row the former just inserted.
+    // against the row the former just inserted. A resumed run keeps its
+    // original write-once arguments.
     tracker.on_workflow_started(workflow_name, 0).await?;
-    tracker.persist_run_args(&Value::Array(args)).await?;
+    if persist_args {
+        tracker
+            .persist_run_args(&Value::Array(effective_args))
+            .await?;
+    }
 
     // `steps` is required by `workflow-journal.v1.schema.json`'s
     // `WorkflowStarted` shape. The host discovers activities dynamically as

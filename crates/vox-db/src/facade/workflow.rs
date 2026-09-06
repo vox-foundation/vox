@@ -154,7 +154,8 @@ impl crate::VoxDb {
         breaker
             .call(|| async move {
                 conn.execute(
-                    "UPDATE workflow_run_log SET args_json = ?2, updated_at_ms = ?3 WHERE run_id = ?1",
+                    "UPDATE workflow_run_log SET args_json = ?2, updated_at_ms = ?3
+                     WHERE run_id = ?1 AND args_json IS NULL",
                     (run_id, args_json, now),
                 )
                 .await?;

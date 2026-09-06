@@ -2,14 +2,107 @@
 //! Task 1.4 acceptance: the runner executes the real workflow/activity body
 //! through `WorkflowHost`, not a canned plan-walking replay.
 
+use serde_json::Value;
 use serde_json::json;
+use std::sync::Mutex;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
-use vox_workflow_runtime::workflow::{DefaultTracker, interpret_workflow_durable};
+use vox_workflow_runtime::workflow::{DefaultTracker, WorkflowTracker, interpret_workflow_durable};
 
 fn hir(src: &str) -> vox_compiler::hir::HirModule {
     lower_module(&parse(lex(src)).expect("parses"))
+}
+
+#[derive(Default)]
+struct RunArgsTracker {
+    args: Mutex<Option<Value>>,
+    persist_calls: usize,
+}
+
+impl WorkflowTracker for RunArgsTracker {
+    fn persist_run_args(
+        &mut self,
+        args_json: &Value,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        self.persist_calls += 1;
+        let result = self
+            .args
+            .lock()
+            .map_err(|error| anyhow::anyhow!("run args mutex poisoned: {error}"))
+            .map(|mut stored| *stored = Some(args_json.clone()));
+        async move { result }
+    }
+
+    fn load_run_args(
+        &self,
+    ) -> impl std::future::Future<Output = anyhow::Result<Option<Value>>> + Send {
+        let result = self
+            .args
+            .lock()
+            .map_err(|error| anyhow::anyhow!("run args mutex poisoned: {error}"))
+            .map(|stored| stored.clone());
+        async move { result }
+    }
+}
+
+fn completed_return(journal: &[Value]) -> &Value {
+    &journal
+        .iter()
+        .rev()
+        .find(|event| event["event"] == "WorkflowCompleted")
+        .expect("workflow completed")["return_value"]
+}
+
+#[tokio::test]
+async fn resume_without_args_reuses_stored_args_without_overwriting_them() {
+    const SRC: &str = r#"
+workflow echo(amount: int) to int {
+    return amount
+}
+"#;
+    let mut tracker = RunArgsTracker::default();
+
+    let first = interpret_workflow_durable(&hir(SRC), "echo", vec![json!(5)], &mut tracker)
+        .await
+        .expect("first run succeeds");
+    assert_eq!(completed_return(&first), &json!(5));
+
+    let resumed = interpret_workflow_durable(&hir(SRC), "echo", vec![], &mut tracker)
+        .await
+        .expect("resume uses stored arguments");
+    assert_eq!(completed_return(&resumed), &json!(5));
+    assert_eq!(
+        tracker.load_run_args().await.expect("loads stored args"),
+        Some(json!([5]))
+    );
+    assert_eq!(tracker.persist_calls, 1, "run args are write-once");
+}
+
+#[tokio::test]
+async fn resume_rejects_incoming_args_that_differ_from_stored_args() {
+    const SRC: &str = r#"
+workflow echo(amount: int) to int {
+    return amount
+}
+"#;
+    let mut tracker = RunArgsTracker::default();
+    interpret_workflow_durable(&hir(SRC), "echo", vec![json!(5)], &mut tracker)
+        .await
+        .expect("first run succeeds");
+
+    let error = interpret_workflow_durable(&hir(SRC), "echo", vec![json!(6)], &mut tracker)
+        .await
+        .expect_err("different resume arguments must be rejected");
+    assert!(
+        error.to_string().contains("arguments") && error.to_string().contains("mismatch"),
+        "error should identify the argument mismatch: {error:#}"
+    );
+    assert_eq!(
+        tracker.load_run_args().await.expect("loads stored args"),
+        Some(json!([5]))
+    );
+    assert_eq!(tracker.persist_calls, 1, "mismatch must not overwrite args");
 }
 
 #[tokio::test]
