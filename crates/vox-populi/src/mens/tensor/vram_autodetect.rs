@@ -74,6 +74,68 @@ fn parse_hw_memsize(stdout: &str) -> Option<f32> {
     Some((bytes / (1024.0 * 1024.0 * 1024.0)) as f32)
 }
 
+/// Minimum safety reserve subtracted from live-available memory, in GiB, even
+/// when the proportional margin (`VOX_MENS_LIVE_MEM_MARGIN_PCT`) would compute
+/// less — protects a nearly-idle small Mac from a near-zero margin.
+pub const MIN_LIVE_MEM_RESERVE_GIB: f32 = 2.0;
+
+/// Parse `vm_stat` output into `(page_size_bytes, free_pages, inactive_pages, speculative_pages)`.
+/// `None` if any required field is missing or unparseable.
+///
+/// English prefixes only (same class as the `nvidia-smi` CSV parser). Purgeable
+/// pages are omitted from the reclaimable sum by design.
+fn parse_vm_stat(stdout: &str) -> Option<(u64, u64, u64, u64)> {
+    fn trailing_count(rest: &str) -> Option<u64> {
+        rest.trim().trim_end_matches('.').parse::<u64>().ok()
+    }
+
+    let mut page_size = None;
+    let mut free = None;
+    let mut inactive = None;
+    let mut speculative = None;
+
+    for line in stdout.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("Mach Virtual Memory Statistics: (page size of ") {
+            let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+            page_size = digits.parse::<u64>().ok();
+        } else if let Some(rest) = line.strip_prefix("Pages free:") {
+            free = trailing_count(rest);
+        } else if let Some(rest) = line.strip_prefix("Pages inactive:") {
+            inactive = trailing_count(rest);
+        } else if let Some(rest) = line.strip_prefix("Pages speculative:") {
+            speculative = trailing_count(rest);
+        }
+    }
+
+    Some((page_size?, free?, inactive?, speculative?))
+}
+
+/// Reduce a reclaimable-memory pool by a proportional margin, floored at a
+/// minimum absolute reserve so a small pool isn't left with almost no margin.
+#[must_use]
+pub(crate) fn apply_live_margin(reclaimable_gb: f32, margin_pct: f32, min_reserve_gib: f32) -> f32 {
+    let margin = (reclaimable_gb * margin_pct).max(min_reserve_gib);
+    (reclaimable_gb - margin).max(0.0)
+}
+
+/// `VOX_MENS_LIVE_MEM_MARGIN_PCT` override, as a fraction in `[0, 1]`. Defaults to 0.15.
+fn live_mem_margin_pct() -> f32 {
+    std::env::var("VOX_MENS_LIVE_MEM_MARGIN_PCT")
+        .ok()
+        .and_then(|v| v.parse::<f32>().ok())
+        .filter(|v| v.is_finite() && (0.0..=1.0).contains(v))
+        .unwrap_or(0.15)
+}
+
+/// `VOX_MENS_DISABLE_LIVE_MEM=1` forces the static nameplate-minus-reserve
+/// heuristic instead of the live `vm_stat` query.
+fn live_mem_disabled() -> bool {
+    std::env::var("VOX_MENS_DISABLE_LIVE_MEM")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
 /// Apple Silicon unified memory, reported as the budget available to training.
 ///
 /// `total_gb` is deliberately the **usable** figure (physical minus
@@ -104,6 +166,59 @@ pub fn query_apple_unified_memory() -> Option<VramInfo> {
     None
 }
 
+/// Apple Silicon unified memory sized to what's **actually available right
+/// now** (free + inactive + speculative pages, per `vm_stat` — the standard
+/// macOS reclaimable-memory definition), not nameplate total minus a flat
+/// reserve. Falls back to [`query_apple_unified_memory`] on any shell/parse
+/// failure, or when `VOX_MENS_DISABLE_LIVE_MEM=1` is set.
+///
+/// Leaf function: must not call [`get_system_vram_info`] / [`get_system_vram_gb`]
+/// (those Priority-4-recurse into `hardware::probe()` → `probe_metal()`).
+#[cfg(target_os = "macos")]
+pub fn query_apple_available_memory() -> Option<VramInfo> {
+    if live_mem_disabled() {
+        return query_apple_unified_memory();
+    }
+
+    let vm_out = std::process::Command::new("vm_stat").output().ok();
+    let parsed = vm_out
+        .filter(|o| o.status.success())
+        .and_then(|o| parse_vm_stat(&String::from_utf8_lossy(&o.stdout)));
+
+    let Some((page_size, free, inactive, speculative)) = parsed else {
+        return query_apple_unified_memory();
+    };
+
+    let reclaimable_bytes = (free + inactive + speculative).saturating_mul(page_size);
+    let reclaimable_gb = reclaimable_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
+    let available_gb = apply_live_margin(
+        reclaimable_gb,
+        live_mem_margin_pct(),
+        MIN_LIVE_MEM_RESERVE_GIB,
+    );
+
+    let physical_gb = std::process::Command::new("sysctl")
+        .args(["-n", "hw.memsize"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| parse_hw_memsize(&String::from_utf8_lossy(&o.stdout)));
+
+    Some(VramInfo {
+        total_gb: available_gb,
+        used_gb: physical_gb
+            .map(|p| (p - available_gb).max(0.0))
+            .unwrap_or(0.0),
+        free_gb: available_gb,
+    })
+}
+
+/// Non-macOS hosts have no unified-memory pool to report.
+#[cfg(not(target_os = "macos"))]
+pub fn query_apple_available_memory() -> Option<VramInfo> {
+    None
+}
+
 /// Query available GPU VRAM info.
 pub fn get_system_vram_info() -> Option<VramInfo> {
     // Priority 1: env override
@@ -123,8 +238,9 @@ pub fn get_system_vram_info() -> Option<VramInfo> {
         return Some(info);
     }
 
-    // Priority 3: Apple Silicon unified memory, minus the OS/GUI reserve.
-    if let Some(info) = query_apple_unified_memory() {
+    // Priority 3: Apple Silicon unified memory, sized to live-available (not
+    // nameplate) memory -- falls back internally to the static reserve.
+    if let Some(info) = query_apple_available_memory() {
         return Some(info);
     }
 
@@ -299,6 +415,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(vox_vram_override_env)]
     #[allow(unsafe_code)]
     fn vram_override_env_is_respected() {
         // Set a fake value and confirm it returns correctly.
@@ -308,6 +425,113 @@ mod tests {
         assert_eq!(get_system_vram_gb(), Some(20.0));
         unsafe {
             std::env::remove_var("VOX_VRAM_OVERRIDE_GB");
+        }
+    }
+
+    #[test]
+    fn parse_vm_stat_reads_page_size_and_reclaimable_pages() {
+        // Real `vm_stat` output captured on a 128 GiB Mac (2026-09-05).
+        let sample = "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n\
+Pages free:                                    53189.\n\
+Pages active:                                3598773.\n\
+Pages inactive:                              2935813.\n\
+Pages speculative:                            712573.\n\
+Pages throttled:                                   0.\n\
+Pages wired down:                             413750.\n\
+Pages purgeable:                               17793.\n";
+        let (page_size, free, inactive, speculative) = parse_vm_stat(sample).expect("parses");
+        assert_eq!(page_size, 16384);
+        assert_eq!(free, 53189);
+        assert_eq!(inactive, 2935813);
+        assert_eq!(speculative, 712573);
+    }
+
+    #[test]
+    fn parse_vm_stat_reads_4k_page_size() {
+        let sample = "Mach Virtual Memory Statistics: (page size of 4096 bytes)\n\
+Pages free:                               100.\n\
+Pages inactive:                           200.\n\
+Pages speculative:                         50.\n";
+        let (page_size, free, inactive, speculative) = parse_vm_stat(sample).expect("parses");
+        assert_eq!(page_size, 4096);
+        assert_eq!(free, 100);
+        assert_eq!(inactive, 200);
+        assert_eq!(speculative, 50);
+    }
+
+    #[test]
+    fn parse_vm_stat_rejects_missing_fields() {
+        assert!(parse_vm_stat("").is_none());
+        assert!(
+            parse_vm_stat("Mach Virtual Memory Statistics: (page size of 16384 bytes)\n").is_none()
+        );
+    }
+
+    #[test]
+    fn apply_live_margin_uses_proportional_reserve_above_the_floor() {
+        // 40 GiB reclaimable, 15% margin -> 6 GiB margin (above the 2 GiB floor) -> 34 GiB.
+        assert_eq!(
+            apply_live_margin(40.0, 0.15, MIN_LIVE_MEM_RESERVE_GIB),
+            34.0
+        );
+    }
+
+    #[test]
+    fn apply_live_margin_floors_the_reserve_on_small_pools() {
+        // 5 GiB reclaimable, 15% would be 0.75 GiB -- the 2 GiB floor wins.
+        assert_eq!(apply_live_margin(5.0, 0.15, MIN_LIVE_MEM_RESERVE_GIB), 3.0);
+    }
+
+    #[test]
+    fn apply_live_margin_never_returns_negative() {
+        assert_eq!(apply_live_margin(1.0, 0.15, MIN_LIVE_MEM_RESERVE_GIB), 0.0);
+    }
+
+    #[test]
+    #[serial_test::serial(vox_mens_live_mem_env)]
+    fn live_mem_margin_pct_defaults_and_clamps() {
+        assert_eq!(live_mem_margin_pct(), 0.15);
+    }
+
+    #[test]
+    #[serial_test::serial(vox_mens_live_mem_env)]
+    #[allow(unsafe_code)]
+    fn live_mem_margin_pct_override_and_clamp() {
+        unsafe {
+            std::env::set_var("VOX_MENS_LIVE_MEM_MARGIN_PCT", "0.25");
+        }
+        assert_eq!(live_mem_margin_pct(), 0.25);
+        unsafe {
+            std::env::set_var("VOX_MENS_LIVE_MEM_MARGIN_PCT", "1.5");
+        }
+        assert_eq!(live_mem_margin_pct(), 0.15);
+        unsafe {
+            std::env::set_var("VOX_MENS_LIVE_MEM_MARGIN_PCT", "-0.1");
+        }
+        assert_eq!(live_mem_margin_pct(), 0.15);
+        unsafe {
+            std::env::remove_var("VOX_MENS_LIVE_MEM_MARGIN_PCT");
+        }
+    }
+
+    #[test]
+    #[serial_test::serial(vox_mens_live_mem_env)]
+    #[allow(unsafe_code)]
+    fn disable_live_mem_env_falls_back_to_the_static_heuristic() {
+        unsafe {
+            std::env::set_var("VOX_MENS_DISABLE_LIVE_MEM", "1");
+        }
+        let live = query_apple_available_memory();
+        let static_fallback = query_apple_unified_memory();
+        unsafe {
+            std::env::remove_var("VOX_MENS_DISABLE_LIVE_MEM");
+        }
+        #[cfg(target_os = "macos")]
+        assert_eq!(live, static_fallback);
+        #[cfg(not(target_os = "macos"))]
+        {
+            assert_eq!(live, None);
+            assert_eq!(static_fallback, None);
         }
     }
 }

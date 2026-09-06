@@ -4380,6 +4380,24 @@ variables:
     required: false
     introduced_in: "0.6.0"
     description: "MENS training: enable activation gradient checkpointing to reduce VRAM (default off for small models)."
+  - name: "VOX_MENS_LIVE_MEM_MARGIN_PCT"
+    owner_crate: "vox-populi"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "MENS: fractional safety margin (0.0-1.0, default 0.15) subtracted from macOS vm_stat reclaimable pages when sizing training memory."
+  - name: "VOX_MENS_DISABLE_LIVE_MEM"
+    owner_crate: "vox-populi"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    description: "MENS: when 1/true, skip vm_stat live-available memory and use the static hw.memsize-minus-reserve heuristic (deterministic CI)."
+  - name: "VOX_MENS_UNIFIED_MEM_RESERVE_GIB"
+    owner_crate: "vox-populi"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "MENS: GiB reserved for macOS/GUI on unified-memory hosts when using the static nameplate fallback (default 12)."
   - name: "VOX_MENS_SKIP_EVAL"
     owner_crate: "vox-cli"
     kind: "bool"
