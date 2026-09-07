@@ -1810,13 +1810,14 @@ export default function App() {
           }
         }}
         onTaskBadgeClick={(sessionId: string) => {
-          invoke<string | null>('latest_plan_session_for_chat', { sessionId })
-            .then(planSessionId => {
+          invoke<{ plan_session_id: string; plan_version: number } | null>('latest_plan_session_for_chat', { sessionId })
+            .then(latest => {
               // A null result (badge showed a stale nonzero count, or the session's plan
               // was archived/retracted between render and click) is a silent no-op by
               // design -- there is nothing to open, and it isn't an error worth a toast.
-              if (planSessionId) {
-                setOpenPlanSessionId(planSessionId);
+              if (latest) {
+                setOpenPlanSessionId(latest.plan_session_id);
+                setOpenPlanVersion(latest.plan_version);
                 setActiveSessionId(sessionId);
               }
             })

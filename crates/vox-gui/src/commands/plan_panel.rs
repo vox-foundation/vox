@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::State;
 use vox_db::{PlanNodeRow, VoxDb};
 
@@ -156,15 +156,36 @@ pub async fn approve_plan_nodes(
 /// The most recently updated `plan_sessions` row linked to a chat session, if any — used to
 /// pick which plan DAG the sidebar's task badge opens when a chat session has dispatched more
 /// than one goal (each dispatch mints its own `plan_sessions` row; see `goal.rs`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct LatestPlanSessionForChat {
+    pub plan_session_id: String,
+    pub plan_version: i64,
+}
+
 #[tauri::command]
 pub async fn latest_plan_session_for_chat(
     pool: State<'_, GuiDbPool>,
     session_id: String,
-) -> Result<Option<String>, String> {
+) -> Result<Option<LatestPlanSessionForChat>, String> {
     let db = pool_db(&pool)?;
-    db.latest_plan_session_id_for_origin(&session_id)
+    let Some(plan_session_id) = db
+        .latest_plan_session_id_for_origin(&session_id)
         .await
-        .map_err(map_db_err)
+        .map_err(map_db_err)?
+    else {
+        return Ok(None);
+    };
+    let Some(row) = db
+        .get_plan_session_by_id(&plan_session_id)
+        .await
+        .map_err(map_db_err)?
+    else {
+        return Ok(None);
+    };
+    Ok(Some(LatestPlanSessionForChat {
+        plan_session_id,
+        plan_version: row.current_version,
+    }))
 }
 
 #[cfg(test)]
@@ -353,5 +374,27 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result, None);
+    }
+
+    #[tokio::test]
+    async fn latest_plan_session_for_chat_returns_id_and_version_after_append_plan_version() {
+        let app = tauri::test::mock_app();
+        app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+        let pool = app.state::<GuiDbPool>();
+        let db = pool.handle().unwrap();
+
+        db.create_plan_session("ps-latest", Some("chat-origin"), "goal", "sequential")
+            .await
+            .unwrap();
+        db.append_plan_version("ps-latest", 2, Some(1), None, None)
+            .await
+            .unwrap();
+
+        let result = latest_plan_session_for_chat(pool, "chat-origin".to_string())
+            .await
+            .unwrap()
+            .expect("linked plan session");
+        assert_eq!(result.plan_session_id, "ps-latest");
+        assert_eq!(result.plan_version, 2);
     }
 }

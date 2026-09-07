@@ -36,7 +36,8 @@ import { getPermissionMode } from '../../../transport';
 
 
 
-const CORE_PANEL_IDS = ['transcript', 'executionRail', 'todos'] as const;
+const ALWAYS_CORE = ['transcript', 'executionRail'] as const;
+const CORE_PANEL_IDS = [...ALWAYS_CORE, 'todos'] as const;
 type CorePanelId = (typeof CORE_PANEL_IDS)[number];
 
 // Chat transcript is the primary work surface (and, since Task 9 removed the
@@ -837,9 +838,10 @@ export function ChatSurface({
       closedPanelIds.current.add('flow');
     }
     const todosPanel = api.getPanel('todos');
+    const hasLivePlan = planSessionId != null && planVersion != null;
     if (todosPanel) {
       todosPanel.update({ params: panelDefs.todos.params });
-    } else if (!closedPanelIds.current.has('todos')) {
+    } else if (hasLivePlan && !closedPanelIds.current.has('todos')) {
       api.addPanel({
         id: 'todos',
         component: 'todos',
@@ -932,11 +934,15 @@ export function ChatSurface({
                     if (api) {
                       api.panels.forEach(p => api.removePanel(p)); // .panels is a fresh snapshot per access — safe to iterate while removePanel mutates the underlying model
                       closedPanelIds.current.clear();
-                      // Only CORE_PANEL_IDS — opt-in panels (Phase 2/3) are intentionally
-                      // NOT recreated by Reset, even if they were open before the reset.
-                      CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null).forEach(id =>
+                      // ALWAYS_CORE only — To-dos is plan-gated (recreated below
+                      // when a live plan is attached). Opt-in panels are
+                      // intentionally NOT recreated by Reset.
+                      ALWAYS_CORE.filter(id => id !== 'executionRail' || executionRailNode != null).forEach(id =>
                         addDefaultPanel(api, id),
                       );
+                      if (planSessionId != null && planVersion != null) {
+                        addDefaultPanel(api, 'todos');
+                      }
                       // addDefaultPanel doesn't update openPanelIds itself (it's
                       // also called from onReady, before openPanelIds even
                       // exists as a concept) — resync explicitly from the
