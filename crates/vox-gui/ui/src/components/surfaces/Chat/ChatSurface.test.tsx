@@ -689,6 +689,32 @@ describe('ChatSurface', () => {
     expect(screen.queryByTestId('chat-dock-todos')).toBeNull();
   });
 
+  it('closes auto To-dos when the live plan is cleared (A-with-plan → B-without-plan)', async () => {
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={vi.fn()}
+          onNavigate={vi.fn()}
+          messages={[]}
+          composer={<div>composer</div>}
+          {...LIVE_PLAN}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-todos');
+    rerender(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={vi.fn()}
+          onNavigate={vi.fn()}
+          messages={[]}
+          composer={<div>composer</div>}
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
+  });
+
   it('does not resurrect the To-dos panel on the next render after the user closes it', async () => {
     const { rerender } = render(
       <LanguageProvider>

@@ -363,16 +363,19 @@ impl FreeAiClient {
             }
             StreamRoute::Registry {
                 backend: LudusStreamBackend::VoxLocal,
-                model: _,
-            } => Box::pin(async_stream::try_stream! {
-                let mut stream = Self::stream_vox_local(&http, &prompt_owned).await;
-                while let Some(chunk) = stream.next().await {
-                    match chunk {
-                        Ok(t) => yield t,
-                        Err(e) => Err(e)?,
+                model,
+            } => {
+                let model = model.to_string();
+                Box::pin(async_stream::try_stream! {
+                    let mut stream = Self::stream_vox_local(&http, &prompt_owned, Some(&model)).await;
+                    while let Some(chunk) = stream.next().await {
+                        match chunk {
+                            Ok(t) => yield t,
+                            Err(e) => Err(e)?,
+                        }
                     }
-                }
-            }),
+                })
+            }
             StreamRoute::Registry {
                 backend: LudusStreamBackend::OpenRouter,
                 model,
@@ -410,7 +413,8 @@ impl FreeAiClient {
                 let model = model.to_string();
                 if is_mens_local_model(&model) {
                     return Box::pin(async_stream::try_stream! {
-                        let mut stream = Self::stream_vox_local(&http, &prompt_owned).await;
+                        let mut stream =
+                            Self::stream_vox_local(&http, &prompt_owned, Some(&model)).await;
                         while let Some(chunk) = stream.next().await {
                             match chunk {
                                 Ok(t) => yield t,

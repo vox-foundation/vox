@@ -386,6 +386,8 @@ export function ChatSurface({
   // slot. Core panels keep their existing fixed-position behavior — this
   // only affects OPT_IN_PANEL_IDS.
   const activationOrderRef = useRef<string[]>([]);
+  const autoOpenedTodosRef = useRef(false);
+  const prevPlanKeyRef = useRef<string | null>(null);
 
   const [routingOpen, setRoutingOpen] = useState(false);
   const [panelsMenuOpen, setPanelsMenuOpen] = useState(false);
@@ -804,6 +806,9 @@ export function ChatSurface({
       ...(PANEL_SIZE_CONSTRAINTS[id] ?? {}),
     });
     closedPanelIds.current.delete(id);
+    if (id === 'todos') {
+      autoOpenedTodosRef.current = false;
+    }
     if (isOptIn) {
       activationOrderRef.current = [...activationOrderRef.current.filter(existing => existing !== id), id];
     }
@@ -839,8 +844,20 @@ export function ChatSurface({
     }
     const todosPanel = api.getPanel('todos');
     const hasLivePlan = planSessionId != null && planVersion != null;
+    const planKey = hasLivePlan ? `${planSessionId}:${planVersion}` : null;
+    if (prevPlanKeyRef.current !== planKey) {
+      if (hasLivePlan) {
+        closedPanelIds.current.delete('todos');
+      }
+      prevPlanKeyRef.current = planKey;
+    }
     if (todosPanel) {
       todosPanel.update({ params: panelDefs.todos.params });
+      if (!hasLivePlan && autoOpenedTodosRef.current) {
+        todosPanel.api.close();
+        closedPanelIds.current.delete('todos');
+        autoOpenedTodosRef.current = false;
+      }
     } else if (hasLivePlan && !closedPanelIds.current.has('todos')) {
       api.addPanel({
         id: 'todos',
@@ -852,6 +869,7 @@ export function ChatSurface({
           referencePanel: api.getPanel('executionRail') ? 'executionRail' : 'transcript',
         },
       });
+      autoOpenedTodosRef.current = true;
     }
     // Opt-in panels: update-only, no create branch. They can only be
     // (re)created via the Panels menu's Add section (Step 4 below) — this is
@@ -942,6 +960,7 @@ export function ChatSurface({
                       );
                       if (planSessionId != null && planVersion != null) {
                         addDefaultPanel(api, 'todos');
+                        autoOpenedTodosRef.current = true;
                       }
                       // addDefaultPanel doesn't update openPanelIds itself (it's
                       // also called from onReady, before openPanelIds even

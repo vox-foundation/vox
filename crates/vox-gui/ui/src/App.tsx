@@ -394,6 +394,7 @@ export default function App() {
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [openPlanSessionId, setOpenPlanSessionId] = useState<string | null>(null);
   const [openPlanVersion, setOpenPlanVersion] = useState<number | null>(null);
+  const [sessionSpentUsd, setSessionSpentUsd] = useState<number | null>(null);
   const [chatModelOverride, setChatModelOverride] = useLocalStorage<string | null>(
     SHELL_PREFERENCE_KEYS.chatModelOverride,
     null,
@@ -597,6 +598,66 @@ export default function App() {
   // shouldn't inherit a previous session's "already warned" state.
   const budgetWarnedRef = useRef(false);
   useEffect(() => { budgetWarnedRef.current = false; }, [activeSessionId]);
+
+  useEffect(() => {
+    if (!activeSessionId) {
+      setOpenPlanSessionId(null);
+      setOpenPlanVersion(null);
+      return;
+    }
+    let cancelled = false;
+    invoke<{ plan_session_id: string; plan_version: number } | null>(
+      'latest_plan_session_for_chat',
+      { sessionId: activeSessionId },
+    )
+      .then((latest) => {
+        if (cancelled) return;
+        if (latest) {
+          setOpenPlanSessionId(latest.plan_session_id);
+          setOpenPlanVersion(latest.plan_version);
+        } else {
+          setOpenPlanSessionId(null);
+          setOpenPlanVersion(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOpenPlanSessionId(null);
+          setOpenPlanVersion(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId]);
+
+  useEffect(() => {
+    if (!activeSessionId) {
+      setSessionSpentUsd(null);
+      return;
+    }
+    let cancelled = false;
+    const refresh = () => {
+      invoke<{ sessionUsd: number }>('get_llm_spend', { sessionId: activeSessionId })
+        .then((spend) => {
+          if (cancelled) return;
+          if (spend && Number.isFinite(spend.sessionUsd)) {
+            setSessionSpentUsd(spend.sessionUsd);
+          } else {
+            setSessionSpentUsd(null);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setSessionSpentUsd(null);
+        });
+    };
+    refresh();
+    const id = window.setInterval(refresh, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [activeSessionId]);
 
   const checkBudgetWarn = useCallback((sessionId: string) => {
     if (budgetWarnedRef.current) return;
@@ -1681,9 +1742,9 @@ export default function App() {
     chatExecutionKpis,
     chatActiveModel: activeModel,
     groundingCheckEnabled,
-    // Set by the sidebar's task-badge click (onTaskBadgeClick below), resolved via
-    // `latest_plan_session_for_chat` against the real origin_session_id link. Null renders
-    // PlanPanel's honest empty state until a badge has been clicked.
+    // Re-resolved on every `activeSessionId` change via `latest_plan_session_for_chat`.
+    // Null is the honest empty state for a chat with no live plan — never a leftover
+    // from the previous session.
     chatPlanSessionId: openPlanSessionId,
     chatPlanVersion: openPlanVersion,
     onDiscardPlan: () => {
@@ -1693,7 +1754,7 @@ export default function App() {
     chatActiveSkillId: activeSkill?.id ?? null,
     onExcludeSkill: excludeSkillAndRetry,
     chatOpenrouterSpendUsd: openrouterSpendUsd,
-    chatSessionSpentUsd: kpis.budgetBurn.value,
+    chatSessionSpentUsd: sessionSpentUsd,
     chatAgentStreamItems: activeChatAgentItems,
     onOpenAgentInFlow: (agentId: string) => {
       setSelectedAgentId(agentId);

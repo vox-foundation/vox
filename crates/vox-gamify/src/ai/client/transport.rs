@@ -102,14 +102,18 @@ impl FreeAiClient {
     pub(crate) async fn stream_vox_local(
         http: &reqwest::Client,
         prompt: &str,
+        model: Option<&str>,
     ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
         let url = Self::vox_local_generate_url();
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "prompt": prompt,
             "validate": false,
             "max_retries": 0,
             "max_tokens": 512,
         });
+        if let Some(model) = model {
+            body["model"] = serde_json::Value::String(model.to_string());
+        }
         let http = http.clone();
 
         Box::pin(async_stream::try_stream! {
@@ -708,7 +712,12 @@ mod vox_local_stream_tests {
         }
 
         let http = vox_http_client::client();
-        let stream = FreeAiClient::stream_vox_local(&http, "What is the capital of France?").await;
+        let stream = FreeAiClient::stream_vox_local(
+            &http,
+            "What is the capital of France?",
+            Some("mens/e2e-smoke-metal"),
+        )
+        .await;
         let got = drain_stream(stream).await.expect("chunk");
         restore_vox_local_endpoint(prev);
 
@@ -722,6 +731,7 @@ mod vox_local_stream_tests {
         assert_eq!(body["validate"], false);
         assert_eq!(body["prompt"], "What is the capital of France?");
         assert_eq!(body["max_tokens"], 512);
+        assert_eq!(body["model"], "mens/e2e-smoke-metal");
     }
 
     #[test]
@@ -788,6 +798,7 @@ mod vox_local_stream_tests {
         let body: serde_json::Value = serde_json::from_slice(&received[0].body).expect("json body");
         assert_eq!(body["prompt"], "smoke");
         assert_eq!(body["max_tokens"], 512);
+        assert_eq!(body["model"], "mens/e2e-smoke-metal");
     }
 
     #[tokio::test]

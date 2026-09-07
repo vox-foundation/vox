@@ -12,6 +12,7 @@ export interface ProviderStatus {
   key_present: boolean;
   is_local: boolean;
   local_reachable: boolean | null;
+  local_models?: string[];
 }
 
 export interface ModelCardLike {
@@ -85,6 +86,19 @@ export function isLocalProviderName(name: string | undefined): boolean {
   return LOCAL_ALIASES.has(providerKey(name));
 }
 
+export function modelIdStem(id: string): string {
+  const trimmed = id.trim().replace(/\/+$/, '');
+  const withoutMens = trimmed.replace(/^mens\//, '');
+  const slash = withoutMens.lastIndexOf('/');
+  return slash >= 0 ? withoutMens.slice(slash + 1) : withoutMens;
+}
+
+function localModelListed(modelId: string, localModels: string[]): boolean {
+  if (localModels.length === 0) return true;
+  const stem = modelIdStem(modelId);
+  return localModels.some(m => modelIdStem(m) === stem || m === modelId);
+}
+
 /** True when this card should appear in a "models we can actually call" list. */
 export function isModelSelectable(model: PickerModel, statuses: ProviderStatus[]): boolean {
   if (statuses.length === 0) return true;
@@ -97,7 +111,13 @@ export function isModelSelectable(model: PickerModel, statuses: ProviderStatus[]
     if (openrouter) return openrouter.key_present;
     return true;
   }
-  if (s.is_local) return s.local_reachable !== false;
+  if (s.is_local) {
+    if (s.local_reachable === false) return false;
+    if (s.local_reachable === true && s.local_models && s.local_models.length > 0) {
+      return localModelListed(model.id, s.local_models);
+    }
+    return s.local_reachable !== false;
+  }
   return s.key_present;
 }
 
