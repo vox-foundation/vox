@@ -380,4 +380,14 @@ describe('Loquela', () => {
     fireEvent.click(screen.getByRole('button', { name: /set send mode: background task/i }));
     expect(screen.getByLabelText('Interaction mode')).toHaveTextContent(/act/i);
   });
+
+  it('shows Verify on the Interaction mode chip after /verify', () => {
+    renderLoquela();
+    fireEvent.click(screen.getByRole('button', { name: /choose send mode/i }));
+    fireEvent.click(screen.getByRole('button', { name: /set send mode: background task/i }));
+    const ta = screen.getByLabelText('Task composer');
+    fireEvent.change(ta, { target: { value: '/verify' } });
+    fireEvent.click(screen.getByRole('button', { name: /\/verify/i }));
+    expect(screen.getByLabelText('Interaction mode')).toHaveTextContent(/verify/i);
+  });
 });
