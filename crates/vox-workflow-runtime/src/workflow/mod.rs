@@ -1,5 +1,6 @@
 //! Interpreted workflow planning and execution (internal).
 
+pub mod counting_tracker;
 mod hir_context;
 pub mod host;
 pub mod plan;

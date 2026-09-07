@@ -171,11 +171,18 @@ pub async fn interpret_workflow_durable(
                     tracker
                         .on_activity_started(workflow_name, &name, &activity_id)
                         .await?;
+                    let attempt = tracker
+                        .next_activity_attempt_start(workflow_name, &name, &activity_id)
+                        .await?;
+                    tracker
+                        .on_activity_attempt_started(workflow_name, &name, &activity_id, attempt)
+                        .await?;
                     journal.push(versioned_event(json!({
                         "event": "ActivityStarted",
                         "workflow": workflow_name,
                         "activity": name,
                         "activity_id": activity_id,
+                        "resume_attempt": attempt,
                     })));
                     host.respond(HostDecision::Execute)?;
                 }

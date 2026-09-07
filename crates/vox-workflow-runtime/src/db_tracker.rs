@@ -66,6 +66,31 @@ impl VoxDbTracker {
         ));
         self
     }
+
+    /// Force the current run's lease to become stealable by a resumed test runner.
+    pub async fn expire_lease_for_test(&self) -> anyhow::Result<()> {
+        self.db
+            .connection()
+            .execute(
+                "UPDATE workflow_run_log \
+                 SET lease_until_ms = 0, lease_owner = NULL \
+                 WHERE run_id = ?1",
+                (self.run_id.clone(),),
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("DB error: {e}"))?;
+        self.db
+            .connection()
+            .execute(
+                "UPDATE workflow_activity_attempt_log \
+                 SET lease_until_ms = 0 \
+                 WHERE run_id = ?1 AND status = 'started'",
+                (self.run_id.clone(),),
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("DB error: {e}"))?;
+        Ok(())
+    }
 }
 
 impl WorkflowTracker for VoxDbTracker {
