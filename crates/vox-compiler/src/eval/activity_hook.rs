@@ -12,21 +12,37 @@ use std::collections::HashMap;
 
 /// Stamp durable call-site ordinals without widening [`HirExpr::Call`].
 ///
-/// Counters restart per callee inside each enclosing function (`fresh()`
-/// and `old()` can both be ordinal 0). Distinctness comes from
+/// Counters restart per lexical call key inside each enclosing function
+/// (`fresh()` and `old()` can both be ordinal 0). Distinctness comes from
 /// `derive_activity_id`, which hashes
-/// `workflow \0 enclosing_fn \0 callee \0 ordinal \0 iteration`.
-/// Per-callee counters keep an in-flight `old()` id stable when a new
-/// callee is inserted earlier in the same function.
+/// `workflow \0 enclosing_fn \0 call_key \0 ordinal \0 iteration`.
+/// The call key is the identifier at the call site (`f` in `let f = charge;
+/// f()`), not the resolved activity name, so two aliases of the same
+/// activity do not share an id. Per-key counters keep an in-flight `old()`
+/// id stable when a new callee is inserted earlier in the same function.
 pub fn stamp_call_ordinals(hir: &HirModule) -> HashMap<Span, u32> {
+    stamp_call_sites(hir).ordinals
+}
+
+/// Ordinals plus the lexical call key used to allocate each one.
+pub struct StampedCalls {
+    /// `Span` → per-key ordinal inside the enclosing function.
+    pub ordinals: HashMap<Span, u32>,
+    /// `Span` → lexical call key (`charge`, `f`, `"<dynamic>"`, …).
+    pub keys: HashMap<Span, String>,
+}
+
+/// Stamp ordinals and the lexical keys they were allocated under.
+pub fn stamp_call_sites(hir: &HirModule) -> StampedCalls {
     let mut ordinals = HashMap::new();
+    let mut keys = HashMap::new();
     for function in &hir.functions {
         let mut next_by_callee = HashMap::<String, u32>::new();
         for statement in &function.body {
-            stamp_stmt(statement, &mut next_by_callee, &mut ordinals);
+            stamp_stmt(statement, &mut next_by_callee, &mut ordinals, &mut keys);
         }
     }
-    ordinals
+    StampedCalls { ordinals, keys }
 }
 
 /// Next per-callee ordinal in one function: 0, 1, 2, … for that key.
@@ -41,31 +57,32 @@ fn stamp_stmt(
     stmt: &HirStmt,
     next_by_callee: &mut HashMap<String, u32>,
     ordinals: &mut HashMap<Span, u32>,
+    keys: &mut HashMap<Span, String>,
 ) {
     match stmt {
         HirStmt::Expr { expr, .. } | HirStmt::Let { value: expr, .. } => {
-            stamp_expr(expr, next_by_callee, ordinals);
+            stamp_expr(expr, next_by_callee, ordinals, keys);
         }
         HirStmt::Assign { target, value, .. } => {
-            stamp_expr(target, next_by_callee, ordinals);
-            stamp_expr(value, next_by_callee, ordinals);
+            stamp_expr(target, next_by_callee, ordinals, keys);
+            stamp_expr(value, next_by_callee, ordinals, keys);
         }
         HirStmt::Return { value, .. } => {
             if let Some(expr) = value {
-                stamp_expr(expr, next_by_callee, ordinals);
+                stamp_expr(expr, next_by_callee, ordinals, keys);
             }
         }
         HirStmt::While {
             condition, body, ..
         } => {
-            stamp_expr(condition, next_by_callee, ordinals);
+            stamp_expr(condition, next_by_callee, ordinals, keys);
             for statement in body {
-                stamp_stmt(statement, next_by_callee, ordinals);
+                stamp_stmt(statement, next_by_callee, ordinals, keys);
             }
         }
         HirStmt::Loop { body, .. } => {
             for statement in body {
-                stamp_stmt(statement, next_by_callee, ordinals);
+                stamp_stmt(statement, next_by_callee, ordinals, keys);
             }
         }
         HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
@@ -76,6 +93,7 @@ fn stamp_expr(
     expr: &HirExpr,
     next_by_callee: &mut HashMap<String, u32>,
     ordinals: &mut HashMap<Span, u32>,
+    keys: &mut HashMap<Span, String>,
 ) {
     match expr {
         HirExpr::Call(callee, args, _, span) => {
@@ -85,93 +103,96 @@ fn stamp_expr(
             };
             let ordinal = next_ordinal(&key, next_by_callee);
             ordinals.insert(*span, ordinal);
-            stamp_expr(callee, next_by_callee, ordinals);
+            keys.insert(*span, key);
+            stamp_expr(callee, next_by_callee, ordinals, keys);
             for arg in args {
-                stamp_expr(&arg.value, next_by_callee, ordinals);
+                stamp_expr(&arg.value, next_by_callee, ordinals, keys);
             }
         }
         HirExpr::WorkflowVersion(version) => {
-            let ordinal = next_ordinal("workflow.version", next_by_callee);
+            let key = "workflow.version".to_string();
+            let ordinal = next_ordinal(&key, next_by_callee);
             ordinals.insert(version.span, ordinal);
+            keys.insert(version.span, key);
         }
         HirExpr::MethodCall(receiver, _, args, plan, _) => {
-            stamp_expr(receiver, next_by_callee, ordinals);
+            stamp_expr(receiver, next_by_callee, ordinals, keys);
             for arg in args {
-                stamp_expr(&arg.value, next_by_callee, ordinals);
+                stamp_expr(&arg.value, next_by_callee, ordinals, keys);
             }
             if let Some(plan) = plan {
                 for arg in &plan.predicate_args {
-                    stamp_expr(&arg.value, next_by_callee, ordinals);
+                    stamp_expr(&arg.value, next_by_callee, ordinals, keys);
                 }
                 if let Some(limit) = &plan.limit_value {
-                    stamp_expr(limit, next_by_callee, ordinals);
+                    stamp_expr(limit, next_by_callee, ordinals, keys);
                 }
             }
         }
         HirExpr::ObjectLit(fields, _) => {
             for (_, value) in fields {
-                stamp_expr(value, next_by_callee, ordinals);
+                stamp_expr(value, next_by_callee, ordinals, keys);
             }
         }
         HirExpr::ListLit(items, _)
         | HirExpr::TupleLit(items, _)
         | HirExpr::JsxFragment(items, _) => {
             for item in items {
-                stamp_expr(item, next_by_callee, ordinals);
+                stamp_expr(item, next_by_callee, ordinals, keys);
             }
         }
         HirExpr::Binary(_, left, right, _) | HirExpr::Index(left, right, _) => {
-            stamp_expr(left, next_by_callee, ordinals);
-            stamp_expr(right, next_by_callee, ordinals);
+            stamp_expr(left, next_by_callee, ordinals, keys);
+            stamp_expr(right, next_by_callee, ordinals, keys);
         }
         HirExpr::Unary(_, inner, _)
         | HirExpr::FieldAccess(inner, _, _)
-        | HirExpr::Spawn(inner, _) => stamp_expr(inner, next_by_callee, ordinals),
+        | HirExpr::Spawn(inner, _) => stamp_expr(inner, next_by_callee, ordinals, keys),
         HirExpr::Match(subject, arms, _) => {
-            stamp_expr(subject, next_by_callee, ordinals);
+            stamp_expr(subject, next_by_callee, ordinals, keys);
             for arm in arms {
                 if let Some(guard) = &arm.guard {
-                    stamp_expr(guard, next_by_callee, ordinals);
+                    stamp_expr(guard, next_by_callee, ordinals, keys);
                 }
-                stamp_expr(&arm.body, next_by_callee, ordinals);
+                stamp_expr(&arm.body, next_by_callee, ordinals, keys);
             }
         }
         HirExpr::If(condition, then_body, else_body, _) => {
-            stamp_expr(condition, next_by_callee, ordinals);
+            stamp_expr(condition, next_by_callee, ordinals, keys);
             for statement in then_body {
-                stamp_stmt(statement, next_by_callee, ordinals);
+                stamp_stmt(statement, next_by_callee, ordinals, keys);
             }
             if let Some(body) = else_body {
                 for statement in body {
-                    stamp_stmt(statement, next_by_callee, ordinals);
+                    stamp_stmt(statement, next_by_callee, ordinals, keys);
                 }
             }
         }
         HirExpr::For(_, _, iterable, body, key, _) => {
-            stamp_expr(iterable, next_by_callee, ordinals);
-            stamp_expr(body, next_by_callee, ordinals);
+            stamp_expr(iterable, next_by_callee, ordinals, keys);
+            stamp_expr(body, next_by_callee, ordinals, keys);
             if let Some(key) = key {
-                stamp_expr(key, next_by_callee, ordinals);
+                stamp_expr(key, next_by_callee, ordinals, keys);
             }
         }
         HirExpr::Lambda(params, _, body, _, _) => {
             for param in params {
                 if let Some(default) = &param.default {
-                    stamp_expr(default, next_by_callee, ordinals);
+                    stamp_expr(default, next_by_callee, ordinals, keys);
                 }
             }
-            stamp_expr(body, next_by_callee, ordinals);
+            stamp_expr(body, next_by_callee, ordinals, keys);
         }
         HirExpr::With(inner, options, _) => {
-            stamp_expr(inner, next_by_callee, ordinals);
-            stamp_expr(options, next_by_callee, ordinals);
+            stamp_expr(inner, next_by_callee, ordinals, keys);
+            stamp_expr(options, next_by_callee, ordinals, keys);
         }
         HirExpr::Block(statements, _) => {
             for statement in statements {
-                stamp_stmt(statement, next_by_callee, ordinals);
+                stamp_stmt(statement, next_by_callee, ordinals, keys);
             }
         }
-        HirExpr::Try(try_expr) => stamp_expr(&try_expr.target, next_by_callee, ordinals),
+        HirExpr::Try(try_expr) => stamp_expr(&try_expr.target, next_by_callee, ordinals, keys),
         HirExpr::AsyncView(view) => {
             for arm in [
                 &view.fetching_arm,
@@ -182,20 +203,20 @@ fn stamp_expr(
             .into_iter()
             .flatten()
             {
-                stamp_expr(arm, next_by_callee, ordinals);
+                stamp_expr(arm, next_by_callee, ordinals, keys);
             }
         }
         HirExpr::Jsx(element) => {
             for attribute in &element.attributes {
-                stamp_expr(&attribute.value, next_by_callee, ordinals);
+                stamp_expr(&attribute.value, next_by_callee, ordinals, keys);
             }
             for child in &element.children {
-                stamp_expr(child, next_by_callee, ordinals);
+                stamp_expr(child, next_by_callee, ordinals, keys);
             }
         }
         HirExpr::JsxSelfClosing(element) => {
             for attribute in &element.attributes {
-                stamp_expr(&attribute.value, next_by_callee, ordinals);
+                stamp_expr(&attribute.value, next_by_callee, ordinals, keys);
             }
         }
         HirExpr::IntLit(..)
@@ -217,6 +238,8 @@ pub enum HostCall {
         options: Option<VoxValue>,
         span: Span,
         enclosing_fn: String,
+        /// Lexical identifier at the call site (`f` in `let f = charge; f()`).
+        call_key: String,
         ordinal: u32,
         iteration: Vec<u32>,
     },
@@ -275,16 +298,19 @@ pub(crate) fn dispatch_activity(
     let mut hook = Some(hook);
     let options = interp.with_options.last().cloned();
     let ordinal = interp.call_ordinals.get(&span).copied().unwrap_or_default();
+    let call_key = interp
+        .call_keys
+        .get(&span)
+        .cloned()
+        .unwrap_or_else(|| name.to_string());
     let enclosing_fn = interp
         .enclosing_fn_stack
         .last()
         .cloned()
         .unwrap_or_default();
-    let iteration = if interp.iteration_stack.is_empty() {
-        vec![0]
-    } else {
-        interp.iteration_stack.clone()
-    };
+    // Empty means "not in a loop". Do not coerce to `[0]` — that collides
+    // with the first iteration of an enclosing loop.
+    let iteration = interp.iteration_stack.clone();
     let outcome = (|| -> Result<VoxValue, EvalError> {
         let decision = hook.as_mut().expect("hook is present")(HostCall::Begin {
             name: name.to_string(),
@@ -292,6 +318,7 @@ pub(crate) fn dispatch_activity(
             options,
             span,
             enclosing_fn,
+            call_key,
             ordinal,
             iteration,
         })?;

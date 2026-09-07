@@ -53,6 +53,60 @@ workflow wf() to int { return first() + second() }
 // Distinct callees may share per-callee ordinal 0. The BLAKE3 input
 // includes the callee name so they still get distinct activity ids.
 #[tokio::test]
+async fn aliased_callees_of_the_same_activity_get_distinct_ids() {
+    const SRC: &str = r#"
+activity step(n: int) to int { return n }
+workflow wf() to int {
+    let a = step
+    let b = step
+    return a(1) + b(2)
+}
+"#;
+    let mut tracker = DefaultTracker;
+    let journal = interpret_workflow_durable(&hir(SRC), "wf", vec![], &mut tracker)
+        .await
+        .expect("workflow completes");
+    let ids = started_activity_ids(&journal, "step");
+    assert_eq!(ids.len(), 2, "both aliases must execute: {journal:#?}");
+    assert_ne!(
+        ids[0], ids[1],
+        "two aliases of the same activity must not share an activity_id: {journal:#?}"
+    );
+}
+
+#[tokio::test]
+async fn helper_outside_a_loop_does_not_collide_with_first_iteration() {
+    const SRC: &str = r#"
+activity charge(n: int) to int { return n }
+fn helper() to int { return charge(1) }
+workflow wf() to int {
+    let a = helper()
+    let s = 0
+    let n = 0
+    while n < 1 {
+        s = helper()
+        n = n + 1
+    }
+    return a + s
+}
+"#;
+    let mut tracker = DefaultTracker;
+    let journal = interpret_workflow_durable(&hir(SRC), "wf", vec![], &mut tracker)
+        .await
+        .expect("workflow completes");
+    let ids = started_activity_ids(&journal, "charge");
+    assert_eq!(
+        ids.len(),
+        2,
+        "outside-loop and first-iteration helper calls must both execute: {journal:#?}"
+    );
+    assert_ne!(
+        ids[0], ids[1],
+        "empty iteration stack must not hash as [0]: {journal:#?}"
+    );
+}
+
+#[tokio::test]
 async fn distinct_activity_callees_in_the_same_function_get_distinct_ids() {
     const SRC: &str = r#"
 activity fresh() to int { return 1 }

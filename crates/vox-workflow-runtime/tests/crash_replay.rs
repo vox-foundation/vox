@@ -105,7 +105,7 @@ async fn workflow_resumes_seeded_activity_from_journal() {
         "checkout",
         "charge_card",
         charge_card_ordinal,
-        &[0],
+        &[],
     );
     let seeded_result = json!({"__vox": "Ok", "value": "tx_SEEDED_500"});
 

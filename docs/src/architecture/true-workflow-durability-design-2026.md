@@ -162,7 +162,9 @@ Timer tests use backdate + waker, not a real 5-second sleep. Design gate 4 (wall
 
 Phase 1 may key implicit ids as `blake3(workflow \0 name \0 per-name-counter)` so the body-first runner can ship. Phase 5 replaces that with:
 
-`blake3(workflow \0 enclosing_fn \0 callee \0 per-callee-ordinal \0 iteration)`
+`blake3(workflow \0 enclosing_fn \0 call_key \0 per-key-ordinal \0 iteration)`
+
+`call_key` is the lexical identifier at the call site (so `let f = charge; f()` hashes `f`, not `charge`). An empty iteration stack means "not in a loop" and must not be coerced to `[0]`.
 
 Ordinals restart per callee inside each enclosing function so inserting a leading activity does not rename later ids. Do not widen the `HirExpr::Call` 4-tuple (G21). Explicit `with { activity_id }` always wins; a duplicate explicit id in one invocation is an error. A parked run that already completed that id must replay it.
 

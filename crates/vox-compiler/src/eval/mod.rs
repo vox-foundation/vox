@@ -59,6 +59,8 @@ pub struct Interpreter {
     pub activity_hook: Option<crate::eval::activity_hook::ActivityHook>,
     /// Durable call-site ordinals installed from the loaded HIR.
     pub call_ordinals: std::collections::HashMap<crate::ast::span::Span, u32>,
+    /// Lexical call keys paired with [`Self::call_ordinals`].
+    pub call_keys: std::collections::HashMap<crate::ast::span::Span, String>,
     /// Names of functions currently executing, used for durable call identity.
     pub(crate) enclosing_fn_stack: Vec<String>,
     pub(crate) iteration_stack: Vec<u32>,
@@ -266,6 +268,7 @@ impl Interpreter {
             workflow_names: std::collections::HashSet::new(),
             activity_hook: None,
             call_ordinals: std::collections::HashMap::new(),
+            call_keys: std::collections::HashMap::new(),
             enclosing_fn_stack: Vec::new(),
             iteration_stack: Vec::new(),
             with_options: Vec::new(),

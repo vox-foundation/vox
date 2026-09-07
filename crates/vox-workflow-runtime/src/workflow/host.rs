@@ -6,7 +6,7 @@ use std::mem::ManuallyDrop;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use vox_compiler::eval::Interpreter;
 use vox_compiler::eval::activity_hook::{
-    HostCall, HostDecision as InterpDecision, stamp_call_ordinals,
+    HostCall, HostDecision as InterpDecision, stamp_call_sites,
 };
 use vox_compiler::eval::value::VoxValue;
 use vox_compiler::hir::HirModule;
@@ -27,6 +27,8 @@ pub enum HostRequest {
         options: Option<Value>,
         /// Name of the function containing this call site.
         enclosing_fn: String,
+        /// Lexical identifier at the call site (`f` in `let f = charge; f()`).
+        call_key: String,
         /// Lexical ordinal of this call site within its function and callee.
         ordinal: u32,
         /// Zero-based indices for every enclosing loop, outermost first.
@@ -204,7 +206,9 @@ fn run_on_thread(
     mut resp_rx: UnboundedReceiver<HostDecision>,
 ) -> HostOutcome {
     let mut interp = Interpreter::new(WORKFLOW_STEP_LIMIT);
-    interp.call_ordinals = stamp_call_ordinals(&hir);
+    let stamped = stamp_call_sites(&hir);
+    interp.call_ordinals = stamped.ordinals;
+    interp.call_keys = stamped.keys;
     if let Err(e) = interp.run_module(&hir) {
         return HostOutcome::Failed(format!("loading module: {e:?}"));
     }
@@ -217,6 +221,7 @@ fn run_on_thread(
                 args,
                 options,
                 enclosing_fn,
+                call_key,
                 ordinal,
                 iteration,
                 ..
@@ -225,6 +230,7 @@ fn run_on_thread(
                 args: args.iter().map(VoxValue::to_journal_json).collect(),
                 options: options.as_ref().map(VoxValue::to_journal_json),
                 enclosing_fn: enclosing_fn.clone(),
+                call_key: call_key.clone(),
                 ordinal: *ordinal,
                 iteration: iteration.clone(),
             },

@@ -141,6 +141,7 @@ pub async fn interpret_workflow_durable(
                 name,
                 options,
                 enclosing_fn,
+                call_key,
                 ordinal,
                 iteration,
                 ..
@@ -171,7 +172,7 @@ pub async fn interpret_workflow_durable(
                     used_explicit_ids.insert(explicit_id.clone());
                     explicit_id
                 } else {
-                    derive_activity_id(workflow_name, &enclosing_fn, &name, ordinal, &iteration)
+                    derive_activity_id(workflow_name, &enclosing_fn, &call_key, ordinal, &iteration)
                 };
 
                 if tracker
@@ -643,6 +644,16 @@ mod tests {
         let id_a = derive_activity_id("wf", "wf", "fresh", 0, &[0]);
         let id_b = derive_activity_id("wf", "wf", "old", 0, &[0]);
         assert_ne!(id_a, id_b, "same ordinal, different callee must differ");
+    }
+
+    #[test]
+    fn derive_activity_id_empty_iteration_differs_from_loop_zero() {
+        let outside = derive_activity_id("wf", "helper", "step", 0, &[]);
+        let loop_zero = derive_activity_id("wf", "helper", "step", 0, &[0]);
+        assert_ne!(
+            outside, loop_zero,
+            "no-loop and first loop iteration must not share an id"
+        );
     }
 
     #[test]

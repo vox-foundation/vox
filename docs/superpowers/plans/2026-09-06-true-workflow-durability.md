@@ -2867,7 +2867,7 @@ Expected: FAIL — per-name counters still shift when `fresh` is inserted, and d
 
 Walk each `HirFn` body and assign a **per-callee** ordinal (`0, 1, 2, …` for that name inside the function) at every `HirExpr::Call` / `WorkflowVersion` / wait builtin. Key by `Span`. The hook looks up `callee_span` (pass it through `HostCall::Begin` as `span: Span` if needed — adding a field to `HostCall` is fine; adding a field to `HirExpr::Call` is not).
 
-`derive_activity_id` becomes BLAKE3 of `workflow \0 enclosing_fn \0 callee \0 ordinal \0 iteration`. Track loop iteration on the interpreter (increment on `for`/`while` header, include in Begin).
+`derive_activity_id` becomes BLAKE3 of `workflow \0 enclosing_fn \0 call_key \0 ordinal \0 iteration`. `call_key` is the lexical identifier at the call site. An empty iteration stack means "not in a loop" and must not be coerced to `[0]`. Track loop iteration on the interpreter (increment on `for`/`while` header, include in Begin).
 
 On `Begin`, if `options.activity_id` is set, use it; if that string was already used in **this invocation**, `bail!`. A completed persisted id on resume must replay, not error.
 
