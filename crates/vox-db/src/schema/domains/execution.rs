@@ -101,6 +101,19 @@ CREATE TABLE IF NOT EXISTS workflow_activity_attempt_log (
 
 CREATE INDEX IF NOT EXISTS idx_workflow_attempt_run_activity ON workflow_activity_attempt_log(run_id, workflow_name, activity_id);
 
+-- Durable `workflow.version()` patch decisions (Task 5.2). Keyed by
+-- (workflow_name, change_id) — NOT run_id: a patch decision is a property of
+-- the workflow definition's evolution, so every run of `workflow_name` that
+-- reaches `change_id` must replay the same chosen version, not just the run
+-- that first decided it.
+CREATE TABLE IF NOT EXISTS workflow_patch_log (
+    workflow_name   TEXT NOT NULL,
+    change_id       TEXT NOT NULL,
+    version         INTEGER NOT NULL,
+    recorded_at_ms  INTEGER NOT NULL,
+    PRIMARY KEY (workflow_name, change_id)
+);
+
 CREATE TABLE IF NOT EXISTS actor_state (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,

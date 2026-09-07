@@ -3,6 +3,10 @@
 //! Persists every activity start/complete to the `workflow_activity_log` table,
 //! enabling crash-safe resume: if a workflow is interrupted mid-execution, the
 //! next `interpret_workflow_durable` call will skip already-completed steps.
+//! `workflow.version()` patch decisions persist separately to
+//! `workflow_patch_log`, keyed by `(workflow_name, change_id)` rather than
+//! `run_id`, so every run of a workflow replays the same patch decision
+//! (Task 5.2).
 
 use crate::{SignalDecision, WorkflowTracker};
 use anyhow::Result;
@@ -478,6 +482,37 @@ impl WorkflowTracker for VoxDbTracker {
                     Some(payload) => SignalDecision::Consumed(payload),
                     None => SignalDecision::Parked,
                 })
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
+
+    fn load_workflow_patch(
+        &self,
+        workflow_name: &str,
+        change_id: &str,
+    ) -> impl Future<Output = Result<Option<u32>>> + Send {
+        let db = self.db.clone();
+        let workflow_name = workflow_name.to_string();
+        let change_id = change_id.to_string();
+        async move {
+            db.load_workflow_patch(&workflow_name, &change_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
+
+    fn record_workflow_patch(
+        &mut self,
+        workflow_name: &str,
+        change_id: &str,
+        version: u32,
+    ) -> impl Future<Output = Result<()>> + Send {
+        let db = self.db.clone();
+        let workflow_name = workflow_name.to_string();
+        let change_id = change_id.to_string();
+        async move {
+            db.record_workflow_patch(&workflow_name, &change_id, version)
+                .await
                 .map_err(|e| anyhow::anyhow!("DB error: {}", e))
         }
     }

@@ -854,6 +854,61 @@ impl crate::VoxDb {
             .await
     }
 
+    /// Load the previously recorded version for a `workflow.version()` patch
+    /// marker, keyed by `(workflow_name, change_id)` — not `run_id`: every
+    /// run of `workflow_name` that reaches `change_id` must see the same
+    /// decision.
+    pub async fn load_workflow_patch(
+        &self,
+        workflow_name: &str,
+        change_id: &str,
+    ) -> Result<Option<u32>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT version FROM workflow_patch_log WHERE workflow_name = ?1 AND change_id = ?2",
+                (workflow_name.to_string(), change_id.to_string()),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(None);
+        };
+        let version: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        let version = u32::try_from(version).map_err(|e| StoreError::Db(e.to_string()))?;
+        Ok(Some(version))
+    }
+
+    /// Persist the chosen version for a `workflow.version()` patch marker.
+    ///
+    /// `INSERT OR IGNORE` on the `(workflow_name, change_id)` primary key: the
+    /// first run to decide a patch wins, and every later run (including
+    /// resumed runs and other run ids) replays that decision rather than
+    /// re-recording it.
+    pub async fn record_workflow_patch(
+        &self,
+        workflow_name: &str,
+        change_id: &str,
+        version: u32,
+    ) -> Result<(), StoreError> {
+        let now = workflow_now_ms();
+        let workflow_name = workflow_name.to_string();
+        let change_id = change_id.to_string();
+        let version = i64::from(version);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR IGNORE INTO workflow_patch_log (workflow_name, change_id, version, recorded_at_ms)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    (workflow_name, change_id, version, now),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
     /// Upsert the durable spec JSON for a reconstruction campaign.
     pub async fn upsert_reconstruction_campaign_spec(
         &self,
@@ -1070,5 +1125,47 @@ mod tests {
             .await
             .expect("consume signal");
         assert_eq!(present, Some(json!({"approved": true})));
+    }
+
+    #[tokio::test]
+    async fn workflow_patch_round_trips_by_workflow_and_change_id() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        assert_eq!(
+            db.load_workflow_patch("wf", "split-step")
+                .await
+                .expect("load miss"),
+            None
+        );
+
+        db.record_workflow_patch("wf", "split-step", 2)
+            .await
+            .expect("record");
+        assert_eq!(
+            db.load_workflow_patch("wf", "split-step")
+                .await
+                .expect("load hit"),
+            Some(2)
+        );
+
+        // A second decision for the same (workflow_name, change_id) is ignored:
+        // the first-recorded version wins so every run replays the same choice.
+        db.record_workflow_patch("wf", "split-step", 5)
+            .await
+            .expect("record again");
+        assert_eq!(
+            db.load_workflow_patch("wf", "split-step")
+                .await
+                .expect("load after second record"),
+            Some(2)
+        );
+
+        // A different change_id under the same workflow is independent.
+        assert_eq!(
+            db.load_workflow_patch("wf", "other-change")
+                .await
+                .expect("load other"),
+            None
+        );
     }
 }

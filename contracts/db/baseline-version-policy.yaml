@@ -4,7 +4,7 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 92
+  repository_baseline_integer: 93
   # Keccak-256 of baseline_sql() — updated for 83: skill_candidates.lifecycle_state + source_hash (Task 3.3, harness parity plan);
   # re-updated for a comment fix (source_hash is blake3-only, not Keccak/blake3 — code-review finding on cd3f7e8736);
   # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness);
@@ -35,7 +35,10 @@ policy:
   # VoxDb::migrate() (see open.rs), not via the baseline DDL alone.
   # re-updated for 92: workflow_run_log.wake_at_ms + parked_reason
   # (true-workflow-durability Task 3.1 timer parking and wake-up state).
-  repository_baseline_digest_hex: "0x1d670ed34f0c0cca5984fffd6333dec36d18a5a7935ac59ccaaa22d219ce739c"
+  # re-updated for 93: workflow_patch_log table (persist workflow.version()
+  # patch decisions keyed by (workflow_name, change_id); true-workflow-durability
+  # Task 5.2).
+  repository_baseline_digest_hex: "0x465696ab1e8924caeb587de99e2ea70af5cf5311ebf5ba0d79d19b482c8c4fe7"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

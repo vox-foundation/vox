@@ -30,7 +30,10 @@ use std::sync::OnceLock;
 //     concurrently-spawned judge tasks)
 // 91: feat(workflow): persist workflow_run_log.args_json for durable resume
 // 92: feat(workflow): add workflow timer wake_at_ms and parked_reason state
-pub const BASELINE_VERSION: i64 = 92;
+// 93: feat(workflow): add workflow_patch_log table (persist workflow.version()
+//     patch decisions keyed by (workflow_name, change_id); true-workflow-durability
+//     Task 5.2)
+pub const BASELINE_VERSION: i64 = 93;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
