@@ -225,7 +225,7 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
         workflow_name: &str,
         change_id: &str,
         version: u32,
-    ) -> impl Future<Output = anyhow::Result<()>> + Send {
+    ) -> impl Future<Output = anyhow::Result<u32>> + Send {
         let bump = self.bump();
         async move {
             bump?;

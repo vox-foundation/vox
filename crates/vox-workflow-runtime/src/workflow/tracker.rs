@@ -133,14 +133,23 @@ pub trait WorkflowTracker: Send + Sync {
         async { Ok(None) }
     }
 
-    /// Persist the chosen version for a `workflow.version` patch marker.
+    /// Persist the chosen version for a `workflow.version` patch marker and
+    /// return the canonical stored version.
+    ///
+    /// This is a first-write-wins decision keyed by `(workflow_name,
+    /// change_id)`: a concurrent caller may have already recorded a
+    /// *different* version for this exact key before this call lands. The
+    /// caller MUST use the returned value, not the `_version` argument it
+    /// passed in — the default (stateless) implementation has no prior
+    /// decision to lose a race against, so it always echoes `_version`
+    /// back unchanged.
     fn record_workflow_patch(
         &mut self,
         _workflow_name: &str,
         _change_id: &str,
         _version: u32,
-    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
-        async { Ok(()) }
+    ) -> impl std::future::Future<Output = anyhow::Result<u32>> + Send {
+        async move { Ok(_version) }
     }
 
     /// P2-T5: try the activity result cache. `Ok(None)` for miss; `Ok(Some(_))`

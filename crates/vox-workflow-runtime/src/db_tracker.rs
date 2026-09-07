@@ -506,7 +506,7 @@ impl WorkflowTracker for VoxDbTracker {
         workflow_name: &str,
         change_id: &str,
         version: u32,
-    ) -> impl Future<Output = Result<()>> + Send {
+    ) -> impl Future<Output = Result<u32>> + Send {
         let db = self.db.clone();
         let workflow_name = workflow_name.to_string();
         let change_id = change_id.to_string();

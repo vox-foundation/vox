@@ -878,18 +878,40 @@ impl crate::VoxDb {
         Ok(Some(version))
     }
 
-    /// Persist the chosen version for a `workflow.version()` patch marker.
+    /// Persist the chosen version for a `workflow.version()` patch marker and
+    /// return the **canonical stored version** — not necessarily the `version`
+    /// this call passed in.
     ///
-    /// `INSERT OR IGNORE` on the `(workflow_name, change_id)` primary key: the
-    /// first run to decide a patch wins, and every later run (including
-    /// resumed runs and other run ids) replays that decision rather than
-    /// re-recording it.
+    /// `INSERT OR IGNORE` on the `(workflow_name, change_id)` primary key means
+    /// the first run to decide a patch wins. But "first" is a race between
+    /// concurrent callers: two first-encounters of the same `change_id` with
+    /// different locally-computed maxima can both reach this function before
+    /// either has committed. Whichever `INSERT` lands first wins the row;
+    /// the loser's `INSERT OR IGNORE` is silently dropped by SQLite. If the
+    /// loser simply returned its own `version` unchanged, it would go on to
+    /// execute a patch decision the durable log never actually recorded —
+    /// exactly the split-brain this function exists to prevent.
+    ///
+    /// The `SELECT` read-back below closes that gap without an explicit
+    /// transaction: `(workflow_name, change_id)` is a primary key, so once
+    /// *any* caller's `INSERT` commits (SQLite auto-commits a bare
+    /// statement), that row's `version` is immutable — no later statement on
+    /// this table ever updates or deletes it. `GuardedConnection` (see its
+    /// docs) also serializes every `execute`/`query` on this shared
+    /// connection, so our own `INSERT OR IGNORE` is guaranteed to have fully
+    /// committed, one way or the other, before our `SELECT` runs. That
+    /// makes the read-back safe to perform as a second, independent
+    /// statement: whether we won the race (canonical == our `version`) or
+    /// lost it (canonical == the concurrent winner's), the `SELECT` always
+    /// observes the one true row. Every caller — winner and every loser —
+    /// must act on this return value, never on the `version` argument it
+    /// passed in.
     pub async fn record_workflow_patch(
         &self,
         workflow_name: &str,
         change_id: &str,
         version: u32,
-    ) -> Result<(), StoreError> {
+    ) -> Result<u32, StoreError> {
         let now = workflow_now_ms();
         let workflow_name = workflow_name.to_string();
         let change_id = change_id.to_string();
@@ -901,10 +923,24 @@ impl crate::VoxDb {
                 conn.execute(
                     "INSERT OR IGNORE INTO workflow_patch_log (workflow_name, change_id, version, recorded_at_ms)
                      VALUES (?1, ?2, ?3, ?4)",
-                    (workflow_name, change_id, version, now),
+                    (workflow_name.clone(), change_id.clone(), version, now),
                 )
                 .await?;
-                Ok::<(), StoreError>(())
+                let mut rows = conn
+                    .query(
+                        "SELECT version FROM workflow_patch_log WHERE workflow_name = ?1 AND change_id = ?2",
+                        (workflow_name, change_id),
+                    )
+                    .await?;
+                let Some(row) = rows.next().await? else {
+                    return Err(StoreError::Db(
+                        "workflow_patch_log: INSERT OR IGNORE left no canonical row for \
+                         (workflow_name, change_id)"
+                            .into(),
+                    ));
+                };
+                let stored: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                u32::try_from(stored).map_err(|e| StoreError::Db(e.to_string()))
             })
             .await
     }
@@ -1138,9 +1174,11 @@ mod tests {
             None
         );
 
-        db.record_workflow_patch("wf", "split-step", 2)
+        let first = db
+            .record_workflow_patch("wf", "split-step", 2)
             .await
             .expect("record");
+        assert_eq!(first, 2, "first writer's version is the canonical one");
         assert_eq!(
             db.load_workflow_patch("wf", "split-step")
                 .await
@@ -1150,9 +1188,16 @@ mod tests {
 
         // A second decision for the same (workflow_name, change_id) is ignored:
         // the first-recorded version wins so every run replays the same choice.
-        db.record_workflow_patch("wf", "split-step", 5)
+        // The *loser* must be told the canonical version via the return value,
+        // not left to act on the `5` it passed in.
+        let second = db
+            .record_workflow_patch("wf", "split-step", 5)
             .await
             .expect("record again");
+        assert_eq!(
+            second, 2,
+            "the losing writer must observe the canonical (first-writer) version"
+        );
         assert_eq!(
             db.load_workflow_patch("wf", "split-step")
                 .await
@@ -1166,6 +1211,40 @@ mod tests {
                 .await
                 .expect("load other"),
             None
+        );
+    }
+
+    /// Task 5.2 fix: two concurrent first-encounters of the same `change_id`
+    /// with *different* locally-computed maxima must not split-brain. One
+    /// `INSERT OR IGNORE` wins; the loser must be told the winner's version
+    /// through the return value, not act on the value it passed in.
+    #[tokio::test]
+    async fn record_workflow_patch_concurrent_writers_agree_on_canonical_version() {
+        let db = std::sync::Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("db"));
+        let db_a = db.clone();
+        let db_b = db.clone();
+
+        let (a, b) = tokio::join!(
+            db_a.record_workflow_patch("wf", "race-change", 3),
+            db_b.record_workflow_patch("wf", "race-change", 9),
+        );
+        let a = a.expect("writer A");
+        let b = b.expect("writer B");
+
+        assert_eq!(
+            a, b,
+            "both concurrent writers must observe the same canonical version"
+        );
+        assert!(
+            a == 3 || a == 9,
+            "canonical version must be one writer's actual value: got {a}"
+        );
+        assert_eq!(
+            db.load_workflow_patch("wf", "race-change")
+                .await
+                .expect("load"),
+            Some(a),
+            "the stored row must match what both callers observed"
         );
     }
 }

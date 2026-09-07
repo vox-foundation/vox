@@ -375,19 +375,41 @@ async fn handle_workflow_patch(
         })));
         return Ok(prior);
     }
-    tracker
+    // `record_workflow_patch` is first-write-wins keyed by `(workflow_name,
+    // change_id)`, decided across *every* run that reaches this change_id —
+    // not just this process. A concurrent first encounter (different run,
+    // possibly a different locally-computed `min`/`max` window) can win the
+    // race between our `load_workflow_patch` miss above and this call. The
+    // tracker's return value is the canonical stored version; every caller,
+    // winner or loser, MUST act on it instead of the local `max` it asked
+    // to record — using `max` here after losing a race is exactly the
+    // split-brain bug this function exists to prevent.
+    let stored = tracker
         .record_workflow_patch(workflow_name, change_id, max)
         .await?;
-    journal.push(versioned_event(json!({
-        "event": "WorkflowPatch",
-        "workflow": workflow_name,
-        "change_id": change_id,
-        "version": max,
-        "min_supported": min,
-        "max_supported": max,
-        "replayed": false,
-    })));
-    Ok(max)
+    if stored == max {
+        journal.push(versioned_event(json!({
+            "event": "WorkflowPatch",
+            "workflow": workflow_name,
+            "change_id": change_id,
+            "version": stored,
+            "min_supported": min,
+            "max_supported": max,
+            "replayed": false,
+        })));
+    } else {
+        // Lost the race: a concurrent caller's decision is canonical. This
+        // is functionally a replay of *their* decision, even though we
+        // never went through the `load_workflow_patch` hit above.
+        journal.push(versioned_event(json!({
+            "event": "WorkflowPatch",
+            "workflow": workflow_name,
+            "change_id": change_id,
+            "version": stored,
+            "replayed": true,
+        })));
+    }
+    Ok(stored)
 }
 
 /// Match the mesh-activity naming convention the linearizer
