@@ -1,151 +1,22 @@
 //! Adversarial tests for vox-workflow-runtime modules not covered by semcov_wave7_tests.
-//! Targets: file_journal, journal/execute, workflow/return_extract, workflow/plan (plan.rs).
+//! Targets: file_journal, workflow/return_extract, workflow/plan (plan.rs).
+//!
+//! Task 6.1: the `journal::execute` wrapper (and its `journal::test_support`
+//! in-memory harness) was deleted — activities are invoked by the workflow
+//! interpreter, which records/replays through the workflow's own
+//! `WorkflowTracker` (`VoxDbTracker` in the generated path), so a second
+//! record/replay wrapper around the generated activity fn body was dead code.
 
 #![cfg(feature = "test-support")]
 
 use serde_json::json;
-use std::sync::Mutex;
-use vox_workflow_runtime::{journal, workflow::extract_terminal_return};
+use vox_workflow_runtime::workflow::extract_terminal_return;
 
 mod semcov_wave29_tests {
     #![allow(clippy::module_inception)]
     use super::*;
     use vox_workflow_runtime::FileJournalTracker;
     use vox_workflow_runtime::WorkflowTracker;
-
-    // ── journal::execute ───────────────────────────────────────────────────────
-
-    // Serialise all journal-execute tests: in-memory state is process-global.
-    static JLOCK: Mutex<()> = Mutex::new(());
-
-    // Catches: seed_completed silently shadowed by a second call with a different
-    // value — the last write should win and replay must return the latest seed.
-    #[tokio::test]
-    async fn seed_overwrite_replays_latest_value() {
-        let _g = JLOCK.lock().unwrap_or_else(|p| p.into_inner());
-        journal::test_support::reset();
-        journal::test_support::seed_completed("act-overwrite", json!(1i64));
-        journal::test_support::seed_completed("act-overwrite", json!(99i64));
-        let result: Result<i64, anyhow::Error> =
-            journal::execute("act-overwrite", async { Ok(0i64) }).await;
-        assert_eq!(result.unwrap(), 99, "second seed should shadow the first");
-    }
-
-    // Catches: body executing and also recording when a seed is present — body
-    // must be completely bypassed on replay.
-    #[tokio::test]
-    async fn seeded_activity_never_executes_body() {
-        let _g = JLOCK.lock().unwrap_or_else(|p| p.into_inner());
-        journal::test_support::reset();
-        journal::test_support::seed_completed("act-bypass", json!(7i64));
-
-        let body_ran = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let flag = body_ran.clone();
-        let _: i64 = journal::execute("act-bypass", async move {
-            flag.store(true, std::sync::atomic::Ordering::SeqCst);
-            Ok(0i64)
-        })
-        .await
-        .unwrap();
-
-        assert!(
-            !body_ran.load(std::sync::atomic::Ordering::SeqCst),
-            "body must not run when a seed exists"
-        );
-    }
-
-    // Catches: failed body leaking a partial journal entry — recorded_for must
-    // stay empty even after multiple failing attempts.
-    #[tokio::test]
-    async fn repeated_body_failure_never_records() {
-        let _g = JLOCK.lock().unwrap_or_else(|p| p.into_inner());
-        journal::test_support::reset();
-
-        for _ in 0..3 {
-            let result: Result<i64, anyhow::Error> =
-                journal::execute("act-fail", async { Err(anyhow::anyhow!("boom")) }).await;
-            assert!(result.is_err());
-        }
-        let recorded = journal::test_support::recorded_for("act-fail");
-        assert_eq!(
-            recorded.len(),
-            0,
-            "failed bodies must never produce journal entries"
-        );
-    }
-
-    // Catches: execute recording duplicate entries for the same activity_id on
-    // successive successful calls (double-record in the append path).
-    #[tokio::test]
-    async fn successful_body_records_exactly_once_per_call() {
-        let _g = JLOCK.lock().unwrap_or_else(|p| p.into_inner());
-        journal::test_support::reset();
-
-        let _: i64 = journal::execute("act-once", async { Ok(1i64) })
-            .await
-            .unwrap();
-        let _: i64 = journal::execute("act-once", async { Ok(2i64) })
-            .await
-            .unwrap();
-        // Two independent calls — both ran the body (no seeded replay) and both
-        // should have recorded.
-        let recorded = journal::test_support::recorded_for("act-once");
-        assert_eq!(
-            recorded.len(),
-            2,
-            "each successful body execution records one entry"
-        );
-    }
-
-    // Catches: seed with wrong JSON type silently coercing instead of returning
-    // a deserialise error.
-    #[tokio::test]
-    async fn seed_type_mismatch_returns_error() {
-        let _g = JLOCK.lock().unwrap_or_else(|p| p.into_inner());
-        journal::test_support::reset();
-        // Seed a string but caller expects i64.
-        journal::test_support::seed_completed("act-type", json!("not-a-number"));
-        let result: Result<i64, anyhow::Error> =
-            journal::execute("act-type", async { Ok(0i64) }).await;
-        assert!(
-            result.is_err(),
-            "type-mismatched seed must produce a deserialize error"
-        );
-    }
-
-    // Catches: reset() not clearing the recorded map — stale entries bleed into
-    // the next test.
-    #[tokio::test]
-    async fn reset_clears_both_seeded_and_recorded_state() {
-        let _g = JLOCK.lock().unwrap_or_else(|p| p.into_inner());
-        journal::test_support::reset();
-        journal::test_support::seed_completed("act-reset", json!(42i64));
-        let _: i64 = journal::execute("act-reset", async { Ok(0i64) })
-            .await
-            .unwrap();
-
-        journal::test_support::reset();
-
-        // Seeded state should be gone — body runs normally.
-        let body_ran = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let flag = body_ran.clone();
-        let val: i64 = journal::execute("act-reset", async move {
-            flag.store(true, std::sync::atomic::Ordering::SeqCst);
-            Ok(77i64)
-        })
-        .await
-        .unwrap();
-        assert_eq!(val, 77);
-        assert!(body_ran.load(std::sync::atomic::Ordering::SeqCst));
-
-        // Recorded state from previous run must also be gone.
-        let prev = journal::test_support::recorded_for("act-reset");
-        assert_eq!(
-            prev.len(),
-            1,
-            "only the fresh run's entry should be present"
-        );
-    }
 
     // ── return_extract::extract_terminal_return ────────────────────────────────
 

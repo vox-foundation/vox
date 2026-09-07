@@ -75,7 +75,9 @@ fn emit_generated_extra_deps(module: &HirModule) -> String {
 
 pub use client::{emit_api_client, emit_mcp_server};
 pub use http::emit_main;
-pub use main_boot::{emit_durable_boot_helpers, emit_durable_boot_prelude, emit_main_boot};
+pub use main_boot::{
+    BootPropagation, emit_durable_boot_helpers, emit_durable_boot_prelude, emit_main_boot,
+};
 pub use stmt_expr::{emit_expr, emit_main_stmt};
 pub use tables::{
     emit_index_ddl, emit_schema_drift_verify, emit_table_ddl, emit_table_struct,
@@ -590,7 +592,10 @@ vox-http-client = {{ path = "../../../crates/vox-http-client" }}
 tracing = "0.1"
 tracing-subscriber = "0.3"
 turso = {{ version = "0.6", default-features = false, features = ["sync"] }}
-vox-db = {{ path = "../../../crates/vox-db" }}
+# `host-integration` is required for `DbConfig::resolve_canonical` (routes
+# through `vox_secrets::resolve_secret`), which the durable boot prelude below
+# calls when `@scheduled` fns are present.
+vox-db = {{ path = "../../../crates/vox-db", features = ["host-integration"] }}
 vox-actor-runtime = {{ path = "../../../crates/vox-actor-runtime" }}
 vox-orchestrator = {{ path = "../../../crates/vox-orchestrator" }}
 vox-speech = {{ path = "../../../crates/vox-speech" }}
@@ -699,7 +704,10 @@ vox-http-client = {{ path = "../../crates/vox-http-client" }}
 tracing = "0.1"
 tracing-subscriber = "0.3"
 turso = {{ version = "0.6", default-features = false, features = ["sync"] }}
-vox-db = {{ path = "../../crates/vox-db" }}
+# `host-integration` is required for `DbConfig::resolve_canonical` (routes
+# through `vox_secrets::resolve_secret`), which the durable boot prelude below
+# calls when `@scheduled` fns are present.
+vox-db = {{ path = "../../crates/vox-db", features = ["host-integration"] }}
 vox-actor-runtime = {{ path = "../../crates/vox-actor-runtime" }}
 vox-orchestrator = {{ path = "../../crates/vox-orchestrator" }}
 vox-speech = {{ path = "../../crates/vox-speech" }}

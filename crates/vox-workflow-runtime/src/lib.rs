@@ -30,8 +30,6 @@ pub mod durable_promise;
 pub mod duration_literal;
 /// Append-only file-backed [`workflow::WorkflowTracker`] suitable for mobile + lightweight desktop.
 pub mod file_journal;
-/// Activity-body journal wrapper used by codegen-emitted code (Task 1.3).
-pub mod journal;
 /// Persistent `@scheduled` runner (Phase 4.2; requires the `sql` cargo feature).
 #[cfg(feature = "sql")]
 pub mod scheduled;

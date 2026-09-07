@@ -885,25 +885,20 @@ pub(super) fn emit_expr_with(
             format!("tokio::spawn(async move {{ {inner} }})")
         }
         // `workflow.version("id", min, max)` — a deploy-time version gate.
-        // The Rust workflow runtime does not yet expose a replay-version API
-        // (tracked under the mesh/workflow epic). Rather than emitting a silent
-        // no-op tuple (the previous behaviour), emit a coded compile_error! so
-        // workflow code using this construct gets an honest build failure until
-        // the runtime API lands.
-        HirExpr::WorkflowVersion(v) => {
-            let cell = unsupported_diagnostic(
-                Feature::Expr(ExprFeature::WorkflowVersion),
-                Target::RustAxum,
-            );
-            format!(
-                r#"compile_error!("{code}: {msg} (id={id:?}, min={min}, max={max})")"#,
-                code = cell.code,
-                msg = cell.message,
-                id = v.change_id,
-                min = v.min,
-                max = v.max,
-            )
-        }
+        // Task 6.1 (ADR-021): generated `workflow` fns are pure passthrough
+        // shells — `emit_workflow_body` proxies the *entire* call straight to
+        // `interpret_workflow_durable` and never runs `emit_stmt`/`emit_expr`
+        // over the workflow's own body (see `durability_lower.rs`). The real
+        // `workflow.version(...)` gate is the interpreter's `WorkflowPatch`
+        // handling (`vox-workflow-runtime::workflow::run::handle_workflow_patch`),
+        // driven from the *interpreted* HIR, not from any Rust codegen'd for
+        // this expression. This arm is therefore unreachable on the workflow
+        // path; a `compile_error!` here previously misfired as "unimplemented"
+        // for code that Task 1.2–1.4 already backs at runtime. Emit an inert
+        // unit expression so a stray/misplaced `workflow.version(...)` (e.g.
+        // outside a `workflow` body, a case the type checker should reject
+        // before codegen) does not hard-fail the build here.
+        HirExpr::WorkflowVersion(_) => "()".to_string(),
         HirExpr::With(..) => {
             let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::RustAxum);
             format!(r#"compile_error!("{}: {}")"#, cell.code, cell.message)

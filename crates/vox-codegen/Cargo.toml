@@ -55,6 +55,10 @@ tempfile = { workspace = true }
 # or removal breaks the test compile. Test-only — production codegen does
 # not link the runtime.
 vox-workflow-runtime = { workspace = true }
+# Task 6.1 (`tests/adr021_parity.rs`): the interpreter-side comparison in
+# `generated_binary_journal_matches_interpreter` awaits
+# `interpret_workflow_durable` directly. Test-only.
+tokio = { workspace = true }
 
 [lints]
 workspace = true

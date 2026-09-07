@@ -17028,6 +17028,7 @@ dependencies = [
  "sha3",
  "syn 2.0.118",
  "tempfile",
+ "tokio",
  "tracing",
  "vox-compiler",
  "vox-config",

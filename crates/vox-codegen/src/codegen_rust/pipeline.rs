@@ -138,7 +138,14 @@ pub fn generate_script_with_target(
             .and_then(|p| p.parent())
             .map(|p| manifest_dependency_path(&p.join("vox-db")))
             .unwrap_or_else(|| "../vox-db".to_string());
-        format!("vox-db = {{ path = \"{vox_db_path}\" }}\n")
+        // `host-integration` is required for `DbConfig::resolve_canonical`/`from_env`
+        // (both route through `vox_secrets::resolve_secret`, per the workspace
+        // secrets policy) — the durable boot prelude (`emit_durable_boot_prelude`)
+        // and the ADR-021 `__vox_run_workflow` dispatcher both call
+        // `resolve_canonical()`. `local` stays on via vox-db's own `default =
+        // ["local"]` (not disabled here), so an empty environment still falls
+        // back to a local file DB.
+        format!("vox-db = {{ path = \"{vox_db_path}\", features = [\"host-integration\"] }}\n")
     } else {
         String::new()
     };
@@ -173,6 +180,21 @@ pub fn generate_script_with_target(
         format!(
             "vox-workflow-runtime = {{ path = \"{vox_workflow_runtime_path}\", default-features = false, features = [\"sql\"] }}\nanyhow = \"1\"\n"
         )
+    } else {
+        String::new()
+    };
+    // Task 6.1 (ADR-021): the `!found_main` branch below (native-only) emits a
+    // `VOX_RUN_WORKFLOW` boot path via `emit_durable_boot_prelude` /
+    // `emit_durable_boot_helpers`, whose `load_hir_module_from_embedded()`
+    // deserializes into `::vox_compiler::hir::HirModule` — the same dependency
+    // the app-mode/Tauri generated Cargo.toml already carries for this exact
+    // helper (see `emit_cargo_toml` in `emit/mod.rs`).
+    let vox_compiler_dep = if needs_workflow {
+        let vox_compiler_path = runtime_path
+            .and_then(|p| p.parent())
+            .map(|p| manifest_dependency_path(&p.join("vox-compiler")))
+            .unwrap_or_else(|| "../vox-compiler".to_string());
+        format!("vox-compiler = {{ path = \"{vox_compiler_path}\" }}\n")
     } else {
         String::new()
     };
@@ -253,12 +275,13 @@ tracing = "0.1"
 rust_decimal = "1.36"
 regex = "1"
 vox-actor-runtime = {{ path = "{runtime_path_str}" }}
-{vox_telemetry_dep}{vox_workflow_runtime_dep}{vox_db_dep}{turso_dep}{rust_import_deps}{aegis_patch_section}"#,
+{vox_telemetry_dep}{vox_workflow_runtime_dep}{vox_db_dep}{vox_compiler_dep}{turso_dep}{rust_import_deps}{aegis_patch_section}"#,
             package_name = package_name,
             runtime_path_str = runtime_path_str,
             vox_telemetry_dep = vox_telemetry_dep,
             vox_workflow_runtime_dep = vox_workflow_runtime_dep,
             vox_db_dep = vox_db_dep,
+            vox_compiler_dep = vox_compiler_dep,
             turso_dep = turso_dep,
             rust_import_deps = rust_import_deps,
             aegis_patch_section = aegis_patch_section,
@@ -451,7 +474,64 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
     }
 
     if !found_main {
-        main_rs.push_str("fn main() {\n    eprintln!(\"No main function found.\");\n}\n");
+        // Task 6.1 (ADR-021): a script with no `fn main()` but at least one
+        // `workflow` is still runnable via the `VOX_RUN_WORKFLOW` debug
+        // dispatch — the same env-var contract `emit_main` wires into the
+        // Axum/Tauri `main()` (see `http.rs`). WASI has no tokio runtime
+        // (`ScriptTarget::Wasi`'s Cargo.toml omits it), so this path is
+        // native-only; a WASI script with no `main` keeps the plain stub.
+        let has_workflow = target == ScriptTarget::Native
+            && module
+                .functions
+                .iter()
+                .any(|f| f.durability == Some(DurabilityKind::Workflow));
+        if has_workflow {
+            main_rs.push_str("#[tokio::main]\nasync fn main() {\n");
+            // Shared with `emit_main` (http.rs): connects the durable DB and
+            // registers the process-global HirModule (`current_hir_module()`)
+            // so `__vox_run_workflow` can actually replay/journal a run.
+            main_rs.push_str(&emit::emit_durable_boot_prelude(
+                module,
+                "vox_durable_db",
+                /* include_db_connect = */ true,
+                emit::BootPropagation::Expect,
+            ));
+            main_rs
+                .push_str("    if let Ok(wf_name_raw) = std::env::var(\"VOX_RUN_WORKFLOW\") {\n");
+            main_rs.push_str("        let wf_name = wf_name_raw.trim().to_string();\n");
+            main_rs.push_str("        if !wf_name.is_empty() {\n");
+            main_rs.push_str(
+                "            let args_raw = std::env::var(\"VOX_WORKFLOW_ARGS\").unwrap_or_else(|_| \"[]\".to_string());\n",
+            );
+            main_rs.push_str(
+                "            let args: Vec<serde_json::Value> = match serde_json::from_str(&args_raw) {\n",
+            );
+            main_rs.push_str("                Ok(v) => v,\n");
+            main_rs.push_str("                Err(e) => {\n");
+            main_rs.push_str(
+                "                    eprintln!(\"Invalid VOX_WORKFLOW_ARGS JSON: {}\", e);\n",
+            );
+            main_rs.push_str("                    std::process::exit(2);\n");
+            main_rs.push_str("                }\n");
+            main_rs.push_str("            };\n");
+            main_rs.push_str("            match __vox_run_workflow(&wf_name, &args).await {\n");
+            main_rs.push_str("                Ok(()) => return,\n");
+            main_rs.push_str("                Err(e) => {\n");
+            main_rs
+                .push_str("                    eprintln!(\"Workflow execution failed: {}\", e);\n");
+            main_rs.push_str("                    std::process::exit(2);\n");
+            main_rs.push_str("                }\n");
+            main_rs.push_str("            }\n");
+            main_rs.push_str("        }\n");
+            main_rs.push_str("    }\n");
+            main_rs.push_str("    eprintln!(\"No main function found.\");\n");
+            main_rs.push_str("}\n\n");
+            // `load_hir_module_from_embedded()` free fn referenced by the
+            // boot prelude above — must live outside `main()`.
+            main_rs.push_str(&emit::emit_durable_boot_helpers(module));
+        } else {
+            main_rs.push_str("fn main() {\n    eprintln!(\"No main function found.\");\n}\n");
+        }
     }
 
     files.insert("src/main.rs".to_string(), main_rs);

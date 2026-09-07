@@ -88,6 +88,12 @@ pub fn emit_lib(module: &HirModule) -> String {
         out.push_str(&emit_fn_with_actor_handlers(func, module));
     }
 
+    // ADR-021 `VOX_RUN_WORKFLOW` debug dispatcher (Task 6.1): only emitted
+    // when the module has a `workflow`, matching the `http.rs` call site.
+    out.push_str(&super::durability_lower::emit_vox_run_workflow_dispatcher(
+        module,
+    ));
+
     // MCP tools and resources - must be `pub` so `mcp_server` binary can `use crate::*`.
     for t in &module.mcp_tools {
         let mut f = t.func.clone();
