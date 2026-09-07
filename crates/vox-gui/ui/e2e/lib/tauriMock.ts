@@ -143,7 +143,7 @@ export function installTauriMock(viewKey: string): void {
         case 'get_routing_summary_live':
           return {
             active_model: 'opus-4-8', exploration_spent_usd: 2.4, exploration_budget_usd: 50,
-            arm_count: 6, model_count: 6,
+            arm_count: 6, model_count: 7,
             decision_preview: { selected_model: 'opus-4-8', discovery_state: 'exploit',
               alternatives: ['sonnet-4-6', 'haiku-4-5'], rejection_reasons: ['budget cap'],
               intelligence_score: 0.92, efficiency_score: 0.7, latency_score: 0.6 },
