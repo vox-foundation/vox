@@ -111,7 +111,7 @@ pub fn call_builtin_method(
     obj: &VoxValue,
     method: &str,
     args: Vec<VoxValue>,
-    caps: Option<&std::collections::HashSet<String>>,
+    caps: &crate::eval::caps::CapabilitySet,
 ) -> Option<VoxValue> {
     // ── Json leaf coercion on scalar receivers ─────────────────────────
     // Json values flow through Vox as plain scalars (a JSON string is
@@ -965,19 +965,15 @@ pub fn call_builtin_method(
             }
 
             if let Some(ns_str) = ns
-                && let Some(c) = caps
                 && matches!(ns_str, "fs" | "io" | "process" | "env" | "secrets")
+                && !caps.allows_namespace(ns_str)
             {
-                let ok = (ns_str == "fs" || ns_str == "io") && c.contains("fs")
-                    || ns_str == "process" && (c.contains("process") || c.contains("subprocess"))
-                    || ns_str == "env" && c.contains("env")
-                    || ns_str == "secrets" && c.contains("secrets");
-                if !ok {
-                    println!(
-                        "Capability denied: script missing capability for '{ns_str}' namespace"
-                    );
-                    return Some(VoxValue::Null);
-                }
+                // Fatal denial (exit-with-error instead of returning null) is Task 4;
+                // this preserves today's soft-deny behavior against the new
+                // `CapabilitySet` so the six embedders can start assigning `caps`
+                // explicitly without a behavior change riding along.
+                println!("Capability denied: script missing capability for '{ns_str}' namespace");
+                return Some(VoxValue::Null);
             }
 
             match ns {
@@ -2855,7 +2851,12 @@ mod time_namespace_interp_tests {
     /// this returned `None` → `"Method now_ms not found"` under `vox run --interp`.
     #[test]
     fn std_time_now_ms_dispatches_in_interpreter() {
-        let result = call_builtin_method(&time_namespace(), "now_ms", vec![], None);
+        let result = call_builtin_method(
+            &time_namespace(),
+            "now_ms",
+            vec![],
+            &crate::eval::caps::CapabilitySet::developer_default(),
+        );
         match result {
             Some(VoxValue::Int(ms)) => {
                 // A real epoch-ms timestamp is far above this 2001-09 floor.
@@ -2886,7 +2887,7 @@ mod time_namespace_interp_tests {
             &p,
             "basename",
             vec![VoxValue::Str("a/b/c.txt".to_string().into())],
-            None,
+            &crate::eval::caps::CapabilitySet::developer_default(),
         );
         assert_eq!(base, Some(VoxValue::Str("c.txt".to_string().into())));
 
@@ -2894,7 +2895,7 @@ mod time_namespace_interp_tests {
             &p,
             "dirname",
             vec![VoxValue::Str("a/b/c.txt".to_string().into())],
-            None,
+            &crate::eval::caps::CapabilitySet::developer_default(),
         );
         match dir {
             Some(VoxValue::Str(s)) => assert!(s.ends_with("b"), "dirname got {s}"),
@@ -2913,7 +2914,7 @@ mod time_namespace_interp_tests {
                 VoxValue::Str("b".to_string().into()),
                 VoxValue::Str("c".to_string().into()),
             ])],
-            None,
+            &crate::eval::caps::CapabilitySet::developer_default(),
         );
         match joined {
             Some(VoxValue::Str(s)) => {
@@ -2939,7 +2940,7 @@ mod time_namespace_interp_tests {
                 &re,
                 "matches",
                 vec![VoxValue::Str("12-34".to_string().into())],
-                None
+                &crate::eval::caps::CapabilitySet::developer_default(),
             ),
             Some(VoxValue::Bool(true))
         );
@@ -2948,13 +2949,18 @@ mod time_namespace_interp_tests {
             &re,
             "find",
             vec![VoxValue::Str("x 12-34".to_string().into())],
-            None,
+            &crate::eval::caps::CapabilitySet::developer_default(),
         );
         let m = match found {
             Some(VoxValue::Option(Some(boxed))) => *boxed,
             other => panic!("regex.find did not return Some(Match): {other:?}"),
         };
-        let g1 = call_builtin_method(&m, "group", vec![VoxValue::Int(1)], None);
+        let g1 = call_builtin_method(
+            &m,
+            "group",
+            vec![VoxValue::Int(1)],
+            &crate::eval::caps::CapabilitySet::developer_default(),
+        );
         assert_eq!(
             g1,
             Some(VoxValue::Option(Some(Box::new(VoxValue::Str(
@@ -2966,7 +2972,7 @@ mod time_namespace_interp_tests {
             &re,
             "find_all",
             vec![VoxValue::Str("1-2 3-4".to_string().into())],
-            None,
+            &crate::eval::caps::CapabilitySet::developer_default(),
         );
         match all {
             Some(VoxValue::List(items)) => assert_eq!(items.len(), 2, "find_all count"),
@@ -3005,7 +3011,7 @@ mod fs_text_robustness_tests {
             &fs_namespace(),
             "read",
             vec![VoxValue::Str(p.to_string_lossy().to_string().into())],
-            None,
+            &crate::eval::caps::CapabilitySet::developer_default(),
         ));
         assert_eq!(got, "a\nb\n");
     }
@@ -3020,7 +3026,7 @@ mod fs_text_robustness_tests {
             &fs_namespace(),
             "read_bytes",
             vec![VoxValue::Str(p.to_string_lossy().to_string().into())],
-            None,
+            &crate::eval::caps::CapabilitySet::developer_default(),
         ));
         assert_eq!(got, "\u{feff}a\r\nb\r\n");
     }
@@ -3037,7 +3043,7 @@ mod fs_text_robustness_tests {
                 VoxValue::Str(p.to_string_lossy().to_string().into()),
                 VoxValue::Str("x\ny\n".to_string().into()),
             ],
-            None,
+            &crate::eval::caps::CapabilitySet::developer_default(),
         );
         assert_eq!(std::fs::read(&p).unwrap(), b"x\ny\n");
     }

@@ -677,7 +677,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
 
             if let Some(r) =
-                super::builtins::call_builtin_method(&o, method, eval_args, interp.caps.as_ref())
+                super::builtins::call_builtin_method(&o, method, eval_args, &interp.caps)
             {
                 // Catch the _Panic sentinel produced by `unwrap()`/`expect()`
                 // and friends and turn it into a proper EvalError. This

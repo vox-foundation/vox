@@ -1,6 +1,7 @@
 pub use vox_eval::*;
 
 pub mod builtins;
+pub mod caps;
 pub mod db;
 pub mod env;
 pub mod expr;
@@ -34,7 +35,7 @@ pub struct Interpreter {
     pub module_scope: Scope,
     pub step_limit: usize,
     pub steps: usize,
-    pub caps: Option<std::collections::HashSet<String>>,
+    pub caps: caps::CapabilitySet,
     /// Absolute path of the file currently being run, used as the resolution
     /// base for intra-project `import "./helpers/foo.vox"` directives.
     /// When `None`, local-file imports are reported as an error.
@@ -262,7 +263,7 @@ impl Interpreter {
             module_scope: scope,
             step_limit,
             steps: 0,
-            caps: None,
+            caps: caps::CapabilitySet::developer_default(),
             source_path: None,
             script_args: Vec::new(),
             loaded_imports: std::collections::HashSet::new(),

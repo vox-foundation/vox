@@ -13,37 +13,53 @@ use super::WorkspaceMcpSurface;
 use crate::params::ToolResult;
 
 /// Dispatch a federated workspace tool by name.
+///
+/// `workspace_root` scopes the interpreter's filesystem grant (see
+/// [`invoke_mcp_tool_fn`]) — pass the same root the [`WorkspaceMcpSurface`] was
+/// loaded from.
 pub fn dispatch_workspace_tool(
     surface: &WorkspaceMcpSurface,
     tool_name: &str,
     args: &serde_json::Value,
+    workspace_root: &Path,
 ) -> Result<String, String> {
     let entry = surface
         .tool_by_name(tool_name)
         .ok_or_else(|| format!("Unknown workspace tool: {tool_name}"))?;
     let source = std::fs::read_to_string(&entry.source_path)
         .map_err(|e| format!("read {}: {e}", entry.source_path.display()))?;
-    let result = invoke_mcp_tool_fn(&entry.source_path, &source, tool_name, args)?;
+    let result = invoke_mcp_tool_fn(&entry.source_path, &source, tool_name, args, workspace_root)?;
     Ok(ToolResult::ok(result).to_json())
 }
 
 /// Read a federated workspace resource URI by invoking its nullary @mcp.resource fn.
+///
+/// `workspace_root` scopes the interpreter's filesystem grant (see
+/// [`invoke_mcp_resource_fn`]) — pass the same root the [`WorkspaceMcpSurface`] was
+/// loaded from.
 pub fn dispatch_workspace_resource(
     surface: &WorkspaceMcpSurface,
     uri: &str,
+    workspace_root: &Path,
 ) -> Result<String, String> {
     let entry = surface
         .resource_by_uri(uri)
         .ok_or_else(|| format!("Unknown workspace resource: {uri}"))?;
     let source = std::fs::read_to_string(&entry.source_path)
         .map_err(|e| format!("read {}: {e}", entry.source_path.display()))?;
-    invoke_mcp_resource_fn(&entry.source_path, &source, &entry.func_name)
+    invoke_mcp_resource_fn(
+        &entry.source_path,
+        &source,
+        &entry.func_name,
+        workspace_root,
+    )
 }
 
 fn invoke_mcp_resource_fn(
     source_path: &Path,
     source: &str,
     func_name: &str,
+    workspace_root: &Path,
 ) -> Result<String, String> {
     let tokens = lex(source);
     let module = parse(tokens).map_err(|errs| {
@@ -65,6 +81,16 @@ fn invoke_mcp_resource_fn(
         })?;
 
     let mut interp = Interpreter::new(100_000);
+    // Explicit, not the constructor's default: a federated workspace fn is
+    // receiver-controlled source, not the operator's own script, so it gets a
+    // read-only grant scoped to the workspace root plus real time — no fs writes,
+    // no process/http/secrets, matching MCP's "the workspace is the sandbox" model.
+    interp.caps = vox_compiler::eval::caps::CapabilitySet::from_roots(
+        vec![workspace_root.to_path_buf()],
+        vec![],
+        &["env:ro", "time:real"],
+    )
+    .expect("workspace root exists");
     interp.set_source_path(source_path);
     interp
         .run_module(&hir)
@@ -82,6 +108,7 @@ fn invoke_mcp_tool_fn(
     source: &str,
     tool_name: &str,
     args: &serde_json::Value,
+    workspace_root: &Path,
 ) -> Result<serde_json::Value, String> {
     let tokens = lex(source);
     let module = parse(tokens).map_err(|errs| {
@@ -98,6 +125,13 @@ fn invoke_mcp_tool_fn(
         .ok_or_else(|| format!("tool {tool_name} not found in {}", source_path.display()))?;
 
     let mut interp = Interpreter::new(100_000);
+    // Explicit, not the constructor's default — see `invoke_mcp_resource_fn`.
+    interp.caps = vox_compiler::eval::caps::CapabilitySet::from_roots(
+        vec![workspace_root.to_path_buf()],
+        vec![],
+        &["env:ro", "time:real"],
+    )
+    .expect("workspace root exists");
     interp.set_source_path(source_path);
     interp
         .run_module(&hir)
@@ -211,6 +245,7 @@ mod tests {
             &result.surface,
             "read_file",
             &serde_json::json!({ "path": "README.md" }),
+            repo,
         )
         .unwrap();
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -228,8 +263,8 @@ mod tests {
             .surface
             .resource_by_uri("vox://golden/mcp-status")
             .expect("golden resource federated");
-        let text =
-            dispatch_workspace_resource(&result.surface, "vox://golden/mcp-status").expect("read");
+        let text = dispatch_workspace_resource(&result.surface, "vox://golden/mcp-status", repo)
+            .expect("read");
         assert_eq!(text, "ok");
     }
 }

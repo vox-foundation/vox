@@ -41,7 +41,7 @@ pub fn parse_run_mode_from_str(s: &str) -> RunMode {
 async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
     let source = std::fs::read_to_string(file).context("Failed to read file")?;
 
-    let mut caps = std::collections::HashSet::new();
+    let mut legacy_words = Vec::new();
     let mut has_caps_directive = false;
     if let Some(first_line) = source.lines().next() {
         if first_line.starts_with("// vox:caps ") {
@@ -50,7 +50,7 @@ async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
                 .trim_start_matches("// vox:caps ")
                 .split_whitespace()
             {
-                caps.insert(cap.to_string());
+                legacy_words.push(cap.to_string());
             }
         }
     }
@@ -61,9 +61,15 @@ async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
     let lowered = vox_compiler::hir::lower::lower_module(&module);
 
     let mut interpreter = vox_compiler::eval::Interpreter::new(10_000_000);
-    if has_caps_directive {
-        interpreter.caps = Some(caps);
-    }
+    // Explicit, not the constructor's default: a trusted, interactive `vox run`
+    // grants everything unless the script opts into a narrower legacy directive.
+    // A typed `--caps` CLI flag (repeatable, `ArgAction::Append`) lands in a later
+    // task; this embedder still only understands the `// vox:caps` comment form.
+    interpreter.caps = if has_caps_directive {
+        vox_compiler::eval::caps::CapabilitySet::from_legacy_directive(&legacy_words)
+    } else {
+        vox_compiler::eval::caps::CapabilitySet::developer_default()
+    };
     if let Ok(abs) = std::fs::canonicalize(file) {
         interpreter.set_source_path(abs);
     } else {

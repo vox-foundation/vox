@@ -40,6 +40,9 @@ async fn start_repl() -> Result<()> {
     println!("Type expressions or declarations. Type 'exit' or Ctrl+C to quit.");
 
     let mut interp = Interpreter::new(100_000); // 100k step limit
+    // Explicit, not the constructor's default: `vox play`'s REPL is a trusted,
+    // local session — grant every gated namespace.
+    interp.caps = vox_compiler::eval::caps::CapabilitySet::developer_default();
     let stdin = io::stdin();
     let mut stdout = io::stdout();
     let mut input = String::new();

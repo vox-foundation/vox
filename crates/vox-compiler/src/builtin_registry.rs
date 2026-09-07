@@ -1430,7 +1430,12 @@ mod namespace_builtin_parity_tests {
                 let args: Vec<VoxValue> = (0..argc)
                     .map(|_| VoxValue::Str("x".to_string().into()))
                     .collect();
-                call_builtin_method(&ns_receiver(ns), method, args, None)
+                call_builtin_method(
+                    &ns_receiver(ns),
+                    method,
+                    args,
+                    &crate::eval::caps::CapabilitySet::developer_default(),
+                )
             });
             if matches!(probe, Ok(None)) {
                 missing.push(format!("std.{ns}.{method}"));
@@ -1606,7 +1611,12 @@ mod namespace_builtin_parity_tests {
                     continue;
                 }
             };
-            match call_builtin_method(&receiver(ns), method, args, None) {
+            match call_builtin_method(
+                &receiver(ns),
+                method,
+                args,
+                &crate::eval::caps::CapabilitySet::developer_default(),
+            ) {
                 Some(val) => {
                     if !shape_matches(&ret, &val) {
                         mismatches.push(format!(
@@ -1715,7 +1725,12 @@ mod namespace_builtin_parity_tests {
                     continue;
                 }
             };
-            match call_builtin_method(&receiver(ns), method, args, None) {
+            match call_builtin_method(
+                &receiver(ns),
+                method,
+                args,
+                &crate::eval::caps::CapabilitySet::developer_default(),
+            ) {
                 Some(val) => {
                     if !shape_matches(&ret, &val) {
                         mismatches.push(format!(
