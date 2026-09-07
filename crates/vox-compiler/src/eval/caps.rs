@@ -524,6 +524,10 @@ mod tests {
             again.merge(piece);
         }
         assert_eq!(c.frozen_time_ms(), again.frozen_time_ms());
+        let canon = std::fs::canonicalize(d.path()).unwrap();
+        assert!(again.allows_path(&canon.join("x"), true));
+        assert!(again.allows_namespace("env") && !again.allows_env_write());
+        assert_eq!(c, again);
     }
 
     #[test]

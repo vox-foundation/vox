@@ -3047,4 +3047,33 @@ mod fs_text_robustness_tests {
         );
         assert_eq!(std::fs::read(&p).unwrap(), b"x\ny\n");
     }
+
+    /// Soft-deny must return `Null` *before* the fs arm runs. A missing-file
+    /// read also yields a `Result::Err`, so this uses a real file: if the
+    /// `allows_namespace` guard is deleted, the restrictive call leaks the
+    /// file contents instead of `Null`.
+    #[test]
+    fn restrictive_caps_soft_deny_fs_read_before_the_arm() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("secret.txt");
+        std::fs::write(&p, "SECRET").unwrap();
+        let path = VoxValue::Str(p.to_string_lossy().to_string().into());
+        let leaked = result_ok_str(call_builtin_method(
+            &fs_namespace(),
+            "read",
+            vec![path.clone()],
+            &crate::eval::caps::CapabilitySet::developer_default(),
+        ));
+        assert_eq!(leaked, "SECRET");
+        let denied = call_builtin_method(
+            &fs_namespace(),
+            "read",
+            vec![path],
+            &crate::eval::caps::CapabilitySet::parse("").unwrap(),
+        );
+        assert!(
+            matches!(denied, Some(VoxValue::Null)),
+            "restrictive caps must soft-deny fs.read before the arm; got {denied:?}"
+        );
+    }
 }
