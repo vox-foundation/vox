@@ -211,6 +211,9 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           attention_budget={props.attention_budget}
           waitingQuestions={props.attention?.needsYou.length}
           blockedTasks={props.attention?.blockedTasksCount}
+          attention={props.attention}
+          onOpenFeedbackContext={props.onOpenFeedbackContext}
+          pendingApprovals={props.attention?.approvals.length ?? 0}
           planSessionId={props.chatPlanSessionId}
           planVersion={props.chatPlanVersion}
           onDiscardPlan={props.onDiscardPlan}
