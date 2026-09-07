@@ -1,0 +1,20 @@
+// ---
+// title: "Directory enumeration is sorted"
+// description: "fs.glob and fs.list_dir return sorted paths and propagate errors on both tiers."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, print, fs.glob, fs.list_dir, sorted]
+// training_eligible: true
+// difficulty: beginner
+// ---
+// EXPECT: 2
+// EXPECT: true
+pub fn main() {
+  let xs = match fs.glob("examples/golden/glob_and_listdir_order.vox") {
+    Ok(fs) => fs,
+    Error(e) => []
+  }
+  print(str(len(xs)))
+  print(str(xs is xs.sorted()))
+}

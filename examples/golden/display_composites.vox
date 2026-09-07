@@ -1,0 +1,22 @@
+// ---
+// title: "Display of composite values"
+// description: "print/str of list, object, tuple, Option and Result produce the same text under both tiers."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, print, str, list, object, tuple, Option, Result]
+// training_eligible: true
+// difficulty: beginner
+// ---
+// EXPECT: [1, 2, 3]
+// EXPECT: {a: 1, b: two}
+// EXPECT: (1, two)
+// EXPECT: Some(3)
+// EXPECT: Ok(1)
+pub fn main() {
+  print(str([1, 2, 3]))
+  print(str({a: 1, b: "two"}))
+  print(str((1, "two")))
+  print(str(Some(3)))
+  print(str(Ok(1)))
+}

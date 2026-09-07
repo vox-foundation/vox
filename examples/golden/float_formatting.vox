@@ -1,0 +1,22 @@
+// ---
+// title: "IEEE-exact float formatting"
+// description: "abs/floor/ceil/round/sqrt print the same text on both tiers."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, print, abs, floor, ceil, round, sqrt]
+// training_eligible: true
+// difficulty: beginner
+// ---
+// EXPECT: 2
+// EXPECT: 1
+// EXPECT: 2
+// EXPECT: 2
+// EXPECT: 2
+pub fn main() {
+  print(str(abs(-2.0)))
+  print(str(floor(1.9)))
+  print(str(ceil(1.1)))
+  print(str(round(1.5)))
+  print(str(sqrt(4.0)))
+}
