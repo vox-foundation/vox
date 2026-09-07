@@ -1693,6 +1693,7 @@ export default function App() {
     chatActiveSkillId: activeSkill?.id ?? null,
     onExcludeSkill: excludeSkillAndRetry,
     chatOpenrouterSpendUsd: openrouterSpendUsd,
+    chatSessionSpentUsd: kpis.budgetBurn.value,
     chatAgentStreamItems: activeChatAgentItems,
     onOpenAgentInFlow: (agentId: string) => {
       setSelectedAgentId(agentId);

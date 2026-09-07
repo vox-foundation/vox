@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
@@ -62,6 +62,10 @@ describe('ChatSurface', () => {
       }
       return Promise.resolve(null);
     });
+  });
+
+  afterEach(() => {
+    localStorage.removeItem('vox.metric.series.v1.chat.session-spend');
   });
 
   it('has exactly one accessible h1 for the surface root (axe page-has-heading-one)', async () => {
@@ -294,6 +298,32 @@ describe('ChatSurface', () => {
       expect(screen.getByTestId('chat-dock-execution-rail')).toBeInTheDocument();
     });
     expect(screen.queryByTestId('chat-dock-sessions')).toBeNull();
+  });
+
+  it('shows a session-spend spark after sessionSpentUsd changes', async () => {
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          messages={[]}
+          composer={<div>composer</div>}
+          sessionSpentUsd={0.1}
+        />
+      </LanguageProvider>,
+    );
+    rerender(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          messages={[]}
+          composer={<div>composer</div>}
+          sessionSpentUsd={0.4}
+        />
+      </LanguageProvider>,
+    );
+    expect(await screen.findByTestId('execution-rail-spend-spark')).toBeInTheDocument();
   });
 
   it('transcript dock does not use overflow-y-auto on the panel that hosts the composer', async () => {
