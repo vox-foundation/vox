@@ -7,7 +7,7 @@
 
 use abi_stable::{sabi_trait, std_types::*};
 
-pub const BROWSER_AUTOMATION_REVISION: u32 = 4;
+pub const BROWSER_AUTOMATION_REVISION: u32 = 5;
 
 #[sabi_trait]
 pub trait BrowserAutomation: Send + Sync {
@@ -100,6 +100,38 @@ pub trait BrowserAutomation: Send + Sync {
 
     /// Full AX tree as a JSON string.
     fn ax_tree(&self, page_id: RStr<'_>) -> RResult<RString, RBoxError>;
+
+    /// Return a compact accessibility snapshot and stable element refs as JSON.
+    /// Empty `options_json` uses the default snapshot limits.
+    fn snapshot(&self, page_id: RStr<'_>, options_json: RStr<'_>) -> RResult<RString, RBoxError>;
+
+    /// Click an element from the last snapshot. `options_json` accepts
+    /// `{"respect_sensitive":bool}`; empty defaults to `true`.
+    fn click_ref(
+        &self,
+        page_id: RStr<'_>,
+        ref_id: RStr<'_>,
+        options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError>;
+
+    /// Fill an element from the last snapshot. `options_json` accepts
+    /// `{"respect_sensitive":bool}`; empty defaults to `true`.
+    fn fill_ref(
+        &self,
+        page_id: RStr<'_>,
+        ref_id: RStr<'_>,
+        value: RStr<'_>,
+        options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError>;
+
+    /// Open a browser using the JSON launch options contract.
+    fn open_ex(&self, options_json: RStr<'_>) -> RResult<RString, RBoxError>;
+
+    /// Export cookies for a page as JSON.
+    fn cookies_export(&self, page_id: RStr<'_>) -> RResult<RString, RBoxError>;
+
+    /// Import cookies for a page from JSON.
+    fn cookies_import(&self, page_id: RStr<'_>, cookies_json: RStr<'_>) -> RResult<(), RBoxError>;
 
     /// Close the tab and release its CDP resources.
     fn close(&self, page_id: RStr<'_>) -> RResult<(), RBoxError>;

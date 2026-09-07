@@ -98,6 +98,39 @@ impl BrowserAutomation for DummyBrowser {
     fn ax_tree(&self, _page_id: RStr<'_>) -> RResult<RString, RBoxError> {
         RResult::ROk(RString::from("[]"))
     }
+    fn snapshot(&self, _page_id: RStr<'_>, _options_json: RStr<'_>) -> RResult<RString, RBoxError> {
+        RResult::ROk(RString::from("{}"))
+    }
+    fn click_ref(
+        &self,
+        _page_id: RStr<'_>,
+        _ref_id: RStr<'_>,
+        _options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        RResult::ROk(RString::from("{}"))
+    }
+    fn fill_ref(
+        &self,
+        _page_id: RStr<'_>,
+        _ref_id: RStr<'_>,
+        _value: RStr<'_>,
+        _options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        RResult::ROk(RString::from("{}"))
+    }
+    fn open_ex(&self, _options_json: RStr<'_>) -> RResult<RString, RBoxError> {
+        RResult::RErr(RBoxError::new(std::io::Error::other("not_implemented")))
+    }
+    fn cookies_export(&self, _page_id: RStr<'_>) -> RResult<RString, RBoxError> {
+        RResult::RErr(RBoxError::new(std::io::Error::other("not_implemented")))
+    }
+    fn cookies_import(
+        &self,
+        _page_id: RStr<'_>,
+        _cookies_json: RStr<'_>,
+    ) -> RResult<(), RBoxError> {
+        RResult::RErr(RBoxError::new(std::io::Error::other("not_implemented")))
+    }
     fn close(&self, _page_id: RStr<'_>) -> RResult<(), RBoxError> {
         RResult::ROk(())
     }
@@ -107,4 +140,12 @@ impl BrowserAutomation for DummyBrowser {
 fn dummy_browser_constructs() {
     let _: BrowserAutomation_TO<'static, RBox<()>> =
         BrowserAutomation_TO::from_value(DummyBrowser, TD_Opaque);
+}
+
+#[test]
+fn revision_constant_is_five() {
+    assert_eq!(
+        vox_plugin_api::extensions::browser_automation::BROWSER_AUTOMATION_REVISION,
+        5
+    );
 }

@@ -97,20 +97,34 @@ fn with_browser_plugin<F, T>(f: F) -> anyhow::Result<T>
 where
     F: FnOnce(&'static vox_plugin_host::loader::LoadedCodePlugin) -> anyhow::Result<T>,
 {
+    let plugin = require_browser_revision(1)?;
+    f(plugin)
+}
+
+/// Load the browser plugin only if it supports the requested extension revision.
+///
+/// New browser methods must call this with revision 5 before touching their
+/// revision-5 vtable entries. Existing methods remain compatible with revision 1.
+fn require_browser_revision(
+    minimum: u32,
+) -> anyhow::Result<&'static vox_plugin_host::loader::LoadedCodePlugin> {
     let plugin = vox_plugin_host::cached_code_plugin("browser")
         .map_err(|e| anyhow::anyhow!("browser plugin load: {e}"))?;
-    // Verify the accessor is present before handing off.
-    if plugin
+    let browser = plugin
         .plugin
         .as_browser_automation()
         .into_option()
-        .is_none()
-    {
+        .ok_or_else(|| {
+            anyhow::anyhow!("browser plugin loaded but BrowserAutomation accessor returned None")
+        })?;
+    let actual = browser.revision();
+    if actual < minimum {
         return Err(anyhow::anyhow!(
-            "browser plugin loaded but BrowserAutomation accessor returned None"
+            "browser plugin revision {actual} is too old; revision {minimum} is required. \
+             Rebuild/reinstall the browser plugin."
         ));
     }
-    f(plugin)
+    Ok(plugin)
 }
 
 /// Convenience: get the BrowserAutomation accessor, panicking if absent (guarded by

@@ -6,9 +6,11 @@
 use std::sync::Arc;
 
 use abi_stable::std_types::*;
+use serde::Deserialize;
 use vox_plugin_api::extensions::browser_automation::BrowserAutomation;
 
 use crate::engine::{BrowserEngine, global_engine};
+use crate::snapshot::SnapshotOptions;
 
 /// The Tokio runtime used by the plugin for all async operations.
 fn rt() -> &'static tokio::runtime::Runtime {
@@ -41,6 +43,63 @@ fn to_rresult<T>(r: Result<T, String>) -> RResult<T, RBoxError> {
     match r {
         Ok(v) => RResult::ROk(v),
         Err(e) => RResult::RErr(RBoxError::new(std::io::Error::other(e))),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct SnapshotOptionsJson {
+    interactive_only: bool,
+    max_depth: u32,
+    max_nodes: u32,
+    include_boxes: bool,
+}
+
+impl Default for SnapshotOptionsJson {
+    fn default() -> Self {
+        let defaults = SnapshotOptions::default();
+        Self {
+            interactive_only: defaults.interactive_only,
+            max_depth: defaults.max_depth,
+            max_nodes: defaults.max_nodes,
+            include_boxes: defaults.include_boxes,
+        }
+    }
+}
+
+impl From<SnapshotOptionsJson> for SnapshotOptions {
+    fn from(value: SnapshotOptionsJson) -> Self {
+        Self {
+            interactive_only: value.interactive_only,
+            max_depth: value.max_depth,
+            max_nodes: value.max_nodes,
+            include_boxes: value.include_boxes,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct RefActionOptions {
+    respect_sensitive: bool,
+}
+
+impl Default for RefActionOptions {
+    fn default() -> Self {
+        Self {
+            respect_sensitive: true,
+        }
+    }
+}
+
+fn parse_options<T>(raw: &str) -> Result<T, String>
+where
+    T: Default + serde::de::DeserializeOwned,
+{
+    if raw.trim().is_empty() {
+        Ok(T::default())
+    } else {
+        serde_json::from_str(raw).map_err(|e| format!("invalid options_json: {e}"))
     }
 }
 
@@ -251,6 +310,89 @@ impl BrowserAutomation for BrowserPlugin {
                 .and_then(|v| serde_json::to_string(&v).map_err(|e| e.to_string()))
                 .map(RString::from),
         )
+    }
+
+    fn snapshot(&self, page_id: RStr<'_>, options_json: RStr<'_>) -> RResult<RString, RBoxError> {
+        let options = match parse_options::<SnapshotOptionsJson>(options_json.as_str()) {
+            Ok(options) => SnapshotOptions::from(options),
+            Err(error) => return to_rresult(Err(error)),
+        };
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let result = rt().block_on(async move { engine.snapshot(&page_id, options).await });
+        to_rresult(
+            result
+                .and_then(|snapshot| serde_json::to_string(&snapshot).map_err(|e| e.to_string()))
+                .map(RString::from),
+        )
+    }
+
+    fn click_ref(
+        &self,
+        page_id: RStr<'_>,
+        ref_id: RStr<'_>,
+        options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        let options = match parse_options::<RefActionOptions>(options_json.as_str()) {
+            Ok(options) => options,
+            Err(error) => return to_rresult(Err(error)),
+        };
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let ref_id = ref_id.to_string();
+        let result = rt().block_on(async move {
+            engine
+                .click_ref(&page_id, &ref_id, options.respect_sensitive)
+                .await
+        });
+        to_rresult(
+            result
+                .and_then(|value| serde_json::to_string(&value).map_err(|e| e.to_string()))
+                .map(RString::from),
+        )
+    }
+
+    fn fill_ref(
+        &self,
+        page_id: RStr<'_>,
+        ref_id: RStr<'_>,
+        value: RStr<'_>,
+        options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        let options = match parse_options::<RefActionOptions>(options_json.as_str()) {
+            Ok(options) => options,
+            Err(error) => return to_rresult(Err(error)),
+        };
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let ref_id = ref_id.to_string();
+        let value = value.to_string();
+        let result = rt().block_on(async move {
+            engine
+                .fill_ref(&page_id, &ref_id, &value, options.respect_sensitive)
+                .await
+        });
+        to_rresult(
+            result
+                .and_then(|value| serde_json::to_string(&value).map_err(|e| e.to_string()))
+                .map(RString::from),
+        )
+    }
+
+    fn open_ex(&self, _options_json: RStr<'_>) -> RResult<RString, RBoxError> {
+        to_rresult(Err("not_implemented".to_string()))
+    }
+
+    fn cookies_export(&self, _page_id: RStr<'_>) -> RResult<RString, RBoxError> {
+        to_rresult(Err("not_implemented".to_string()))
+    }
+
+    fn cookies_import(
+        &self,
+        _page_id: RStr<'_>,
+        _cookies_json: RStr<'_>,
+    ) -> RResult<(), RBoxError> {
+        to_rresult(Err("not_implemented".to_string()))
     }
 
     fn close(&self, page_id: RStr<'_>) -> RResult<(), RBoxError> {
