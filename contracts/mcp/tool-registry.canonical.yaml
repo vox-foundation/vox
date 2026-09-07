@@ -198,6 +198,11 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_browser_click_ref
+  description: Click an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_browser_click_xy
   description: Click at viewport coordinates (x,y) on an existing page_id session.
   product_lane: interop
@@ -220,6 +225,11 @@ tools:
   tier: core
 - name: vox_browser_fill
   description: Focus an input and type text (CSS selector or xpath:/…).
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_fill_ref
+  description: Fill an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -290,6 +300,11 @@ tools:
   tier: core
 - name: vox_browser_set_viewport
   description: Set viewport width/height for deterministic coordinate mapping.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_snapshot
+  description: Capture a compact accessibility snapshot with stable element refs for ref-based actions; use these refs instead of CSS selectors.
   product_lane: interop
   http_read_role_eligible: false
   tier: core

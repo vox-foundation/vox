@@ -578,6 +578,76 @@ fn default_headless_true() -> bool {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(deny_unknown_fields)]
+pub struct BrowserSnapshotParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[serde(default = "default_true_interactive")]
+    pub interactive_only: bool,
+    #[serde(default = "default_max_depth")]
+    pub max_depth: u32,
+    #[serde(default = "default_max_nodes")]
+    pub max_nodes: u32,
+    #[serde(default)]
+    pub include_boxes: bool,
+}
+
+fn default_true_interactive() -> bool {
+    true
+}
+
+fn default_max_depth() -> u32 {
+    12
+}
+
+fn default_max_nodes() -> u32 {
+    80
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserRefParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[serde(rename = "ref")]
+    #[schemars(length(min = 1, max = 16))]
+    pub ref_id: String,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserFillRefParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[serde(rename = "ref")]
+    #[schemars(length(min = 1, max = 16))]
+    pub ref_id: String,
+    #[schemars(length(min = 1, max = 131072))]
+    pub value: String,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
+}
+
+#[cfg(test)]
+mod browser_param_tests {
+    use super::BrowserSnapshotParams;
+
+    #[test]
+    fn snapshot_params_default_interactive() {
+        let p: BrowserSnapshotParams =
+            serde_json::from_str(r#"{"page_id":"p1"}"#).expect("parse snapshot params");
+        assert!(p.interactive_only);
+        assert_eq!(p.max_depth, 12);
+        assert_eq!(p.max_nodes, 80);
+        assert!(!p.include_boxes);
+    }
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
 pub struct BrowserPageParams {
     /// Session id returned by `vox_browser_open`.
     #[schemars(length(min = 1, max = 256))]

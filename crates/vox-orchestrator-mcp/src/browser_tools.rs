@@ -4,14 +4,14 @@
 //! Dispatches through vox-plugin-host / BrowserAutomation sabi trait.
 //! All blocking CDP work runs inside `tokio::task::spawn_blocking`.
 
-use crate::caller_role::trusted_caller_role;
+use crate::caller_role::{CallerRole, trusted_caller_role};
 use crate::llm_bridge::call_llm;
 use crate::params::{
     BrowserActParams, BrowserClickPointParams, BrowserControlLockParams, BrowserExtractJsonParams,
-    BrowserExtractParams, BrowserFillParams, BrowserGotoParams, BrowserHtmlParams,
-    BrowserKeyParams, BrowserOpenParams, BrowserPageParams, BrowserScreenshotParams,
-    BrowserScrollParams, BrowserTargetParams, BrowserTypeParams, BrowserViewportParams,
-    BrowserWaitParams, ToolResult,
+    BrowserExtractParams, BrowserFillParams, BrowserFillRefParams, BrowserGotoParams,
+    BrowserHtmlParams, BrowserKeyParams, BrowserOpenParams, BrowserPageParams, BrowserRefParams,
+    BrowserScreenshotParams, BrowserScrollParams, BrowserSnapshotParams, BrowserTargetParams,
+    BrowserTypeParams, BrowserViewportParams, BrowserWaitParams, ToolResult,
 };
 use crate::server_state::ServerState;
 use serde::Deserialize;
@@ -206,6 +206,99 @@ pub async fn browser_page_info(_state: &ServerState, p: BrowserPageParams) -> St
     .await
     {
         Ok(Ok(info)) => ToolResult::ok(serde_json::json!({ "info": info })).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
+    }
+}
+
+pub async fn browser_snapshot(_state: &ServerState, p: BrowserSnapshotParams) -> String {
+    let page_id = p.page_id.clone();
+    let options_json = serde_json::json!({
+        "interactive_only": p.interactive_only,
+        "max_depth": p.max_depth,
+        "max_nodes": p.max_nodes,
+        "include_boxes": p.include_boxes,
+    })
+    .to_string();
+    match tokio::task::spawn_blocking(move || {
+        let plugin = require_browser_revision(5)?;
+        let b = backend!(plugin);
+        let raw = b
+            .snapshot(page_id.as_str().into(), options_json.as_str().into())
+            .into_result()
+            .map(|s| s.into_string())
+            .map_err(|e| anyhow::anyhow!("browser snapshot: {e}"))?;
+        parse_backend_json(raw).map_err(|e| anyhow::anyhow!("browser snapshot: {e}"))
+    })
+    .await
+    {
+        Ok(Ok(snapshot)) => ToolResult::ok(snapshot).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
+    }
+}
+
+pub async fn browser_click_ref(_state: &ServerState, p: BrowserRefParams) -> String {
+    if let Err(e) = ensure_control_lock(&p.page_id).await {
+        return ToolResult::<serde_json::Value>::err(e).to_json();
+    }
+    let page_id = p.page_id.clone();
+    let ref_id = p.ref_id.clone();
+    let options_json = serde_json::json!({
+        "respect_sensitive": trusted_caller_role() != CallerRole::Human,
+    })
+    .to_string();
+    match tokio::task::spawn_blocking(move || {
+        let plugin = require_browser_revision(5)?;
+        let b = backend!(plugin);
+        let raw = b
+            .click_ref(
+                page_id.as_str().into(),
+                ref_id.as_str().into(),
+                options_json.as_str().into(),
+            )
+            .into_result()
+            .map(|s| s.into_string())
+            .map_err(|e| anyhow::anyhow!("browser click_ref: {e}"))?;
+        parse_backend_json(raw).map_err(|e| anyhow::anyhow!("browser click_ref: {e}"))
+    })
+    .await
+    {
+        Ok(Ok(result)) => ToolResult::ok(result).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
+    }
+}
+
+pub async fn browser_fill_ref(_state: &ServerState, p: BrowserFillRefParams) -> String {
+    if let Err(e) = ensure_control_lock(&p.page_id).await {
+        return ToolResult::<serde_json::Value>::err(e).to_json();
+    }
+    let page_id = p.page_id.clone();
+    let ref_id = p.ref_id.clone();
+    let value = p.value.clone();
+    let options_json = serde_json::json!({
+        "respect_sensitive": trusted_caller_role() != CallerRole::Human,
+    })
+    .to_string();
+    match tokio::task::spawn_blocking(move || {
+        let plugin = require_browser_revision(5)?;
+        let b = backend!(plugin);
+        let raw = b
+            .fill_ref(
+                page_id.as_str().into(),
+                ref_id.as_str().into(),
+                value.as_str().into(),
+                options_json.as_str().into(),
+            )
+            .into_result()
+            .map(|s| s.into_string())
+            .map_err(|e| anyhow::anyhow!("browser fill_ref: {e}"))?;
+        parse_backend_json(raw).map_err(|e| anyhow::anyhow!("browser fill_ref: {e}"))
+    })
+    .await
+    {
+        Ok(Ok(result)) => ToolResult::ok(result).to_json(),
         Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
         Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
