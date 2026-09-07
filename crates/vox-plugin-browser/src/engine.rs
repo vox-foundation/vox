@@ -8,16 +8,16 @@ use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
-use crate::host::HostInner;
+use crate::hosts::HostRegistry;
 
 pub struct BrowserEngine {
-    pub(crate) host: Mutex<Option<HostInner>>,
+    pub(crate) host: Mutex<HostRegistry>,
 }
 
 impl Default for BrowserEngine {
     fn default() -> Self {
         Self {
-            host: Mutex::new(None),
+            host: Mutex::new(HostRegistry::new()),
         }
     }
 }

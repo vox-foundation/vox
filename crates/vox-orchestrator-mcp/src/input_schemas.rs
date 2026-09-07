@@ -146,6 +146,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Browser (CDP / chromiumoxide) ───────────────────────────────────
         "vox_browser_open" => derived_tool_schema!(crate::params::BrowserOpenParams),
+        "vox_browser_open_ex" => derived_tool_schema!(crate::params::BrowserOpenExParams),
         "vox_browser_close" => derived_tool_schema!(crate::params::BrowserPageParams),
         "vox_browser_goto" => derived_tool_schema!(crate::params::BrowserGotoParams),
         "vox_browser_click" | "vox_browser_text" => {

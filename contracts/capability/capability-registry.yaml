@@ -6264,6 +6264,22 @@ curated:
   mcp_tool: vox_browser_open
   cli_path: null
   parameters: null
+- id: mcp.vox_browser_open_ex
+  title: Browser Open Extended
+  description_human: null
+  description_model: Open a Chromium tab with launch mode ephemeral, named, or attach. Named mode requires save_profile or stored cookie consent. Empty VOX_BROWSER_ALLOWED_HOSTS with Named or Attach is an operator risk — set the var in production.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_open_ex
+  cli_path: null
+  parameters: null
 - id: mcp.vox_browser_page_info
   title: Browser Page Info
   description_human: null

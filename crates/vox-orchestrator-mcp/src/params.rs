@@ -576,6 +576,36 @@ fn default_headless_true() -> bool {
     true
 }
 
+#[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BrowserLaunchModeParam {
+    #[default]
+    Ephemeral,
+    Named,
+    Attach,
+}
+
+/// Open a Chromium tab with ephemeral, named, or attach launch options.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserOpenExParams {
+    /// Initial URL to navigate to.
+    #[schemars(length(min = 1, max = 8192))]
+    pub url: String,
+    /// When false, run a visible browser window (default true = headless).
+    #[serde(default = "default_headless_true")]
+    pub headless: bool,
+    #[serde(default)]
+    pub mode: BrowserLaunchModeParam,
+    #[serde(default)]
+    pub profile_id: Option<String>,
+    #[serde(default)]
+    pub cdp_url: Option<String>,
+    /// Persist cookies into the named profile. Required unless consent is stored.
+    #[serde(default)]
+    pub save_profile: bool,
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(deny_unknown_fields)]
 pub struct BrowserSnapshotParams {
@@ -633,7 +663,7 @@ pub struct BrowserFillRefParams {
 
 #[cfg(test)]
 mod browser_param_tests {
-    use super::BrowserSnapshotParams;
+    use super::{BrowserOpenExParams, BrowserSnapshotParams};
 
     #[test]
     fn snapshot_params_default_interactive() {
@@ -643,6 +673,15 @@ mod browser_param_tests {
         assert_eq!(p.max_depth, 12);
         assert_eq!(p.max_nodes, 80);
         assert!(!p.include_boxes);
+    }
+
+    #[test]
+    fn open_ex_params_default_save_profile_false() {
+        let p: BrowserOpenExParams =
+            serde_json::from_str(r#"{"url":"https://example.com"}"#).expect("parse open_ex params");
+        assert!(!p.save_profile);
+        assert!(matches!(p.mode, super::BrowserLaunchModeParam::Ephemeral));
+        assert!(p.headless);
     }
 }
 

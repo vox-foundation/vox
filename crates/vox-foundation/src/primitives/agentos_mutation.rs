@@ -14,6 +14,7 @@ pub fn mutation_kind_for_tool(name: &str) -> &'static str {
         | "vox_speech_to_code"
         | "vox_visual_rag_query"
         | "vox_browser_open"
+        | "vox_browser_open_ex"
         | "vox_browser_close"
         | "vox_browser_goto"
         | "vox_browser_click"

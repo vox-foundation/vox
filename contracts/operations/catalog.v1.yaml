@@ -1368,6 +1368,26 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: browser.open.ex
+  title: Browser Open Extended
+  description: Open a Chromium tab with launch mode ephemeral, named, or attach. Named mode requires save_profile or stored cookie consent. Empty VOX_BROWSER_ALLOWED_HOSTS with Named or Attach is an operator risk — set the var in production.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_open_ex
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: browser.list.pages
   title: Browser List Pages
   description: List all currently open browser sessions with page_id, URL, and title.

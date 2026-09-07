@@ -9,9 +9,9 @@ use crate::llm_bridge::call_llm;
 use crate::params::{
     BrowserActParams, BrowserClickPointParams, BrowserControlLockParams, BrowserExtractJsonParams,
     BrowserExtractParams, BrowserFillParams, BrowserFillRefParams, BrowserGotoParams,
-    BrowserHtmlParams, BrowserKeyParams, BrowserOpenParams, BrowserPageParams, BrowserRefParams,
-    BrowserScreenshotParams, BrowserScrollParams, BrowserSnapshotParams, BrowserTargetParams,
-    BrowserTypeParams, BrowserViewportParams, BrowserWaitParams, ToolResult,
+    BrowserHtmlParams, BrowserKeyParams, BrowserOpenExParams, BrowserOpenParams, BrowserPageParams,
+    BrowserRefParams, BrowserScreenshotParams, BrowserScrollParams, BrowserSnapshotParams,
+    BrowserTargetParams, BrowserTypeParams, BrowserViewportParams, BrowserWaitParams, ToolResult,
 };
 use crate::server_state::ServerState;
 use serde::Deserialize;
@@ -173,6 +173,44 @@ pub async fn browser_open(_state: &ServerState, p: BrowserOpenParams) -> String 
         Ok(Err(e)) => ToolResult::<serde_json::Value>::err_with_remediation(
             e.to_string(),
             "Install Chromium/Chrome or set VOX_CHROME_EXECUTABLE; for containers try VOX_BROWSER_NO_SANDBOX=1.",
+        )
+        .to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
+    }
+}
+
+pub async fn browser_open_ex(_state: &ServerState, p: BrowserOpenExParams) -> String {
+    let options_json = serde_json::to_string(&serde_json::json!({
+        "url": p.url,
+        "headless": p.headless,
+        "mode": match p.mode {
+            crate::params::BrowserLaunchModeParam::Ephemeral => "ephemeral",
+            crate::params::BrowserLaunchModeParam::Named => "named",
+            crate::params::BrowserLaunchModeParam::Attach => "attach",
+        },
+        "profile_id": p.profile_id,
+        "cdp_url": p.cdp_url,
+        "save_profile": p.save_profile,
+    }))
+    .unwrap_or_else(|_| "{}".to_string());
+    match tokio::task::spawn_blocking(move || {
+        let plugin = require_browser_revision(5)?;
+        let b = backend!(plugin);
+        b.open_ex(options_json.as_str().into())
+            .into_result()
+            .map(|s| s.into_string())
+            .map_err(|e| anyhow::anyhow!("browser open_ex: {e}"))
+    })
+    .await
+    {
+        Ok(Ok(page_id)) => ToolResult::ok(serde_json::json!({
+            "page_id": page_id,
+            "url": p.url,
+        }))
+        .to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err_with_remediation(
+            e.to_string(),
+            "Named mode needs save_profile or stored consent. Attach is not implemented yet. Empty VOX_BROWSER_ALLOWED_HOSTS with Named/Attach is an operator risk — set the var in production.",
         )
         .to_json(),
         Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),

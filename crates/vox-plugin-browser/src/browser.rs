@@ -10,6 +10,7 @@ use serde::Deserialize;
 use vox_plugin_api::extensions::browser_automation::BrowserAutomation;
 
 use crate::engine::{BrowserEngine, global_engine};
+use crate::policy::{BrowserLaunchMode, BrowserLaunchOptions};
 use crate::snapshot::SnapshotOptions;
 
 /// The Tokio runtime used by the plugin for all async operations.
@@ -74,6 +75,30 @@ impl From<SnapshotOptionsJson> for SnapshotOptions {
             max_depth: value.max_depth,
             max_nodes: value.max_nodes,
             include_boxes: value.include_boxes,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct OpenExJson {
+    url: String,
+    headless: bool,
+    mode: BrowserLaunchMode,
+    profile_id: Option<String>,
+    cdp_url: Option<String>,
+    save_profile: bool,
+}
+
+impl Default for OpenExJson {
+    fn default() -> Self {
+        Self {
+            url: String::new(),
+            headless: true,
+            mode: BrowserLaunchMode::Ephemeral,
+            profile_id: None,
+            cdp_url: None,
+            save_profile: false,
         }
     }
 }
@@ -386,8 +411,25 @@ impl BrowserAutomation for BrowserPlugin {
         )
     }
 
-    fn open_ex(&self, _options_json: RStr<'_>) -> RResult<RString, RBoxError> {
-        to_rresult(Err("not_implemented".to_string()))
+    fn open_ex(&self, options_json: RStr<'_>) -> RResult<RString, RBoxError> {
+        let parsed = match parse_options::<OpenExJson>(options_json.as_str()) {
+            Ok(parsed) => parsed,
+            Err(error) => return to_rresult(Err(error)),
+        };
+        if parsed.url.trim().is_empty() {
+            return to_rresult(Err("url is required".to_string()));
+        }
+        let save_profile = parsed.save_profile;
+        let opts = BrowserLaunchOptions {
+            url: parsed.url,
+            headless: parsed.headless,
+            mode: parsed.mode,
+            profile_id: parsed.profile_id,
+            cdp_url: parsed.cdp_url,
+        };
+        let engine = self.engine.clone();
+        let result = rt().block_on(async move { engine.open_ex(opts, save_profile).await });
+        to_rresult(result.map(RString::from))
     }
 
     fn cookies_export(&self, _page_id: RStr<'_>) -> RResult<RString, RBoxError> {

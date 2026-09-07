@@ -25,6 +25,27 @@ pub fn data_dir() -> Option<PathBuf> {
     Some(path)
 }
 
+/// Named Chromium profile roots (`{id}/` + `consents.json`).
+///
+/// `VOX_BROWSER_PROFILES_DIR` overrides; otherwise `<data_dir>/browser-profiles`.
+/// This is user data, not a Tier D cache.
+pub fn browser_profiles_dir() -> PathBuf {
+    resolve_browser_profiles_dir(
+        std::env::var("VOX_BROWSER_PROFILES_DIR").ok().as_deref(),
+        data_dir(),
+    )
+}
+
+fn resolve_browser_profiles_dir(override_dir: Option<&str>, data: Option<PathBuf>) -> PathBuf {
+    if let Some(dir) = override_dir
+        && !dir.is_empty()
+    {
+        return PathBuf::from(dir);
+    }
+    data.unwrap_or_else(|| std::env::temp_dir().join("vox"))
+        .join("browser-profiles")
+}
+
 /// Default database path: `<data_dir>/vox.db`.
 pub fn default_db_path() -> Option<PathBuf> {
     data_dir().map(|d| d.join(DEFAULT_DB_FILENAME))
@@ -271,6 +292,26 @@ mod dot_vox_user_dir_tests {
         assert_eq!(
             root.join("script-cache-wasi"),
             PathBuf::from("/mnt/vox-home/script-cache-wasi")
+        );
+    }
+
+    #[test]
+    fn browser_profiles_dir_uses_override_env() {
+        // Explicit override arg avoids edition-2024 `set_var` (same style as
+        // `resolve_dot_vox_user_dir`). Empty override falls back under data_dir.
+        let override_dir = PathBuf::from("/tmp/vox-browser-profiles-override");
+        assert_eq!(
+            resolve_browser_profiles_dir(Some(override_dir.to_str().unwrap()), None),
+            override_dir
+        );
+        let data = PathBuf::from("/data/vox");
+        assert_eq!(
+            resolve_browser_profiles_dir(None, Some(data.clone())),
+            data.join("browser-profiles")
+        );
+        assert_eq!(
+            resolve_browser_profiles_dir(Some(""), Some(data.clone())),
+            data.join("browser-profiles")
         );
     }
 }

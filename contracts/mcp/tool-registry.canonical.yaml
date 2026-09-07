@@ -258,6 +258,11 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_browser_open_ex
+  description: Open a Chromium tab with launch mode ephemeral, named, or attach. Named mode requires save_profile or stored cookie consent. Empty VOX_BROWSER_ALLOWED_HOSTS with Named or Attach is an operator risk — set the var in production.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_browser_page_info
   description: Get URL/title and history navigation booleans for page_id.
   product_lane: interop

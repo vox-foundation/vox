@@ -199,6 +199,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_BROWSER_PROFILES_DIR"
+    owner_crate: "vox-config"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Override directory for named Chromium profiles and consents.json; default is <data_dir>/browser-profiles."
   - name: "VOX_BUDGET_USD"
     owner_crate: "vox-secrets"
     kind: "string"

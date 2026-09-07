@@ -50,9 +50,7 @@ impl BrowserEngine {
 
         {
             let mut guard = self.host.lock().await;
-            let host = guard
-                .as_mut()
-                .ok_or_else(|| "no browser host; call open first".to_string())?;
+            let host = guard.host_for_page_mut(page_id)?;
             host.ref_maps
                 .insert(page_id.to_string(), compact.refs.clone());
         }
@@ -120,7 +118,8 @@ impl BrowserEngine {
     async fn last_ref(&self, page_id: &str, ref_id: &str) -> Result<AxRef, String> {
         let guard = self.host.lock().await;
         let map = guard
-            .as_ref()
+            .host_for_page(page_id)
+            .ok()
             .and_then(|host| host.ref_maps.get(page_id))
             .ok_or_else(|| stale_ref_error(ref_id))?;
         lookup_ref(map, ref_id).cloned()
@@ -130,7 +129,7 @@ impl BrowserEngine {
     /// clears them so callers recover from `stale_ref` by taking a fresh snapshot.
     pub(crate) async fn clear_ref_map(&self, page_id: &str) {
         let mut guard = self.host.lock().await;
-        if let Some(host) = guard.as_mut() {
+        if let Ok(host) = guard.host_for_page_mut(page_id) {
             host.ref_maps.remove(page_id);
         }
     }

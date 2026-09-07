@@ -8,6 +8,7 @@
 mod browser;
 mod engine;
 mod host;
+mod hosts;
 mod input;
 mod policy;
 mod ref_actions;

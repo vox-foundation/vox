@@ -1771,6 +1771,10 @@ async fn handle_tool_call_inner(
             Ok(browser_tools::browser_act(state, serde_json::from_value(args)?).await)
         }
         #[cfg(feature = "heavy-browser")]
+        "vox_browser_open_ex" => {
+            Ok(browser_tools::browser_open_ex(state, serde_json::from_value(args)?).await)
+        }
+        #[cfg(feature = "heavy-browser")]
         "vox_browser_snapshot" => {
             Ok(browser_tools::browser_snapshot(state, serde_json::from_value(args)?).await)
         }
@@ -1993,6 +1997,7 @@ mod registry_dispatch_tests {
         "vox_browser_extract_json",
         "vox_browser_act",
         "vox_browser_snapshot",
+        "vox_browser_open_ex",
         "vox_browser_click_ref",
         "vox_browser_fill_ref",
         // T0.3: always_requires_approval — parks unconditionally under every
