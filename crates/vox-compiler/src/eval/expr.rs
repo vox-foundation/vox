@@ -424,49 +424,15 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             let c = eval_expr(interp, callee)?;
             match c {
                 VoxValue::Fn {
-                    params,
-                    body,
-                    mut env,
-                    name: fn_name,
+                    ref name,
                     is_versioned,
-                    is_traced: _,
+                    ..
                 } => {
-                    env.push_frame();
-                    for (p, arg) in params.iter().zip(eval_args) {
-                        env.set(p.clone(), arg);
-                    }
-
-                    let old_scope = interp.scope.clone();
-                    interp.scope = env;
-
-                    // Run the body in a closure so the scope is restored on BOTH
-                    // success and the `?` error path (a leaked scope would corrupt
-                    // later evaluation when the interpreter is reused, e.g. the
-                    // `@test` runner).
-                    let result: Result<VoxValue, EvalError> = (|| {
-                        let mut val = VoxValue::Null;
-                        for stmt in body.iter() {
-                            val = super::stmt::eval_stmt(interp, stmt)?;
-                            if let VoxValue::_Return(v) = val {
-                                val = *v;
-                                break;
-                            }
-                            if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
-                                break;
-                            }
-                        }
-                        Ok(val)
-                    })();
-
-                    interp.scope = old_scope;
-                    let val = result?;
-
-                    // P5: auto-checkpoint on successful return of a @versioned
-                    // function. `result?` above already restored the scope (on
-                    // BOTH success and error) and short-circuits on error, so a
-                    // checkpoint is recorded only for a successful call — never
-                    // for a failed one. Restrictive embedders (`parse("")`,
-                    // MCP `from_roots`) must not snapshot.
+                    // Named calls share `apply_closure` so the depth bound
+                    // (rev 3: increment only around closure application, not
+                    // every `eval_expr`) covers recursive `fn` as well as lambdas.
+                    let fn_name = name.clone();
+                    let val = apply_closure(interp, &c, eval_args)?;
                     if is_versioned {
                         if !interp.caps.allows_versioned_snapshot() {
                             return Err(EvalError::CapabilityDenied {
@@ -1037,6 +1003,11 @@ fn apply_closure(
         }
     };
 
+    if interp.eval_depth >= crate::eval::MAX_EVAL_DEPTH {
+        return Err(EvalError::RecursionLimitExceeded);
+    }
+    interp.eval_depth += 1;
+
     let mut new_env = env;
     new_env.push_frame();
     for (p, arg) in params.iter().zip(args) {
@@ -1060,6 +1031,7 @@ fn apply_closure(
         Ok(val)
     })();
     interp.scope = old_scope;
+    interp.eval_depth -= 1;
     let val = result?;
 
     if let VoxValue::_Panic(msg) = val {

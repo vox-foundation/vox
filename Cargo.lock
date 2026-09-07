@@ -17079,6 +17079,7 @@ dependencies = [
  "logos 0.16.1",
  "miette",
  "proptest",
+ "rand 0.8.6",
  "rayon",
  "regex",
  "reqwest 0.12.28",

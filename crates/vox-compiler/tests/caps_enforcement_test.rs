@@ -222,3 +222,270 @@ fn versioned_snapshot_is_gated_when_repo_write_is_denied_by_policy() {
         "MCP from_roots must not snapshot via the decorator bypass: {mcp_denied:?}"
     );
 }
+
+#[test]
+fn every_fs_method_that_takes_a_path_is_scoped() {
+    let d = tempfile::tempdir().unwrap();
+    let inside = d.path().join("in");
+    std::fs::create_dir_all(&inside).unwrap();
+    std::fs::write(inside.join("ok.txt"), "OK").unwrap();
+    let outside = d.path().join("out");
+    std::fs::create_dir_all(&outside).unwrap();
+    std::fs::write(outside.join("s.txt"), "S").unwrap();
+    let caps = match CapabilitySet::parse(&format!("fs:rw={}", inside.display())) {
+        Ok(c) => c,
+        Err(_) => CapabilitySet::from_roots(vec![], vec![inside.clone()], &[]).unwrap(),
+    };
+    let allowed = run_with(
+        caps.clone(),
+        &format!(
+            r#"pub fn main() {{ return fs.read("{}") }}"#,
+            inside.join("ok.txt").display()
+        ),
+    );
+    assert!(
+        matches!(allowed, Ok(VoxValue::Str(ref s)) if s.as_ref() == "OK")
+            || matches!(
+                allowed,
+                Ok(VoxValue::Result(Ok(ref b)))
+                    if matches!(b.as_ref(), VoxValue::Str(s) if s.as_ref() == "OK")
+            ),
+        "positive control died: {allowed:?}"
+    );
+    let f = outside.join("s.txt");
+    for (m, arg) in [
+        ("read", &f),
+        ("read_file", &f),
+        ("read_to_string", &f),
+        ("read_bytes", &f),
+        ("canonicalize", &f),
+        ("exists", &f),
+        ("is_file", &f),
+        ("is_dir", &outside),
+        ("stat", &f),
+        ("list_dir", &outside),
+        ("list_dir_detailed", &outside),
+        ("walk", &outside),
+        ("list_recursive", &outside),
+        ("remove", &f),
+        ("remove_dir_all", &outside),
+        ("mkdir", &outside.join("new")),
+    ] {
+        let r = run_with(
+            caps.clone(),
+            &format!(r#"pub fn main() {{ return fs.{m}("{}") }}"#, arg.display()),
+        );
+        assert!(denied(&r, "fs"), "fs.{m} ungated: {r:?}");
+    }
+    let write_r = run_with(
+        caps.clone(),
+        &format!(
+            r#"pub fn main() {{ return fs.write("{}", "x") }}"#,
+            f.display()
+        ),
+    );
+    assert!(denied(&write_r, "fs"), "fs.write ungated: {write_r:?}");
+    let copy_r = run_with(
+        caps.clone(),
+        &format!(
+            r#"pub fn main() {{ return fs.copy("{}", "{}") }}"#,
+            f.display(),
+            inside.join("copied.txt").display()
+        ),
+    );
+    assert!(denied(&copy_r, "fs"), "fs.copy ungated: {copy_r:?}");
+    let glob_r = run_with(
+        caps.clone(),
+        &format!(
+            r#"pub fn main() {{ return fs.glob("{}") }}"#,
+            outside.join("*").display()
+        ),
+    );
+    assert!(denied(&glob_r, "fs"), "fs.glob ungated: {glob_r:?}");
+    let open_r = run_with(
+        caps.clone(),
+        &format!(r#"pub fn main() {{ return io.open("{}") }}"#, f.display()),
+    );
+    assert!(
+        denied(&open_r, "io") || denied(&open_r, "fs"),
+        "io.open ungated: {open_r:?}"
+    );
+    let save_r = run_with(
+        caps,
+        &format!(
+            r#"pub fn main() {{ return io.save("{}", "{{}}") }}"#,
+            f.display()
+        ),
+    );
+    assert!(
+        denied(&save_r, "io") || denied(&save_r, "fs"),
+        "io.save ungated: {save_r:?}"
+    );
+}
+
+#[test]
+#[serial_test::serial]
+fn developer_default_relative_write_creates_the_file() {
+    let cwd = tempfile::tempdir().unwrap();
+    let prev = std::env::current_dir().unwrap();
+    std::env::set_current_dir(cwd.path()).unwrap();
+    let r = run_with(
+        CapabilitySet::developer_default(),
+        r#"pub fn main() { fs.write("out.txt", "hi"); return fs.read("out.txt") }"#,
+    );
+    std::env::set_current_dir(prev).unwrap();
+    assert!(
+        matches!(r, Ok(VoxValue::Str(ref s)) if s.as_ref() == "hi")
+            || matches!(
+                r,
+                Ok(VoxValue::Result(Ok(ref b)))
+                    if matches!(b.as_ref(), VoxValue::Str(s) if s.as_ref() == "hi")
+            ),
+        "relative write denied: {r:?}"
+    );
+    assert!(cwd.path().join("out.txt").exists());
+}
+
+#[test]
+fn glob_filters_results_not_only_the_prefix() {
+    let d = tempfile::tempdir().unwrap();
+    let job = d.path().join("job");
+    std::fs::create_dir_all(&job).unwrap();
+    std::fs::write(job.join("a.txt"), "a").unwrap();
+    std::fs::write(d.path().join("secret.txt"), "S").unwrap();
+    let caps = match CapabilitySet::parse(&format!("fs:rw={}", job.display())) {
+        Ok(c) => c,
+        Err(_) => CapabilitySet::from_roots(vec![], vec![job.clone()], &[]).unwrap(),
+    };
+    let pat = format!("{}/*/../secret.txt", d.path().display());
+    let r = run_with(
+        caps,
+        &format!(
+            r#"pub fn main() {{ return match fs.glob("{pat}") {{ Ok(xs) => len(xs), Error(e) => -1 }} }}"#
+        ),
+    );
+    assert!(
+        matches!(r, Ok(VoxValue::Int(0))) || denied(&r, "fs"),
+        "glob escaped via ..: {r:?}"
+    );
+}
+
+#[test]
+#[serial_test::serial]
+fn unscoped_grant_does_not_canonicalize() {
+    // developer_default has no boundary; a missing relative parent must still write.
+    let cwd = tempfile::tempdir().unwrap();
+    let prev = std::env::current_dir().unwrap();
+    std::env::set_current_dir(cwd.path()).unwrap();
+    let r = run_with(
+        CapabilitySet::developer_default(),
+        r#"pub fn main() { fs.mkdir("a/b/c"); return fs.exists("a/b/c") }"#,
+    );
+    std::env::set_current_dir(prev).unwrap();
+    assert!(matches!(r, Ok(VoxValue::Bool(true))), "{r:?}");
+}
+
+#[test]
+fn symlink_escape_is_denied_and_the_op_uses_the_checked_path() {
+    let d = tempfile::tempdir().unwrap();
+    let allowed = d.path().join("ok");
+    std::fs::create_dir_all(&allowed).unwrap();
+    std::fs::write(allowed.join("a.txt"), "A").unwrap();
+    std::fs::write(d.path().join("secret.txt"), "S").unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(d.path().join("secret.txt"), allowed.join("link.txt")).unwrap();
+    let caps = match CapabilitySet::parse(&format!("fs:ro={}", allowed.display())) {
+        Ok(c) => c,
+        Err(_) => CapabilitySet::from_roots(vec![allowed.clone()], vec![], &[]).unwrap(),
+    };
+    let ok = run_with(
+        caps.clone(),
+        &format!(
+            r#"pub fn main() {{ return fs.read("{}") }}"#,
+            allowed.join("a.txt").display()
+        ),
+    );
+    assert!(
+        matches!(ok, Ok(VoxValue::Str(ref s)) if s.as_ref() == "A")
+            || matches!(
+                ok,
+                Ok(VoxValue::Result(Ok(ref b)))
+                    if matches!(b.as_ref(), VoxValue::Str(s) if s.as_ref() == "A")
+            ),
+        "{ok:?}"
+    );
+    #[cfg(unix)]
+    {
+        let via_link = run_with(
+            caps,
+            &format!(
+                r#"pub fn main() {{ return fs.read("{}") }}"#,
+                allowed.join("link.txt").display()
+            ),
+        );
+        assert!(denied(&via_link, "fs"), "symlink escape: {via_link:?}");
+    }
+}
+
+#[test]
+fn degenerate_paths_are_denied_not_degraded_to_the_parent() {
+    let d = tempfile::tempdir().unwrap();
+    let caps = match CapabilitySet::parse(&format!("fs:rw={}", d.path().display())) {
+        Ok(c) => c,
+        Err(_) => CapabilitySet::from_roots(vec![], vec![d.path().to_path_buf()], &[]).unwrap(),
+    };
+    for raw in ["", "..", "."] {
+        let r = run_with(
+            caps.clone(),
+            &format!(r#"pub fn main() {{ return fs.write("{raw}", "x") }}"#),
+        );
+        assert!(denied(&r, "fs"), "{raw:?}: {r:?}");
+    }
+}
+
+#[test]
+fn frozen_time_and_seeded_random_are_what_the_receiver_said() {
+    let r = run_with(
+        CapabilitySet::parse("time:frozen=42").unwrap(),
+        r#"pub fn main() { return time.now_ms() }"#,
+    );
+    assert!(matches!(r, Ok(VoxValue::Int(42))), "{r:?}");
+}
+
+#[test]
+fn deep_recursion_is_a_limit_error_not_a_crash() {
+    // Debug `eval_expr`/`apply_closure` frames are large; 1024 Vox calls
+    // need more than the default 8 MiB thread stack to reach the bound
+    // instead of overflowing. The bound itself lives in `apply_closure`.
+    // Return a Send `bool` so the worker need not send `VoxValue` (Rc).
+    let hit_limit = std::thread::Builder::new()
+        .name("deep-recursion".into())
+        .stack_size(256 * 1024 * 1024)
+        .spawn(|| {
+            matches!(
+                run_with(
+                    CapabilitySet::developer_default(),
+                    r#"fn f(n: int) to int { return f(n + 1) } pub fn main() { return f(0) }"#,
+                ),
+                Err(EvalError::RecursionLimitExceeded)
+            )
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(hit_limit, "expected RecursionLimitExceeded");
+}
+
+#[test]
+fn deeply_nested_source_is_a_parse_error_not_a_crash() {
+    let src = format!(
+        "pub fn main() {{ return {}1{} }}",
+        "(".repeat(200_000),
+        ")".repeat(200_000)
+    );
+    let tokens = vox_compiler::lexer::lex(&src);
+    assert!(
+        vox_compiler::parser::parse_script(tokens).is_err(),
+        "parser must bound nesting"
+    );
+}

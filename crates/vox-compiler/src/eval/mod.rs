@@ -26,6 +26,7 @@ pub enum EvalError {
         found: usize,
     },
     StepLimitExceeded,
+    RecursionLimitExceeded,
     AssertionFailed(String),
     Panic(String),
     CapabilityDenied {
@@ -33,6 +34,10 @@ pub enum EvalError {
         method: String,
     },
 }
+
+/// Maximum closure-application depth. Incremented only in `apply_closure`
+/// (not every `eval_expr`). `--max-depth` CLI wiring is Task 6.
+pub const MAX_EVAL_DEPTH: usize = 1024;
 
 pub struct Interpreter {
     pub scope: Scope,
@@ -67,6 +72,10 @@ pub struct Interpreter {
     /// OnceLock / signal handler moves here so a denied register cannot
     /// enqueue work; `run_interp` installs the handler in Task 6.
     pub exit_commands: Vec<(String, Vec<String>)>,
+    /// Seeded from `caps.random_seed()` so `random:seed=` is repeatable.
+    pub rng: Option<rand::rngs::StdRng>,
+    /// Current `apply_closure` nesting. Bounded by [`MAX_EVAL_DEPTH`].
+    pub eval_depth: usize,
 }
 
 impl Interpreter {
@@ -278,10 +287,21 @@ impl Interpreter {
             db: crate::eval::db::DbStore::default(),
             repo: crate::eval::repo::RepoStore::default(),
             exit_commands: Vec::new(),
+            rng: None,
+            eval_depth: 0,
+        }
+    }
+
+    fn seed_rng_from_caps(&mut self) {
+        if self.rng.is_none()
+            && let Some(seed) = self.caps.random_seed()
+        {
+            self.rng = Some(rand::SeedableRng::seed_from_u64(seed));
         }
     }
 
     pub fn run_module(&mut self, module: &HirModule) -> Result<(), EvalError> {
+        self.seed_rng_from_caps();
         // Seed built-in Option/Result constructors so scripts can write
         // `return Ok("...")` / `Err(msg)` / `Some(v)` / `None` directly.
         // Per closures-and-stdlib alignment 2026-05-23 (corpus run-mode parity).
@@ -533,6 +553,7 @@ impl Interpreter {
     }
 
     pub fn call(&mut self, name: &str, args: Vec<VoxValue>) -> Result<VoxValue, EvalError> {
+        self.seed_rng_from_caps();
         let val = self
             .scope
             .get(name)

@@ -63,8 +63,55 @@ fn build_match_value(caps: &regex::Captures) -> VoxValue {
     }
 }
 
-/// Task 5 replaces this stub with parent-walk canonicalization.
-/// Unscoped grants (`developer_default`) pass; anything else denies.
+/// Path-taking `fs` methods and whether they write. Aliases are listed
+/// separately so an unknown spelling cannot slip past the default-deny.
+const FS_PATH_METHODS: &[(&str, bool)] = &[
+    ("read", false),
+    ("read_file", false),
+    ("read_to_string", false),
+    ("read_bytes", false),
+    ("canonicalize", false),
+    ("write", true),
+    ("write_file", true),
+    ("write_to_file", true),
+    ("exists", false),
+    ("is_file", false),
+    ("is_dir", false),
+    ("stat", false),
+    ("list_dir", false),
+    ("list_dir_detailed", false),
+    ("walk", false),
+    ("list_recursive", false),
+    ("remove", true),
+    ("remove_dir_all", true),
+    ("mkdir", true),
+];
+
+fn fs_unscoped(caps: &crate::eval::caps::CapabilitySet) -> bool {
+    caps.allows_namespace("fs")
+        && caps.allows_path(std::path::Path::new("/"), true)
+        && caps.allows_path(std::path::Path::new("/"), false)
+}
+
+fn nearest_existing_ancestor(p: &std::path::Path) -> Option<std::path::PathBuf> {
+    let mut cur = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        std::env::current_dir().ok()?.join(p)
+    };
+    loop {
+        if cur.as_os_str().is_empty() {
+            return None;
+        }
+        if cur.exists() {
+            return std::fs::canonicalize(&cur).ok();
+        }
+        if !cur.pop() {
+            return None;
+        }
+    }
+}
+
 fn fs_resolve_allowed(
     caps: &crate::eval::caps::CapabilitySet,
     raw: &str,
@@ -73,15 +120,64 @@ fn fs_resolve_allowed(
     if raw.is_empty() {
         return None;
     }
-    if !caps.allows_namespace("fs") {
+    let p = std::path::Path::new(raw);
+    let name = p.file_name()?;
+    if name == "." || name == ".." {
         return None;
     }
-    let root = std::path::Path::new("/");
-    if caps.allows_path(root, true) && caps.allows_path(root, false) {
-        return Some(std::path::PathBuf::from(raw));
+    if fs_unscoped(caps) {
+        return Some(if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            std::env::current_dir().ok()?.join(p)
+        });
     }
-    let _ = write;
-    None
+    let canon = match std::fs::canonicalize(p) {
+        Ok(cp) => cp,
+        Err(_) => {
+            let parent = p.parent().filter(|par| !par.as_os_str().is_empty())?;
+            let anc = nearest_existing_ancestor(parent)?;
+            let suffix = p.strip_prefix(parent).ok()?;
+            anc.join(suffix)
+        }
+    };
+    caps.allows_path(&canon, write).then_some(canon)
+}
+
+fn glob_dir_prefix(pat: &str) -> Option<&str> {
+    let cut = pat.find(['*', '?', '[']).unwrap_or(pat.len());
+    let prefix = &pat[..cut];
+    let dir = prefix
+        .rsplit_once(['/', '\\'])
+        .map(|(d, _)| d)
+        .unwrap_or(".");
+    if dir.split(['/', '\\']).any(|c| c == "..") {
+        return None;
+    }
+    Some(dir)
+}
+
+fn rewrite_path_arg(
+    caps: &crate::eval::caps::CapabilitySet,
+    args: Vec<VoxValue>,
+    method: &str,
+    write: bool,
+) -> Option<Vec<VoxValue>> {
+    match args.first() {
+        Some(VoxValue::Str(raw)) => {
+            let resolved = fs_resolve_allowed(caps, raw, write)?;
+            let mut out = args;
+            out[0] = VoxValue::Str(resolved.to_string_lossy().into_owned().into());
+            Some(out)
+        }
+        _ if method == "list_dir" => {
+            let resolved = fs_resolve_allowed(caps, ".", write)?;
+            Some(vec![VoxValue::Str(
+                resolved.to_string_lossy().into_owned().into(),
+            )])
+        }
+        _ => Some(args),
+    }
 }
 
 pub fn call_builtin_method(
@@ -951,288 +1047,356 @@ pub fn call_builtin_method(
             }
 
             match ns {
-                Some("fs") => match method {
-                    // `read_to_string` is the Rust-style alias; `read` and
-                    // `read_file` are the canonical Vox names. All three
-                    // share the same impl per audit doc §10.4.
-                    "read" | "read_file" | "read_to_string" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        // Universal-newlines read: strip BOM, CRLF/CR -> LF
-                        // (same rule as native `vox_fs_read`). read_bytes is the
-                        // byte-exact escape hatch.
-                        let res = match std::fs::read_to_string(&*path) {
-                            Ok(s) => Ok(Box::new(VoxValue::Str(
-                                vox_bounded_fs::normalize_text(s).into(),
-                            ))),
-                            Err(e) => Err(e.to_string()),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    // Interp parity: typecheck + native codegen expose these fs ops,
-                    // so the interpreter must too (else "Method not found" at --interp).
-                    "read_bytes" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        // Byte-exact escape hatch: preserve BOM/CR; error on
-                        // non-UTF-8 (Vox has no Bytes value). Matches native
-                        // `vox_fs_read_bytes`; do NOT use from_utf8_lossy.
-                        let res = match std::fs::read(&*path) {
-                            Ok(bytes) => match String::from_utf8(bytes) {
-                                Ok(s) => Ok(Box::new(VoxValue::Str(s.into()))),
-                                Err(e) => Err(format!("read_bytes: {path}: invalid UTF-8: {e}")),
-                            },
-                            Err(e) => Err(e.to_string()),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    "canonicalize" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let res = match std::fs::canonicalize(&*path) {
-                            Ok(p) => Ok(Box::new(VoxValue::Str(
-                                p.to_string_lossy().to_string().into(),
-                            ))),
-                            Err(e) => Err(e.to_string()),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    // `write_to_file` is the Rust-style alias of write/write_file.
-                    "write" | "write_file" | "write_to_file" => {
-                        let mut it = args.into_iter();
-                        let path = match it.next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let content = match it.next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let res = match std::fs::write(&*path, &*content) {
-                            Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
-                            Err(e) => Err(e.to_string()),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    // `cwd` — current working directory. Mirrors
-                    // `std::env::current_dir()`. Returns a Result because
-                    // the OS can deny access to the cwd (unlikely but
-                    // surfaceable).
-                    "cwd" => {
-                        let res = match std::env::current_dir() {
-                            Ok(p) => Ok(Box::new(VoxValue::Str(
-                                p.to_string_lossy().to_string().into(),
-                            ))),
-                            Err(e) => Err(e.to_string()),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    // `copy(src, dst)` — copies a file. Audit doc §10
-                    // confirmed this as a needed primitive (no good substitute).
-                    "copy" => {
-                        let mut it = args.into_iter();
-                        let src = match it.next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let dst = match it.next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let res = match std::fs::copy(&*src, &*dst) {
-                            Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
-                            Err(e) => Err(e.to_string()),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    // `remove(path)` — deletes a file. For directories use
-                    // `remove_dir_all` (already registered).
-                    "remove" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let res = match std::fs::remove_file(&*path) {
-                            Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
-                            Err(e) => Err(e.to_string()),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    // `walk(dir)` — recursive lister. Eval delegates to
-                    // the glob impl via `**/*` since fs.walk and fs.glob are
-                    // the same operation conceptually (audit doc §11).
-                    // Kept as an alias rather than dropped because two
-                    // scripts in `mens-corpus/` already use this name; the
-                    // alias avoids unnecessary corpus churn.
-                    "walk" | "list_recursive" => {
-                        let root = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let pattern = format!("{root}/**/*");
-                        let mut entries: Vec<VoxValue> = Vec::new();
-                        match glob::glob(&pattern) {
-                            Ok(it) => {
-                                for entry in it.flatten() {
-                                    if entry.is_file() {
-                                        entries.push(VoxValue::Str(
-                                            entry.to_string_lossy().to_string().into(),
-                                        ));
+                Some("fs") => {
+                    let args = match method {
+                        "cwd" => args,
+                        "copy" => {
+                            let src = match args.first() {
+                                Some(VoxValue::Str(s)) => s.clone(),
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let dst = match args.get(1) {
+                                Some(VoxValue::Str(s)) => s.clone(),
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let Some(src_p) = fs_resolve_allowed(caps, &src, false) else {
+                                return Some(VoxValue::_Denied("fs.copy".into()));
+                            };
+                            let Some(dst_p) = fs_resolve_allowed(caps, &dst, true) else {
+                                return Some(VoxValue::_Denied("fs.copy".into()));
+                            };
+                            vec![
+                                VoxValue::Str(src_p.to_string_lossy().into_owned().into()),
+                                VoxValue::Str(dst_p.to_string_lossy().into_owned().into()),
+                            ]
+                        }
+                        "glob" => {
+                            let Some(VoxValue::Str(pat)) = args.first() else {
+                                return None;
+                            };
+                            let Some(dir) = glob_dir_prefix(pat) else {
+                                return Some(VoxValue::_Denied("fs.glob".into()));
+                            };
+                            if fs_resolve_allowed(caps, dir, false).is_none() {
+                                return Some(VoxValue::_Denied("fs.glob".into()));
+                            }
+                            args
+                        }
+                        m => {
+                            if let Some((_, write)) =
+                                FS_PATH_METHODS.iter().copied().find(|(n, _)| *n == m)
+                            {
+                                match rewrite_path_arg(caps, args, m, write) {
+                                    Some(a) => a,
+                                    None => {
+                                        return Some(VoxValue::_Denied(format!("fs.{method}")));
                                     }
                                 }
-                                Some(VoxValue::Result(Ok(Box::new(VoxValue::list(entries)))))
+                            } else {
+                                return Some(VoxValue::_Denied(format!("fs.{method}")));
                             }
-                            Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
-                                e.to_string(),
-                            )))),
                         }
-                    }
-                    "exists" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Bool(false)),
-                        };
-                        Some(VoxValue::Bool(std::path::Path::new(&*path).exists()))
-                    }
-                    "is_file" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Bool(false)),
-                        };
-                        Some(VoxValue::Bool(std::path::Path::new(&*path).is_file()))
-                    }
-                    "is_dir" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Bool(false)),
-                        };
-                        Some(VoxValue::Bool(std::path::Path::new(&*path).is_dir()))
-                    }
-                    "remove_dir_all" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let res = match std::fs::remove_dir_all(&*path) {
-                            Ok(()) => Ok(Box::new(VoxValue::Null)),
-                            Err(e) => Err(e.to_string()),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    // Sorted + error-propagating, matching the native twin
-                    // (`vox_actor_runtime::builtins::vox_list_dir`) — see Task 2
-                    // Step 7. Both tiers must return byte-identical (sorted)
-                    // entries, and a mid-read error must surface as `Err`,
-                    // not be silently swallowed.
-                    "list_dir" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => ".".to_string().into(),
-                        };
-                        let res: std::result::Result<Box<VoxValue>, String> = (|| {
-                            let rd = std::fs::read_dir(&*path).map_err(|e| e.to_string())?;
-                            let mut names: Vec<String> = Vec::new();
-                            for ent in rd {
-                                let ent = ent.map_err(|e| e.to_string())?;
-                                names.push(ent.file_name().to_string_lossy().into_owned());
+                    };
+                    match method {
+                        // `read_to_string` is the Rust-style alias; `read` and
+                        // `read_file` are the canonical Vox names. All three
+                        // share the same impl per audit doc §10.4.
+                        "read" | "read_file" | "read_to_string" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            // Universal-newlines read: strip BOM, CRLF/CR -> LF
+                            // (same rule as native `vox_fs_read`). read_bytes is the
+                            // byte-exact escape hatch.
+                            let res = match std::fs::read_to_string(&*path) {
+                                Ok(s) => Ok(Box::new(VoxValue::Str(
+                                    vox_bounded_fs::normalize_text(s).into(),
+                                ))),
+                                Err(e) => Err(e.to_string()),
+                            };
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        // Interp parity: typecheck + native codegen expose these fs ops,
+                        // so the interpreter must too (else "Method not found" at --interp).
+                        "read_bytes" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            // Byte-exact escape hatch: preserve BOM/CR; error on
+                            // non-UTF-8 (Vox has no Bytes value). Matches native
+                            // `vox_fs_read_bytes`; do NOT use from_utf8_lossy.
+                            let res = match std::fs::read(&*path) {
+                                Ok(bytes) => match String::from_utf8(bytes) {
+                                    Ok(s) => Ok(Box::new(VoxValue::Str(s.into()))),
+                                    Err(e) => {
+                                        Err(format!("read_bytes: {path}: invalid UTF-8: {e}"))
+                                    }
+                                },
+                                Err(e) => Err(e.to_string()),
+                            };
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        "canonicalize" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let res = match std::fs::canonicalize(&*path) {
+                                Ok(p) => Ok(Box::new(VoxValue::Str(
+                                    p.to_string_lossy().to_string().into(),
+                                ))),
+                                Err(e) => Err(e.to_string()),
+                            };
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        // `write_to_file` is the Rust-style alias of write/write_file.
+                        "write" | "write_file" | "write_to_file" => {
+                            let mut it = args.into_iter();
+                            let path = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let content = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let res = match std::fs::write(&*path, &*content) {
+                                Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
+                                Err(e) => Err(e.to_string()),
+                            };
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        // `cwd` — current working directory. Mirrors
+                        // `std::env::current_dir()`. Returns a Result because
+                        // the OS can deny access to the cwd (unlikely but
+                        // surfaceable).
+                        "cwd" => {
+                            let res = match std::env::current_dir() {
+                                Ok(p) => Ok(Box::new(VoxValue::Str(
+                                    p.to_string_lossy().to_string().into(),
+                                ))),
+                                Err(e) => Err(e.to_string()),
+                            };
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        // `copy(src, dst)` — copies a file. Audit doc §10
+                        // confirmed this as a needed primitive (no good substitute).
+                        "copy" => {
+                            let mut it = args.into_iter();
+                            let src = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let dst = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let res = match std::fs::copy(&*src, &*dst) {
+                                Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
+                                Err(e) => Err(e.to_string()),
+                            };
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        // `remove(path)` — deletes a file. For directories use
+                        // `remove_dir_all` (already registered).
+                        "remove" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let res = match std::fs::remove_file(&*path) {
+                                Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
+                                Err(e) => Err(e.to_string()),
+                            };
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        // `walk(dir)` — recursive lister. Eval delegates to
+                        // the glob impl via `**/*` since fs.walk and fs.glob are
+                        // the same operation conceptually (audit doc §11).
+                        // Kept as an alias rather than dropped because two
+                        // scripts in `mens-corpus/` already use this name; the
+                        // alias avoids unnecessary corpus churn.
+                        "walk" | "list_recursive" => {
+                            let root = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let pattern = format!("{root}/**/*");
+                            let mut entries: Vec<VoxValue> = Vec::new();
+                            match glob::glob(&pattern) {
+                                Ok(it) => {
+                                    for entry in it.flatten() {
+                                        if !entry.is_file() {
+                                            continue;
+                                        }
+                                        let raw = entry.to_string_lossy().into_owned();
+                                        if let Some(checked) = fs_resolve_allowed(caps, &raw, false)
+                                        {
+                                            entries.push(VoxValue::Str(
+                                                checked.to_string_lossy().into_owned().into(),
+                                            ));
+                                        }
+                                    }
+                                    Some(VoxValue::Result(Ok(Box::new(VoxValue::list(entries)))))
+                                }
+                                Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                    e.to_string(),
+                                )))),
                             }
-                            names.sort();
-                            let list: Vec<VoxValue> =
-                                names.into_iter().map(|n| VoxValue::Str(n.into())).collect();
-                            Ok(Box::new(VoxValue::list(list)))
-                        })(
-                        );
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    // Sorted + error-propagating, matching the native twin
-                    // (`vox_actor_runtime::builtins::vox_fs_glob`, `mod.rs`) —
-                    // see Task 2 Step 7. The old impl `filter_map`'d
-                    // `GlobError`s away instead of returning `Err`.
-                    "glob" => {
-                        let pattern = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let res: std::result::Result<Box<VoxValue>, String> = (|| {
-                            let entries = glob::glob(&pattern).map_err(|e| e.to_string())?;
-                            let mut paths: Vec<String> = Vec::new();
-                            for entry in entries {
-                                let p = entry.map_err(|e| e.to_string())?;
-                                paths.push(p.to_string_lossy().into_owned());
-                            }
-                            paths.sort();
-                            let list: Vec<VoxValue> =
-                                paths.into_iter().map(|p| VoxValue::Str(p.into())).collect();
-                            Ok(Box::new(VoxValue::list(list)))
-                        })(
-                        );
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    "list_dir_detailed" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let res = match interp_fs_list_dir_detailed(&path) {
-                            Ok(rows) => {
-                                let list: Vec<VoxValue> = rows
+                        }
+                        "exists" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Bool(false)),
+                            };
+                            Some(VoxValue::Bool(std::path::Path::new(&*path).exists()))
+                        }
+                        "is_file" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Bool(false)),
+                            };
+                            Some(VoxValue::Bool(std::path::Path::new(&*path).is_file()))
+                        }
+                        "is_dir" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Bool(false)),
+                            };
+                            Some(VoxValue::Bool(std::path::Path::new(&*path).is_dir()))
+                        }
+                        "remove_dir_all" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let res = match std::fs::remove_dir_all(&*path) {
+                                Ok(()) => Ok(Box::new(VoxValue::Null)),
+                                Err(e) => Err(e.to_string()),
+                            };
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        // Sorted + error-propagating, matching the native twin
+                        // (`vox_actor_runtime::builtins::vox_list_dir`) — see Task 2
+                        // Step 7. Both tiers must return byte-identical (sorted)
+                        // entries, and a mid-read error must surface as `Err`,
+                        // not be silently swallowed.
+                        "list_dir" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => ".".to_string().into(),
+                            };
+                            let res: std::result::Result<Box<VoxValue>, String> = (|| {
+                                let rd = std::fs::read_dir(&*path).map_err(|e| e.to_string())?;
+                                let mut names: Vec<String> = Vec::new();
+                                for ent in rd {
+                                    let ent = ent.map_err(|e| e.to_string())?;
+                                    names.push(ent.file_name().to_string_lossy().into_owned());
+                                }
+                                names.sort();
+                                let list: Vec<VoxValue> =
+                                    names.into_iter().map(|n| VoxValue::Str(n.into())).collect();
+                                Ok(Box::new(VoxValue::list(list)))
+                            })(
+                            );
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        // Sorted + error-propagating, matching the native twin
+                        // (`vox_actor_runtime::builtins::vox_fs_glob`, `mod.rs`) —
+                        // see Task 2 Step 7. The old impl `filter_map`'d
+                        // `GlobError`s away instead of returning `Err`.
+                        "glob" => {
+                            let pattern = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let res: std::result::Result<Box<VoxValue>, String> = (|| {
+                                let entries = glob::glob(&pattern).map_err(|e| e.to_string())?;
+                                let mut matches: Vec<String> = Vec::new();
+                                for entry in entries {
+                                    let p = entry.map_err(|e| e.to_string())?;
+                                    matches.push(p.to_string_lossy().into_owned());
+                                }
+                                let mut out: Vec<String> = matches
                                     .into_iter()
-                                    .map(|r| {
-                                        VoxValue::object(vec![
-                                            ("name".into(), VoxValue::Str(r.name.into())),
-                                            ("path".into(), VoxValue::Str(r.path.into())),
-                                            ("size".into(), VoxValue::Int(r.size)),
-                                            ("modified_ms".into(), VoxValue::Int(r.modified_ms)),
-                                            ("is_dir".into(), VoxValue::Bool(r.is_dir)),
-                                            ("is_file".into(), VoxValue::Bool(r.is_file)),
-                                            ("is_symlink".into(), VoxValue::Bool(r.is_symlink)),
-                                        ])
+                                    .filter_map(|p| {
+                                        fs_resolve_allowed(caps, &p, false)
+                                            .map(|c| c.to_string_lossy().into_owned())
                                     })
                                     .collect();
+                                out.sort();
+                                let list: Vec<VoxValue> =
+                                    out.into_iter().map(|p| VoxValue::Str(p.into())).collect();
                                 Ok(Box::new(VoxValue::list(list)))
-                            }
-                            Err(e) => Err(e),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                            })(
+                            );
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        "list_dir_detailed" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let res = match interp_fs_list_dir_detailed(&path) {
+                                Ok(rows) => {
+                                    let list: Vec<VoxValue> = rows
+                                        .into_iter()
+                                        .map(|r| {
+                                            VoxValue::object(vec![
+                                                ("name".into(), VoxValue::Str(r.name.into())),
+                                                ("path".into(), VoxValue::Str(r.path.into())),
+                                                ("size".into(), VoxValue::Int(r.size)),
+                                                (
+                                                    "modified_ms".into(),
+                                                    VoxValue::Int(r.modified_ms),
+                                                ),
+                                                ("is_dir".into(), VoxValue::Bool(r.is_dir)),
+                                                ("is_file".into(), VoxValue::Bool(r.is_file)),
+                                                ("is_symlink".into(), VoxValue::Bool(r.is_symlink)),
+                                            ])
+                                        })
+                                        .collect();
+                                    Ok(Box::new(VoxValue::list(list)))
+                                }
+                                Err(e) => Err(e),
+                            };
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        "stat" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let res = match interp_fs_stat(&path) {
+                                Ok(r) => Ok(Box::new(VoxValue::object(vec![
+                                    ("name".into(), VoxValue::Str(r.name.into())),
+                                    ("path".into(), VoxValue::Str(r.path.into())),
+                                    ("size".into(), VoxValue::Int(r.size)),
+                                    ("modified_ms".into(), VoxValue::Int(r.modified_ms)),
+                                    ("is_dir".into(), VoxValue::Bool(r.is_dir)),
+                                    ("is_file".into(), VoxValue::Bool(r.is_file)),
+                                    ("is_symlink".into(), VoxValue::Bool(r.is_symlink)),
+                                ]))),
+                                Err(e) => Err(e),
+                            };
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        "mkdir" => {
+                            let path = match args.into_iter().next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Null),
+                            };
+                            let res = match std::fs::create_dir_all(&*path) {
+                                Ok(()) => Ok(Box::new(VoxValue::Bool(true))),
+                                Err(e) => Err(e.to_string()),
+                            };
+                            Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
+                        }
+                        _ => None,
                     }
-                    "stat" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let res = match interp_fs_stat(&path) {
-                            Ok(r) => Ok(Box::new(VoxValue::object(vec![
-                                ("name".into(), VoxValue::Str(r.name.into())),
-                                ("path".into(), VoxValue::Str(r.path.into())),
-                                ("size".into(), VoxValue::Int(r.size)),
-                                ("modified_ms".into(), VoxValue::Int(r.modified_ms)),
-                                ("is_dir".into(), VoxValue::Bool(r.is_dir)),
-                                ("is_file".into(), VoxValue::Bool(r.is_file)),
-                                ("is_symlink".into(), VoxValue::Bool(r.is_symlink)),
-                            ]))),
-                            Err(e) => Err(e),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    "mkdir" => {
-                        let path = match args.into_iter().next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let res = match std::fs::create_dir_all(&*path) {
-                            Ok(()) => Ok(Box::new(VoxValue::Bool(true))),
-                            Err(e) => Err(e.to_string()),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
-                    _ => None,
-                },
+                }
                 Some("time") => match method {
                     // `std.time.now_ms()` — current UNIX time in milliseconds.
                     // Interpreter parity with native codegen
@@ -1240,6 +1404,9 @@ pub fn call_builtin_method(
                     // signature (`time.now_ms -> Int`) in builtin_registry.rs.
                     // `now` is an alias (merged from main's std.time arm).
                     "now_ms" | "now" => {
+                        if let Some(ms) = caps.frozen_time_ms() {
+                            return Some(VoxValue::Int(ms));
+                        }
                         let ms = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .map(|d| d.as_millis() as i64)
@@ -1400,13 +1567,10 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        // Task 5 replaces this stub with parent-walk
-                        // `fs_resolve_allowed`. Restrictive sets deny; an
-                        // unscoped `developer_default` still canonicalizes.
-                        if fs_resolve_allowed(caps, &p, false).is_none() {
+                        let Some(resolved) = fs_resolve_allowed(caps, &p, false) else {
                             return Some(VoxValue::_Denied("fs.resolve".into()));
-                        }
-                        let res = match std::fs::canonicalize(&*p) {
+                        };
+                        let res = match std::fs::canonicalize(&resolved) {
                             Ok(abs) => Ok(Box::new(VoxValue::Str(
                                 abs.to_string_lossy().to_string().into(),
                             ))),
@@ -1969,10 +2133,15 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
-                        Some(VoxValue::Result(match interp_io_open(&path) {
-                            Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(crate::eval::value::err_str(e)),
-                        }))
+                        let Some(resolved) = fs_resolve_allowed(caps, &path, false) else {
+                            return Some(VoxValue::_Denied("io.open".into()));
+                        };
+                        Some(VoxValue::Result(
+                            match interp_io_open(&resolved.to_string_lossy()) {
+                                Ok(v) => Ok(Box::new(json_to_vox(v))),
+                                Err(e) => Err(crate::eval::value::err_str(e)),
+                            },
+                        ))
                     }
                     "save" => {
                         let mut it = args.into_iter();
@@ -1984,13 +2153,18 @@ pub fn call_builtin_method(
                             Some(v) => v,
                             _ => return Some(VoxValue::Null),
                         };
+                        let Some(resolved) = fs_resolve_allowed(caps, &path, true) else {
+                            return Some(VoxValue::_Denied("io.save".into()));
+                        };
                         let j = vox_to_json(val);
-                        Some(VoxValue::Result(match interp_io_save(&path, &j) {
-                            Ok(()) => Ok(Box::new(VoxValue::Null)),
-                            Err(e) => Err(crate::eval::value::err_str(e)),
-                        }))
+                        Some(VoxValue::Result(
+                            match interp_io_save(&resolved.to_string_lossy(), &j) {
+                                Ok(()) => Ok(Box::new(VoxValue::Null)),
+                                Err(e) => Err(crate::eval::value::err_str(e)),
+                            },
+                        ))
                     }
-                    _ => None,
+                    _ => Some(VoxValue::_Denied(format!("io.{method}"))),
                 },
                 Some("json") => match method {
                     "parse" => {
