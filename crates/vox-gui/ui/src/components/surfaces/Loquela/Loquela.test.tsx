@@ -6,20 +6,24 @@ import React from 'react';
 // resolve_default_task_policy defaults to the same values as the local
 // hardcoded defaultControl() fallback, so tests that don't care about this
 // fetch keep seeing the composer settle on efficiency/moderate as before.
-const { mockInvoke, defaultMockInvokeImpl } = vi.hoisted(() => {
+const { mockInvoke, defaultMockInvokeImpl, mockListModels } = vi.hoisted(() => {
   const defaultMockInvokeImpl = (cmd: string) => {
     if (cmd === 'resolve_default_task_policy') {
       return Promise.resolve({ clutch: 'efficiency', risk: 'moderate' });
     }
     return Promise.resolve([]);
   };
-  return { mockInvoke: vi.fn(defaultMockInvokeImpl), defaultMockInvokeImpl };
+  return {
+    mockInvoke: vi.fn(defaultMockInvokeImpl),
+    defaultMockInvokeImpl,
+    mockListModels: vi.fn(() => Promise.resolve([])),
+  };
 });
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mockInvoke }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
 vi.mock('../../../transport', () => ({
-  voxTransport: { listModels: () => Promise.resolve([]) },
+  voxTransport: { listModels: (...a: unknown[]) => mockListModels(...a) },
 }));
 
 import { Loquela } from './Loquela';
@@ -45,6 +49,8 @@ describe('Loquela', () => {
     // assertion mid-test can't leak a stale implementation into later tests.
     mockInvoke.mockReset();
     mockInvoke.mockImplementation(defaultMockInvokeImpl);
+    mockListModels.mockReset();
+    mockListModels.mockImplementation(() => Promise.resolve([]));
   });
 
   it('labels the composer textarea (no placeholder-as-label)', () => {
@@ -79,7 +85,7 @@ describe('Loquela', () => {
   it('shows a Stop button while a task is in progress', () => {
     renderLoquela({ taskInProgress: true, currentTaskId: 7 });
     expect(screen.getByRole('button', { name: /stop/i })).toBeDefined();
-    expect(screen.queryByRole('button', { name: /run/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^run/i })).toBeNull();
   });
 
   it('Enter interrupts the running task instead of submitting', () => {
@@ -117,7 +123,7 @@ describe('Loquela', () => {
 
   it('Run button height matches the textarea min-height (h-9 vs min-h-[36px])', () => {
     renderLoquela();
-    expect(screen.getByRole('button', { name: /run/i }).className).toContain('h-9');
+    expect(screen.getByRole('button', { name: /^run/i }).className).toContain('h-9');
   });
 
   it('secondary controls live in the toolbar row, not the input row', () => {
@@ -127,7 +133,7 @@ describe('Loquela', () => {
     const attach = screen.getByRole('button', { name: /attach local file/i });
     expect(inputRow.contains(attach)).toBe(false);
     expect(inputRow.contains(screen.getByRole('button', { name: /voice input/i }))).toBe(false);
-    expect(inputRow.contains(screen.getByRole('button', { name: /run/i }))).toBe(true);
+    expect(inputRow.contains(screen.getByRole('button', { name: /^run/i }))).toBe(true);
   });
 
   it('intent panel is collapsed by default and toggles open', () => {
@@ -142,6 +148,8 @@ describe('Loquela', () => {
   it('serializes intent fields into the submitted description and priority', () => {
     const onSubmit = vi.fn();
     renderLoquela({ onSubmit });
+    fireEvent.click(screen.getByRole('button', { name: /choose send mode/i }));
+    fireEvent.click(screen.getByRole('button', { name: /set send mode: background task/i }));
     fireEvent.click(screen.getByRole('button', { name: /structured intent/i }));
     fireEvent.change(screen.getByLabelText('Goal'), { target: { value: 'ship dark mode' } });
     fireEvent.change(screen.getByLabelText('Acceptance criteria'), { target: { value: 'toggle persists' } });
@@ -161,7 +169,7 @@ describe('Loquela', () => {
     renderLoquela({ onSubmit });
     fireEvent.click(screen.getByRole('button', { name: /structured intent/i }));
     fireEvent.change(screen.getByLabelText('Goal'), { target: { value: 'ship dark mode' } });
-    fireEvent.click(screen.getByRole('button', { name: /run/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^run/i }));
     expect(onSubmit.mock.calls[0][0].description).toBe('ship dark mode');
   });
 
@@ -170,7 +178,7 @@ describe('Loquela', () => {
     renderLoquela({ onSubmit });
     fireEvent.click(screen.getByRole('button', { name: /structured intent/i }));
     fireEvent.change(screen.getByLabelText('Goal'), { target: { value: 'ship dark mode' } });
-    fireEvent.click(screen.getByRole('button', { name: /run/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^run/i }));
     expect(screen.queryByLabelText('Goal')).toBeNull();
     expect(screen.getByRole('button', { name: /structured intent/i }).getAttribute('aria-expanded')).toBe('false');
   });
@@ -206,7 +214,7 @@ describe('Loquela', () => {
 
   it('the Run button carries its own keyboard-shortcut hint, with no other disconnected shortcut hint elsewhere', () => {
     renderLoquela();
-    const runButton = screen.getByRole('button', { name: /run/i });
+    const runButton = screen.getByRole('button', { name: /^run/i });
     expect(runButton).toHaveTextContent('⌘↵');
     // Reproduces a live bug: a bare "⌘↵" kbd hint used to render alone at
     // the end of the toolbar row, disconnected from any button — it must
@@ -278,5 +286,98 @@ describe('Loquela', () => {
       const efficButton = screen.getByRole('radio', { name: /effic/i });
       expect(efficButton).toHaveAttribute('aria-checked', 'true');
     });
+  });
+
+  it('lists keyed catalog models (including OpenRouter) instead of Model 1–4 placeholders', async () => {
+    mockListModels.mockResolvedValue([
+      { id: 'aion-labs/aion-1.0', provider: 'aion-labs', provider_type: 'OpenRouter' },
+      { id: 'openrouter/anthropic/claude-sonnet-4', provider: 'anthropic', provider_type: 'OpenRouter' },
+      { id: 'mens/e2e-smoke-metal', provider: 'populi_local', provider_type: 'VoxLocal' },
+    ]);
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'resolve_default_task_policy') {
+        return Promise.resolve({ clutch: 'efficiency', risk: 'moderate' });
+      }
+      if (cmd === 'inference_provider_status') {
+        return Promise.resolve([
+          { provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null },
+          { provider: 'VoxLocal', key_present: true, is_local: true, local_reachable: null },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+    renderLoquela();
+    fireEvent.click(screen.getByRole('button', { name: /choose model tier/i }));
+    expect(await screen.findByRole('searchbox', { name: /search models/i })).toBeDefined();
+    expect(await screen.findByText('openrouter/anthropic/claude-sonnet-4')).toBeDefined();
+    expect(screen.getByText('mens/e2e-smoke-metal')).toBeDefined();
+    expect(screen.queryByText('Model 1')).toBeNull();
+    fireEvent.change(screen.getByRole('searchbox', { name: /search models/i }), {
+      target: { value: 'mens' },
+    });
+    expect(screen.getByText('mens/e2e-smoke-metal')).toBeDefined();
+    expect(screen.queryByText('openrouter/anthropic/claude-sonnet-4')).toBeNull();
+  });
+
+  it('emits model_override for a concrete pick, not a fake model-N tier id', async () => {
+    mockListModels.mockResolvedValue([
+      { id: 'openrouter/anthropic/claude-sonnet-4', provider: 'anthropic', provider_type: 'OpenRouter' },
+    ]);
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'resolve_default_task_policy') {
+        return Promise.resolve({ clutch: 'efficiency', risk: 'moderate' });
+      }
+      if (cmd === 'inference_provider_status') {
+        return Promise.resolve([
+          { provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+    const onSubmit = vi.fn();
+    const onModelPick = vi.fn();
+    renderLoquela({ onSubmit, onModelPick });
+    fireEvent.click(screen.getByRole('button', { name: /choose model tier/i }));
+    fireEvent.click(await screen.findByText('openrouter/anthropic/claude-sonnet-4'));
+    expect(onModelPick).toHaveBeenCalledWith('openrouter/anthropic/claude-sonnet-4');
+    const ta = screen.getByLabelText('Task composer');
+    fireEvent.change(ta, { target: { value: 'use sonnet' } });
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    expect(onSubmit.mock.calls[0][0].model_override).toBe('openrouter/anthropic/claude-sonnet-4');
+    expect(onSubmit.mock.calls[0][0].tier).toBe('auto');
+  });
+
+  it('does not expose a Dry-run control in either send mode', () => {
+    renderLoquela();
+    expect(screen.queryByRole('button', { name: 'Dry-run' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /choose send mode/i }));
+    fireEvent.click(screen.getByRole('button', { name: /set send mode: background task/i }));
+    expect(screen.queryByRole('button', { name: 'Dry-run' })).toBeNull();
+  });
+
+  it('always submits dry_run false', () => {
+    const onSubmit = vi.fn();
+    renderLoquela({ onSubmit });
+    const ta = screen.getByLabelText('Task composer');
+    fireEvent.change(ta, { target: { value: 'x' } });
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    expect(onSubmit.mock.calls[0][0].dry_run).toBe(false);
+  });
+
+  it('hides Effort on Quick chat and shows it on Background task', () => {
+    renderLoquela();
+    fireEvent.click(screen.getByRole('button', { name: /structured intent/i }));
+    expect(screen.queryByLabelText('Effort')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /choose send mode/i }));
+    fireEvent.click(screen.getByRole('button', { name: /set send mode: background task/i }));
+    expect(screen.getByLabelText('Effort')).toBeInTheDocument();
+  });
+
+  it('shows an Interaction mode chip on Background task', () => {
+    renderLoquela();
+    expect(screen.queryByLabelText('Interaction mode')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /choose send mode/i }));
+    fireEvent.click(screen.getByRole('button', { name: /set send mode: background task/i }));
+    expect(screen.getByLabelText('Interaction mode')).toHaveTextContent(/act/i);
   });
 });
