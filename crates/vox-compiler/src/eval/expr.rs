@@ -443,103 +443,126 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     _ => {}
                 }
             }
-            if let VoxValue::Fn {
-                name: ref fn_name, ..
-            } = c
-                && interp.activity_names.contains(fn_name)
-            {
-                return super::activity_hook::dispatch_activity(interp, fn_name, eval_args, *span);
-            }
-            if let VoxValue::Fn {
-                name: ref fn_name, ..
-            } = c
-                && interp.workflow_names.contains(fn_name)
-            {
-                return Err(EvalError::Panic(
-                    "nested workflow calls are not supported".into(),
-                ));
-            }
-            match c {
-                VoxValue::Fn {
-                    params,
-                    body,
-                    mut env,
-                    name: fn_name,
-                    is_versioned,
-                    is_traced: _,
-                } => {
-                    env.push_frame();
-                    for (p, arg) in params.iter().zip(eval_args) {
-                        env.set(p.clone(), arg);
-                    }
+            let call_key = match callee.as_ref() {
+                HirExpr::Ident(name, _) => name.clone(),
+                _ => "<dynamic>".to_string(),
+            };
+            let ordinal = interp.call_ordinals.get(span).copied().unwrap_or(0);
+            let enclosing_fn = interp
+                .enclosing_fn_stack
+                .last()
+                .cloned()
+                .unwrap_or_default();
+            interp
+                .call_path
+                .push(super::activity_hook::DurableCallFrame {
+                    enclosing_fn,
+                    call_key,
+                    ordinal,
+                });
+            let result = (|| -> Result<VoxValue, EvalError> {
+                if let VoxValue::Fn {
+                    name: ref fn_name, ..
+                } = c
+                    && interp.activity_names.contains(fn_name)
+                {
+                    return super::activity_hook::dispatch_activity(
+                        interp, fn_name, eval_args, *span,
+                    );
+                }
+                if let VoxValue::Fn {
+                    name: ref fn_name, ..
+                } = c
+                    && interp.workflow_names.contains(fn_name)
+                {
+                    return Err(EvalError::Panic(
+                        "nested workflow calls are not supported".into(),
+                    ));
+                }
+                match c {
+                    VoxValue::Fn {
+                        params,
+                        body,
+                        mut env,
+                        name: fn_name,
+                        is_versioned,
+                        is_traced: _,
+                    } => {
+                        env.push_frame();
+                        for (p, arg) in params.iter().zip(eval_args) {
+                            env.set(p.clone(), arg);
+                        }
 
-                    let old_scope = interp.scope.clone();
-                    interp.scope = env;
-                    interp.enclosing_fn_stack.push(fn_name.clone());
+                        let old_scope = interp.scope.clone();
+                        interp.scope = env;
+                        interp.enclosing_fn_stack.push(fn_name.clone());
 
-                    // Run the body in a closure so the scope is restored on BOTH
-                    // success and the `?` error path (a leaked scope would corrupt
-                    // later evaluation when the interpreter is reused, e.g. the
-                    // `@test` runner).
-                    let result: Result<VoxValue, EvalError> = (|| {
-                        let mut val = VoxValue::Null;
-                        for stmt in body.iter() {
-                            val = super::stmt::eval_stmt(interp, stmt)?;
-                            if let VoxValue::_Return(v) = val {
-                                val = *v;
-                                break;
+                        // Run the body in a closure so the scope is restored on BOTH
+                        // success and the `?` error path (a leaked scope would corrupt
+                        // later evaluation when the interpreter is reused, e.g. the
+                        // `@test` runner).
+                        let result: Result<VoxValue, EvalError> = (|| {
+                            let mut val = VoxValue::Null;
+                            for stmt in body.iter() {
+                                val = super::stmt::eval_stmt(interp, stmt)?;
+                                if let VoxValue::_Return(v) = val {
+                                    val = *v;
+                                    break;
+                                }
+                                if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
+                                    break;
+                                }
                             }
-                            if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
-                                break;
-                            }
+                            Ok(val)
+                        })();
+
+                        interp.enclosing_fn_stack.pop();
+                        interp.scope = old_scope;
+                        let val = result?;
+
+                        // P5: auto-checkpoint on successful return of a @versioned
+                        // function. `result?` above already restored the scope (on
+                        // BOTH success and error) and short-circuits on error, so a
+                        // checkpoint is recorded only for a successful call — never
+                        // for a failed one. The snapshot is an ungated `Vcs` effect,
+                        // matching explicit `repo.*` semantics (`eval/repo.rs` does
+                        // not consult `interp.caps`).
+                        if is_versioned {
+                            interp.repo.snapshot(Some(&format!("@versioned {fn_name}")));
                         }
                         Ok(val)
-                    })();
-
-                    interp.enclosing_fn_stack.pop();
-                    interp.scope = old_scope;
-                    let val = result?;
-
-                    // P5: auto-checkpoint on successful return of a @versioned
-                    // function. `result?` above already restored the scope (on
-                    // BOTH success and error) and short-circuits on error, so a
-                    // checkpoint is recorded only for a successful call — never
-                    // for a failed one. The snapshot is an ungated `Vcs` effect,
-                    // matching explicit `repo.*` semantics (`eval/repo.rs` does
-                    // not consult `interp.caps`).
-                    if is_versioned {
-                        interp.repo.snapshot(Some(&format!("@versioned {fn_name}")));
                     }
-                    Ok(val)
-                }
-                VoxValue::Constructor(name) => match name.as_str() {
-                    // Built-in Option/Result constructors lower directly to
-                    // VoxValue::Option / ::Result so downstream method dispatch
-                    // (`.is_ok()`, `.unwrap()`, `.is_none()`) and pattern
-                    // matching on Result/Option both work.
-                    "Some" if eval_args.len() == 1 => Ok(VoxValue::Option(Some(Box::new(
-                        eval_args.into_iter().next().unwrap(),
-                    )))),
-                    "None" if eval_args.is_empty() => Ok(VoxValue::Option(None)),
-                    "Ok" if eval_args.len() == 1 => Ok(VoxValue::Result(Ok(Box::new(
-                        eval_args.into_iter().next().unwrap(),
-                    )))),
-                    "Err" | "Error" if eval_args.len() == 1 => {
-                        // Box the actual error value so typed errors `Error(MyAdt)`
-                        // survive at runtime; `Error("string")` boxes to Str.
-                        let err_val = eval_args.into_iter().next().unwrap();
-                        Ok(VoxValue::Result(Err(Box::new(err_val))))
-                    }
-                    _ => Ok(VoxValue::Tagged {
-                        name,
-                        fields: eval_args,
+                    VoxValue::Constructor(name) => match name.as_str() {
+                        // Built-in Option/Result constructors lower directly to
+                        // VoxValue::Option / ::Result so downstream method dispatch
+                        // (`.is_ok()`, `.unwrap()`, `.is_none()`) and pattern
+                        // matching on Result/Option both work.
+                        "Some" if eval_args.len() == 1 => Ok(VoxValue::Option(Some(Box::new(
+                            eval_args.into_iter().next().unwrap(),
+                        )))),
+                        "None" if eval_args.is_empty() => Ok(VoxValue::Option(None)),
+                        "Ok" if eval_args.len() == 1 => Ok(VoxValue::Result(Ok(Box::new(
+                            eval_args.into_iter().next().unwrap(),
+                        )))),
+                        "Err" | "Error" if eval_args.len() == 1 => {
+                            // Box the actual error value so typed errors `Error(MyAdt)`
+                            // survive at runtime; `Error("string")` boxes to Str.
+                            let err_val = eval_args.into_iter().next().unwrap();
+                            Ok(VoxValue::Result(Err(Box::new(err_val))))
+                        }
+                        _ => Ok(VoxValue::Tagged {
+                            name,
+                            fields: eval_args,
+                        }),
+                    },
+                    other => Err(EvalError::TypeError {
+                        expected: "function",
+                        found: super::builtins::vox_value_type_name(&other).into(),
                     }),
-                },
-                other => Err(EvalError::TypeError {
-                    expected: "function",
-                    found: super::builtins::vox_value_type_name(&other).into(),
-                }),
-            }
+                }
+            })();
+            interp.call_path.pop();
+            result
         }
         HirExpr::MethodCall(obj, method, args, opt_plan, _) => {
             // DB query-plan execution. `db.Table.op(...)` lowers to a MethodCall

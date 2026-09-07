@@ -63,6 +63,8 @@ pub struct Interpreter {
     pub call_keys: std::collections::HashMap<crate::ast::span::Span, String>,
     /// Names of functions currently executing, used for durable call identity.
     pub(crate) enclosing_fn_stack: Vec<String>,
+    /// Call-site path from the workflow down to the current call.
+    pub(crate) call_path: Vec<crate::eval::activity_hook::DurableCallFrame>,
     pub(crate) iteration_stack: Vec<u32>,
     /// Stack of `with { }` option objects; the innermost is attached to Begin.
     pub with_options: Vec<crate::eval::value::VoxValue>,
@@ -270,6 +272,7 @@ impl Interpreter {
             call_ordinals: std::collections::HashMap::new(),
             call_keys: std::collections::HashMap::new(),
             enclosing_fn_stack: Vec::new(),
+            call_path: Vec::new(),
             iteration_stack: Vec::new(),
             with_options: Vec::new(),
         }

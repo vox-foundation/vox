@@ -228,6 +228,18 @@ fn stamp_expr(
     }
 }
 
+/// One frame on the durable call path: the function that contained the
+/// call, the lexical key, and that key's ordinal.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DurableCallFrame {
+    /// Function whose body contained this call.
+    pub enclosing_fn: String,
+    /// Lexical identifier at the call site.
+    pub call_key: String,
+    /// Per-key ordinal inside [`Self::enclosing_fn`].
+    pub ordinal: u32,
+}
+
 /// One interception point. Parking is a decision on Wait / WaitSignal,
 /// not a fake activity named `__durable_timer_wait`.
 #[derive(Debug, Clone)]
@@ -241,6 +253,8 @@ pub enum HostCall {
         /// Lexical identifier at the call site (`f` in `let f = charge; f()`).
         call_key: String,
         ordinal: u32,
+        /// Caller path including this call site, outermost first.
+        path: Vec<DurableCallFrame>,
         iteration: Vec<u32>,
     },
     End {
@@ -311,6 +325,15 @@ pub(crate) fn dispatch_activity(
     // Empty means "not in a loop". Do not coerce to `[0]` — that collides
     // with the first iteration of an enclosing loop.
     let iteration = interp.iteration_stack.clone();
+    let path = if interp.call_path.is_empty() {
+        vec![DurableCallFrame {
+            enclosing_fn: enclosing_fn.clone(),
+            call_key: call_key.clone(),
+            ordinal,
+        }]
+    } else {
+        interp.call_path.clone()
+    };
     let outcome = (|| -> Result<VoxValue, EvalError> {
         let decision = hook.as_mut().expect("hook is present")(HostCall::Begin {
             name: name.to_string(),
@@ -320,6 +343,7 @@ pub(crate) fn dispatch_activity(
             enclosing_fn,
             call_key,
             ordinal,
+            path,
             iteration,
         })?;
         match decision {

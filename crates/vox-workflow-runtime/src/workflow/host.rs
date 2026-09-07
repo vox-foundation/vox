@@ -6,7 +6,7 @@ use std::mem::ManuallyDrop;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use vox_compiler::eval::Interpreter;
 use vox_compiler::eval::activity_hook::{
-    HostCall, HostDecision as InterpDecision, stamp_call_sites,
+    DurableCallFrame, HostCall, HostDecision as InterpDecision, stamp_call_sites,
 };
 use vox_compiler::eval::value::VoxValue;
 use vox_compiler::hir::HirModule;
@@ -31,6 +31,8 @@ pub enum HostRequest {
         call_key: String,
         /// Lexical ordinal of this call site within its function and callee.
         ordinal: u32,
+        /// Caller path including this site, outermost first.
+        path: Vec<DurableCallFrame>,
         /// Zero-based indices for every enclosing loop, outermost first.
         iteration: Vec<u32>,
     },
@@ -223,6 +225,7 @@ fn run_on_thread(
                 enclosing_fn,
                 call_key,
                 ordinal,
+                path,
                 iteration,
                 ..
             } => HostRequest::Begin {
@@ -232,6 +235,7 @@ fn run_on_thread(
                 enclosing_fn: enclosing_fn.clone(),
                 call_key: call_key.clone(),
                 ordinal: *ordinal,
+                path: path.clone(),
                 iteration: iteration.clone(),
             },
             HostCall::End {

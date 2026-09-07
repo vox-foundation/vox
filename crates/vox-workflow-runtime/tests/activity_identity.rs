@@ -75,6 +75,29 @@ workflow wf() to int {
 }
 
 #[tokio::test]
+async fn same_helper_called_twice_gets_distinct_ids() {
+    const SRC: &str = r#"
+activity charge(n: int) to int { return n }
+fn helper() to int { return charge(1) }
+workflow wf() to int {
+    let a = helper()
+    let b = helper()
+    return a + b
+}
+"#;
+    let mut tracker = DefaultTracker;
+    let journal = interpret_workflow_durable(&hir(SRC), "wf", vec![], &mut tracker)
+        .await
+        .expect("workflow completes");
+    let ids = started_activity_ids(&journal, "charge");
+    assert_eq!(ids.len(), 2, "both helper calls must execute: {journal:#?}");
+    assert_ne!(
+        ids[0], ids[1],
+        "two invocations of the same helper must not share an activity_id: {journal:#?}"
+    );
+}
+
+#[tokio::test]
 async fn helper_outside_a_loop_does_not_collide_with_first_iteration() {
     const SRC: &str = r#"
 activity charge(n: int) to int { return n }

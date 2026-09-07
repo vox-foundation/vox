@@ -27,25 +27,29 @@ fn wall_now_ms() -> i64 {
 
 /// Derive a stable, content-addressed `activity_id` from call-site identity.
 ///
-/// BLAKE3 of `workflow \0 enclosing_fn \0 callee \0 ordinal \0 iteration`.
+/// BLAKE3 of `workflow \0 {enclosing_fn \0 call_key \0 ordinal \0}* iteration*`.
+/// Each path frame is delimited; the iteration field always starts after a
+/// `\0` following the last frame (or after `workflow \0` when the path is
+/// empty).
 pub(crate) fn derive_activity_id(
     workflow_name: &str,
-    enclosing_fn: &str,
-    callee: &str,
-    ordinal: u32,
+    path: &[vox_compiler::eval::activity_hook::DurableCallFrame],
     iteration: &[u32],
 ) -> String {
     let mut hasher = blake3::Hasher::new();
     hasher.update(workflow_name.as_bytes());
     hasher.update(b"\0");
-    hasher.update(enclosing_fn.as_bytes());
-    hasher.update(b"\0");
-    hasher.update(callee.as_bytes());
-    hasher.update(b"\0");
-    hasher.update(ordinal.to_le_bytes().as_ref());
-    for index in iteration {
+    for frame in path {
+        hasher.update(frame.enclosing_fn.as_bytes());
         hasher.update(b"\0");
+        hasher.update(frame.call_key.as_bytes());
+        hasher.update(b"\0");
+        hasher.update(frame.ordinal.to_le_bytes().as_ref());
+        hasher.update(b"\0");
+    }
+    for index in iteration {
         hasher.update(index.to_le_bytes().as_ref());
+        hasher.update(b"\0");
     }
     let hash = hasher.finalize();
     // 16 bytes → 32 lowercase hex chars: unique enough for a workflow's activity set.
@@ -140,9 +144,7 @@ pub async fn interpret_workflow_durable(
             HostRequest::Begin {
                 name,
                 options,
-                enclosing_fn,
-                call_key,
-                ordinal,
+                path,
                 iteration,
                 ..
             } => {
@@ -172,7 +174,7 @@ pub async fn interpret_workflow_durable(
                     used_explicit_ids.insert(explicit_id.clone());
                     explicit_id
                 } else {
-                    derive_activity_id(workflow_name, &enclosing_fn, &call_key, ordinal, &iteration)
+                    derive_activity_id(workflow_name, &path, &iteration)
                 };
 
                 if tracker
@@ -474,6 +476,7 @@ mod tests {
     use jsonschema::validator_for;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU32, Ordering};
+    use vox_compiler::eval::activity_hook::DurableCallFrame;
 
     #[tokio::test]
     async fn retry_helper_retries_until_success_and_records_events() {
@@ -608,24 +611,34 @@ mod tests {
         );
     }
 
+    fn frame(enclosing_fn: &str, call_key: &str, ordinal: u32) -> DurableCallFrame {
+        DurableCallFrame {
+            enclosing_fn: enclosing_fn.to_string(),
+            call_key: call_key.to_string(),
+            ordinal,
+        }
+    }
+
     #[test]
     fn derive_activity_id_is_deterministic() {
-        let id1 = derive_activity_id("my_workflow", "send_email", "send_email", 0, &[0]);
-        let id2 = derive_activity_id("my_workflow", "send_email", "send_email", 0, &[0]);
+        let path = [frame("send_email", "send_email", 0)];
+        let id1 = derive_activity_id("my_workflow", &path, &[0]);
+        let id2 = derive_activity_id("my_workflow", &path, &[0]);
         assert_eq!(id1, id2, "same inputs must produce same activity_id");
     }
 
     #[test]
     fn derive_activity_id_differs_by_position() {
-        let id0 = derive_activity_id("wf", "wf", "step", 0, &[0]);
-        let id1 = derive_activity_id("wf", "wf", "step", 1, &[0]);
+        let id0 = derive_activity_id("wf", &[frame("wf", "step", 0)], &[0]);
+        let id1 = derive_activity_id("wf", &[frame("wf", "step", 1)], &[0]);
         assert_ne!(id0, id1, "different positions must produce different ids");
     }
 
     #[test]
     fn derive_activity_id_differs_by_workflow_name() {
-        let id_a = derive_activity_id("workflow_a", "wf", "step", 0, &[0]);
-        let id_b = derive_activity_id("workflow_b", "wf", "step", 0, &[0]);
+        let path = [frame("wf", "step", 0)];
+        let id_a = derive_activity_id("workflow_a", &path, &[0]);
+        let id_b = derive_activity_id("workflow_b", &path, &[0]);
         assert_ne!(
             id_a, id_b,
             "different workflow names must produce different ids"
@@ -634,22 +647,23 @@ mod tests {
 
     #[test]
     fn derive_activity_id_differs_by_enclosing_function() {
-        let id_a = derive_activity_id("wf", "first_helper", "step", 0, &[0]);
-        let id_b = derive_activity_id("wf", "second_helper", "step", 0, &[0]);
+        let id_a = derive_activity_id("wf", &[frame("first_helper", "step", 0)], &[0]);
+        let id_b = derive_activity_id("wf", &[frame("second_helper", "step", 0)], &[0]);
         assert_ne!(id_a, id_b);
     }
 
     #[test]
     fn derive_activity_id_differs_by_callee() {
-        let id_a = derive_activity_id("wf", "wf", "fresh", 0, &[0]);
-        let id_b = derive_activity_id("wf", "wf", "old", 0, &[0]);
+        let id_a = derive_activity_id("wf", &[frame("wf", "fresh", 0)], &[0]);
+        let id_b = derive_activity_id("wf", &[frame("wf", "old", 0)], &[0]);
         assert_ne!(id_a, id_b, "same ordinal, different callee must differ");
     }
 
     #[test]
     fn derive_activity_id_empty_iteration_differs_from_loop_zero() {
-        let outside = derive_activity_id("wf", "helper", "step", 0, &[]);
-        let loop_zero = derive_activity_id("wf", "helper", "step", 0, &[0]);
+        let path = [frame("helper", "step", 0)];
+        let outside = derive_activity_id("wf", &path, &[]);
+        let loop_zero = derive_activity_id("wf", &path, &[0]);
         assert_ne!(
             outside, loop_zero,
             "no-loop and first loop iteration must not share an id"
@@ -657,15 +671,27 @@ mod tests {
     }
 
     #[test]
+    fn derive_activity_id_differs_by_caller_path() {
+        let first = [frame("wf", "helper", 0), frame("helper", "charge", 0)];
+        let second = [frame("wf", "helper", 1), frame("helper", "charge", 0)];
+        assert_ne!(
+            derive_activity_id("wf", &first, &[]),
+            derive_activity_id("wf", &second, &[]),
+            "two calls to the same helper must not share an activity id"
+        );
+    }
+
+    #[test]
     fn derive_activity_id_differs_by_outer_iteration() {
-        let id_a = derive_activity_id("wf", "helper", "step", 0, &[0, 1]);
-        let id_b = derive_activity_id("wf", "helper", "step", 0, &[1, 1]);
+        let path = [frame("helper", "step", 0)];
+        let id_a = derive_activity_id("wf", &path, &[0, 1]);
+        let id_b = derive_activity_id("wf", &path, &[1, 1]);
         assert_ne!(id_a, id_b);
     }
 
     #[test]
     fn derive_activity_id_is_32_hex_chars() {
-        let id = derive_activity_id("wf", "wf", "act", 0, &[0]);
+        let id = derive_activity_id("wf", &[frame("wf", "act", 0)], &[0]);
         assert_eq!(id.len(), 32, "activity_id must be 32 hex chars");
         assert!(
             id.chars().all(|c| c.is_ascii_hexdigit()),

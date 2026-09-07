@@ -34,22 +34,23 @@ const GOLDEN: &str = include_str!(concat!(
 /// tests change, update here too.
 fn derive_activity_id(
     workflow_name: &str,
-    enclosing_fn: &str,
-    callee: &str,
-    ordinal: u32,
+    path: &[(&str, &str, u32)],
     iteration: &[u32],
 ) -> String {
     let mut hasher = blake3::Hasher::new();
     hasher.update(workflow_name.as_bytes());
     hasher.update(b"\0");
-    hasher.update(enclosing_fn.as_bytes());
-    hasher.update(b"\0");
-    hasher.update(callee.as_bytes());
-    hasher.update(b"\0");
-    hasher.update(ordinal.to_le_bytes().as_ref());
-    for index in iteration {
+    for (enclosing_fn, call_key, ordinal) in path {
+        hasher.update(enclosing_fn.as_bytes());
         hasher.update(b"\0");
+        hasher.update(call_key.as_bytes());
+        hasher.update(b"\0");
+        hasher.update(ordinal.to_le_bytes().as_ref());
+        hasher.update(b"\0");
+    }
+    for index in iteration {
         hasher.update(index.to_le_bytes().as_ref());
+        hasher.update(b"\0");
     }
     let hash = hasher.finalize();
     let bytes = &hash.as_bytes()[..16];
@@ -102,9 +103,7 @@ async fn workflow_resumes_seeded_activity_from_journal() {
         .expect("charge_card ordinal must be stamped");
     let first_charge_id = derive_activity_id(
         "checkout",
-        "checkout",
-        "charge_card",
-        charge_card_ordinal,
+        &[("checkout", "charge_card", charge_card_ordinal)],
         &[],
     );
     let seeded_result = json!({"__vox": "Ok", "value": "tx_SEEDED_500"});
