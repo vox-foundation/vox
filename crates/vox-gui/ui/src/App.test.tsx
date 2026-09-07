@@ -430,6 +430,71 @@ describe('App shell', () => {
     expect(ev.defaultPrevented).toBe(true);
   });
 
+  it('re-resolves plan and session spend when the active chat session changes', async () => {
+    const sessions = [
+      {
+        session_id: 'chat-a',
+        title: 'Alpha chat',
+        updated_at: '2026-01-01T00:00:00Z',
+        message_count: 1,
+        conversation_id: 1,
+        repository_id: null,
+      },
+      {
+        session_id: 'chat-b',
+        title: 'Beta chat',
+        updated_at: '2026-01-02T00:00:00Z',
+        message_count: 1,
+        conversation_id: 2,
+        repository_id: null,
+      },
+    ];
+    invokeMock.mockImplementation((cmd: string, args?: { sessionId?: string }) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve(sessions);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'list_plan_nodes') return Promise.resolve([]);
+      if (cmd === 'latest_plan_session_for_chat') {
+        if (args?.sessionId === 'chat-a') {
+          return Promise.resolve({ plan_session_id: 'plan-a', plan_version: 3 });
+        }
+        return Promise.resolve(null);
+      }
+      if (cmd === 'get_llm_spend') {
+        const sessionUsd =
+          args?.sessionId === 'chat-a' ? 1.25 : args?.sessionId === 'chat-b' ? 0.05 : 0;
+        return Promise.resolve({
+          sessionUsd,
+          dayUsd: 1.25,
+          totalUsd: 9,
+          dailyBudgetUsd: 50,
+          perSessionBudgetUsd: 10,
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.localStorage.setItem('vox_sidebar_mode', JSON.stringify('wide'));
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-a' }),
+    );
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('get_llm_spend', { sessionId: 'chat-a' }),
+    );
+
+    const beta = await screen.findByText('Beta chat');
+    await userEvent.click(beta);
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-b' }),
+    );
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('get_llm_spend', { sessionId: 'chat-b' }),
+    );
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
+  });
+
   // F-02: a null `chat_create_session` result used to throw inside the .then
   // handler (s.session_id on null), get caught, and surface a leaky
   // "Chat session" warn toast on every empty-history mount. The guard should

@@ -78,15 +78,77 @@ fn local_availability(
     p: vox_orchestrator::models::ProviderType,
     ollama_reachable: bool,
     ollama_models: &[String],
+    vox_local_reachable: Option<bool>,
+    vox_local_models: &[String],
 ) -> (bool, Option<bool>, Vec<String>) {
     use vox_orchestrator::models::ProviderType;
     match p {
         ProviderType::Ollama | ProviderType::PopuliMesh => {
             (true, Some(ollama_reachable), ollama_models.to_vec())
         }
-        ProviderType::VoxLocal => (true, None, Vec::new()),
+        ProviderType::VoxLocal => (true, vox_local_reachable, vox_local_models.to_vec()),
         _ => (false, None, Vec::new()),
     }
+}
+
+fn vox_local_endpoint_base() -> String {
+    std::env::var("VOX_LOCAL_ENDPOINT")
+        .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string())
+        .trim_end_matches('/')
+        .to_string()
+}
+
+fn parse_vox_local_model_ids(body: &serde_json::Value) -> Vec<String> {
+    body.get("data")
+        .and_then(|d| d.as_array())
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|row| row.get("id").and_then(|id| id.as_str()).map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+async fn probe_vox_local() -> (Option<bool>, Vec<String>) {
+    let base = vox_local_endpoint_base();
+    let client = vox_http_client::client();
+    let timeout = std::time::Duration::from_secs(2);
+    let healthy = {
+        let health = client
+            .get(format!("{base}/health"))
+            .timeout(timeout)
+            .send()
+            .await;
+        match health {
+            Ok(resp) if resp.status().is_success() => true,
+            _ => {
+                let ready = client
+                    .get(format!("{base}/ready"))
+                    .timeout(timeout)
+                    .send()
+                    .await;
+                matches!(ready, Ok(resp) if resp.status().is_success())
+            }
+        }
+    };
+    if !healthy {
+        return (Some(false), Vec::new());
+    }
+    let models = match client
+        .get(format!("{base}/v1/models"))
+        .timeout(timeout)
+        .send()
+        .await
+    {
+        Ok(resp) if resp.status().is_success() => resp
+            .json::<serde_json::Value>()
+            .await
+            .ok()
+            .map(|body| parse_vox_local_model_ids(&body))
+            .unwrap_or_default(),
+        _ => Vec::new(),
+    };
+    (Some(true), models)
 }
 
 /// Per-backend availability (B9): credential presence for every candidate
@@ -100,12 +162,18 @@ pub async fn inference_provider_status() -> Result<Vec<ProviderStatusDto>, Strin
         vox_config::timeouts::D_15S,
     )
     .await;
+    let (vox_local_reachable, vox_local_models) = probe_vox_local().await;
     Ok(statuses
         .into_iter()
         .map(|(p, key_present)| {
             let provider = format!("{p:?}");
-            let (is_local, local_reachable, local_models) =
-                local_availability(p, probe.reachable, &probe.model_names);
+            let (is_local, local_reachable, local_models) = local_availability(
+                p,
+                probe.reachable,
+                &probe.model_names,
+                vox_local_reachable,
+                &vox_local_models,
+            );
             ProviderStatusDto {
                 provider,
                 key_present,
@@ -139,16 +207,52 @@ mod tests {
     #[test]
     fn vox_local_is_not_gated_on_the_ollama_probe() {
         use vox_orchestrator::models::ProviderType;
-        let (is_local, reachable, models) =
-            local_availability(ProviderType::VoxLocal, false, &["llama3".into()]);
+        let (is_local, reachable, models) = local_availability(
+            ProviderType::VoxLocal,
+            false,
+            &["llama3".into()],
+            Some(true),
+            &["e2e-smoke-metal".into()],
+        );
         assert!(is_local);
-        assert!(reachable.is_none());
-        assert!(models.is_empty());
+        assert_eq!(reachable, Some(true));
+        assert_eq!(models, vec!["e2e-smoke-metal".to_string()]);
 
-        let (ollama_local, ollama_reach, ollama_models) =
-            local_availability(ProviderType::Ollama, false, &["llama3".into()]);
+        let (down_local, down_reach, down_models) = local_availability(
+            ProviderType::VoxLocal,
+            true,
+            &["llama3".into()],
+            Some(false),
+            &[],
+        );
+        assert!(down_local);
+        assert_eq!(down_reach, Some(false));
+        assert!(down_models.is_empty());
+
+        let (ollama_local, ollama_reach, ollama_models) = local_availability(
+            ProviderType::Ollama,
+            false,
+            &["llama3".into()],
+            Some(true),
+            &["e2e-smoke-metal".into()],
+        );
         assert!(ollama_local);
         assert_eq!(ollama_reach, Some(false));
         assert_eq!(ollama_models, vec!["llama3".to_string()]);
+    }
+
+    #[test]
+    fn parse_vox_local_model_ids_reads_openai_list_shape() {
+        let body = serde_json::json!({
+            "object": "list",
+            "data": [
+                {"id": "e2e-smoke-metal", "object": "model"},
+                {"id": "run-b", "object": "model"}
+            ]
+        });
+        assert_eq!(
+            parse_vox_local_model_ids(&body),
+            vec!["e2e-smoke-metal".to_string(), "run-b".to_string()]
+        );
     }
 }

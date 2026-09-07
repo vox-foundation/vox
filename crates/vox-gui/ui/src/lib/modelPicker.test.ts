@@ -25,7 +25,13 @@ const voxLocal = {
   provider: 'VoxLocal',
   key_present: true,
   is_local: true,
-  local_reachable: null,
+  local_reachable: true,
+  local_models: ['e2e-smoke-metal'],
+};
+const voxLocalDown = {
+  ...voxLocal,
+  local_reachable: false,
+  local_models: [] as string[],
 };
 const ollamaDown = {
   provider: 'Ollama',
@@ -108,6 +114,24 @@ describe('isModelSelectable', () => {
     })!;
     expect(isModelSelectable(mens, [openrouterUp, voxLocal])).toBe(true);
     expect(isModelSelectable(mens, [openrouterUp])).toBe(true);
+  });
+
+  it('hides VoxLocal cards when the dedicated probe says the server is down', () => {
+    const mens = normalizeModelCard({
+      id: 'mens/e2e-smoke-metal',
+      provider: 'populi_local',
+      provider_type: 'VoxLocal',
+    })!;
+    expect(isModelSelectable(mens, [openrouterUp, voxLocalDown])).toBe(false);
+  });
+
+  it('hides a mens run that is not the loaded /v1/models id', () => {
+    const other = normalizeModelCard({
+      id: 'mens/other-run',
+      provider: 'populi_local',
+      provider_type: 'VoxLocal',
+    })!;
+    expect(isModelSelectable(other, [voxLocal])).toBe(false);
   });
 
   it('hides a local provider the health probe says is unreachable', () => {

@@ -41,6 +41,10 @@ export interface ChatExecutionRailProps {
   onOpenAgent?: (agentId: string) => void;
 }
 
+export function sessionSpendSeriesKey(sessionId?: string | null): string {
+  return sessionId ? `chat.session-spend.${sessionId}` : 'chat.session-spend';
+}
+
 function formatOpenRouterSpend(usd: number): string {
   return `$${usd.toFixed(2)}`;
 }
@@ -118,6 +122,33 @@ function Segment({
   );
 }
 
+function SessionSpendTrack({
+  sessionId,
+  sessionSpentUsd,
+}: {
+  sessionId?: string | null;
+  sessionSpentUsd: number;
+}) {
+  const { series, append } = useMetricSeries(sessionSpendSeriesKey(sessionId), []);
+  const prev = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (prev.current !== sessionSpentUsd) {
+      prev.current = sessionSpentUsd;
+      append(sessionSpentUsd);
+    }
+  }, [sessionSpentUsd, append]);
+  return (
+    <Segment
+      testId="execution-rail-session"
+      label="Session"
+      value={formatOpenRouterSpend(sessionSpentUsd)}
+      trailing={
+        series.length >= 2 ? <SessionSpendSpark series={series} /> : null
+      }
+    />
+  );
+}
+
 export function ChatExecutionRail({
   tasks,
   kpis,
@@ -133,25 +164,12 @@ export function ChatExecutionRail({
   onOpenAgent,
 }: ChatExecutionRailProps) {
   const [budget, setBudget] = useState<ContextBudgetPayload | null>(null);
-  const { series: sessionSpendSeries, append: appendSessionSpend } = useMetricSeries(
-    'chat.session-spend',
-    [],
-  );
-  const prevSessionSpend = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     getContextBudget(sessionId)
       .then(setBudget)
       .catch(() => {/* daemon unavailable; meter stays hidden */});
   }, [sessionId]);
-
-  useEffect(() => {
-    if (sessionSpentUsd == null || Number.isNaN(sessionSpentUsd)) return;
-    if (prevSessionSpend.current !== sessionSpentUsd) {
-      prevSessionSpend.current = sessionSpentUsd;
-      appendSessionSpend(sessionSpentUsd);
-    }
-  }, [sessionSpentUsd, appendSessionSpend]);
 
   const peerLabel = kpis.mesh.peers === 1 ? '1 peer' : `${kpis.mesh.peers} peers`;
 
@@ -289,15 +307,10 @@ export function ChatExecutionRail({
             />
           )}
           {sessionSpentUsd != null && !Number.isNaN(sessionSpentUsd) && (
-            <Segment
-              testId="execution-rail-session"
-              label="Session"
-              value={formatOpenRouterSpend(sessionSpentUsd)}
-              trailing={
-                sessionSpendSeries.length >= 2 ? (
-                  <SessionSpendSpark series={sessionSpendSeries} />
-                ) : null
-              }
+            <SessionSpendTrack
+              key={sessionId ?? 'none'}
+              sessionId={sessionId}
+              sessionSpentUsd={sessionSpentUsd}
             />
           )}
         </section>

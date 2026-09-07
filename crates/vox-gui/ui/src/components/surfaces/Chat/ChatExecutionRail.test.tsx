@@ -20,7 +20,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   }),
 }));
 
-import { ChatExecutionRail } from './ChatExecutionRail';
+import { ChatExecutionRail, sessionSpendSeriesKey } from './ChatExecutionRail';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 
 const sampleKpis = {
@@ -36,6 +36,8 @@ describe('ChatExecutionRail', () => {
 
   afterEach(() => {
     localStorage.removeItem('vox.metric.series.v1.chat.session-spend');
+    localStorage.removeItem('vox.metric.series.v1.chat.session-spend.sess-a');
+    localStorage.removeItem('vox.metric.series.v1.chat.session-spend.sess-b');
   });
 
   it('renders task list section with aria-label Active tasks', () => {
@@ -294,6 +296,50 @@ describe('ChatExecutionRail', () => {
       </LanguageProvider>,
     );
     expect(await screen.findByTestId('execution-rail-spend-spark')).toBeInTheDocument();
+  });
+
+  it('keys the session-spend series by session id and does not blend a switch', async () => {
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-a"
+          sessionSpentUsd={0.1}
+        />
+      </LanguageProvider>,
+    );
+    rerender(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-a"
+          sessionSpentUsd={0.4}
+        />
+      </LanguageProvider>,
+    );
+    expect(await screen.findByTestId('execution-rail-spend-spark')).toBeInTheDocument();
+    expect(screen.getByTestId('execution-rail-session')).toHaveTextContent('$0.40');
+    const keyA = `vox.metric.series.v1.${sessionSpendSeriesKey('sess-a')}`;
+    expect(localStorage.getItem(keyA)).toContain('0.4');
+
+    rerender(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-b"
+          sessionSpentUsd={0.05}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByTestId('execution-rail-session')).toHaveTextContent('$0.05');
+    expect(screen.queryByTestId('execution-rail-spend-spark')).toBeNull();
+    expect(localStorage.getItem(keyA)).toContain('0.4');
   });
 
   it('passes used_tokens to ContextWindowMeter so it reflects real fill percentage', async () => {
