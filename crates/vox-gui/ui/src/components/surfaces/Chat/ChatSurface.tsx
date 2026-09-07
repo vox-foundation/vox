@@ -284,6 +284,7 @@ interface ChatSurfaceProps {
   executionKpis?: ChatExecutionRailKpis;
   activeModel?: string | null;
   openrouterSpendUsd?: number | null;
+  sessionSpentUsd?: number | null;
   agentStreamItems?: StreamItem[];
   onOpenAgentInFlow?: (agentId: string) => void;
   /**
@@ -327,6 +328,7 @@ export function ChatSurface({
   executionKpis,
   activeModel,
   openrouterSpendUsd,
+  sessionSpentUsd,
   agentStreamItems,
   onOpenAgentInFlow,
   flowAgents = [],
@@ -623,6 +625,7 @@ export function ChatSurface({
       intents={intents}
       activeModel={activeModel}
       openrouterSpendUsd={openrouterSpendUsd}
+      sessionSpentUsd={sessionSpentUsd}
       onNavigate={onNavigate}
       sessionId={activeSessionId}
       onOpenRouting={() => setRoutingOpen(true)}
