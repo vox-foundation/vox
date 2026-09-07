@@ -87,8 +87,7 @@ impl BrowserEngine {
             bounds.x + bounds.width / 2.0,
             bounds.y + bounds.height / 2.0,
         )
-        .await
-        .map_err(|_| stale_ref_error(ref_id))?;
+        .await?;
         Ok(serde_json::json!({ "ok": true, "ref": ref_id }))
     }
 
@@ -113,11 +112,8 @@ impl BrowserEngine {
             bounds.x + bounds.width / 2.0,
             bounds.y + bounds.height / 2.0,
         )
-        .await
-        .map_err(|_| stale_ref_error(ref_id))?;
-        self.type_text(page_id, value)
-            .await
-            .map_err(|_| stale_ref_error(ref_id))?;
+        .await?;
+        self.type_text(page_id, value).await?;
         Ok(serde_json::json!({ "ok": true, "ref": ref_id }))
     }
 
@@ -194,6 +190,17 @@ mod tests {
         // compile-time: all miss paths must call stale_ref_error; this test
         // locks the string so MCP can match it.
         assert_eq!(stale_ref_error("e9"), "stale_ref: e9");
+    }
+
+    #[test]
+    fn only_box_model_failures_map_to_stale_ref() {
+        let source = include_str!("ref_actions.rs");
+        let stale_mapping = [".map_err(|_| stale_ref_error(", "ref_id))?"].concat();
+        assert_eq!(
+            source.matches(&stale_mapping).count(),
+            2,
+            "click/type transport errors must remain intact"
+        );
     }
 
     #[tokio::test]
