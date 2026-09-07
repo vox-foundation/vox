@@ -17,10 +17,6 @@ pub const GATED: &[&str] = &[
     "fs", "io", "process", "env", "secrets", "http", "time", "agentos", "crypto",
 ];
 
-pub fn is_classified(ns: &str) -> bool {
-    PURE.contains(&ns) || GATED.contains(&ns)
-}
-
 /// A parsed, canonicalised set of receiver-imposed capabilities. Every filesystem root
 /// stored here has already been through `std::fs::canonicalize`, so `allows_path` never
 /// has to worry about `/tmp` vs `/private/tmp` or relative-vs-absolute mismatches — it
