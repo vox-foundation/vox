@@ -143,6 +143,15 @@ macro_rules! backend {
     };
 }
 
+fn goto_with_host_policy(page_id: &str, url: &str) -> anyhow::Result<()> {
+    with_browser_plugin(|p| {
+        let b = backend!(p);
+        b.goto(page_id.into(), url.into())
+            .into_result()
+            .map_err(|e| anyhow::anyhow!("{e}"))
+    })
+}
+
 pub async fn browser_open(_state: &ServerState, p: BrowserOpenParams) -> String {
     let url = p.url.clone();
     let headless = p.headless;
@@ -418,12 +427,7 @@ pub async fn browser_goto(_state: &ServerState, p: BrowserGotoParams) -> String 
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| {
-            let b = backend!(p);
-            b.goto(page_id.as_str().into(), url.as_str().into())
-                .into_result()
-                .map_err(|e| anyhow::anyhow!("browser goto: {e}"))
-        })
+        goto_with_host_policy(&page_id, &url).map_err(|e| anyhow::anyhow!("browser goto: {e}"))
     })
     .await
     {
@@ -938,17 +942,10 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
             };
             let url = url.to_string();
             let page_id = page_id.clone();
-            tokio::task::spawn_blocking(move || {
-                with_browser_plugin(|p| {
-                    let b = backend!(p);
-                    b.goto(page_id.as_str().into(), url.as_str().into())
-                        .into_result()
-                        .map_err(|e| anyhow::anyhow!("{e}"))
-                })
-            })
-            .await
-            .map_err(|e| format!("spawn_blocking: {e}"))
-            .and_then(|r| r.map_err(|e| e.to_string()))
+            tokio::task::spawn_blocking(move || goto_with_host_policy(&page_id, &url))
+                .await
+                .map_err(|e| format!("spawn_blocking: {e}"))
+                .and_then(|r| r.map_err(|e| e.to_string()))
         }
         "wait" => {
             let Some(t) = act_target.as_deref().filter(|s| !s.is_empty()) else {

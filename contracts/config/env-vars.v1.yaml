@@ -181,6 +181,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_BROWSER_ALLOWED_HOSTS"
+    owner_crate: "vox-plugin-browser"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Optional comma-separated browser navigation host allowlist; entries may be exact hosts or wildcard subdomains such as *.example.com."
   - name: "VOX_BROWSER_LLM_CONTEXT_CHARS"
     owner_crate: "vox-secrets"
     kind: "string"

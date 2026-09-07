@@ -11,8 +11,18 @@ use serde::Serialize;
 use tracing::debug;
 
 use crate::engine::BrowserEngine;
+use crate::policy::{host_allowed, url_host};
 use crate::resolve::history_capabilities;
 use crate::snapshot::AxRef;
+
+fn validate_navigation_url(url: &str) -> Result<(), String> {
+    let allow_csv = std::env::var("VOX_BROWSER_ALLOWED_HOSTS").ok();
+    if host_allowed(url, allow_csv.as_deref()) {
+        Ok(())
+    } else {
+        Err(format!("host_not_allowed:{}", url_host(url)))
+    }
+}
 
 pub(crate) struct HostInner {
     _handler_task: tokio::task::JoinHandle<()>,
@@ -102,6 +112,7 @@ impl BrowserEngine {
     }
 
     pub async fn open(&self, url: &str, headless: bool) -> Result<String, String> {
+        validate_navigation_url(url)?;
         self.ensure_host(headless).await?;
         let mut guard = self.host.lock().await;
         let host = guard
@@ -214,6 +225,7 @@ impl BrowserEngine {
     }
 
     pub async fn goto(&self, page_id: &str, url: &str) -> Result<(), String> {
+        validate_navigation_url(url)?;
         let page = self.page_ref(page_id).await?;
         self.clear_ref_map(page_id).await;
         page.goto(url).await.map_err(Self::map_page_err)?;
