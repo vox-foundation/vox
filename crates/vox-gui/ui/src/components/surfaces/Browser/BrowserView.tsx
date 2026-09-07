@@ -15,7 +15,11 @@ import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { BrowserToolbar, type ControlMode } from './BrowserToolbar';
+import { mapClickToViewport } from './clickMap';
 import type { LaunchMode } from './launchMode';
+import { overlayItems, type OverlayRef } from './refOverlay';
+
+export { mapClickToViewport } from './clickMap';
 
 interface BrowserViewProps {
   pushToast: (item: Toast) => void;
@@ -42,26 +46,8 @@ const DEFAULT_VIEWPORT_HEIGHT = 800;
 
 const MAX_ACTION_LOG = 50;
 
-export function mapClickToViewport(
-  clientX: number,
-  clientY: number,
-  rect: { left: number; top: number; width: number; height: number },
-  viewWidth: number,
-  viewHeight: number,
-): { x: number; y: number } | null {
-  if (rect.width <= 0 || rect.height <= 0 || viewWidth <= 0 || viewHeight <= 0) return null;
-  const scale = Math.min(rect.width / viewWidth, rect.height / viewHeight);
-  const shownW = viewWidth * scale;
-  const shownH = viewHeight * scale;
-  const padX = (rect.width - shownW) / 2;
-  const padY = (rect.height - shownH) / 2;
-  const localX = clientX - rect.left - padX;
-  const localY = clientY - rect.top - padY;
-  if (localX < 0 || localY < 0 || localX > shownW || localY > shownH) return null;
-  return {
-    x: (localX / shownW) * viewWidth,
-    y: (localY / shownH) * viewHeight,
-  };
+interface SnapshotPayload {
+  refs?: Record<string, OverlayRef>;
 }
 
 export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
@@ -89,6 +75,10 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const [frame, setFrame] = useState<BrowserFramePayload | null>(null);
   const [actionLog, setActionLog] = useState<string[]>([]);
   const [validateOut, setValidateOut] = useState('');
+  const [showRefs, setShowRefs] = useState(false);
+  const [snapshotRefs, setSnapshotRefs] = useState<Record<string, OverlayRef>>({});
+  const frameBoxRef = useRef<HTMLDivElement>(null);
+  const [frameSize, setFrameSize] = useState({ frameW: 0, frameH: 0 });
 
   const refreshPreviewStatus = useCallback(async () => {
     try {
@@ -348,6 +338,38 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       pushToast({ tone: 'warn', title: 'Close failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    const el = frameBoxRef.current;
+    if (!el) return;
+    const syncSize = () => {
+      const rect = el.getBoundingClientRect();
+      setFrameSize({ frameW: rect.width, frameH: rect.height });
+    };
+    syncSize();
+    const observer = new ResizeObserver(syncSize);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [tab, frame]);
+
+  const captureSnapshot = async () => {
+    try {
+      const snap = await invoke<SnapshotPayload>('browser_snapshot');
+      setSnapshotRefs(snap.refs ?? {});
+    } catch (err) {
+      setSnapshotRefs({});
+      pushToast({ tone: 'warn', title: 'Snapshot failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    }
+  };
+
+  const onShowRefsChange = async (checked: boolean) => {
+    setShowRefs(checked);
+    if (checked) {
+      await captureSnapshot();
+    } else {
+      setSnapshotRefs({});
     }
   };
 
@@ -676,13 +698,26 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
             onClosePage={closePage}
             onControlModeToggle={() => setControlModeRemote(controlMode === 'you' ? 'agent' : 'you')}
           />
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showRefs}
+              disabled={!pageId}
+              onChange={(e) => {
+                void onShowRefsChange(e.target.checked);
+              }}
+              className="rounded-sm"
+            />
+            <span className="text-[11px] text-text-muted">Show refs</span>
+          </label>
           <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
             <div
+              ref={frameBoxRef}
               tabIndex={0}
               onClick={onFrameClick}
               onWheel={onFrameWheel}
               onKeyDown={onFrameKeyDown}
-              className="rounded-xl border border-border-subtle bg-black/30 min-h-[360px] flex items-center justify-center overflow-hidden focus:outline-hidden focus:ring-2 focus:ring-brass/30"
+              className="relative rounded-xl border border-border-subtle bg-black/30 min-h-[360px] flex items-center justify-center overflow-hidden focus:outline-hidden focus:ring-2 focus:ring-brass/30"
             >
               {frame?.image_base64 ? (
                 <img
@@ -695,6 +730,26 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                   {frame?.error ?? 'No frame yet — open a session or wait for the live stream (~3s).'}
                 </span>
               )}
+              {showRefs &&
+                overlayItems(snapshotRefs, {
+                  frameW: frameSize.frameW,
+                  frameH: frameSize.frameH,
+                  viewW: frame?.viewport_width ?? DEFAULT_VIEWPORT_WIDTH,
+                  viewH: frame?.viewport_height ?? DEFAULT_VIEWPORT_HEIGHT,
+                }).map((item) => (
+                  <span
+                    key={item.refId}
+                    className="absolute pointer-events-none border border-brass/70 bg-brass/15 text-[10px] leading-none text-brass font-mono px-0.5"
+                    style={{
+                      left: item.left,
+                      top: item.top,
+                      width: item.width,
+                      height: item.height,
+                    }}
+                  >
+                    [{item.refId}]
+                  </span>
+                ))}
             </div>
             <div className="rounded-xl border border-border-subtle bg-black/20 p-3 max-h-[360px] overflow-auto">
               <h3 className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Action log</h3>

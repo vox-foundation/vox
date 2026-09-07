@@ -677,6 +677,31 @@ pub async fn browser_close_page(
     Ok(())
 }
 
+fn snapshot_mcp_args(page_id: &str) -> serde_json::Value {
+    serde_json::json!({
+        "page_id": page_id,
+        "include_boxes": true,
+    })
+}
+
+/// Overlay enable path: MCP `vox_browser_snapshot` with boxes for `[eN]` labels.
+#[tauri::command]
+pub async fn browser_snapshot(
+    browser_state: tauri::State<'_, Arc<BrowserState>>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<serde_json::Value, String> {
+    let page_id = {
+        let session = browser_state.session.lock().await;
+        session
+            .selected_page_id
+            .clone()
+            .ok_or_else(|| "no selected page; open or attach first".to_string())?
+    };
+    let result =
+        mcp_tool_call(&daemon, "vox_browser_snapshot", snapshot_mcp_args(&page_id)).await?;
+    mcp_data(&result)
+}
+
 #[tauri::command]
 pub async fn browser_screenshot_frame(
     browser_state: tauri::State<'_, Arc<BrowserState>>,
@@ -1264,6 +1289,16 @@ mod tests {
         assert_eq!(
             args.get("cdp_url").and_then(|v| v.as_str()),
             Some("http://127.0.0.1:9222")
+        );
+    }
+
+    #[test]
+    fn snapshot_mcp_args_include_boxes() {
+        let args = snapshot_mcp_args("page-1");
+        assert_eq!(args.get("page_id").and_then(|v| v.as_str()), Some("page-1"));
+        assert_eq!(
+            args.get("include_boxes").and_then(|v| v.as_bool()),
+            Some(true)
         );
     }
 
