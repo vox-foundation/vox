@@ -329,10 +329,12 @@ impl CapabilitySet {
 
     /// `@versioned` auto-snapshot is not covered by PURE `repo` — it is a
     /// write that restrictive embedders (`parse("")`, MCP) must not perform.
-    /// Local / native runs (`developer_default`, or any grant of `fs` or
-    /// `process`) still snapshot.
+    /// Local / native runs still snapshot: `developer_default`, an unscoped
+    /// `fs` grant (legacy directive), or any `process` grant. A scoped
+    /// `from_roots` `fs` grant (MCP) is not a local run.
     pub fn allows_versioned_snapshot(&self) -> bool {
-        self.allowed.contains("fs") || self.allowed.contains("process")
+        self.allowed.contains("process")
+            || (self.allowed.contains("fs") && self.fs_ro.is_none() && self.fs_rw.is_none())
     }
 }
 
@@ -516,6 +518,17 @@ mod tests {
             !CapabilitySet::parse("env:ro")
                 .unwrap()
                 .allows_versioned_snapshot()
+        );
+        let d = tempfile::tempdir().unwrap();
+        let mcp = CapabilitySet::from_roots(
+            vec![d.path().to_path_buf()],
+            vec![],
+            &["env:ro", "time:real"],
+        )
+        .unwrap();
+        assert!(
+            mcp.allows_namespace("fs") && !mcp.allows_versioned_snapshot(),
+            "scoped from_roots (MCP) is not a local/native run: {mcp:?}"
         );
     }
 

@@ -600,10 +600,8 @@ impl Interpreter {
             // P5: auto-checkpoint on successful return of a @versioned function.
             // `result?` above already restored the scope (on BOTH success and
             // error) and short-circuits on error, so the auto-snapshot is
-            // recorded only for a successful call. The snapshot performs a `Vcs`
-            // effect; it inherits the same ungated behavior as explicit `repo.*`
-            // calls (`eval/repo.rs` does not consult `interp.caps`), so we do not
-            // add a new caps gate here — consistent with `repo.*` (design §4.3).
+            // recorded only for a successful call. Restrictive embedders
+            // (`parse("")`, MCP `from_roots`) must not snapshot.
             if is_versioned {
                 if !self.caps.allows_versioned_snapshot() {
                     return Err(EvalError::CapabilityDenied {
@@ -636,5 +634,20 @@ impl Interpreter {
     /// global so a denied register cannot enqueue work.
     pub fn flush_exit_commands(&mut self) {
         crate::eval::builtins::flush_exit_command_list(&mut self.exit_commands);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flush_exit_commands_drains_the_interpreter_queue() {
+        let mut interp = Interpreter::new(1_000);
+        interp
+            .exit_commands
+            .push(("true".into(), Vec::<String>::new()));
+        interp.flush_exit_commands();
+        assert!(interp.exit_commands.is_empty());
     }
 }

@@ -201,4 +201,24 @@ fn versioned_snapshot_is_gated_when_repo_write_is_denied_by_policy() {
         ),
         "restrictive embedder must not snapshot via the decorator bypass: {denied:?}"
     );
+
+    let root = tempfile::tempdir().unwrap();
+    let mcp = CapabilitySet::from_roots(
+        vec![root.path().to_path_buf()],
+        vec![],
+        &["env:ro", "time:real"],
+    )
+    .unwrap();
+    let mcp_denied = run_with(
+        mcp,
+        "@versioned fn save() { let x = 1 }\npub fn main() { save(); return 0 }",
+    );
+    assert!(
+        matches!(
+            mcp_denied,
+            Err(EvalError::CapabilityDenied { ref ns, ref method })
+                if ns == "repo" && method == "snapshot"
+        ),
+        "MCP from_roots must not snapshot via the decorator bypass: {mcp_denied:?}"
+    );
 }

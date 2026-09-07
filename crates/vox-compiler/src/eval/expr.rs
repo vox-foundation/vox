@@ -465,9 +465,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     // function. `result?` above already restored the scope (on
                     // BOTH success and error) and short-circuits on error, so a
                     // checkpoint is recorded only for a successful call — never
-                    // for a failed one. The snapshot is an ungated `Vcs` effect,
-                    // matching explicit `repo.*` semantics (`eval/repo.rs` does
-                    // not consult `interp.caps`).
+                    // for a failed one. Restrictive embedders (`parse("")`,
+                    // MCP `from_roots`) must not snapshot.
                     if is_versioned {
                         if !interp.caps.allows_versioned_snapshot() {
                             return Err(EvalError::CapabilityDenied {

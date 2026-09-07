@@ -16,7 +16,7 @@ static ENV_MUTEX: Mutex<()> = Mutex::new(());
 /// The queue lives on [`crate::eval::Interpreter::exit_commands`]; the
 /// process-global OnceLock is gone so a denied register cannot enqueue.
 /// Task 6 installs the signal handler from `run_interp` only.
-pub fn flush_exit_command_list(cmds: &mut Vec<(String, Vec<String>)>) {
+pub(crate) fn flush_exit_command_list(cmds: &mut Vec<(String, Vec<String>)>) {
     for (cmd, args) in cmds.drain(..) {
         let mut c = std::process::Command::new(&cmd);
         c.args(args);
@@ -3039,5 +3039,12 @@ mod fs_text_robustness_tests {
             matches!(denied, Some(VoxValue::_Denied(ref s)) if s == "fs.read"),
             "restrictive caps must deny fs.read before the arm; got {denied:?}"
         );
+    }
+
+    #[test]
+    fn flush_exit_command_list_drains_the_queue() {
+        let mut cmds = vec![("true".into(), Vec::<String>::new())];
+        flush_exit_command_list(&mut cmds);
+        assert!(cmds.is_empty());
     }
 }
