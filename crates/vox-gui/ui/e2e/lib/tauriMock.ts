@@ -32,6 +32,19 @@ export function installTauriMock(viewKey: string): void {
     success_rate: [0.98, 0.99, 0.985, 0.97, 0.95, 0.93][i],
     quality_score: [0.78, 0.95, 0.9, 0.82, 0.7, 0.65][i],
   }));
+  models.push({
+    id: 'mens/e2e-smoke-metal',
+    model_id: 'mens/e2e-smoke-metal',
+    display_name: 'E2E Smoke Metal',
+    provider: 'mens',
+    tier: 'Local',
+    cost_per_1k: 0,
+    max_tokens: 200000,
+    is_free: true,
+    latency_p50_ms: 110,
+    success_rate: 0.97,
+    quality_score: 0.76,
+  });
 
   const queueSnapshot = {
     candidates: {

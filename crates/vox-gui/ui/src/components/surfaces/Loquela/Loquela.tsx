@@ -240,6 +240,23 @@ export function Loquela({
   const [intentOpen, setIntentOpen] = useState(false);
 
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const tierRootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!tierOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTierOpen(false);
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (!tierRootRef.current?.contains(e.target as Node)) setTierOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [tierOpen]);
 
   useEffect(() => {
     const ta = taRef.current; if (!ta) return;
@@ -529,13 +546,13 @@ export function Loquela({
         return;
       }
     }
-    const pickedModel = isRoutingTierId(tier) ? null : tier;
+    const pickedModel = isRoutingTierId(effectiveTierId) ? null : effectiveTierId;
     const payload = {
       description: composeDescription(text, intent),
       priority: effortToPriority(intent.effort),
       active_skill: activeSkill?.id,
       mode,
-      tier: isRoutingTierId(tier) ? tier : 'auto',
+      tier: isRoutingTierId(effectiveTierId) ? effectiveTierId : 'auto',
       model_override: pickedModel,
       dry_run: false,
       clutch: control.clutch,
@@ -703,7 +720,7 @@ export function Loquela({
           <IntentPanel intent={intent} onChange={(p) => setIntent((i) => ({ ...i, ...p }))} showEffort={executionMode === 'task'} />
         )}
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-[10px]">
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/5 pt-1.5 text-[10px]">
           <div className="flex items-center gap-1.5">
             <button type="button" aria-label="Attach local file(s) to context" onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
               <Icon.plus className="size-3.5" aria-hidden="true" />
@@ -763,30 +780,32 @@ export function Loquela({
             <Icon.list className="size-3" aria-hidden="true" /> Intent{hasIntent(intent) ? ' ·' : ''}
           </button>
 
-          <div className="relative">
+          <div className="relative" ref={tierRootRef}>
             <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); setModeOpen(false); if (!tierOpen) setTierQuery(''); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
               <Icon.cpu className="size-3 text-cyan-300" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{triggerLabel}</span>
               <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
             </button>
             <Popover open={tierOpen}>
-              <div className="w-[min(22rem,80vw)] max-h-72 overflow-y-auto custom-scrollbar">
+              <div className="w-[min(22rem,80vw)]">
                 <ModelPickerSearch value={tierQuery} onChange={setTierQuery} />
-                {visibleTiers.map(t => (
-                  <button type="button" key={t.id} onClick={() => {
-                    setTier(t.id);
-                    setTierOpen(false);
-                    setTierQuery('');
-                    onModelPick?.(isRoutingTierId(t.id) ? null : t.id);
-                  }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${effectiveTierId === t.id ? "bg-overlay-subtle" : ""}`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] text-text-primary truncate">{isRoutingTierId(t.id) ? t.label : t.id}</div>
-                      <div className="font-mono text-[9px] text-text-muted truncate">{t.detail}</div>
-                    </div>
-                  </button>
-                ))}
-                {visibleTiers.length === 0 && (
-                  <div className="px-2 py-1.5 font-mono text-[10px] text-text-muted">No keyed models match</div>
-                )}
+                <div data-testid="model-picker-scroll" className="max-h-72 overflow-y-auto overscroll-contain custom-scrollbar">
+                  {visibleTiers.map(t => (
+                    <button type="button" key={t.id} onClick={() => {
+                      setTier(t.id);
+                      setTierOpen(false);
+                      setTierQuery('');
+                      onModelPick?.(isRoutingTierId(t.id) ? null : t.id);
+                    }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${effectiveTierId === t.id ? "bg-overlay-subtle" : ""}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] text-text-primary truncate">{isRoutingTierId(t.id) ? t.label : t.id}</div>
+                        <div className="font-mono text-[9px] text-text-muted truncate">{t.detail}</div>
+                      </div>
+                    </button>
+                  ))}
+                  {visibleTiers.length === 0 && (
+                    <div className="px-2 py-1.5 font-mono text-[10px] text-text-muted">No keyed models match</div>
+                  )}
+                </div>
               </div>
             </Popover>
           </div>
@@ -797,14 +816,16 @@ export function Loquela({
               <Icon.chevR className="size-2.5 text-brass/60 rotate-90" />
             </button>
             <Popover open={skillOpen}>
-              <button type="button" onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded-sm px-2 py-1.5 text-left text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-primary">auto</button>
-              {skills.map(s => {
-                const skillId = s.capability_id ?? s.command;
-                return (
-                <button type="button" key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-[11px] hover:bg-overlay-subtle ${activeSkill?.id === skillId ? "bg-overlay-subtle text-brass" : "text-text-secondary"}`}>
-                  <span>{s.command}</span>
-                </button>
-              );})}
+              <div className="max-h-64 overflow-y-auto overscroll-contain">
+                <button type="button" onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded-sm px-2 py-1.5 text-left text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-primary">auto</button>
+                {skills.map(s => {
+                  const skillId = s.capability_id ?? s.command;
+                  return (
+                  <button type="button" key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-[11px] hover:bg-overlay-subtle ${activeSkill?.id === skillId ? "bg-overlay-subtle text-brass" : "text-text-secondary"}`}>
+                    <span>{s.command}</span>
+                  </button>
+                );})}
+              </div>
             </Popover>
           </div>
 

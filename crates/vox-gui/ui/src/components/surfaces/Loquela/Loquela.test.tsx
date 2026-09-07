@@ -390,4 +390,30 @@ describe('Loquela', () => {
     fireEvent.click(screen.getByRole('button', { name: /\/verify/i }));
     expect(screen.getByLabelText('Interaction mode')).toHaveTextContent(/verify/i);
   });
+
+  it('submits selectedModelId over a stale local tier', () => {
+    const onSubmit = vi.fn();
+    renderLoquela({ onSubmit, selectedModelId: 'mens/e2e-smoke-metal', onModelPick: vi.fn() });
+    const ta = screen.getByLabelText('Task composer');
+    fireEvent.change(ta, { target: { value: 'hello' } });
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    expect(onSubmit.mock.calls[0][0].model_override).toBe('mens/e2e-smoke-metal');
+  });
+
+  it('keeps search outside the model list scroller and lists 25 catalog rows', async () => {
+    mockListModels.mockResolvedValue(
+      Array.from({ length: 25 }, (_, i) => ({
+        id: i === 24 ? 'mens/e2e-smoke-metal' : `openrouter/vendor/model-${i}`,
+        provider_type: i === 24 ? 'mens' : 'openrouter',
+      })),
+    );
+    renderLoquela();
+    fireEvent.click(screen.getByRole('button', { name: /choose model tier/i }));
+    const search = await screen.findByRole('searchbox', { name: /search models/i });
+    const scroller = screen.getByTestId('model-picker-scroll');
+    expect(scroller.contains(search)).toBe(false);
+    expect(scroller.className).toMatch(/overflow-y-auto/);
+    expect(scroller.className).toMatch(/max-h-/);
+    expect(screen.getByText('mens/e2e-smoke-metal')).toBeInTheDocument();
+  });
 });

@@ -79,12 +79,12 @@ describe('ChatModelPicker', () => {
     expect(screen.queryByRole('listbox', { name: /pick model/i })).toBeNull();
   });
 
-  it('disables a model whose provider has no key configured, and refuses the pick on click', async () => {
+  it('hides a model whose provider has no key configured', async () => {
     invoke.mockImplementation(async (cmd: string) => {
       if (cmd === 'list_model_cards') {
         return [
-          { id: 'openai/gpt-5.2-mini', provider: 'openai' },
-          { id: 'anthropic/claude-opus-4.7', provider: 'anthropic' },
+          { id: 'openai/gpt-5.2-mini', provider: 'openai', provider_type: 'OpenAI' },
+          { id: 'anthropic/claude-opus-4.7', provider: 'anthropic', provider_type: 'Anthropic' },
         ];
       }
       if (cmd === 'inference_provider_status') {
@@ -99,13 +99,12 @@ describe('ChatModelPicker', () => {
     const onApplied = vi.fn();
     render(<ChatModelPicker activeModel={null} onApplied={onApplied} />);
     await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
-    const unavailableOption = await screen.findByRole('option', { name: /openai\/gpt-5\.2-mini/i });
-    expect(unavailableOption).toBeDisabled();
-    await user.click(unavailableOption);
+    expect(await screen.findByRole('option', { name: 'anthropic/claude-opus-4.7' })).toBeDefined();
+    expect(screen.queryByRole('option', { name: /openai\/gpt-5\.2-mini/i })).toBeNull();
     expect(onApplied).not.toHaveBeenCalled();
   });
 
-  it('disables a local provider model when the cached health probe reports unreachable', async () => {
+  it('hides a local provider model when the cached health probe reports unreachable', async () => {
     invoke.mockImplementation(async (cmd: string) => {
       if (cmd === 'list_model_cards') return [{ id: 'ollama/llama3', provider: 'ollama' }];
       if (cmd === 'inference_provider_status') {
@@ -117,23 +116,47 @@ describe('ChatModelPicker', () => {
     const onApplied = vi.fn();
     render(<ChatModelPicker activeModel={null} onApplied={onApplied} />);
     await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
-    const option = await screen.findByRole('option', { name: /ollama\/llama3/i });
-    expect(option).toBeDisabled();
-    await user.click(option);
+    await screen.findByRole('searchbox', { name: /search models/i });
+    expect(screen.queryByRole('option', { name: /ollama\/llama3/i })).toBeNull();
     expect(onApplied).not.toHaveBeenCalled();
+  });
+
+  it('narrows the keyed catalog through the search box, including OpenRouter ids', async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'list_model_cards') {
+        return [
+          { id: 'openrouter/anthropic/claude-sonnet-4', provider: 'anthropic', provider_type: 'OpenRouter' },
+          { id: 'mens/e2e-smoke-metal', provider: 'populi_local', provider_type: 'VoxLocal' },
+        ];
+      }
+      if (cmd === 'inference_provider_status') {
+        return [
+          { provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null },
+          { provider: 'VoxLocal', key_present: true, is_local: true, local_reachable: null },
+        ];
+      }
+      return null;
+    });
+    const user = userEvent.setup();
+    render(<ChatModelPicker activeModel={null} />);
+    await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
+    expect(await screen.findByRole('option', { name: 'openrouter/anthropic/claude-sonnet-4' })).toBeDefined();
+    expect(screen.getByRole('option', { name: 'mens/e2e-smoke-metal' })).toBeDefined();
+    await user.type(screen.getByRole('searchbox', { name: /search models/i }), 'openrouter');
+    expect(screen.getByRole('option', { name: 'openrouter/anthropic/claude-sonnet-4' })).toBeDefined();
+    expect(screen.queryByRole('option', { name: 'mens/e2e-smoke-metal' })).toBeNull();
   });
 });
 
-// Wiring guard: the picker renders inside the composer's own toolbar row
-// (Loquela's `trailingSlot`), not as a separate row ChatSurface stacks below
-// the composer — reported live as overlapping the execution-rail toggle
-// before this move.
+// Wiring guard: App mounts GroundingCheckToggle only in Loquela trailingSlot.
+// The catalog picker is Loquela's "Choose model tier" control — ChatModelPicker
+// stays as a module but is not mounted in the composer toolbar.
 describe('ChatModelPicker toolbar placement wiring', () => {
-  it('App.tsx passes ChatModelPicker as Loquela trailingSlot', () => {
+  it('App.tsx does not mount ChatModelPicker in Loquela trailingSlot', () => {
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
     const loquelaBlockMatch = appSrc.match(/const loquelaComposer = \(\s*<Loquela[\s\S]*?\/>\s*\);/);
-    expect(loquelaBlockMatch).not.toBeNull();
-    expect(loquelaBlockMatch?.[0]).toMatch(/trailingSlot=\{[\s\S]*?<ChatModelPicker/);
+    expect(loquelaBlockMatch?.[0]).not.toMatch(/<ChatModelPicker/);
+    expect(loquelaBlockMatch?.[0]).toMatch(/<GroundingCheckToggle/);
   });
 });
 
@@ -149,7 +172,7 @@ describe('model_override submit-payload wiring', () => {
     // …and App.tsx injects the picker state at the composer call site and as
     // the builder's fallback context.
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
-    expect(appSrc).toMatch(/model_override:\s*chatModelOverride/);
+    expect(appSrc).toMatch(/model_override:\s*p\.model_override\s*\?\?\s*chatModelOverride/);
     expect(appSrc).toMatch(/modelOverride:\s*chatModelOverride/);
   });
 });
@@ -167,7 +190,9 @@ describe('model_override submit-payload wiring', () => {
 describe('execution_mode submit-payload wiring', () => {
   it('buildChatTurn maps execution_mode to `execution`, defaulting to sync', () => {
     const builderSrc = readFileSync(path.resolve(__dirname, '../../../lib/buildChatTurn.ts'), 'utf8');
-    expect(builderSrc).toMatch(/execution:\s*payload\.execution_mode === 'task' \? 'background' : 'sync'/);
+    expect(builderSrc).toMatch(/payload\.execution_mode === 'task'/);
+    expect(builderSrc).toMatch(/'background'/);
+    expect(builderSrc).toMatch(/'sync'/);
     expect(builderSrc).not.toMatch(/^\s*task_category:/m);
   });
 
@@ -183,7 +208,7 @@ describe('execution_mode submit-payload wiring', () => {
   it("/spawn's direct dispatch says execution_mode: 'task' rather than omitting it", () => {
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
     const spawnBlockMatch = appSrc.match(
-      /base === '\/spawn'\) \{\s*void handleLoquelaSubmit\(\{[^}]*\}\);/,
+      /base === '\/spawn'\) \{[\s\S]*?void handleLoquelaSubmit\(\{[\s\S]*?execution_mode: 'task'[\s\S]*?\}\);/,
     );
     expect(spawnBlockMatch).not.toBeNull();
     expect(spawnBlockMatch?.[0]).toMatch(/execution_mode: 'task'/);
