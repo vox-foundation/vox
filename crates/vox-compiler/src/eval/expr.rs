@@ -475,6 +475,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
 
                     let old_scope = interp.scope.clone();
                     interp.scope = env;
+                    interp.enclosing_fn_stack.push(fn_name.clone());
 
                     // Run the body in a closure so the scope is restored on BOTH
                     // success and the `?` error path (a leaked scope would corrupt
@@ -495,6 +496,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         Ok(val)
                     })();
 
+                    interp.enclosing_fn_stack.pop();
                     interp.scope = old_scope;
                     let val = result?;
 
@@ -731,8 +733,9 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     interp.scope.set(idx_name.clone(), VoxValue::Int(i as i64));
                 }
                 interp.iteration_stack.push(i as u32);
-                let val = eval_expr(interp, body)?;
+                let val = eval_expr(interp, body);
                 interp.iteration_stack.pop();
+                let val = val?;
                 match val {
                     // Propagate early-exit signals out of the for loop.
                     VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Panic(_) => {

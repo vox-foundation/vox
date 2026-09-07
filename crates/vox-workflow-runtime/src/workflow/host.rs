@@ -25,10 +25,12 @@ pub enum HostRequest {
         args: Vec<Value>,
         /// Optional journal-JSON activity options.
         options: Option<Value>,
+        /// Name of the function containing this call site.
+        enclosing_fn: String,
         /// Lexical ordinal of this call site within its function and callee.
         ordinal: u32,
-        /// Zero-based iteration index for a call executed in a loop.
-        iteration: u32,
+        /// Zero-based indices for every enclosing loop, outermost first.
+        iteration: Vec<u32>,
     },
     /// Ends an executed activity call.
     End {
@@ -214,6 +216,7 @@ fn run_on_thread(
                 name,
                 args,
                 options,
+                enclosing_fn,
                 ordinal,
                 iteration,
                 ..
@@ -221,8 +224,9 @@ fn run_on_thread(
                 name: name.clone(),
                 args: args.iter().map(VoxValue::to_journal_json).collect(),
                 options: options.as_ref().map(VoxValue::to_journal_json),
+                enclosing_fn: enclosing_fn.clone(),
                 ordinal: *ordinal,
-                iteration: *iteration,
+                iteration: iteration.clone(),
             },
             HostCall::End {
                 name,

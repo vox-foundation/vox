@@ -24,6 +24,15 @@ pub trait WorkflowTracker: Send + Sync {
         async { Ok(false) }
     }
 
+    /// Return whether an activity id has already been recorded in this run.
+    fn is_activity_recorded(
+        &self,
+        workflow_name: &str,
+        activity_id: &str,
+    ) -> impl std::future::Future<Output = anyhow::Result<bool>> + Send {
+        self.is_activity_completed(workflow_name, activity_id)
+    }
+
     /// Load the stored result payload for a completed durable step, when available.
     fn load_activity_result(
         &self,

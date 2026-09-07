@@ -52,6 +52,20 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
         }
     }
 
+    fn is_activity_recorded(
+        &self,
+        workflow_name: &str,
+        activity_id: &str,
+    ) -> impl Future<Output = anyhow::Result<bool>> + Send {
+        let bump = self.bump();
+        async move {
+            bump?;
+            self.inner
+                .is_activity_recorded(workflow_name, activity_id)
+                .await
+        }
+    }
+
     fn load_activity_result(
         &self,
         workflow_name: &str,

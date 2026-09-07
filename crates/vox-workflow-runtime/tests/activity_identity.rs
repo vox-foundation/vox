@@ -21,6 +21,92 @@ fn activity_ids(journal: &[serde_json::Value], name: &str) -> Vec<String> {
         .collect()
 }
 
+fn started_activity_ids(journal: &[serde_json::Value], name: &str) -> Vec<String> {
+    journal
+        .iter()
+        .filter(|e| e["event"].as_str() == Some("ActivityStarted"))
+        .filter(|e| e["activity"].as_str() == Some(name))
+        .filter_map(|e| e["activity_id"].as_str().map(str::to_string))
+        .collect()
+}
+
+#[tokio::test]
+async fn helper_calls_use_the_enclosing_function_in_activity_identity() {
+    const SRC: &str = r#"
+activity charge(n: int) to int { return n }
+fn first() to int { return charge(1) }
+fn second() to int { return charge(2) }
+workflow wf() to int { return first() + second() }
+"#;
+    let mut tracker = DefaultTracker;
+    let journal = interpret_workflow_durable(&hir(SRC), "wf", vec![], &mut tracker)
+        .await
+        .expect("workflow completes");
+    let ids = started_activity_ids(&journal, "charge");
+    assert_eq!(ids.len(), 2, "both helper calls must execute: {journal:#?}");
+    assert_ne!(
+        ids[0], ids[1],
+        "different enclosing functions must produce different ids"
+    );
+}
+
+#[tokio::test]
+async fn nested_loop_activity_identity_uses_the_full_iteration_stack() {
+    const SRC: &str = r#"
+activity charge(n: int) to int { return n }
+workflow wf() to int {
+    let outer = 0
+    while outer < 2 {
+        let inner = 0
+        while inner < 2 {
+            let _ = charge(outer * 10 + inner)
+            inner = inner + 1
+        }
+        outer = outer + 1
+    }
+    return 0
+}
+"#;
+    let mut tracker = DefaultTracker;
+    let journal = interpret_workflow_durable(&hir(SRC), "wf", vec![], &mut tracker)
+        .await
+        .expect("workflow completes");
+    let ids = started_activity_ids(&journal, "charge");
+    assert_eq!(
+        ids.len(),
+        4,
+        "all nested iterations must execute: {journal:#?}"
+    );
+    let unique: std::collections::HashSet<_> = ids.iter().collect();
+    assert_eq!(unique.len(), 4, "nested iterations must have unique ids");
+}
+
+#[tokio::test]
+async fn while_condition_activity_uses_the_current_iteration() {
+    const SRC: &str = r#"
+activity more(n: int) to bool { return n < 2 }
+workflow wf() to int {
+    let n = 0
+    while more(n) {
+        n = n + 1
+    }
+    return n
+}
+"#;
+    let mut tracker = DefaultTracker;
+    let journal = interpret_workflow_durable(&hir(SRC), "wf", vec![], &mut tracker)
+        .await
+        .expect("workflow completes");
+    let ids = started_activity_ids(&journal, "more");
+    assert_eq!(ids.len(), 3, "condition runs for iterations 0, 1, and 2");
+    let unique: std::collections::HashSet<_> = ids.iter().collect();
+    assert_eq!(
+        unique.len(),
+        3,
+        "each while-condition evaluation must use its current iteration"
+    );
+}
+
 #[tokio::test]
 async fn inserted_leading_activity_does_not_rename_the_old_id() {
     const V1: &str = r#"
@@ -36,7 +122,7 @@ workflow wf() to int {
 }
 "#;
     let db = Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("db"));
-    let inner = VoxDbTracker::new(db.clone(), "upgrade-1");
+    let inner = VoxDbTracker::with_owner(db.clone(), "upgrade-1", "upgrade-owner", 30_000);
     // Crash after `old` completed so the run is in-flight, not completed.
     let mut t1 = CountingTracker::new(inner, /* fail_after */ 9);
     let first = interpret_workflow_durable(&hir(V1), "wf", vec![], &mut t1).await;
@@ -50,8 +136,7 @@ workflow wf() to int {
         .expect("v1 ids");
     assert_eq!(v1_ids.len(), 1, "V1 recorded one old activity");
 
-    let mut t2 = VoxDbTracker::new(db, "upgrade-1");
-    t2.expire_lease_for_test().await.expect("expire");
+    let mut t2 = VoxDbTracker::with_owner(db, "upgrade-1", "upgrade-owner", 30_000);
     let j2 = interpret_workflow_durable(&hir(V2), "wf", vec![], &mut t2)
         .await
         .expect("resume V2 on the in-flight run");
@@ -100,4 +185,32 @@ workflow wf() to int {
         .await
         .expect_err("duplicate explicit id");
     assert!(format!("{err:#}").contains("same"));
+}
+
+#[tokio::test]
+async fn duplicate_explicit_activity_id_on_resume_is_an_error() {
+    const SRC: &str = r#"
+activity step() to int { return 1 }
+workflow wf() to int {
+    let _ = step() with { activity_id: "same-on-resume" }
+    workflow_wait_signal("continue")
+    return 0
+}
+"#;
+    let db = Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("db"));
+    let mut first = VoxDbTracker::with_owner(db.clone(), "explicit-resume", "resume-owner", 30_000);
+    let journal = interpret_workflow_durable(&hir(SRC), "wf", vec![], &mut first)
+        .await
+        .expect("first invocation parks");
+    assert!(
+        journal
+            .iter()
+            .any(|event| event["event"] == "WorkflowParked")
+    );
+
+    let mut resumed = VoxDbTracker::with_owner(db, "explicit-resume", "resume-owner", 30_000);
+    let err = interpret_workflow_durable(&hir(SRC), "wf", vec![], &mut resumed)
+        .await
+        .expect_err("persisted explicit id must be rejected on resume");
+    assert!(format!("{err:#}").contains("same-on-resume"), "got {err:#}");
 }

@@ -68,6 +68,7 @@ impl VoxDbTracker {
     }
 
     /// Force the current run's lease to become stealable by a resumed test runner.
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn expire_lease_for_test(&self) -> anyhow::Result<()> {
         self.db
             .connection()
@@ -156,6 +157,22 @@ impl WorkflowTracker for VoxDbTracker {
                 .await
                 .map_err(|e| anyhow::anyhow!("DB error: {}", e))?;
             Ok(res)
+        }
+    }
+
+    fn is_activity_recorded(
+        &self,
+        workflow_name: &str,
+        activity_id: &str,
+    ) -> impl Future<Output = Result<bool>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        let workflow_name = workflow_name.to_string();
+        let activity_id = activity_id.to_string();
+        async move {
+            db.is_workflow_activity_recorded(&run_id, &workflow_name, &activity_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
         }
     }
 

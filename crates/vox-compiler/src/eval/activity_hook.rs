@@ -208,8 +208,9 @@ pub enum HostCall {
         args: Vec<VoxValue>,
         options: Option<VoxValue>,
         span: Span,
+        enclosing_fn: String,
         ordinal: u32,
-        iteration: u32,
+        iteration: Vec<u32>,
     },
     End {
         name: String,
@@ -266,13 +267,23 @@ pub(crate) fn dispatch_activity(
     let mut hook = Some(hook);
     let options = interp.with_options.last().cloned();
     let ordinal = interp.call_ordinals.get(&span).copied().unwrap_or_default();
-    let iteration = interp.iteration_stack.last().copied().unwrap_or_default();
+    let enclosing_fn = interp
+        .enclosing_fn_stack
+        .last()
+        .cloned()
+        .unwrap_or_default();
+    let iteration = if interp.iteration_stack.is_empty() {
+        vec![0]
+    } else {
+        interp.iteration_stack.clone()
+    };
     let outcome = (|| -> Result<VoxValue, EvalError> {
         let decision = hook.as_mut().expect("hook is present")(HostCall::Begin {
             name: name.to_string(),
             args: args.clone(),
             options,
             span,
+            enclosing_fn,
             ordinal,
             iteration,
         })?;

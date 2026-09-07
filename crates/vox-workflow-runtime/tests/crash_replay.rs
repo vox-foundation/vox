@@ -34,18 +34,20 @@ const GOLDEN: &str = include_str!(concat!(
 /// tests change, update here too.
 fn derive_activity_id(
     workflow_name: &str,
-    activity_name: &str,
+    enclosing_fn: &str,
     ordinal: u32,
-    iteration: u32,
+    iteration: &[u32],
 ) -> String {
     let mut hasher = blake3::Hasher::new();
     hasher.update(workflow_name.as_bytes());
     hasher.update(b"\0");
-    hasher.update(activity_name.as_bytes());
+    hasher.update(enclosing_fn.as_bytes());
     hasher.update(b"\0");
     hasher.update(ordinal.to_le_bytes().as_ref());
-    hasher.update(b"\0");
-    hasher.update(iteration.to_le_bytes().as_ref());
+    for index in iteration {
+        hasher.update(b"\0");
+        hasher.update(index.to_le_bytes().as_ref());
+    }
     let hash = hasher.finalize();
     let bytes = &hash.as_bytes()[..16];
     bytes.iter().map(|b| format!("{b:02x}")).collect()
@@ -71,7 +73,7 @@ async fn workflow_resumes_seeded_activity_from_journal() {
     // `charge_card(500)` call would produce (`"tx_500"`), so a passing test
     // proves replay happened rather than coincidentally matching a fresh
     // execution.
-    let first_charge_id = derive_activity_id("checkout", "charge_card", 0, 0);
+    let first_charge_id = derive_activity_id("checkout", "checkout", 0, &[0]);
     let seeded_result = json!({"__vox": "Ok", "value": "tx_SEEDED_500"});
 
     tracker

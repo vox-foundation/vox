@@ -69,6 +69,28 @@ impl crate::VoxDb {
         Ok(!row.is_empty())
     }
 
+    /// Return true if the activity id has any row in the specified workflow run.
+    pub async fn is_workflow_activity_recorded(
+        &self,
+        run_id: &str,
+        workflow_name: &str,
+        activity_id: &str,
+    ) -> Result<bool, StoreError> {
+        let row = self
+            .query_all(
+                "SELECT 1 FROM workflow_activity_log
+                 WHERE run_id = ?1 AND workflow_name = ?2 AND activity_id = ?3
+                 LIMIT 1",
+                (
+                    run_id.to_string(),
+                    workflow_name.to_string(),
+                    activity_id.to_string(),
+                ),
+            )
+            .await?;
+        Ok(!row.is_empty())
+    }
+
     /// Return activity ids recorded for one named activity in a workflow run.
     pub async fn workflow_activity_ids(
         &self,

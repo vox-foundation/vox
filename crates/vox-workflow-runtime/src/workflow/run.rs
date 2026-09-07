@@ -30,7 +30,7 @@ pub(crate) fn derive_activity_id(
     workflow_name: &str,
     enclosing_fn: &str,
     ordinal: u32,
-    iteration: u32,
+    iteration: &[u32],
 ) -> String {
     let mut hasher = blake3::Hasher::new();
     hasher.update(workflow_name.as_bytes());
@@ -38,8 +38,10 @@ pub(crate) fn derive_activity_id(
     hasher.update(enclosing_fn.as_bytes());
     hasher.update(b"\0");
     hasher.update(ordinal.to_le_bytes().as_ref());
-    hasher.update(b"\0");
-    hasher.update(iteration.to_le_bytes().as_ref());
+    for index in iteration {
+        hasher.update(b"\0");
+        hasher.update(index.to_le_bytes().as_ref());
+    }
     let hash = hasher.finalize();
     // 16 bytes → 32 lowercase hex chars: unique enough for a workflow's activity set.
     let bytes = &hash.as_bytes()[..16];
@@ -133,6 +135,7 @@ pub async fn interpret_workflow_durable(
             HostRequest::Begin {
                 name,
                 options,
+                enclosing_fn,
                 ordinal,
                 iteration,
                 ..
@@ -152,14 +155,19 @@ pub async fn interpret_workflow_durable(
 
                 let activity_id = if let Some(explicit_id) = explicit_activity_id(options.as_ref())
                 {
-                    if !used_explicit_ids.insert(explicit_id.clone()) {
+                    if used_explicit_ids.contains(&explicit_id)
+                        || tracker
+                            .is_activity_recorded(workflow_name, &explicit_id)
+                            .await?
+                    {
                         host.respond(HostDecision::Park("duplicate activity_id".into()))?;
                         let _ = host.finish().await;
                         anyhow::bail!("duplicate explicit activity_id `{explicit_id}`");
                     }
+                    used_explicit_ids.insert(explicit_id.clone());
                     explicit_id
                 } else {
-                    derive_activity_id(workflow_name, &name, ordinal, iteration)
+                    derive_activity_id(workflow_name, &enclosing_fn, ordinal, &iteration)
                 };
 
                 if tracker
@@ -597,22 +605,22 @@ mod tests {
 
     #[test]
     fn derive_activity_id_is_deterministic() {
-        let id1 = derive_activity_id("my_workflow", "send_email", 0, 0);
-        let id2 = derive_activity_id("my_workflow", "send_email", 0, 0);
+        let id1 = derive_activity_id("my_workflow", "send_email", 0, &[0]);
+        let id2 = derive_activity_id("my_workflow", "send_email", 0, &[0]);
         assert_eq!(id1, id2, "same inputs must produce same activity_id");
     }
 
     #[test]
     fn derive_activity_id_differs_by_position() {
-        let id0 = derive_activity_id("wf", "step", 0, 0);
-        let id1 = derive_activity_id("wf", "step", 1, 0);
+        let id0 = derive_activity_id("wf", "step", 0, &[0]);
+        let id1 = derive_activity_id("wf", "step", 1, &[0]);
         assert_ne!(id0, id1, "different positions must produce different ids");
     }
 
     #[test]
     fn derive_activity_id_differs_by_workflow_name() {
-        let id_a = derive_activity_id("workflow_a", "step", 0, 0);
-        let id_b = derive_activity_id("workflow_b", "step", 0, 0);
+        let id_a = derive_activity_id("workflow_a", "step", 0, &[0]);
+        let id_b = derive_activity_id("workflow_b", "step", 0, &[0]);
         assert_ne!(
             id_a, id_b,
             "different workflow names must produce different ids"
@@ -620,8 +628,22 @@ mod tests {
     }
 
     #[test]
+    fn derive_activity_id_differs_by_enclosing_function() {
+        let id_a = derive_activity_id("wf", "first_helper", 0, &[0]);
+        let id_b = derive_activity_id("wf", "second_helper", 0, &[0]);
+        assert_ne!(id_a, id_b);
+    }
+
+    #[test]
+    fn derive_activity_id_differs_by_outer_iteration() {
+        let id_a = derive_activity_id("wf", "helper", 0, &[0, 1]);
+        let id_b = derive_activity_id("wf", "helper", 0, &[1, 1]);
+        assert_ne!(id_a, id_b);
+    }
+
+    #[test]
     fn derive_activity_id_is_32_hex_chars() {
-        let id = derive_activity_id("wf", "act", 0, 0);
+        let id = derive_activity_id("wf", "act", 0, &[0]);
         assert_eq!(id.len(), 32, "activity_id must be 32 hex chars");
         assert!(
             id.chars().all(|c| c.is_ascii_hexdigit()),

@@ -274,69 +274,93 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
         HirStmt::While {
             condition, body, ..
         } => {
-            let mut iteration = 0;
+            let loop_depth = interp.iteration_stack.len();
+            interp.iteration_stack.push(0);
             loop {
-                let c = super::expr::eval_expr(interp, condition)?;
+                let c = match super::expr::eval_expr(interp, condition) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        interp.iteration_stack.truncate(loop_depth);
+                        return Err(error);
+                    }
+                };
                 if let VoxValue::Bool(b) = c {
                     if !b {
                         break;
                     }
                 } else {
+                    interp.iteration_stack.truncate(loop_depth);
                     return Err(EvalError::TypeError {
                         expected: "bool",
                         found: "other".into(),
                     });
                 }
                 interp.scope.push_frame();
-                interp.iteration_stack.push(iteration);
                 for s in body {
-                    let v = eval_stmt(interp, s)?;
+                    let v = match eval_stmt(interp, s) {
+                        Ok(value) => value,
+                        Err(error) => {
+                            interp.iteration_stack.truncate(loop_depth);
+                            interp.scope.pop_frame();
+                            return Err(error);
+                        }
+                    };
                     match v {
                         VoxValue::_Break => {
-                            interp.iteration_stack.pop();
+                            interp.iteration_stack.truncate(loop_depth);
                             interp.scope.pop_frame();
                             return Ok(VoxValue::Null);
                         }
                         VoxValue::_Continue => break,
                         VoxValue::_Return(r) => {
-                            interp.iteration_stack.pop();
+                            interp.iteration_stack.truncate(loop_depth);
                             interp.scope.pop_frame();
                             return Ok(VoxValue::_Return(r));
                         }
                         _ => {}
                     }
                 }
-                interp.iteration_stack.pop();
                 interp.scope.pop_frame();
-                iteration = iteration.saturating_add(1);
+                if let Some(iteration) = interp.iteration_stack.last_mut() {
+                    *iteration = iteration.saturating_add(1);
+                }
             }
+            interp.iteration_stack.truncate(loop_depth);
             Ok(VoxValue::Null)
         }
         HirStmt::Loop { body, .. } => {
-            let mut iteration = 0;
+            let loop_depth = interp.iteration_stack.len();
+            interp.iteration_stack.push(0);
             loop {
                 interp.scope.push_frame();
-                interp.iteration_stack.push(iteration);
                 for s in body {
-                    let v = eval_stmt(interp, s)?;
+                    let v = match eval_stmt(interp, s) {
+                        Ok(value) => value,
+                        Err(error) => {
+                            interp.iteration_stack.truncate(loop_depth);
+                            interp.scope.pop_frame();
+                            return Err(error);
+                        }
+                    };
                     match v {
                         VoxValue::_Break => {
-                            interp.iteration_stack.pop();
+                            interp.iteration_stack.truncate(loop_depth);
                             interp.scope.pop_frame();
                             return Ok(VoxValue::Null);
                         }
                         VoxValue::_Continue => break,
                         VoxValue::_Return(r) => {
-                            interp.iteration_stack.pop();
+                            interp.iteration_stack.truncate(loop_depth);
                             interp.scope.pop_frame();
                             return Ok(VoxValue::_Return(r));
                         }
                         _ => {}
                     }
                 }
-                interp.iteration_stack.pop();
                 interp.scope.pop_frame();
-                iteration = iteration.saturating_add(1);
+                if let Some(iteration) = interp.iteration_stack.last_mut() {
+                    *iteration = iteration.saturating_add(1);
+                }
             }
         }
     }
