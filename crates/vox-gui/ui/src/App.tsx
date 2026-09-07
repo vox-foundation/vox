@@ -17,7 +17,6 @@ import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
 import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
-import { ChatModelPicker } from './components/surfaces/Chat/ChatModelPicker';
 import { GroundingCheckToggle } from './components/surfaces/Chat/GroundingCheckToggle';
 import { useGroundingCheck } from './hooks/useGroundingCheck';
 import { Toasts, ToastItem } from './components/ui/Toasts';
@@ -91,6 +90,7 @@ import {
   POLICY_BADGE_POLL_MS,
   STREAM_CAP,
   LIVE_EVENT_FRESH_MS,
+  MODEL_LIST_LIMIT,
 } from './config/constants';
 import { budgetStateFromStatus, DEFAULT_BUDGET_CAP_USD } from './config/budget';
 import { nextId, nextGuiRunId, newBackgroundSessionId } from './lib/ids';
@@ -407,7 +407,7 @@ export default function App() {
     if (!chatModelOverride) return;
     let cancelled = false;
     voxTransport
-      .listModels(120)
+      .listModels(MODEL_LIST_LIMIT)
       .then((models: any) => {
         if (cancelled || !Array.isArray(models)) return;
         const stillPresent = models.some((m: any) => m.id === chatModelOverride || m.model_id === chatModelOverride);
@@ -1614,9 +1614,11 @@ export default function App() {
         // chat_history:{session_id} context store, so folding it into the
         // active session desyncs it).
         session_id: p.execution_mode === 'task' ? newBackgroundSessionId() : activeSessionId,
-        model_override: chatModelOverride,
+        model_override: p.model_override ?? chatModelOverride,
         grounding_check_enabled: groundingCheckEnabled,
       })}
+      onModelPick={setChatModelOverride}
+      selectedModelId={chatModelOverride}
       onSlashCommand={handleLoquelaSlash}
       taskInProgress={taskInProgress}
       currentTaskId={taskInProgress ? inFlightTaskId : undefined}
@@ -1635,16 +1637,10 @@ export default function App() {
       toast={pushToast}
       agents={data.agents}
       trailingSlot={
-        <>
-          <ChatModelPicker
-            activeModel={chatModelOverride ?? activeModel}
-            onApplied={setChatModelOverride}
-          />
-          <GroundingCheckToggle
-            enabled={groundingCheckEnabled}
-            onToggle={setGroundingCheckEnabled}
-          />
-        </>
+        <GroundingCheckToggle
+          enabled={groundingCheckEnabled}
+          onToggle={setGroundingCheckEnabled}
+        />
       }
     />
   );

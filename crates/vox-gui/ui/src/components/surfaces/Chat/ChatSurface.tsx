@@ -24,7 +24,6 @@ import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } 
 import { Matrix } from '../Matrix/Matrix';
 import { DockWorkspaceShell, layoutStorageKeyFor } from '../../dock/DockWorkspaceShell';
 import type { DockviewApi, IDockviewPanelProps, IDockviewPanelHeaderProps } from 'dockview';
-import { AgentFlow } from '../Flow/AgentFlow';
 import type { Agent } from '../../../types/dashboard';
 import { NeedsYouSurface } from '../NeedsYou/NeedsYouSurface';
 import type { AttentionInbox } from '../../../hooks/useAttentionInbox';
@@ -37,7 +36,7 @@ import { getPermissionMode } from '../../../transport';
 
 
 
-const CORE_PANEL_IDS = ['transcript', 'executionRail', 'flow', 'todos'] as const;
+const CORE_PANEL_IDS = ['transcript', 'executionRail', 'todos'] as const;
 type CorePanelId = (typeof CORE_PANEL_IDS)[number];
 
 // Chat transcript is the primary work surface (and, since Task 9 removed the
@@ -81,15 +80,11 @@ const OPT_IN_PANEL_IDS = ['needs-you', 'voxgraph', 'activity', 'repository', 'me
 type OptInPanelId = (typeof OPT_IN_PANEL_IDS)[number];
 
 function TranscriptPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
-  return <div data-testid="chat-dock-transcript" className="flex h-full min-w-0 flex-col gap-4 overflow-y-auto p-2">{props.params.node}</div>;
+  return <div data-testid="chat-dock-transcript" className="flex h-full min-w-0 flex-col overflow-hidden p-2">{props.params.node}</div>;
 }
 
 function ExecutionRailPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
   return <div data-testid="chat-dock-execution-rail" className="h-full overflow-y-auto">{props.params.node}</div>;
-}
-
-function FlowPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
-  return <div data-testid="chat-dock-flow" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
 }
 
 function TodosDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
@@ -240,7 +235,6 @@ export function ApprovalsDockPanel(props: IDockviewPanelProps<{ pendingApprovals
 const CHAT_DOCK_COMPONENTS = {
   transcript: TranscriptPanel,
   executionRail: ExecutionRailPanel,
-  flow: FlowPanel,
   todos: TodosDockPanel,
   'needs-you': NeedsYouDockPanel,
   voxgraph: VoxGraphDockPanel,
@@ -293,10 +287,9 @@ interface ChatSurfaceProps {
   agentStreamItems?: StreamItem[];
   onOpenAgentInFlow?: (agentId: string) => void;
   /**
-   * Same agent-graph data source that feeds the top-level Flow tab
-   * (`props.data.agents` in surfaceComponents.tsx `case 'flow'`) — reused
-   * here, not refetched, so the dockable Flow panel stays in sync with the
-   * real dashboard state.
+   * Same agent-graph data that feeds Agents → Flow
+   * (`surfaceComponents.tsx` `case 'flow'`). Shown as a roster on the
+   * Execution rail; "Open topology" jumps to the full surface.
    */
   flowAgents?: Agent[];
   flowSelectedAgentId?: string;
@@ -633,16 +626,14 @@ export function ChatSurface({
       onNavigate={onNavigate}
       sessionId={activeSessionId}
       onOpenRouting={() => setRoutingOpen(true)}
+      agents={flowAgents}
+      selectedAgentId={flowSelectedAgentId}
+      onOpenAgent={(id) => {
+        onFlowSelectAgent?.(id);
+        onOpenAgentInFlow?.(id);
+      }}
     />
   ) : null;
-
-  const flowNode = (
-    <AgentFlow
-      agents={flowAgents}
-      selectedId={flowSelectedAgentId}
-      onSelect={onFlowSelectAgent}
-    />
-  );
 
   const todosNode = (
     <PlanPanel
@@ -680,11 +671,13 @@ export function ChatSurface({
   const centerContent = (
     <>
       {messages.length === 0 && !(agentStreamItems?.length ?? 0) ? (
-        <EmptyState
-          icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}
-          title="No messages yet"
-          description="Describe a task in the composer below to start this session."
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <EmptyState
+            icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}
+            title="No messages yet"
+            description="Describe a task in the composer below to start this session."
+          />
+        </div>
       ) : (
         <ChatTranscript
           messages={messages}
@@ -722,10 +715,6 @@ export function ChatSurface({
               />
             </div>
           ) : null}
-          {/* The model-route picker now renders inside the composer's own
-              toolbar row (Loquela's `trailingSlot`, wired in App.tsx),
-              right-aligned alongside the cost display, rather than as a
-              separate row below it. */}
           {composer}
         </div>
       ) : null}
@@ -746,23 +735,22 @@ export function ChatSurface({
   const panelDefs: Record<ChatDockPanelId, { title: string; params: Record<string, unknown>; referenceChain: ChatDockPanelId[] }> = {
     transcript: { title: 'Chat', params: { node: centerContent }, referenceChain: [] },
     executionRail: { title: 'Execution', params: { node: executionRailNode }, referenceChain: ['transcript'] },
-    flow: { title: 'Flow', params: { node: flowNode }, referenceChain: ['executionRail', 'transcript'] },
-    todos: { title: 'To-dos', params: { node: todosNode }, referenceChain: ['flow', 'executionRail', 'transcript'] },
-    'needs-you': { title: labelForNavKey('needs-you'), params: { node: needsYouNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    todos: { title: 'To-dos', params: { node: todosNode }, referenceChain: ['executionRail', 'transcript'] },
+    'needs-you': { title: labelForNavKey('needs-you'), params: { node: needsYouNode }, referenceChain: ['todos', 'executionRail', 'transcript'] },
     // Titles for surfaces that also exist as top-level app tabs come from
     // labelForNavKey (src/lib/navigation.ts), the app-wide breadcrumb/label
     // SSOT — not hand-typed guesses. voxgraph's real label is "Search
     // Index" (not "VoxGraph") and activity's is "Discovery" (not
     // "Activity"); using the SSOT directly prevents this drifting again.
-    voxgraph: { title: labelForNavKey('vox-search'), params: { node: voxGraphNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    activity: { title: labelForNavKey('activity'), params: { node: activityNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    repository: { title: labelForNavKey('repository'), params: { node: repositoryNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    mercatus: { title: labelForNavKey('mercatus'), params: { node: mercatusNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
-    harness: { title: labelForNavKey('harness'), params: { node: harnessNode }, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    voxgraph: { title: labelForNavKey('vox-search'), params: { node: voxGraphNode }, referenceChain: ['todos', 'executionRail', 'transcript'] },
+    activity: { title: labelForNavKey('activity'), params: { node: activityNode }, referenceChain: ['todos', 'executionRail', 'transcript'] },
+    repository: { title: labelForNavKey('repository'), params: { node: repositoryNode }, referenceChain: ['todos', 'executionRail', 'transcript'] },
+    mercatus: { title: labelForNavKey('mercatus'), params: { node: mercatusNode }, referenceChain: ['todos', 'executionRail', 'transcript'] },
+    harness: { title: labelForNavKey('harness'), params: { node: harnessNode }, referenceChain: ['todos', 'executionRail', 'transcript'] },
     // ApprovalsDockPanel takes structured params (pendingApprovals/
     // permissionMode/onNavigate), never a rendered node, so it never mounts
     // a second live <ApprovalsView> poll loop.
-    approvals: { title: labelForNavKey('approvals'), params: approvalsParams, referenceChain: ['todos', 'flow', 'executionRail', 'transcript'] },
+    approvals: { title: labelForNavKey('approvals'), params: approvalsParams, referenceChain: ['todos', 'executionRail', 'transcript'] },
   };
 
   // Positions a newly-activated opt-in panel next to whichever opt-in panel
@@ -840,29 +828,10 @@ export function ChatSurface({
     } else if (executionPanel) {
       api.removePanel(executionPanel);
     }
-    const flowPanel = api.getPanel('flow');
-    if (flowPanel) {
-      flowPanel.update({ params: panelDefs.flow.params });
-    } else if (!closedPanelIds.current.has('flow')) {
-      api.addPanel({
-        id: 'flow',
-        component: 'flow',
-        title: 'Flow',
-        params: panelDefs.flow.params,
-        // Note: the plan's original sketch tabbed Flow `within` the
-        // execution rail group. dockview-react only mounts the active tab's
-        // panel body, so that hid `chat-dock-execution-rail` from the DOM
-        // whenever Flow's tab was active — a regression against the B2 test
-        // asserting the execution rail is present without any tab
-        // interaction. Placing Flow as its own group (to the right of
-        // whichever panel is currently last) keeps all panels simultaneously
-        // present, matching how sessions/transcript/executionRail already
-        // coexist.
-        position: {
-          direction: 'right',
-          referencePanel: api.getPanel('executionRail') ? 'executionRail' : 'transcript',
-        },
-      });
+    const staleFlow = api.getPanel('flow');
+    if (staleFlow) {
+      staleFlow.api.close();
+      closedPanelIds.current.add('flow');
     }
     const todosPanel = api.getPanel('todos');
     if (todosPanel) {
@@ -875,7 +844,7 @@ export function ChatSurface({
         params: panelDefs.todos.params,
         position: {
           direction: 'right',
-          referencePanel: api.getPanel('flow') ? 'flow' : api.getPanel('executionRail') ? 'executionRail' : 'transcript',
+          referencePanel: api.getPanel('executionRail') ? 'executionRail' : 'transcript',
         },
       });
     }
@@ -1030,6 +999,11 @@ export function ChatSurface({
             const staleSessionsPanel = event.api.getPanel('sessions');
             if (staleSessionsPanel) {
               staleSessionsPanel.api.close();
+            }
+            const staleFlowPanel = event.api.getPanel('flow');
+            if (staleFlowPanel) {
+              staleFlowPanel.api.close();
+              closedPanelIds.current.add('flow');
             }
             event.api.onDidRemovePanel(panel => {
               closedPanelIds.current.add(panel.id);
