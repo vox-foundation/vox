@@ -20,6 +20,13 @@ function msg(overrides: Partial<ChatMessage>): ChatMessage {
   };
 }
 
+describe('MessageBubble role labels', () => {
+  it('exposes user role as sr-only, not a visible You label', () => {
+    render(<MessageBubble message={msg({ role: 'user', text: 'hi', id: 'u1' })} />);
+    expect(screen.getByText('You').className).toMatch(/sr-only/);
+  });
+});
+
 describe('MessageBubble grounding-check badge', () => {
   it('shows a low-confidence badge on an assistant message flagged by the grounding check', () => {
     render(<MessageBubble message={msg({ groundingFlagged: true })} />);
