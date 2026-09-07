@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -32,6 +32,10 @@ const sampleKpis = {
 describe('ChatExecutionRail', () => {
   beforeEach(() => {
     localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.removeItem('vox.metric.series.v1.chat.session-spend');
   });
 
   it('renders task list section with aria-label Active tasks', () => {
@@ -217,6 +221,44 @@ describe('ChatExecutionRail', () => {
     expect(screen.queryByRole('button', { name: /expand execution rail/i })).toBeNull();
   });
 
+  it('lists live agents and opens topology from the roster', async () => {
+    const onNavigate = vi.fn();
+    const onOpenAgent = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={onNavigate}
+          onOpenAgent={onOpenAgent}
+          agents={[
+            {
+              id: 'a1',
+              codename: 'Falcon',
+              phase: 'Executing',
+              progress: 0.4,
+              task: 'compile crate',
+              cost: 0.1,
+              budget: 2,
+              eta: '1m',
+            },
+          ]}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(screen.getByRole('region', { name: /agent shards/i })).toBeInTheDocument();
+    expect(screen.getByText('Falcon')).toBeInTheDocument();
+    expect(screen.getByText('compile crate')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /open topology/i }));
+    expect(onNavigate).toHaveBeenCalledWith('flow');
+
+    await user.click(screen.getByRole('button', { name: /falcon/i }));
+    expect(onOpenAgent).toHaveBeenCalledWith('a1');
+  });
+
   it('renders ContextWindowMeter after budget loads', async () => {
     const defaultProps = {
       tasks: [],
@@ -227,6 +269,31 @@ describe('ChatExecutionRail', () => {
     await waitFor(() => {
       expect(screen.getByRole('meter')).toBeInTheDocument();
     });
+  });
+
+  it('renders Agents and Queue as compact segments, not KPI cards with metric rules', () => {
+    const { container } = render(
+      <LanguageProvider>
+        <ChatExecutionRail tasks={[]} kpis={sampleKpis} onNavigate={vi.fn()} />
+      </LanguageProvider>,
+    );
+    const rail = screen.getByRole('complementary', { name: /execution rail/i });
+    expect(rail.querySelector('.vox-metric-rule')).toBeNull();
+    expect(screen.getByTestId('execution-rail-agents').className).toMatch(/text-\[10px\]/);
+  });
+
+  it('shows a session-spend spark after sessionSpentUsd changes', async () => {
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatExecutionRail tasks={[]} kpis={sampleKpis} onNavigate={vi.fn()} sessionSpentUsd={0.1} />
+      </LanguageProvider>,
+    );
+    rerender(
+      <LanguageProvider>
+        <ChatExecutionRail tasks={[]} kpis={sampleKpis} onNavigate={vi.fn()} sessionSpentUsd={0.4} />
+      </LanguageProvider>,
+    );
+    expect(await screen.findByTestId('execution-rail-spend-spark')).toBeInTheDocument();
   });
 
   it('passes used_tokens to ContextWindowMeter so it reflects real fill percentage', async () => {
