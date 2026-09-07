@@ -68,6 +68,7 @@ impl VoxDbTracker {
     }
 
     /// Force the current run's lease to become stealable by a resumed test runner.
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn expire_lease_for_test(&self) -> anyhow::Result<()> {
         self.db
             .connection()

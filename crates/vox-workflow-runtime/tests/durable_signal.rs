@@ -52,7 +52,6 @@ workflow gated() to int {
         .await
         .expect("signal");
     let mut resume = VoxDbTracker::new(db, "sig-2");
-    resume.expire_lease_for_test().await.ok();
     let journal = interpret_workflow_durable(&hir, "gated", vec![], &mut resume)
         .await
         .expect("resume");
