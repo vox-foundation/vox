@@ -8,7 +8,9 @@ use crate::ai::fallback::deterministic_response;
 use crate::ai::keys::{resolve_gemini_key, resolve_openrouter_key};
 use crate::ai::provider::FreeAiProvider;
 
-use super::{AiReportFn, CostReportFn, FreeAiClient, LudusStreamBackend, StreamRoute};
+use super::{
+    AiReportFn, CostReportFn, FreeAiClient, LudusStreamBackend, StreamRoute, is_mens_local_model,
+};
 
 impl FreeAiClient {
     /// Create a client with an explicit provider list.
@@ -360,6 +362,18 @@ impl FreeAiClient {
                 })
             }
             StreamRoute::Registry {
+                backend: LudusStreamBackend::VoxLocal,
+                model: _,
+            } => Box::pin(async_stream::try_stream! {
+                let mut stream = Self::stream_vox_local(&http, &prompt_owned).await;
+                while let Some(chunk) = stream.next().await {
+                    match chunk {
+                        Ok(t) => yield t,
+                        Err(e) => Err(e)?,
+                    }
+                }
+            }),
+            StreamRoute::Registry {
                 backend: LudusStreamBackend::OpenRouter,
                 model,
             } => {
@@ -394,6 +408,17 @@ impl FreeAiClient {
             }
             StreamRoute::UserModelOverride(model) => {
                 let model = model.to_string();
+                if is_mens_local_model(&model) {
+                    return Box::pin(async_stream::try_stream! {
+                        let mut stream = Self::stream_vox_local(&http, &prompt_owned).await;
+                        while let Some(chunk) = stream.next().await {
+                            match chunk {
+                                Ok(t) => yield t,
+                                Err(e) => Err(e)?,
+                            }
+                        }
+                    });
+                }
                 Box::pin(async_stream::try_stream! {
                     let url = Self::ollama_base_from_providers(&providers);
                     let mut stream = Self::stream_ollama(&http, &url, &model, &prompt_owned).await;
