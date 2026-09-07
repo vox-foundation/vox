@@ -27,6 +27,8 @@ docs-astro/src/content/docs
 docs-astro/src/examples
 docs-astro/public/assets
 docs-astro/public/.well-known
+# Copied from docs/src/robots.txt by docs-astro/scripts/setup-content.mjs
+docs-astro/public/robots.txt
 .env
 
 # Local TOESTUB / audit outputs (do not commit large JSON baselines)

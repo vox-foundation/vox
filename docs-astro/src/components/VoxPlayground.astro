@@ -2,7 +2,21 @@
 interface Props {
   initialCode?: string;
 }
-const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hello, Vox!")\n}\n' } = Astro.props;
+const { initialCode = `// One declaration → schema, wire format, typed client
+table Task {
+    title: str
+    done:  bool
+}
+
+query get_tasks() to int {
+    return len(db.Task.all())
+}
+
+tool "Mark a task complete" complete(id: Id[Task]) to Result[str] {
+    db.Task.delete(id)?
+    return Ok("done")
+}
+` } = Astro.props;
 ---
 
 <vox-playground data-initial-code={initialCode}>
@@ -24,27 +38,22 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
     <!-- Default state when backend is offline: clean static code demo, no broken banner -->
     <div class="static-demo">
       <div class="demo-label">Vox — Language at a Glance</div>
-      <pre class="demo-code"><code>// One declaration → schema, API, typed client
-@table type Task &#123;
-    title:    str
-    done:     bool
-    priority: int
+      <pre class="demo-code"><code>// One declaration → schema, wire format, typed client
+table Task &#123;
+    title: str
+    done:  bool
 &#125;
 
-// Compile-enforced: every caller handles both branches
-@endpoint(kind: query)
-fn get_tasks() to List[Task] &#123;
-    return db.Task.all()
+query get_tasks() to int &#123;
+    return len(db.Task.all())
 &#125;
 
-// Expose to AI agents via MCP
-@mcp.tool "Mark a task complete"
-fn complete(id: Id[Task]) to Result[Unit] &#123;
-    db.Task.delete(id)
-    return Ok(Unit)
+tool "Mark a task complete" complete(id: Id[Task]) to Result[str] &#123;
+    db.Task.delete(id)?
+    return Ok("done")
 &#125;</code></pre>
       <div class="demo-footer">
-        <span class="demo-note">Live execution coming soon — <a href="/tutorials/tut-getting-started/">install Vox locally</a> to run code now.</span>
+        <span class="demo-note">Static sample (current syntax). <a href="/tutorials/tut-getting-started/">Install Vox from source</a> to run it locally.</span>
       </div>
     </div>
   </div>

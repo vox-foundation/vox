@@ -21,4 +21,4 @@ Disallow: /architecture/research-ts-hallucination-
 Disallow: /api/*-ARCHIVED.html
 
 Sitemap: https://voxlang.org/sitemap.xml
-Sitemap: https://vox.foundation/.well-known/llms.txt
+Sitemap: https://voxlang.org/llms.txt

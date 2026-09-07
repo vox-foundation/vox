@@ -23,6 +23,8 @@ This file tracks the single source of truth for Vox architecture, research findi
 
 ## Strategic & Value Proposition
 
+- [Front-facing honesty audit (2026-09)](front-facing-honesty-audit-2026.md) — Calibrated scrape-first audit (README, voxlang.org, `llms.txt`, GitHub About) versus shipped code. Drops over-harsh flags (MCP tool count, one-file codegen, “marching toward v1.0”); keeps real falsehoods (`vox-gui` is not a `.vox`→Tauri compiler; `voxup` has no published releases; playground static-demo taught retired `@endpoint`). Track A remediations and USER-AUTHORIZED GitHub settings live in that page.
+
 - [Graphify duplicate-corpus bytes findings (2026-09)](graphify-duplicate-corpus-bytes-findings-2026.md) — Verifies the P6 disk-footprint plan's claim of three byte-identical 12,890,417-byte graphify corpora: only `config-audit` and `crate-map` are actually identical (`repo-code-graph` differs — built at a later commit with more nodes). Root cause: `crates/vox-graph-reader/src/rebuild.rs::rebuild_graph` only branches on `extraction_mode` for `"gui-wiring"` and `"modules"`, so the declared `audit`/`crate-map`/`structural` modes are unimplemented and any two same-scope corpora at the same git sha produce identical bytes. States measured wasted bytes and the two-part fix (implement the modes in `vox-graph-reader`; or de-duplicate storage), owned outside `vox-config`.
 
 - [Windows-to-macOS application handoff (September 2026)](windows-macos-application-handoff-findings-2026-09.md) — Evidence-based Windows workstation software inventory across Winget, Program Files, and Appx registrations, with a macOS continuity/replacement matrix and data-transfer checklist.

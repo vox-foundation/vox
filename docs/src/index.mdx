@@ -1,6 +1,6 @@
 ---
 title: "Vox: The AI-Native Programming Language"
-description: "One language. Database schema, type-safe server, and live browser UI — designed first as a target for LLMs, and for the developers who work alongside them."
+description: "Pre-1.0 language: one .vox file can compile to a database schema, type-safe server, and browser UI — designed with LLMs in the loop."
 sort_order: 0
 category: "Getting Started"
 status: "current"
@@ -11,7 +11,7 @@ import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
 
 <div style="text-align: center; padding: 1.5rem 0 0.5rem;">
   <h1 style="font-size: 2.25rem; line-height: 1.15; margin-bottom: 0.75rem;">The Language That Speaks First to LLMs</h1>
-  <p style="font-size: 1.15rem; color: var(--sl-color-gray-2); max-width: 42rem; margin: 0 auto 1.5rem;">One <code>.vox</code> file. Auto-generated database, server, and browser UI — with zero nulls, no boilerplate, and a built-in AI training pipeline.</p>
+  <p style="font-size: 1.15rem; color: var(--sl-color-gray-2); max-width: 42rem; margin: 0 auto 1.5rem;">Pre-1.0 (workspace 0.6.0). One <code>.vox</code> file can compile to a database schema, typed server, and browser UI — null is not a valid state, and a local training pipeline is part of the repo.</p>
   <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
     <a href="/tutorials/tut-getting-started/" style="background: var(--sl-color-accent); color: var(--sl-color-black); padding: 0.6rem 1.25rem; border-radius: 6px; font-weight: 600; text-decoration: none;">Get Started →</a>
     <a href="/reference/ref-syntax/" style="border: 1px solid var(--sl-color-gray-5); padding: 0.6rem 1.25rem; border-radius: 6px; text-decoration: none;">Syntax Reference</a>
@@ -42,19 +42,23 @@ Vox is what falls out when you design the language *after* the model: collapse t
 
 ---
 
-## Try it live
+## Try it
 
-Write and execute Vox code directly from the browser — no install required.
+Write Vox in the browser when the eval backend is up. If it is not, the static sample below is current syntax — install locally to run it.
 
-<VoxPlayground initialCode={`// Compile-time safety, zero nulls.
+<VoxPlayground initialCode={`// One declaration → schema, wire format, typed client
 table Task {
     title: str
-    done: bool
+    done:  bool
 }
 
-fn main() {
-    print("Welcome to Vox.")
-    print("Type-safe execution environment online.")
+query get_tasks() to int {
+    return len(db.Task.all())
+}
+
+tool "Mark a task complete" complete(id: Id[Task]) to Result[str] {
+    db.Task.delete(id)?
+    return Ok("done")
 }`} />
 
 ---
@@ -62,7 +66,7 @@ fn main() {
 {/* condensed pillar grid — full detail: /explanation/expl-architecture/ */}
 ## How Vox works
 
-One `.vox` file drives the whole stack — database schema, typed server, and browser UI compile from the same declarations. Five pillars make that possible:
+One `.vox` file can drive schema, typed server, and browser UI from the same declarations. Five pillars make that possible:
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1rem;">
@@ -75,15 +79,15 @@ One `.vox` file drives the whole stack — database schema, typed server, and br
   </div>
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1rem;">
     <h3 style="margin-top: 0; font-size: 1.05rem;">Deploy</h3>
-    <p style="margin-bottom: 0;">One file → running deployment: <code>vox build</code> emits React/TSX, a typed RPC bridge, and Docker/K8s/Fly targets.</p>
+    <p style="margin-bottom: 0;"><code>vox build</code> emits React/TSX, a typed RPC bridge, and optional Docker/K8s/Fly targets. Deployment maturity varies by lane — see the <a href="/explanation/faq/">FAQ</a>.</p>
   </div>
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1rem;">
     <h3 style="margin-top: 0; font-size: 1.05rem;">Agents</h3>
-    <p style="margin-bottom: 0;">MCP-native: <code>tool</code>/<code>resource</code> expose typed functions to any Model Context Protocol client.</p>
+    <p style="margin-bottom: 0;">MCP-native: bare <code>tool</code>/<code>resource</code> expose typed functions to any Model Context Protocol client.</p>
   </div>
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1rem;">
     <h3 style="margin-top: 0; font-size: 1.05rem;">Training</h3>
-    <p style="margin-bottom: 0;">Built for LLM authorship: grammar-constrained decoding plus a local QLoRA training pipeline.</p>
+    <p style="margin-bottom: 0;">Grammar-constrained decoding plus a local QLoRA pipeline (Preview/Emergent; extra features for CUDA).</p>
   </div>
 </div>
 
@@ -108,10 +112,10 @@ Vox is marching toward a production-hardened v1.0 release. Surfaces are graded b
 
 | Feature Area | Status |
 |:---|:---|
-| Compiler & LSP | 🟣 Mature |
+| Compiler Core | 🟣 Mature |
 | Database Engine | 🔵 Stable |
 | Durable Runtime | 🔵 Stable (interpreter) / 🟡 Preview (codegen) |
-| Native GUI (Tauri) | 🟡 Preview |
+| Native GUI (operator console) | 🟡 Preview |
 | Distributed Mesh | 🟠 Emergent |
 
 → Full per-surface matrix, all tiers explained: [Stability Matrix](/reference/stability/)
@@ -134,8 +138,8 @@ Organized by the [Diátaxis framework](https://diataxis.fr/) — structured by u
 
 ## Community, Backing & License
 
-**Open Collective.** Community-backed via [Open Collective](https://opencollective.com/vox-foundation) — every dollar raised and spent is public.
+**Open Collective.** Community-backed via [Open Collective](https://opencollective.com/vox-foundation) — the ledger is public (early-stage).
 
 **License.** Apache 2.0 — commercial use permitted, patent rights granted, modifications allowed with attribution.
 
-**Get involved.** [GitHub Discussions](https://github.com/vox-foundation/vox/discussions) · [RSS Feed](https://voxlang.org/feed.xml) · [Contributor Hub](/contributors/contributor-hub/)
+**Get involved.** [GitHub Issues](https://github.com/vox-foundation/vox/issues) · [RSS Feed](https://voxlang.org/feed.xml) · [Contributor Hub](/contributors/contributor-hub/)

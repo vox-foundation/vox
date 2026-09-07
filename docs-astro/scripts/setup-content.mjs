@@ -1,7 +1,16 @@
 // Links docs/src/ into the Starlight content collection directory.
 // docsLoader() hardcodes src/content/docs/ as its base; this makes that path
 // point at the actual source without moving files.
-import { existsSync, lstatSync, mkdirSync, readlinkSync, rmSync, symlinkSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readlinkSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
@@ -67,4 +76,25 @@ if (!existsSync(examplesLink)) {
   } else {
     console.log('[setup-content] docs-astro/src/examples already points to examples, skipping.');
   }
+}
+
+// Copy agent discovery files so CF Pages serves /.well-known/* (Starlight
+// excludes that directory from the content collection).
+const wellKnownSrc = join(repoRoot, 'docs', 'src', '.well-known');
+const wellKnownDest = join(repoRoot, 'docs-astro', 'public', '.well-known');
+if (existsSync(wellKnownSrc)) {
+  mkdirSync(wellKnownDest, { recursive: true });
+  for (const name of readdirSync(wellKnownSrc)) {
+    copyFileSync(join(wellKnownSrc, name), join(wellKnownDest, name));
+  }
+  console.log('[setup-content] Copied docs/src/.well-known → docs-astro/public/.well-known');
+}
+
+// Origin robots.txt (Cloudflare may prepend managed signals). Keep the
+// sitemap host on voxlang.org, not the retired vox.foundation domain.
+const robotsSrc = join(repoRoot, 'docs', 'src', 'robots.txt');
+const robotsDest = join(repoRoot, 'docs-astro', 'public', 'robots.txt');
+if (existsSync(robotsSrc)) {
+  copyFileSync(robotsSrc, robotsDest);
+  console.log('[setup-content] Copied docs/src/robots.txt → docs-astro/public/robots.txt');
 }

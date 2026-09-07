@@ -23,7 +23,20 @@
 
 /architecture/research-index.html     /architecture/research-index/     301
 
+# architecture-index.md is retired (sidebar + research-index replace it).
+# Keep the old slugs working; do not 301 to a page that no longer exists.
+/architecture/architecture-index.html /architecture/research-index/     301
+/architecture/architecture-index      /architecture/research-index/     301
+/architecture/architecture-index/     /architecture/research-index/     301
+
 /contributors/contributor-hub.html    /contributors/contributor-hub/    301
 
 # Legacy book/ prefix from old mdBook deployment
 /book/*                               /:splat                           301
+
+# /.well-known/llms.txt is a static copy of docs/src/.well-known/llms.txt
+# (setup-content.mjs). Do not add a _redirects rule for it — CF Pages
+# serves the static file first, so a redirect would never fire and would
+# imply the hand file and the Starlight-generated /llms.txt are the same.
+
+/reference/stability.html             /reference/stability/             301

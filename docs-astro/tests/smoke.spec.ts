@@ -11,6 +11,36 @@ test.describe('voxlang.org live site', () => {
     await expect(page).toHaveTitle(/Vox/);
   });
 
+  test('homepage HTML does not teach retired @endpoint syntax', async ({ request }) => {
+    const resp = await request.get(PRIMARY + '/', { timeout: 15_000 });
+    expect(resp.status()).toBe(200);
+    const html = await resp.text();
+    expect(html).not.toContain('@endpoint');
+    expect(html).not.toContain('@table type');
+    expect(html).not.toContain('@mcp.tool');
+  });
+
+  test('stability matrix is published', async ({ request }) => {
+    const resp = await request.get(PRIMARY + '/reference/stability/', { timeout: 15_000 });
+    expect(resp.status()).toBe(200);
+  });
+
+  test('llms.txt is published at site root', async ({ request }) => {
+    const resp = await request.get(PRIMARY + '/llms.txt', { timeout: 15_000 });
+    expect(resp.status()).toBe(200);
+    const body = await resp.text();
+    expect(body.toLowerCase()).toMatch(/pre-1\.0|0\.6\.0|stability/);
+  });
+
+  test('hand-authored /.well-known/llms.txt is published', async ({ request }) => {
+    const resp = await request.get(PRIMARY + '/.well-known/llms.txt', { timeout: 15_000 });
+    expect(resp.status()).toBe(200);
+    const body = await resp.text();
+    expect(body.toLowerCase()).toMatch(/pre-1\.0|0\.6\.0|stability/);
+    expect(body).toContain('table');
+    expect(body).not.toMatch(/@endpoint\(kind/);
+  });
+
   test('sidebar renders new section labels on a docs page', async ({ page }) => {
     // Sidebar appears on docs pages, not the splash. Pick a known sidebar page.
     await page.goto(PRIMARY + '/tutorials/tut-first-app/', { waitUntil: 'domcontentloaded' });

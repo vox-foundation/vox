@@ -1,6 +1,6 @@
 ---
 title: "Getting Started with Vox"
-description: "Zero to a running full-stack notes app in under 5 minutes: install, scaffold, and understand every line of a real Vox file."
+description: "Install Vox from source, scaffold a project, and understand every line of a real .vox file."
 category: "Tutorials"
 sort_order: 1
 schema_type: "HowTo"
@@ -9,27 +9,30 @@ keywords: ["Vox installation", "getting started Vox", "AI programming language t
 
 # Getting Started with Vox
 
-This guide takes you from zero to a running full-stack notes app in under 5 minutes, and explains every line of the file that runs it.
+This guide installs Vox from source, scaffolds a notes app, and explains every line of the file that runs it. A first `cargo install` is a full workspace compile — not a five-minute download.
+
+Canonical install detail: [Installing Vox](../reference/installation.md).
 
 ## Prerequisites
 
 Before you begin, make sure you have:
 
-- **Rust** (1.81+) — [Install](https://rustup.rs/)
+- **Rust** (1.98.1) — [Install](https://rustup.rs/). This repo pins that channel in `rust-toolchain.toml`.
 - **Node.js** (20+) — [Install](https://nodejs.org/)
-- **pnpm** (9+) — `npm install -g pnpm`
+- **pnpm** (9+) — `pnpm` is the repo package manager; `npm install -g pnpm` if you do not have it.
 
-> **Tip**: Run `vox doctor` to check all dependencies and environment variables are configured correctly.
+> **Tip**: After install, run `vox doctor` to check dependencies and environment variables.
 
 ## Step 1: Install Vox
 
 > [!IMPORTANT]
-> **Pre-Release Status:** Vox has not yet reached version 1.0. To use Vox today, you must build it from source.
+> **Pre-1.0:** Vox has not reached version 1.0 (workspace 0.6.0). There are no published release installers yet. Build from source.
 
 ```bash
 git clone https://github.com/vox-foundation/vox.git
 cd vox
-cargo install --path crates/vox-cli
+cargo install --locked --path crates/vox-cli
+vox doctor
 ```
 
 ## Step 2: Create a new project

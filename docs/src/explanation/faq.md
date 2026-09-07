@@ -18,7 +18,9 @@ For operational fixes, environment issues, or command failures, use the [Trouble
 ## Language Basics
 
 ### What is Vox?
-Vox is a full-stack programming language and toolchain that aims to keep more of the application structure in one place. The current repository documents a compiler and CLI that generate Rust and TypeScript artifacts, plus a wider ecosystem of orchestration, MCP, and Mens-related tooling.
+Vox is a full-stack programming language and toolchain that aims to keep more of the application structure in one place. The current repository documents a compiler and CLI that generate Rust and TypeScript artifacts, plus a wider ecosystem of orchestration, MCP, and Mens-related tooling. This project is **vox-foundation/vox** at [voxlang.org](https://voxlang.org) — not the unrelated Vox-lang assembly compiler.
+
+Vox is pre-1.0 (workspace 0.6.0). See the [stability matrix](../reference/stability.md) before treating a surface as production-ready.
 
 ### Is Vox statically typed?
 Yes. Vox uses bidirectional type inference: you rarely need explicit types inside function bodies, but all signatures are validated at compile time.

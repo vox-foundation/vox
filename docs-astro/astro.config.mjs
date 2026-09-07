@@ -16,7 +16,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Vox: The AI-Native Programming Language',
-      description: 'Official documentation for Vox, the AI-native full-stack programming language.',
+      description: 'Pre-1.0 documentation for Vox, an AI-native full-stack programming language that compiles .vox to Rust and TypeScript.',
       routeMiddleware: './src/routeData.ts',
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/vox-foundation/vox' }
@@ -38,7 +38,7 @@ export default defineConfig({
       plugins: [
         starlightLlmsTxt({
           projectName: 'Vox',
-          description: 'Vox is an AI-native full-stack programming language. It compiles a single .vox file into a database schema, type-safe server, and live browser application. Designed first as a target for large language models.',
+          description: 'Vox is a pre-1.0 (0.6.0) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.',
           llmsFullTxt: true,
         }),
       ],

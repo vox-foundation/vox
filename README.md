@@ -3,7 +3,7 @@
 
   <br><br>
 
-  <p><strong>One <code>.vox</code> file compiles to a database schema, a typed server, a browser app, and the artifacts to deploy them.</strong> Initiated by Bertrand Reyna-Brainerd.</p>
+  <p><strong>One <code>.vox</code> file compiles to a database schema, a typed server, and a browser UI</strong> (Rust + TypeScript). Pre-1.0, workspace <strong>0.6.0</strong>. Initiated by Bertrand Reyna-Brainerd.</p>
 
   <p><a href="https://voxlang.org"><strong>voxlang.org</strong></a></p>
 </div>
@@ -42,35 +42,39 @@ Mainstream languages predate LLMs by decades. They tolerate implicit state — n
 Vox is what falls out when you design the language *after* the model: collapse the duplications, push errors into the type system, draw the browser/server boundary in one place, and build durability and tool exposure into the grammar instead of layering them on top.
 <!-- ANCHOR_END: why_vox -->
 
-## Killer Features
+## What works today
 
-Vox collapses the massive fragmentation of modern web and AI development into a single, cohesive ecosystem.
+Surfaces are graded on the [stability matrix](https://voxlang.org/reference/stability/). The default `vox` binary is the CLI (compile, run, bundle, package). Heavier lanes are optional.
 
-- **[Local AI Inference & Fine-Tuning](crates/vox-ml-cli/)**: Run models natively on your GPU without touching Python. Execute open-weights models or train them via QLoRA using Rust-native acceleration (CUDA and Apple Metal).
-- **[One File to Rule the Stack](docs/src/reference/deployment-compose.md)**: A single `.vox` file emits database migrations, a typed API server, reactive frontend components, and deployment artifacts. Zero integration boilerplate.
-- **[Distributed Mesh Computing](docs/src/how-to/how-to-model-routing.md)**: Securely network laptops and cloud servers. The orchestrator automatically routes AI workloads to the nodes with the best available hardware.
-- **[Native Desktop GUI](crates/vox-gui/)**: Compile `.vox` files into fully native, cross-platform graphical applications powered by Tauri, complete with native IPC bridges.
-- [Wire format](crates/vox-foundation/) — Data and tool contracts are the single source of truth; schemas are generated, not restated.
-- [Autonomous RAG & Research](docs/src/reference/socrates-protocol.md) — Deploy agents equipped with persistent long-term memory, fact-checking (the [Socrates protocol](docs/src/reference/socrates-protocol.md)), and autonomous web-search.
+- **Compiler & fullstack codegen** (🟣 Mature / 🔵 Stable): one `.vox` file can emit SQL schema, a typed API server, and React/TSX. Deployment is a separate, unevenly mature step — see the [FAQ](docs/src/explanation/faq.md).
+- **CLI & DX** (🟣 Mature): `vox check`, `vox build`, `vox run`, `vox doctor`, `vox audit`, `vox ci`.
+- **MCP tools** (🔵 Stable): 300+ first-party tools in the registry. Not a production SLA for every tool.
+- **Durable workflows** (🔵 interpreter / 🟡 codegen): journal-backed replay on the interpreted path; generated Rust workflows are not full durable state machines.
+- **Local inference & QLoRA** (🟡 Preview / 🟠 Emergent): Rust-native Candle/Burn path — no Python glue on that path. CUDA needs `cargo vox-cuda-release`; not in the default binary. Loss-parity for training is still in progress.
+- **Operator GUI** (🟡 Preview): `vox-gui` is a Tauri **operator console** (dashboard, agent flow). It is **not** a compiler that turns your `.vox` app into a native desktop binary. Needs the GUI sidecar build.
+- **Mesh** (🟠 Emergent, opt-in): node discovery exists. Automatic off-process routing is experimental and default-off.
+- **Also in the repo** (uneven maturity): `vox graph`, SCIENTIA, `vox-search`, `vox-term`, plugin ABI, `vox audit`, skills (agentskills.io), WASM isolation. See [where things live](docs/src/architecture/where-things-live.md).
 
----
+## Not yet
+
+- Published installers (`voxup`, Homebrew, `.msi`, `.deb`) — no published GitHub Release assets
+- Production mesh / automatic hardware routing
+- Generated durable-workflow codegen at interpreter parity
+- A `.vox` → Tauri app compiler
+- Public benchmark leaderboard
 
 ## Install
 
-Vox is in pre-1.0 active development. `voxup` downloads a checksum-verified
-release binary:
+Vox is pre-1.0. **Build from source.** There are no published GitHub Releases today; the `voxup` one-liner is not an end-to-end path (the live script URL has 404'd, and `voxup` ignores draft CI releases).
 
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://voxlang.org/voxup | sh
+git clone https://github.com/vox-foundation/vox.git
+cd vox
+cargo install --locked --path crates/vox-cli
+vox doctor
 ```
 
-Windows, building from source, prerequisites, `vox doctor`, Docker, and the
-optional subsystems: **[Installing Vox](docs/src/reference/installation.md)** —
-the canonical page.
-
-Homebrew, `.msi`, and `.deb` are **planned, not yet published**: the release
-workflow has jobs for them, but the Homebrew tap update is a placeholder, the
-MSI job has no binary to package, and the `.deb` is built but never uploaded.
+Requires Rust **1.98.1** (`rust-toolchain.toml`). Windows, optional subsystems, Docker, and packaging status: **[Installing Vox](docs/src/reference/installation.md)** — the canonical page.
 
 ### Quick Start
 ```bash
@@ -87,26 +91,26 @@ The full CLI surface, including every `vox ci`, `vox populi`, and `vox mens` sub
 
 ### Ecosystem & plugins
 
-The core binary covers compile, run, bundle, and package. Heavier capabilities — Rust-native ML training/serving, the native desktop GUI, and 20+ bundled agent skills (git, memory, RAG, testing, container/WASM runtimes, and more) — load as optional extensions and skills through a stable ABI; `vox` tells you if one is required but missing.
+Heavier capabilities — Rust-native ML training/serving, the operator GUI, and bundled agent skills (git, memory, RAG, testing, container/WASM runtimes, and more) — load as optional extensions. `vox` tells you if one is required but missing.
 
 Full extension and skill catalog, kept current automatically: **[Plugin Catalog](docs/src/reference/plugin-catalog.generated.md)**.
 
-Project automation itself is `.vox`, not `.ps1`/`.sh`/`.py` — scripts are type-checked, cross-platform, and telemetry-observable by default (`vox run scripts/clean-build-artifacts.vox`).
+Project automation itself is `.vox`, not `.ps1`/`.sh`/`.py` — scripts are type-checked and cross-platform (`vox run scripts/clean-build-artifacts.vox`).
 
-Cross-machine orchestration (mesh) is opt-in: nodes advertise hardware capabilities on startup and the orchestrator routes workloads to the best-equipped peer, wire-checked at compile time. See the [model routing how-to](docs/src/how-to/how-to-model-routing.md).
+Cross-machine orchestration (mesh) is **opt-in** and Emergent. See the [model routing how-to](docs/src/how-to/how-to-model-routing.md).
 
 ---
 
 ## Stability & Path to 1.0
 
-Vox is marching toward a production-hardened v1.0 release. Surfaces are graded by their architectural stability and proximity to the v1 criteria — a representative slice:
+Vox is marching toward a production-hardened v1.0 release. Surfaces are graded by architectural stability — a representative slice:
 
 | Feature Area | Status |
 |:---|:---|
-| Compiler & LSP | 🟣 Mature |
+| Compiler Core | 🟣 Mature |
 | Database Engine | 🔵 Stable |
 | Durable Runtime | 🔵 Stable (interpreter) / 🟡 Preview (codegen) |
-| Native GUI (Tauri) | 🟡 Preview |
+| Native GUI (operator console) | 🟡 Preview |
 | Distributed Mesh | 🟠 Emergent |
 
 Full per-surface matrix, all tiers explained, and v1.0 release criteria: **[voxlang.org/reference/stability](https://voxlang.org/reference/stability/)**.
@@ -133,8 +137,8 @@ Beyond the rule pack, CI enforces repo-wide invariants — layer boundaries (`vo
 
 ## Backing, license, contact
 
-Funded via [Open Collective](https://opencollective.com/vox-foundation) — every transaction is public. Sponsorships fund developer grants, MENS training hardware, and academic bounties.
+Community-backed via [Open Collective](https://opencollective.com/vox-foundation) — the ledger is public. Early-stage: sponsorships, when they exist, fund developer grants, MENS training hardware, and academic bounties.
 
 [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0): commercial use, patent grant, modification with attribution. [`LICENSE`](https://github.com/vox-foundation/vox/blob/main/LICENSE).
 
-Discussion: [GitHub Discussions](https://github.com/vox-foundation/vox/discussions). Changelogs and ADRs: [RSS](https://voxlang.org/feed.xml).
+Discussion: [GitHub Issues](https://github.com/vox-foundation/vox/issues) · [Contributor Hub](docs/src/contributors/contributor-hub.md). Changelogs and ADRs: [RSS](https://voxlang.org/feed.xml).

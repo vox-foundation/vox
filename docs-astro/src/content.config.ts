@@ -7,7 +7,7 @@ export const collections = {
 	docs: defineCollection({
 		loader: docsLoader({
 			// Exclude the tombstoned archive (LLM guard) and generated artifacts
-			exclude: ['archive/**', 'SUMMARY.md'],
+			exclude: ['archive/**', 'SUMMARY.md', '.well-known/**'],
 		}),
 		schema: docsSchema({
 			extend: z.object({

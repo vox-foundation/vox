@@ -1,6 +1,11 @@
 # Vox Programming Language — LLM / Agent Documentation Index
-> Vox is an AI-native full-stack programming language that compiles to Rust and TypeScript.
-> It is designed first as a target for large language models, then for human developers.
+> Vox is a pre-1.0 (workspace 0.6.0) AI-native full-stack language that compiles to Rust and TypeScript.
+> One .vox file can compile to a database schema, a type-safe server, and a browser UI.
+> Install today by building from source. Release installers are not published.
+> Maturity: https://voxlang.org/reference/stability/ — compiler/CLI are the strongest surfaces.
+> Current syntax: bare `table` / `query` / `mutation` / `server` / `tool` / `component`.
+> Retired (hard parse errors): `@endpoint`, `@table type`, `@mcp.tool`. Do not emit them.
+> Not the unrelated Vox-lang (English-to-assembly) project at github.com/Vox-lang/vox.
 
 ## Agent Policy Entry Points
 - [AGENTS.md](https://voxlang.org/AGENTS.md): Cross-tool policy for all coding agents (required reading)
@@ -8,9 +13,10 @@
 - [CLAUDE.md](https://voxlang.org/CLAUDE.md): Claude Code overlay
 
 ## Core Documentation
-- [Getting Started](https://voxlang.org/tutorials/tut-getting-started/): Install the toolchain and build your first app
+- [Getting Started](https://voxlang.org/tutorials/tut-getting-started/): Install from source and build your first app
 - [Language Syntax Reference](https://voxlang.org/reference/ref-syntax/): Full syntax specification
 - [CLI Reference](https://voxlang.org/reference/cli/): All vox subcommands
+- [Stability Matrix](https://voxlang.org/reference/stability/): Per-surface maturity
 - [Environment Variables SSOT](https://voxlang.org/reference/env-vars/): Configuration surface
 - [Secrets (Secret Management)](https://voxlang.org/reference/secrets-ssot/): API keys and credentials
 
@@ -18,6 +24,7 @@
 - [Research Index](https://voxlang.org/architecture/research-index/): Architecture and research document map (hand-maintained)
 - [Where things live](https://voxlang.org/architecture/where-things-live/): Concept → crate lookup table
 - [Classification SSOT](https://voxlang.org/architecture/classification-ssot-2026/): Canonical surface classifications
+- [Front-facing honesty audit](https://voxlang.org/architecture/front-facing-honesty-audit-2026/): What scrape-first surfaces may and may not claim
 
 ## Contributor Hub
 - [Contributor Hub](https://voxlang.org/contributors/contributor-hub/): Entry point for contributors
