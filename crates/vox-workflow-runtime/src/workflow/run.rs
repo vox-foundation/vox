@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use vox_compiler::hir::HirModule;
 
 use super::host::{HostDecision, HostOutcome, HostRequest, WorkflowHost};
-use super::tracker::{DefaultTracker, WorkflowTracker};
+use super::tracker::{DefaultTracker, SignalDecision, WorkflowTracker};
 
 /// Version tag for interpreted workflow journal events emitted by this crate.
 pub const WORKFLOW_JOURNAL_VERSION: u32 = 1;
@@ -288,11 +288,24 @@ pub async fn interpret_workflow_durable(
                 })));
                 host.respond(HostDecision::Park("timer".into()))?;
             }
-            HostRequest::WaitSignal { .. } => {
-                // Signal delivery lands in Phase 4; for now a signal wait
-                // parks without introducing the timer persistence path.
-                host.respond(HostDecision::Park("signals land in Phase 4".into()))?;
-            }
+            HostRequest::WaitSignal { key } => match tracker.consume_or_park_signal(&key).await? {
+                SignalDecision::Consumed(payload) => {
+                    host.respond(HostDecision::Replay(payload))?;
+                }
+                SignalDecision::Parked => {
+                    journal.push(versioned_event(json!({
+                        "event": "SignalAwaited",
+                        "workflow": workflow_name,
+                        "signal_key": key,
+                    })));
+                    journal.push(versioned_event(json!({
+                        "event": "WorkflowParked",
+                        "workflow": workflow_name,
+                        "reason": "signal",
+                    })));
+                    host.respond(HostDecision::Park("signal".into()))?;
+                }
+            },
         }
     }
 

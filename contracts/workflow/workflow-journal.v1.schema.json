@@ -35,11 +35,33 @@
         "WorkflowPatch",
         "ActivityCacheHit",
         "TimerScheduled",
+        "SignalAwaited",
         "WorkflowParked"
       ]
     }
   },
   "oneOf": [
+    {
+      "required": [
+        "event",
+        "workflow",
+        "signal_key"
+      ],
+      "properties": {
+        "event": {
+          "const": "SignalAwaited"
+        },
+        "workflow": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signal_key": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
     {
       "required": [
         "event",

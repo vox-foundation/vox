@@ -18,7 +18,7 @@ pub use plan::plan_workflow_activities;
 pub use populi::execute_populi_step;
 pub use return_extract::{ExtractError, extract_terminal_return};
 pub use run::{WORKFLOW_JOURNAL_VERSION, interpret_workflow, interpret_workflow_durable};
-pub use tracker::{DefaultTracker, InMemoryTracker, WorkflowTracker};
+pub use tracker::{DefaultTracker, InMemoryTracker, SignalDecision, WorkflowTracker};
 pub use types::{PlannedActivity, PopuliActivity, PopuliHttpOp, ReplayNode, WorkflowReplayIr};
 
 #[cfg(test)]

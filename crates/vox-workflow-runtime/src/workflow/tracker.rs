@@ -4,6 +4,15 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+/// Atomic outcome of waiting for a durable workflow signal.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SignalDecision {
+    /// A pending signal was consumed with its journal-JSON payload.
+    Consumed(Value),
+    /// No signal was pending, so the workflow run was parked.
+    Parked,
+}
+
 /// An engine tracker that allows the interpreted runner to persist durable states.
 pub trait WorkflowTracker: Send + Sync {
     /// Check if a specific step was already completed in a prior, durable run.
@@ -181,6 +190,14 @@ pub trait WorkflowTracker: Send + Sync {
         _wake_at_ms: i64,
     ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
         async { Ok(()) }
+    }
+
+    /// Atomically consume a pending signal payload or park the current run.
+    fn consume_or_park_signal(
+        &mut self,
+        _key: &str,
+    ) -> impl std::future::Future<Output = anyhow::Result<SignalDecision>> + Send {
+        async { Ok(SignalDecision::Parked) }
     }
 }
 

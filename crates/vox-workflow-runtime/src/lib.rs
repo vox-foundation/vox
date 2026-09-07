@@ -45,7 +45,7 @@ pub use file_journal::FileJournalTracker;
 #[cfg(feature = "mens")]
 pub use workflow::execute_populi_step;
 pub use workflow::{
-    DefaultTracker, InMemoryTracker, PlannedActivity, PopuliActivity, PopuliHttpOp,
+    DefaultTracker, InMemoryTracker, PlannedActivity, PopuliActivity, PopuliHttpOp, SignalDecision,
     WORKFLOW_JOURNAL_VERSION, WorkflowTracker, interpret_workflow, interpret_workflow_durable,
     plan_workflow_activities,
 };

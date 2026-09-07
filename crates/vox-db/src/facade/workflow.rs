@@ -442,14 +442,14 @@ impl crate::VoxDb {
         &self,
         run_id: &str,
         signal_key: &str,
-        payload: Option<&Value>,
+        payload_json: &str,
     ) -> Result<(), StoreError> {
         let now = workflow_now_ms();
         let run_id = run_id.to_string();
         let signal_key = signal_key.to_string();
-        let payload_json = payload
-            .map(serde_json::to_string)
-            .transpose()
+        let payload: Value = serde_json::from_str(payload_json)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let payload_json = serde_json::to_string(&payload)
             .map_err(|e| StoreError::Serialization(e.to_string()))?;
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
@@ -603,12 +603,12 @@ impl crate::VoxDb {
         Ok(Some((attempt_no, status, worker_owner, lease_until_ms)))
     }
 
-    /// Consume one pending signal instance for this run/key.
-    pub async fn consume_workflow_signal(
+    /// Consume one pending signal payload, or atomically park the run when none exists.
+    pub async fn consume_or_park_workflow_signal(
         &self,
         run_id: &str,
         signal_key: &str,
-    ) -> Result<bool, StoreError> {
+    ) -> Result<Option<Value>, StoreError> {
         let now = workflow_now_ms();
         let run_id = run_id.to_string();
         let signal_key = signal_key.to_string();
@@ -616,31 +616,70 @@ impl crate::VoxDb {
         let conn = self.conn.clone();
         breaker
             .call(|| async move {
-                let mut rows = conn
-                    .query(
-                        "SELECT id FROM workflow_signal_log
-                         WHERE run_id = ?1 AND signal_key = ?2 AND consumed_at_ms IS NULL
-                         ORDER BY recorded_at_ms ASC, id ASC
-                         LIMIT 1",
-                        (run_id.clone(), signal_key.clone()),
+                // `BEGIN IMMEDIATE` closes the arrival race: a signal cannot be inserted
+                // between observing no row and parking/releasing this run's lease.
+                conn.execute("BEGIN IMMEDIATE", ()).await?;
+                let result: Result<Option<Value>, StoreError> = async {
+                    let mut rows = conn
+                        .query(
+                            "SELECT id, payload_json FROM workflow_signal_log
+                             WHERE run_id = ?1 AND signal_key = ?2 AND consumed_at_ms IS NULL
+                             ORDER BY recorded_at_ms ASC, id ASC
+                             LIMIT 1",
+                            (run_id.clone(), signal_key.clone()),
+                        )
+                        .await?;
+                    let pending = match rows.next().await? {
+                        Some(row) => {
+                            let id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                            let payload_json: Option<String> =
+                                row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+                            Some((id, payload_json))
+                        }
+                        None => None,
+                    };
+                    drop(rows);
+
+                    let Some((id, payload_json)) = pending else {
+                        conn.execute(
+                            "UPDATE workflow_run_log
+                             SET status = 'parked',
+                                 parked_reason = 'signal',
+                                 lease_owner = NULL,
+                                 lease_until_ms = NULL,
+                                 updated_at_ms = ?2
+                             WHERE run_id = ?1",
+                            (run_id.clone(), now),
+                        )
+                        .await?;
+                        return Ok(None);
+                    };
+                    conn.execute(
+                        "UPDATE workflow_signal_log SET consumed_at_ms = ?2
+                         WHERE id = ?1 AND consumed_at_ms IS NULL",
+                        (id, now),
                     )
                     .await?;
-                let Some(row) = rows.next().await? else {
-                    return Ok::<bool, StoreError>(false);
-                };
-                let id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-                conn.execute(
-                    "UPDATE workflow_signal_log SET consumed_at_ms = ?2
-                     WHERE id = ?1 AND consumed_at_ms IS NULL",
-                    (id, now),
-                )
-                .await?;
-                let mut ch = conn.query("SELECT changes()", ()).await?;
-                let Some(ch_row) = ch.next().await? else {
-                    return Ok::<bool, StoreError>(false);
-                };
-                let changes: i64 = ch_row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-                Ok::<bool, StoreError>(changes > 0)
+                    let payload = payload_json
+                        .as_deref()
+                        .map(serde_json::from_str)
+                        .transpose()
+                        .map_err(|e| StoreError::Serialization(e.to_string()))?
+                        .unwrap_or(Value::Null);
+                    Ok(Some(payload))
+                }
+                .await;
+
+                match result {
+                    Ok(decision) => {
+                        conn.execute("COMMIT", ()).await?;
+                        Ok(decision)
+                    }
+                    Err(err) => {
+                        let _ = conn.execute("ROLLBACK", ()).await;
+                        Err(err)
+                    }
+                }
             })
             .await
     }
@@ -896,5 +935,41 @@ impl crate::VoxDb {
                 Ok::<(), StoreError>(())
             })
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{DbConfig, VoxDb};
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn consume_or_park_signal_handles_both_atomic_outcomes() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+        db.record_workflow_run_started("missing", "gated", 0)
+            .await
+            .expect("start missing run");
+        let missing = db
+            .consume_or_park_workflow_signal("missing", "go")
+            .await
+            .expect("park missing run");
+        assert_eq!(missing, None);
+        assert_eq!(
+            db.workflow_run_status("missing").await.expect("status"),
+            "parked"
+        );
+
+        db.record_workflow_run_started("present", "gated", 0)
+            .await
+            .expect("start present run");
+        db.record_workflow_signal("present", "go", r#"{"approved":true}"#)
+            .await
+            .expect("record signal");
+        let present = db
+            .consume_or_park_workflow_signal("present", "go")
+            .await
+            .expect("consume signal");
+        assert_eq!(present, Some(json!({"approved": true})));
     }
 }

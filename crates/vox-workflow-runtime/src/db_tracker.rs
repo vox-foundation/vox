@@ -4,7 +4,7 @@
 //! enabling crash-safe resume: if a workflow is interrupted mid-execution, the
 //! next `interpret_workflow_durable` call will skip already-completed steps.
 
-use crate::WorkflowTracker;
+use crate::{SignalDecision, WorkflowTracker};
 use anyhow::Result;
 use std::future::Future;
 use std::sync::Arc;
@@ -68,7 +68,6 @@ impl VoxDbTracker {
     }
 
     /// Force the current run's lease to become stealable by a resumed test runner.
-    #[cfg(any(test, feature = "test-support"))]
     pub async fn expire_lease_for_test(&self) -> anyhow::Result<()> {
         self.db
             .connection()
@@ -195,19 +194,6 @@ impl WorkflowTracker for VoxDbTracker {
                     run_id,
                     activity_id
                 );
-            }
-            if let Some(signal_key) = activity_name.strip_prefix("__durable_signal_wait:") {
-                let consumed = db
-                    .consume_workflow_signal(&run_id, signal_key)
-                    .await
-                    .map_err(|e| anyhow::anyhow!("DB error: {}", e))?;
-                if !consumed {
-                    anyhow::bail!(
-                        "workflow run `{}` is waiting for signal `{}`",
-                        run_id,
-                        signal_key
-                    );
-                }
             }
             db.record_workflow_activity_started(
                 &run_id,
@@ -447,6 +433,24 @@ impl WorkflowTracker for VoxDbTracker {
         async move {
             db.park_workflow_run_timer(&run_id, wake_at_ms)
                 .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
+
+    fn consume_or_park_signal(
+        &mut self,
+        key: &str,
+    ) -> impl Future<Output = Result<SignalDecision>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        let key = key.to_string();
+        async move {
+            db.consume_or_park_workflow_signal(&run_id, &key)
+                .await
+                .map(|payload| match payload {
+                    Some(payload) => SignalDecision::Consumed(payload),
+                    None => SignalDecision::Parked,
+                })
                 .map_err(|e| anyhow::anyhow!("DB error: {}", e))
         }
     }
