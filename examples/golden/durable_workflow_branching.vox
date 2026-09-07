@@ -1,0 +1,38 @@
+// ---
+// title: "Durable workflow runtime branching"
+// description: "Workflow branches on the real Result returned by a durable activity."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [workflow, activity, Result, match, if]
+// last_validated: 2026-09-06
+// training_eligible: true
+// training_weight: 1.0
+// difficulty: intermediate
+// ---
+// @training_prompt: Write a durable workflow that branches on an activity Result at runtime.
+activity charge(amount: int) to Result[str] {
+    if amount > 0 {
+        return Ok("tx")
+    }
+    return Error("bad")
+}
+
+workflow checkout(amount: int) to str {
+    let result = charge(amount)
+    let succeeded = match result {
+        Ok(_) => true
+        Error(_) => false
+    }
+    if succeeded {
+        return "paid"
+    } else {
+        return "declined"
+    }
+}
+
+@test
+fn test_checkout_branches_on_activity_result() {
+    assert(checkout(10) is "paid")
+    assert(checkout(0) is "declined")
+}

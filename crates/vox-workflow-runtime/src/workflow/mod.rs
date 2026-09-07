@@ -11,7 +11,7 @@ pub mod types;
 
 pub use hir_context::{current_hir_module, set_current_hir_module};
 pub use host::{HostDecision, HostOutcome, HostRequest, WorkflowHost};
-pub use plan::{plan_workflow_activities, plan_workflow_replay_ir};
+pub use plan::plan_workflow_activities;
 #[cfg(feature = "mens")]
 pub use populi::execute_populi_step;
 pub use return_extract::{ExtractError, extract_terminal_return};

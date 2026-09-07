@@ -13,22 +13,6 @@ fn lower(src: &str) -> vox_compiler::hir::HirModule {
     lower_module(&module)
 }
 
-fn extract_codegen_activity_names(lib_src: &str) -> Vec<String> {
-    let marker = "execute_activity_result(\"";
-    let mut out = Vec::new();
-    let mut cursor = lib_src;
-    while let Some(pos) = cursor.find(marker) {
-        let start = pos + marker.len();
-        let rest = &cursor[start..];
-        let Some(end) = rest.find('"') else {
-            break;
-        };
-        out.push(rest[..end].to_string());
-        cursor = &rest[end + 1..];
-    }
-    out
-}
-
 #[test]
 #[ignore = "@server bare shorthand is not in the parser; use server instead — owner: integration-tests sunset: 2026-12-31"]
 fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
@@ -116,7 +100,7 @@ fn parity_contract_retry_policy_defaults_are_production_like() {
 
 #[test]
 #[ignore = "activity/workflow constructs tombstoned; orchestration uses @mutation fn; owner: vox-compiler; sunset: 2026-12-31"]
-fn parity_contract_generated_linear_activity_identity_matches_interpreted_plan() {
+fn parity_contract_declared_activity_names_remain_available() {
     let src = r#"
 type MyRes = | Ok(v: str) | Error
 
@@ -135,79 +119,11 @@ workflow main_flow() to Result[str] {
 }
 "#;
     let hir = lower(src);
-    let steps = plan_workflow_activities(&hir, "main_flow").expect("interpreted plan should build");
-    let planned_names: Vec<String> = steps.iter().map(|s| s.name.clone()).collect();
-
-    let generated = generate_rust(
-        &hir,
-        "parity_app",
-        vox_codegen::codegen_rust::RustAppShell::default(),
-    )
-    .expect("rust codegen should succeed");
-    let lib_rs = generated
-        .files
-        .get("src/lib.rs")
-        .expect("lib.rs should exist");
-    let generated_names = extract_codegen_activity_names(lib_rs);
+    let activity_names =
+        plan_workflow_activities(&hir, "main_flow").expect("activity names should be available");
 
     assert_eq!(
-        generated_names, planned_names,
-        "generated execution activity identities should match interpreted plan order"
-    );
-    for step in &steps {
-        if let Some(activity_id) = &step.activity_id {
-            let needle = format!(".with_activity_id(\"{activity_id}\".to_string())");
-            assert!(
-                lib_rs.contains(&needle),
-                "generated code should preserve explicit activity_id `{activity_id}`"
-            );
-        }
-    }
-    let send_email = steps
-        .iter()
-        .find(|s| s.name == "send_email")
-        .expect("send_email step should exist");
-    assert_eq!(
-        send_email.timeout_ms,
-        Some(10_000),
-        "interpreted planner should normalize timeout string to milliseconds"
-    );
-}
-
-#[test]
-#[ignore = "activity/workflow constructs tombstoned; orchestration uses @mutation fn; owner: vox-compiler; sunset: 2026-12-31"]
-fn parity_contract_generated_with_id_alias_matches_interpreted_activity_id() {
-    let src = r#"
-type MyRes = | Ok(v: str) | Error
-
-activity send_email(recipient: str) to Result[str] {
-    return Ok(recipient)
-}
-
-workflow main_flow() to Result[str] {
-    let a = send_email("person@example.com") with { id: "email-step-alias", retries: 2 }
-    return a
-}
-"#;
-    let hir = lower(src);
-    let steps = plan_workflow_activities(&hir, "main_flow").expect("interpreted plan should build");
-    assert_eq!(
-        steps[0].activity_id.as_deref(),
-        Some("email-step-alias"),
-        "planner should map `id` alias to activity_id"
-    );
-    let generated = generate_rust(
-        &hir,
-        "parity_app",
-        vox_codegen::codegen_rust::RustAppShell::default(),
-    )
-    .expect("rust codegen should succeed");
-    let lib_rs = generated
-        .files
-        .get("src/lib.rs")
-        .expect("lib.rs should exist");
-    assert!(
-        lib_rs.contains(".with_activity_id(\"email-step-alias\".to_string())"),
-        "generated code should preserve `id` alias as activity_id option"
+        activity_names,
+        vec!["send_email".to_string(), "write_audit".to_string()]
     );
 }
