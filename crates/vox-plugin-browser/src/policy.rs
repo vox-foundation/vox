@@ -26,7 +26,11 @@ pub fn parse_profile_id(raw: &str) -> Result<String, String> {
 }
 
 pub fn host_allowed(url: &str, allow_csv: Option<&str>) -> bool {
-    if url.starts_with("data:") || url.eq_ignore_ascii_case("about:blank") {
+    if url
+        .get(..5)
+        .is_some_and(|scheme| scheme.eq_ignore_ascii_case("data:"))
+        || url.eq_ignore_ascii_case("about:blank")
+    {
         return true;
     }
 
@@ -34,20 +38,27 @@ pub fn host_allowed(url: &str, allow_csv: Option<&str>) -> bool {
     if matches!(host.as_str(), "localhost" | "127.0.0.1" | "[::1]") {
         return true;
     }
+    if host.is_empty() {
+        return false;
+    }
 
     let Some(allow_csv) = allow_csv.filter(|csv| !csv.trim().is_empty()) else {
         return true;
     };
-    allow_csv.split(',').map(str::trim).any(|allowed| {
-        let allowed = allowed.to_ascii_lowercase();
-        if let Some(suffix) = allowed.strip_prefix("*.") {
-            host.len() > suffix.len()
-                && host.ends_with(suffix)
-                && host.as_bytes()[host.len() - suffix.len() - 1] == b'.'
-        } else {
-            host == allowed
-        }
-    })
+    allow_csv
+        .split(',')
+        .map(str::trim)
+        .filter(|allowed| !allowed.is_empty())
+        .any(|allowed| {
+            let allowed = allowed.to_ascii_lowercase();
+            if let Some(suffix) = allowed.strip_prefix("*.") {
+                host.len() > suffix.len()
+                    && host.ends_with(suffix)
+                    && host.as_bytes()[host.len() - suffix.len() - 1] == b'.'
+            } else {
+                host == allowed
+            }
+        })
 }
 
 pub(crate) fn url_host(url: &str) -> String {
@@ -56,10 +67,11 @@ pub(crate) fn url_host(url: &str) -> String {
         .map_or(url, |(_, remainder)| remainder)
         .split(['/', '?', '#'])
         .next()
-        .unwrap_or_default()
-        .rsplit('@')
-        .next()
         .unwrap_or_default();
+    if authority.contains('\\') {
+        return String::new();
+    }
+    let authority = authority.rsplit('@').next().unwrap_or_default();
 
     let host = if authority.starts_with('[') {
         authority
@@ -105,5 +117,26 @@ mod tests {
         ));
         assert!(host_allowed("about:blank", Some("example.com")));
         assert!(!host_allowed("https://evil.test/", Some("example.com")));
+    }
+
+    #[test]
+    fn allowlist_ignores_empty_csv_entries() {
+        assert!(!host_allowed("file:///tmp/page.html", Some("example.com,")));
+    }
+
+    #[test]
+    fn allowlist_rejects_backslash_authority() {
+        assert!(!host_allowed(
+            r"https://evil.test\@example.com/",
+            Some("example.com")
+        ));
+    }
+
+    #[test]
+    fn data_scheme_is_case_insensitive() {
+        assert!(host_allowed(
+            "DATA:text/html,<h1>x</h1>",
+            Some("example.com")
+        ));
     }
 }
