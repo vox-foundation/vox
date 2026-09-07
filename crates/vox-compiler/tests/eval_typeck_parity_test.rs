@@ -547,3 +547,78 @@ fn bang_operator_still_errors_with_phonetic_hint() {
         "error should name `not` as the canonical form; got: {s}"
     );
 }
+
+// ── Task 2 (interpreter-first execution, PR 2): close the measured drift ────
+// See .superpowers/sdd/task-2-brief.md. These probes were crafted from the
+// eight EXPECT-bearing goldens landed in Task 1b (examples/golden/*.vox) that
+// the nightly differential gate (crates/vox-integration-tests/tests/
+// golden_differential_gate.rs) exercises interp-vs-native.
+
+#[test]
+fn registry_emits_every_eval_only_method() {
+    use vox_compiler::builtin_registry::std_namespace_runtime_call;
+    for (ns, m, args) in [
+        ("time", "now", vec![]),
+        ("json", "encode", vec!["x".to_string()]),
+        ("json", "stringify", vec!["x".to_string()]),
+        ("process", "cwd", vec![]),
+        ("secrets", "resolve", vec!["\"K\"".to_string()]),
+        ("crypto", "hash_fast", vec!["\"abc\"".to_string()]),
+    ] {
+        assert!(
+            std_namespace_runtime_call(ns, m, &args).is_some(),
+            "codegen has no emit for {ns}.{m}"
+        );
+    }
+}
+
+#[test]
+fn display_of_composites_matches_the_surface_form() {
+    let v = run_probe(
+        r#"pub fn main() { return str([1, 2]) + "|" + str({a: 1}) + "|" + str(Some(3)) + "|" + str(Ok(1)) }"#,
+    )
+    .unwrap();
+    assert!(
+        matches!(v, VoxValue::Str(ref s) if s.as_ref() == "[1, 2]|{a: 1}|Some(3)|Ok(1)"),
+        "{v:?}"
+    );
+}
+
+#[test]
+fn glob_is_sorted_and_propagates_errors() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("b.txt"), "b").unwrap();
+    std::fs::write(d.path().join("a.txt"), "a").unwrap();
+    let pat = format!("{}/*", d.path().display());
+    let src = format!(
+        r#"pub fn main() {{ return match fs.glob("{pat}") {{ Ok(xs) => xs is xs.sorted() and len(xs) is 2, Error(e) => false }} }}"#
+    );
+    let v = run_probe(&src).unwrap();
+    assert!(matches!(v, VoxValue::Bool(true)), "{v:?}");
+}
+
+#[test]
+fn list_push_is_amortised_constant_not_quadratic() {
+    // 5_000 pushes must finish well inside the 10 M step budget and well under a second.
+    let t0 = std::time::Instant::now();
+    let v = run_probe(
+        r#"pub fn main() { let mut xs = []; let mut i = 0; while i < 5000 { xs = xs.push(i); i = i + 1 }; return len(xs) }"#,
+    )
+    .unwrap();
+    assert!(matches!(v, VoxValue::Int(5000)), "{v:?}");
+    assert!(
+        t0.elapsed() < std::time::Duration::from_millis(500),
+        "list.push is still cloning the receiver: {:?}",
+        t0.elapsed()
+    );
+}
+
+#[test]
+fn hash_fast_matches_vox_crypto() {
+    let v = run_probe(r#"pub fn main() { return crypto.hash_fast("abc") }"#).unwrap();
+    let expected = vox_crypto::hash_fast_hex(b"abc");
+    assert!(
+        matches!(v, VoxValue::Str(ref s) if s.as_ref() == expected.as_str()),
+        "{v:?} != {expected}"
+    );
+}

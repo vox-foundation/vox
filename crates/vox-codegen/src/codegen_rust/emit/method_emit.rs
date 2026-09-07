@@ -517,6 +517,27 @@ fn obj_is_list(obj: &HirExpr, inferred_types: Option<&HashMap<Span, HirType>>) -
     )
 }
 
+/// Returns `true` when the HIR expression's inferred type is the `Json` newtype
+/// (`std.json`'s dynamic value type, distinct from a plain `{k: v}` object
+/// literal's inferred `Record` type). Used to keep `.keys()` returning `Option`
+/// for genuine `Json` receivers (`typeck/builtins.rs`'s `json_value_methods`)
+/// while a `Record`-typed object literal gets the direct, non-Option lowering
+/// below (`typeck/builtins.rs`'s `Ty::Record(_) => "keys" => List[str]`).
+fn obj_is_json(obj: &HirExpr, inferred_types: Option<&HashMap<Span, HirType>>) -> bool {
+    let Some(types) = inferred_types else {
+        return false;
+    };
+    let span = match obj {
+        HirExpr::Ident(_, s)
+        | HirExpr::FieldAccess(_, _, s)
+        | HirExpr::MethodCall(_, _, _, _, s)
+        | HirExpr::Call(_, _, _, s)
+        | HirExpr::Index(_, _, s) => *s,
+        _ => return false,
+    };
+    matches!(types.get(&span), Some(HirType::Named(n)) if n == "Json")
+}
+
 pub(super) fn emit_method_call<F>(
     emit_expr: &F,
     obj: &HirExpr,
@@ -614,6 +635,28 @@ where
         if let Some(s) = try_emit_list_method(method, &o, &arg_exprs) {
             return s;
         }
+    }
+    // `x.keys()` on a plain object literal (Task 2 corollary —
+    // `object_field_order.vox`, one of Task 1b's eight goldens: `for k in
+    // o.keys() { ... }` over a `{zeta: 1, middle: 2, alpha: 3}` literal).
+    // Object literals lower to `serde_json::json!({...})` (a
+    // `serde_json::Value`; see `ObjectLit` in `stmt_expr_tail.rs`), which has
+    // no inherent `.keys()` — only `.as_object()` does, yielding a
+    // `serde_json::Map<String, Value>` whose own `.keys()` returns
+    // `&String`s that must be cloned into an owned `Vec<String>` to match
+    // this `Record`-typed receiver's non-Option `List[str]` typeck signature
+    // (`typeck/builtins.rs`). `preserve_order` (Cargo.toml, Step 3) keeps
+    // that iteration in insertion order, matching the interpreter's
+    // `fields.iter()` in `eval/builtins.rs`. Guarded off real `Json`
+    // receivers (`obj_is_json`), whose `.keys()` stays `Option[List[str]]`.
+    if method == "keys"
+        && arg_exprs.is_empty()
+        && !recv_is_list
+        && !obj_is_json(obj, inferred_types)
+    {
+        return format!(
+            "({o}).as_object().map(|m| m.keys().cloned().collect::<Vec<String>>()).unwrap_or_default()"
+        );
     }
     // `x.get(key)` with a STRING-typed key (literal or inferred `str`) is an
     // object/JSON keyed lookup — `VoxJson::get(String) -> Option<VoxJson>`,
@@ -941,6 +984,16 @@ fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<S
         "sorted_by_key" if arg_exprs.len() == 1 => Some(format!(
             "({{ let mut __lst = {}; __lst.sort_by_key({}); __lst }})",
             o, arg_exprs[0]
+        )),
+
+        // Task 2 Step 7: `xs.sorted()` (no key) — natural `Ord`. Needed so
+        // `fs.glob(...).sorted()`/`fs.list_dir(...)` etc. compile natively;
+        // the runtime helpers (`vox_fs_glob`, `vox_list_dir`) already return
+        // pre-sorted `Vec<String>`, so this is also reachable on plain
+        // in-script lists of ints/strings/etc. built without the fs tier.
+        "sorted" if arg_exprs.is_empty() => Some(format!(
+            "({{ let mut __lst = {}; __lst.sort(); __lst }})",
+            o
         )),
 
         _ => None,

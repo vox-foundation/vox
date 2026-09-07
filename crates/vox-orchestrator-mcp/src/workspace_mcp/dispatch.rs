@@ -157,7 +157,7 @@ fn json_to_vox_value(v: &serde_json::Value) -> Result<VoxValue, String> {
                 Err("unsupported number".to_string())
             }
         }
-        serde_json::Value::String(s) => Ok(VoxValue::Str(s.clone())),
+        serde_json::Value::String(s) => Ok(VoxValue::Str(s.clone().into())),
         serde_json::Value::Array(items) => {
             let vals: Result<Vec<_>, _> = items.iter().map(json_to_vox_value).collect();
             Ok(VoxValue::list(vals?))
@@ -187,7 +187,7 @@ fn voxvalue_to_json(v: VoxValue) -> Result<serde_json::Value, String> {
 
 fn voxvalue_to_string(v: VoxValue) -> Result<String, String> {
     match v {
-        VoxValue::Str(s) => Ok(s),
+        VoxValue::Str(s) => Ok(s.to_string()),
         VoxValue::Result(Ok(inner)) => voxvalue_to_string(*inner),
         VoxValue::Result(Err(inner)) => Err(format!("resource returned error: {inner:?}")),
         other => Err(format!("resource must return str, got: {other:?}")),

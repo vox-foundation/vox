@@ -16,7 +16,11 @@ pub enum VoxValue {
     /// A regex match: capture groups by index (group 0 = whole match). A `None`
     /// slot means that group did not participate. `m.group(i)` → `Option[str]`.
     Match(Vec<core::option::Option<String>>),
-    Str(String),
+    /// `Rc<str>` (not `String`) so cloning a string value — every scope lookup,
+    /// every list/object element copy, every function-call argument pass — is
+    /// an O(1) refcount bump rather than an O(n) byte copy. Construct via
+    /// `.into()` (accepts `String` or `&str`); read via `.as_ref()` (`&str`).
+    Str(Rc<str>),
     Bool(bool),
     /// Copy-on-write list payload. `Rc` makes `VoxValue::clone()` O(1) (a refcount
     /// bump) so pass-by-value is cheap; in-place mutation uses [`Rc::make_mut`],
@@ -141,7 +145,7 @@ impl PartialEq for VoxValue {
 /// slot. Used by stdlib builtins that produce string-valued errors, so they keep
 /// their historical behavior under the widened `Result(_, Box<VoxValue>)` shape.
 pub(crate) fn err_str(s: String) -> Box<VoxValue> {
-    Box::new(VoxValue::Str(s))
+    Box::new(VoxValue::Str(s.into()))
 }
 
 #[cfg(test)]

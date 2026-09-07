@@ -17100,6 +17100,7 @@ dependencies = [
  "vox-codegen",
  "vox-codegen-ts",
  "vox-config",
+ "vox-crypto",
  "vox-eval",
  "vox-foundation",
  "vox-grammar-export",

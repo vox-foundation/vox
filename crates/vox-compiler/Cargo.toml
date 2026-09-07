@@ -30,6 +30,7 @@ rust_decimal = { workspace = true }
 chrono = { workspace = true }
 vox-secrets.workspace = true
 vox-config.workspace = true
+vox-crypto.workspace = true
 secrecy = { workspace = true }
 which = { workspace = true }
 glob = "0.3.1"

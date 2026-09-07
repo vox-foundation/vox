@@ -8,7 +8,7 @@
 // training_eligible: true
 // difficulty: beginner
 // ---
-// EXPECT: 2
+// EXPECT: 1
 // EXPECT: true
 pub fn main() {
   let xs = match fs.glob("examples/golden/glob_and_listdir_order.vox") {

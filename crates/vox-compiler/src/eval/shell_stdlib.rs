@@ -45,6 +45,9 @@ pub(crate) fn interp_fs_list_dir_detailed(dir: &str) -> Result<Vec<InterpFileRec
         let full = path_buf.to_string_lossy().into_owned();
         out.push(file_record_from_meta(&full, &name, &meta));
     }
+    // Task 2 Step 7: sorted, matching the native twin
+    // (`vox_actor_runtime::builtins::vox_fs_list_dir_detailed`).
+    out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
 }
 

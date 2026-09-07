@@ -39,6 +39,13 @@ pub struct Interpreter {
     /// base for intra-project `import "./helpers/foo.vox"` directives.
     /// When `None`, local-file imports are reported as an error.
     pub source_path: Option<std::path::PathBuf>,
+    /// Script-facing CLI arguments (everything after the script path on the
+    /// `vox run` command line), surfaced to Vox code via `env.args()` as
+    /// `[source_path] ++ script_args` — matching the native argv shape
+    /// (`[bin-or-script] ++ args`, `backend/native.rs`). Defaults to empty;
+    /// the CLI sets this from the parsed `ARGS...` (Task 2 Step 9; Task 6
+    /// wires the CLI call site).
+    pub script_args: Vec<String>,
     /// Set of canonicalized paths already loaded — guards against import
     /// cycles. A re-entrant resolve sees the path here and aborts with
     /// `EvalError::AssertionFailed` naming the cycle.
@@ -62,77 +69,88 @@ impl Interpreter {
             "fs".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("fs".to_string()),
+                VoxValue::Str("fs".to_string().into()),
             )]),
         );
         scope.set(
             "process".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("process".to_string()),
+                VoxValue::Str("process".to_string().into()),
             )]),
         );
         scope.set(
             "env".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("env".to_string()),
+                VoxValue::Str("env".to_string().into()),
             )]),
         );
         scope.set(
             "path".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("path".to_string()),
+                VoxValue::Str("path".to_string().into()),
             )]),
         );
         scope.set(
             "secrets".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("secrets".to_string()),
+                VoxValue::Str("secrets".to_string().into()),
             )]),
         );
         scope.set(
             "json".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("json".to_string()),
+                VoxValue::Str("json".to_string().into()),
             )]),
         );
         scope.set(
             "regex".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("regex".to_string()),
+                VoxValue::Str("regex".to_string().into()),
             )]),
         );
         scope.set(
             "log".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("log".to_string()),
+                VoxValue::Str("log".to_string().into()),
             )]),
         );
         scope.set(
             "time".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("time".to_string()),
+                VoxValue::Str("time".to_string().into()),
             )]),
         );
         scope.set(
             "io".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("io".to_string()),
+                VoxValue::Str("io".to_string().into()),
             )]),
         );
         scope.set(
             "repo".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("repo".to_string()),
+                VoxValue::Str("repo".to_string().into()),
+            )]),
+        );
+        // Bare `crypto.hash_fast(...)` (Task 1b's `crypto_hash_parity.vox`
+        // calls this, not `std.crypto`) — typeck already binds `crypto` only
+        // under `std`; this seeds the interp-side bare namespace so it
+        // resolves the same way `fs`/`process`/`secrets` do above.
+        scope.set(
+            "crypto".to_string(),
+            VoxValue::object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str("crypto".to_string().into()),
             )]),
         );
 
@@ -142,98 +160,98 @@ impl Interpreter {
                 "fs".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("fs".to_string()),
+                    VoxValue::Str("fs".to_string().into()),
                 )]),
             ),
             (
                 "process".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("process".to_string()),
+                    VoxValue::Str("process".to_string().into()),
                 )]),
             ),
             (
                 "env".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("env".to_string()),
+                    VoxValue::Str("env".to_string().into()),
                 )]),
             ),
             (
                 "path".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("path".to_string()),
+                    VoxValue::Str("path".to_string().into()),
                 )]),
             ),
             (
                 "json".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("json".to_string()),
+                    VoxValue::Str("json".to_string().into()),
                 )]),
             ),
             (
                 "agentos".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("agentos".to_string()),
+                    VoxValue::Str("agentos".to_string().into()),
                 )]),
             ),
             (
                 "csv".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("csv".to_string()),
+                    VoxValue::Str("csv".to_string().into()),
                 )]),
             ),
             (
                 "toml".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("toml".to_string()),
+                    VoxValue::Str("toml".to_string().into()),
                 )]),
             ),
             (
                 "yaml".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("yaml".to_string()),
+                    VoxValue::Str("yaml".to_string().into()),
                 )]),
             ),
             (
                 "io".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("io".to_string()),
+                    VoxValue::Str("io".to_string().into()),
                 )]),
             ),
             (
                 "log".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("log".to_string()),
+                    VoxValue::Str("log".to_string().into()),
                 )]),
             ),
             (
                 "time".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("time".to_string()),
+                    VoxValue::Str("time".to_string().into()),
                 )]),
             ),
             (
                 "http".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("http".to_string()),
+                    VoxValue::Str("http".to_string().into()),
                 )]),
             ),
             (
                 "regex".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("regex".to_string()),
+                    VoxValue::Str("regex".to_string().into()),
                 )]),
             ),
         ]);
@@ -246,6 +264,7 @@ impl Interpreter {
             steps: 0,
             caps: None,
             source_path: None,
+            script_args: Vec::new(),
             loaded_imports: std::collections::HashSet::new(),
             db: crate::eval::db::DbStore::default(),
             repo: crate::eval::repo::RepoStore::default(),

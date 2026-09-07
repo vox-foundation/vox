@@ -29,7 +29,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
     match expr {
         HirExpr::IntLit(value, _) => Ok(VoxValue::Int(*value)),
         HirExpr::FloatLit(value, _) => Ok(VoxValue::Float(*value)),
-        HirExpr::StringLit(value, _) => Ok(VoxValue::Str(value.clone())),
+        HirExpr::StringLit(value, _) => Ok(VoxValue::Str(value.clone().into())),
         HirExpr::BoolLit(value, _) => Ok(VoxValue::Bool(*value)),
         HirExpr::Ident(name, _) => {
             if let Some(val) = interp.scope.get(name) {
@@ -53,6 +53,18 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     | "sum"
                     | "bool"
                     | "type_of"
+                    // floor/ceil/round/sqrt as free functions (Task 2
+                    // corollary — `float_formatting.vox`, one of Task 1b's
+                    // eight goldens, calls `floor(1.9)` etc. rather than
+                    // `(1.9).floor()`). This match only recognizes the bare
+                    // *identifier* as a builtin-function placeholder;
+                    // `eval/builtins.rs`'s `call_global_builtin` (which this
+                    // placeholder's `Call` site dispatches to) already has
+                    // the dispatch arms.
+                    | "floor"
+                    | "ceil"
+                    | "round"
+                    | "sqrt"
             ) {
                 // Return a placeholder function for builtins
                 Ok(VoxValue::Fn {
@@ -200,16 +212,12 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirBinOp::Gt, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a > b)),
                 (HirBinOp::Lte, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a <= b)),
                 (HirBinOp::Gte, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a >= b)),
-                (HirBinOp::Add, VoxValue::Str(a), other) => Ok(VoxValue::Str(format!(
-                    "{}{}",
-                    a,
-                    super::builtins::vox_value_display(&other)
-                ))),
-                (HirBinOp::Add, other, VoxValue::Str(b)) => Ok(VoxValue::Str(format!(
-                    "{}{}",
-                    super::builtins::vox_value_display(&other),
-                    b
-                ))),
+                (HirBinOp::Add, VoxValue::Str(a), other) => Ok(VoxValue::Str(
+                    format!("{}{}", a, super::builtins::vox_value_display(&other)).into(),
+                )),
+                (HirBinOp::Add, other, VoxValue::Str(b)) => Ok(VoxValue::Str(
+                    format!("{}{}", super::builtins::vox_value_display(&other), b).into(),
+                )),
                 (HirBinOp::Add, VoxValue::Float(a), VoxValue::Float(b)) => {
                     Ok(VoxValue::Float(a + b))
                 }
@@ -574,6 +582,31 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 return super::repo::execute_repo_op(interp, method, eval_args);
             }
 
+            // `list.push(x)` in-place fast path (see `eval/env.rs` `get_mut`
+            // doc comment). The generic dispatch below goes through
+            // `call_builtin_method`, whose "push" arm clones the whole
+            // receiver Vec (`v.to_vec()`) on every call — turning `xs =
+            // xs.push(i)` / bare `xs.push(i)` in a loop into O(n^2) total
+            // work. When the receiver is a bare identifier already bound to
+            // a `List`, grow it via `Scope::get_mut` + `Rc::make_mut`:
+            // amortized O(1), like `Vec::push`, and still copy-on-write
+            // correct — if the `Rc` is shared with another binding (`let b =
+            // a`), `make_mut` clones once for `a` only, leaving `b`'s list
+            // untouched (see `eval_cow_semantics_test.rs`). Evaluate the
+            // argument *before* touching the receiver so side effects (e.g.
+            // `xs.push(len(xs))`) observe the pre-push list.
+            if method == "push"
+                && args.len() == 1
+                && let HirExpr::Ident(name, _) = obj.as_ref()
+                && matches!(interp.scope.get(name), Some(VoxValue::List(_)))
+            {
+                let val = eval_expr(interp, &args[0].value)?;
+                if let Some(VoxValue::List(list_rc)) = interp.scope.get_mut(name) {
+                    std::rc::Rc::make_mut(list_rc).push(val);
+                    return Ok(VoxValue::List(list_rc.clone()));
+                }
+            }
+
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {
@@ -614,6 +647,33 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         // `process.run`) still gets a chance.
                     }
                 }
+            }
+
+            // `env.args()` needs `Interpreter.source_path`/`script_args`
+            // (Task 2 Step 9), which `call_builtin_method` doesn't have
+            // access to (it takes no `&Interpreter`). Handled here instead
+            // of falling through to the generic `"env"` dispatch in
+            // `builtins.rs`, which only sees the OS process argv. Shape
+            // matches native argv (`[bin-or-script] ++ args`,
+            // `backend/native.rs`): `[source_path] ++ script_args`.
+            if method == "args"
+                && eval_args.is_empty()
+                && let VoxValue::Object(fields) = &o
+                && fields.iter().any(|(k, v)| {
+                    k == "__namespace__" && matches!(v, VoxValue::Str(s) if s.as_ref() == "env")
+                })
+            {
+                let mut items: Vec<VoxValue> = Vec::new();
+                if let Some(p) = &interp.source_path {
+                    items.push(VoxValue::Str(p.display().to_string().into()));
+                }
+                items.extend(
+                    interp
+                        .script_args
+                        .iter()
+                        .map(|s| VoxValue::Str(s.clone().into())),
+                );
+                return Ok(VoxValue::list(items));
             }
 
             if let Some(r) =
@@ -668,9 +728,12 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 VoxValue::Object(pairs) => pairs
                     .iter()
                     .cloned()
-                    .map(|(k, v)| VoxValue::tuple(vec![VoxValue::Str(k), v]))
+                    .map(|(k, v)| VoxValue::tuple(vec![VoxValue::Str(k.into()), v]))
                     .collect(),
-                VoxValue::Str(s) => s.chars().map(|ch| VoxValue::Str(ch.to_string())).collect(),
+                VoxValue::Str(s) => s
+                    .chars()
+                    .map(|ch| VoxValue::Str(ch.to_string().into()))
+                    .collect(),
                 other => {
                     return Err(EvalError::TypeError {
                         expected: "List",
@@ -678,7 +741,6 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     });
                 }
             };
-            let mut results = Vec::new();
             interp.scope.push_frame();
             for (i, l) in items.into_iter().enumerate() {
                 interp.scope.set(binding.clone(), l);
@@ -692,12 +754,27 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         interp.scope.pop_frame();
                         return Ok(val);
                     }
-                    VoxValue::_Continue => {}
-                    other => results.push(other),
+                    // Every other body value (including `_Continue`) is
+                    // discarded (Task 2 corollary — `object_field_order.vox`,
+                    // one of Task 1b's eight goldens): `typeck/checker/expr.rs`'s
+                    // `HirExpr::For` arm always types a `for` loop as `Ty::Unit`
+                    // — there is no list-comprehension form — so collecting
+                    // each iteration's body value into a list here (as this
+                    // used to do) produced a runtime value the type system
+                    // never promised. That extra list was invisible everywhere
+                    // a `for` loop's value is itself discarded (the overwhelmingly
+                    // common case), but surfaced when a `for` loop was `main`'s
+                    // last statement: `vox run --mode interp`'s driver
+                    // (`vox-cli/src/commands/run.rs`) auto-prints `main`'s
+                    // return value whenever it isn't `Null`, so a body of
+                    // `print`-per-iteration produced a spurious trailing
+                    // `[null, null, null]` line the native tier (whose `main`
+                    // truly returns `()`) never emits.
+                    _ => {}
                 }
             }
             interp.scope.pop_frame();
-            Ok(VoxValue::list(results))
+            Ok(VoxValue::Null)
         }
         HirExpr::FieldAccess(obj, field, _) => {
             let o = eval_expr(interp, obj)?;
@@ -739,14 +816,14 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     Ok(VoxValue::Option(
                         s.chars()
                             .nth(i as usize)
-                            .map(|c| Box::new(VoxValue::Str(c.to_string()))),
+                            .map(|c| Box::new(VoxValue::Str(c.to_string().into()))),
                     ))
                 }
                 // dict / Object subscript: dict["key"] → Option[V]
                 (VoxValue::Object(fields), VoxValue::Str(key)) => Ok(VoxValue::Option(
                     fields
                         .iter()
-                        .find(|(k, _)| k == &key)
+                        .find(|(k, _)| k.as_str() == key.as_ref())
                         .map(|(_, v)| Box::new(v.clone())),
                 )),
                 _ => Ok(VoxValue::Option(None)),

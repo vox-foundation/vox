@@ -28,7 +28,7 @@ fn prefix_sums(nums: list[int]) to list[int] {
                 running = running + v
                 result[i] = running
             }
-            None => {}
+            None => continue
         }
     }
     return result
@@ -45,7 +45,7 @@ fn count_above(nums: list[int], start: int, end: int, threshold: int) to int {
                     count = count + 1
                 }
             }
-            None => {}
+            None => continue
         }
     }
     return count

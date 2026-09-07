@@ -64,13 +64,22 @@ impl RunBackend for NativeBackend {
         if !cargo_config_dir.exists() {
             let _ = std::fs::create_dir_all(&cargo_config_dir);
         }
+        // `overflow-checks = true` on BOTH the `script-dev` profile (used by the
+        // default fast-iteration path) and `release` (used when
+        // `VOX_SCRIPT_RELEASE` is set) — int overflow must fault identically to
+        // `--mode interp` (`int_overflow_produces_clean_error_not_panic`) on
+        // every codegen tier, not just the debug one. See
+        // `examples/golden/int_overflow_boundary.vox`.
         let config_content = r#"[profile.script-dev]
         inherits = "dev"
         opt-level = 1
         codegen_units = 256
         incremental = true
         debug = false
-        overflow-checks = false
+        overflow-checks = true
+
+        [profile.release]
+        overflow-checks = true
         "#;
         for filename in &["config", "config.toml"] {
             let _ = std::fs::write(cargo_config_dir.join(filename), config_content);
