@@ -787,7 +787,9 @@ export function Loquela({
             </button>
             <Popover open={tierOpen}>
               <div className="w-[min(22rem,80vw)]">
-                <ModelPickerSearch value={tierQuery} onChange={setTierQuery} />
+                <div className="sticky top-0 z-10 bg-zinc-950">
+                  <ModelPickerSearch value={tierQuery} onChange={setTierQuery} />
+                </div>
                 <div data-testid="model-picker-scroll" className="max-h-72 overflow-y-auto overscroll-contain custom-scrollbar">
                   {visibleTiers.map(t => (
                     <button type="button" key={t.id} onClick={() => {

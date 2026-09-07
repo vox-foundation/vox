@@ -412,6 +412,7 @@ describe('Loquela', () => {
     const search = await screen.findByRole('searchbox', { name: /search models/i });
     const scroller = screen.getByTestId('model-picker-scroll');
     expect(scroller.contains(search)).toBe(false);
+    expect(search.parentElement?.className).toMatch(/sticky/);
     expect(scroller.className).toMatch(/overflow-y-auto/);
     expect(scroller.className).toMatch(/max-h-/);
     expect(screen.getByText('mens/e2e-smoke-metal')).toBeInTheDocument();
