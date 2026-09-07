@@ -8,64 +8,20 @@ use super::value::VoxValue;
 use secrecy::ExposeSecret;
 use std::rc::Rc;
 use std::sync::Mutex;
-use std::sync::OnceLock;
 use vox_config::timeouts::HTTP_REQUEST; // HTTP_REQUEST = 30s
 
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
-fn exit_commands() -> &'static Mutex<Vec<(String, Vec<String>)>> {
-    static CMDS: OnceLock<Mutex<Vec<(String, Vec<String>)>>> = OnceLock::new();
-    CMDS.get_or_init(|| Mutex::new(Vec::new()))
-}
-
-fn ensure_signal_handler() {
-    static HANDLER_INIT: OnceLock<()> = OnceLock::new();
-    HANDLER_INIT.get_or_init(|| {
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.spawn(async move {
-                #[cfg(unix)]
-                {
-                    use tokio::signal::unix::{SignalKind, signal};
-                    if let (Ok(mut sigint), Ok(mut sigterm)) = (
-                        signal(SignalKind::interrupt()),
-                        signal(SignalKind::terminate()),
-                    ) {
-                        tokio::select! {
-                            _ = sigint.recv() => {}
-                            _ = sigterm.recv() => {}
-                        }
-                    } else {
-                        let _ = tokio::signal::ctrl_c().await;
-                    }
-                }
-                #[cfg(not(unix))]
-                {
-                    let _ = tokio::signal::ctrl_c().await;
-                }
-
-                let _ = tokio::task::spawn_blocking(|| {
-                    execute_exit_commands();
-                })
-                .await;
-
-                std::process::exit(1);
-            });
-        }
-    });
-}
-
-fn execute_exit_commands() {
-    if let Ok(mut cmds) = exit_commands().lock() {
-        for (cmd, args) in cmds.drain(..) {
-            let mut c = std::process::Command::new(&cmd);
-            c.args(args);
-            let _ = c.status();
-        }
+/// Drain and run queued `process.register_exit_command` entries.
+/// The queue lives on [`crate::eval::Interpreter::exit_commands`]; the
+/// process-global OnceLock is gone so a denied register cannot enqueue.
+/// Task 6 installs the signal handler from `run_interp` only.
+pub fn flush_exit_command_list(cmds: &mut Vec<(String, Vec<String>)>) {
+    for (cmd, args) in cmds.drain(..) {
+        let mut c = std::process::Command::new(&cmd);
+        c.args(args);
+        let _ = c.status();
     }
-}
-
-pub fn vox_flush_exit_commands() {
-    execute_exit_commands();
 }
 
 fn voxvalue_as_table_str(v: &VoxValue) -> Option<Vec<Vec<String>>> {
@@ -105,6 +61,27 @@ fn build_match_value(caps: &regex::Captures) -> VoxValue {
         name: "Match".to_string(),
         fields: groups,
     }
+}
+
+/// Task 5 replaces this stub with parent-walk canonicalization.
+/// Unscoped grants (`developer_default`) pass; anything else denies.
+fn fs_resolve_allowed(
+    caps: &crate::eval::caps::CapabilitySet,
+    raw: &str,
+    write: bool,
+) -> Option<std::path::PathBuf> {
+    if raw.is_empty() {
+        return None;
+    }
+    if !caps.allows_namespace("fs") {
+        return None;
+    }
+    let root = std::path::Path::new("/");
+    if caps.allows_path(root, true) && caps.allows_path(root, false) {
+        return Some(std::path::PathBuf::from(raw));
+    }
+    let _ = write;
+    None
 }
 
 pub fn call_builtin_method(
@@ -964,16 +941,13 @@ pub fn call_builtin_method(
                 }
             }
 
-            if let Some(ns_str) = ns
-                && matches!(ns_str, "fs" | "io" | "process" | "env" | "secrets")
-                && !caps.allows_namespace(ns_str)
-            {
-                // Fatal denial (exit-with-error instead of returning null) is Task 4;
-                // this preserves today's soft-deny behavior against the new
-                // `CapabilitySet` so the six embedders can start assigning `caps`
-                // explicitly without a behavior change riding along.
-                println!("Capability denied: script missing capability for '{ns_str}' namespace");
-                return Some(VoxValue::Null);
+            if let Some(ns_str) = ns {
+                if !caps.allows_namespace(ns_str) {
+                    return Some(VoxValue::_Denied(format!("{ns_str}.{method}")));
+                }
+                if ns_str == "env" && method == "set" && !caps.allows_env_write() {
+                    return Some(VoxValue::_Denied(format!("env.{method}")));
+                }
             }
 
             match ns {
@@ -1426,6 +1400,12 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
                         };
+                        // Task 5 replaces this stub with parent-walk
+                        // `fs_resolve_allowed`. Restrictive sets deny; an
+                        // unscoped `developer_default` still canonicalizes.
+                        if fs_resolve_allowed(caps, &p, false).is_none() {
+                            return Some(VoxValue::_Denied("fs.resolve".into()));
+                        }
                         let res = match std::fs::canonicalize(&*p) {
                             Ok(abs) => Ok(Box::new(VoxValue::Str(
                                 abs.to_string_lossy().to_string().into(),
@@ -1707,7 +1687,8 @@ pub fn call_builtin_method(
                                 .status()
                             {
                                 Ok(st) => {
-                                    vox_flush_exit_commands();
+                                    // Queue lives on Interpreter; expr.rs
+                                    // flushes before exec on Windows.
                                     std::process::exit(st.code().unwrap_or(1))
                                 }
                                 Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
@@ -1717,33 +1698,13 @@ pub fn call_builtin_method(
                         }
                     }
                     "register_exit_command" => {
-                        let mut it = args.into_iter();
-                        let cmd_name = match it.next() {
-                            Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
-                        };
-                        let cmd_args = match it.next() {
-                            Some(VoxValue::List(ls)) => ls
-                                .iter()
-                                .cloned()
-                                .filter_map(|v| {
-                                    if let VoxValue::Str(s) = v {
-                                        Some(s)
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect::<Vec<_>>(),
-                            _ => vec![],
-                        };
-
-                        ensure_signal_handler();
-                        if let Ok(mut cmds) = exit_commands().lock() {
-                            cmds.push((
-                                cmd_name.to_string(),
-                                cmd_args.iter().map(|s| s.to_string()).collect(),
-                            ));
+                        if !caps.allows_namespace("process") {
+                            return Some(VoxValue::_Denied("process.register_exit_command".into()));
                         }
+                        // Live path is intercepted in expr.rs onto
+                        // Interpreter.exit_commands. Reaching this arm
+                        // (direct call_builtin_method) must not enqueue
+                        // onto a process global.
                         Some(VoxValue::Result(Ok(Box::new(VoxValue::Null))))
                     }
                     "exit" => {
@@ -1751,7 +1712,8 @@ pub fn call_builtin_method(
                             Some(VoxValue::Int(c)) => c as i32,
                             _ => 0,
                         };
-                        vox_flush_exit_commands();
+                        // Live path is intercepted in expr.rs so the
+                        // Interpreter queue is flushed before exit.
                         std::process::exit(code);
                     }
                     "run_capture_json" => {
@@ -2722,6 +2684,7 @@ pub fn vox_value_type_name(v: &VoxValue) -> &'static str {
         VoxValue::_Break => "_Break",
         VoxValue::_Continue => "_Continue",
         VoxValue::_Panic(_) => "_Panic",
+        VoxValue::_Denied(_) => "_Denied",
     }
 }
 
@@ -2785,7 +2748,8 @@ pub fn vox_value_display(v: &VoxValue) -> String {
         | VoxValue::_Return(_)
         | VoxValue::_Break
         | VoxValue::_Continue
-        | VoxValue::_Panic(_) => format!("{v:?}"),
+        | VoxValue::_Panic(_)
+        | VoxValue::_Denied(_) => format!("{v:?}"),
     }
 }
 
@@ -3072,8 +3036,8 @@ mod fs_text_robustness_tests {
             &crate::eval::caps::CapabilitySet::parse("").unwrap(),
         );
         assert!(
-            matches!(denied, Some(VoxValue::Null)),
-            "restrictive caps must soft-deny fs.read before the arm; got {denied:?}"
+            matches!(denied, Some(VoxValue::_Denied(ref s)) if s == "fs.read"),
+            "restrictive caps must deny fs.read before the arm; got {denied:?}"
         );
     }
 }

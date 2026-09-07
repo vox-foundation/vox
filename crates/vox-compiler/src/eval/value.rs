@@ -84,6 +84,9 @@ pub enum VoxValue {
     /// See `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10.4
     /// for the design discussion.
     _Panic(String),
+    /// Capability denial sentinel. Like `_Panic`, converted to an `EvalError`
+    /// at the call boundary; unlike `_Panic` it is never user-catchable.
+    _Denied(String),
 }
 
 impl VoxValue {

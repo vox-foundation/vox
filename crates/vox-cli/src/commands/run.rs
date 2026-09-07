@@ -91,7 +91,7 @@ async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
         println!("{}", vox_compiler::eval::builtins::vox_value_display(&res));
     }
 
-    vox_compiler::eval::builtins::vox_flush_exit_commands();
+    interpreter.flush_exit_commands();
     Ok(())
 }
 

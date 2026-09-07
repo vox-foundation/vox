@@ -469,6 +469,12 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     // matching explicit `repo.*` semantics (`eval/repo.rs` does
                     // not consult `interp.caps`).
                     if is_versioned {
+                        if !interp.caps.allows_versioned_snapshot() {
+                            return Err(EvalError::CapabilityDenied {
+                                ns: "repo".into(),
+                                method: "snapshot".into(),
+                            });
+                        }
                         interp.repo.snapshot(Some(&format!("@versioned {fn_name}")));
                     }
                     Ok(val)
@@ -656,6 +662,72 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // `builtins.rs`, which only sees the OS process argv. Shape
             // matches native argv (`[bin-or-script] ++ args`,
             // `backend/native.rs`): `[source_path] ++ script_args`.
+            if method == "register_exit_command"
+                && let VoxValue::Object(fields) = &o
+                && fields.iter().any(|(k, v)| {
+                    k == "__namespace__" && matches!(v, VoxValue::Str(s) if s.as_ref() == "process")
+                })
+            {
+                if !interp.caps.allows_namespace("process") {
+                    return Err(EvalError::CapabilityDenied {
+                        ns: "process".into(),
+                        method: "register_exit_command".into(),
+                    });
+                }
+                let cmd_name = match eval_args.first() {
+                    Some(VoxValue::Str(s)) => s.to_string(),
+                    _ => {
+                        return Ok(VoxValue::Null);
+                    }
+                };
+                let cmd_args = match eval_args.get(1) {
+                    Some(VoxValue::List(ls)) => ls
+                        .iter()
+                        .filter_map(|v| {
+                            if let VoxValue::Str(s) = v {
+                                Some(s.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect(),
+                    _ => vec![],
+                };
+                interp.exit_commands.push((cmd_name, cmd_args));
+                return Ok(VoxValue::Result(Ok(Box::new(VoxValue::Null))));
+            }
+
+            if method == "exit"
+                && let VoxValue::Object(fields) = &o
+                && fields.iter().any(|(k, v)| {
+                    k == "__namespace__" && matches!(v, VoxValue::Str(s) if s.as_ref() == "process")
+                })
+            {
+                if !interp.caps.allows_namespace("process") {
+                    return Err(EvalError::CapabilityDenied {
+                        ns: "process".into(),
+                        method: "exit".into(),
+                    });
+                }
+                let code = match eval_args.first() {
+                    Some(VoxValue::Int(c)) => *c as i32,
+                    _ => 0,
+                };
+                interp.flush_exit_commands();
+                std::process::exit(code);
+            }
+
+            #[cfg(not(unix))]
+            if method == "exec"
+                && let VoxValue::Object(fields) = &o
+                && fields.iter().any(|(k, v)| {
+                    k == "__namespace__" && matches!(v, VoxValue::Str(s) if s.as_ref() == "process")
+                })
+                && interp.caps.allows_namespace("process")
+            {
+                interp.flush_exit_commands();
+            }
+
             if method == "args"
                 && eval_args.is_empty()
                 && let VoxValue::Object(fields) = &o
@@ -684,10 +756,18 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 // replaces the prior silent-Null behavior with a halt that
                 // carries the offender's message. See eval/value.rs
                 // `_Panic` variant docstring for rationale.
-                if let crate::eval::value::VoxValue::_Panic(msg) = r {
-                    Err(EvalError::AssertionFailed(msg))
-                } else {
-                    Ok(r)
+                match r {
+                    crate::eval::value::VoxValue::_Panic(msg) => {
+                        Err(EvalError::AssertionFailed(msg))
+                    }
+                    crate::eval::value::VoxValue::_Denied(what) => {
+                        let (ns, method) = what.split_once('.').unwrap_or((what.as_str(), ""));
+                        Err(EvalError::CapabilityDenied {
+                            ns: ns.to_string(),
+                            method: method.to_string(),
+                        })
+                    }
+                    r => Ok(r),
                 }
             } else {
                 Err(EvalError::AssertionFailed(format!(
@@ -750,7 +830,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 let val = eval_expr(interp, body)?;
                 match val {
                     // Propagate early-exit signals out of the for loop.
-                    VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Panic(_) => {
+                    VoxValue::_Return(_)
+                    | VoxValue::_Break
+                    | VoxValue::_Panic(_)
+                    | VoxValue::_Denied(_) => {
                         interp.scope.pop_frame();
                         return Ok(val);
                     }
@@ -982,6 +1065,13 @@ fn apply_closure(
 
     if let VoxValue::_Panic(msg) = val {
         return Err(EvalError::AssertionFailed(msg));
+    }
+    if let VoxValue::_Denied(what) = val {
+        let (ns, method) = what.split_once('.').unwrap_or((what.as_str(), ""));
+        return Err(EvalError::CapabilityDenied {
+            ns: ns.to_string(),
+            method: method.to_string(),
+        });
     }
     Ok(val)
 }

@@ -28,6 +28,10 @@ pub enum EvalError {
     StepLimitExceeded,
     AssertionFailed(String),
     Panic(String),
+    CapabilityDenied {
+        ns: String,
+        method: String,
+    },
 }
 
 pub struct Interpreter {
@@ -59,6 +63,10 @@ pub struct Interpreter {
     /// In-memory VCS store for `repo.*` operations under `--mode interp`.
     /// See [`crate::eval::repo`].
     pub repo: crate::eval::repo::RepoStore,
+    /// Queued `process.register_exit_command` entries. The process-global
+    /// OnceLock / signal handler moves here so a denied register cannot
+    /// enqueue work; `run_interp` installs the handler in Task 6.
+    pub exit_commands: Vec<(String, Vec<String>)>,
 }
 
 impl Interpreter {
@@ -269,6 +277,7 @@ impl Interpreter {
             loaded_imports: std::collections::HashSet::new(),
             db: crate::eval::db::DbStore::default(),
             repo: crate::eval::repo::RepoStore::default(),
+            exit_commands: Vec::new(),
         }
     }
 
@@ -400,6 +409,13 @@ impl Interpreter {
                 base.display()
             ))
         })?;
+
+        if !self.caps.allows_path(&canonical, false) {
+            return Err(EvalError::CapabilityDenied {
+                ns: "fs".into(),
+                method: "import".into(),
+            });
+        }
 
         if !self.loaded_imports.insert(canonical.clone()) {
             // Already loaded — idempotent re-import is OK (diamond pattern).
@@ -589,6 +605,12 @@ impl Interpreter {
             // calls (`eval/repo.rs` does not consult `interp.caps`), so we do not
             // add a new caps gate here — consistent with `repo.*` (design §4.3).
             if is_versioned {
+                if !self.caps.allows_versioned_snapshot() {
+                    return Err(EvalError::CapabilityDenied {
+                        ns: "repo".into(),
+                        method: "snapshot".into(),
+                    });
+                }
                 self.repo.snapshot(Some(&format!("@versioned {fn_name}")));
             }
             Ok(res)
@@ -607,5 +629,12 @@ impl Interpreter {
         } else {
             Ok(())
         }
+    }
+
+    /// Run every queued `process.register_exit_command` and clear the list.
+    /// Callers (`run_interp`, `process.exit`) use this instead of a process
+    /// global so a denied register cannot enqueue work.
+    pub fn flush_exit_commands(&mut self) {
+        crate::eval::builtins::flush_exit_command_list(&mut self.exit_commands);
     }
 }

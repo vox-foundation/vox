@@ -17,6 +17,10 @@ pub const GATED: &[&str] = &[
     "fs", "io", "process", "env", "secrets", "http", "time", "agentos", "crypto",
 ];
 
+pub fn is_classified(ns: &str) -> bool {
+    PURE.contains(&ns) || GATED.contains(&ns)
+}
+
 /// A parsed, canonicalised set of receiver-imposed capabilities. Every filesystem root
 /// stored here has already been through `std::fs::canonicalize`, so `allows_path` never
 /// has to worry about `/tmp` vs `/private/tmp` or relative-vs-absolute mismatches — it
@@ -322,6 +326,14 @@ impl CapabilitySet {
     pub fn random_seed(&self) -> Option<u64> {
         self.random_seed
     }
+
+    /// `@versioned` auto-snapshot is not covered by PURE `repo` — it is a
+    /// write that restrictive embedders (`parse("")`, MCP) must not perform.
+    /// Local / native runs (`developer_default`, or any grant of `fs` or
+    /// `process`) still snapshot.
+    pub fn allows_versioned_snapshot(&self) -> bool {
+        self.allowed.contains("fs") || self.allowed.contains("process")
+    }
 }
 
 fn is_under(path: &Path, root: &Path) -> bool {
@@ -480,6 +492,31 @@ mod tests {
         );
         assert!(!c.allows_namespace("env"));
         assert!(c.allows_path(Path::new("/anything"), true));
+    }
+
+    #[test]
+    fn is_classified_covers_pure_and_gated_only() {
+        assert!(is_classified("fs") && is_classified("path"));
+        assert!(!is_classified("nope"));
+    }
+
+    #[test]
+    fn allows_versioned_snapshot_is_false_for_restrictive() {
+        assert!(CapabilitySet::developer_default().allows_versioned_snapshot());
+        assert!(
+            !CapabilitySet::parse("")
+                .unwrap()
+                .allows_versioned_snapshot()
+        );
+        assert!(CapabilitySet::from_legacy_directive(&["fs".into()]).allows_versioned_snapshot());
+        assert!(
+            CapabilitySet::from_legacy_directive(&["process".into()]).allows_versioned_snapshot()
+        );
+        assert!(
+            !CapabilitySet::parse("env:ro")
+                .unwrap()
+                .allows_versioned_snapshot()
+        );
     }
 
     #[test]
