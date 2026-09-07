@@ -12,12 +12,14 @@ use tracing::debug;
 
 use crate::engine::BrowserEngine;
 use crate::resolve::history_capabilities;
+use crate::snapshot::AxRef;
 
 pub(crate) struct HostInner {
     _handler_task: tokio::task::JoinHandle<()>,
     browser: Browser,
     pages: HashMap<String, chromiumoxide::Page>,
     viewports: HashMap<String, ViewportMetrics>,
+    pub(crate) ref_maps: HashMap<String, std::collections::BTreeMap<String, AxRef>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -93,6 +95,7 @@ impl BrowserEngine {
             browser,
             pages: HashMap::new(),
             viewports: HashMap::new(),
+            ref_maps: HashMap::new(),
         });
         debug!(target: "vox_plugin_browser", "chromium host launched");
         Ok(())
@@ -197,6 +200,7 @@ impl BrowserEngine {
                 let _ = page.close().await;
             }
             host.viewports.remove(page_id);
+            host.ref_maps.remove(page_id);
             host.pages.is_empty()
         };
         if shutdown {
@@ -211,12 +215,14 @@ impl BrowserEngine {
 
     pub async fn goto(&self, page_id: &str, url: &str) -> Result<(), String> {
         let page = self.page_ref(page_id).await?;
+        self.clear_ref_map(page_id).await;
         page.goto(url).await.map_err(Self::map_page_err)?;
         Ok(())
     }
 
     pub async fn back(&self, page_id: &str) -> Result<(), String> {
         let page = self.page_ref(page_id).await?;
+        self.clear_ref_map(page_id).await;
         let history = page
             .execute(GetNavigationHistoryParams::default())
             .await
@@ -238,6 +244,7 @@ impl BrowserEngine {
 
     pub async fn forward(&self, page_id: &str) -> Result<(), String> {
         let page = self.page_ref(page_id).await?;
+        self.clear_ref_map(page_id).await;
         let history = page
             .execute(GetNavigationHistoryParams::default())
             .await
@@ -256,6 +263,7 @@ impl BrowserEngine {
 
     pub async fn reload(&self, page_id: &str) -> Result<(), String> {
         let page = self.page_ref(page_id).await?;
+        self.clear_ref_map(page_id).await;
         page.execute(ReloadParams::default())
             .await
             .map_err(Self::map_page_err)?;

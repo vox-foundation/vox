@@ -9,6 +9,7 @@ mod browser;
 mod engine;
 mod host;
 mod input;
+mod ref_actions;
 mod resolve;
 mod snapshot;
 
