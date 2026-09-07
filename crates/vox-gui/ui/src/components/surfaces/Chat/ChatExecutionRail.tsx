@@ -166,9 +166,15 @@ export function ChatExecutionRail({
   const [budget, setBudget] = useState<ContextBudgetPayload | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     getContextBudget(sessionId)
-      .then(setBudget)
+      .then((next) => {
+        if (!cancelled) setBudget(next);
+      })
       .catch(() => {/* daemon unavailable; meter stays hidden */});
+    return () => {
+      cancelled = true;
+    };
   }, [sessionId]);
 
   const peerLabel = kpis.mesh.peers === 1 ? '1 peer' : `${kpis.mesh.peers} peers`;

@@ -132,7 +132,7 @@ describe('ChatModelPicker', () => {
       if (cmd === 'inference_provider_status') {
         return [
           { provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null },
-          { provider: 'VoxLocal', key_present: true, is_local: true, local_reachable: null },
+          { provider: 'VoxLocal', key_present: true, is_local: true, local_reachable: true, local_models: ['e2e-smoke-metal'] },
         ];
       }
       return null;

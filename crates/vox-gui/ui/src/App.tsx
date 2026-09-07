@@ -99,6 +99,11 @@ import { viewKeyForLocator } from './lib/locatorNavigation';
 import { AchievementsDrawer } from './components/gamify/AchievementsDrawer';
 import type { LudusProfile } from './lib/ludus';
 import { useChatSessions, type ChatSession } from './lib/useChatSessions';
+import {
+  isModelSelectable,
+  normalizeModelCard,
+  type ProviderStatus,
+} from './lib/modelPicker';
 
 type View =
   | 'dashboard'
@@ -399,6 +404,12 @@ export default function App() {
     SHELL_PREFERENCE_KEYS.chatModelOverride,
     null,
   );
+  const activeSessionIdRef = useRef(activeSessionId);
+  const planBindGenRef = useRef(0);
+  const discardedPlansByChatRef = useRef<Map<string, Set<string>>>(new Map());
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
   // Phase B / Task B2: a pin persisted from a previous session may name a model
   // that has since left the registry — validate once on mount and clear it
   // rather than letting `SelectionSource::classify` silently read `Fallback`
@@ -407,12 +418,22 @@ export default function App() {
   useEffect(() => {
     if (!chatModelOverride) return;
     let cancelled = false;
-    voxTransport
-      .listModels(MODEL_LIST_LIMIT)
-      .then((models: any) => {
+    Promise.all([
+      voxTransport.listModels(MODEL_LIST_LIMIT),
+      invoke<ProviderStatus[]>('inference_provider_status').catch(() => [] as ProviderStatus[]),
+    ])
+      .then(([models, statuses]) => {
         if (cancelled || !Array.isArray(models)) return;
-        const stillPresent = models.some((m: any) => m.id === chatModelOverride || m.model_id === chatModelOverride);
-        if (!stillPresent) setChatModelOverride(null);
+        const card = (models as unknown[])
+          .map((m) => normalizeModelCard(m as { id?: string; model_id?: string; provider?: string; provider_type?: string; display_name?: string }))
+          .find((m) => m?.id === chatModelOverride);
+        if (!card) {
+          setChatModelOverride(null);
+          return;
+        }
+        if (Array.isArray(statuses) && statuses.length > 0 && !isModelSelectable(card, statuses)) {
+          setChatModelOverride(null);
+        }
       })
       .catch(() => {
         // Transport failure here is not this effect's problem to report — leave
@@ -600,6 +621,8 @@ export default function App() {
   useEffect(() => { budgetWarnedRef.current = false; }, [activeSessionId]);
 
   useEffect(() => {
+    planBindGenRef.current += 1;
+    const bindGen = planBindGenRef.current;
     if (!activeSessionId) {
       setOpenPlanSessionId(null);
       setOpenPlanVersion(null);
@@ -611,8 +634,11 @@ export default function App() {
       { sessionId: activeSessionId },
     )
       .then((latest) => {
-        if (cancelled) return;
-        if (latest) {
+        if (cancelled || bindGen !== planBindGenRef.current) return;
+        if (
+          latest
+          && !discardedPlansByChatRef.current.get(activeSessionId)?.has(latest.plan_session_id)
+        ) {
           setOpenPlanSessionId(latest.plan_session_id);
           setOpenPlanVersion(latest.plan_version);
         } else {
@@ -621,7 +647,7 @@ export default function App() {
         }
       })
       .catch(() => {
-        if (!cancelled) {
+        if (!cancelled && bindGen === planBindGenRef.current) {
           setOpenPlanSessionId(null);
           setOpenPlanVersion(null);
         }
@@ -1344,7 +1370,8 @@ export default function App() {
         pushToast({ tone: 'warn', title: '/plan needs a goal', body: 'Try: /plan add a health endpoint', cause: 'validation' });
         return true;
       }
-      const sessionId = activeSessionId ?? newBackgroundSessionId();
+      const sessionId = activeSessionId || newBackgroundSessionId();
+      const bindGen = planBindGenRef.current;
       ctx.setText('');
       void (async () => {
         try {
@@ -1360,7 +1387,12 @@ export default function App() {
             context_files: [],
             skill_exclusions: [],
           });
-          if (dto.plan_session_id) {
+          if (
+            dto.plan_session_id
+            && activeSessionIdRef.current === sessionId
+            && bindGen === planBindGenRef.current
+          ) {
+            discardedPlansByChatRef.current.get(sessionId)?.delete(dto.plan_session_id);
             setOpenPlanSessionId(dto.plan_session_id);
             setOpenPlanVersion(dto.plan_version ?? null);
           }
@@ -1748,6 +1780,11 @@ export default function App() {
     chatPlanSessionId: openPlanSessionId,
     chatPlanVersion: openPlanVersion,
     onDiscardPlan: () => {
+      if (activeSessionId && openPlanSessionId) {
+        const discarded = discardedPlansByChatRef.current.get(activeSessionId) ?? new Set<string>();
+        discarded.add(openPlanSessionId);
+        discardedPlansByChatRef.current.set(activeSessionId, discarded);
+      }
       setOpenPlanSessionId(null);
       setOpenPlanVersion(null);
     },
@@ -1871,12 +1908,17 @@ export default function App() {
           }
         }}
         onTaskBadgeClick={(sessionId: string) => {
+          const bindGen = ++planBindGenRef.current;
           invoke<{ plan_session_id: string; plan_version: number } | null>('latest_plan_session_for_chat', { sessionId })
             .then(latest => {
               // A null result (badge showed a stale nonzero count, or the session's plan
               // was archived/retracted between render and click) is a silent no-op by
               // design -- there is nothing to open, and it isn't an error worth a toast.
-              if (latest) {
+              if (bindGen !== planBindGenRef.current) return;
+              if (
+                latest
+                && !discardedPlansByChatRef.current.get(sessionId)?.has(latest.plan_session_id)
+              ) {
                 setOpenPlanSessionId(latest.plan_session_id);
                 setOpenPlanVersion(latest.plan_version);
                 setActiveSessionId(sessionId);

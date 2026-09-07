@@ -342,6 +342,62 @@ describe('ChatExecutionRail', () => {
     expect(localStorage.getItem(keyA)).toContain('0.4');
   });
 
+  it('drops a late context-budget response from the previous session', async () => {
+    let resolveA!: (value: typeof mockBudget) => void;
+    const delayedA = new Promise<typeof mockBudget>((resolve) => {
+      resolveA = resolve;
+    });
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockImplementation((cmd: string, args?: { sessionId?: string }) => {
+      if (cmd === 'get_context_budget') {
+        if (args?.sessionId === 'sess-a') return delayedA;
+        return Promise.resolve({
+          ...mockBudget,
+          max_context_tokens: 1000,
+          reserved_tokens: 0,
+          threshold_tokens: 800,
+          usable_tokens: 1000,
+          used_tokens: 10,
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-a"
+        />
+      </LanguageProvider>,
+    );
+    rerender(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-b"
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('10');
+    });
+    resolveA({
+      ...mockBudget,
+      max_context_tokens: 1000,
+      reserved_tokens: 0,
+      threshold_tokens: 800,
+      usable_tokens: 1000,
+      used_tokens: 900,
+    });
+    await Promise.resolve();
+    expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('10');
+  });
+
   it('passes used_tokens to ContextWindowMeter so it reflects real fill percentage', async () => {
     // Override the mock to return 25% usage (250 / 1000).
     const { invoke } = await import('@tauri-apps/api/core');

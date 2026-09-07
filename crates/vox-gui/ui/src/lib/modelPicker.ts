@@ -105,18 +105,18 @@ export function isModelSelectable(model: PickerModel, statuses: ProviderStatus[]
   const s = statusForModel(model, statuses);
   if (!s) {
     if (isLocalProviderName(model.provider) || isLocalProviderName(model.providerType)) {
-      return true;
+      return false;
     }
     const openrouter = findProviderStatus('OpenRouter', statuses);
     if (openrouter) return openrouter.key_present;
     return true;
   }
   if (s.is_local) {
-    if (s.local_reachable === false) return false;
-    if (s.local_reachable === true && s.local_models && s.local_models.length > 0) {
+    if (s.local_reachable !== true) return false;
+    if (s.local_models && s.local_models.length > 0) {
       return localModelListed(model.id, s.local_models);
     }
-    return s.local_reachable !== false;
+    return true;
   }
   return s.key_present;
 }

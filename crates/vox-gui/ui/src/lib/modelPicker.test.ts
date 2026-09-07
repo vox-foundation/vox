@@ -113,7 +113,8 @@ describe('isModelSelectable', () => {
       provider_type: 'VoxLocal',
     })!;
     expect(isModelSelectable(mens, [openrouterUp, voxLocal])).toBe(true);
-    expect(isModelSelectable(mens, [openrouterUp])).toBe(true);
+    expect(isModelSelectable(mens, [openrouterUp])).toBe(false);
+    expect(isModelSelectable(mens, [openrouterUp, { ...voxLocal, local_reachable: null, local_models: [] }])).toBe(false);
   });
 
   it('hides VoxLocal cards when the dedicated probe says the server is down', () => {
@@ -151,7 +152,7 @@ describe('filterPickerModels', () => {
       normalizeModelCard({ id: 'openrouter/anthropic/claude', provider: 'anthropic' })!,
       normalizeModelCard({ id: 'mens/e2e-smoke-metal', provider: 'populi_local' })!,
     ];
-    expect(filterPickerModels(models, [openrouterUp], 'mens').map(m => m.id)).toEqual([
+    expect(filterPickerModels(models, [openrouterUp, voxLocal], 'mens').map(m => m.id)).toEqual([
       'mens/e2e-smoke-metal',
     ]);
     expect(filterPickerModels(models, [openrouterUp], 'claude').map(m => m.id)).toEqual([

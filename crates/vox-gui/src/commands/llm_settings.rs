@@ -109,26 +109,39 @@ fn parse_vox_local_model_ids(body: &serde_json::Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
+fn vox_local_health_identifies_serve(body: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| {
+            v.get("service")
+                .and_then(|s| s.as_str())
+                .map(|s| s == "vox-ml-cli")
+        })
+        .unwrap_or(false)
+}
+
 async fn probe_vox_local() -> (Option<bool>, Vec<String>) {
     let base = vox_local_endpoint_base();
     let client = vox_http_client::client();
     let timeout = std::time::Duration::from_secs(2);
-    let healthy = {
-        let health = client
-            .get(format!("{base}/health"))
-            .timeout(timeout)
-            .send()
-            .await;
-        match health {
-            Ok(resp) if resp.status().is_success() => true,
-            _ => {
-                let ready = client
-                    .get(format!("{base}/ready"))
-                    .timeout(timeout)
-                    .send()
-                    .await;
-                matches!(ready, Ok(resp) if resp.status().is_success())
+    let identify = |url: String| {
+        let client = client.clone();
+        async move {
+            match client.get(url).timeout(timeout).send().await {
+                Ok(resp) if resp.status().is_success() => resp
+                    .text()
+                    .await
+                    .ok()
+                    .is_some_and(|body| vox_local_health_identifies_serve(&body)),
+                _ => false,
             }
+        }
+    };
+    let healthy = {
+        if identify(format!("{base}/health")).await {
+            true
+        } else {
+            identify(format!("{base}/ready")).await
         }
     };
     if !healthy {
@@ -254,5 +267,14 @@ mod tests {
             parse_vox_local_model_ids(&body),
             vec!["e2e-smoke-metal".to_string(), "run-b".to_string()]
         );
+    }
+
+    #[test]
+    fn vox_local_health_requires_ml_cli_service() {
+        assert!(vox_local_health_identifies_serve(
+            r#"{"status":"ok","service":"vox-ml-cli"}"#
+        ));
+        assert!(!vox_local_health_identifies_serve(r#"{"status":"ok"}"#));
+        assert!(!vox_local_health_identifies_serve("Ollama is running"));
     }
 }
