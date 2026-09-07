@@ -398,6 +398,53 @@ describe('ChatExecutionRail', () => {
     expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('10');
   });
 
+  it('hides the context meter when the new session budget fetch fails', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockImplementation((cmd: string, args?: { sessionId?: string }) => {
+      if (cmd === 'get_context_budget') {
+        if (args?.sessionId === 'sess-a') {
+          return Promise.resolve({
+            ...mockBudget,
+            max_context_tokens: 1000,
+            reserved_tokens: 0,
+            threshold_tokens: 800,
+            usable_tokens: 1000,
+            used_tokens: 900,
+          });
+        }
+        return Promise.reject(new Error('daemon down'));
+      }
+      return Promise.resolve(null);
+    });
+
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-a"
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('900');
+    });
+    rerender(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-b"
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole('meter')).toBeNull();
+    });
+  });
+
   it('passes used_tokens to ContextWindowMeter so it reflects real fill percentage', async () => {
     // Override the mock to return 25% usage (250 / 1000).
     const { invoke } = await import('@tauri-apps/api/core');

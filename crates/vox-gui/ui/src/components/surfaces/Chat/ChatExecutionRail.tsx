@@ -167,11 +167,14 @@ export function ChatExecutionRail({
 
   useEffect(() => {
     let cancelled = false;
+    setBudget(null);
     getContextBudget(sessionId)
       .then((next) => {
         if (!cancelled) setBudget(next);
       })
-      .catch(() => {/* daemon unavailable; meter stays hidden */});
+      .catch(() => {
+        if (!cancelled) setBudget(null);
+      });
     return () => {
       cancelled = true;
     };

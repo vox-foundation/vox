@@ -1371,7 +1371,7 @@ export default function App() {
         return true;
       }
       const sessionId = activeSessionId || newBackgroundSessionId();
-      const bindGen = planBindGenRef.current;
+      const bindGen = ++planBindGenRef.current;
       ctx.setText('');
       void (async () => {
         try {
@@ -1387,15 +1387,13 @@ export default function App() {
             context_files: [],
             skill_exclusions: [],
           });
-          if (
-            dto.plan_session_id
-            && activeSessionIdRef.current === sessionId
-            && bindGen === planBindGenRef.current
-          ) {
-            discardedPlansByChatRef.current.get(sessionId)?.delete(dto.plan_session_id);
-            setOpenPlanSessionId(dto.plan_session_id);
-            setOpenPlanVersion(dto.plan_version ?? null);
-          }
+          if (bindGen !== planBindGenRef.current || !dto.plan_session_id) return;
+          const current = activeSessionIdRef.current;
+          if (current && current !== sessionId) return;
+          discardedPlansByChatRef.current.get(sessionId)?.delete(dto.plan_session_id);
+          setOpenPlanSessionId(dto.plan_session_id);
+          setOpenPlanVersion(dto.plan_version ?? null);
+          if (!current) setActiveSessionId(sessionId);
         } catch (err) {
           pushToast({ tone: 'warn', title: '/plan failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
         }

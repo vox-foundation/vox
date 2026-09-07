@@ -624,6 +624,68 @@ describe('App shell', () => {
     expect(screen.queryByRole('button', { name: 'Discard' })).toBeNull();
   });
 
+  it('binds /plan and ignores a stale latest_plan_session_for_chat', async () => {
+    const sessions = [
+      {
+        session_id: 'chat-a',
+        title: 'Alpha chat',
+        updated_at: '2026-01-01T00:00:00Z',
+        message_count: 1,
+        conversation_id: 1,
+        repository_id: null,
+      },
+    ];
+    let resolveLatest!: (value: { plan_session_id: string; plan_version: number } | null) => void;
+    const delayedLatest = new Promise<{ plan_session_id: string; plan_version: number } | null>((resolve) => {
+      resolveLatest = resolve;
+    });
+    invokeMock.mockImplementation((cmd: string, args?: { sessionId?: string; input?: { execution?: string } }) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve(sessions);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'list_plan_nodes') {
+        return Promise.resolve([
+          { node_id: 'n1', description: 'Add health endpoint', status: 'blocked_on_approval' },
+        ]);
+      }
+      if (cmd === 'latest_plan_session_for_chat') return delayedLatest;
+      if (cmd === 'chat_turn') {
+        return Promise.resolve({
+          id: 1,
+          role: 'assistant',
+          content: '',
+          created_at: '2026-01-01T00:00:00Z',
+          task_id: null,
+          plan_session_id: 'plan-new',
+          plan_version: 1,
+        });
+      }
+      if (cmd === 'get_llm_spend') {
+        return Promise.resolve({
+          sessionUsd: 0,
+          dayUsd: 0,
+          totalUsd: 0,
+          dailyBudgetUsd: 50,
+          perSessionBudgetUsd: 10,
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.localStorage.setItem('vox_sidebar_mode', JSON.stringify('wide'));
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/plan add a health endpoint');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()));
+    resolveLatest({ plan_session_id: 'plan-old', plan_version: 9 });
+    expect(await screen.findByRole('button', { name: 'Discard' })).toBeInTheDocument();
+    expect(screen.queryByText('plan-old')).toBeNull();
+  });
+
   // F-02: a null `chat_create_session` result used to throw inside the .then
   // handler (s.session_id on null), get caught, and surface a leaky
   // "Chat session" warn toast on every empty-history mount. The guard should

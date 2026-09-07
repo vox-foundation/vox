@@ -115,6 +115,7 @@ describe('isModelSelectable', () => {
     expect(isModelSelectable(mens, [openrouterUp, voxLocal])).toBe(true);
     expect(isModelSelectable(mens, [openrouterUp])).toBe(false);
     expect(isModelSelectable(mens, [openrouterUp, { ...voxLocal, local_reachable: null, local_models: [] }])).toBe(false);
+    expect(isModelSelectable(mens, [openrouterUp, { ...voxLocal, local_reachable: true, local_models: [] }])).toBe(false);
   });
 
   it('hides VoxLocal cards when the dedicated probe says the server is down', () => {

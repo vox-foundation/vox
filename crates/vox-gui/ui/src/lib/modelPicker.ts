@@ -113,10 +113,8 @@ export function isModelSelectable(model: PickerModel, statuses: ProviderStatus[]
   }
   if (s.is_local) {
     if (s.local_reachable !== true) return false;
-    if (s.local_models && s.local_models.length > 0) {
-      return localModelListed(model.id, s.local_models);
-    }
-    return true;
+    if (!s.local_models || s.local_models.length === 0) return false;
+    return localModelListed(model.id, s.local_models);
   }
   return s.key_present;
 }
