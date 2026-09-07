@@ -54,12 +54,13 @@ pub struct VoxLocalGenerateResult {
 /// Generate Vox code via the local MENS inference server.
 ///
 /// Benefits over a raw HTTP call: the health probe result is TTL-cached (30 s),
-/// and the endpoint is resolved from `VOX_LOCAL_ENDPOINT` (default 127.0.0.1:7863).
+/// and the endpoint is resolved from `VOX_LOCAL_ENDPOINT` (default 127.0.0.1:11434).
 pub async fn vox_local_generate(
     client: &reqwest::Client,
     prompt: &str,
     validate: bool,
     max_retries: u32,
+    model: Option<&str>,
 ) -> Result<VoxLocalGenerateResult, String> {
     use error::HttpInferError;
     use providers::probe_vox_local_health;
@@ -68,8 +69,8 @@ pub async fn vox_local_generate(
         .await
         .map_err(|e: HttpInferError| e.message)?;
 
-    let base =
-        std::env::var("VOX_LOCAL_ENDPOINT").unwrap_or_else(|_| "http://127.0.0.1:7863".to_string());
+    let base = std::env::var("VOX_LOCAL_ENDPOINT")
+        .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
     let endpoint = format!("{}/generate", base.trim_end_matches('/'));
 
     #[derive(serde::Serialize)]
@@ -77,6 +78,8 @@ pub async fn vox_local_generate(
         prompt: &'a str,
         validate: bool,
         max_retries: u32,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        model: Option<&'a str>,
     }
     #[derive(serde::Deserialize)]
     struct Resp {
@@ -96,6 +99,7 @@ pub async fn vox_local_generate(
             prompt,
             validate,
             max_retries,
+            model,
         })
         .send()
         .await

@@ -52,7 +52,7 @@ pub enum ChatRouteBackend {
     PopuliMesh,
     /// Aggregators, dedicated endpoints, BYOK OpenAI-compatible, and other non-native lanes.
     CascadeFallback,
-    /// Vox-trained MENS checkpoint at 127.0.0.1:7863 (custom wire protocol).
+    /// Vox-trained MENS checkpoint at 127.0.0.1:11434 (custom wire protocol).
     VoxLocal,
 }
 

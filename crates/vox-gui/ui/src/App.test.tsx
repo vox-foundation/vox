@@ -78,6 +78,7 @@ beforeEach(() => {
   invokeMock.mockResolvedValue(null);
   listHarnessIssuesMock.mockReset();
   listHarnessIssuesMock.mockResolvedValue([]);
+  window.localStorage.removeItem('vox_chat_discarded_plans.v1');
 });
 
 afterEach(() => {
@@ -622,6 +623,60 @@ describe('App shell', () => {
     );
     await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
     expect(screen.queryByRole('button', { name: 'Discard' })).toBeNull();
+  });
+
+  it('keeps a discarded plan closed after remount', async () => {
+    const sessions = [
+      {
+        session_id: 'chat-persist',
+        title: 'Persist chat',
+        updated_at: '2026-01-01T00:00:00Z',
+        message_count: 1,
+        conversation_id: 1,
+        repository_id: null,
+      },
+    ];
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve(sessions);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'list_plan_nodes') {
+        return Promise.resolve([
+          { node_id: 'n1', description: 'Add health endpoint', status: 'blocked_on_approval' },
+        ]);
+      }
+      if (cmd === 'latest_plan_session_for_chat') {
+        return Promise.resolve({ plan_session_id: 'plan-persist', plan_version: 3 });
+      }
+      if (cmd === 'get_llm_spend') {
+        return Promise.resolve({
+          sessionUsd: 0,
+          dayUsd: 0,
+          totalUsd: 0,
+          dailyBudgetUsd: 50,
+          perSessionBudgetUsd: 10,
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.localStorage.setItem('vox_sidebar_mode', JSON.stringify('wide'));
+    window.location.hash = '#view=chat';
+    const first = renderApp();
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-persist' }),
+    );
+    const discard = await screen.findByRole('button', { name: 'Discard' });
+    await userEvent.click(discard);
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
+    first.unmount();
+
+    renderApp();
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-persist' }),
+    );
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
+    expect(screen.queryByRole('button', { name: 'Discard' })).toBeNull();
+    window.localStorage.removeItem('vox_chat_discarded_plans.v1');
   });
 
   it('binds /plan and ignores a stale latest_plan_session_for_chat', async () => {

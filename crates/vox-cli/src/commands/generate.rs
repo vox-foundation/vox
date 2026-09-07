@@ -38,7 +38,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 /// Default base URL of the local MENS inference server (`--legacy-direct` path).
-const DEFAULT_INFERENCE_URL: &str = "http://127.0.0.1:7863";
+const DEFAULT_INFERENCE_URL: &str = "http://127.0.0.1:11434";
 
 /// Resolve the inference server base URL: explicit `--server-url` wins, then the
 /// `VOX_INFERENCE_URL` environment override, then the built-in default.
@@ -151,14 +151,19 @@ async fn run_via_orchestrator(
     eprintln!("🔮 Generating Vox code via orchestrator...");
     eprintln!("   Prompt: {}", prompt);
 
-    let result =
-        vox_orchestrator_mcp::llm_bridge::vox_local_generate(client, prompt, validate, max_retries)
-            .await
-            .map_err(|e| {
-                eprintln!("⚠️  VoxLocal inference unavailable: {e}");
-                eprintln!("   Start it with: vox run scripts/vox_populi::inference.vox --serve");
-                anyhow::anyhow!(e)
-            })?;
+    let result = vox_orchestrator_mcp::llm_bridge::vox_local_generate(
+        client,
+        prompt,
+        validate,
+        max_retries,
+        None,
+    )
+    .await
+    .map_err(|e| {
+        eprintln!("⚠️  VoxLocal inference unavailable: {e}");
+        eprintln!("   Start it with: vox run scripts/vox_populi::inference.vox --serve");
+        anyhow::anyhow!(e)
+    })?;
 
     Ok((
         result.code,

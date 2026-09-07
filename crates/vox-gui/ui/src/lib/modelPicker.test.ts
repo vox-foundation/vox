@@ -141,9 +141,15 @@ describe('isModelSelectable', () => {
     expect(isModelSelectable(ollama, [ollamaDown])).toBe(false);
   });
 
-  it('shows everything when statuses failed to load', () => {
-    const any = normalizeModelCard({ id: 'x', provider: 'mystery' })!;
-    expect(isModelSelectable(any, [])).toBe(true);
+  it('hides local aliases when statuses failed to load', () => {
+    const cloud = normalizeModelCard({ id: 'x', provider: 'mystery' })!;
+    const mens = normalizeModelCard({
+      id: 'mens/e2e-smoke-metal',
+      provider: 'populi_local',
+      provider_type: 'VoxLocal',
+    })!;
+    expect(isModelSelectable(cloud, [])).toBe(true);
+    expect(isModelSelectable(mens, [])).toBe(false);
   });
 });
 

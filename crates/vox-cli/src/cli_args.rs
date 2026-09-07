@@ -632,7 +632,7 @@ pub struct GenerateArgs {
     /// Use this if the orchestrator is unavailable or for debugging.
     #[arg(long, default_value_t = false)]
     pub legacy_direct: bool,
-    /// Inference server base URL (only used with `--legacy-direct`; default: http://127.0.0.1:7863).
+    /// Inference server base URL (only used with `--legacy-direct`; default: http://127.0.0.1:11434).
     #[arg(long, value_name = "URL", requires = "legacy_direct")]
     pub server_url: Option<String>,
 }

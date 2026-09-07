@@ -15,9 +15,18 @@ pub fn requested_model_matches_loaded(requested: &str, loaded: &str) -> bool {
     !requested.is_empty() && stem(requested) == stem(loaded)
 }
 
+/// `Some(message)` when the client named a different model than this process loaded.
+pub fn mismatched_model_error(requested: Option<&str>, loaded: &str) -> Option<String> {
+    let requested = requested?.trim();
+    if requested.is_empty() || requested_model_matches_loaded(requested, loaded) {
+        return None;
+    }
+    Some(format!("Loaded model is {loaded}, not {requested}"))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::requested_model_matches_loaded;
+    use super::{mismatched_model_error, requested_model_matches_loaded};
 
     #[test]
     fn mens_prefix_matches_loaded_file_stem() {
@@ -43,5 +52,22 @@ mod tests {
         ));
         assert!(!requested_model_matches_loaded("mens/run-a", "run-b"));
         assert!(!requested_model_matches_loaded("", "e2e-smoke-metal"));
+    }
+
+    #[test]
+    fn mismatched_model_error_is_none_when_omitted_or_matching() {
+        assert_eq!(mismatched_model_error(None, "e2e-smoke-metal"), None);
+        assert_eq!(
+            mismatched_model_error(Some("mens/e2e-smoke-metal"), "e2e-smoke-metal"),
+            None
+        );
+    }
+
+    #[test]
+    fn mismatched_model_error_names_the_loaded_checkpoint() {
+        let err = mismatched_model_error(Some("mens/other-run"), "e2e-smoke-metal")
+            .expect("distinct run must conflict");
+        assert!(err.contains("e2e-smoke-metal"));
+        assert!(err.contains("mens/other-run"));
     }
 }

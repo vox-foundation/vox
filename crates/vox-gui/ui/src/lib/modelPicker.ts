@@ -101,7 +101,9 @@ function localModelListed(modelId: string, localModels: string[]): boolean {
 
 /** True when this card should appear in a "models we can actually call" list. */
 export function isModelSelectable(model: PickerModel, statuses: ProviderStatus[]): boolean {
-  if (statuses.length === 0) return true;
+  if (statuses.length === 0) {
+    return !isLocalProviderName(model.provider) && !isLocalProviderName(model.providerType);
+  }
   const s = statusForModel(model, statuses);
   if (!s) {
     if (isLocalProviderName(model.provider) || isLocalProviderName(model.providerType)) {

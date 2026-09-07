@@ -71,4 +71,12 @@ preference_keys:
       listModels() on mount and cleared when the pinned model has left the
       registry, so a stale pick never silently classifies as UserOverride.
 
+  - key: vox_chat_discarded_plans.v1
+    type: object
+    default: {}
+    description: >
+      Per-chat discarded plan session ids (chatSessionId → planSessionId[]).
+      Survives refresh so latest_plan_session_for_chat cannot resurrect a
+      plan the operator already discarded.
+
 spark_series_prefix: vox.spark.kpi.

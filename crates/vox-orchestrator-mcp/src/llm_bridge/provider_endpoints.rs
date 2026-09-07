@@ -76,7 +76,7 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
         }
         ProviderType::VoxLocal => {
             let url = std::env::var("VOX_LOCAL_ENDPOINT")
-                .unwrap_or_else(|_| "http://127.0.0.1:7863".to_string());
+                .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
             Ok(format!("{}/generate", url.trim_end_matches('/')))
         }
         ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => {

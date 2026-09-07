@@ -58,6 +58,11 @@ import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
 import { type UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { SHELL_PREFERENCE_KEYS } from './lib/shellPersistence';
+import {
+  forgetDiscardedPlan,
+  isPlanDiscarded,
+  rememberDiscardedPlan,
+} from './lib/discardedPlans';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
 import { useOrchestratorStatus, meshKpiFromStatus, useOrchestratorFirstConnectGamify } from './hooks/useOrchestratorStatus';
 import { useInstalledSkills } from './hooks/useInstalledSkills';
@@ -404,9 +409,11 @@ export default function App() {
     SHELL_PREFERENCE_KEYS.chatModelOverride,
     null,
   );
+  const [discardedPlansByChat, setDiscardedPlansByChat] = useLocalStorage<
+    Record<string, string[]>
+  >(SHELL_PREFERENCE_KEYS.chatDiscardedPlans, {});
   const activeSessionIdRef = useRef(activeSessionId);
   const planBindGenRef = useRef(0);
-  const discardedPlansByChatRef = useRef<Map<string, Set<string>>>(new Map());
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
   }, [activeSessionId]);
@@ -637,7 +644,7 @@ export default function App() {
         if (cancelled || bindGen !== planBindGenRef.current) return;
         if (
           latest
-          && !discardedPlansByChatRef.current.get(activeSessionId)?.has(latest.plan_session_id)
+          && !isPlanDiscarded(discardedPlansByChat, activeSessionId, latest.plan_session_id)
         ) {
           setOpenPlanSessionId(latest.plan_session_id);
           setOpenPlanVersion(latest.plan_version);
@@ -655,7 +662,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [activeSessionId]);
+  }, [activeSessionId, discardedPlansByChat]);
 
   useEffect(() => {
     if (!activeSessionId) {
@@ -1390,7 +1397,7 @@ export default function App() {
           if (bindGen !== planBindGenRef.current || !dto.plan_session_id) return;
           const current = activeSessionIdRef.current;
           if (current && current !== sessionId) return;
-          discardedPlansByChatRef.current.get(sessionId)?.delete(dto.plan_session_id);
+          setDiscardedPlansByChat((prev) => forgetDiscardedPlan(prev, sessionId, dto.plan_session_id));
           setOpenPlanSessionId(dto.plan_session_id);
           setOpenPlanVersion(dto.plan_version ?? null);
           if (!current) setActiveSessionId(sessionId);
@@ -1779,9 +1786,9 @@ export default function App() {
     chatPlanVersion: openPlanVersion,
     onDiscardPlan: () => {
       if (activeSessionId && openPlanSessionId) {
-        const discarded = discardedPlansByChatRef.current.get(activeSessionId) ?? new Set<string>();
-        discarded.add(openPlanSessionId);
-        discardedPlansByChatRef.current.set(activeSessionId, discarded);
+        setDiscardedPlansByChat((prev) =>
+          rememberDiscardedPlan(prev, activeSessionId, openPlanSessionId),
+        );
       }
       setOpenPlanSessionId(null);
       setOpenPlanVersion(null);
@@ -1915,7 +1922,7 @@ export default function App() {
               if (bindGen !== planBindGenRef.current) return;
               if (
                 latest
-                && !discardedPlansByChatRef.current.get(sessionId)?.has(latest.plan_session_id)
+                && !isPlanDiscarded(discardedPlansByChat, sessionId, latest.plan_session_id)
               ) {
                 setOpenPlanSessionId(latest.plan_session_id);
                 setOpenPlanVersion(latest.plan_version);
