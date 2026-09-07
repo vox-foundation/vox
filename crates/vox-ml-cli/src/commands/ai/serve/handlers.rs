@@ -6,6 +6,7 @@ use super::prompt::{prompt_for_output_mode, validate_structured_output_with_reas
 use super::schema::{Choice, GenerateRequest, GenerateResponse};
 #[cfg(feature = "execution-api")]
 use super::worker::InferenceRequest;
+use crate::commands::ai::model_id::requested_model_matches_loaded;
 #[cfg(feature = "execution-api")]
 use axum::{
     Json,
@@ -78,11 +79,21 @@ pub async fn do_generate(
     Json(req): Json<GenerateRequest>,
 ) -> (StatusCode, Json<GenerateResponse>) {
     if let Some(ref requested) = req.model {
-        if requested.as_str() != state.model_name.as_ref() {
-            tracing::debug!(
-                requested = %requested,
-                actual = %*state.model_name,
-                "Client requested different model; serving loaded model"
+        if !requested_model_matches_loaded(requested, state.model_name.as_ref()) {
+            let msg = format!("Loaded model is {}, not {requested}", state.model_name);
+            return (
+                StatusCode::CONFLICT,
+                Json(GenerateResponse {
+                    text: msg.clone(),
+                    code: msg.clone(),
+                    tokens_generated: 0,
+                    model: state.model_name.to_string(),
+                    object: "text_completion",
+                    choices: vec![],
+                    repair_attempts: None,
+                    valid: false,
+                    errors: vec![msg],
+                }),
             );
         }
     }

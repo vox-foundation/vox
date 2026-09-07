@@ -17,6 +17,10 @@ use crate::commands::daemon::PersistentDaemon;
 pub struct ModelCardDto {
     pub id: String,
     pub provider: String,
+    /// Debug-format `ProviderType` (`OpenRouter`, `VoxLocal`) so the picker
+    /// can match `inference_provider_status`. `provider` is often the org
+    /// prefix (`aion-labs`, `anthropic`), not the backend.
+    pub provider_type: String,
     pub tier: String,
     pub cost_per_1k: f64,
     pub max_tokens: u32,
@@ -157,7 +161,7 @@ async fn registry_with_scoreboard() -> ModelRegistry {
 #[tauri::command]
 pub async fn list_model_cards(limit: Option<usize>) -> Result<Vec<ModelCardDto>, String> {
     let reg = registry_with_scoreboard().await;
-    let limit = limit.unwrap_or(200);
+    let limit = limit.unwrap_or(2000);
     let mut models = reg.list_models();
     models.sort_by(|a, b| a.id.cmp(&b.id));
 
@@ -169,6 +173,7 @@ pub async fn list_model_cards(limit: Option<usize>) -> Result<Vec<ModelCardDto>,
             ModelCardDto {
                 id: m.id.clone(),
                 provider: m.provider.clone(),
+                provider_type: format!("{:?}", m.provider_type),
                 tier: format!("{:?}", m.capabilities.tier),
                 cost_per_1k: m.cost_per_1k,
                 max_tokens: u32::try_from(m.max_tokens).unwrap_or(u32::MAX),
@@ -672,6 +677,26 @@ mod tests {
         let out = nudge_axis(&base, "nonsense", NudgeDirection::Promote);
         assert_eq!(out.efficiency, base.efficiency);
         assert_eq!(out.precision, base.precision);
+    }
+
+    #[test]
+    fn list_model_card_dto_serializes_provider_type() {
+        let card = ModelCardDto {
+            id: "mens/e2e-smoke-metal".into(),
+            provider: "populi_local".into(),
+            provider_type: "VoxLocal".into(),
+            tier: "Local".into(),
+            cost_per_1k: 0.0,
+            max_tokens: 512,
+            is_free: true,
+            latency_p50_ms: None,
+            success_rate: None,
+            quality_score: None,
+        };
+        let json = serde_json::to_value(&card).expect("serialize ModelCardDto");
+        assert_eq!(json["provider_type"], "VoxLocal");
+        assert_eq!(json["id"], "mens/e2e-smoke-metal");
+        assert_eq!(json["provider"], "populi_local");
     }
 
     #[test]

@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
-import { Kpi } from '../../ui/Kpi';
+import { Pill } from '../../ui/Pill';
 import { ContextWindowMeter } from './ContextWindowMeter';
 import { useLabel } from '../../../hooks/useLanguage';
+import { useMetricSeries, type MetricPoint } from '../../../hooks/useMetricSeries';
 import { getContextBudget, type ContextBudgetPayload } from '../../../transport';
+import type { Agent } from '../../../types/dashboard';
 
 
 
@@ -25,15 +27,58 @@ export interface ChatExecutionRailProps {
   intents?: string[];
   activeModel?: string | null;
   openrouterSpendUsd?: number | null;
+  /** Session budget burn (DriveConsole $spent) — sparkled separately from OpenRouter. */
+  sessionSpentUsd?: number | null;
   onNavigate: (viewKey: string) => void;
   /** Active chat session id — passed to get_context_budget so the meter shows real token usage. */
   sessionId?: string | null;
   /** Opens the inline Routing panel (folded Matrix surface — gui-ia-blueprint: matrix → chat rail). */
   onOpenRouting?: () => void;
+  /** Live agent shards — the topology the retired chat Flow dock used to draw. */
+  agents?: Agent[];
+  selectedAgentId?: string;
+  /** Open an agent on the Agents → Flow surface (full topology). */
+  onOpenAgent?: (agentId: string) => void;
+}
+
+export function sessionSpendSeriesKey(sessionId?: string | null): string {
+  return sessionId ? `chat.session-spend.${sessionId}` : 'chat.session-spend';
 }
 
 function formatOpenRouterSpend(usd: number): string {
   return `$${usd.toFixed(2)}`;
+}
+
+function SessionSpendSpark({ series }: { series: MetricPoint[] }) {
+  const width = 40;
+  const height = 16;
+  const values = series.map((p) => p.v);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min;
+  const pad = 1;
+  const innerW = width - pad * 2;
+  const innerH = height - pad * 2;
+  const d = values
+    .map((v, i) => {
+      const x = pad + (values.length === 1 ? innerW / 2 : (i / (values.length - 1)) * innerW);
+      const y = range === 0 ? height / 2 : pad + innerH - ((v - min) / range) * innerH;
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(' ');
+
+  return (
+    <svg
+      data-testid="execution-rail-spend-spark"
+      width={40}
+      height={16}
+      viewBox="0 0 40 16"
+      aria-hidden="true"
+      className="shrink-0 text-brass"
+    >
+      <path d={d} fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 function Segment({
@@ -41,29 +86,66 @@ function Segment({
   label,
   value,
   onClick,
+  trailing,
 }: {
   testId: string;
   label: string;
   value: string;
   onClick?: () => void;
+  trailing?: React.ReactNode;
 }) {
   const className =
     'inline-flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1 text-[10px] text-text-muted transition hover:bg-overlay-subtle hover:text-text-secondary';
 
+  const body = (
+    <>
+      <span className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
+      <span className="flex min-w-0 items-center gap-1">
+        {trailing}
+        <span className="font-mono tabular-nums text-text-secondary">{value}</span>
+      </span>
+    </>
+  );
+
   if (onClick) {
     return (
       <button type="button" data-testid={testId} onClick={onClick} className={className}>
-        <span className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
-        <span className="font-mono tabular-nums text-text-secondary">{value}</span>
+        {body}
       </button>
     );
   }
 
   return (
     <div data-testid={testId} className={className}>
-      <span className="uppercase tracking-[0.14em] text-text-muted">{label}</span>
-      <span className="font-mono tabular-nums text-text-secondary">{value}</span>
+      {body}
     </div>
+  );
+}
+
+function SessionSpendTrack({
+  sessionId,
+  sessionSpentUsd,
+}: {
+  sessionId?: string | null;
+  sessionSpentUsd: number;
+}) {
+  const { series, append } = useMetricSeries(sessionSpendSeriesKey(sessionId), []);
+  const prev = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (prev.current !== sessionSpentUsd) {
+      prev.current = sessionSpentUsd;
+      append(sessionSpentUsd);
+    }
+  }, [sessionSpentUsd, append]);
+  return (
+    <Segment
+      testId="execution-rail-session"
+      label="Session"
+      value={formatOpenRouterSpend(sessionSpentUsd)}
+      trailing={
+        series.length >= 2 ? <SessionSpendSpark series={series} /> : null
+      }
+    />
   );
 }
 
@@ -73,16 +155,29 @@ export function ChatExecutionRail({
   intents,
   activeModel,
   openrouterSpendUsd,
+  sessionSpentUsd,
   onNavigate,
   sessionId,
   onOpenRouting,
+  agents = [],
+  selectedAgentId,
+  onOpenAgent,
 }: ChatExecutionRailProps) {
   const [budget, setBudget] = useState<ContextBudgetPayload | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    setBudget(null);
     getContextBudget(sessionId)
-      .then(setBudget)
-      .catch(() => {/* daemon unavailable; meter stays hidden */});
+      .then((next) => {
+        if (!cancelled) setBudget(next);
+      })
+      .catch(() => {
+        if (!cancelled) setBudget(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [sessionId]);
 
   const peerLabel = kpis.mesh.peers === 1 ? '1 peer' : `${kpis.mesh.peers} peers`;
@@ -143,25 +238,60 @@ export function ChatExecutionRail({
           </section>
         )}
 
+        {agents.length > 0 && (
+          <section aria-label="Agent shards" className="flex flex-col gap-1.5 pt-1">
+            <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-1">
+              <div className="font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">
+                Agents
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('flow')}
+                className="font-mono text-[10px] text-text-muted hover:text-brass"
+              >
+                Open topology
+              </button>
+            </div>
+            <ul className="flex flex-col gap-1">
+              {agents.map(agent => (
+                <li key={agent.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onOpenAgent) onOpenAgent(agent.id);
+                      else onNavigate('flow');
+                    }}
+                    className={`flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-overlay-subtle ${
+                      selectedAgentId === agent.id ? 'bg-overlay-subtle' : ''
+                    }`}
+                  >
+                    <Pill phase={agent.phase} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[11px] text-text-primary">{agent.codename}</span>
+                      <span className="block truncate font-mono text-[10px] text-text-muted">{agent.task}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section aria-label="Resource strip" className="flex flex-col gap-1 pt-3">
           <div className="mb-1.5 border-b border-border-subtle pb-1 font-display text-[9px] uppercase tracking-[0.28em] text-text-muted">
             Resources
           </div>
-          <Kpi
-            data-testid="execution-rail-agents"
+          <Segment
+            testId="execution-rail-agents"
             label="Agents"
-            value={kpis.activeAgents.value}
-            accent="cyan"
+            value={String(kpis.activeAgents.value)}
             onClick={() => onNavigate('agents')}
-            className="cursor-pointer mb-2"
           />
-          <Kpi
-            data-testid="execution-rail-queue"
+          <Segment
+            testId="execution-rail-queue"
             label="Queue"
-            value={kpis.queueDepth.value}
-            accent="amber"
+            value={String(kpis.queueDepth.value)}
             onClick={() => onNavigate('runs')}
-            className="cursor-pointer mb-2"
           />
           <Segment
             testId="execution-rail-mesh"
@@ -183,6 +313,13 @@ export function ChatExecutionRail({
               label="OpenRouter"
               value={formatOpenRouterSpend(openrouterSpendUsd)}
               onClick={() => onNavigate('settings')}
+            />
+          )}
+          {sessionSpentUsd != null && !Number.isNaN(sessionSpentUsd) && (
+            <SessionSpendTrack
+              key={sessionId ?? 'none'}
+              sessionId={sessionId}
+              sessionSpentUsd={sessionSpentUsd}
             />
           )}
         </section>

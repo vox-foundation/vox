@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Glass } from '../../ui/Glass';
-import { Pill, PHASE_TONE, PhaseKind } from '../../ui/Pill';
+import { Pill, PhaseKind } from '../../ui/Pill';
 import { Agent } from '../../../types/dashboard';
 import { phaseStroke, viz } from '../../../lib/visualTokens';
 
@@ -41,8 +41,6 @@ function Legend({ color, label }: { color: string; label: string }) {
 
 /** Build a synthetic graph from live agent data when no pre-computed graph is provided. */
 function buildGraphFromAgents(agents: Agent[]): AgentGraph {
-  const W = 1;
-  const H = 1;
   const root: GraphNode = { id: 'ROOT', label: 'Orchestrator', phase: 'Root', x: 0.5, y: 0.42 };
 
   // Distribute agents in a circle around the root.
@@ -77,7 +75,7 @@ function buildGraphFromAgents(agents: Agent[]): AgentGraph {
 
 function AgentInspector({ node, agent }: { node: GraphNode; agent?: Agent }) {
   return (
-    <div className="absolute right-5 top-5 w-72 rounded-xl border border-border-subtle bg-bg-base/85 p-4 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
+    <div className="w-full min-w-0 rounded-xl border border-border-subtle bg-bg-elevated p-3">
       <div className="flex items-center justify-between">
         <div>
           <div className="font-display text-[14px] text-text-primary">{node.label}</div>
@@ -101,25 +99,36 @@ function AgentInspector({ node, agent }: { node: GraphNode; agent?: Agent }) {
               </div>
             ))}
           </div>
-          {/* Progress bar */}
+          {/* Progress bar — AgentRow pattern: ellipsis + no progressbar when unknown */}
           <div className="mt-3">
             <div className="flex items-center justify-between text-[9px] uppercase tracking-widest text-text-muted">
               <span>Progress</span>
-              <span className="font-mono text-text-secondary">{Math.round(agent.progress * 100)}%</span>
+              <span
+                data-testid="agent-inspector-progress"
+                className="font-mono text-text-secondary"
+              >
+                {agent.progress != null ? `${Math.round(agent.progress * 100)}%` : '…'}
+              </span>
             </div>
-            <div
-              className="mt-1 h-1 overflow-hidden rounded-full bg-overlay-subtle"
-              role="progressbar"
-              aria-label={`${node.label} progress`}
-              aria-valuenow={Math.round(agent.progress * 100)}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
+            {agent.progress != null ? (
               <div
-                className="h-full bg-linear-to-r from-violet-400 to-emerald-400 transition-all duration-700"
-                style={{ width: `${agent.progress * 100}%` }}
-              />
-            </div>
+                className="mt-1 h-1 overflow-hidden rounded-full bg-overlay-subtle"
+                role="progressbar"
+                aria-label={`${node.label} progress`}
+                aria-valuenow={Math.round(agent.progress * 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className="h-full bg-linear-to-r from-violet-400 to-emerald-400 transition-all duration-700"
+                  style={{ width: `${agent.progress * 100}%` }}
+                />
+              </div>
+            ) : (
+              <div className="relative mt-1 h-1 overflow-hidden rounded-full bg-overlay-subtle">
+                <div className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-text-muted animate-pulse" />
+              </div>
+            )}
           </div>
         </>
       ) : (
@@ -145,14 +154,14 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
   const selectedAgent = agents.find(a => a.id === sel);
 
   return (
-    <Glass className="relative overflow-hidden p-0">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-5 py-3">
+    <Glass className="relative flex h-full min-h-0 flex-col overflow-hidden p-0">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-4 py-3">
         <div className="min-w-0">
           <h2 className="font-display text-[16px] font-semibold tracking-tight text-text-primary">
-            Mind-Map · Agent Shards
+            Agent topology
           </h2>
           <p className="text-[11px] text-text-muted">
-            Topology of the active agent graph · click a shard to inspect
+            Who is running and in what phase — click a node to inspect
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -168,7 +177,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
         </div>
       </div>
 
-      <div className="relative h-[600px] w-full">
+      <div className="relative min-h-[220px] w-full flex-1">
         {/* Grid background */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50" />
 
@@ -213,10 +222,9 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                   d={d}
                   stroke="url(#ag-edge-grad)"
                   strokeWidth={1.2 + e.flow * 1.6}
-                  strokeOpacity="0.55"
+                  strokeOpacity="0.8"
                   fill="none"
                   strokeDasharray="6 8"
-                  className="animate-vox-dash"
                 />
               </g>
             );
@@ -254,7 +262,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                 />
                 <circle
                   cx={x} cy={y} r={r}
-                  fill={viz.void}
+                  fill="var(--color-bg-surface)"
                   stroke={stroke}
                   strokeOpacity={isSel ? 1 : 0.6}
                   strokeWidth={isSel ? 2 : 1.25}
@@ -265,16 +273,15 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
                   stroke={stroke}
                   strokeOpacity="0.15"
                   strokeDasharray="2 4"
-                  className="animate-vox-spin-slow"
                   style={{ transformOrigin: `${x}px ${y}px` }}
                 />
                 <text
                   x={x} y={y - 2}
                   textAnchor="middle"
-                  fill={viz.zinc100}
+                  fill="var(--color-text-primary)"
                   fontSize={isRoot ? 13 : 11}
                   fontWeight="600"
-                  fontFamily="'Space Grotesk', sans-serif"
+                  fontFamily="Inter, system-ui, sans-serif"
                 >
                   {n.label}
                 </text>
@@ -293,11 +300,13 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
           })}
         </svg>
 
-        {/* Inspector overlay */}
-        {selectedNode && (
-          <AgentInspector node={selectedNode} agent={selectedAgent} />
-        )}
       </div>
+
+      {selectedNode && (
+        <div className="shrink-0 border-t border-border-subtle p-3">
+          <AgentInspector node={selectedNode} agent={selectedAgent} />
+        </div>
+      )}
     </Glass>
   );
 }
