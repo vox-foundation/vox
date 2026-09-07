@@ -8,13 +8,28 @@
 // training_eligible: true
 // difficulty: beginner
 // ---
-// EXPECT: 1
+// EXPECT: 3
+// EXPECT: true
+// EXPECT: 3
 // EXPECT: true
 pub fn main() {
-  let xs = match fs.glob("examples/golden/glob_and_listdir_order.vox") {
+  // Fixed 3-file fixture directory (Important-1 fix — Task 2 review: the
+  // previous glob only matched this golden's own source file, so `len(xs) ==
+  // 1` never exercised sort-order at all). Checked-in files under
+  // `examples/golden/fixtures/glob_and_listdir_order/` keep this hermetic —
+  // no dependence on the integration-test CWD beyond the repo root, which
+  // both `golden_differential_gate` and `golden_arm_parity_test` already
+  // `current_dir` into.
+  let xs = match fs.glob("examples/golden/fixtures/glob_and_listdir_order/*.txt") {
+    Ok(fs) => fs,
+    Error(e) => []
+  }
+  let ys = match fs.list_dir("examples/golden/fixtures/glob_and_listdir_order") {
     Ok(fs) => fs,
     Error(e) => []
   }
   print(str(len(xs)))
   print(str(xs is xs.sorted()))
+  print(str(len(ys)))
+  print(str(ys is ys.sorted()))
 }

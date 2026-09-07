@@ -85,6 +85,13 @@ pub fn vox_flush_exit_commands() {
 ///
 /// For provenance, signatures, or any security-sensitive hashing, use
 /// `vox_hash_secure` (BLAKE3-based) instead.
+///
+/// Algorithmically identical to `vox_crypto::hash_fast_hex` (used by the
+/// interp's `crypto.hash_fast` and native codegen's `crypto.hash_fast` emit —
+/// see `builtin_registry.rs`), but implemented independently here because
+/// this crate cannot take a normal dependency on `vox-crypto` (would require
+/// a `crate-edges` ledger entry). Equivalence is enforced by a same-file dev
+/// test: `hash_fast_matches_vox_crypto_hash_fast_hex` in `builtins/tests.rs`.
 pub fn vox_hash_fast(input: &str) -> String {
     use xxhash_rust::xxh3::xxh3_128;
     let h = xxh3_128(input.as_bytes());
@@ -361,9 +368,8 @@ pub fn vox_json_render(v: &VoxJson) -> Result<String, String> {
 /// string, array, object.
 ///
 /// Formatting rules (mirrors `vox_value_display`):
-/// - `null` → `"None"` (bare `None` reaching here — not the tagged literal
-///   codegen path above — still displays as `None`, matching the
-///   interpreter's untagged `VoxValue::Null`)
+/// - `null` → `"null"` (matches the interpreter's `VoxValue::Null` surface
+///   form in `vox_value_display`)
 /// - whole-number float → integer-looking (`5`, not `5.0`)
 /// - string → raw content, unquoted
 /// - array → `[v1, v2]`
@@ -371,7 +377,7 @@ pub fn vox_json_render(v: &VoxJson) -> Result<String, String> {
 ///   `preserve_order` feature, Step 3, keeps this matching source order)
 pub fn vox_display(v: &serde_json::Value) -> String {
     match v {
-        serde_json::Value::Null => "None".to_string(),
+        serde_json::Value::Null => "null".to_string(),
         serde_json::Value::Bool(b) => b.to_string(),
         serde_json::Value::Number(n) => {
             if n.is_f64() {

@@ -517,13 +517,27 @@ fn obj_is_list(obj: &HirExpr, inferred_types: Option<&HashMap<Span, HirType>>) -
     )
 }
 
-/// Returns `true` when the HIR expression's inferred type is the `Json` newtype
-/// (`std.json`'s dynamic value type, distinct from a plain `{k: v}` object
-/// literal's inferred `Record` type). Used to keep `.keys()` returning `Option`
-/// for genuine `Json` receivers (`typeck/builtins.rs`'s `json_value_methods`)
-/// while a `Record`-typed object literal gets the direct, non-Option lowering
-/// below (`typeck/builtins.rs`'s `Ty::Record(_) => "keys" => List[str]`).
-fn obj_is_json(obj: &HirExpr, inferred_types: Option<&HashMap<Span, HirType>>) -> bool {
+/// Returns `true` when the HIR expression's inferred type is an anonymous
+/// `Record` (i.e. a `{k: v, ...}` object literal typed via
+/// `typeck::Ty::Record`), as opposed to the `Json` newtype
+/// (`std.json`'s dynamic value type — `typeck/builtins.rs`'s
+/// `json_value_methods`) or an untyped receiver. `Ty` has no dedicated
+/// `HirType::Record` variant — `Ty::to_hir_type()` falls back to
+/// `HirType::Named(self.signature())` for it, and `Ty::Record`'s signature
+/// is always a curly-braced field list (e.g.
+/// `HirType::Named("{a: int, b: str}")`, or `"{}"` for an empty literal) —
+/// so that shape is what we match on here.
+///
+/// Used by the `.keys()` dispatch below (Important-5 fix) as a POSITIVE
+/// gate: an earlier version gated on `!obj_is_json(obj, ..)` instead, which
+/// fails OPEN whenever `inferred_types` is absent or the span wasn't
+/// tracked — a genuine `Json` receiver would then silently take the
+/// `Record` lowering too, stripping the `Option` wrapper that
+/// `json_value_methods["keys"]` (`Option[List[str]]`) promises callers.
+/// Requiring a positive `obj_is_record` match instead fails CLOSED: with no
+/// type info, `.keys()` falls through past this arm rather than risk
+/// mis-lowering a `Json` value.
+fn obj_is_record(obj: &HirExpr, inferred_types: Option<&HashMap<Span, HirType>>) -> bool {
     let Some(types) = inferred_types else {
         return false;
     };
@@ -535,7 +549,7 @@ fn obj_is_json(obj: &HirExpr, inferred_types: Option<&HashMap<Span, HirType>>) -
         | HirExpr::Index(_, _, s) => *s,
         _ => return false,
     };
-    matches!(types.get(&span), Some(HirType::Named(n)) if n == "Json")
+    matches!(types.get(&span), Some(HirType::Named(n)) if n.starts_with('{'))
 }
 
 pub(super) fn emit_method_call<F>(
@@ -647,12 +661,16 @@ where
     // this `Record`-typed receiver's non-Option `List[str]` typeck signature
     // (`typeck/builtins.rs`). `preserve_order` (Cargo.toml, Step 3) keeps
     // that iteration in insertion order, matching the interpreter's
-    // `fields.iter()` in `eval/builtins.rs`. Guarded off real `Json`
-    // receivers (`obj_is_json`), whose `.keys()` stays `Option[List[str]]`.
+    // `fields.iter()` in `eval/builtins.rs`. Gated on a POSITIVE
+    // `obj_is_record` match (Important-5 fix), not `!obj_is_json(..)`: the
+    // negative form fails open when `inferred_types` is absent, letting a
+    // real `Json` receiver silently take this non-Option lowering instead
+    // of its own `Option[List[str]]`-shaped `.keys()`. `obj_is_record` fails
+    // closed instead — no type info means we skip this arm.
     if method == "keys"
         && arg_exprs.is_empty()
         && !recv_is_list
-        && !obj_is_json(obj, inferred_types)
+        && obj_is_record(obj, inferred_types)
     {
         return format!(
             "({o}).as_object().map(|m| m.keys().cloned().collect::<Vec<String>>()).unwrap_or_default()"
@@ -1184,8 +1202,107 @@ fn try_emit_str_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<St
 
 #[cfg(test)]
 mod tests {
-    use super::{SqlDialect, dialect_for_backend_kind, dialect_from_urls};
+    use super::{
+        HashMap, HirExpr, HirType, Span, SqlDialect, dialect_for_backend_kind, dialect_from_urls,
+        emit_method_call, obj_is_record,
+    };
     use vox_sql::BackendKind;
+
+    fn ident(name: &str, span: Span) -> HirExpr {
+        HirExpr::Ident(name.to_string(), span)
+    }
+
+    fn identity_emit(e: &HirExpr) -> String {
+        match e {
+            HirExpr::Ident(name, _) => name.clone(),
+            _ => "<unsupported>".to_string(),
+        }
+    }
+
+    /// Important-5 fix: `obj_is_record` is a positive check, so it must
+    /// return `true` ONLY for a receiver whose tracked inferred type is the
+    /// curly-braced `Ty::Record` signature shape — never for a `Json`
+    /// receiver, an untracked span, or a missing `inferred_types` map. The
+    /// old guard (`!obj_is_json(..)`) inverted the last two cases to `true`,
+    /// which is exactly the fail-open bug this locks shut.
+    #[test]
+    fn obj_is_record_true_only_for_record_signature() {
+        let span = Span::new(0, 1);
+        let mut types = HashMap::new();
+        types.insert(span, HirType::Named("{a: int}".to_string()));
+        let record_recv = ident("o", span);
+        assert!(obj_is_record(&record_recv, Some(&types)));
+
+        // Json receiver: must NOT be treated as a Record.
+        let json_span = Span::new(2, 3);
+        let mut json_types = HashMap::new();
+        json_types.insert(json_span, HirType::Named("Json".to_string()));
+        let json_recv = ident("j", json_span);
+        assert!(!obj_is_record(&json_recv, Some(&json_types)));
+
+        // No inferred_types at all (common when a codegen call site doesn't
+        // thread it through) — must fail CLOSED, not default to "is a Record".
+        assert!(!obj_is_record(&record_recv, None));
+
+        // inferred_types present but this span was never recorded.
+        let untracked_span = Span::new(4, 5);
+        let untracked_recv = ident("u", untracked_span);
+        assert!(!obj_is_record(&untracked_recv, Some(&types)));
+    }
+
+    /// End-to-end guard: `.keys()` on a `Record`-typed receiver gets the
+    /// direct `.as_object()...unwrap_or_default()` lowering; on a
+    /// `Json`-typed receiver (or with no type info at all) it must NOT —
+    /// falling through to the generic `(o).keys()` passthrough instead, so a
+    /// real `Json` value keeps its own `Option[List[str]]`-shaped `.keys()`.
+    #[test]
+    fn keys_dispatch_only_takes_record_lowering_for_record_receiver() {
+        let record_span = Span::new(10, 11);
+        let mut record_types = HashMap::new();
+        record_types.insert(record_span, HirType::Named("{a: int}".to_string()));
+        let record_recv = ident("rec", record_span);
+        let emitted = emit_method_call(
+            &identity_emit,
+            &record_recv,
+            "keys",
+            &[],
+            None,
+            false,
+            Some(&record_types),
+        );
+        assert!(
+            emitted.contains("as_object()") && emitted.contains("unwrap_or_default()"),
+            "Record receiver must get the non-Option Record lowering; got: {emitted}"
+        );
+
+        let json_span = Span::new(12, 13);
+        let mut json_types = HashMap::new();
+        json_types.insert(json_span, HirType::Named("Json".to_string()));
+        let json_recv = ident("j", json_span);
+        let emitted_json = emit_method_call(
+            &identity_emit,
+            &json_recv,
+            "keys",
+            &[],
+            None,
+            false,
+            Some(&json_types),
+        );
+        assert_eq!(
+            emitted_json, "j.keys()",
+            "Json receiver must fall through to its own inherent `.keys()`, not the Record lowering"
+        );
+
+        // No inferred_types at all: must fail CLOSED (fall through), not
+        // silently assume Record — this is the exact regression Important-5
+        // fixes (`!obj_is_json(..)` used to fail open here).
+        let emitted_no_types =
+            emit_method_call(&identity_emit, &json_recv, "keys", &[], None, false, None);
+        assert_eq!(
+            emitted_no_types, "j.keys()",
+            "missing inferred_types must not fall back to the Record lowering"
+        );
+    }
 
     #[test]
     fn backend_kind_maps_to_expected_dialect_shape() {

@@ -26,10 +26,18 @@ pub fn fast_hash(data: &[u8]) -> u64 {
     xxh3_64(data)
 }
 
-/// Hex of the fast hash over `bytes`. SSOT for interp `crypto.hash_fast` and
-/// native `vox_hash_fast` (`vox-actor-runtime`): XXH3-128, 32 lowercase hex
-/// chars. Matches `format!("{h:032x}")` on the raw `u128` — big-endian hex of
-/// the 16-byte digest is byte-for-byte identical to that formatting.
+/// Hex of the fast hash over `bytes`: XXH3-128, 32 lowercase hex chars.
+/// Matches `format!("{h:032x}")` on the raw `u128` — big-endian hex of the
+/// 16-byte digest is byte-for-byte identical to that formatting.
+///
+/// This is the single call site for both the interp's `crypto.hash_fast` and
+/// native codegen's `crypto.hash_fast` emit (`builtin_registry.rs`). It is
+/// *not* called by `vox-actor-runtime`'s `vox_hash_fast` (used by
+/// `std.hash_fast` and `prompt_canonical`) — that crate cannot take a normal
+/// dependency on `vox-crypto` without a `crate-edges` ledger entry, so it
+/// reimplements the same algorithm independently. Equivalence between the two
+/// is enforced by a dev-dependency test in
+/// `vox-actor-runtime::builtins::tests::hash_fast_matches_vox_crypto_hash_fast_hex`.
 pub fn hash_fast_hex(bytes: &[u8]) -> String {
     hex_encode(&xxhash_rust::xxh3::xxh3_128(bytes).to_be_bytes())
 }

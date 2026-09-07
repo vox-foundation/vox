@@ -16525,6 +16525,7 @@ dependencies = [
  "uuid",
  "vox-bounded-fs",
  "vox-config",
+ "vox-crypto",
  "vox-db",
  "vox-foundation",
  "vox-http-client",

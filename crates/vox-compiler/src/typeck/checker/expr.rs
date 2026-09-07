@@ -362,12 +362,16 @@ impl<'a> Checker<'a> {
                         // but the interpreter's free-function dispatch
                         // (`call_global_builtin` in `eval/builtins.rs`) already
                         // accepts a Float receiver too, returning Float. Peek
-                        // the single argument's type before committing to the
-                        // Int-param path; a Float argument reports Float
-                        // directly instead of a spurious "Cannot unify Int
-                        // with Float". A non-Float argument (including a
-                        // genuine type error) falls through unchanged to the
-                        // normal `check_arguments` unify below.
+                        // the single argument's type; a Float argument reports
+                        // Float directly instead of a spurious "Cannot unify
+                        // Int with Float". Either way, `args[0].value` is
+                        // checked exactly once here and this arm returns
+                        // unconditionally (matching the `is_range_one_arg`
+                        // pattern above) — it must NOT fall through into
+                        // `check_arguments` below, which would re-run
+                        // `check_expr` on the same argument node a second
+                        // time (double allocation of fresh type vars /
+                        // duplicate diagnostics on a genuine type error).
                         let is_abs_call = args.len() == 1
                             && params.len() == 1
                             && matches!(callee.as_ref(), HirExpr::Ident(name, _) if name == "abs");
@@ -376,6 +380,8 @@ impl<'a> Checker<'a> {
                             if matches!(self.uf.resolve(&arg_ty), Ty::Float) {
                                 return Ty::Float;
                             }
+                            let _ = self.uf.unify(&Ty::Int, &arg_ty);
+                            return ret.as_ref().clone();
                         }
                         // Special case: `print(value, ...)` accepts any
                         // type(s), n >= 1.  The stdlib registers print as

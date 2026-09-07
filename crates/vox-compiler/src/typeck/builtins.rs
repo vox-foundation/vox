@@ -1115,6 +1115,15 @@ impl BuiltinTypes {
             "stringify".into(),
             Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
         );
+        // `json.encode` is `stringify`'s alias (Task 2 controller resolution):
+        // both emit `vox_actor_runtime::builtins::vox_json_render(...).unwrap_or_default()`
+        // in native codegen (`builtin_registry.rs`) and share the interp's
+        // `Some("json") => "render" | "stringify" | "encode"` arm
+        // (`eval/builtins.rs`) — bare `str`, empty string on serialize error.
+        json_methods.insert(
+            "encode".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
+        );
         // RFC json-ergonomics-rfc-2026-05-23 §4.1: parse returns a typed
         // `Result[Json]` so the chainable Json method surface (`get`, `at`,
         // `pointer`, `as_str`, ...) actually dispatches at typecheck.
@@ -1260,14 +1269,11 @@ impl BuiltinTypes {
                 )),
             ),
         );
-        // `process.cwd` — same as `fs.cwd`, aliased under process namespace.
-        process_methods.insert(
-            "cwd".into(),
-            Ty::Fn(
-                vec![],
-                Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))),
-            ),
-        );
+        // `process.cwd` — bare `str`, empty on error (Task 2 controller
+        // resolution: unlike `fs.cwd`, this is infallible at the Vox
+        // surface, matching native codegen's `vox_process_cwd() -> String`
+        // and the interp's `Some("process") => "cwd"` arm in eval/builtins.rs).
+        process_methods.insert("cwd".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         // `process.which(cmd)` — locate binary on PATH; cross-platform.
         process_methods.insert(
             "which".into(),

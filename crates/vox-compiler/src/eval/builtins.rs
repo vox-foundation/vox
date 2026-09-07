@@ -1831,18 +1831,18 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
-                    // `process.cwd` — same op as `fs.cwd`, aliased here for the
-                    // call sites that reach for it under the `process` namespace.
-                    // Both resolve via `std::env::current_dir`.
-                    "cwd" => {
-                        let res = match std::env::current_dir() {
-                            Ok(p) => Ok(Box::new(VoxValue::Str(
-                                p.to_string_lossy().to_string().into(),
-                            ))),
-                            Err(e) => Err(e.to_string()),
-                        };
-                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
-                    }
+                    // `process.cwd` — returns a bare `str`, empty on error, to
+                    // match native codegen's `vox_process_cwd()` (Task 2
+                    // controller resolution: unlike `fs.cwd`, which stays
+                    // `Result[str, str]`, `process.cwd` is infallible at the
+                    // Vox surface). See `builtin_registry.rs`
+                    // `("process", "cwd")` and `typeck::builtins`.
+                    "cwd" => Some(VoxValue::Str(
+                        std::env::current_dir()
+                            .map(|p| p.to_string_lossy().to_string())
+                            .unwrap_or_default()
+                            .into(),
+                    )),
                     // `process.which(cmd)` — locate a binary on PATH, returning
                     // its absolute path or None if not found. Cross-platform —
                     // uses the `which` crate which handles `.exe` extension on
@@ -2015,7 +2015,10 @@ pub fn call_builtin_method(
                             )))),
                         }
                     }
-                    "render" | "stringify" | "encode" => {
+                    // `std.json.render` (nested `StdJsonNs` typeck signature:
+                    // `Result[str, str]`) — kept fallible; unrelated to the
+                    // `encode`/`stringify` change below.
+                    "render" => {
                         let v = match args.into_iter().next() {
                             Some(v) => v,
                             _ => return Some(VoxValue::Null),
@@ -2026,6 +2029,20 @@ pub fn call_builtin_method(
                             Ok(s) => Ok(Box::new(VoxValue::Str(s.into()))),
                             Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
+                    }
+                    // `json.stringify` / `json.encode` — bare `str`, empty on
+                    // serialize error (Task 2 controller resolution: matches
+                    // native codegen's `vox_json_render(...).unwrap_or_default()`
+                    // emit and `typeck::builtins`' `JsonModule.stringify`/
+                    // `.encode` signatures, both `Str`, no `Result`).
+                    "stringify" | "encode" => {
+                        let v = match args.into_iter().next() {
+                            Some(v) => v,
+                            _ => return Some(VoxValue::Str("".into())),
+                        };
+                        let j = vox_to_json(v);
+                        let s = serde_json::to_string(&j).unwrap_or_default();
+                        Some(VoxValue::Str(s.into()))
                     }
                     // Interp parity with vox_json_read_str/read_f64/quote (native).
                     "read_str" => {
