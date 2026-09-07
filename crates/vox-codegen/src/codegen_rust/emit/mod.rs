@@ -597,7 +597,7 @@ vox-speech = {{ path = "../../../crates/vox-speech" }}
 {stt_dep}# P9 (2026-05-24): durable boot prelude — see vox-codegen emit/main_boot.rs.
 # Tauri main.rs now emits the prelude (inside .setup) when @scheduled fns are present.
 vox-compiler = {{ path = "../../../crates/vox-compiler" }}
-vox-workflow-runtime = {{ path = "../../../crates/vox-workflow-runtime", default-features = false }}
+vox-workflow-runtime = {{ path = "../../../crates/vox-workflow-runtime", default-features = false, features = ["sql"] }}
 {fixture_deps}{rust_import_deps}
 
 [dev-dependencies]
@@ -707,7 +707,7 @@ vox-speech = {{ path = "../../crates/vox-speech" }}
 # crates/vox-codegen/src/codegen_rust/emit/main_boot.rs (HirModule embed
 # + scheduled runner + set_current_hir_module).
 vox-compiler = {{ path = "../../crates/vox-compiler" }}
-vox-workflow-runtime = {{ path = "../../crates/vox-workflow-runtime", default-features = false }}
+vox-workflow-runtime = {{ path = "../../crates/vox-workflow-runtime", default-features = false, features = ["sql"] }}
 {fixture_deps}{rust_import_deps}{mcp_bin}"#,
         features_section = features_section,
         fixture_deps = fixture_deps,

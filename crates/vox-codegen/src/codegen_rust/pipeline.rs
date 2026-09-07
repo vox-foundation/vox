@@ -130,7 +130,10 @@ pub fn generate_script_with_target(
         .unwrap_or_else(|| "../vox-actor-runtime".to_string());
 
     let has_tables = !module.tables.is_empty();
-    let vox_db_dep = if has_tables {
+    let needs_workflow = module_needs_workflow_runtime(module);
+    // Workflow modules construct `VoxDbTracker` (feature `sql`). Table-bearing
+    // scripts already needed `vox-db`; workflow-only scripts must too.
+    let vox_db_dep = if has_tables || needs_workflow {
         let vox_db_path = runtime_path
             .and_then(|p| p.parent())
             .map(|p| manifest_dependency_path(&p.join("vox-db")))
@@ -162,14 +165,13 @@ pub fn generate_script_with_target(
         String::new()
     };
 
-    let needs_workflow = module_needs_workflow_runtime(module);
     let vox_workflow_runtime_dep = if needs_workflow {
         let vox_workflow_runtime_path = runtime_path
             .and_then(|p| p.parent())
             .map(|p| manifest_dependency_path(&p.join("vox-workflow-runtime")))
             .unwrap_or_else(|| "../vox-workflow-runtime".to_string());
         format!(
-            "vox-workflow-runtime = {{ path = \"{vox_workflow_runtime_path}\", default-features = false }}\nanyhow = \"1\"\n"
+            "vox-workflow-runtime = {{ path = \"{vox_workflow_runtime_path}\", default-features = false, features = [\"sql\"] }}\nanyhow = \"1\"\n"
         )
     } else {
         String::new()
