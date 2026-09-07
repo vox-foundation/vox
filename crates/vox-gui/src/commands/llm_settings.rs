@@ -72,11 +72,27 @@ pub struct ProviderStatusDto {
     pub local_models: Vec<String>,
 }
 
+/// Ollama / PopuliMesh share the `:11434` probe. VoxLocal is a different
+/// server (`VOX_LOCAL_ENDPOINT`) — do not mark it unreachable when Ollama is down.
+fn local_availability(
+    p: vox_orchestrator::models::ProviderType,
+    ollama_reachable: bool,
+    ollama_models: &[String],
+) -> (bool, Option<bool>, Vec<String>) {
+    use vox_orchestrator::models::ProviderType;
+    match p {
+        ProviderType::Ollama | ProviderType::PopuliMesh => {
+            (true, Some(ollama_reachable), ollama_models.to_vec())
+        }
+        ProviderType::VoxLocal => (true, None, Vec::new()),
+        _ => (false, None, Vec::new()),
+    }
+}
+
 /// Per-backend availability (B9): credential presence for every candidate
 /// provider + live local-server health from the shared TTL-cached probe.
 #[tauri::command]
 pub async fn inference_provider_status() -> Result<Vec<ProviderStatusDto>, String> {
-    use vox_orchestrator::models::ProviderType;
     let statuses = vox_orchestrator::models::key_guard::inference_provider_statuses();
     let base = vox_config::inference::local_ollama_populi_base_url();
     let probe = vox_actor_runtime::inference_env::probe_populi_capabilities_cached(
@@ -87,20 +103,15 @@ pub async fn inference_provider_status() -> Result<Vec<ProviderStatusDto>, Strin
     Ok(statuses
         .into_iter()
         .map(|(p, key_present)| {
-            let is_local = matches!(
-                p,
-                ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal
-            );
+            let provider = format!("{p:?}");
+            let (is_local, local_reachable, local_models) =
+                local_availability(p, probe.reachable, &probe.model_names);
             ProviderStatusDto {
-                provider: format!("{p:?}"),
+                provider,
                 key_present,
                 is_local,
-                local_reachable: is_local.then_some(probe.reachable),
-                local_models: if is_local {
-                    probe.model_names.clone()
-                } else {
-                    Vec::new()
-                },
+                local_reachable,
+                local_models,
             }
         })
         .collect())
@@ -123,5 +134,21 @@ mod tests {
         assert_eq!(j["provider"], "Anthropic");
         assert_eq!(j["key_present"], false);
         assert!(j["local_reachable"].is_null());
+    }
+
+    #[test]
+    fn vox_local_is_not_gated_on_the_ollama_probe() {
+        use vox_orchestrator::models::ProviderType;
+        let (is_local, reachable, models) =
+            local_availability(ProviderType::VoxLocal, false, &["llama3".into()]);
+        assert!(is_local);
+        assert!(reachable.is_none());
+        assert!(models.is_empty());
+
+        let (ollama_local, ollama_reach, ollama_models) =
+            local_availability(ProviderType::Ollama, false, &["llama3".into()]);
+        assert!(ollama_local);
+        assert_eq!(ollama_reach, Some(false));
+        assert_eq!(ollama_models, vec!["llama3".to_string()]);
     }
 }
