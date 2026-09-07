@@ -22,10 +22,30 @@
 //     into the full (unbounded, no --max-runtime-secs) `vox mens train` path
 //   - scripts/start-marquee.vox — runs a full `cargo build --release` then spawns
 //     background HTTP/WS servers that never exit on their own
+//   - scripts/frontend-review.vox / scripts/ci/gui-e2e-check.vox — Playwright
+//   - scripts/scientia/acceptance-matrix.vox — cargo tests
+//   - scripts/ci/corpus_prep.vox — `cargo run` corpus extract + writes mens/data
+//   - scripts/docs-reality-audit-cycle.vox — `cargo run` + `--write` metrics
+//   - scripts/quality/audit-telemetry.vox / scripts/pre-claim.vox — `cargo run`
+//   - scripts/gui-build.vox — full Tauri/pnpm production build
+//   - scripts/render-durable-animation.vox — installs/runs puppeteer
+//   - scripts/migrate-arrows.vox / migrations/2026-phase1-contract-headers.vox
+//     — rewrite tracked files (Task 0 left 213 dirty)
 fn skip_run(f: str) to bool {
     if f.starts_with("scripts/mens/") { return true }
     if f is "scripts/train_local_qwen.vox" { return true }
     if f is "scripts/start-marquee.vox" { return true }
+    if f is "scripts/frontend-review.vox" { return true }
+    if f is "scripts/ci/gui-e2e-check.vox" { return true }
+    if f is "scripts/scientia/acceptance-matrix.vox" { return true }
+    if f is "scripts/ci/corpus_prep.vox" { return true }
+    if f is "scripts/docs-reality-audit-cycle.vox" { return true }
+    if f is "scripts/quality/audit-telemetry.vox" { return true }
+    if f is "scripts/pre-claim.vox" { return true }
+    if f is "scripts/gui-build.vox" { return true }
+    if f is "scripts/render-durable-animation.vox" { return true }
+    if f is "scripts/migrate-arrows.vox" { return true }
+    if f is "scripts/migrations/2026-phase1-contract-headers.vox" { return true }
     return false
 }
 

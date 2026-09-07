@@ -251,3 +251,125 @@ brief said to expect — `install-hooks.vox` with the exact
 assertion fires later in its longer body), but its exit code is non-zero and its
 native-tier run (Step 3, above) proves the same script runs to completion under
 `--mode script`, isolating the defect to the interpreter tier.
+
+## Task 5b: re-measure after fs scoping (2026-09-07)
+
+Re-ran [`scripts/bench-script-tiers.vox`](../../../scripts/bench-script-tiers.vox)
+at HEAD `d901cec0a` with `target/debug/vox run --mode interp` on the same Apple M5
+Max machine. The question is whether Task 5's parent-walk resolver denied relative
+writes that Task 0 executed. It did not: the four Task 7 entry points now show
+`ok` (or arch-check's usual findings exit), not `CapabilityDenied`.
+
+**Task 7 gates** (also probed individually before the full table):
+
+| script | `run --mode interp -- --help` | notes |
+|---|---|---|
+| `scripts/fmt.vox` | **ok** (18130 ms) | Real per-crate `cargo fmt`. Relative writes not denied. |
+| `scripts/install-hooks.vox` | **ok** (56 ms) | First probe this session was `FAIL(1)` with `Failed to spawn lefthook` — environment, not a capability denial. After `brew install lefthook`, exit 0. |
+| `scripts/setup.vox` | **ok** (69441 ms) | Task 0 was `FAIL(1)` (`AssertionFailed` on `Option.unwrap()`). Now finishes `cargo check --workspace --exclude vox-gui`. |
+| `scripts/arch-check.vox` | **FAIL(1)** (6381 ms) | Stderr is `vox-arch-check: FAILED (exit 1)` — the usual findings report, not `CapabilityDenied`. Allowed by the Task 5b brief. |
+
+**`skip_run` expanded** so `-- --help` does not launch unbounded or mutating work.
+Task 0 already skipped `scripts/mens/**`, `train_local_qwen.vox`, and
+`start-marquee.vox`. This re-measure also skips:
+
+- Playwright: `frontend-review.vox`, `ci/gui-e2e-check.vox` (Task 0's 2618 ms
+  `FAIL(1)` on e2e was a fast Playwright miss; with browsers installed it runs
+  the full suite)
+- `cargo test` / `cargo run` extractors: `scientia/acceptance-matrix.vox`,
+  `ci/corpus_prep.vox`, `docs-reality-audit-cycle.vox`, `quality/audit-telemetry.vox`,
+  `pre-claim.vox`
+- Full GUI / puppeteer: `gui-build.vox`, `render-durable-animation.vox`
+- Tree mutators: `migrate-arrows.vox`, `migrations/2026-phase1-contract-headers.vox`
+
+`vendor-skills.vox` still ran (3035 ms, **ok**). It rewrote files under
+`assets/skills/`; those writes were reverted and are not in the Task 5b commit.
+
+Generated table (84 scripts; skipped rows still `vox check`):
+
+| script | `vox check` | status | `run --mode interp` | status |
+|---|---|---|---|---|
+| scripts/arch-check.vox | 29 ms | ok | 6381 ms | FAIL(1) |
+| scripts/audit-skill-licenses.vox | 24 ms | ok | 19 ms | FAIL(1) |
+| scripts/ci-proximity-drift.vox | 26 ms | ok | 20 ms | ok |
+| scripts/ci-runners-up.vox | 31 ms | ok | 63 ms | FAIL(1) |
+| scripts/ci/compile_kernels.vox | 23 ms | ok | 18 ms | FAIL(1) |
+| scripts/ci/corpus_prep.vox | 21 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/ci/gui-e2e-check.vox | 21 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/ci/gui-registry-check.vox | 22 ms | ok | 17 ms | ok |
+| scripts/ci/install-runner-schedule.vox | 23 ms | ok | 17 ms | FAIL(1) |
+| scripts/ci/script-hygiene.vox | 22 ms | ok | 20 ms | FAIL(1) |
+| scripts/ci/test.vox | 22 ms | ok | 17 ms | ok |
+| scripts/clean-build-artifacts.vox | 30 ms | ok | 19 ms | ok |
+| scripts/crate-build-audit.vox | 26 ms | ok | 717 ms | ok |
+| scripts/db-table-census.vox | 35 ms | ok | 34 ms | FAIL(1) |
+| scripts/db-test-census.vox | 25 ms | ok | 3751 ms | FAIL(1) |
+| scripts/docs-corpus-census.vox | 33 ms | FAIL | 2137 ms | FAIL(1) |
+| scripts/docs-reality-audit-cycle.vox | 27 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/docs/architecture-staleness-report.vox | 32 ms | ok | 5896 ms | ok |
+| scripts/docs/strip-last-updated-frontmatter.vox | 30 ms | ok | 135 ms | ok |
+| scripts/fix-doc-categories.vox | 38 ms | ok | 137 ms | ok |
+| scripts/fmt.vox | 27 ms | ok | 18130 ms | ok |
+| scripts/frontend-review.vox | 23 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/generate-bench-scaffold.vox | 22 ms | ok | 20 ms | FAIL(1) |
+| scripts/generate-grammars.vox | 22 ms | ok | 19 ms | FAIL(1) |
+| scripts/graphify-coverage.vox | 22 ms | ok | 3758 ms | ok |
+| scripts/graphify-refresh.vox | 23 ms | ok | 727 ms | FAIL(1) |
+| scripts/graphify-study-source.vox | 25 ms | ok | 1542 ms | ok |
+| scripts/gui-build.vox | 25 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/install-hooks.vox | 24 ms | ok | 56 ms | ok |
+| scripts/mens-corpus/harvest.vox | 24 ms | ok | 18 ms | ok |
+| scripts/mens-corpus/harvest_small.vox | 24 ms | ok | 876 ms | ok |
+| scripts/mens-corpus/helpers/jsonl_writer.vox | 22 ms | ok | 19 ms | FAIL(1) |
+| scripts/mens-corpus/helpers/walk_docs.vox | 31 ms | ok | 28 ms | FAIL(1) |
+| scripts/mens-corpus/helpers/walk_sources.vox | 26 ms | ok | 23 ms | FAIL(1) |
+| scripts/mens/_probe.vox | 30 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/mens/full-pipeline.vox | 37 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/mens/gate_safe.vox | 31 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/mens/run_4080_cycles.vox | 35 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/mens/train_dogfood.vox | 34 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/mens/train_resilient.vox | 31 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/mens/train_watch.vox | 27 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/migrate-arrows.vox | 26 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/migrate-corpus.vox | 27 ms | ok | 23 ms | FAIL(1) |
+| scripts/migrations/2026-phase1-contract-headers.vox | 26 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/migrations/2026-phase1-delete-empty-schemas-dir.vox | 25 ms | ok | 20 ms | ok |
+| scripts/migrations/2026-phase1-delete-repo-root-strays.vox | 25 ms | ok | 21 ms | ok |
+| scripts/migrations/2026-phase7-target-cleanup.vox | 23 ms | ok | 18 ms | ok |
+| scripts/orchestrator/model_discover.vox | 26 ms | ok | 623 ms | ok |
+| scripts/orchestrator/scoreboard_rollup.vox | 24 ms | ok | 63 ms | ok |
+| scripts/perf/coverage-report.vox | 23 ms | ok | 74 ms | FAIL(2) |
+| scripts/perf/test-baseline.vox | 26 ms | ok | 20 ms | FAIL(1) |
+| scripts/plugin-candidacy.vox | 23 ms | FAIL | 21 ms | ok |
+| scripts/pre-claim.vox | 23 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/profile-crate-count.vox | 23 ms | FAIL | 18 ms | FAIL(1) |
+| scripts/quality/audit-dependency-layers.vox | 23 ms | ok | 52 ms | FAIL(1) |
+| scripts/quality/audit-telemetry.vox | 34 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/quality/audit-workspace-health.vox | 32 ms | ok | 23 ms | FAIL(1) |
+| scripts/quality/doc-policy-lint.vox | 29 ms | ok | 704 ms | FAIL(1) |
+| scripts/quality/generate-matrix-doc.vox | 26 ms | ok | 27 ms | ok |
+| scripts/render-durable-animation.vox | 25 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/scientia/acceptance-matrix.vox | 23 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/scientia/atlas-draft.vox | 23 ms | ok | 19 ms | ok |
+| scripts/scientia/atlas-publish.vox | 23 ms | ok | 18 ms | ok |
+| scripts/scientia/probe-run.vox | 23 ms | ok | 18 ms | ok |
+| scripts/scientia/profile-rollup.vox | 22 ms | ok | 16 ms | ok |
+| scripts/serve_mens_v1.vox | 22 ms | ok | 18 ms | ok |
+| scripts/setup.vox | 23 ms | ok | 69441 ms | ok |
+| scripts/show/cross-post.vox | 29 ms | ok | 20 ms | FAIL(1) |
+| scripts/show/publish.vox | 27 ms | ok | 19 ms | ok |
+| scripts/show/script.vox | 25 ms | ok | 19 ms | FAIL(1) |
+| scripts/show/title-workshop.vox | 25 ms | ok | 19 ms | FAIL(1) |
+| scripts/show/topic-suggest.vox | 28 ms | ok | 19 ms | FAIL(1) |
+| scripts/smoke-llm.vox | 25 ms | ok | 4562 ms | FAIL(1) |
+| scripts/start-marquee.vox | 28 ms | FAIL | - | SKIPPED (unbounded side effects, see header) |
+| scripts/sync-cursor-skills.vox | 28 ms | ok | 21 ms | ok |
+| scripts/sync-superpowers-skills.vox | 25 ms | ok | 18 ms | ok |
+| scripts/sync_golden_vox.vox | 27 ms | ok | 25 ms | ok |
+| scripts/target-gc.vox | 26 ms | ok | 50 ms | FAIL(1) |
+| scripts/test_for.vox | 26 ms | ok | 17 ms | ok |
+| scripts/test_fs.vox | 26 ms | ok | 18 ms | ok |
+| scripts/test_process_primitives.vox | 24 ms | ok | 19 ms | ok |
+| scripts/test_recursion.vox | 21 ms | ok | 18 ms | ok |
+| scripts/train_local_qwen.vox | 26 ms | ok | - | SKIPPED (unbounded side effects, see header) |
+| scripts/vendor-skills.vox | 37 ms | ok | 3035 ms | ok |
