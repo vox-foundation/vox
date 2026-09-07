@@ -12,30 +12,12 @@ use std::collections::HashMap;
 
 /// Stamp durable call-site ordinals without widening [`HirExpr::Call`].
 ///
-/// `derive_activity_id` hashes `workflow \0 enclosing_fn \0 ordinal \0
-/// iteration` — the callee name is deliberately **not** a hash input,
-/// so it is the ordinal's job alone to keep call sites unique. Two
-/// requirements pull in different directions and both must hold:
-///
-/// 1. **No collisions.** Two different callees at the "same" position in a
-///    function must not receive the same ordinal (they would derive the
-///    same `activity_id` and one could silently replay the other's
-///    result — the bug this function fixes).
-/// 2. **Stable under unrelated edits.** Inserting a call to a *new*
-///    callee anywhere in a function must not change the ordinal already
-///    assigned to an *existing* callee's calls (needed so a deployed
-///    change that adds a step does not rename in-flight activity ids).
-///
-/// A single counter shared across all callees (pure call-order position)
-/// satisfies (1) but not (2): inserting an earlier call shifts every later
-/// ordinal. Restarting the counter per callee (the prior implementation)
-/// satisfies (2) but not (1): every callee's *first* call reuses ordinal 0.
-///
-/// The fix keeps a per-callee local counter (0, 1, 2, ... for repeat calls
-/// to the *same* callee — satisfies (2)) but namespaces it by a hash of the
-/// callee name (satisfies (1)) via [`callee_namespace`]. The namespace
-/// depends only on the callee's own name, so it is unaffected by any other
-/// callee being added, removed, or reordered in the same function.
+/// Counters restart per callee inside each enclosing function (`fresh()`
+/// and `old()` can both be ordinal 0). Distinctness comes from
+/// `derive_activity_id`, which hashes
+/// `workflow \0 enclosing_fn \0 callee \0 ordinal \0 iteration`.
+/// Per-callee counters keep an in-flight `old()` id stable when a new
+/// callee is inserted earlier in the same function.
 pub fn stamp_call_ordinals(hir: &HirModule) -> HashMap<Span, u32> {
     let mut ordinals = HashMap::new();
     for function in &hir.functions {
@@ -47,29 +29,10 @@ pub fn stamp_call_ordinals(hir: &HirModule) -> HashMap<Span, u32> {
     ordinals
 }
 
-/// Deterministic 32-bit hash of a call-site key (a callee name, or a
-/// synthetic key like `"workflow.version"`), used only to keep different
-/// keys' local ordinal counters from overlapping. Not a security
-/// primitive — see [`stamp_call_ordinals`] for why collision-resistance
-/// only needs to be "good enough", the same tolerance `derive_activity_id`
-/// already accepts by truncating BLAKE3 to 128 bits.
-fn callee_namespace(key: &str) -> u32 {
-    // FNV-1a, 32-bit.
-    let mut hash: u32 = 0x811c_9dc5;
-    for byte in key.as_bytes() {
-        hash ^= u32::from(*byte);
-        hash = hash.wrapping_mul(0x0100_0193);
-    }
-    hash
-}
-
-/// Allocate the next ordinal for `key` within one function's `next_by_callee`
-/// side table: namespaced by [`callee_namespace`] so it cannot collide with
-/// another key's ordinals, offset by `key`'s own local call count so repeat
-/// calls to `key` still get distinct, stable-under-unrelated-edits ordinals.
+/// Next per-callee ordinal in one function: 0, 1, 2, … for that key.
 fn next_ordinal(key: &str, next_by_callee: &mut HashMap<String, u32>) -> u32 {
     let local = next_by_callee.entry(key.to_string()).or_default();
-    let ordinal = callee_namespace(key).wrapping_add(*local);
+    let ordinal = *local;
     *local = local.saturating_add(1);
     ordinal
 }
@@ -457,12 +420,10 @@ mod tests {
     }
 
     #[test]
-    fn call_ordinals_are_unique_per_callee_within_a_function() {
-        // Regression: `derive_activity_id` does not hash the callee name, so
-        // two different callees at the "same" ordinal in a function used to
-        // derive the same activity_id (one could silently replay the
-        // other's result). `fresh()` and `old()` here must stamp different
-        // ordinals, and the repeated `old()` call must differ from both.
+    fn call_ordinals_restart_per_callee() {
+        // Distinct callees may share ordinal 0; uniqueness is the callee
+        // name in `derive_activity_id`. Repeat calls to the same callee
+        // still increment.
         const SRC: &str = r#"
 activity old() to int { return 1 }
 activity fresh() to int { return 2 }
@@ -495,39 +456,30 @@ workflow wf() to int {
             .get(&let_spans[0])
             .expect("fresh() ordinal stamped");
         let old_ordinal = *ordinals.get(&let_spans[1]).expect("old() ordinal stamped");
-        assert_ne!(
-            fresh_ordinal, old_ordinal,
-            "two different callees in the same function must not share an ordinal"
-        );
-
-        // `wf` has exactly three call nodes: fresh(), old() (in `let b`), and
-        // old() again (in the `return` expression). All three must stamp
-        // distinct ordinals — no collision between different callees, and a
-        // repeat call to the same callee still gets its own ordinal.
+        assert_eq!(fresh_ordinal, 0, "first fresh() is ordinal 0");
+        assert_eq!(old_ordinal, 0, "first old() is ordinal 0");
         assert_eq!(
             ordinals.len(),
             3,
             "expected 3 stamped call sites: {ordinals:?}"
         );
-        let unique: std::collections::HashSet<u32> = ordinals.values().copied().collect();
+        let values: Vec<u32> = {
+            let mut v: Vec<u32> = ordinals.values().copied().collect();
+            v.sort_unstable();
+            v
+        };
         assert_eq!(
-            unique.len(),
-            3,
-            "all 3 call-site ordinals in `wf` must be pairwise distinct: {ordinals:?}"
+            values,
+            vec![0, 0, 1],
+            "two first-calls at 0, repeat old at 1"
         );
     }
 
     #[test]
     fn call_ordinals_are_stable_when_an_unrelated_callee_is_inserted() {
-        // Regression companion: the per-callee local counter (namespaced so
-        // it cannot collide with another callee, see
-        // `call_ordinals_are_unique_per_callee_within_a_function`) must stay
-        // stable when a call to a *different*, newly-added callee is
-        // inserted earlier in the same function. This is what lets a
-        // deployed code change add a step without renaming an in-flight
-        // activity's id (verified end-to-end by
-        // `inserted_leading_activity_does_not_rename_the_old_id` in
-        // `vox-workflow-runtime`).
+        // Per-callee counters stay stable when a different callee is
+        // inserted earlier. End-to-end:
+        // `inserted_leading_activity_does_not_rename_the_old_id`.
         const V1: &str = r#"
 activity old() to int { return 1 }
 workflow wf() to int { return old() }

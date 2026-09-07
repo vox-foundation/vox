@@ -50,12 +50,8 @@ workflow wf() to int { return first() + second() }
     );
 }
 
-// Regression: `derive_activity_id` hashes `workflow \0 enclosing_fn \0
-// ordinal \0 iteration` — no callee. `stamp_call_ordinals` used to restart
-// its counter per callee, so the first call to *any* callee in a function
-// got ordinal 0. Two different activities called directly in the same
-// function (same iteration) therefore derived the *same* activity_id, and
-// the second call would silently replay the first's result.
+// Distinct callees may share per-callee ordinal 0. The BLAKE3 input
+// includes the callee name so they still get distinct activity ids.
 #[tokio::test]
 async fn distinct_activity_callees_in_the_same_function_get_distinct_ids() {
     const SRC: &str = r#"
@@ -220,13 +216,13 @@ workflow wf() to int {
 }
 
 #[tokio::test]
-async fn duplicate_explicit_activity_id_on_resume_is_an_error() {
+async fn explicit_activity_id_replays_on_resume() {
     const SRC: &str = r#"
 activity step() to int { return 1 }
 workflow wf() to int {
-    let _ = step() with { activity_id: "same-on-resume" }
+    let n = step() with { activity_id: "same-on-resume" }
     workflow_wait_signal("continue")
-    return 0
+    return n
 }
 "#;
     let db = Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("db"));
@@ -241,8 +237,20 @@ workflow wf() to int {
     );
 
     let mut resumed = VoxDbTracker::with_owner(db, "explicit-resume", "resume-owner", 30_000);
-    let err = interpret_workflow_durable(&hir(SRC), "wf", vec![], &mut resumed)
+    let resumed_journal = interpret_workflow_durable(&hir(SRC), "wf", vec![], &mut resumed)
         .await
-        .expect_err("persisted explicit id must be rejected on resume");
-    assert!(format!("{err:#}").contains("same-on-resume"), "got {err:#}");
+        .expect("resume must replay the completed explicit id, then park again");
+    assert!(
+        resumed_journal
+            .iter()
+            .any(|event| event["event"] == "ActivityReplayed"
+                && event["activity_id"] == "same-on-resume"),
+        "expected replay of explicit id, got {resumed_journal:#?}"
+    );
+    assert!(
+        resumed_journal
+            .iter()
+            .any(|event| event["event"] == "WorkflowParked"),
+        "signal still absent, so resume must park: {resumed_journal:#?}"
+    );
 }

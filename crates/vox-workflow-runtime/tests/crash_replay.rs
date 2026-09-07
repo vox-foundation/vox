@@ -35,6 +35,7 @@ const GOLDEN: &str = include_str!(concat!(
 fn derive_activity_id(
     workflow_name: &str,
     enclosing_fn: &str,
+    callee: &str,
     ordinal: u32,
     iteration: &[u32],
 ) -> String {
@@ -42,6 +43,8 @@ fn derive_activity_id(
     hasher.update(workflow_name.as_bytes());
     hasher.update(b"\0");
     hasher.update(enclosing_fn.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(callee.as_bytes());
     hasher.update(b"\0");
     hasher.update(ordinal.to_le_bytes().as_ref());
     for index in iteration {
@@ -69,10 +72,8 @@ async fn workflow_resumes_seeded_activity_from_journal() {
     // resume.
     //
     // The ordinal is computed by the real `stamp_call_ordinals` (not
-    // hardcoded to `0`): ordinals are namespaced per callee so two different
-    // activities never collide (see `vox-compiler`'s
-    // `eval::activity_hook::stamp_call_ordinals` docs), so `charge_card`'s
-    // ordinal is not a small sequential position.
+    // hardcoded): counters restart per callee; the hash also includes
+    // the callee name.
     //
     // The seeded value is a real journal-JSON `Result::Ok` payload (the shape
     // `VoxValue::to_journal_json` actually produces for `charge_card`'s
@@ -99,7 +100,13 @@ async fn workflow_resumes_seeded_activity_from_journal() {
     let charge_card_ordinal = *ordinals
         .get(&charge_card_span)
         .expect("charge_card ordinal must be stamped");
-    let first_charge_id = derive_activity_id("checkout", "checkout", charge_card_ordinal, &[0]);
+    let first_charge_id = derive_activity_id(
+        "checkout",
+        "checkout",
+        "charge_card",
+        charge_card_ordinal,
+        &[0],
+    );
     let seeded_result = json!({"__vox": "Ok", "value": "tx_SEEDED_500"});
 
     tracker

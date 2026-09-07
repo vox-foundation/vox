@@ -26,9 +26,12 @@ fn wall_now_ms() -> i64 {
 }
 
 /// Derive a stable, content-addressed `activity_id` from call-site identity.
+///
+/// BLAKE3 of `workflow \0 enclosing_fn \0 callee \0 ordinal \0 iteration`.
 pub(crate) fn derive_activity_id(
     workflow_name: &str,
     enclosing_fn: &str,
+    callee: &str,
     ordinal: u32,
     iteration: &[u32],
 ) -> String {
@@ -36,6 +39,8 @@ pub(crate) fn derive_activity_id(
     hasher.update(workflow_name.as_bytes());
     hasher.update(b"\0");
     hasher.update(enclosing_fn.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(callee.as_bytes());
     hasher.update(b"\0");
     hasher.update(ordinal.to_le_bytes().as_ref());
     for index in iteration {
@@ -155,11 +160,10 @@ pub async fn interpret_workflow_durable(
 
                 let activity_id = if let Some(explicit_id) = explicit_activity_id(options.as_ref())
                 {
-                    if used_explicit_ids.contains(&explicit_id)
-                        || tracker
-                            .is_activity_recorded(workflow_name, &explicit_id)
-                            .await?
-                    {
+                    // Duplicates are per invocation: the same call site
+                    // replaying after a park must not be rejected just
+                    // because the durable run already recorded the id.
+                    if used_explicit_ids.contains(&explicit_id) {
                         host.respond(HostDecision::Park("duplicate activity_id".into()))?;
                         let _ = host.finish().await;
                         anyhow::bail!("duplicate explicit activity_id `{explicit_id}`");
@@ -167,7 +171,7 @@ pub async fn interpret_workflow_durable(
                     used_explicit_ids.insert(explicit_id.clone());
                     explicit_id
                 } else {
-                    derive_activity_id(workflow_name, &enclosing_fn, ordinal, &iteration)
+                    derive_activity_id(workflow_name, &enclosing_fn, &name, ordinal, &iteration)
                 };
 
                 if tracker
@@ -605,22 +609,22 @@ mod tests {
 
     #[test]
     fn derive_activity_id_is_deterministic() {
-        let id1 = derive_activity_id("my_workflow", "send_email", 0, &[0]);
-        let id2 = derive_activity_id("my_workflow", "send_email", 0, &[0]);
+        let id1 = derive_activity_id("my_workflow", "send_email", "send_email", 0, &[0]);
+        let id2 = derive_activity_id("my_workflow", "send_email", "send_email", 0, &[0]);
         assert_eq!(id1, id2, "same inputs must produce same activity_id");
     }
 
     #[test]
     fn derive_activity_id_differs_by_position() {
-        let id0 = derive_activity_id("wf", "step", 0, &[0]);
-        let id1 = derive_activity_id("wf", "step", 1, &[0]);
+        let id0 = derive_activity_id("wf", "wf", "step", 0, &[0]);
+        let id1 = derive_activity_id("wf", "wf", "step", 1, &[0]);
         assert_ne!(id0, id1, "different positions must produce different ids");
     }
 
     #[test]
     fn derive_activity_id_differs_by_workflow_name() {
-        let id_a = derive_activity_id("workflow_a", "step", 0, &[0]);
-        let id_b = derive_activity_id("workflow_b", "step", 0, &[0]);
+        let id_a = derive_activity_id("workflow_a", "wf", "step", 0, &[0]);
+        let id_b = derive_activity_id("workflow_b", "wf", "step", 0, &[0]);
         assert_ne!(
             id_a, id_b,
             "different workflow names must produce different ids"
@@ -629,21 +633,28 @@ mod tests {
 
     #[test]
     fn derive_activity_id_differs_by_enclosing_function() {
-        let id_a = derive_activity_id("wf", "first_helper", 0, &[0]);
-        let id_b = derive_activity_id("wf", "second_helper", 0, &[0]);
+        let id_a = derive_activity_id("wf", "first_helper", "step", 0, &[0]);
+        let id_b = derive_activity_id("wf", "second_helper", "step", 0, &[0]);
         assert_ne!(id_a, id_b);
     }
 
     #[test]
+    fn derive_activity_id_differs_by_callee() {
+        let id_a = derive_activity_id("wf", "wf", "fresh", 0, &[0]);
+        let id_b = derive_activity_id("wf", "wf", "old", 0, &[0]);
+        assert_ne!(id_a, id_b, "same ordinal, different callee must differ");
+    }
+
+    #[test]
     fn derive_activity_id_differs_by_outer_iteration() {
-        let id_a = derive_activity_id("wf", "helper", 0, &[0, 1]);
-        let id_b = derive_activity_id("wf", "helper", 0, &[1, 1]);
+        let id_a = derive_activity_id("wf", "helper", "step", 0, &[0, 1]);
+        let id_b = derive_activity_id("wf", "helper", "step", 0, &[1, 1]);
         assert_ne!(id_a, id_b);
     }
 
     #[test]
     fn derive_activity_id_is_32_hex_chars() {
-        let id = derive_activity_id("wf", "act", 0, &[0]);
+        let id = derive_activity_id("wf", "wf", "act", 0, &[0]);
         assert_eq!(id.len(), 32, "activity_id must be 32 hex chars");
         assert!(
             id.chars().all(|c| c.is_ascii_hexdigit()),

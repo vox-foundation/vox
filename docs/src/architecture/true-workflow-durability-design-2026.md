@@ -162,9 +162,9 @@ Timer tests use backdate + waker, not a real 5-second sleep. Design gate 4 (wall
 
 Phase 1 may key implicit ids as `blake3(workflow \0 name \0 per-name-counter)` so the body-first runner can ship. Phase 5 replaces that with:
 
-`(enclosing_fn, call_ordinal_from_HirFn_side_table, iteration_index)`
+`blake3(workflow \0 enclosing_fn \0 callee \0 per-callee-ordinal \0 iteration)`
 
-Do not widen the `HirExpr::Call` 4-tuple (G21). Explicit `with { activity_id }` always wins; a duplicate explicit id in one run is an error (today loop iterations silently alias).
+Ordinals restart per callee inside each enclosing function so inserting a leading activity does not rename later ids. Do not widen the `HirExpr::Call` 4-tuple (G21). Explicit `with { activity_id }` always wins; a duplicate explicit id in one invocation is an error. A parked run that already completed that id must replay it.
 
 Completed-run resume policy: **refuse** (the run already has `WorkflowCompleted`). Code-upgrade tests that append a trailing activity must use a run that stopped *before* completion (park or crash), not `ids_for(V1)` which completes.
 
