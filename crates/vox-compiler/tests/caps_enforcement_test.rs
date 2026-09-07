@@ -236,11 +236,14 @@ fn every_fs_method_that_takes_a_path_is_scoped() {
         Ok(c) => c,
         Err(_) => CapabilitySet::from_roots(vec![], vec![inside.clone()], &[]).unwrap(),
     };
+    let inside = std::fs::canonicalize(&inside).unwrap();
+    let outside = std::fs::canonicalize(&outside).unwrap();
+    let ok_txt = inside.join("ok.txt");
     let allowed = run_with(
         caps.clone(),
         &format!(
             r#"pub fn main() {{ return fs.read("{}") }}"#,
-            inside.join("ok.txt").display()
+            ok_txt.display()
         ),
     );
     assert!(
@@ -328,12 +331,18 @@ fn every_fs_method_that_takes_a_path_is_scoped() {
 fn developer_default_relative_write_creates_the_file() {
     let cwd = tempfile::tempdir().unwrap();
     let prev = std::env::current_dir().unwrap();
+    struct CwdGuard(std::path::PathBuf);
+    impl Drop for CwdGuard {
+        fn drop(&mut self) {
+            let _ = std::env::set_current_dir(&self.0);
+        }
+    }
+    let _guard = CwdGuard(prev);
     std::env::set_current_dir(cwd.path()).unwrap();
     let r = run_with(
         CapabilitySet::developer_default(),
         r#"pub fn main() { fs.write("out.txt", "hi"); return fs.read("out.txt") }"#,
     );
-    std::env::set_current_dir(prev).unwrap();
     assert!(
         matches!(r, Ok(VoxValue::Str(ref s)) if s.as_ref() == "hi")
             || matches!(
@@ -350,14 +359,17 @@ fn developer_default_relative_write_creates_the_file() {
 fn glob_filters_results_not_only_the_prefix() {
     let d = tempfile::tempdir().unwrap();
     let job = d.path().join("job");
-    std::fs::create_dir_all(&job).unwrap();
+    std::fs::create_dir_all(job.join("child")).unwrap();
     std::fs::write(job.join("a.txt"), "a").unwrap();
     std::fs::write(d.path().join("secret.txt"), "S").unwrap();
     let caps = match CapabilitySet::parse(&format!("fs:rw={}", job.display())) {
         Ok(c) => c,
         Err(_) => CapabilitySet::from_roots(vec![], vec![job.clone()], &[]).unwrap(),
     };
-    let pat = format!("{}/*/../secret.txt", d.path().display());
+    let job = std::fs::canonicalize(&job).unwrap();
+    // Prefix dir is `job` (inside the grant). `*` matches `child`, then
+    // `../../secret.txt` walks out — only the post-glob filter can drop it.
+    let pat = format!("{}/*/../../secret.txt", job.display());
     let r = run_with(
         caps,
         &format!(
@@ -365,8 +377,8 @@ fn glob_filters_results_not_only_the_prefix() {
         ),
     );
     assert!(
-        matches!(r, Ok(VoxValue::Int(0))) || denied(&r, "fs"),
-        "glob escaped via ..: {r:?}"
+        matches!(r, Ok(VoxValue::Int(0))),
+        "glob escaped via .. (must filter matches, not prefix-deny): {r:?}"
     );
 }
 
@@ -376,24 +388,33 @@ fn unscoped_grant_does_not_canonicalize() {
     // developer_default has no boundary; a missing relative parent must still write.
     let cwd = tempfile::tempdir().unwrap();
     let prev = std::env::current_dir().unwrap();
+    struct CwdGuard(std::path::PathBuf);
+    impl Drop for CwdGuard {
+        fn drop(&mut self) {
+            let _ = std::env::set_current_dir(&self.0);
+        }
+    }
+    let _guard = CwdGuard(prev);
     std::env::set_current_dir(cwd.path()).unwrap();
     let r = run_with(
         CapabilitySet::developer_default(),
         r#"pub fn main() { fs.mkdir("a/b/c"); return fs.exists("a/b/c") }"#,
     );
-    std::env::set_current_dir(prev).unwrap();
     assert!(matches!(r, Ok(VoxValue::Bool(true))), "{r:?}");
 }
 
 #[test]
 fn symlink_escape_is_denied_and_the_op_uses_the_checked_path() {
     let d = tempfile::tempdir().unwrap();
-    let allowed = d.path().join("ok");
+    let allowed = std::fs::canonicalize(d.path()).unwrap().join("ok");
     std::fs::create_dir_all(&allowed).unwrap();
-    std::fs::write(allowed.join("a.txt"), "A").unwrap();
-    std::fs::write(d.path().join("secret.txt"), "S").unwrap();
+    let allowed = std::fs::canonicalize(&allowed).unwrap();
+    let a_txt = allowed.join("a.txt");
+    std::fs::write(&a_txt, "A").unwrap();
+    let secret = std::fs::canonicalize(d.path()).unwrap().join("secret.txt");
+    std::fs::write(&secret, "S").unwrap();
     #[cfg(unix)]
-    std::os::unix::fs::symlink(d.path().join("secret.txt"), allowed.join("link.txt")).unwrap();
+    std::os::unix::fs::symlink(&secret, allowed.join("link.txt")).unwrap();
     let caps = match CapabilitySet::parse(&format!("fs:ro={}", allowed.display())) {
         Ok(c) => c,
         Err(_) => CapabilitySet::from_roots(vec![allowed.clone()], vec![], &[]).unwrap(),
@@ -402,7 +423,7 @@ fn symlink_escape_is_denied_and_the_op_uses_the_checked_path() {
         caps.clone(),
         &format!(
             r#"pub fn main() {{ return fs.read("{}") }}"#,
-            allowed.join("a.txt").display()
+            a_txt.display()
         ),
     );
     assert!(
