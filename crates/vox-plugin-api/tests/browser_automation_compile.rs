@@ -98,6 +98,9 @@ impl BrowserAutomation for DummyBrowser {
     fn ax_tree(&self, _page_id: RStr<'_>) -> RResult<RString, RBoxError> {
         RResult::ROk(RString::from("[]"))
     }
+    fn close(&self, _page_id: RStr<'_>) -> RResult<(), RBoxError> {
+        RResult::ROk(())
+    }
     fn snapshot(&self, _page_id: RStr<'_>, _options_json: RStr<'_>) -> RResult<RString, RBoxError> {
         RResult::ROk(RString::from("{}"))
     }
@@ -130,9 +133,6 @@ impl BrowserAutomation for DummyBrowser {
         _cookies_json: RStr<'_>,
     ) -> RResult<(), RBoxError> {
         RResult::RErr(RBoxError::new(std::io::Error::other("not_implemented")))
-    }
-    fn close(&self, _page_id: RStr<'_>) -> RResult<(), RBoxError> {
-        RResult::ROk(())
     }
 }
 

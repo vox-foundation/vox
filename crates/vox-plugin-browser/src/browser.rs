@@ -312,6 +312,13 @@ impl BrowserAutomation for BrowserPlugin {
         )
     }
 
+    fn close(&self, page_id: RStr<'_>) -> RResult<(), RBoxError> {
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let result = rt().block_on(async move { engine.close(&page_id).await });
+        to_rresult(result)
+    }
+
     fn snapshot(&self, page_id: RStr<'_>, options_json: RStr<'_>) -> RResult<RString, RBoxError> {
         let options = match parse_options::<SnapshotOptionsJson>(options_json.as_str()) {
             Ok(options) => SnapshotOptions::from(options),
@@ -393,12 +400,5 @@ impl BrowserAutomation for BrowserPlugin {
         _cookies_json: RStr<'_>,
     ) -> RResult<(), RBoxError> {
         to_rresult(Err("not_implemented".to_string()))
-    }
-
-    fn close(&self, page_id: RStr<'_>) -> RResult<(), RBoxError> {
-        let engine = self.engine.clone();
-        let page_id = page_id.to_string();
-        let result = rt().block_on(async move { engine.close(&page_id).await });
-        to_rresult(result)
     }
 }

@@ -101,6 +101,9 @@ pub trait BrowserAutomation: Send + Sync {
     /// Full AX tree as a JSON string.
     fn ax_tree(&self, page_id: RStr<'_>) -> RResult<RString, RBoxError>;
 
+    /// Close the tab and release its CDP resources.
+    fn close(&self, page_id: RStr<'_>) -> RResult<(), RBoxError>;
+
     /// Return a compact accessibility snapshot and stable element refs as JSON.
     /// Empty `options_json` uses the default snapshot limits.
     fn snapshot(&self, page_id: RStr<'_>, options_json: RStr<'_>) -> RResult<RString, RBoxError>;
@@ -132,7 +135,4 @@ pub trait BrowserAutomation: Send + Sync {
 
     /// Import cookies for a page from JSON.
     fn cookies_import(&self, page_id: RStr<'_>, cookies_json: RStr<'_>) -> RResult<(), RBoxError>;
-
-    /// Close the tab and release its CDP resources.
-    fn close(&self, page_id: RStr<'_>) -> RResult<(), RBoxError>;
 }
