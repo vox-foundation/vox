@@ -27,6 +27,7 @@ vi.mock('../../../transport', () => ({
 }));
 
 import { Loquela } from './Loquela';
+import { MODEL_LIST_LIMIT } from '../../../config/constants';
 
 function renderLoquela(over: Partial<React.ComponentProps<typeof Loquela>> = {}) {
   return render(
@@ -401,18 +402,27 @@ describe('Loquela', () => {
   });
 
   it('keeps search outside the model list scroller and lists 25 catalog rows', async () => {
-    mockListModels.mockResolvedValue(
-      Array.from({ length: 25 }, (_, i) => ({
-        id: i === 24 ? 'mens/e2e-smoke-metal' : `openrouter/vendor/model-${i}`,
-        provider_type: i === 24 ? 'mens' : 'openrouter',
-      })),
-    );
+    const catalog = Array.from({ length: 25 }, (_, i) => ({
+      id: i === 24 ? 'mens/e2e-smoke-metal' : `openrouter/vendor/model-${i}`,
+      provider_type: i === 24 ? 'VoxLocal' : 'OpenRouter',
+    }));
+    // Honor the requested limit so a too-small cap (the old 24) would drop
+    // the late mens row instead of the mock silently returning the full set.
+    mockListModels.mockImplementation((limit?: unknown) => {
+      const cap = typeof limit === 'number' ? limit : 0;
+      return Promise.resolve(catalog.slice(0, cap));
+    });
     renderLoquela();
+    await waitFor(() => {
+      expect(mockListModels).toHaveBeenCalledWith(MODEL_LIST_LIMIT);
+    });
+    expect(MODEL_LIST_LIMIT).toBe(2000);
     fireEvent.click(screen.getByRole('button', { name: /choose model tier/i }));
     const search = await screen.findByRole('searchbox', { name: /search models/i });
     const scroller = screen.getByTestId('model-picker-scroll');
     expect(scroller.contains(search)).toBe(false);
     expect(search.parentElement?.className).toMatch(/sticky/);
+    expect(search.parentElement?.className).not.toMatch(/bg-zinc-/);
     expect(scroller.className).toMatch(/overflow-y-auto/);
     expect(scroller.className).toMatch(/max-h-/);
     expect(screen.getByText('mens/e2e-smoke-metal')).toBeInTheDocument();
