@@ -223,6 +223,7 @@ impl PersistentDaemon {
         let child = quiet_command(daemon_bin)
             .env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
             .env("VOX_ORCHESTRATOR_DAEMON_TOKEN", &spawned_token)
+            .env("VOX_MCP_CALLER_ROLE", "human")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
