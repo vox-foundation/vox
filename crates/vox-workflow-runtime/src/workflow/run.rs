@@ -303,7 +303,12 @@ pub async fn interpret_workflow_durable(
                     host.respond(HostDecision::Ack)?;
                     continue;
                 }
-                let wake_at_ms = now_ms.saturating_add(deadline_ms.max(0));
+                // Resume of a not-yet-due timer must keep the original
+                // deadline. Recomputing `now + deadline` clobbers it.
+                let wake_at_ms = match tracker.persisted_wake_at_ms().await? {
+                    Some(existing) if existing > now_ms => existing,
+                    _ => now_ms.saturating_add(deadline_ms.max(0)),
+                };
                 tracker.park_timer(wake_at_ms).await?;
                 journal.push(versioned_event(json!({
                     "event": "TimerScheduled",

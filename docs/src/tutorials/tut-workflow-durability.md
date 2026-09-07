@@ -10,23 +10,21 @@ schema_type: "HowTo"
 ---
 # Tutorial: Workflow Durability
 
-> [!WARNING]
-> **Known limits as of 2026-09-06.** The interpreted runner does not yet execute
-> local activity bodies — a non-mesh activity records a fixed
-> `{"event":"LocalActivity","status":"executed"}` payload instead of your
-> function's return value. `workflow_wait` sleeps in-process rather than
-> scheduling a durable wake. `workflow_wait_signal` fails the run when the
-> signal is absent instead of parking it. `HirExpr::With` and
-> `HirExpr::WorkflowVersion` error in the interpreter (`PARITY_UNIMPLEMENTED`).
-> Workflows built with `vox build` use an in-memory tracker, so a crash
-> replays from zero. Tracked in
-> [True workflow durability](../architecture/true-workflow-durability-design-2026.md);
-> remove this banner as each phase lands.
+> [!NOTE]
+> **What is true as of Phase 6.** Activity bodies run and journal real
+> results. `workflow_wait` parks with a persisted wake time;
+> `workflow_wait_signal` parks until the signal arrives. `with { }` and
+> `workflow.version` work. `vox build` generated wrappers use the same
+> `VoxDbTracker` engine as `vox mens workflow run`. Interp is Stable for
+> the body-first subset. Nested workflows and mesh / `PopuliActivity` are
+> unsupported (loud error). See
+> [True workflow durability](../architecture/true-workflow-durability-design-2026.md).
 
-Learn how to build resilient, long-running processes using Vox workflows. This tutorial explains the durability story Vox supports today: interpreted workflow step replay, stable activity ids, and idempotent activities.
+Learn how to build resilient, long-running processes using Vox workflows. This tutorial explains the durability story Vox supports today: interpreted workflow replay, stable activity ids, and idempotent activities.
 
-> [!WARNING]
-> Interpreted workflow runtime durability and generated-Rust workflow durability are different things. The durable replay and recovery story shown here uses the interpreted path (`vox mens workflow ...`), not compiled native async functions.
+> [!NOTE]
+> `vox mens workflow ...` and generated Rust wrappers share one engine.
+> Nested workflow calls and mesh / `PopuliActivity` remain out of subset.
 
 ## 1. The Challenge of Long-Running Tasks
 

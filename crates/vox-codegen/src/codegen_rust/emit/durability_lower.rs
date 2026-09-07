@@ -102,6 +102,18 @@ fn emit_workflow_body(func: &HirFn) -> String {
          \x20       println!(\"{}\", ::serde_json::to_string(&__vox_journal).expect(\"vox durable workflow: serialize journal\"));\n\
          \x20   }\n",
     );
+    // A parked journal has no WorkflowCompleted. Do not expect a terminal
+    // return — that panics. Exit 0 so a later resume with the same
+    // `VOX_WORKFLOW_RUN_ID` can continue. No `?` here: `to int` wrappers
+    // are not Result functions.
+    out.push_str(
+        "    let __vox_completed = __vox_journal.iter().rev().any(|__e| {\n\
+         \x20       __e.get(\"event\").and_then(::serde_json::Value::as_str) == Some(\"WorkflowCompleted\")\n\
+         \x20   });\n\
+         \x20   if !__vox_completed {\n\
+         \x20       ::std::process::exit(0);\n\
+         \x20   }\n",
+    );
     if let Some(ret) = &func.return_type {
         out.push_str(&format!(
             "    ::vox_workflow_runtime::workflow::extract_terminal_return::<{ty}>(&__vox_journal).expect(\"vox durable workflow: extract_terminal_return\")\n",

@@ -286,6 +286,21 @@ impl crate::VoxDb {
         row.get(0).map_err(|e| StoreError::Db(e.to_string()))
     }
 
+    /// Return the persisted timer deadline for a workflow run, if any.
+    pub async fn workflow_run_wake_at_ms(&self, run_id: &str) -> Result<Option<i64>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT wake_at_ms FROM workflow_run_log WHERE run_id = ?1",
+                (run_id.to_string(),),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(None);
+        };
+        row.get(0).map_err(|e| StoreError::Db(e.to_string()))
+    }
+
     /// Set a workflow timer deadline directly for deterministic integration tests.
     pub async fn workflow_run_backdate_wake_at_ms(
         &self,
@@ -1109,6 +1124,29 @@ mod tests {
         assert_eq!(
             db.workflow_activity_ids("run-1", "old").await.expect("ids"),
             vec!["old-1"]
+        );
+    }
+
+    #[tokio::test]
+    async fn workflow_run_wake_at_ms_reads_persisted_deadline() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        assert_eq!(
+            db.workflow_run_wake_at_ms("missing")
+                .await
+                .expect("missing run"),
+            None
+        );
+        db.record_workflow_run_started("timer-read", "wf", 0)
+            .await
+            .expect("start");
+        db.park_workflow_run_timer("timer-read", 1_700_000_000_000)
+            .await
+            .expect("park");
+        assert_eq!(
+            db.workflow_run_wake_at_ms("timer-read")
+                .await
+                .expect("read"),
+            Some(1_700_000_000_000)
         );
     }
 

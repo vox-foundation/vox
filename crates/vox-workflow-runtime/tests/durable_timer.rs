@@ -64,3 +64,58 @@ workflow delayed(n: int) to int {
         .unwrap();
     assert_eq!(done["return_value"], json!(5));
 }
+
+#[tokio::test]
+async fn early_resume_preserves_persisted_wake_at_ms() {
+    const SRC: &str = r#"
+activity after(n: int) to int { return n + 1 }
+workflow delayed(n: int) to int {
+    workflow_wait(3_600_000)
+    return after(n)
+}
+"#;
+    let hir = lower_module(&parse(lex(SRC)).expect("parses"));
+    let db = Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("db"));
+    let mut tracker = VoxDbTracker::new(db.clone(), "timer-early");
+    let first = interpret_workflow_durable(&hir, "delayed", vec![json!(4)], &mut tracker)
+        .await
+        .expect("first park is not a failure");
+    let first_wake = first
+        .iter()
+        .find(|e| e["event"] == "TimerScheduled")
+        .and_then(|e| e["wake_at_ms"].as_i64())
+        .expect("first park must record wake_at_ms");
+    let persisted = db
+        .workflow_run_wake_at_ms("timer-early")
+        .await
+        .expect("read wake_at_ms");
+    assert_eq!(persisted, Some(first_wake));
+
+    // Wall clock must advance so a naive `now + deadline` rewrite cannot
+    // accidentally match the original millisecond.
+    tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+
+    let mut resume = VoxDbTracker::new(db.clone(), "timer-early");
+    let second = interpret_workflow_durable(&hir, "delayed", vec![], &mut resume)
+        .await
+        .expect("early resume must re-park, not fail");
+    assert!(
+        second
+            .iter()
+            .any(|e| e["event"] == "WorkflowParked" || e["event"] == "TimerScheduled"),
+        "early resume must park again; got {second:#?}"
+    );
+    assert!(
+        second.iter().all(|e| e["event"] != "WorkflowCompleted"),
+        "timer is not due; must not complete; got {second:#?}"
+    );
+    let persisted_after = db
+        .workflow_run_wake_at_ms("timer-early")
+        .await
+        .expect("read wake_at_ms after resume");
+    assert_eq!(
+        persisted_after,
+        Some(first_wake),
+        "early resume must not recompute now+deadline"
+    );
+}

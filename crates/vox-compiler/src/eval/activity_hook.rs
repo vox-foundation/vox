@@ -350,13 +350,12 @@ pub(crate) fn dispatch_activity(
             HostDecision::Replay(value) => Ok(value),
             HostDecision::Park(reason) => Err(EvalError::WorkflowParked(reason)),
             HostDecision::Execute => {
-                restore_hook(interp, hook.take().expect("hook is present"));
+                // Leave the hook unset for the body. A nested `activity`
+                // call must not emit Begin/End while `current_attempt`
+                // still names this parent.
                 let result = match interp.call(name, args.clone()) {
                     Ok(v) => v,
                     Err(e) => {
-                        hook = Some(take_hook(interp).ok_or_else(|| {
-                            EvalError::Panic("activity hook lost during body execution".into())
-                        })?);
                         let failed =
                             matches!(&e, EvalError::Panic(_) | EvalError::AssertionFailed(_));
                         let _ = hook.as_mut().expect("hook is present")(HostCall::End {
@@ -367,9 +366,6 @@ pub(crate) fn dispatch_activity(
                         return Err(e);
                     }
                 };
-                hook = Some(take_hook(interp).ok_or_else(|| {
-                    EvalError::Panic("activity hook lost during body execution".into())
-                })?);
                 let failed = matches!(&result, VoxValue::_Panic(_));
                 match hook.as_mut().expect("hook is present")(HostCall::End {
                     name: name.to_string(),
@@ -810,6 +806,49 @@ workflow wf(amount: int) to int {
             .call("wf", vec![VoxValue::Int(1)])
             .expect_err("wait must park");
         assert!(matches!(err, crate::eval::EvalError::WorkflowParked(ref r) if r == "timer"));
+    }
+
+    #[test]
+    fn nested_activity_call_does_not_reenter_durable_intercept() {
+        const SRC: &str = r#"
+activity inner() to int { return 2 }
+activity outer() to int { return inner() }
+workflow wf() to int { return outer() }
+"#;
+        let (mut interp, activities) = interp_for(SRC);
+        interp.activity_names = activities;
+        let begins = Rc::new(RefCell::new(Vec::<String>::new()));
+        let ends = Rc::new(RefCell::new(Vec::<String>::new()));
+        let begins_c = begins.clone();
+        let ends_c = ends.clone();
+        interp.activity_hook = Some(Box::new(move |call| {
+            match &call {
+                HostCall::Begin { name, .. } => begins_c.borrow_mut().push(name.clone()),
+                HostCall::End { name, .. } => ends_c.borrow_mut().push(name.clone()),
+                _ => {}
+            }
+            Ok(match call {
+                HostCall::Begin { .. } => HostDecision::Execute,
+                _ => HostDecision::Ack,
+            })
+        }));
+        let out = interp
+            .call("wf", vec![])
+            .expect("inner activity must run as an ordinary call");
+        assert!(
+            matches!(out, VoxValue::Int(2)),
+            "inner must still execute; got {out:?}"
+        );
+        assert_eq!(
+            *begins.borrow(),
+            vec!["outer".to_string()],
+            "activity body must not emit a nested Begin"
+        );
+        assert_eq!(
+            *ends.borrow(),
+            vec!["outer".to_string()],
+            "inner activity must not swap current_attempt / emit End"
+        );
     }
 
     #[test]

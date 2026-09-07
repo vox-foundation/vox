@@ -53,13 +53,13 @@ Between 2026-05-01 and 2026-05-23, the implementation work was completed:
 
 1. Retain `@durable`, `@scheduled`, `workflow`, `activity`, and `actor` as
    public grammar features.
-2. The durable **interpreted** runtime is **Preview** until
-   [true-workflow-durability-design-2026.md](../architecture/true-workflow-durability-design-2026.md)
-   Phase 1 lands (activity bodies actually run). After Phase 1 it is Stable
-   for the body-first subset. Generated-Rust durability remains **Preview**
-   until Phase 6 emits `VoxDbTracker`, `__vox_run_workflow`, and the real
-   ADR-021 compile gate. Existing crash-replay tests prove tracker skip of
-   canned rows, not user-body execution.
+2. The durable **interpreted** runtime is **Stable** for the body-first
+   subset (`if` / `match` / `for` / `while` / `?`). Generated-Rust
+   durability uses the same engine (`VoxDbTracker`, `__vox_run_workflow`,
+   ADR-021 compile gate) and is no longer Preview-until-Phase-6. Mesh /
+   `PopuliActivity` and nested workflow calls remain out of scope (loud
+   unsupported error, not a silent drop). See
+   [true-workflow-durability-design-2026.md](../architecture/true-workflow-durability-design-2026.md).
 3. Out-of-subset for **generated** Rust may stay linear. Interpreted
    `match` / loops are in-scope under the determinism lint. Mesh /
    `PopuliActivity` is out of the 2026-09-06 body-first plan (loud

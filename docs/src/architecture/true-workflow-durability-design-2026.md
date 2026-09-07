@@ -2,7 +2,7 @@
 title: "True workflow durability: corrected design"
 description: "Audit-corrected design for making Vox workflow replay real — execute the workflow body in the interpreter, intercept activity and host-builtin calls, journal real results."
 category: "Architecture SSOTs"
-status: "planned"
+status: "current"
 training_eligible: true
 training_rationale: "Normative design for the durable workflow engine; agents must follow the intercept surface, journal encoding, and lease rules rather than the superseded 2026-09-05 plan."
 ---

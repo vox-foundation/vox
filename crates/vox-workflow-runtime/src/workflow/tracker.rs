@@ -209,6 +209,16 @@ pub trait WorkflowTracker: Send + Sync {
         async { Ok(false) }
     }
 
+    /// Persisted timer deadline for this run, if a wake is still outstanding.
+    ///
+    /// Used on `Wait` replay: a future `wake_at_ms` must be re-parked as-is,
+    /// not recomputed as `now + deadline`. Default: no persisted deadline.
+    fn persisted_wake_at_ms(
+        &self,
+    ) -> impl std::future::Future<Output = anyhow::Result<Option<i64>>> + Send {
+        async { Ok(None) }
+    }
+
     /// Park the current workflow run until the absolute wall-clock deadline.
     fn park_timer(
         &mut self,
