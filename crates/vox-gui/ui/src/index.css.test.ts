@@ -56,3 +56,30 @@ describe('ds-section-head (B7: migrated from ds/components.css so it actually lo
   });
 });
 
+describe('theme leftovers (dock chrome + range thumb)', () => {
+  const dockCss = readFileSync(resolve(__dirname, './styles/dockview-vox.css'), 'utf8');
+
+  it('tokenizes dockview tab foreground (no zinc-100 rgb)', () => {
+    expect(dockCss).not.toContain('rgb(244, 244, 245)');
+  });
+
+  it('tokenizes vox-range thumb (no hardcoded white)', () => {
+    const start = css.indexOf('@utility vox-range');
+    expect(start).toBeGreaterThan(-1);
+    const next = css.indexOf('@utility', start + 1);
+    const body = css.slice(start, next === -1 ? undefined : next);
+    expect(body).not.toContain('background: #fff');
+  });
+});
+
+describe('overline (theme: rule under the text, never a Latin cap above)', () => {
+  it('redefines Tailwind overline as an underline with offset', () => {
+    const start = css.indexOf('@utility overline');
+    expect(start).toBeGreaterThan(-1);
+    const body = css.slice(start, css.indexOf('}', start));
+    expect(body).toContain('text-decoration-line: underline');
+    expect(body).toContain('text-underline-offset');
+    expect(body).not.toContain('text-decoration-line: overline');
+  });
+});
+

@@ -118,7 +118,7 @@
     appearance: none;
     width: 12px;
     height: 12px;
-    background: #fff;
+    background: var(--color-text-primary);
     border: 2px solid rgb(var(--brass));
     border-radius: 50%;
     cursor: pointer;
@@ -130,6 +130,26 @@
   /* Roman ornament utilities */
   height: 1px;
   background: linear-gradient(90deg, rgb(var(--brass)), rgb(var(--brass) / 0));
+}
+
+/* Latin inscriptions cap a word with a rule above it (`overline`). Axis
+   metrics put the rule UNDER the figure, with room to breathe — override
+   Tailwind's `overline` so every label that used the old convention follows
+   the theme instead of being patched one component at a time. */
+@utility overline {
+  text-decoration-line: underline;
+  text-underline-offset: 0.4em;
+  text-decoration-thickness: 1px;
+  text-decoration-color: currentcolor;
+}
+
+@utility vox-metric-rule {
+  display: block;
+  height: 2px;
+  margin-top: 0.5rem;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.55;
 }
 
 @utility vox-tick {
