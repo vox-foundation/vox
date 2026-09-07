@@ -74,6 +74,62 @@ fn workflow_emit_references_all_phase_1_workflow_symbols() {
     );
 }
 
+/// Task 6.1 review: generated wrappers must use the same DB resolution as
+/// `emit_durable_boot_prelude` — always `DbConfig::resolve_canonical()`, never
+/// a CWD `vox-workflow-debug.db` fallback when `VOX_DB_*` is unset. The
+/// ADR-021 gate already sets `VOX_DB_PATH` for isolation.
+#[test]
+fn workflow_emit_uses_canonical_db_resolution() {
+    let src = "workflow wf() to int { return 7 }";
+    let module = parse(lex(src)).expect("parse");
+    let hir = lower_module(&module);
+    let func = hir
+        .functions
+        .iter()
+        .find(|f| f.durability == Some(DurabilityKind::Workflow))
+        .expect("workflow lowered");
+    let rust = emit_fn(func, Some(&hir.inferred_types), &[]);
+
+    assert!(
+        rust.contains("DbConfig::resolve_canonical"),
+        "workflow emit MUST resolve DB via DbConfig::resolve_canonical (same as durable boot); got:\n{rust}"
+    );
+    assert!(
+        !rust.contains("vox-workflow-debug.db"),
+        "workflow emit must NOT fall back to CWD vox-workflow-debug.db; got:\n{rust}"
+    );
+    assert!(
+        !rust.contains("DbConfig::local"),
+        "workflow emit must NOT use DbConfig::local; got:\n{rust}"
+    );
+}
+
+/// Task 6.1 review: `emit_fn` keeps `-> i64` for `workflow wf() to int`.
+/// The body must not use `?` — that is only valid in a `Result` function.
+/// Failures use expect/match so the generated signature still matches the
+/// Vox type.
+#[test]
+fn workflow_to_int_wrapper_has_no_try_operator() {
+    let src = "workflow wf() to int { return 7 }";
+    let module = parse(lex(src)).expect("parse");
+    let hir = lower_module(&module);
+    let func = hir
+        .functions
+        .iter()
+        .find(|f| f.durability == Some(DurabilityKind::Workflow))
+        .expect("workflow lowered");
+    let rust = emit_fn(func, Some(&hir.inferred_types), &[]);
+
+    assert!(
+        rust.contains("async fn wf() -> i64"),
+        "to int wrapper must keep the Vox return type (i64), not Result; got:\n{rust}"
+    );
+    assert!(
+        !rust.contains('?'),
+        "to int wrapper must not use ? (invalid in a non-Result fn); got:\n{rust}"
+    );
+}
+
 /// Task 6.1: activities are invoked by the workflow interpreter via
 /// `HostRequest::Begin` / `HostDecision::Execute`|`Replay` — the
 /// interpreter's `WorkflowTracker` (`VoxDbTracker` in the generated path)

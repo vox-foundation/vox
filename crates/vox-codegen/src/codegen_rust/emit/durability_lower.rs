@@ -43,34 +43,18 @@ pub(super) fn emit_durable_body(
     }
 }
 
-/// Resolve + connect the durable `VoxDb` for debug/CLI dispatch paths
-/// (`emit_workflow_body`, `__vox_run_workflow_dispatch_one`). Unlike the
-/// long-running Axum/Tauri boot path (`main_boot::emit_durable_boot_prelude`),
-/// which intentionally persists to the user's global data dir across process
-/// restarts, these are one-shot debug invocations (`vox run` / a script's
-/// `VOX_RUN_WORKFLOW` dispatch) — defaulting them to that same global
-/// `~/.local/share/vox/vox.db`-style path would let unrelated scripts on one
-/// machine silently collide on `VOX_WORKFLOW_RUN_ID` (observed: the ADR-021
-/// gate's `generated_binary_journal_matches_interpreter` hard-codes a run id
-/// and must be re-runnable — with `resolve_canonical()`'s global fallback, a
-/// second local run saw "run already completed" from the *previous* test
-/// run's row). When the caller sets an explicit `VOX_DB_URL` / `VOX_DB_TOKEN`
-/// / `VOX_DB_PATH`, honor it via `resolve_canonical()` (remote, or an
-/// explicit local path); otherwise fall back to a file relative to the
-/// process's own CWD, scoping each debug invocation to wherever it runs from.
+/// Resolve + connect the durable `VoxDb` for generated workflow wrappers.
+/// Same resolution as `main_boot::emit_durable_boot_prelude`: always
+/// `DbConfig::resolve_canonical()` (honors `VOX_DB_*`, else the user-global
+/// file). Isolation is the caller's job — the ADR-021 gate already sets
+/// `VOX_DB_PATH`.
 fn emit_vox_db_connect_snippet() -> &'static str {
-    "    let __vox_db_cfg = if ::std::env::var(\"VOX_DB_URL\").is_ok()\n\
-     \x20       || ::std::env::var(\"VOX_DB_TOKEN\").is_ok()\n\
-     \x20       || ::std::env::var(\"VOX_DB_PATH\").is_ok()\n\
-     \x20   {\n\
-     \x20       ::vox_db::DbConfig::resolve_canonical().map_err(|e| e.to_string())?\n\
-     \x20   } else {\n\
-     \x20       ::vox_db::DbConfig::local(\"vox-workflow-debug.db\")\n\
-     \x20   };\n\
+    "    let __vox_db_cfg = ::vox_db::DbConfig::resolve_canonical()\n\
+     \x20       .expect(\"vox durable workflow: resolve VoxDb config (VOX_DB_URL+TOKEN, or VOX_DB_PATH)\");\n\
      \x20   let __vox_db = ::std::sync::Arc::new(\n\
      \x20       ::vox_db::VoxDb::connect(__vox_db_cfg)\n\
      \x20           .await\n\
-     \x20           .map_err(|e| e.to_string())?,\n\
+     \x20           .expect(\"vox durable workflow: connect VoxDb\"),\n\
      \x20   );\n"
 }
 
@@ -109,22 +93,20 @@ fn emit_workflow_body(func: &HirFn) -> String {
     }
     out.push_str("];\n");
     out.push_str(&format!(
-        "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", __vox_args, &mut __vox_tracker).await.map_err(|e| e.to_string())?;\n"
+        "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", __vox_args, &mut __vox_tracker).await.expect(\"vox durable workflow: interpret_workflow_durable\");\n"
     ));
     // ADR-021: `VOX_RUN_WORKFLOW` debug dispatch calls this generated wrapper
     // and expects the journal JSON on stdout (see `tests/adr021_parity.rs`).
     out.push_str(
         "    if ::std::env::var(\"VOX_RUN_WORKFLOW\").is_ok() {\n\
-         \x20       println!(\"{}\", ::serde_json::to_string(&__vox_journal).map_err(|e| e.to_string())?);\n\
+         \x20       println!(\"{}\", ::serde_json::to_string(&__vox_journal).expect(\"vox durable workflow: serialize journal\"));\n\
          \x20   }\n",
     );
     if let Some(ret) = &func.return_type {
         out.push_str(&format!(
-            "    ::vox_workflow_runtime::workflow::extract_terminal_return::<{ty}>(&__vox_journal).map_err(|e| e.to_string())?\n",
+            "    ::vox_workflow_runtime::workflow::extract_terminal_return::<{ty}>(&__vox_journal).expect(\"vox durable workflow: extract_terminal_return\")\n",
             ty = emit_type(ret),
         ));
-    } else {
-        out.push_str("    Ok(())\n");
     }
     out
 }
