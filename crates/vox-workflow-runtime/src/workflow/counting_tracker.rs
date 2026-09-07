@@ -1,17 +1,18 @@
 //! Fault-injecting tracker wrapper for crash-window tests.
 
 use std::future::Future;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::anyhow;
 use serde_json::Value;
 
 use super::tracker::WorkflowTracker;
 
-/// Wraps a tracker and fails after a configured number of successful write calls.
+/// Wraps a tracker and fails after a configured number of successful calls.
 pub struct CountingTracker<T> {
     inner: T,
     fail_after: usize,
-    calls: usize,
+    calls: AtomicUsize,
 }
 
 impl<T> CountingTracker<T> {
@@ -20,13 +21,13 @@ impl<T> CountingTracker<T> {
         Self {
             inner,
             fail_after,
-            calls: 0,
+            calls: AtomicUsize::new(0),
         }
     }
 
-    fn bump(&mut self) -> anyhow::Result<()> {
-        self.calls += 1;
-        if self.calls > self.fail_after {
+    fn bump(&self) -> anyhow::Result<()> {
+        let calls = self.calls.fetch_add(1, Ordering::Relaxed) + 1;
+        if calls > self.fail_after {
             return Err(anyhow!(
                 "CountingTracker crash after {} calls",
                 self.fail_after
@@ -42,7 +43,13 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
         workflow_name: &str,
         activity_id: &str,
     ) -> impl Future<Output = anyhow::Result<bool>> + Send {
-        self.inner.is_activity_completed(workflow_name, activity_id)
+        let bump = self.bump();
+        async move {
+            bump?;
+            self.inner
+                .is_activity_completed(workflow_name, activity_id)
+                .await
+        }
     }
 
     fn load_activity_result(
@@ -50,7 +57,13 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
         workflow_name: &str,
         activity_id: &str,
     ) -> impl Future<Output = anyhow::Result<Option<Value>>> + Send {
-        self.inner.load_activity_result(workflow_name, activity_id)
+        let bump = self.bump();
+        async move {
+            bump?;
+            self.inner
+                .load_activity_result(workflow_name, activity_id)
+                .await
+        }
     }
 
     fn on_workflow_started(
@@ -89,8 +102,13 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
         activity_id: &str,
         attempt: u32,
     ) -> impl Future<Output = anyhow::Result<()>> + Send {
-        self.inner
-            .on_activity_attempt_started(workflow_name, activity_name, activity_id, attempt)
+        let bump = self.bump();
+        async move {
+            bump?;
+            self.inner
+                .on_activity_attempt_started(workflow_name, activity_name, activity_id, attempt)
+                .await
+        }
     }
 
     fn on_activity_attempt_failed(
@@ -101,13 +119,19 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
         attempt: u32,
         error: &str,
     ) -> impl Future<Output = anyhow::Result<()>> + Send {
-        self.inner.on_activity_attempt_failed(
-            workflow_name,
-            activity_name,
-            activity_id,
-            attempt,
-            error,
-        )
+        let bump = self.bump();
+        async move {
+            bump?;
+            self.inner
+                .on_activity_attempt_failed(
+                    workflow_name,
+                    activity_name,
+                    activity_id,
+                    attempt,
+                    error,
+                )
+                .await
+        }
     }
 
     fn on_activity_attempt_completed(
@@ -117,8 +141,13 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
         activity_id: &str,
         attempt: u32,
     ) -> impl Future<Output = anyhow::Result<()>> + Send {
-        self.inner
-            .on_activity_attempt_completed(workflow_name, activity_name, activity_id, attempt)
+        let bump = self.bump();
+        async move {
+            bump?;
+            self.inner
+                .on_activity_attempt_completed(workflow_name, activity_name, activity_id, attempt)
+                .await
+        }
     }
 
     fn next_activity_attempt_start(
@@ -127,8 +156,13 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
         activity_name: &str,
         activity_id: &str,
     ) -> impl Future<Output = anyhow::Result<u32>> + Send {
-        self.inner
-            .next_activity_attempt_start(workflow_name, activity_name, activity_id)
+        let bump = self.bump();
+        async move {
+            bump?;
+            self.inner
+                .next_activity_attempt_start(workflow_name, activity_name, activity_id)
+                .await
+        }
     }
 
     fn on_activity_completed(
@@ -163,7 +197,13 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
         workflow_name: &str,
         change_id: &str,
     ) -> impl Future<Output = anyhow::Result<Option<u32>>> + Send {
-        self.inner.load_workflow_patch(workflow_name, change_id)
+        let bump = self.bump();
+        async move {
+            bump?;
+            self.inner
+                .load_workflow_patch(workflow_name, change_id)
+                .await
+        }
     }
 
     fn record_workflow_patch(
@@ -187,8 +227,13 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
         arg_hash_hex: &str,
         now_unix_ms: u64,
     ) -> impl Future<Output = anyhow::Result<Option<Value>>> + Send {
-        self.inner
-            .load_cached_activity_result(activity_id, arg_hash_hex, now_unix_ms)
+        let bump = self.bump();
+        async move {
+            bump?;
+            self.inner
+                .load_cached_activity_result(activity_id, arg_hash_hex, now_unix_ms)
+                .await
+        }
     }
 
     fn record_cached_activity_result(
@@ -226,7 +271,11 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
     }
 
     fn load_run_args(&self) -> impl Future<Output = anyhow::Result<Option<Value>>> + Send {
-        self.inner.load_run_args()
+        let bump = self.bump();
+        async move {
+            bump?;
+            self.inner.load_run_args().await
+        }
     }
 }
 
@@ -236,7 +285,7 @@ mod tests {
     use crate::workflow::DefaultTracker;
 
     #[tokio::test]
-    async fn fails_after_configured_successful_write_calls() {
+    async fn fails_after_configured_successful_calls() {
         let mut tracker = CountingTracker::new(DefaultTracker, 1);
         tracker
             .on_workflow_started("pair", 0)
@@ -247,5 +296,15 @@ mod tests {
             .await
             .expect_err("second write crashes");
         assert_eq!(error.to_string(), "CountingTracker crash after 1 calls");
+    }
+
+    #[tokio::test]
+    async fn read_hooks_count_toward_the_crash_threshold() {
+        let tracker = CountingTracker::new(DefaultTracker, 0);
+        let error = tracker
+            .is_activity_completed("pair", "activity-1")
+            .await
+            .expect_err("first read crashes");
+        assert_eq!(error.to_string(), "CountingTracker crash after 0 calls");
     }
 }

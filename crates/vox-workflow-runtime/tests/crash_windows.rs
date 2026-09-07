@@ -14,6 +14,27 @@ fn hir(src: &str) -> vox_compiler::hir::HirModule {
     lower_module(&parse(lex(src)).expect("parses"))
 }
 
+async fn expire_lease(db: &VoxDb, run_id: &str) {
+    db.connection()
+        .execute(
+            "UPDATE workflow_run_log \
+             SET lease_until_ms = 0, lease_owner = NULL \
+             WHERE run_id = ?1",
+            (run_id.to_string(),),
+        )
+        .await
+        .expect("expire workflow lease");
+    db.connection()
+        .execute(
+            "UPDATE workflow_activity_attempt_log \
+             SET lease_until_ms = 0 \
+             WHERE run_id = ?1 AND status = 'started'",
+            (run_id.to_string(),),
+        )
+        .await
+        .expect("expire activity attempt lease");
+}
+
 const SRC: &str = r#"
 @uses(fs)
 fn write_file(path: str, contents: str) {
@@ -43,9 +64,9 @@ async fn window_a_kill_after_first_completed() {
     let dir = tmp.path().to_string_lossy().to_string();
     let db = Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("db"));
     let inner = VoxDbTracker::new(db.clone(), "crash-a");
-    // fail_after counts tracker calls; tune so the first on_activity_completed
-    // succeeds and the next tracker call (second start) faults.
-    let mut tracker = CountingTracker::new(inner, /* fail_after */ 4);
+    // Calls 1-9 persist through the first on_activity_completed; call 10 is
+    // the second activity's is_activity_completed read and faults.
+    let mut tracker = CountingTracker::new(inner, /* fail_after */ 9);
     let first =
         interpret_workflow_durable(&hir(SRC), "pair", vec![json!(dir.clone())], &mut tracker).await;
     assert!(first.is_err(), "must crash after activity 1 completed");
@@ -56,8 +77,8 @@ async fn window_a_kill_after_first_completed() {
         "activity 2 must not have run"
     );
 
-    let mut resume = VoxDbTracker::new(db, "crash-a");
-    resume.expire_lease_for_test().await.expect("expire");
+    expire_lease(&db, "crash-a").await;
+    let mut resume = VoxDbTracker::new(db.clone(), "crash-a");
     let journal = interpret_workflow_durable(&hir(SRC), "pair", vec![json!(dir)], &mut resume)
         .await
         .expect("resume");
@@ -72,6 +93,33 @@ async fn window_a_kill_after_first_completed() {
     let two = std::fs::read_to_string(tmp.path().join("two.txt")).expect("two ran");
     assert_eq!(two, "two");
     assert!(journal.iter().any(|e| e["event"] == "WorkflowCompleted"));
+    let write_two_id = journal
+        .iter()
+        .find(|e| e["event"] == "ActivityCompleted" && e["activity"] == "write_two")
+        .and_then(|e| e["activity_id"].as_str())
+        .expect("write_two completion has activity id");
+    let mut completed = db
+        .connection()
+        .query(
+            "SELECT 1 FROM workflow_activity_attempt_log \
+             WHERE run_id = ?1 AND workflow_name = ?2 AND activity_id = ?3 \
+             AND status = 'completed'",
+            (
+                "crash-a".to_string(),
+                "pair".to_string(),
+                write_two_id.to_string(),
+            ),
+        )
+        .await
+        .expect("query completed attempt");
+    assert!(
+        completed
+            .next()
+            .await
+            .expect("read completed attempt")
+            .is_some(),
+        "successful attempt must be completed"
+    );
 }
 
 #[tokio::test]
@@ -80,14 +128,15 @@ async fn window_b_started_without_completed_retries() {
     let dir = tmp.path().to_string_lossy().to_string();
     let db = Arc::new(VoxDb::connect(DbConfig::Memory).await.expect("db"));
     let inner = VoxDbTracker::new(db.clone(), "crash-b");
-    // fail_after tuned so on_activity_started persists and the body/completion faults.
-    let mut tracker = CountingTracker::new(inner, /* fail_after */ 3);
+    // Calls 1-7 persist the first attempt start; call 8 faults while recording
+    // its successful attempt completion, leaving started-without-completed.
+    let mut tracker = CountingTracker::new(inner, /* fail_after */ 7);
     let first =
         interpret_workflow_durable(&hir(SRC), "pair", vec![json!(dir.clone())], &mut tracker).await;
     assert!(first.is_err());
 
+    expire_lease(&db, "crash-b").await;
     let mut resume = VoxDbTracker::new(db, "crash-b");
-    resume.expire_lease_for_test().await.expect("expire");
     let journal = interpret_workflow_durable(&hir(SRC), "pair", vec![json!(dir)], &mut resume)
         .await
         .expect("retry");

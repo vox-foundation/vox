@@ -107,6 +107,7 @@ pub async fn interpret_workflow_durable(
         "steps": 0,
     }))];
     let mut position: usize = 0;
+    let mut current_attempt: Option<(String, String, u32)> = None;
 
     while let Some(req) = host.next().await {
         match req {
@@ -177,6 +178,7 @@ pub async fn interpret_workflow_durable(
                     tracker
                         .on_activity_attempt_started(workflow_name, &name, &activity_id, attempt)
                         .await?;
+                    current_attempt = Some((name.clone(), activity_id.clone(), attempt));
                     journal.push(versioned_event(json!({
                         "event": "ActivityStarted",
                         "workflow": workflow_name,
@@ -199,18 +201,30 @@ pub async fn interpret_workflow_durable(
                 // respond — the thread is blocked on `blocking_recv()` — and
                 // we record the failure for observability before it does.
                 let _ = result;
-                let activity_id =
-                    derive_activity_id(workflow_name, &name, position.saturating_sub(1));
+                let (started_name, activity_id, attempt) = current_attempt
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("activity `{name}` ended without an attempt"))?;
+                if started_name != name {
+                    anyhow::bail!(
+                        "activity `{name}` ended while attempt for `{started_name}` was active"
+                    );
+                }
                 let error_msg = format!("activity `{name}` panicked during execution");
                 tracker
-                    .on_activity_attempt_failed(workflow_name, &name, &activity_id, 1, &error_msg)
+                    .on_activity_attempt_failed(
+                        workflow_name,
+                        &name,
+                        &activity_id,
+                        attempt,
+                        &error_msg,
+                    )
                     .await?;
                 journal.push(versioned_event(json!({
                     "event": "ActivityAttemptFailed",
                     "workflow": workflow_name,
                     "activity": name,
                     "activity_id": activity_id,
-                    "attempt": 1,
+                    "attempt": attempt,
                     "max_attempts": 1,
                     "error": error_msg,
                 })));
@@ -224,8 +238,17 @@ pub async fn interpret_workflow_durable(
                 // `Result::Err` reaches here too (`failed` is false — see
                 // `activity_hook::result_err_is_not_failed`): it is a value,
                 // not a runner failure, and flows to `?` like any other Ok.
-                let activity_id =
-                    derive_activity_id(workflow_name, &name, position.saturating_sub(1));
+                let (started_name, activity_id, attempt) = current_attempt
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("activity `{name}` ended without an attempt"))?;
+                if started_name != name {
+                    anyhow::bail!(
+                        "activity `{name}` ended while attempt for `{started_name}` was active"
+                    );
+                }
+                tracker
+                    .on_activity_attempt_completed(workflow_name, &name, &activity_id, attempt)
+                    .await?;
                 tracker
                     .on_activity_completed(workflow_name, &name, &activity_id, &result)
                     .await?;
