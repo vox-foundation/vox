@@ -13,6 +13,15 @@ import {
   LOQUELA_FILE_PICKER_LIMIT,
   LOQUELA_TIER_MODEL_COUNT,
 } from '../../../config/constants';
+import {
+  filterPickerModels,
+  isRoutingTierId,
+  normalizeModelCard,
+  shortModelLabel,
+  type PickerModel,
+  type ProviderStatus,
+} from '../../../lib/modelPicker';
+import { ModelPickerSearch } from '../Chat/ModelPickerSearch';
 import type { ActiveSkill, CatalogEntry, ChatPayload, Toast } from '../../../types/tauri';
 import {
   formatSessionBudget,
@@ -44,10 +53,17 @@ const LQ_MODES = [
 // Cost is `null` (unknown) — real per-1k pricing is injected from listModels()
 // once available. We never display a fabricated price.
 const LQ_TIERS = [
+  { id: "auto", label: "Auto · Router", detail: "tier-router decides", cost: null, lat: null },
   { id: "local", label: "Local · Mens", detail: "loading models…", cost: null, lat: null },
   { id: "mesh", label: "Mesh · Peers", detail: "peers", cost: null, lat: null },
   { id: "cloud", label: "Cloud · Cascade", detail: "cloud tier", cost: null, lat: null },
-  { id: "auto", label: "Auto · Router", detail: "tier-router decides", cost: null, lat: null },
+];
+
+const ROUTING_TIERS = [
+  { id: "auto", label: "Auto · Router", detail: "live routing summary", cost: null, lat: null },
+  { id: "local", label: "Local · Mens", detail: "on-device / VOX_LOCAL", cost: null, lat: null },
+  { id: "mesh", label: "Mesh · Peers", detail: "peers", cost: null, lat: null },
+  { id: "cloud", label: "Cloud · Cascade", detail: "cloud tier", cost: null, lat: null },
 ];
 
 interface ChipData {
@@ -139,6 +155,10 @@ interface LoquelaProps {
    * model state.
    */
   trailingSlot?: React.ReactNode;
+  /** Lift a concrete model pick into App `chatModelOverride`. */
+  onModelPick?: (modelId: string | null) => void;
+  /** Current App-level override so "Run on" stays in sync with ChatModelPicker. */
+  selectedModelId?: string | null;
 }
 
 export function Loquela({
@@ -161,12 +181,14 @@ export function Loquela({
   currentAgent,
   onResume,
   trailingSlot,
+  onModelPick,
+  selectedModelId = null,
 }: LoquelaProps) {
   const embedded = useIsEmbeddedSurface();
   const [text, setText] = useState("");
   const [mode, setMode] = useState("act");
   const [tier, setTier] = useState("auto");
-  const [dryRun, setDryRun] = useState(false);
+  const [tierQuery, setTierQuery] = useState('');
   const [control, setControl] = useState<ControlState>(defaultControl);
   // True once the user has manually changed clutch/risk via DriveConsole —
   // guards the mount-time fetch below from clobbering that choice if it
@@ -271,29 +293,31 @@ export function Loquela({
   // Refresh the model/tier list on focus + every 60s so it never goes stale (C2).
   useEffect(() => {
     let cancelled = false;
-    let firstLoad = true;
     const loadTiers = () => {
-      voxTransport.listModels(LOQUELA_TIER_MODEL_COUNT).then((models: any) => {
+      Promise.all([
+        voxTransport.listModels(LOQUELA_TIER_MODEL_COUNT),
+        invoke<ProviderStatus[]>('inference_provider_status').catch(() => []),
+      ]).then(([models, statuses]) => {
         if (cancelled || !Array.isArray(models) || models.length === 0) return;
-        const dynamic = models.slice(0, 4).map((m: any, idx: number) => {
-          const perK = typeof m.cost_per_1k === 'number' ? m.cost_per_1k : null;
-          return {
-            id: m.model_id ?? `model-${idx}`,
-            label: m.display_name ?? m.model_id ?? `Model ${idx + 1}`,
-            detail: m.provider ?? 'runtime',
-            cost: perK,
-            lat: null,
-          };
-        });
-        setRuntimeTiers([
-          ...dynamic,
-          { id: 'auto', label: 'Auto · Router', detail: 'live routing summary', cost: null, lat: null },
-        ]);
-        if (firstLoad) {
-          firstLoad = false;
-          if (!dynamic.some((d: any) => d.id === tier) && tier !== 'auto') {
-            setTier(dynamic[0]?.id ?? 'auto');
-          }
+        const statusRows = Array.isArray(statuses) ? statuses : [];
+        const available = filterPickerModels(
+          models
+            .map((m: { id?: string; model_id?: string; display_name?: string; provider?: string; provider_type?: string }) =>
+              normalizeModelCard(m),
+            )
+            .filter((m): m is PickerModel => m != null),
+          statusRows,
+        );
+        const dynamic = available.map(m => ({
+          id: m.id,
+          label: m.label,
+          detail: m.providerType || m.provider || 'runtime',
+          cost: null as number | null,
+          lat: null as number | null,
+        }));
+        setRuntimeTiers([...ROUTING_TIERS, ...dynamic]);
+        if (!isRoutingTierId(tier) && !dynamic.some(d => d.id === tier)) {
+          setTier('auto');
         }
       }).catch(() => {});
     };
@@ -326,7 +350,24 @@ export function Loquela({
   const showAtPopover = atOpen && (filteredAt.length > 0 || showFileSuggestions || fileSuggestionsLoading);
 
   const tokens = Math.ceil(text.length / 4) + chips.length * 80;
-  const tierObj = runtimeTiers.find(t => t.id === tier) || runtimeTiers[runtimeTiers.length - 1];
+  const effectiveTierId =
+    selectedModelId && !isRoutingTierId(selectedModelId) ? selectedModelId : tier;
+  const tierObj =
+    runtimeTiers.find(t => t.id === effectiveTierId) ||
+    runtimeTiers.find(t => t.id === 'auto') ||
+    runtimeTiers[runtimeTiers.length - 1];
+  const visibleTiers = runtimeTiers.filter(t => {
+    const q = tierQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      t.id.toLowerCase().includes(q) ||
+      t.label.toLowerCase().includes(q) ||
+      (t.detail ?? '').toLowerCase().includes(q)
+    );
+  });
+  const triggerLabel = isRoutingTierId(tierObj.id)
+    ? tierObj.label.split(' · ')[0]
+    : shortModelLabel(tierObj.id);
   const estCost =
     tierObj?.cost == null ? null : (tokens / 1000) * tierObj.cost;
 
@@ -488,13 +529,15 @@ export function Loquela({
         return;
       }
     }
+    const pickedModel = isRoutingTierId(tier) ? null : tier;
     const payload = {
       description: composeDescription(text, intent),
       priority: effortToPriority(intent.effort),
       active_skill: activeSkill?.id,
       mode,
-      tier,
-      dry_run: dryRun,
+      tier: isRoutingTierId(tier) ? tier : 'auto',
+      model_override: pickedModel,
+      dry_run: false,
       clutch: control.clutch,
       risk: control.risk,
       context: chips.map(c => ({ kind: c.kind, ref: c.label })),
@@ -650,14 +693,14 @@ export function Loquela({
               className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)/0.6)]" : "border-white/5 bg-white/2 text-zinc-600 cursor-not-allowed"}`}
             >
               <Icon.send className="size-3.5" />
-              {dryRun ? "Dry-run" : "Run"}
+              Run
               <kbd className="rounded-sm border border-current px-1 text-[9px] opacity-75">⌘↵</kbd>
             </button>
           )}
         </div>
 
         {intentOpen && (
-          <IntentPanel intent={intent} onChange={(p) => setIntent((i) => ({ ...i, ...p }))} />
+          <IntentPanel intent={intent} onChange={(p) => setIntent((i) => ({ ...i, ...p }))} showEffort={executionMode === 'task'} />
         )}
 
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-[10px]">
@@ -721,19 +764,30 @@ export function Loquela({
           </button>
 
           <div className="relative">
-            <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); setModeOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
-              <Icon.cpu className="size-3 text-cyan-300" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{tierObj.label.split(" · ")[0]}</span>
+            <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); setModeOpen(false); if (!tierOpen) setTierQuery(''); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
+              <Icon.cpu className="size-3 text-cyan-300" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{triggerLabel}</span>
               <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
             </button>
             <Popover open={tierOpen}>
-              {runtimeTiers.map(t => (
-                <button type="button" key={t.id} onClick={() => { setTier(t.id); setTierOpen(false); }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${tier === t.id ? "bg-overlay-subtle" : ""}`}>
-                  <div className="flex-1">
-                    <div className="text-[11px] text-text-primary">{t.label}</div>
-                    <div className="font-mono text-[9px] text-text-muted">{t.detail}</div>
-                  </div>
-                </button>
-              ))}
+              <div className="w-[min(22rem,80vw)] max-h-72 overflow-y-auto custom-scrollbar">
+                <ModelPickerSearch value={tierQuery} onChange={setTierQuery} />
+                {visibleTiers.map(t => (
+                  <button type="button" key={t.id} onClick={() => {
+                    setTier(t.id);
+                    setTierOpen(false);
+                    setTierQuery('');
+                    onModelPick?.(isRoutingTierId(t.id) ? null : t.id);
+                  }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${effectiveTierId === t.id ? "bg-overlay-subtle" : ""}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] text-text-primary truncate">{isRoutingTierId(t.id) ? t.label : t.id}</div>
+                      <div className="font-mono text-[9px] text-text-muted truncate">{t.detail}</div>
+                    </div>
+                  </button>
+                ))}
+                {visibleTiers.length === 0 && (
+                  <div className="px-2 py-1.5 font-mono text-[10px] text-text-muted">No keyed models match</div>
+                )}
+              </div>
             </Popover>
           </div>
 
@@ -775,6 +829,14 @@ export function Loquela({
             </Popover>
           </div>
 
+          {executionMode === 'task' && (
+            <span
+              aria-label="Interaction mode"
+              className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary"
+            >
+              {mode === 'verify' ? 'Verify' : 'Act'}
+            </span>
+          )}
 
           {(estCost != null || sessionBudget || trailingSlot != null) && (
             <div className="ml-auto flex items-center gap-2">
