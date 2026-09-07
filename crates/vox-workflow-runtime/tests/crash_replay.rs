@@ -32,13 +32,20 @@ const GOLDEN: &str = include_str!(concat!(
 /// algorithm is locked in by `derive_activity_id_is_deterministic` + the 32-hex
 /// shape test inside that module; this copy must stay in sync. If those unit
 /// tests change, update here too.
-fn derive_activity_id(workflow_name: &str, activity_name: &str, position: usize) -> String {
+fn derive_activity_id(
+    workflow_name: &str,
+    activity_name: &str,
+    ordinal: u32,
+    iteration: u32,
+) -> String {
     let mut hasher = blake3::Hasher::new();
     hasher.update(workflow_name.as_bytes());
     hasher.update(b"\0");
     hasher.update(activity_name.as_bytes());
     hasher.update(b"\0");
-    hasher.update(position.to_le_bytes().as_ref());
+    hasher.update(ordinal.to_le_bytes().as_ref());
+    hasher.update(b"\0");
+    hasher.update(iteration.to_le_bytes().as_ref());
     let hash = hasher.finalize();
     let bytes = &hash.as_bytes()[..16];
     bytes.iter().map(|b| format!("{b:02x}")).collect()
@@ -64,7 +71,7 @@ async fn workflow_resumes_seeded_activity_from_journal() {
     // `charge_card(500)` call would produce (`"tx_500"`), so a passing test
     // proves replay happened rather than coincidentally matching a fresh
     // execution.
-    let first_charge_id = derive_activity_id("checkout", "charge_card", 0);
+    let first_charge_id = derive_activity_id("checkout", "charge_card", 0, 0);
     let seeded_result = json!({"__vox": "Ok", "value": "tx_SEEDED_500"});
 
     tracker

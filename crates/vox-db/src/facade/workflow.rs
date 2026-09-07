@@ -69,6 +69,28 @@ impl crate::VoxDb {
         Ok(!row.is_empty())
     }
 
+    /// Return activity ids recorded for one named activity in a workflow run.
+    pub async fn workflow_activity_ids(
+        &self,
+        run_id: &str,
+        activity_name: &str,
+    ) -> Result<Vec<String>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT DISTINCT activity_id FROM workflow_activity_log
+                 WHERE run_id = ?1 AND activity_name = ?2
+                 ORDER BY recorded_at_ms, activity_id",
+                (run_id.to_string(), activity_name.to_string()),
+            )
+            .await?;
+        let mut ids = Vec::new();
+        while let Some(row) = rows.next().await? {
+            ids.push(row.get(0).map_err(|e| StoreError::Db(e.to_string()))?);
+        }
+        Ok(ids)
+    }
+
     /// Load the stored result payload for a completed activity in the specified workflow run.
     pub async fn load_workflow_activity_result(
         &self,
@@ -202,6 +224,24 @@ impl crate::VoxDb {
             )));
         };
         row.get(0).map_err(|e| StoreError::Db(e.to_string()))
+    }
+
+    /// Return the current status for a workflow run, or `None` for a new run id.
+    pub async fn workflow_run_status_optional(
+        &self,
+        run_id: &str,
+    ) -> Result<Option<String>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT status FROM workflow_run_log WHERE run_id = ?1",
+                (run_id.to_string(),),
+            )
+            .await?;
+        rows.next()
+            .await?
+            .map(|row| row.get(0).map_err(|e| StoreError::Db(e.to_string())))
+            .transpose()
     }
 
     /// Return the current lease owner for a workflow run.
@@ -942,6 +982,43 @@ impl crate::VoxDb {
 mod tests {
     use crate::{DbConfig, VoxDb};
     use serde_json::json;
+
+    #[tokio::test]
+    async fn workflow_activity_ids_filters_by_run_and_name() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        db.record_workflow_activity_started("run-1", "wf", "old", "old-1")
+            .await
+            .expect("record old");
+        db.record_workflow_activity_started("run-1", "wf", "fresh", "fresh-1")
+            .await
+            .expect("record fresh");
+
+        assert_eq!(
+            db.workflow_activity_ids("run-1", "old").await.expect("ids"),
+            vec!["old-1"]
+        );
+    }
+
+    #[tokio::test]
+    async fn workflow_run_status_optional_distinguishes_new_and_existing_runs() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        assert_eq!(
+            db.workflow_run_status_optional("new")
+                .await
+                .expect("status"),
+            None
+        );
+        db.record_workflow_run_started("existing", "wf", 0)
+            .await
+            .expect("start");
+        assert_eq!(
+            db.workflow_run_status_optional("existing")
+                .await
+                .expect("status")
+                .as_deref(),
+            Some("running")
+        );
+    }
 
     #[tokio::test]
     async fn consume_or_park_signal_handles_both_atomic_outcomes() {

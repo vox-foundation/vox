@@ -5,7 +5,9 @@ use serde_json::Value;
 use std::mem::ManuallyDrop;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use vox_compiler::eval::Interpreter;
-use vox_compiler::eval::activity_hook::{HostCall, HostDecision as InterpDecision};
+use vox_compiler::eval::activity_hook::{
+    HostCall, HostDecision as InterpDecision, stamp_call_ordinals,
+};
 use vox_compiler::eval::value::VoxValue;
 use vox_compiler::hir::HirModule;
 use vox_compiler::hir::nodes::DurabilityKind;
@@ -23,6 +25,10 @@ pub enum HostRequest {
         args: Vec<Value>,
         /// Optional journal-JSON activity options.
         options: Option<Value>,
+        /// Lexical ordinal of this call site within its function and callee.
+        ordinal: u32,
+        /// Zero-based iteration index for a call executed in a loop.
+        iteration: u32,
     },
     /// Ends an executed activity call.
     End {
@@ -196,6 +202,7 @@ fn run_on_thread(
     mut resp_rx: UnboundedReceiver<HostDecision>,
 ) -> HostOutcome {
     let mut interp = Interpreter::new(WORKFLOW_STEP_LIMIT);
+    interp.call_ordinals = stamp_call_ordinals(&hir);
     if let Err(e) = interp.run_module(&hir) {
         return HostOutcome::Failed(format!("loading module: {e:?}"));
     }
@@ -207,10 +214,15 @@ fn run_on_thread(
                 name,
                 args,
                 options,
+                ordinal,
+                iteration,
+                ..
             } => HostRequest::Begin {
                 name: name.clone(),
                 args: args.iter().map(VoxValue::to_journal_json).collect(),
                 options: options.as_ref().map(VoxValue::to_journal_json),
+                ordinal: *ordinal,
+                iteration: *iteration,
             },
             HostCall::End {
                 name,

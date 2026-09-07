@@ -175,6 +175,13 @@ pub trait WorkflowTracker: Send + Sync {
         async { Ok(None) }
     }
 
+    /// Return the current durable run status, or `None` for a new/non-durable run.
+    fn run_status(
+        &self,
+    ) -> impl std::future::Future<Output = anyhow::Result<Option<String>>> + Send {
+        async { Ok(None) }
+    }
+
     /// Return whether a previously parked timer is now ready, consuming its
     /// persisted wake marker when it is.
     fn consume_ready_timer(

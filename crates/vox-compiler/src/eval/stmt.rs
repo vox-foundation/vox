@@ -274,6 +274,7 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
         HirStmt::While {
             condition, body, ..
         } => {
+            let mut iteration = 0;
             loop {
                 let c = super::expr::eval_expr(interp, condition)?;
                 if let VoxValue::Bool(b) = c {
@@ -287,43 +288,56 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
                     });
                 }
                 interp.scope.push_frame();
+                interp.iteration_stack.push(iteration);
                 for s in body {
                     let v = eval_stmt(interp, s)?;
                     match v {
                         VoxValue::_Break => {
+                            interp.iteration_stack.pop();
                             interp.scope.pop_frame();
                             return Ok(VoxValue::Null);
                         }
                         VoxValue::_Continue => break,
                         VoxValue::_Return(r) => {
+                            interp.iteration_stack.pop();
                             interp.scope.pop_frame();
                             return Ok(VoxValue::_Return(r));
                         }
                         _ => {}
                     }
                 }
+                interp.iteration_stack.pop();
                 interp.scope.pop_frame();
+                iteration = iteration.saturating_add(1);
             }
             Ok(VoxValue::Null)
         }
-        HirStmt::Loop { body, .. } => loop {
-            interp.scope.push_frame();
-            for s in body {
-                let v = eval_stmt(interp, s)?;
-                match v {
-                    VoxValue::_Break => {
-                        interp.scope.pop_frame();
-                        return Ok(VoxValue::Null);
+        HirStmt::Loop { body, .. } => {
+            let mut iteration = 0;
+            loop {
+                interp.scope.push_frame();
+                interp.iteration_stack.push(iteration);
+                for s in body {
+                    let v = eval_stmt(interp, s)?;
+                    match v {
+                        VoxValue::_Break => {
+                            interp.iteration_stack.pop();
+                            interp.scope.pop_frame();
+                            return Ok(VoxValue::Null);
+                        }
+                        VoxValue::_Continue => break,
+                        VoxValue::_Return(r) => {
+                            interp.iteration_stack.pop();
+                            interp.scope.pop_frame();
+                            return Ok(VoxValue::_Return(r));
+                        }
+                        _ => {}
                     }
-                    VoxValue::_Continue => break,
-                    VoxValue::_Return(r) => {
-                        interp.scope.pop_frame();
-                        return Ok(VoxValue::_Return(r));
-                    }
-                    _ => {}
                 }
+                interp.iteration_stack.pop();
+                interp.scope.pop_frame();
+                iteration = iteration.saturating_add(1);
             }
-            interp.scope.pop_frame();
-        },
+        }
     }
 }

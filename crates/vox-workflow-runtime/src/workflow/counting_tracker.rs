@@ -277,6 +277,10 @@ impl<T: WorkflowTracker> WorkflowTracker for CountingTracker<T> {
             self.inner.load_run_args().await
         }
     }
+
+    fn run_status(&self) -> impl Future<Output = anyhow::Result<Option<String>>> + Send {
+        self.inner.run_status()
+    }
 }
 
 #[cfg(test)]

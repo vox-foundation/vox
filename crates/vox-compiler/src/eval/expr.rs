@@ -398,7 +398,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 is_traced: false,
             })
         }
-        HirExpr::Call(callee, args, _, _) => {
+        HirExpr::Call(callee, args, _, span) => {
             let mut eval_args = Vec::new();
             for a in args {
                 eval_args.push(eval_expr(interp, &a.value)?);
@@ -448,7 +448,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             } = c
                 && interp.activity_names.contains(fn_name)
             {
-                return super::activity_hook::dispatch_activity(interp, fn_name, eval_args);
+                return super::activity_hook::dispatch_activity(interp, fn_name, eval_args, *span);
             }
             if let VoxValue::Fn {
                 name: ref fn_name, ..
@@ -730,7 +730,9 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 if let Some(idx_name) = index {
                     interp.scope.set(idx_name.clone(), VoxValue::Int(i as i64));
                 }
+                interp.iteration_stack.push(i as u32);
                 let val = eval_expr(interp, body)?;
+                interp.iteration_stack.pop();
                 match val {
                     // Propagate early-exit signals out of the for loop.
                     VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Panic(_) => {

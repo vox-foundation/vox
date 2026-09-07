@@ -25,22 +25,21 @@ fn wall_now_ms() -> i64 {
         .as_millis() as i64
 }
 
-/// Derive a stable, content-addressed `activity_id` from structural inputs.
-///
-/// The id is a BLAKE3 hex digest of `"{workflow_name}\0{activity_name}\0{position}"`,
-/// truncated to 32 hex chars for readability. This is deterministic across replays as
-/// long as the workflow topology (activity order and names) does not change.
+/// Derive a stable, content-addressed `activity_id` from call-site identity.
 pub(crate) fn derive_activity_id(
     workflow_name: &str,
-    activity_name: &str,
-    position: usize,
+    enclosing_fn: &str,
+    ordinal: u32,
+    iteration: u32,
 ) -> String {
     let mut hasher = blake3::Hasher::new();
     hasher.update(workflow_name.as_bytes());
     hasher.update(b"\0");
-    hasher.update(activity_name.as_bytes());
+    hasher.update(enclosing_fn.as_bytes());
     hasher.update(b"\0");
-    hasher.update(position.to_le_bytes().as_ref());
+    hasher.update(ordinal.to_le_bytes().as_ref());
+    hasher.update(b"\0");
+    hasher.update(iteration.to_le_bytes().as_ref());
     let hash = hasher.finalize();
     // 16 bytes → 32 lowercase hex chars: unique enough for a workflow's activity set.
     let bytes = &hash.as_bytes()[..16];
@@ -68,6 +67,10 @@ pub async fn interpret_workflow_durable(
     args: Vec<Value>,
     tracker: &mut impl WorkflowTracker,
 ) -> anyhow::Result<Vec<Value>> {
+    if tracker.run_status().await?.as_deref() == Some("completed") {
+        anyhow::bail!("run already completed");
+    }
+
     let stored_args = tracker.load_run_args().await?;
     let (effective_args, persist_args) = match stored_args {
         Some(stored) => {
@@ -113,8 +116,8 @@ pub async fn interpret_workflow_durable(
         "workflow": workflow_name,
         "steps": 0,
     }))];
-    let mut position: usize = 0;
     let mut current_attempt: Option<(String, String, u32)> = None;
+    let mut used_explicit_ids = std::collections::HashSet::new();
 
     while let Some(req) = host.next().await {
         match req {
@@ -127,7 +130,13 @@ pub async fn interpret_workflow_durable(
                     .await?;
                 host.respond(HostDecision::Ack)?;
             }
-            HostRequest::Begin { name, options, .. } => {
+            HostRequest::Begin {
+                name,
+                options,
+                ordinal,
+                iteration,
+                ..
+            } => {
                 // G18: mesh / PopuliActivity is a loud error in the body-first
                 // runner, not a silent local execution. Park unblocks the
                 // interpreter thread (which is waiting on this exact
@@ -141,12 +150,17 @@ pub async fn interpret_workflow_durable(
                     );
                 }
 
-                // Phase 1: honor explicit `with { activity_id: "…" }` values
-                // is deferred — Phase 5 also adds duplicate-id detection.
-                let _explicit_id = explicit_activity_id(options.as_ref());
-
-                let activity_id = derive_activity_id(workflow_name, &name, position);
-                position += 1;
+                let activity_id = if let Some(explicit_id) = explicit_activity_id(options.as_ref())
+                {
+                    if !used_explicit_ids.insert(explicit_id.clone()) {
+                        host.respond(HostDecision::Park("duplicate activity_id".into()))?;
+                        let _ = host.finish().await;
+                        anyhow::bail!("duplicate explicit activity_id `{explicit_id}`");
+                    }
+                    explicit_id
+                } else {
+                    derive_activity_id(workflow_name, &name, ordinal, iteration)
+                };
 
                 if tracker
                     .is_activity_completed(workflow_name, &activity_id)
@@ -583,22 +597,22 @@ mod tests {
 
     #[test]
     fn derive_activity_id_is_deterministic() {
-        let id1 = derive_activity_id("my_workflow", "send_email", 0);
-        let id2 = derive_activity_id("my_workflow", "send_email", 0);
+        let id1 = derive_activity_id("my_workflow", "send_email", 0, 0);
+        let id2 = derive_activity_id("my_workflow", "send_email", 0, 0);
         assert_eq!(id1, id2, "same inputs must produce same activity_id");
     }
 
     #[test]
     fn derive_activity_id_differs_by_position() {
-        let id0 = derive_activity_id("wf", "step", 0);
-        let id1 = derive_activity_id("wf", "step", 1);
+        let id0 = derive_activity_id("wf", "step", 0, 0);
+        let id1 = derive_activity_id("wf", "step", 1, 0);
         assert_ne!(id0, id1, "different positions must produce different ids");
     }
 
     #[test]
     fn derive_activity_id_differs_by_workflow_name() {
-        let id_a = derive_activity_id("workflow_a", "step", 0);
-        let id_b = derive_activity_id("workflow_b", "step", 0);
+        let id_a = derive_activity_id("workflow_a", "step", 0, 0);
+        let id_b = derive_activity_id("workflow_b", "step", 0, 0);
         assert_ne!(
             id_a, id_b,
             "different workflow names must produce different ids"
@@ -607,7 +621,7 @@ mod tests {
 
     #[test]
     fn derive_activity_id_is_32_hex_chars() {
-        let id = derive_activity_id("wf", "act", 0);
+        let id = derive_activity_id("wf", "act", 0, 0);
         assert_eq!(id.len(), 32, "activity_id must be 32 hex chars");
         assert!(
             id.chars().all(|c| c.is_ascii_hexdigit()),

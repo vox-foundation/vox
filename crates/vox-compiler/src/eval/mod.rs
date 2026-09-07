@@ -57,6 +57,9 @@ pub struct Interpreter {
     pub activity_names: std::collections::HashSet<String>,
     pub workflow_names: std::collections::HashSet<String>,
     pub activity_hook: Option<crate::eval::activity_hook::ActivityHook>,
+    /// Durable call-site ordinals installed from the loaded HIR.
+    pub call_ordinals: std::collections::HashMap<crate::ast::span::Span, u32>,
+    pub(crate) iteration_stack: Vec<u32>,
     /// Stack of `with { }` option objects; the innermost is attached to Begin.
     pub with_options: Vec<crate::eval::value::VoxValue>,
 }
@@ -260,6 +263,8 @@ impl Interpreter {
             activity_names: std::collections::HashSet::new(),
             workflow_names: std::collections::HashSet::new(),
             activity_hook: None,
+            call_ordinals: std::collections::HashMap::new(),
+            iteration_stack: Vec::new(),
             with_options: Vec::new(),
         }
     }

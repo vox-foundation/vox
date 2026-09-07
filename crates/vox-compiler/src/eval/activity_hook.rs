@@ -4,8 +4,200 @@
 //! (`HirExpr::WorkflowVersion`), and host builtins (`workflow_wait` /
 //! `workflow_wait_signal`). `with { }` stashes options for the next Begin.
 
+use crate::ast::span::Span;
 use crate::eval::value::VoxValue;
 use crate::eval::{EvalError, Interpreter};
+use crate::hir::nodes::{HirExpr, HirModule, HirStmt};
+use std::collections::HashMap;
+
+/// Stamp durable call-site ordinals without widening [`HirExpr::Call`].
+///
+/// Ordinals restart for each function and callee, so inserting a call to a
+/// different activity does not rename an existing activity's identity.
+pub fn stamp_call_ordinals(hir: &HirModule) -> HashMap<Span, u32> {
+    let mut ordinals = HashMap::new();
+    for function in &hir.functions {
+        let mut next_by_callee = HashMap::<String, u32>::new();
+        for statement in &function.body {
+            stamp_stmt(statement, &mut next_by_callee, &mut ordinals);
+        }
+    }
+    ordinals
+}
+
+fn stamp_stmt(
+    stmt: &HirStmt,
+    next_by_callee: &mut HashMap<String, u32>,
+    ordinals: &mut HashMap<Span, u32>,
+) {
+    match stmt {
+        HirStmt::Expr { expr, .. } | HirStmt::Let { value: expr, .. } => {
+            stamp_expr(expr, next_by_callee, ordinals);
+        }
+        HirStmt::Assign { target, value, .. } => {
+            stamp_expr(target, next_by_callee, ordinals);
+            stamp_expr(value, next_by_callee, ordinals);
+        }
+        HirStmt::Return { value, .. } => {
+            if let Some(expr) = value {
+                stamp_expr(expr, next_by_callee, ordinals);
+            }
+        }
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            stamp_expr(condition, next_by_callee, ordinals);
+            for statement in body {
+                stamp_stmt(statement, next_by_callee, ordinals);
+            }
+        }
+        HirStmt::Loop { body, .. } => {
+            for statement in body {
+                stamp_stmt(statement, next_by_callee, ordinals);
+            }
+        }
+        HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
+    }
+}
+
+fn stamp_expr(
+    expr: &HirExpr,
+    next_by_callee: &mut HashMap<String, u32>,
+    ordinals: &mut HashMap<Span, u32>,
+) {
+    match expr {
+        HirExpr::Call(callee, args, _, span) => {
+            let key = match callee.as_ref() {
+                HirExpr::Ident(name, _) => name.clone(),
+                _ => "<dynamic>".to_string(),
+            };
+            let ordinal = next_by_callee.entry(key).or_default();
+            ordinals.insert(*span, *ordinal);
+            *ordinal = ordinal.saturating_add(1);
+            stamp_expr(callee, next_by_callee, ordinals);
+            for arg in args {
+                stamp_expr(&arg.value, next_by_callee, ordinals);
+            }
+        }
+        HirExpr::WorkflowVersion(version) => {
+            let ordinal = next_by_callee
+                .entry("workflow.version".to_string())
+                .or_default();
+            ordinals.insert(version.span, *ordinal);
+            *ordinal = ordinal.saturating_add(1);
+        }
+        HirExpr::MethodCall(receiver, _, args, plan, _) => {
+            stamp_expr(receiver, next_by_callee, ordinals);
+            for arg in args {
+                stamp_expr(&arg.value, next_by_callee, ordinals);
+            }
+            if let Some(plan) = plan {
+                for arg in &plan.predicate_args {
+                    stamp_expr(&arg.value, next_by_callee, ordinals);
+                }
+                if let Some(limit) = &plan.limit_value {
+                    stamp_expr(limit, next_by_callee, ordinals);
+                }
+            }
+        }
+        HirExpr::ObjectLit(fields, _) => {
+            for (_, value) in fields {
+                stamp_expr(value, next_by_callee, ordinals);
+            }
+        }
+        HirExpr::ListLit(items, _)
+        | HirExpr::TupleLit(items, _)
+        | HirExpr::JsxFragment(items, _) => {
+            for item in items {
+                stamp_expr(item, next_by_callee, ordinals);
+            }
+        }
+        HirExpr::Binary(_, left, right, _) | HirExpr::Index(left, right, _) => {
+            stamp_expr(left, next_by_callee, ordinals);
+            stamp_expr(right, next_by_callee, ordinals);
+        }
+        HirExpr::Unary(_, inner, _)
+        | HirExpr::FieldAccess(inner, _, _)
+        | HirExpr::Spawn(inner, _) => stamp_expr(inner, next_by_callee, ordinals),
+        HirExpr::Match(subject, arms, _) => {
+            stamp_expr(subject, next_by_callee, ordinals);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    stamp_expr(guard, next_by_callee, ordinals);
+                }
+                stamp_expr(&arm.body, next_by_callee, ordinals);
+            }
+        }
+        HirExpr::If(condition, then_body, else_body, _) => {
+            stamp_expr(condition, next_by_callee, ordinals);
+            for statement in then_body {
+                stamp_stmt(statement, next_by_callee, ordinals);
+            }
+            if let Some(body) = else_body {
+                for statement in body {
+                    stamp_stmt(statement, next_by_callee, ordinals);
+                }
+            }
+        }
+        HirExpr::For(_, _, iterable, body, key, _) => {
+            stamp_expr(iterable, next_by_callee, ordinals);
+            stamp_expr(body, next_by_callee, ordinals);
+            if let Some(key) = key {
+                stamp_expr(key, next_by_callee, ordinals);
+            }
+        }
+        HirExpr::Lambda(params, _, body, _, _) => {
+            for param in params {
+                if let Some(default) = &param.default {
+                    stamp_expr(default, next_by_callee, ordinals);
+                }
+            }
+            stamp_expr(body, next_by_callee, ordinals);
+        }
+        HirExpr::With(inner, options, _) => {
+            stamp_expr(inner, next_by_callee, ordinals);
+            stamp_expr(options, next_by_callee, ordinals);
+        }
+        HirExpr::Block(statements, _) => {
+            for statement in statements {
+                stamp_stmt(statement, next_by_callee, ordinals);
+            }
+        }
+        HirExpr::Try(try_expr) => stamp_expr(&try_expr.target, next_by_callee, ordinals),
+        HirExpr::AsyncView(view) => {
+            for arm in [
+                &view.fetching_arm,
+                &view.empty_arm,
+                &view.error_arm,
+                &view.ok_arm,
+            ]
+            .into_iter()
+            .flatten()
+            {
+                stamp_expr(arm, next_by_callee, ordinals);
+            }
+        }
+        HirExpr::Jsx(element) => {
+            for attribute in &element.attributes {
+                stamp_expr(&attribute.value, next_by_callee, ordinals);
+            }
+            for child in &element.children {
+                stamp_expr(child, next_by_callee, ordinals);
+            }
+        }
+        HirExpr::JsxSelfClosing(element) => {
+            for attribute in &element.attributes {
+                stamp_expr(&attribute.value, next_by_callee, ordinals);
+            }
+        }
+        HirExpr::IntLit(..)
+        | HirExpr::FloatLit(..)
+        | HirExpr::StringLit(..)
+        | HirExpr::BoolLit(..)
+        | HirExpr::DecimalLit(..)
+        | HirExpr::Ident(..) => {}
+    }
+}
 
 /// One interception point. Parking is a decision on Wait / WaitSignal,
 /// not a fake activity named `__durable_timer_wait`.
@@ -15,6 +207,9 @@ pub enum HostCall {
         name: String,
         args: Vec<VoxValue>,
         options: Option<VoxValue>,
+        span: Span,
+        ordinal: u32,
+        iteration: u32,
     },
     End {
         name: String,
@@ -62,6 +257,7 @@ pub(crate) fn dispatch_activity(
     interp: &mut Interpreter,
     name: &str,
     args: Vec<VoxValue>,
+    span: Span,
 ) -> Result<VoxValue, EvalError> {
     let hook = match take_hook(interp) {
         Some(h) => h,
@@ -69,11 +265,16 @@ pub(crate) fn dispatch_activity(
     };
     let mut hook = Some(hook);
     let options = interp.with_options.last().cloned();
+    let ordinal = interp.call_ordinals.get(&span).copied().unwrap_or_default();
+    let iteration = interp.iteration_stack.last().copied().unwrap_or_default();
     let outcome = (|| -> Result<VoxValue, EvalError> {
         let decision = hook.as_mut().expect("hook is present")(HostCall::Begin {
             name: name.to_string(),
             args: args.clone(),
             options,
+            span,
+            ordinal,
+            iteration,
         })?;
         match decision {
             HostDecision::Replay(value) => Ok(value),
@@ -178,7 +379,7 @@ pub(crate) fn dispatch_wait_signal(
 #[cfg(test)]
 mod tests {
     use crate::eval::Interpreter;
-    use crate::eval::activity_hook::{HostCall, HostDecision};
+    use crate::eval::activity_hook::{HostCall, HostDecision, stamp_call_ordinals};
     use crate::eval::value::VoxValue;
     use crate::hir::lower_module;
     use crate::lexer::cursor::lex;
@@ -197,6 +398,35 @@ mod tests {
         let mut interp = Interpreter::new(1_000_000);
         interp.run_module(&hir).expect("module loads");
         (interp, activities)
+    }
+
+    #[test]
+    fn call_ordinals_are_scoped_by_function_and_callee() {
+        const SRC: &str = r#"
+activity old() to int { return 1 }
+activity fresh() to int { return 2 }
+workflow wf() to int {
+    let a = fresh()
+    let b = old()
+    return old() + a + b
+}
+"#;
+        let hir = lower_module(&parse(lex(SRC)).expect("parses"));
+        let ordinals = stamp_call_ordinals(&hir);
+        let wf = hir.functions.iter().find(|f| f.name == "wf").expect("wf");
+        let spans: Vec<_> = wf
+            .body
+            .iter()
+            .filter_map(|stmt| match stmt {
+                crate::hir::nodes::HirStmt::Let {
+                    value: crate::hir::nodes::HirExpr::Call(_, _, _, span),
+                    ..
+                } => Some(*span),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ordinals.get(&spans[0]), Some(&0));
+        assert_eq!(ordinals.get(&spans[1]), Some(&0));
     }
 
     #[test]
