@@ -1461,14 +1461,31 @@ pub fn call_builtin_method(
                     }
                     _ => None,
                 },
-                // `crypto.hash_fast` — SSOT with native codegen
-                // (`vox_crypto::hash_fast_hex`, `builtin_registry.rs`). Interp
-                // routes through the same `vox-crypto` hex helper so both
+                // `crypto.hash_fast` / `crypto.hash_secure` / `crypto.uuid` —
+                // all three are registered on the bare `crypto` typeck
+                // surface (`builtin_registry.rs`) and emitted by native
+                // codegen, so every arm here must dispatch or the interp
+                // silently fails a script that `vox check` and native both
+                // accept ("no silent interp-fail / native-ok").
+                //
+                // `hash_fast` routes through `vox_crypto::hash_fast_hex` —
+                // SSOT with native codegen's `crypto.hash_fast` emit — so both
                 // tiers produce byte-identical output
-                // (`hash_fast_matches_vox_crypto`). Only `hash_fast` is wired
-                // here: `hash_secure`/`uuid` live in `vox-actor-runtime`,
-                // which `vox-compiler` does not depend on (would be a second
-                // new crate edge — out of scope for this task).
+                // (`hash_fast_matches_vox_crypto`).
+                //
+                // `hash_secure` uses `vox_crypto::secure_hash` (BLAKE3) +
+                // `hex_encode`, which is byte-identical to native's
+                // `vox_actor_runtime::builtins::vox_hash_secure` (also plain
+                // BLAKE3 lowercase hex) even though the two call different
+                // functions — `vox-compiler` cannot take a new edge to
+                // `vox-actor-runtime`, but it already depends on `vox-crypto`.
+                //
+                // `uuid` reproduces native's `vox_uuid` format
+                // (`vox-{nanos_hex}-{counter_hex}`) with its own
+                // process-local atomic counter. The two tiers will not emit
+                // the same string (timestamps/counters differ by
+                // construction) but both satisfy the `Fn() -> Str` contract
+                // typeck/native codegen require.
                 Some("crypto") => match method {
                     "hash_fast" => {
                         let input = match args.into_iter().next() {
@@ -1477,6 +1494,28 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Str(
                             vox_crypto::hash_fast_hex(input.as_bytes()).into(),
+                        ))
+                    }
+                    "hash_secure" => {
+                        let input = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Str(String::new().into())),
+                        };
+                        Some(VoxValue::Str(
+                            vox_crypto::hex_encode(&vox_crypto::secure_hash(input.as_bytes()))
+                                .into(),
+                        ))
+                    }
+                    "uuid" => {
+                        static COUNTER: std::sync::atomic::AtomicU64 =
+                            std::sync::atomic::AtomicU64::new(0);
+                        let nanos = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_nanos() as u64;
+                        let count = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        Some(VoxValue::Str(
+                            format!("vox-{nanos:016x}-{count:016x}").into(),
                         ))
                     }
                     _ => None,

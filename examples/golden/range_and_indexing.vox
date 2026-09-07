@@ -17,6 +17,12 @@
 fn prefix_sums(nums: list[int]) to list[int] {
     let n: int = len(nums)
     let mut result: list[int] = []
+    // NOTE: `None` arms use `continue`, not empty `{}` — `parse_brace_expr`
+    // always parses bare `{}` as `Expr::ObjectLit([])` (never `Expr::Block`),
+    // so native codegen emits `None => { serde_json::json!({}) }` against a
+    // `()`-typed `Some` arm (rustc E0308). That ambiguity is repo-wide (also
+    // if/fn bodies), so fixing it isn't local to this golden; `continue`'s
+    // `!` type unifies with either arm and is correct control flow here.
     // Seed result with zeros using range(n)
     for _ in range(n) {
         result.push(0)

@@ -49,11 +49,26 @@ pub(super) fn emit_stmt(
     match stmt {
         HirStmt::Let {
             pattern,
+            type_ann,
             value,
             mutable,
             ..
         } => {
             let mut_kw = if *mutable { "mut " } else { "" };
+            // `Result[T]` (no explicit error type) lowers via `Ty::to_hir_type`
+            // (`typeck/ty.rs`) to `HirType::Generic("Result", vec![ok_hir])` —
+            // one type arg, defaulting the error type to `str`/`String`
+            // (`emit_type`'s "Result" arm). Rust's inference can't recover
+            // that default from `Ok(1i64)` alone (E0282: type annotations
+            // needed for `Result<i64, _>`), so annotate the binding when the
+            // declared type is `Result` — the only shape this collapses for.
+            // `Option`/other types never hit this: `Some(x)` fully pins `T`.
+            let ty_ann_str = match type_ann {
+                Some(ty @ HirType::Generic(name, _)) if name == "Result" => {
+                    format!(": {}", super::types::emit_type(ty))
+                }
+                _ => String::new(),
+            };
             if is_actor {
                 format!(
                     "{pad}let {}{} = ctx.heap.allocate({});\n",
@@ -72,9 +87,10 @@ pub(super) fn emit_stmt(
                 )
             } else {
                 format!(
-                    "{pad}let {}{} = {};\n",
+                    "{pad}let {}{}{} = {};\n",
                     mut_kw,
                     emit_pattern(pattern, is_route, is_actor, mutation_tx),
+                    ty_ann_str,
                     emit_expr_with(
                         value,
                         is_route,
@@ -872,7 +888,7 @@ pub(super) fn emit_expr_with(
         }
         HirExpr::Call(callee, args, is_await, _) => {
             if let HirExpr::Ident(n, _) = &**callee
-                && let Some(s) = emit_builtin_ident_call(n, args, &emit)
+                && let Some(s) = emit_builtin_ident_call(n, args, &emit, inferred_types)
             {
                 return s;
             }
@@ -1212,12 +1228,22 @@ fn route_json_shortcut(
 ///
 /// Recursing through this same function for the *inner* value(s) means a
 /// nested literal (`Some((1, 2))`, `Ok(Some(1))`, …) still renders
-/// correctly; anything else (idents, method calls, non-literal
-/// expressions of any type) falls through to the generic
-/// `vox_display(&serde_json::to_value(...))` path, which is exact for
-/// every shape JSON can represent losslessly (null/bool/number/string/
-/// array/object).
-fn emit_display_arg<F>(e: &HirExpr, emit: &F) -> String
+/// correctly. Idents/method-calls/etc. whose *inferred type* is
+/// `Option[T]`/`Result[T, E]` (Task 2 re-review, Important — "Option
+/// display via serde") go through [`emit_typed_display_of`] instead, for
+/// the exact same reason as the literal case: serde's `Option`/`Result`
+/// impls are tag-transparent, so `let x = Some(3); str(x)` would otherwise
+/// fall through to the generic `vox_display(&serde_json::to_value(x))`
+/// path below and print the bare `3` — matching what `Some(3)` itself
+/// serializes to — instead of `Some(3)`. Anything else (no type info, or a
+/// non-Option/Result type) falls through to that generic path, which is
+/// exact for every shape JSON can represent losslessly (null/bool/number/
+/// string/array/object).
+fn emit_display_arg<F>(
+    e: &HirExpr,
+    emit: &F,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+) -> String
 where
     F: Fn(&HirExpr, OwnershipMode) -> String,
 {
@@ -1226,8 +1252,25 @@ where
     {
         return "\"None\".to_string()".to_string();
     }
+    // `null` is a distinct Vox value from the `None` constructor (interpreter:
+    // `eval/mod.rs` binds `null` to `VoxValue::Null`, display "null"; `None`
+    // constructs `VoxValue::Option(None)`, display "None" — see
+    // `eval/builtins.rs`'s `vox_value_display`). Native codegen collapses both
+    // to Rust's `None` token (`emit_ident_expr`'s `n == "null"` arm) and
+    // typeck infers `null`'s type as `Option[T]` too, so without this check
+    // `null` would fall into the `Option[T]` branch below and print "None"
+    // instead of "null", diverging from the interpreter
+    // (`display_composites.vox`'s `print(str(null))` case).
+    if let HirExpr::Ident(name, _) = e
+        && name == "null"
+    {
+        return "\"null\".to_string()".to_string();
+    }
     if let HirExpr::TupleLit(items, _) = e {
-        let parts: Vec<String> = items.iter().map(|it| emit_display_arg(it, emit)).collect();
+        let parts: Vec<String> = items
+            .iter()
+            .map(|it| emit_display_arg(it, emit, inferred_types))
+            .collect();
         return format!(
             "format!(\"({{}})\", vec![{}].join(\", \"))",
             parts.join(", ")
@@ -1244,14 +1287,67 @@ where
             _ => None,
         };
         if let Some(tag) = tag {
-            let inner = emit_display_arg(&args[0].value, emit);
+            let inner = emit_display_arg(&args[0].value, emit, inferred_types);
             return format!("format!(\"{tag}({{}})\", {inner})");
         }
     }
+    if let Some(ty) =
+        inferred_types.and_then(|m| m.get(&super::stmt_expr_tail::hir_expr_span(e)))
+        // `Ty::to_hir_type` (`typeck/ty.rs`) lowercases only `option`'s tag —
+        // `Result`'s stays capitalized (see its own `HirType::Generic("Result", ..)`
+        // arm right above `option`'s in that match) — so match each spelling
+        // exactly as that conversion emits it, not a case-insensitive guess.
+        && matches!(ty, HirType::Generic(n, _) if n == "option" || n == "Result")
+    {
+        return emit_typed_display_of(&emit(e, OwnershipMode::Owned), ty);
+    }
+    emit_generic_display(&emit(e, OwnershipMode::Owned))
+}
+
+/// The generic, JSON-round-trip display fallback shared by
+/// [`emit_display_arg`] and [`emit_typed_display_of`]'s base case.
+fn emit_generic_display(rust_expr: &str) -> String {
     format!(
-        "vox_actor_runtime::builtins::vox_display(&serde_json::to_value(&({})).unwrap_or_default())",
-        emit(e, OwnershipMode::Owned)
+        "vox_actor_runtime::builtins::vox_display(&serde_json::to_value(&({rust_expr})).unwrap_or_default())"
     )
+}
+
+/// Type-directed counterpart to [`emit_display_arg`]'s literal-shape
+/// special cases, for a value that is *already* a Rust expression string
+/// (e.g. a match-bound identifier during recursion) paired with its known
+/// Vox type. Recurses through `Option[T]`/`Result[T, E]` so a typed,
+/// non-literal value — not just a literal `Some(..)`/`Ok(..)` call —
+/// renders as `Some(3)`/`Ok(1)`/`Err(..)`/`None`, matching the
+/// interpreter's `vox_value_display` on both tiers.
+fn emit_typed_display_of(rust_expr: &str, ty: &HirType) -> String {
+    match ty {
+        // Lowercase "option" — matches `Ty::to_hir_type`'s
+        // `HirType::Generic("option".into(), ..)` arm (`typeck/ty.rs`), unlike
+        // `Result`, whose tag stays capitalized there.
+        HirType::Generic(name, args) if name == "option" => {
+            let inner = args
+                .first()
+                .map(|t| emit_typed_display_of("__vox_v", t))
+                .unwrap_or_else(|| emit_generic_display("__vox_v"));
+            format!(
+                "match ({rust_expr}) {{ Some(__vox_v) => format!(\"Some({{}})\", {inner}), None => \"None\".to_string() }}"
+            )
+        }
+        HirType::Generic(name, args) if name == "Result" => {
+            let ok_inner = args
+                .first()
+                .map(|t| emit_typed_display_of("__vox_v", t))
+                .unwrap_or_else(|| emit_generic_display("__vox_v"));
+            let err_inner = args
+                .get(1)
+                .map(|t| emit_typed_display_of("__vox_e", t))
+                .unwrap_or_else(|| emit_generic_display("__vox_e"));
+            format!(
+                "match ({rust_expr}) {{ Ok(__vox_v) => format!(\"Ok({{}})\", {ok_inner}), Err(__vox_e) => format!(\"Err({{}})\", {err_inner}) }}"
+            )
+        }
+        _ => emit_generic_display(rust_expr),
+    }
 }
 
 /// Try to emit a builtin function call by name (the `Call(Ident("..."), ...)`
@@ -1261,7 +1357,12 @@ where
 /// Extracted from `emit_expr_with` per CR-A1 plan §5.6 refactoring pass:
 /// the inline if-chain contributed ~16 decision points and obscured the
 /// dispatcher pattern.
-fn emit_builtin_ident_call<F>(name: &str, args: &[HirArg], emit: &F) -> Option<String>
+fn emit_builtin_ident_call<F>(
+    name: &str,
+    args: &[HirArg],
+    emit: &F,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+) -> Option<String>
 where
     F: Fn(&HirExpr, OwnershipMode) -> String,
 {
@@ -1286,7 +1387,7 @@ where
         // `serde_json::Value::to_string()` and produced JSON-shaped output,
         // e.g. `{"a":1}` / `[1,"two"]`, not the Vox surface form
         // `{a: 1}` / `(1, two)`). See `emit_display_arg` below.
-        ("str", 1) => Some(emit_display_arg(&args[0].value, &emit)),
+        ("str", 1) => Some(emit_display_arg(&args[0].value, &emit, inferred_types)),
         // `int(x)` numeric conversion — interpreter truncates floats
         // (`f as i64`) and passes ints through; `as i64` matches both.
         // (String parsing, which the interpreter also supports, has no
@@ -1334,7 +1435,7 @@ where
         ("print", n) if n >= 1 => Some(format!(
             "println!(\"{{}}\", vec![{}].join(\" \"))",
             args.iter()
-                .map(|a| emit_display_arg(&a.value, &emit))
+                .map(|a| emit_display_arg(&a.value, &emit, inferred_types))
                 .collect::<Vec<_>>()
                 .join(", ")
         )),

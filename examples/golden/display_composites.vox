@@ -13,10 +13,27 @@
 // EXPECT: (1, two)
 // EXPECT: Some(3)
 // EXPECT: Ok(1)
+// EXPECT: null
+// EXPECT: Some(3)
+// EXPECT: Ok(1)
 pub fn main() {
   print(str([1, 2, 3]))
   print(str({a: 1, b: "two"}))
   print(str((1, "two")))
   print(str(Some(3)))
   print(str(Ok(1)))
+  print(str(null))
+  // Same as the literal cases above, but through a *variable* rather than
+  // a literal `Some(3)`/`Ok(1)` call — regression coverage for Task 2
+  // re-review's "Option display via serde" finding: native codegen's
+  // generic `str()` fallback serializes `Option`/`Result` values through
+  // serde, whose tag-transparent impls turn `Some(3)` into bare `3`
+  // (and `Ok(1)` into bare `1`), diverging from the interpreter's
+  // `vox_value_display`. `emit_display_arg` now consults the expression's
+  // inferred type to emit a type-directed match for Option/Result
+  // *variables* too, not just literal constructor calls.
+  let some_var: Option[int] = Some(3)
+  print(str(some_var))
+  let ok_var: Result[int, str] = Ok(1)
+  print(str(ok_var))
 }

@@ -1349,11 +1349,17 @@ pub const NAMESPACE_BUILTINS: &[(&str, &str, usize, u8)] = &[
     ("time", "now_ms", 0, surface::IR),
     // agentos
     ("agentos", "mutation_kind_for_tool", 1, surface::IR),
-    // crypto + http — NATIVE/codegen only. The tree-walking interpreter has no
-    // crypto/network stack; scripts needing these run via --mode script.
-    ("crypto", "hash_fast", 1, surface::RUST),
-    ("crypto", "hash_secure", 1, surface::RUST),
-    ("crypto", "uuid", 0, surface::RUST),
+    // crypto — interp + native (Task 2 re-review: the interpreter had a
+    // silent-fail gap for `hash_secure`/`uuid` even though both typechecked
+    // and lowered on native codegen; `eval/builtins.rs`'s `Some("crypto")`
+    // arm now implements all three, so this table can assert both surfaces
+    // and `interpreter_dispatches_every_interp_builtin` actually exercises
+    // them instead of skipping them via the (now-stale) RUST-only flag).
+    // http remains NATIVE/codegen only — the tree-walking interpreter has no
+    // network stack; scripts needing it run via `--mode script`.
+    ("crypto", "hash_fast", 1, surface::IR),
+    ("crypto", "hash_secure", 1, surface::IR),
+    ("crypto", "uuid", 0, surface::IR),
     ("http", "get_text", 1, surface::RUST),
     ("http", "post_json", 2, surface::RUST),
 ];
