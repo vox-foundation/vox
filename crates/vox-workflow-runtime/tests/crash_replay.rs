@@ -62,10 +62,17 @@ async fn workflow_resumes_seeded_activity_from_journal() {
     let run_id = "crash-replay-test-1".to_string();
     let mut tracker = VoxDbTracker::new(db.clone(), run_id.clone());
 
-    // Seed: pretend `charge_card` (position 0 in the `checkout` workflow) already
-    // completed in a prior crashed run. The interpreter uses the same
-    // BLAKE3-derived activity_id, so a record under that id is what
-    // `is_activity_completed` + `load_activity_result` will return on resume.
+    // Seed: pretend `charge_card` (the only call to it in the `checkout`
+    // workflow) already completed in a prior crashed run. The interpreter
+    // uses the same BLAKE3-derived activity_id, so a record under that id is
+    // what `is_activity_completed` + `load_activity_result` will return on
+    // resume.
+    //
+    // The ordinal is computed by the real `stamp_call_ordinals` (not
+    // hardcoded to `0`): ordinals are namespaced per callee so two different
+    // activities never collide (see `vox-compiler`'s
+    // `eval::activity_hook::stamp_call_ordinals` docs), so `charge_card`'s
+    // ordinal is not a small sequential position.
     //
     // The seeded value is a real journal-JSON `Result::Ok` payload (the shape
     // `VoxValue::to_journal_json` actually produces for `charge_card`'s
@@ -73,7 +80,26 @@ async fn workflow_resumes_seeded_activity_from_journal() {
     // `charge_card(500)` call would produce (`"tx_500"`), so a passing test
     // proves replay happened rather than coincidentally matching a fresh
     // execution.
-    let first_charge_id = derive_activity_id("checkout", "checkout", 0, &[0]);
+    let ordinals = vox_compiler::eval::activity_hook::stamp_call_ordinals(&hir);
+    let checkout_fn = hir
+        .functions
+        .iter()
+        .find(|f| f.name == "checkout")
+        .expect("checkout function in HIR");
+    let charge_card_span = match checkout_fn.body.first() {
+        Some(vox_compiler::hir::nodes::HirStmt::Let {
+            value: vox_compiler::hir::nodes::HirExpr::Try(try_expr),
+            ..
+        }) => match try_expr.target.as_ref() {
+            vox_compiler::hir::nodes::HirExpr::Call(_, _, _, span) => *span,
+            other => panic!("expected `charge_card(amount)` call, got {other:?}"),
+        },
+        other => panic!("expected `let tx = charge_card(amount)?`, got {other:?}"),
+    };
+    let charge_card_ordinal = *ordinals
+        .get(&charge_card_span)
+        .expect("charge_card ordinal must be stamped");
+    let first_charge_id = derive_activity_id("checkout", "checkout", charge_card_ordinal, &[0]);
     let seeded_result = json!({"__vox": "Ok", "value": "tx_SEEDED_500"});
 
     tracker

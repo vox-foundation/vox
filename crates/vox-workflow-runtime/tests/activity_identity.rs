@@ -50,6 +50,38 @@ workflow wf() to int { return first() + second() }
     );
 }
 
+// Regression: `derive_activity_id` hashes `workflow \0 enclosing_fn \0
+// ordinal \0 iteration` — no callee. `stamp_call_ordinals` used to restart
+// its counter per callee, so the first call to *any* callee in a function
+// got ordinal 0. Two different activities called directly in the same
+// function (same iteration) therefore derived the *same* activity_id, and
+// the second call would silently replay the first's result.
+#[tokio::test]
+async fn distinct_activity_callees_in_the_same_function_get_distinct_ids() {
+    const SRC: &str = r#"
+activity fresh() to int { return 1 }
+activity old() to int { return 2 }
+workflow wf() to int {
+    let a = fresh()
+    let b = old()
+    return a + b
+}
+"#;
+    let mut tracker = DefaultTracker;
+    let journal = interpret_workflow_durable(&hir(SRC), "wf", vec![], &mut tracker)
+        .await
+        .expect("workflow completes");
+    let fresh_ids = started_activity_ids(&journal, "fresh");
+    let old_ids = started_activity_ids(&journal, "old");
+    assert_eq!(fresh_ids.len(), 1, "fresh() must execute: {journal:#?}");
+    assert_eq!(old_ids.len(), 1, "old() must execute: {journal:#?}");
+    assert_ne!(
+        fresh_ids[0], old_ids[0],
+        "two different activities called in the same enclosing function and \
+         iteration must not derive the same activity_id: {journal:#?}"
+    );
+}
+
 #[tokio::test]
 async fn nested_loop_activity_identity_uses_the_full_iteration_stack() {
     const SRC: &str = r#"
