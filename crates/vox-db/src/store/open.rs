@@ -183,6 +183,26 @@ impl crate::VoxDb {
                     .await?;
             }
 
+            let mut has_wake_at_ms = false;
+            let mut has_parked_reason = false;
+            let mut cols = conn
+                .query("PRAGMA table_info(workflow_run_log)", ())
+                .await?;
+            while let Some(row) = cols.next().await? {
+                let name: String = row.get(1)?;
+                has_wake_at_ms |= name == "wake_at_ms";
+                has_parked_reason |= name == "parked_reason";
+            }
+            drop(cols);
+            if !has_wake_at_ms {
+                conn.execute_batch("ALTER TABLE workflow_run_log ADD COLUMN wake_at_ms INTEGER;")
+                    .await?;
+            }
+            if !has_parked_reason {
+                conn.execute_batch("ALTER TABLE workflow_run_log ADD COLUMN parked_reason TEXT;")
+                    .await?;
+            }
+
             crate::schema_extensions::apply_schema_extensions(conn).await?;
 
             conn.execute(

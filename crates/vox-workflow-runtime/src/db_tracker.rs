@@ -430,4 +430,24 @@ impl WorkflowTracker for VoxDbTracker {
             Ok(args)
         }
     }
+
+    fn consume_ready_timer(&mut self, now_ms: i64) -> impl Future<Output = Result<bool>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        async move {
+            db.consume_ready_workflow_timer(&run_id, now_ms)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
+
+    fn park_timer(&mut self, wake_at_ms: i64) -> impl Future<Output = Result<()>> + Send {
+        let db = self.db.clone();
+        let run_id = self.run_id.clone();
+        async move {
+            db.park_workflow_run_timer(&run_id, wake_at_ms)
+                .await
+                .map_err(|e| anyhow::anyhow!("DB error: {}", e))
+        }
+    }
 }

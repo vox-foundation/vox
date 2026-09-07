@@ -33,7 +33,9 @@
         "MeshActivity",
         "MeshActivitySkipped",
         "WorkflowPatch",
-        "ActivityCacheHit"
+        "ActivityCacheHit",
+        "TimerScheduled",
+        "WorkflowParked"
       ]
     }
   },
@@ -156,6 +158,48 @@
           "const": "WorkflowCompleted"
         },
         "workflow": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "required": [
+        "event",
+        "workflow",
+        "wake_at_ms"
+      ],
+      "properties": {
+        "event": {
+          "const": "TimerScheduled"
+        },
+        "workflow": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wake_at_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "required": [
+        "event",
+        "workflow",
+        "reason"
+      ],
+      "properties": {
+        "event": {
+          "const": "WorkflowParked"
+        },
+        "workflow": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
           "type": "string",
           "minLength": 1
         }

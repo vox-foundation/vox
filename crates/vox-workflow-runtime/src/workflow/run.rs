@@ -18,6 +18,13 @@ use super::tracker::{DefaultTracker, WorkflowTracker};
 /// Version tag for interpreted workflow journal events emitted by this crate.
 pub const WORKFLOW_JOURNAL_VERSION: u32 = 1;
 
+fn wall_now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
 /// Derive a stable, content-addressed `activity_id` from structural inputs.
 ///
 /// The id is a BLAKE3 hex digest of `"{workflow_name}\0{activity_name}\0{position}"`,
@@ -261,13 +268,30 @@ pub async fn interpret_workflow_durable(
                 })));
                 host.respond(HostDecision::Ack)?;
             }
-            HostRequest::Wait { .. } | HostRequest::WaitSignal { .. } => {
-                // Timer wakers and signal delivery land in Phase 3/4; for now
-                // any wait parks the workflow rather than either blocking
-                // forever or silently completing.
-                host.respond(HostDecision::Park(
-                    "timers and signals land in Phase 3/4".into(),
-                ))?;
+            HostRequest::Wait { deadline_ms } => {
+                let now_ms = wall_now_ms();
+                if tracker.consume_ready_timer(now_ms).await? {
+                    host.respond(HostDecision::Ack)?;
+                    continue;
+                }
+                let wake_at_ms = now_ms.saturating_add(deadline_ms.max(0));
+                tracker.park_timer(wake_at_ms).await?;
+                journal.push(versioned_event(json!({
+                    "event": "TimerScheduled",
+                    "workflow": workflow_name,
+                    "wake_at_ms": wake_at_ms,
+                })));
+                journal.push(versioned_event(json!({
+                    "event": "WorkflowParked",
+                    "workflow": workflow_name,
+                    "reason": "timer",
+                })));
+                host.respond(HostDecision::Park("timer".into()))?;
+            }
+            HostRequest::WaitSignal { .. } => {
+                // Signal delivery lands in Phase 4; for now a signal wait
+                // parks without introducing the timer persistence path.
+                host.respond(HostDecision::Park("signals land in Phase 4".into()))?;
             }
         }
     }
@@ -282,10 +306,7 @@ pub async fn interpret_workflow_durable(
             })));
             Ok(journal)
         }
-        // Parked in this task: return the journal as-is, without
-        // `WorkflowCompleted` and without failing. There is no `WorkflowParked`
-        // event in `workflow-journal.v1.schema.json` — Phase 3 adds a `parked`
-        // run status instead of inventing an unschematized event here.
+        // Parked runs return their journal without `WorkflowCompleted`.
         HostOutcome::Parked(_reason) => Ok(journal),
         HostOutcome::Failed(msg) => anyhow::bail!("{msg}"),
     }

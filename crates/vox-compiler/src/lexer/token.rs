@@ -383,7 +383,9 @@ pub enum Token {
     })]
     DecLit(String),
 
-    #[regex(r"[0-9]+", priority = 2, callback = |lex| lex.slice().parse::<i64>().ok())]
+    #[regex(r"[0-9]+(_[0-9]+)*", priority = 2, callback = |lex| {
+        lex.slice().replace('_', "").parse::<i64>().ok()
+    })]
     IntLit(i64),
 
     // Raw string literal: `r"..."` — no escape processing at all. Closing

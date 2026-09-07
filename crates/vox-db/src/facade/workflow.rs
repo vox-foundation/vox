@@ -187,6 +187,151 @@ impl crate::VoxDb {
         }
     }
 
+    /// Return the current status for a workflow run.
+    pub async fn workflow_run_status(&self, run_id: &str) -> Result<String, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT status FROM workflow_run_log WHERE run_id = ?1",
+                (run_id.to_string(),),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Err(StoreError::Db(format!(
+                "workflow run `{run_id}` does not exist"
+            )));
+        };
+        row.get(0).map_err(|e| StoreError::Db(e.to_string()))
+    }
+
+    /// Return the current lease owner for a workflow run.
+    pub async fn workflow_run_lease_owner(
+        &self,
+        run_id: &str,
+    ) -> Result<Option<String>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT lease_owner FROM workflow_run_log WHERE run_id = ?1",
+                (run_id.to_string(),),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Err(StoreError::Db(format!(
+                "workflow run `{run_id}` does not exist"
+            )));
+        };
+        row.get(0).map_err(|e| StoreError::Db(e.to_string()))
+    }
+
+    /// Set a workflow timer deadline directly for deterministic integration tests.
+    pub async fn workflow_run_backdate_wake_at_ms(
+        &self,
+        run_id: &str,
+        wake_at_ms: i64,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "UPDATE workflow_run_log SET wake_at_ms = ?2 WHERE run_id = ?1",
+                (run_id.to_string(), wake_at_ms),
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Park a workflow on a timer and release its run lease.
+    pub async fn park_workflow_run_timer(
+        &self,
+        run_id: &str,
+        wake_at_ms: i64,
+    ) -> Result<(), StoreError> {
+        let now = workflow_now_ms();
+        self.conn
+            .execute(
+                "UPDATE workflow_run_log
+                 SET status = 'parked',
+                     wake_at_ms = ?2,
+                     parked_reason = 'timer',
+                     lease_owner = NULL,
+                     lease_until_ms = NULL,
+                     updated_at_ms = ?3
+                 WHERE run_id = ?1",
+                (run_id.to_string(), wake_at_ms, now),
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Consume a due timer marker after the waker has made its run runnable.
+    pub async fn consume_ready_workflow_timer(
+        &self,
+        run_id: &str,
+        now_ms: i64,
+    ) -> Result<bool, StoreError> {
+        self.conn
+            .execute(
+                "UPDATE workflow_run_log
+                 SET wake_at_ms = NULL, parked_reason = NULL, updated_at_ms = ?2
+                 WHERE run_id = ?1
+                   AND status = 'running'
+                   AND parked_reason = 'timer'
+                   AND wake_at_ms <= ?2",
+                (run_id.to_string(), now_ms),
+            )
+            .await?;
+        let mut rows = self.conn.query("SELECT changes()", ()).await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(false);
+        };
+        let changes: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        Ok(changes > 0)
+    }
+
+    /// List timer-parked workflow runs whose wake deadline has passed.
+    pub async fn due_workflow_timer_run_ids(&self, now_ms: i64) -> Result<Vec<String>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT run_id FROM workflow_run_log
+                 WHERE status = 'parked'
+                   AND parked_reason = 'timer'
+                   AND wake_at_ms <= ?1
+                 ORDER BY run_id",
+                (now_ms,),
+            )
+            .await?;
+        let mut run_ids = Vec::new();
+        while let Some(row) = rows.next().await? {
+            run_ids.push(row.get(0).map_err(|e| StoreError::Db(e.to_string()))?);
+        }
+        Ok(run_ids)
+    }
+
+    /// Make one due timer-parked workflow run runnable without claiming its lease.
+    pub async fn wake_workflow_timer_run(
+        &self,
+        run_id: &str,
+        now_ms: i64,
+    ) -> Result<bool, StoreError> {
+        self.conn
+            .execute(
+                "UPDATE workflow_run_log
+                 SET status = 'running', updated_at_ms = ?2
+                 WHERE run_id = ?1
+                   AND status = 'parked'
+                   AND parked_reason = 'timer'
+                   AND wake_at_ms <= ?2",
+                (run_id.to_string(), now_ms),
+            )
+            .await?;
+        let mut rows = self.conn.query("SELECT changes()", ()).await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(false);
+        };
+        let changes: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        Ok(changes > 0)
+    }
+
     /// Attach orchestration planning context to a workflow run when available.
     pub async fn record_workflow_run_plan_context(
         &self,

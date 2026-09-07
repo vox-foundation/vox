@@ -9,6 +9,7 @@ mod return_extract;
 pub mod run;
 pub mod tracker;
 pub mod types;
+pub mod waker;
 
 pub use hir_context::{current_hir_module, set_current_hir_module};
 pub use host::{HostDecision, HostOutcome, HostRequest, WorkflowHost};

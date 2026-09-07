@@ -67,7 +67,9 @@ CREATE TABLE IF NOT EXISTS workflow_run_log (
     updated_at_ms    INTEGER NOT NULL,
     completed_at_ms  INTEGER,
     last_error       TEXT,
-    args_json        TEXT
+    args_json        TEXT,
+    wake_at_ms       INTEGER,
+    parked_reason    TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_workflow_run_status ON workflow_run_log(status);

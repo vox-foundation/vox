@@ -165,6 +165,23 @@ pub trait WorkflowTracker: Send + Sync {
     ) -> impl std::future::Future<Output = anyhow::Result<Option<Value>>> + Send {
         async { Ok(None) }
     }
+
+    /// Return whether a previously parked timer is now ready, consuming its
+    /// persisted wake marker when it is.
+    fn consume_ready_timer(
+        &mut self,
+        _now_ms: i64,
+    ) -> impl std::future::Future<Output = anyhow::Result<bool>> + Send {
+        async { Ok(false) }
+    }
+
+    /// Park the current workflow run until the absolute wall-clock deadline.
+    fn park_timer(
+        &mut self,
+        _wake_at_ms: i64,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        async { Ok(()) }
+    }
 }
 
 /// A default no-op tracker used if none is provided.
