@@ -94,20 +94,21 @@ fn summary_max_chars() -> usize {
 /// `plugin.plugin.as_browser_automation().into_option().unwrap()` to get the backend.
 /// This avoids naming the `BrowserAutomation_TO` generic type in the function signature.
 ///
-/// All browser MCP calls require revision 5 so no handler can reach a revision-5
-/// vtable entry through a stale plugin.
+/// Existing browser MCP calls remain compatible with revision 1. Handlers for
+/// revision-5 methods must call `require_browser_revision(5)` before touching
+/// their new vtable entries.
 fn with_browser_plugin<F, T>(f: F) -> anyhow::Result<T>
 where
     F: FnOnce(&'static vox_plugin_host::loader::LoadedCodePlugin) -> anyhow::Result<T>,
 {
-    let plugin = require_browser_revision(5)?;
+    let plugin = require_browser_revision(1)?;
     f(plugin)
 }
 
 /// Load the browser plugin only if it supports the requested extension revision.
 ///
 /// New browser methods must call this with revision 5 before touching their
-/// revision-5 vtable entries.
+/// revision-5 vtable entries. Existing methods remain compatible with revision 1.
 fn require_browser_revision(
     minimum: u32,
 ) -> anyhow::Result<&'static vox_plugin_host::loader::LoadedCodePlugin> {
