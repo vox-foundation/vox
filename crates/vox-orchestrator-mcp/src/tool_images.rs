@@ -270,6 +270,9 @@ mod tests {
 
     const PNG_1X1_B64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
+    /// Minimal JPEG sniff fixture: magic `FF D8 FF` (3 bytes).
+    const JPEG_MAGIC_B64: &str = "/9j/";
+
     #[test]
     fn promote_strips_image_base64_and_keeps_decoded_bytes() {
         let raw = serde_json::json!({
@@ -417,6 +420,68 @@ mod tests {
         let mut got = promote_tool_image(&raw);
         attach_image_from_cached_path(&tmp, &mut got);
         assert!(got.image.is_none());
+    }
+
+    #[test]
+    fn tool_json_from_screencast_jpeg_live_replace() {
+        let tmp = std::env::temp_dir().join(format!("vox-sc-jpeg-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&tmp);
+        let value = serde_json::json!({
+            "viewport_width": 640,
+            "viewport_height": 480,
+            "image_base64": JPEG_MAGIC_B64,
+        });
+        let raw = tool_json_from_screencast_value(&tmp, "page-jpeg", value);
+        let parsed: Value = serde_json::from_str(&raw).expect("json");
+        assert_eq!(parsed["success"], true);
+        let data = &parsed["data"];
+        assert_eq!(data["page_id"], "page-jpeg");
+        assert_eq!(data["width"], 640);
+        assert_eq!(data["height"], 480);
+        assert_eq!(data["mime"], "image/jpeg");
+        let path = data["path"].as_str().expect("path");
+        assert!(
+            path.ends_with("-live.jpg"),
+            "expected *-live.jpg, got {path}"
+        );
+        assert!(Path::new(path).exists());
+        let on_disk = std::fs::read(path).expect("read live frame");
+        assert_eq!(sniff_image_mime(&on_disk), Some("image/jpeg"));
+        assert!(!raw.contains("image_base64"));
+    }
+
+    #[test]
+    fn tool_json_from_screencast_persist_error() {
+        let base = std::env::temp_dir().join(format!("vox-sc-err-{}", std::process::id()));
+        let _ = std::fs::remove_file(&base);
+        std::fs::write(&base, b"not-a-dir").unwrap();
+        let cache_root = base.join("frames");
+        let value = serde_json::json!({
+            "viewport_width": 1,
+            "viewport_height": 1,
+            "image_base64": PNG_1X1_B64,
+        });
+        let raw = tool_json_from_screencast_value(&cache_root, "p", value);
+        let parsed: Value = serde_json::from_str(&raw).expect("json");
+        assert_eq!(parsed["success"], false);
+        assert!(parsed["error"].is_string());
+    }
+
+    #[test]
+    fn tool_json_from_screencast_no_image_passthrough() {
+        let tmp = std::env::temp_dir().join(format!("vox-sc-none-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&tmp);
+        let value = serde_json::json!({
+            "viewport_width": 1024,
+            "viewport_height": 768,
+            "success": true,
+            "data": { "status": "waiting" },
+        });
+        let raw = tool_json_from_screencast_value(&tmp, "p", value);
+        let parsed: Value = serde_json::from_str(&raw).expect("json");
+        assert_eq!(parsed["success"], true);
+        assert_eq!(parsed["data"]["data"]["status"], "waiting");
+        assert!(parsed["data"].get("path").is_none());
     }
 
     #[test]
