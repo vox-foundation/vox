@@ -146,7 +146,7 @@ pub struct RunArgs {
     /// Backend listen port (sets `VOX_PORT` for generated Axum and Vite proxy)
     #[arg(long)]
     pub port: Option<u16>,
-    /// `app` = generated server; `script` = `fn main()` script lane; `auto` = heuristic.
+    /// `app` = generated server; `script` = native `fn main()` lane; `auto` = interpreter for script-shaped files (no cargo). Native escape hatches: `--mode script`, `Vox.toml [web] run_mode = "script"`, `VOX_WEB_RUN_MODE=script`.
     #[arg(long, value_enum, default_value_t = crate::commands::run::RunMode::Auto)]
     pub mode: crate::commands::run::RunMode,
     /// Alias for --mode interp (HIR interpreter)

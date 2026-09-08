@@ -12,6 +12,8 @@ Receiver-imposed capabilities and resource ceilings for the tree-walking HIR int
 
 `vox run` without `--caps` grants everything; `--caps` is opt-in locally and mandatory on the mesh.
 
+`vox run` on a script-shaped file (`fn main()`, no service surfaces) uses this interpreter by default. Three escape hatches still select the native lane: `--mode script`, `Vox.toml [web] run_mode = "script"`, `VOX_WEB_RUN_MODE=script`.
+
 ## `--caps` grammar
 
 `--caps` is **repeatable** (`clap::ArgAction::Append`). Each flag is one token; do not comma-join tokens on the CLI (a Windows `TEMP` of `C:\Users\Smith, John\...` is then expressible).

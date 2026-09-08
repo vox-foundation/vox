@@ -12,7 +12,7 @@ use std::process::Command;
 /// How `vox run` chooses between app (compilerd / generated server) and script execution.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, ValueEnum)]
 pub enum RunMode {
-    /// If the file has no `@page` (first 8 KiB scan), run as a script when `script-execution` is enabled; else app path. Override with `Vox.toml` `[web] run_mode` or `VOX_WEB_RUN_MODE`.
+    /// Script-shaped files (`fn main()`, no service surfaces) use the HIR interpreter (no cargo). Service-shaped files stay on the native/app lane. Native escape hatches: `--mode script`, `Vox.toml [web] run_mode = "script"`, `VOX_WEB_RUN_MODE=script`.
     #[default]
     Auto,
     /// Always use the app / dev-server path (build + `target/generated` server).
@@ -216,11 +216,31 @@ pub async fn run(
         return run_interp(file, args, caps, max_steps, max_memory, max_depth).await;
     }
 
+    let web_mode = vox_config::VoxConfig::load().web_run_mode;
+    let head = match vox_bounded_fs::read_utf8_path_capped(file) {
+        Ok(s) => {
+            let end = usize::min(8192, s.len());
+            s[..end].to_string()
+        }
+        Err(_) => String::new(),
+    };
+    if mode == RunMode::Auto {
+        let script_shaped = crate::commands::runtime::run::run::is_script_shaped(&head);
+        if head.contains("fn main(") && !script_shaped {
+            eprintln!(
+                "vox: this program declares a service surface; running it on the native lane (use --mode script to silence this)"
+            );
+        }
+        if web_mode != vox_config::WebRunMode::Script && script_shaped {
+            return run_interp(file, args, caps, max_steps, max_memory, max_depth).await;
+        }
+    }
+
     let use_script = match mode {
         RunMode::App => false,
         RunMode::Script => true,
         RunMode::Interp => unreachable!(),
-        RunMode::Auto => match vox_config::VoxConfig::load().web_run_mode {
+        RunMode::Auto => match web_mode {
             vox_config::WebRunMode::App => false,
             vox_config::WebRunMode::Script => true,
             vox_config::WebRunMode::Auto => {

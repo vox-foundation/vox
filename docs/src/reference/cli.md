@@ -141,7 +141,7 @@ Top-level **`vox generate`** (`crates/vox-cli/src/commands/generate.rs`) posts t
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--port` | _(from `VOX_PORT` or 3000)_ | Sets `VOX_PORT` for the generated Axum server and Vite `/api` proxy |
-| `--mode` | `auto` | `app` = always generated server; `script` = `fn main()` script lane (**needs** `cargo build -p vox-cli --features script-execution`); `auto` = script lane when the file has no `@page` and the binary was built with `script-execution`. |
+| `--mode` | `auto` | `app` = always generated server; `script` = native `fn main()` lane (**needs** `cargo build -p vox-cli --features script-execution`); `auto` = HIR interpreter for script-shaped files (`fn main()`, no service surfaces — no cargo on PATH); service-shaped files stay on the native/app lane. Native escape hatches: `--mode script`, `Vox.toml [web] run_mode = "script"`, `VOX_WEB_RUN_MODE=script`. |
 
 Backend listens on the port from **`VOX_PORT`** (or **3000**) — same variable the generated `main.rs` reads.
 
