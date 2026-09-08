@@ -643,6 +643,10 @@
     ],
     [
       "vox-compiler",
+      "vox-crypto"
+    ],
+    [
+      "vox-compiler",
       "vox-eval"
     ],
     [
@@ -844,6 +848,10 @@
     [
       "vox-forge",
       "vox-http-client"
+    ],
+    [
+      "vox-gamify",
+      "vox-actor-runtime"
     ],
     [
       "vox-gamify",
@@ -1099,6 +1107,10 @@
     ],
     [
       "vox-ml-cli",
+      "vox-git"
+    ],
+    [
+      "vox-ml-cli",
       "vox-http-client"
     ],
     [
@@ -1223,6 +1235,10 @@
     ],
     [
       "vox-orchestrator",
+      "vox-plugin-nvml-probe"
+    ],
+    [
+      "vox-orchestrator",
       "vox-populi"
     ],
     [
@@ -1307,6 +1323,10 @@
     ],
     [
       "vox-orchestrator-mcp",
+      "vox-cli-core"
+    ],
+    [
+      "vox-orchestrator-mcp",
       "vox-code-audit"
     ],
     [
@@ -1368,10 +1388,6 @@
     [
       "vox-orchestrator-mcp",
       "vox-mcp-registry"
-    ],
-    [
-      "vox-orchestrator-mcp",
-      "vox-mesh-transport"
     ],
     [
       "vox-orchestrator-mcp",
@@ -1452,6 +1468,10 @@
     [
       "vox-orchestrator-mcp",
       "vox-secrets"
+    ],
+    [
+      "vox-orchestrator-mcp",
+      "vox-similarity"
     ],
     [
       "vox-orchestrator-mcp",
@@ -1895,6 +1915,10 @@
     ],
     [
       "vox-research-shim",
+      "vox-publisher"
+    ],
+    [
+      "vox-research-shim",
       "vox-research-events"
     ],
     [
@@ -2080,6 +2104,10 @@
     [
       "vox-tensor",
       "vox-actor-runtime"
+    ],
+    [
+      "vox-term",
+      "vox-config"
     ],
     [
       "vox-term",
