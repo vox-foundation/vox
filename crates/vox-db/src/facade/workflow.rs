@@ -319,24 +319,30 @@ impl crate::VoxDb {
     /// Expire the run lease and any in-flight activity attempt leases.
     ///
     /// Used by crash-window tests so a resumed runner can steal the row.
+    /// Both writes run in one transaction so a crash cannot leave activity
+    /// leases live after the run lease is gone.
     pub async fn expire_workflow_run_lease(&self, run_id: &str) -> Result<(), StoreError> {
-        self.conn
-            .execute(
-                "UPDATE workflow_run_log \
-                 SET lease_until_ms = 0, lease_owner = NULL \
-                 WHERE run_id = ?1",
-                (run_id.to_string(),),
-            )
-            .await?;
-        self.conn
-            .execute(
-                "UPDATE workflow_activity_attempt_log \
-                 SET lease_until_ms = 0 \
-                 WHERE run_id = ?1 AND status = 'started'",
-                (run_id.to_string(),),
-            )
-            .await?;
-        Ok(())
+        let run_id = run_id.to_string();
+        self.transaction(async {
+            self.conn
+                .execute(
+                    "UPDATE workflow_run_log \
+                     SET lease_until_ms = 0, lease_owner = NULL \
+                     WHERE run_id = ?1",
+                    (run_id.clone(),),
+                )
+                .await?;
+            self.conn
+                .execute(
+                    "UPDATE workflow_activity_attempt_log \
+                     SET lease_until_ms = 0 \
+                     WHERE run_id = ?1 AND status = 'started'",
+                    (run_id,),
+                )
+                .await?;
+            Ok(())
+        })
+        .await
     }
 
     /// Park a workflow on a timer and release its run lease.
@@ -1242,6 +1248,29 @@ mod tests {
             Some("owner-a".to_string())
         );
 
+        db.record_workflow_activity_attempt_started(
+            "expire-1", "wf", "act-1", 1, "owner-a", 60_000,
+        )
+        .await
+        .expect("start attempt");
+        let mut attempt_rows = db
+            .conn
+            .query(
+                "SELECT lease_until_ms FROM workflow_activity_attempt_log \
+                 WHERE run_id = ?1 AND activity_id = ?2 AND status = 'started'",
+                ("expire-1".to_string(), "act-1".to_string()),
+            )
+            .await
+            .expect("query attempt lease");
+        let attempt_lease: i64 = attempt_rows
+            .next()
+            .await
+            .expect("row")
+            .expect("started attempt")
+            .get(0)
+            .expect("lease_until_ms");
+        assert!(attempt_lease > 0, "seeded attempt must hold a live lease");
+
         db.expire_workflow_run_lease("expire-1")
             .await
             .expect("expire");
@@ -1250,6 +1279,26 @@ mod tests {
                 .await
                 .expect("owner after expire"),
             None
+        );
+        let mut expired_rows = db
+            .conn
+            .query(
+                "SELECT lease_until_ms FROM workflow_activity_attempt_log \
+                 WHERE run_id = ?1 AND activity_id = ?2 AND status = 'started'",
+                ("expire-1".to_string(), "act-1".to_string()),
+            )
+            .await
+            .expect("query expired attempt lease");
+        let expired_lease: i64 = expired_rows
+            .next()
+            .await
+            .expect("row")
+            .expect("started attempt after expire")
+            .get(0)
+            .expect("lease_until_ms");
+        assert_eq!(
+            expired_lease, 0,
+            "started activity leases expire with the run"
         );
     }
 

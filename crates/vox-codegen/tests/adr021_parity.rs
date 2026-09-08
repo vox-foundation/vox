@@ -148,11 +148,15 @@ fn emit_does_not_expect_terminal_return_on_park() {
         .expect("workflow");
     let rust = emit_fn(func, Some(&hir.inferred_types), &[]);
     assert!(
-        rust.contains("process::exit") && rust.contains("VOX_RUN_WORKFLOW"),
-        "debug binary may exit 0 on park; must gate process::exit on VOX_RUN_WORKFLOW. got:\n{rust}"
+        rust.contains("process::exit")
+            && rust.contains("__vox_debug_dispatch")
+            && rust.contains("Some(\"delayed\")"),
+        "debug binary may exit 0 on park only when VOX_RUN_WORKFLOW equals this workflow name. got:\n{rust}"
     );
     assert!(
-        rust.contains("panic!"),
+        rust.contains(
+            "panic!(\"vox durable workflow: run parked (no WorkflowCompleted); resume with the same VOX_WORKFLOW_RUN_ID\")"
+        ),
         "library wrappers must panic on park, not process::exit the host. got:\n{rust}"
     );
     assert!(

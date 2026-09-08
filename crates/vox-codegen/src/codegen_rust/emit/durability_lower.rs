@@ -95,13 +95,16 @@ fn emit_workflow_body(func: &HirFn) -> String {
     out.push_str(&format!(
         "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", __vox_args, &mut __vox_tracker).await.expect(\"vox durable workflow: interpret_workflow_durable\");\n"
     ));
-    // ADR-021: `VOX_RUN_WORKFLOW` debug dispatch calls this generated wrapper
-    // and expects the journal JSON on stdout (see `tests/adr021_parity.rs`).
-    out.push_str(
-        "    if ::std::env::var(\"VOX_RUN_WORKFLOW\").is_ok() {\n\
-         \x20       println!(\"{}\", ::serde_json::to_string(&__vox_journal).expect(\"vox durable workflow: serialize journal\"));\n\
-         \x20   }\n",
-    );
+    // ADR-021: `VOX_RUN_WORKFLOW=<this workflow>` debug dispatch calls this
+    // generated wrapper and expects the journal JSON on stdout (see
+    // `tests/adr021_parity.rs`). Match the value, not mere presence — an
+    // inherited env from another workflow must not print or kill the host.
+    out.push_str(&format!(
+        "    let __vox_debug_dispatch = ::std::env::var(\"VOX_RUN_WORKFLOW\").ok().as_deref().map(::str::trim) == Some({name:?});\n\
+         \x20   if __vox_debug_dispatch {{\n\
+         \x20       println!(\"{{}}\", ::serde_json::to_string(&__vox_journal).expect(\"vox durable workflow: serialize journal\"));\n\
+         \x20   }}\n"
+    ));
     // A parked journal has no WorkflowCompleted. Do not expect a terminal
     // return — that panics. The `VOX_RUN_WORKFLOW` debug binary exits 0 so
     // a later resume with the same `VOX_WORKFLOW_RUN_ID` can continue.
@@ -113,7 +116,7 @@ fn emit_workflow_body(func: &HirFn) -> String {
          \x20       __e.get(\"event\").and_then(::serde_json::Value::as_str) == Some(\"WorkflowCompleted\")\n\
          \x20   });\n\
          \x20   if !__vox_completed {\n\
-         \x20       if ::std::env::var(\"VOX_RUN_WORKFLOW\").is_ok() {\n\
+         \x20       if __vox_debug_dispatch {\n\
          \x20           ::std::process::exit(0);\n\
          \x20       }\n\
          \x20       panic!(\"vox durable workflow: run parked (no WorkflowCompleted); resume with the same VOX_WORKFLOW_RUN_ID\");\n\
