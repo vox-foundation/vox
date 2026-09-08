@@ -359,11 +359,19 @@ pub fn spawn_browser_frame_stream(
 
 /// Bootstrap preview discovery from environment for CodeGen/dev flows that
 /// already expose `VOX_SSR_DEV_URL`.
+fn approved_loopback_preview_url(raw: &str) -> Option<String> {
+    let url = raw.trim();
+    if url.is_empty() || !is_loopback_preview_url(url) {
+        None
+    } else {
+        Some(url.to_string())
+    }
+}
+
 pub fn emit_preview_available_from_env(app_handle: AppHandle, browser_state: Arc<BrowserState>) {
-    if let Ok(url) = std::env::var("VOX_SSR_DEV_URL")
-        && !url.trim().is_empty()
+    if let Ok(raw) = std::env::var("VOX_SSR_DEV_URL")
+        && let Some(url) = approved_loopback_preview_url(&raw)
     {
-        let url = url.trim().to_string();
         tokio::spawn(async move {
             {
                 let mut preview = browser_state.preview.lock().await;
@@ -1224,6 +1232,12 @@ mod tests {
         assert!(is_loopback_preview_url("http://[::1]:3000"));
         assert!(require_loopback_preview_url("https://example.com").is_err());
         assert!(!is_loopback_preview_url("https://example.com"));
+        assert_eq!(
+            approved_loopback_preview_url("http://127.0.0.1:3000"),
+            Some("http://127.0.0.1:3000".into())
+        );
+        assert_eq!(approved_loopback_preview_url("https://evil.example"), None);
+        assert_eq!(approved_loopback_preview_url("  "), None);
     }
 
     #[test]

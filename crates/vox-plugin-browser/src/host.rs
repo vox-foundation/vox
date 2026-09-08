@@ -9,7 +9,7 @@ use serde::Serialize;
 use tracing::debug;
 
 use crate::engine::BrowserEngine;
-use crate::policy::validate_navigation_url;
+use crate::policy::{cookie_export_public_json, require_named_consent, validate_navigation_url};
 use crate::resolve::history_capabilities;
 use crate::snapshot::AxRef;
 
@@ -19,16 +19,26 @@ pub(crate) struct HostInner {
     pub(crate) pages: HashMap<String, chromiumoxide::Page>,
     pub(crate) viewports: HashMap<String, ViewportMetrics>,
     pub(crate) ref_maps: HashMap<String, std::collections::BTreeMap<String, AxRef>>,
+    pub(crate) consent_profile_id: Option<String>,
+    /// When true (Attach), last-page drop disconnects and must not kill Chrome.
+    pub(crate) disconnect_only: bool,
 }
 
 impl HostInner {
-    pub(crate) fn new(handler_task: tokio::task::JoinHandle<()>, browser: Browser) -> Self {
+    pub(crate) fn new(
+        handler_task: tokio::task::JoinHandle<()>,
+        browser: Browser,
+        consent_profile_id: Option<String>,
+        disconnect_only: bool,
+    ) -> Self {
         Self {
             _handler_task: handler_task,
             browser,
             pages: HashMap::new(),
             viewports: HashMap::new(),
             ref_maps: HashMap::new(),
+            consent_profile_id,
+            disconnect_only,
         }
     }
 }
@@ -130,8 +140,14 @@ impl BrowserEngine {
             let _ = page.close().await;
             if let Some(inner) = dropped {
                 inner._handler_task.abort();
-                drop(inner.browser);
-                debug!(target: "vox_plugin_browser", "browser host shut down (no sessions)");
+                // Attach: drop disconnects the websocket only (no child, no Browser.close).
+                if inner.disconnect_only {
+                    drop(inner.browser);
+                    debug!(target: "vox_plugin_browser", "attach host disconnected (no sessions)");
+                } else {
+                    drop(inner.browser);
+                    debug!(target: "vox_plugin_browser", "browser host shut down (no sessions)");
+                }
             }
         }
         Ok(())
@@ -221,6 +237,53 @@ impl BrowserEngine {
         Ok(())
     }
 
+    pub async fn cookies_export(&self, page_id: &str) -> Result<serde_json::Value, String> {
+        let (is_attach, consent_id, dest_id) = {
+            let guard = self.host.lock().await;
+            let host = guard.host_for_page(page_id)?;
+            let dest_id = host
+                .consent_profile_id
+                .clone()
+                .unwrap_or_else(|| page_id.to_string());
+            (
+                host.disconnect_only,
+                host.consent_profile_id.clone(),
+                dest_id,
+            )
+        };
+        if is_attach {
+            let profiles_root = vox_config::paths::browser_profiles_dir();
+            let id = consent_id.as_deref().unwrap_or("attach");
+            require_named_consent(&profiles_root, id, false)?;
+        }
+        let cookies = {
+            let guard = self.host.lock().await;
+            let host = guard.host_for_page(page_id)?;
+            host.browser
+                .get_cookies()
+                .await
+                .map_err(|e| format!("get_cookies: {e}"))?
+        };
+        let count = cookies.len();
+        let dest_dir = vox_config::paths::browser_profiles_dir().join(dest_id);
+        std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+        let path = dest_dir.join("cookies.json");
+        let json = serde_json::to_vec_pretty(&cookies).map_err(|e| e.to_string())?;
+        std::fs::write(&path, json).map_err(|e| e.to_string())?;
+        Ok(cookie_export_public_json(&path.to_string_lossy(), count))
+    }
+
+    pub async fn cookies_import(&self, page_id: &str, cookies_json: &str) -> Result<(), String> {
+        let params = cookies_json_to_params(cookies_json)?;
+        let guard = self.host.lock().await;
+        let host = guard.host_for_page(page_id)?;
+        host.browser
+            .set_cookies(params)
+            .await
+            .map_err(|e| format!("set_cookies: {e}"))?;
+        Ok(())
+    }
+
     pub(crate) async fn viewport_for(&self, page_id: &str) -> ViewportMetrics {
         let guard = self.host.lock().await;
         guard
@@ -232,10 +295,66 @@ impl BrowserEngine {
     }
 }
 
+fn cookies_json_to_params(
+    cookies_json: &str,
+) -> Result<Vec<chromiumoxide_cdp::cdp::browser_protocol::network::CookieParam>, String> {
+    serde_json::from_str(cookies_json).map_err(|e| format!("cookies_json: {e}"))
+}
+
 async fn page_url(page: &chromiumoxide::Page) -> Result<String, String> {
     page.evaluate("window.location.href")
         .await
         .map_err(|e| e.to_string())?
         .into_value::<String>()
         .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cookies_json_to_params_reads_name_and_value() {
+        let params = cookies_json_to_params(
+            r#"[{"name":"sid","value":"abc","domain":"example.com","path":"/"}]"#,
+        )
+        .expect("parse");
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0].name, "sid");
+        assert_eq!(params[0].value, "abc");
+        assert_eq!(params[0].domain.as_deref(), Some("example.com"));
+        assert_eq!(params[0].path.as_deref(), Some("/"));
+    }
+
+    #[test]
+    fn cookies_json_to_params_rejects_missing_name() {
+        let err = cookies_json_to_params(r#"[{"value":"abc"}]"#).unwrap_err();
+        assert!(err.contains("name"), "got {err}");
+    }
+
+    #[test]
+    fn cookies_json_to_params_preserves_exported_samesite_none() {
+        use chromiumoxide_cdp::cdp::browser_protocol::network::CookieSameSite;
+        let params = cookies_json_to_params(
+            r#"[{
+                "name":"sid",
+                "value":"abc",
+                "domain":"example.com",
+                "path":"/",
+                "sameSite":"none",
+                "sourcePort":443,
+                "partitionKey":{
+                    "topLevelSite":"https://example.com",
+                    "hasCrossSiteAncestor":false
+                }
+            }]"#,
+        )
+        .expect("parse exported-shaped cookie JSON");
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0].same_site, Some(CookieSameSite::None));
+        assert_eq!(params[0].source_port, Some(443));
+        let key = params[0].partition_key.as_ref().expect("partitionKey");
+        assert_eq!(key.top_level_site, "https://example.com");
+        assert!(!key.has_cross_site_ancestor);
+    }
 }

@@ -170,7 +170,7 @@ fn default_true() -> bool { true }
 
 `open(url, headless)` stays **ephemeral** (revision-4 compatible). New work goes through `open_ex(options_json)`.
 
-**Host map (required):** replace the singleton `Mutex<Option<HostInner>>` with `HashMap<HostKey, HostInner>`. Each `page_id` records its `HostKey`. `close` of the last page on a key drops **that** host only. The same `Named(profile_id)` cannot launch twice (Chromium locks `user_data_dir`) — return `host_mode_conflict`. Attach `drop` disconnects; it must **not** kill the user’s Chrome.
+**Host map (required):** replace the singleton `Mutex<Option<HostInner>>` with `HashMap<HostKey, HostInner>`. Each `page_id` records its `HostKey`. `close` of the last page on a key drops **that** host only. A live `Named(profile_id)` host is reused for another tab (same as Attach/Ephemeral). Chromium locks `user_data_dir` on a **second process**, not a second tab — reserve `host_mode_conflict` for a launch that would contend outside this map. Attach `drop` disconnects; it must **not** kill the user’s Chrome.
 
 **Named profile path:** `vox_config::paths::browser_profiles_dir()` / `{profile_id}/`. This is **user data** under `VOX_DATA_DIR` (or `VOX_BROWSER_PROFILES_DIR`), **not** Tier D cache. Reject `profile_id` that fail kebab validation, contain `/` `\` `.` `..`, or match Windows reserved names (`con`, `prn`, `aux`, `nul`, `com1`–`com9`, `lpt1`–`lpt9`) case-insensitively. Implement with char checks — no `regex` crate.
 

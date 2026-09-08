@@ -677,7 +677,7 @@ EOF
 - Produces: `engine.open_ex(opts: BrowserLaunchOptions, save_profile: bool) -> Result<String, String>`
 - Produces: MCP `vox_browser_open_ex`
 
-**Singleton leak (must not ship):** today’s `ensure_host` returns early if any host exists. After an ephemeral tab, named `open_ex` would share that Chrome; after a named tab, ephemeral `open` would inherit cookies. Each page records its `HostKey`. `close` of the last page on a key drops **that** host only. Same `Named(id)` twice → `host_mode_conflict`. Attach drop (Task 10) disconnects, does not kill Chrome.
+**Singleton leak (must not ship):** today’s `ensure_host` returns early if any host exists. After an ephemeral tab, named `open_ex` would share that Chrome; after a named tab, ephemeral `open` would inherit cookies. Each page records its `HostKey`. `close` of the last page on a key drops **that** host only. A live `Named(id)` is reused for another tab; `host_mode_conflict` is reserved for a second *process* that would contend for `user_data_dir`. Attach drop (Task 10) disconnects, does not kill Chrome.
 
 Profiles are **user data** under `data_dir()/browser-profiles`, **not** Tier D.
 

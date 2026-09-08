@@ -9,8 +9,8 @@ use tracing::debug;
 use crate::engine::BrowserEngine;
 use crate::host::{HostInner, ViewportMetrics};
 use crate::policy::{
-    BrowserLaunchMode, BrowserLaunchOptions, parse_profile_id, record_save_consent,
-    require_named_consent, validate_navigation_url,
+    BrowserLaunchMode, BrowserLaunchOptions, is_loopback_cdp_url, parse_profile_id,
+    record_save_consent, require_named_consent, validate_navigation_url,
 };
 
 /// Process-local Chrome identity. One Chromium per key.
@@ -127,6 +127,11 @@ pub fn named_user_data_dir(root: &Path, profile_id: &str) -> PathBuf {
     root.join(profile_id)
 }
 
+/// A host already in the map can take another page. Do not launch again.
+pub(crate) fn existing_host_policy(_key: &HostKey) -> Result<(), String> {
+    Ok(())
+}
+
 fn build_browser_config(
     headless: bool,
     user_data_dir: Option<&Path>,
@@ -166,20 +171,78 @@ impl BrowserEngine {
     ) -> Result<(), String> {
         let mut guard = self.host.lock().await;
         if guard.contains(&key) {
-            return match key {
-                HostKey::Named(_) => Err("host_mode_conflict".to_string()),
-                _ => Ok(()),
-            };
+            // Live host → another tab. Chromium locks user_data_dir on a
+            // second *process*, which this map prevents. `host_mode_conflict`
+            // is reserved for a launch that would contend outside this map.
+            return existing_host_policy(&key);
         }
 
+        let consent_profile_id = match &key {
+            HostKey::Named(id) => Some(id.clone()),
+            _ => None,
+        };
         let config = build_browser_config(headless, user_data_dir.as_deref())?;
         let (browser, mut handler) = Browser::launch(config)
             .await
             .map_err(|e| format!("Browser::launch failed: {e}"))?;
         let handler_task = tokio::spawn(async move { while handler.next().await.is_some() {} });
-        guard.insert_host(key, HostInner::new(handler_task, browser));
+        guard.insert_host(
+            key,
+            HostInner::new(handler_task, browser, consent_profile_id, false),
+        );
         debug!(target: "vox_plugin_browser", "chromium host launched");
         Ok(())
+    }
+
+    async fn ensure_attach_host(
+        &self,
+        cdp_url: &str,
+        consent_profile_id: String,
+    ) -> Result<(), String> {
+        let key = HostKey::Attach(cdp_url.to_string());
+        let mut guard = self.host.lock().await;
+        if guard.contains(&key) {
+            return Ok(());
+        }
+        let (browser, mut handler) = Browser::connect(cdp_url).await.map_err(|e| {
+            format!(
+                "Browser::connect failed: {e}. Start Chrome with chrome --remote-debugging-port=9222 and enable Chrome 144+ chrome://inspect/#remote-debugging"
+            )
+        })?;
+        let handler_task = tokio::spawn(async move { while handler.next().await.is_some() {} });
+        guard.insert_host(
+            key,
+            HostInner::new(handler_task, browser, Some(consent_profile_id), true),
+        );
+        debug!(target: "vox_plugin_browser", "chromium host attached");
+        Ok(())
+    }
+
+    async fn open_on_attach(
+        &self,
+        cdp_url: &str,
+        url: &str,
+        consent_profile_id: String,
+    ) -> Result<String, String> {
+        validate_navigation_url(url)?;
+        self.ensure_attach_host(cdp_url, consent_profile_id).await?;
+        let key = HostKey::Attach(cdp_url.to_string());
+        let mut guard = self.host.lock().await;
+        let page = {
+            let host = guard
+                .get_mut(&key)
+                .ok_or_else(|| "browser host missing".to_string())?;
+            host.browser
+                .new_page("about:blank")
+                .await
+                .map_err(|e| format!("new_page: {e}"))?
+        };
+        page.goto(url)
+            .await
+            .map_err(|e| format!("goto {url}: {e}"))?;
+        let id = format!("page-{}", uuid::Uuid::new_v4());
+        guard.insert_page(key, id.clone(), page);
+        Ok(id)
     }
 
     async fn open_on_host(
@@ -241,7 +304,28 @@ impl BrowserEngine {
                 )
                 .await
             }
-            BrowserLaunchMode::Attach => Err("attach_not_implemented".to_string()),
+            BrowserLaunchMode::Attach => {
+                let cdp_url = opts
+                    .cdp_url
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|url| !url.is_empty())
+                    .ok_or_else(|| "cdp_url is required for attach".to_string())?;
+                if !is_loopback_cdp_url(cdp_url) {
+                    return Err(
+                        "cdp_url must be loopback (127.0.0.1, localhost, or [::1])".to_string()
+                    );
+                }
+                let consent_id = match opts.profile_id.as_deref() {
+                    Some(raw) if !raw.is_empty() => parse_profile_id(raw)?,
+                    _ => "attach".to_string(),
+                };
+                if save_profile {
+                    let profiles_root = vox_config::paths::browser_profiles_dir();
+                    record_save_consent(&profiles_root, &consent_id)?;
+                }
+                self.open_on_attach(cdp_url, &opts.url, consent_id).await
+            }
         }
     }
 
@@ -273,10 +357,40 @@ mod tests {
         assert_eq!(dir, root.join("staging-1"));
     }
 
+    #[test]
+    fn live_named_host_is_reused_not_conflict() {
+        assert!(existing_host_policy(&HostKey::Named("staging-1".into())).is_ok());
+        assert!(existing_host_policy(&HostKey::Ephemeral).is_ok());
+        assert!(existing_host_policy(&HostKey::Attach("http://127.0.0.1:9222".into())).is_ok());
+    }
+
     #[tokio::test]
-    async fn attach_is_not_implemented() {
+    async fn attach_rejects_non_loopback_cdp_url() {
         let engine = BrowserEngine::new();
         let err = engine
+            .open_ex(
+                BrowserLaunchOptions {
+                    url: "http://127.0.0.1/".into(),
+                    headless: true,
+                    mode: BrowserLaunchMode::Attach,
+                    profile_id: None,
+                    cdp_url: Some("http://192.168.1.4:9222".into()),
+                },
+                false,
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            err.contains("loopback"),
+            "expected loopback rejection, got {err}"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a running Chrome with remote debugging on 9222"]
+    async fn attach_connect_smoke() {
+        let engine = BrowserEngine::new();
+        let id = engine
             .open_ex(
                 BrowserLaunchOptions {
                     url: "http://127.0.0.1/".into(),
@@ -288,8 +402,8 @@ mod tests {
                 false,
             )
             .await
-            .unwrap_err();
-        assert_eq!(err, "attach_not_implemented");
+            .expect("attach open_ex");
+        engine.close(&id).await.expect("attach close disconnects");
     }
 
     #[tokio::test]

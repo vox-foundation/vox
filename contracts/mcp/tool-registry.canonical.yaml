@@ -213,6 +213,16 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_browser_cookies_export
+  description: Export cookies to a file under the browser profiles directory. Returns count and path only — cookie values never appear in the MCP payload.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_cookies_import
+  description: Import cookies from a cookies.json file jailed under the browser profiles directory. MCP result has no cookie values.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_browser_extract
   description: Use configured chat model + visible page text to answer an extraction instruction.
   product_lane: ai

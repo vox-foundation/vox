@@ -606,6 +606,17 @@ pub struct BrowserOpenExParams {
     pub save_profile: bool,
 }
 
+/// Import cookies from a JSON file under the browser profiles directory.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserCookiesImportParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// Absolute or profiles-relative path to a cookies.json file.
+    #[schemars(length(min = 1, max = 4096))]
+    pub path: String,
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(deny_unknown_fields)]
 pub struct BrowserSnapshotParams {
@@ -663,7 +674,19 @@ pub struct BrowserFillRefParams {
 
 #[cfg(test)]
 mod browser_param_tests {
-    use super::{BrowserOpenExParams, BrowserSnapshotParams};
+    use super::{BrowserCookiesImportParams, BrowserOpenExParams, BrowserSnapshotParams};
+
+    #[test]
+    fn cookies_import_params_require_path() {
+        let err = serde_json::from_str::<BrowserCookiesImportParams>(r#"{"page_id":"p1"}"#);
+        assert!(err.is_err());
+        let p: BrowserCookiesImportParams = serde_json::from_str(
+            r#"{"page_id":"p1","path":"/safe/profiles/staging-1/cookies.json"}"#,
+        )
+        .expect("parse cookies import params");
+        assert_eq!(p.page_id, "p1");
+        assert!(p.path.ends_with("cookies.json"));
+    }
 
     #[test]
     fn snapshot_params_default_interactive() {

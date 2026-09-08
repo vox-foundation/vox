@@ -177,7 +177,7 @@ Reconfirming the 2026-06-03 scoping table against 2026-09 sources:
 Keep `vox-plugin-browser` + MCP + Browser surface. Add only:
 
 1. **Semantic loop.** Compact AX snapshot with stable refs; `click_ref` / `fill_ref`; optional numbered-bbox overlay on the existing screenshot path (already deferred in `vox-gui-browser-support-2026.md`).
-2. **Named profiles + consent.** Launch Chromium with `user_data_dir` under a `vox_config::paths` profile root (Tier D / deleteable). First-class UI: *ephemeral* (default) vs *save this session* vs *use profile X*. Cookie + localStorage export/import via CDP (`Network.getAllCookies` / `Storage.getCookies`) as a portable sidecar, not Turso rows.
+2. **Named profiles + consent.** Launch Chromium with `user_data_dir` under a `vox_config::paths` profile root (user data under `$VOX_DATA_DIR/browser-profiles`, not Tier D cache). First-class UI: *ephemeral* (default) vs *save this session* vs *use profile X*. Cookie + localStorage export/import via CDP Storage APIs as a portable sidecar, not Turso rows.
 3. **Optional attach.** CDP connect to a user-started Chrome (`remote-debugging-port` or Chrome 144+ remote debugging), later a thin native-messaging extension if product wants Claude-in-Chrome identity. Same MCP tools; different launch mode.
 4. **Upgrade `browser_act`.** Observe-then-act against the snapshot (Stagehand pattern) instead of CSS-from-visible-text. Keep the LLM on `vox_actor_runtime::llm`.
 5. **Safety.** Reuse control lock; add site allowlist; pause on password fields / payments / CAPTCHA (Claude's rule). Prompt-injection wrapping on snapshot text (agent-browser nonce markers).

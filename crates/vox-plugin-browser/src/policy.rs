@@ -180,6 +180,21 @@ pub fn host_allowed(url: &str, allow_csv: Option<&str>) -> bool {
         })
 }
 
+pub fn cookie_export_public_json(path: &str, count: usize) -> serde_json::Value {
+    serde_json::json!({
+        "count": count,
+        "path": path,
+    })
+}
+
+pub fn cookie_import_path_ok(root: &Path, candidate: &Path) -> bool {
+    vox_config::paths::cookie_import_path_ok(root, candidate)
+}
+
+pub fn is_loopback_cdp_url(url: &str) -> bool {
+    matches!(url_host(url).as_str(), "127.0.0.1" | "localhost" | "[::1]")
+}
+
 pub(crate) fn url_host(url: &str) -> String {
     let authority = url
         .split_once("://")
@@ -205,6 +220,49 @@ pub(crate) fn url_host(url: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn cookie_export_public_json_has_no_value_key() {
+        let v = cookie_export_public_json("/tmp/p/cookies.json", 3);
+        let s = serde_json::to_string(&v).unwrap();
+        assert_eq!(v["count"], 3);
+        assert_eq!(v["path"], "/tmp/p/cookies.json");
+        assert!(v.get("cookies").is_none());
+        assert!(!s.contains("\"value\""));
+    }
+
+    #[test]
+    fn import_path_rejects_sibling_prefix() {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let tmp =
+            std::env::temp_dir().join(format!("vox-cookie-jail-{}-{nanos}", std::process::id()));
+        let root = tmp.join("profiles");
+        let evil = tmp.join("profiles-evil");
+        let allowed_dir = root.join("staging-1");
+        std::fs::create_dir_all(&allowed_dir).expect("profiles/staging-1");
+        std::fs::create_dir_all(&evil).expect("profiles-evil");
+        let allowed = allowed_dir.join("cookies.json");
+        let sibling = evil.join("cookies.json");
+        std::fs::write(&allowed, b"[]").expect("write allowed cookies");
+        std::fs::write(&sibling, b"[]").expect("write sibling cookies");
+        assert!(cookie_import_path_ok(&root, &allowed));
+        assert!(!cookie_import_path_ok(&root, Path::new("/tmp/steal.json")));
+        assert!(!cookie_import_path_ok(&root, &sibling));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn attach_cdp_url_must_be_loopback() {
+        assert!(is_loopback_cdp_url("http://127.0.0.1:9222"));
+        assert!(is_loopback_cdp_url("http://localhost:9222"));
+        assert!(is_loopback_cdp_url("http://[::1]:9222"));
+        assert!(!is_loopback_cdp_url("http://192.168.1.4:9222"));
+        assert!(!is_loopback_cdp_url("http://evil.test:9222"));
+    }
 
     #[test]
     fn profile_id_rejects_paths_and_device_names() {

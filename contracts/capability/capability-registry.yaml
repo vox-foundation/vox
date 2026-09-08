@@ -6120,6 +6120,38 @@ curated:
   mcp_tool: vox_browser_close
   cli_path: null
   parameters: null
+- id: mcp.vox_browser_cookies_export
+  title: Browser Cookies Export
+  description_human: null
+  description_model: Export cookies to a file under the browser profiles directory. Returns count and path only — cookie values never appear in the MCP payload.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_cookies_export
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_cookies_import
+  title: Browser Cookies Import
+  description_human: null
+  description_model: Import cookies from a cookies.json file jailed under the browser profiles directory. MCP result has no cookie values.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_cookies_import
+  cli_path: null
+  parameters: null
 - id: mcp.vox_browser_extract
   title: Browser Extract
   description_human: null

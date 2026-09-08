@@ -46,6 +46,21 @@ fn resolve_browser_profiles_dir(override_dir: Option<&str>, data: Option<PathBuf
         .join("browser-profiles")
 }
 
+/// True iff both sides canonicalize and `candidate` is under `root`.
+///
+/// Either canonicalize failure is a reject (no raw-path fallback). Uses
+/// `strip_prefix`, not `Path::starts_with`, so a sibling such as
+/// `profiles-evil` is not treated as inside `profiles`.
+pub fn cookie_import_path_ok(root: &Path, candidate: &Path) -> bool {
+    let Ok(root_cmp) = std::fs::canonicalize(root) else {
+        return false;
+    };
+    let Ok(cand_cmp) = std::fs::canonicalize(candidate) else {
+        return false;
+    };
+    cand_cmp.strip_prefix(&root_cmp).is_ok()
+}
+
 /// Default database path: `<data_dir>/vox.db`.
 pub fn default_db_path() -> Option<PathBuf> {
     data_dir().map(|d| d.join(DEFAULT_DB_FILENAME))
@@ -313,6 +328,34 @@ mod dot_vox_user_dir_tests {
             resolve_browser_profiles_dir(Some(""), Some(data.clone())),
             data.join("browser-profiles")
         );
+    }
+
+    #[test]
+    fn cookie_import_path_ok_rejects_sibling_prefix() {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let tmp = std::env::temp_dir().join(format!(
+            "vox-cookie-jail-config-{}-{nanos}",
+            std::process::id()
+        ));
+        let root = tmp.join("profiles");
+        let evil = tmp.join("profiles-evil");
+        let allowed_dir = root.join("staging-1");
+        std::fs::create_dir_all(&allowed_dir).expect("profiles/staging-1");
+        std::fs::create_dir_all(&evil).expect("profiles-evil");
+        let allowed = allowed_dir.join("cookies.json");
+        let sibling = evil.join("cookies.json");
+        std::fs::write(&allowed, b"[]").expect("write allowed cookies");
+        std::fs::write(&sibling, b"[]").expect("write sibling cookies");
+        assert!(cookie_import_path_ok(&root, &allowed));
+        assert!(!cookie_import_path_ok(
+            &root,
+            &std::env::temp_dir().join("steal.json")
+        ));
+        assert!(!cookie_import_path_ok(&root, &sibling));
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
 

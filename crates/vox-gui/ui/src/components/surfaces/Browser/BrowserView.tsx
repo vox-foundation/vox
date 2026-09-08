@@ -17,6 +17,7 @@ import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { BrowserToolbar, type ControlMode } from './BrowserToolbar';
 import { mapClickToViewport } from './clickMap';
 import type { LaunchMode } from './launchMode';
+import { isLoopbackPreviewUrl } from './previewUrl';
 import { overlayItems, type OverlayRef } from './refOverlay';
 
 export { mapClickToViewport } from './clickMap';
@@ -78,6 +79,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const [showRefs, setShowRefs] = useState(false);
   const [snapshotRefs, setSnapshotRefs] = useState<Record<string, OverlayRef>>({});
   const frameBoxRef = useRef<HTMLDivElement>(null);
+  const frameImgRef = useRef<HTMLImageElement>(null);
   const [frameSize, setFrameSize] = useState({ frameW: 0, frameH: 0 });
 
   const refreshPreviewStatus = useCallback(async () => {
@@ -228,6 +230,9 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listenPreviewAvailable((payload: PreviewAvailablePayload) => {
+      if (!isLoopbackPreviewUrl(payload.url)) {
+        return;
+      }
       setPreviewFrameBlocked(false);
       setTab('preview');
       setPreview({
@@ -332,6 +337,8 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       setPageId(null);
       setFrame(null);
       setPageInfo(null);
+      setShowRefs(false);
+      setSnapshotRefs({});
       pushToast({ tone: 'info', title: 'Browser session closed', cause: 'backend-ok' });
       await refreshPages();
     } catch (err) {
@@ -342,7 +349,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   };
 
   useEffect(() => {
-    const el = frameBoxRef.current;
+    const el = frameImgRef.current ?? frameBoxRef.current;
     if (!el) return;
     const syncSize = () => {
       const rect = el.getBoundingClientRect();
@@ -394,6 +401,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       setPageId(selectedPageId);
       await refreshSessionStatus();
       await refreshPageInfo(selectedPageId);
+      if (showRefs) await captureSnapshot();
       pushToast({ tone: 'ok', title: 'Attached session', body: selectedPageId, cause: 'backend-ok' });
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Attach failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
@@ -409,6 +417,8 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       if (pageId === selectedPageId) {
         setPageId(null);
         setPageInfo(null);
+        setShowRefs(false);
+        setSnapshotRefs({});
       }
       await refreshPages();
       pushToast({ tone: 'info', title: 'Page closed', body: selectedPageId, cause: 'backend-ok' });
@@ -435,6 +445,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     try {
       await invoke('browser_navigate', { input: { action } });
       await refreshPageInfo(pageId);
+      if (showRefs) await captureSnapshot();
     } catch (err) {
       pushToast({ tone: 'warn', title: `Navigation ${action} failed`, body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
@@ -448,6 +459,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     try {
       await invoke('browser_goto_url', { input: { url: agentNavUrl.trim() } });
       await refreshPageInfo(pageId);
+      if (showRefs) await captureSnapshot();
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Goto failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
@@ -459,7 +471,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     if (!pageId || controlMode !== 'you') return;
     const viewWidth = frame?.viewport_width ?? DEFAULT_VIEWPORT_WIDTH;
     const viewHeight = frame?.viewport_height ?? DEFAULT_VIEWPORT_HEIGHT;
-    const rect = event.currentTarget.getBoundingClientRect();
+    const rect = (frameImgRef.current ?? event.currentTarget).getBoundingClientRect();
     const mapped = mapClickToViewport(
       event.clientX,
       event.clientY,
@@ -540,7 +552,9 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     }
   };
 
-  const activePreviewUrl = preview?.url ?? (previewUrl.trim() || null);
+  const rawPreviewUrl = preview?.url ?? (previewUrl.trim() || null);
+  const activePreviewUrl =
+    rawPreviewUrl && isLoopbackPreviewUrl(rawPreviewUrl) ? rawPreviewUrl : null;
 
   return (
     <section className="space-y-4">
@@ -721,6 +735,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
             >
               {frame?.image_base64 ? (
                 <img
+                  ref={frameImgRef}
                   src={`data:image/png;base64,${frame.image_base64}`}
                   alt="Agent browser frame"
                   className="w-full h-full max-h-[480px] object-contain pointer-events-none"

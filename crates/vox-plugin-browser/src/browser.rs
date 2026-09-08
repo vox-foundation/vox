@@ -432,15 +432,23 @@ impl BrowserAutomation for BrowserPlugin {
         to_rresult(result.map(RString::from))
     }
 
-    fn cookies_export(&self, _page_id: RStr<'_>) -> RResult<RString, RBoxError> {
-        to_rresult(Err("not_implemented".to_string()))
+    fn cookies_export(&self, page_id: RStr<'_>) -> RResult<RString, RBoxError> {
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let result = rt().block_on(async move { engine.cookies_export(&page_id).await });
+        to_rresult(
+            result
+                .and_then(|v| serde_json::to_string(&v).map_err(|e| e.to_string()))
+                .map(RString::from),
+        )
     }
 
-    fn cookies_import(
-        &self,
-        _page_id: RStr<'_>,
-        _cookies_json: RStr<'_>,
-    ) -> RResult<(), RBoxError> {
-        to_rresult(Err("not_implemented".to_string()))
+    fn cookies_import(&self, page_id: RStr<'_>, cookies_json: RStr<'_>) -> RResult<(), RBoxError> {
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let cookies_json = cookies_json.to_string();
+        let result =
+            rt().block_on(async move { engine.cookies_import(&page_id, &cookies_json).await });
+        to_rresult(result)
     }
 }

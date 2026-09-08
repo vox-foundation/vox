@@ -28,6 +28,7 @@ pub fn mutation_kind_for_tool(name: &str) -> &'static str {
         | "vox_browser_extract"
         | "vox_browser_extract_json"
         | "vox_browser_act"
+        | "vox_browser_cookies_import"
         | "vox_openclaw_gateway_call"
         | "vox_openclaw_notify"
         | "vox_openclaw_subscribe"

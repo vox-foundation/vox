@@ -7,11 +7,12 @@
 use crate::caller_role::{CallerRole, trusted_caller_role};
 use crate::llm_bridge::call_llm;
 use crate::params::{
-    BrowserActParams, BrowserClickPointParams, BrowserControlLockParams, BrowserExtractJsonParams,
-    BrowserExtractParams, BrowserFillParams, BrowserFillRefParams, BrowserGotoParams,
-    BrowserHtmlParams, BrowserKeyParams, BrowserOpenExParams, BrowserOpenParams, BrowserPageParams,
-    BrowserRefParams, BrowserScreenshotParams, BrowserScrollParams, BrowserSnapshotParams,
-    BrowserTargetParams, BrowserTypeParams, BrowserViewportParams, BrowserWaitParams, ToolResult,
+    BrowserActParams, BrowserClickPointParams, BrowserControlLockParams,
+    BrowserCookiesImportParams, BrowserExtractJsonParams, BrowserExtractParams, BrowserFillParams,
+    BrowserFillRefParams, BrowserGotoParams, BrowserHtmlParams, BrowserKeyParams,
+    BrowserOpenExParams, BrowserOpenParams, BrowserPageParams, BrowserRefParams,
+    BrowserScreenshotParams, BrowserScrollParams, BrowserSnapshotParams, BrowserTargetParams,
+    BrowserTypeParams, BrowserViewportParams, BrowserWaitParams, ToolResult,
 };
 use crate::server_state::ServerState;
 use serde::Deserialize;
@@ -78,6 +79,31 @@ fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
 fn parse_backend_json(text: String) -> anyhow::Result<serde_json::Value> {
     serde_json::from_str::<serde_json::Value>(&text)
         .map_err(|e| anyhow::anyhow!("invalid backend JSON: {e}; raw={text}"))
+}
+
+/// MCP cookie export may only return `{count, path}`. Rebuild so plugin extras
+/// (including `value` / `cookies`) never reach the model.
+fn cookie_export_public_payload(value: serde_json::Value) -> Result<serde_json::Value, String> {
+    if value.get("value").is_some() || value.get("cookies").is_some() {
+        return Err("export payload leaked cookie fields".to_string());
+    }
+    let count = value
+        .get("count")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| "export missing count".to_string())?;
+    let path = value
+        .get("path")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "export missing path".to_string())?;
+    Ok(serde_json::json!({ "count": count, "path": path }))
+}
+
+fn cookie_export_authorized(role: crate::caller_role::CallerRole) -> Result<(), String> {
+    if role != crate::caller_role::CallerRole::Human {
+        return Err("cookie export requires a human caller role".to_string());
+    }
+    Ok(())
 }
 
 fn summary_max_chars() -> usize {
@@ -210,9 +236,90 @@ pub async fn browser_open_ex(_state: &ServerState, p: BrowserOpenExParams) -> St
         .to_json(),
         Ok(Err(e)) => ToolResult::<serde_json::Value>::err_with_remediation(
             e.to_string(),
-            "Named mode needs save_profile or stored consent. Attach is not implemented yet. Empty VOX_BROWSER_ALLOWED_HOSTS with Named/Attach is an operator risk — set the var in production.",
+            "Named mode needs save_profile or stored consent. Attach requires a loopback cdp_url; start Chrome with chrome --remote-debugging-port=9222 and enable Chrome 144+ chrome://inspect/#remote-debugging. Empty VOX_BROWSER_ALLOWED_HOSTS with Named/Attach is an operator risk — set the var in production.",
         )
         .to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
+    }
+}
+
+fn cookie_import_path_jailed(path: &str) -> Result<std::path::PathBuf, String> {
+    let root = vox_config::paths::browser_profiles_dir();
+    let candidate = std::path::Path::new(path);
+    let joined = if candidate.is_absolute() {
+        candidate.to_path_buf()
+    } else {
+        root.join(candidate)
+    };
+    if !vox_config::paths::cookie_import_path_ok(&root, &joined) {
+        return Err("path is outside browser profiles dir".to_string());
+    }
+    std::fs::canonicalize(joined).map_err(|e| format!("canonicalize path: {e}"))
+}
+
+pub async fn browser_cookies_export(_state: &ServerState, p: BrowserPageParams) -> String {
+    if let Err(e) = cookie_export_authorized(trusted_caller_role()) {
+        return ToolResult::<serde_json::Value>::err_with_remediation(
+            e,
+            "Export cookies from the GUI (human role), not from an agent session.",
+        )
+        .to_json();
+    }
+    if let Err(e) = ensure_control_lock(&p.page_id).await {
+        return ToolResult::<serde_json::Value>::err(e).to_json();
+    }
+    let page_id = p.page_id.clone();
+    match tokio::task::spawn_blocking(move || {
+        let plugin = require_browser_revision(5)?;
+        let b = backend!(plugin);
+        let raw = b
+            .cookies_export(page_id.as_str().into())
+            .into_result()
+            .map(|s| s.into_string())
+            .map_err(|e| anyhow::anyhow!("browser cookies_export: {e}"))?;
+        let parsed = serde_json::from_str::<serde_json::Value>(&raw)
+            .map_err(|e| anyhow::anyhow!("browser cookies_export: invalid backend JSON: {e}"))?;
+        cookie_export_public_payload(parsed).map_err(|e| anyhow::anyhow!("browser cookies_export: {e}"))
+    })
+    .await
+    {
+        Ok(Ok(payload)) => ToolResult::ok(payload).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err_with_remediation(
+            e.to_string(),
+            "Attach export needs the same consent as named save (save_profile or stored ProfileConsent).",
+        )
+        .to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
+    }
+}
+
+pub async fn browser_cookies_import(_state: &ServerState, p: BrowserCookiesImportParams) -> String {
+    if let Err(e) = ensure_control_lock(&p.page_id).await {
+        return ToolResult::<serde_json::Value>::err(e).to_json();
+    }
+    let jailed = match cookie_import_path_jailed(&p.path) {
+        Ok(path) => path,
+        Err(e) => return ToolResult::<serde_json::Value>::err(e).to_json(),
+    };
+    let cookies_json = match std::fs::read_to_string(&jailed) {
+        Ok(text) => text,
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err(format!("read cookies file: {e}"))
+                .to_json();
+        }
+    };
+    let page_id = p.page_id.clone();
+    match tokio::task::spawn_blocking(move || {
+        let plugin = require_browser_revision(5)?;
+        let b = backend!(plugin);
+        b.cookies_import(page_id.as_str().into(), cookies_json.as_str().into())
+            .into_result()
+            .map_err(|e| anyhow::anyhow!("browser cookies_import: {e}"))
+    })
+    .await
+    {
+        Ok(Ok(())) => ToolResult::ok(serde_json::json!({ "ok": true })).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
         Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
 }
@@ -1284,6 +1391,40 @@ mod tests {
         // The owner can release/change its own lock.
         assert!(lock_change_allowed(Some("human"), "none", "human"));
         assert!(lock_change_allowed(Some("agent"), "none", "agent"));
+    }
+
+    #[test]
+    fn cookie_export_public_payload_whitelists_count_and_path() {
+        let ok = cookie_export_public_payload(serde_json::json!({
+            "count": 3,
+            "path": "/tmp/p/cookies.json"
+        }))
+        .unwrap();
+        assert_eq!(ok["count"], 3);
+        assert_eq!(ok["path"], "/tmp/p/cookies.json");
+        assert!(ok.get("value").is_none());
+        assert!(
+            cookie_export_public_payload(serde_json::json!({
+                "count": 1,
+                "path": "/tmp/p/cookies.json",
+                "value": "secret"
+            }))
+            .is_err()
+        );
+        assert!(
+            cookie_export_public_payload(serde_json::json!({
+                "count": 1,
+                "path": "/tmp/p/cookies.json",
+                "cookies": [{"value": "secret"}]
+            }))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn cookie_export_authorized_denies_agent() {
+        assert!(cookie_export_authorized(crate::caller_role::CallerRole::Agent).is_err());
+        assert!(cookie_export_authorized(crate::caller_role::CallerRole::Human).is_ok());
     }
 
     #[test]
