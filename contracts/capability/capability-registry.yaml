@@ -6610,7 +6610,7 @@ curated:
 - id: mcp.vox_browser_screencast_frame
   title: Browser Screencast Frame
   description_human: null
-  description_model: Capture one CDP screencast frame and return image_base64 plus viewport dimensions.
+  description_model: Capture one CDP screencast frame, persist under browser-frames cache, return path and viewport dimensions.
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -6642,7 +6642,7 @@ curated:
 - id: mcp.vox_browser_screenshot_viewport
   title: Browser Screenshot Viewport
   description_human: null
-  description_model: Capture viewport-only PNG and return base64 for live UI streaming.
+  description_model: Capture viewport-only PNG, persist under browser-frames cache, return path and dimensions.
   intent_tags: []
   side_effect_class: null
   scope_kind: null

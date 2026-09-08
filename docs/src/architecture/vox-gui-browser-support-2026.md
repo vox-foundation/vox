@@ -81,6 +81,8 @@ Toolbar launch modes (label **Connect Chrome**, not “Attach”):
 
 **Semantic loop (shipped):** `vox_browser_snapshot` → compact AX tree with `[ref=eN]` → `vox_browser_click_ref` / `vox_browser_fill_ref`. Optional numbered-bbox overlay on the agent frame (`browser_snapshot` with `include_boxes: true`; GUI checkbox **Show refs**).
 
+**Chat research loop:** MCP `call_tool` attaches an image part for viewport/screencast frames. JSON is `{page_id, path, width, height, mime}` under `$VOX_CACHE_DIR/browser-frames` (Tier D). Axis maps the part through `LlmChatMessage.content_parts`. Skill: `browser-research`. Contract: [2026-09-08 chat harness research loop](../../superpowers/specs/2026-09-08-chat-harness-research-loop-design.md).
+
 **Chat `click_ref` success** is on an **unlocked** page or a page whose lock owner is `agent` — not a GUI-opened human-locked tab.
 
 Cookie export/import return a **count** and a profile-relative path, never cookie values. Attach-mode export uses the same explicit consent as named save.
@@ -116,6 +118,7 @@ flowchart LR
 ## Related docs
 
 - [2026-09-07 agent browser driver spec](../../superpowers/specs/2026-09-07-agent-browser-driver-design.md) — snapshot, profiles, Connect Chrome
+- [2026-09-08 chat harness research loop](../../superpowers/specs/2026-09-08-chat-harness-research-loop-design.md) — MCP and Axis image parts
 - [agent-browser-driver-research-2026.md](./agent-browser-driver-research-2026.md) — Approach A rationale
 - [vox-native-scraping-scoping-2026-06-03.md](./vox-native-scraping-scoping-2026-06-03.md) — CDP vs Playwright engine decision
 - [where-things-live.md](./where-things-live.md) — crate lookup table

@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use base64::Engine;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
@@ -42,6 +43,7 @@ pub struct BrowserFramePayload {
     pub image_base64: Option<String>,
     pub viewport_width: Option<u32>,
     pub viewport_height: Option<u32>,
+    pub mime: Option<String>,
     pub action_log: Vec<String>,
     pub error: Option<String>,
 }
@@ -277,10 +279,73 @@ fn log_needs_human(session: &mut BrowserSession, result: &serde_json::Value) {
     }
 }
 
+fn frame_bytes_from_mcp_data(
+    data: &serde_json::Value,
+    cache_root: &std::path::Path,
+) -> Result<(String, Option<u32>, Option<u32>, String), String> {
+    let width = data
+        .get("width")
+        .or_else(|| data.get("viewport_width"))
+        .and_then(|v| v.as_u64())
+        .map(|v| u32::try_from(v).map_err(|_| "screenshot width exceeds u32".to_string()))
+        .transpose()?;
+    let height = data
+        .get("height")
+        .or_else(|| data.get("viewport_height"))
+        .and_then(|v| v.as_u64())
+        .map(|v| u32::try_from(v).map_err(|_| "screenshot height exceeds u32".to_string()))
+        .transpose()?;
+    if let Some(path) = data.get("path").and_then(|v| v.as_str()) {
+        let p = std::path::Path::new(path);
+        if !p.is_absolute() {
+            return Err("screenshot path must be absolute".into());
+        }
+        if !vox_config::paths::path_is_under(cache_root, p) {
+            return Err("screenshot path escaped cache jail".into());
+        }
+        let metadata = std::fs::metadata(p).map_err(|e| e.to_string())?;
+        if metadata.len() > 400_000 {
+            return Err("screenshot frame exceeds image part cap".into());
+        }
+        let bytes = std::fs::read(p).map_err(|e| e.to_string())?;
+        if bytes.len() > 400_000 {
+            return Err("screenshot frame exceeds image part cap".into());
+        }
+        let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
+            "image/png".to_string()
+        } else if bytes.len() >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff {
+            "image/jpeg".to_string()
+        } else {
+            return Err("screenshot path is not PNG or JPEG".into());
+        };
+        let image_base64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+        return Ok((image_base64, width, height, mime));
+    }
+    if let Some(image_base64) = data.get("image_base64").and_then(|v| v.as_str()) {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(image_base64.trim())
+            .map_err(|_| "screenshot image_base64 is invalid".to_string())?;
+        if bytes.len() > 400_000 {
+            return Err("screenshot frame exceeds image part cap".into());
+        }
+        let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
+            "image/png"
+        } else if bytes.len() >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff {
+            "image/jpeg"
+        } else {
+            return Err("screenshot image_base64 is not PNG or JPEG".into());
+        };
+        let image_base64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+        return Ok((image_base64, width, height, mime.to_string()));
+    }
+    Err("screenshot_viewport returned no path or image_base64".into())
+}
+
 async fn capture_frame_png_base64(
     daemon: &PersistentDaemon,
     page_id: &str,
-) -> Result<(String, Option<u32>, Option<u32>), String> {
+) -> Result<(String, Option<u32>, Option<u32>, String), String> {
+    let cache_root = vox_config::paths::browser_frames_cache_dir();
     let screencast = mcp_tool_call(
         daemon,
         "vox_browser_screencast_frame",
@@ -289,16 +354,8 @@ async fn capture_frame_png_base64(
     .await;
     if let Ok(result) = screencast {
         let data = mcp_data(&result)?;
-        if let Some(image_base64) = data.get("image_base64").and_then(|v| v.as_str()) {
-            let viewport_width = data
-                .get("viewport_width")
-                .and_then(|v| v.as_u64())
-                .map(|v| v as u32);
-            let viewport_height = data
-                .get("viewport_height")
-                .and_then(|v| v.as_u64())
-                .map(|v| v as u32);
-            return Ok((image_base64.to_string(), viewport_width, viewport_height));
+        if data.get("path").is_some() || data.get("image_base64").is_some() {
+            return frame_bytes_from_mcp_data(&data, &cache_root);
         }
     }
     let result = mcp_tool_call(
@@ -308,20 +365,7 @@ async fn capture_frame_png_base64(
     )
     .await?;
     let data = mcp_data(&result)?;
-    let image_base64 = data
-        .get("image_base64")
-        .and_then(|v| v.as_str())
-        .map(ToString::to_string)
-        .ok_or_else(|| "screenshot_viewport returned no image_base64".to_string())?;
-    let viewport_width = data
-        .get("viewport_width")
-        .and_then(|v| v.as_u64())
-        .map(|v| v as u32);
-    let viewport_height = data
-        .get("viewport_height")
-        .and_then(|v| v.as_u64())
-        .map(|v| v as u32);
-    Ok((image_base64, viewport_width, viewport_height))
+    frame_bytes_from_mcp_data(&data, &cache_root)
 }
 
 /// Spawn a background task that polls the active CDP page and emits
@@ -349,6 +393,7 @@ pub fn spawn_browser_frame_stream(
                 image_base64: capture.as_ref().ok().map(|c| c.0.clone()),
                 viewport_width: capture.as_ref().ok().and_then(|c| c.1),
                 viewport_height: capture.as_ref().ok().and_then(|c| c.2),
+                mime: capture.as_ref().ok().map(|c| c.3.clone()),
                 action_log,
                 error: capture.err().map(|e| e.to_string()),
             };
@@ -726,17 +771,19 @@ pub async fn browser_screenshot_frame(
             image_base64: None,
             viewport_width: None,
             viewport_height: None,
+            mime: None,
             action_log,
             error: Some("no active browser session; call browser_open_session first".to_string()),
         });
     };
     match capture_frame_png_base64(&daemon, &page_id).await {
-        Ok((image_base64, viewport_width, viewport_height)) => Ok(BrowserFramePayload {
+        Ok((image_base64, viewport_width, viewport_height, mime)) => Ok(BrowserFramePayload {
             timestamp_ms: now_ms(),
             page_id: Some(page_id),
             image_base64: Some(image_base64),
             viewport_width,
             viewport_height,
+            mime: Some(mime),
             action_log,
             error: None,
         }),
@@ -746,6 +793,7 @@ pub async fn browser_screenshot_frame(
             image_base64: None,
             viewport_width: None,
             viewport_height: None,
+            mime: None,
             action_log,
             error: Some(e),
         }),
@@ -1223,6 +1271,55 @@ mod tests {
         assert!(err.contains("no such page"));
         assert!(err.contains("vox_browser_open"));
         assert!(extract_page_id_from_mcp(&bad).is_none());
+    }
+
+    #[test]
+    fn frame_bytes_from_mcp_data_reads_path() {
+        let dir = std::env::temp_dir().join(format!("vox-gui-frame-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("f.png");
+        let png = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        )
+        .unwrap();
+        std::fs::write(&path, &png).unwrap();
+        let data = serde_json::json!({
+            "path": path.to_string_lossy(),
+            "width": 1,
+            "height": 1
+        });
+        let (b64, w, h, mime) = frame_bytes_from_mcp_data(&data, &dir).expect("read");
+        assert_eq!(mime, "image/png");
+        assert_eq!(w, Some(1));
+        assert_eq!(h, Some(1));
+        assert!(!b64.is_empty());
+    }
+
+    #[test]
+    fn frame_bytes_from_mcp_data_rejects_escape() {
+        let jail = std::env::temp_dir().join(format!("vox-gui-jail-{}", std::process::id()));
+        std::fs::create_dir_all(&jail).unwrap();
+        let data = serde_json::json!({ "path": "/etc/hosts" });
+        assert!(frame_bytes_from_mcp_data(&data, &jail).is_err());
+    }
+
+    #[test]
+    fn frame_bytes_from_mcp_data_rejects_spoofed_inline_image() {
+        let data = serde_json::json!({
+            "image_base64": base64::engine::general_purpose::STANDARD.encode(b"<svg/>"),
+            "mime": "image/png"
+        });
+        assert!(frame_bytes_from_mcp_data(&data, std::env::temp_dir().as_path()).is_err());
+    }
+
+    #[test]
+    fn frame_bytes_from_mcp_data_rejects_dimensions_over_u32() {
+        let data = serde_json::json!({
+            "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+            "width": u64::MAX
+        });
+        assert!(frame_bytes_from_mcp_data(&data, std::env::temp_dir().as_path()).is_err());
     }
 
     #[test]

@@ -765,7 +765,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               {frame?.image_base64 ? (
                 <img
                   ref={frameImgRef}
-                  src={`data:image/png;base64,${frame.image_base64}`}
+                  src={`data:${frame.mime ?? "image/png"};base64,${frame.image_base64}`}
                   alt="Agent browser frame"
                   className="w-full h-full max-h-[480px] object-contain pointer-events-none"
                 />

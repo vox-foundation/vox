@@ -141,6 +141,7 @@ pub async fn llm_chat(
                     tool_calls: m.tool_calls.clone(),
                     tool_call_id: m.tool_call_id.clone(),
                     name: m.name.clone(),
+                    content_parts: m.content_parts.clone(),
                 })
                 .collect();
             let wire_tools: Option<Vec<vox_llm_egress::ToolDef>> =

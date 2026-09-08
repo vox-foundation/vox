@@ -1510,7 +1510,7 @@ operations:
   cli: null
 - id: browser.screenshot.viewport
   title: Browser Screenshot Viewport
-  description: Capture viewport-only PNG and return base64 for live UI streaming.
+  description: Capture viewport-only PNG, persist under browser-frames cache, return path and dimensions.
   description_human: null
   product_lane: interop
   intent_tags: []
@@ -1610,7 +1610,7 @@ operations:
   cli: null
 - id: browser.screencast.frame
   title: Browser Screencast Frame
-  description: Capture one CDP screencast frame and return image_base64 plus viewport dimensions.
+  description: Capture one CDP screencast frame, persist under browser-frames cache, return path and viewport dimensions.
   description_human: null
   product_lane: interop
   intent_tags: []

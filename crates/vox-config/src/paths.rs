@@ -46,12 +46,36 @@ fn resolve_browser_profiles_dir(override_dir: Option<&str>, data: Option<PathBuf
         .join("browser-profiles")
 }
 
+/// Tier D cache leaf for browser viewport/screencast frames.
+pub const BROWSER_FRAMES_CACHE_LEAF: &str = "browser-frames";
+
+/// Resolve the Vox cache directory. Env `VOX_CACHE_DIR` overrides; else platform default.
+pub fn cache_dir() -> PathBuf {
+    let override_dir = std::env::var("VOX_CACHE_DIR").ok();
+    resolve_cache_dir(override_dir.as_deref(), platform_cache_dir())
+}
+
+fn resolve_cache_dir(override_dir: Option<&str>, platform: Option<PathBuf>) -> PathBuf {
+    if let Some(dir) = override_dir
+        && !dir.is_empty()
+    {
+        return PathBuf::from(dir);
+    }
+    platform
+        .unwrap_or_else(|| std::env::temp_dir().join("vox-cache"))
+        .join(APP_DIR_NAME)
+}
+
+pub fn browser_frames_cache_dir() -> PathBuf {
+    cache_dir().join(BROWSER_FRAMES_CACHE_LEAF)
+}
+
 /// True iff both sides canonicalize and `candidate` is under `root`.
 ///
 /// Either canonicalize failure is a reject (no raw-path fallback). Uses
 /// `strip_prefix`, not `Path::starts_with`, so a sibling such as
 /// `profiles-evil` is not treated as inside `profiles`.
-pub fn cookie_import_path_ok(root: &Path, candidate: &Path) -> bool {
+pub fn path_is_under(root: &Path, candidate: &Path) -> bool {
     let Ok(root_cmp) = std::fs::canonicalize(root) else {
         return false;
     };
@@ -59,6 +83,26 @@ pub fn cookie_import_path_ok(root: &Path, candidate: &Path) -> bool {
         return false;
     };
     cand_cmp.strip_prefix(&root_cmp).is_ok()
+}
+
+pub fn cookie_import_path_ok(root: &Path, candidate: &Path) -> bool {
+    path_is_under(root, candidate)
+}
+
+fn platform_cache_dir() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    return std::env::var("LOCALAPPDATA").ok().map(PathBuf::from);
+    #[cfg(target_os = "macos")]
+    return Some(user_home_dir().join("Library").join("Caches"));
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    {
+        if let Ok(xdg) = std::env::var("XDG_CACHE_HOME")
+            && !xdg.is_empty()
+        {
+            return Some(PathBuf::from(xdg));
+        }
+        Some(user_home_dir().join(".cache"))
+    }
 }
 
 /// Default database path: `<data_dir>/vox.db`.
@@ -327,6 +371,17 @@ mod dot_vox_user_dir_tests {
         assert_eq!(
             resolve_browser_profiles_dir(Some(""), Some(data.clone())),
             data.join("browser-profiles")
+        );
+    }
+
+    #[test]
+    fn cache_dir_honors_vox_cache_dir() {
+        let tmp = std::env::temp_dir().join(format!("vox-cache-test-{}", std::process::id()));
+        let got = resolve_cache_dir(tmp.to_str(), Some(PathBuf::from("/ignored")));
+        assert_eq!(got, tmp);
+        assert_eq!(
+            got.join(BROWSER_FRAMES_CACHE_LEAF),
+            tmp.join("browser-frames")
         );
     }
 

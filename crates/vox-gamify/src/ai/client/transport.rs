@@ -255,6 +255,7 @@ impl FreeAiClient {
                 tool_calls: None,
                 tool_call_id: None,
                 name: None,
+                content_parts: None,
             }];
             let params = vox_llm_egress::ChatParams { max_tokens: Some(512), ..Default::default() };
 
@@ -366,6 +367,7 @@ impl FreeAiClient {
                 tool_calls: None,
                 tool_call_id: None,
                 name: None,
+                content_parts: None,
             }];
             let params = vox_llm_egress::ChatParams {
                 max_tokens: Some(512),

@@ -125,6 +125,8 @@ pub(crate) mod text_normalization;
 #[cfg(feature = "toestub-gate")]
 pub mod toestub_tools;
 pub mod tool_aliases;
+/// Strip `image_base64` from MCP tool JSON and build image parts for chat.
+pub mod tool_images;
 /// `vox_tool_search` — keyword search over the tool registry (progressive disclosure).
 pub mod tool_search;
 /// Training-intent submission via orchestrator (Mens CLI remains canonical executor).

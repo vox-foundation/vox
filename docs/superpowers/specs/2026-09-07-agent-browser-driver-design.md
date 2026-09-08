@@ -12,6 +12,7 @@ training_rationale: "Contract for implementing snapshot+ref, named profiles, and
 **Date:** 2026-09-07
 **Research:** [`docs/src/architecture/agent-browser-driver-research-2026.md`](../../src/architecture/agent-browser-driver-research-2026.md)
 **Plan:** [`docs/superpowers/plans/2026-09-07-agent-browser-driver.md`](../plans/2026-09-07-agent-browser-driver.md)
+**Follow-on (chat sees the page):** [`2026-09-08-chat-harness-research-loop-design.md`](./2026-09-08-chat-harness-research-loop-design.md)
 **Supersedes (this program only):** the 2026-08-31 GUI-axis line “never `vox_browser_snapshot`” and the deferred `vox_browser_snapshot` / `vox_browser_click_ref` bullets in [`vox-gui-browser-support-2026.md`](../../src/architecture/vox-gui-browser-support-2026.md). Those were “not in that plan,” not a product ban.
 
 This spec is the contract. Executors do not invent types, env vars, crate edges, or tool names that are not named here.

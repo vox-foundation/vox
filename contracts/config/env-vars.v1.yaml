@@ -4538,7 +4538,7 @@ variables:
     introduced_in: "0.5.0"
     description: "Referenced from workspace sources; locate callsites with rg."
   - name: "VOX_CACHE_DIR"
-    owner_crate: "vox-cli"
+    owner_crate: "vox-config"
     kind: "string"
     required: false
     introduced_in: "0.5.0"
