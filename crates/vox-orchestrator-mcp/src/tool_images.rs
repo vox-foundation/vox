@@ -172,6 +172,73 @@ pub fn mcp_contents_for_tool_json(
     out
 }
 
+pub fn llm_tool_message(
+    tool_call_id: impl Into<String>,
+    name: impl Into<String>,
+    result_json: String,
+    cache_root: &Path,
+) -> vox_actor_runtime::llm::LlmChatMessage {
+    let tool_call_id = tool_call_id.into();
+    let name = name.into();
+    if !FRAME_IMAGE_TOOL_NAMES.contains(&name.as_str()) {
+        return vox_actor_runtime::llm::LlmChatMessage {
+            role: "tool".into(),
+            content: result_json,
+            tool_call_id: Some(tool_call_id),
+            name: Some(name),
+            content_parts: None,
+            ..Default::default()
+        };
+    }
+    let mut promoted = promote_tool_image(&result_json);
+    if promoted.json.get("success") != Some(&serde_json::Value::Bool(true)) {
+        return vox_actor_runtime::llm::LlmChatMessage {
+            role: "tool".into(),
+            content: json_text(&promoted),
+            tool_call_id: Some(tool_call_id),
+            name: Some(name),
+            content_parts: None,
+            ..Default::default()
+        };
+    }
+    attach_image_from_cached_path(cache_root, &mut promoted);
+    let content = json_text(&promoted);
+    let content_parts = promoted.image.map(|img| {
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&img.bytes);
+        vec![vox_actor_runtime::llm::LlmContentPart::ImageUrl {
+            image_url: vox_actor_runtime::llm::LlmImageUrl {
+                url: format!("data:{};base64,{b64}", img.mime),
+            },
+        }]
+    });
+    vox_actor_runtime::llm::LlmChatMessage {
+        role: "tool".into(),
+        content,
+        tool_call_id: Some(tool_call_id),
+        name: Some(name),
+        content_parts,
+        ..Default::default()
+    }
+}
+
+pub fn retain_latest_tool_image(messages: &mut [vox_actor_runtime::llm::LlmChatMessage]) {
+    let last_img = messages.iter().rposition(|message| {
+        message.role == "tool"
+            && message
+                .content_parts
+                .as_ref()
+                .is_some_and(|parts| !parts.is_empty())
+    });
+    let Some(last_img) = last_img else {
+        return;
+    };
+    for (index, message) in messages.iter_mut().enumerate() {
+        if index != last_img && message.role == "tool" {
+            message.content_parts = None;
+        }
+    }
+}
+
 pub fn tool_json_from_screencast_value(cache_root: &Path, page_id: &str, value: Value) -> String {
     let width = value
         .get("viewport_width")
@@ -540,5 +607,70 @@ mod tests {
             src.contains("mcp_contents_for_tool_json(&name_str, &result_json,"),
             "call_tool must pass the tool name and cache root; helper-only tests are not enough"
         );
+    }
+
+    #[test]
+    fn tool_result_message_gets_image_part_from_cached_png() {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(PNG_1X1_B64)
+            .unwrap();
+        let tmp = std::env::temp_dir().join(format!("vox-loop-img-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&tmp);
+        let path =
+            persist_browser_frame_png(&tmp, "pg", &bytes, FramePersistMode::Snapshot).unwrap();
+        let content = serde_json::json!({
+            "success": true,
+            "data": { "path": path.to_string_lossy(), "mime": "image/png" }
+        })
+        .to_string();
+        let msg = llm_tool_message("call_1", "vox_browser_screenshot_viewport", content, &tmp);
+        assert!(!msg.content.contains("image_base64"));
+        let parts = msg.content_parts.expect("parts");
+        match &parts[0] {
+            vox_actor_runtime::llm::LlmContentPart::ImageUrl { image_url } => {
+                assert!(image_url.url.starts_with("data:image/png;base64,"));
+            }
+            _ => panic!("expected image_url"),
+        }
+        let cookie = llm_tool_message(
+            "call_2",
+            "vox_browser_cookies_export",
+            serde_json::json!({"success":true,"data":{"count":1,"path": path.to_string_lossy()}})
+                .to_string(),
+            &tmp,
+        );
+        assert!(cookie.content_parts.is_none());
+    }
+
+    #[test]
+    fn retain_latest_tool_image_keeps_only_last_parts() {
+        let tmp = std::env::temp_dir();
+        let mut msgs = vec![
+            llm_tool_message(
+                "a",
+                "vox_browser_screenshot_viewport",
+                r#"{"success":true,"data":{}}"#.into(),
+                &tmp,
+            ),
+            llm_tool_message(
+                "b",
+                "vox_browser_screenshot_viewport",
+                r#"{"success":true,"data":{}}"#.into(),
+                &tmp,
+            ),
+        ];
+        msgs[0].content_parts = Some(vec![vox_actor_runtime::llm::LlmContentPart::ImageUrl {
+            image_url: vox_actor_runtime::llm::LlmImageUrl {
+                url: "data:image/png;base64,aaa".into(),
+            },
+        }]);
+        msgs[1].content_parts = Some(vec![vox_actor_runtime::llm::LlmContentPart::ImageUrl {
+            image_url: vox_actor_runtime::llm::LlmImageUrl {
+                url: "data:image/png;base64,bbb".into(),
+            },
+        }]);
+        retain_latest_tool_image(&mut msgs);
+        assert!(msgs[0].content_parts.is_none());
+        assert!(msgs[1].content_parts.is_some());
     }
 }
