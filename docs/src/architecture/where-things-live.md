@@ -119,7 +119,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-cli-core`](../../../crates/vox-cli-core/) | Shared internals for the vox CLI binary (argv parsing helpers, exit-code policy). |
 | [`vox-code-audit`](../../../crates/vox-code-audit/) | AI code quality stub detector — finds stubs, magic values, empty bodies, missing references, and DRY violations. |
 | [`vox-drift-check`](../../../crates/vox-drift-check/) | Workspace drift and pattern-repetition linter (multi-language: Rust, TypeScript, Vox). |
-| [`vox-codegen`](../../../crates/vox-codegen/) | Codegen + WebIR + vox_ir extracted from vox-compiler. Consumes analysis types from vox-compiler. |
+| [`vox-codegen`](../../../crates/vox-codegen/) | Codegen + WebIR + hir_export extracted from vox-compiler. Consumes analysis types from vox-compiler. |
 | [`vox-rn-codegen`](../../../crates/vox-rn-codegen/) | React Native + Expo TypeScript codegen extracted from vox-codegen. |
 | [`vox-codegen/src/projection_bundle.rs`](../../../crates/vox-codegen/src/projection_bundle.rs) | **`project_bundle_from_hir`** — SSOT assembly of WebIR, AppContract, RuntimeProjection, ShellProjection, and RequiredRuntimeCapabilities for emitters. |
 | [`vox-compiler/src/shell_projection.rs`](../../../crates/vox-compiler/src/shell_projection.rs) | Typed shell/mobile primitive projection from HIR (`@back_button`, `@deep_link`, `@push`). |
