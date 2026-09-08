@@ -15,6 +15,7 @@ static USED: Line = Line(AtomicUsize::new(0));
 static LIMIT: Line = Line(AtomicUsize::new(usize::MAX));
 
 pub fn arm(bytes: usize) {
+    USED.0.store(0, Ordering::Relaxed);
     LIMIT.0.store(bytes, Ordering::Relaxed);
 }
 
@@ -41,7 +42,7 @@ unsafe impl GlobalAlloc for Capped {
         unsafe { System.realloc(ptr, layout, new_size) }
     }
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        USED.0.fetch_sub(layout.size(), Ordering::Relaxed);
+        uncharge(layout.size());
         // SAFETY: `ptr`/`layout` came from a prior allocation of this allocator.
         unsafe { System.dealloc(ptr, layout) }
     }
@@ -56,6 +57,13 @@ fn charge(n: usize) {
         let _ = write_limit_line();
         die(79);
     }
+}
+
+fn uncharge(n: usize) {
+    if LIMIT.0.load(Ordering::Relaxed) == usize::MAX {
+        return;
+    }
+    USED.0.fetch_sub(n, Ordering::Relaxed);
 }
 
 fn write_limit_line() -> std::io::Result<()> {
@@ -135,6 +143,22 @@ mod tests {
         let before = USED.0.load(Ordering::Relaxed);
         charge(1_000_000);
         assert_eq!(USED.0.load(Ordering::Relaxed), before);
+    }
+
+    #[test]
+    fn uncharge_skips_when_unarmed() {
+        assert_eq!(LIMIT.0.load(Ordering::Relaxed), usize::MAX);
+        let before = USED.0.load(Ordering::Relaxed);
+        uncharge(64);
+        assert_eq!(USED.0.load(Ordering::Relaxed), before);
+    }
+
+    #[test]
+    fn arm_resets_used() {
+        USED.0.store(12345, Ordering::Relaxed);
+        arm(usize::MAX);
+        assert_eq!(USED.0.load(Ordering::Relaxed), 0);
+        assert_eq!(LIMIT.0.load(Ordering::Relaxed), usize::MAX);
     }
 
     #[test]

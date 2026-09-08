@@ -13,6 +13,7 @@ pub mod value;
 use crate::hir::nodes::HirModule;
 use env::Scope;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use value::VoxValue;
 
 /// Dual-write of `process.register_exit_command` so the SIGINT/SIGTERM handler
@@ -20,24 +21,51 @@ use value::VoxValue;
 /// `Interpreter::new` or other embedders.
 static SIGNAL_EXIT_COMMANDS: Mutex<Vec<(String, Vec<String>)>> = Mutex::new(Vec::new());
 
+/// Set from the Unix signal handler (async-signal-safe: AtomicBool store only).
+/// The interpreter thread observes this in [`Interpreter::track_step`] and
+/// flushes exit commands there — never from the handler.
+static SIGNAL_EXIT_REQUESTED: AtomicBool = AtomicBool::new(false);
+
 pub(crate) fn record_signal_exit_command(cmd: String, args: Vec<String>) {
     if let Ok(mut q) = SIGNAL_EXIT_COMMANDS.lock() {
         q.push((cmd, args));
     }
 }
 
-/// Drain the signal-visible exit-command queue. Called from the handler
-/// installed only by `run_interp`.
-pub fn flush_signal_exit_commands() {
-    if let Ok(mut q) = SIGNAL_EXIT_COMMANDS.lock() {
-        builtins::flush_exit_command_list(&mut q);
+/// Async-signal-safe request that the interpreter thread flush and exit.
+/// The Unix SIGINT/SIGTERM handler must only call this (no lock, no spawn).
+pub fn request_signal_exit() {
+    SIGNAL_EXIT_REQUESTED.store(true, Ordering::Relaxed);
+}
+
+/// Whether [`request_signal_exit`] has been observed.
+pub fn signal_exit_requested() -> bool {
+    SIGNAL_EXIT_REQUESTED.load(Ordering::Relaxed)
+}
+
+fn take_signal_exit_commands() -> Vec<(String, Vec<String>)> {
+    match SIGNAL_EXIT_COMMANDS.lock() {
+        Ok(mut q) => std::mem::take(&mut *q),
+        Err(_) => Vec::new(),
     }
+}
+
+/// Drain the signal-visible exit-command queue on the interpreter thread.
+/// Must not be called from a Unix signal handler (`Command` allocates).
+pub fn flush_signal_exit_commands() {
+    let mut q = take_signal_exit_commands();
+    builtins::flush_exit_command_list(&mut q);
 }
 
 fn clear_signal_exit_commands() {
     if let Ok(mut q) = SIGNAL_EXIT_COMMANDS.lock() {
         q.clear();
     }
+}
+
+#[cfg(test)]
+fn signal_exit_queue_len() -> usize {
+    SIGNAL_EXIT_COMMANDS.lock().map(|q| q.len()).unwrap_or(0)
 }
 
 #[derive(Debug)]
@@ -59,6 +87,9 @@ pub enum EvalError {
         ns: String,
         method: String,
     },
+    /// SIGINT/SIGTERM requested via [`request_signal_exit`]. `run_interp`
+    /// flushes exit commands on the interpreter thread, then exits 130.
+    Interrupted,
 }
 
 /// Default closure-application depth. Incremented only in `apply_closure`
@@ -672,6 +703,9 @@ impl Interpreter {
     }
 
     pub fn track_step(&mut self) -> Result<(), EvalError> {
+        if signal_exit_requested() {
+            return Err(EvalError::Interrupted);
+        }
         self.steps += 1;
         if self.steps >= self.step_limit {
             Err(EvalError::StepLimitExceeded)
@@ -695,9 +729,25 @@ mod tests {
 
     #[test]
     fn flush_signal_exit_commands_drains_the_static_queue() {
-        record_signal_exit_command("true".into(), Vec::new());
+        record_signal_exit_command("not-a-real-binary-vox-test".into(), Vec::new());
+        assert_eq!(signal_exit_queue_len(), 1);
+        let drained = take_signal_exit_commands();
+        assert_eq!(drained.len(), 1);
+        assert_eq!(signal_exit_queue_len(), 0);
+        // Second drain / flush is a no-op against the probed (now empty) queue.
+        assert!(take_signal_exit_commands().is_empty());
         flush_signal_exit_commands();
-        flush_signal_exit_commands();
+        assert_eq!(signal_exit_queue_len(), 0);
+    }
+
+    #[test]
+    fn request_signal_exit_stops_track_step() {
+        SIGNAL_EXIT_REQUESTED.store(false, Ordering::Relaxed);
+        request_signal_exit();
+        assert!(signal_exit_requested());
+        let mut interp = Interpreter::new(1_000);
+        assert!(matches!(interp.track_step(), Err(EvalError::Interrupted)));
+        SIGNAL_EXIT_REQUESTED.store(false, Ordering::Relaxed);
     }
 
     #[test]

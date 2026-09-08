@@ -118,10 +118,18 @@ async fn run_interp(
             );
             std::process::exit(78);
         }
+        Err(vox_compiler::eval::EvalError::Interrupted) => {
+            interpreter.flush_exit_commands();
+            exit_interrupted();
+        }
         Err(e) => {
             return Err(anyhow::anyhow!("Eval failed: {:?}", e));
         }
     };
+    if vox_compiler::eval::signal_exit_requested() {
+        interpreter.flush_exit_commands();
+        exit_interrupted();
+    }
     // Only print the return value when it's meaningful (non-Null). Suppresses
     // the spurious trailing `Null` that scripts using bare `return;` produced.
     // Use the value's *display* form (e.g. `ok`), not Debug (`Str("ok")`), so
@@ -134,12 +142,13 @@ async fn run_interp(
     Ok(())
 }
 
-/// Flush `process.register_exit_command` work on SIGINT/SIGTERM. Installed
-/// only from [`run_interp`] so other embedders do not inherit the handler.
+/// Install SIGINT/SIGTERM (Unix) / console-ctrl (Windows) so `run_interp`
+/// can flush `process.register_exit_command` on the interpreter thread.
+/// Installed only from [`run_interp`] so other embedders do not inherit it.
 #[allow(unsafe_code)]
 fn install_exit_signal_handler() {
     #[cfg(unix)]
-    // SAFETY: handler only flushes the exit-command queue and `_exit`s.
+    // SAFETY: handler only stores an AtomicBool (async-signal-safe).
     unsafe {
         libc::signal(
             libc::SIGINT,
@@ -157,24 +166,40 @@ fn install_exit_signal_handler() {
 }
 
 #[cfg(unix)]
-#[allow(unsafe_code)]
 extern "C" fn handle_exit_signal(_: libc::c_int) {
-    vox_compiler::eval::flush_signal_exit_commands();
-    // SAFETY: `_exit` skips atexit so the counting allocator is not re-entered.
-    unsafe { libc::_exit(130) };
+    // Async-signal-safe: AtomicBool store only. Do not lock or spawn.
+    vox_compiler::eval::request_signal_exit();
 }
 
 #[cfg(windows)]
 #[allow(unsafe_code)]
 unsafe extern "system" fn win_ctrl_handler(_: u32) -> i32 {
-    vox_compiler::eval::flush_signal_exit_commands();
+    // Helper thread (not a Unix signal handler), but still do not spawn here.
+    vox_compiler::eval::request_signal_exit();
+    1
+}
+
+#[allow(unsafe_code)]
+fn exit_interrupted() -> ! {
+    #[cfg(unix)]
+    // SAFETY: `_exit` skips atexit so the counting allocator is not re-entered.
+    #[allow(unsafe_code)]
+    unsafe {
+        libc::_exit(130);
+    }
+    #[cfg(windows)]
+    #[allow(unsafe_code)]
     unsafe {
         windows_sys::Win32::System::Threading::TerminateProcess(
             windows_sys::Win32::System::Threading::GetCurrentProcess(),
             130,
         );
+        loop {
+            std::hint::spin_loop();
+        }
     }
-    1
+    #[cfg(not(any(unix, windows)))]
+    std::process::exit(130);
 }
 
 /// Execute the `vox run` command (dispatch to App or Script mode).
@@ -506,5 +531,34 @@ mod build_target_gate_tests {
     fn client_target_preserves_heuristic_result() {
         assert!(resolve_has_frontend(BuildTarget::Client, true));
         assert!(!resolve_has_frontend(BuildTarget::Client, false));
+    }
+
+    #[test]
+    fn unix_signal_handler_only_sets_a_flag() {
+        let src = include_str!("run.rs");
+        let start = src
+            .find("fn handle_exit_signal")
+            .expect("unix handler present");
+        let after = &src[start..];
+        let end = after.find("\n}\n").expect("handler body end");
+        let body = &after[..=end];
+        assert!(
+            body.contains("request_signal_exit"),
+            "handler must set the AtomicBool"
+        );
+        assert!(
+            !body.contains("flush_signal_exit_commands"),
+            "handler must not lock or spawn"
+        );
+        assert!(!body.contains("Command::"), "handler must not spawn");
+        assert!(
+            !body.contains("libc::_exit"),
+            "handler must return so the interpreter thread can flush"
+        );
+        assert!(!body.contains(".lock("), "handler must not take a mutex");
+        assert!(
+            !body.contains("exit_interrupted"),
+            "slice must not include the interpreter-thread exit helper"
+        );
     }
 }
