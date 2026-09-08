@@ -55,6 +55,7 @@ pub struct TrustedEndpoint {
 #[derive(Debug)]
 pub struct MeshTrust {
     path: PathBuf,
+    mutation: Mutex<()>,
     live: Mutex<HashMap<EndpointId, Vec<(u64, Connection)>>>,
     next_registration: AtomicU64,
 }
@@ -77,6 +78,7 @@ impl MeshTrust {
     pub fn at(path: &Path) -> Self {
         Self {
             path: path.to_path_buf(),
+            mutation: Mutex::new(()),
             live: Mutex::new(HashMap::new()),
             next_registration: AtomicU64::new(1),
         }
@@ -192,6 +194,7 @@ impl MeshTrust {
         level: TrustLevel,
         addrs: &[std::net::SocketAddr],
     ) -> Result<()> {
+        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
         let key = id.to_string();
         let mut rows = self.read();
         match rows.iter_mut().find(|r| r.endpoint_id == key) {
@@ -216,6 +219,7 @@ impl MeshTrust {
 
     /// Remove `id` from the allowlist **and close every live connection to it**.
     pub fn untrust(&self, id: &EndpointId) -> Result<()> {
+        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
         let key = id.to_string();
         let mut rows = self.read();
         rows.retain(|r| r.endpoint_id != key);
@@ -233,6 +237,10 @@ impl MeshTrust {
         conn: Connection,
         max_per_peer: usize,
     ) -> Option<LiveRegistration> {
+        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
+        if !self.is_trusted(&id) {
+            return None;
+        }
         let token = self.next_registration.fetch_add(1, Ordering::Relaxed);
         let mut live = self.live.lock().unwrap_or_else(PoisonError::into_inner);
         let connections = live.entry(id).or_default();

@@ -261,6 +261,85 @@ async fn live_registration_is_removed_after_connection_handler_exits() {
 }
 
 #[tokio::test]
+async fn external_trust_store_removal_closes_a_live_connection() {
+    let server = start_server().await;
+    server.trust.trust(&client_id(), None).unwrap();
+    let client = client_endpoint(common::client_sk()).await;
+    let conn = client
+        .connect(server.addr.clone(), ALPN)
+        .await
+        .expect("connect");
+
+    timeout(Duration::from_secs(5), async {
+        while server.trust.registered_connections(&client_id()) == 0 {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("server must register the live connection");
+
+    // Simulate `vox mesh untrust` in a separate process: that process shares
+    // the trust file, but not this server's in-memory connection registry.
+    std::fs::write(server.trust.path(), "[]").unwrap();
+    timeout(Duration::from_secs(5), conn.closed())
+        .await
+        .expect("server must observe external revocation and close the connection");
+    timeout(Duration::from_secs(5), async {
+        while server.trust.registered_connections(&client_id()) != 0 {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("external revocation must unregister the connection");
+}
+
+#[derive(Debug)]
+struct LargeResponseExecutor;
+
+impl JobExecutor for LargeResponseExecutor {
+    fn execute<'a>(
+        &'a self,
+        _job: ReceivedJob,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<JobResponse>> + Send + 'a>> {
+        Box::pin(async { Ok(JobResponse::Output(vec![b'x'; 32 * 1024 * 1024])) })
+    }
+}
+
+#[tokio::test]
+async fn a_non_reading_peer_cannot_retain_a_live_registration_forever() {
+    let server = common::start_server_with(|_| Arc::new(LargeResponseExecutor)).await;
+    server.trust.trust(&client_id(), None).unwrap();
+    let client = client_endpoint(common::client_sk()).await;
+    let conn = client
+        .connect(server.addr.clone(), ALPN)
+        .await
+        .expect("connect");
+    let (mut send, _recv) = conn.open_bi().await.expect("open request stream");
+    protocol::write_frame(&mut send, &Hello::current())
+        .await
+        .unwrap();
+    protocol::write_frame(&mut send, &JobRequest::Probe)
+        .await
+        .unwrap();
+    send.finish().unwrap();
+
+    timeout(Duration::from_secs(5), async {
+        while server.trust.registered_connections(&client_id()) == 0 {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("server must register the non-reading peer");
+    timeout(Duration::from_secs(20), async {
+        while server.trust.registered_connections(&client_id()) != 0 {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .expect("bounded response write must release the live registration");
+}
+
+#[tokio::test]
 async fn a_payload_larger_than_the_cap_is_refused_before_any_transfer() {
     let server = start_server().await;
     server.trust.trust(&client_id(), None).unwrap();

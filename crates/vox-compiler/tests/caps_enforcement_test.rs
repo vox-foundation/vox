@@ -555,6 +555,58 @@ fn unscoped_grant_does_not_canonicalize() {
 }
 
 #[test]
+fn scoped_mkdir_rejects_parent_components_before_missing_path_resolution() {
+    let d = tempfile::tempdir().unwrap();
+    let allowed = d.path().join("allowed");
+    std::fs::create_dir(&allowed).unwrap();
+    let outside = d.path().join("outside");
+    std::fs::create_dir(&outside).unwrap();
+    let artifact = outside.join("created");
+    let caps = CapabilitySet::parse(&format!("fs:rw={}", allowed.display())).unwrap();
+    let escaped = allowed
+        .join("missing")
+        .join("..")
+        .join("..")
+        .join("outside")
+        .join("created");
+    let r = run_with(
+        caps,
+        &format!(
+            r#"pub fn main() {{ return fs.mkdir("{}") }}"#,
+            escaped.display()
+        ),
+    );
+    assert!(denied(&r, "fs"), "{r:?}");
+    assert!(!artifact.exists(), "mkdir escaped the scoped fs grant");
+}
+
+#[test]
+fn scoped_write_rejects_parent_components_with_missing_intermediates() {
+    let d = tempfile::tempdir().unwrap();
+    let allowed = d.path().join("allowed");
+    std::fs::create_dir(&allowed).unwrap();
+    let outside_dir = d.path().join("outside");
+    std::fs::create_dir(&outside_dir).unwrap();
+    let outside = outside_dir.join("outside.txt");
+    let caps = CapabilitySet::parse(&format!("fs:rw={}", allowed.display())).unwrap();
+    let escaped = allowed
+        .join("missing")
+        .join("..")
+        .join("..")
+        .join("outside")
+        .join("outside.txt");
+    let r = run_with(
+        caps,
+        &format!(
+            r#"pub fn main() {{ return fs.write("{}", "escaped") }}"#,
+            escaped.display()
+        ),
+    );
+    assert!(denied(&r, "fs"), "{r:?}");
+    assert!(!outside.exists(), "write escaped the scoped fs grant");
+}
+
+#[test]
 fn symlink_escape_is_denied_and_the_op_uses_the_checked_path() {
     let d = tempfile::tempdir().unwrap();
     let allowed = std::fs::canonicalize(d.path()).unwrap().join("ok");

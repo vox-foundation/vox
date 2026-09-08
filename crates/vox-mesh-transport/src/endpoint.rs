@@ -22,6 +22,7 @@ const MAX_INFLIGHT_HANDSHAKES: usize = 64;
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const PROTOCOL_IO_TIMEOUT: Duration = Duration::from_secs(15);
 const FINAL_CLOSE_TIMEOUT: Duration = Duration::from_secs(1);
+const TRUST_RECHECK_INTERVAL: Duration = Duration::from_millis(250);
 const MAX_CONNECTIONS_PER_PEER: usize = 128;
 /// Once this many permits are in use, make new sources prove reachability
 /// before we spend a handshake on them.
@@ -171,22 +172,54 @@ pub async fn serve(
             // Dispatch on the negotiated ALPN. Mail is not a JobRequest
             // variant: it is handed over and forgotten, where a job is a
             // question whose answer the caller waits for.
-            let outcome = if conn.alpn() == mailbox::ALPN {
-                match mailbox {
-                    Some(inbox) => mailbox::handle(conn, remote, Arc::clone(&trust), inbox).await,
-                    None => {
-                        conn.close(REFUSED_NO_MAILBOX.into(), b"no mailbox configured");
-                        Ok(())
+            let handler_conn = conn.clone();
+            let handler_trust = Arc::clone(&trust);
+            let handler = async move {
+                if handler_conn.alpn() == mailbox::ALPN {
+                    match mailbox {
+                        Some(inbox) => {
+                            mailbox::handle(handler_conn, remote, Arc::clone(&handler_trust), inbox)
+                                .await
+                        }
+                        None => {
+                            handler_conn.close(REFUSED_NO_MAILBOX.into(), b"no mailbox configured");
+                            Ok(())
+                        }
                     }
+                } else {
+                    handle(handler_conn, remote, exec).await
                 }
-            } else {
-                handle(conn, remote, exec).await
+            };
+            let outcome = tokio::select! {
+                outcome = handler => outcome,
+                () = wait_until_untrusted(&trust, remote) => {
+                    conn.close(crate::trust::REVOKED.into(), b"trust revoked");
+                    Err(anyhow::anyhow!("trust revoked"))
+                }
             };
             if let Err(e) = outcome {
                 tracing::debug!(peer = %remote, error = %e, "mesh stream ended");
             }
         });
     }
+}
+
+async fn wait_until_untrusted(trust: &MeshTrust, peer: EndpointId) {
+    loop {
+        tokio::time::sleep(TRUST_RECHECK_INTERVAL).await;
+        if !trust.is_trusted(&peer) {
+            return;
+        }
+    }
+}
+
+async fn write_response(
+    send: &mut iroh::endpoint::SendStream,
+    response: &JobResponse,
+) -> Result<()> {
+    timeout(PROTOCOL_IO_TIMEOUT, protocol::write_frame(send, response)).await??;
+    send.finish()?;
+    Ok(())
 }
 
 /// Serve one connection: greet, check the payload claim, execute, reply.
@@ -196,8 +229,7 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
     let hello: protocol::Hello =
         timeout(PROTOCOL_IO_TIMEOUT, protocol::read_frame(&mut recv, 4096)).await??;
     if let Err(e) = protocol::check_hello(&hello) {
-        protocol::write_frame(&mut send, &JobResponse::Failed(e.to_string())).await?;
-        send.finish()?;
+        write_response(&mut send, &JobResponse::Failed(e.to_string())).await?;
         // `Connection::close` may drop stream data not yet delivered to the
         // peer's application. Wait briefly for the FIN (or give up) first.
         let _ = timeout(Duration::from_millis(200), send.stopped()).await;
@@ -225,8 +257,7 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
         let cap = limits.max_payload_for(kind.clone());
         if *payload_bytes > cap {
             let msg = format!("payload of {payload_bytes} bytes exceeds the {cap} byte cap");
-            protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
-            send.finish()?;
+            write_response(&mut send, &JobResponse::Failed(msg)).await?;
             let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;
             return Ok(());
         }
@@ -238,8 +269,7 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
                 "payload length {} does not match the declared claim of {payload_bytes} bytes",
                 p.len()
             );
-            protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
-            send.finish()?;
+            write_response(&mut send, &JobResponse::Failed(msg)).await?;
             let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;
             return Ok(());
         }
@@ -258,8 +288,7 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
         .await
         .unwrap_or_else(|e| JobResponse::Failed(e.to_string()));
 
-    protocol::write_frame(&mut send, &response).await?;
-    send.finish()?;
+    write_response(&mut send, &response).await?;
     // `finish()` signals end-of-stream; it does NOT flush. Dropping the
     // Connection here would close it before the bytes reach the wire and the
     // peer would see `closed by peer: 0` with no payload. Measured during the

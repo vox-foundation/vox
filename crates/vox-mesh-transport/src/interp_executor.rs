@@ -58,6 +58,54 @@ enum Done {
     Cancel,
 }
 
+const MAX_CANCEL_TOMBSTONES: usize = 4_096;
+
+#[derive(Default)]
+struct JobState {
+    running: HashMap<(EndpointId, JobId), oneshot::Sender<()>>,
+    cancelled: HashMap<(EndpointId, JobId), Instant>,
+}
+
+impl JobState {
+    fn prune_cancelled(&mut self, now: Instant) {
+        self.cancelled.retain(|_, expires| *expires > now);
+    }
+
+    fn record_cancellation(
+        &mut self,
+        key: (EndpointId, JobId),
+        expires: Instant,
+    ) -> Option<oneshot::Sender<()>> {
+        self.prune_cancelled(Instant::now());
+        if self.cancelled.len() >= MAX_CANCEL_TOMBSTONES
+            && let Some(oldest) = self
+                .cancelled
+                .iter()
+                .min_by_key(|(_, expires)| **expires)
+                .map(|(key, _)| *key)
+        {
+            self.cancelled.remove(&oldest);
+        }
+        self.cancelled.insert(key, expires);
+        self.running.remove(&key)
+    }
+}
+
+struct RunningJobGuard<'a> {
+    state: &'a Mutex<JobState>,
+    key: (EndpointId, JobId),
+}
+
+impl Drop for RunningJobGuard<'_> {
+    fn drop(&mut self) {
+        self.state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .running
+            .remove(&self.key);
+    }
+}
+
 /// Runs mesh-received VoxScript as `vox run --mode interp` under trust-mapped caps.
 pub struct InterpExecutor {
     trust: Arc<MeshTrust>,
@@ -65,7 +113,7 @@ pub struct InterpExecutor {
     limits: JobLimits,
     global: Arc<Semaphore>,
     peer_slots: Mutex<HashMap<EndpointId, Arc<Semaphore>>>,
-    running: Mutex<HashMap<(EndpointId, JobId), oneshot::Sender<()>>>,
+    jobs: Mutex<JobState>,
 }
 
 impl InterpExecutor {
@@ -77,7 +125,7 @@ impl InterpExecutor {
             limits,
             global: Arc::new(Semaphore::new(n)),
             peer_slots: Mutex::new(HashMap::new()),
-            running: Mutex::new(HashMap::new()),
+            jobs: Mutex::new(JobState::default()),
         }
     }
 
@@ -135,15 +183,20 @@ impl InterpExecutor {
     }
 
     fn pending_count(&self) -> u64 {
-        self.running.lock().unwrap_or_else(|e| e.into_inner()).len() as u64
+        self.jobs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .running
+            .len() as u64
     }
 
     #[cfg(test)]
     fn insert_running_for_test(&self, peer: EndpointId, job_id: JobId) {
         let (tx, _rx) = oneshot::channel();
-        self.running
+        self.jobs
             .lock()
             .unwrap_or_else(|e| e.into_inner())
+            .running
             .insert((peer, job_id), tx);
     }
 
@@ -151,34 +204,30 @@ impl InterpExecutor {
         let start = Instant::now();
         let (cancel_tx, cancel_rx) = oneshot::channel();
         {
-            let mut running = self.running.lock().unwrap_or_else(|e| e.into_inner());
-            if running.contains_key(&(peer, job_id)) {
+            let mut jobs = self.jobs.lock().unwrap_or_else(|e| e.into_inner());
+            jobs.prune_cancelled(Instant::now());
+            if jobs.cancelled.remove(&(peer, job_id)).is_some() {
+                return JobResponse::Failed("cancelled before execution".to_string());
+            }
+            if jobs.running.contains_key(&(peer, job_id)) {
                 return JobResponse::Failed("already running".to_string());
             }
-            running.insert((peer, job_id), cancel_tx);
+            jobs.running.insert((peer, job_id), cancel_tx);
         }
+        let _running = RunningJobGuard {
+            state: &self.jobs,
+            key: (peer, job_id),
+        };
 
         let peer_sem = self.peer_sem(peer);
         let Ok(_peer_permit) = peer_sem.try_acquire() else {
-            self.running
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .remove(&(peer, job_id));
             return JobResponse::Failed("retry later: at the per-peer concurrency cap".to_string());
         };
         let Ok(_global_permit) = self.global.try_acquire() else {
-            self.running
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .remove(&(peer, job_id));
             return JobResponse::Failed("retry later: at the node concurrency cap".to_string());
         };
 
         let result = self.spawn_and_wait(peer, job_id, payload, cancel_rx).await;
-        self.running
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(&(peer, job_id));
         let exit = match &result {
             JobResponse::Output(_) => 0,
             JobResponse::Failed(m) if m.contains("capability denied") => 77,
@@ -410,16 +459,19 @@ impl JobExecutor for InterpExecutor {
                 }),
                 JobRequest::Cancel { job_id } => {
                     let tx = self
-                        .running
+                        .jobs
                         .lock()
                         .unwrap_or_else(|e| e.into_inner())
-                        .remove(&(job.peer, job_id));
+                        .record_cancellation(
+                            (job.peer, job_id),
+                            Instant::now() + self.limits.wall_clock,
+                        );
                     match tx {
                         Some(tx) => {
                             let _ = tx.send(());
                             JobResponse::Failed("cancelled".to_string())
                         }
-                        None => JobResponse::Failed("no such running job".to_string()),
+                        None => JobResponse::Failed("cancellation recorded".to_string()),
                     }
                 }
                 JobRequest::Run { job_id, kind, .. } => {
@@ -518,9 +570,55 @@ mod tests {
             .await
             .unwrap();
         assert!(
-            matches!(resp, JobResponse::Failed(ref m) if m.contains("no such running job")),
+            matches!(resp, JobResponse::Failed(ref m) if m.contains("cancellation recorded")),
             "{resp:?}"
         );
+        assert_eq!(exec.pending_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn cancel_before_run_prevents_the_payload_from_starting() {
+        let d = tempfile::tempdir().unwrap();
+        let trust = Arc::new(MeshTrust::at(&d.path().join("mesh_trust.json")));
+        let peer = iroh::SecretKey::from_bytes(&[3u8; 32]).public();
+        let exec = InterpExecutor::new(
+            trust,
+            PathBuf::from("binary-that-must-not-be-spawned"),
+            JobLimits::default(),
+        );
+        let job_id = JobId(41);
+        let cancel = exec
+            .execute(ReceivedJob {
+                peer,
+                request: JobRequest::Cancel { job_id },
+                limits: JobLimits::default(),
+                payload: Vec::new(),
+            })
+            .await
+            .unwrap();
+        assert!(
+            matches!(cancel, JobResponse::Failed(ref m) if m.contains("cancellation recorded")),
+            "{cancel:?}"
+        );
+
+        let run = exec
+            .execute(ReceivedJob {
+                peer,
+                request: JobRequest::Run {
+                    job_id,
+                    kind: TaskKind::VoxScript,
+                    payload_bytes: 17,
+                },
+                limits: JobLimits::default(),
+                payload: b"pub fn main() {}".to_vec(),
+            })
+            .await
+            .unwrap();
+        assert!(
+            matches!(run, JobResponse::Failed(ref m) if m.contains("cancelled before execution")),
+            "{run:?}"
+        );
+        assert_eq!(exec.pending_count(), 0);
     }
 
     #[tokio::test]

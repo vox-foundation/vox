@@ -26,6 +26,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
 
 use anyhow::{Context as _, Result};
+use fs2::FileExt;
 use iroh::endpoint::Connection;
 use iroh::{Endpoint, EndpointAddr, EndpointId};
 use serde::{Deserialize, Serialize};
@@ -46,6 +47,33 @@ const DELIVER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 const PROTOCOL_IO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
 static QUEUE_RESERVATIONS: OnceLock<Mutex<HashMap<PathBuf, Weak<Mutex<()>>>>> = OnceLock::new();
+
+struct InterprocessLock(std::fs::File);
+
+impl InterprocessLock {
+    fn acquire(dir: &Path) -> Result<Self> {
+        std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
+        let canonical = std::fs::canonicalize(dir)
+            .with_context(|| format!("canonicalizing mailbox directory {}", dir.display()))?;
+        let path = canonical.join(".admission.lock");
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&path)
+            .with_context(|| format!("opening mailbox lock {}", path.display()))?;
+        file.lock_exclusive()
+            .with_context(|| format!("locking mailbox directory {}", canonical.display()))?;
+        Ok(Self(file))
+    }
+}
+
+impl Drop for InterprocessLock {
+    fn drop(&mut self) {
+        let _ = FileExt::unlock(&self.0);
+    }
+}
 
 fn reservation_for(dir: &Path) -> Arc<Mutex<()>> {
     let key = if dir.is_absolute() {
@@ -315,6 +343,7 @@ impl Inbox {
             .reservation
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
+        let _interprocess = InterprocessLock::acquire(&self.dir)?;
         let path = self
             .dir
             .join(peer.to_string())
@@ -324,6 +353,12 @@ impl Inbox {
         }
         let json = serialized_request(req)?;
         let (entries, bytes) = disk_usage(&self.dir);
+        #[cfg(test)]
+        if let Ok(ms) = std::env::var("MAILBOX_TEST_ADMISSION_PAUSE_MS")
+            && let Ok(ms) = ms.parse()
+        {
+            std::thread::sleep(std::time::Duration::from_millis(ms));
+        }
         if entries >= self.limits.max_inbox_entries
             || bytes.saturating_add(json.len() as u64) > self.limits.max_inbox_bytes
         {
@@ -351,6 +386,11 @@ impl Inbox {
     /// redelivery after removal is stored again — the alternative, a permanent
     /// tombstone, is an unbounded on-disk set.
     pub fn remove(&self, peer: &EndpointId, req: &A2ADeliverRequest) -> Result<()> {
+        let _reservation = self
+            .reservation
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let _interprocess = InterprocessLock::acquire(&self.dir)?;
         let path = self
             .dir
             .join(peer.to_string())
@@ -397,6 +437,7 @@ impl Outbox {
             .reservation
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
+        let _interprocess = InterprocessLock::acquire(&self.dir)?;
         let path = self
             .dir
             .join(peer.to_string())
@@ -484,8 +525,12 @@ impl Outbox {
                 inflight -= 1;
             }
             let ep = ep.clone();
+            let dir = self.dir.clone();
+            let reservation = Arc::clone(&self.reservation);
             inflight += 1;
-            set.spawn(async move { deliver_to_peer(&ep, peer, addrs, queued).await });
+            set.spawn(
+                async move { deliver_to_peer(&ep, peer, addrs, queued, &dir, reservation).await },
+            );
         }
 
         while let Some(joined) = set.join_next().await {
@@ -505,6 +550,8 @@ async fn deliver_to_peer(
     peer: EndpointId,
     addrs: Vec<std::net::SocketAddr>,
     queued: Vec<(PathBuf, A2ADeliverRequest)>,
+    queue_dir: &Path,
+    reservation: Arc<Mutex<()>>,
 ) -> usize {
     let mut addr = EndpointAddr::new(peer);
     for a in addrs {
@@ -521,7 +568,13 @@ async fn deliver_to_peer(
         match timeout(DELIVER_TIMEOUT, deliver_one(&conn, &req)).await {
             Ok(Ok(MailboxAck::Stored { .. })) => {
                 // Only now is it safe to drop our copy.
-                if let Err(e) = std::fs::remove_file(&path) {
+                let removed = {
+                    let _reservation = reservation.lock().unwrap_or_else(PoisonError::into_inner);
+                    InterprocessLock::acquire(queue_dir).and_then(|_interprocess| {
+                        std::fs::remove_file(&path).map_err(anyhow::Error::from)
+                    })
+                };
+                if let Err(e) = removed {
                     tracing::warn!(path = %path.display(), error = %e, "delivered mail could not be dequeued; it will be resent and deduplicated");
                 }
                 delivered += 1;
@@ -614,6 +667,7 @@ pub async fn handle(
 mod tests {
     use super::*;
     use iroh::SecretKey;
+    use std::sync::mpsc;
 
     fn peer() -> EndpointId {
         SecretKey::from_bytes(&[3u8; 32]).public()
@@ -635,6 +689,35 @@ mod tests {
             model_id: None,
             traceparent: None,
         }
+    }
+
+    #[test]
+    fn mailbox_capacity_child_process() {
+        if std::env::var_os("MAILBOX_TEST_CAPACITY_CHILD").is_none() {
+            return;
+        }
+        let dir = PathBuf::from(std::env::var_os("MAILBOX_TEST_DIR").unwrap());
+        let index = std::env::var("MAILBOX_TEST_CHILD_INDEX").unwrap();
+        std::fs::write(dir.join(format!("ready-{index}")), b"ready").unwrap();
+        while !dir.join("go").exists() {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let inbox = Inbox::with_limits(
+            &dir,
+            MailboxLimits {
+                max_inbox_entries: 1,
+                ..MailboxLimits::default()
+            },
+        );
+        let accepted = matches!(
+            inbox.store(&peer(), &req(Some(&format!("child-{index}")))),
+            Ok(true)
+        );
+        std::fs::write(
+            dir.join(format!("result-{index}")),
+            if accepted { b"1" } else { b"0" },
+        )
+        .unwrap();
     }
 
     #[test]
@@ -799,6 +882,79 @@ mod tests {
             .count();
         assert_eq!(accepted, 1);
         assert_eq!(Inbox::with_limits(&dir, limits).messages().len(), 1);
+    }
+
+    #[test]
+    fn independent_processes_cannot_overbook_inbox_capacity() {
+        const CHILDREN: usize = 8;
+        let d = tempfile::tempdir().unwrap();
+        let exe = std::env::current_exe().unwrap();
+        let mut children = Vec::new();
+        for i in 0..CHILDREN {
+            children.push(
+                std::process::Command::new(&exe)
+                    .args([
+                        "--exact",
+                        "mailbox::tests::mailbox_capacity_child_process",
+                        "--nocapture",
+                    ])
+                    .env("MAILBOX_TEST_CAPACITY_CHILD", "1")
+                    .env("MAILBOX_TEST_DIR", d.path())
+                    .env("MAILBOX_TEST_CHILD_INDEX", i.to_string())
+                    .env("MAILBOX_TEST_ADMISSION_PAUSE_MS", "200")
+                    .spawn()
+                    .unwrap(),
+            );
+        }
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while (0..CHILDREN)
+            .filter(|i| d.path().join(format!("ready-{i}")).exists())
+            .count()
+            != CHILDREN
+        {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "children did not become ready"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        std::fs::write(d.path().join("go"), b"go").unwrap();
+        for child in &mut children {
+            assert!(child.wait().unwrap().success());
+        }
+        let accepted = (0..CHILDREN)
+            .filter(|i| std::fs::read(d.path().join(format!("result-{i}"))).unwrap() == b"1")
+            .count();
+        assert_eq!(accepted, 1);
+        assert_eq!(Inbox::at(d.path()).messages().len(), 1);
+    }
+
+    #[test]
+    fn remove_cannot_race_a_duplicate_redelivery_ack() {
+        let d = tempfile::tempdir().unwrap();
+        let inbox = Arc::new(Inbox::at(d.path()));
+        let message = req(Some("same"));
+        inbox.store(&peer(), &message).unwrap();
+
+        let reservation = inbox.reservation.lock().unwrap();
+        let removing = Arc::clone(&inbox);
+        let removed_message = message.clone();
+        let (removed_tx, removed_rx) = mpsc::channel();
+        let remove_thread = std::thread::spawn(move || {
+            removing.remove(&peer(), &removed_message).unwrap();
+            removed_tx.send(()).unwrap();
+        });
+        assert!(
+            removed_rx
+                .recv_timeout(std::time::Duration::from_millis(100))
+                .is_err(),
+            "remove bypassed the reservation used by duplicate detection"
+        );
+        drop(reservation);
+        remove_thread.join().unwrap();
+
+        assert!(inbox.store(&peer(), &message).unwrap());
+        assert_eq!(inbox.messages().len(), 1);
     }
 
     #[test]

@@ -122,6 +122,11 @@ fn fs_resolve_allowed(
         return None;
     }
     let p = std::path::Path::new(raw);
+    if p.components()
+        .any(|component| component == std::path::Component::ParentDir)
+    {
+        return None;
+    }
     let name = p.file_name()?;
     if name == "." || name == ".." {
         return None;

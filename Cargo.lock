@@ -17804,6 +17804,7 @@ name = "vox-mesh-transport"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "fs2",
  "futures",
  "iroh",
  "iroh-mdns-address-lookup",
