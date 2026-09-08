@@ -207,8 +207,14 @@ The enabled pre-commit hooks ran `fmt-fix` and `tdd-guard`; both passed.
 
 ## Concerns
 
-- Queue reservation is concurrent-handle-safe within the receiver process.
-  This matches the single-owner mailbox architecture; it is not an
-  inter-process filesystem lock.
+- Follow-up commit `bbe1d020f` closes the final review gaps: scoped paths reject
+  unresolved parent traversal; mailbox admission/removal uses an OS-released
+  inter-process lock; external trust-store revocation closes live connections;
+  cancel-before-run is covered by bounded tombstones; and all endpoint response
+  writes are time-bounded.
+- Follow-up verification: `cargo test -p vox-mesh-transport`,
+  `cargo test -p vox-compiler --test caps_enforcement_test`,
+  `cargo test -p vox-workflow-runtime --features mens`, `cargo check -p vox-cli`,
+  and focused clippy with warnings denied all exited successfully.
 - The worktree still contains extensive unrelated pre-existing modifications
   and GUI test artifacts. They were not included in either scoped commit.
