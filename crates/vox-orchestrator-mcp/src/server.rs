@@ -1,11 +1,10 @@
 //! RMCP [`ServerHandler`] for tool listing and `call_tool` dispatch.
 
 use rmcp::model::{
-    CallToolRequestParams, CallToolResult, Content, GetPromptRequestParams, GetPromptResult,
-    Implementation, InitializeRequestParams, InitializeResult, ListPromptsResult,
-    ListResourcesResult, ListToolsResult, PaginatedRequestParams, Prompt, PromptMessage,
-    PromptMessageRole, RawResource, ReadResourceRequestParams, ReadResourceResult, Resource,
-    ResourceContents, ServerCapabilities,
+    CallToolRequestParams, CallToolResult, GetPromptRequestParams, GetPromptResult, Implementation,
+    InitializeRequestParams, InitializeResult, ListPromptsResult, ListResourcesResult,
+    ListToolsResult, PaginatedRequestParams, Prompt, PromptMessage, PromptMessageRole, RawResource,
+    ReadResourceRequestParams, ReadResourceResult, Resource, ResourceContents, ServerCapabilities,
 };
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler};
@@ -391,7 +390,9 @@ impl ServerHandler for VoxMcpServer {
                 }
             };
 
-        let content = vec![Content::text(result_json)];
+        let frames = vox_config::paths::browser_frames_cache_dir();
+        let content =
+            crate::tool_images::mcp_contents_for_tool_json(&name_str, &result_json, &frames);
         Ok(if is_error {
             CallToolResult::error(content)
         } else {

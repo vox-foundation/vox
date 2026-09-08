@@ -499,4 +499,46 @@ mod tests {
         attach_image_from_cached_path(&tmp, &mut got);
         assert!(got.image.is_none());
     }
+
+    #[test]
+    fn mcp_contents_serializes_image_type() {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(PNG_1X1_B64)
+            .unwrap();
+        let tmp = std::env::temp_dir().join(format!("vox-mcp-img-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&tmp);
+        let path =
+            persist_browser_frame_png(&tmp, "p", &bytes, FramePersistMode::Snapshot).unwrap();
+        let raw = serde_json::json!({
+            "success": true,
+            "data": { "path": path.to_string_lossy() }
+        })
+        .to_string();
+        let contents = mcp_contents_for_tool_json("vox_browser_screenshot_viewport", &raw, &tmp);
+        let v = serde_json::to_value(&contents).expect("content json");
+        let arr = v.as_array().expect("array");
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[1]["type"], "image");
+        assert_eq!(arr[1]["mimeType"], "image/png");
+        assert!(arr[1]["data"].as_str().unwrap().len() > 8);
+        assert_eq!(arr[0]["type"], "text");
+        assert!(!arr[0]["text"].as_str().unwrap().contains("image_base64"));
+    }
+
+    #[test]
+    fn mcp_contents_error_is_text_only() {
+        let raw = r#"{"success":false,"error":"no page"}"#;
+        let tmp = std::env::temp_dir();
+        let contents = mcp_contents_for_tool_json("vox_browser_screenshot_viewport", raw, &tmp);
+        assert_eq!(contents.len(), 1);
+    }
+
+    #[test]
+    fn server_rs_call_site_passes_tool_name() {
+        let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/server.rs"));
+        assert!(
+            src.contains("mcp_contents_for_tool_json(&name_str, &result_json,"),
+            "call_tool must pass the tool name and cache root; helper-only tests are not enough"
+        );
+    }
 }
