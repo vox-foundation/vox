@@ -63,6 +63,7 @@ dirs = { workspace = true }
 ignore = { workspace = true }
 similar = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
+libc = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

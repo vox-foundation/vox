@@ -17,4 +17,8 @@ describe('Axis branding — index.html', () => {
   it('ships the favicon asset', () => {
     expect(existsSync(resolve(here, '../../public/favicon.svg'))).toBe(true);
   });
+  it('loads drive-bootstrap before the module', () => {
+    expect(html).toMatch(/<script src="\/drive-bootstrap\.js"><\/script>/);
+    expect(existsSync(resolve(here, '../../public/drive-bootstrap.js'))).toBe(true);
+  });
 });

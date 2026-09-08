@@ -646,4 +646,71 @@ pub struct GuiArgs {
         help = "Open to a specific command panel"
     )]
     pub command: Option<String>,
+    #[command(subcommand)]
+    pub cmd: Option<GuiCmd>,
+}
+
+#[derive(clap::Subcommand, Clone, Debug)]
+pub enum GuiCmd {
+    /// Drive a dedicated debug Axis from the terminal (never the user's window).
+    Drive(DriveArgs),
+}
+
+#[derive(clap::Parser, Clone, Debug)]
+pub struct DriveArgs {
+    #[command(subcommand)]
+    pub cmd: DriveCmd,
+}
+
+#[derive(clap::Subcommand, Clone, Debug)]
+pub enum DriveCmd {
+    Start(DriveStartArgs),
+    Stop,
+    Show,
+    Set(DriveSetArgs),
+    Send(DriveSendArgs),
+    State,
+    Wait(DriveWaitArgs),
+    Headless(DriveHeadlessArgs),
+}
+
+#[derive(clap::Args, Clone, Debug)]
+pub struct DriveStartArgs {
+    #[arg(long)]
+    pub show: bool,
+    #[arg(long)]
+    pub profile: Option<String>,
+}
+
+#[derive(clap::Args, Clone, Debug)]
+pub struct DriveSetArgs {
+    #[arg(long, required = true)]
+    pub knob: Vec<String>,
+}
+
+#[derive(clap::Args, Clone, Debug)]
+pub struct DriveSendArgs {
+    #[arg(long)]
+    pub text: String,
+}
+
+#[derive(clap::Args, Clone, Debug)]
+pub struct DriveWaitArgs {
+    #[arg(long)]
+    pub until: String,
+    #[arg(long, default_value = "90s")]
+    pub timeout: String,
+}
+
+#[derive(clap::Args, Clone, Debug)]
+pub struct DriveHeadlessArgs {
+    #[command(subcommand)]
+    pub cmd: DriveHeadlessCmd,
+}
+
+#[derive(clap::Subcommand, Clone, Debug)]
+pub enum DriveHeadlessCmd {
+    Set(DriveSetArgs),
+    Send(DriveSendArgs),
+    State,
 }

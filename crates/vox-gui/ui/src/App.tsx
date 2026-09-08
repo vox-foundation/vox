@@ -17,6 +17,7 @@ import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
 import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
+import { AxisDriveHost } from './components/drive/AxisDriveHost';
 import { GroundingCheckToggle } from './components/surfaces/Chat/GroundingCheckToggle';
 import { useGroundingCheck } from './hooks/useGroundingCheck';
 import { Toasts, ToastItem } from './components/ui/Toasts';
@@ -405,9 +406,13 @@ export default function App() {
   const [openPlanSessionId, setOpenPlanSessionId] = useState<string | null>(null);
   const [openPlanVersion, setOpenPlanVersion] = useState<number | null>(null);
   const [sessionSpentUsd, setSessionSpentUsd] = useState<number | null>(null);
+  const skipDrivePinRead =
+    typeof window !== 'undefined' &&
+    (window as Window & { __VOX_DRIVE_LIVE__?: boolean }).__VOX_DRIVE_LIVE__ === true;
   const [chatModelOverride, setChatModelOverride] = useLocalStorage<string | null>(
     SHELL_PREFERENCE_KEYS.chatModelOverride,
     null,
+    { skipRead: skipDrivePinRead },
   );
   const [discardedPlansByChat, setDiscardedPlansByChat] = useLocalStorage<
     Record<string, string[]>
@@ -1698,23 +1703,18 @@ export default function App() {
     [pushToast],
   );
 
+  const submitFromComposer = useCallback((p: Parameters<typeof handleLoquelaSubmit>[0]) => handleLoquelaSubmit({
+    ...p,
+    session_id: p.execution_mode === 'task' ? newBackgroundSessionId() : activeSessionId,
+    model_override: p.model_override ?? chatModelOverride,
+    grounding_check_enabled: groundingCheckEnabled,
+  }), [handleLoquelaSubmit, activeSessionId, chatModelOverride, groundingCheckEnabled]);
+
   const loquelaComposer = (
     <Loquela
       chips={chips}
       setChips={setChips}
-      onSubmit={(p) => handleLoquelaSubmit({
-        ...p,
-        // 'chat' mode (the composer's default) stays part of the active
-        // chat session, same as before. The "Background task" toggle
-        // position (execution_mode: 'task') must NOT reuse activeSessionId --
-        // same fix as /spawn and Deploy-skill below, for the same reason (the
-        // background path never writes to the orchestrator's
-        // chat_history:{session_id} context store, so folding it into the
-        // active session desyncs it).
-        session_id: p.execution_mode === 'task' ? newBackgroundSessionId() : activeSessionId,
-        model_override: p.model_override ?? chatModelOverride,
-        grounding_check_enabled: groundingCheckEnabled,
-      })}
+      onSubmit={submitFromComposer}
       onModelPick={setChatModelOverride}
       selectedModelId={chatModelOverride}
       onSlashCommand={handleLoquelaSlash}
@@ -1981,6 +1981,16 @@ export default function App() {
         agents={data.agents}
         skills={installedSkillEntries}
         gamifyEnabled={gamifySettings.enabled}
+      />
+
+      <AxisDriveHost
+        setters={{
+          setChatModelOverride,
+          setGroundingCheckEnabled,
+          setActiveSkill: (id) => setActiveSkill(id ? { id, name: id } : null),
+          setSkillExclusions,
+        }}
+        onSubmit={submitFromComposer}
       />
 
       <DocViewerDrawer doc={activeDoc} onClose={closeDocViewer} />

@@ -844,3 +844,47 @@ knobs:
     status: active
     default_value: null
     since: "2026-07-05"
+
+  # ── gui/axis-drive ────────────────────────────────────────────────────────
+  - name: gui_drive
+    env_var: VOX_GUI_DRIVE
+    description: Marks the dedicated Axis Drive process (never attach to the user's window).
+    owner_crate: vox-gui
+    status: active
+    default_value: "false"
+    since: "2026-09-08"
+  - name: gui_drive_show
+    env_var: VOX_GUI_DRIVE_SHOW
+    description: Reveal the dedicated debug Axis (hidden + no Dock icon by default).
+    owner_crate: vox-gui
+    status: active
+    default_value: "false"
+    since: "2026-09-08"
+  - name: gui_drive_session_path
+    env_var: VOX_GUI_DRIVE_SESSION_PATH
+    description: Path the drive child writes for gui-drive.json.
+    owner_crate: vox-gui
+    status: active
+    default_value: null
+    since: "2026-09-08"
+  - name: gui_drive_store_root
+    env_var: VOX_GUI_DRIVE_STORE_ROOT
+    description: Journey-store root so drive chat_turn cannot write the user transcript.
+    owner_crate: vox-gui
+    status: active
+    default_value: null
+    since: "2026-09-08"
+  - name: gui_drive_profile
+    env_var: VOX_GUI_DRIVE_PROFILE
+    description: Isolates ~/.vox/gui-drive/<profile>/store.db for a debug Axis session.
+    owner_crate: vox-gui
+    status: active
+    default_value: "default"
+    since: "2026-09-08"
+  - name: gui_drive_token_path
+    env_var: VOX_GUI_DRIVE_TOKEN_PATH
+    description: Path to the 0600 bearer file. Never put the token value in the environment.
+    owner_crate: vox-gui
+    status: active
+    default_value: null
+    since: "2026-09-08"

@@ -30,6 +30,8 @@ import {
 } from '../../../lib/slashRouter';
 import { DriveConsole } from './DriveConsole';
 import { defaultControl, type ClutchId, type ControlState, type RiskId } from '../../../lib/driveConsole';
+import { registerLoquelaDriveApi } from '../../../lib/useDriveBus';
+import type { DriveExecution } from '../../../lib/axisDrive';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { IntentPanel } from './IntentPanel';
 import {
@@ -223,7 +225,30 @@ export function Loquela({
   // Explicit, user-visible choice between the synchronous "quick chat" reply
   // path and dispatching this as a background orchestrator task. Both go to
   // the same `chat_turn` command; this only picks `execution`.
-  const [executionMode, setExecutionMode] = useState<'chat' | 'task'>('chat');
+  const [executionMode, setExecutionMode] = useState<'chat' | 'task' | 'plan'>('chat');
+  useEffect(() => {
+    registerLoquelaDriveApi({
+      setChatModelOverride: (id) => onModelPick?.(id),
+      setTier,
+      setClutch: (clutch) => {
+        userTouchedControlRef.current = true;
+        setControl(c => ({ ...c, clutch: clutch as ClutchId }));
+      },
+      setRisk: (risk) => {
+        userTouchedControlRef.current = true;
+        setControl(c => ({ ...c, risk: risk as RiskId }));
+      },
+      setMode,
+      setDryRun: () => undefined,
+      setExecution: (execution: DriveExecution) => {
+        setExecutionMode(execution === 'background' ? 'task' : execution === 'plan' ? 'plan' : 'chat');
+      },
+      setContextFiles: (files) => {
+        setChips(files.map((label, i) => ({ id: `drive-${i}`, kind: 'file' as const, label })));
+      },
+    });
+    return () => registerLoquelaDriveApi(null);
+  }, [onModelPick, setChips]);
   const [modeOpen, setModeOpen] = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
   const [atOpen,    setAtOpen]    = useState(false);

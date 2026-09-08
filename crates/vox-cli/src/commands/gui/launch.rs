@@ -1,54 +1,58 @@
 use anyhow::{Context, Result};
 use std::env;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Child, Command};
 
 pub async fn run(args: crate::cli_args::GuiArgs) -> Result<()> {
     tracing::info!("Launching Vox Axis (Axis) — the native Vox GUI…");
-
-    let mut cmd = if cfg!(debug_assertions) {
-        let mut c = Command::new("cargo");
-        c.args(["run", "-p", "vox-gui"]);
-        c
-    } else {
-        let exe = env::current_exe()?;
-        let parent = exe.parent().context("Failed to get executable directory")?;
-        let gui_bin_name = if cfg!(windows) {
-            "vox-gui.exe"
-        } else {
-            "vox-gui"
-        };
-        let installed = parent.join(gui_bin_name);
-        let launch_path = if installed.exists() {
-            installed
-        } else {
-            // The GUI is an optional catalog *component*, not part of the CLI build,
-            // so CLI-only users never compile it. Resolve + build/install on demand.
-            resolve_or_build_gui(&installed, gui_bin_name)?
-        };
-        Command::new(launch_path)
-    };
-
+    let mut cmd = gui_command()?;
     if let Some(cmd_val) = args.command {
         cmd.arg("--command").arg(cmd_val);
     }
-
     let mut child = cmd.spawn()?;
     child.wait()?;
     Ok(())
 }
 
-/// Resolve a runnable GUI binary when it isn't installed next to the `vox`
-/// executable. The GUI ships as an optional `[[component]]` in the plugin catalog
-/// (see `vox-plugin-catalog`) rather than as part of the CLI build.
-///
-/// Resolution order:
-///   1. Verify the component exists in the catalog and targets this platform.
-///   2. If we're inside a Vox source checkout, build it with
-///      `cargo build -p vox-gui --release` and install the binary next to `vox`.
-///   3. Otherwise return an actionable error (clone+build, or install a prebuilt
-///      release asset once the release pipeline ships them — a follow-up, since
-///      no GUI release assets are produced yet).
+pub fn gui_command() -> Result<Command> {
+    if cfg!(debug_assertions) {
+        let mut c = Command::new("cargo");
+        c.args(["run", "-p", "vox-gui"]);
+        return Ok(c);
+    }
+    let exe = env::current_exe()?;
+    let parent = exe.parent().context("Failed to get executable directory")?;
+    let gui_bin_name = if cfg!(windows) {
+        "vox-gui.exe"
+    } else {
+        "vox-gui"
+    };
+    let installed = parent.join(gui_bin_name);
+    let launch_path = if installed.exists() {
+        installed
+    } else {
+        resolve_or_build_gui(&installed, gui_bin_name)?
+    };
+    Ok(Command::new(launch_path))
+}
+
+pub fn spawn_gui_detached(mut cmd: Command) -> Result<Child> {
+    cmd.stdin(std::process::Stdio::null());
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+        cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+    }
+    cmd.spawn().context("spawn vox-gui")
+}
+
 fn resolve_or_build_gui(installed: &Path, gui_bin_name: &str) -> Result<PathBuf> {
     let component = vox_plugin_catalog::all_components()
         .iter()
@@ -97,7 +101,6 @@ fn resolve_or_build_gui(installed: &Path, gui_bin_name: &str) -> Result<PathBuf>
             built.display()
         );
     }
-    // Best-effort: install next to the `vox` exe so future launches skip the build.
     if let Some(parent) = installed.parent() {
         let _ = std::fs::create_dir_all(parent);
         if std::fs::copy(&built, installed).is_ok() {
@@ -108,22 +111,10 @@ fn resolve_or_build_gui(installed: &Path, gui_bin_name: &str) -> Result<PathBuf>
     Ok(built)
 }
 
-/// Path to the workspace root (parent of the workspace `Cargo.toml`) when invoked
-/// from inside a Cargo workspace, else `None`.
 fn locate_workspace_root() -> Option<PathBuf> {
     crate::contributor_mode::locate_workspace_root()
 }
 
-/// Message for the "no GUI installed, and no checkout to build one from"
-/// branch — reached precisely when [`locate_workspace_root`] has already
-/// confirmed the caller has no Vox workspace above them (spec §9.1's
-/// non-contributor persona, by construction of this branch).
-///
-/// Leads with the actual status for this user (not installed, no prebuilt
-/// asset, no checkout here) and reports the checkout requirement as a
-/// precondition being described, not as an instruction to someone who by
-/// construction cannot follow it. The source-build route is named only as
-/// "the contributor path" for context, never as this user's remedy.
 fn gui_missing_no_checkout_message(installed: &Path, catalog_source: &str) -> String {
     format!(
         "the Vox GUI is an optional component and is not installed at {}.\n\
@@ -146,13 +137,9 @@ mod gui_missing_message_tests {
             Path::new("/opt/vox/bin/vox-gui"),
             "https://example.invalid/vox-gui",
         );
-        // Reports status honestly: not installed, no prebuilt asset yet, no
-        // checkout here — this is a description of fact, not a command.
         assert!(msg.contains("is not installed at"));
         assert!(msg.contains("don't ship yet"));
         assert!(msg.contains("this isn't a Vox source checkout"));
-        // The checkout route is framed as context ("the contributor path"),
-        // never as an instruction ("Clone the repo and run ...").
         assert!(msg.contains("the contributor path"));
         assert!(!msg.contains("Clone the repo"));
         assert!(msg.contains("https://example.invalid/vox-gui"));

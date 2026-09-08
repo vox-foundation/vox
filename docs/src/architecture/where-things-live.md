@@ -193,6 +193,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-integration-tests`](../../../crates/vox-integration-tests/) | Cross-crate integration test harness (test-only L5). |
 | [`vox-orchestrator-d`](../../../crates/vox-orchestrator-d/) | Vox orchestrator daemon binary. Extracted from vox-orchestrator in 2026-05-08 reorg Phase 4. |
 | [`vox-gui`](../../../crates/vox-gui/) | Tauri desktop shell; depends on vox-cli / vox-orchestrator. |
+| Axis Drive (`vox gui drive`) | Dedicated debug Axis + loopback drive bus. Contract [`contracts/gui/axis-drive.v1.yaml`](../../../contracts/gui/axis-drive.v1.yaml); Rust `crates/vox-gui/src/drive/`; CLI `crates/vox-cli/src/commands/gui/`; host `crates/vox-gui/ui/src/components/drive/AxisDriveHost.tsx`. Not Drive Console. |
 | [`vox-audit`](../../../crates/vox-audit/) | CR-L gate runner binary (`vox audit <thing>`); implements the JSON report shape from `contracts/ci/vox-audit-contract.v1.yaml`. |
 | [`voxup`](../../../crates/voxup/) | Desktop & CLI environment installer. |
 | [`vox-cargo-shim`](../../../crates/vox-cargo-shim/) | Scoped daemonless cargo shim that fair-queues builds within a vox worktree (the build broker binary). Layer 5. |

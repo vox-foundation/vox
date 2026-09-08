@@ -3,9 +3,12 @@
 
 use std::sync::Arc;
 
+use std::path::Path;
 #[cfg(test)]
 use vox_db::DbConfig;
-use vox_db::{DbConnectSurface, VoxDb, connect_workspace_journey_optional};
+use vox_db::{
+    DbConnectSurface, VoxDb, connect_workspace_journey_optional, open_project_db_at_root,
+};
 
 #[derive(Clone)]
 pub struct GuiDbPool {
@@ -15,6 +18,15 @@ pub struct GuiDbPool {
 impl GuiDbPool {
     /// Best-effort workspace connect; pool may be empty when Turso is unavailable.
     pub async fn connect_workspace() -> Self {
+        if let Ok(root) = std::env::var("VOX_GUI_DRIVE_STORE_ROOT") {
+            if !root.is_empty() {
+                let db = open_project_db_at_root(Path::new(&root))
+                    .await
+                    .ok()
+                    .map(Arc::new);
+                return Self { db };
+            }
+        }
         let db = connect_workspace_journey_optional(DbConnectSurface::Runtime, true)
             .await
             .map(Arc::new);
