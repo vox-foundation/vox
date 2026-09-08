@@ -104,6 +104,7 @@ rust_policy:
     - crates/vox-spool/**
     - crates/vox-checksum-manifest/**
     - crates/vox-cli/src/commands/init.rs
+    - crates/vox-orchestrator-mcp/src/tool_images.rs
     - crates/vox-plugin-browser/**
     - tests/**
 

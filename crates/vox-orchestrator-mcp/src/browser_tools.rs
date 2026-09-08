@@ -717,6 +717,7 @@ pub async fn browser_screenshot(_state: &ServerState, p: BrowserScreenshotParams
 
 pub async fn browser_screenshot_viewport(_state: &ServerState, p: BrowserPageParams) -> String {
     let page_id = p.page_id.clone();
+    let page_id_for_persist = page_id.clone();
     match tokio::task::spawn_blocking(move || {
         with_browser_plugin(|p| {
             let b = backend!(p);
@@ -729,15 +730,23 @@ pub async fn browser_screenshot_viewport(_state: &ServerState, p: BrowserPagePar
     .await
     {
         Ok(Ok(bytes)) => {
-            use base64::Engine;
-            let image_base64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
             let (width, height) = png_dimensions(&bytes).unwrap_or((0, 0));
-            ToolResult::ok(serde_json::json!({
-                "image_base64": image_base64,
-                "viewport_width": width,
-                "viewport_height": height
-            }))
-            .to_json()
+            match crate::tool_images::persist_browser_frame_png(
+                &vox_config::paths::browser_frames_cache_dir(),
+                &page_id_for_persist,
+                &bytes,
+                crate::tool_images::FramePersistMode::Snapshot,
+            ) {
+                Ok(path) => ToolResult::ok(serde_json::json!({
+                    "page_id": page_id_for_persist,
+                    "path": path.to_string_lossy(),
+                    "width": width,
+                    "height": height,
+                    "mime": "image/png"
+                }))
+                .to_json(),
+                Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+            }
         }
         Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
         Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
@@ -746,6 +755,7 @@ pub async fn browser_screenshot_viewport(_state: &ServerState, p: BrowserPagePar
 
 pub async fn browser_screencast_frame(_state: &ServerState, p: BrowserPageParams) -> String {
     let page_id = p.page_id.clone();
+    let page_id_for_persist = page_id.clone();
     match tokio::task::spawn_blocking(move || {
         with_browser_plugin(|p| {
             let b = backend!(p);
@@ -759,7 +769,11 @@ pub async fn browser_screencast_frame(_state: &ServerState, p: BrowserPageParams
     })
     .await
     {
-        Ok(Ok(value)) => ToolResult::ok(value).to_json(),
+        Ok(Ok(value)) => crate::tool_images::tool_json_from_screencast_value(
+            &vox_config::paths::browser_frames_cache_dir(),
+            &page_id_for_persist,
+            value,
+        ),
         Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
         Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
