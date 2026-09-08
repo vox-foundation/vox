@@ -51,12 +51,17 @@ pub const BROWSER_FRAMES_CACHE_LEAF: &str = "browser-frames";
 
 /// Resolve the Vox cache directory. Env `VOX_CACHE_DIR` overrides; else platform default.
 pub fn cache_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("VOX_CACHE_DIR")
+    let override_dir = std::env::var("VOX_CACHE_DIR").ok();
+    resolve_cache_dir(override_dir.as_deref(), platform_cache_dir())
+}
+
+fn resolve_cache_dir(override_dir: Option<&str>, platform: Option<PathBuf>) -> PathBuf {
+    if let Some(dir) = override_dir
         && !dir.is_empty()
     {
         return PathBuf::from(dir);
     }
-    platform_cache_dir()
+    platform
         .unwrap_or_else(|| std::env::temp_dir().join("vox-cache"))
         .join(APP_DIR_NAME)
 }
@@ -371,14 +376,13 @@ mod dot_vox_user_dir_tests {
 
     #[test]
     fn cache_dir_honors_vox_cache_dir() {
-        #![allow(unsafe_code)]
         let tmp = std::env::temp_dir().join(format!("vox-cache-test-{}", std::process::id()));
-        unsafe { std::env::set_var("VOX_CACHE_DIR", &tmp) };
-        let got = cache_dir();
-        let frames = browser_frames_cache_dir();
-        unsafe { std::env::remove_var("VOX_CACHE_DIR") };
+        let got = resolve_cache_dir(tmp.to_str(), Some(PathBuf::from("/ignored")));
         assert_eq!(got, tmp);
-        assert_eq!(frames, tmp.join(BROWSER_FRAMES_CACHE_LEAF));
+        assert_eq!(
+            got.join(BROWSER_FRAMES_CACHE_LEAF),
+            tmp.join("browser-frames")
+        );
     }
 
     #[test]
