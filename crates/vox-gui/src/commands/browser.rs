@@ -287,12 +287,14 @@ fn frame_bytes_from_mcp_data(
         .get("width")
         .or_else(|| data.get("viewport_width"))
         .and_then(|v| v.as_u64())
-        .map(|v| v as u32);
+        .map(|v| u32::try_from(v).map_err(|_| "screenshot width exceeds u32".to_string()))
+        .transpose()?;
     let height = data
         .get("height")
         .or_else(|| data.get("viewport_height"))
         .and_then(|v| v.as_u64())
-        .map(|v| v as u32);
+        .map(|v| u32::try_from(v).map_err(|_| "screenshot height exceeds u32".to_string()))
+        .transpose()?;
     if let Some(path) = data.get("path").and_then(|v| v.as_str()) {
         let p = std::path::Path::new(path);
         if !p.is_absolute() {
@@ -300,6 +302,10 @@ fn frame_bytes_from_mcp_data(
         }
         if !vox_config::paths::path_is_under(cache_root, p) {
             return Err("screenshot path escaped cache jail".into());
+        }
+        let metadata = std::fs::metadata(p).map_err(|e| e.to_string())?;
+        if metadata.len() > 400_000 {
+            return Err("screenshot frame exceeds image part cap".into());
         }
         let bytes = std::fs::read(p).map_err(|e| e.to_string())?;
         if bytes.len() > 400_000 {
@@ -316,12 +322,21 @@ fn frame_bytes_from_mcp_data(
         return Ok((image_base64, width, height, mime));
     }
     if let Some(image_base64) = data.get("image_base64").and_then(|v| v.as_str()) {
-        let mime = data
-            .get("mime")
-            .and_then(|v| v.as_str())
-            .unwrap_or("image/png")
-            .to_string();
-        return Ok((image_base64.to_string(), width, height, mime));
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(image_base64.trim())
+            .map_err(|_| "screenshot image_base64 is invalid".to_string())?;
+        if bytes.len() > 400_000 {
+            return Err("screenshot frame exceeds image part cap".into());
+        }
+        let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
+            "image/png"
+        } else if bytes.len() >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff {
+            "image/jpeg"
+        } else {
+            return Err("screenshot image_base64 is not PNG or JPEG".into());
+        };
+        let image_base64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+        return Ok((image_base64, width, height, mime.to_string()));
     }
     Err("screenshot_viewport returned no path or image_base64".into())
 }
@@ -1287,6 +1302,24 @@ mod tests {
         std::fs::create_dir_all(&jail).unwrap();
         let data = serde_json::json!({ "path": "/etc/hosts" });
         assert!(frame_bytes_from_mcp_data(&data, &jail).is_err());
+    }
+
+    #[test]
+    fn frame_bytes_from_mcp_data_rejects_spoofed_inline_image() {
+        let data = serde_json::json!({
+            "image_base64": base64::engine::general_purpose::STANDARD.encode(b"<svg/>"),
+            "mime": "image/png"
+        });
+        assert!(frame_bytes_from_mcp_data(&data, std::env::temp_dir().as_path()).is_err());
+    }
+
+    #[test]
+    fn frame_bytes_from_mcp_data_rejects_dimensions_over_u32() {
+        let data = serde_json::json!({
+            "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+            "width": u64::MAX
+        });
+        assert!(frame_bytes_from_mcp_data(&data, std::env::temp_dir().as_path()).is_err());
     }
 
     #[test]

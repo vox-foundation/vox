@@ -4,7 +4,7 @@
 
 **Goal:** Axis chat and MCP clients receive page pixels as MCP / OpenAI image parts while screenshot JSON stays small (path + size, no `image_base64`), guided by a `browser-research` skill — no mega-tool.
 
-**Architecture:** Always-on `tool_images` allowlists two screenshot tools, persists under an injectable cache root, and builds rmcp `Content::image` (raw b64) plus Axis `content_parts` (data URL). Live frames overwrite `*-live.png`. The agent loop keeps only the latest image part. Wire stays a string unless parts are set. GUI reads the jailed path into the existing Tauri event.
+**Architecture:** Always-on `tool_images` allowlists two screenshot tools, persists under an injectable cache root, and builds rmcp `Content::image` (raw b64) plus Axis `content_parts` (data URL). Live frames overwrite `*-live.png`. The agent loop keeps only the latest image part. OpenAI-compatible tool messages stay text-only; image parts become a following user multimodal message. GUI reads the jailed path into the existing Tauri event.
 
 **Tech Stack:** Rust, rmcp `Content::image`, `vox_llm_egress` OpenAI-compatible chat, existing `vox_browser_*` MCP, first-party `assets/skills/`.
 
@@ -967,10 +967,10 @@ and tests in `lib.rs`:
     #[test]
     fn wire_content_array_with_image_url() {
         let msg = ChatMessage {
-            role: "tool".into(),
+            role: "user".into(),
             content: "{\"success\":true,\"data\":{\"path\":\"/x\"}}".into(),
             tool_calls: None,
-            tool_call_id: Some("c1".into()),
+            tool_call_id: None,
             name: Some("vox_browser_screenshot_viewport".into()),
             content_parts: Some(vec![LlmContentPart::ImageUrl {
                 image_url: LlmImageUrl {
@@ -989,7 +989,7 @@ and tests in `lib.rs`:
 
 `wire_content_json` must be `pub(crate)` in the `wire` module. `mod wire` is private — `crate::wire::…` works inside `vox-llm-egress`.
 
-Add a `wire_mock.rs` test that `body_partial_json` matches an array `content` when `content_parts` is set (copy `chat_once_sends_bearer_headers_and_parses_usage`, change the message, and assert the mock matcher):
+Add a `wire_mock.rs` test that `body_partial_json` matches a text-only tool response followed by a user array `content` when a tool message has `content_parts` set:
 
 ```rust
 #[tokio::test]
@@ -998,13 +998,23 @@ async fn chat_once_sends_image_url_array_content() {
     Mock::given(method("POST"))
         .and(path("/chat/completions"))
         .and(body_partial_json(serde_json::json!({
-            "messages": [{
-                "role": "tool",
-                "content": [
-                    {"type": "text", "text": "{\"ok\":true}"},
-                    {"type": "image_url", "image_url": {"url": "data:image/png;base64,aaa"}}
-                ]
-            }]
+            "messages": [
+                {
+                    "role": "tool",
+                    "content": "{\"ok\":true}",
+                    "tool_call_id": "c1"
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Latest browser frame from the preceding tool results."
+                        },
+                        {"type": "image_url", "image_url": {"url": "data:image/png;base64,aaa"}}
+                    ]
+                }
+            ]
         })))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "model": "test/model",
@@ -1090,6 +1100,10 @@ fn wire_content(m: &ChatMessage) -> serde_json::Value {
 ```
 
 Import `LlmContentPart` in `wire.rs`. `From<&ChatMessage>` sets `content: wire_content(m)`.
+Build outbound messages through a helper that detects image parts on `role: tool`,
+emits the original text-only tool response first, then emits a synthetic `role: user`
+message with the image array. OpenAI-compatible tool-message content does not accept
+`image_url`.
 
 `LlmChatMessage` in `types.rs`:
 

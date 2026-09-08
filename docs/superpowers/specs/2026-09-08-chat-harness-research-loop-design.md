@@ -266,10 +266,13 @@ When `content_parts` is `None`, `ChatMessage` serialization stays `{role, conten
 `WireMessage.content` becomes `serde_json::Value`:
 
 - `content_parts` is `None` or empty → `Value::String(content.clone())` (today’s string).
-- `content_parts` is `Some(parts)` → JSON array:
+- On roles that accept multimodal content, `content_parts` is `Some(parts)` → JSON array:
   1. `{ "type": "text", "text": <content> }`
   2. each `LlmContentPart::ImageUrl` as `{ "type": "image_url", "image_url": { "url": "data:image/png;base64,..." } }`
   3. ignore extra `LlmContentPart::Text` in `content_parts` (Axis must not duplicate text there)
+- OpenAI-compatible `role: tool` messages accept text content only. A tool message
+  carrying an image is serialized as the original text-only tool response followed by
+  a synthetic `role: user` multimodal message containing the image parts.
 
 Do not put raw `image_base64` object keys on the wire. OpenAI-compatible `image_url` is the only image shape.
 
@@ -353,7 +356,9 @@ No live Chrome. Required tests (exact names in the plan):
 - `mcp_contents_for_tool_json("vox_browser_screenshot_viewport", …, &tmp)` yields text + image. Serialized image uses **`mimeType`** (rmcp `camelCase`). Same helper with `"vox_browser_cookies_export"` and `{count,path}` is **length 1**.
 - `mcp_contents_for_tool_json` on a path-only viewport JSON **fails** if `attach_image_from_cached_path` is deleted (path-only, not leftover `image_base64`).
 - `server.rs` contains `mcp_contents_for_tool_json(&name_str, &result_json,` — `include_str!` mutation test (helper exists but `call_tool` still uses `Content::text` only).
-- Wire: `content_parts: None` still a JSON **string**; `Some(image)` is an **array** with `image_url`. `stream_once` / `chat_once` share `build_request`.
+- Wire: `content_parts: None` still a JSON **string**; `Some(image)` on a tool
+  message becomes a text-only tool response plus a following user **array** with
+  `image_url`. `stream_once` / `chat_once` share `build_request`.
 - `plain_text_message_serializes_with_no_tool_keys` still length 2 (role + content).
 - `retain_latest_tool_image`: two tool messages with parts → only the last keeps parts.
 - GUI: `frame_bytes_from_mcp_data(&data, &jail)` — production call site passes `browser_frames_cache_dir()`, not `None`.
@@ -367,7 +372,9 @@ No live Chrome. Required tests (exact names in the plan):
 - `vox ci operations-sync` / ssot-drift after catalog description edits.
 - `vox ci agentskills-compliance` on the new skill.
 
-Live Axis demo is **manual**: open a page, ask chat to summarize what is on screen, confirm the second provider request includes an `image_url` part (proxy log or debug). Not a CI job.
+Live Axis demo is **manual**: open a page, ask chat to summarize what is on screen,
+confirm the second provider request includes a text-only tool response followed by a
+user `image_url` part (proxy log or debug). Not a CI job.
 
 ## 10.1 Closed critique (keep these; do not re-open)
 

@@ -93,23 +93,94 @@ impl<'a> From<&'a ChatMessage> for WireMessage<'a> {
 
 fn wire_content(m: &ChatMessage) -> serde_json::Value {
     match m.content_parts.as_ref() {
-        Some(parts) if !parts.is_empty() => {
-            let mut content = vec![serde_json::json!({
-                "type": "text",
-                "text": m.content,
-            })];
-            for part in parts {
-                if let LlmContentPart::ImageUrl { image_url } = part {
-                    content.push(serde_json::json!({
-                        "type": "image_url",
-                        "image_url": { "url": image_url.url },
-                    }));
-                }
-            }
-            serde_json::Value::Array(content)
-        }
+        Some(parts) if !parts.is_empty() => multimodal_content(&m.content, parts),
         _ => serde_json::Value::String(m.content.clone()),
     }
+}
+
+fn multimodal_content(text: &str, parts: &[LlmContentPart]) -> serde_json::Value {
+    let mut content = vec![serde_json::json!({
+        "type": "text",
+        "text": text,
+    })];
+    for part in parts {
+        match part {
+            LlmContentPart::Text { .. } => {}
+            LlmContentPart::ImageUrl { image_url } => content.push(serde_json::json!({
+                "type": "image_url",
+                "image_url": { "url": image_url.url },
+            })),
+        }
+    }
+    serde_json::Value::Array(content)
+}
+
+fn append_tool_images<'a>(wire: &mut Vec<WireMessage<'a>>, parts: &[&LlmContentPart]) {
+    if parts.is_empty() {
+        return;
+    }
+    let mut content = vec![serde_json::json!({
+        "type": "text",
+        "text": "Latest browser frame from the preceding tool results.",
+    })];
+    for part in parts {
+        match part {
+            LlmContentPart::Text { .. } => {}
+            LlmContentPart::ImageUrl { image_url } => content.push(serde_json::json!({
+                "type": "image_url",
+                "image_url": { "url": image_url.url },
+            })),
+        }
+    }
+    wire.push(WireMessage {
+        role: "user",
+        content: serde_json::Value::Array(content),
+        tool_calls: None,
+        tool_call_id: None,
+        name: None,
+    });
+}
+
+fn wire_messages(messages: &[ChatMessage]) -> Vec<WireMessage<'_>> {
+    let mut wire = Vec::with_capacity(messages.len());
+    let mut pending_tool_parts = Vec::new();
+    for message in messages {
+        if message.role != "tool" {
+            append_tool_images(&mut wire, &pending_tool_parts);
+            pending_tool_parts.clear();
+        }
+        let has_image = message.content_parts.as_ref().is_some_and(|parts| {
+            parts
+                .iter()
+                .any(|part| matches!(part, LlmContentPart::ImageUrl { .. }))
+        });
+        if message.role == "tool" && has_image {
+            // OpenAI-compatible tool messages only accept text content. Preserve the
+            // tool-call response, then provide its pixels in a user multimodal turn.
+            wire.push(WireMessage {
+                role: &message.role,
+                content: serde_json::Value::String(message.content.clone()),
+                tool_calls: message
+                    .tool_calls
+                    .as_ref()
+                    .map(|calls| calls.iter().map(WireToolCall::from).collect()),
+                tool_call_id: message.tool_call_id.as_deref(),
+                name: message.name.as_deref(),
+            });
+            pending_tool_parts.extend(
+                message
+                    .content_parts
+                    .as_deref()
+                    .unwrap_or_default()
+                    .iter()
+                    .filter(|part| matches!(part, LlmContentPart::ImageUrl { .. })),
+            );
+        } else {
+            wire.push(WireMessage::from(message));
+        }
+    }
+    append_tool_images(&mut wire, &pending_tool_parts);
+    wire
 }
 
 #[cfg(test)]
@@ -122,7 +193,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn image_parts_produce_array_content() {
+    fn tool_image_parts_produce_valid_tool_then_user_messages() {
         let message = ChatMessage {
             role: "tool".into(),
             content: "{}".into(),
@@ -136,9 +207,48 @@ mod tests {
             }]),
         };
 
-        let content = wire_content_json(&message);
-        assert_eq!(content[0]["type"], "text");
-        assert_eq!(content[1]["type"], "image_url");
+        let wire = wire_messages(std::slice::from_ref(&message));
+        let json = serde_json::to_value(wire).expect("serialize");
+        let messages = json.as_array().expect("messages");
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0]["role"], "tool");
+        assert_eq!(messages[0]["content"], "{}");
+        assert_eq!(messages[0]["tool_call_id"], "call-1");
+        assert_eq!(messages[1]["role"], "user");
+        assert_eq!(messages[1]["content"][0]["type"], "text");
+        assert_eq!(messages[1]["content"][1]["type"], "image_url");
+        assert!(messages[1].get("tool_call_id").is_none());
+    }
+
+    #[test]
+    fn multimodal_user_turn_follows_all_consecutive_tool_responses() {
+        let messages = vec![
+            ChatMessage {
+                role: "tool".into(),
+                content: "first".into(),
+                tool_calls: None,
+                tool_call_id: Some("call-1".into()),
+                name: None,
+                content_parts: Some(vec![LlmContentPart::ImageUrl {
+                    image_url: crate::LlmImageUrl {
+                        url: "data:image/png;base64,aaa".into(),
+                    },
+                }]),
+            },
+            ChatMessage {
+                role: "tool".into(),
+                content: "second".into(),
+                tool_calls: None,
+                tool_call_id: Some("call-2".into()),
+                name: None,
+                content_parts: None,
+            },
+        ];
+
+        let json = serde_json::to_value(wire_messages(&messages)).expect("serialize");
+        assert_eq!(json[0]["role"], "tool");
+        assert_eq!(json[1]["role"], "tool");
+        assert_eq!(json[2]["role"], "user");
     }
 }
 
@@ -181,7 +291,7 @@ fn build_request<'a>(
     });
     OpenAiChatRequest {
         model: &req.model,
-        messages: messages.iter().map(WireMessage::from).collect(),
+        messages: wire_messages(messages),
         temperature: params.temperature,
         top_p: params.top_p,
         max_tokens: params.max_tokens,

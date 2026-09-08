@@ -398,11 +398,11 @@ mod tests {
     #[test]
     fn wire_content_array_with_image_url() {
         let msg = ChatMessage {
-            role: "tool".into(),
+            role: "user".into(),
             content: "{\"success\":true,\"data\":{\"path\":\"/x\"}}".into(),
             tool_calls: None,
-            tool_call_id: Some("c1".into()),
-            name: Some("vox_browser_screenshot_viewport".into()),
+            tool_call_id: None,
+            name: None,
             content_parts: Some(vec![LlmContentPart::ImageUrl {
                 image_url: LlmImageUrl {
                     url: "data:image/png;base64,aaa".into(),

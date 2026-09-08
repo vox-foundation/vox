@@ -256,13 +256,23 @@ async fn chat_once_sends_image_url_array_content() {
     Mock::given(method("POST"))
         .and(path("/chat/completions"))
         .and(body_partial_json(serde_json::json!({
-            "messages": [{
-                "role": "tool",
-                "content": [
-                    {"type": "text", "text": "{\"ok\":true}"},
-                    {"type": "image_url", "image_url": {"url": "data:image/png;base64,aaa"}}
-                ]
-            }]
+            "messages": [
+                {
+                    "role": "tool",
+                    "content": "{\"ok\":true}",
+                    "tool_call_id": "c1"
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Latest browser frame from the preceding tool results."
+                        },
+                        {"type": "image_url", "image_url": {"url": "data:image/png;base64,aaa"}}
+                    ]
+                }
+            ]
         })))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "model": "test/model",

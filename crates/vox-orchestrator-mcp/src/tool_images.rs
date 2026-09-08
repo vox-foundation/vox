@@ -3,6 +3,7 @@
 use base64::Engine;
 use rmcp::model::Content;
 use serde_json::Value;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -68,14 +69,30 @@ pub fn persist_browser_frame_png(
     let dest = match mode {
         FramePersistMode::LiveReplace => cache_root.join(format!("{safe}-live.{ext}")),
         FramePersistMode::Snapshot => {
-            let ms = SystemTime::now()
+            let stamp = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_millis())
+                .map(|d| d.as_nanos())
                 .unwrap_or(0);
-            cache_root.join(format!("{safe}-{ms}.{ext}"))
+            cache_root.join(format!("{safe}-{stamp}.{ext}"))
         }
     };
-    std::fs::write(&dest, bytes).map_err(|e| e.to_string())?;
+    if matches!(mode, FramePersistMode::LiveReplace) {
+        if let Err(error) = std::fs::remove_file(&dest)
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            return Err(error.to_string());
+        }
+    }
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&dest)
+        .map_err(|e| e.to_string())?;
+    if let Err(error) = file.write_all(bytes) {
+        drop(file);
+        let _ = std::fs::remove_file(&dest);
+        return Err(error.to_string());
+    }
     if !vox_config::paths::path_is_under(cache_root, &dest) {
         let _ = std::fs::remove_file(&dest);
         return Err("frame path escaped cache jail".into());
@@ -134,6 +151,12 @@ pub fn attach_image_from_cached_path(cache_root: &Path, promoted: &mut PromotedT
     };
     let path = Path::new(path);
     if !path.is_absolute() || !vox_config::paths::path_is_under(cache_root, path) {
+        return;
+    }
+    let Ok(metadata) = std::fs::metadata(path) else {
+        return;
+    };
+    if metadata.len() > BROWSER_FRAME_IMAGE_PART_MAX_BYTES as u64 {
         return;
     }
     let Ok(bytes) = std::fs::read(path) else {
@@ -459,6 +482,29 @@ mod tests {
                 .to_string_lossy()
                 .ends_with("-live.png")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn live_replace_does_not_follow_existing_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let base = std::env::temp_dir().join(format!("vox-live-symlink-{}", std::process::id()));
+        let cache = base.join("cache");
+        let outside = base.join("outside.png");
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&cache).unwrap();
+        std::fs::write(&outside, b"do-not-overwrite").unwrap();
+        symlink(&outside, cache.join("p-live.png")).unwrap();
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(PNG_1X1_B64)
+            .unwrap();
+
+        let path = persist_browser_frame_png(&cache, "p", &bytes, FramePersistMode::LiveReplace)
+            .expect("replace symlink safely");
+
+        assert_eq!(std::fs::read(&outside).unwrap(), b"do-not-overwrite");
+        assert_eq!(std::fs::read(path).unwrap(), bytes);
     }
 
     #[test]
