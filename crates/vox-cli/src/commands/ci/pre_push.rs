@@ -1567,6 +1567,7 @@ fn step_nextest_slow(root: &Path) -> Result<()> {
                 "test(arch_check_live_workspace_smoke_and_description_rule)",
                 " or test(timeout_kills_long_running_child)",
                 " or test(generated_ai_fixture_bundle_passes_cargo_check)",
+                " or (package(vox-mesh-transport) + binary(interp_executor))",
             ),
             "--run-ignored",
             "ignored-only",

@@ -1131,7 +1131,7 @@ jobs:
         if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         run: |
           cargo nextest run \
-            -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check)' \
+            -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check) or (package(vox-mesh-transport) + binary(interp_executor))' \
             --run-ignored ignored-only \
             --profile ci
 

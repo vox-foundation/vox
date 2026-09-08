@@ -2,12 +2,14 @@
 //! iroh endpoints over loopback — a mock of the transport would not exercise
 //! the thing under test.
 
+mod common;
+
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::Result;
-use iroh::{Endpoint, EndpointId, SecretKey};
+use iroh::SecretKey;
 use tokio::time::timeout;
 use vox_mesh_transport::endpoint::{JobExecutor, REFUSED_PROTO, ReceivedJob};
 use vox_mesh_transport::protocol::{
@@ -15,6 +17,11 @@ use vox_mesh_transport::protocol::{
 };
 use vox_mesh_transport::trust::MeshTrust;
 use vox_mesh_types::TaskKind;
+
+use common::{
+    MeshTarget, client_endpoint, client_id, loopback_addr_of, send_raw_hello_on, send_request_on,
+    send_run_on, send_run_with_claim,
+};
 
 /// What [`SpyExecutor`] claims is pending. Not 0: a zero total is what a
 /// dropped breakdown and an empty queue look like alike.
@@ -80,12 +87,18 @@ impl JobExecutor for SpyExecutor {
 }
 
 struct Server {
-    id: EndpointId,
+    id: iroh::EndpointId,
     addr: iroh::EndpointAddr,
     trust: Arc<MeshTrust>,
     spy: Arc<SpyExecutor>,
     exec: Arc<SpyExecutor>,
     _dir: tempfile::TempDir,
+}
+
+impl MeshTarget for Server {
+    fn mesh_addr(&self) -> iroh::EndpointAddr {
+        self.addr.clone()
+    }
 }
 
 async fn start_server() -> Server {
@@ -111,135 +124,6 @@ async fn start_server() -> Server {
         exec: spy,
         _dir: dir,
     }
-}
-
-/// Stable test-client identity so [`send_run_on`] and `trust(&client_id())`
-/// name the same peer.
-fn client_sk() -> SecretKey {
-    SecretKey::from_bytes(&[11u8; 32])
-}
-
-fn client_id() -> EndpointId {
-    client_sk().public()
-}
-
-/// A client endpoint. Built with the same `Minimal` preset, so nothing in this
-/// test suite reaches a relay or a DNS server.
-async fn client_endpoint(sk: SecretKey) -> Endpoint {
-    Endpoint::builder(iroh::endpoint::presets::Minimal)
-        .secret_key(sk)
-        .bind()
-        .await
-        .expect("bind client")
-}
-
-async fn send_request_on(
-    conn: &iroh::endpoint::Connection,
-    request: JobRequest,
-) -> Result<JobResponse> {
-    let (mut send, mut recv) = conn.open_bi().await?;
-    protocol::write_frame(&mut send, &Hello::current()).await?;
-    protocol::write_frame(&mut send, &request).await?;
-    send.finish()?;
-    protocol::read_frame(&mut recv, 16 * 1024 * 1024).await
-}
-
-async fn send_run_on(
-    server: &Server,
-    job_id: JobId,
-    kind: TaskKind,
-    payload: &[u8],
-) -> JobResponse {
-    send_run_with_claim(server, job_id, kind, payload, payload.len() as u64).await
-}
-
-async fn send_run_with_claim(
-    server: &Server,
-    job_id: JobId,
-    kind: TaskKind,
-    payload: &[u8],
-    claim: u64,
-) -> JobResponse {
-    let client = client_endpoint(client_sk()).await;
-    let conn = client
-        .connect(server.addr.clone(), ALPN)
-        .await
-        .expect("connect");
-    timeout(
-        Duration::from_secs(10),
-        send_run_on_conn(&conn, job_id, kind, payload, claim),
-    )
-    .await
-    .expect("no timeout")
-    .expect("response")
-}
-
-async fn send_run_on_conn(
-    conn: &iroh::endpoint::Connection,
-    job_id: JobId,
-    kind: TaskKind,
-    payload: &[u8],
-    claim: u64,
-) -> Result<JobResponse> {
-    let (mut send, mut recv) = conn.open_bi().await?;
-    protocol::write_frame(&mut send, &Hello::current()).await?;
-    protocol::write_frame(
-        &mut send,
-        &JobRequest::Run {
-            job_id,
-            kind,
-            payload_bytes: claim,
-        },
-    )
-    .await?;
-    protocol::write_frame(&mut send, &payload.to_vec()).await?;
-    send.finish()?;
-    protocol::read_frame(&mut recv, 16 * 1024 * 1024).await
-}
-
-async fn send_raw_hello_on(server: &Server, hello: Hello) -> (Option<JobResponse>, Option<u32>) {
-    let client = client_endpoint(client_sk()).await;
-    let conn = client
-        .connect(server.addr.clone(), ALPN)
-        .await
-        .expect("connect");
-    let (mut send, mut recv) = conn.open_bi().await.expect("open_bi");
-    protocol::write_frame(&mut send, &hello)
-        .await
-        .expect("write hello");
-    let _ = send.finish();
-    let resp = timeout(
-        Duration::from_secs(10),
-        protocol::read_frame(&mut recv, 16 * 1024 * 1024),
-    )
-    .await
-    .ok()
-    .and_then(Result::ok);
-    let close = timeout(Duration::from_secs(5), conn.closed())
-        .await
-        .ok()
-        .and_then(|err| match err {
-            iroh::endpoint::ConnectionError::ApplicationClosed(c) => {
-                Some(c.error_code.into_inner() as u32)
-            }
-            _ => None,
-        });
-    (resp, close)
-}
-
-/// The server's port on loopback.
-///
-/// `Endpoint::addr()` advertises LAN/VPN addresses, never loopback, and dialing
-/// this host's own LAN IP is both slow and environment-dependent. The endpoint
-/// binds `0.0.0.0`, so loopback reaches it and the test stays hermetic.
-fn loopback_addr_of(server: &Server) -> Vec<std::net::SocketAddr> {
-    let port = server
-        .addr
-        .ip_addrs()
-        .next()
-        .expect("a bound endpoint advertises at least one address")
-        .port();
-    vec![format!("127.0.0.1:{port}").parse().unwrap()]
 }
 
 #[tokio::test]

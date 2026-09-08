@@ -11,7 +11,8 @@ iroh = { workspace = true }
 iroh-mdns-address-lookup = { workspace = true }
 iroh-tickets = { workspace = true }
 postcard = { workspace = true }
-tokio = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["process", "io-util", "time", "sync", "fs", "macros"] }
 vox-mesh-types = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -19,7 +20,14 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+win32job = { workspace = true }
+
 [dev-dependencies]
+futures = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
 vox-mesh-types = { workspace = true }

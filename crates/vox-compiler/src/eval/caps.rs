@@ -608,6 +608,20 @@ mod tests {
         );
     }
 
+    #[test]
+    fn mesh_caps_spec_tokens_parse_individually() {
+        // Consumes `caps_spec.rs`'s extra-token strings so the mesh executor and
+        // the interpreter grammar cannot drift.
+        let src = include_str!("../../../vox-mesh-transport/src/caps_spec.rs");
+        for tok in ["time:real", "net:allow", "process:allow", "env:ro"] {
+            assert!(
+                src.contains(&format!("\"{tok}\"")),
+                "caps_spec.rs must mention {tok}"
+            );
+            CapabilitySet::parse(tok).unwrap_or_else(|e| panic!("{tok}: {e}"));
+        }
+    }
+
     /// Every production embedder must set `interp.caps` explicitly on the line right
     /// after `Interpreter::new(...)` — no site may rely on the constructor's default.
     /// Paths point at the real files (some differ from the plan's stale sketch, e.g.

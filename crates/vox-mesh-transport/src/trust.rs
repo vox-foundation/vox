@@ -164,6 +164,11 @@ impl MeshTrust {
         self.upsert(id, label, TrustLevel::Native, &[])
     }
 
+    /// Trust `id` at an explicit level. Pairing still goes through [`Self::trust`].
+    pub fn trust_with(&self, id: &EndpointId, level: TrustLevel) -> Result<()> {
+        self.upsert(id, None, level, &[])
+    }
+
     fn upsert(
         &self,
         id: &EndpointId,
@@ -318,5 +323,14 @@ mod tests {
         let (_d, t) = temp_trust();
         t.grant_native(&id(), None).unwrap();
         assert_eq!(t.level(&id()), Some(TrustLevel::Native));
+    }
+
+    #[test]
+    fn trust_with_can_set_native_without_going_through_pairing() {
+        let (_d, t) = temp_trust();
+        t.trust_with(&id(), TrustLevel::Native).unwrap();
+        assert_eq!(t.level(&id()), Some(TrustLevel::Native));
+        t.trust_with(&id(), TrustLevel::Sandboxed).unwrap();
+        assert_eq!(t.level(&id()), Some(TrustLevel::Sandboxed));
     }
 }
