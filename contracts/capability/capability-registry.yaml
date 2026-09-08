@@ -2749,6 +2749,253 @@ curated:
   - graph
   - ingest
   parameters: null
+- id: cli.gui
+  title: Gui
+  description_human: null
+  description_model: CLI operation `vox gui` — launch Axis or drive a dedicated debug Axis
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  parameters: null
+- id: cli.gui.drive
+  title: Gui Drive
+  description_human: null
+  description_model: CLI operation `vox gui drive` — Axis Drive control plane
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  parameters: null
+- id: cli.gui.drive.headless
+  title: Gui Drive Headless
+  description_human: null
+  description_model: CLI operation `vox gui drive headless`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  - headless
+  parameters: null
+- id: cli.gui.drive.headless.send
+  title: Gui Drive Headless Send
+  description_human: null
+  description_model: CLI operation `vox gui drive headless send`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  - headless
+  - send
+  parameters: null
+- id: cli.gui.drive.headless.set
+  title: Gui Drive Headless Set
+  description_human: null
+  description_model: CLI operation `vox gui drive headless set`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  - headless
+  - set
+  parameters: null
+- id: cli.gui.drive.headless.state
+  title: Gui Drive Headless State
+  description_human: null
+  description_model: CLI operation `vox gui drive headless state`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  - headless
+  - state
+  parameters: null
+- id: cli.gui.drive.send
+  title: Gui Drive Send
+  description_human: null
+  description_model: CLI operation `vox gui drive send`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  - send
+  parameters: null
+- id: cli.gui.drive.set
+  title: Gui Drive Set
+  description_human: null
+  description_model: CLI operation `vox gui drive set`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  - set
+  parameters: null
+- id: cli.gui.drive.show
+  title: Gui Drive Show
+  description_human: null
+  description_model: CLI operation `vox gui drive show`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  - show
+  parameters: null
+- id: cli.gui.drive.start
+  title: Gui Drive Start
+  description_human: null
+  description_model: CLI operation `vox gui drive start`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  - start
+  parameters: null
+- id: cli.gui.drive.state
+  title: Gui Drive State
+  description_human: null
+  description_model: CLI operation `vox gui drive state`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  - state
+  parameters: null
+- id: cli.gui.drive.stop
+  title: Gui Drive Stop
+  description_human: null
+  description_model: CLI operation `vox gui drive stop`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  - stop
+  parameters: null
+- id: cli.gui.drive.wait
+  title: Gui Drive Wait
+  description_human: null
+  description_model: CLI operation `vox gui drive wait`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gui
+  - drive
+  - wait
+  parameters: null
 - id: cli.harness
   title: Harness
   description_human: null
