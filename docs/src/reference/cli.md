@@ -172,6 +172,26 @@ When **`VOX_MESH_ENABLED=1`** and the binary is built with **`--features populi`
 
 Interpreted **`vox mens workflow run`** (journal + `mesh_*` activity hooks; there is no top-level `vox workflow`) requires **`--features workflow-runtime`** (implies `mens-dei` + `vox-workflow-runtime`). The runtime emits versioned journal events (`journal_version: 1`) and durable rows keyed by a **run id** plus **`activity_id`**. Use `--run-id <id>` to resume the same interpreted workflow run; omit it to start a fresh run id. The interpreted runner can replay stored step results for linear workflows. Mens steps use **env-derived** `VOX_MESH_CONTROL_ADDR` / `Vox.toml` `[mens]` only — use `with { timeout: …, retries: …, initial_backoff: …, activity_id: …, id: …, mens: "noop" | "join" | "snapshot" | "heartbeat" }` on `mesh_*` calls (`id` is an alias for `activity_id`). Retry/backoff support currently applies to interpreted `mesh_*` activity execution; other interpreted activities remain journal-only no-ops. Codex append is enabled by default when DB config resolves and can be disabled with **`VOX_WORKFLOW_JOURNAL_CODEX_OFF=1`** ([orchestration SSOT](orchestration-unified.md), [durable execution](../explanation/expl-durable-execution.md)).
 
+### `vox gui …`
+
+Launch Axis, or drive a dedicated hidden debug Axis. Feature-gated (`--features gui`). `vox gui --command chat` still opens a view in the user's window; Drive never attaches there.
+
+| Subcommand | Role |
+|------------|------|
+| `vox gui` | Launch Axis (optional `--command <view>`). |
+| `vox gui drive` | Drive a dedicated debug Axis (hidden unless `--show`). |
+| `vox gui drive start` | Detached start; `--show` to watch; `--profile <id>` isolates store. |
+| `vox gui drive stop` | Tear down the Drive session. |
+| `vox gui drive show` | Reveal the hidden Drive Axis. |
+| `vox gui drive set` | Set knobs (`--knob key=value`, repeatable). Unselectable pin is Drive-only 409. |
+| `vox gui drive send` | Submit text through the live composer (`--text`). |
+| `vox gui drive state` | Snapshot Drive state (pin, catalog, knobs). |
+| `vox gui drive wait` | Block until a catalog/state predicate (`--until`, `--timeout`). |
+| `vox gui drive headless` | Stdin/stdout JSON plane (`picker_ui`/`composer_knobs`/`bubbles` all false). |
+| `vox gui drive headless state` | Headless state snapshot. |
+| `vox gui drive headless set` | Headless knob set. |
+| `vox gui drive headless send` | Headless send. |
+
 ### `vox graph …`
 
 Corpus registry and freshness status/ingest operations for Vox Graph knowledge maps (`contracts/retrieval/graphify-corpora.v1.yaml`). Aliases: `vox graphify`, `vox search`.
