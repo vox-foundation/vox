@@ -383,6 +383,7 @@ pub async fn llm_chat_judge(
         tool_calls: None,
         tool_call_id: None,
         name: None,
+        content_parts: None,
     }];
     let options = vox_actor_runtime::ActivityOptions::default();
     let activity_result = vox_actor_runtime::llm::llm_chat(&options, messages, config).await;

@@ -43,6 +43,7 @@ async fn chat_once_sends_bearer_headers_and_parses_usage() {
         tool_calls: None,
         tool_call_id: None,
         name: None,
+        content_parts: None,
     }];
     let out = chat_once(&r, &msgs, &ChatParams::default())
         .await
@@ -232,6 +233,7 @@ async fn chat_once_serializes_assistant_tool_calls_and_tool_result_message() {
             }]),
             tool_call_id: None,
             name: None,
+            content_parts: None,
         },
         ChatMessage {
             role: "tool".into(),
@@ -239,12 +241,53 @@ async fn chat_once_serializes_assistant_tool_calls_and_tool_result_message() {
             tool_calls: None,
             tool_call_id: Some("call_1".into()),
             name: Some("get_weather".into()),
+            content_parts: None,
         },
     ];
     let out = chat_once(&r, &msgs, &ChatParams::default())
         .await
         .expect("request must match the mock's exact tool-call wire shape");
     assert_eq!(out.content, "It's 72F and sunny in Paris.");
+}
+
+#[tokio::test]
+async fn chat_once_sends_image_url_array_content() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .and(body_partial_json(serde_json::json!({
+            "messages": [{
+                "role": "tool",
+                "content": [
+                    {"type": "text", "text": "{\"ok\":true}"},
+                    {"type": "image_url", "image_url": {"url": "data:image/png;base64,aaa"}}
+                ]
+            }]
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "model": "test/model",
+            "choices": [{"message": {"role": "assistant", "content": "saw"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let msgs = vec![ChatMessage {
+        role: "tool".into(),
+        content: "{\"ok\":true}".into(),
+        tool_calls: None,
+        tool_call_id: Some("c1".into()),
+        name: None,
+        content_parts: Some(vec![vox_llm_egress::LlmContentPart::ImageUrl {
+            image_url: vox_llm_egress::LlmImageUrl {
+                url: "data:image/png;base64,aaa".into(),
+            },
+        }]),
+    }];
+    let out = chat_once(&r, &msgs, &ChatParams::default())
+        .await
+        .expect("ok");
+    assert_eq!(out.content, "saw");
 }
 
 #[tokio::test]

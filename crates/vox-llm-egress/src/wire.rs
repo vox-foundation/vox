@@ -8,7 +8,7 @@ use serde::Serialize;
 
 use crate::{
     ChatMessage, ChatParams, ChatStream, EgressChatResponse, EgressError, EgressRequest,
-    EgressToolCall, throttle,
+    EgressToolCall, LlmContentPart, throttle,
 };
 
 #[derive(Serialize)]
@@ -67,7 +67,7 @@ impl From<&EgressToolCall> for WireToolCall {
 #[derive(Serialize)]
 struct WireMessage<'a> {
     role: &'a str,
-    content: &'a str,
+    content: serde_json::Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_calls: Option<Vec<WireToolCall>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -80,7 +80,7 @@ impl<'a> From<&'a ChatMessage> for WireMessage<'a> {
     fn from(m: &'a ChatMessage) -> Self {
         WireMessage {
             role: &m.role,
-            content: &m.content,
+            content: wire_content(m),
             tool_calls: m
                 .tool_calls
                 .as_ref()
@@ -88,6 +88,57 @@ impl<'a> From<&'a ChatMessage> for WireMessage<'a> {
             tool_call_id: m.tool_call_id.as_deref(),
             name: m.name.as_deref(),
         }
+    }
+}
+
+fn wire_content(m: &ChatMessage) -> serde_json::Value {
+    match m.content_parts.as_ref() {
+        Some(parts) if !parts.is_empty() => {
+            let mut content = vec![serde_json::json!({
+                "type": "text",
+                "text": m.content,
+            })];
+            for part in parts {
+                if let LlmContentPart::ImageUrl { image_url } = part {
+                    content.push(serde_json::json!({
+                        "type": "image_url",
+                        "image_url": { "url": image_url.url },
+                    }));
+                }
+            }
+            serde_json::Value::Array(content)
+        }
+        _ => serde_json::Value::String(m.content.clone()),
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn wire_content_json(m: &ChatMessage) -> serde_json::Value {
+    wire_content(m)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn image_parts_produce_array_content() {
+        let message = ChatMessage {
+            role: "tool".into(),
+            content: "{}".into(),
+            tool_calls: None,
+            tool_call_id: Some("call-1".into()),
+            name: None,
+            content_parts: Some(vec![LlmContentPart::ImageUrl {
+                image_url: crate::LlmImageUrl {
+                    url: "data:image/png;base64,aaa".into(),
+                },
+            }]),
+        };
+
+        let content = wire_content_json(&message);
+        assert_eq!(content[0]["type"], "text");
+        assert_eq!(content[1]["type"], "image_url");
     }
 }
 
