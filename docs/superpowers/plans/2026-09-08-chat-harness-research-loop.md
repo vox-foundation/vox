@@ -4,7 +4,7 @@
 
 **Goal:** Axis chat and MCP clients receive page pixels as MCP / OpenAI image parts while screenshot JSON stays small (path + size, no `image_base64`), guided by a `browser-research` skill — no mega-tool.
 
-**Architecture:** A always-on `tool_images` module strips `image_base64`, optionally reads a Tier D cache PNG, and builds `Content::image` plus additive `LlmChatMessage.content_parts`. Viewport/screencast handlers persist under `vox_config::paths::browser_frames_cache_dir()`. Wire emits a string `content` unless `content_parts` is set, then an OpenAI `image_url` array. GUI loads the cache path for `vox://browser-frame`.
+**Architecture:** Always-on `tool_images` allowlists two screenshot tools, persists under an injectable cache root, and builds rmcp `Content::image` (raw b64) plus Axis `content_parts` (data URL). Live frames overwrite `*-live.png`. The agent loop keeps only the latest image part. Wire stays a string unless parts are set. GUI reads the jailed path into the existing Tauri event.
 
 **Tech Stack:** Rust, rmcp `Content::image`, `vox_llm_egress` OpenAI-compatible chat, existing `vox_browser_*` MCP, first-party `assets/skills/`.
 
@@ -23,9 +23,14 @@ Copied from the spec — every task inherits these.
 - Cookie values never appear in MCP tool JSON.
 - No `--no-verify` commits.
 - Do not add `url`, `regex`, `image`, or `vox-crypto` to `vox-plugin-browser` or `vox-orchestrator-mcp`.
+- Do not add a `vox-orchestrator-mcp` → `vox-llm-egress` crate edge. Re-export `LlmContentPart` / `LlmImageUrl` from `vox_actor_runtime::llm`.
+- Screencast bytes are JPEG. Persist and paint with `image/jpeg`. Do not label them PNG.
 - Do not grow `engine.rs` past the god-object cap.
-- Do not hand-edit generated capability / tool-registry YAML.
+- Do not hand-edit generated capability / tool-registry YAML. Do hand-edit `contracts/operations/catalog.v1.yaml` then `vox ci operations-sync --target all --write`.
 - Do not bump `VOX_PLUGIN_ABI_VERSION`.
+- Do not add persist helpers to `browser_tools.rs` (~1498 lines).
+- Image parts only for `vox_browser_screenshot_viewport` and `vox_browser_screencast_frame`.
+- Latest in-loop image only; live frames overwrite `*-live.png`.
 - Browser handler tests need `--features heavy-browser`. `tool_images` tests do not.
 - `vox-gui` has no lib target: `cargo test -p vox-gui <name>`. Do not commit `ui/dist`.
 - PATH `cargo` only (build broker).
@@ -40,9 +45,12 @@ Copied from the spec — every task inherits these.
 | Modify: `crates/vox-orchestrator-mcp/src/browser_tools.rs` | Path JSON for viewport/screencast |
 | Modify: `crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs` | `content_parts` on tool messages |
 | Modify: `crates/vox-llm-egress/src/{lib,wire}.rs` + `tests/wire_mock.rs` | Parts + wire array |
-| Modify: `crates/vox-actor-runtime/src/llm/{types,chat}.rs` | Pass-through field |
+| Modify: `crates/vox-actor-runtime/src/llm/{types,chat,stream,mod}.rs` | Pass-through + re-export |
+| Modify: `crates/vox-gamify/src/ai/client/transport.rs` | `content_parts: None` (2 literals) |
+| Modify: `crates/vox-code-audit/src/review/client.rs` | `content_parts: None` (2 literals) |
+| Modify: `crates/vox-orchestrator-mcp/src/skill_promotion.rs` | `content_parts: None` or `Default` |
 | Modify: `crates/vox-config/src/paths.rs` | `cache_dir` / frames leaf |
-| Modify: `crates/vox-gui/src/commands/browser.rs` | Read cache path |
+| Modify: `crates/vox-gui/src/commands/browser.rs` + `ui/.../BrowserView.tsx` + `transport.ts` | Path read + `mime` on the Tauri event |
 | Create: `assets/skills/browser-research/SKILL.md` | Research loop |
 | Modify: `crates/vox-plugin-catalog/catalog.toml` | skill-bundle |
 | Modify: `contracts/db/data-storage-policy.v1.yaml` | FS write allowlist |
@@ -148,6 +156,8 @@ Run: `cargo test -p vox-orchestrator-mcp --lib promote_strips_image_base64 -- --
 
 Expected: compile fail `cannot find function promote_tool_image` (or the module is missing).
 
+Also add `FRAME_IMAGE_TOOL_NAMES` as a `pub const` in this file (used in later tasks). Strip stays key-based on **results** only.
+
 - [ ] **Step 3: Write minimal implementation**
 
 `crates/vox-orchestrator-mcp/src/tool_images.rs` (no persist yet):
@@ -217,10 +227,22 @@ fn decode_png_b64(b64: &str) -> Option<ImageBlob> {
     if bytes.len() > BROWSER_FRAME_IMAGE_PART_MAX_BYTES {
         return None;
     }
+    let mime = sniff_image_mime(&bytes)?;
     Some(ImageBlob {
-        mime: "image/png".into(),
+        mime: mime.into(),
         bytes,
     })
+}
+
+pub fn sniff_image_mime(bytes: &[u8]) -> Option<&'static str> {
+    const PNG: &[u8] = &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
+    if bytes.starts_with(PNG) {
+        return Some("image/png");
+    }
+    if bytes.len() >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff {
+        return Some("image/jpeg");
+    }
+    None
 }
 ```
 
@@ -257,11 +279,14 @@ EOF
 - Modify: `crates/vox-orchestrator-mcp/src/tool_images.rs` (persist + attach from path + `mcp_contents_for_tool_json`)
 - Modify: `crates/vox-orchestrator-mcp/src/browser_tools.rs` (`browser_screenshot_viewport`, `browser_screencast_frame`)
 - Modify: `crates/vox-gui/src/commands/browser.rs`
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Browser/BrowserView.tsx` + `transport.ts` (`mime` on the frame event)
 - Modify: `contracts/db/data-storage-policy.v1.yaml` (`direct_fs_write_allowlist` add `crates/vox-orchestrator-mcp/src/tool_images.rs`)
+- Modify: `contracts/operations/catalog.v1.yaml` (viewport + screencast descriptions; drop “return base64” / `image_base64`)
+- Modify: `contracts/config/env-vars.v1.yaml` (`VOX_CACHE_DIR.owner_crate` → `vox-config`)
 
 **Interfaces:**
 - Consumes: `promote_tool_image`, `ImageBlob`, `BROWSER_FRAME_IMAGE_PART_MAX_BYTES`
-- Produces: `cache_dir()`, `BROWSER_FRAMES_CACHE_LEAF`, `browser_frames_cache_dir()`, `persist_browser_frame_png`, `attach_image_from_cached_path`, `mcp_contents_for_tool_json`, `frame_bytes_from_mcp_data`
+- Produces: `cache_dir()`, `path_is_under`, `BROWSER_FRAMES_CACHE_LEAF`, `browser_frames_cache_dir()`, `persist_browser_frame_png`, `prune_browser_frames`, `attach_image_from_cached_path`, `mcp_contents_for_tool_json(tool, json, cache_root)`, `tool_json_from_screencast_value`, `frame_bytes_from_mcp_data`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -274,9 +299,10 @@ fn cache_dir_honors_vox_cache_dir() {
     let tmp = std::env::temp_dir().join(format!("vox-cache-test-{}", std::process::id()));
     unsafe { std::env::set_var("VOX_CACHE_DIR", &tmp) };
     let got = cache_dir();
+    let frames = browser_frames_cache_dir();
     unsafe { std::env::remove_var("VOX_CACHE_DIR") };
     assert_eq!(got, tmp);
-    assert_eq!(browser_frames_cache_dir(), tmp.join(BROWSER_FRAMES_CACHE_LEAF));
+    assert_eq!(frames, tmp.join(BROWSER_FRAMES_CACHE_LEAF));
 }
 ```
 
@@ -285,15 +311,13 @@ In `tool_images.rs` tests:
 ```rust
     #[test]
     fn persist_then_attach_reads_jailed_png() {
-        #![allow(unsafe_code)]
         let tmp = std::env::temp_dir().join(format!("vox-frames-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&tmp);
-        unsafe { std::env::set_var("VOX_CACHE_DIR", &tmp) };
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(PNG_1X1_B64)
             .unwrap();
-        let path = persist_browser_frame_png("page-1", &bytes).expect("write");
-        unsafe { std::env::remove_var("VOX_CACHE_DIR") };
+        let path = persist_browser_frame_png(&tmp, "page-1", &bytes, FramePersistMode::Snapshot)
+            .expect("write");
         let raw = serde_json::json!({
             "success": true,
             "data": {
@@ -306,21 +330,60 @@ In `tool_images.rs` tests:
         })
         .to_string();
         let mut got = promote_tool_image(&raw);
-        attach_image_from_cached_path(&mut got);
+        attach_image_from_cached_path(&tmp, &mut got);
         assert_eq!(got.image.as_ref().map(|i| i.bytes.len()), Some(67));
-        let contents = mcp_contents_for_tool_json(&raw);
+        let contents = mcp_contents_for_tool_json(
+            "vox_browser_screenshot_viewport",
+            &raw,
+            &tmp,
+        );
         assert_eq!(contents.len(), 2);
+        let cookie = mcp_contents_for_tool_json(
+            "vox_browser_cookies_export",
+            &serde_json::json!({"success":true,"data":{"count":1,"path": path.to_string_lossy()}}).to_string(),
+            &tmp,
+        );
+        assert_eq!(cookie.len(), 1, "cookie path must never become an image part");
+    }
+
+    #[test]
+    fn live_replace_overwrites_same_page_file() {
+        let tmp = std::env::temp_dir().join(format!("vox-live-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&tmp);
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(PNG_1X1_B64)
+            .unwrap();
+        let a = persist_browser_frame_png(&tmp, "p", &bytes, FramePersistMode::LiveReplace).unwrap();
+        let b = persist_browser_frame_png(&tmp, "p", &bytes, FramePersistMode::LiveReplace).unwrap();
+        assert_eq!(a, b);
+        assert!(a.file_name().unwrap().to_string_lossy().ends_with("-live.png"));
+    }
+
+    #[test]
+    fn prune_zero_age_deletes_siblings_keeps_dest() {
+        let tmp = std::env::temp_dir().join(format!("vox-prune-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&tmp);
+        let keep = tmp.join("keep.png");
+        let drop = tmp.join("drop.png");
+        std::fs::write(&keep, b"keep").unwrap();
+        std::fs::write(&drop, b"drop").unwrap();
+        let n = prune_browser_frames(&tmp, &keep, std::time::Duration::ZERO);
+        assert!(n >= 1);
+        assert!(keep.exists());
+        assert!(!drop.exists());
     }
 
     #[test]
     fn attach_rejects_path_outside_cache() {
+        let tmp = std::env::temp_dir().join(format!("vox-jail-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&tmp);
         let raw = serde_json::json!({
             "success": true,
-            "data": { "path": "/tmp/not-vox-cache/x.png" }
+            "data": { "path": "/etc/hosts" }
         })
         .to_string();
         let mut got = promote_tool_image(&raw);
-        attach_image_from_cached_path(&mut got);
+        attach_image_from_cached_path(&tmp, &mut got);
         assert!(got.image.is_none());
     }
 ```
@@ -344,7 +407,8 @@ In `crates/vox-gui/src/commands/browser.rs` `mod tests`:
             "width": 1,
             "height": 1
         });
-        let (b64, w, h) = frame_bytes_from_mcp_data(&data, Some(&dir)).expect("read");
+        let (b64, w, h, mime) = frame_bytes_from_mcp_data(&data, &dir).expect("read");
+        assert_eq!(mime, "image/png");
         assert_eq!(w, Some(1));
         assert_eq!(h, Some(1));
         assert!(!b64.is_empty());
@@ -355,7 +419,7 @@ In `crates/vox-gui/src/commands/browser.rs` `mod tests`:
         let jail = std::env::temp_dir().join(format!("vox-gui-jail-{}", std::process::id()));
         std::fs::create_dir_all(&jail).unwrap();
         let data = serde_json::json!({ "path": "/etc/hosts" });
-        assert!(frame_bytes_from_mcp_data(&data, Some(&jail)).is_err());
+        assert!(frame_bytes_from_mcp_data(&data, &jail).is_err());
     }
 ```
 
@@ -395,6 +459,22 @@ pub fn browser_frames_cache_dir() -> PathBuf {
     cache_dir().join(BROWSER_FRAMES_CACHE_LEAF)
 }
 
+/// Canonical jail. Replace the body of the existing `cookie_import_path_ok`
+/// with a call to this — do not leave two copies of the canonicalize check.
+pub fn path_is_under(root: &Path, candidate: &Path) -> bool {
+    let Ok(root_cmp) = std::fs::canonicalize(root) else {
+        return false;
+    };
+    let Ok(cand_cmp) = std::fs::canonicalize(candidate) else {
+        return false;
+    };
+    cand_cmp.strip_prefix(&root_cmp).is_ok()
+}
+
+pub fn cookie_import_path_ok(root: &Path, candidate: &Path) -> bool {
+    path_is_under(root, candidate)
+}
+
 fn platform_cache_dir() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     return std::env::var("LOCALAPPDATA").ok().map(PathBuf::from);
@@ -419,9 +499,23 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use rmcp::model::Content;
 
-pub fn persist_browser_frame_png(page_id: &str, bytes: &[u8]) -> Result<PathBuf, String> {
-    let root = vox_config::paths::browser_frames_cache_dir();
-    std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
+pub const FRAME_IMAGE_TOOL_NAMES: &[&str] = &[
+    "vox_browser_screenshot_viewport",
+    "vox_browser_screencast_frame",
+];
+
+pub enum FramePersistMode {
+    LiveReplace,
+    Snapshot,
+}
+
+pub fn persist_browser_frame_png(
+    cache_root: &Path,
+    page_id: &str,
+    bytes: &[u8],
+    mode: FramePersistMode,
+) -> Result<PathBuf, String> {
+    std::fs::create_dir_all(cache_root).map_err(|e| e.to_string())?;
     let safe: String = page_id
         .chars()
         .map(|c| {
@@ -437,20 +531,68 @@ pub fn persist_browser_frame_png(page_id: &str, bytes: &[u8]) -> Result<PathBuf,
     } else {
         safe
     };
-    let ms = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0);
-    let dest = root.join(format!("{safe}-{ms}.png"));
+    let ext = match sniff_image_mime(bytes) {
+        Some("image/jpeg") => "jpg",
+        Some("image/png") => "png",
+        _ => return Err("frame bytes are not PNG or JPEG".into()),
+    };
+    let dest = match mode {
+        FramePersistMode::LiveReplace => cache_root.join(format!("{safe}-live.{ext}")),
+        FramePersistMode::Snapshot => {
+            let ms = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_millis())
+                .unwrap_or(0);
+            cache_root.join(format!("{safe}-{ms}.{ext}"))
+        }
+    };
     std::fs::write(&dest, bytes).map_err(|e| e.to_string())?;
-    if !vox_config::paths::cookie_import_path_ok(&root, &dest) {
+    if !vox_config::paths::path_is_under(cache_root, &dest) {
         let _ = std::fs::remove_file(&dest);
         return Err("frame path escaped cache jail".into());
+    }
+    if matches!(mode, FramePersistMode::Snapshot) {
+        let _ = prune_browser_frames(cache_root, &dest, std::time::Duration::from_secs(3600));
     }
     Ok(dest)
 }
 
-pub fn attach_image_from_cached_path(promoted: &mut PromotedToolImage) {
+/// Delete `*.png` under `cache_root` whose mtime is older than `older_than`,
+/// except `keep`. `Duration::ZERO` deletes every sibling (used by the unit test).
+pub fn prune_browser_frames(cache_root: &Path, keep: &Path, older_than: std::time::Duration) -> usize {
+    let Ok(keep_cmp) = std::fs::canonicalize(keep) else {
+        return 0;
+    };
+    let Ok(rd) = std::fs::read_dir(cache_root) else {
+        return 0;
+    };
+    let now = SystemTime::now();
+    let mut n = 0usize;
+    for ent in rd.flatten() {
+        let p = ent.path();
+        let ext = p.extension().and_then(|e| e.to_str());
+        if ext != Some("png") && ext != Some("jpg") && ext != Some("jpeg") {
+            continue;
+        }
+        let Ok(cmp) = std::fs::canonicalize(&p) else {
+            continue;
+        };
+        if cmp == keep_cmp {
+            continue;
+        }
+        let stale = ent
+            .metadata()
+            .and_then(|m| m.modified())
+            .map(|mtime| now.duration_since(mtime).unwrap_or_default() >= older_than)
+            .unwrap_or(false);
+        if stale && std::fs::remove_file(&p).is_ok() {
+            n += 1;
+        }
+    }
+    n
+}
+
+pub fn attach_image_from_cached_path(cache_root: &Path, promoted: &mut PromotedToolImage) {
     if promoted.image.is_some() {
         return;
     }
@@ -458,8 +600,7 @@ pub fn attach_image_from_cached_path(promoted: &mut PromotedToolImage) {
         return;
     };
     let path = Path::new(path);
-    let root = vox_config::paths::browser_frames_cache_dir();
-    if !vox_config::paths::cookie_import_path_ok(&root, path) {
+    if !path.is_absolute() || !vox_config::paths::path_is_under(cache_root, path) {
         return;
     }
     let Ok(bytes) = std::fs::read(path) else {
@@ -468,21 +609,66 @@ pub fn attach_image_from_cached_path(promoted: &mut PromotedToolImage) {
     if bytes.len() > BROWSER_FRAME_IMAGE_PART_MAX_BYTES {
         return;
     }
+    let Some(mime) = sniff_image_mime(&bytes) else {
+        return;
+    };
     promoted.image = Some(ImageBlob {
-        mime: "image/png".into(),
+        mime: mime.into(),
         bytes,
     });
 }
 
-pub fn mcp_contents_for_tool_json(result_json: &str) -> Vec<Content> {
+pub fn mcp_contents_for_tool_json(
+    tool_name: &str,
+    result_json: &str,
+    cache_root: &Path,
+) -> Vec<Content> {
+    if !FRAME_IMAGE_TOOL_NAMES.contains(&tool_name) {
+        return vec![Content::text(result_json.to_string())];
+    }
     let mut promoted = promote_tool_image(result_json);
-    attach_image_from_cached_path(&mut promoted);
+    if promoted.json.get("success") != Some(&serde_json::Value::Bool(true)) {
+        return vec![Content::text(json_text(&promoted))];
+    }
+    attach_image_from_cached_path(cache_root, &mut promoted);
     let mut out = vec![Content::text(json_text(&promoted))];
     if let Some(img) = promoted.image {
         let b64 = base64::engine::general_purpose::STANDARD.encode(&img.bytes);
         out.push(Content::image(b64, img.mime));
     }
     out
+}
+
+pub fn tool_json_from_screencast_value(
+    cache_root: &Path,
+    page_id: &str,
+    value: serde_json::Value,
+) -> String {
+    let width = value.get("viewport_width").cloned().unwrap_or(serde_json::json!(0));
+    let height = value.get("viewport_height").cloned().unwrap_or(serde_json::json!(0));
+    let mut promoted = promote_tool_image(&value.to_string());
+    if let Some(img) = promoted.image.take() {
+        match persist_browser_frame_png(cache_root, page_id, &img.bytes, FramePersistMode::LiveReplace)
+        {
+            Ok(path) => {
+                return serde_json::json!({
+                    "success": true,
+                    "data": {
+                        "page_id": page_id,
+                        "path": path.to_string_lossy(),
+                        "width": width,
+                        "height": height,
+                        "mime": img.mime
+                    }
+                })
+                .to_string();
+            }
+            Err(e) => {
+                return serde_json::json!({ "success": false, "error": e }).to_string();
+            }
+        }
+    }
+    serde_json::json!({ "success": true, "data": promoted.json }).to_string()
 }
 ```
 
@@ -491,7 +677,12 @@ pub fn mcp_contents_for_tool_json(result_json: &str) -> Vec<Content> {
 ```rust
         Ok(Ok(bytes)) => {
             let (width, height) = png_dimensions(&bytes).unwrap_or((0, 0));
-            match crate::tool_images::persist_browser_frame_png(&page_id, &bytes) {
+            match crate::tool_images::persist_browser_frame_png(
+                &vox_config::paths::browser_frames_cache_dir(),
+                &page_id,
+                &bytes,
+                crate::tool_images::FramePersistMode::Snapshot,
+            ) {
                 Ok(path) => ToolResult::ok(serde_json::json!({
                     "page_id": page_id,
                     "path": path.to_string_lossy(),
@@ -508,64 +699,58 @@ pub fn mcp_contents_for_tool_json(result_json: &str) -> Vec<Content> {
 `browser_screencast_frame` success arm — after `ToolResult::ok(value)`, do not return the plugin object as-is. Persist if `value["image_base64"]` is a string:
 
 ```rust
-        Ok(Ok(value)) => persist_screencast_json(&page_id, value),
+        Ok(Ok(value)) => crate::tool_images::tool_json_from_screencast_value(
+            &vox_config::paths::browser_frames_cache_dir(),
+            &page_id,
+            value,
+        ),
 ```
 
-```rust
-fn persist_screencast_json(page_id: &str, value: serde_json::Value) -> String {
-    let mut promoted = crate::tool_images::promote_tool_image(&value.to_string());
-    if let Some(img) = promoted.image.take() {
-        match crate::tool_images::persist_browser_frame_png(page_id, &img.bytes) {
-            Ok(path) => {
-                let width = value.get("viewport_width").cloned().unwrap_or(serde_json::json!(0));
-                let height = value.get("viewport_height").cloned().unwrap_or(serde_json::json!(0));
-                return ToolResult::ok(serde_json::json!({
-                    "page_id": page_id,
-                    "path": path.to_string_lossy(),
-                    "width": width,
-                    "height": height,
-                    "mime": "image/png"
-                }))
-                .to_json();
-            }
-            Err(e) => return ToolResult::<serde_json::Value>::err(e).to_json(),
-        }
-    }
-    ToolResult::ok(promoted.json).to_json()
-}
-```
-
-Put `persist_screencast_json` in `browser_tools.rs` (not `engine.rs`). If `browser_tools.rs` is near the line cap, put it in `tool_images.rs` as `pub fn tool_json_from_screencast_value(page_id: &str, value: Value) -> String` instead.
+`tool_json_from_screencast_value` lives in `tool_images.rs` (not `browser_tools.rs`). Use `FramePersistMode::LiveReplace`.
 
 GUI — extract and switch `capture_frame_png_base64` to:
 
 ```rust
 fn frame_bytes_from_mcp_data(
     data: &serde_json::Value,
-    cache_root: Option<&std::path::Path>,
-) -> Result<(String, Option<u32>, Option<u32>), String> {
+    cache_root: &std::path::Path,
+) -> Result<(String, Option<u32>, Option<u32>, String), String> {
     let width = data.get("width").or_else(|| data.get("viewport_width")).and_then(|v| v.as_u64()).map(|v| v as u32);
     let height = data.get("height").or_else(|| data.get("viewport_height")).and_then(|v| v.as_u64()).map(|v| v as u32);
     if let Some(path) = data.get("path").and_then(|v| v.as_str()) {
-        let root = cache_root
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(vox_config::paths::browser_frames_cache_dir);
         let p = std::path::Path::new(path);
-        if !vox_config::paths::cookie_import_path_ok(&root, p) {
+        if !p.is_absolute() {
+            return Err("screenshot path must be absolute".into());
+        }
+        if !vox_config::paths::path_is_under(cache_root, p) {
             return Err("screenshot path escaped cache jail".into());
         }
         let bytes = std::fs::read(p).map_err(|e| e.to_string())?;
+        if bytes.len() > 400_000 {
+            return Err("screenshot frame exceeds image part cap".into());
+        }
+        let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
+            "image/png".to_string()
+        } else if bytes.len() >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff {
+            "image/jpeg".to_string()
+        } else {
+            return Err("screenshot path is not PNG or JPEG".into());
+        };
         let image_base64 = base64::engine::general_purpose::STANDARD.encode(bytes);
-        return Ok((image_base64, width, height));
+        return Ok((image_base64, width, height, mime));
     }
     if let Some(image_base64) = data.get("image_base64").and_then(|v| v.as_str()) {
-        return Ok((image_base64.to_string(), width, height));
+        return Ok((image_base64.to_string(), width, height, "image/png".into()));
     }
     Err("screenshot_viewport returned no path or image_base64".into())
 }
 ```
 
-`capture_frame_png_base64` after `mcp_data`: `frame_bytes_from_mcp_data(&data, None)`.
+Call `frame_bytes_from_mcp_data` after `mcp_data` on **both** the screencast-success arm and the viewport fallback. Set `BrowserFramePayload.mime`. In `BrowserView.tsx` change the img `src` to `` data:${frame.mime ?? "image/png"};base64,${frame.image_base64} ``. Add `mime?: string` on the TS `BrowserFramePayload`.
+
+Also add `attach_skips_non_image_path_under_jail` in `tool_images.rs`: write `cookies.json` under `tmp`, promote `{success:true,data:{path}}`, attach with that jail → `image` is `None`.
+
+In `contracts/config/env-vars.v1.yaml`, set `VOX_CACHE_DIR.owner_crate` to `vox-config`.
 
 Add `base64` to `vox-gui` only if the crate does not already encode anywhere; `browser.rs` already mentions `image_base64` so the dep should exist. Confirm `vox-gui` depends on `vox-config`.
 
@@ -575,21 +760,27 @@ Allowlist row in `contracts/db/data-storage-policy.v1.yaml` under `direct_fs_wri
     - crates/vox-orchestrator-mcp/src/tool_images.rs
 ```
 
+In `contracts/operations/catalog.v1.yaml`, rewrite the viewport and screencast **descriptions** so they no longer say “return base64” / `image_base64`. Then regenerate (do not hand-edit generated YAML):
+
+```
+cargo run -q -p vox-cli -- ci operations-sync --target all --write
+```
+
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```
 cargo test -p vox-config --lib cache_dir_honors_vox_cache_dir
-cargo test -p vox-orchestrator-mcp --lib persist_then_attach_reads_jailed_png attach_rejects_path_outside_cache
+cargo test -p vox-orchestrator-mcp --lib persist_then_attach_reads_jailed_png attach_rejects_path_outside_cache prune_zero_age_deletes_siblings_keeps_dest
 cargo test -p vox-gui frame_bytes_from_mcp_data_reads_path frame_bytes_from_mcp_data_rejects_escape preview_url_must_be_loopback
 ```
 
-Expected: PASS. If `vox-gui` fails on missing `ui/dist`, create the empty stub directory locally (do not commit).
+Expected: PASS. If `vox-gui` fails on missing `ui/dist`, create the empty stub directory locally (do not commit). If `tauri-build` fails because `target/release/vox-aarch64-apple-darwin` (or the host triple sidecar) is missing, run `vox run scripts/gui-build.vox` in **this** worktree so `build.rs` sees the sidecar — sandbox `CARGO_TARGET_DIR` will not.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cargo fmt -p vox-config -p vox-orchestrator-mcp -p vox-gui
-git add crates/vox-config/src/paths.rs crates/vox-orchestrator-mcp/src/tool_images.rs crates/vox-orchestrator-mcp/src/browser_tools.rs crates/vox-gui/src/commands/browser.rs contracts/db/data-storage-policy.v1.yaml
+git add crates/vox-config/src/paths.rs crates/vox-orchestrator-mcp/src/tool_images.rs crates/vox-orchestrator-mcp/src/browser_tools.rs crates/vox-gui/src/commands/browser.rs crates/vox-gui/ui/src/components/surfaces/Browser/BrowserView.tsx crates/vox-gui/ui/src/transport.ts contracts/db/data-storage-policy.v1.yaml contracts/config/env-vars.v1.yaml contracts/operations/catalog.v1.yaml contracts/operations/
 git commit -m "$(cat <<'EOF'
 feat: persist browser frames under VOX_CACHE_DIR
 
@@ -620,17 +811,15 @@ Task 1 already asserts `mcp_contents_for_tool_json` length 2. Add a serializatio
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(PNG_1X1_B64)
             .unwrap();
-        #![allow(unsafe_code)]
         let tmp = std::env::temp_dir().join(format!("vox-mcp-img-{}", std::process::id()));
-        unsafe { std::env::set_var("VOX_CACHE_DIR", &tmp) };
-        let path = persist_browser_frame_png("p", &bytes).unwrap();
-        unsafe { std::env::remove_var("VOX_CACHE_DIR") };
+        let _ = std::fs::create_dir_all(&tmp);
+        let path = persist_browser_frame_png(&tmp, "p", &bytes, FramePersistMode::Snapshot).unwrap();
         let raw = serde_json::json!({
             "success": true,
             "data": { "path": path.to_string_lossy() }
         })
         .to_string();
-        let contents = mcp_contents_for_tool_json(&raw);
+        let contents = mcp_contents_for_tool_json("vox_browser_screenshot_viewport", &raw, &tmp);
         let v = serde_json::to_value(&contents).expect("content json");
         let arr = v.as_array().expect("array");
         assert_eq!(arr.len(), 2);
@@ -644,12 +833,22 @@ Task 1 already asserts `mcp_contents_for_tool_json` length 2. Add a serializatio
     #[test]
     fn mcp_contents_error_is_text_only() {
         let raw = r#"{"success":false,"error":"no page"}"#;
-        let contents = mcp_contents_for_tool_json(raw);
+        let tmp = std::env::temp_dir();
+        let contents = mcp_contents_for_tool_json("vox_browser_screenshot_viewport", raw, &tmp);
         assert_eq!(contents.len(), 1);
+    }
+
+    #[test]
+    fn server_rs_call_site_passes_tool_name() {
+        let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/server.rs"));
+        assert!(
+            src.contains("mcp_contents_for_tool_json(&name_str, &result_json,"),
+            "call_tool must pass the tool name and cache root; helper-only tests are not enough"
+        );
     }
 ```
 
-If rmcp serializes `mime_type` instead of `mimeType`, assert whichever key `serde_json::to_value(&contents[1])` actually emits — print once on first fail and lock that spelling.
+rmcp `RawImageContent` is `#[serde(rename_all = "camelCase")]` so the key is `mimeType`.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -668,7 +867,11 @@ Replace:
 with:
 
 ```rust
-        let content = crate::tool_images::mcp_contents_for_tool_json(&result_json);
+        let content = crate::tool_images::mcp_contents_for_tool_json(
+            &name_str,
+            &result_json,
+            &vox_config::paths::browser_frames_cache_dir(),
+        );
 ```
 
 - [ ] **Step 4: Run tests**
@@ -702,7 +905,12 @@ EOF
 - Modify: `crates/vox-llm-egress/src/wire.rs`
 - Modify: `crates/vox-llm-egress/tests/wire_mock.rs` (every `ChatMessage {` gains `content_parts: None`)
 - Modify: `crates/vox-actor-runtime/src/llm/types.rs`
-- Modify: `crates/vox-actor-runtime/src/llm/chat.rs`
+- Modify: `crates/vox-actor-runtime/src/llm/chat.rs` (copy `content_parts`)
+- Modify: `crates/vox-actor-runtime/src/llm/stream.rs` (same map — omitting this silently drops images on stream)
+- Modify: `crates/vox-actor-runtime/src/llm/mod.rs` (`pub use vox_llm_egress::{LlmContentPart, LlmImageUrl}`)
+- Modify: `crates/vox-gamify/src/ai/client/transport.rs` (2 literals)
+- Modify: `crates/vox-code-audit/src/review/client.rs` (2 literals)
+- Modify: `crates/vox-orchestrator-mcp/src/skill_promotion.rs` (add `content_parts: None` or `..Default::default()`)
 
 **Interfaces:**
 - Consumes: none from Tasks 0–2 (types only)
@@ -890,20 +1098,9 @@ Import `LlmContentPart` in `wire.rs`. `From<&ChatMessage>` sets `content: wire_c
     pub content_parts: Option<Vec<vox_llm_egress::LlmContentPart>>,
 ```
 
-`chat.rs` map:
+Copy the same `content_parts: m.content_parts.clone()` field in **both** `chat.rs` and `stream.rs`. Add `pub use vox_llm_egress::{LlmContentPart, LlmImageUrl};` in `llm/mod.rs`.
 
-```rust
-                .map(|m| vox_llm_egress::ChatMessage {
-                    role: m.role.clone(),
-                    content: m.content.clone(),
-                    tool_calls: m.tool_calls.clone(),
-                    tool_call_id: m.tool_call_id.clone(),
-                    name: m.name.clone(),
-                    content_parts: m.content_parts.clone(),
-                })
-```
-
-Fix every `ChatMessage {` in `vox-llm-egress` (lib tests + `wire_mock.rs`) with `content_parts: None`. `cargo test -p vox-llm-egress` lists leftovers.
+Fix every `ChatMessage {` in `vox-llm-egress` (6 literals), `vox-gamify` (2), and `vox-code-audit` (2) with `content_parts: None`. In `skill_promotion.rs` add the field or switch to `..Default::default()`. `cargo test -p vox-llm-egress` lists leftover egress sites; `cargo check -p vox-gamify -p vox-code-audit` lists the rest.
 
 `LlmChatMessage` already uses `Default` in the agent loop; the new field needs `#[serde(default)]` so `..Default::default()` keeps working. Add `content_parts: None` to the `Default` derive (automatic if `Option`).
 
@@ -912,6 +1109,7 @@ Fix every `ChatMessage {` in `vox-llm-egress` (lib tests + `wire_mock.rs`) with 
 ```
 cargo test -p vox-llm-egress
 cargo test -p vox-actor-runtime --lib
+cargo check -p vox-gamify -p vox-code-audit -p vox-orchestrator-mcp
 ```
 
 Expected: PASS. `plain_text_message_serializes_with_no_tool_keys` still `obj.len() == 2`.
@@ -919,8 +1117,8 @@ Expected: PASS. `plain_text_message_serializes_with_no_tool_keys` still `obj.len
 - [ ] **Step 5: Commit**
 
 ```bash
-cargo fmt -p vox-llm-egress -p vox-actor-runtime
-git add crates/vox-llm-egress crates/vox-actor-runtime/src/llm/types.rs crates/vox-actor-runtime/src/llm/chat.rs
+cargo fmt -p vox-llm-egress -p vox-actor-runtime -p vox-gamify -p vox-code-audit -p vox-orchestrator-mcp
+git add crates/vox-llm-egress crates/vox-actor-runtime/src/llm crates/vox-gamify/src/ai/client/transport.rs crates/vox-code-audit/src/review/client.rs crates/vox-orchestrator-mcp/src/skill_promotion.rs
 git commit -m "$(cat <<'EOF'
 feat: additive LLM content_parts for image_url
 
@@ -935,11 +1133,12 @@ EOF
 ### Task 4: Axis agent loop attaches parts
 
 **Files:**
+- Modify: `crates/vox-orchestrator-mcp/src/tool_images.rs` (`llm_tool_message`, `retain_latest_tool_image`)
 - Modify: `crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs` (the `messages.push(LlmChatMessage { role: "tool"` block)
 
 **Interfaces:**
 - Consumes: `promote_tool_image`, `attach_image_from_cached_path`, `json_text`, `LlmContentPart::ImageUrl`
-- Produces: tool `LlmChatMessage` with stripped `content` and optional `content_parts`
+- Produces: `llm_tool_message(…, cache_root)`, `retain_latest_tool_image`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -948,29 +1147,78 @@ Add a unit next to `tool_call_dispatches_and_feeds_result_back_with_matching_cal
 ```rust
     #[test]
     fn tool_result_message_gets_image_part_from_cached_png() {
-        #![allow(unsafe_code)]
         let png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(png_b64)
             .unwrap();
         let tmp = std::env::temp_dir().join(format!("vox-loop-img-{}", std::process::id()));
-        unsafe { std::env::set_var("VOX_CACHE_DIR", &tmp) };
-        let path = crate::tool_images::persist_browser_frame_png("pg", &bytes).unwrap();
-        unsafe { std::env::remove_var("VOX_CACHE_DIR") };
+        let _ = std::fs::create_dir_all(&tmp);
+        let path = crate::tool_images::persist_browser_frame_png(
+            &tmp,
+            "pg",
+            &bytes,
+            crate::tool_images::FramePersistMode::Snapshot,
+        )
+        .unwrap();
         let content = serde_json::json!({
             "success": true,
             "data": { "path": path.to_string_lossy(), "mime": "image/png" }
         })
         .to_string();
-        let msg = crate::tool_images::llm_tool_message("call_1", "vox_browser_screenshot_viewport", content);
+        let msg = crate::tool_images::llm_tool_message(
+            "call_1",
+            "vox_browser_screenshot_viewport",
+            content,
+            &tmp,
+        );
         assert!(!msg.content.contains("image_base64"));
         let parts = msg.content_parts.expect("parts");
         match &parts[0] {
-            vox_llm_egress::LlmContentPart::ImageUrl { image_url } => {
+            vox_actor_runtime::llm::LlmContentPart::ImageUrl { image_url } => {
                 assert!(image_url.url.starts_with("data:image/png;base64,"));
             }
             _ => panic!("expected image_url"),
         }
+        let cookie = crate::tool_images::llm_tool_message(
+            "call_2",
+            "vox_browser_cookies_export",
+            serde_json::json!({"success":true,"data":{"count":1,"path": path.to_string_lossy()}})
+                .to_string(),
+            &tmp,
+        );
+        assert!(cookie.content_parts.is_none());
+    }
+
+    #[test]
+    fn retain_latest_tool_image_keeps_only_last_parts() {
+        let tmp = std::env::temp_dir();
+        let mut msgs = vec![
+            crate::tool_images::llm_tool_message(
+                "a",
+                "vox_browser_screenshot_viewport",
+                r#"{"success":true,"data":{}}"#.into(),
+                &tmp,
+            ),
+            crate::tool_images::llm_tool_message(
+                "b",
+                "vox_browser_screenshot_viewport",
+                r#"{"success":true,"data":{}}"#.into(),
+                &tmp,
+            ),
+        ];
+        msgs[0].content_parts = Some(vec![vox_actor_runtime::llm::LlmContentPart::ImageUrl {
+            image_url: vox_actor_runtime::llm::LlmImageUrl {
+                url: "data:image/png;base64,aaa".into(),
+            },
+        }]);
+        msgs[1].content_parts = Some(vec![vox_actor_runtime::llm::LlmContentPart::ImageUrl {
+            image_url: vox_actor_runtime::llm::LlmImageUrl {
+                url: "data:image/png;base64,bbb".into(),
+            },
+        }]);
+        crate::tool_images::retain_latest_tool_image(&mut msgs);
+        assert!(msgs[0].content_parts.is_none());
+        assert!(msgs[1].content_parts.is_some());
     }
 ```
 
@@ -993,14 +1241,36 @@ pub fn llm_tool_message(
     tool_call_id: impl Into<String>,
     name: impl Into<String>,
     result_json: String,
+    cache_root: &Path,
 ) -> vox_actor_runtime::llm::LlmChatMessage {
+    let name = name.into();
+    if !FRAME_IMAGE_TOOL_NAMES.contains(&name.as_str()) {
+        return vox_actor_runtime::llm::LlmChatMessage {
+            role: "tool".into(),
+            content: result_json,
+            tool_call_id: Some(tool_call_id.into()),
+            name: Some(name),
+            content_parts: None,
+            ..Default::default()
+        };
+    }
     let mut promoted = promote_tool_image(&result_json);
-    attach_image_from_cached_path(&mut promoted);
+    if promoted.json.get("success") != Some(&serde_json::Value::Bool(true)) {
+        return vox_actor_runtime::llm::LlmChatMessage {
+            role: "tool".into(),
+            content: json_text(&promoted),
+            tool_call_id: Some(tool_call_id.into()),
+            name: Some(name),
+            content_parts: None,
+            ..Default::default()
+        };
+    }
+    attach_image_from_cached_path(cache_root, &mut promoted);
     let content = json_text(&promoted);
     let content_parts = promoted.image.map(|img| {
         let b64 = base64::engine::general_purpose::STANDARD.encode(&img.bytes);
-        vec![vox_llm_egress::LlmContentPart::ImageUrl {
-            image_url: vox_llm_egress::LlmImageUrl {
+        vec![vox_actor_runtime::llm::LlmContentPart::ImageUrl {
+            image_url: vox_actor_runtime::llm::LlmImageUrl {
                 url: format!("data:{};base64,{b64}", img.mime),
             },
         }]
@@ -1009,14 +1279,28 @@ pub fn llm_tool_message(
         role: "tool".into(),
         content,
         tool_call_id: Some(tool_call_id.into()),
-        name: Some(name.into()),
+        name: Some(name),
         content_parts,
         ..Default::default()
     }
 }
+
+pub fn retain_latest_tool_image(messages: &mut [vox_actor_runtime::llm::LlmChatMessage]) {
+    let last_img = messages.iter().rposition(|m| {
+        m.role == "tool" && m.content_parts.as_ref().is_some_and(|p| !p.is_empty())
+    });
+    let Some(last_img) = last_img else {
+        return;
+    };
+    for (i, m) in messages.iter_mut().enumerate() {
+        if i != last_img && m.role == "tool" {
+            m.content_parts = None;
+        }
+    }
+}
 ```
 
-Confirm `vox-orchestrator-mcp` already depends on `vox-actor-runtime` and `vox-llm-egress`.
+`vox-orchestrator-mcp` depends on `vox-actor-runtime` only. Do **not** add `vox-llm-egress`. Use the Task 3 re-export.
 
 In `agent_loop.rs` replace:
 
@@ -1037,7 +1321,9 @@ with:
                         call.id.clone(),
                         call.name.clone(),
                         content,
+                        &vox_config::paths::browser_frames_cache_dir(),
                     ));
+                    crate::tool_images::retain_latest_tool_image(&mut messages);
 ```
 
 Error strings (`Error: …`) still go through `llm_tool_message`; promote is a no-op and `content_parts` stays `None`.
@@ -1045,7 +1331,7 @@ Error strings (`Error: …`) still go through `llm_tool_message`; promote is a n
 - [ ] **Step 4: Run tests**
 
 ```
-cargo test -p vox-orchestrator-mcp --lib tool_result_message_gets_image_part_from_cached_png tool_call_dispatches_and_feeds_result_back_with_matching_call_id
+cargo test -p vox-orchestrator-mcp --lib tool_result_message_gets_image_part_from_cached_png retain_latest_tool_image_keeps_only_last_parts tool_call_dispatches_and_feeds_result_back_with_matching_call_id
 ```
 
 The existing dispatch test still expects a `role: tool` string `content` for `vox_git_status` (no image). Assert it still has `tool_call_id == call_1`. If that test now sees `content` as an object because of a mistaken always-on `content_parts`, fix `llm_tool_message` so `content_parts` is `None` when there is no image — wire then stays a string.
@@ -1199,4 +1485,6 @@ EOF
 
 **Placeholder scan:** no TBD / “similar to Task N” / “add tests later”.
 
-**Type consistency:** `ImageBlob`, `PromotedToolImage`, `promote_tool_image`, `json_text`, `persist_browser_frame_png`, `attach_image_from_cached_path`, `mcp_contents_for_tool_json`, `llm_tool_message`, `LlmContentPart`, `LlmImageUrl`, `content_parts`, `frame_bytes_from_mcp_data`, `BROWSER_FRAME_IMAGE_PART_MAX_BYTES = 400_000`, `BROWSER_FRAMES_CACHE_LEAF = "browser-frames"`.
+**Type consistency:** `ImageBlob.mime` is sniffed (`image/png` | `image/jpeg`); `sniff_image_mime`; persist writes `.png`/`.jpg`; `frame_bytes_from_mcp_data` returns `(b64, w, h, mime)`; MCP `llm_tool_message` uses `vox_actor_runtime::llm::LlmContentPart` (no MCP→egress edge); `BrowserFramePayload.mime`.
+
+**Do not add** an image token surcharge in `conversation.rs` — `bound_messages_by_tokens` never sees `content_parts` (reload remaps with `Default`).
