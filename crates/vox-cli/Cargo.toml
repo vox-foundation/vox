@@ -30,10 +30,8 @@ path = "src/bin/vox-compilerd.rs"
 
 [features]
 # `script-execution` (native `vox run --mode script` lane) is default-on: it is
-# lightweight (xxhash cache + OS sandbox helpers, no WASM runtime) and is the
-# common dev/CI path. The heavy Wasmtime WASI lane lives behind `script-wasi`
-# (see below) so a normal `cargo build -p vox-cli` does NOT pay ~5 min / ~69
-# crates of wasmtime+cranelift just to run native scripts.
+# lightweight (xxhash cache + OS sandbox helpers) and is the common dev/CI path.
+# The Wasmtime WASI script lane was deleted (interpreter-first Task 12).
 default = ["keyring-store", "script-execution"]
 # OS credential store for `vox login` / `vox auth connect` vault persistence.
 # Disable on headless CI builds where no keyring daemon is available.
@@ -74,14 +72,6 @@ script-execution = [
     "dep:xxhash-rust",
     "dep:landlock",
     "dep:win32job",
-]
-# WASI isolation lane (`vox run --isolation wasm`, `vox wasm ...`): Wasmtime JIT
-# + cranelift + WASI. HEAVY (~69 crates, ~5 min from a warm base). Opt-in.
-script-wasi = [
-    "script-execution",
-    "dep:vox-wasm-engine",
-    "dep:wasmtime",
-    "dep:wasmtime-wasi",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
 execution-api = ["script-execution", "dep:tokio-stream"]
@@ -179,7 +169,6 @@ vox-package = { workspace = true }
 
 vox-eval = { workspace = true }
 vox-container = { workspace = true }
-vox-wasm-engine = { workspace = true, optional = true }
 vox-deploy-codegen = { workspace = true }
 # Non-optional: `harness::live_eval::build_eval_server_state` (Task 5, `--live` golden corpus)
 # needs `vox_skills::new_registry_arc`/`SkillRegistry` directly, and vox-orchestrator-mcp already
@@ -290,8 +279,6 @@ sysinfo = { workspace = true }
 vox-git = { workspace = true }
 xxhash-rust = { workspace = true, optional = true }
 which = { workspace = true }
-wasmtime = { workspace = true, optional = true }
-wasmtime-wasi = { workspace = true, optional = true }
 flate2.workspace = true
 tar.workspace = true
 zip = { features = ["deflate"], version = "2" }

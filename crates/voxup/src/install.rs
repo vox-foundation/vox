@@ -164,9 +164,6 @@ pub async fn run_install(profile: &str, tag: Option<&str>) -> Result<()> {
         &voxup_canonical,
     )?;
 
-    // WASM sysroots
-    provision_wasm_sysroots(&cache_dir, &release.version).await?;
-
     // Persistent PATH
     let modified = crate::shell::add_to_path(&home, &bin_dir);
     if modified.is_empty() {
@@ -321,20 +318,6 @@ fn set_executable(path: &Path) {
     }
     #[cfg(not(unix))]
     let _ = path;
-}
-
-async fn provision_wasm_sysroots(toolchains_dir: &Path, rust_version: &str) -> Result<()> {
-    let sysroot_dir = toolchains_dir.join(format!("wasm-sysroot-{}", rust_version));
-    if !sysroot_dir.exists() {
-        fs::create_dir_all(&sysroot_dir)?;
-        info!(
-            "Provisioned new WASM sysroot directory at {:?}",
-            sysroot_dir
-        );
-    } else {
-        info!("WASM sysroot for {} already exists.", rust_version);
-    }
-    Ok(())
 }
 
 // Removed run_proxy (now in proxy.rs)

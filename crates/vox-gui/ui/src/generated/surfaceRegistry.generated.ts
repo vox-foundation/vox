@@ -115,6 +115,5 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: null, cliGroup: 'update', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'upgrade', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'visus', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
-  { viewKey: null, cliGroup: 'wasm', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'workflow', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
 ];

@@ -81,7 +81,6 @@ pub(crate) fn script_opts_for_cli(
         sandbox: args.sandbox,
         allow_mcp: false,
         no_cache: args.no_cache,
-        isolation: args.isolation.clone(),
         trust_class: args.trust_class.clone(),
         wasi_dirs: Vec::new(),
         target_triple: args.target_triple.clone(),

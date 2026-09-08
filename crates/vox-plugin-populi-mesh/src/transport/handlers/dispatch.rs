@@ -334,14 +334,11 @@ pub(crate) async fn execute_on_worker(
 
     let output = if req.is_bundle {
         if bin_path.extension().is_some_and(|ext| ext == "wasm") {
-            std::process::Command::new("vox")
-                .arg("run")
-                .arg("--mode")
-                .arg("script")
-                .arg("--isolation")
-                .arg("wasm")
-                .arg(&bin_path)
-                .output()
+            return Err(ResponseErr(
+                StatusCode::BAD_REQUEST,
+                "populi: WASI bundle execution was retired; dispatch source (`.vox`) instead"
+                    .into(),
+            ));
         } else {
             std::process::Command::new(&bin_path).output()
         }

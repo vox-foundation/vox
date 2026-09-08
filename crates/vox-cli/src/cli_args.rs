@@ -174,29 +174,6 @@ pub struct RunArgs {
     pub args: Vec<String>,
 }
 
-/// Parse `--isolation` for `vox script` — only wasm/wasi/permissive tiers are wired today.
-#[cfg(feature = "script-execution")]
-fn script_isolation_tier(raw: &str) -> Result<String, String> {
-    match raw.to_lowercase().as_str() {
-        "wasm" | "wasi" | "wasmtime" | "permissive" | "host" | "none" => Ok(raw.to_string()),
-        "container" | "docker" | "podman" | "oci" => {
-            Err("--isolation container is not available for `vox script`. \
-             Use --isolation wasm for sandboxing or `vox deploy` for OCI containers."
-                .to_string())
-        }
-        "gvisor" | "runsc" => Err(
-            "--isolation gvisor is not wired into `vox script`. Use --isolation wasm instead."
-                .to_string(),
-        ),
-        "microvm" | "firecracker" | "kata" | "hyperv" | "hyper-v" => {
-            Err("--isolation microvm is not wired into `vox script`.".to_string())
-        }
-        other => Err(format!(
-            "Unknown isolation tier: {other}. Valid for `vox script`: wasm, wasi, permissive"
-        )),
-    }
-}
-
 /// `vox script` / `vox fabrica script`
 #[cfg(feature = "script-execution")]
 #[derive(Args, Clone, Debug)]
@@ -207,40 +184,11 @@ pub struct ScriptArgs {
     pub sandbox: bool,
     #[arg(long, default_value_t = false)]
     pub no_cache: bool,
-    /// Isolation tier: `wasm`/`wasi` (sandboxed) or `permissive` (host). Container/gvisor/microvm are not available for script mode.
-    #[arg(long, value_parser = script_isolation_tier)]
-    pub isolation: Option<String>,
     #[arg(long)]
     pub trust_class: Option<String>,
     /// Optional target triple for cross-compilation (Wave 4).
     #[arg(long)]
     pub target_triple: Option<String>,
-    #[arg(trailing_var_arg = true)]
-    pub args: Vec<String>,
-}
-
-/// `vox wasm run` — execute a raw precompiled WASI module via the in-process
-/// wasmtime SSOT (vox-wasm-engine). NOT feature-gated: raw-`.wasm` execution must
-/// always be available (the mesh worker + control plane shell out to it).
-#[derive(Args, Clone, Debug)]
-pub struct WasmRunArgs {
-    /// Path to a precompiled `.wasm` (WASI preview1) module.
-    #[arg(required = true)]
-    pub file: std::path::PathBuf,
-    /// Fuel limit (wasmtime instructions). Omitted / 0 = unlimited.
-    #[arg(long)]
-    pub fuel: Option<u64>,
-    /// Read-only preopen, repeatable: `HOST[:GUEST]` (guest defaults to host).
-    #[arg(long = "preopen-ro", value_name = "HOST[:GUEST]")]
-    pub preopen_ro: Vec<String>,
-    /// Read-write preopen, repeatable: `HOST[:GUEST]`.
-    #[arg(long = "preopen-rw", value_name = "HOST[:GUEST]")]
-    pub preopen_rw: Vec<String>,
-    /// Environment variable exposed to the guest (WASI), repeatable: KEY=VALUE.
-    /// This is how the mesh worker forwards tier-gated secrets into the sandbox.
-    #[arg(long = "env", value_name = "KEY=VALUE")]
-    pub env: Vec<String>,
-    /// Guest argv (`argv[0]` is synthesized from the module stem).
     #[arg(trailing_var_arg = true)]
     pub args: Vec<String>,
 }

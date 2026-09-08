@@ -6289,16 +6289,6 @@
       ],
       "mens_planner_visible": true,
       "curated": true
-    },
-    {
-      "capability_id": "cli.wasm",
-      "cli_path": [
-        "wasm"
-      ],
-      "implicit": false,
-      "title": "Wasm",
-      "description_model": "Raw precompiled WASI module execution (needs `--features script-wasi`)",
-      "curated": true
     }
   ],
   "runtime_builtin_maps": [

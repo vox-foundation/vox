@@ -3,8 +3,6 @@
 mod native;
 #[cfg(test)]
 mod tests;
-#[cfg(feature = "script-wasi")]
-mod wasi;
 
 use anyhow::Result;
 
@@ -76,5 +74,3 @@ pub trait RunBackend {
 }
 
 pub use native::NativeBackend;
-#[cfg(feature = "script-wasi")]
-pub use wasi::WasiBackend;

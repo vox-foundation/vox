@@ -196,46 +196,10 @@ pub async fn run(auto_heal: bool, tier: &str, checks: &mut Vec<Check>) {
         },
     });
 
-    let wasi_target = Command::new("rustup")
-        .args(["target", "list", "--installed"])
-        .output()
-        .await;
-    let wasi_installed = wasi_target
-        .as_ref()
-        .map(|o| {
-            o.status.success()
-                && String::from_utf8_lossy(&o.stdout)
-                    .lines()
-                    .any(|l| l.trim() == "wasm32-wasip1")
-        })
-        .unwrap_or(false);
-
-    let mut wasi_detail = if wasi_installed {
-        "installed — `vox run --isolation wasm` is fast (warm cache)".to_string()
-    } else {
-        "not installed — first WASI run will take ~10s to install".to_string()
-    };
-
-    if !wasi_installed && auto_heal {
-        println!("  [auto-heal] Installing wasm32-wasip1 target...");
-        let ok = Command::new("rustup")
-            .args(["target", "add", "wasm32-wasip1"])
-            .status()
-            .await
-            .is_ok_and(|s| s.success());
-        if ok {
-            wasi_detail =
-                "installed via auto-heal — `vox run --isolation wasm` is now fast".to_string();
-        } else {
-            wasi_detail = "auto-heal failed — run: rustup target add wasm32-wasip1".to_string();
-        }
-    }
-
-    checks.push(Check {
-        name: "WASI target (wasm32-wasip1)".to_string(),
-        pass: wasi_installed || auto_heal,
-        detail: wasi_detail,
-    });
+    checks.push(Check::pass(
+        "WASI target (optional)",
+        "not required: scripts run under the interpreter; `--mode script` targets the host",
+    ));
 
     let zig = Command::new("zig").arg("version").output().await;
     checks.push(match zig {

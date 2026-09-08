@@ -261,7 +261,6 @@ pub async fn run(
             sandbox: false,
             allow_mcp: false,
             no_cache: false,
-            isolation: None,
             trust_class: Some("trusted_dev".into()),
             wasi_dirs: Vec::new(),
             target_triple: None,

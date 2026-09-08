@@ -79,10 +79,9 @@
     "update",
     "upgrade",
     "visus",
-    "wasm",
     "workflow"
   ],
-  "surface_count": 107,
+  "surface_count": 106,
   "unclassified_backfilled": [],
   "wiring_violations": []
 }

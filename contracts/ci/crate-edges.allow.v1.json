@@ -347,10 +347,6 @@
     ],
     [
       "vox-cli",
-      "vox-wasm-engine"
-    ],
-    [
-      "vox-cli",
       "vox-workflow-runtime"
     ],
     [

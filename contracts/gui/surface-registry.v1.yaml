@@ -842,14 +842,6 @@ surfaces:
   parent_surface: null
   notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
 - view_key: null
-  cli_group: wasm
-  representation_tier: none
-  nav_label: null
-  nav_icon: null
-  nav_group: null
-  parent_surface: null
-  notes: null
-- view_key: null
   cli_group: workflow
   representation_tier: none
   nav_label: null

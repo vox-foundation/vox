@@ -234,7 +234,6 @@ mod tests {
             sandbox: true,
             allow_mcp: false,
             no_cache: false,
-            isolation: None,
             trust_class: None,
             target_triple: None,
             #[cfg(feature = "script-execution")]

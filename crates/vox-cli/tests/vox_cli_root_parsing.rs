@@ -308,3 +308,29 @@ fn parse_ci_retirement_audit() {
         }
     ));
 }
+
+#[test]
+fn isolation_and_wasm_surfaces_are_gone() {
+    with_cli_parse_stack(|| {
+        let wasm_err = match VoxCliRoot::try_parse_from(["vox", "wasm", "run", "foo.wasm"]) {
+            Ok(_) => panic!("expected parse failure for removed subcommand `wasm`"),
+            Err(e) => e,
+        };
+        let wasm_msg = wasm_err.to_string();
+        assert!(
+            wasm_msg.contains("unrecognized subcommand"),
+            "expected clap 4.5 unrecognized subcommand, got: {wasm_msg}"
+        );
+
+        let isolation_err =
+            match VoxCliRoot::try_parse_from(["vox", "script", "--isolation", "wasm", "foo.vox"]) {
+                Ok(_) => panic!("expected parse failure for removed `--isolation`"),
+                Err(e) => e,
+            };
+        let isolation_msg = isolation_err.to_string();
+        assert!(
+            isolation_msg.contains("unexpected argument '--isolation' found"),
+            "expected clap 4.5 unexpected argument '--isolation' found, got: {isolation_msg}"
+        );
+    });
+}

@@ -7,7 +7,6 @@ use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{DurabilityKind, HirFn, HirModule, HirStmt};
 use vox_compiler::rust_interop_support::{
     classify_rust_crate, is_template_managed_script_native_dependency,
-    is_template_managed_script_wasi_dependency, is_wasi_unsupported_rust_import,
 };
 
 use super::GENERATED_CARGO_EDITION;
@@ -51,8 +50,6 @@ pub fn generate(
 pub enum ScriptTarget {
     /// Native Rust binary (tokio, vox-actor-runtime).
     Native,
-    /// WASI binary (wasm32-wasip1, vox-script-wasi, no tokio).
-    Wasi,
 }
 
 /// Generate a minimal Rust binary project for script-mode execution.
@@ -71,7 +68,7 @@ pub fn generate_script(
     generate_script_with_target(module, package_name, runtime_path, ScriptTarget::Native)
 }
 
-/// Generate a script project for the given target (Native or Wasi).
+/// Generate a script project for the given target (native host only).
 pub fn generate_script_with_target(
     module: &HirModule,
     package_name: &str,
@@ -83,7 +80,6 @@ pub fn generate_script_with_target(
         let crate_name = dep.crate_name.trim();
         let is_template_dep = match target {
             ScriptTarget::Native => is_template_managed_script_native_dependency(crate_name),
-            ScriptTarget::Wasi => is_template_managed_script_wasi_dependency(crate_name),
         };
         if crate_name.is_empty() || is_template_dep {
             continue;
@@ -187,58 +183,6 @@ pub fn generate_script_with_target(
         String::new()
     };
 
-    // ── WASI feature guardrail ──────────────────────────────────────────────
-    // Jai-inspired: fail loudly and immediately with a clear diagnostic
-    // rather than emitting broken code that produces confusing linker errors
-    // or silent runtime panics inside the Wasmtime sandbox.
-    if target == ScriptTarget::Wasi {
-        let mut unsupported: Vec<String> = Vec::new();
-
-        if !module.endpoint_fns.is_empty() {
-            unsupported.push(format!(
-                "endpoint functions are not supported in WASI mode: {}",
-                module
-                    .endpoint_fns
-                    .iter()
-                    .map(|s| s.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ));
-        }
-        if !module.mcp_tools.is_empty() || !module.mcp_resources.is_empty() {
-            let mut names: Vec<&str> = module
-                .mcp_tools
-                .iter()
-                .map(|t| t.func.name.as_str())
-                .collect();
-            names.extend(module.mcp_resources.iter().map(|r| r.func.name.as_str()));
-            unsupported.push(format!(
-                "MCP tools/resources are not supported in WASI mode: {}",
-                names.join(", ")
-            ));
-        }
-        let mut wasi_blocked = Vec::new();
-        for dep in &module.rust_imports {
-            if is_wasi_unsupported_rust_import(dep.crate_name.as_str()) {
-                wasi_blocked.push(dep.crate_name.clone());
-            }
-        }
-        if !wasi_blocked.is_empty() {
-            unsupported.push(format!(
-                "some rust imports are not supported in WASI mode: {}",
-                wasi_blocked.join(", ")
-            ));
-        }
-
-        if !unsupported.is_empty() {
-            return Err(miette::miette!(
-                help = "Remove these features from the script, or run without --isolation wasm to use the full native runtime.",
-                "WASI mode does not support the following features used in this script:\n  • {}",
-                unsupported.join("\n  • ")
-            ));
-        }
-    }
-
     let aegis_patch_path = runtime_path
         .and_then(|p| p.parent())
         .map(|crates| manifest_dependency_path(&crates.join("../patches/aegis-0.9.8")));
@@ -246,9 +190,9 @@ pub fn generate_script_with_target(
         .map(|p| format!("\n[patch.crates-io]\naegis = {{ path = \"{p}\" }}\n"))
         .unwrap_or_default();
 
-    let cargo_toml = match target {
-        ScriptTarget::Native => format!(
-            r#"[package]
+    let _ = target;
+    let cargo_toml = format!(
+        r#"[package]
 name = "{package_name}"
 version = "0.1.0"
 edition = "{edition}"
@@ -265,46 +209,17 @@ regex = "1"
 vox-actor-runtime = {{ path = "{runtime_path_str}" }}
 vox-crypto = {{ path = "{vox_crypto_path_str}" }}
 {vox_telemetry_dep}{vox_workflow_runtime_dep}{vox_db_dep}{turso_dep}{rust_import_deps}{aegis_patch_section}"#,
-            package_name = package_name,
-            runtime_path_str = runtime_path_str,
-            vox_crypto_path_str = vox_crypto_path_str,
-            vox_telemetry_dep = vox_telemetry_dep,
-            vox_workflow_runtime_dep = vox_workflow_runtime_dep,
-            vox_db_dep = vox_db_dep,
-            turso_dep = turso_dep,
-            rust_import_deps = rust_import_deps,
-            aegis_patch_section = aegis_patch_section,
-            edition = GENERATED_CARGO_EDITION,
-        ),
-        ScriptTarget::Wasi => {
-            let wasi_path = runtime_path
-                .and_then(|p| p.parent())
-                .map(|p| manifest_dependency_path(&p.join("vox-script-wasi")))
-                .unwrap_or_else(|| "../vox-script-wasi".to_string());
-            format!(
-                r#"[package]
-name = "{package_name}"
-version = "0.1.0"
-edition = "{edition}"
-
-[workspace]
-
-[dependencies]
-serde = {{ version = "1", features = ["derive"] }}
-serde_json = "1"
-tracing = "0.1"
-{rust_import_deps}
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-vox-script-wasi = {{ path = "{wasi_path}" }}
-"#,
-                package_name = package_name,
-                wasi_path = wasi_path,
-                rust_import_deps = rust_import_deps,
-                edition = GENERATED_CARGO_EDITION,
-            )
-        }
-    };
+        package_name = package_name,
+        runtime_path_str = runtime_path_str,
+        vox_crypto_path_str = vox_crypto_path_str,
+        vox_telemetry_dep = vox_telemetry_dep,
+        vox_workflow_runtime_dep = vox_workflow_runtime_dep,
+        vox_db_dep = vox_db_dep,
+        turso_dep = turso_dep,
+        rust_import_deps = rust_import_deps,
+        aegis_patch_section = aegis_patch_section,
+        edition = GENERATED_CARGO_EDITION,
+    );
     files.insert("Cargo.toml".to_string(), cargo_toml);
 
     // Emit lib.rs with all non-main declarations (no warp/SSE for script mode).
@@ -350,146 +265,118 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
     for func in &module.functions {
         if func.name == "main" {
             found_main = true;
-            match target {
-                ScriptTarget::Native => {
-                    let is_async = func.is_async;
-                    // A non-Unit-returning `main` (`fn main() to int`/`to str`)
-                    // cannot map to a Rust `fn main()` (which returns `()`):
-                    // the emitted `return <value>` would be E0308. Mirror the
-                    // interpreter (`vox run --mode interp`, which prints main's
-                    // display value): run the body in a closure and print the
-                    // result. Unit / unannotated mains keep the direct form.
-                    let non_unit_ret = if is_async {
-                        None
-                    } else {
-                        func.return_type
-                            .as_ref()
-                            .map(emit::emit_type)
-                            .filter(|t| t != "()")
-                    };
-                    // Task 2 Step 10: every variant below wraps the Vox-script
-                    // body so a fault (panic — e.g. an `overflow-checks = true`
-                    // overflow, or a division by zero) exits the *process*
-                    // with code 1 and a clean one-line stderr message, instead
-                    // of Rust's default unwind exit code (101) plus a
-                    // backtrace-shaped panic message — matching the
-                    // interpreter tier, which already turns faults into
-                    // `eprintln!` + `process::exit(1)` rather than an
-                    // unwinding Rust panic
-                    // (`int_overflow_produces_clean_error_not_panic`,
-                    // `crates/vox-compiler/tests/eval_typeck_parity_test.rs`).
-                    // The sync variants use `std::panic::catch_unwind`
-                    // directly; the async variant spawns the body as a task
-                    // and reads `JoinError::into_panic()` instead, because
-                    // `catch_unwind` around a closure that internally
-                    // `.await`s is not well-defined (the unwind can cross a
-                    // suspend point). Both funnel into the shared
-                    // `vox_actor_runtime::builtins::vox_report_panic_and_exit`
-                    // helper so the message-extraction logic has one owner.
-                    // Suppress Rust's default panic hook (the
-                    // "thread 'main' panicked at ..." + backtrace-hint lines)
-                    // so the *only* stderr output on a fault is the clean
-                    // message `vox_report_panic_and_exit` prints — matching
-                    // the interpreter's single-line fault output.
-                    // `catch_unwind`/`JoinError::into_panic` still capture the
-                    // payload regardless of the hook; the hook only controls
-                    // what gets printed as a side effect of unwinding.
-                    let set_quiet_panic_hook =
-                        "    std::panic::set_hook(std::boxed::Box::new(|_| {}));\n";
-                    if is_async {
-                        main_rs.push_str("#[tokio::main]\nasync fn main() {\n");
-                        main_rs.push_str(set_quiet_panic_hook);
-                        main_rs.push_str("    let __vox_join = tokio::spawn(async move {\n");
-                        if has_tables {
-                            main_rs.push_str("        vox_script_boot_db().await;\n");
-                        }
-                        append_script_main_body(
-                            &mut main_rs,
-                            &func.body,
-                            2,
-                            &module.inferred_types,
-                            &script_module,
-                        );
-                        main_rs.push_str("    });\n");
-                        main_rs.push_str("    match __vox_join.await {\n");
-                        main_rs.push_str("        Ok(()) => {}\n");
-                        main_rs.push_str("        Err(__vox_join_err) => {\n");
-                        main_rs.push_str("            if __vox_join_err.is_panic() {\n");
-                        main_rs.push_str(
+            {
+                let is_async = func.is_async;
+                // A non-Unit-returning `main` (`fn main() to int`/`to str`)
+                // cannot map to a Rust `fn main()` (which returns `()`):
+                // the emitted `return <value>` would be E0308. Mirror the
+                // interpreter (`vox run --mode interp`, which prints main's
+                // display value): run the body in a closure and print the
+                // result. Unit / unannotated mains keep the direct form.
+                let non_unit_ret = if is_async {
+                    None
+                } else {
+                    func.return_type
+                        .as_ref()
+                        .map(emit::emit_type)
+                        .filter(|t| t != "()")
+                };
+                // Task 2 Step 10: every variant below wraps the Vox-script
+                // body so a fault (panic — e.g. an `overflow-checks = true`
+                // overflow, or a division by zero) exits the *process*
+                // with code 1 and a clean one-line stderr message, instead
+                // of Rust's default unwind exit code (101) plus a
+                // backtrace-shaped panic message — matching the
+                // interpreter tier, which already turns faults into
+                // `eprintln!` + `process::exit(1)` rather than an
+                // unwinding Rust panic
+                // (`int_overflow_produces_clean_error_not_panic`,
+                // `crates/vox-compiler/tests/eval_typeck_parity_test.rs`).
+                // The sync variants use `std::panic::catch_unwind`
+                // directly; the async variant spawns the body as a task
+                // and reads `JoinError::into_panic()` instead, because
+                // `catch_unwind` around a closure that internally
+                // `.await`s is not well-defined (the unwind can cross a
+                // suspend point). Both funnel into the shared
+                // `vox_actor_runtime::builtins::vox_report_panic_and_exit`
+                // helper so the message-extraction logic has one owner.
+                // Suppress Rust's default panic hook (the
+                // "thread 'main' panicked at ..." + backtrace-hint lines)
+                // so the *only* stderr output on a fault is the clean
+                // message `vox_report_panic_and_exit` prints — matching
+                // the interpreter's single-line fault output.
+                // `catch_unwind`/`JoinError::into_panic` still capture the
+                // payload regardless of the hook; the hook only controls
+                // what gets printed as a side effect of unwinding.
+                let set_quiet_panic_hook =
+                    "    std::panic::set_hook(std::boxed::Box::new(|_| {}));\n";
+                if is_async {
+                    main_rs.push_str("#[tokio::main]\nasync fn main() {\n");
+                    main_rs.push_str(set_quiet_panic_hook);
+                    main_rs.push_str("    let __vox_join = tokio::spawn(async move {\n");
+                    if has_tables {
+                        main_rs.push_str("        vox_script_boot_db().await;\n");
+                    }
+                    append_script_main_body(
+                        &mut main_rs,
+                        &func.body,
+                        2,
+                        &module.inferred_types,
+                        &script_module,
+                    );
+                    main_rs.push_str("    });\n");
+                    main_rs.push_str("    match __vox_join.await {\n");
+                    main_rs.push_str("        Ok(()) => {}\n");
+                    main_rs.push_str("        Err(__vox_join_err) => {\n");
+                    main_rs.push_str("            if __vox_join_err.is_panic() {\n");
+                    main_rs.push_str(
                             "                vox_actor_runtime::builtins::vox_report_panic_and_exit(__vox_join_err.into_panic());\n",
                         );
-                        main_rs.push_str("            } else {\n");
-                        main_rs.push_str("                eprintln!(\"{__vox_join_err}\");\n");
-                        main_rs.push_str("                std::process::exit(1);\n");
-                        main_rs.push_str("            }\n");
-                        main_rs.push_str("        }\n");
-                        main_rs.push_str("    }\n");
-                        main_rs.push_str("}\n");
-                    } else if let Some(ret_ty) = non_unit_ret {
-                        if has_tables {
-                            main_rs.push_str("fn main() {\n");
-                            main_rs.push_str(set_quiet_panic_hook);
-                            main_rs.push_str(
-                                "    let __vox_panic_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {\n",
-                            );
-                            main_rs
-                                .push_str("        tokio::runtime::Runtime::new().expect(\"tokio runtime\").block_on(async {\n");
-                            main_rs.push_str("            vox_script_boot_db().await;\n");
-                            main_rs.push_str(&format!(
-                                "            let __vox_main_ret: {ret_ty} = {{\n"
-                            ));
-                            append_script_main_body(
-                                &mut main_rs,
-                                &func.body,
-                                4,
-                                &module.inferred_types,
-                                &script_module,
-                            );
-                            main_rs.push_str("            };\n");
-                            main_rs.push_str("            __vox_main_ret\n");
-                            main_rs.push_str("        })\n");
-                            main_rs.push_str("    }));\n");
-                            main_rs.push_str("    match __vox_panic_result {\n");
-                            main_rs.push_str(
-                                "        Ok(__vox_main_ret) => println!(\"{}\", __vox_main_ret),\n",
-                            );
-                            main_rs.push_str(
-                                "        Err(__vox_panic) => vox_actor_runtime::builtins::vox_report_panic_and_exit(__vox_panic),\n",
-                            );
-                            main_rs.push_str("    }\n");
-                            main_rs.push_str("}\n");
-                        } else {
-                            main_rs.push_str("fn main() {\n");
-                            main_rs.push_str(set_quiet_panic_hook);
-                            main_rs.push_str(&format!(
-                                "    let __vox_main_ret: {ret_ty} = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {{\n"
-                            ));
-                            append_script_main_body(
-                                &mut main_rs,
-                                &func.body,
-                                3,
-                                &module.inferred_types,
-                                &script_module,
-                            );
-                            main_rs.push_str("    })) {\n");
-                            main_rs.push_str("        Ok(__vox_v) => __vox_v,\n");
-                            main_rs.push_str(
-                                "        Err(__vox_panic) => vox_actor_runtime::builtins::vox_report_panic_and_exit(__vox_panic),\n",
-                            );
-                            main_rs.push_str("    };\n");
-                            main_rs.push_str("    println!(\"{}\", __vox_main_ret);\n");
-                            main_rs.push_str("}\n");
-                        }
-                    } else if has_tables {
+                    main_rs.push_str("            } else {\n");
+                    main_rs.push_str("                eprintln!(\"{__vox_join_err}\");\n");
+                    main_rs.push_str("                std::process::exit(1);\n");
+                    main_rs.push_str("            }\n");
+                    main_rs.push_str("        }\n");
+                    main_rs.push_str("    }\n");
+                    main_rs.push_str("}\n");
+                } else if let Some(ret_ty) = non_unit_ret {
+                    if has_tables {
                         main_rs.push_str("fn main() {\n");
                         main_rs.push_str(set_quiet_panic_hook);
                         main_rs.push_str(
-                            "    if let Err(__vox_panic) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {\n",
+                                "    let __vox_panic_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {\n",
+                            );
+                        main_rs
+                                .push_str("        tokio::runtime::Runtime::new().expect(\"tokio runtime\").block_on(async {\n");
+                        main_rs.push_str("            vox_script_boot_db().await;\n");
+                        main_rs
+                            .push_str(&format!("            let __vox_main_ret: {ret_ty} = {{\n"));
+                        append_script_main_body(
+                            &mut main_rs,
+                            &func.body,
+                            4,
+                            &module.inferred_types,
+                            &script_module,
+                        );
+                        main_rs.push_str("            };\n");
+                        main_rs.push_str("            __vox_main_ret\n");
+                        main_rs.push_str("        })\n");
+                        main_rs.push_str("    }));\n");
+                        main_rs.push_str("    match __vox_panic_result {\n");
+                        main_rs.push_str(
+                            "        Ok(__vox_main_ret) => println!(\"{}\", __vox_main_ret),\n",
                         );
                         main_rs.push_str(
-                            "        tokio::runtime::Runtime::new().expect(\"tokio runtime\").block_on(async {\n",
-                        );
-                        main_rs.push_str("            vox_script_boot_db().await;\n");
+                                "        Err(__vox_panic) => vox_actor_runtime::builtins::vox_report_panic_and_exit(__vox_panic),\n",
+                            );
+                        main_rs.push_str("    }\n");
+                        main_rs.push_str("}\n");
+                    } else {
+                        main_rs.push_str("fn main() {\n");
+                        main_rs.push_str(set_quiet_panic_hook);
+                        main_rs.push_str(&format!(
+                                "    let __vox_main_ret: {ret_ty} = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {{\n"
+                            ));
                         append_script_main_body(
                             &mut main_rs,
                             &func.body,
@@ -497,53 +384,58 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
                             &module.inferred_types,
                             &script_module,
                         );
-                        main_rs.push_str("        });\n");
                         main_rs.push_str("    })) {\n");
+                        main_rs.push_str("        Ok(__vox_v) => __vox_v,\n");
                         main_rs.push_str(
-                            "        vox_actor_runtime::builtins::vox_report_panic_and_exit(__vox_panic);\n",
-                        );
-                        main_rs.push_str("    }\n");
+                                "        Err(__vox_panic) => vox_actor_runtime::builtins::vox_report_panic_and_exit(__vox_panic),\n",
+                            );
+                        main_rs.push_str("    };\n");
+                        main_rs.push_str("    println!(\"{}\", __vox_main_ret);\n");
                         main_rs.push_str("}\n");
-                    } else {
-                        main_rs.push_str("fn main() {\n");
-                        main_rs.push_str(set_quiet_panic_hook);
-                        main_rs.push_str(
+                    }
+                } else if has_tables {
+                    main_rs.push_str("fn main() {\n");
+                    main_rs.push_str(set_quiet_panic_hook);
+                    main_rs.push_str(
                             "    if let Err(__vox_panic) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {\n",
                         );
-                        append_script_main_body(
-                            &mut main_rs,
-                            &func.body,
-                            2,
-                            &module.inferred_types,
-                            &script_module,
+                    main_rs.push_str(
+                            "        tokio::runtime::Runtime::new().expect(\"tokio runtime\").block_on(async {\n",
                         );
-                        main_rs.push_str("    })) {\n");
-                        main_rs.push_str(
+                    main_rs.push_str("            vox_script_boot_db().await;\n");
+                    append_script_main_body(
+                        &mut main_rs,
+                        &func.body,
+                        3,
+                        &module.inferred_types,
+                        &script_module,
+                    );
+                    main_rs.push_str("        });\n");
+                    main_rs.push_str("    })) {\n");
+                    main_rs.push_str(
                             "        vox_actor_runtime::builtins::vox_report_panic_and_exit(__vox_panic);\n",
                         );
-                        main_rs.push_str("    }\n");
-                        main_rs.push_str("}\n");
-                    }
-                }
-                ScriptTarget::Wasi => {
-                    if func.is_async {
-                        // Jai-inspired: compile-time error, not a runtime surprise.
-                        // async fn main() is not supported in WASI mode because Wasmtime P1
-                        // does not expose an async executor — use native mode for async scripts.
-                        main_rs.push_str("fn main() {\n");
-                        main_rs.push_str("    compile_error!(\"async fn main() is not supported in --isolation wasm mode. \\nRemove async or use vox run without --isolation wasm.\");\n");
-                        main_rs.push_str("}\n");
-                    } else {
-                        main_rs.push_str("fn main() {\n");
-                        append_script_main_body(
-                            &mut main_rs,
-                            &func.body,
-                            1,
-                            &module.inferred_types,
-                            &script_module,
+                    main_rs.push_str("    }\n");
+                    main_rs.push_str("}\n");
+                } else {
+                    main_rs.push_str("fn main() {\n");
+                    main_rs.push_str(set_quiet_panic_hook);
+                    main_rs.push_str(
+                            "    if let Err(__vox_panic) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {\n",
                         );
-                        main_rs.push_str("}\n");
-                    }
+                    append_script_main_body(
+                        &mut main_rs,
+                        &func.body,
+                        2,
+                        &module.inferred_types,
+                        &script_module,
+                    );
+                    main_rs.push_str("    })) {\n");
+                    main_rs.push_str(
+                            "        vox_actor_runtime::builtins::vox_report_panic_and_exit(__vox_panic);\n",
+                        );
+                    main_rs.push_str("    }\n");
+                    main_rs.push_str("}\n");
                 }
             }
             break;
@@ -575,4 +467,25 @@ fn append_script_main_body(
             out.push_str(&emit::emit_main_stmt(stmt, indent, Some(inferred_types)));
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_compiler::hir::HirModule;
+
+    #[test]
+    fn generate_script_emits_native_only_no_wasi_lane() {
+        let out = generate_script(&HirModule::default(), "vox-script", None)
+            .expect("empty module still emits a native script crate");
+        let cargo = out
+            .files
+            .get("Cargo.toml")
+            .expect("script codegen writes Cargo.toml");
+        assert!(
+            !cargo.contains("wasm32-wasip1") && !cargo.contains("vox-script-wasi"),
+            "WASI script lane was retired: {cargo}"
+        );
+        assert_eq!(ScriptTarget::Native, ScriptTarget::Native);
+    }
 }

@@ -14737,32 +14737,6 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-- id: wasm
-  title: Wasm
-  description: 'Raw precompiled WASI module execution (needs `--features script-wasi`)'
-  description_human: null
-  product_lane: app
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - wasm
-    status: active
-    latin_ns: null
-    handler_rust: commands::wasm
-    feature_gate: script-wasi
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: null
 exemptions:
   mcp_tools: []
   cli_paths:

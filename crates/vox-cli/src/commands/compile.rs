@@ -6,15 +6,10 @@ use crate::cli_args::CompileArgs;
 use crate::commands::bundle;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
-#[cfg(feature = "script-execution")]
-use tokio::fs;
 use vox_cli_core::cli_args::{BundleMode, CompileKind};
 use vox_codegen::codegen_rust::RustAppShell;
 use vox_compiler::target::Target;
 use vox_config::project_manifest::ProjectManifest;
-
-#[cfg(feature = "script-execution")]
-use crate::commands::runtime::run::script;
 
 /// Map a [`CompileKind`] to its parity [`Target`].
 ///
@@ -136,37 +131,10 @@ async fn run_single_workspace_member(args: &CompileArgs) -> Result<()> {
             );
         }
         CompileKind::Wasi => {
-            #[cfg(feature = "script-execution")]
-            {
-                let opts = script::ScriptOpts {
-                    sandbox: false,
-                    allow_mcp: false,
-                    no_cache: false,
-                    isolation: Some("wasm".into()),
-                    trust_class: None,
-                    wasi_dirs: Vec::new(),
-                    target_triple: args.triple.clone(),
-                };
-                let (artifact_path, _backend) = script::compile(file, &opts).await?;
-                fs::create_dir_all(&args.out_dir).await?;
-                let app_name = file
-                    .file_stem()
-                    .map(|s| s.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "script".into());
-                // NOTE: both lanes currently emit `<name>.wasm`; native-artifact
-                // naming is a pre-existing latent bug tracked separately. Kept as
-                // a single arm to preserve behavior while satisfying clippy.
-                let bin_name = format!("{app_name}.wasm");
-                let dest = args.out_dir.join(bin_name);
-                fs::copy(&artifact_path, &dest)
-                    .await
-                    .context("copy WASI artifact to out_dir")?;
-                println!("✓ WASI artifact: {}", dest.display());
-            }
-            #[cfg(not(feature = "script-execution"))]
-            {
-                anyhow::bail!("`vox compile --target wasi` requires `--features script-execution`");
-            }
+            anyhow::bail!(
+                "`vox compile --target wasi` was retired with the WASI script lane. \
+                 Scripts run under the interpreter (`--mode interp`) or native `--mode script`."
+            );
         }
     }
 
