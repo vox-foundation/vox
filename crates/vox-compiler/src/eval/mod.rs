@@ -16,6 +16,11 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use value::VoxValue;
 
+#[cfg(test)]
+use std::cell::Cell;
+#[cfg(test)]
+use std::sync::MutexGuard;
+
 /// Dual-write of `process.register_exit_command` so the SIGINT/SIGTERM handler
 /// installed by `vox run --mode interp` can flush the queue. Not installed from
 /// `Interpreter::new` or other embedders.
@@ -23,8 +28,44 @@ static SIGNAL_EXIT_COMMANDS: Mutex<Vec<(String, Vec<String>)>> = Mutex::new(Vec:
 
 /// Set from the Unix signal handler (async-signal-safe: AtomicBool store only).
 /// The interpreter thread observes this in [`Interpreter::track_step`] and
-/// flushes exit commands there — never from the handler.
+/// returns [`EvalError::Interrupted`] — never from the handler. Flush is
+/// [`flush_signal_exit_commands`] on the interpreter thread.
 static SIGNAL_EXIT_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+/// Serializes unit tests that mutate [`SIGNAL_EXIT_REQUESTED`] with other
+/// [`Interpreter::track_step`] callers in this crate's lib-test binary.
+#[cfg(test)]
+static TRACK_STEP_SERIAL: Mutex<()> = Mutex::new(());
+
+#[cfg(test)]
+thread_local! {
+    static TRACK_STEP_SERIAL_HELD: Cell<bool> = const { Cell::new(false) };
+}
+
+#[cfg(test)]
+struct TrackStepSerialGuard {
+    _lock: MutexGuard<'static, ()>,
+}
+
+#[cfg(test)]
+impl Drop for TrackStepSerialGuard {
+    fn drop(&mut self) {
+        TRACK_STEP_SERIAL_HELD.with(|held| held.set(false));
+    }
+}
+
+/// Re-entrant so a test can hold the lock across a `track_step` call.
+#[cfg(test)]
+fn acquire_track_step_serial() -> Option<TrackStepSerialGuard> {
+    if TRACK_STEP_SERIAL_HELD.with(Cell::get) {
+        return None;
+    }
+    let guard = TRACK_STEP_SERIAL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    TRACK_STEP_SERIAL_HELD.with(|held| held.set(true));
+    Some(TrackStepSerialGuard { _lock: guard })
+}
 
 pub(crate) fn record_signal_exit_command(cmd: String, args: Vec<String>) {
     if let Ok(mut q) = SIGNAL_EXIT_COMMANDS.lock() {
@@ -703,6 +744,8 @@ impl Interpreter {
     }
 
     pub fn track_step(&mut self) -> Result<(), EvalError> {
+        #[cfg(test)]
+        let _serial = acquire_track_step_serial();
         if signal_exit_requested() {
             return Err(EvalError::Interrupted);
         }
@@ -727,6 +770,23 @@ impl Interpreter {
 mod tests {
     use super::*;
 
+    /// Always clears [`SIGNAL_EXIT_REQUESTED`] so a panic cannot leave later
+    /// `track_step` callers [`EvalError::Interrupted`].
+    struct SignalExitRequestedGuard;
+
+    impl Drop for SignalExitRequestedGuard {
+        fn drop(&mut self) {
+            SIGNAL_EXIT_REQUESTED.store(false, Ordering::Relaxed);
+        }
+    }
+
+    impl SignalExitRequestedGuard {
+        fn arm() -> Self {
+            SIGNAL_EXIT_REQUESTED.store(false, Ordering::Relaxed);
+            Self
+        }
+    }
+
     #[test]
     fn flush_signal_exit_commands_drains_the_static_queue() {
         record_signal_exit_command("not-a-real-binary-vox-test".into(), Vec::new());
@@ -742,12 +802,15 @@ mod tests {
 
     #[test]
     fn request_signal_exit_stops_track_step() {
-        SIGNAL_EXIT_REQUESTED.store(false, Ordering::Relaxed);
+        // Hold the serial lock for the whole test so other `track_step` callers
+        // wait; `_reset` is declared after so it drops first (flag cleared
+        // before the lock is released).
+        let _serial = acquire_track_step_serial();
+        let _reset = SignalExitRequestedGuard::arm();
         request_signal_exit();
         assert!(signal_exit_requested());
         let mut interp = Interpreter::new(1_000);
         assert!(matches!(interp.track_step(), Err(EvalError::Interrupted)));
-        SIGNAL_EXIT_REQUESTED.store(false, Ordering::Relaxed);
     }
 
     #[test]
