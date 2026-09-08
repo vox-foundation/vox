@@ -1,4 +1,5 @@
 pub mod client;
+/// Catalog handler `commands::gui::drive`.
 pub mod drive;
 pub mod launch;
 pub mod session;
