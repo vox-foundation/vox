@@ -814,7 +814,10 @@ mod tests {
                 format!("{p}.0.post_attention_layernorm.weight"),
                 ones1(hidden, dev),
             );
-            t.insert("model.language_model.norm.weight".into(), ones1(hidden, dev));
+            t.insert(
+                "model.language_model.norm.weight".into(),
+                ones1(hidden, dev),
+            );
             t.insert("lm_head.weight".into(), rand2(vocab, hidden, dev));
             t
         };
@@ -844,8 +847,14 @@ mod tests {
 
         let without_norm = run(vec![]);
         let with_norm = run(vec![
-            (format!("{p}.0.self_attn.q_norm.weight"), rand2(1, head_dim, &dev).flatten_all().unwrap()),
-            (format!("{p}.0.self_attn.k_norm.weight"), rand2(1, head_dim, &dev).flatten_all().unwrap()),
+            (
+                format!("{p}.0.self_attn.q_norm.weight"),
+                rand2(1, head_dim, &dev).flatten_all().unwrap(),
+            ),
+            (
+                format!("{p}.0.self_attn.k_norm.weight"),
+                rand2(1, head_dim, &dev).flatten_all().unwrap(),
+            ),
         ]);
 
         assert_ne!(
