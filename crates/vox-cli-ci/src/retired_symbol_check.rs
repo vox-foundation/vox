@@ -114,6 +114,7 @@ fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
             "-convergence-2026.md",
             "-fate-plan-2026-05-08.md",
             "-implementation-plan-2026.md",
+            "-plan-2026.md",
         ];
         if HISTORY_SUFFIXES.iter().any(|sfx| name.ends_with(sfx)) {
             return true;
@@ -622,5 +623,16 @@ mod tests {
     fn first_cell_only_returns_none_for_non_table_lines() {
         assert!(first_cell_only("plain prose line").is_none());
         assert!(first_cell_only("").is_none());
+    }
+
+    #[test]
+    fn architecture_plan_2026_is_a_historical_carve_out() {
+        use super::is_historical_or_audit_doc;
+        assert!(is_historical_or_audit_doc(std::path::Path::new(
+            "docs/src/architecture/mesh-phase6-grand-network-plan-2026.md"
+        )));
+        assert!(!is_historical_or_audit_doc(std::path::Path::new(
+            "docs/src/reference/cli.md"
+        )));
     }
 }

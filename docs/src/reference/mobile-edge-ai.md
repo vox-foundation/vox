@@ -20,7 +20,7 @@ This page is the **single place** for how Vox treats **Android / iOS / browser**
 ## Industry context (2025–2026)
 
 - **On-device LLM inference:** Google **LiteRT-LM** is the cross-platform direction for Android, iOS, web, and desktop with hardware acceleration; see [LiteRT-LM](https://ai.google.dev/edge/litert-lm) and [LLM inference (AI Edge)](https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference). Older MediaPipe-only flows are being superseded; plan migrations against current AI Edge docs.
-- **LoRA / adapters:** Practical path is **fine-tune on a workstation or cloud**, then **ship base + adapter** (or converted bundle) -> the device. LiteRT LLM LoRA on-device is still **integration-heavy** (see discussion in [LiteRT issue #1420](https://github.com/google-ai-edge/LiteRT/issues/1420)).
+- **LoRA / adapters:** Practical path is **fine-tune on a workstation or cloud**, then **ship base + adapter** (or converted bundle) => the device. LiteRT LLM LoRA on-device is still **integration-heavy** (see discussion in [LiteRT issue #1420](https://github.com/google-ai-edge/LiteRT/issues/1420)).
 - **Web tier:** **WebGPU** helps browser-side compute but is **not universal** (OS version, browser policy, and security modes can disable it). Treat PWA / WebGPU as an **optional** tier, not the only mobile story.
 
 ## Vox tiers
@@ -29,7 +29,7 @@ This page is the **single place** for how Vox treats **Android / iOS / browser**
 |------|--------|--------|-----------|--------|
 | **Workstation** | `vox mens train` (Burn / Candle) | `vox mens serve`, Ollama, cloud OpenAI-compatible | Yes (`vox-mcp`, `vox run`, `vox populi`) | Default SSOT paths. |
 | **Mobile native** | **Off-device** (`mobile_edge` contract / preset) | LiteRT-LM, Core ML, vendor SDKs | Yes — HTTP control plane + [`NodeRecord`](../../../crates/vox-populi/src/lib.rs) | Register capabilities from the app; see mens env vars below. |
-| **Browser** | Off-device | WebGPU + WASM (when available) | Optional (HTTP client to mens) | Not WASI `vox run --isolation wasm` (that is desktop Wasmtime). |
+| **Browser** | Off-device | WebGPU + WASM (when available) | Optional (HTTP client to mens) | Browser WASM is not Vox script isolation (the interpreter is the sandbox; see [ADR-048](../adr/048-interpreter-is-the-execution-and-sandbox-tier.md)). |
 
 ## Mobile support boundary (normative)
 

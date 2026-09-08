@@ -26,7 +26,7 @@
 | **Phase 0** | **Done**, except Task 0.4 Steps 5–7 (see the measured correction there — they rest on a premise that proved false) and Task 0.6 (HF seam; needs a crate-edge decision). |
 | **Phase 1** | **Done.** `vox-mesh-transport` at L2 — identity, trust, protocol, bounded accept loop. 27 tests. ADR-047. Detector `vox/mesh/unsafe-iroh-pattern` at Error. |
 | **Phase 2** | Steps 1–5 **done**. Step 6 (both machines offline) **substantially proven**; see Task 2.1. |
-| **Phase 3** | Tasks 3.1, 3.2, 3.3, **3.4 done**. `PopuliHttpOp` (including `Dispatch` / `Wait`) runs on the iroh mesh. |
+| **Phase 3** | Tasks 3.1–3.4 done and merged. `PopuliHttpOp` (including `Dispatch` / `Wait`) runs on the iroh mesh. |
 | **Phases 4–6** | Not started. Phase 3's four ports gate everything in Phase 6. |
 
 **The mesh works cross-machine.** macOS `aarch64` ↔ BLAPTOP04 `x86_64`, no relay
@@ -778,7 +778,7 @@ Nothing in Phase 6 may run until these land. Spec Part 2.
   tries the mesh and falls back to HTTP. **Ceiling:** the mesh path is taken only
   when exactly one trusted peer has a stored address — A2A addresses an agent id
   and the mailbox addresses an `EndpointId`, and nothing maps between them until
-  Phase 6 makes the mailbox the inbox too.
+  Phase 6 makes the mailbox the inbox too. inbox drain: not funded by ADR-048
 - [x] **Task 3.2: Peer directory → model selector.** Replace `federation_directory()` in `registry.rs:379`, `catalog.rs:535`, `task_submit.rs:700` with an enumeration of trusted, probed peers. **Test: a trusted probed peer appears as a `ProviderType::PopuliMesh` candidate; a dropped peer disappears.** That is goal 4's only real acceptance criterion, and deletion without it is silent.
 - [x] **Task 3.3: Queue stats.** Axis calls `vox_mesh_queue_stats` today.
   **Done.** `JobRequest::QueueStats` / `JobResponse::QueueStats` on the existing
@@ -853,7 +853,7 @@ Real-harness facts confirmed by audit — do not rediscover: there is **no** `re
 
 Only after Phases 1–5. Each task its own commit.
 
-- [ ] **Task 6.1: HTTP plane.** `vox-populi/src/transport/` (5,483) **plus `http_client.rs` (649), `http_auth.rs` (112), `http_lifecycle.rs` (198)** — they are `use crate::transport::…` and cannot survive. Plus `vox-plugin-populi-mesh/src/transport/` (3,702, dormant; **keep the crate** — it is catalogued) and `tls.rs` (119). Remove `start_transport` from `extension-points.v1.yaml` in the same commit.
+- [ ] **Task 6.1: HTTP plane.** `vox-populi/src/transport/` (5,483) **plus `http_client.rs` (649), `http_auth.rs` (112), `http_lifecycle.rs` (198)** — they are `use crate::transport::…` and cannot survive. Plus `vox-plugin-populi-mesh/src/transport/` (3,702, dormant; **keep the crate** — it is catalogued) and `tls.rs` (119). Remove `start_transport` from `extension-points.v1.yaml` in the same commit. bundle lane deleted by ADR-048 Task 10
 - [ ] **Task 6.2: Confirmed dead only.** `pairing/{device_flow,github_attestation}` (422), `quota/` (267), and in `vox-mesh-types` **only `quorum` and `model_inventory` (37 lines)**. **Do not delete** `secret_sync` (live in `vox secrets`), `kudos` (vox-gamify, vox-db), `op_fragment` (hopper mesh adapter), or `PublicAttestationManifest` (six call sites in `vox-ml-cli`). Remove the `weak-test-baseline.v1.json` entry with the test.
 - [ ] **Task 6.3: Leases — grant protocol only.** Delete routes, client methods, and the renew loop. **Keep** the `mesh_exec_leases` table, `vox-db/src/mesh_exec_leases.rs`, and `lease_gate.rs` — the ADR-017 duplicate-execution guard is a DB check, transport-independent, and `known-tables.txt:112` pins the table to a drift fixture.
 - [ ] **Task 6.4: Retire the commands.** `vox populi serve` (**two** call sites) and `up`. Update the container sidecar (`infra/containers/entrypoints/vox-entrypoint.vox`, the compose block) and the CI job that invokes it. Delete `openapi_paths.rs` with the router it asserts parity against.

@@ -250,9 +250,9 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 
 | Need | Command | Notes |
 |---|---|---|
-| Pure computation, fast startup | `vox run --interp scripts/foo.vox` | No compile step; ~50ms cold start |
-| File I/O, subprocess | `vox run scripts/foo.vox` | Native tier; content-hash cached |
-| Untrusted / sandboxed | `vox run --isolation wasm scripts/foo.vox` | Wasmtime WASI; explicit `--wasi-dir` |
+| Pure computation, fast startup | `vox run --interp scripts/foo.vox` | No compile step; interpreter isolation |
+| Script-shaped (default) | `vox run scripts/foo.vox` | Interpreter; no cargo. Repeatable `--caps` |
+| Native compile (opt-in) | `vox run --mode script scripts/foo.vox` | Needs cargo + rustc; not a sandbox |
 
 **Bootstrap exception:** `scripts/windows/vox-dev.ps1` and `scripts/vox-dev.sh` are **retained as thin launchers only** (≤10 lines of primary logic where possible). They forward to `cargo run -p vox-cli -- run <args>` to solve the chicken-and-egg problem of needing `vox` to run `.vox` before `vox` is built.
 
@@ -576,6 +576,13 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `crates/vox-oratio` (crate renamed `81681e81b`; the `vox speech` command keeps `oratio` as a visible alias) | `crates/vox-speech` |
 | `vox-dei-shim` (renamed `5463bc16c`) | `vox-research-shim` |
 | `vox-bootstrap` (crate, deleted) | `voxup` (`crates/voxup/`) / `scripts/install.{sh,ps1}` |
+| `--isolation wasm\|container\|gvisor\|microvm` | interpreter (`vox run` / `--interp`); repeatable `--caps` (ADR-048) |
+| `vox wasm run` | `vox run` (interpreter) |
+| `script-wasi` | interpreter (no rustup wasm target) |
+| `ProbeOnlyExecutor` | `InterpExecutor` |
+| `MicroVmRuntime` / `Tier::MicroVm` | interpreter isolation (ADR-048); planner error-path stays |
+| `VoxMeshExecPolicy` (SecretId) | receiver-imposed `--caps` (placement config key survives) |
+| `exec_bundle_b64` | VoxScript source on the mesh stream |
 
 Memory-write APIs are not a simple retirement pair: for writing facts, use `MemoryManager::persist_fact`; `sync_to_db()` bulk-syncs `MEMORY.md` → DB only and is **not** a drop-in replacement for `persist_fact`.
 
