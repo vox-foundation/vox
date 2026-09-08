@@ -893,6 +893,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `compile` | default | `commands::compile` — **`vox compile`** packaging umbrella (also **`vox fabrica compile`**) |
 | `fmt` | default | `commands::fmt` (`vox_compiler::fmt::try_format`; `--check` supported) |
 | `graph` | default | `commands::graphify` (aliases: `graphify`, `search`) |
+| `gui` | `gui` | `commands::gui` — launch Axis; `vox gui drive` is `commands::gui::drive` |
 | `add` | default | `commands::add` |
 | `audit` | default | `commands::audit` |
 | `auth` | default | `commands::auth` |
