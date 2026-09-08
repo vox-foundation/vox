@@ -9,11 +9,12 @@ use std::time::Duration;
 use anyhow::Result;
 use iroh::{Endpoint, EndpointId, SecretKey};
 use tokio::time::timeout;
-use vox_mesh_transport::endpoint::{JobExecutor, ReceivedJob};
+use vox_mesh_transport::endpoint::{JobExecutor, REFUSED_PROTO, ReceivedJob};
 use vox_mesh_transport::protocol::{
-    self, ALPN, Hello, Isolation, JobLimits, JobRequest, JobResponse,
+    self, ALPN, Hello, Isolation, JobId, JobLimits, JobRequest, JobResponse,
 };
 use vox_mesh_transport::trust::MeshTrust;
+use vox_mesh_types::TaskKind;
 
 /// What [`SpyExecutor`] claims is pending. Not 0: a zero total is what a
 /// dropped breakdown and an empty queue look like alike.
@@ -25,6 +26,7 @@ const SPY_PENDING: u64 = 3;
 struct SpyExecutor {
     invocations: AtomicUsize,
     last_limits: Mutex<Option<JobLimits>>,
+    last_payload: Mutex<Option<Vec<u8>>>,
 }
 
 impl SpyExecutor {
@@ -33,6 +35,13 @@ impl SpyExecutor {
     }
     fn last_limits(&self) -> Option<JobLimits> {
         *self.last_limits.lock().unwrap()
+    }
+    fn last_payload(&self) -> Vec<u8> {
+        self.last_payload
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap_or_default()
     }
 }
 
@@ -44,6 +53,7 @@ impl JobExecutor for SpyExecutor {
         Box::pin(async move {
             self.invocations.fetch_add(1, Ordering::SeqCst);
             *self.last_limits.lock().unwrap() = Some(job.limits);
+            *self.last_payload.lock().unwrap() = Some(job.payload);
             // Probe must answer Probed: a directory entry is built from that
             // shape, and a spy that answered Output for everything silently
             // failed the directory tests while the transport was fine.
@@ -52,6 +62,7 @@ impl JobExecutor for SpyExecutor {
                     host_triple: "test-triple".to_string(),
                     vox: "0.0.0-test".to_string(),
                     task_kinds: vec![vox_mesh_types::TaskKind::VoxScript],
+                    engines: Vec::new(),
                 },
                 // Likewise for QueueStats: a spy that fell through to Output
                 // here would make the queue-stats tests assert on a shape the
@@ -60,6 +71,7 @@ impl JobExecutor for SpyExecutor {
                     pending_count: SPY_PENDING,
                     pending_by_kind: vec![(vox_mesh_types::TaskKind::VoxScript, SPY_PENDING)],
                     pending_by_priority: vec![(5, SPY_PENDING)],
+                    max_concurrent: 2,
                 }),
                 _ => JobResponse::Output(b"ok".to_vec()),
             })
@@ -72,6 +84,7 @@ struct Server {
     addr: iroh::EndpointAddr,
     trust: Arc<MeshTrust>,
     spy: Arc<SpyExecutor>,
+    exec: Arc<SpyExecutor>,
     _dir: tempfile::TempDir,
 }
 
@@ -94,9 +107,20 @@ async fn start_server() -> Server {
         id,
         addr,
         trust,
-        spy,
+        spy: spy.clone(),
+        exec: spy,
         _dir: dir,
     }
+}
+
+/// Stable test-client identity so [`send_run_on`] and `trust(&client_id())`
+/// name the same peer.
+fn client_sk() -> SecretKey {
+    SecretKey::from_bytes(&[11u8; 32])
+}
+
+fn client_id() -> EndpointId {
+    client_sk().public()
 }
 
 /// A client endpoint. Built with the same `Minimal` preset, so nothing in this
@@ -118,6 +142,89 @@ async fn send_request_on(
     protocol::write_frame(&mut send, &request).await?;
     send.finish()?;
     protocol::read_frame(&mut recv, 16 * 1024 * 1024).await
+}
+
+async fn send_run_on(
+    server: &Server,
+    job_id: JobId,
+    kind: TaskKind,
+    payload: &[u8],
+) -> JobResponse {
+    send_run_with_claim(server, job_id, kind, payload, payload.len() as u64).await
+}
+
+async fn send_run_with_claim(
+    server: &Server,
+    job_id: JobId,
+    kind: TaskKind,
+    payload: &[u8],
+    claim: u64,
+) -> JobResponse {
+    let client = client_endpoint(client_sk()).await;
+    let conn = client
+        .connect(server.addr.clone(), ALPN)
+        .await
+        .expect("connect");
+    timeout(
+        Duration::from_secs(10),
+        send_run_on_conn(&conn, job_id, kind, payload, claim),
+    )
+    .await
+    .expect("no timeout")
+    .expect("response")
+}
+
+async fn send_run_on_conn(
+    conn: &iroh::endpoint::Connection,
+    job_id: JobId,
+    kind: TaskKind,
+    payload: &[u8],
+    claim: u64,
+) -> Result<JobResponse> {
+    let (mut send, mut recv) = conn.open_bi().await?;
+    protocol::write_frame(&mut send, &Hello::current()).await?;
+    protocol::write_frame(
+        &mut send,
+        &JobRequest::Run {
+            job_id,
+            kind,
+            payload_bytes: claim,
+        },
+    )
+    .await?;
+    protocol::write_frame(&mut send, &payload.to_vec()).await?;
+    send.finish()?;
+    protocol::read_frame(&mut recv, 16 * 1024 * 1024).await
+}
+
+async fn send_raw_hello_on(server: &Server, hello: Hello) -> (Option<JobResponse>, Option<u32>) {
+    let client = client_endpoint(client_sk()).await;
+    let conn = client
+        .connect(server.addr.clone(), ALPN)
+        .await
+        .expect("connect");
+    let (mut send, mut recv) = conn.open_bi().await.expect("open_bi");
+    protocol::write_frame(&mut send, &hello)
+        .await
+        .expect("write hello");
+    let _ = send.finish();
+    let resp = timeout(
+        Duration::from_secs(10),
+        protocol::read_frame(&mut recv, 16 * 1024 * 1024),
+    )
+    .await
+    .ok()
+    .and_then(Result::ok);
+    let close = timeout(Duration::from_secs(5), conn.closed())
+        .await
+        .ok()
+        .and_then(|err| match err {
+            iroh::endpoint::ConnectionError::ApplicationClosed(c) => {
+                Some(c.error_code.into_inner() as u32)
+            }
+            _ => None,
+        });
+    (resp, close)
 }
 
 /// The server's port on loopback.
@@ -174,36 +281,14 @@ async fn an_untrusted_peer_cannot_reach_the_executor() {
 #[tokio::test]
 async fn a_trusted_peer_gets_a_sandbox_by_default() {
     let server = start_server().await;
-    let sk = SecretKey::generate();
-    let client_id = sk.public();
-    let client = client_endpoint(sk).await;
-
-    // Ordinary pairing — exactly what `vox mesh join` calls.
-    server.trust.trust(&client_id, None).unwrap();
-
-    let conn = client
-        .connect(server.addr.clone(), ALPN)
-        .await
-        .expect("connect");
-    let resp = timeout(
-        Duration::from_secs(10),
-        send_request_on(
-            &conn,
-            JobRequest::Run {
-                kind: vox_mesh_types::TaskKind::VoxScript,
-                payload_bytes: 128,
-            },
-        ),
-    )
-    .await
-    .expect("no timeout")
-    .expect("job ran");
+    server.trust.trust(&client_id(), None).unwrap();
+    let resp = send_run_on(&server, JobId(1), TaskKind::VoxScript, &[0u8; 128]).await;
 
     assert!(matches!(resp, JobResponse::Output(_)), "{resp:?}");
     let limits = server.spy.last_limits().expect("executor saw limits");
     assert_eq!(
         limits.isolation,
-        Isolation::Wasm,
+        Isolation::Interpreter,
         "pairing must not grant native execution"
     );
     assert!(limits.wall_clock <= Duration::from_secs(300));
@@ -243,29 +328,10 @@ async fn untrust_closes_a_live_connection() {
 #[tokio::test]
 async fn a_payload_larger_than_the_cap_is_refused_before_any_transfer() {
     let server = start_server().await;
-    let sk = SecretKey::generate();
-    let client_id = sk.public();
-    let client = client_endpoint(sk).await;
-    server.trust.trust(&client_id, None).unwrap();
+    server.trust.trust(&client_id(), None).unwrap();
 
     let over = JobLimits::default().max_payload_bytes + 1;
-    let conn = client
-        .connect(server.addr.clone(), ALPN)
-        .await
-        .expect("connect");
-    let resp = timeout(
-        Duration::from_secs(10),
-        send_request_on(
-            &conn,
-            JobRequest::Run {
-                kind: vox_mesh_types::TaskKind::VoxScript,
-                payload_bytes: over,
-            },
-        ),
-    )
-    .await
-    .expect("no timeout")
-    .expect("got a response");
+    let resp = send_run_with_claim(&server, JobId(4), TaskKind::VoxScript, b"", over).await;
 
     match resp {
         JobResponse::Failed(msg) => assert!(msg.contains("exceeds"), "{msg}"),
@@ -462,4 +528,109 @@ async fn an_untrusted_caller_learns_nothing_about_queue_depth() {
         0,
         "the trust gate must sit in front of the executor for QueueStats too"
     );
+}
+
+// ---------------------------------------------------------------------------
+// Task 8: PROTO 2 — sender job ids, honest version refusal, payload framing
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn a_payload_of_exactly_the_declared_size_is_accepted_and_reaches_the_executor() {
+    let server = start_server().await;
+    server.trust.trust(&client_id(), None).unwrap();
+    let payload = b"pub fn main() { print(\"hi\") }".to_vec();
+    let resp = send_run_on(&server, JobId(1), TaskKind::VoxScript, &payload).await;
+    assert!(matches!(resp, JobResponse::Output(_)), "{resp:?}");
+    assert_eq!(server.exec.last_payload(), payload);
+}
+
+#[tokio::test]
+async fn a_payload_shorter_than_its_claim_is_refused_not_truncated() {
+    let server = start_server().await;
+    server.trust.trust(&client_id(), None).unwrap();
+    let resp = send_run_with_claim(&server, JobId(2), TaskKind::VoxScript, b"short", 999).await;
+    assert!(
+        matches!(resp, JobResponse::Failed(ref m) if m.contains("claim")),
+        "{resp:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_voxscript_payload_over_four_mib_is_refused_before_transfer() {
+    let server = start_server().await;
+    server.trust.trust(&client_id(), None).unwrap();
+    let resp =
+        send_run_with_claim(&server, JobId(3), TaskKind::VoxScript, b"", 5 * 1024 * 1024).await;
+    assert!(
+        matches!(resp, JobResponse::Failed(ref m) if m.contains("exceeds")),
+        "{resp:?}"
+    );
+    assert_eq!(server.exec.invocations(), 0);
+}
+
+#[tokio::test]
+async fn a_v1_peer_is_told_which_machine_to_upgrade() {
+    let server = start_server().await;
+    server.trust.trust(&client_id(), None).unwrap();
+    let (resp, close) = send_raw_hello_on(
+        &server,
+        Hello {
+            proto: 1,
+            ..Hello::current()
+        },
+    )
+    .await;
+    assert!(
+        matches!(resp, Some(JobResponse::Failed(ref m)) if m.contains("v1") && m.contains("v2")),
+        "{resp:?}"
+    );
+    assert_eq!(close, Some(REFUSED_PROTO));
+    assert_eq!(REFUSED_PROTO, 4003);
+}
+
+#[test]
+fn a_new_trailing_field_is_not_readable_from_an_old_sender() {
+    // Same variant index as JobResponse::Probed (0). A dummy at index 0 would
+    // shift this to Output; postcard `from_bytes` then succeeds on leftover
+    // bytes, which is the masquerade the fixture was written to avoid.
+    #[derive(serde::Serialize)]
+    enum OldResp {
+        Probed {
+            host_triple: String,
+            vox: String,
+            task_kinds: Vec<TaskKind>,
+        },
+    }
+    let bytes = postcard::to_allocvec(&OldResp::Probed {
+        host_triple: "t".into(),
+        vox: "v".into(),
+        task_kinds: vec![],
+    })
+    .unwrap();
+    assert!(
+        postcard::from_bytes::<JobResponse>(&bytes).is_err(),
+        "#[serde(default)] does not buy wire compatibility under postcard; PROTO does"
+    );
+}
+
+#[test]
+fn isolation_default_is_the_interpreter_and_there_is_no_third_tier() {
+    assert_eq!(Isolation::DEFAULT_FOR_MESH, Isolation::Interpreter);
+    for v in [Isolation::Interpreter, Isolation::Native] {
+        match v {
+            Isolation::Interpreter | Isolation::Native => {}
+        }
+    }
+}
+
+#[test]
+fn proto_is_two_and_limits_carry_every_bound() {
+    assert_eq!(vox_mesh_transport::protocol::PROTO, 2);
+    let l = JobLimits::default();
+    assert_eq!(l.max_payload_for(TaskKind::VoxScript), 4 * 1024 * 1024);
+    assert_eq!(l.max_memory_bytes, 512 * 1024 * 1024);
+    assert_eq!(l.max_steps, 50_000_000);
+    assert_eq!(l.max_disk_bytes, 32 * 1024 * 1024);
+    assert_eq!(l.max_files, 4_096);
+    assert!(l.max_concurrent >= 2);
 }

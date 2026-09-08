@@ -27,5 +27,5 @@ pub use directory::{MeshQueueTotals, PeerEntry, directory, queue_stats};
 pub use endpoint::{JobExecutor, ReceivedJob, bind, serve};
 pub use identity::load_or_create;
 pub use mailbox::{Inbox, MailboxLimits, Outbox};
-pub use protocol::{ALPN, Hello, Isolation, JobLimits, JobRequest, PROTO, check_hello};
+pub use protocol::{ALPN, Hello, Isolation, JobId, JobLimits, JobRequest, PROTO, check_hello};
 pub use trust::{MeshTrust, TrustLevel, TrustedEndpoint};

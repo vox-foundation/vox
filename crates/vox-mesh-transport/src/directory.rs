@@ -50,6 +50,7 @@ pub async fn directory(ep: &Endpoint, trust: &Arc<MeshTrust>) -> Vec<PeerEntry> 
                 host_triple,
                 vox,
                 task_kinds,
+                engines: _,
             } => Some(PeerEntry {
                 endpoint_id,
                 label,
@@ -206,11 +207,13 @@ mod tests {
                 pending_count: 3,
                 pending_by_kind: vec![(TaskKind::VoxScript, 3)],
                 pending_by_priority: vec![(5, 3)],
+                max_concurrent: 2,
             },
             protocol::QueueStats {
                 pending_count: 4,
                 pending_by_kind: vec![(TaskKind::VoxScript, 1), (TaskKind::Embed, 3)],
                 pending_by_priority: vec![(9, 4)],
+                max_concurrent: 2,
             },
         ]);
         assert_eq!(totals.pending_count, 7);
@@ -238,6 +241,7 @@ mod tests {
             pending_count: u64::MAX,
             pending_by_kind: vec![(TaskKind::Embed, u64::MAX)],
             pending_by_priority: Vec::new(),
+            max_concurrent: 0,
         };
         let totals = fold_stats([liar.clone(), liar]);
         assert_eq!(totals.pending_count, u64::MAX);

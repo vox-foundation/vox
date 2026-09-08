@@ -28,6 +28,8 @@ const RETRY_THRESHOLD: usize = 32;
 pub const REFUSED_UNTRUSTED: u32 = 4001;
 /// Close code for a payload that exceeds [`JobLimits::max_payload_bytes`].
 pub const REFUSED_TOO_LARGE: u32 = 4002;
+/// Close code for a peer speaking the wrong [`protocol::PROTO`].
+pub const REFUSED_PROTO: u32 = 4003;
 /// Close code for mail arriving at a node that serves jobs only.
 pub const REFUSED_NO_MAILBOX: u32 = 4004;
 
@@ -37,6 +39,9 @@ pub struct ReceivedJob {
     pub request: JobRequest,
     /// Decided by *this* node, never by the sender.
     pub limits: JobLimits,
+    /// Bytes that followed a [`JobRequest::Run`] claim. Empty for Probe /
+    /// Cancel / QueueStats.
+    pub payload: Vec<u8>,
 }
 
 /// What actually runs received work. Kept behind a trait so the accept loop can
@@ -82,7 +87,8 @@ pub fn inbound_firewall_advice(program: &std::path::Path) -> Option<String> {
 /// Non-Windows hosts do not gate inbound traffic per application by default.
 #[cfg(not(windows))]
 pub fn inbound_firewall_advice(_program: &std::path::Path) -> Option<String> {
-    None
+    let no_per_app_inbound_udp_filter: Option<String> = None;
+    no_per_app_inbound_udp_filter
 }
 
 /// The default executor: answers `Probe`, and **refuses `Run`**.
@@ -109,6 +115,7 @@ impl JobExecutor for ProbeOnlyExecutor {
                     // Empty on purpose: this executor refuses `Run`, so advertising
                     // task kinds would be a lie the model selector acts on.
                     task_kinds: Vec::new(),
+                    engines: Vec::new(),
                 },
                 JobRequest::Run { .. } => JobResponse::Failed(
                     "this node accepts Probe only: no sandbox is wired up yet, and \
@@ -223,31 +230,60 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
     let (mut send, mut recv) = conn.accept_bi().await?;
 
     let hello: protocol::Hello = protocol::read_frame(&mut recv, 4096).await?;
-    protocol::check_hello(&hello)?;
+    if let Err(e) = protocol::check_hello(&hello) {
+        protocol::write_frame(&mut send, &JobResponse::Failed(e.to_string())).await?;
+        send.finish()?;
+        // `Connection::close` may drop stream data not yet delivered to the
+        // peer's application. Wait briefly for the FIN (or give up) first.
+        let _ = timeout(Duration::from_millis(200), send.stopped()).await;
+        conn.close(REFUSED_PROTO.into(), b"proto mismatch");
+        conn.closed().await;
+        return Ok(());
+    }
 
     let request: JobRequest = protocol::read_frame(&mut recv, 64 * 1024).await?;
     let limits = JobLimits::default();
 
     // Checked BEFORE the transfer, so an oversized job costs us a frame rather
-    // than a gigabyte of disk.
-    if let JobRequest::Run { payload_bytes, .. } = &request
-        && *payload_bytes > limits.max_payload_bytes
+    // than a gigabyte of disk. The per-kind cap is tighter than the global one
+    // for VoxScript (source is text).
+    let payload = if let JobRequest::Run {
+        payload_bytes,
+        kind,
+        ..
+    } = &request
     {
-        let msg = format!(
-            "payload of {payload_bytes} bytes exceeds the {} byte cap",
-            limits.max_payload_bytes
-        );
-        protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
-        send.finish()?;
-        conn.closed().await;
-        return Ok(());
-    }
+        let cap = limits.max_payload_for(kind.clone());
+        if *payload_bytes > cap {
+            let msg = format!("payload of {payload_bytes} bytes exceeds the {cap} byte cap");
+            protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
+            send.finish()?;
+            conn.closed().await;
+            return Ok(());
+        }
+        let max = usize::try_from(payload_bytes.saturating_add(8)).unwrap_or(usize::MAX);
+        let p: Vec<u8> = protocol::read_frame(&mut recv, max).await?;
+        if p.len() as u64 != *payload_bytes {
+            let msg = format!(
+                "payload length {} does not match the declared claim of {payload_bytes} bytes",
+                p.len()
+            );
+            protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
+            send.finish()?;
+            conn.closed().await;
+            return Ok(());
+        }
+        p
+    } else {
+        Vec::new()
+    };
 
     let response = exec
         .execute(ReceivedJob {
             peer,
             request,
             limits,
+            payload,
         })
         .await
         .unwrap_or_else(|e| JobResponse::Failed(e.to_string()));

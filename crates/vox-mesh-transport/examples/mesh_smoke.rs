@@ -46,6 +46,7 @@ impl JobExecutor for ProbeExecutor {
                 host_triple: current_arch_os(),
                 vox: env!("CARGO_PKG_VERSION").to_string(),
                 task_kinds: vec![vox_mesh_types::TaskKind::VoxScript],
+                engines: Vec::new(),
             })
         })
     }
