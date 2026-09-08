@@ -31,12 +31,10 @@ Vox is not starting from a blank browser. The June 2026 scoping doc and the GUI 
 | Visus | CLI + MCP | Screenshot + raw AX tree for visual audit |
 | Playwright | `vox-gui/ui/e2e`, integration tests | Validation / golden-route only |
 
-**Confirmed absences (code, not docs):**
+**Confirmed absences at research time (2026-09-07 audit).** Snapshot/refs, named profiles, and Connect Chrome attach **shipped** in the same-day implementation — see §7 Implementation links. Remaining true:
 
-- No `user_data_dir`, cookie jar, or `storage_state` in `vox-plugin-browser`. Sessions die when the last tab closes.
-- No `vox_browser_snapshot` / `vox_browser_click_ref`. AX tree exists on the plugin and visus path, not as an agent-loop tool.
-- `browser_act` is a **text-summary → LLM JSON → CSS/XPath** loop, not a semantic-ref loop. That is closer to a cheap Stagehand `act()` than to Playwright MCP.
-- No Chrome extension / native-messaging attach to the user's real Chrome.
+- `browser_act` was a **text-summary → LLM JSON → CSS/XPath** loop at audit time (the plan upgrades it to snapshot + `click_ref`).
+- No Chrome **extension** / native-messaging host (Connect Chrome is CDP `connect` to a user-started Chrome, not an extension).
 - No OS-level computer-use. Warp research mapped it; nothing shipped.
 
 **Tauri is not a second browser.** The GUI host is wry / WebView2 / WebKitGTK with a tight CSP. The Preview tab iframes localhost. The Agent tab mirrors CDP PNG frames and maps clicks to `vox_browser_click_xy`. That is already the Claude Desktop "in-app pane" pattern, implemented without embedding a second Chromium into the WebView.
@@ -219,15 +217,9 @@ Tauri/WebView2 has cookie manager bindings in the Windows patch tree. Those cook
 
 Ship **Approach A**. The 2026-06-03 scoping doc said the majority of benefit is assembly, not a new engine. Nine months later the competitive bar moved to **snapshot+ref + dual identity**. Vox already has the engine, the chat hook, the live view, and a stub `act`/`extract`. The bloat risk is adding Playwright, Stagehand, Electron, or a Chromium fork — exactly what Atlas proved not to do.
 
-**Implementation (approved 2026-09-07):** spec [`docs/superpowers/specs/2026-09-07-agent-browser-driver-design.md`](../../superpowers/specs/2026-09-07-agent-browser-driver-design.md), plan [`docs/superpowers/plans/2026-09-07-agent-browser-driver.md`](../../superpowers/plans/2026-09-07-agent-browser-driver.md).
+**Implementation (shipped 2026-09-07, Approach A):** spec [`docs/superpowers/specs/2026-09-07-agent-browser-driver-design.md`](../../superpowers/specs/2026-09-07-agent-browser-driver-design.md), plan [`docs/superpowers/plans/2026-09-07-agent-browser-driver.md`](../../superpowers/plans/2026-09-07-agent-browser-driver.md), operator SSOT [`vox-gui-browser-support-2026.md`](./vox-gui-browser-support-2026.md), crate map [`where-things-live.md`](./where-things-live.md). Snapshot/refs, named profiles, Connect Chrome attach, cookie export/import (count + path only), host allowlist, and the GUI overlay are in-tree. The §1 “Confirmed absences” and §4 “Vox today” columns are the **pre-implementation** audit; do not read them as current product gaps for snapshot, profiles, or attach.
 
-**Do next (when executing the plan), in order:**
-
-1. `vox_browser_snapshot` + `vox_browser_click_ref` / `fill_ref` on the existing `GetFullAxTree` (interactive-only default, depth limit, ~200–400 token target).
-2. Profile launch flags + GUI consent: ephemeral / save / pick named profile.
-3. Point-and-approve overlay on the existing agent frame (human lock already exists).
-4. Attach-to-running-Chrome as a third launch mode.
-5. Leave computer-use and chrome-devtools-mcp as later optional skills.
+**Left for later (not this program):** computer-use and chrome-devtools-mcp as optional skills. Accepted v1 gaps: no Vox `Browser.*` builtins for refs, no iframe merge, no SPA observer, no NeedsYou rows.
 
 **Do not:** add `playwright-rust`, embed Stagehand, drive sites inside the Tauri WebView, or start a Vox-branded Chromium.
 
