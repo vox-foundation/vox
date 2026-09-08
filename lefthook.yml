@@ -59,6 +59,8 @@ pre-commit:
 pre-push:
   parallel: false
   commands:
-    drift-check:
-      run: cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning
-      glob: "crates/**/*.rs"
+    # Authoritative local gate is `vox ci pre-push` (fast tier). Do not run
+    # workspace-wide drift-check --fail-on warning here — that dumps every
+    # pre-existing finding and blocks unrelated pushes.
+    pre-push:
+      run: cargo run -p vox-cli --quiet -- ci pre-push
