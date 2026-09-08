@@ -44,12 +44,14 @@ The legacy `// vox:caps <word>...` directive is **unscoped**: it never provided 
 | `--max-steps` | 10_000_000 | evaluated HIR nodes |
 | `--max-depth` | 1024 | closure-application nesting (`apply_closure`, not every expression) |
 | `--max-memory` | unset (`usize::MAX`) | Rust heap allocations in this process after the flag is armed |
+| `--max-disk` | unset locally; 32 MiB on mesh | bytes written by `fs.write` / `fs.copy` |
+| `--max-files` | unset locally; 4 096 on mesh | files and directories created by `fs.write` / `fs.mkdir` / `fs.copy` |
 
 `--max-steps` bounds evaluated HIR nodes, not CPU time; a local run has no wall-clock bound.
 
 `--max-memory` counts Rust heap allocations in this process, armed after CLI parse. It does **not** count child processes, `mmap` by C dependencies, thread stacks, or bytes written to disk.
 
-Disk and file caps (`max_disk_bytes`, `max_files`) apply on the mesh only. A local `developer_default()` run is uncapped on disk.
+The mesh receiver always supplies `--max-disk` and `--max-files`. A local `developer_default()` run with no flags is uncapped on disk.
 
 ## Exit codes
 

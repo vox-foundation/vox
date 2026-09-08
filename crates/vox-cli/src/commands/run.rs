@@ -44,6 +44,8 @@ async fn run_interp(
     caps_tokens: &[String],
     max_steps: Option<usize>,
     max_memory: Option<usize>,
+    max_disk: Option<usize>,
+    max_files: Option<usize>,
     max_depth: Option<usize>,
 ) -> Result<()> {
     if let Some(bytes) = max_memory {
@@ -94,6 +96,8 @@ async fn run_interp(
     interpreter.caps = caps;
     interpreter.script_args = args.to_vec();
     interpreter.max_eval_depth = max_depth.unwrap_or(vox_compiler::eval::MAX_EVAL_DEPTH);
+    interpreter.fs_quota.max_disk_bytes = max_disk;
+    interpreter.fs_quota.max_files = max_files;
     if let Ok(abs) = std::fs::canonicalize(file) {
         interpreter.set_source_path(abs);
     } else {
@@ -130,6 +134,7 @@ async fn run_interp(
         interpreter.flush_exit_commands();
         exit_interrupted();
     }
+    crate::mem_limit::disarm();
     // Only print the return value when it's meaningful (non-Null). Suppresses
     // the spurious trailing `Null` that scripts using bare `return;` produced.
     // Use the value's *display* form (e.g. `ok`), not Debug (`Str("ok")`), so
@@ -210,10 +215,15 @@ pub async fn run(
     caps: &[String],
     max_steps: Option<usize>,
     max_memory: Option<usize>,
+    max_disk: Option<usize>,
+    max_files: Option<usize>,
     max_depth: Option<usize>,
 ) -> Result<()> {
     if mode == RunMode::Interp {
-        return run_interp(file, args, caps, max_steps, max_memory, max_depth).await;
+        return run_interp(
+            file, args, caps, max_steps, max_memory, max_disk, max_files, max_depth,
+        )
+        .await;
     }
 
     let web_mode = vox_config::VoxConfig::load().web_run_mode;
@@ -232,7 +242,10 @@ pub async fn run(
             );
         }
         if web_mode != vox_config::WebRunMode::Script && script_shaped {
-            return run_interp(file, args, caps, max_steps, max_memory, max_depth).await;
+            return run_interp(
+                file, args, caps, max_steps, max_memory, max_disk, max_files, max_depth,
+            )
+            .await;
         }
     }
 
@@ -282,7 +295,10 @@ pub async fn run(
                 path = %file.display(),
                 "script-execution feature absent; auto-falling back to --mode interp"
             );
-            return run_interp(file, args, caps, max_steps, max_memory, max_depth).await;
+            return run_interp(
+                file, args, caps, max_steps, max_memory, max_disk, max_files, max_depth,
+            )
+            .await;
         }
         anyhow::bail!(
             "`vox run --mode script` requires a vox build with `--features script-execution`. \

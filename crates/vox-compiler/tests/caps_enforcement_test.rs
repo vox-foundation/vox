@@ -24,6 +24,23 @@ fn run_with_path(
     interp.call("main", vec![])
 }
 
+fn run_with_quota(
+    caps: CapabilitySet,
+    src: &str,
+    max_disk_bytes: Option<usize>,
+    max_files: Option<usize>,
+) -> Result<VoxValue, EvalError> {
+    let tokens = vox_compiler::lexer::lex(src);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = Interpreter::new(1_000_000);
+    interp.caps = caps;
+    interp.fs_quota.max_disk_bytes = max_disk_bytes;
+    interp.fs_quota.max_files = max_files;
+    interp.run_module(&lowered)?;
+    interp.call("main", vec![])
+}
+
 fn denied(r: &Result<VoxValue, EvalError>, ns: &str) -> bool {
     matches!(r, Err(EvalError::CapabilityDenied { ns: n, .. }) if n == ns)
 }
@@ -353,6 +370,90 @@ fn developer_default_relative_write_creates_the_file() {
         "relative write denied: {r:?}"
     );
     assert!(cwd.path().join("out.txt").exists());
+}
+
+#[test]
+#[serial_test::serial]
+fn scoped_relative_write_creates_under_the_rw_root() {
+    let cwd = tempfile::tempdir().unwrap();
+    let prev = std::env::current_dir().unwrap();
+    struct CwdGuard(std::path::PathBuf);
+    impl Drop for CwdGuard {
+        fn drop(&mut self) {
+            let _ = std::env::set_current_dir(&self.0);
+        }
+    }
+    let _guard = CwdGuard(prev);
+    std::env::set_current_dir(cwd.path()).unwrap();
+    let caps = CapabilitySet::parse(&format!("fs:rw={}", cwd.path().display())).unwrap();
+    let r = run_with(
+        caps,
+        r#"pub fn main() { fs.mkdir("a"); fs.write("out.txt", "hi"); return fs.read("out.txt") }"#,
+    );
+    assert!(
+        matches!(r, Ok(VoxValue::Str(ref s)) if s.as_ref() == "hi")
+            || matches!(
+                r,
+                Ok(VoxValue::Result(Ok(ref b)))
+                    if matches!(b.as_ref(), VoxValue::Str(s) if s.as_ref() == "hi")
+            ),
+        "scoped relative write denied: {r:?}"
+    );
+    assert!(cwd.path().join("out.txt").exists());
+    assert!(cwd.path().join("a").is_dir());
+}
+
+#[test]
+fn fs_write_over_disk_quota_is_denied() {
+    let root = tempfile::tempdir().unwrap();
+    let caps = CapabilitySet::parse(&format!("fs:rw={}", root.path().display())).unwrap();
+    let path = root.path().join("large.txt");
+    let r = run_with_quota(
+        caps,
+        &format!(
+            r#"pub fn main() {{ return fs.write("{}", "12345") }}"#,
+            path.display()
+        ),
+        Some(4),
+        Some(10),
+    );
+    assert!(
+        matches!(
+            r,
+            Err(EvalError::CapabilityDenied { ref ns, ref method })
+                if ns == "fs" && method == "quota"
+        ),
+        "{r:?}"
+    );
+    assert!(!path.exists());
+}
+
+#[test]
+fn fs_second_created_inode_over_file_quota_is_denied() {
+    let root = tempfile::tempdir().unwrap();
+    let caps = CapabilitySet::parse(&format!("fs:rw={}", root.path().display())).unwrap();
+    let first = root.path().join("first");
+    let second = root.path().join("second");
+    let r = run_with_quota(
+        caps,
+        &format!(
+            r#"pub fn main() {{ fs.mkdir("{}"); return fs.mkdir("{}") }}"#,
+            first.display(),
+            second.display()
+        ),
+        Some(1024),
+        Some(1),
+    );
+    assert!(
+        matches!(
+            r,
+            Err(EvalError::CapabilityDenied { ref ns, ref method })
+                if ns == "fs" && method == "quota"
+        ),
+        "{r:?}"
+    );
+    assert!(first.is_dir());
+    assert!(!second.exists());
 }
 
 #[test]

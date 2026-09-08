@@ -42,18 +42,8 @@ fn vox_bin() -> PathBuf {
     exe
 }
 
-fn roomy_limits() -> JobLimits {
-    // Finite `--max-memory` values currently `_exit(79)` after a successful
-    // `main` because the CLI USED counter overcounts. Near-`usize::MAX` is the
-    // only ceiling that still lets the child exit 0.
-    JobLimits {
-        max_memory_bytes: usize::MAX - 1,
-        ..JobLimits::default()
-    }
-}
-
 fn exec(trust: Arc<MeshTrust>) -> Arc<dyn JobExecutor> {
-    Arc::new(InterpExecutor::new(trust, vox_bin(), roomy_limits()))
+    Arc::new(InterpExecutor::new(trust, vox_bin(), JobLimits::default()))
 }
 
 #[test]
@@ -175,10 +165,35 @@ async fn a_runaway_allocation_is_killed_and_reported() {
 
 #[tokio::test]
 #[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]
+async fn a_write_past_the_mesh_disk_quota_is_denied() {
+    let limits = JobLimits {
+        max_disk_bytes: 4,
+        ..JobLimits::default()
+    };
+    let server = common::start_server_with(|t| {
+        Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>
+    })
+    .await;
+    server.trust.trust(&common::client_id(), None).unwrap();
+    let resp = common::send_run_on(
+        &server,
+        JobId(12),
+        TaskKind::VoxScript,
+        b"pub fn main() { fs.write(\"out.txt\", \"12345\") }",
+    )
+    .await;
+    assert!(
+        matches!(resp, JobResponse::Failed(ref m) if m.contains("capability denied") && m.contains("fs.quota")),
+        "{resp:?}"
+    );
+}
+
+#[tokio::test]
+#[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]
 async fn output_is_capped_and_marked_only_when_over() {
     let limits = JobLimits {
         max_output_bytes: 64 * 1024,
-        ..roomy_limits()
+        ..JobLimits::default()
     };
     let server = common::start_server_with(|t| {
         Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>
@@ -206,7 +221,7 @@ async fn output_is_capped_and_marked_only_when_over() {
 async fn one_peer_cannot_cancel_another_peers_job() {
     let limits = JobLimits {
         max_steps: 50_000_000,
-        ..roomy_limits()
+        ..JobLimits::default()
     };
     let server = common::start_server_with(|t| {
         Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>
@@ -306,7 +321,7 @@ async fn process_boundary_clears_unlisted_env_and_points_home_at_the_readonly_di
 async fn unix_process_group_kill_reaches_a_grandchild() {
     let limits = JobLimits {
         wall_clock: std::time::Duration::from_millis(400),
-        ..roomy_limits()
+        ..JobLimits::default()
     };
     let server = common::start_server_with(|t| {
         Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>
@@ -338,7 +353,7 @@ async fn unix_process_group_kill_reaches_a_grandchild() {
 async fn windows_job_object_kill_reaches_a_grandchild() {
     let limits = JobLimits {
         wall_clock: std::time::Duration::from_millis(400),
-        ..roomy_limits()
+        ..JobLimits::default()
     };
     let server = common::start_server_with(|t| {
         Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>

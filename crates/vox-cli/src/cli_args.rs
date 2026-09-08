@@ -167,6 +167,12 @@ pub struct RunArgs {
     /// Heap ceiling in bytes (interpreter). Armed after CLI parse.
     #[arg(long)]
     pub max_memory: Option<usize>,
+    /// Filesystem write ceiling in bytes (interpreter). Unset for local developer runs.
+    #[arg(long)]
+    pub max_disk: Option<usize>,
+    /// Filesystem inode creation ceiling (interpreter). Unset for local developer runs.
+    #[arg(long)]
+    pub max_files: Option<usize>,
     /// Max closure-application depth (interpreter). Default 1024.
     #[arg(long)]
     pub max_depth: Option<usize>,

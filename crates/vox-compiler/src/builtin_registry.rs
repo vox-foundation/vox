@@ -1435,6 +1435,7 @@ mod namespace_builtin_parity_tests {
                     method,
                     args,
                     &crate::eval::caps::CapabilitySet::developer_default(),
+                    None,
                 )
             });
             if matches!(probe, Ok(None)) {
@@ -1616,6 +1617,7 @@ mod namespace_builtin_parity_tests {
                 method,
                 args,
                 &crate::eval::caps::CapabilitySet::developer_default(),
+                None,
             ) {
                 Some(val) => {
                     if !shape_matches(&ret, &val) {
@@ -1730,6 +1732,7 @@ mod namespace_builtin_parity_tests {
                 method,
                 args,
                 &crate::eval::caps::CapabilitySet::developer_default(),
+                None,
             ) {
                 Some(val) => {
                     if !shape_matches(&ret, &val) {

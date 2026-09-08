@@ -716,9 +716,13 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 return Ok(VoxValue::list(items));
             }
 
-            if let Some(r) =
-                super::builtins::call_builtin_method(&o, method, eval_args, &interp.caps)
-            {
+            if let Some(r) = super::builtins::call_builtin_method(
+                &o,
+                method,
+                eval_args,
+                &interp.caps,
+                Some(&mut interp.fs_quota),
+            ) {
                 // Catch the _Panic sentinel produced by `unwrap()`/`expect()`
                 // and friends and turn it into a proper EvalError. This
                 // replaces the prior silent-Null behavior with a halt that

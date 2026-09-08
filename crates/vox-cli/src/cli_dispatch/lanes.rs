@@ -272,6 +272,8 @@ async fn run_fabrica_cmd_inner(cmd: latin_cmd::FabricaCmd) -> anyhow::Result<()>
                 &a.caps,
                 a.max_steps,
                 a.max_memory,
+                a.max_disk,
+                a.max_files,
                 a.max_depth,
             )
             .await?;

@@ -135,9 +135,18 @@ fn fs_resolve_allowed(
     let canon = match std::fs::canonicalize(p) {
         Ok(cp) => cp,
         Err(_) => {
-            let parent = p.parent().filter(|par| !par.as_os_str().is_empty())?;
-            let anc = nearest_existing_ancestor(parent)?;
-            let suffix = p.strip_prefix(parent).ok()?;
+            let parent = p.parent()?;
+            let lookup_parent = if parent.as_os_str().is_empty() {
+                std::path::Path::new(".")
+            } else {
+                parent
+            };
+            let anc = nearest_existing_ancestor(lookup_parent)?;
+            let suffix = if parent.as_os_str().is_empty() {
+                p
+            } else {
+                p.strip_prefix(parent).ok()?
+            };
             anc.join(suffix)
         }
     };
@@ -185,6 +194,7 @@ pub fn call_builtin_method(
     method: &str,
     args: Vec<VoxValue>,
     caps: &crate::eval::caps::CapabilitySet,
+    mut fs_quota: Option<&mut crate::eval::FsQuota>,
 ) -> Option<VoxValue> {
     // ── Json leaf coercion on scalar receivers ─────────────────────────
     // Json values flow through Vox as plain scalars (a JSON string is
@@ -1162,8 +1172,22 @@ pub fn call_builtin_method(
                                 Some(VoxValue::Str(s)) => s,
                                 _ => return Some(VoxValue::Null),
                             };
+                            // Count the full new payload on every write, including overwrites.
+                            let bytes = content.len();
+                            let files = usize::from(!std::path::Path::new(&*path).exists());
+                            if fs_quota
+                                .as_ref()
+                                .is_some_and(|quota| !quota.permits(bytes, files))
+                            {
+                                return Some(VoxValue::_Denied("fs.quota".into()));
+                            }
                             let res = match std::fs::write(&*path, &*content) {
-                                Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
+                                Ok(_) => {
+                                    if let Some(quota) = fs_quota.as_deref_mut() {
+                                        quota.charge(bytes, files);
+                                    }
+                                    Ok(Box::new(VoxValue::Bool(true)))
+                                }
                                 Err(e) => Err(e.to_string()),
                             };
                             Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
@@ -1193,8 +1217,22 @@ pub fn call_builtin_method(
                                 Some(VoxValue::Str(s)) => s,
                                 _ => return Some(VoxValue::Null),
                             };
+                            let bytes = std::fs::metadata(&*src)
+                                .map(|metadata| metadata.len() as usize)
+                                .unwrap_or(0);
+                            if fs_quota
+                                .as_ref()
+                                .is_some_and(|quota| !quota.permits(bytes, 1))
+                            {
+                                return Some(VoxValue::_Denied("fs.quota".into()));
+                            }
                             let res = match std::fs::copy(&*src, &*dst) {
-                                Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
+                                Ok(_) => {
+                                    if let Some(quota) = fs_quota.as_deref_mut() {
+                                        quota.charge(bytes, 1);
+                                    }
+                                    Ok(Box::new(VoxValue::Bool(true)))
+                                }
                                 Err(e) => Err(e.to_string()),
                             };
                             Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
@@ -1388,8 +1426,20 @@ pub fn call_builtin_method(
                                 Some(VoxValue::Str(s)) => s,
                                 _ => return Some(VoxValue::Null),
                             };
+                            let files = usize::from(!std::path::Path::new(&*path).exists());
+                            if fs_quota
+                                .as_ref()
+                                .is_some_and(|quota| !quota.permits(0, files))
+                            {
+                                return Some(VoxValue::_Denied("fs.quota".into()));
+                            }
                             let res = match std::fs::create_dir_all(&*path) {
-                                Ok(()) => Ok(Box::new(VoxValue::Bool(true))),
+                                Ok(()) => {
+                                    if let Some(quota) = fs_quota {
+                                        quota.charge(0, files);
+                                    }
+                                    Ok(Box::new(VoxValue::Bool(true)))
+                                }
                                 Err(e) => Err(e.to_string()),
                             };
                             Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
@@ -2994,6 +3044,7 @@ mod time_namespace_interp_tests {
             "now_ms",
             vec![],
             &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
         );
         match result {
             Some(VoxValue::Int(ms)) => {
@@ -3026,6 +3077,7 @@ mod time_namespace_interp_tests {
             "basename",
             vec![VoxValue::Str("a/b/c.txt".to_string().into())],
             &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
         );
         assert_eq!(base, Some(VoxValue::Str("c.txt".to_string().into())));
 
@@ -3034,6 +3086,7 @@ mod time_namespace_interp_tests {
             "dirname",
             vec![VoxValue::Str("a/b/c.txt".to_string().into())],
             &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
         );
         match dir {
             Some(VoxValue::Str(s)) => assert!(s.ends_with("b"), "dirname got {s}"),
@@ -3053,6 +3106,7 @@ mod time_namespace_interp_tests {
                 VoxValue::Str("c".to_string().into()),
             ])],
             &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
         );
         match joined {
             Some(VoxValue::Str(s)) => {
@@ -3079,6 +3133,7 @@ mod time_namespace_interp_tests {
                 "matches",
                 vec![VoxValue::Str("12-34".to_string().into())],
                 &crate::eval::caps::CapabilitySet::developer_default(),
+                None,
             ),
             Some(VoxValue::Bool(true))
         );
@@ -3088,6 +3143,7 @@ mod time_namespace_interp_tests {
             "find",
             vec![VoxValue::Str("x 12-34".to_string().into())],
             &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
         );
         let m = match found {
             Some(VoxValue::Option(Some(boxed))) => *boxed,
@@ -3098,6 +3154,7 @@ mod time_namespace_interp_tests {
             "group",
             vec![VoxValue::Int(1)],
             &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
         );
         assert_eq!(
             g1,
@@ -3111,6 +3168,7 @@ mod time_namespace_interp_tests {
             "find_all",
             vec![VoxValue::Str("1-2 3-4".to_string().into())],
             &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
         );
         match all {
             Some(VoxValue::List(items)) => assert_eq!(items.len(), 2, "find_all count"),
@@ -3150,6 +3208,7 @@ mod fs_text_robustness_tests {
             "read",
             vec![VoxValue::Str(p.to_string_lossy().to_string().into())],
             &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
         ));
         assert_eq!(got, "a\nb\n");
     }
@@ -3165,6 +3224,7 @@ mod fs_text_robustness_tests {
             "read_bytes",
             vec![VoxValue::Str(p.to_string_lossy().to_string().into())],
             &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
         ));
         assert_eq!(got, "\u{feff}a\r\nb\r\n");
     }
@@ -3182,6 +3242,7 @@ mod fs_text_robustness_tests {
                 VoxValue::Str("x\ny\n".to_string().into()),
             ],
             &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
         );
         assert_eq!(std::fs::read(&p).unwrap(), b"x\ny\n");
     }
@@ -3201,6 +3262,7 @@ mod fs_text_robustness_tests {
             "read",
             vec![path.clone()],
             &crate::eval::caps::CapabilitySet::developer_default(),
+            None,
         ));
         assert_eq!(leaked, "SECRET");
         let denied = call_builtin_method(
@@ -3208,6 +3270,7 @@ mod fs_text_robustness_tests {
             "read",
             vec![path],
             &crate::eval::caps::CapabilitySet::parse("").unwrap(),
+            None,
         );
         assert!(
             matches!(denied, Some(VoxValue::_Denied(ref s)) if s == "fs.read"),

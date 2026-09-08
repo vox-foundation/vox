@@ -19,32 +19,54 @@ pub fn arm(bytes: usize) {
     LIMIT.0.store(bytes, Ordering::Relaxed);
 }
 
+pub fn disarm() {
+    LIMIT.0.store(usize::MAX, Ordering::Relaxed);
+}
+
 struct Capped;
 #[global_allocator]
 static ALLOC: Capped = Capped;
 
 unsafe impl GlobalAlloc for Capped {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        charge(layout.size());
         // SAFETY: `layout` is the caller's allocation request; forwarded to the system allocator.
-        unsafe { System.alloc(layout) }
+        let ptr = unsafe { System.alloc(layout) };
+        charge_allocation_result(layout.size(), ptr);
+        ptr
     }
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        charge(layout.size());
         // SAFETY: same contract as `alloc`.
-        unsafe { System.alloc_zeroed(layout) }
+        let ptr = unsafe { System.alloc_zeroed(layout) };
+        charge_allocation_result(layout.size(), ptr);
+        ptr
     }
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         if new_size > layout.size() {
             charge(new_size - layout.size());
         }
         // SAFETY: `ptr`/`layout` came from a prior allocation of this allocator.
-        unsafe { System.realloc(ptr, layout, new_size) }
+        let new_ptr = unsafe { System.realloc(ptr, layout, new_size) };
+        finish_realloc_accounting(layout.size(), new_size, !new_ptr.is_null());
+        new_ptr
     }
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         uncharge(layout.size());
         // SAFETY: `ptr`/`layout` came from a prior allocation of this allocator.
         unsafe { System.dealloc(ptr, layout) }
+    }
+}
+
+fn charge_allocation_result(n: usize, ptr: *mut u8) {
+    if !ptr.is_null() {
+        charge(n);
+    }
+}
+
+fn finish_realloc_accounting(old_size: usize, new_size: usize, succeeded: bool) {
+    if succeeded && new_size < old_size {
+        uncharge(old_size - new_size);
+    } else if !succeeded && new_size > old_size {
+        uncharge(new_size - old_size);
     }
 }
 
@@ -159,6 +181,34 @@ mod tests {
         arm(usize::MAX);
         assert_eq!(USED.0.load(Ordering::Relaxed), 0);
         assert_eq!(LIMIT.0.load(Ordering::Relaxed), usize::MAX);
+    }
+
+    #[test]
+    fn successful_realloc_shrink_uncharges_the_released_bytes() {
+        USED.0.store(100, Ordering::Relaxed);
+        LIMIT.0.store(usize::MAX - 1, Ordering::Relaxed);
+        finish_realloc_accounting(100, 40, true);
+        LIMIT.0.store(usize::MAX, Ordering::Relaxed);
+        assert_eq!(USED.0.load(Ordering::Relaxed), 40);
+    }
+
+    #[test]
+    fn failed_growing_realloc_uncharges_the_speculative_growth() {
+        USED.0.store(100, Ordering::Relaxed);
+        LIMIT.0.store(usize::MAX - 1, Ordering::Relaxed);
+        charge(60);
+        finish_realloc_accounting(100, 160, false);
+        LIMIT.0.store(usize::MAX, Ordering::Relaxed);
+        assert_eq!(USED.0.load(Ordering::Relaxed), 100);
+    }
+
+    #[test]
+    fn failed_allocation_does_not_charge_used() {
+        USED.0.store(91, Ordering::Relaxed);
+        LIMIT.0.store(usize::MAX - 1, Ordering::Relaxed);
+        charge_allocation_result(64, std::ptr::null_mut());
+        LIMIT.0.store(usize::MAX, Ordering::Relaxed);
+        assert_eq!(USED.0.load(Ordering::Relaxed), 91);
     }
 
     #[test]

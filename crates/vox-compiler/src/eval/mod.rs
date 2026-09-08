@@ -138,6 +138,29 @@ pub enum EvalError {
 /// / `vox run --max-depth`.
 pub const MAX_EVAL_DEPTH: usize = 1024;
 
+#[derive(Debug, Default)]
+pub struct FsQuota {
+    pub max_disk_bytes: Option<usize>,
+    pub max_files: Option<usize>,
+    used_disk_bytes: usize,
+    used_files: usize,
+}
+
+impl FsQuota {
+    pub(crate) fn permits(&self, bytes: usize, files: usize) -> bool {
+        self.max_disk_bytes
+            .is_none_or(|max| self.used_disk_bytes.saturating_add(bytes) <= max)
+            && self
+                .max_files
+                .is_none_or(|max| self.used_files.saturating_add(files) <= max)
+    }
+
+    pub(crate) fn charge(&mut self, bytes: usize, files: usize) {
+        self.used_disk_bytes = self.used_disk_bytes.saturating_add(bytes);
+        self.used_files = self.used_files.saturating_add(files);
+    }
+}
+
 pub struct Interpreter {
     pub scope: Scope,
     pub module_scope: Scope,
@@ -177,6 +200,8 @@ pub struct Interpreter {
     pub eval_depth: usize,
     /// Closure-application depth ceiling. Defaults to [`MAX_EVAL_DEPTH`].
     pub max_eval_depth: usize,
+    /// In-process filesystem budget. Both limits are unset for local developer runs.
+    pub fs_quota: FsQuota,
 }
 
 impl Interpreter {
@@ -391,6 +416,7 @@ impl Interpreter {
             rng: None,
             eval_depth: 0,
             max_eval_depth: MAX_EVAL_DEPTH,
+            fs_quota: FsQuota::default(),
         }
     }
 

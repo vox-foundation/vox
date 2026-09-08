@@ -231,6 +231,10 @@ impl InterpExecutor {
             .arg(self.limits.max_steps.to_string())
             .arg("--max-memory")
             .arg(self.limits.max_memory_bytes.to_string())
+            .arg("--max-disk")
+            .arg(self.limits.max_disk_bytes.to_string())
+            .arg("--max-files")
+            .arg(self.limits.max_files.to_string())
             .arg("--max-depth")
             .arg(self.limits.max_depth.to_string());
         for tok in &tokens {
@@ -378,12 +382,6 @@ fn map_exit(status: std::process::ExitStatus, stdout: Vec<u8>, stderr: Vec<u8>) 
         Some(77) if err.contains("capability denied") => JobResponse::Failed(err.into_owned()),
         Some(77) => JobResponse::Failed(format!("process exited 77: {err}")),
         Some(78) => JobResponse::Failed(format!("execution budget exceeded: {err}")),
-        Some(79) if !stdout.is_empty() => {
-            // `vox run --max-memory` currently overcounts USED (realloc shrinks
-            // never uncharge) and can `_exit(79)` during teardown after a
-            // successful `main`. Keep the output; a real mid-run OOM has none.
-            JobResponse::Output(stdout)
-        }
         Some(79) => JobResponse::Failed(format!("memory limit exceeded: {err}")),
         Some(101) => JobResponse::Failed("interpreter bug".to_string()),
         Some(code) => JobResponse::Failed(format!("exit {code}: {err}")),
@@ -469,6 +467,29 @@ mod tests {
             .join(",");
         assert!(n.contains("net:allow") && n.contains("process:allow") && n.contains("env:ro"));
         assert!(!n.contains("secrets"));
+    }
+
+    #[test]
+    fn exit_79_with_stdout_is_still_a_memory_failure() {
+        #[cfg(unix)]
+        let status = {
+            use std::os::unix::process::ExitStatusExt;
+            std::process::ExitStatus::from_raw(79 << 8)
+        };
+        #[cfg(windows)]
+        let status = {
+            use std::os::windows::process::ExitStatusExt;
+            std::process::ExitStatus::from_raw(79)
+        };
+        let response = map_exit(
+            status,
+            b"completed output\n".to_vec(),
+            b"vox: memory limit exceeded\n".to_vec(),
+        );
+        assert!(
+            matches!(response, JobResponse::Failed(ref m) if m.contains("memory limit exceeded")),
+            "{response:?}"
+        );
     }
 
     #[tokio::test]
