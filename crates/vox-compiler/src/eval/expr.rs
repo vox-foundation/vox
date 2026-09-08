@@ -658,7 +658,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         .collect(),
                     _ => vec![],
                 };
-                interp.exit_commands.push((cmd_name, cmd_args));
+                interp
+                    .exit_commands
+                    .push((cmd_name.clone(), cmd_args.clone()));
+                crate::eval::record_signal_exit_command(cmd_name, cmd_args);
                 return Ok(VoxValue::Result(Ok(Box::new(VoxValue::Null))));
             }
 
@@ -1003,7 +1006,7 @@ fn apply_closure(
         }
     };
 
-    if interp.eval_depth >= crate::eval::MAX_EVAL_DEPTH {
+    if interp.eval_depth >= interp.max_eval_depth {
         return Err(EvalError::RecursionLimitExceeded);
     }
     interp.eval_depth += 1;

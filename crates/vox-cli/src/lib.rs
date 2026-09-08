@@ -56,6 +56,8 @@ mod latin_cmd;
     feature = "script-execution"
 ))]
 mod lock_telemetry;
+/// Counting `#[global_allocator]` for `vox run --max-memory`.
+mod mem_limit;
 pub mod pipeline;
 pub mod process_supervision {
     pub use vox_cli_core::daemon_ipc::process_supervision::*;
@@ -770,3 +772,11 @@ pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
 }
 
 pub mod utils;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn mem_limit_module_is_linked() {
+        crate::mem_limit::arm(usize::MAX);
+    }
+}

@@ -38,7 +38,19 @@ pub fn parse_run_mode_from_str(s: &str) -> RunMode {
 /// Run a `.vox` file via the tree-walking HIR interpreter (no native compile step).
 /// Extracted so it can be invoked from both `--mode interp` and the `--mode auto`
 /// fallback path when `script-execution` Cargo feature is not compiled in.
-async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
+async fn run_interp(
+    file: &Path,
+    args: &[String],
+    caps_tokens: &[String],
+    max_steps: Option<usize>,
+    max_memory: Option<usize>,
+    max_depth: Option<usize>,
+) -> Result<()> {
+    if let Some(bytes) = max_memory {
+        crate::mem_limit::arm(bytes);
+    }
+    install_exit_signal_handler();
+
     let source = std::fs::read_to_string(file).context("Failed to read file")?;
 
     let mut legacy_words = Vec::new();
@@ -60,29 +72,56 @@ async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
         .map_err(|e| anyhow::anyhow!("Parse failed: {:?}", e))?;
     let lowered = vox_compiler::hir::lower::lower_module(&module);
 
-    let mut interpreter = vox_compiler::eval::Interpreter::new(10_000_000);
-    // Explicit, not the constructor's default: a trusted, interactive `vox run`
-    // grants everything unless the script opts into a narrower legacy directive.
-    // A typed `--caps` CLI flag (repeatable, `ArgAction::Append`) lands in a later
-    // task; this embedder still only understands the `// vox:caps` comment form.
-    interpreter.caps = if has_caps_directive {
+    let caps = if !caps_tokens.is_empty() {
+        // One token per `--caps` flag — do not comma-join (Windows TEMP may
+        // contain commas). Parse each token and merge.
+        let mut set = vox_compiler::eval::caps::CapabilitySet::parse(&caps_tokens[0])
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        for tok in &caps_tokens[1..] {
+            set.merge(
+                vox_compiler::eval::caps::CapabilitySet::parse(tok)
+                    .map_err(|e| anyhow::anyhow!("{e}"))?,
+            );
+        }
+        set
+    } else if has_caps_directive {
         vox_compiler::eval::caps::CapabilitySet::from_legacy_directive(&legacy_words)
     } else {
         vox_compiler::eval::caps::CapabilitySet::developer_default()
     };
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(max_steps.unwrap_or(10_000_000));
+    interpreter.caps = caps;
+    interpreter.script_args = args.to_vec();
+    interpreter.max_eval_depth = max_depth.unwrap_or(vox_compiler::eval::MAX_EVAL_DEPTH);
     if let Ok(abs) = std::fs::canonicalize(file) {
         interpreter.set_source_path(abs);
     } else {
         interpreter.set_source_path(file.to_path_buf());
     }
 
-    interpreter
+    let res = match interpreter
         .run_module(&lowered)
-        .map_err(|e| anyhow::anyhow!("Eval failed: {:?}", e))?;
-
-    let res = interpreter
-        .call("main", vec![])
-        .map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?;
+        .and_then(|()| interpreter.call("main", vec![]))
+    {
+        Ok(res) => res,
+        Err(vox_compiler::eval::EvalError::CapabilityDenied { ns, method }) => {
+            eprintln!(
+                "vox: capability denied: {ns}.{method} — grant with --caps <token> (see isolation.md)"
+            );
+            std::process::exit(77);
+        }
+        Err(vox_compiler::eval::EvalError::StepLimitExceeded)
+        | Err(vox_compiler::eval::EvalError::RecursionLimitExceeded) => {
+            eprintln!(
+                "vox: execution budget exceeded; pass --max-steps / --max-depth or use --mode script"
+            );
+            std::process::exit(78);
+        }
+        Err(e) => {
+            return Err(anyhow::anyhow!("Eval failed: {:?}", e));
+        }
+    };
     // Only print the return value when it's meaningful (non-Null). Suppresses
     // the spurious trailing `Null` that scripts using bare `return;` produced.
     // Use the value's *display* form (e.g. `ok`), not Debug (`Str("ok")`), so
@@ -95,10 +134,61 @@ async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// Flush `process.register_exit_command` work on SIGINT/SIGTERM. Installed
+/// only from [`run_interp`] so other embedders do not inherit the handler.
+#[allow(unsafe_code)]
+fn install_exit_signal_handler() {
+    #[cfg(unix)]
+    // SAFETY: handler only flushes the exit-command queue and `_exit`s.
+    unsafe {
+        libc::signal(
+            libc::SIGINT,
+            handle_exit_signal as *const () as libc::sighandler_t,
+        );
+        libc::signal(
+            libc::SIGTERM,
+            handle_exit_signal as *const () as libc::sighandler_t,
+        );
+    }
+    #[cfg(windows)]
+    unsafe {
+        windows_sys::Win32::System::Console::SetConsoleCtrlHandler(Some(win_ctrl_handler), 1);
+    }
+}
+
+#[cfg(unix)]
+#[allow(unsafe_code)]
+extern "C" fn handle_exit_signal(_: libc::c_int) {
+    vox_compiler::eval::flush_signal_exit_commands();
+    // SAFETY: `_exit` skips atexit so the counting allocator is not re-entered.
+    unsafe { libc::_exit(130) };
+}
+
+#[cfg(windows)]
+#[allow(unsafe_code)]
+unsafe extern "system" fn win_ctrl_handler(_: u32) -> i32 {
+    vox_compiler::eval::flush_signal_exit_commands();
+    unsafe {
+        windows_sys::Win32::System::Threading::TerminateProcess(
+            windows_sys::Win32::System::Threading::GetCurrentProcess(),
+            130,
+        );
+    }
+    1
+}
+
 /// Execute the `vox run` command (dispatch to App or Script mode).
-pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
+pub async fn run(
+    file: &Path,
+    args: &[String],
+    mode: RunMode,
+    caps: &[String],
+    max_steps: Option<usize>,
+    max_memory: Option<usize>,
+    max_depth: Option<usize>,
+) -> Result<()> {
     if mode == RunMode::Interp {
-        return run_interp(file, args).await;
+        return run_interp(file, args, caps, max_steps, max_memory, max_depth).await;
     }
 
     let use_script = match mode {
@@ -148,7 +238,7 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
                 path = %file.display(),
                 "script-execution feature absent; auto-falling back to --mode interp"
             );
-            return run_interp(file, args).await;
+            return run_interp(file, args, caps, max_steps, max_memory, max_depth).await;
         }
         anyhow::bail!(
             "`vox run --mode script` requires a vox build with `--features script-execution`. \

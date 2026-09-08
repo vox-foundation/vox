@@ -158,6 +158,18 @@ pub struct RunArgs {
     /// Alias for --mode app (full web app)
     #[arg(long, conflicts_with = "mode")]
     pub app: bool,
+    /// Repeatable capability token (`fs:ro=<dir>`, `env:ro`, …). Overrides `// vox:caps`.
+    #[arg(long = "caps", action = clap::ArgAction::Append)]
+    pub caps: Vec<String>,
+    /// Max evaluated HIR nodes (interpreter). Bounds nodes, not CPU time.
+    #[arg(long)]
+    pub max_steps: Option<usize>,
+    /// Heap ceiling in bytes (interpreter). Armed after CLI parse.
+    #[arg(long)]
+    pub max_memory: Option<usize>,
+    /// Max closure-application depth (interpreter). Default 1024.
+    #[arg(long)]
+    pub max_depth: Option<usize>,
     #[arg(trailing_var_arg = true)]
     pub args: Vec<String>,
 }

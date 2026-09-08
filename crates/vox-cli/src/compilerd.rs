@@ -333,7 +333,7 @@ async fn handle_run(req: &DispatchRequest) -> anyhow::Result<()> {
         });
     }
     let run_mode = crate::commands::run::parse_run_mode_from_str(&p.mode);
-    crate::commands::run::run(&p.file, &p.args, run_mode)
+    crate::commands::run::run(&p.file, &p.args, run_mode, &[], None, None, None)
         .await
         .context("run failed")?;
     finish_ok(&req.id, Value::Null).await

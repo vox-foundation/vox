@@ -12,7 +12,33 @@ pub mod value;
 
 use crate::hir::nodes::HirModule;
 use env::Scope;
+use std::sync::Mutex;
 use value::VoxValue;
+
+/// Dual-write of `process.register_exit_command` so the SIGINT/SIGTERM handler
+/// installed by `vox run --mode interp` can flush the queue. Not installed from
+/// `Interpreter::new` or other embedders.
+static SIGNAL_EXIT_COMMANDS: Mutex<Vec<(String, Vec<String>)>> = Mutex::new(Vec::new());
+
+pub(crate) fn record_signal_exit_command(cmd: String, args: Vec<String>) {
+    if let Ok(mut q) = SIGNAL_EXIT_COMMANDS.lock() {
+        q.push((cmd, args));
+    }
+}
+
+/// Drain the signal-visible exit-command queue. Called from the handler
+/// installed only by `run_interp`.
+pub fn flush_signal_exit_commands() {
+    if let Ok(mut q) = SIGNAL_EXIT_COMMANDS.lock() {
+        builtins::flush_exit_command_list(&mut q);
+    }
+}
+
+fn clear_signal_exit_commands() {
+    if let Ok(mut q) = SIGNAL_EXIT_COMMANDS.lock() {
+        q.clear();
+    }
+}
 
 #[derive(Debug)]
 pub enum EvalError {
@@ -35,8 +61,9 @@ pub enum EvalError {
     },
 }
 
-/// Maximum closure-application depth. Incremented only in `apply_closure`
-/// (not every `eval_expr`). `--max-depth` CLI wiring is Task 6.
+/// Default closure-application depth. Incremented only in `apply_closure`
+/// (not every `eval_expr`). Overridable via `Interpreter.max_eval_depth`
+/// / `vox run --max-depth`.
 pub const MAX_EVAL_DEPTH: usize = 1024;
 
 pub struct Interpreter {
@@ -74,8 +101,10 @@ pub struct Interpreter {
     pub exit_commands: Vec<(String, Vec<String>)>,
     /// Seeded from `caps.random_seed()` so `random:seed=` is repeatable.
     pub rng: Option<rand::rngs::StdRng>,
-    /// Current `apply_closure` nesting. Bounded by [`MAX_EVAL_DEPTH`].
+    /// Current `apply_closure` nesting. Bounded by [`Self::max_eval_depth`].
     pub eval_depth: usize,
+    /// Closure-application depth ceiling. Defaults to [`MAX_EVAL_DEPTH`].
+    pub max_eval_depth: usize,
 }
 
 impl Interpreter {
@@ -289,6 +318,7 @@ impl Interpreter {
             exit_commands: Vec::new(),
             rng: None,
             eval_depth: 0,
+            max_eval_depth: MAX_EVAL_DEPTH,
         }
     }
 
@@ -654,6 +684,7 @@ impl Interpreter {
     /// Callers (`run_interp`, `process.exit`) use this instead of a process
     /// global so a denied register cannot enqueue work.
     pub fn flush_exit_commands(&mut self) {
+        clear_signal_exit_commands();
         crate::eval::builtins::flush_exit_command_list(&mut self.exit_commands);
     }
 }
@@ -661,6 +692,13 @@ impl Interpreter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn flush_signal_exit_commands_drains_the_static_queue() {
+        record_signal_exit_command("true".into(), Vec::new());
+        flush_signal_exit_commands();
+        flush_signal_exit_commands();
+    }
 
     #[test]
     fn flush_exit_commands_drains_the_interpreter_queue() {

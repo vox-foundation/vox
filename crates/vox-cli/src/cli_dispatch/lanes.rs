@@ -266,7 +266,16 @@ async fn run_fabrica_cmd_inner(cmd: latin_cmd::FabricaCmd) -> anyhow::Result<()>
             } else if a.app {
                 mode = commands::run::RunMode::App;
             }
-            commands::run::run(&a.file, &a.args, mode).await?;
+            commands::run::run(
+                &a.file,
+                &a.args,
+                mode,
+                &a.caps,
+                a.max_steps,
+                a.max_memory,
+                a.max_depth,
+            )
+            .await?;
         }
         FabricaCmd::Dev(a) => {
             commands::dev::run(&a.file, &a.out_dir, a.port, a.open, a.build_target).await?;
