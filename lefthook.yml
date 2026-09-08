@@ -45,7 +45,7 @@ pre-commit:
     # without an adjacent test. Runs only when relevant files are staged.
     # `enforce-strict` makes Warnings (not just Errors) fail the commit.
     tdd-guard:
-      run: cargo run -p vox-code-audit --bin toestub --quiet -- . --rules skeleton --min-severity warning --mode enforce-strict --format terminal
+      run: cargo run -p vox-code-audit --bin toestub --quiet -- {staged_files} --rules skeleton --min-severity warning --mode enforce-strict --format terminal
       glob: "{crates/**/*.rs,examples/golden/**/*.vox}"
       fail_text: "Test-First Policy violation. Add a #[test] (or @test in golden Vox) before the new pub fn lands. See AGENTS.md §Test-First Policy."
 
