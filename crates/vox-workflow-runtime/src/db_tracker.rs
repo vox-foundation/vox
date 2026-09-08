@@ -75,26 +75,9 @@ impl VoxDbTracker {
     #[cfg(any(test, feature = "test-support"))]
     pub async fn expire_lease_for_test(&self) -> anyhow::Result<()> {
         self.db
-            .connection()
-            .execute(
-                "UPDATE workflow_run_log \
-                 SET lease_until_ms = 0, lease_owner = NULL \
-                 WHERE run_id = ?1",
-                (self.run_id.clone(),),
-            )
+            .expire_workflow_run_lease(&self.run_id)
             .await
-            .map_err(|e| anyhow::anyhow!("DB error: {e}"))?;
-        self.db
-            .connection()
-            .execute(
-                "UPDATE workflow_activity_attempt_log \
-                 SET lease_until_ms = 0 \
-                 WHERE run_id = ?1 AND status = 'started'",
-                (self.run_id.clone(),),
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("DB error: {e}"))?;
-        Ok(())
+            .map_err(|e| anyhow::anyhow!("DB error: {e}"))
     }
 }
 

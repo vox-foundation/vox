@@ -316,6 +316,29 @@ impl crate::VoxDb {
         Ok(())
     }
 
+    /// Expire the run lease and any in-flight activity attempt leases.
+    ///
+    /// Used by crash-window tests so a resumed runner can steal the row.
+    pub async fn expire_workflow_run_lease(&self, run_id: &str) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "UPDATE workflow_run_log \
+                 SET lease_until_ms = 0, lease_owner = NULL \
+                 WHERE run_id = ?1",
+                (run_id.to_string(),),
+            )
+            .await?;
+        self.conn
+            .execute(
+                "UPDATE workflow_activity_attempt_log \
+                 SET lease_until_ms = 0 \
+                 WHERE run_id = ?1 AND status = 'started'",
+                (run_id.to_string(),),
+            )
+            .await?;
+        Ok(())
+    }
+
     /// Park a workflow on a timer and release its run lease.
     pub async fn park_workflow_run_timer(
         &self,
@@ -1199,6 +1222,35 @@ mod tests {
             .await
             .expect("consume signal");
         assert_eq!(present, Some(json!({"approved": true})));
+    }
+
+    #[tokio::test]
+    async fn expire_workflow_run_lease_clears_owner() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        db.record_workflow_run_started("expire-1", "wf", 1)
+            .await
+            .expect("start");
+        let claimed = db
+            .try_claim_workflow_run_lease("expire-1", "owner-a", 60_000)
+            .await
+            .expect("claim");
+        assert!(claimed);
+        assert_eq!(
+            db.workflow_run_lease_owner("expire-1")
+                .await
+                .expect("owner"),
+            Some("owner-a".to_string())
+        );
+
+        db.expire_workflow_run_lease("expire-1")
+            .await
+            .expect("expire");
+        assert_eq!(
+            db.workflow_run_lease_owner("expire-1")
+                .await
+                .expect("owner after expire"),
+            None
+        );
     }
 
     #[tokio::test]

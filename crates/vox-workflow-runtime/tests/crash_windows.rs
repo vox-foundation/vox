@@ -15,24 +15,9 @@ fn hir(src: &str) -> vox_compiler::hir::HirModule {
 }
 
 async fn expire_lease(db: &VoxDb, run_id: &str) {
-    db.connection()
-        .execute(
-            "UPDATE workflow_run_log \
-             SET lease_until_ms = 0, lease_owner = NULL \
-             WHERE run_id = ?1",
-            (run_id.to_string(),),
-        )
+    db.expire_workflow_run_lease(run_id)
         .await
         .expect("expire workflow lease");
-    db.connection()
-        .execute(
-            "UPDATE workflow_activity_attempt_log \
-             SET lease_until_ms = 0 \
-             WHERE run_id = ?1 AND status = 'started'",
-            (run_id.to_string(),),
-        )
-        .await
-        .expect("expire activity attempt lease");
 }
 
 const SRC: &str = r#"

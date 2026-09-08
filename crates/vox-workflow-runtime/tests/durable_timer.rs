@@ -93,7 +93,8 @@ workflow delayed(n: int) to int {
 
     // Wall clock must advance so a naive `now + deadline` rewrite cannot
     // accidentally match the original millisecond.
-    tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    const EARLY_RESUME_CLOCK_ADVANCE: std::time::Duration = std::time::Duration::from_millis(25);
+    tokio::time::sleep(EARLY_RESUME_CLOCK_ADVANCE).await;
 
     let mut resume = VoxDbTracker::new(db.clone(), "timer-early");
     let second = interpret_workflow_durable(&hir, "delayed", vec![], &mut resume)

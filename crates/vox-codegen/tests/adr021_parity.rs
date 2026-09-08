@@ -148,8 +148,12 @@ fn emit_does_not_expect_terminal_return_on_park() {
         .expect("workflow");
     let rust = emit_fn(func, Some(&hir.inferred_types), &[]);
     assert!(
-        rust.contains("process::exit"),
-        "parked journal has no WorkflowCompleted; wrapper must exit 0, not expect a terminal return. got:\n{rust}"
+        rust.contains("process::exit") && rust.contains("VOX_RUN_WORKFLOW"),
+        "debug binary may exit 0 on park; must gate process::exit on VOX_RUN_WORKFLOW. got:\n{rust}"
+    );
+    assert!(
+        rust.contains("panic!"),
+        "library wrappers must panic on park, not process::exit the host. got:\n{rust}"
     );
     assert!(
         rust.contains("WorkflowCompleted"),

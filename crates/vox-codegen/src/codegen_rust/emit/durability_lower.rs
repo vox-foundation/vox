@@ -103,15 +103,20 @@ fn emit_workflow_body(func: &HirFn) -> String {
          \x20   }\n",
     );
     // A parked journal has no WorkflowCompleted. Do not expect a terminal
-    // return — that panics. Exit 0 so a later resume with the same
-    // `VOX_WORKFLOW_RUN_ID` can continue. No `?` here: `to int` wrappers
-    // are not Result functions.
+    // return — that panics. The `VOX_RUN_WORKFLOW` debug binary exits 0 so
+    // a later resume with the same `VOX_WORKFLOW_RUN_ID` can continue.
+    // Library callers (Axum/Tauri) must not `process::exit` — that kills
+    // the host. Panic instead so the request/task fails closed. No `?`:
+    // `to int` wrappers are not Result functions.
     out.push_str(
         "    let __vox_completed = __vox_journal.iter().rev().any(|__e| {\n\
          \x20       __e.get(\"event\").and_then(::serde_json::Value::as_str) == Some(\"WorkflowCompleted\")\n\
          \x20   });\n\
          \x20   if !__vox_completed {\n\
-         \x20       ::std::process::exit(0);\n\
+         \x20       if ::std::env::var(\"VOX_RUN_WORKFLOW\").is_ok() {\n\
+         \x20           ::std::process::exit(0);\n\
+         \x20       }\n\
+         \x20       panic!(\"vox durable workflow: run parked (no WorkflowCompleted); resume with the same VOX_WORKFLOW_RUN_ID\");\n\
          \x20   }\n",
     );
     if let Some(ret) = &func.return_type {
