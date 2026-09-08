@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-08T20:51:49.194Z",
+  "generated_at": "2026-09-08T21:11:06.329Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -16260,7 +16260,7 @@
     {
       "path": "crates/vox-mesh-transport/src/endpoint.rs",
       "kind": "rust",
-      "lines_total": 258,
+      "lines_total": 259,
       "lines_triple_slash": 43,
       "lines_inner_doc": 1,
       "lines_plain_comment": 20,
@@ -44990,6 +44990,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-speech/src/subtitle/ffmpeg_extract.rs",
+      "kind": "rust",
+      "lines_total": 56,
+      "lines_triple_slash": 2,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/pii_filter.rs",
       "kind": "rust",
       "lines_total": 54,
@@ -45249,17 +45260,6 @@
       "lines_triple_slash": 2,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-speech/src/subtitle/ffmpeg_extract.rs",
-      "kind": "rust",
-      "lines_total": 41,
-      "lines_triple_slash": 2,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"

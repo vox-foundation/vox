@@ -84,8 +84,6 @@
     "workflow"
   ],
   "surface_count": 110,
-  "unclassified_backfilled": [
-    "gui"
-  ],
+  "unclassified_backfilled": [],
   "wiring_violations": []
 }
