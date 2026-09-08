@@ -308,6 +308,7 @@ async fn main() {
             commands::browser::browser_type_text,
             commands::browser::browser_input_key,
             commands::browser::browser_set_control_mode,
+            commands::browser::browser_snapshot,
             commands::browser::browser_screenshot_frame,
             commands::browser::browser_session_status,
             commands::browser::browser_validate_playwright,

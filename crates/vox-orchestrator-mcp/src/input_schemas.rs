@@ -146,12 +146,26 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Browser (CDP / chromiumoxide) ───────────────────────────────────
         "vox_browser_open" => derived_tool_schema!(crate::params::BrowserOpenParams),
+        "vox_browser_open_ex" => derived_tool_schema!(crate::params::BrowserOpenExParams),
         "vox_browser_close" => derived_tool_schema!(crate::params::BrowserPageParams),
         "vox_browser_goto" => derived_tool_schema!(crate::params::BrowserGotoParams),
         "vox_browser_click" | "vox_browser_text" => {
             derived_tool_schema!(crate::params::BrowserTargetParams)
         }
         "vox_browser_fill" => derived_tool_schema!(crate::params::BrowserFillParams),
+        "vox_browser_snapshot" => {
+            derived_tool_schema!(crate::params::BrowserSnapshotParams)
+        }
+        "vox_browser_click_ref" => derived_tool_schema!(crate::params::BrowserRefParams),
+        "vox_browser_fill_ref" => {
+            derived_tool_schema!(crate::params::BrowserFillRefParams)
+        }
+        "vox_browser_cookies_export" => {
+            derived_tool_schema!(crate::params::BrowserPageParams)
+        }
+        "vox_browser_cookies_import" => {
+            derived_tool_schema!(crate::params::BrowserCookiesImportParams)
+        }
         "vox_browser_wait_for" => derived_tool_schema!(crate::params::BrowserWaitParams),
         "vox_browser_html" => derived_tool_schema!(crate::params::BrowserHtmlParams),
         "vox_browser_screenshot" => {

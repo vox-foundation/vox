@@ -576,6 +576,138 @@ fn default_headless_true() -> bool {
     true
 }
 
+#[derive(Debug, Default, Clone, Copy, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BrowserLaunchModeParam {
+    #[default]
+    Ephemeral,
+    Named,
+    Attach,
+}
+
+/// Open a Chromium tab with ephemeral, named, or attach launch options.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserOpenExParams {
+    /// Initial URL to navigate to.
+    #[schemars(length(min = 1, max = 8192))]
+    pub url: String,
+    /// When false, run a visible browser window (default true = headless).
+    #[serde(default = "default_headless_true")]
+    pub headless: bool,
+    #[serde(default)]
+    pub mode: BrowserLaunchModeParam,
+    #[serde(default)]
+    pub profile_id: Option<String>,
+    #[serde(default)]
+    pub cdp_url: Option<String>,
+    /// Persist cookies into the named profile. Required unless consent is stored.
+    #[serde(default)]
+    pub save_profile: bool,
+}
+
+/// Import cookies from a JSON file under the browser profiles directory.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserCookiesImportParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// Absolute or profiles-relative path to a cookies.json file.
+    #[schemars(length(min = 1, max = 4096))]
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserSnapshotParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[serde(default = "default_true_interactive")]
+    pub interactive_only: bool,
+    #[serde(default = "default_max_depth")]
+    pub max_depth: u32,
+    #[serde(default = "default_max_nodes")]
+    pub max_nodes: u32,
+    #[serde(default)]
+    pub include_boxes: bool,
+}
+
+fn default_true_interactive() -> bool {
+    true
+}
+
+fn default_max_depth() -> u32 {
+    12
+}
+
+fn default_max_nodes() -> u32 {
+    80
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserRefParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[serde(rename = "ref")]
+    #[schemars(length(min = 1, max = 16))]
+    pub ref_id: String,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserFillRefParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[serde(rename = "ref")]
+    #[schemars(length(min = 1, max = 16))]
+    pub ref_id: String,
+    #[schemars(length(min = 1, max = 131072))]
+    pub value: String,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
+}
+
+#[cfg(test)]
+mod browser_param_tests {
+    use super::{BrowserCookiesImportParams, BrowserOpenExParams, BrowserSnapshotParams};
+
+    #[test]
+    fn cookies_import_params_require_path() {
+        let err = serde_json::from_str::<BrowserCookiesImportParams>(r#"{"page_id":"p1"}"#);
+        assert!(err.is_err());
+        let p: BrowserCookiesImportParams = serde_json::from_str(
+            r#"{"page_id":"p1","path":"/safe/profiles/staging-1/cookies.json"}"#,
+        )
+        .expect("parse cookies import params");
+        assert_eq!(p.page_id, "p1");
+        assert!(p.path.ends_with("cookies.json"));
+    }
+
+    #[test]
+    fn snapshot_params_default_interactive() {
+        let p: BrowserSnapshotParams =
+            serde_json::from_str(r#"{"page_id":"p1"}"#).expect("parse snapshot params");
+        assert!(p.interactive_only);
+        assert_eq!(p.max_depth, 12);
+        assert_eq!(p.max_nodes, 80);
+        assert!(!p.include_boxes);
+    }
+
+    #[test]
+    fn open_ex_params_default_save_profile_false() {
+        let p: BrowserOpenExParams =
+            serde_json::from_str(r#"{"url":"https://example.com"}"#).expect("parse open_ex params");
+        assert!(!p.save_profile);
+        assert!(matches!(p.mode, super::BrowserLaunchModeParam::Ephemeral));
+        assert!(p.headless);
+    }
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(deny_unknown_fields)]
 pub struct BrowserPageParams {

@@ -21,6 +21,18 @@ use crate::Orchestrator;
 use crate::types::TaskId;
 use crate::{CompletionAttestation, FileAffinity, TaskEnqueueHints, TaskPriority};
 
+fn ping_caller_role() -> &'static str {
+    match std::env::var("VOX_MCP_CALLER_ROLE")
+        .ok()
+        .as_deref()
+        .map(|s| s.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("human") => "human",
+        _ => "agent",
+    }
+}
+
 /// Strip optional `tcp://` prefix and whitespace.
 #[must_use]
 pub fn normalize_tcp_bind_addr(raw: &str) -> String {
@@ -380,6 +392,7 @@ pub async fn dispatch_request(
                 "repository_id": repository_id,
                 "protocol": "vox.orchestrator_daemon/v1",
                 "version": env!("CARGO_PKG_VERSION"),
+                "caller_role": ping_caller_role(),
             }),
         ),
         orch_daemon_method::WORKSPACE_JOURNEY => {
@@ -1369,6 +1382,13 @@ mod isolation_dispatch_tests {
             value.get("version").and_then(|v| v.as_str()),
             Some(env!("CARGO_PKG_VERSION")),
             "ping response must report the running daemon's own workspace version"
+        );
+        assert!(
+            matches!(
+                value.get("caller_role").and_then(|v| v.as_str()),
+                Some("human") | Some("agent")
+            ),
+            "ping must report caller_role so the GUI can refuse a non-human adopt"
         );
     }
 }

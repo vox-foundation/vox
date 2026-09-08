@@ -25,6 +25,42 @@ pub fn data_dir() -> Option<PathBuf> {
     Some(path)
 }
 
+/// Named Chromium profile roots (`{id}/` + `consents.json`).
+///
+/// `VOX_BROWSER_PROFILES_DIR` overrides; otherwise `<data_dir>/browser-profiles`.
+/// This is user data, not a Tier D cache.
+pub fn browser_profiles_dir() -> PathBuf {
+    resolve_browser_profiles_dir(
+        std::env::var("VOX_BROWSER_PROFILES_DIR").ok().as_deref(),
+        data_dir(),
+    )
+}
+
+fn resolve_browser_profiles_dir(override_dir: Option<&str>, data: Option<PathBuf>) -> PathBuf {
+    if let Some(dir) = override_dir
+        && !dir.is_empty()
+    {
+        return PathBuf::from(dir);
+    }
+    data.unwrap_or_else(|| std::env::temp_dir().join("vox"))
+        .join("browser-profiles")
+}
+
+/// True iff both sides canonicalize and `candidate` is under `root`.
+///
+/// Either canonicalize failure is a reject (no raw-path fallback). Uses
+/// `strip_prefix`, not `Path::starts_with`, so a sibling such as
+/// `profiles-evil` is not treated as inside `profiles`.
+pub fn cookie_import_path_ok(root: &Path, candidate: &Path) -> bool {
+    let Ok(root_cmp) = std::fs::canonicalize(root) else {
+        return false;
+    };
+    let Ok(cand_cmp) = std::fs::canonicalize(candidate) else {
+        return false;
+    };
+    cand_cmp.strip_prefix(&root_cmp).is_ok()
+}
+
 /// Default database path: `<data_dir>/vox.db`.
 pub fn default_db_path() -> Option<PathBuf> {
     data_dir().map(|d| d.join(DEFAULT_DB_FILENAME))
@@ -272,6 +308,54 @@ mod dot_vox_user_dir_tests {
             root.join("script-cache-wasi"),
             PathBuf::from("/mnt/vox-home/script-cache-wasi")
         );
+    }
+
+    #[test]
+    fn browser_profiles_dir_uses_override_env() {
+        // Explicit override arg avoids edition-2024 `set_var` (same style as
+        // `resolve_dot_vox_user_dir`). Empty override falls back under data_dir.
+        let override_dir = PathBuf::from("/tmp/vox-browser-profiles-override");
+        assert_eq!(
+            resolve_browser_profiles_dir(Some(override_dir.to_str().unwrap()), None),
+            override_dir
+        );
+        let data = PathBuf::from("/data/vox");
+        assert_eq!(
+            resolve_browser_profiles_dir(None, Some(data.clone())),
+            data.join("browser-profiles")
+        );
+        assert_eq!(
+            resolve_browser_profiles_dir(Some(""), Some(data.clone())),
+            data.join("browser-profiles")
+        );
+    }
+
+    #[test]
+    fn cookie_import_path_ok_rejects_sibling_prefix() {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let tmp = std::env::temp_dir().join(format!(
+            "vox-cookie-jail-config-{}-{nanos}",
+            std::process::id()
+        ));
+        let root = tmp.join("profiles");
+        let evil = tmp.join("profiles-evil");
+        let allowed_dir = root.join("staging-1");
+        std::fs::create_dir_all(&allowed_dir).expect("profiles/staging-1");
+        std::fs::create_dir_all(&evil).expect("profiles-evil");
+        let allowed = allowed_dir.join("cookies.json");
+        let sibling = evil.join("cookies.json");
+        std::fs::write(&allowed, b"[]").expect("write allowed cookies");
+        std::fs::write(&sibling, b"[]").expect("write sibling cookies");
+        assert!(cookie_import_path_ok(&root, &allowed));
+        assert!(!cookie_import_path_ok(
+            &root,
+            &std::env::temp_dir().join("steal.json")
+        ));
+        assert!(!cookie_import_path_ok(&root, &sibling));
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
 

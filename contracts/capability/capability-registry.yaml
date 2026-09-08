@@ -6072,6 +6072,22 @@ curated:
   mcp_tool: vox_browser_click
   cli_path: null
   parameters: null
+- id: mcp.vox_browser_click_ref
+  title: Browser Click Ref
+  description_human: null
+  description_model: Click an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_click_ref
+  cli_path: null
+  parameters: null
 - id: mcp.vox_browser_click_xy
   title: Browser Click Xy
   description_human: null
@@ -6102,6 +6118,38 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_browser_close
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_cookies_export
+  title: Browser Cookies Export
+  description_human: null
+  description_model: Export cookies to a file under the browser profiles directory. Returns count and path only — cookie values never appear in the MCP payload.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_cookies_export
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_cookies_import
+  title: Browser Cookies Import
+  description_human: null
+  description_model: Import cookies from a cookies.json file jailed under the browser profiles directory. MCP result has no cookie values.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_cookies_import
   cli_path: null
   parameters: null
 - id: mcp.vox_browser_extract
@@ -6150,6 +6198,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_browser_fill
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_fill_ref
+  title: Browser Fill Ref
+  description_human: null
+  description_model: Fill an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_fill_ref
   cli_path: null
   parameters: null
 - id: mcp.vox_browser_forward
@@ -6230,6 +6294,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_browser_open
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_open_ex
+  title: Browser Open Extended
+  description_human: null
+  description_model: Open a Chromium tab with launch mode ephemeral, named, or attach. Named mode requires save_profile or stored cookie consent. Empty VOX_BROWSER_ALLOWED_HOSTS with Named or Attach is an operator risk — set the var in production.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_open_ex
   cli_path: null
   parameters: null
 - id: mcp.vox_browser_page_info
@@ -6374,6 +6454,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_browser_set_viewport
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_snapshot
+  title: Browser Snapshot
+  description_human: null
+  description_model: Capture a compact accessibility snapshot with stable element refs for ref-based actions; use these refs instead of CSS selectors.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_snapshot
   cli_path: null
   parameters: null
 - id: mcp.vox_browser_stop
