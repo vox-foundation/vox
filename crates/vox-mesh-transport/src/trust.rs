@@ -16,6 +16,8 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, PoisonError};
 
 use anyhow::{Context as _, Result};
@@ -53,7 +55,20 @@ pub struct TrustedEndpoint {
 #[derive(Debug)]
 pub struct MeshTrust {
     path: PathBuf,
-    live: Mutex<HashMap<EndpointId, Vec<Connection>>>,
+    live: Mutex<HashMap<EndpointId, Vec<(u64, Connection)>>>,
+    next_registration: AtomicU64,
+}
+
+pub struct LiveRegistration {
+    trust: Arc<MeshTrust>,
+    id: EndpointId,
+    token: u64,
+}
+
+impl Drop for LiveRegistration {
+    fn drop(&mut self) {
+        self.trust.unregister(self.id, self.token);
+    }
 }
 
 impl MeshTrust {
@@ -63,6 +78,7 @@ impl MeshTrust {
         Self {
             path: path.to_path_buf(),
             live: Mutex::new(HashMap::new()),
+            next_registration: AtomicU64::new(1),
         }
     }
 
@@ -211,13 +227,43 @@ impl MeshTrust {
     }
 
     /// Record a live connection so [`MeshTrust::untrust`] can close it.
-    pub fn register(&self, id: EndpointId, conn: Connection) {
+    pub fn try_register(
+        self: &Arc<Self>,
+        id: EndpointId,
+        conn: Connection,
+        max_per_peer: usize,
+    ) -> Option<LiveRegistration> {
+        let token = self.next_registration.fetch_add(1, Ordering::Relaxed);
+        let mut live = self.live.lock().unwrap_or_else(PoisonError::into_inner);
+        let connections = live.entry(id).or_default();
+        if connections.len() >= max_per_peer {
+            return None;
+        }
+        connections.push((token, conn));
+        drop(live);
+        Some(LiveRegistration {
+            trust: Arc::clone(self),
+            id,
+            token,
+        })
+    }
+
+    fn unregister(&self, id: EndpointId, token: u64) {
+        let mut live = self.live.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(connections) = live.get_mut(&id) {
+            connections.retain(|(candidate, _)| *candidate != token);
+            if connections.is_empty() {
+                live.remove(&id);
+            }
+        }
+    }
+
+    pub fn registered_connections(&self, id: &EndpointId) -> usize {
         self.live
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .entry(id)
-            .or_default()
-            .push(conn);
+            .get(id)
+            .map_or(0, Vec::len)
     }
 
     fn take_live(&self, id: &EndpointId) -> Vec<Connection> {
@@ -226,6 +272,9 @@ impl MeshTrust {
             .unwrap_or_else(PoisonError::into_inner)
             .remove(id)
             .unwrap_or_default()
+            .into_iter()
+            .map(|(_, conn)| conn)
+            .collect()
     }
 }
 

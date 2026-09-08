@@ -210,6 +210,57 @@ async fn untrust_closes_a_live_connection() {
 }
 
 #[tokio::test]
+async fn idle_trusted_connections_release_handshake_permits() {
+    let server = start_server().await;
+    server.trust.trust(&client_id(), None).unwrap();
+    let client = client_endpoint(common::client_sk()).await;
+    let mut idle = Vec::new();
+    for _ in 0..64 {
+        idle.push(
+            client
+                .connect(server.addr.clone(), ALPN)
+                .await
+                .expect("idle trusted connection"),
+        );
+    }
+    let active = client
+        .connect(server.addr.clone(), ALPN)
+        .await
+        .expect("connection after idle peers");
+    let response = timeout(
+        Duration::from_secs(3),
+        send_request_on(&active, JobRequest::Probe),
+    )
+    .await
+    .expect("idle trusted connections must not consume handshake permits")
+    .expect("probe response");
+    assert!(matches!(response, JobResponse::Probed { .. }));
+    drop(idle);
+}
+
+#[tokio::test]
+async fn live_registration_is_removed_after_connection_handler_exits() {
+    let server = start_server().await;
+    server.trust.trust(&client_id(), None).unwrap();
+    let client = client_endpoint(common::client_sk()).await;
+    let conn = client
+        .connect(server.addr.clone(), ALPN)
+        .await
+        .expect("connect");
+    let response = send_request_on(&conn, JobRequest::Probe)
+        .await
+        .expect("probe response");
+    assert!(matches!(response, JobResponse::Probed { .. }));
+    timeout(Duration::from_secs(5), async {
+        while server.trust.registered_connections(&client_id()) != 0 {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("handler exit must unregister the live connection");
+}
+
+#[tokio::test]
 async fn a_payload_larger_than_the_cap_is_refused_before_any_transfer() {
     let server = start_server().await;
     server.trust.trust(&client_id(), None).unwrap();

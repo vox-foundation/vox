@@ -1,8 +1,8 @@
 use super::shell_stdlib::{
     interp_csv_parse, interp_csv_parse_records, interp_csv_render, interp_fs_list_dir_detailed,
-    interp_fs_stat, interp_io_open, interp_io_save, interp_process_run_capture_json,
-    interp_process_run_capture_lines, interp_toml_parse, interp_toml_render, interp_yaml_parse,
-    interp_yaml_render,
+    interp_fs_stat, interp_io_open, interp_io_save, interp_io_serialize,
+    interp_process_run_capture_json, interp_process_run_capture_lines, interp_toml_parse,
+    interp_toml_render, interp_yaml_parse, interp_yaml_render,
 };
 use super::value::VoxValue;
 use secrecy::ExposeSecret;
@@ -93,23 +93,24 @@ fn fs_unscoped(caps: &crate::eval::caps::CapabilitySet) -> bool {
         && caps.allows_path(std::path::Path::new("/"), false)
 }
 
-fn nearest_existing_ancestor(p: &std::path::Path) -> Option<std::path::PathBuf> {
-    let mut cur = if p.is_absolute() {
+fn resolve_through_existing_ancestor(p: &std::path::Path) -> Option<std::path::PathBuf> {
+    let mut current = if p.is_absolute() {
         p.to_path_buf()
     } else {
         std::env::current_dir().ok()?.join(p)
     };
-    loop {
-        if cur.as_os_str().is_empty() {
-            return None;
-        }
-        if cur.exists() {
-            return std::fs::canonicalize(&cur).ok();
-        }
-        if !cur.pop() {
+    let mut suffix = Vec::new();
+    while !current.exists() {
+        suffix.push(current.file_name()?.to_os_string());
+        if !current.pop() {
             return None;
         }
     }
+    let mut resolved = std::fs::canonicalize(current).ok()?;
+    for component in suffix.into_iter().rev() {
+        resolved.push(component);
+    }
+    Some(resolved)
 }
 
 fn fs_resolve_allowed(
@@ -134,23 +135,22 @@ fn fs_resolve_allowed(
     }
     let canon = match std::fs::canonicalize(p) {
         Ok(cp) => cp,
-        Err(_) => {
-            let parent = p.parent()?;
-            let lookup_parent = if parent.as_os_str().is_empty() {
-                std::path::Path::new(".")
-            } else {
-                parent
-            };
-            let anc = nearest_existing_ancestor(lookup_parent)?;
-            let suffix = if parent.as_os_str().is_empty() {
-                p
-            } else {
-                p.strip_prefix(parent).ok()?
-            };
-            anc.join(suffix)
-        }
+        Err(_) => resolve_through_existing_ancestor(p)?,
     };
     caps.allows_path(&canon, write).then_some(canon)
+}
+
+fn missing_path_components(path: &std::path::Path) -> usize {
+    let mut missing = 0;
+    let mut current = Some(path);
+    while let Some(component) = current {
+        if component.exists() {
+            break;
+        }
+        missing += 1;
+        current = component.parent();
+    }
+    missing
 }
 
 fn glob_dir_prefix(pat: &str) -> Option<&str> {
@@ -1426,7 +1426,7 @@ pub fn call_builtin_method(
                                 Some(VoxValue::Str(s)) => s,
                                 _ => return Some(VoxValue::Null),
                             };
-                            let files = usize::from(!std::path::Path::new(&*path).exists());
+                            let files = missing_path_components(std::path::Path::new(&*path));
                             if fs_quota
                                 .as_ref()
                                 .is_some_and(|quota| !quota.permits(0, files))
@@ -2207,9 +2207,28 @@ pub fn call_builtin_method(
                             return Some(VoxValue::_Denied("io.save".into()));
                         };
                         let j = vox_to_json(val);
+                        let serialized = match interp_io_serialize(&resolved.to_string_lossy(), &j)
+                        {
+                            Ok(data) => data,
+                            Err(e) => {
+                                return Some(VoxValue::Result(Err(crate::eval::value::err_str(e))));
+                            }
+                        };
+                        let files = usize::from(!resolved.exists());
+                        if fs_quota
+                            .as_ref()
+                            .is_some_and(|quota| !quota.permits(serialized.len(), files))
+                        {
+                            return Some(VoxValue::_Denied("fs.quota".into()));
+                        }
                         Some(VoxValue::Result(
                             match interp_io_save(&resolved.to_string_lossy(), &j) {
-                                Ok(()) => Ok(Box::new(VoxValue::Null)),
+                                Ok(()) => {
+                                    if let Some(quota) = fs_quota {
+                                        quota.charge(serialized.len(), files);
+                                    }
+                                    Ok(Box::new(VoxValue::Null))
+                                }
                                 Err(e) => Err(crate::eval::value::err_str(e)),
                             },
                         ))

@@ -457,6 +457,56 @@ fn fs_second_created_inode_over_file_quota_is_denied() {
 }
 
 #[test]
+fn io_save_over_disk_quota_is_denied_before_writing() {
+    let root = tempfile::tempdir().unwrap();
+    let caps = CapabilitySet::parse(&format!("fs:rw={}", root.path().display())).unwrap();
+    let path = root.path().join("saved.json");
+    let r = run_with_quota(
+        caps,
+        &format!(
+            r#"pub fn main() {{ return io.save("{}", [1, 2, 3]) }}"#,
+            path.display()
+        ),
+        Some(2),
+        Some(10),
+    );
+    assert!(
+        matches!(
+            r,
+            Err(EvalError::CapabilityDenied { ref ns, ref method })
+                if ns == "fs" && method == "quota"
+        ),
+        "{r:?}"
+    );
+    assert!(!path.exists());
+}
+
+#[test]
+fn recursive_mkdir_charges_every_missing_component_before_creation() {
+    let root = tempfile::tempdir().unwrap();
+    let caps = CapabilitySet::parse(&format!("fs:rw={}", root.path().display())).unwrap();
+    let nested = root.path().join("a").join("b").join("c");
+    let r = run_with_quota(
+        caps,
+        &format!(
+            r#"pub fn main() {{ return fs.mkdir("{}") }}"#,
+            nested.display()
+        ),
+        Some(1024),
+        Some(2),
+    );
+    assert!(
+        matches!(
+            r,
+            Err(EvalError::CapabilityDenied { ref ns, ref method })
+                if ns == "fs" && method == "quota"
+        ),
+        "{r:?}"
+    );
+    assert!(!root.path().join("a").exists());
+}
+
+#[test]
 fn glob_filters_results_not_only_the_prefix() {
     let d = tempfile::tempdir().unwrap();
     let job = d.path().join("job");

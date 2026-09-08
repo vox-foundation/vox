@@ -21,8 +21,9 @@
 //! [`JobLimits`](crate::protocol::JobLimits), and a mailbox message is four
 //! orders of magnitude smaller than a job payload.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
 
 use anyhow::{Context as _, Result};
 use iroh::endpoint::Connection;
@@ -42,6 +43,27 @@ pub const ALPN: &[u8] = b"vox/a2a/1";
 /// How long one peer gets to accept a message before the flush gives up on it
 /// and leaves the message queued.
 const DELIVER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+const PROTOCOL_IO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+
+static QUEUE_RESERVATIONS: OnceLock<Mutex<HashMap<PathBuf, Weak<Mutex<()>>>>> = OnceLock::new();
+
+fn reservation_for(dir: &Path) -> Arc<Mutex<()>> {
+    let key = if dir.is_absolute() {
+        dir.to_path_buf()
+    } else {
+        std::env::current_dir().unwrap_or_default().join(dir)
+    };
+    let mut reservations = QUEUE_RESERVATIONS
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    if let Some(existing) = reservations.get(&key).and_then(Weak::upgrade) {
+        return existing;
+    }
+    let reservation = Arc::new(Mutex::new(()));
+    reservations.insert(key, Arc::downgrade(&reservation));
+    reservation
+}
 
 /// Bounds applied to every mailbox message and to the queue itself.
 ///
@@ -53,10 +75,13 @@ pub struct MailboxLimits {
     /// Largest single message accepted, checked against the declared frame
     /// length before a body byte is read.
     pub max_message_bytes: usize,
+    pub max_inbox_bytes: u64,
+    pub max_inbox_entries: usize,
     /// How many messages may sit in the outbox before `queue` refuses. An
     /// unbounded outbox is a disk-filling bug that only shows up after a peer
     /// has been off for a week.
     pub max_outbox_depth: usize,
+    pub max_outbox_bytes: u64,
     /// Peers flushed concurrently. One dark peer must not delay the others, and
     /// eight machines is already more than this mesh's stated scope.
     pub max_inflight_peers: usize,
@@ -68,7 +93,10 @@ impl Default for MailboxLimits {
             // A2A payloads are JSON strings, not job bundles; the job plane's
             // 1 GiB cap would be a licence to fill the disk with mail.
             max_message_bytes: 4 * 1024 * 1024,
+            max_inbox_bytes: 64 * 1024 * 1024,
+            max_inbox_entries: 4096,
             max_outbox_depth: 4096,
+            max_outbox_bytes: 64 * 1024 * 1024,
             max_inflight_peers: 8,
         }
     }
@@ -172,17 +200,43 @@ fn slot_for(req: &A2ADeliverRequest) -> String {
 /// truncates and then writes, so a crash in between leaves a zero-byte file —
 /// here that is a message that was acked and is now unreadable, which is
 /// exactly the loss the ack ordering exists to prevent.
-fn write_atomically(path: &Path, req: &A2ADeliverRequest) -> Result<()> {
+fn serialized_request(req: &A2ADeliverRequest) -> Result<Vec<u8>> {
+    serde_json::to_vec_pretty(req).context("serializing mailbox message")
+}
+
+fn write_atomically(path: &Path, json: &[u8]) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("creating {}", parent.display()))?;
     }
-    let json = serde_json::to_vec_pretty(req).context("serializing mailbox message")?;
     let tmp = path.with_extension("tmp");
-    std::fs::write(&tmp, &json).with_context(|| format!("writing {}", tmp.display()))?;
+    std::fs::write(&tmp, json).with_context(|| format!("writing {}", tmp.display()))?;
     std::fs::rename(&tmp, path)
         .with_context(|| format!("renaming {} to {}", tmp.display(), path.display()))?;
     Ok(())
+}
+
+fn disk_usage(dir: &Path) -> (usize, u64) {
+    let Ok(peers) = std::fs::read_dir(dir) else {
+        return (0, 0);
+    };
+    peers
+        .flatten()
+        .flat_map(|peer| {
+            std::fs::read_dir(peer.path())
+                .into_iter()
+                .flatten()
+                .flatten()
+        })
+        .filter_map(|entry| {
+            let path = entry.path();
+            (path.extension().and_then(|x| x.to_str()) == Some("json"))
+                .then(|| entry.metadata().ok().map(|m| m.len()))
+                .flatten()
+        })
+        .fold((0, 0), |(entries, bytes), len| {
+            (entries + 1, bytes.saturating_add(len))
+        })
 }
 
 /// Every `*.json` under `dir`, ignoring what does not parse.
@@ -226,6 +280,7 @@ fn read_dir_messages(dir: &Path) -> Vec<(PathBuf, A2ADeliverRequest)> {
 pub struct Inbox {
     dir: PathBuf,
     limits: MailboxLimits,
+    reservation: Arc<Mutex<()>>,
 }
 
 impl Inbox {
@@ -237,6 +292,7 @@ impl Inbox {
         Self {
             dir: dir.to_path_buf(),
             limits,
+            reservation: reservation_for(dir),
         }
     }
 
@@ -255,6 +311,10 @@ impl Inbox {
     /// turns that into a refusal, and an ack sent over a failed write is how a
     /// store-and-forward system loses mail.
     pub fn store(&self, peer: &EndpointId, req: &A2ADeliverRequest) -> Result<bool> {
+        let _reservation = self
+            .reservation
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         let path = self
             .dir
             .join(peer.to_string())
@@ -262,7 +322,14 @@ impl Inbox {
         if path.exists() {
             return Ok(false);
         }
-        write_atomically(&path, req)?;
+        let json = serialized_request(req)?;
+        let (entries, bytes) = disk_usage(&self.dir);
+        if entries >= self.limits.max_inbox_entries
+            || bytes.saturating_add(json.len() as u64) > self.limits.max_inbox_bytes
+        {
+            anyhow::bail!("mesh inbox capacity exceeded");
+        }
+        write_atomically(&path, &json)?;
         Ok(true)
     }
 
@@ -304,6 +371,7 @@ impl Inbox {
 pub struct Outbox {
     dir: PathBuf,
     limits: MailboxLimits,
+    reservation: Arc<Mutex<()>>,
 }
 
 impl Outbox {
@@ -315,6 +383,7 @@ impl Outbox {
         Self {
             dir: dir.to_path_buf(),
             limits,
+            reservation: reservation_for(dir),
         }
     }
 
@@ -324,18 +393,30 @@ impl Outbox {
 
     /// Queue `req` for `peer`, durably, before anything is dialed.
     pub fn queue(&self, peer: &EndpointId, req: &A2ADeliverRequest) -> Result<()> {
-        if self.depth() >= self.limits.max_outbox_depth {
+        let _reservation = self
+            .reservation
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let path = self
+            .dir
+            .join(peer.to_string())
+            .join(format!("{}.json", slot_for(req)));
+        if path.exists() {
+            return Ok(());
+        }
+        let json = serialized_request(req)?;
+        let (depth, bytes) = disk_usage(&self.dir);
+        if depth >= self.limits.max_outbox_depth {
             anyhow::bail!(
                 "mesh outbox is full at {} messages; the peer has been unreachable long enough \
                  that queueing more would fill the disk",
                 self.limits.max_outbox_depth
             );
         }
-        let path = self
-            .dir
-            .join(peer.to_string())
-            .join(format!("{}.json", slot_for(req)));
-        write_atomically(&path, req)
+        if bytes.saturating_add(json.len() as u64) > self.limits.max_outbox_bytes {
+            anyhow::bail!("mesh outbox byte capacity exceeded");
+        }
+        write_atomically(&path, &json)
     }
 
     /// How many messages are queued for all peers.
@@ -487,11 +568,18 @@ pub async fn handle(
     inbox: Arc<Inbox>,
 ) -> Result<()> {
     let max = inbox.limits().max_message_bytes;
-    while let Ok((mut send, mut recv)) = conn.accept_bi().await {
-        let hello: Hello = protocol::read_frame(&mut recv, 4096).await?;
+    while let Ok(Ok((mut send, mut recv))) = timeout(PROTOCOL_IO_TIMEOUT, conn.accept_bi()).await {
+        let hello: Hello =
+            timeout(PROTOCOL_IO_TIMEOUT, protocol::read_frame(&mut recv, 4096)).await??;
         protocol::check_hello(&hello)?;
 
-        let framed = protocol::read_frame::<MailboxRequest>(&mut recv, max).await;
+        let framed = timeout(
+            PROTOCOL_IO_TIMEOUT,
+            protocol::read_frame::<MailboxRequest>(&mut recv, max),
+        )
+        .await
+        .map_err(anyhow::Error::from)
+        .and_then(|result| result);
         if framed.is_ok() && !trust.is_trusted(&peer) {
             // Re-checked per message, not only at accept: a connection opened
             // while trusted must stop being served the moment trust is revoked.
@@ -518,7 +606,7 @@ pub async fn handle(
     }
     // Awaiting `accept_bi` above is what keeps the connection alive long enough
     // for the last ack to reach the wire; `finish()` alone does not flush.
-    conn.closed().await;
+    let _ = timeout(PROTOCOL_IO_TIMEOUT, conn.closed()).await;
     Ok(())
 }
 
@@ -632,6 +720,88 @@ mod tests {
     }
 
     #[test]
+    fn inbox_refuses_entry_and_byte_overflow_but_accepts_duplicates() {
+        let d = tempfile::tempdir().unwrap();
+        let limits = MailboxLimits {
+            max_inbox_entries: 1,
+            max_inbox_bytes: 1024,
+            ..MailboxLimits::default()
+        };
+        let inbox = Inbox::with_limits(d.path(), limits);
+        assert!(inbox.store(&peer(), &req(Some("a"))).unwrap());
+        assert!(!inbox.store(&peer(), &req(Some("a"))).unwrap());
+        assert!(inbox.store(&peer(), &req(Some("b"))).is_err());
+
+        let d = tempfile::tempdir().unwrap();
+        let inbox = Inbox::with_limits(
+            d.path(),
+            MailboxLimits {
+                max_inbox_entries: 10,
+                max_inbox_bytes: 1,
+                ..MailboxLimits::default()
+            },
+        );
+        assert!(inbox.store(&peer(), &req(Some("large"))).is_err());
+        assert!(inbox.messages().is_empty());
+    }
+
+    #[test]
+    fn outbox_refuses_byte_overflow_and_full_queue_accepts_duplicate() {
+        let d = tempfile::tempdir().unwrap();
+        let outbox = Outbox::with_limits(
+            d.path(),
+            MailboxLimits {
+                max_outbox_depth: 1,
+                max_outbox_bytes: 1024,
+                ..MailboxLimits::default()
+            },
+        );
+        outbox.queue(&peer(), &req(Some("a"))).unwrap();
+        outbox.queue(&peer(), &req(Some("a"))).unwrap();
+        assert!(outbox.queue(&peer(), &req(Some("b"))).is_err());
+
+        let d = tempfile::tempdir().unwrap();
+        let outbox = Outbox::with_limits(
+            d.path(),
+            MailboxLimits {
+                max_outbox_depth: 10,
+                max_outbox_bytes: 1,
+                ..MailboxLimits::default()
+            },
+        );
+        assert!(outbox.queue(&peer(), &req(Some("large"))).is_err());
+        assert_eq!(outbox.depth(), 0);
+    }
+
+    #[test]
+    fn concurrent_inbox_writers_cannot_overbook_capacity() {
+        let d = tempfile::tempdir().unwrap();
+        let dir = d.path().to_path_buf();
+        let limits = MailboxLimits {
+            max_inbox_entries: 1,
+            ..MailboxLimits::default()
+        };
+        let barrier = Arc::new(std::sync::Barrier::new(8));
+        let mut threads = Vec::new();
+        for i in 0..8 {
+            let dir = dir.clone();
+            let barrier = Arc::clone(&barrier);
+            threads.push(std::thread::spawn(move || {
+                let inbox = Inbox::with_limits(&dir, limits);
+                barrier.wait();
+                inbox.store(&peer(), &req(Some(&format!("k{i}"))))
+            }));
+        }
+        let accepted = threads
+            .into_iter()
+            .map(|thread| thread.join().unwrap())
+            .filter(|result| matches!(result, Ok(true)))
+            .count();
+        assert_eq!(accepted, 1);
+        assert_eq!(Inbox::with_limits(&dir, limits).messages().len(), 1);
+    }
+
+    #[test]
     fn queue_writes_are_atomic_so_a_crash_cannot_leave_an_empty_message() {
         let d = tempfile::tempdir().unwrap();
         let outbox = Outbox::at(d.path());
@@ -663,7 +833,10 @@ mod tests {
     fn the_defaults_are_bounded() {
         let l = MailboxLimits::default();
         assert_eq!(l.max_message_bytes, 4 * 1024 * 1024);
+        assert!(l.max_inbox_entries > 0);
+        assert!(l.max_inbox_bytes > 0);
         assert_eq!(l.max_outbox_depth, 4096);
+        assert!(l.max_outbox_bytes > 0);
         assert_eq!(l.max_inflight_peers, 8);
     }
 

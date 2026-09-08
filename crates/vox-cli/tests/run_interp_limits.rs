@@ -144,6 +144,36 @@ fn memory_limit_exits_79() {
 }
 
 #[test]
+fn composite_result_rendering_cannot_escape_memory_accounting() {
+    let f = write(
+        "render-mem",
+        r#"pub fn main() { let s = "x".repeat(4194304); return [s, s, s, s, s, s, s, s] }"#,
+    );
+    let out = Command::new(vox())
+        .args([
+            "run",
+            "--mode",
+            "interp",
+            "--max-memory",
+            "16777216",
+            "--max-steps",
+            "10000",
+        ])
+        .arg(&f)
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(79),
+        "rendering escaped the allocator ceiling: status={:?}, stdout={} bytes, stderr={}",
+        out.status.code(),
+        out.stdout.len(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(String::from_utf8_lossy(&out.stderr).contains("memory limit exceeded"));
+}
+
+#[test]
 fn argv_is_the_scripts_own() {
     let f = write(
         "argv",

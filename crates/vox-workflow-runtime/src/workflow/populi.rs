@@ -139,7 +139,9 @@ async fn execute_mesh_dispatch(activity: &PopuliActivity) -> anyhow::Result<Valu
             activity.name
         ));
     };
-    match run_on_peer(ep, &peer, &source).await? {
+    let job_id = JobId(next_local_id());
+    let dispatch_timeout = std::time::Duration::from_millis(activity.timeout_ms.unwrap_or(300_000));
+    match run_on_peer_with_timeout(ep, &peer, &source, job_id, dispatch_timeout).await? {
         JobResponse::Output(bytes) => Ok(mesh_envelope(
             activity,
             "dispatch_ok",
@@ -168,6 +170,7 @@ async fn run_on_peer(
     ep: &iroh::Endpoint,
     peer: &PeerEntry,
     payload: &[u8],
+    job_id: JobId,
 ) -> anyhow::Result<JobResponse> {
     let mut addr = EndpointAddr::new(peer.endpoint_id);
     for a in &peer.addrs {
@@ -185,7 +188,7 @@ async fn run_on_peer(
     protocol::write_frame(
         &mut send,
         &JobRequest::Run {
-            job_id: JobId(next_local_id()),
+            job_id,
             kind,
             payload_bytes: payload.len() as u64,
         },
@@ -196,6 +199,51 @@ async fn run_on_peer(
     let resp = protocol::read_frame(&mut recv, 16 * 1024 * 1024).await?;
     conn.close(0u32.into(), b"asked");
     Ok(resp)
+}
+
+#[cfg(feature = "mens")]
+async fn run_on_peer_with_timeout(
+    ep: &iroh::Endpoint,
+    peer: &PeerEntry,
+    payload: &[u8],
+    job_id: JobId,
+    deadline: std::time::Duration,
+) -> anyhow::Result<JobResponse> {
+    match tokio::time::timeout(deadline, run_on_peer(ep, peer, payload, job_id)).await {
+        Ok(result) => result,
+        Err(_) => {
+            let _ = tokio::time::timeout(
+                std::time::Duration::from_secs(2),
+                cancel_on_peer(ep, peer, job_id),
+            )
+            .await;
+            Err(anyhow!(
+                "mesh dispatch job {} timed out after {} ms; cancellation requested",
+                job_id.0,
+                deadline.as_millis()
+            ))
+        }
+    }
+}
+
+#[cfg(feature = "mens")]
+async fn cancel_on_peer(
+    ep: &iroh::Endpoint,
+    peer: &PeerEntry,
+    job_id: JobId,
+) -> anyhow::Result<()> {
+    let mut addr = EndpointAddr::new(peer.endpoint_id);
+    for a in &peer.addrs {
+        addr = addr.with_ip_addr(*a);
+    }
+    let conn = ep.connect(addr, protocol::ALPN).await?;
+    let (mut send, mut recv) = conn.open_bi().await?;
+    protocol::write_frame(&mut send, &Hello::current()).await?;
+    protocol::write_frame(&mut send, &JobRequest::Cancel { job_id }).await?;
+    send.finish()?;
+    let _ = protocol::read_frame::<JobResponse>(&mut recv, 64 * 1024).await;
+    conn.close(0u32.into(), b"cancel requested");
+    Ok(())
 }
 
 /// `Wait` does not poll HTTP. The prior step's result keys stay on the envelope.
@@ -329,6 +377,8 @@ fn populi_op_json(op: PopuliHttpOp) -> &'static str {
 #[cfg(all(test, feature = "mens"))]
 mod tests {
     use super::*;
+    use std::time::Duration;
+    use vox_mesh_transport::TaskKind;
 
     fn activity(op: PopuliHttpOp) -> PopuliActivity {
         PopuliActivity {
@@ -421,5 +471,69 @@ mod tests {
             assert_ne!(control, "join_ok");
             assert_ne!(control, "heartbeat_ok");
         }
+    }
+
+    #[tokio::test]
+    async fn stalled_dispatch_times_out_and_cancels_the_same_job_id() {
+        let server = vox_mesh_transport::bind(iroh::SecretKey::generate())
+            .await
+            .unwrap();
+        let server_addr = server.addr();
+        let (requests_tx, mut requests_rx) = tokio::sync::mpsc::unbounded_channel();
+        tokio::spawn(async move {
+            while let Some(incoming) = server.accept().await {
+                let tx = requests_tx.clone();
+                tokio::spawn(async move {
+                    let conn = incoming.await.unwrap();
+                    let (mut send, mut recv) = conn.accept_bi().await.unwrap();
+                    let _: Hello = protocol::read_frame(&mut recv, 4096).await.unwrap();
+                    let request: JobRequest =
+                        protocol::read_frame(&mut recv, 64 * 1024).await.unwrap();
+                    if matches!(request, JobRequest::Run { .. }) {
+                        let _: Vec<u8> =
+                            protocol::read_frame(&mut recv, 1024 * 1024).await.unwrap();
+                        tx.send(request).unwrap();
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                    } else {
+                        tx.send(request).unwrap();
+                        protocol::write_frame(&mut send, &JobResponse::Failed("cancelled".into()))
+                            .await
+                            .unwrap();
+                        send.finish().unwrap();
+                    }
+                });
+            }
+        });
+
+        let client = vox_mesh_transport::bind(iroh::SecretKey::generate())
+            .await
+            .unwrap();
+        let peer = PeerEntry {
+            endpoint_id: server_addr.id,
+            label: None,
+            host_triple: "test".into(),
+            vox: "test".into(),
+            task_kinds: vec![TaskKind::VoxScript],
+            addrs: server_addr.ip_addrs().copied().collect(),
+        };
+        let job_id = JobId(77);
+        let err = run_on_peer_with_timeout(
+            &client,
+            &peer,
+            b"pub fn main() {}",
+            job_id,
+            Duration::from_millis(100),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.to_string().contains("timed out"), "{err}");
+        assert!(matches!(
+            requests_rx.recv().await,
+            Some(JobRequest::Run { job_id: id, .. }) if id == job_id
+        ));
+        assert!(matches!(
+            requests_rx.recv().await,
+            Some(JobRequest::Cancel { job_id: id }) if id == job_id
+        ));
     }
 }

@@ -33,3 +33,4 @@ pub use interp_executor::InterpExecutor;
 pub use mailbox::{Inbox, MailboxLimits, Outbox};
 pub use protocol::{ALPN, Hello, Isolation, JobId, JobLimits, JobRequest, PROTO, check_hello};
 pub use trust::{MeshTrust, TrustLevel, TrustedEndpoint};
+pub use vox_mesh_types::TaskKind;

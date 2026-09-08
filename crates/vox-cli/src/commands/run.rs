@@ -134,7 +134,6 @@ async fn run_interp(
         interpreter.flush_exit_commands();
         exit_interrupted();
     }
-    crate::mem_limit::disarm();
     // Only print the return value when it's meaningful (non-Null). Suppresses
     // the spurious trailing `Null` that scripts using bare `return;` produced.
     // Use the value's *display* form (e.g. `ok`), not Debug (`Str("ok")`), so
@@ -144,6 +143,7 @@ async fn run_interp(
     }
 
     interpreter.flush_exit_commands();
+    crate::mem_limit::disarm();
     Ok(())
 }
 

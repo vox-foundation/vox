@@ -20,6 +20,9 @@ use crate::trust::MeshTrust;
 /// spoofed source and the CPU.
 const MAX_INFLIGHT_HANDSHAKES: usize = 64;
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+const PROTOCOL_IO_TIMEOUT: Duration = Duration::from_secs(15);
+const FINAL_CLOSE_TIMEOUT: Duration = Duration::from_secs(1);
+const MAX_CONNECTIONS_PER_PEER: usize = 128;
 /// Once this many permits are in use, make new sources prove reachability
 /// before we spend a handshake on them.
 const RETRY_THRESHOLD: usize = 32;
@@ -144,7 +147,6 @@ pub async fn serve(
         };
         let (trust, exec, mailbox) = (Arc::clone(&trust), Arc::clone(&exec), mailbox.clone());
         tokio::spawn(async move {
-            let _permit = permit;
             // Awaiting `incoming` completes the handshake, so `remote_id()`
             // below is the peer's *proven* public key. Never call
             // `Accepting::into_0rtt()`: there `remote_id()` is fallible and
@@ -152,6 +154,7 @@ pub async fn serve(
             let Ok(Ok(conn)) = timeout(HANDSHAKE_TIMEOUT, incoming).await else {
                 return;
             };
+            drop(permit);
             let remote = conn.remote_id();
             if !trust.is_trusted(&remote) {
                 // No protocol-level explanation to a stranger — it would be an
@@ -159,13 +162,18 @@ pub async fn serve(
                 conn.close(REFUSED_UNTRUSTED.into(), b"not trusted");
                 return;
             }
-            trust.register(remote, conn.clone());
+            let Some(_registration) =
+                trust.try_register(remote, conn.clone(), MAX_CONNECTIONS_PER_PEER)
+            else {
+                conn.close(REFUSED_UNTRUSTED.into(), b"peer connection limit");
+                return;
+            };
             // Dispatch on the negotiated ALPN. Mail is not a JobRequest
             // variant: it is handed over and forgotten, where a job is a
             // question whose answer the caller waits for.
             let outcome = if conn.alpn() == mailbox::ALPN {
                 match mailbox {
-                    Some(inbox) => mailbox::handle(conn, remote, trust, inbox).await,
+                    Some(inbox) => mailbox::handle(conn, remote, Arc::clone(&trust), inbox).await,
                     None => {
                         conn.close(REFUSED_NO_MAILBOX.into(), b"no mailbox configured");
                         Ok(())
@@ -183,9 +191,10 @@ pub async fn serve(
 
 /// Serve one connection: greet, check the payload claim, execute, reply.
 async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) -> Result<()> {
-    let (mut send, mut recv) = conn.accept_bi().await?;
+    let (mut send, mut recv) = timeout(PROTOCOL_IO_TIMEOUT, conn.accept_bi()).await??;
 
-    let hello: protocol::Hello = protocol::read_frame(&mut recv, 4096).await?;
+    let hello: protocol::Hello =
+        timeout(PROTOCOL_IO_TIMEOUT, protocol::read_frame(&mut recv, 4096)).await??;
     if let Err(e) = protocol::check_hello(&hello) {
         protocol::write_frame(&mut send, &JobResponse::Failed(e.to_string())).await?;
         send.finish()?;
@@ -193,11 +202,15 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
         // peer's application. Wait briefly for the FIN (or give up) first.
         let _ = timeout(Duration::from_millis(200), send.stopped()).await;
         conn.close(REFUSED_PROTO.into(), b"proto mismatch");
-        conn.closed().await;
+        let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;
         return Ok(());
     }
 
-    let request: JobRequest = protocol::read_frame(&mut recv, 64 * 1024).await?;
+    let request: JobRequest = timeout(
+        PROTOCOL_IO_TIMEOUT,
+        protocol::read_frame(&mut recv, 64 * 1024),
+    )
+    .await??;
     let limits = JobLimits::default();
 
     // Checked BEFORE the transfer, so an oversized job costs us a frame rather
@@ -214,11 +227,12 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
             let msg = format!("payload of {payload_bytes} bytes exceeds the {cap} byte cap");
             protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
             send.finish()?;
-            conn.closed().await;
+            let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;
             return Ok(());
         }
         let max = usize::try_from(payload_bytes.saturating_add(8)).unwrap_or(usize::MAX);
-        let p: Vec<u8> = protocol::read_frame(&mut recv, max).await?;
+        let p: Vec<u8> =
+            timeout(PROTOCOL_IO_TIMEOUT, protocol::read_frame(&mut recv, max)).await??;
         if p.len() as u64 != *payload_bytes {
             let msg = format!(
                 "payload length {} does not match the declared claim of {payload_bytes} bytes",
@@ -226,7 +240,7 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
             );
             protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
             send.finish()?;
-            conn.closed().await;
+            let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;
             return Ok(());
         }
         p
@@ -250,7 +264,7 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
     // Connection here would close it before the bytes reach the wire and the
     // peer would see `closed by peer: 0` with no payload. Measured during the
     // Task 0.2 spike; see ADR-047.
-    conn.closed().await;
+    let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;
     Ok(())
 }
 
