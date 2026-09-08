@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { LanguageProvider } from '../../../hooks/useLanguage';
+import { __resetBackendAvailabilityForTests } from '../../../lib/backendGuard';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('../../../transport', () => ({
@@ -14,6 +15,11 @@ vi.mock('../../../transport', () => ({
 import { BrowserView, mapClickToViewport } from './BrowserView';
 
 describe('BrowserView component', () => {
+  afterEach(() => {
+    (globalThis as { __TAURI_INTERNALS__?: object }).__TAURI_INTERNALS__ ??= {};
+    __resetBackendAvailabilityForTests();
+  });
+
   it('renders the view tabs as a tablist with aria-selected', () => {
     render(<LanguageProvider><BrowserView pushToast={() => {}} /></LanguageProvider>);
     const tablist = screen.getByRole('tablist', { name: /browser view/i });
@@ -27,6 +33,15 @@ describe('BrowserView component', () => {
     for (const b of screen.getAllByRole('button')) {
       expect(b.getAttribute('type')).toBe('button');
     }
+  });
+
+  it('start preview without a backend keeps controls enabled', () => {
+    delete (globalThis as { __TAURI_INTERNALS__?: object }).__TAURI_INTERNALS__;
+    __resetBackendAvailabilityForTests();
+    render(<LanguageProvider><BrowserView pushToast={() => {}} /></LanguageProvider>);
+    fireEvent.click(screen.getByRole('button', { name: /start preview/i }));
+    expect(screen.getByRole('button', { name: /start preview/i }).hasAttribute('disabled')).toBe(false);
+    expect(screen.getByText(/source=iframe/)).toBeDefined();
   });
 });
 

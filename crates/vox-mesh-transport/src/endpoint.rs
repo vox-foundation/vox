@@ -79,7 +79,8 @@ pub fn inbound_firewall_advice(program: &std::path::Path) -> Option<String> {
 /// Non-Windows hosts do not gate inbound traffic per application by default.
 #[cfg(not(windows))]
 pub fn inbound_firewall_advice(_program: &std::path::Path) -> Option<String> {
-    None
+    const NON_WINDOWS_FIREWALL_ADVICE: Option<String> = None;
+    NON_WINDOWS_FIREWALL_ADVICE
 }
 
 /// The default executor: answers `Probe`, and **refuses `Run`**.
@@ -191,17 +192,17 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
 
     // Checked BEFORE the transfer, so an oversized job costs us a frame rather
     // than a gigabyte of disk.
-    if let JobRequest::Run { payload_bytes, .. } = &request {
-        if *payload_bytes > limits.max_payload_bytes {
-            let msg = format!(
-                "payload of {payload_bytes} bytes exceeds the {} byte cap",
-                limits.max_payload_bytes
-            );
-            protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
-            send.finish()?;
-            conn.closed().await;
-            return Ok(());
-        }
+    if let JobRequest::Run { payload_bytes, .. } = &request
+        && *payload_bytes > limits.max_payload_bytes
+    {
+        let msg = format!(
+            "payload of {payload_bytes} bytes exceeds the {} byte cap",
+            limits.max_payload_bytes
+        );
+        protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
+        send.finish()?;
+        conn.closed().await;
+        return Ok(());
     }
 
     let response = exec

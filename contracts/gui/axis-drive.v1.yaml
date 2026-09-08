@@ -1,0 +1,38 @@
+# contracts/gui/axis-drive.v1.yaml
+# SSOT for Axis Drive verbs, set keys, and error codes.
+# clutch/risk values MUST match contracts/gui/drive-console.v1.yaml (parity test).
+version: 1
+name: axis-drive
+listener_verbs: [health, ping, set, send, state, show]
+cli_only_verbs: [wait, start, stop, headless]
+planes: [live, headless]
+bind: 127.0.0.1
+health_service: vox-gui-drive
+set_keys:
+  model_override: { type: string, alias: pin }
+  pin_policy: { type: enum, values: [fail, coerce], default: fail }
+  execution: { type: enum, values: [sync, background, plan] }
+  tier: { type: string }
+  clutch: { type: enum, values: [free, efficiency, balanced, genius] }
+  risk: { type: enum, values: [high, moderate, low] }
+  grounding_check_enabled: { type: bool }
+  active_skill: { type: string, nullable: true }
+  skill_exclusions: { type: string_list }
+  session_id: { type: string }
+  chat_session_id: { type: string }
+  priority: { type: string }
+  dry_run: { type: bool }
+  allow_duplicate: { type: bool }
+  mode: { type: enum, values: [plan, act, verify] }
+  context_files: { type: string_list }
+  refresh_catalog: { type: bool, action: true }
+errors:
+  unknown_key: 400
+  empty_text: 400
+  model_not_selectable: 409
+  unauthorized: 401
+  send_in_flight: 409
+# pin_policy: fail is Drive-only and stricter than the click path
+# (ChatModelPicker does not 409 an unselectable pin).
+drive_only_stricter_than_click:
+  - pin_policy_fail_409

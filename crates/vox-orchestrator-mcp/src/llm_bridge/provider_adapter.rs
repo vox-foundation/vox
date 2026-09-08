@@ -234,6 +234,8 @@ struct VoxLocalGenerateRequest {
     prompt: String,
     validate: bool,
     max_retries: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    model: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -278,6 +280,7 @@ impl ProviderAdapter for VoxLocalAdapter {
                 prompt,
                 validate: true,
                 max_retries: 3,
+                model: Some(model.id.clone()),
             };
             let resp = client
                 .post(&endpoint)
@@ -315,7 +318,7 @@ impl ProviderAdapter for VoxLocalAdapter {
                 );
             }
 
-            // Token counts are not reported by the 7863 server; estimate from byte length.
+            // Token counts are not reported by the local serve; estimate from byte length.
             let approx_tokens = (parsed.code.len() / 4) as u32;
             Ok(ProviderInferResult {
                 text: parsed.code,
@@ -433,5 +436,18 @@ mod tests {
     fn anthropic_tools_guard_passes_without_tools() {
         let req = make_infer_request(None, None);
         assert!(anthropic_tools_guard(&req).is_ok());
+    }
+
+    #[test]
+    fn vox_local_generate_request_posts_the_catalog_id() {
+        let body = VoxLocalGenerateRequest {
+            prompt: "fn main() {}".into(),
+            validate: true,
+            max_retries: 3,
+            model: Some("mens/e2e-smoke-metal".into()),
+        };
+        let v = serde_json::to_value(&body).expect("serialize");
+        assert_eq!(v["model"], "mens/e2e-smoke-metal");
+        assert_eq!(v["prompt"], "fn main() {}");
     }
 }

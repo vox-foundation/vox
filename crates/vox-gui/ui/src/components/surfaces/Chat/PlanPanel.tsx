@@ -98,7 +98,7 @@ export function PlanPanel({ planSessionId, planVersion, nodes, onDiscard }: Plan
 
   if (!planSessionId || planVersion == null) {
     return (
-      <div data-testid="plan-panel" className="p-2">
+      <div data-testid="plan-panel" className="[&_.py-16]:py-6 p-2">
         <EmptyState
           title="No to-dos yet"
           description="Start a task to see its to-do list here."

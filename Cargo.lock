@@ -17548,6 +17548,7 @@ dependencies = [
  "dirs",
  "hound",
  "ignore",
+ "libc",
  "portable-pty",
  "rmp-serde",
  "serde",
@@ -19306,6 +19307,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "vox-plugin-catalog",
+ "windows-sys 0.59.0",
  "workspace-hack",
  "zip 2.4.2",
 ]

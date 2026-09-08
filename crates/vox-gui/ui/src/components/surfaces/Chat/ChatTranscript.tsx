@@ -40,9 +40,14 @@ export function MessageBubble({
       id={`msg-${message.id}`}
       className={`max-w-[80%] rounded-xl border px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap wrap-break-word ${tone}`}
     >
-      {!isSystem && (
+      {!isSystem && isUser && (
+        <div className="sr-only mb-0.5 font-mono text-[9px] uppercase tracking-wide text-text-muted">
+          You
+        </div>
+      )}
+      {!isSystem && !isUser && !message.modelId && (
         <div className="mb-0.5 font-mono text-[9px] uppercase tracking-wide text-text-muted">
-          {isUser ? 'You' : 'Assistant'}
+          Assistant
         </div>
       )}
       {message.text}

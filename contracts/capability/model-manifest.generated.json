@@ -4619,6 +4619,188 @@
       "curated": true
     },
     {
+      "capability_id": "cli.gui",
+      "cli_path": [
+        "gui"
+      ],
+      "implicit": false,
+      "title": "Gui",
+      "description_model": "CLI operation `vox gui` — launch Axis or drive a dedicated debug Axis",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive",
+      "cli_path": [
+        "gui",
+        "drive"
+      ],
+      "implicit": false,
+      "title": "Gui Drive",
+      "description_model": "CLI operation `vox gui drive` — Axis Drive control plane",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive.headless",
+      "cli_path": [
+        "gui",
+        "drive",
+        "headless"
+      ],
+      "implicit": false,
+      "title": "Gui Drive Headless",
+      "description_model": "CLI operation `vox gui drive headless`",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive.headless.send",
+      "cli_path": [
+        "gui",
+        "drive",
+        "headless",
+        "send"
+      ],
+      "implicit": false,
+      "title": "Gui Drive Headless Send",
+      "description_model": "CLI operation `vox gui drive headless send`",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive.headless.set",
+      "cli_path": [
+        "gui",
+        "drive",
+        "headless",
+        "set"
+      ],
+      "implicit": false,
+      "title": "Gui Drive Headless Set",
+      "description_model": "CLI operation `vox gui drive headless set`",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive.headless.state",
+      "cli_path": [
+        "gui",
+        "drive",
+        "headless",
+        "state"
+      ],
+      "implicit": false,
+      "title": "Gui Drive Headless State",
+      "description_model": "CLI operation `vox gui drive headless state`",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive.send",
+      "cli_path": [
+        "gui",
+        "drive",
+        "send"
+      ],
+      "implicit": false,
+      "title": "Gui Drive Send",
+      "description_model": "CLI operation `vox gui drive send`",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive.set",
+      "cli_path": [
+        "gui",
+        "drive",
+        "set"
+      ],
+      "implicit": false,
+      "title": "Gui Drive Set",
+      "description_model": "CLI operation `vox gui drive set`",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive.show",
+      "cli_path": [
+        "gui",
+        "drive",
+        "show"
+      ],
+      "implicit": false,
+      "title": "Gui Drive Show",
+      "description_model": "CLI operation `vox gui drive show`",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive.start",
+      "cli_path": [
+        "gui",
+        "drive",
+        "start"
+      ],
+      "implicit": false,
+      "title": "Gui Drive Start",
+      "description_model": "CLI operation `vox gui drive start`",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive.state",
+      "cli_path": [
+        "gui",
+        "drive",
+        "state"
+      ],
+      "implicit": false,
+      "title": "Gui Drive State",
+      "description_model": "CLI operation `vox gui drive state`",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive.stop",
+      "cli_path": [
+        "gui",
+        "drive",
+        "stop"
+      ],
+      "implicit": false,
+      "title": "Gui Drive Stop",
+      "description_model": "CLI operation `vox gui drive stop`",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.gui.drive.wait",
+      "cli_path": [
+        "gui",
+        "drive",
+        "wait"
+      ],
+      "implicit": false,
+      "title": "Gui Drive Wait",
+      "description_model": "CLI operation `vox gui drive wait`",
+      "scope_kind": "session",
+      "reversible": false,
+      "curated": true
+    },
+    {
       "capability_id": "cli.harness",
       "cli_path": [
         "harness"

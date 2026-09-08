@@ -308,3 +308,48 @@ fn parse_ci_retirement_audit() {
         }
     ));
 }
+
+#[cfg(feature = "gui")]
+#[test]
+fn parse_gui_command_flag_still_works() {
+    with_cli_parse_stack(|| {
+        VoxCliRoot::try_parse_from(["vox", "gui", "--command", "chat"]).expect("gui --command");
+    });
+}
+
+#[cfg(feature = "gui")]
+#[test]
+fn parse_gui_drive_start() {
+    with_cli_parse_stack(|| {
+        VoxCliRoot::try_parse_from(["vox", "gui", "drive", "start"]).expect("gui drive start");
+    });
+}
+
+#[cfg(feature = "gui")]
+#[test]
+fn catalog_includes_gui_drive_paths() {
+    with_cli_parse_stack(|| {
+        let cat = vox_cli::command_catalog::build_catalog();
+        let paths: Vec<String> = cat.entries.iter().map(|e| e.path.join("/")).collect();
+        for required in [
+            "gui",
+            "gui/drive",
+            "gui/drive/start",
+            "gui/drive/set",
+            "gui/drive/send",
+            "gui/drive/state",
+            "gui/drive/wait",
+            "gui/drive/stop",
+            "gui/drive/show",
+            "gui/drive/headless",
+            "gui/drive/headless/state",
+            "gui/drive/headless/set",
+            "gui/drive/headless/send",
+        ] {
+            assert!(
+                paths.iter().any(|p| p == required),
+                "missing catalog path {required}"
+            );
+        }
+    });
+}

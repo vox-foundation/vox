@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -20,7 +20,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   }),
 }));
 
-import { ChatExecutionRail } from './ChatExecutionRail';
+import { ChatExecutionRail, sessionSpendSeriesKey } from './ChatExecutionRail';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 
 const sampleKpis = {
@@ -32,6 +32,12 @@ const sampleKpis = {
 describe('ChatExecutionRail', () => {
   beforeEach(() => {
     localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.removeItem('vox.metric.series.v1.chat.session-spend');
+    localStorage.removeItem('vox.metric.series.v1.chat.session-spend.sess-a');
+    localStorage.removeItem('vox.metric.series.v1.chat.session-spend.sess-b');
   });
 
   it('renders task list section with aria-label Active tasks', () => {
@@ -217,6 +223,44 @@ describe('ChatExecutionRail', () => {
     expect(screen.queryByRole('button', { name: /expand execution rail/i })).toBeNull();
   });
 
+  it('lists live agents and opens topology from the roster', async () => {
+    const onNavigate = vi.fn();
+    const onOpenAgent = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={onNavigate}
+          onOpenAgent={onOpenAgent}
+          agents={[
+            {
+              id: 'a1',
+              codename: 'Falcon',
+              phase: 'Executing',
+              progress: 0.4,
+              task: 'compile crate',
+              cost: 0.1,
+              budget: 2,
+              eta: '1m',
+            },
+          ]}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(screen.getByRole('region', { name: /agent shards/i })).toBeInTheDocument();
+    expect(screen.getByText('Falcon')).toBeInTheDocument();
+    expect(screen.getByText('compile crate')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /open topology/i }));
+    expect(onNavigate).toHaveBeenCalledWith('flow');
+
+    await user.click(screen.getByRole('button', { name: /falcon/i }));
+    expect(onOpenAgent).toHaveBeenCalledWith('a1');
+  });
+
   it('renders ContextWindowMeter after budget loads', async () => {
     const defaultProps = {
       tasks: [],
@@ -226,6 +270,178 @@ describe('ChatExecutionRail', () => {
     render(<LanguageProvider><ChatExecutionRail {...defaultProps} /></LanguageProvider>);
     await waitFor(() => {
       expect(screen.getByRole('meter')).toBeInTheDocument();
+    });
+  });
+
+  it('renders Agents and Queue as compact segments, not KPI cards with metric rules', () => {
+    const { container } = render(
+      <LanguageProvider>
+        <ChatExecutionRail tasks={[]} kpis={sampleKpis} onNavigate={vi.fn()} />
+      </LanguageProvider>,
+    );
+    const rail = screen.getByRole('complementary', { name: /execution rail/i });
+    expect(rail.querySelector('.vox-metric-rule')).toBeNull();
+    expect(screen.getByTestId('execution-rail-agents').className).toMatch(/text-\[10px\]/);
+  });
+
+  it('shows a session-spend spark after sessionSpentUsd changes', async () => {
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatExecutionRail tasks={[]} kpis={sampleKpis} onNavigate={vi.fn()} sessionSpentUsd={0.1} />
+      </LanguageProvider>,
+    );
+    rerender(
+      <LanguageProvider>
+        <ChatExecutionRail tasks={[]} kpis={sampleKpis} onNavigate={vi.fn()} sessionSpentUsd={0.4} />
+      </LanguageProvider>,
+    );
+    expect(await screen.findByTestId('execution-rail-spend-spark')).toBeInTheDocument();
+  });
+
+  it('keys the session-spend series by session id and does not blend a switch', async () => {
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-a"
+          sessionSpentUsd={0.1}
+        />
+      </LanguageProvider>,
+    );
+    rerender(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-a"
+          sessionSpentUsd={0.4}
+        />
+      </LanguageProvider>,
+    );
+    expect(await screen.findByTestId('execution-rail-spend-spark')).toBeInTheDocument();
+    expect(screen.getByTestId('execution-rail-session')).toHaveTextContent('$0.40');
+    const keyA = `vox.metric.series.v1.${sessionSpendSeriesKey('sess-a')}`;
+    expect(localStorage.getItem(keyA)).toContain('0.4');
+
+    rerender(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-b"
+          sessionSpentUsd={0.05}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByTestId('execution-rail-session')).toHaveTextContent('$0.05');
+    expect(screen.queryByTestId('execution-rail-spend-spark')).toBeNull();
+    expect(localStorage.getItem(keyA)).toContain('0.4');
+  });
+
+  it('drops a late context-budget response from the previous session', async () => {
+    let resolveA!: (value: typeof mockBudget) => void;
+    const delayedA = new Promise<typeof mockBudget>((resolve) => {
+      resolveA = resolve;
+    });
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockImplementation((cmd: string, args?: { sessionId?: string }) => {
+      if (cmd === 'get_context_budget') {
+        if (args?.sessionId === 'sess-a') return delayedA;
+        return Promise.resolve({
+          ...mockBudget,
+          max_context_tokens: 1000,
+          reserved_tokens: 0,
+          threshold_tokens: 800,
+          usable_tokens: 1000,
+          used_tokens: 10,
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-a"
+        />
+      </LanguageProvider>,
+    );
+    rerender(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-b"
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('10');
+    });
+    resolveA({
+      ...mockBudget,
+      max_context_tokens: 1000,
+      reserved_tokens: 0,
+      threshold_tokens: 800,
+      usable_tokens: 1000,
+      used_tokens: 900,
+    });
+    await Promise.resolve();
+    expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('10');
+  });
+
+  it('hides the context meter when the new session budget fetch fails', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockImplementation((cmd: string, args?: { sessionId?: string }) => {
+      if (cmd === 'get_context_budget') {
+        if (args?.sessionId === 'sess-a') {
+          return Promise.resolve({
+            ...mockBudget,
+            max_context_tokens: 1000,
+            reserved_tokens: 0,
+            threshold_tokens: 800,
+            usable_tokens: 1000,
+            used_tokens: 900,
+          });
+        }
+        return Promise.reject(new Error('daemon down'));
+      }
+      return Promise.resolve(null);
+    });
+
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-a"
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('900');
+    });
+    rerender(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          kpis={sampleKpis}
+          onNavigate={vi.fn()}
+          sessionId="sess-b"
+        />
+      </LanguageProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole('meter')).toBeNull();
     });
   });
 

@@ -14281,6 +14281,32 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: gui
+  title: Gui
+  description: CLI operation `vox gui` — launch Axis or drive a dedicated debug Axis
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    status: active
+    latin_ns: gui
+    handler_rust: commands::gui
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: gui.components
   title: GUI Component Registry
   description: Retrieve the components registered in the primitive component registry.
@@ -14301,6 +14327,344 @@ operations:
     http_read_role_eligible: true
     tier: core
   cli: null
+- id: gui.drive
+  title: Gui Drive
+  description: CLI operation `vox gui drive` — Axis Drive control plane
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    status: active
+    latin_ns: gui
+    handler_rust: commands::gui::drive
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: gui.drive.headless
+  title: Gui Drive Headless
+  description: CLI operation `vox gui drive headless`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    - headless
+    status: active
+    latin_ns: gui
+    handler_rust: null
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: gui.drive.headless.send
+  title: Gui Drive Headless Send
+  description: CLI operation `vox gui drive headless send`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    - headless
+    - send
+    status: active
+    latin_ns: gui
+    handler_rust: null
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: gui.drive.headless.set
+  title: Gui Drive Headless Set
+  description: CLI operation `vox gui drive headless set`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    - headless
+    - set
+    status: active
+    latin_ns: gui
+    handler_rust: null
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: gui.drive.headless.state
+  title: Gui Drive Headless State
+  description: CLI operation `vox gui drive headless state`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    - headless
+    - state
+    status: active
+    latin_ns: gui
+    handler_rust: null
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: gui.drive.send
+  title: Gui Drive Send
+  description: CLI operation `vox gui drive send`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    - send
+    status: active
+    latin_ns: gui
+    handler_rust: null
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: gui.drive.set
+  title: Gui Drive Set
+  description: CLI operation `vox gui drive set`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    - set
+    status: active
+    latin_ns: gui
+    handler_rust: null
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: gui.drive.show
+  title: Gui Drive Show
+  description: CLI operation `vox gui drive show`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    - show
+    status: active
+    latin_ns: gui
+    handler_rust: null
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: gui.drive.start
+  title: Gui Drive Start
+  description: CLI operation `vox gui drive start`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    - start
+    status: active
+    latin_ns: gui
+    handler_rust: null
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: gui.drive.state
+  title: Gui Drive State
+  description: CLI operation `vox gui drive state`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    - state
+    status: active
+    latin_ns: gui
+    handler_rust: null
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: gui.drive.stop
+  title: Gui Drive Stop
+  description: CLI operation `vox gui drive stop`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    - stop
+    status: active
+    latin_ns: gui
+    handler_rust: null
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: gui.drive.wait
+  title: Gui Drive Wait
+  description: CLI operation `vox gui drive wait`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - gui
+    - drive
+    - wait
+    status: active
+    latin_ns: gui
+    handler_rust: null
+    feature_gate: gui
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: gui.tokens
   title: GUI Design Tokens
   description: Retrieve design tokens in W3C DTCG format.

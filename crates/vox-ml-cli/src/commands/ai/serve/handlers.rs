@@ -7,6 +7,8 @@ use super::schema::{Choice, GenerateRequest, GenerateResponse};
 #[cfg(feature = "execution-api")]
 use super::worker::InferenceRequest;
 #[cfg(feature = "execution-api")]
+use crate::commands::ai::model_id::mismatched_model_error;
+#[cfg(feature = "execution-api")]
 use axum::{
     Json,
     extract::State,
@@ -21,7 +23,7 @@ use std::convert::Infallible;
 #[cfg(feature = "execution-api")]
 use std::sync::Arc;
 #[cfg(feature = "execution-api")]
-use tokio_stream::{Stream, StreamExt, wrappers::ReceiverStream};
+use tokio_stream::{StreamExt, wrappers::ReceiverStream};
 #[cfg(feature = "execution-api")]
 use vox_corpus::corpus::structured_eval::StructuredFailReason;
 
@@ -77,14 +79,21 @@ pub async fn do_generate(
     State(state): State<AppState>,
     Json(req): Json<GenerateRequest>,
 ) -> (StatusCode, Json<GenerateResponse>) {
-    if let Some(ref requested) = req.model {
-        if requested.as_str() != state.model_name.as_ref() {
-            tracing::debug!(
-                requested = %requested,
-                actual = %*state.model_name,
-                "Client requested different model; serving loaded model"
-            );
-        }
+    if let Some(msg) = mismatched_model_error(req.model.as_deref(), state.model_name.as_ref()) {
+        return (
+            StatusCode::CONFLICT,
+            Json(GenerateResponse {
+                text: msg.clone(),
+                code: msg.clone(),
+                tokens_generated: 0,
+                model: state.model_name.to_string(),
+                object: "text_completion",
+                choices: vec![],
+                repair_attempts: None,
+                valid: false,
+                errors: vec![msg],
+            }),
+        );
     }
     let output_mode = req.output_mode.as_deref().and_then(parse_output_mode_label);
     let max_retries = req.max_retries.max(1);
@@ -196,7 +205,24 @@ pub async fn do_generate(
 pub async fn do_completions_stream(
     State(state): State<AppState>,
     Json(req): Json<GenerateRequest>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+) -> axum::response::Response {
+    if let Some(msg) = mismatched_model_error(req.model.as_deref(), state.model_name.as_ref()) {
+        return (
+            StatusCode::CONFLICT,
+            Json(GenerateResponse {
+                text: msg.clone(),
+                code: msg.clone(),
+                tokens_generated: 0,
+                model: state.model_name.to_string(),
+                object: "text_completion",
+                choices: vec![],
+                repair_attempts: None,
+                valid: false,
+                errors: vec![msg],
+            }),
+        )
+            .into_response();
+    }
     let output_mode = req.output_mode.as_deref().and_then(parse_output_mode_label);
 
     let (stream_tx, stream_rx) = tokio::sync::mpsc::channel(32);
@@ -238,7 +264,9 @@ pub async fn do_completions_stream(
         Err(e) => Ok(Event::default().data(format!("{{\"error\": \"{}\"}}", e))),
     });
 
-    Sse::new(stream).keep_alive(axum::response::sse::KeepAlive::new())
+    Sse::new(stream)
+        .keep_alive(axum::response::sse::KeepAlive::new())
+        .into_response()
 }
 
 #[cfg(feature = "execution-api")]

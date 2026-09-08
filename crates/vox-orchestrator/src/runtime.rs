@@ -22,6 +22,37 @@ use crate::types::TaskId;
 use futures_util::StreamExt;
 use std::time::Instant;
 
+/// Map a registry backend onto a stream route, keeping the catalog id.
+///
+/// VoxLocal must stay `Registry` — `Cascade` drops `m.id` and can egress to a
+/// cloud-inclusive client even when the selected model was local.
+fn stream_route_for_model_backend<'a>(
+    backend: ModelRouteBackend,
+    model: &'a str,
+) -> vox_gamify::StreamRoute<'a> {
+    match backend {
+        ModelRouteBackend::Ollama => vox_gamify::StreamRoute::Registry {
+            backend: vox_gamify::LudusStreamBackend::Ollama,
+            model,
+        },
+        ModelRouteBackend::GeminiDirect => vox_gamify::StreamRoute::Registry {
+            backend: vox_gamify::LudusStreamBackend::Gemini,
+            model,
+        },
+        ModelRouteBackend::OpenRouter => vox_gamify::StreamRoute::Registry {
+            backend: vox_gamify::LudusStreamBackend::OpenRouter,
+            model,
+        },
+        ModelRouteBackend::CascadeFallback | ModelRouteBackend::PopuliMesh => {
+            vox_gamify::StreamRoute::Cascade
+        }
+        ModelRouteBackend::VoxLocal => vox_gamify::StreamRoute::Registry {
+            backend: vox_gamify::LudusStreamBackend::VoxLocal,
+            model,
+        },
+    }
+}
+
 /// Compute the effective `(CostPreference, force_free_pool, RiskPosture)` for
 /// one task — extracted from `AiTaskProcessor::process` so it's unit-testable
 /// without a live orchestrator. `global_default` is
@@ -790,23 +821,7 @@ impl TaskProcessor for AiTaskProcessor {
         {
             vox_gamify::StreamRoute::UserModelOverride(mo)
         } else if let Some(m) = routed.as_ref() {
-            match route_backend_for_model(m) {
-                ModelRouteBackend::Ollama => vox_gamify::StreamRoute::Registry {
-                    backend: vox_gamify::LudusStreamBackend::Ollama,
-                    model: m.id.as_str(),
-                },
-                ModelRouteBackend::GeminiDirect => vox_gamify::StreamRoute::Registry {
-                    backend: vox_gamify::LudusStreamBackend::Gemini,
-                    model: m.id.as_str(),
-                },
-                ModelRouteBackend::OpenRouter => vox_gamify::StreamRoute::Registry {
-                    backend: vox_gamify::LudusStreamBackend::OpenRouter,
-                    model: m.id.as_str(),
-                },
-                ModelRouteBackend::CascadeFallback => vox_gamify::StreamRoute::Cascade,
-                ModelRouteBackend::PopuliMesh => vox_gamify::StreamRoute::Cascade,
-                ModelRouteBackend::VoxLocal => vox_gamify::StreamRoute::Cascade,
-            }
+            stream_route_for_model_backend(route_backend_for_model(m), m.id.as_str())
         } else {
             vox_gamify::StreamRoute::Cascade
         };
@@ -1751,6 +1766,17 @@ mod tests {
         let (name, args) = parse_tool_intent_line("@tool");
         assert_eq!(name, "");
         assert_eq!(args, serde_json::json!({}));
+    }
+
+    #[test]
+    fn vox_local_registry_route_keeps_the_model_id() {
+        match stream_route_for_model_backend(ModelRouteBackend::VoxLocal, "mens/e2e-smoke-metal") {
+            vox_gamify::StreamRoute::Registry {
+                backend: vox_gamify::LudusStreamBackend::VoxLocal,
+                model,
+            } => assert_eq!(model, "mens/e2e-smoke-metal"),
+            other => panic!("VoxLocal must be Registry with the catalog id, got {other:?}"),
+        }
     }
 
     #[tokio::test]

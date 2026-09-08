@@ -60,6 +60,7 @@ pub async fn vox_local_generate(
     prompt: &str,
     validate: bool,
     max_retries: u32,
+    model: Option<&str>,
 ) -> Result<VoxLocalGenerateResult, String> {
     use error::HttpInferError;
     use providers::probe_vox_local_health;
@@ -77,6 +78,8 @@ pub async fn vox_local_generate(
         prompt: &'a str,
         validate: bool,
         max_retries: u32,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        model: Option<&'a str>,
     }
     #[derive(serde::Deserialize)]
     struct Resp {
@@ -96,6 +99,7 @@ pub async fn vox_local_generate(
             prompt,
             validate,
             max_retries,
+            model,
         })
         .send()
         .await
@@ -119,4 +123,18 @@ pub async fn vox_local_generate(
         warnings: parsed.warnings,
         attempts: parsed.attempts,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn output_token_clamp_enforces_both_bounds() {
+        assert_eq!(clamp_http_max_output_tokens(0), 1);
+        assert_eq!(
+            clamp_http_max_output_tokens(u64::MAX),
+            limits::HTTP_MAX_OUTPUT_TOKENS_CAP
+        );
+    }
 }

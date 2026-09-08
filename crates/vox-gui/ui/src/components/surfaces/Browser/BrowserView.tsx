@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { sanitizeErrorForToast } from '../../../lib/backendGuard';
+import { backendAvailable, sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { useLabel } from '../../../hooks/useLanguage';
 import {
@@ -260,14 +260,30 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   }, [gamifyEnabled]);
 
   const startPreview = async () => {
+    const url = previewUrl.trim() || null;
+    // Preview without Tauri: iframe the URL; never leave the toolbar stuck busy.
+    if (!backendAvailable()) {
+      setPreview({
+        active: Boolean(url),
+        url,
+        app_dir: appDir.trim() || null,
+        source: 'iframe',
+      });
+      return;
+    }
     setBusy(true);
     try {
-      const status = await invoke<PreviewStatus>('preview_start', {
-        input: {
-          url: previewUrl.trim() || null,
-          app_dir: appDir.trim() || null,
-        },
-      });
+      const status = await Promise.race([
+        invoke<PreviewStatus>('preview_start', {
+          input: {
+            url,
+            app_dir: appDir.trim() || null,
+          },
+        }),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error('preview_start_timeout')), 4_000);
+        }),
+      ]);
       setPreview(status);
       pushToast({ tone: 'ok', title: 'Preview started', body: status.url ?? undefined, cause: 'backend-ok' });
       void recordGamifyGuiEvent(
@@ -276,6 +292,15 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
         { enabled: gamifyEnabled },
       );
     } catch (err) {
+      // Hung or missing IPC: still show the URL in an iframe so the toolbar recovers.
+      if (url) {
+        setPreview({
+          active: true,
+          url,
+          app_dir: appDir.trim() || null,
+          source: 'iframe',
+        });
+      }
       pushToast({ tone: 'warn', title: 'Preview failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
@@ -283,6 +308,10 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   };
 
   const stopPreview = async () => {
+    if (!backendAvailable()) {
+      setPreview(null);
+      return;
+    }
     setBusy(true);
     try {
       const status = await invoke<PreviewStatus>('preview_stop');

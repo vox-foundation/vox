@@ -86,6 +86,72 @@ impl FreeAiClient {
         })
     }
 
+    /// One-shot POST to MENS / VoxLocal `{base}/generate`.
+    ///
+    /// The Axis chat picker stores `mens/<run>` as `model_override`, which used
+    /// to hit Ollama `/api/generate` (wrong wire + wrong port when Ollama
+    /// already owns `:11434`). Honor `VOX_LOCAL_ENDPOINT` the same way
+    /// `VoxLocalAdapter` does. Metal first-token can exceed the cascade
+    /// client's 15s timeout, so this request overrides it.
+    pub(crate) fn vox_local_generate_url() -> String {
+        let base = std::env::var("VOX_LOCAL_ENDPOINT")
+            .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
+        format!("{}/generate", base.trim_end_matches('/'))
+    }
+
+    pub(crate) async fn stream_vox_local(
+        http: &reqwest::Client,
+        prompt: &str,
+        model: Option<&str>,
+    ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
+        let url = Self::vox_local_generate_url();
+        let mut body = serde_json::json!({
+            "prompt": prompt,
+            "validate": false,
+            "max_retries": 0,
+            "max_tokens": 512,
+        });
+        if let Some(model) = model {
+            body["model"] = serde_json::Value::String(model.to_string());
+        }
+        let http = http.clone();
+
+        Box::pin(async_stream::try_stream! {
+            let resp = http
+                .post(&url)
+                .timeout(std::time::Duration::from_secs(300))
+                .json(&body)
+                .send()
+                .await
+                .map_err(AiError::Http)?;
+
+            if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                Err(AiError::RateLimited {
+                    provider: "vox_local".to_string(),
+                    retry_after_secs: vox_http_client::parse_retry_after(resp.headers()),
+                })?;
+            }
+            if !resp.status().is_success() {
+                Err(AiError::ProviderStatus {
+                    provider: "vox_local".to_string(),
+                    status: resp.status().as_u16(),
+                })?;
+            }
+
+            let json: serde_json::Value = resp.json().await.map_err(AiError::Http)?;
+            let text = json
+                .get("code")
+                .and_then(|v| v.as_str())
+                .or_else(|| json.get("text").and_then(|v| v.as_str()))
+                .unwrap_or("")
+                .to_string();
+            if text.is_empty() {
+                Err(AiError::EmptyResponse)?;
+            }
+            yield text;
+        })
+    }
+
     /// POST to Gemini `streamGenerateContent`.
     ///
     /// T4.1 consolidation note (documented, narrow exception — not migrated onto
@@ -589,6 +655,200 @@ mod openrouter_stream_consolidation_tests {
         assert!(
             body["messages"].is_array(),
             "request body must carry a `messages` array (egress core's ChatMessage wire shape)"
+        );
+    }
+}
+
+#[cfg(test)]
+mod vox_local_stream_tests {
+    #![allow(unsafe_code)]
+
+    use futures_util::StreamExt;
+    use std::sync::Mutex;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    use super::super::{FreeAiClient, StreamRoute};
+    use crate::ai::provider::FreeAiProvider;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn restore_vox_local_endpoint(prev: Option<String>) {
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("VOX_LOCAL_ENDPOINT", v),
+                None => std::env::remove_var("VOX_LOCAL_ENDPOINT"),
+            }
+        }
+    }
+
+    async fn drain_stream(
+        mut stream: impl futures_util::Stream<Item = Result<String, crate::ai::error::AiError>> + Unpin,
+    ) -> Result<String, crate::ai::error::AiError> {
+        let mut got = String::new();
+        while let Some(item) = stream.next().await {
+            got.push_str(&item?);
+        }
+        Ok(got)
+    }
+
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn stream_vox_local_posts_generate_to_vox_local_endpoint() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/generate"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "code": "The capital of France is Paris.",
+                "valid": true,
+            })))
+            .mount(&server)
+            .await;
+
+        let prev = std::env::var("VOX_LOCAL_ENDPOINT").ok();
+        unsafe {
+            std::env::set_var("VOX_LOCAL_ENDPOINT", server.uri());
+        }
+
+        let http = vox_http_client::client();
+        let stream = FreeAiClient::stream_vox_local(
+            &http,
+            "What is the capital of France?",
+            Some("mens/e2e-smoke-metal"),
+        )
+        .await;
+        let got = drain_stream(stream).await.expect("chunk");
+        restore_vox_local_endpoint(prev);
+
+        assert_eq!(got, "The capital of France is Paris.");
+        let received = server
+            .received_requests()
+            .await
+            .expect("mock tracks requests");
+        assert_eq!(received.len(), 1);
+        let body: serde_json::Value = serde_json::from_slice(&received[0].body).expect("json body");
+        assert_eq!(body["validate"], false);
+        assert_eq!(body["prompt"], "What is the capital of France?");
+        assert_eq!(body["max_tokens"], 512);
+        assert_eq!(body["model"], "mens/e2e-smoke-metal");
+    }
+
+    #[test]
+    fn vox_local_generate_url_honors_env() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let prev = std::env::var("VOX_LOCAL_ENDPOINT").ok();
+        unsafe {
+            std::env::set_var("VOX_LOCAL_ENDPOINT", "http://127.0.0.1:17863");
+        }
+        assert_eq!(
+            FreeAiClient::vox_local_generate_url(),
+            "http://127.0.0.1:17863/generate"
+        );
+        restore_vox_local_endpoint(prev);
+    }
+
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn user_model_override_mens_slug_posts_generate_to_vox_local_endpoint() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/generate"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "code": "mens via vox-local",
+                "valid": true,
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/api/generate"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string("{\"response\":\"ollama should not run\",\"done\":true}\n"),
+            )
+            .mount(&server)
+            .await;
+
+        let prev = std::env::var("VOX_LOCAL_ENDPOINT").ok();
+        unsafe {
+            std::env::set_var("VOX_LOCAL_ENDPOINT", server.uri());
+        }
+
+        let client = FreeAiClient::new(vec![FreeAiProvider::Ollama {
+            url: server.uri(),
+            model: "llama3.2".to_string(),
+        }]);
+        let stream = client
+            .generate_stream_routed(
+                "smoke",
+                StreamRoute::UserModelOverride("mens/e2e-smoke-metal"),
+            )
+            .await;
+        let got = drain_stream(stream).await.expect("mens chunk");
+        restore_vox_local_endpoint(prev);
+
+        assert_eq!(got, "mens via vox-local");
+        let received = server
+            .received_requests()
+            .await
+            .expect("mock tracks requests");
+        assert_eq!(received.len(), 1, "mens override must hit VoxLocal only");
+        assert_eq!(received[0].url.path(), "/generate");
+        let body: serde_json::Value = serde_json::from_slice(&received[0].body).expect("json body");
+        assert_eq!(body["prompt"], "smoke");
+        assert_eq!(body["max_tokens"], 512);
+        assert_eq!(body["model"], "mens/e2e-smoke-metal");
+    }
+
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn user_model_override_non_mens_slug_does_not_post_vox_local_generate() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/generate"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "code": "wrong wire",
+                "valid": true,
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/api/generate"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string("{\"response\":\"ollama ok\",\"done\":true}\n"),
+            )
+            .mount(&server)
+            .await;
+
+        let prev = std::env::var("VOX_LOCAL_ENDPOINT").ok();
+        unsafe {
+            std::env::set_var("VOX_LOCAL_ENDPOINT", server.uri());
+        }
+
+        let client = FreeAiClient::new(vec![FreeAiProvider::Ollama {
+            url: server.uri(),
+            model: "llama3.2".to_string(),
+        }]);
+        let stream = client
+            .generate_stream_routed("smoke", StreamRoute::UserModelOverride("llama3.2"))
+            .await;
+        let got = drain_stream(stream).await.expect("ollama chunk");
+        restore_vox_local_endpoint(prev);
+
+        assert_eq!(got, "ollama ok");
+        let received = server
+            .received_requests()
+            .await
+            .expect("mock tracks requests");
+        assert_eq!(received.len(), 1);
+        assert_eq!(received[0].url.path(), "/api/generate");
+        assert_ne!(
+            received[0].url.path(),
+            "/generate",
+            "non-mens slugs must not use VOX_LOCAL_ENDPOINT /generate"
         );
     }
 }

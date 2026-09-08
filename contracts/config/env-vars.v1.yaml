@@ -840,6 +840,42 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_GUI_DRIVE"
+    owner_crate: "vox-gui"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Set on the dedicated Axis Drive process; never attach to the user's Axis."
+  - name: "VOX_GUI_DRIVE_PROFILE"
+    owner_crate: "vox-gui"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Drive session profile id; isolates ~/.vox/gui-drive/<profile>/store.db."
+  - name: "VOX_GUI_DRIVE_SESSION_PATH"
+    owner_crate: "vox-gui"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Path the drive child writes for gui-drive.json (port/pid/token_path)."
+  - name: "VOX_GUI_DRIVE_SHOW"
+    owner_crate: "vox-gui"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Reveal the dedicated debug Axis window (hidden + no Dock icon by default)."
+  - name: "VOX_GUI_DRIVE_STORE_ROOT"
+    owner_crate: "vox-gui"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Journey-store root for Axis Drive so chat_turn cannot write the user transcript."
+  - name: "VOX_GUI_DRIVE_TOKEN_PATH"
+    owner_crate: "vox-gui"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Path to the 0600 bearer token file. Do not put the token value in the environment."
   - name: "VOX_GUI_PLAYWRIGHT"
     owner_crate: "vox-secrets"
     kind: "string"
