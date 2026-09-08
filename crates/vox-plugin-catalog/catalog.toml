@@ -495,6 +495,15 @@ pin = "f0c7f14e3bc5"
 bundle-path = "assets/skills/vox-graph"
 
 [[skill-bundle]]
+id = "browser-research"
+description = "Use when the user wants to research, summarize, or cite what a web page shows in the agent browser. Snapshot first, then screenshot so you can see the page, then extract and quote — never invent CSS or dump cookies."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/vox-foundation/vox"
+pin = "2026-09-08-chat-research-loop"
+bundle-path = "assets/skills/browser-research"
+
+[[skill-bundle]]
 id = "web-artifacts-builder"
 description = "Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web technologies (React, Tailwind CSS, shadcn/ui). Use for complex artifact..."
 status = "stable"

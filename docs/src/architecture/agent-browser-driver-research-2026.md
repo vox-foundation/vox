@@ -219,7 +219,7 @@ Ship **Approach A**. The 2026-06-03 scoping doc said the majority of benefit is 
 
 **Implementation (shipped 2026-09-07, Approach A):** spec [`docs/superpowers/specs/2026-09-07-agent-browser-driver-design.md`](../../superpowers/specs/2026-09-07-agent-browser-driver-design.md), plan [`docs/superpowers/plans/2026-09-07-agent-browser-driver.md`](../../superpowers/plans/2026-09-07-agent-browser-driver.md), operator SSOT [`vox-gui-browser-support-2026.md`](./vox-gui-browser-support-2026.md), crate map [`where-things-live.md`](./where-things-live.md). Snapshot/refs, named profiles, Connect Chrome attach, cookie export/import (count + path only), host allowlist, and the GUI overlay are in-tree. The §1 “Confirmed absences” and §4 “Vox today” columns are the **pre-implementation** audit; do not read them as current product gaps for snapshot, profiles, or attach.
 
-**Left for later (not this program):** computer-use and chrome-devtools-mcp as optional skills. Accepted v1 gaps: no Vox `Browser.*` builtins for refs, no iframe merge, no SPA observer, no NeedsYou rows.
+**Chat/harness loop (2026-09-08):** MCP image parts + Axis `content_parts` + `browser-research` skill. Spec [`docs/superpowers/specs/2026-09-08-chat-harness-research-loop-design.md`](../../superpowers/specs/2026-09-08-chat-harness-research-loop-design.md). Still later: computer-use, chrome-devtools-mcp as optional skills, iframe merge, SPA observer, NeedsYou rows, Vox `Browser.*` ref builtins.
 
 **Do not:** add `playwright-rust`, embed Stagehand, drive sites inside the Tauri WebView, or start a Vox-branded Chromium.
 
