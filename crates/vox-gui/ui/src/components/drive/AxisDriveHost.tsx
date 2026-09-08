@@ -7,6 +7,7 @@ import {
   type DriveState,
 } from '../../lib/axisDrive';
 import {
+  driveVerbNeedsCatalog,
   handleDriveRequest,
   loquelaDriveApi,
   type DriveRequest,
@@ -18,12 +19,14 @@ import { normalizeModelCard, type PickerModel, type ProviderStatus } from '../..
 export interface AxisDriveHostProps {
   setters: DriveSetters;
   onSubmit: (payload: DriveSubmitPayload) => Promise<unknown> | unknown;
+  sessionReady: boolean;
 }
 
-export function AxisDriveHost({ setters, onSubmit }: AxisDriveHostProps) {
+export function AxisDriveHost({ setters, onSubmit, sessionReady }: AxisDriveHostProps) {
   const stateRef = useRef<DriveState>(emptyLiveState());
 
   useEffect(() => {
+    if (!sessionReady) return;
     let cancelled = false;
     let unlisten: UnlistenFn | undefined;
     void invoke<string>('get_drive_mode')
@@ -31,8 +34,11 @@ export function AxisDriveHost({ setters, onSubmit }: AxisDriveHostProps) {
         if (cancelled || mode !== 'live') return;
         await invoke('drive_set_ready');
         unlisten = await listen<DriveRequest>('drive://request', async event => {
-          const models = await loadModels();
-          const statuses = await loadStatuses();
+          // state/show must not wait on model IPC — a hung catalog made every
+          // drive verb 504 while the window was already up.
+          const needsCatalog = driveVerbNeedsCatalog(event.payload.verb);
+          const models = needsCatalog ? await loadModels() : [];
+          const statuses = needsCatalog ? await loadStatuses() : [];
           const merged: DriveSetters = {
             ...loquelaDriveApi(),
             ...setters,
@@ -62,7 +68,7 @@ export function AxisDriveHost({ setters, onSubmit }: AxisDriveHostProps) {
       cancelled = true;
       if (unlisten) unlisten();
     };
-  }, [onSubmit, setters]);
+  }, [onSubmit, sessionReady, setters]);
 
   return null;
 }

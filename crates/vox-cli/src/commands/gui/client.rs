@@ -54,16 +54,28 @@ fn parse_timeout(s: &str) -> Result<std::time::Duration> {
     Ok(std::time::Duration::from_secs(n))
 }
 
+fn drive_view(v: &serde_json::Value) -> &serde_json::Value {
+    v.get("state").unwrap_or(v)
+}
+
 fn matches_until(until: &str, body: &str) -> bool {
     let v: serde_json::Value = serde_json::from_str(body).unwrap_or(serde_json::Value::Null);
+    let view = drive_view(&v);
     if until == "error" {
-        return v.get("last_error").map(|x| !x.is_null()).unwrap_or(false);
+        return view
+            .get("last_error")
+            .map(|x| !x.is_null())
+            .unwrap_or(false);
     }
     if until == "reply" {
-        if v.get("last_error").map(|x| !x.is_null()).unwrap_or(false) {
+        if view
+            .get("last_error")
+            .map(|x| !x.is_null())
+            .unwrap_or(false)
+        {
             return true;
         }
-        return v
+        return view
             .get("bubbles")
             .and_then(|b| b.as_array())
             .and_then(|a| a.last())
@@ -72,7 +84,7 @@ fn matches_until(until: &str, body: &str) -> bool {
             == Some("assistant");
     }
     if let Some(id) = until.strip_prefix("selectable=") {
-        return v
+        return view
             .get("catalog")
             .and_then(|c| c.as_array())
             .into_iter()
@@ -102,5 +114,16 @@ mod tests {
         let body = r#"{"catalog":[{"id":"mens/e2e-smoke","selectable":true}]}"#;
         assert!(matches_until("selectable=mens/e2e-smoke", body));
         assert!(!matches_until("selectable=other", body));
+    }
+
+    #[test]
+    fn matches_error_and_reply_nested_under_state() {
+        let body = r#"{"status":200,"plane":"live","state":{"last_error":"load tokenizer","bubbles":[{"role":"user"},{"role":"assistant","error":true}],"catalog":[{"id":"mens/e2e-smoke","selectable":true}]}}"#;
+        assert!(matches_until("error", body));
+        assert!(matches_until("reply", body));
+        assert!(matches_until("selectable=mens/e2e-smoke", body));
+        let quiet = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"user"}]}}"#;
+        assert!(!matches_until("error", quiet));
+        assert!(!matches_until("reply", quiet));
     }
 }

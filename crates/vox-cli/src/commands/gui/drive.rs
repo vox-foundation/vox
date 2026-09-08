@@ -71,12 +71,22 @@ async fn start(args: DriveStartArgs) -> Result<()> {
     for (k, v) in drive_child_env(args.show, &store_root, &token_path) {
         cmd.env(k, v);
     }
+    let child_log = super::session::vox_home().join("run/gui-drive.child.log");
+    if let Some(parent) = child_log.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let log = std::fs::File::create(&child_log)?;
+    cmd.stdout(log.try_clone()?);
+    cmd.stderr(log);
     let child = spawn_gui_detached(cmd)?;
     let pid = child.id();
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(45);
     loop {
         if let Ok(session) = load_session() {
             if session.port != 0 && ping_drive(session.port, &token) {
+                // The listener binds before DB/daemon setup, but the CLI is
+                // ready only after App selected a chat session and mounted the
+                // Drive host. This prevents the first send racing startup.
                 if health_ready(session.port) {
                     println!(
                         "started pid={pid} port={} session={}",
@@ -88,9 +98,10 @@ async fn start(args: DriveStartArgs) -> Result<()> {
             }
         }
         if std::time::Instant::now() > deadline {
+            let hint = start_timeout_hint(load_session().ok().as_ref());
             let _ = nix_kill(pid);
             clear_session_files();
-            bail!("drive listener not ready within 15s");
+            bail!("drive listener not ready within 45s ({hint})");
         }
         std::thread::sleep(std::time::Duration::from_millis(200));
     }
@@ -108,6 +119,13 @@ fn health_ready(port: u16) -> bool {
     let mut out = String::new();
     let _ = std::io::Read::read_to_string(&mut stream, &mut out);
     out.contains("\"ready\":true")
+}
+
+fn start_timeout_hint(session: Option<&super::session::DriveSession>) -> String {
+    match session {
+        None => "session file never written — gui did not bind the listener".into(),
+        Some(s) => format!("session port={} but ping failed", s.port),
+    }
 }
 
 fn nix_kill(pid: u32) -> Result<()> {
@@ -290,5 +308,11 @@ mod tests {
             env.iter()
                 .any(|(k, v)| k == "VOX_GUI_DRIVE_STORE_ROOT" && v.ends_with("gui-drive/agent-1"))
         );
+    }
+
+    #[test]
+    fn start_timeout_hint_without_session_names_bind_failure() {
+        let hint = start_timeout_hint(None);
+        assert!(hint.contains("session file never written"));
     }
 }

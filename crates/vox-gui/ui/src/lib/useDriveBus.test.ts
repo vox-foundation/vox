@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { emptyLiveState } from './axisDrive';
-import { assertPinSelectable, handleDriveRequest } from './useDriveBus';
+import { assertPinSelectable, driveVerbNeedsCatalog, handleDriveRequest } from './useDriveBus';
 import type { PickerModel, ProviderStatus } from './modelPicker';
 
 const localDown: ProviderStatus[] = [
@@ -34,6 +34,7 @@ describe('handleDriveRequest', () => {
     });
     expect(JSON.stringify(res)).not.toMatch(/tool_call|9745/);
     expect(res.plane).toBe('live');
+    expect(res.state.last_error).toBe('submit_unspecified');
   });
 
   it('empty send is empty_text', async () => {
@@ -106,6 +107,65 @@ describe('handleDriveRequest', () => {
     });
     expect(res.status).toBe(409);
     expect(res.error).toBe('model_not_selectable');
+  });
+
+  it('send records last_error and an assistant error bubble when submit fails', async () => {
+    const submit = vi.fn(async () => ({
+      ok: false as const,
+      error: 'load tokenizer: No such file or directory (os error 2)',
+    }));
+    const res = await handleDriveRequest({
+      state: emptyLiveState(),
+      models: [],
+      statuses: localDown,
+      submit,
+      req: { id: '1', verb: 'send', body: { text: 'ping' } },
+    });
+    expect(res.status).toBe(200);
+    expect(res.state.last_error).toMatch(/tokenizer/);
+    expect(res.state.bubbles).toEqual([
+      { role: 'user', content: 'ping' },
+      {
+        role: 'assistant',
+        content: 'load tokenizer: No such file or directory (os error 2)',
+        error: true,
+      },
+    ]);
+  });
+
+  it('send records an assistant bubble when submit returns text', async () => {
+    const submit = vi.fn(async () => ({ ok: true as const, text: 'hello from axis' }));
+    const res = await handleDriveRequest({
+      state: emptyLiveState(),
+      models: [],
+      statuses: localDown,
+      submit,
+      req: { id: '1', verb: 'send', body: { text: 'ping' } },
+    });
+    expect(res.state.last_error).toBeNull();
+    expect(res.state.bubbles.at(-1)).toEqual({ role: 'assistant', content: 'hello from axis' });
+  });
+
+  it('send maps a thrown submit to last_error', async () => {
+    const submit = vi.fn(async () => {
+      throw new Error('boom');
+    });
+    const res = await handleDriveRequest({
+      state: emptyLiveState(),
+      models: [],
+      statuses: localDown,
+      submit,
+      req: { id: '1', verb: 'send', body: { text: 'ping' } },
+    });
+    expect(res.state.last_error).toBe('boom');
+    expect(res.state.bubbles.at(-1)).toMatchObject({ role: 'assistant', error: true, content: 'boom' });
+  });
+
+  it('state and show skip catalog IPC; set and send do not', () => {
+    expect(driveVerbNeedsCatalog('state')).toBe(false);
+    expect(driveVerbNeedsCatalog('show')).toBe(false);
+    expect(driveVerbNeedsCatalog('set')).toBe(true);
+    expect(driveVerbNeedsCatalog('send')).toBe(true);
   });
 
   it('mutation: deleting the selectable check would miss the 409', () => {

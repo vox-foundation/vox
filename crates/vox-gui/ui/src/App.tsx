@@ -81,6 +81,7 @@ import { DashboardData, Agent, StreamItem, LudusAlert } from './types/dashboard'
 import type {
   ActiveSkill,
   ChatPayload,
+  ChatSubmitResult,
   CommandCatalog,
   CommandPaletteAction,
   ContextChip,
@@ -1133,11 +1134,11 @@ export default function App() {
     }
   }, [pushToast]);
 
-  const handleLoquelaSubmit = useCallback(async (payload: ChatPayload, skillExclusionsOverride?: string[]) => {
+  const handleLoquelaSubmit = useCallback(async (payload: ChatPayload, skillExclusionsOverride?: string[]): Promise<ChatSubmitResult> => {
     const sessionId = payload.session_id ?? activeSessionId;
     if (!sessionId) {
       pushToast({ tone: 'warn', title: 'No chat session', body: 'Create or select a chat session first.', cause: 'validation' });
-      return;
+      return { ok: false, error: 'No chat session' };
     }
     lastChatPayloadRef.current = payload;
     // ONE payload, ONE command (`chat_turn`) — the dispatch fork now lives in
@@ -1174,7 +1175,7 @@ export default function App() {
         body: 'A reply is still in progress for this chat.',
         cause: 'validation',
       });
-      return;
+      return { ok: false, error: 'A reply is still in progress for this chat.' };
     }
 
     invoke('chat_append_message', {
@@ -1227,7 +1228,7 @@ export default function App() {
           );
           if (!proceed) {
             pushToast({ tone: 'info', title: 'Duplicate skipped', body: `Kept existing task #${result.duplicate_of}.`, cause: 'backend-ok' });
-            return;
+            return { ok: false, error: 'duplicate_skipped' };
           }
           result = await dispatchAttempt(true);
         }
@@ -1261,8 +1262,9 @@ export default function App() {
           });
         }
         pushToast(dispatchErrorToast(err, 'Dispatch Failed'));
+        return { ok: false, error: chatTurnErrorMessage(err) };
       }
-      return;
+      return { ok: true };
     }
 
     // Sync: terminal request/response, no task to correlate against.
@@ -1309,6 +1311,7 @@ export default function App() {
         },
       });
       checkBudgetWarn(sessionId);
+      return { ok: true, text: reply.text, modelId: reply.modelId };
     } catch (err) {
       const errorText = chatTurnErrorMessage(err);
       dispatchSessionChat({
@@ -1318,6 +1321,7 @@ export default function App() {
         result: { ok: false, error: errorText },
       });
       pushToast(dispatchErrorToast(err, 'Chat reply failed'));
+      return { ok: false, error: errorText };
     } finally {
       chatSendInFlightRef.current.delete(sessionId);
     }
@@ -1984,6 +1988,7 @@ export default function App() {
       />
 
       <AxisDriveHost
+        sessionReady={Boolean(activeSessionId)}
         setters={{
           setChatModelOverride,
           setGroundingCheckEnabled,

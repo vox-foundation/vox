@@ -79,6 +79,15 @@ async fn main() {
             commands::browser::BrowserState::default(),
         ))
         .setup(move |app| {
+            if drive_flags.drive {
+                let runtime = app.state::<drive::bridge::DriveRuntime>();
+                if let Err(err) =
+                    drive::bridge::start_live(&app.handle().clone(), drive_flags, &runtime)
+                {
+                    eprintln!("axis drive listener failed to start: {err}");
+                    tracing::error!(error = %err, "axis drive listener failed to start");
+                }
+            }
             if drive_flags.drive && !drive_flags.show {
                 drive::bridge::hide_drive_window_early(&app.handle().clone());
             }
@@ -145,14 +154,6 @@ async fn main() {
             // "vox://orchestrator-config-changed" so the Orchestrator settings
             // surface refreshes live after set_orchestrator_config writes.
             commands::orchestrator::spawn_orchestrator_config_watch(app.handle().clone());
-            if drive_flags.drive {
-                let runtime = app.state::<drive::bridge::DriveRuntime>();
-                if let Err(err) =
-                    drive::bridge::start_live(&app.handle().clone(), drive_flags, &runtime)
-                {
-                    tracing::error!(error = %err, "axis drive listener failed to start");
-                }
-            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

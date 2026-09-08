@@ -32,10 +32,10 @@
     "ext",
     "fabrica",
     "fmt",
-    "gamify",
     "generate",
     "grammar",
     "graph",
+    "gui",
     "harness",
     "init",
     "llm",
@@ -49,20 +49,17 @@
     "migrate",
     "model",
     "new",
-    "openclaw",
     "plan",
     "play",
     "plugin",
     "pm",
     "policy",
     "populi",
-    "recensio",
     "remove",
     "repair",
     "repl",
     "repo",
     "research",
-    "review",
     "rollback",
     "run",
     "safety",
@@ -71,7 +68,6 @@
     "secrets",
     "share",
     "shell",
-    "skill",
     "snapshot",
     "snippet",
     "speech",
@@ -87,10 +83,9 @@
     "wasm",
     "workflow"
   ],
-  "surface_count": 109,
+  "surface_count": 110,
   "unclassified_backfilled": [
-    "gamify",
-    "openclaw"
+    "gui"
   ],
   "wiring_violations": []
 }

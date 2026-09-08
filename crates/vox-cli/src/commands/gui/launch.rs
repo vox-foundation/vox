@@ -14,19 +14,45 @@ pub async fn run(args: crate::cli_args::GuiArgs) -> Result<()> {
     Ok(())
 }
 
+fn gui_bin_name() -> &'static str {
+    if cfg!(windows) {
+        "vox-gui.exe"
+    } else {
+        "vox-gui"
+    }
+}
+
+/// Cargo argv so later `.arg("--drive")` / `--command` reach vox-gui, not cargo.
+pub(crate) fn debug_cargo_gui_forward_args() -> &'static [&'static str] {
+    &["run", "-p", "vox-gui", "--"]
+}
+
+fn debug_gui_candidate(workspace_root: &Path, target_dir: Option<&Path>) -> PathBuf {
+    let target = target_dir
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| workspace_root.join("target"));
+    target.join("debug").join(gui_bin_name())
+}
+
+fn debug_gui_binary() -> Option<PathBuf> {
+    let root = locate_workspace_root()?;
+    let target_dir = env::var_os("CARGO_TARGET_DIR").map(PathBuf::from);
+    let bin = debug_gui_candidate(&root, target_dir.as_deref());
+    bin.is_file().then_some(bin)
+}
+
 pub fn gui_command() -> Result<Command> {
     if cfg!(debug_assertions) {
+        if let Some(bin) = debug_gui_binary() {
+            return Ok(Command::new(bin));
+        }
         let mut c = Command::new("cargo");
-        c.args(["run", "-p", "vox-gui"]);
+        c.args(debug_cargo_gui_forward_args());
         return Ok(c);
     }
     let exe = env::current_exe()?;
     let parent = exe.parent().context("Failed to get executable directory")?;
-    let gui_bin_name = if cfg!(windows) {
-        "vox-gui.exe"
-    } else {
-        "vox-gui"
-    };
+    let gui_bin_name = gui_bin_name();
     let installed = parent.join(gui_bin_name);
     let launch_path = if installed.exists() {
         installed
@@ -143,5 +169,23 @@ mod gui_missing_message_tests {
         assert!(msg.contains("the contributor path"));
         assert!(!msg.contains("Clone the repo"));
         assert!(msg.contains("https://example.invalid/vox-gui"));
+    }
+
+    #[test]
+    fn cargo_fallback_forwards_binary_args_after_double_dash() {
+        let args = debug_cargo_gui_forward_args();
+        assert_eq!(args.last().copied(), Some("--"));
+        assert!(args.contains(&"vox-gui"));
+    }
+
+    #[test]
+    fn debug_gui_candidate_uses_debug_dir() {
+        let path = debug_gui_candidate(Path::new("/ws"), None);
+        assert_eq!(path, PathBuf::from("/ws/target/debug").join(gui_bin_name()));
+        let custom = debug_gui_candidate(Path::new("/ws"), Some(Path::new("/custom-target")));
+        assert_eq!(
+            custom,
+            PathBuf::from("/custom-target/debug").join(gui_bin_name())
+        );
     }
 }

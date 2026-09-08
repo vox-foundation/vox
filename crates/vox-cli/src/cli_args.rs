@@ -664,13 +664,21 @@ pub struct DriveArgs {
 
 #[derive(clap::Subcommand, Clone, Debug)]
 pub enum DriveCmd {
+    /// Start a dedicated Axis Drive process.
     Start(DriveStartArgs),
+    /// Stop the current Axis Drive process.
     Stop,
+    /// Reveal the dedicated Axis Drive window.
     Show,
+    /// Update Drive model, execution, or composer knobs.
     Set(DriveSetArgs),
+    /// Send a chat turn through the real Axis composer path.
     Send(DriveSendArgs),
+    /// Print the current live Drive state as JSON.
     State,
+    /// Wait for a reply, error, or selectable model.
     Wait(DriveWaitArgs),
+    /// Run a one-shot Drive request without a webview.
     Headless(DriveHeadlessArgs),
 }
 
@@ -710,7 +718,10 @@ pub struct DriveHeadlessArgs {
 
 #[derive(clap::Subcommand, Clone, Debug)]
 pub enum DriveHeadlessCmd {
+    /// Apply Drive knobs in the one-shot headless plane.
     Set(DriveSetArgs),
+    /// Send a one-shot headless chat turn.
     Send(DriveSendArgs),
+    /// Print one-shot headless state as JSON.
     State,
 }

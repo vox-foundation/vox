@@ -37,6 +37,39 @@ export interface DriveSubmitPayload {
   active_skill?: string | null;
 }
 
+/** Result of App `onSubmit` / `handleLoquelaSubmit`. Drive send must surface this. */
+export type DriveSubmitResult =
+  | { ok: true; text?: string; modelId?: string }
+  | { ok: false; error: string };
+
+export function interpretDriveSubmit(result: unknown): {
+  lastError: string | null;
+  assistantText: string | null;
+} {
+  if (result == null) {
+    return { lastError: 'submit_unspecified', assistantText: null };
+  }
+  if (typeof result !== 'object') return { lastError: null, assistantText: null };
+  const rec = result as { ok?: unknown; error?: unknown; text?: unknown };
+  if (rec.ok === false) {
+    return {
+      lastError: typeof rec.error === 'string' && rec.error.trim() ? rec.error : 'submit_failed',
+      assistantText: null,
+    };
+  }
+  if (typeof rec.error === 'string' && rec.error.trim()) {
+    return { lastError: rec.error, assistantText: null };
+  }
+  if (rec.ok === true && typeof rec.text === 'string' && rec.text.trim()) {
+    const text = rec.text;
+    if (/^\[error:/i.test(text) || text.startsWith('error:')) {
+      return { lastError: text, assistantText: null };
+    }
+    return { lastError: null, assistantText: text };
+  }
+  return { lastError: null, assistantText: null };
+}
+
 export interface DriveRequest {
   id: string;
   verb: 'set' | 'send' | 'state' | 'show';
@@ -79,6 +112,10 @@ export function assertPinSelectable(
     reason: row?.reason ?? 'not_listed',
     state: { ...state, catalog },
   };
+}
+
+export function driveVerbNeedsCatalog(verb: DriveRequest['verb']): boolean {
+  return verb === 'set' || verb === 'send';
 }
 
 export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<DriveHttpLike> {
@@ -128,14 +165,29 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
       priority: state.knobs.priority ?? null,
       active_skill: state.knobs.active_skill ?? null,
     };
-    await args.submit(payload);
+    let lastError: string | null = null;
+    let assistantText: string | null = null;
+    try {
+      const interpreted = interpretDriveSubmit(await args.submit(payload));
+      lastError = interpreted.lastError;
+      assistantText = interpreted.assistantText;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+    const bubbles: unknown[] = [...state.bubbles, { role: 'user', content: text }];
+    if (lastError) {
+      bubbles.push({ role: 'assistant', content: lastError, error: true });
+    } else if (assistantText) {
+      bubbles.push({ role: 'assistant', content: assistantText });
+    }
     return {
       status: 200,
       plane: 'live',
       state: {
         ...state,
         catalog,
-        bubbles: [...state.bubbles, { role: 'user', content: text }],
+        bubbles,
+        last_error: lastError,
       },
     };
   }

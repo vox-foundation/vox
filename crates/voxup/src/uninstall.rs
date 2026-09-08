@@ -517,17 +517,48 @@ pub fn is_proven_hardlink(a: &Path, b: &Path) -> bool {
     }
     #[cfg(windows)]
     {
-        use std::os::windows::fs::MetadataExt;
-        match (ma.file_index(), mb.file_index()) {
-            (Some(ia), Some(ib)) => ia == ib && ma.number_of_links().unwrap_or(0) > 1,
-            _ => false,
-        }
+        let _ = (ma, mb);
+        windows_file_identity(a)
+            .zip(windows_file_identity(b))
+            .is_some_and(|(ia, ib)| ia == ib && ia.links > 1)
     }
     #[cfg(not(any(unix, windows)))]
     {
         let _ = (ma, mb);
         false
     }
+}
+
+#[cfg(windows)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct WindowsFileIdentity {
+    volume: u32,
+    index: u64,
+    links: u32,
+}
+
+#[cfg(windows)]
+fn windows_file_identity(path: &Path) -> Option<WindowsFileIdentity> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
+    };
+
+    let file = fs::File::open(path).ok()?;
+    let mut info = std::mem::MaybeUninit::<BY_HANDLE_FILE_INFORMATION>::zeroed();
+    // SAFETY: `file` owns a valid handle for the duration of the call and
+    // `info` points to writable storage for the exact Win32 output type.
+    let ok = unsafe { GetFileInformationByHandle(file.as_raw_handle() as _, info.as_mut_ptr()) };
+    if ok == 0 {
+        return None;
+    }
+    // SAFETY: Win32 documents the output structure as initialized on success.
+    let info = unsafe { info.assume_init() };
+    Some(WindowsFileIdentity {
+        volume: info.dwVolumeSerialNumber,
+        index: (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow),
+        links: info.nNumberOfLinks,
+    })
 }
 
 fn print_report(report: &UninstallReport) -> Result<()> {
