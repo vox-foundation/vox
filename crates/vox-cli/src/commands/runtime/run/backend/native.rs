@@ -5,6 +5,13 @@ use std::process::{Command, ExitStatus};
 /// Backend for running native binaries via cargo.
 pub struct NativeBackend;
 
+/// Apply native-lane child env. `VOX_NO_MCP` stays; `VOX_SANDBOX` is not isolation.
+pub(crate) fn apply_native_execute_env(cmd: &mut Command, opts: &ScriptOpts) {
+    if !opts.allow_mcp {
+        cmd.env("VOX_NO_MCP", "1");
+    }
+}
+
 impl RunBackend for NativeBackend {
     fn cache_label(&self) -> &str {
         "script-cache"
@@ -126,12 +133,7 @@ impl RunBackend for NativeBackend {
     fn execute(&self, artifact: &Path, args: &[String], opts: &ScriptOpts) -> Result<ExitStatus> {
         let mut cmd = Command::new(artifact);
         cmd.args(args);
-        if opts.sandbox {
-            cmd.env("VOX_SANDBOX", "1");
-        }
-        if !opts.allow_mcp {
-            cmd.env("VOX_NO_MCP", "1");
-        }
+        apply_native_execute_env(&mut cmd, opts);
 
         // Propagate the resolved cargo binary path so run_cmd("cargo", ...) inside the
         // script can find cargo even when the script binary is not launched via `cargo run`.

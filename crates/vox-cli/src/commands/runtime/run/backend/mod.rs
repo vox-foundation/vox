@@ -74,3 +74,5 @@ pub trait RunBackend {
 }
 
 pub use native::NativeBackend;
+#[cfg(test)]
+pub(crate) use native::apply_native_execute_env;
