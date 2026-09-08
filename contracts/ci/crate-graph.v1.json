@@ -946,6 +946,7 @@
       "workspace-hack"
     ],
     "voxup": [
+      "vox-plugin-catalog",
       "workspace-hack"
     ],
     "workspace-hack": []
