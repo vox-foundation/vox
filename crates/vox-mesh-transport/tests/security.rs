@@ -280,6 +280,27 @@ async fn a_trusted_probed_peer_appears_and_a_dropped_peer_disappears() {
 }
 
 #[tokio::test]
+async fn a_probed_peer_carries_the_addresses_it_was_dialled_on() {
+    let server = start_server().await;
+    let sk = SecretKey::generate();
+    let client = client_endpoint(sk.clone()).await;
+    let dir = tempfile::tempdir().unwrap();
+    let trust = Arc::new(MeshTrust::at(&dir.path().join("mesh_trust.json")));
+    let addrs = loopback_addr_of(&server);
+    trust
+        .trust_with_addrs(&server.id, Some("server"), &addrs)
+        .unwrap();
+    server.trust.trust(&sk.public(), None).unwrap();
+
+    let listed = vox_mesh_transport::directory(&client, &trust).await;
+    assert_eq!(listed.len(), 1, "the probed peer must appear: {listed:?}");
+    assert_eq!(
+        listed[0].addrs, addrs,
+        "directory must echo the addresses the probe was dialled on"
+    );
+}
+
+#[tokio::test]
 async fn an_unreachable_peer_is_omitted_rather_than_failing_the_whole_directory() {
     // One dark machine must not hide the others -- the old HTTP directory
     // returned a list someone asserted; this one returns what answered.

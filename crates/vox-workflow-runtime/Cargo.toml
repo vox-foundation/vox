@@ -14,9 +14,8 @@ default = ["mens", "sql"]
 # `sql` enables the VoxDbTracker + scheduled-runner modules that depend on
 # vox-db (which pulls in SQLite and therefore can't cross-compile to mobile).
 sql = ["dep:vox-db"]
-# `mens` now spans two planes: `vox-mesh-transport` (iroh) serves Noop /
-# Snapshot / Join / Heartbeat, and `vox-populi/transport` (HTTP) still serves
-# Dispatch / Wait, which the mesh cannot execute. Phase 6 drops the latter.
+# `mens` runs every `PopuliHttpOp` on `vox-mesh-transport` (iroh). `vox-populi`
+# remains for local-registry publish; the HTTP Dispatch/Wait plane is gone.
 mens = [
     "dep:vox-populi",
     "vox-populi/transport",
@@ -28,7 +27,6 @@ test-support = []
 [dependencies]
 vox-config = { workspace = true }
 anyhow = { workspace = true }
-base64 = "0.22"
 blake3 = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }

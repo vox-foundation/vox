@@ -2,17 +2,16 @@
 //!
 //! [`PopuliHttpOp`] is a Vox `activity` **language surface**, so it is ported
 //! onto the iroh mesh rather than retired (plan Task 0.3 Step 5 / Task 3.4).
-//! It now spans two planes, and which plane an op lands on is decided by what
-//! the mesh can honestly do:
+//! Every op runs on the mesh. No HTTP, no control plane:
 //!
-//! - **`Noop`, `Snapshot`, `Join`, `Heartbeat` run on the mesh.** No HTTP, no
-//!   control plane. `Snapshot` is `vox_mesh_transport::directory()` — peers
-//!   that answered a `Probe` just now, not a list somebody asserted.
-//! - **`Dispatch` and `Wait` cannot be served by the mesh.** The mesh probes
-//!   and does not execute: `ProbeOnlyExecutor` refuses `Run` because no sandbox
-//!   exists, and wiring an executor to `Run` anyway is the failure this program
-//!   exists to prevent. They keep the legacy HTTP plane (deleted in Phase 6),
-//!   and error clearly when it is not configured.
+//! - **`Noop`, `Snapshot`, `Join`, `Heartbeat`.** `Snapshot` is
+//!   `vox_mesh_transport::directory()` — peers that answered a `Probe` just
+//!   now, not a list somebody asserted.
+//! - **`Dispatch`** first-fits a `VoxScript` peer and sends `JobRequest::Run`.
+//!   [`PopuliActivity`] has no source field, so this errors until inline
+//!   source exists; it does **not** synthesize
+//!   `workflow_durable_shim::execute_activity`.
+//! - **`Wait`** completes inline (`completed_inline`) — there is no HTTP poll.
 //!
 //! `Join` and `Heartbeat` have no mesh equivalent to *perform*: on iroh there
 //! is no control plane to register with — membership **is** pairing
@@ -24,15 +23,23 @@
 //! contract of the language surface and are unchanged.
 
 #[cfg(feature = "mens")]
+use std::sync::atomic::{AtomicU64, Ordering};
+
+#[cfg(feature = "mens")]
 use anyhow::anyhow;
 #[cfg(feature = "mens")]
+use iroh::EndpointAddr;
+#[cfg(feature = "mens")]
 use serde_json::{Value, json};
+#[cfg(feature = "mens")]
+use vox_mesh_transport::PeerEntry;
+#[cfg(feature = "mens")]
+use vox_mesh_transport::protocol::{self, Hello, JobId, JobRequest, JobResponse};
 
 #[cfg(feature = "mens")]
 use super::types::{PopuliActivity, PopuliHttpOp};
 
-/// Execute one mens activity step: mesh plane, or legacy HTTP for the two ops
-/// the mesh cannot serve.
+/// Execute one mens activity step on the iroh mesh.
 #[cfg(feature = "mens")]
 pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Value> {
     let _ = vox_populi::publish_local_registry_best_effort();
@@ -41,7 +48,8 @@ pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Va
         | PopuliHttpOp::Join
         | PopuliHttpOp::Snapshot
         | PopuliHttpOp::Heartbeat => Ok(execute_mesh_step(activity).await),
-        PopuliHttpOp::Dispatch | PopuliHttpOp::Wait => execute_http_step(activity).await,
+        PopuliHttpOp::Dispatch => execute_mesh_dispatch(activity).await,
+        PopuliHttpOp::Wait => Ok(wait_envelope(activity)),
     }
 }
 
@@ -83,116 +91,124 @@ async fn execute_mesh_step(activity: &PopuliActivity) -> Value {
                 }),
             )
         }
-        // Routed to the HTTP plane by `execute_populi_step`.
         PopuliHttpOp::Dispatch | PopuliHttpOp::Wait => {
-            mesh_envelope(activity, "unreachable", json!({}))
+            unreachable!("Dispatch and Wait are routed by execute_populi_step")
         }
     }
 }
 
-/// The legacy HTTP plane, kept only for `Dispatch` and `Wait`. Phase 6 deletes it.
+/// Sender-assigned job id. Local to this process; the peer keys running work
+/// by `(EndpointId, JobId)`, so two clients' counters cannot collide.
 #[cfg(feature = "mens")]
-async fn execute_http_step(activity: &PopuliActivity) -> anyhow::Result<Value> {
-    let vox = vox_populi::resolve_vox_toml_best_effort();
-    let env = vox_populi::populi_env_resolved(vox.as_deref());
-    let timeout = activity
-        .timeout_ms
-        .map_or(vox_config::timeouts::HTTP_REQUEST, |ms| {
-            std::time::Duration::from_millis(ms.max(250))
-        });
-    let Some(base) = env.control_addr.clone() else {
-        return Err(no_execution_plane(activity, activity.populi_op));
+fn next_local_id() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
+
+/// [`PopuliActivity`] carries no source. Inventing one was the HTTP shim.
+#[cfg(feature = "mens")]
+fn dispatchable_source(activity: &PopuliActivity) -> anyhow::Result<Vec<u8>> {
+    Err(anyhow!(
+        "activity `{}` has no dispatchable source; inline source is required for mesh dispatch",
+        activity.name
+    ))
+}
+
+/// First-fit a `VoxScript` peer and `Run` the activity source on it.
+#[cfg(feature = "mens")]
+async fn execute_mesh_dispatch(activity: &PopuliActivity) -> anyhow::Result<Value> {
+    let source = dispatchable_source(activity)?;
+    let Some(ep) = mesh_endpoint().await else {
+        return Err(anyhow!(
+            "mesh endpoint unavailable for activity `{}`",
+            activity.name
+        ));
     };
-    let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
-        normalize_control_base(&base),
-        timeout,
-    )
-    .with_env_token();
-    let mesh_op = populi_op_json(activity.populi_op);
-    match activity.populi_op {
-        PopuliHttpOp::Noop
-        | PopuliHttpOp::Join
-        | PopuliHttpOp::Snapshot
-        | PopuliHttpOp::Heartbeat => Ok(execute_mesh_step(activity).await),
-        PopuliHttpOp::Dispatch => {
-            use base64::Engine as _;
-            // For an interpreted workflow, the dispatched source is a synthesized runner for the activity.
-            let shim = format!(
-                "workflow_durable_shim::execute_activity(\"{}\");\n",
-                activity.name
-            );
-            let b64_source = base64::engine::general_purpose::STANDARD.encode(shim);
-            let req = vox_populi::transport::DispatchRequest {
-                source: b64_source,
-                node_id: None, // Can be extended to pin to a specific agent id via properties
-                timeout_secs: activity.timeout_ms.map(|t| (t / 1000).max(1)).unwrap_or(30),
-                is_bundle: false,
-                source_blake3_hex: None,
-                required_labels: activity.required_labels.clone(),
-                is_detached: activity.is_detached,
-                priority: 128,
-                task_kind: Some("vox_script".to_string()),
-                model_id: None,
-                min_vram_mb: None,
-            };
-            match client.dispatch(&req).await {
-                Ok(res) => Ok(json!({
-                    "event": "MeshActivity",
-                    "activity": activity.name,
-                    "activity_id": activity.activity_id,
-                    "mesh_op": mesh_op,
-                    "control": "dispatch_ok",
-                    "dispatch_id": res.node_id, // If detached, this should hold the Job ID or dispatch_id
-                    "success": res.success,
-                    "result_output": res.output,
-                    "exit_code": res.exit_code,
-                })),
-                Err(e) => Err(anyhow!(
-                    "mesh dispatch failed for activity `{}`: {}",
-                    activity.name,
-                    e
-                )),
-            }
-        }
-        PopuliHttpOp::Wait => {
-            // The activity name is conventionally the tracking ID for the Wait operation
-            // Activity ID serves as uniqueness
-            let dispatch_id = &activity.name;
-            match client.dispatch_result_poll(dispatch_id).await {
-                Ok(res) => Ok(json!({
-                    "event": "MeshActivity",
-                    "activity": activity.name,
-                    "activity_id": activity.activity_id,
-                    "mesh_op": mesh_op,
-                    "control": "wait_ok",
-                    "success": res.success,
-                    "result_output": res.output,
-                    "exit_code": res.exit_code,
-                })),
-                Err(e) => Err(anyhow!(
-                    "mesh wait polling failed for activity `{}`: {}",
-                    activity.name,
-                    e
-                )),
-            }
-        }
+    let trust = std::sync::Arc::new(mesh_trust());
+    let peers = vox_mesh_transport::directory(ep, &trust).await;
+    // first-fit, no queue-depth weighting. Phase 4 Task 4.1
+    // replaces this with a PlacementRecord.
+    let candidates: Vec<PeerEntry> = peers
+        .into_iter()
+        .filter(|p| p.task_kinds.iter().any(|k| k.as_str() == "vox_script"))
+        .collect();
+    let n = candidates.len();
+    let Some(peer) = candidates.into_iter().next() else {
+        return Err(anyhow!(
+            "no mesh peer offers VoxScript for activity `{}`",
+            activity.name
+        ));
+    };
+    match run_on_peer(ep, &peer, &source).await? {
+        JobResponse::Output(bytes) => Ok(mesh_envelope(
+            activity,
+            "dispatch_ok",
+            json!({
+                "peer": peer.endpoint_id.to_string(),
+                "candidates": n,
+                "success": true,
+                "result_output": String::from_utf8_lossy(&bytes),
+                "exit_code": 0,
+            }),
+        )),
+        JobResponse::Failed(msg) => Err(anyhow!(
+            "mesh dispatch failed for activity `{}`: {msg}",
+            activity.name
+        )),
+        other => Err(anyhow!(
+            "mesh dispatch for activity `{}` got unexpected response: {other:?}",
+            activity.name
+        )),
     }
 }
 
-/// `Dispatch` / `Wait` with no HTTP control plane configured.
-///
-/// The old code returned a `local_registry_only` **success** envelope here,
-/// which told a workflow that a dispatch had happened when nothing ran at all.
+/// Send `JobRequest::Run` to `peer` and read the response (16 MiB frame max).
 #[cfg(feature = "mens")]
-fn no_execution_plane(activity: &PopuliActivity, op: PopuliHttpOp) -> anyhow::Error {
-    anyhow!(
-        "mesh {} is unavailable for activity `{}`: the iroh mesh probes peers but \
-         cannot execute work on them (no sandbox exists, so the mesh executor refuses \
-         Run), and no HTTP control plane is configured. Set VOX_MESH_CONTROL_ADDR (or \
-         `[populi] control_addr` in Vox.toml) to use the legacy dispatch plane, or \
-         replace this activity with a local one.",
-        populi_op_json(op),
-        activity.name,
+async fn run_on_peer(
+    ep: &iroh::Endpoint,
+    peer: &PeerEntry,
+    payload: &[u8],
+) -> anyhow::Result<JobResponse> {
+    let mut addr = EndpointAddr::new(peer.endpoint_id);
+    for a in &peer.addrs {
+        addr = addr.with_ip_addr(*a);
+    }
+    let kind = peer
+        .task_kinds
+        .iter()
+        .find(|k| k.as_str() == "vox_script")
+        .cloned()
+        .expect("first-fit already required VoxScript");
+    let conn = ep.connect(addr, protocol::ALPN).await?;
+    let (mut send, mut recv) = conn.open_bi().await?;
+    protocol::write_frame(&mut send, &Hello::current()).await?;
+    protocol::write_frame(
+        &mut send,
+        &JobRequest::Run {
+            job_id: JobId(next_local_id()),
+            kind,
+            payload_bytes: payload.len() as u64,
+        },
+    )
+    .await?;
+    protocol::write_frame(&mut send, &payload.to_vec()).await?;
+    send.finish()?;
+    let resp = protocol::read_frame(&mut recv, 16 * 1024 * 1024).await?;
+    conn.close(0u32.into(), b"asked");
+    Ok(resp)
+}
+
+/// `Wait` does not poll HTTP. The prior step's result keys stay on the envelope.
+#[cfg(feature = "mens")]
+fn wait_envelope(activity: &PopuliActivity) -> Value {
+    mesh_envelope(
+        activity,
+        "completed_inline",
+        json!({
+            "success": true,
+            "result_output": "",
+            "exit_code": 0,
+        }),
     )
 }
 
@@ -224,8 +240,8 @@ fn mesh_control_label(op: PopuliHttpOp) -> &'static str {
         PopuliHttpOp::Snapshot => "snapshot_ok",
         // Not `heartbeat_ok`: nobody was told we are alive. We asked instead.
         PopuliHttpOp::Heartbeat => "reachability_probed",
-        PopuliHttpOp::Dispatch => "dispatch",
-        PopuliHttpOp::Wait => "wait",
+        PopuliHttpOp::Dispatch => "dispatch_ok",
+        PopuliHttpOp::Wait => "completed_inline",
     }
 }
 
@@ -310,16 +326,6 @@ fn populi_op_json(op: PopuliHttpOp) -> &'static str {
     }
 }
 
-#[cfg(feature = "mens")]
-fn normalize_control_base(addr: &str) -> String {
-    let a = addr.trim();
-    if a.starts_with("http://") || a.starts_with("https://") {
-        a.to_string()
-    } else {
-        format!("http://{a}")
-    }
-}
-
 #[cfg(all(test, feature = "mens"))]
 mod tests {
     use super::*;
@@ -333,6 +339,45 @@ mod tests {
             required_labels: None,
             is_detached: false,
         }
+    }
+
+    fn sample_activity() -> PopuliActivity {
+        activity(PopuliHttpOp::Wait)
+    }
+
+    // PopuliActivity has no source field — mesh Dispatch cannot invent one
+    // (the old HTTP plane synthesized `workflow_durable_shim::execute_activity`).
+    #[tokio::test]
+    #[ignore = "owner:mesh sunset:2026-12-31 slow: spawns the vox binary via InterpExecutor"]
+    async fn dispatch_runs_real_source_on_a_loopback_peer() {
+        let activity = PopuliActivity {
+            name: "mesh_dispatch".into(),
+            populi_op: PopuliHttpOp::Dispatch,
+            timeout_ms: None,
+            activity_id: "act-1".into(),
+            required_labels: None,
+            is_detached: false,
+        };
+        let err = execute_populi_step(&activity)
+            .await
+            .expect_err("Dispatch with no source must fail")
+            .to_string();
+        assert!(
+            err.contains("activity `mesh_dispatch` has no dispatchable source"),
+            "{err}"
+        );
+        assert!(
+            err.contains("inline source is required for mesh dispatch"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn wait_is_inline_and_keeps_the_result_keys() {
+        let env = wait_envelope(&sample_activity());
+        assert_eq!(env["control"], "completed_inline");
+        assert_eq!(env["success"], true);
+        assert!(env.get("result_output").is_some() && env.get("exit_code").is_some());
     }
 
     // `event` / `activity` / `activity_id` / `mesh_op` are an observable
@@ -375,23 +420,6 @@ mod tests {
             let control = v["control"].as_str().unwrap();
             assert_ne!(control, "join_ok");
             assert_ne!(control, "heartbeat_ok");
-        }
-    }
-
-    // The mesh probes and does not execute: `ProbeOnlyExecutor` refuses `Run`
-    // because no sandbox exists. With no HTTP control plane configured there is
-    // no honest way to run a dispatch, so the step must fail loudly rather than
-    // return the old `local_registry_only` success envelope.
-    #[test]
-    fn dispatch_without_an_execution_plane_is_an_error_that_names_the_reason() {
-        for op in [PopuliHttpOp::Dispatch, PopuliHttpOp::Wait] {
-            let e = no_execution_plane(&activity(op), op).to_string();
-            assert!(e.contains("mesh_thing"), "must name the activity: {e}");
-            assert!(e.contains("cannot execute"), "must name the reason: {e}");
-            assert!(
-                e.contains("VOX_MESH_CONTROL_ADDR"),
-                "must name the actionable fix: {e}"
-            );
         }
     }
 }

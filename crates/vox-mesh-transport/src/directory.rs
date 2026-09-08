@@ -31,6 +31,9 @@ pub struct PeerEntry {
     pub host_triple: String,
     pub vox: String,
     pub task_kinds: Vec<vox_mesh_types::TaskKind>,
+    /// Addresses this probe was dialled on. Needed so a later `Run` can
+    /// reach the same peer without going back to the trust file.
+    pub addrs: Vec<std::net::SocketAddr>,
 }
 
 /// Probe every trusted peer; return those that answered.
@@ -45,7 +48,7 @@ pub async fn directory(ep: &Endpoint, trust: &Arc<MeshTrust>) -> Vec<PeerEntry> 
     let mut out: Vec<PeerEntry> = fan_out(ep, trust, JobRequest::Probe)
         .await
         .into_iter()
-        .filter_map(|(endpoint_id, label, resp)| match resp {
+        .filter_map(|(endpoint_id, label, addrs, resp)| match resp {
             JobResponse::Probed {
                 host_triple,
                 vox,
@@ -57,6 +60,7 @@ pub async fn directory(ep: &Endpoint, trust: &Arc<MeshTrust>) -> Vec<PeerEntry> 
                 host_triple,
                 vox,
                 task_kinds,
+                addrs,
             }),
             // Answered something other than a probe result. Same conclusion as
             // silence: do not route work here.
@@ -91,7 +95,7 @@ pub async fn queue_stats(ep: &Endpoint, trust: &Arc<MeshTrust>) -> MeshQueueTota
     let answers = fan_out(ep, trust, JobRequest::QueueStats)
         .await
         .into_iter()
-        .filter_map(|(_, _, resp)| match resp {
+        .filter_map(|(_, _, _, resp)| match resp {
             JobResponse::QueueStats(s) => Some(s),
             _ => None,
         });
@@ -138,7 +142,12 @@ async fn fan_out(
     ep: &Endpoint,
     trust: &Arc<MeshTrust>,
     request: JobRequest,
-) -> Vec<(EndpointId, Option<String>, JobResponse)> {
+) -> Vec<(
+    EndpointId,
+    Option<String>,
+    Vec<std::net::SocketAddr>,
+    JobResponse,
+)> {
     let mut set = JoinSet::new();
 
     for row in trust.rows() {
@@ -157,13 +166,14 @@ async fn fan_out(
         let ep = ep.clone();
         let label = row.label.clone();
         let request = request.clone();
+        let addrs_ret = addrs.clone();
         set.spawn(async move {
             let mut addr = EndpointAddr::new(id);
             for a in addrs {
                 addr = addr.with_ip_addr(a);
             }
             match timeout(PROBE_TIMEOUT, ask_one(&ep, addr, request)).await {
-                Ok(Ok(resp)) => Some((id, label, resp)),
+                Ok(Ok(resp)) => Some((id, label, addrs_ret, resp)),
                 // Unreachable or refused. Both mean "this peer told us nothing".
                 _ => None,
             }
