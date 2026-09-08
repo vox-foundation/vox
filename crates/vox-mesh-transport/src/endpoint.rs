@@ -91,50 +91,6 @@ pub fn inbound_firewall_advice(_program: &std::path::Path) -> Option<String> {
     no_per_app_inbound_udp_filter
 }
 
-/// The default executor: answers `Probe`, and **refuses `Run`**.
-///
-/// Deliberately not a stub that runs things. The sandbox tiers in
-/// [`Isolation`](crate::protocol::Isolation) are declared but not yet
-/// implemented, and an executor that ran `Run` "for now" would be an
-/// unsandboxed remote-execution path reachable by any paired peer — the exact
-/// hole the HTTP plane had. Refusing is the safe default until a real sandbox
-/// backs it.
-#[derive(Debug, Clone, Copy)]
-pub struct ProbeOnlyExecutor;
-
-impl JobExecutor for ProbeOnlyExecutor {
-    fn execute<'a>(
-        &'a self,
-        job: ReceivedJob,
-    ) -> Pin<Box<dyn Future<Output = Result<JobResponse>> + Send + 'a>> {
-        Box::pin(async move {
-            Ok(match job.request {
-                JobRequest::Probe => JobResponse::Probed {
-                    host_triple: format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS),
-                    vox: env!("CARGO_PKG_VERSION").to_string(),
-                    // Empty on purpose: this executor refuses `Run`, so advertising
-                    // task kinds would be a lie the model selector acts on.
-                    task_kinds: Vec::new(),
-                    engines: Vec::new(),
-                },
-                JobRequest::Run { .. } => JobResponse::Failed(
-                    "this node accepts Probe only: no sandbox is wired up yet, and \
-                     running mesh-received work unsandboxed is exactly the hole this \
-                     transport replaced"
-                        .to_string(),
-                ),
-                // Honest, not a placeholder: this executor runs nothing, so
-                // nothing is pending. A node that queues work answers with its
-                // real depth by supplying its own `JobExecutor`.
-                JobRequest::QueueStats => JobResponse::QueueStats(protocol::QueueStats::default()),
-                JobRequest::Cancel { .. } => {
-                    JobResponse::Failed("nothing to cancel: this node runs no jobs".to_string())
-                }
-            })
-        })
-    }
-}
-
 /// Bind a mesh endpoint.
 ///
 /// `presets::Minimal` is not a default to be revisited — it is the whole

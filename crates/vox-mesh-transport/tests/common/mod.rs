@@ -10,10 +10,36 @@ use std::time::Duration;
 use anyhow::Result;
 use iroh::{Endpoint, EndpointId, SecretKey};
 use tokio::time::timeout;
-use vox_mesh_transport::endpoint::JobExecutor;
+use vox_mesh_transport::endpoint::{JobExecutor, ReceivedJob};
 use vox_mesh_transport::protocol::{self, ALPN, Hello, JobId, JobRequest, JobResponse};
 use vox_mesh_transport::trust::{MeshTrust, TrustLevel};
 use vox_mesh_types::TaskKind;
+
+/// Answers Probe / QueueStats / Run without executing. Used by tests that only
+/// need `serve` to stay up (mailbox) or that record invocations themselves.
+#[derive(Debug, Default)]
+pub struct SpyExecutor;
+
+impl JobExecutor for SpyExecutor {
+    fn execute<'a>(
+        &'a self,
+        job: ReceivedJob,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<JobResponse>> + Send + 'a>> {
+        Box::pin(async move {
+            Ok(match job.request {
+                JobRequest::Probe => JobResponse::Probed {
+                    host_triple: "test-triple".to_string(),
+                    vox: "0.0.0-test".to_string(),
+                    task_kinds: vec![TaskKind::VoxScript],
+                    engines: Vec::new(),
+                },
+                JobRequest::QueueStats => JobResponse::QueueStats(protocol::QueueStats::default()),
+                JobRequest::Cancel { .. } => JobResponse::Failed("nothing to cancel".to_string()),
+                JobRequest::Run { .. } => JobResponse::Output(b"ok".to_vec()),
+            })
+        })
+    }
+}
 
 /// A bound server plus the trust store the tests mutate.
 #[derive(Clone)]

@@ -409,6 +409,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-crypto/",
         "crates/vox-ml-cli/",
         "crates/vox-mesh-types/",
+        "crates/vox-mesh-transport/",
         "crates/vox-spool/",
         "crates/vox-sql/",
         // Codegen / shared types / plugins: serde and model context often match dataflow heuristics
@@ -417,6 +418,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-db-types/",
         "crates/vox-deploy-codegen/",
         "crates/vox-plugin-oratio/",
+        "crates/vox-plugin-populi-mesh/",
         "crates/vox-plugin-runtime-container/",
         "crates/vox-telemetry/",
     ];
@@ -450,6 +452,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-crypto/",
         "crates/vox-ml-cli/",
         "crates/vox-mesh-types/",
+        "crates/vox-mesh-transport/",
         "crates/vox-spool/",
         "crates/vox-sql/",
     ];

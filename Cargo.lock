@@ -17807,9 +17807,11 @@ name = "vox-mesh-transport"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "futures",
  "iroh",
  "iroh-mdns-address-lookup",
  "iroh-tickets",
+ "libc",
  "postcard",
  "serde",
  "serde_json",
@@ -17818,6 +17820,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vox-mesh-types",
+ "win32job",
  "workspace-hack",
 ]
 
@@ -18042,7 +18045,6 @@ dependencies = [
  "vox-test-harness",
  "vox-vcs",
  "walkdir",
- "wat",
  "wiremock",
  "workspace-hack",
  "xxhash-rust",

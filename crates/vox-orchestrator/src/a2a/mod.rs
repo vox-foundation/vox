@@ -19,7 +19,6 @@ mod remote_worker;
 #[path = "remote_worker_noop.rs"]
 mod remote_worker;
 pub mod secret_bag;
-pub mod secret_gate;
 pub mod traceparent;
 
 pub use crate::types::{A2AMessage, A2AMessageType, MessageId};

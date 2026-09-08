@@ -9,10 +9,11 @@ use std::time::Duration;
 
 use iroh::{Endpoint, SecretKey};
 use tokio::time::timeout;
-use vox_mesh_transport::endpoint::ProbeOnlyExecutor;
 use vox_mesh_transport::mailbox::{Inbox, MailboxLimits, Outbox};
 use vox_mesh_transport::trust::MeshTrust;
 use vox_mesh_types::A2ADeliverRequest;
+
+mod common;
 
 fn msg(idempotency_key: &str, payload: &str) -> A2ADeliverRequest {
     A2ADeliverRequest {
@@ -59,7 +60,7 @@ async fn start_receiver_with(inbox: Arc<Inbox>, sk: SecretKey) -> Receiver {
     tokio::spawn(vox_mesh_transport::endpoint::serve(
         ep,
         Arc::clone(&trust),
-        Arc::new(ProbeOnlyExecutor),
+        Arc::new(common::SpyExecutor),
         Some(Arc::clone(&inbox)),
     ));
     Receiver {
