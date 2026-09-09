@@ -395,11 +395,11 @@ fn kill_process_group(child: &tokio::process::Child) {
 
 #[cfg(windows)]
 fn assign_win32_job(child: &tokio::process::Child) -> Option<win32job::Job> {
-    use std::os::windows::io::AsRawHandle;
     let mut info = win32job::ExtendedLimitInfo::new();
     info.limit_kill_on_job_close();
     let job = win32job::Job::create_with_limit_info(&info).ok()?;
-    let handle = child.as_raw_handle() as isize;
+    // tokio::process::Child exposes `raw_handle()`, not std's AsRawHandle.
+    let handle = child.raw_handle()? as isize;
     job.assign_process(handle).ok()?;
     Some(job)
 }
