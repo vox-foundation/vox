@@ -23,36 +23,35 @@ the Metal micro-run and is the supported Mac-tier spike model.
 
 ## Install and pre-download
 
-Build the GPU-enabled CLI and install the Metal runtime plugin:
+Build the GPU-enabled ML CLI and install the Metal runtime plugin:
 
 ```bash
-cargo build -p vox-cli --release --features gpu
+cargo build -p vox-ml-cli --release --features gpu,execution-api
+export PATH="$(pwd)/target/release:$PATH"   # or your CARGO_TARGET_DIR/release
 vox plugin install mens-candle-metal --yes
 vox plugin doctor
 ```
 
-Download the hub model before training:
-
-```bash
-vox mens download --model "$SPIKE_MODEL_ID"
-```
-
-On shells that do not expand the variable, replace it with
-`Qwen/Qwen2.5-Coder-0.5B-Instruct`.
+`execution-api` is required for in-process `vox mens serve` (there is no
+`vox-schola` binary in this workspace). `vox mens train --model …` downloads
+the hub checkpoint via hf-hub before training (there is no separate
+`vox mens download` subcommand).
 
 ## Train the Metal pack
 
 The checked-in corpus has 100 ChatML `prompt`/`response` pairs and is isolated
 under `examples/mens/metal-e2e`. Do not rename it to `train.jsonl`: the
 workspace contract and stale-corpus fallback can otherwise select a different
-file.
+file. Pass `--fast-corpus` so a stale workspace fingerprint does not run the
+full corpus pipeline over the e2e data-dir.
 
 ```bash
 vox mens train --backend qlora --tokenizer hf --device metal \
   --model "$SPIKE_MODEL_ID" \
   --data-dir examples/mens/metal-e2e \
   --output-dir mens/runs/qwen35-08b-metal-e2e \
-  --epochs 1 --max-runtime-secs 300
+  --epochs 1 --max-runtime-secs 300 \
+  --fast-corpus
 ```
 
 The run directory must contain `tokenizer.json` and the trainer manifest,
@@ -61,10 +60,14 @@ contain `collateral_damage_report.json` with `"status": "pass"`. Generate it
 after capturing a baseline:
 
 ```bash
-vox mens eval collateral-damage \
+vox mens eval-collateral-damage \
   --pre-score path/to/baseline.json \
-  --post mens/runs/qwen35-08b-metal-e2e/candle_qlora_adapter.safetensors
+  --post-adapter mens/runs/qwen35-08b-metal-e2e
 ```
+
+Copy `tokenizer.json` and `config.json` from the Hugging Face snapshot into the
+run directory. Update `adapter_manifest.json` `base_model` to the **local
+snapshot directory** (the Metal serve plugin does not download hub ids).
 
 The serve command refuses a missing or non-passing collateral report:
 

@@ -39,10 +39,8 @@ fn main() {
     print("  Model: " + model)
     print("  Run:   " + run_dir)
 
-    if not run_vox(["mens", "download", "--model", model]) {
-        fail("model download failed")
-    }
-
+    // --model triggers native hf-hub download; --fast-corpus keeps the
+    // per-run data-dir contract from being hijacked by a workspace corpus refresh.
     let train_args = [
         "mens", "train",
         "--backend", "qlora",
@@ -52,7 +50,8 @@ fn main() {
         "--data-dir", "examples/mens/metal-e2e",
         "--output-dir", run_dir,
         "--epochs", "1",
-        "--max-runtime-secs", "300"
+        "--max-runtime-secs", "300",
+        "--fast-corpus"
     ]
     if not run_vox(train_args) {
         fail("Metal training failed; verify the host-aware training dispatch is present")
@@ -65,9 +64,9 @@ fn main() {
         }
         let baseline_path = baseline.unwrap()
         if not run_vox([
-            "mens", "eval", "collateral-damage",
+            "mens", "eval-collateral-damage",
             "--pre-score", baseline_path,
-            "--post", run_dir + "/candle_qlora_adapter.safetensors"
+            "--post-adapter", run_dir
         ]) {
             fail("collateral-damage evaluation failed")
         }
@@ -78,6 +77,12 @@ fn main() {
     let report_body = fs.read(report).unwrap_or("")
     if not report_body.contains("\"status\":\"pass\"") and not report_body.contains("\"status\": \"pass\"") {
         fail("collateral_damage_report.json does not assert status pass")
+    }
+
+    // Serve expects tokenizer.json beside the adapter; train may leave it on the hub snapshot only.
+    let tok = run_dir + "/tokenizer.json"
+    if not fs.exists(tok) {
+        fail("missing tokenizer.json in run dir; copy from the Hugging Face snapshot before serve")
     }
 
     let serve_id = process.spawn_background("vox", [
