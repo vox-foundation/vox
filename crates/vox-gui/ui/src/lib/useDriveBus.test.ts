@@ -196,11 +196,27 @@ describe('handleDriveRequest', () => {
     expect(src).toMatch(/appendDriveEvent/);
   });
 
-  it('state and show skip catalog IPC; set and send do not', () => {
-    expect(driveVerbNeedsCatalog('state')).toBe(false);
+  it('state, set, and send require catalog IPC; show does not', () => {
+    expect(driveVerbNeedsCatalog('state')).toBe(true);
     expect(driveVerbNeedsCatalog('show')).toBe(false);
     expect(driveVerbNeedsCatalog('set')).toBe(true);
     expect(driveVerbNeedsCatalog('send')).toBe(true);
+  });
+
+  it('state includes OpenRouter provider_type in its catalog snapshot', async () => {
+    const res = await handleDriveRequest({
+      state: emptyLiveState(),
+      models: [
+        { id: 'openrouter/auto', label: 'auto', provider: 'OpenRouter', providerType: 'OpenRouter' },
+      ],
+      statuses: [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null }],
+      submit: vi.fn(),
+      req: { id: '1', verb: 'state', body: {} },
+    });
+    expect(res.state.catalog[0]).toMatchObject({
+      id: 'openrouter/auto',
+      provider_type: 'OpenRouter',
+    });
   });
 
   it('mutation: deleting the selectable check would miss the 409', () => {

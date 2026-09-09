@@ -122,7 +122,7 @@ export function assertPinSelectable(
 }
 
 export function driveVerbNeedsCatalog(verb: DriveRequest['verb']): boolean {
-  return verb === 'set' || verb === 'send';
+  return verb === 'set' || verb === 'send' || verb === 'state';
 }
 
 export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<DriveHttpLike> {

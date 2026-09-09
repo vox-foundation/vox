@@ -77,6 +77,8 @@ export interface DriveCatalogRow {
   id: string;
   selectable: boolean;
   reason: string | null;
+  provider?: string;
+  provider_type?: string;
 }
 
 export interface DriveClaims {
@@ -178,6 +180,8 @@ export function snapshotCatalog(
       id: m.id,
       selectable: false,
       reason: 'status_unavailable',
+      provider: m.provider,
+      provider_type: m.providerType,
     }));
   }
   return models.map(m => {
@@ -186,6 +190,8 @@ export function snapshotCatalog(
       id: m.id,
       selectable,
       reason: selectable ? null : catalogReason(m, statuses),
+      provider: m.provider,
+      provider_type: m.providerType,
     };
   });
 }
