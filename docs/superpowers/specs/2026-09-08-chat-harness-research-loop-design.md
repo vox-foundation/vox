@@ -14,6 +14,7 @@ training_rationale: "Contract for closing the snapshot → extract → cite → 
 **Research:** [`docs/src/architecture/agent-browser-driver-research-2026.md`](../../src/architecture/agent-browser-driver-research-2026.md)
 **Plan:** [`docs/superpowers/plans/2026-09-08-chat-harness-research-loop.md`](../plans/2026-09-08-chat-harness-research-loop.md)
 **GUI SSOT:** [`docs/src/architecture/vox-gui-browser-support-2026.md`](../../src/architecture/vox-gui-browser-support-2026.md)
+**Follow-on (do not implement in this plan):** [`2026-09-08-browser-hitl-design.md`](./2026-09-08-browser-hitl-design.md) — Axis vs human-locked tab. This plan stays pixels + skill.
 
 This spec is the contract. Executors do not invent types, env vars, crate edges, tool names, or a forced pipeline that are not named here.
 

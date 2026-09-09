@@ -1073,7 +1073,7 @@ pub(crate) fn check_fmt(root: &Path) -> Result<()> {
     if unformatted {
         bail!(
             "rustfmt --check found unformatted files (diffs above). \
-             Run `vox run scripts/fmt.vox` to fix (Windows-safe; plain \
+             Run `vox run scripts/fmt.vox -- --all` to fix (Windows-safe; plain \
              `cargo fmt --all` overflows the Windows command-line limit / \
              os error 206 on this workspace). Single crate: `cargo fmt -p <crate>`."
         );

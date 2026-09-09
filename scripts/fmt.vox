@@ -1,30 +1,34 @@
 // vox:caps fs subprocess env
 // scripts/fmt.vox
 //
-// Windows-safe, crate-agnostic workspace Rust formatter — the single source of
-// truth for "format all Rust in this repo".
+// Windows-safe Rust formatter. NEVER `cargo fmt --all` — that overflows the
+// Windows CreateProcess ~32 KB limit (os error 206) on this workspace.
 //
-// WHY THIS EXISTS: `cargo fmt --all` collects the target-root path of every
-// crate and passes them to ONE `rustfmt` invocation. On this large workspace
-// with long absolute paths that command line overflows the Windows
-// `CreateProcess` limit (~32 KB) and dies with `os error 206`
-// ("The filename or extension is too long"). cargo has no built-in chunking, so
-// every agent/contributor on Windows that runs `cargo fmt --all` hits the same
-// wall. Instead we format each crate via `cargo fmt --manifest-path
-// crates/<crate>/Cargo.toml`: each call carries a single manifest path (well
-// under the limit on every OS), while cargo still resolves `rustfmt.toml` +
-// per-crate edition for full fidelity (unlike a raw `rustfmt` loop, which loses
-// the workspace config when handed Windows `\\?\` extended-length paths).
+// Default WRITE formats only dirty `.rs` files (git unstaged + staged +
+// untracked). Skip deleted/missing files. If `rustfmt.toml` is dirty, fall
+// through to a full workspace sweep (style rules changed).
 //
-// This is the WRITE counterpart to the read-side `check_fmt` in
-// crates/vox-cli/src/commands/ci/pre_push.rs (which chunks `rustfmt --check`
-// over target roots for the same reason).
+// Full workspace and crate-name modes match `check_fmt` in
+// crates/vox-cli/src/commands/ci/pre_push.rs: one `cargo metadata --no-deps
+// --format-version 1`, then `rustfmt --config-path <repo root>` in chunks of
+// 50 target roots (lib.rs / main.rs / build.rs / test & example roots).
+// Dirty-file mode rustfmts those `.rs` paths directly (no metadata).
+// Workspace-excluded tombstones (e.g. vox-plugin-cloud) are not in metadata.
 //
 // Usage (run from the repo root):
-//   vox run scripts/fmt.vox                    # write: format the whole workspace
-//   VOX_FMT_CHECK=1 vox run scripts/fmt.vox    # check only: nonzero exit on drift (CI parity)
+//   vox run scripts/fmt.vox                         # write: dirty .rs only
+//   vox run scripts/fmt.vox -- --all                # write: full workspace
+//   vox run scripts/fmt.vox -- vox-cli              # write: one workspace package
+//   VOX_FMT_CHECK=1 vox run scripts/fmt.vox         # check dirty only (local)
+//   VOX_FMT_CHECK=1 vox run scripts/fmt.vox -- --all
+//   VOX_FMT_ALL=1 vox run scripts/fmt.vox           # same as --all
+//
+// Pre-push / CI `check_fmt` is always full-workspace rustfmt --check (not this
+// dirty default). After a failed gate: `vox run scripts/fmt.vox -- --all`.
 //
 // See AGENTS.md "Formatting Rust (Windows-safe)".
+
+import json;
 
 fn env_flag(name: str) to bool {
     let opt = std.env.get(name);
@@ -38,70 +42,260 @@ fn norm(p: str) to str {
     return p.replace("\\", "/");
 }
 
-fn main() {
-    let check = env_flag("VOX_FMT_CHECK");
-
-    let g = std.fs.glob("crates/*/Cargo.toml");
-    if g.is_err() {
-        log.error("fmt: could not glob crates/*/Cargo.toml (run from the repo root)");
-        process.exit(1);
+fn is_rs(p: str) to bool {
+    if norm(p).ends_with(".rs") {
+        return true;
     }
-    let manifests = g.unwrap();
-    if manifests.is_empty() {
-        log.error("fmt: no crate manifests under crates/*/Cargo.toml (run from the repo root)");
-        process.exit(1);
+    return false;
+}
+
+fn is_root_rustfmt_toml(p: str) to bool {
+    let n = norm(p);
+    return n == "rustfmt.toml" or n == "./rustfmt.toml";
+}
+
+fn skip_tombstone(p: str) to bool {
+    if norm(p).contains("/vox-plugin-cloud/") {
+        return true;
     }
+    return false;
+}
 
-    if check {
-        print("Checking Rust formatting across " + str(manifests.len()) + " crates (Windows-safe, per-crate)...");
-    } else {
-        print("Formatting Rust across " + str(manifests.len()) + " crates (Windows-safe, per-crate)...");
+fn jstr(j: Json, k: str) to str {
+    return j.get(k).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("");
+}
+
+fn jarr(j: Json, k: str) to list[Json] {
+    return j.get(k).and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([]);
+}
+
+fn git_lines(args: list[str]) to list[str] {
+    let proc = process.run("git", args);
+    if proc is null {
+        print("fmt: could not spawn git")
+        process.exit(1)
     }
-
-    // Workspace-excluded tombstones still match crates/*/Cargo.toml but cannot
-    // use `cargo fmt --manifest-path` (no workspace root for *.workspace keys).
-    let skip_manifests = [
-        "crates/vox-plugin-cloud/Cargo.toml",
-    ];
-
-    let mut failed = 0;
-    for m in manifests {
-        let m_norm = norm(m);
-        if skip_manifests.contains(m_norm) {
-            continue;
+    let res = proc.unwrap()
+    if res.code != 0 {
+        print("fmt: git failed")
+        process.exit(1)
+    }
+    let mut out = [];
+    for line in res.stdout.split("\n") {
+        let t = line.trim();
+        if t != "" {
+            out = out.push(t);
         }
-        let mut args = ["fmt", "--manifest-path", m];
+    }
+    return out;
+}
+
+fn push_unique(xs: list[str], v: str) to list[str] {
+    if xs.contains(v) {
+        return xs;
+    }
+    return xs.push(v);
+}
+
+fn collect_dirty_paths() to list[str] {
+    let mut all = [];
+    for line in git_lines(["diff", "--name-only", "--diff-filter=d"]) {
+        all = push_unique(all, norm(line));
+    }
+    for line in git_lines(["diff", "--cached", "--name-only", "--diff-filter=d"]) {
+        all = push_unique(all, norm(line));
+    }
+    for line in git_lines(["ls-files", "--others", "--exclude-standard"]) {
+        all = push_unique(all, norm(line));
+    }
+    return all;
+}
+
+fn dirty_rs_existing(dirty: list[str]) to list[str] {
+    let mut files = [];
+    for p in dirty {
+        if is_rs(p) {
+            if skip_tombstone(p) {
+                continue;
+            }
+            if std.fs.exists(p) {
+                files = push_unique(files, p);
+            }
+        }
+    }
+    return files;
+}
+
+fn rustfmt_toml_dirty(dirty: list[str]) to bool {
+    for p in dirty {
+        if is_root_rustfmt_toml(p) {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn target_roots(crate_filter: list[str]) to list[str] {
+    let proc = process.run("cargo", ["metadata", "--no-deps", "--format-version", "1"]);
+    if proc is null {
+        print("fmt: could not spawn cargo metadata")
+        process.exit(1)
+    }
+    let res = proc.unwrap()
+    if res.code != 0 {
+        print("fmt: cargo metadata failed")
+        process.exit(1)
+    }
+    let parsed = json.parse(res.stdout)
+    if parsed.is_err() {
+        print("fmt: cargo metadata JSON parse failed")
+        process.exit(1)
+    }
+    let pkgs = jarr(parsed.unwrap(), "packages");
+    if crate_filter.len() > 0 {
+        for c in crate_filter {
+            let mut found = false;
+            for p in pkgs {
+                if jstr(p, "name") == c {
+                    found = true;
+                }
+            }
+            if found {
+                // ok
+            } else {
+                print("fmt: unknown workspace crate: " + c)
+                process.exit(1)
+            }
+        }
+    }
+    let mut roots = [];
+    for p in pkgs {
+        let name = jstr(p, "name");
+        if crate_filter.len() > 0 {
+            if crate_filter.contains(name) {
+                // keep
+            } else {
+                continue;
+            }
+        }
+        for t in jarr(p, "targets") {
+            let src = jstr(t, "src_path");
+            if src == "" {
+                continue;
+            }
+            if std.fs.exists(src) {
+                roots = push_unique(roots, src);
+            }
+        }
+    }
+    if roots.is_empty() {
+        print("fmt: no rustfmt target roots (run from the repo root)")
+        process.exit(1)
+    }
+    return roots;
+}
+
+fn rustfmt_paths(paths: list[str], check: bool) to int {
+    let chunk_size = 50;
+    let mut failed = 0;
+    let mut i = 0;
+    while i < paths.len() {
+        let mut args = [];
         if check {
-            args = args.push("--");
             args = args.push("--check");
         }
-        let proc = process.run("cargo", args);
+        args = args.push("--config-path");
+        args = args.push(".");
+        let mut j = 0;
+        while j < chunk_size {
+            if i + j >= paths.len() {
+                break;
+            }
+            args = args.push(paths.get(i + j).unwrap());
+            j = j + 1;
+        }
+        let proc = process.run("rustfmt", args);
         if proc is null {
-            log.error("fmt: could not spawn cargo for " + norm(m));
-            failed = failed + 1;
+            print("fmt: could not spawn rustfmt")
+            failed = failed + 1
         } else {
             let res = proc.unwrap();
             if res.code != 0 {
                 failed = failed + 1;
-                print("  [needs-format] " + norm(m));
-                if res.stdout != "" {
-                    print(res.stdout);
-                }
             }
+        }
+        i = i + chunk_size;
+    }
+    return failed;
+}
+
+fn main() {
+    let mut check = env_flag("VOX_FMT_CHECK");
+    let mut want_all = env_flag("VOX_FMT_ALL");
+    let mut crates = [];
+
+    let argv = std.env.args();
+    let mut i = 1;
+    while i < argv.len() {
+        let arg = argv.get(i).unwrap();
+        if arg == "--" {
+            i = i + 1;
+            continue;
+        } else if arg == "--all" {
+            want_all = true;
+        } else if arg == "--check" {
+            check = true;
+        } else if arg.starts_with("-") {
+            print("fmt: unknown flag: " + arg)
+            process.exit(2)
+        } else {
+            crates = crates.push(arg);
+        }
+        i = i + 1;
+    }
+
+    let mut scope = "dirty";
+    let mut rustfmt_toml = false;
+    let mut paths = [];
+
+    if crates.len() > 0 {
+        scope = "crates";
+        paths = target_roots(crates);
+    } else {
+        let dirty = collect_dirty_paths();
+        rustfmt_toml = rustfmt_toml_dirty(dirty);
+        if want_all or rustfmt_toml {
+            scope = "workspace";
+            paths = target_roots([]);
+        } else {
+            paths = dirty_rs_existing(dirty);
         }
     }
 
+    if paths.is_empty() {
+        if check {
+            print("fmt: nothing dirty to check. Pre-push/CI uses full workspace — run `VOX_FMT_CHECK=1 vox run scripts/fmt.vox -- --all`.");
+        } else {
+            print("fmt: nothing dirty. For a failed `check_fmt` / pre-push gate run `vox run scripts/fmt.vox -- --all`.");
+        }
+        return;
+    }
+
+    let failed = rustfmt_paths(paths, check);
+    let kind = if scope == "dirty" { "file(s)" } else { "target root(s)" };
+    let extra = if rustfmt_toml { " (rustfmt.toml dirty)" } else { "" };
+
     if failed == 0 {
         if check {
-            print("fmt: clean across all crates.");
+            print("fmt: clean (" + str(paths.len()) + " " + kind + ")" + extra + ".");
         } else {
-            print("fmt: formatted all crates.");
+            print("fmt: formatted " + str(paths.len()) + " " + kind + extra + ".");
         }
     } else {
         if check {
-            log.error("fmt: " + str(failed) + " crate(s) need formatting. Run `vox run scripts/fmt.vox` to fix.");
+            print("fmt: " + str(failed) + " chunk(s) need formatting. Run `vox run scripts/fmt.vox` to fix.")
         } else {
-            log.error("fmt: " + str(failed) + " crate(s) failed to format.");
+            print("fmt: " + str(failed) + " rustfmt chunk(s) failed.")
         }
         process.exit(1);
     }
