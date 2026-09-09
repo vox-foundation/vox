@@ -79,26 +79,15 @@ pub struct RemoteTaskEnvelope {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bundle_inline_b64: Option<String>,
     /// Track B: base64-encoded `.vox` UTF-8 source for real remote execution.
-    /// When present (and `VoxMeshExecPolicy != "no-exec"`), the worker decodes,
-    /// BLAKE3-integrity-checks, and runs it via `vox run --mode interp`,
-    /// returning real stdout/exit. Absent ⇒ legacy echo (back-compat).
+    /// When present, the worker decodes, BLAKE3-integrity-checks, and runs it
+    /// via `vox run --mode interp` with per-dispatch `--caps`, returning real
+    /// stdout/exit. Absent ⇒ legacy echo (back-compat).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exec_source_b64: Option<String>,
     /// Track B: BLAKE3 hex of the decoded `.vox` source. REQUIRED when
     /// `exec_source_b64` is set; a missing or mismatched hash refuses execution.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exec_source_blake3_hex: Option<String>,
-    /// Base64-encoded precompiled bundle (WASM module or native binary) for real
-    /// remote execution. When present (and policy permits, source absent), the
-    /// worker decodes, integrity-checks, classifies WASM-vs-native, and runs it —
-    /// WASM under the wasmtime/WASI sandbox (`--isolation wasm`), native only under
-    /// a `permissive` policy. Absent ⇒ source path or legacy echo.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub exec_bundle_b64: Option<String>,
-    /// BLAKE3 hex of the decoded bundle bytes. REQUIRED when `exec_bundle_b64` is
-    /// set; a missing or mismatched hash refuses execution.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub exec_bundle_blake3_hex: Option<String>,
 }
 
 #[cfg(test)]
@@ -147,8 +136,6 @@ mod tests {
             bundle_inline_b64: None,
             exec_source_b64: None,
             exec_source_blake3_hex: None,
-            exec_bundle_b64: None,
-            exec_bundle_blake3_hex: None,
         };
         let json = serde_json::to_string(&envelope).unwrap();
         let back: RemoteTaskEnvelope = serde_json::from_str(&json).unwrap();

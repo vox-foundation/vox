@@ -40,3 +40,20 @@ pub fn lower_hir_to_vox_ir(hir: &HirModule, source: Option<&str>) -> VoxIrModule
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::lower_hir_to_vox_ir;
+    use vox_compiler::hir::HirModule;
+
+    #[test]
+    fn lower_hir_to_vox_ir_emits_versioned_envelope() {
+        let hir = HirModule::default();
+        let with_source = lower_hir_to_vox_ir(&hir, Some("fn x() {}"));
+        assert_eq!(with_source.version, "2.0.0");
+        assert!(!with_source.metadata.source_hash.is_empty());
+
+        let without_source = lower_hir_to_vox_ir(&hir, None);
+        assert_eq!(without_source.metadata.source_hash, "");
+    }
+}

@@ -318,9 +318,15 @@ impl ServerHandler for VoxMcpServer {
             }
         }
         if let Some(entry) = self.state.workspace_mcp.read().resource_by_uri(&params.uri) {
+            let root = self
+                .state
+                .workspace_root
+                .clone()
+                .unwrap_or_else(|| self.state.repository.root.clone());
             match crate::workspace_mcp::dispatch_workspace_resource(
                 &self.state.workspace_mcp.read(),
                 &entry.uri,
+                &root,
             ) {
                 Ok(text) => {
                     return Ok(ReadResourceResult::new(vec![

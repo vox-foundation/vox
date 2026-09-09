@@ -249,9 +249,9 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 
 | Need | Command | Notes |
 |---|---|---|
-| Pure computation, fast startup | `vox run --interp scripts/foo.vox` | No compile step; ~50ms cold start |
-| File I/O, subprocess | `vox run scripts/foo.vox` | Native tier; content-hash cached |
-| Untrusted / sandboxed | `vox run --isolation wasm scripts/foo.vox` | Wasmtime WASI; explicit `--wasi-dir` |
+| Pure computation, fast startup | `vox run --interp scripts/foo.vox` | No compile step; interpreter isolation |
+| Script-shaped (default) | `vox run scripts/foo.vox` | Interpreter; no cargo. Repeatable `--caps` |
+| Native compile (opt-in) | `vox run --mode script scripts/foo.vox` | Needs cargo + rustc; not a sandbox |
 
 **Bootstrap exception:** `scripts/windows/vox-dev.ps1` and `scripts/vox-dev.sh` are **retained as thin launchers only** (≤10 lines of primary logic where possible). They forward to `cargo run -p vox-cli -- run <args>` to solve the chicken-and-egg problem of needing `vox` to run `.vox` before `vox` is built.
 
@@ -500,7 +500,7 @@ Details: `docs/src/ci/local-first-ci.md`.
 - **Doc fences compiled as unintended doctests.** A bare or `rust`-tagged fence in docs is compiled as a doctest; example snippets that aren't meant to compile fail the rustdoc gate ("annotate as `text` so it isn't compiled as Rust" recurs). Mark non-compiling examples ` ```text `; for `vox` excerpts use ` ```vox ` + a leading `// vox:skip` with a reason (see §Markdown Hygiene).
 - **Async handler / async-test regression (codegen).** `query`/`mutation` handler emission must `await` (handler_await); and merges have silently reverted async tests to sync (`vox-vcs` cas_fallback). On a merge that touches async code/tests, re-confirm they're still `async` before pushing.
 - **SSOT / schema drift** (largest class, 103 fixes) — already gated by `vox ci ssot-drift` (+ the `ssot-autoregen` PR bot). Don't hand-regenerate after merge; see §Local CI Gate Tiers.
-- **`vox-gui` sidecar missing in a fresh worktree.** `cargo build`/`test -p vox-gui` fails inside `tauri-build` ("resource path ... doesn't exist") the first time ANY `git worktree add` builds it — each worktree gets its own `target/` (per-worktree by design, see `.cargo/config.toml`), so the release `vox` binary Tauri bundles as an `externalBin` sidecar doesn't exist yet. `crates/vox-gui/build.rs` and `vox doctor` both name the missing path and the fix: run `vox run scripts/gui-build.vox` (or `cargo build -p vox-cli --release` then copy `target/release/vox[.exe]` to the triple-suffixed sidecar path) once per worktree before building `vox-gui`.
+- **`vox-gui` sidecar missing in a fresh worktree.** `cargo build`/`test -p vox-gui` fails inside `tauri-build` ("resource path ... doesn't exist") the first time ANY `git worktree add` builds it — each worktree gets its own `target/` (per-worktree by design, see `.cargo/config.toml`), so the release `vox` binary Tauri bundles as an `externalBin` sidecar doesn't exist yet. `crates/vox-gui/build.rs` and `vox doctor` both name the missing path and the fix: run `vox run scripts/gui-build.vox` (or `cargo build -p vox-cli --release` then copy `target/release/vox[.exe]` to the triple-suffixed sidecar path) once per worktree before building `vox-gui`. **The same worktree also lacks `crates/vox-gui/ui/dist`**, which `tauri.conf.json`'s `frontendDist` points at, so `cargo clippy --workspace --all-targets` (and therefore `vox ci pre-push --complete`) fails there too until you run `pnpm install && pnpm build` in `crates/vox-gui/ui`. Three independent agents hit this on 2026-09-05 in three fresh worktrees; it is not a code problem and nothing should be committed to "fix" it.
 - **Move + reformat = a duplicate definition, not a merge conflict.** When one branch MOVES an item (function, impl, test) and another reformats or edits around its old position, git sees a delete at one site and an add at another, takes both, and produces a file that **compiles-fails rather than merge-fails** — the item is defined twice with no conflict markers to warn you. Observed 2026-09-04 merging `bf1b73061` (which moved `cargo_config_rustc_wrapper` above the test module for clippy) into a branch that had reformatted around its old position. **Union-resolving ("take both hunks") is safe only for append-only registries** — index tables, `mod` lists, match arms added at the end — and is actively wrong wherever one side may have moved something. **The opposite naive resolution fails too, and more quietly:** taking ONE side of a shared table or registry can yield a green test asserting something false — observed the same day, where `#473` and `main` each correctly edited a *different row* of the writer table in `workflow_permissions_guard.rs`, so either side taken wholesale passes its own test and is wrong. Between the two there is no safe default: union-resolve breaks the build, one-side-wins breaks the assertion, and neither shows a marker. After resolving any Rust conflict, verify each item is defined **once** (`grep -c 'fn <name>'`), its call sites still resolve, `cargo check -p <crate>` is clean, and — for a table or registry — check every row against **the merged tree**, not against either side's intent. A marker-free file is not evidence of a good merge.
 - **Parallel-agent fmt drift.** When multiple agents/worktrees touch overlapping crates concurrently, `rustfmt` drift from one session's edits routinely lands unformatted in another's commit. Before merging work assembled from parallel sessions, run `vox run scripts/fmt.vox` (or `VOX_FMT_CHECK=1 vox run scripts/fmt.vox` to check only).
 
@@ -575,6 +575,13 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `crates/vox-oratio` (crate renamed `81681e81b`; the `vox speech` command keeps `oratio` as a visible alias) | `crates/vox-speech` |
 | `vox-dei-shim` (renamed `5463bc16c`) | `vox-research-shim` |
 | `vox-bootstrap` (crate, deleted) | `voxup` (`crates/voxup/`) / `scripts/install.{sh,ps1}` |
+| `--isolation wasm\|container\|gvisor\|microvm` | interpreter (`vox run` / `--interp`); repeatable `--caps` (ADR-048) |
+| `vox wasm run` | `vox run` (interpreter) |
+| `script-wasi` | interpreter (no rustup wasm target) |
+| `ProbeOnlyExecutor` | `InterpExecutor` |
+| `MicroVmRuntime` / `Tier::MicroVm` | interpreter isolation (ADR-048); planner error-path stays |
+| `VoxMeshExecPolicy` (SecretId) | receiver-imposed `--caps` (placement config key survives) |
+| `exec_bundle_b64` | VoxScript source on the mesh stream |
 
 Memory-write APIs are not a simple retirement pair: for writing facts, use `MemoryManager::persist_fact`; `sync_to_db()` bulk-syncs `MEMORY.md` → DB only and is **not** a drop-in replacement for `persist_fact`.
 

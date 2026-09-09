@@ -563,7 +563,11 @@ async fn handle_tool_call_inner(
     {
         let ws = state.workspace_mcp.read();
         if ws.tool_by_name(name).is_some() {
-            return match crate::workspace_mcp::dispatch_workspace_tool(&ws, name, &args) {
+            let root = state
+                .workspace_root
+                .clone()
+                .unwrap_or_else(|| state.repository.root.clone());
+            return match crate::workspace_mcp::dispatch_workspace_tool(&ws, name, &args, &root) {
                 Ok(json) => Ok(json),
                 Err(e) => Ok(ToolResult::<()>::err(e).to_json()),
             };

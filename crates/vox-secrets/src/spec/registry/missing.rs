@@ -1304,17 +1304,6 @@ pub const SPECS_MISSING_TAIL: &[SecretSpec] = &[
         scope_description: "",
     },
     SecretSpec {
-        id: SecretId::VoxMeshExecPolicy,
-        canonical_env: "VOX_MESH_EXEC_POLICY",
-        aliases: &[],
-        deprecated_aliases: &[],
-        backend_key: None,
-        auth_registry: None,
-        policy: SecretPolicy::optional_skip(),
-        remediation: "",
-        scope_description: "",
-    },
-    SecretSpec {
         id: SecretId::VoxMeshA2aStorePath,
         canonical_env: "VOX_MESH_A2A_STORE_PATH",
         aliases: &[],

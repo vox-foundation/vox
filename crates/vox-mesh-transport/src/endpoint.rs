@@ -11,6 +11,7 @@ use iroh::{Endpoint, EndpointId, SecretKey};
 use tokio::sync::Semaphore;
 use tokio::time::timeout;
 
+use crate::mailbox::{self, Inbox};
 use crate::protocol::{self, JobLimits, JobRequest, JobResponse};
 use crate::trust::MeshTrust;
 
@@ -19,6 +20,10 @@ use crate::trust::MeshTrust;
 /// spoofed source and the CPU.
 const MAX_INFLIGHT_HANDSHAKES: usize = 64;
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+const PROTOCOL_IO_TIMEOUT: Duration = Duration::from_secs(15);
+const FINAL_CLOSE_TIMEOUT: Duration = Duration::from_secs(1);
+const TRUST_RECHECK_INTERVAL: Duration = Duration::from_millis(250);
+const MAX_CONNECTIONS_PER_PEER: usize = 128;
 /// Once this many permits are in use, make new sources prove reachability
 /// before we spend a handshake on them.
 const RETRY_THRESHOLD: usize = 32;
@@ -27,6 +32,10 @@ const RETRY_THRESHOLD: usize = 32;
 pub const REFUSED_UNTRUSTED: u32 = 4001;
 /// Close code for a payload that exceeds [`JobLimits::max_payload_bytes`].
 pub const REFUSED_TOO_LARGE: u32 = 4002;
+/// Close code for a peer speaking the wrong [`protocol::PROTO`].
+pub const REFUSED_PROTO: u32 = 4003;
+/// Close code for mail arriving at a node that serves jobs only.
+pub const REFUSED_NO_MAILBOX: u32 = 4004;
 
 /// A job that passed the trust gate and the payload check.
 pub struct ReceivedJob {
@@ -34,6 +43,9 @@ pub struct ReceivedJob {
     pub request: JobRequest,
     /// Decided by *this* node, never by the sender.
     pub limits: JobLimits,
+    /// Bytes that followed a [`JobRequest::Run`] claim. Empty for Probe /
+    /// Cancel / QueueStats.
+    pub payload: Vec<u8>,
 }
 
 /// What actually runs received work. Kept behind a trait so the accept loop can
@@ -79,44 +91,8 @@ pub fn inbound_firewall_advice(program: &std::path::Path) -> Option<String> {
 /// Non-Windows hosts do not gate inbound traffic per application by default.
 #[cfg(not(windows))]
 pub fn inbound_firewall_advice(_program: &std::path::Path) -> Option<String> {
-    const NON_WINDOWS_FIREWALL_ADVICE: Option<String> = None;
-    NON_WINDOWS_FIREWALL_ADVICE
-}
-
-/// The default executor: answers `Probe`, and **refuses `Run`**.
-///
-/// Deliberately not a stub that runs things. The sandbox tiers in
-/// [`Isolation`](crate::protocol::Isolation) are declared but not yet
-/// implemented, and an executor that ran `Run` "for now" would be an
-/// unsandboxed remote-execution path reachable by any paired peer — the exact
-/// hole the HTTP plane had. Refusing is the safe default until a real sandbox
-/// backs it.
-#[derive(Debug, Clone, Copy)]
-pub struct ProbeOnlyExecutor;
-
-impl JobExecutor for ProbeOnlyExecutor {
-    fn execute<'a>(
-        &'a self,
-        job: ReceivedJob,
-    ) -> Pin<Box<dyn Future<Output = Result<JobResponse>> + Send + 'a>> {
-        Box::pin(async move {
-            Ok(match job.request {
-                JobRequest::Probe => JobResponse::Probed {
-                    host_triple: format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS),
-                    vox: env!("CARGO_PKG_VERSION").to_string(),
-                },
-                JobRequest::Run { .. } => JobResponse::Failed(
-                    "this node accepts Probe only: no sandbox is wired up yet, and \
-                     running mesh-received work unsandboxed is exactly the hole this \
-                     transport replaced"
-                        .to_string(),
-                ),
-                JobRequest::Cancel { .. } => {
-                    JobResponse::Failed("nothing to cancel: this node runs no jobs".to_string())
-                }
-            })
-        })
-    }
+    let no_per_app_inbound_udp_filter: Option<String> = None;
+    no_per_app_inbound_udp_filter
 }
 
 /// Bind a mesh endpoint.
@@ -128,7 +104,12 @@ pub async fn bind(sk: SecretKey) -> Result<Endpoint> {
         .secret_key(sk)
         // `Endpoint::bind(preset)` takes NO alpns; a server built that way
         // refuses every connection at ALPN negotiation, silently.
-        .alpns(vec![protocol::ALPN.to_vec()])
+        //
+        // Two ALPNs, one endpoint: jobs and mail are different protocols
+        // (plan Task 3.1) but a second Endpoint on the same secret key would
+        // mean one EndpointId reachable at two addresses, which every peer's
+        // stored `addrs` would then be half-right about.
+        .alpns(vec![protocol::ALPN.to_vec(), mailbox::ALPN.to_vec()])
         // Defence in depth. Under Minimal the relay map is empty, so the
         // default HTTPS latency probes and captive-portal check have no target
         // — but that is a property of another struct's defaults, not of ours.
@@ -140,7 +121,17 @@ pub async fn bind(sk: SecretKey) -> Result<Endpoint> {
 }
 
 /// Accept loop. Bounded, trust-gated, and free of 0-RTT.
-pub async fn serve(ep: Endpoint, trust: Arc<MeshTrust>, exec: Arc<dyn JobExecutor>) {
+///
+/// `mailbox` is the durable A2A inbox (plan Task 3.1). `None` serves jobs only
+/// and refuses mail at the ALPN, which is the honest answer for a node that has
+/// nowhere to put it — accepting mail into a discarded buffer would let a peer
+/// delete its only copy.
+pub async fn serve(
+    ep: Endpoint,
+    trust: Arc<MeshTrust>,
+    exec: Arc<dyn JobExecutor>,
+    mailbox: Option<Arc<Inbox>>,
+) {
     let gate = Arc::new(Semaphore::new(MAX_INFLIGHT_HANDSHAKES));
     while let Some(incoming) = ep.accept().await {
         if gate.available_permits() < MAX_INFLIGHT_HANDSHAKES - RETRY_THRESHOLD
@@ -155,9 +146,8 @@ pub async fn serve(ep: Endpoint, trust: Arc<MeshTrust>, exec: Arc<dyn JobExecuto
             incoming.ignore();
             continue;
         };
-        let (trust, exec) = (Arc::clone(&trust), Arc::clone(&exec));
+        let (trust, exec, mailbox) = (Arc::clone(&trust), Arc::clone(&exec), mailbox.clone());
         tokio::spawn(async move {
-            let _permit = permit;
             // Awaiting `incoming` completes the handshake, so `remote_id()`
             // below is the peer's *proven* public key. Never call
             // `Accepting::into_0rtt()`: there `remote_id()` is fallible and
@@ -165,6 +155,7 @@ pub async fn serve(ep: Endpoint, trust: Arc<MeshTrust>, exec: Arc<dyn JobExecuto
             let Ok(Ok(conn)) = timeout(HANDSHAKE_TIMEOUT, incoming).await else {
                 return;
             };
+            drop(permit);
             let remote = conn.remote_id();
             if !trust.is_trusted(&remote) {
                 // No protocol-level explanation to a stranger — it would be an
@@ -172,55 +163,137 @@ pub async fn serve(ep: Endpoint, trust: Arc<MeshTrust>, exec: Arc<dyn JobExecuto
                 conn.close(REFUSED_UNTRUSTED.into(), b"not trusted");
                 return;
             }
-            trust.register(remote, conn.clone());
-            if let Err(e) = handle(conn, remote, exec).await {
-                tracing::debug!(peer = %remote, error = %e, "mesh job stream ended");
+            let Some(_registration) =
+                trust.try_register(remote, conn.clone(), MAX_CONNECTIONS_PER_PEER)
+            else {
+                conn.close(REFUSED_UNTRUSTED.into(), b"peer connection limit");
+                return;
+            };
+            // Dispatch on the negotiated ALPN. Mail is not a JobRequest
+            // variant: it is handed over and forgotten, where a job is a
+            // question whose answer the caller waits for.
+            let handler_conn = conn.clone();
+            let handler_trust = Arc::clone(&trust);
+            let handler = async move {
+                if handler_conn.alpn() == mailbox::ALPN {
+                    match mailbox {
+                        Some(inbox) => {
+                            mailbox::handle(handler_conn, remote, Arc::clone(&handler_trust), inbox)
+                                .await
+                        }
+                        None => {
+                            handler_conn.close(REFUSED_NO_MAILBOX.into(), b"no mailbox configured");
+                            Ok(())
+                        }
+                    }
+                } else {
+                    handle(handler_conn, remote, exec).await
+                }
+            };
+            let outcome = tokio::select! {
+                outcome = handler => outcome,
+                () = wait_until_untrusted(&trust, remote) => {
+                    conn.close(crate::trust::REVOKED.into(), b"trust revoked");
+                    Err(anyhow::anyhow!("trust revoked"))
+                }
+            };
+            if let Err(e) = outcome {
+                tracing::debug!(peer = %remote, error = %e, "mesh stream ended");
             }
         });
     }
 }
 
+async fn wait_until_untrusted(trust: &MeshTrust, peer: EndpointId) {
+    loop {
+        tokio::time::sleep(TRUST_RECHECK_INTERVAL).await;
+        if !trust.is_trusted(&peer) {
+            return;
+        }
+    }
+}
+
+async fn write_response(
+    send: &mut iroh::endpoint::SendStream,
+    response: &JobResponse,
+) -> Result<()> {
+    timeout(PROTOCOL_IO_TIMEOUT, protocol::write_frame(send, response)).await??;
+    send.finish()?;
+    Ok(())
+}
+
 /// Serve one connection: greet, check the payload claim, execute, reply.
 async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) -> Result<()> {
-    let (mut send, mut recv) = conn.accept_bi().await?;
+    let (mut send, mut recv) = timeout(PROTOCOL_IO_TIMEOUT, conn.accept_bi()).await??;
 
-    let hello: protocol::Hello = protocol::read_frame(&mut recv, 4096).await?;
-    protocol::check_hello(&hello)?;
+    let hello: protocol::Hello =
+        timeout(PROTOCOL_IO_TIMEOUT, protocol::read_frame(&mut recv, 4096)).await??;
+    if let Err(e) = protocol::check_hello(&hello) {
+        write_response(&mut send, &JobResponse::Failed(e.to_string())).await?;
+        // `Connection::close` may drop stream data not yet delivered to the
+        // peer's application. Wait briefly for the FIN (or give up) first.
+        let _ = timeout(Duration::from_millis(200), send.stopped()).await;
+        conn.close(REFUSED_PROTO.into(), b"proto mismatch");
+        let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;
+        return Ok(());
+    }
 
-    let request: JobRequest = protocol::read_frame(&mut recv, 64 * 1024).await?;
+    let request: JobRequest = timeout(
+        PROTOCOL_IO_TIMEOUT,
+        protocol::read_frame(&mut recv, 64 * 1024),
+    )
+    .await??;
     let limits = JobLimits::default();
 
     // Checked BEFORE the transfer, so an oversized job costs us a frame rather
-    // than a gigabyte of disk.
-    if let JobRequest::Run { payload_bytes, .. } = &request
-        && *payload_bytes > limits.max_payload_bytes
+    // than a gigabyte of disk. The per-kind cap is tighter than the global one
+    // for VoxScript (source is text).
+    let payload = if let JobRequest::Run {
+        payload_bytes,
+        kind,
+        ..
+    } = &request
     {
-        let msg = format!(
-            "payload of {payload_bytes} bytes exceeds the {} byte cap",
-            limits.max_payload_bytes
-        );
-        protocol::write_frame(&mut send, &JobResponse::Failed(msg)).await?;
-        send.finish()?;
-        conn.closed().await;
-        return Ok(());
-    }
+        let cap = limits.max_payload_for(kind.clone());
+        if *payload_bytes > cap {
+            let msg = format!("payload of {payload_bytes} bytes exceeds the {cap} byte cap");
+            write_response(&mut send, &JobResponse::Failed(msg)).await?;
+            let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;
+            return Ok(());
+        }
+        let max = usize::try_from(payload_bytes.saturating_add(8)).unwrap_or(usize::MAX);
+        let p: Vec<u8> =
+            timeout(PROTOCOL_IO_TIMEOUT, protocol::read_frame(&mut recv, max)).await??;
+        if p.len() as u64 != *payload_bytes {
+            let msg = format!(
+                "payload length {} does not match the declared claim of {payload_bytes} bytes",
+                p.len()
+            );
+            write_response(&mut send, &JobResponse::Failed(msg)).await?;
+            let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;
+            return Ok(());
+        }
+        p
+    } else {
+        Vec::new()
+    };
 
     let response = exec
         .execute(ReceivedJob {
             peer,
             request,
             limits,
+            payload,
         })
         .await
         .unwrap_or_else(|e| JobResponse::Failed(e.to_string()));
 
-    protocol::write_frame(&mut send, &response).await?;
-    send.finish()?;
+    write_response(&mut send, &response).await?;
     // `finish()` signals end-of-stream; it does NOT flush. Dropping the
     // Connection here would close it before the bytes reach the wire and the
     // peer would see `closed by peer: 0` with no payload. Measured during the
     // Task 0.2 spike; see ADR-047.
-    conn.closed().await;
+    let _ = timeout(FINAL_CLOSE_TIMEOUT, conn.closed()).await;
     Ok(())
 }
 

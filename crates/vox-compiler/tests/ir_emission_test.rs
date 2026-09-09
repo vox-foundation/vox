@@ -40,7 +40,7 @@ fn test_ir_emission_with_hashing_and_inference() {
     assert!(greet_fn.return_type.is_some());
 
     // Generate IR
-    let vox_ir = vox_codegen::vox_ir::lower::lower_hir_to_vox_ir(&res.hir, Some(source));
+    let vox_ir = vox_codegen::hir_export::lower::lower_hir_to_vox_ir(&res.hir, Some(source));
 
     // Check hash
     assert!(!vox_ir.metadata.source_hash.is_empty());
@@ -71,7 +71,7 @@ fn tick() to Unit {
 "#;
     let res =
         vox_compiler::pipeline::run_frontend_str(source, "sched.vox").expect("frontend failed");
-    let vox_ir = vox_codegen::vox_ir::lower::lower_hir_to_vox_ir(&res.hir, Some(source));
+    let vox_ir = vox_codegen::hir_export::lower::lower_hir_to_vox_ir(&res.hir, Some(source));
     let ir: serde_json::Value = serde_json::to_value(&vox_ir).expect("VoxIrModule as JSON Value");
     let jobs = ir
         .pointer("/module/web_ir/scheduled_jobs")
@@ -86,4 +86,28 @@ fn tick() to Unit {
     let validator = vox_jsonschema_util::compile_validator(&schema_val, "docs vox-ir.schema.json")
         .expect("compile schema");
     vox_jsonschema_util::validate(&ir, &validator, "scheduled web_ir").expect("schema validate");
+}
+
+#[test]
+fn hir_export_is_a_json_envelope_and_says_so() {
+    let source = r#"
+        fn add(a: int, b: int) {
+            a + b
+        }
+    "#;
+
+    let res =
+        vox_compiler::pipeline::run_frontend_str(source, "envelope.vox").expect("frontend failed");
+    let exported = vox_codegen::hir_export::lower::lower_hir_to_vox_ir(&res.hir, Some(source));
+    let json: serde_json::Value = serde_json::to_value(&exported).expect("JSON envelope");
+
+    assert_eq!(json["version"], "2.0.0");
+    assert!(
+        json.get("metadata").and_then(|m| m.as_object()).is_some(),
+        "top-level metadata must be a JSON object"
+    );
+    assert!(
+        json.get("module").and_then(|m| m.as_object()).is_some(),
+        "top-level module must be a JSON object"
+    );
 }

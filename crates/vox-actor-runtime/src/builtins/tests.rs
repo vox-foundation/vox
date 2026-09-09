@@ -11,6 +11,96 @@ fn fast_hash_differs_for_different_inputs() {
     assert_ne!(vox_hash_fast("foo"), vox_hash_fast("bar"));
 }
 
+/// `vox_hash_fast` (native codegen's `std.hash_fast` and this crate's own
+/// `prompt_canonical::canonicalize_for_hash` caller) and `vox_crypto::hash_fast_hex`
+/// (the interp's `crypto.hash_fast` and native codegen's `crypto.hash_fast`
+/// emit, see `builtin_registry.rs`) both compute XXH3-128 hex over the same
+/// bytes, but as two independently-written functions in different crates —
+/// `vox-actor-runtime` cannot take a *normal* dependency on `vox-crypto`
+/// without a `crate-edges` ledger entry (USER-AUTHORIZED-ONLY). This
+/// dev-dependency-only test is the SSOT enforcement mechanism instead: any
+/// future edit that desyncs the two algorithms fails here.
+#[test]
+fn hash_fast_matches_vox_crypto_hash_fast_hex() {
+    for input in [
+        "",
+        "hello world",
+        "foo",
+        "bar",
+        "🦀 unicode",
+        "a".repeat(1000).as_str(),
+    ] {
+        assert_eq!(
+            vox_hash_fast(input),
+            vox_crypto::hash_fast_hex(input.as_bytes()),
+            "vox_hash_fast/hash_fast_hex diverged for input {input:?}"
+        );
+    }
+}
+
+// `vox_display` (Task 2 Step 5): one test per `serde_json::Value` shape,
+// matching `vox_value_display`'s interpreter-side surface form
+// (`display_composites.vox`).
+#[test]
+fn vox_display_null_is_null() {
+    assert_eq!(vox_display(&serde_json::Value::Null), "null");
+}
+
+#[test]
+fn vox_display_bool() {
+    assert_eq!(vox_display(&serde_json::json!(true)), "true");
+    assert_eq!(vox_display(&serde_json::json!(false)), "false");
+}
+
+#[test]
+fn vox_display_whole_number_float_drops_trailing_zero() {
+    assert_eq!(vox_display(&serde_json::json!(5.0)), "5");
+    assert_eq!(vox_display(&serde_json::json!(5.5)), "5.5");
+    assert_eq!(vox_display(&serde_json::json!(3)), "3");
+}
+
+#[test]
+fn vox_display_string_is_unquoted() {
+    assert_eq!(vox_display(&serde_json::json!("two")), "two");
+}
+
+#[test]
+fn vox_display_array_is_comma_space_joined() {
+    assert_eq!(vox_display(&serde_json::json!([1, 2, 3])), "[1, 2, 3]");
+}
+
+#[test]
+fn vox_display_object_is_key_colon_space_value_joined() {
+    assert_eq!(
+        vox_display(&serde_json::json!({"a": 1, "b": "two"})),
+        "{a: 1, b: two}"
+    );
+}
+
+// `panic_payload_message` (Task 2 Step 10): extracts a message from the
+// three payload shapes `std::panic::catch_unwind` /
+// `tokio::task::JoinError::into_panic` actually produce.
+#[test]
+fn panic_payload_message_extracts_str_literal_payload() {
+    let payload: Box<dyn std::any::Any + Send> = Box::new("boom");
+    assert_eq!(panic_payload_message(&*payload), "boom");
+}
+
+#[test]
+fn panic_payload_message_extracts_string_payload() {
+    let payload: Box<dyn std::any::Any + Send> = Box::new(String::from("boom: divide by zero"));
+    assert_eq!(panic_payload_message(&*payload), "boom: divide by zero");
+}
+
+#[test]
+fn panic_payload_message_falls_back_for_unknown_payload_type() {
+    let payload: Box<dyn std::any::Any + Send> = Box::new(42_i32);
+    assert_eq!(
+        panic_payload_message(&*payload),
+        "script panicked with a non-string payload"
+    );
+}
+
 #[test]
 fn list_dir_finds_file() {
     let dir = std::env::temp_dir().join(format!("vox-list-dir-{}", std::process::id()));

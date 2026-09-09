@@ -1214,7 +1214,7 @@ version = \"../../..\"
         .expect("installed manifest must still parse");
         assert!(
             installed["plugin"]["payload"]["artifacts-sha3"]
-                .get(&triple)
+                .get(triple)
                 .is_some(),
             "the current triple's artifact must still be checksummed"
         );

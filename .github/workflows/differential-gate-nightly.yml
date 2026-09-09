@@ -1,0 +1,56 @@
+# Nightly differential gate: interp vs. one generated native crate for every
+# `examples/golden/**/*.vox` that declares `// EXPECT:` / `// EXPECT-EXIT:` /
+# `// EXPECT-TIER-ASYMMETRY:`. See `crates/vox-integration-tests/tests/golden_differential_gate.rs`.
+#
+# `#[ignore]`'d and intentionally excluded from the PR-blocking nextest step and
+# from `--include-slow` (crates/vox-cli/src/commands/ci/pre_push.rs) — one
+# generated crate with a `[[bin]]` per golden is a ~6-8 min cold build, too slow
+# for the fast/full pre-push tiers or a merge-blocking PR check. This is the
+# real, scheduled execution of that test; see the commented pointer next to the
+# hand-maintained slow-test-partition nextest filter in `ci.yml`.
+name: Differential gate (nightly, interp vs native)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 07:17 UTC daily — offset from mutation (05:17) / bench (03:17) to avoid
+    # runner contention with the other vox-compiler nightlies.
+    - cron: "17 7 * * *"
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_LOCKED: true
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  golden-differential-gate:
+    name: golden_differential_gate (interp vs native, one generated crate)
+    runs-on: [self-hosted, linux, x64]
+    # Cold-cache: building the `vox` CLI binary, the vox-integration-tests test
+    # binary's own (large) dependency graph, AND the generated differential
+    # bundle crate (one `[[bin]]` per EXPECT golden, sharing one
+    # `CARGO_TARGET_DIR`) all from scratch. Warm-cache reruns should be well
+    # under half this.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Registry & Target
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-differential-gate-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-differential-gate-
+
+      - name: Run the differential gate
+        # `vox_binary()` in the test builds `target/debug/vox` itself if it's
+        # missing, so no separate "build vox" step is needed here.
+        run: |
+          cargo test -p vox-integration-tests --test golden_differential_gate -- --ignored --nocapture

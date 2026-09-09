@@ -102,8 +102,7 @@ pub enum Tier {
     /// OCI container (Docker/Podman). Full filesystem + network isolation.
     Container = 2,
     /// Micro-VM (Firecracker/Kata). Strongest isolation; hardware-enforced.
-    /// Not yet available in this phase — `MicroVmRuntime` always returns
-    /// `Err(NotImplemented)`.
+    /// Not yet available — `plan_for_min_tier(Tier::MicroVm)` returns `Err`.
     MicroVm = 3,
 }
 
@@ -112,7 +111,6 @@ pub enum Tier {
 /// Implementations exist for:
 /// - WASM (`vox-plugin-runtime-wasm`, the default for pure-compute skills)
 /// - Docker/Podman (`vox-plugin-runtime-container`, fallback for subprocess/GPU skills)
-/// - MicroVm (`MicroVmRuntime` stub, always returns `Err(NotImplemented)` in this phase)
 ///
 /// The runtime is selected by `vox-skill-runtime::detect::detect_runtime()` based
 /// on the skill's declared requirements.
@@ -155,5 +153,23 @@ pub trait SkillRuntime: Send + Sync {
         let mut merged = opts.clone();
         merged.env.extend(secret_env.iter().cloned());
         self.run(&merged)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Tier;
+    use crate::detect::plan_for_min_tier;
+
+    #[test]
+    fn tier_ordering_and_min_tier_error_path() {
+        assert!(Tier::BareMetal < Tier::Wasm);
+        assert!(Tier::Wasm < Tier::Container);
+        assert!(Tier::Container < Tier::MicroVm);
+
+        let result = plan_for_min_tier(Tier::MicroVm);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("MicroVm") || msg.contains("micro-VM") || msg.contains("v1.x"));
     }
 }

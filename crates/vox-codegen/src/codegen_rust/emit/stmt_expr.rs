@@ -11,6 +11,28 @@ pub(super) fn escape_rust_double_quoted_content(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
+/// Value-semantic list mutator method names whose bare-statement call (no
+/// assignment) auto-reassigns the result back to the receiver identifier.
+/// Kept in sync with the mutator arms in `method_emit.rs`'s
+/// `try_emit_list_method`/`try_emit_list_hof` — every method here already
+/// lowers to a `{ let mut __lst = <recv>; __lst.<op>(...); __lst }`
+/// expression block that returns the UPDATED list, so binding it back to
+/// the receiver identifier reproduces the interpreter's write-back
+/// heuristic (see `emit_stmt`'s `HirStmt::Expr` arm below).
+const VALUE_SEMANTIC_LIST_MUTATORS: &[&str] = &[
+    "push",
+    "reverse",
+    "reversed",
+    "extend",
+    "remove",
+    "remove_at",
+    "sort_by_key",
+    "sorted_by_key",
+    "sort_by",
+    "sorted_by",
+    "sorted",
+];
+
 pub(super) fn emit_stmt(
     stmt: &HirStmt,
     indent: usize,
@@ -27,11 +49,26 @@ pub(super) fn emit_stmt(
     match stmt {
         HirStmt::Let {
             pattern,
+            type_ann,
             value,
             mutable,
             ..
         } => {
             let mut_kw = if *mutable { "mut " } else { "" };
+            // `Result[T]` (no explicit error type) lowers via `Ty::to_hir_type`
+            // (`typeck/ty.rs`) to `HirType::Generic("Result", vec![ok_hir])` —
+            // one type arg, defaulting the error type to `str`/`String`
+            // (`emit_type`'s "Result" arm). Rust's inference can't recover
+            // that default from `Ok(1i64)` alone (E0282: type annotations
+            // needed for `Result<i64, _>`), so annotate the binding when the
+            // declared type is `Result` — the only shape this collapses for.
+            // `Option`/other types never hit this: `Some(x)` fully pins `T`.
+            let ty_ann_str = match type_ann {
+                Some(ty @ HirType::Generic(name, _)) if name == "Result" => {
+                    format!(": {}", super::types::emit_type(ty))
+                }
+                _ => String::new(),
+            };
             if is_actor {
                 format!(
                     "{pad}let {}{} = ctx.heap.allocate({});\n",
@@ -50,9 +87,10 @@ pub(super) fn emit_stmt(
                 )
             } else {
                 format!(
-                    "{pad}let {}{} = {};\n",
+                    "{pad}let {}{}{} = {};\n",
                     mut_kw,
                     emit_pattern(pattern, is_route, is_actor, mutation_tx),
+                    ty_ann_str,
                     emit_expr_with(
                         value,
                         is_route,
@@ -95,6 +133,41 @@ pub(super) fn emit_stmt(
             enclosing_return_type,
         ),
         HirStmt::Expr { expr, .. } => {
+            // Auto-reassignment for value-semantic mutator methods called as a
+            // bare statement (Task 2 corollary — `list_sort_value_semantics.vox`,
+            // one of Task 1b's eight goldens: `test_sort_by_key_bare_statement_reassigns`
+            // does `xs.sort_by_key(f)` with no assignment and expects `xs` updated).
+            //
+            // Vox's interpreter (`eval/stmt.rs`'s `HirStmt::Expr` arm) evaluates a
+            // bare `recv.method(...)` call and, when `recv` is a plain identifier
+            // and the result has the same runtime kind (List/Str/Object) as the
+            // current binding, writes the result back via `set_mut` — so idioms
+            // like `xs.push(y)`, `xs.reverse()`, `xs.sort_by_key(f)` "just work"
+            // without `xs = `. Native codegen has no runtime kind dispatch, so
+            // this mirrors that heuristic with a static allowlist of the
+            // value-semantic list mutators `try_emit_list_method`/
+            // `try_emit_list_hof` (method_emit.rs) already lower to
+            // expression-returning blocks: emit `name = <call>;` instead of a
+            // bare `<call>;`, so the block's result is bound back to `name`
+            // exactly like an explicit `xs = xs.push(y)`.
+            if let HirExpr::MethodCall(obj, method_name, ..) = expr
+                && let HirExpr::Ident(name, _) = obj.as_ref()
+                && VALUE_SEMANTIC_LIST_MUTATORS.contains(&method_name.as_str())
+            {
+                return format!(
+                    "{pad}{name} = {};\n",
+                    emit_expr_with(
+                        expr,
+                        is_route,
+                        is_actor,
+                        mutation_tx,
+                        inferred_types,
+                        usage,
+                        OwnershipMode::Owned,
+                        None,
+                    )
+                );
+            }
             format!(
                 "{pad}{};\n",
                 emit_expr_with(
@@ -767,7 +840,15 @@ pub(super) fn emit_expr_with(
         return s;
     }
     match expr {
-        HirExpr::IntLit(v, _) => v.to_string(),
+        // Append the `i64` suffix (Task 2 corollary — `int_overflow_boundary.vox`,
+        // one of Task 1b's eight goldens): an unsuffixed Rust integer literal
+        // defaults to `i32` unless surrounding context forces a wider type.
+        // Vox `int` is always `i64`, and `i64::MAX` (9223372036854775807)
+        // overflows `i32`'s literal range, so a bare `let x = 9223372036854775807;`
+        // with no type annotation fails to compile (E0600-adjacent "literal out
+        // of range for `i32`"). Match `HirExpr::FloatLit`'s existing `f64`
+        // suffix below for the same reason.
+        HirExpr::IntLit(v, _) => format!("{v}i64"),
         // Append the `f64` suffix so whole-number floats stay floats: Rust's
         // `f64::to_string()` renders `0.0` as `"0"`, which would otherwise emit
         // as an `i32` and break type unification (e.g. a `match` arm `0.0`
@@ -807,7 +888,7 @@ pub(super) fn emit_expr_with(
         }
         HirExpr::Call(callee, args, is_await, _) => {
             if let HirExpr::Ident(n, _) = &**callee
-                && let Some(s) = emit_builtin_ident_call(n, args, &emit)
+                && let Some(s) = emit_builtin_ident_call(n, args, &emit, inferred_types)
             {
                 return s;
             }
@@ -1121,6 +1202,154 @@ fn route_json_shortcut(
     }
 }
 
+/// Emit `str(e)` / one `print(..)` argument as a Rust expression yielding a
+/// `String` — the SSOT-matching surface text
+/// (`vox_actor_runtime::builtins::vox_display`, mirroring the interpreter's
+/// `vox_value_display`). Task 2 Step 5.
+///
+/// `Some(x)` / `Ok(x)` / `Error(x)`/`Err(x)` / bare `None` and tuple
+/// literals are special-cased at codegen time (recursive `format!`),
+/// **not** routed through `vox_display(&serde_json::to_value(...))`,
+/// for two different reasons:
+///  - `Ok(x)`/`Err(x)`: `Result<T, E>` is `Serialize` only when both `T`
+///    and `E` are; a bare literal leaves `E` unconstrained, which is a
+///    compile error (E0282) rather than a runtime one. See
+///    `route_json_shortcut` above, which hits the identical dead end for
+///    route-return position and solves it the same way: never call
+///    `to_value` on the untyped literal at all.
+///  - `Some(x)`/`None`: serde's `Option<T>` impl is *transparent*
+///    (`Some(x)` serializes as `x`'s own JSON, `None` as `null`), so a
+///    round trip through `Value` would make `Some(0)` and a bare `0`
+///    indistinguishable — there's no tag to recover the "Option-ness"
+///    from on the other side.
+///  - `(a, b)` tuples: JSON has no tuple type; `serde_json::to_value` on a
+///    Rust tuple produces a JSON *array*, which `vox_display` would then
+///    render as `[a, b]` — losing the `(a, b)` surface form entirely.
+///
+/// Recursing through this same function for the *inner* value(s) means a
+/// nested literal (`Some((1, 2))`, `Ok(Some(1))`, …) still renders
+/// correctly. Idents/method-calls/etc. whose *inferred type* is
+/// `Option[T]`/`Result[T, E]` (Task 2 re-review, Important — "Option
+/// display via serde") go through [`emit_typed_display_of`] instead, for
+/// the exact same reason as the literal case: serde's `Option`/`Result`
+/// impls are tag-transparent, so `let x = Some(3); str(x)` would otherwise
+/// fall through to the generic `vox_display(&serde_json::to_value(x))`
+/// path below and print the bare `3` — matching what `Some(3)` itself
+/// serializes to — instead of `Some(3)`. Anything else (no type info, or a
+/// non-Option/Result type) falls through to that generic path, which is
+/// exact for every shape JSON can represent losslessly (null/bool/number/
+/// string/array/object).
+fn emit_display_arg<F>(
+    e: &HirExpr,
+    emit: &F,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+) -> String
+where
+    F: Fn(&HirExpr, OwnershipMode) -> String,
+{
+    if let HirExpr::Ident(name, _) = e
+        && name == "None"
+    {
+        return "\"None\".to_string()".to_string();
+    }
+    // `null` is a distinct Vox value from the `None` constructor (interpreter:
+    // `eval/mod.rs` binds `null` to `VoxValue::Null`, display "null"; `None`
+    // constructs `VoxValue::Option(None)`, display "None" — see
+    // `eval/builtins.rs`'s `vox_value_display`). Native codegen collapses both
+    // to Rust's `None` token (`emit_ident_expr`'s `n == "null"` arm) and
+    // typeck infers `null`'s type as `Option[T]` too, so without this check
+    // `null` would fall into the `Option[T]` branch below and print "None"
+    // instead of "null", diverging from the interpreter
+    // (`display_composites.vox`'s `print(str(null))` case).
+    if let HirExpr::Ident(name, _) = e
+        && name == "null"
+    {
+        return "\"null\".to_string()".to_string();
+    }
+    if let HirExpr::TupleLit(items, _) = e {
+        let parts: Vec<String> = items
+            .iter()
+            .map(|it| emit_display_arg(it, emit, inferred_types))
+            .collect();
+        return format!(
+            "format!(\"({{}})\", vec![{}].join(\", \"))",
+            parts.join(", ")
+        );
+    }
+    if let HirExpr::Call(callee, args, _, _) = e
+        && let HirExpr::Ident(name, _) = callee.as_ref()
+        && args.len() == 1
+    {
+        let tag = match name.as_str() {
+            "Some" => Some("Some"),
+            "Ok" => Some("Ok"),
+            "Error" | "Err" => Some("Err"),
+            _ => None,
+        };
+        if let Some(tag) = tag {
+            let inner = emit_display_arg(&args[0].value, emit, inferred_types);
+            return format!("format!(\"{tag}({{}})\", {inner})");
+        }
+    }
+    if let Some(ty) =
+        inferred_types.and_then(|m| m.get(&super::stmt_expr_tail::hir_expr_span(e)))
+        // `Ty::to_hir_type` (`typeck/ty.rs`) lowercases only `option`'s tag —
+        // `Result`'s stays capitalized (see its own `HirType::Generic("Result", ..)`
+        // arm right above `option`'s in that match) — so match each spelling
+        // exactly as that conversion emits it, not a case-insensitive guess.
+        && matches!(ty, HirType::Generic(n, _) if n == "option" || n == "Result")
+    {
+        return emit_typed_display_of(&emit(e, OwnershipMode::Owned), ty);
+    }
+    emit_generic_display(&emit(e, OwnershipMode::Owned))
+}
+
+/// The generic, JSON-round-trip display fallback shared by
+/// [`emit_display_arg`] and [`emit_typed_display_of`]'s base case.
+fn emit_generic_display(rust_expr: &str) -> String {
+    format!(
+        "vox_actor_runtime::builtins::vox_display(&serde_json::to_value(&({rust_expr})).unwrap_or_default())"
+    )
+}
+
+/// Type-directed counterpart to [`emit_display_arg`]'s literal-shape
+/// special cases, for a value that is *already* a Rust expression string
+/// (e.g. a match-bound identifier during recursion) paired with its known
+/// Vox type. Recurses through `Option[T]`/`Result[T, E]` so a typed,
+/// non-literal value — not just a literal `Some(..)`/`Ok(..)` call —
+/// renders as `Some(3)`/`Ok(1)`/`Err(..)`/`None`, matching the
+/// interpreter's `vox_value_display` on both tiers.
+fn emit_typed_display_of(rust_expr: &str, ty: &HirType) -> String {
+    match ty {
+        // Lowercase "option" — matches `Ty::to_hir_type`'s
+        // `HirType::Generic("option".into(), ..)` arm (`typeck/ty.rs`), unlike
+        // `Result`, whose tag stays capitalized there.
+        HirType::Generic(name, args) if name == "option" => {
+            let inner = args
+                .first()
+                .map(|t| emit_typed_display_of("__vox_v", t))
+                .unwrap_or_else(|| emit_generic_display("__vox_v"));
+            format!(
+                "match ({rust_expr}) {{ Some(__vox_v) => format!(\"Some({{}})\", {inner}), None => \"None\".to_string() }}"
+            )
+        }
+        HirType::Generic(name, args) if name == "Result" => {
+            let ok_inner = args
+                .first()
+                .map(|t| emit_typed_display_of("__vox_v", t))
+                .unwrap_or_else(|| emit_generic_display("__vox_v"));
+            let err_inner = args
+                .get(1)
+                .map(|t| emit_typed_display_of("__vox_e", t))
+                .unwrap_or_else(|| emit_generic_display("__vox_e"));
+            format!(
+                "match ({rust_expr}) {{ Ok(__vox_v) => format!(\"Ok({{}})\", {ok_inner}), Err(__vox_e) => format!(\"Err({{}})\", {err_inner}) }}"
+            )
+        }
+        _ => emit_generic_display(rust_expr),
+    }
+}
+
 /// Try to emit a builtin function call by name (the `Call(Ident("..."), ...)`
 /// shape). Returns `None` if the ident isn't a recognized builtin, in which
 /// case the caller falls through to namespace / generic dispatch.
@@ -1128,7 +1357,12 @@ fn route_json_shortcut(
 /// Extracted from `emit_expr_with` per CR-A1 plan §5.6 refactoring pass:
 /// the inline if-chain contributed ~16 decision points and obscured the
 /// dispatcher pattern.
-fn emit_builtin_ident_call<F>(name: &str, args: &[HirArg], emit: &F) -> Option<String>
+fn emit_builtin_ident_call<F>(
+    name: &str,
+    args: &[HirArg],
+    emit: &F,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+) -> Option<String>
 where
     F: Fn(&HirExpr, OwnershipMode) -> String,
 {
@@ -1146,10 +1380,14 @@ where
              __vox_mgr.notify_payload(&__vox_ch, as_string(&({}))).await; }}",
             emit(&args[0].value, OwnershipMode::Owned)
         )),
-        ("str", 1) => Some(format!(
-            "as_string(&({}))",
-            emit(&args[0].value, OwnershipMode::Owned)
-        )),
+        // Task 2 Step 5 (interpreter-first execution, PR 2): route through
+        // `vox_actor_runtime::builtins::vox_display` — the native-tier twin
+        // of the interpreter's `vox_value_display` — instead of the older
+        // `as_string` helper (which round-tripped through
+        // `serde_json::Value::to_string()` and produced JSON-shaped output,
+        // e.g. `{"a":1}` / `[1,"two"]`, not the Vox surface form
+        // `{a: 1}` / `(1, two)`). See `emit_display_arg` below.
+        ("str", 1) => Some(emit_display_arg(&args[0].value, &emit, inferred_types)),
         // `int(x)` numeric conversion — interpreter truncates floats
         // (`f as i64`) and passes ints through; `as i64` matches both.
         // (String parsing, which the interpreter also supports, has no
@@ -1189,9 +1427,17 @@ where
             emit(&args[0].value, OwnershipMode::Owned),
             emit(&args[1].value, OwnershipMode::Owned)
         )),
-        ("print", 1) => Some(format!(
-            "println!(\"{{}}\", {})",
-            emit(&args[0].value, OwnershipMode::Owned)
+        // `print` accepts n >= 1 args, joined by a single space — matches
+        // the interpreter's `call_global_builtin("print", ...)`
+        // (`crates/vox-compiler/src/eval/builtins.rs`), which maps
+        // `vox_value_display` over every arg and joins with `" "`. Each
+        // arg goes through the same `emit_display_arg` as `str`.
+        ("print", n) if n >= 1 => Some(format!(
+            "println!(\"{{}}\", vec![{}].join(\" \"))",
+            args.iter()
+                .map(|a| emit_display_arg(&a.value, &emit, inferred_types))
+                .collect::<Vec<_>>()
+                .join(", ")
         )),
         // len works on Vec / String / &str (db.Table.all() lowers to Vec).
         // Rust `.len()` is `usize`; Vox `int` is `i64`.
@@ -1230,6 +1476,18 @@ where
             "(({}) as i64..({}) as i64).map(|__i| __i as i64).collect::<Vec<i64>>()",
             emit(&args[0].value, OwnershipMode::Owned),
             emit(&args[1].value, OwnershipMode::Owned)
+        )),
+        // `abs`/`floor`/`ceil`/`round`/`sqrt` as free functions (Task 2
+        // corollary — `float_formatting.vox`, one of Task 1b's eight
+        // goldens). Both `i64` and `f64` have a `.abs()` inherent method in
+        // Rust, so `(expr).abs()` is valid for either of `abs`'s two typeck
+        // signatures (`(int) -> int` or the Float special case in
+        // `typeck/checker/expr.rs`) without branching on the arg's type here;
+        // the other three are Float-only per `typeck/builtins.rs`, so the
+        // same direct-method-call shape is unconditionally correct.
+        ("abs" | "floor" | "ceil" | "round" | "sqrt", 1) => Some(format!(
+            "({}).{name}()",
+            emit(&args[0].value, OwnershipMode::Owned)
         )),
         _ => None,
     }

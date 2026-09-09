@@ -4,7 +4,8 @@
 //! - **Linux (kernel ≥5.13):** Landlock LSM — filesystem read/write restrictions per-path.
 //!   Applied via `pre_exec` so ONLY the child process is restricted, not the parent `vox`.
 //! - **Windows:** Job Objects — working-set memory ceiling, kill-on-close.
-//! - **Other:** Warning printed; env-var hint only (no enforcement).
+//! - **Other:** Warning only (no enforcement). `VOX_SANDBOX` is not isolation;
+//!   see `docs/src/reference/isolation.md`.
 
 use anyhow::Result;
 use std::process::Command;
@@ -187,13 +188,16 @@ mod platform {
 mod platform {
     use super::*;
 
-    /// Emit a warning and set `VOX_SANDBOX=1` env-var hint on unsupported platforms.
+    /// Warn that `--sandbox` has no OS-level enforcement on this platform.
+    ///
+    /// Does not set `VOX_SANDBOX` — that env var is not isolation. See
+    /// `docs/src/reference/isolation.md`.
     pub fn enforce(cmd: &mut Command, _opts: &ScriptOpts) -> Result<()> {
-        eprintln!(
-            "[sandbox] Warning: --sandbox has no OS-level enforcement on this platform.\n\
-             [sandbox] VOX_SANDBOX=1 is set as an informational hint only."
+        tracing::warn!(
+            "--sandbox has no OS-level enforcement on this platform; \
+             VOX_SANDBOX is not isolation. See docs/src/reference/isolation.md"
         );
-        cmd.env("VOX_SANDBOX", "1");
+        let _ = cmd;
         Ok(())
     }
 }
@@ -204,7 +208,7 @@ mod platform {
 ///
 /// - **Linux:** Installs a Landlock ruleset via `pre_exec` (child-only, parent unaffected)
 /// - **Windows:** Logs intent; call `post_spawn_sandbox` after spawn to assign the Job Object
-/// - **Other:** Warning + `VOX_SANDBOX=1` env-var hint
+/// - **Other:** Warning only; `VOX_SANDBOX` is not isolation (`docs/src/reference/isolation.md`)
 pub fn enforce_sandbox(cmd: &mut Command, opts: &ScriptOpts) -> Result<()> {
     platform::enforce(cmd, opts)
 }
@@ -234,7 +238,6 @@ mod tests {
             sandbox: true,
             allow_mcp: false,
             no_cache: false,
-            isolation: None,
             trust_class: None,
             target_triple: None,
             #[cfg(feature = "script-execution")]
@@ -254,6 +257,30 @@ mod tests {
     fn post_spawn_noop_compiles() {
         // Verifies the function signature compiles correctly on all platforms.
         let _ = true;
+    }
+
+    fn command_sets_vox_sandbox(cmd: &Command) -> bool {
+        cmd.get_envs()
+            .any(|(key, value)| key == "VOX_SANDBOX" && value.is_some())
+    }
+
+    #[test]
+    fn macos_does_not_pretend_an_env_var_is_a_sandbox() {
+        let opts = default_opts();
+
+        let mut sandbox_cmd = Command::new("echo");
+        enforce_sandbox(&mut sandbox_cmd, &opts).expect("enforce_sandbox");
+        assert!(
+            !command_sets_vox_sandbox(&sandbox_cmd),
+            "enforce_sandbox must not set VOX_SANDBOX (an env var is not isolation)"
+        );
+
+        let mut native_cmd = Command::new("echo");
+        crate::commands::runtime::run::backend::apply_native_execute_env(&mut native_cmd, &opts);
+        assert!(
+            !command_sets_vox_sandbox(&native_cmd),
+            "native execute env must not set VOX_SANDBOX (an env var is not isolation)"
+        );
     }
 
     #[cfg(target_os = "windows")]

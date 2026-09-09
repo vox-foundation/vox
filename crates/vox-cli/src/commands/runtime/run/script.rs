@@ -8,8 +8,6 @@
 
 use anyhow::Result;
 
-#[cfg(feature = "script-wasi")]
-use crate::commands::runtime::run::backend::WasiBackend;
 use crate::commands::runtime::run::backend::{NativeBackend, RunBackend};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -25,13 +23,9 @@ pub struct ScriptOpts {
     pub allow_mcp: bool,
     /// Force fresh compilation, bypassing content-hash cache.
     pub no_cache: bool,
-    /// Explicit isolation tier string (e.g. `"wasm"`, `"container"`).
-    /// When `Some("wasm")` the script is compiled to WASI and run via Wasmtime.
-    pub isolation: Option<String>,
     /// Trust classification string (e.g. `"trusted_dev"`, `"untrusted"`).
-    /// When set, governs the default isolation tier if `isolation` is `None`.
     pub trust_class: Option<String>,
-    /// P1.3: Preopened directories for WASI: (host_path, guest_path, mode)
+    /// Preopened directories for the OS sandbox: (host_path, guest_path, mode)
     #[cfg(feature = "script-execution")]
     pub wasi_dirs: Vec<(PathBuf, String, crate::wasi_dir_mode::WasiDirMode)>,
     /// Optional target triple for cross-compilation (Wave 4).
@@ -39,86 +33,9 @@ pub struct ScriptOpts {
 }
 
 impl ScriptOpts {
-    /// Returns `true` when the WASI execution lane should be used.
-    ///
-    /// WASI is active when:
-    /// - `--isolation wasm` / `--isolation wasi` is explicit, OR
-    /// - `--trust-class untrusted` is set and no explicit isolation overrides it
-    pub fn use_wasi(&self) -> bool {
-        if let Some(iso) = self.isolation.as_deref() {
-            return matches!(iso.to_lowercase().as_str(), "wasm" | "wasi" | "wasmtime");
-        }
-        // Default derived from trust class
-        matches!(
-            self.trust_class
-                .as_deref()
-                .unwrap_or("trusted_dev")
-                .to_lowercase()
-                .as_str(),
-            "untrusted"
-        )
-    }
-
-    /// Resolve the effective isolation tier name for display.
-    pub fn effective_isolation(&self) -> &str {
-        if let Some(iso) = self.isolation.as_deref() {
-            return iso;
-        }
-        match self
-            .trust_class
-            .as_deref()
-            .unwrap_or("trusted_dev")
-            .to_lowercase()
-            .as_str()
-        {
-            // WASI (Wasmtime) is the correct sandbox for both untrusted and semi-trusted scripts.
-            // The former `container` mapping for semi_trusted silently fell through to NativeBackend
-            // because no ContainerBackend is implemented. Docker seccomp is shared-kernel and not
-            // meaningfully more secure than WASI anyway; WASI is the correct answer here.
-            "untrusted" | "semi_trusted" | "semi-trusted" => "wasm",
-            _ => "permissive",
-        }
-    }
-
-    /// P2: Select the appropriate backend for this execution.
+    /// Native cargo lane — the WASI script backend was deleted.
     pub fn backend(&self) -> anyhow::Result<Box<dyn RunBackend>> {
-        if self.use_wasi() {
-            #[cfg(feature = "script-wasi")]
-            {
-                return Ok(Box::new(WasiBackend));
-            }
-            #[cfg(not(feature = "script-wasi"))]
-            {
-                anyhow::bail!(
-                    "WASI isolation (`--isolation wasm`) requires a vox build with \
-                     `--features script-wasi` (the Wasmtime lane). Native `vox run \
-                     --mode script` works without it."
-                );
-            }
-        }
-
-        // Gate: container/gvisor/microvm tiers are not yet implemented as backends.
-        // Callers who explicitly request them should get an error, not silent permissive.
-        if let Some(iso) = self.isolation.as_deref() {
-            use crate::isolation::IsolationPolicy;
-            let policy: IsolationPolicy = iso.parse().unwrap_or(IsolationPolicy::Permissive);
-            match policy {
-                IsolationPolicy::Container => anyhow::bail!(
-                    "--isolation container is not available for `vox run` script mode.\n\
-                     Use --isolation wasm for portable sandboxing, `vox deploy` for OCI containers,\n\
-                     or --isolation permissive for trusted code. See docs/src/reference/isolation.md"
-                ),
-                IsolationPolicy::Gvisor => anyhow::bail!(
-                    "--isolation gvisor requires runsc on PATH and is not yet wired into vox run.\n\
-                     Use --isolation wasm instead."
-                ),
-                IsolationPolicy::MicroVM => anyhow::bail!(
-                    "--isolation microvm requires Firecracker/Hyper-V and is not yet wired into vox run."
-                ),
-                _ => {}
-            }
-        }
-
+        let _ = self;
         Ok(Box::new(NativeBackend))
     }
 }
@@ -134,47 +51,20 @@ pub fn print_execution_plan(
     sandbox: bool,
     as_json: bool,
 ) {
+    let _ = isolation;
     let tc = trust_class.unwrap_or("trusted_dev");
-    let opts = ScriptOpts {
-        sandbox,
-        allow_mcp: false,
-        no_cache: false,
-        isolation: isolation.map(str::to_string),
-        trust_class: trust_class.map(str::to_string),
-        #[cfg(feature = "script-execution")]
-        wasi_dirs: Vec::new(),
-        target_triple: None,
-    };
-    let tier = opts.effective_isolation();
-    let artifact = if opts.use_wasi() {
-        "wasi_component"
-    } else {
-        "native_dev"
-    };
-    let backend = if opts.use_wasi() {
-        "Wasmtime WASI P1"
-    } else {
-        "Native binary (cargo)"
-    };
-
-    let cache_dir = vox_config::paths::script_cache_dir(opts.use_wasi()).join("<source-hash>");
-
-    let isolation_src = if isolation.is_some() {
-        "explicit --isolation flag"
-    } else if trust_class.is_some() {
+    let artifact = "native_dev";
+    let backend = "Native binary (cargo)";
+    let cache_dir = vox_config::paths::script_cache_dir(false).join("<source-hash>");
+    let isolation_src = if trust_class.is_some() {
         "derived from --trust-class"
     } else if sandbox {
         "derived from --sandbox"
     } else {
         "default for trust class"
     };
-
-    let security = {
-        use crate::isolation::IsolationPolicy;
-        tier.parse::<IsolationPolicy>()
-            .map(|p: IsolationPolicy| p.security_statement().to_string())
-            .unwrap_or_else(|_| "Unknown tier".to_string())
-    };
+    let tier = "host";
+    let security = "Host process — scripts run under the interpreter or native `--mode script`. See docs/src/reference/isolation.md";
 
     if as_json {
         // Machine-readable output for IDE/tooling consumption (P3)
@@ -211,7 +101,7 @@ pub fn print_execution_plan(
 /// Compile and execute a `.vox` source file as a script.
 ///
 /// Uses content-hash caching to avoid redundant recompiles. Dispatches
-/// to [`NativeBackend`] or `WasiBackend` depending on `opts`.
+/// to [`NativeBackend`].
 pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> {
     let (artifact_path, backend) = compile(file, opts).await?;
     match execute_binary(&artifact_path, args, opts, &*backend).await {
@@ -240,7 +130,7 @@ pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> 
     }
 }
 
-/// Compile a Vox script to an executable binary (native or WASI).
+/// Compile a Vox script to a native executable binary.
 /// Returns the path to the compiled artifact.
 pub(crate) async fn compile(
     file: &Path,
@@ -346,13 +236,9 @@ pub(crate) async fn compile(
         format!("{:016x}", xxh3_64(&key))
     };
 
-    let cache_dir = vox_config::paths::script_cache_dir(opts.use_wasi()).join(&hash);
+    let cache_dir = vox_config::paths::script_cache_dir(false).join(&hash);
     let ws = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let lane = if opts.use_wasi() {
-        crate::build_lock::BuildLane::ScriptWasi
-    } else {
-        crate::build_lock::BuildLane::ScriptNative
-    };
+    let lane = crate::build_lock::BuildLane::ScriptNative;
     let shared_target = crate::build_lock::resolve_target_dir(
         lane,
         &ws.display().to_string(),
@@ -369,9 +255,7 @@ pub(crate) async fn compile(
         .as_ref()
         .map(|t| t.contains("windows"))
         .unwrap_or(cfg!(target_os = "windows"));
-    let binary_name = if backend.cache_label().contains("wasi") {
-        "vox-script.wasm"
-    } else if is_windows_target {
+    let binary_name = if is_windows_target {
         "vox-script.exe"
     } else {
         "vox-script"
@@ -441,7 +325,6 @@ pub async fn eval_inline(expr: &str, sandbox: bool) -> Result<()> {
         sandbox,
         allow_mcp: false,
         no_cache: false,
-        isolation: None,
         trust_class: None,
         #[cfg(feature = "script-execution")]
         wasi_dirs: Vec::new(),

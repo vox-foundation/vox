@@ -5678,23 +5678,6 @@ curated:
   - visus
   - baseline
   parameters: null
-- id: cli.wasm
-  title: Wasm
-  description_human: null
-  description_model: Raw precompiled WASI module execution (needs `--features script-wasi`)
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - wasm
-  parameters: null
 - id: mcp.vox_a2a_ack
   title: A2a Ack
   description_human: null

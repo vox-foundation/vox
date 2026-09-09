@@ -415,6 +415,32 @@ fn typeck_method_not_found_on_unknown_suggests_closure_annotation() {
     );
 }
 
+/// `abs(int)` / `abs(float)` must each typecheck cleanly with no diagnostics
+/// — locks in the Important-4 fix in `typeck/checker/expr.rs`'s `is_abs_call`
+/// arm, which used to fall through into a second `check_arguments` pass over
+/// the same argument node after already peeking its type once. That
+/// double-check produced a spurious "Cannot unify Int with Float" diagnostic
+/// for `abs(-2.0)` on some resolution orders. The arm now returns
+/// unconditionally (matching the sibling `is_range_one_arg` special case),
+/// checking `args[0].value` exactly once.
+#[test]
+fn abs_typechecks_for_both_int_and_float_without_double_check() {
+    for src in [
+        "fn main() to int { return abs(-2) }",
+        "fn main() to float { return abs(-2.0) }",
+    ] {
+        let tokens = vox_compiler::lexer::lex(src);
+        let module = vox_compiler::parser::descent::parse(tokens).expect("parse should succeed");
+        let mut hir = vox_compiler::hir::lower::lower_module(&module);
+        let diags = vox_compiler::typeck::typecheck_hir_module(src, &mut hir);
+        assert!(
+            diags.is_empty(),
+            "abs() should typecheck cleanly for {src:?}; got: {:#?}",
+            diags.iter().map(|d| &d.message).collect::<Vec<_>>()
+        );
+    }
+}
+
 /// Integer arithmetic overflow MUST produce a clean EvalError, not a
 /// Rust panic that takes down the interpreter process. Locks in the
 /// `checked_*` arithmetic semantics added in this session.
@@ -545,5 +571,156 @@ fn bang_operator_still_errors_with_phonetic_hint() {
     assert!(
         s.contains("not a valid operator") && s.contains("not"),
         "error should name `not` as the canonical form; got: {s}"
+    );
+}
+
+// ── Task 2 (interpreter-first execution, PR 2): close the measured drift ────
+// See .superpowers/sdd/task-2-brief.md. These probes were crafted from the
+// eight EXPECT-bearing goldens landed in Task 1b (examples/golden/*.vox) that
+// the nightly differential gate (crates/vox-integration-tests/tests/
+// golden_differential_gate.rs) exercises interp-vs-native.
+
+/// Asserts both that codegen emits *something* for each eval-only method
+/// AND that the emitted snippet is the exact native shape the interp/typeck
+/// alignment (above) assumes — not just `is_some()`, which would pass even
+/// if the emit regressed to a stale or wrong-shaped call. Each expected
+/// string is copied verbatim from `std_namespace_runtime_call`'s match arms
+/// in `builtin_registry.rs`; if either side edits its shape without the
+/// other, this test fails instead of silently drifting.
+#[test]
+fn registry_emits_every_eval_only_method() {
+    use vox_compiler::builtin_registry::std_namespace_runtime_call;
+    for (ns, m, args, expected) in [
+        (
+            "time",
+            "now",
+            vec![],
+            "vox_actor_runtime::builtins::vox_now_ms()".to_string(),
+        ),
+        (
+            "json",
+            "encode",
+            vec!["x".to_string()],
+            "vox_actor_runtime::builtins::vox_json_render(&(x)).unwrap_or_default()".to_string(),
+        ),
+        (
+            "json",
+            "stringify",
+            vec!["x".to_string()],
+            "vox_actor_runtime::builtins::vox_json_render(&(x)).unwrap_or_default()".to_string(),
+        ),
+        (
+            "process",
+            "cwd",
+            vec![],
+            "vox_actor_runtime::builtins::vox_process_cwd()".to_string(),
+        ),
+        (
+            "secrets",
+            "resolve",
+            vec!["\"K\"".to_string()],
+            "vox_actor_runtime::builtins::vox_secrets_resolve((\"K\").as_str())".to_string(),
+        ),
+        (
+            "crypto",
+            "hash_fast",
+            vec!["\"abc\"".to_string()],
+            "vox_crypto::hash_fast_hex((\"abc\").as_bytes())".to_string(),
+        ),
+    ] {
+        let emitted = std_namespace_runtime_call(ns, m, &args);
+        assert_eq!(
+            emitted.as_deref(),
+            Some(expected.as_str()),
+            "codegen emit for {ns}.{m} drifted from expected native shape"
+        );
+    }
+}
+
+#[test]
+fn display_of_composites_matches_the_surface_form() {
+    let v = run_probe(
+        r#"pub fn main() { return str([1, 2]) + "|" + str({a: 1}) + "|" + str(Some(3)) + "|" + str(Ok(1)) }"#,
+    )
+    .unwrap();
+    assert!(
+        matches!(v, VoxValue::Str(ref s) if s.as_ref() == "[1, 2]|{a: 1}|Some(3)|Ok(1)"),
+        "{v:?}"
+    );
+}
+
+#[test]
+fn glob_is_sorted_and_propagates_errors() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("b.txt"), "b").unwrap();
+    std::fs::write(d.path().join("a.txt"), "a").unwrap();
+    let pat = format!("{}/*", d.path().display());
+    let src = format!(
+        r#"pub fn main() {{ return match fs.glob("{pat}") {{ Ok(xs) => xs is xs.sorted() and len(xs) is 2, Error(e) => false }} }}"#
+    );
+    let v = run_probe(&src).unwrap();
+    assert!(matches!(v, VoxValue::Bool(true)), "{v:?}");
+}
+
+#[test]
+fn list_push_is_amortised_constant_not_quadratic() {
+    // 5_000 pushes must finish well inside the 10 M step budget and well under a second.
+    let t0 = std::time::Instant::now();
+    let v = run_probe(
+        r#"pub fn main() { let mut xs = []; let mut i = 0; while i < 5000 { xs = xs.push(i); i = i + 1 }; return len(xs) }"#,
+    )
+    .unwrap();
+    assert!(matches!(v, VoxValue::Int(5000)), "{v:?}");
+    assert!(
+        t0.elapsed() < std::time::Duration::from_millis(500),
+        "list.push is still cloning the receiver: {:?}",
+        t0.elapsed()
+    );
+}
+
+/// `env.args()` needs `Interpreter.source_path`/`script_args` (Task 2 Step 9)
+/// and is dispatched inline in `eval/expr.rs`, not the generic
+/// `call_builtin_method` that `builtin_registry.rs`'s two parity probes
+/// (`interpreter_dispatches_every_interp_builtin`,
+/// `interpreter_return_shape_matches_typecheck`) exercise — both carry an
+/// explicit `env.args` skip for that reason. This test restores coverage via
+/// the one path that *can* observe it: the full interpreter with
+/// `source_path`/`script_args` set, asserting the exact
+/// `[source_path] ++ script_args` shape that mirrors native codegen's argv
+/// emission (`backend/native.rs`) and matches `typeck::builtins`' `env.args`
+/// signature (`List[str]`).
+#[test]
+fn env_args_matches_source_path_plus_script_args() {
+    let source = r#"
+    fn main() to list[str] {
+        return env.args()
+    }
+    "#;
+    let tokens = lexer::lex(source);
+    let module = parser::descent::parse(tokens).expect("parse");
+    let lowered = hir::lower::lower_module(&module);
+    let mut interp = eval::Interpreter::new(1_000_000);
+    interp.set_source_path("probe_script.vox");
+    interp.script_args = vec!["--flag".to_string(), "value".to_string()];
+    interp.run_module(&lowered).expect("run_module");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(
+        res,
+        VoxValue::list(vec![
+            VoxValue::Str("probe_script.vox".to_string().into()),
+            VoxValue::Str("--flag".to_string().into()),
+            VoxValue::Str("value".to_string().into()),
+        ]),
+        "env.args() must yield [source_path] ++ script_args"
+    );
+}
+
+#[test]
+fn hash_fast_matches_vox_crypto() {
+    let v = run_probe(r#"pub fn main() { return crypto.hash_fast("abc") }"#).unwrap();
+    let expected = vox_crypto::hash_fast_hex(b"abc");
+    assert!(
+        matches!(v, VoxValue::Str(ref s) if s.as_ref() == expected.as_str()),
+        "{v:?} != {expected}"
     );
 }

@@ -81,7 +81,6 @@ pub(crate) fn script_opts_for_cli(
         sandbox: args.sandbox,
         allow_mcp: false,
         no_cache: args.no_cache,
-        isolation: args.isolation.clone(),
         trust_class: args.trust_class.clone(),
         wasi_dirs: Vec::new(),
         target_triple: args.target_triple.clone(),
@@ -266,7 +265,18 @@ async fn run_fabrica_cmd_inner(cmd: latin_cmd::FabricaCmd) -> anyhow::Result<()>
             } else if a.app {
                 mode = commands::run::RunMode::App;
             }
-            commands::run::run(&a.file, &a.args, mode).await?;
+            commands::run::run(
+                &a.file,
+                &a.args,
+                mode,
+                &a.caps,
+                a.max_steps,
+                a.max_memory,
+                a.max_disk,
+                a.max_files,
+                a.max_depth,
+            )
+            .await?;
         }
         FabricaCmd::Dev(a) => {
             commands::dev::run(&a.file, &a.out_dir, a.port, a.open, a.build_target).await?;

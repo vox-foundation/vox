@@ -1,4 +1,4 @@
-//! Emit-side of the Vox compiler: codegen (Rust + TS), web_ir, vox_ir, syntax_k.
+//! Emit-side of the Vox compiler: codegen (Rust + TS), web_ir, hir_export, syntax_k.
 //!
 //! This crate consumes analysis types (AST, HIR, typeck, etc.) from `vox-compiler`
 //! and produces output artifacts. The split decouples emit-stage rebuilds from
@@ -17,9 +17,9 @@ pub mod codegen_shared;
 pub mod codegen_ts;
 pub mod emission_profile;
 pub mod frontend_backend;
+pub mod hir_export;
 pub mod projection_bundle;
 pub mod syntax_k;
-pub mod vox_ir;
 pub mod web_ir;
 pub mod web_migration_env;
 
