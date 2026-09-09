@@ -161,6 +161,41 @@ describe('handleDriveRequest', () => {
     expect(res.state.bubbles.at(-1)).toMatchObject({ role: 'assistant', error: true, content: 'boom' });
   });
 
+  it('send clears prior events and records submit_err', async () => {
+    const state = emptyLiveState();
+    state.events = [{ seq: 1, ts_ms: 1, kind: 'old', turn_id: 'old', text: 'x' }];
+    state.next_seq = 2;
+    const res = await handleDriveRequest({
+      req: { id: '1', verb: 'send', body: { text: 'hi' } },
+      state,
+      models: [{ id: 'openrouter/auto', provider: 'OpenRouter', providerType: 'OpenRouter' } as any],
+      statuses: [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null } as any],
+      submit: async () => ({ ok: false, error: 'boom' }),
+    });
+    expect(res.state.events.some((e: any) => e.kind === 'old')).toBe(false);
+    expect(res.state.events.some((e: any) => e.kind === 'submit_err')).toBe(true);
+    expect(res.state.last_error).toBe('boom');
+    expect(res.state.last_turn_id).toBeTruthy();
+  });
+
+  it('send records submit_ok with assistant text', async () => {
+    const res = await handleDriveRequest({
+      req: { id: '1', verb: 'send', body: { text: 'hi' } },
+      state: emptyLiveState(),
+      models: [],
+      statuses: [],
+      submit: async () => ({ ok: true, text: 'hello-assistant' }),
+    });
+    expect(res.state.last_error).toBeNull();
+    expect(res.state.events.some((e: any) => e.kind === 'submit_ok' && e.text === 'hello-assistant')).toBe(true);
+  });
+
+  it('mutation: send path references clearDriveEvents and appendDriveEvent', () => {
+    const src = handleDriveRequest.toString();
+    expect(src).toMatch(/clearDriveEvents/);
+    expect(src).toMatch(/appendDriveEvent/);
+  });
+
   it('state and show skip catalog IPC; set and send do not', () => {
     expect(driveVerbNeedsCatalog('state')).toBe(false);
     expect(driveVerbNeedsCatalog('show')).toBe(false);

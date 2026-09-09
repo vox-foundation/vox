@@ -8,6 +8,7 @@ import {
   type DriveState,
 } from './axisDrive';
 import type { PickerModel, ProviderStatus } from './modelPicker';
+import { appendDriveEvent, clearDriveEvents } from './driveEvents';
 
 export interface DriveSetters {
   setChatModelOverride: (id: string | null) => void;
@@ -167,6 +168,13 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
     };
     let lastError: string | null = null;
     let assistantText: string | null = null;
+    const turnId = crypto.randomUUID();
+    let eventState = clearDriveEvents({
+      events: state.events,
+      events_dropped: state.events_dropped,
+      last_turn_id: state.last_turn_id,
+      next_seq: state.next_seq,
+    });
     try {
       const interpreted = interpretDriveSubmit(await args.submit(payload));
       lastError = interpreted.lastError;
@@ -174,6 +182,11 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
     }
+    eventState = appendDriveEvent(eventState, {
+      turn_id: turnId,
+      kind: lastError ? 'submit_err' : 'submit_ok',
+      text: lastError ?? assistantText ?? undefined,
+    });
     const bubbles: unknown[] = [...state.bubbles, { role: 'user', content: text }];
     if (lastError) {
       bubbles.push({ role: 'assistant', content: lastError, error: true });
@@ -188,6 +201,10 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
         catalog,
         bubbles,
         last_error: lastError,
+        events: eventState.events,
+        events_dropped: eventState.events_dropped,
+        last_turn_id: eventState.last_turn_id,
+        next_seq: eventState.next_seq,
       },
     };
   }
