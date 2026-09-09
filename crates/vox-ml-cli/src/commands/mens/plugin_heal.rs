@@ -1,4 +1,4 @@
-//! Self-healing for the `mens-candle-cuda` runtime plugin.
+//! Self-healing for the Candle runtime plugins.
 //!
 //! `vox mens train --device cuda` dispatches QLoRA training to a runtime-loaded
 //! cdylib plugin (`mens-candle-cuda`). Two failure modes make a plain train
@@ -9,8 +9,9 @@
 //!    workspace version (`plugin.load_failed error_kind="root_module"`).
 //!
 //! When auto-heal is enabled (default; opt out with `--no-auto-heal` or
-//! `VOX_MENS_NO_AUTO_HEAL=1`), [`ensure_cuda_plugin`] re-fetches a verified
-//! release artifact for the plugin and reinstalls it before training proceeds.
+//! `VOX_MENS_NO_AUTO_HEAL=1`), the device-specific ensure function re-fetches a
+//! verified release artifact for the plugin and reinstalls it before training
+//! proceeds.
 //!
 //! This does **not** compile anything at runtime. An earlier revision of this
 //! module rebuilt the cdylib from in-tree source with `cargo build` — on
@@ -32,6 +33,7 @@ use anyhow::{Context, Result};
 use std::process::Command;
 
 const PLUGIN_ID: &str = "mens-candle-cuda";
+const METAL_PLUGIN_ID: &str = "mens-candle-metal";
 
 /// Ensure the CUDA training plugin is installed and loadable.
 ///
@@ -39,32 +41,44 @@ const PLUGIN_ID: &str = "mens-candle-cuda";
 /// healed. When `auto_heal` is false and the plugin is unusable, returns an
 /// actionable error instead of fetching a replacement.
 pub fn ensure_cuda_plugin(auto_heal: bool) -> Result<()> {
+    ensure_plugin(PLUGIN_ID, auto_heal)
+}
+
+/// Ensure the Metal training plugin is installed and loadable.
+///
+/// This mirrors [`ensure_cuda_plugin`] while targeting the runtime plugin
+/// selected by Apple Silicon QLoRA dispatch.
+pub fn ensure_metal_plugin(auto_heal: bool) -> Result<()> {
+    ensure_plugin(METAL_PLUGIN_ID, auto_heal)
+}
+
+fn ensure_plugin(plugin_id: &str, auto_heal: bool) -> Result<()> {
     // Env override always wins so operators can disable healing in CI.
     let auto_heal = auto_heal && std::env::var_os("VOX_MENS_NO_AUTO_HEAL").is_none();
 
-    match probe_reason() {
+    match probe_reason(plugin_id) {
         None => Ok(()),
         Some(reason) => {
             if !auto_heal {
                 anyhow::bail!(
-                    "The '{PLUGIN_ID}' plugin is not usable: {reason}\n\n\
+                    "The '{plugin_id}' plugin is not usable: {reason}\n\n\
                      Auto-heal is disabled. Fix it manually with:\n\n{}",
-                    vox_plugin_host::format_install_hint(PLUGIN_ID, None)
+                    vox_plugin_host::format_install_hint(plugin_id, None)
                 );
             }
             eprintln!(
-                "⚠  '{PLUGIN_ID}' plugin unusable ({reason}); auto-healing (fetching verified artifact)…"
+                "⚠  '{plugin_id}' plugin unusable ({reason}); auto-healing (fetching verified artifact)…"
             );
-            reinstall_via_vox_plugin_install(PLUGIN_ID)
-                .with_context(|| format!("auto-healing the '{PLUGIN_ID}' plugin"))?;
+            reinstall_via_vox_plugin_install(plugin_id)
+                .with_context(|| format!("auto-healing the '{plugin_id}' plugin"))?;
             // Confirm the heal actually fixed it rather than silently proceeding.
-            match probe_reason() {
+            match probe_reason(plugin_id) {
                 None => {
-                    eprintln!("✓  '{PLUGIN_ID}' plugin healed and loads cleanly.");
+                    eprintln!("✓  '{plugin_id}' plugin healed and loads cleanly.");
                     Ok(())
                 }
                 Some(still) => {
-                    anyhow::bail!("Reinstalled '{PLUGIN_ID}' but it is still unusable: {still}")
+                    anyhow::bail!("Reinstalled '{plugin_id}' but it is still unusable: {still}")
                 }
             }
         }
@@ -73,8 +87,8 @@ pub fn ensure_cuda_plugin(auto_heal: bool) -> Result<()> {
 
 /// Try to load the plugin. Returns `None` when healthy, or `Some(reason)` when
 /// the load fails (missing, ABI/version mismatch, init failure).
-fn probe_reason() -> Option<String> {
-    match vox_plugin_host::load_code_plugin_by_id(PLUGIN_ID) {
+fn probe_reason(plugin_id: &str) -> Option<String> {
+    match vox_plugin_host::load_code_plugin_by_id(plugin_id) {
         Ok(_loaded) => None, // dropped immediately; the real dispatch reloads it.
         Err(e) => Some(e.to_string()),
     }
@@ -154,4 +168,20 @@ fn reinstall_via_vox_plugin_install(plugin_id: &str) -> Result<()> {
         status.code()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ensure_cuda_plugin, ensure_metal_plugin};
+    use anyhow::Result;
+
+    #[test]
+    fn ensure_cuda_plugin_has_expected_api() {
+        let _ensure: fn(bool) -> Result<()> = ensure_cuda_plugin;
+    }
+
+    #[test]
+    fn ensure_metal_plugin_has_expected_api() {
+        let _ensure: fn(bool) -> Result<()> = ensure_metal_plugin;
+    }
 }
