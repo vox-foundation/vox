@@ -123,15 +123,7 @@ fn main() {
         fail(bin, "state.events is missing submit_ok for last_turn_id")
     }
 
-    let summary = {
-        "status": "pass",
-        "plane": plane,
-        "model": chosen,
-        "assistant": assistant_text,
-        "turn_id": turn_id,
-        "event_count": events.len()
-    }
-    print(json.stringify(summary))
+    print("{\"status\":\"pass\",\"plane\":\"" + plane + "\",\"model\":\"" + chosen + "\",\"turn_id\":\"" + turn_id + "\",\"event_count\":" + str(events.len()) + "}")
     let stop = process.run(bin, ["gui", "drive", "stop"])
     if stop is null {
         process.exit(1)
