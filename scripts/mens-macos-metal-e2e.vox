@@ -75,6 +75,10 @@ fn main() {
     if not fs.exists(report) {
         fail("collateral_damage_report.json was not produced")
     }
+    let report_body = fs.read(report).unwrap_or("")
+    if not report_body.contains("\"status\":\"pass\"") and not report_body.contains("\"status\": \"pass\"") {
+        fail("collateral_damage_report.json does not assert status pass")
+    }
 
     let serve_id = process.spawn_background("vox", [
         "mens", "serve", "--model", run_dir,
