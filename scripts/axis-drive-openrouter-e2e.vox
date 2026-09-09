@@ -15,6 +15,7 @@ fn vox_binary_path() to str {
 }
 
 fn fail(bin: str, message: str) {
+    print("OpenRouter Drive e2e failed: " + message)
     log.error("OpenRouter Drive e2e failed: " + message)
     let _ = process.run(bin, ["gui", "drive", "stop"])
     process.exit(1)
