@@ -676,7 +676,7 @@ pub enum DriveCmd {
     Send(DriveSendArgs),
     /// Print the current live Drive state as JSON.
     State,
-    /// Wait for a reply, error, or selectable model.
+    /// Wait for a reply, error, event, or selectable model.
     Wait(DriveWaitArgs),
     /// Run a one-shot Drive request without a webview.
     Headless(DriveHeadlessArgs),

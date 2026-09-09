@@ -272,6 +272,8 @@ struct AxisDriveContract {
     health_service: String,
     set_keys: BTreeMap<String, serde_yaml::Value>,
     errors: BTreeMap<String, u16>,
+    wait_until: BTreeMap<String, String>,
+    state_snapshot: BTreeMap<String, serde_yaml::Value>,
 }
 
 #[cfg(test)]
@@ -317,6 +319,18 @@ mod tests {
         assert_eq!(contract.errors.get("unknown_key"), Some(&400));
         assert_eq!(contract.errors.get("model_not_selectable"), Some(&409));
         assert_eq!(contract.errors.get("unauthorized"), Some(&401));
+        for predicate in ["reply", "reply_ok", "error", "selectable", "event"] {
+            assert!(
+                contract.wait_until.contains_key(predicate),
+                "missing wait predicate {predicate}"
+            );
+        }
+        for key in ["events", "events_dropped", "last_turn_id"] {
+            assert!(
+                contract.state_snapshot.contains_key(key),
+                "missing state snapshot key {key}"
+            );
+        }
     }
 
     #[test]

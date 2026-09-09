@@ -162,7 +162,7 @@ vox gui drive stop
 vox gui drive set --knob model_override=mens/e2e-smoke --knob execution=sync
 vox gui drive send --text "ping"
 vox gui drive state
-vox gui drive wait --until reply|error|selectable=<id> [--timeout 90s]
+vox gui drive wait --until reply|reply_ok|error|event=<kind>|selectable=<id> [--timeout 90s]
 vox gui drive headless set|send|state …
 ```
 
@@ -199,7 +199,7 @@ CLI  <--stdout JSON { plane:"headless", claims:{…false}, … }
 
 ### Wait
 
-CLI polls `state` (live) or blocks on the one-shot (headless). Default timeout 90s (`PENDING_TIMEOUT_MS`). `wait --until selectable=mens/e2e-smoke` succeeds when that catalog row is `selectable: true`.
+CLI polls `state` (live) or blocks on the one-shot (headless). Default timeout 90s (`PENDING_TIMEOUT_MS`). `wait --until selectable=mens/e2e-smoke` succeeds when that catalog row is `selectable: true`; `reply` accepts any settled assistant reply including errors, while `reply_ok` requires a non-empty, non-error assistant reply; `event=<kind>` matches `state.events[].kind`.
 
 ## 8. Error handling
 

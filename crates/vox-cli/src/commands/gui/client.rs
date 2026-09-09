@@ -94,6 +94,44 @@ fn matches_until(until: &str, body: &str) -> bool {
                     && row.get("selectable") == Some(&serde_json::Value::Bool(true))
             });
     }
+    if until == "reply_ok" {
+        if view
+            .get("last_error")
+            .map(|x| !x.is_null())
+            .unwrap_or(false)
+        {
+            return false;
+        }
+        let last = view
+            .get("bubbles")
+            .and_then(|b| b.as_array())
+            .and_then(|a| a.last());
+        let Some(bubble) = last else {
+            return false;
+        };
+        if bubble.get("role").and_then(|r| r.as_str()) != Some("assistant") {
+            return false;
+        }
+        if bubble.get("error") == Some(&serde_json::Value::Bool(true)) {
+            return false;
+        }
+        return bubble
+            .get("content")
+            .and_then(|c| c.as_str())
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+    }
+    if let Some(kind) = until.strip_prefix("event=") {
+        if kind.is_empty() {
+            return false;
+        }
+        return view
+            .get("events")
+            .and_then(|e| e.as_array())
+            .into_iter()
+            .flatten()
+            .any(|row| row.get("kind").and_then(|k| k.as_str()) == Some(kind));
+    }
     false
 }
 
@@ -125,5 +163,28 @@ mod tests {
         let quiet = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"user"}]}}"#;
         assert!(!matches_until("error", quiet));
         assert!(!matches_until("reply", quiet));
+    }
+
+    #[test]
+    fn matches_event_kind_nested_under_state() {
+        let body = r#"{"status":200,"state":{"events":[{"kind":"token_streamed"},{"kind":"submit_ok"}],"last_error":null}}"#;
+        assert!(matches_until("event=submit_ok", body));
+        assert!(matches_until("event=token_streamed", body));
+        assert!(!matches_until("event=missing", body));
+        let empty = r#"{"status":200,"state":{"events":[],"last_error":null}}"#;
+        assert!(!matches_until("event=submit_ok", empty));
+        let flat = r#"{"catalog":[],"last_error":null}"#;
+        assert!(!matches_until("event=submit_ok", flat));
+    }
+
+    #[test]
+    fn matches_reply_ok_rejects_error_settlement() {
+        let err = r#"{"status":200,"state":{"last_error":"load tokenizer","bubbles":[{"role":"assistant","error":true,"content":"load tokenizer"}]}}"#;
+        assert!(matches_until("reply", err)); // legacy: settled
+        assert!(!matches_until("reply_ok", err));
+        let ok = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"user","content":"hi"},{"role":"assistant","content":"hello"}]}}"#;
+        assert!(matches_until("reply_ok", ok));
+        let empty_asst = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"assistant","content":""}]}}"#;
+        assert!(!matches_until("reply_ok", empty_asst));
     }
 }
