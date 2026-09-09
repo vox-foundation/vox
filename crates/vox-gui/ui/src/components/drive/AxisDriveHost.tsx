@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { voxTransport } from '../../transport';
+import { listenAgentEvents, voxTransport } from '../../transport';
 import {
   emptyLiveState,
   type DriveState,
 } from '../../lib/axisDrive';
+import { recordAgentFrame } from '../../lib/driveEvents';
 import {
   driveVerbNeedsCatalog,
   handleDriveRequest,
@@ -24,6 +25,29 @@ export interface AxisDriveHostProps {
 
 export function AxisDriveHost({ setters, onSubmit, sessionReady }: AxisDriveHostProps) {
   const stateRef = useRef<DriveState>(emptyLiveState());
+  const activeTurnIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let unlisten: UnlistenFn | undefined;
+    void listenAgentEvents(frame => {
+      const turnId = activeTurnIdRef.current;
+      if (!turnId) return;
+      const eventState = recordAgentFrame(stateRef.current, frame, turnId);
+      stateRef.current = { ...stateRef.current, ...eventState };
+    })
+      .then(stop => {
+        if (cancelled) stop();
+        else unlisten = stop;
+      })
+      .catch(() => {
+        // Browser/vitest harness: no Tauri agent-event plane.
+      });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
 
   useEffect(() => {
     if (!sessionReady) return;
@@ -50,6 +74,11 @@ export function AxisDriveHost({ setters, onSubmit, sessionReady }: AxisDriveHost
             setters: merged,
             submit: onSubmit,
             req: event.payload,
+            onTurnStart: (turnId, eventState) => {
+              activeTurnIdRef.current = turnId;
+              stateRef.current = { ...stateRef.current, ...eventState };
+            },
+            getActiveEventState: () => stateRef.current,
           });
           stateRef.current = res.state;
           await invoke('drive_respond', {

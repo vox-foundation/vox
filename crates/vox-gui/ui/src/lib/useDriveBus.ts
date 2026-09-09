@@ -8,7 +8,11 @@ import {
   type DriveState,
 } from './axisDrive';
 import type { PickerModel, ProviderStatus } from './modelPicker';
-import { appendDriveEvent, clearDriveEvents } from './driveEvents';
+import {
+  appendDriveEvent,
+  clearDriveEvents,
+  type DriveEventState,
+} from './driveEvents';
 
 export interface DriveSetters {
   setChatModelOverride: (id: string | null) => void;
@@ -92,6 +96,8 @@ export interface HandleDriveRequestArgs {
   setters?: DriveSetters;
   submit: (payload: DriveSubmitPayload) => Promise<unknown> | unknown;
   req: DriveRequest;
+  onTurnStart?: (turnId: string, state: DriveEventState) => void;
+  getActiveEventState?: () => DriveEventState;
 }
 
 /** Drive-only: click path does not 409 an unselectable pin. */
@@ -175,12 +181,18 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
       last_turn_id: state.last_turn_id,
       next_seq: state.next_seq,
     });
+    eventState = { ...eventState, last_turn_id: turnId };
+    args.onTurnStart?.(turnId, eventState);
     try {
       const interpreted = interpretDriveSubmit(await args.submit(payload));
       lastError = interpreted.lastError;
       assistantText = interpreted.assistantText;
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
+    }
+    const activeEventState = args.getActiveEventState?.();
+    if (activeEventState?.last_turn_id === turnId) {
+      eventState = activeEventState;
     }
     eventState = appendDriveEvent(eventState, {
       turn_id: turnId,
