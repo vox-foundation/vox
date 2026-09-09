@@ -1386,6 +1386,7 @@
     "open_locator",
     "openrouter_key_status",
     "oratio_transcribe",
+    "orchestrator_daemon_ready",
     "orchestrator_version_mismatch",
     "overrule_orchestrator_task",
     "pause_orchestrator_agent",
