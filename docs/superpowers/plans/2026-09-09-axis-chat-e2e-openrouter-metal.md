@@ -2,43 +2,83 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make Axis Drive prove OpenRouter and Mac Metal Qwen3.5-0.8B chat end-to-end while exposing a bounded full stream/event dump for debugging.
+**Goal:** Make Axis Drive prove OpenRouter and Mac Metal Qwen chat end-to-end while exposing a bounded full stream/event dump — without false-green waits or incomplete Metal dispatch.
 
-**Architecture:** Extend live Drive state with a capped `DriveTurnEvent` ring fed from submit results and `listenAgentEvents`. Remove the Metal QLoRA CLI dead gate and route training through `vox-plugin-mens-candle-metal` `run_full_training`. Document and automate download→train→serve, then physically drive OpenRouter + `mens/qwen35-08b-metal-e2e`.
+**Architecture:** Extend live Drive with a capped `DriveTurnEvent` ring (`kind.text` from agent frames, submit_* from send). Add `wait --until reply_ok` and `event=<kind>`. Enable Metal by fixing **three** CUDA hardcodes (CLI gate, `backend_candle_qlora`, serve worker), then spike→train→collateral→serve→Drive pin.
 
-**Tech Stack:** TypeScript/React (vox-gui UI), Rust (`vox-cli`, `vox-ml-cli`, `vox-plugin-mens-candle-metal`), Axis Drive loopback HTTP, Candle QLoRA Metal, VoxScript (`.vox`) automation, Vitest + cargo test + physical Drive.
+**Tech Stack:** TypeScript/React (vox-gui), Rust (`vox-cli`, `vox-ml-cli`, `vox-populi`, `vox-plugin-mens-candle-metal`), Axis Drive loopback HTTP, Candle QLoRA Metal, VoxScript, Vitest + cargo test + physical Drive.
 
-**Spec:** `docs/superpowers/specs/2026-09-09-axis-chat-e2e-openrouter-metal-design.md`
+**Spec:** `docs/superpowers/specs/2026-09-09-axis-chat-e2e-openrouter-metal-design.md` (audit-revised)
 
 ## Global Constraints
 
-- Live Axis Drive is the only acceptance plane for chat e2e (not headless-only, not raw `vox chat`).
-- OpenRouter acceptance: any selectable OpenRouter catalog entry returning a short reply.
-- Mac base model: `Qwen/Qwen3.5-0.8B` (operator “3.8 Qwen” = this 0.8B Mac-tier step).
-- Local Drive slug: `mens/qwen35-08b-metal-e2e`.
-- Event ring capacity 500; text cap 4 KiB; raw cap 8 KiB; clear on next `send` by default.
-- Never claim silent success: failures must set `last_error` and emit `submit_err`.
-- Secrets via `vox_secrets::resolve_secret` only; no new raw env key reads in consumers.
-- Project automation is VoxScript (`vox run scripts/…`); no new `.ps1`/`.sh`/`.py` glue.
-- Physical drive required before calling a track done.
+- Live Axis Drive is the only acceptance plane for chat e2e.
+- Green wait predicate is **`reply_ok`**, never bare `reply` (bare `reply` matches errors).
+- OpenRouter: prefer selectable `openrouter/auto` or `openrouter/*`; require `provider_type == OpenRouter` once catalog fields exist.
+- Mac primary model: `Qwen/Qwen3.5-0.8B`, **spike-gated** for multimodal reject; Drive slug `mens/qwen35-08b-metal-e2e`; run dir `mens/runs/qwen35-08b-metal-e2e`.
+- Event ring: capacity 500; text 4 KiB; raw 8 KiB; clear at send start; redact text+raw; `next_seq` monotonic; correlate via `activeTurnIdRef`.
+- Token body field: **`frame.kind.text`**, not `frame.text`.
+- Secrets via `vox_secrets` only; VoxScript must not `env.get` OpenRouter keys.
+- Automation is VoxScript; exit non-zero on failure (never print-only).
+- Metal enablement requires CLI gate + populi dispatch + serve worker — not bail removal alone.
+- Do not use `--max-steps` (does not exist). Use `--epochs 1` + `--max-runtime-secs`.
 - Do not use retired surfaces (`vox-dei`, `TURSO_URL`, etc.).
 
 ### File map
 
 | Path | Responsibility |
 |---|---|
-| `crates/vox-gui/ui/src/lib/axisDrive.ts` | `DriveTurnEvent` types + empty state fields + ring helpers |
-| `crates/vox-gui/ui/src/lib/driveEvents.ts` | append/cap/redact/clear helpers (keep `axisDrive.ts` from growing further) |
-| `crates/vox-gui/ui/src/lib/driveEvents.test.ts` | unit tests for ring behavior |
-| `crates/vox-gui/ui/src/lib/useDriveBus.ts` | clear ring on send; emit submit_ok/submit_err |
-| `crates/vox-gui/ui/src/components/drive/AxisDriveHost.tsx` | subscribe agent events → ring |
-| `crates/vox-cli/src/commands/gui/client.rs` | `wait --until event=<kind>` |
-| `contracts/gui/axis-drive.v1.yaml` | document events fields / wait predicate |
-| `crates/vox-ml-cli/src/commands/schola/train/run_train.rs` | remove Metal dead gate; dispatch Metal plugin |
-| `docs/src/how-to/how-to-train-mens-macos-metal.md` | operator SSOT |
-| `scripts/mens-macos-metal-e2e.vox` | download→train→serve handoff |
-| `scripts/axis-drive-openrouter-e2e.vox` | Track C physical proof |
-| `scripts/axis-drive-metal-e2e.vox` | Track B∩Drive physical proof |
+| `crates/vox-gui/ui/src/lib/driveEvents.ts` | Ring helpers |
+| `crates/vox-gui/ui/src/lib/driveEvents.test.ts` | Unit tests |
+| `crates/vox-gui/ui/src/lib/axisDrive.ts` | DriveState / claims / catalog provider fields |
+| `crates/vox-gui/ui/src/lib/useDriveBus.ts` | submit_* events; optional catalog on state |
+| `crates/vox-gui/ui/src/components/drive/AxisDriveHost.tsx` | Agent event subscription |
+| `crates/vox-gui/src/drive/protocol.rs` | Rust DriveState/Claims mirror |
+| `crates/vox-cli/src/commands/gui/client.rs` | `reply_ok`, `event=` |
+| `contracts/gui/axis-drive.v1.yaml` | Document predicates (v1 additive) |
+| `crates/vox-ml-cli/.../run_train.rs` | Remove Metal dead gate |
+| `crates/vox-ml-cli/.../plugin_heal.rs` | `ensure_metal_plugin` |
+| `crates/vox-populi/.../backend_candle_qlora.rs` | Host-aware plugin load |
+| `crates/vox-ml-cli/.../serve/worker.rs` | Host-aware inference plugin |
+| `examples/mens/metal-e2e/` | Per-run contract + dogfood JSONL |
+| `scripts/mens-macos-metal-e2e.vox` | Mac pipeline |
+| `scripts/axis-drive-openrouter-e2e.vox` | Track C |
+| `scripts/axis-drive-metal-e2e.vox` | Track B∩Drive |
+
+---
+
+### Task 0: Metal + model spike (blocking for Track B)
+
+**Files:**
+- Create: `docs/src/how-to/how-to-train-mens-macos-metal.md` (stub section “Spike results” only; full how-to in Task 7)
+- Test: manual on Apple Silicon; record outcome in how-to
+
+**Interfaces:**
+- Consumes: `vox plugin install mens-candle-metal`; plugin `run_full_training`
+- Produces: recorded `SPIKE_MODEL_ID` (`Qwen/Qwen3.5-0.8B` or text-only fallback) and proof that Metal `run_full_training` can start
+
+- [ ] **Step 1: Install plugin**
+
+```bash
+vox plugin install mens-candle-metal --yes
+# or: vox plugin install --path crates/vox-plugin-mens-candle-metal --yes
+vox plugin list | rg mens-candle-metal
+```
+
+Expected: plugin listed for Apple Silicon.
+
+- [ ] **Step 2: Characterize multimodal reject**
+
+Attempt a dry config parse / tiny train against `Qwen/Qwen3.5-0.8B`. If error contains `vision-language / multimodal model`, pick operator-approved text-only Mac-tier fallback and write it into the how-to as `SPIKE_MODEL_ID`. If train proceeds past config parse, `SPIKE_MODEL_ID=Qwen/Qwen3.5-0.8B`.
+
+- [ ] **Step 3: Commit spike note**
+
+```bash
+git add docs/src/how-to/how-to-train-mens-macos-metal.md
+git commit -m "docs(mens): record Mac Metal train spike model id"
+```
+
+Do **not** remove the CLI dead gate until Task 6 after this spike succeeds or fallback is locked.
 
 ---
 
@@ -48,10 +88,10 @@
 - Create: `crates/vox-gui/ui/src/lib/driveEvents.ts`
 - Create: `crates/vox-gui/ui/src/lib/driveEvents.test.ts`
 - Modify: `crates/vox-gui/ui/src/lib/axisDrive.ts`
+- Modify: `crates/vox-gui/src/drive/protocol.rs` (`DriveClaims.events`, state fields)
 
 **Interfaces:**
-- Consumes: none
-- Produces: `DriveTurnEvent`, `appendDriveEvent`, `clearDriveEvents`, `DRIVE_EVENTS_CAP` (500)
+- Produces: `DriveTurnEvent`, `DriveEventState`, `appendDriveEvent`, `clearDriveEvents`, `recordAgentFrame`, `DRIVE_EVENTS_CAP=500`, `DRIVE_EVENT_TEXT_CAP`, `DRIVE_EVENT_RAW_CAP=8192`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -60,8 +100,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   DRIVE_EVENTS_CAP,
+  DRIVE_EVENT_RAW_CAP,
   appendDriveEvent,
   clearDriveEvents,
+  recordAgentFrame,
   type DriveEventState,
 } from './driveEvents';
 
@@ -80,16 +122,17 @@ describe('driveEvents', () => {
     expect(next.events[0]?.kind).toBe('submit_ok');
     expect(next.events[0]?.seq).toBe(1);
     expect(next.last_turn_id).toBe('t1');
+    expect(next.next_seq).toBe(2);
   });
 
-  it('drops oldest when over capacity and increments events_dropped', () => {
+  it('drops oldest at CAP+1 and increments events_dropped by 1', () => {
     let state = empty();
-    for (let i = 0; i < DRIVE_EVENTS_CAP + 3; i++) {
+    for (let i = 0; i < DRIVE_EVENTS_CAP + 1; i++) {
       state = appendDriveEvent(state, { turn_id: 't', kind: 'token_streamed', text: String(i) });
     }
     expect(state.events).toHaveLength(DRIVE_EVENTS_CAP);
-    expect(state.events_dropped).toBe(3);
-    expect(state.events[0]?.text).toBe('3');
+    expect(state.events_dropped).toBe(1);
+    expect(state.events[0]?.text).toBe('1');
   });
 
   it('redacts bearer-looking substrings in text', () => {
@@ -102,12 +145,28 @@ describe('driveEvents', () => {
     expect(next.events[0]?.text ?? '').toMatch(/\[redacted\]/i);
   });
 
-  it('clearDriveEvents resets ring but keeps next_seq monotonic preference', () => {
+  it('caps and redacts raw JSON secrets', () => {
+    const big = { headers: { Authorization: 'Bearer sk-secret-value' }, pad: 'x'.repeat(9000) };
+    const next = appendDriveEvent(empty(), { turn_id: 't', kind: 'agent_event', raw: big });
+    const serialized = JSON.stringify(next.events[0]?.raw);
+    expect(serialized.length).toBeLessThanOrEqual(DRIVE_EVENT_RAW_CAP + 8);
+    expect(serialized).not.toContain('sk-secret-value');
+  });
+
+  it('clearDriveEvents preserves next_seq', () => {
     const filled = appendDriveEvent(empty(), { turn_id: 't', kind: 'submit_ok' });
     const cleared = clearDriveEvents(filled);
     expect(cleared.events).toEqual([]);
     expect(cleared.events_dropped).toBe(0);
     expect(cleared.last_turn_id).toBeNull();
+    expect(cleared.next_seq).toBe(filled.next_seq);
+  });
+
+  it('recordAgentFrame reads kind.type and kind.text', () => {
+    const frame = { kind: { type: 'token_streamed', text: 'tok', session_id: 's1' } };
+    const next = recordAgentFrame(empty(), frame, 'turn-1');
+    expect(next.events[0]?.kind).toBe('token_streamed');
+    expect(next.events[0]?.text).toBe('tok');
   });
 });
 ```
@@ -120,91 +179,38 @@ Expected: FAIL (module not found)
 
 - [ ] **Step 3: Write minimal implementation**
 
-```ts
-// crates/vox-gui/ui/src/lib/driveEvents.ts
-export const DRIVE_EVENTS_CAP = 500;
-export const DRIVE_EVENT_TEXT_CAP = 4 * 1024;
+Implement `driveEvents.ts` with text truncate+redact, raw stringify → redact → truncate to 8192, `appendDriveEvent`, `clearDriveEvents`, `recordAgentFrame` mapping `frame.kind.type` / `frame.kind.text`.
 
-export interface DriveTurnEvent {
-  seq: number;
-  ts_ms: number;
-  kind: string;
-  turn_id: string;
-  text?: string;
-  raw?: unknown;
-}
+Wire into `axisDrive.ts` `DriveState` / `emptyLiveState` / `DriveClaims.events: true` on live.
 
-export interface DriveEventState {
-  events: DriveTurnEvent[];
-  events_dropped: number;
-  last_turn_id: string | null;
-  next_seq: number;
-}
+Mirror in `protocol.rs`:
 
-export function redactDriveText(text: string): string {
-  return text
-    .replace(/Bearer\s+[A-Za-z0-9._\-]+/gi, 'Bearer [redacted]')
-    .replace(/\bsk-[A-Za-z0-9]{8,}\b/g, '[redacted]');
+```rust
+pub struct DriveClaims {
+    pub picker_ui: bool,
+    pub composer_knobs: bool,
+    pub bubbles: bool,
+    pub events: bool,
 }
-
-export function truncateDriveText(text: string): string {
-  if (text.length <= DRIVE_EVENT_TEXT_CAP) return text;
-  return `${text.slice(0, DRIVE_EVENT_TEXT_CAP)}…`;
-}
-
-export function appendDriveEvent(
-  state: DriveEventState,
-  input: { turn_id: string; kind: string; text?: string; raw?: unknown; ts_ms?: number },
-): DriveEventState {
-  const text =
-    input.text === undefined
-      ? undefined
-      : truncateDriveText(redactDriveText(input.text));
-  const event: DriveTurnEvent = {
-    seq: state.next_seq,
-    ts_ms: input.ts_ms ?? Date.now(),
-    kind: input.kind,
-    turn_id: input.turn_id,
-    text,
-    raw: input.raw,
-  };
-  const events = [...state.events, event];
-  let dropped = state.events_dropped;
-  while (events.length > DRIVE_EVENTS_CAP) {
-    events.shift();
-    dropped += 1;
-  }
-  return {
-    events,
-    events_dropped: dropped,
-    last_turn_id: input.turn_id,
-    next_seq: state.next_seq + 1,
-  };
-}
-
-export function clearDriveEvents(state: DriveEventState): DriveEventState {
-  return {
-    events: [],
-    events_dropped: 0,
-    last_turn_id: null,
-    next_seq: state.next_seq,
-  };
-}
+// live(): events: true; headless(): events: false
 ```
 
-Wire fields into `DriveState` / `emptyLiveState` / headless claims (`events: false` on headless claims object if present; live `claims` may omit until Task 2).
+Add `events`, `events_dropped`, `last_turn_id`, `next_seq` to Rust `DriveState` with serde defaults so old clients don't break.
 
-- [ ] **Step 4: Run tests and make sure they pass**
+- [ ] **Step 4: Run tests**
 
 Run: `pnpm --dir crates/vox-gui/ui test src/lib/driveEvents.test.ts`
 
 Expected: PASS
 
+Also: `cargo test -p vox-gui contract_yaml_typed_verbs_and_keys` after contract touch in Task 4 (may skip until then).
+
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/vox-gui/ui/src/lib/driveEvents.ts crates/vox-gui/ui/src/lib/driveEvents.test.ts crates/vox-gui/ui/src/lib/axisDrive.ts
-git commit -m "feat(gui): add Drive turn event ring helpers"
+git add crates/vox-gui/ui/src/lib/driveEvents.ts crates/vox-gui/ui/src/lib/driveEvents.test.ts \
+  crates/vox-gui/ui/src/lib/axisDrive.ts crates/vox-gui/src/drive/protocol.rs
+git commit -m "feat(gui): add Drive turn event ring helpers and claims.events"
 ```
 
 ---
@@ -216,24 +222,21 @@ git commit -m "feat(gui): add Drive turn event ring helpers"
 - Modify: `crates/vox-gui/ui/src/lib/useDriveBus.test.ts`
 
 **Interfaces:**
-- Consumes: `appendDriveEvent`, `clearDriveEvents` from Task 1
-- Produces: send path clears prior events, then appends `submit_ok` or `submit_err` with a new `turn_id`
+- Consumes: `appendDriveEvent`, `clearDriveEvents`
+- Produces: send clears prior events then appends `submit_ok` or `submit_err`; sets `last_turn_id`
 
-- [ ] **Step 1: Write the failing test**
-
-Add to `useDriveBus.test.ts`:
+- [ ] **Step 1: Write failing tests** (extend `useDriveBus.test.ts`; reuse existing `handleDriveRequest` / `emptyLiveState` helpers already in that file)
 
 ```ts
 it('send clears prior events and records submit_err', async () => {
   const state = emptyLiveState();
-  state.events = [
-    { seq: 1, ts_ms: 1, kind: 'old', turn_id: 'old', text: 'x' },
-  ];
+  state.events = [{ seq: 1, ts_ms: 1, kind: 'old', turn_id: 'old', text: 'x' }];
+  state.next_seq = 2;
   const res = await handleDriveRequest({
     req: { id: '1', verb: 'send', body: { text: 'hi' } },
     state,
-    models: [{ id: 'openrouter/x', provider: 'OpenRouter', providerType: 'cloud' } as any],
-    statuses: [],
+    models: [{ id: 'openrouter/auto', provider: 'OpenRouter', providerType: 'OpenRouter' } as any],
+    statuses: [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null } as any],
     submit: async () => ({ ok: false, error: 'boom' }),
   });
   expect(res.state.events.some((e: any) => e.kind === 'old')).toBe(false);
@@ -241,30 +244,41 @@ it('send clears prior events and records submit_err', async () => {
   expect(res.state.last_error).toBe('boom');
   expect(res.state.last_turn_id).toBeTruthy();
 });
+
+it('send records submit_ok with assistant text', async () => {
+  const res = await handleDriveRequest({
+    req: { id: '1', verb: 'send', body: { text: 'hi' } },
+    state: emptyLiveState(),
+    models: [],
+    statuses: [],
+    submit: async () => ({ ok: true, text: 'hello-assistant' }),
+  });
+  expect(res.state.last_error).toBeNull();
+  expect(res.state.events.some((e: any) => e.kind === 'submit_ok' && e.text === 'hello-assistant')).toBe(true);
+});
+
+it('mutation: send path references clearDriveEvents and appendDriveEvent', () => {
+  const src = handleDriveRequest.toString();
+  expect(src).toMatch(/clearDriveEvents/);
+  expect(src).toMatch(/appendDriveEvent/);
+});
 ```
 
-(Adjust mocks to match existing test helpers in that file.)
-
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run — expect FAIL**
 
 Run: `pnpm --dir crates/vox-gui/ui test src/lib/useDriveBus.test.ts`
 
-Expected: FAIL on missing `events` behavior
+- [ ] **Step 3: Implement**
 
-- [ ] **Step 3: Write minimal implementation**
+In send branch of `handleDriveRequest`:
 
-In `handleDriveRequest` send branch:
+1. `const turnId = crypto.randomUUID()`.
+2. Apply `clearDriveEvents` to event fields.
+3. Set `last_turn_id = turnId` and store turn id for host ref (export via state).
+4. After `interpretDriveSubmit`, append `submit_ok` (assistant text) or `submit_err` (error).
+5. Return updated `events`, `events_dropped`, `last_turn_id`, `next_seq`.
 
-1. `const turnId = crypto.randomUUID()` (or `drive-turn-${Date.now()}`).
-2. Start from `clearDriveEvents` applied to state’s event fields.
-3. After `interpretDriveSubmit`, `appendDriveEvent` with `submit_ok` (assistant text) or `submit_err` (error).
-4. Return `events`, `events_dropped`, `last_turn_id` on `state`.
-
-- [ ] **Step 4: Run tests and make sure they pass**
-
-Run: `pnpm --dir crates/vox-gui/ui test src/lib/useDriveBus.test.ts`
-
-Expected: PASS
+- [ ] **Step 4: Run — expect PASS**
 
 - [ ] **Step 5: Commit**
 
@@ -279,84 +293,106 @@ git commit -m "feat(gui): record Drive submit_ok/submit_err events"
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/drive/AxisDriveHost.tsx`
-- Create or modify: `crates/vox-gui/ui/src/components/drive/AxisDriveHost.test.tsx` (if harness exists; else extend an adjacent Drive test)
+- Create: `crates/vox-gui/ui/src/components/drive/AxisDriveHost.events.test.tsx` (or `.test.ts` if host helpers extracted)
 
 **Interfaces:**
-- Consumes: `listenAgentEvents` from `transport.ts`; `appendDriveEvent`
-- Produces: live frames appended with `kind` from `frame.kind?.type ?? 'agent_event'`
+- Consumes: `listenAgentEvents` from `transport.ts`; `recordAgentFrame`
+- Produces: frames appended under `activeTurnIdRef`
 
-- [ ] **Step 1: Write the failing test**
-
-Mock `listenAgentEvents` to invoke the callback once with `{ kind: { type: 'token_streamed' }, text: 'tok' }`. Mount/host call path should leave `stateRef.current.events` containing `token_streamed`. Prefer a small extracted function `recordAgentFrame(state, frame, turnId)` tested without full React if host testing is heavy:
+- [ ] **Step 1: Write failing integration-style test**
 
 ```ts
-// in driveEvents.test.ts or AxisDriveHost helper test
-it('maps agent frame kind into drive event', () => {
-  const frame = { kind: { type: 'token_streamed' }, text: 'ab' };
-  const next = appendDriveEvent(empty(), {
-    turn_id: 't1',
-    kind: String(frame.kind?.type ?? 'agent_event'),
-    text: frame.text,
-  });
-  expect(next.events[0]?.kind).toBe('token_streamed');
-});
-```
+import { describe, expect, it, vi } from 'vitest';
+import { recordAgentFrame, clearDriveEvents, type DriveEventState } from '../../lib/driveEvents';
 
-Then wire host to call that on every frame using `stateRef.current.last_turn_id ?? 'pre-send'`.
-
-- [ ] **Step 2: Run test to verify it fails / implement host subscription**
-
-In `AxisDriveHost` `useEffect` (when `sessionReady`):
-
-```ts
-const stop = await listenAgentEvents((frame) => {
-  const kind = frame.kind?.type ?? 'agent_event';
-  const turnId = stateRef.current.last_turn_id ?? 'pre-send';
-  const text =
-    typeof (frame as { text?: unknown }).text === 'string'
-      ? (frame as { text: string }).text
-      : undefined;
-  const ev = appendDriveEvent(
-    {
-      events: stateRef.current.events ?? [],
-      events_dropped: stateRef.current.events_dropped ?? 0,
-      last_turn_id: stateRef.current.last_turn_id,
-      next_seq: (stateRef.current.events?.at(-1)?.seq ?? 0) + 1,
+// Production path test for the host wiring uses vi.mock on transport:
+vi.mock('../../transport', () => {
+  let cb: ((f: any) => void) | null = null;
+  return {
+    listenAgentEvents: async (handler: (f: any) => void) => {
+      cb = handler;
+      return () => { cb = null; };
     },
-    { turn_id: turnId, kind, text, raw: frame },
-  );
-  stateRef.current = { ...stateRef.current, ...ev };
+    __emit: (f: any) => cb?.(f),
+  };
+});
+
+it('host subscription records kind.text token frames for active turn', async () => {
+  // Mount or invoke the same useEffect body via extracted `attachDriveAgentListener(stateRef, activeTurnIdRef)`.
+  // Emit: { kind: { type: 'token_streamed', text: 'ab', session_id: 'sess' } }
+  // Assert stateRef.current.events has kind token_streamed and text 'ab'.
 });
 ```
 
-Prefer storing `next_seq` on `DriveState` explicitly (extend Task 1 types onto `DriveState`) to avoid fragile seq reconstruction.
+Extract `attachDriveAgentListener` if mounting React is heavy — **required**, not optional. Pattern exists in `BrowserView.test.tsx` (`listenAgentEvents` mock).
 
-- [ ] **Step 3: Run UI tests**
+- [ ] **Step 2: Implement in AxisDriveHost**
 
-Run: `pnpm --dir crates/vox-gui/ui test src/lib/driveEvents.test.ts src/lib/useDriveBus.test.ts`
+```ts
+const activeTurnIdRef = useRef<string | null>(null);
+// On send path (via bus callback or state change): set activeTurnIdRef when last_turn_id updates at send start.
+
+useEffect(() => {
+  let stop = () => {};
+  let cancelled = false;
+  (async () => {
+    const unlisten = await listenAgentEvents((frame) => {
+      const turnId = activeTurnIdRef.current;
+      if (!turnId) return;
+      const ev = recordAgentFrame(
+        {
+          events: stateRef.current.events ?? [],
+          events_dropped: stateRef.current.events_dropped ?? 0,
+          last_turn_id: stateRef.current.last_turn_id,
+          next_seq: stateRef.current.next_seq ?? 1,
+        },
+        frame,
+        turnId,
+      );
+      stateRef.current = { ...stateRef.current, ...ev };
+    });
+    if (cancelled) unlisten();
+    else stop = unlisten;
+  })();
+  return () => { cancelled = true; stop(); };
+}, [/* sessionReady or always-on — prefer listen even before sessionReady for dump */]);
+```
+
+Wire send in `useDriveBus` / host so `activeTurnIdRef` is set **before** `await submit`.
+
+- [ ] **Step 3: Mutation test** — removing `listenAgentEvents` call fails the host test.
+
+- [ ] **Step 4: Run UI tests**
+
+Run: `pnpm --dir crates/vox-gui/ui test src/lib/driveEvents.test.ts src/lib/useDriveBus.test.ts src/components/drive/`
 
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add crates/vox-gui/ui/src/components/drive/AxisDriveHost.tsx crates/vox-gui/ui/src/lib/axisDrive.ts
+git add crates/vox-gui/ui/src/components/drive/AxisDriveHost.tsx \
+  crates/vox-gui/ui/src/components/drive/AxisDriveHost.events.test.tsx \
+  crates/vox-gui/ui/src/lib/driveEvents.ts
 git commit -m "feat(gui): mirror agent events into Axis Drive state"
 ```
 
 ---
 
-### Task 4: CLI `wait --until event=<kind>`
+### Task 4: CLI `reply_ok` + `event=<kind>`
 
 **Files:**
 - Modify: `crates/vox-cli/src/commands/gui/client.rs`
-- Modify: `contracts/gui/axis-drive.v1.yaml` (document predicate)
+- Modify: `contracts/gui/axis-drive.v1.yaml`
+- Modify: `crates/vox-gui/src/drive/protocol.rs` (contract test asserts new YAML keys)
+- Modify: `crates/vox-cli/src/cli_args.rs` (wait help text)
+- Modify: `docs/src/reference/cli.md` (wait predicates)
+- Modify: `docs/superpowers/specs/2026-09-08-axis-drive-design.md` (wait grammar line)
 
 **Interfaces:**
-- Consumes: nested `state.events[]`
-- Produces: `matches_until("event=submit_ok", body) == true`
+- Produces: `matches_until("reply_ok", …)`, `matches_until("event=submit_ok", …)`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write failing tests in `client.rs`**
 
 ```rust
 #[test]
@@ -365,19 +401,55 @@ fn matches_event_kind_nested_under_state() {
     assert!(matches_until("event=submit_ok", body));
     assert!(matches_until("event=token_streamed", body));
     assert!(!matches_until("event=missing", body));
+    let empty = r#"{"status":200,"state":{"events":[],"last_error":null}}"#;
+    assert!(!matches_until("event=submit_ok", empty));
+    let flat = r#"{"catalog":[],"last_error":null}"#;
+    assert!(!matches_until("event=submit_ok", flat));
+}
+
+#[test]
+fn matches_reply_ok_rejects_error_settlement() {
+    let err = r#"{"status":200,"state":{"last_error":"load tokenizer","bubbles":[{"role":"assistant","error":true,"content":"load tokenizer"}]}}"#;
+    assert!(matches_until("reply", err)); // legacy: settled
+    assert!(!matches_until("reply_ok", err));
+    let ok = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"user","content":"hi"},{"role":"assistant","content":"hello"}]}}"#;
+    assert!(matches_until("reply_ok", ok));
+    let empty_asst = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"assistant","content":""}]}}"#;
+    assert!(!matches_until("reply_ok", empty_asst));
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run — expect FAIL**
 
-Run: `cargo test -p vox-cli --features gui matches_event_kind_nested_under_state`
+Run: `cargo test -p vox-cli --features gui --lib matches_event_kind_nested_under_state matches_reply_ok_rejects_error_settlement`
 
-Expected: FAIL
+- [ ] **Step 3: Implement matchers**
 
-- [ ] **Step 3: Implement matcher**
+After `selectable=` branch, before `false`:
 
 ```rust
+if until == "reply_ok" {
+    if view.get("last_error").map(|x| !x.is_null()).unwrap_or(false) {
+        return false;
+    }
+    let last = view.get("bubbles").and_then(|b| b.as_array()).and_then(|a| a.last());
+    let Some(bubble) = last else { return false; };
+    if bubble.get("role").and_then(|r| r.as_str()) != Some("assistant") {
+        return false;
+    }
+    if bubble.get("error") == Some(&serde_json::Value::Bool(true)) {
+        return false;
+    }
+    return bubble
+        .get("content")
+        .and_then(|c| c.as_str())
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false);
+}
 if let Some(kind) = until.strip_prefix("event=") {
+    if kind.is_empty() {
+        return false;
+    }
     return view
         .get("events")
         .and_then(|e| e.as_array())
@@ -387,154 +459,199 @@ if let Some(kind) = until.strip_prefix("event=") {
 }
 ```
 
-Update `axis-drive.v1.yaml` comments / `cli_only_verbs` wait docs.
+Add to `axis-drive.v1.yaml` (keep `version: 1`):
 
-- [ ] **Step 4: Run test to verify it passes**
+```yaml
+wait_until:
+  reply: "last_error set OR last bubble role=assistant (settled; may be error)"
+  reply_ok: "last_error null AND last assistant bubble non-empty AND error!=true"
+  error: "last_error non-null"
+  selectable: "selectable=<catalog_id>"
+  event: "event=<kind> matches state.events[].kind"
+state_snapshot:
+  events: "DriveTurnEvent[] cap 500"
+  events_dropped: integer
+  last_turn_id: "string|null"
+```
 
-Run: `cargo test -p vox-cli --features gui matches_event_kind_nested_under_state`
+Extend contract test to assert `wait_until` / `reply_ok` present.
 
-Expected: PASS
+- [ ] **Step 4: Run — expect PASS**
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/vox-cli/src/commands/gui/client.rs contracts/gui/axis-drive.v1.yaml
-git commit -m "feat(cli): wait for Drive event kinds"
+git add crates/vox-cli/src/commands/gui/client.rs contracts/gui/axis-drive.v1.yaml \
+  crates/vox-gui/src/drive/protocol.rs crates/vox-cli/src/cli_args.rs \
+  docs/src/reference/cli.md docs/superpowers/specs/2026-09-08-axis-drive-design.md
+git commit -m "feat(cli): Drive wait reply_ok and event=kind predicates"
 ```
 
 ---
 
-### Task 5: Physical OpenRouter Drive proof script
+### Task 5: Catalog fields + OpenRouter physical proof
 
 **Files:**
+- Modify: `crates/vox-gui/ui/src/lib/axisDrive.ts` (`DriveCatalogRow.provider`, `provider_type`; `snapshotCatalog`)
+- Modify: `crates/vox-gui/ui/src/lib/useDriveBus.ts` — optionally load catalog on `state` **or** document set-first; prefer including `state` in `driveVerbNeedsCatalog` for operator honesty
 - Create: `scripts/axis-drive-openrouter-e2e.vox`
-- Create: `docs/src/how-to/how-to-axis-drive-openrouter-e2e.md` (short how-to with frontmatter)
+- Create: `docs/src/how-to/how-to-axis-drive-openrouter-e2e.md`
 
 **Interfaces:**
-- Consumes: `vox gui drive start|state|set|send|wait|stop`
-- Produces: exit 0 only when assistant reply non-empty and `last_error` null
+- Consumes: Tasks 1–4
+- Produces: exit 0 only on `reply_ok` predicates
 
-- [ ] **Step 1: Author the VoxScript**
+- [ ] **Step 1: Extend catalog row + load on state**
 
-Script responsibilities (exact argv may use `std.process` builtins per existing scripts):
+```ts
+export interface DriveCatalogRow {
+  id: string;
+  selectable: boolean;
+  reason: string | null;
+  provider?: string;
+  provider_type?: string;
+}
 
-1. `vox gui drive start` (optionally `--show` via env `AXIS_DRIVE_SHOW=1`).
-2. Fetch `state` JSON; select first catalog row whose id contains `openrouter/` or provider looks cloud/OpenRouter and `selectable=true`.
-3. Fail with clear message if none / if key likely missing (`last_error` after a probe send).
-4. `set --knob model_override=<id>`.
-5. `send --text 'Reply with exactly: openrouter-ok'`.
-6. `wait --until reply --timeout 120s`.
-7. Print summary JSON: `{model, last_error, assistant, event_kinds}`.
-8. Exit non-zero if `last_error != null` or assistant empty.
-
-- [ ] **Step 2: Physically run it**
-
-Run: `vox run scripts/axis-drive-openrouter-e2e.vox`
-
-Expected: PASS with assistant text; or FAIL with parseable `last_error` + events (fix secrets / routing until green).
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add scripts/axis-drive-openrouter-e2e.vox docs/src/how-to/how-to-axis-drive-openrouter-e2e.md
-git commit -m "feat(scripts): Axis Drive OpenRouter e2e proof"
-```
-
----
-
-### Task 6: Spike + enable Metal QLoRA train dispatch
-
-**Files:**
-- Modify: `crates/vox-ml-cli/src/commands/schola/train/run_train.rs` (remove dead gate)
-- Modify / verify: `crates/vox-plugin-mens-candle-metal/src/training.rs` and train entry wiring
-- Test: add a unit/integration test that Metal device selection no longer hits the unconditional bail string when plugin path is available (feature/`cfg(target_os = "macos")` gated)
-
-**Interfaces:**
-- Consumes: Metal plugin `run_full_training(config_json)`
-- Produces: `vox mens train --backend qlora --device metal --model Qwen/Qwen3.5-0.8B …` proceeds past the old bail
-
-- [ ] **Step 1: Write the failing characterization test**
-
-```rust
-#[cfg(all(test, target_os = "macos"))]
-#[test]
-fn metal_qlora_error_is_not_the_old_dead_gate_message() {
-    // Call the shared preflight/dispatch helper extracted from run_train
-    // with DeviceKind::Metal and assert the error (if any) does NOT contain
-    // "not supported yet: there is no Metal-enabled Candle training backend".
+export function driveVerbNeedsCatalog(verb: DriveRequest['verb']): boolean {
+  return verb === 'set' || verb === 'send' || verb === 'state';
 }
 ```
 
-If extracting a helper is required, do that in the same task.
+Add unit test: `state` verb with mocked models includes OpenRouter `provider_type`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Author VoxScript** (copy `vox_binary_path` from `scripts/graphify-refresh.vox`; use `process.run` / capture + `process.exit`)
 
-Run: `cargo test -p vox-ml-cli metal_qlora_error_is_not_the_old_dead_gate_message`
+Exact flow:
 
-Expected: FAIL (still dead gate) or compile until helper exists
+1. `drive start`
+2. `drive set --knob execution=sync` (loads catalog)
+3. Parse nested `state.catalog`; pick first selectable where `id == "openrouter/auto"` OR `id.starts_with("openrouter/")` OR `provider_type == "OpenRouter"`; reject `mens/` and bare tier ids.
+4. If none: exit 1 with message mentioning `SecretId::OpenRouterApiKey` / `vox secrets doctor` — do **not** read env keys.
+5. `set --knob model_override=<id>`
+6. `send --text 'Reply with one short line containing openrouter-ok'`
+7. `wait --until reply_ok --timeout 120s`
+8. Re-fetch `state`; FAIL if `last_error != null` OR assistant empty/error OR missing `submit_ok` in events OR `plane != live`.
+9. Print summary JSON; `drive stop`; exit 0.
 
-- [ ] **Step 3: Implement dispatch**
+- [ ] **Step 3: Physically run**
 
-Replace the unconditional `anyhow::bail!("`--device metal` for Candle QLoRA is not supported yet…")` block with:
+Run: `vox run scripts/axis-drive-openrouter-e2e.vox`
 
-1. Ensure Metal plugin installed/loadable (mirror CUDA heal pattern if a Metal heal helper exists; otherwise clear install instructions).
-2. Build `TrainRequest` JSON and call plugin `run_full_training`.
-3. On missing plugin feature/`metal`, error must name `vox plugin install … mens-candle-metal` (exact install id from catalog).
-
-- [ ] **Step 4: Smoke train one micro-step on Apple Silicon**
-
-Run (adjust paths to dogfood JSONL):
-
-```bash
-vox mens train --backend qlora --tokenizer hf \
-  --model Qwen/Qwen3.5-0.8B \
-  --device metal \
-  --data-dir <tiny-dogfood> \
-  --output-dir mens/runs/qwen35-08b-metal-e2e \
-  --max-steps 2
-```
-
-Expected: produces adapter/manifest under output dir (not the old dead-gate string).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add crates/vox-ml-cli/src/commands/schola/train/run_train.rs crates/vox-plugin-mens-candle-metal
-git commit -m "feat(mens): enable Metal QLoRA train via candle-metal plugin"
-```
-
----
-
-### Task 7: Mac Metal how-to + automation script
-
-**Files:**
-- Create: `docs/src/how-to/how-to-train-mens-macos-metal.md`
-- Create: `scripts/mens-macos-metal-e2e.vox`
-- Create: tiny dogfood JSONL under an allowed path (e.g. `examples/mens/dogfood-metal-e2e.jsonl`) if none exists
-
-**Interfaces:**
-- Consumes: Task 6 train path; `vox mens serve` / `vox schola serve`
-- Produces: run dir + serve instructions + Drive pin `mens/qwen35-08b-metal-e2e`
-
-- [ ] **Step 1: Write how-to with required frontmatter**
-
-Include: Apple Silicon requirement, plugin install, download, train, serve, Drive pin, troubleshooting tokenizer missing.
-
-- [ ] **Step 2: Write `scripts/mens-macos-metal-e2e.vox`**
-
-Steps: ensure plugin → download model → train short run → print `vox mens serve --model <run_dir>` and expected Drive `model_override`.
-
-- [ ] **Step 3: Run automation on Mac**
-
-Run: `vox run scripts/mens-macos-metal-e2e.vox`
-
-Expected: artifacts on disk; serve health identifies models including the e2e slug or run-dir name documented as the pin.
+Expected: PASS with real reply, or FAIL with parseable reason (fix secrets/routing until green).
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/src/how-to/how-to-train-mens-macos-metal.md scripts/mens-macos-metal-e2e.vox examples/mens/dogfood-metal-e2e.jsonl
-git commit -m "docs(mens): Mac Metal Qwen3.5-0.8B train→serve pipeline"
+git add crates/vox-gui/ui/src/lib/axisDrive.ts crates/vox-gui/ui/src/lib/useDriveBus.ts \
+  scripts/axis-drive-openrouter-e2e.vox docs/src/how-to/how-to-axis-drive-openrouter-e2e.md
+git commit -m "feat(scripts): Axis Drive OpenRouter e2e with reply_ok gate"
+```
+
+---
+
+### Task 6: Host-aware Metal QLoRA train dispatch
+
+**Files:**
+- Modify: `crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs`
+- Modify: `crates/vox-ml-cli/src/commands/mens/plugin_heal.rs` (add `ensure_metal_plugin`)
+- Modify: `crates/vox-ml-cli/src/commands/schola/train/run_train.rs` (remove dead gate; call metal heal)
+- Test: macOS-gated unit/characterization tests
+
+**Interfaces:**
+- Consumes: Task 0 spike model id; `ML_BACKEND_CANDIDATES` pattern from `eval_local.rs` / `merge_qlora.rs`
+- Produces: `vox mens train --device metal` loads `mens-candle-metal` and calls `run_full_training`
+
+- [ ] **Step 1: Failing characterization tests**
+
+```rust
+#[cfg(all(test, target_os = "macos"))]
+#[test]
+fn metal_qlora_error_is_not_the_old_dead_gate_message() { /* … */ }
+
+#[test]
+fn candle_qlora_plugin_id_for_metal_is_mens_candle_metal() {
+    // Extract helper plugin_id_for_device(DeviceKind) -> &str
+    assert_eq!(plugin_id_for_device(DeviceKind::Metal), "mens-candle-metal");
+    assert_eq!(plugin_id_for_device(DeviceKind::Cuda), "mens-candle-cuda");
+}
+```
+
+- [ ] **Step 2: Run — expect FAIL**
+
+- [ ] **Step 3: Implement**
+
+1. In `backend_candle_qlora.rs`, replace hardcoded `mens-candle-cuda` with device-kind selection (Metal → `mens-candle-metal`).
+2. Add `ensure_metal_plugin` mirroring CUDA heal (`vox plugin install mens-candle-metal --yes`).
+3. Remove unconditional Metal bail in `run_train.rs`; call `ensure_metal_plugin` on macOS Metal.
+4. Update outdated comment: SP3-D stubs do **not** block `run_full_training`.
+
+- [ ] **Step 4: Micro train smoke (Apple Silicon)**
+
+```bash
+vox mens train --backend qlora --tokenizer hf --device metal \
+  --model <SPIKE_MODEL_ID> \
+  --data-dir examples/mens/metal-e2e \
+  --output-dir mens/runs/qwen35-08b-metal-e2e \
+  --epochs 1 --max-runtime-secs 300
+```
+
+Expected: artifacts under output dir; error must not be the old dead-gate string.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs \
+  crates/vox-ml-cli/src/commands/mens/plugin_heal.rs \
+  crates/vox-ml-cli/src/commands/schola/train/run_train.rs
+git commit -m "feat(mens): host-aware Metal Candle QLoRA train dispatch"
+```
+
+---
+
+### Task 7: Metal serve worker + e2e data + how-to + automation
+
+**Files:**
+- Modify: `crates/vox-ml-cli/src/commands/ai/serve/worker.rs`
+- Create: `examples/mens/metal-e2e/training_contract.yaml`
+- Create: `examples/mens/metal-e2e/dogfood-metal-e2e.jsonl` (ChatML/`prompt`+`response` rows; **do not** name it `train.jsonl` if that trips `MIN_CORPUS_PAIRS` — follow contract `train_path`)
+- Create/finish: `docs/src/how-to/how-to-train-mens-macos-metal.md` (full frontmatter)
+- Create: `scripts/mens-macos-metal-e2e.vox`
+
+**Interfaces:**
+- Produces: Metal serve using `mens-candle-metal`; collateral-pass run dir; Drive pin stem
+
+- [ ] **Step 1: Fix serve worker**
+
+Replace hardcoded `mens-candle-cuda` with `resolve_extension_point` / same candidates as `eval_local.rs`.
+
+Add unit/characterization test that Metal device path selects metal plugin id (or cfg-gated).
+
+- [ ] **Step 2: Create e2e data dir**
+
+`examples/mens/metal-e2e/training_contract.yaml` points `train_path` at local JSONL. Ensure workspace contract does not hijack (per-run `--data-dir examples/mens/metal-e2e`).
+
+- [ ] **Step 3: How-to + script**
+
+Document: Apple Silicon, plugin install, `SPIKE_MODEL_ID`, train command, **collateral_damage_report.json** generation (`vox mens eval collateral-damage …` or exact command discovered in codebase), serve:
+
+```bash
+vox mens serve --model mens/runs/qwen35-08b-metal-e2e --host 127.0.0.1 --port 11435
+```
+
+Drive pin `mens/qwen35-08b-metal-e2e`. Tokenizer must exist in run dir. Non-darwin: script exits 1 with clear message.
+
+- [ ] **Step 4: Run automation on Mac**
+
+Run: `vox run scripts/mens-macos-metal-e2e.vox`
+
+Expected: run dir + serve health lists stem.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-ml-cli/src/commands/ai/serve/worker.rs examples/mens/metal-e2e \
+  docs/src/how-to/how-to-train-mens-macos-metal.md scripts/mens-macos-metal-e2e.vox
+git commit -m "feat(mens): Metal serve + Mac train→serve e2e pipeline"
 ```
 
 ---
@@ -545,21 +662,23 @@ git commit -m "docs(mens): Mac Metal Qwen3.5-0.8B train→serve pipeline"
 - Create: `scripts/axis-drive-metal-e2e.vox`
 
 **Interfaces:**
-- Consumes: serving local pack from Task 7; Drive event dump from Tasks 1–4
-- Produces: exit 0 iff local pin returns non-empty assistant bubble
+- Consumes: serving pack from Task 7; Tasks 1–4
 
 - [ ] **Step 1: Author script**
 
-1. Assert VoxLocal/serve reachable (probe via Drive `state.probe` or HTTP health).
-2. `drive start` → `set model_override=mens/qwen35-08b-metal-e2e` (or documented served id).
-3. `send` short prompt → `wait --until reply`.
-4. Dump `event_kinds`; fail on tokenizer/`last_error`.
+1. Assert darwin.
+2. Probe `GET http://127.0.0.1:<port>/v1/models` contains `qwen35-08b-metal-e2e` (or `state.probe` after catalog load).
+3. `drive start` → `set execution=sync` → `set model_override=mens/qwen35-08b-metal-e2e`.
+4. FAIL if catalog row not selectable and `pin_policy=fail`.
+5. `send` short prompt → `wait --until reply_ok`.
+6. Assert `submit_ok`, non-error bubble, `last_error` null; dump `event_kinds`.
+7. `drive stop`; exit non-zero on tokenizer/`last_error`.
 
 - [ ] **Step 2: Physically run**
 
 Run: `vox run scripts/axis-drive-metal-e2e.vox`
 
-Expected: PASS with assistant text
+Expected: PASS
 
 - [ ] **Step 3: Commit**
 
@@ -570,16 +689,17 @@ git commit -m "feat(scripts): Axis Drive Mac Metal e2e proof"
 
 ---
 
-### Task 9: Spec acceptance sweep
+### Task 9: Spec acceptance sweep + failure honesty
 
-**Files:** none required unless gaps found
+**Files:** evidence notes only if needed
 
-- [ ] **Step 1: Check every acceptance box in the design spec §9**
-- [ ] **Step 2: Confirm headless claims do not set `events: true`**
-- [ ] **Step 3: Final commit only if docs/scripts need a status note**
+- [ ] **Step 1:** Tick every §9 checkbox with evidence from Tasks 5 and 8 summary JSON.
+- [ ] **Step 2:** Live failure demos: missing OpenRouter key → script exit ≠ 0 + `submit_err`; broken local pack → same.
+- [ ] **Step 3:** Headless `claims.events === false`; live `=== true`.
+- [ ] **Step 4:** Confirm scripts never call `wait --until reply` for green gates.
 
 ```bash
-git commit -m "docs: record Axis chat e2e acceptance evidence" # only if adding evidence notes
+git commit -m "docs: record Axis chat e2e acceptance evidence" # only if adding evidence
 ```
 
 ---
@@ -588,14 +708,22 @@ git commit -m "docs: record Axis chat e2e acceptance evidence" # only if adding 
 
 | Spec requirement | Task |
 |---|---|
-| Event ring + caps + redaction | Task 1 |
-| submit_ok/submit_err on send | Task 2 |
-| Full agent/stream frames in Drive | Task 3 |
-| CLI wait `event=` | Task 4 |
-| OpenRouter any-selectable green | Task 5 |
-| Remove Metal dead gate / train path | Task 6 |
-| Documented Mac download→train→serve | Task 7 |
-| Drive pin `mens/qwen35-08b-metal-e2e` green | Task 8 |
-| Acceptance checklist | Task 9 |
+| Audit P0 reply FP → `reply_ok` | Task 4 |
+| Event ring + raw cap + redaction | Task 1 |
+| submit_* on send | Task 2 |
+| `kind.text` agent mirror + active turn | Task 3 |
+| Catalog provider fields / state loads catalog | Task 5 |
+| OpenRouter green via `reply_ok` | Task 5 |
+| Metal spike / multimodal gate | Task 0 |
+| Host-aware train dispatch + heal + gate removal | Task 6 |
+| Metal serve worker + collateral + data contract | Task 7 |
+| Metal Drive green | Task 8 |
+| Failure honesty + headless claims | Task 9 |
 
-No TBD/TODO placeholders remain in this plan. Types (`DriveTurnEvent`, ring caps, slug, model id) are consistent across tasks.
+### Placeholder scan
+
+No TBD / “adjust mocks” / “if harness exists” left — Task 3 requires extracted listener + mock pattern; Task 6 cites concrete files; Task 7 names collateral gate.
+
+### Type consistency
+
+`DriveTurnEvent`, `reply_ok`, `mens/qwen35-08b-metal-e2e`, `SPIKE_MODEL_ID`, `mens-candle-metal`, `frame.kind.text` are consistent across tasks.
