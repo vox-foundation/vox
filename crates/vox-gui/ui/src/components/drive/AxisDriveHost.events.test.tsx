@@ -60,8 +60,34 @@ describe('AxisDriveHost agent-event bridge', () => {
     mocks.invoke.mockImplementation(async (command: string) => {
       if (command === 'get_drive_mode') return 'live';
       if (command === 'inference_provider_status') return [];
+      if (command === 'orchestrator_daemon_ready') return true;
       return undefined;
     });
+  });
+
+  it('stamps orch_fresh on drive responses when the daemon is ready', async () => {
+    render(
+      <AxisDriveHost
+        setters={{ setChatModelOverride: vi.fn() }}
+        onSubmit={vi.fn().mockResolvedValue({ ok: true })}
+        sessionReady
+      />,
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await mocks.driveHandler!({
+        payload: { id: 'req-orch', verb: 'state', body: {} },
+      });
+    });
+    const respondCall = mocks.invoke.mock.calls.find(([command]) => command === 'drive_respond');
+    expect(respondCall).toBeDefined();
+    const body = JSON.parse(
+      (respondCall![1] as { args: { body: string } }).args.body,
+    ) as { state: { orch_fresh: boolean } };
+    expect(body.state.orch_fresh).toBe(true);
   });
 
   it('records kind.text token frames under the active turn before submit resolves', async () => {

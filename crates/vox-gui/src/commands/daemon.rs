@@ -8,7 +8,9 @@
 //!
 //! [`PersistentDaemon`] fixes this by ensuring exactly one long-lived TCP
 //! daemon is reachable, so tool calls, approvals, and the live streams all hit
-//! the same `ServerState`.
+//! the same `ServerState`. On Axis exit, [`PersistentDaemon::shutdown_if_spawned`]
+//! kills the child **only if this process spawned it**; adopted daemons are left
+//! running for CLI / MCP reuse.
 
 use std::process::Stdio;
 
@@ -292,6 +294,40 @@ impl PersistentDaemon {
             }
         });
     }
+
+    /// On Axis exit: kill `vox-orchestrator-d` **only if this process spawned it**.
+    ///
+    /// Adopted daemons (pre-existing on the socket; `child` slot empty) are left
+    /// running so CLI / `vox mcp` clients keep a shared daemon. Policy: kill-if-
+    /// spawned (operator choice 2026-09-09).
+    pub fn shutdown_if_spawned(&self) {
+        let Ok(mut slot) = self.child.lock() else {
+            return;
+        };
+        if let Some(mut child) = slot.take() {
+            tracing::info!(
+                pid = child.id(),
+                "stopping Axis-spawned vox-orchestrator-d on exit"
+            );
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+
+    /// Whether this handle currently owns a Child it spawned (test/diagnostics).
+    #[cfg(test)]
+    pub fn holds_spawned_child(&self) -> bool {
+        self.child.lock().map(|g| g.is_some()).unwrap_or(false)
+    }
+}
+
+/// Returns whether the shared orchestrator daemon answers an authenticated ping
+/// (adopting or spawning as needed). Used by Axis Drive to stamp `orch_fresh`.
+#[tauri::command]
+pub async fn orchestrator_daemon_ready(
+    state: tauri::State<'_, std::sync::Arc<PersistentDaemon>>,
+) -> Result<bool, String> {
+    Ok(state.ensure_live().await.is_ok())
 }
 
 /// Returns the last-detected daemon/GUI version mismatch, if any (T2/Task 2).
@@ -564,6 +600,14 @@ mod tests {
         *pd.resolved.write().await = Some(("127.0.0.1:1".to_string(), "tok".to_string()));
         pd.invalidate().await;
         assert!(pd.resolved.read().await.is_none());
+    }
+
+    #[test]
+    fn shutdown_if_spawned_is_noop_when_daemon_was_only_adopted() {
+        let pd = PersistentDaemon::default();
+        assert!(!pd.holds_spawned_child());
+        pd.shutdown_if_spawned();
+        assert!(!pd.holds_spawned_child());
     }
 
     const D_20MS: std::time::Duration = std::time::Duration::from_millis(20);

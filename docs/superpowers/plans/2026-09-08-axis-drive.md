@@ -16,6 +16,10 @@ training_eligible: true
 
 **Tech Stack:** Existing `vox-cli` (`gui` feature), `vox-gui` binary crate + React 19 / vitest. No new crate. No new HTTP framework — `std::net::TcpListener` on `127.0.0.1:0` via `tauri::async_runtime::spawn`. Drive Console strip is unchanged.
 
+## Implementation status
+
+Landed on `main` / this branch: Tasks 1–8 of the audited redesign (contract, clap, bearer-ping session + Windows lock parity, listener, honesty, detached launch, AxisDriveHost, headless claims including `events: false`, catalog SSOT). Per-task bodies below retain historical TDD sketches; **Global Constraints** and the design spec are authoritative when a sketch conflicts (no `kill(0)` sole liveness, no interim `ready=true` at bind, no env bearer).
+
 ## Global Constraints
 
 - Spec name is **Axis Drive**. Do not rename or extend Drive Console. `clutch`/`risk` must parity-test against `drive-console.v1.yaml`.
@@ -23,7 +27,7 @@ training_eligible: true
 - Bind `127.0.0.1` only. Never print the bearer token; never put it in the child env. Logs may name `token_path`.
 - Token: 32 CSPRNG bytes, hex, `0600`. Fail closed. No timestamp fallback.
 - `set` calls App + Loquela **setters**. `send` goes through App's `onSubmit` wrapper → `handleLoquelaSubmit` / `buildChatTurn` / `chat_turn`. Do not call `:9745` / `orch.tool_call`.
-- Headless responses must include `"plane":"headless"` and `claims: { picker_ui: false, composer_knobs: false, bubbles: false }`. Live: `"plane":"live"`.
+- Headless responses must include `"plane":"headless"` and `claims: { picker_ui: false, composer_knobs: false, bubbles: false, events: false }`. Live: `"plane":"live"`.
 - `ready` stays false until AxisDriveHost registers.
 - `DriveArgs` live in `cli_args.rs` only. `vox gui --command <view>` must keep working.
 - Hand-author `gui` + `gui.drive.*` catalog rows **before** `operations-sync --target cli --write`. Clap does not invent rows.
@@ -585,201 +589,15 @@ If `gui.rs` delete is not staged, the build will fail (`mod gui` vs both file an
 
 **Interfaces:**
 - Consumes: `DriveStartArgs`
-- Produces: `DriveSession { schema_version: u32, pid: u32, port: u16, token_path: PathBuf, data_dir: PathBuf, show: bool }`, `fn session_path() -> PathBuf`, `fn start_refuse_if_alive`, `fn write_session`, `fn load_session`, `fn pid_is_alive(pid: u32) -> bool`, `fn generate_token() -> String`
+- Produces: `DriveSession { schema_version, pid, port, token_path, store_path, show }`, `preflight_start` (bearer ping refuse), `ping_drive`, `acquire_lock` (Unix `flock` / Windows exclusive `share_mode(0)`), `generate_token` via `OsRng` (32 bytes hex; **no** timestamp fallback / **no** `kill(0)` sole liveness)
 
-Session path: `$VOX_HOME/run/gui-drive.json` if `VOX_HOME` set, else `~/.vox/run/gui-drive.json`. Tests **must** set `VOX_HOME` to a tempdir.
+Session path: `$VOX_HOME/run/gui-drive.json` if `VOX_HOME` set, else `~/.vox/run/gui-drive.json`. Tests set `VOX_HOME` to a tempdir. Token never in child env (`VOX_GUI_DRIVE_TOKEN_PATH` only).
 
-- [ ] **Step 1: Write the failing tests**
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-
-    fn isolated_home() -> tempfile::TempDir {
-        tempfile::tempdir().unwrap()
-    }
-
-    #[test]
-    fn start_refuses_when_pid_alive() {
-        let home = isolated_home();
-        std::env::set_var("VOX_HOME", home.path());
-        let me = std::process::id();
-        write_session(&DriveSession {
-            schema_version: 1,
-            pid: me,
-            port: 9,
-            token_path: home.path().join("run/gui-drive.token"),
-            data_dir: home.path().join("gui-drive/default"),
-            show: false,
-        })
-        .unwrap();
-        let err = preflight_start().expect_err("must refuse");
-        assert_eq!(err.exit_code, 2);
-        std::env::remove_var("VOX_HOME");
-    }
-
-    #[test]
-    fn start_replaces_dead_pid() {
-        let home = isolated_home();
-        std::env::set_var("VOX_HOME", home.path());
-        write_session(&DriveSession {
-            schema_version: 1,
-            pid: 4_294_967_294, // almost certainly dead
-            port: 9,
-            token_path: home.path().join("t"),
-            data_dir: home.path().join("d"),
-            show: false,
-        })
-        .unwrap();
-        preflight_start().expect("dead pid is replaceable");
-        std::env::remove_var("VOX_HOME");
-    }
-
-    #[test]
-    fn token_file_is_0600_and_not_in_session_json_value() {
-        let home = isolated_home();
-        std::env::set_var("VOX_HOME", home.path());
-        let token = generate_token();
-        let path = write_token(&token).unwrap();
-        let meta = fs::metadata(&path).unwrap();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            assert_eq!(meta.permissions().mode() & 0o777, 0o600);
-        }
-        let session = DriveSession {
-            schema_version: 1,
-            pid: 1,
-            port: 1,
-            token_path: path,
-            data_dir: home.path().join("d"),
-            show: false,
-        };
-        let json = serde_json::to_string(&session).unwrap();
-        assert!(!json.contains(&token));
-        std::env::remove_var("VOX_HOME");
-    }
-}
-```
-
-If `tempfile` is not already a `vox-cli` dev-dep, use `std::env::temp_dir().join(format!("axis-drive-{}", std::process::id()))` + `fs::create_dir_all` instead of adding a dependency.
-
-- [ ] **Step 2: Run tests — expect FAIL**
-
-Run: `cargo test -p vox-cli --features gui start_refuses_when_pid_alive -- --nocapture`
-
-Expected: FAIL
-
-- [ ] **Step 3: Implement session.rs**
-
-```rust
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct DriveSession {
-    pub schema_version: u32,
-    pub pid: u32,
-    pub port: u16,
-    pub token_path: std::path::PathBuf,
-    pub data_dir: std::path::PathBuf,
-    pub show: bool,
-}
-
-pub struct DriveSessionError {
-    pub exit_code: i32,
-    pub message: String,
-}
-
-pub fn vox_home() -> std::path::PathBuf {
-    if let Ok(h) = std::env::var("VOX_HOME") {
-        return std::path::PathBuf::from(h);
-    }
-    dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join(".vox")
-}
-
-pub fn session_path() -> std::path::PathBuf {
-    vox_home().join("run/gui-drive.json")
-}
-
-pub fn pid_is_alive(pid: u32) -> bool {
-    #[cfg(unix)]
-    {
-        // Safety: signal 0 is a documented existence probe; we do not send SIGTERM here.
-        unsafe { libc::kill(pid as i32, 0) == 0 }
-    }
-    #[cfg(not(unix))]
-    {
-        // Windows: OpenProcess + GetExitCodeProcess; if libc/windows crate already
-        // used in vox-cli, follow that. Otherwise treat unknown as dead so start
-        // can replace (fail-open for start, never attach).
-        false
-    }
-}
-
-pub fn preflight_start() -> Result<(), DriveSessionError> {
-    let path = session_path();
-    let Ok(bytes) = std::fs::read(&path) else { return Ok(()); };
-    let Ok(existing) = serde_json::from_slice::<DriveSession>(&bytes) else { return Ok(()); };
-    if pid_is_alive(existing.pid) {
-        return Err(DriveSessionError {
-            exit_code: 2,
-            message: format!(
-                "drive session already running pid={} path={}",
-                existing.pid,
-                path.display()
-            ),
-        });
-    }
-    Ok(())
-}
-
-pub fn generate_token() -> String {
-    let mut buf = [0u8; 32];
-    fill_random_bytes(&mut buf);
-    buf.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-fn fill_random_bytes(buf: &mut [u8]) {
-    use std::io::Read;
-    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
-        if f.read_exact(buf).is_ok() {
-            return;
-        }
-    }
-    let t = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let bytes = t.to_le_bytes();
-    for (i, slot) in buf.iter_mut().enumerate() {
-        *slot = bytes[i % bytes.len()];
-    }
-}
-```
-
-Use `getrandom` / `hex` only if already in `vox-cli`’s graph (`cargo tree -p vox-cli -i hex`). If `hex` is missing, format with `format!("{b:02x}")`. Do **not** add a crate to admit an edge. Prefer `vox_crypto` if the workspace already exposes random hex for tokens (orchestrator daemon token writer — copy that 15-line pattern; mark `// vox:defactored-from` if you copy).
-
-`write_token`: `fs::create_dir_all`, write, `chmod 0600` on unix.
-
-`drive::run` for `Stop`: if session missing, exit 1 with `no drive session; run vox gui drive start`. If pid alive, `SIGTERM` that pid only; delete session + token files.
-
-`Start` in this task: run `preflight_start`; generate token; write token; **do not** spawn `vox-gui` yet (Task 6). Return `bail!("start spawn is Task 6")` after preflight so Task 3 tests stay on session helpers.
-
-- [ ] **Step 4: Run tests — expect PASS**
-
-Run: `cargo test -p vox-cli --features gui start_refuses_when_pid_alive start_replaces_dead_pid token_file_is_0600_and_not_in_session_json_value -- --nocapture`
-
-- [ ] **Step 5: Format and commit**
-
-```bash
-cargo fmt -p vox-cli
-git add crates/vox-cli/src/commands/gui
-git commit -m "$(cat <<'EOF'
-feat(cli): isolate Axis Drive sessions and refuse a live pid
-
-EOF
-)"
-```
+- [x] **Step 1: Write failing tests** — `start_refuses_when_ping_succeeds`, `start_replaces_dead_session`, `token_file_is_0600_and_not_in_session_json_value`
+- [x] **Step 2: Run — expect FAIL** (historical TDD)
+- [x] **Step 3: Implement** bearer-ping preflight + lock + OsRng token + 0600 file
+- [x] **Step 4: Run — expect PASS**
+- [x] **Step 5: Commit** (landed)
 
 ---
 
@@ -975,7 +793,7 @@ EOF
 
 **Interfaces:**
 - Consumes: Task 3 session + Task 4 listener
-- Produces: `DriveFlags { drive: bool, drive_headless: bool, show: bool }`, `fn parse_drive_flags(args: &[String]) -> DriveFlags`, `fn drive_env(session: &DriveSession, token: &str, show: bool) -> Vec<(String, String)>` = `VOX_GUI_DRIVE=1`, `VOX_GUI_DRIVE_TOKEN`, `VOX_GUI_DATA_DIR`, `VOX_GUI_DRIVE_SESSION_PATH`, `VOX_GUI_DRIVE_SHOW=0|1`
+- Produces: `DriveFlags`, store root via `VOX_GUI_DRIVE_STORE_ROOT` → `~/.vox/gui-drive/<profile>/` (DB at `.vox/store.db` under that root). Child env: `VOX_GUI_DRIVE=1`, `VOX_GUI_DRIVE_TOKEN_PATH` (never bare `VOX_GUI_DRIVE_TOKEN`), session path, show flag. Isolation is store override + skip-localStorage — **not** `$HOME` / `VOX_GUI_DATA_DIR`.
 
 Child (`vox-gui`):
 - If `VOX_GUI_DRIVE=1` or `--drive`: parse flags; set webview/app data dir to `VOX_GUI_DATA_DIR` (create dir); bind listener with token; write session JSON (`pid`, `port`, paths, `show`); window title `Axis (drive)`; `visible = show`.
@@ -989,7 +807,7 @@ CLI `start`:
 4. Poll session file for `port != 0` then `GET /health` until `ready` or 15s. On timeout: SIGTERM child, delete session, fail.
 5. Print **only** `started pid=… port=… session=…` (no token).
 
-`ready` stays false until Task 7 registers DriveBus. For this task, set `ready=true` immediately after bind so `start` can succeed; Task 7 will flip the meaning to “DriveBus mounted” and keep a 15s wait (DriveBus mounts on first React paint; hidden window still loads the UI).
+`ready` stays **false** at bind. Task 7 / AxisDriveHost flips it true after mount. `start` waits on `/health` `ready:true` (do **not** set ready at bind).
 
 - [ ] **Step 1: Write failing flag tests**
 
@@ -1291,7 +1109,7 @@ If operations-sync rewrites a huge catalog, include it. Do not hand-edit generat
 | No Playwright drive plane | Global constraint |
 | Catalog sync | 8 Step 5 |
 
-**Placeholders:** none. Windows `pid_is_alive` is specified as fail-open for start (never attach).
+**Placeholders:** none. Windows Drive lock uses exclusive `share_mode(0)` (flock parity). Liveness is bearer ping, not pid.
 
 **Types:** `DriveSet` / `DriveState` / `DrivePlane` names are identical in Rust and TS. `empty_text` / `unknown_key` / `model_not_selectable` match the YAML.
 

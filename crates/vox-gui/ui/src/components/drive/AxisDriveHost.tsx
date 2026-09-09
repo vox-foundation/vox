@@ -87,12 +87,22 @@ export function AxisDriveHost({ setters, onSubmit, sessionReady }: AxisDriveHost
               activeTurnIdRef.current = null;
             }
           }
-          stateRef.current = res.state;
+          let orchFresh = false;
+          try {
+            orchFresh = await invoke<boolean>('orchestrator_daemon_ready');
+          } catch {
+            orchFresh = false;
+          }
+          const stamped = {
+            ...res,
+            state: { ...res.state, orch_fresh: orchFresh },
+          };
+          stateRef.current = stamped.state;
           await invoke('drive_respond', {
             args: {
               id: event.payload.id,
-              status: res.status,
-              body: JSON.stringify(res),
+              status: stamped.status,
+              body: JSON.stringify(stamped),
             },
           });
         });

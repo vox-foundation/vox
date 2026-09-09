@@ -196,14 +196,28 @@ pub fn acquire_lock() -> Result<fs::File, DriveSessionError> {
             message: e.to_string(),
         })?;
     }
-    let file = match OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&path)
+    let mut opts = OpenOptions::new();
+    opts.write(true).create(true).truncate(false);
+    // Windows: share_mode(0) = exclusive while this handle is held (flock parity).
+    // A second start fails to open rather than silently sharing the lock file.
+    #[cfg(windows)]
     {
+        use std::os::windows::fs::OpenOptionsExt;
+        opts.share_mode(0);
+    }
+    let file = match opts.open(&path) {
         Ok(f) => f,
         Err(e) => {
+            #[cfg(windows)]
+            {
+                // ERROR_SHARING_VIOLATION — another Axis Drive start holds the lock.
+                if e.raw_os_error() == Some(32) {
+                    return Err(DriveSessionError {
+                        exit_code: 2,
+                        message: format!("drive lock exists path={}", path.display()),
+                    });
+                }
+            }
             return Err(DriveSessionError {
                 exit_code: 1,
                 message: e.to_string(),

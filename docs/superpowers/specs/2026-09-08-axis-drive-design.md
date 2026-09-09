@@ -32,7 +32,7 @@ The operator needs a first-party terminal path that can:
 | Transcript isolation | Override workspace journey store to `~/.vox/gui-drive/<profile>/store.db` |
 | Liveness | Session `pid` is a hint. Adopt/refuse/`stop` only after **bearer ping** on the recorded loopback port |
 | `ready` | `false` until AxisDriveHost registers. Never flip true at bind |
-| Headless claims | `plane: "headless"` plus `claims: { picker_ui: false, composer_knobs: false, bubbles: false }` |
+| Headless claims | `plane: "headless"` plus `claims: { picker_ui: false, composer_knobs: false, bubbles: false, events: false }` |
 | `pin_policy: fail` | **Drive-only**, stricter than the click path (click does not 409 an unselectable pin) |
 
 ## 3. Non-goals (v1)
