@@ -62,6 +62,9 @@ Success: live Axis demo (operator, not CI) **and** unit tests with no live Chrom
 | Park | Daemon-local waiter. Axis stops the tool loop. Resume only on Done / Agent toggle (`lock=agent`) |
 | Mute | While `lock=human`: drop pending agent Input; Axis/stdio-Agent screenshot/screencast **omit image parts** and do not persist new model frames. GUI local view still paints. Snapshot/extract/text/html stay |
 | Approvals | Sensitive verbs only (not every mutation). Confirm does **not** force You mode afterward |
+| Confirm / Deny | Named APIs only (§4.1, §7.2). Confirm always replays as `CallerContext::gui()`. Deny clears pending + turn-scoped denial |
+| `respect_sensitive` | `ctx.role != Human` — never `trusted_caller_role()` for GUI/Axis (§7.0) |
+| Denial wire | Mutating denials are `ToolResult::ok` + `{ ok:false, needs_human:true, reason }` (§5.1) |
 | `close` | Unlocked |
 | NeedsYou | Do not wire |
 
@@ -108,14 +111,38 @@ pub enum SensitiveReason {
     CookieImport,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Holds password / OTP / cookie blobs. MUST NOT appear in `Debug`,
+/// `action_log`, toast copy, telemetry, or disk. Prefer a redacted
+/// wrapper type, or omit `args_json` from `Debug` entirely.
+#[derive(Clone, PartialEq, Eq)]
 pub struct PendingSensitive {
     pub page_id: String,
     pub tool: String,
-    pub args_json: String,
+    pub args_json: String, // secrets — not Debug
     pub reason: SensitiveReason,
 }
+
+impl std::fmt::Debug for PendingSensitive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PendingSensitive")
+            .field("page_id", &self.page_id)
+            .field("tool", &self.tool)
+            .field("args_json", &"<redacted>")
+            .field("reason", &self.reason)
+            .finish()
+    }
+}
 ```
+
+### 4.1 Confirm / Deny API names (required — do not invent alternatives)
+
+| Surface | Confirm | Deny | Args |
+| --- | --- | --- | --- |
+| Tauri / GUI IPC | `browser_hitl_confirm` | `browser_hitl_deny` | `{ page_id }` |
+| MCP (stdio / GUI tool catalog if exposed) | `vox_browser_confirm_sensitive` | `vox_browser_deny_sensitive` | `{ page_id }` |
+
+- **Confirm:** always dispatches the pending replay with `CallerContext::gui()` under the §5.2 Confirm exception (never Axis/stdio-Agent context).
+- **Deny:** clears `PendingSensitive` for that `page_id` and records a turn-scoped denial so the same args do not re-queue for the rest of this Axis turn.
 
 `trusted_caller_role()` remains for **stdio** and for tests that set the env. Dispatch must not use it for GUI or Axis.
 
@@ -133,13 +160,13 @@ pub struct PendingSensitive {
 
 Deny payload: `{ ok: false, needs_human: true, reason: "human_locked" }` (or `"agent_locked"` when a Human surface hits `lock=agent` on a mutating tool other than §5.2). Axis **parks** on `human_locked`.
 
-**Wire change (required):** today's `ensure_control_lock` returns `Err(String)`. Park-on-`needs_human` only works if mutating denials become that JSON shape (success bit may still be true, matching existing password/CAPTCHA tools). Plain strings must not be the sole signal.
+**Wire change (required):** Mutating denials MUST return `ToolResult::ok` whose JSON body is `{ ok: false, needs_human: true, reason }` — **not** `ToolResult::err(String)`. Axis park parses `/data/needs_human` on the tool envelope (same path as existing password/CAPTCHA tools). Plain `Err(String)` / `ToolResult::err` must not be the sole signal. Helper (recommended name in `browser_hitl.rs`): `needs_human_ok(reason) -> ToolResult` that builds this envelope.
 
 ### 5.2 Lock-admin exceptions
 
 - `vox_browser_set_control_lock` — GUI / stdio-Human only. Agent callers get a hard error (not a park). User always wins: Human may set `owner` to `human` or `agent` regardless of the current owner.
 - `vox_browser_yield` — **Agent** (Axis or stdio-Agent) only. Sets `owner=human`, stores `message` for the GUI, parks Axis. Human calling yield is a no-op success.
-- **Confirm replay** of `PendingSensitive` — always runs as `CallerContext::gui()` and is lock-admin for that single replay only (may execute even if the toolbar already flipped to `lock=agent`). Does not change the toolbar lock afterward.
+- **Confirm / Deny** (§4.1): `browser_hitl_confirm` / `vox_browser_confirm_sensitive` and `browser_hitl_deny` / `vox_browser_deny_sensitive` — `{ page_id }` only. Confirm replay of `PendingSensitive` always runs as `CallerContext::gui()` and is lock-admin for that single replay only (may execute even if the toolbar already flipped to `lock=agent`). Does not change the toolbar lock afterward. Deny clears pending and records a turn-scoped denial.
 
 ### 5.3 Unlocked verbs (unchanged except mute)
 
@@ -176,7 +203,9 @@ When Axis should stop:
 1. `data.needs_human == true` (any reason, including `human_locked`, `password_field`, `captcha`, `cookie_import`, `otp_field`)
 2. Explicit `vox_browser_yield`
 
-`agent_loop` after a tool result: if `needs_human`, **stop iterating** (do not call the model again with “try another click”). Emit a chat event that the turn is waiting on the operator. **Async wait only** — `Notify` / oneshot `.await` (or equivalent) on the daemon that still must serve GUI Confirm/Done IPC. A sync `recv` / `blocking_lock` on the same worker **deadlocks** the toolbar. Resume only when `resume_axis` fires.
+**Any** Axis-originated `needs_human` (sensitive park, captcha, cookie import, lock deny, yield) **sets `owner=human`** for that `page_id` — same as password/cookie sensitive park. Captcha is not exempt.
+
+`agent_loop` (`crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs`) after a tool result: if `needs_human`, **stop iterating** (do not call the model again with “try another click”). Emit a chat event that the turn is waiting on the operator. **Async wait only** — `Notify` / oneshot `.await` (or equivalent) on the daemon that still must serve GUI Confirm/Done IPC. A sync `recv` / `blocking_lock` on the same worker **deadlocks** the toolbar. Resume only when `resume_axis` fires.
 
 Do **not** poll the DOM for “is the human done?”
 Do **not** enqueue NeedsYou / `pending_approvals`.
@@ -188,7 +217,8 @@ Park state is in-memory. Daemon restart drops it (operator re-toggles Agent). Ac
 While `lock=human` **and** `ctx.role == Agent`:
 
 - Drop any in-flight agent `Input.*` for that `page_id` (best-effort; next mutate is deny anyway).
-- `vox_browser_screenshot_viewport` and `vox_browser_screencast_frame` return JSON with `page_id`, `width`, `height`, `mime` as needed **and must omit `/data/path` (null or absent)**. Do **not** attach an MCP image part and do **not** write a new frame under `browser-frames/` for this call.
+- `vox_browser_screenshot_viewport` and `vox_browser_screencast_frame` return JSON with `page_id`, `width`, `height`, `mime` as needed **and must omit `/data/path` (null or absent)**. Do **not** attach an MCP image part.
+- **Mute must skip `persist_browser_frame_png` entirely** — do not write a new file under `browser-frames/` and then omit the path. Skipping the path after write still leaves a secret-adjacent artifact on disk.
 - Rationale: shipped chat-harness `attach_image_from_cached_path` reloads any present `path` into `content_parts`, so returning a disk path would defeat mute even with no MCP image part.
 - GUI Human-surface frame capture for the local `vox://browser-frame` view is **not** muted.
 
@@ -196,43 +226,60 @@ While `lock=human` **and** `ctx.role == Agent`:
 
 ## 7. Sensitive-verb approvals
 
+### 7.0 `respect_sensitive` and `CallerContext` (normative)
+
+```text
+respect_sensitive = (ctx.role != CallerRole::Human)
+```
+
+- Agent surfaces (Axis, stdio-Agent) park / require Confirm on sensitive verbs.
+- Human surfaces (GUI, stdio-Human) execute without Confirm.
+- Human-only cookie **export** (and any other human-gated export) MUST gate on `ctx.role`, not `trusted_caller_role()`.
+- Call sites that today use `trusted_caller_role()` for sensitive detection or export gating MUST switch to `ctx` — listed in §8.
+
 ### 7.1 Reasons that require confirm (Agent surface)
 
 | Reason | When |
 | --- | --- |
 | `password_field` | Existing `AxRef.sensitive` / password fill (already shipped) |
-| `otp_field` | Fill of a ref whose role/name looks like OTP / one-time (use the existing `sensitive` bit if that is how OTP is marked; do not add a new NLP classifier) |
+| `otp_field` | Fill of a ref whose name matches OTP / 2fa / one-time / verification patterns. **This contract expands `is_sensitive_name`** so those names set `AxRef.sensitive` — do **not** defer OTP marking to a later plan; do not add an NLP classifier |
 | `captcha` | Existing snapshot-tree substring check |
 | `cookie_import` | `vox_browser_cookies_import` from Agent |
+
+**CSS / act fill bypass (same park/Confirm):** Agent-surface `browser_fill`, `browser_type`, and CSS-selector fill / type arms inside `browser_act` that target password-ish inputs (password type, or name/id matching the expanded `is_sensitive_name` set) are sensitive verbs under this section — same `PendingSensitive` park + Confirm/Deny as AX-ref fill. Do not allow CSS fill to skip §7.
 
 No watch-mode hosts. No “goto new registrable domain” confirm in v1.
 
 ### 7.2 Flow
 
 1. Axis calls the verb with `CallerContext::axis()`.
-2. The verb **does not execute**. Record `PendingSensitive` in `browser_hitl.rs` **and set `owner=human`** (same as yield — so You-mode self-serve and Confirm-as-Gui both pass §5.1 without a separate lock flip).
-3. Return `{ ok: false, needs_human: true, reason }`. Axis parks (§6.2).
+2. The verb **does not execute**. Record `PendingSensitive` in `browser_hitl.rs` **and set `owner=human`** (same as yield — so You-mode self-serve and Confirm-as-Gui both pass §5.1 without a separate lock flip). Captcha and any other Axis `needs_human` reason follow the same `owner=human` rule (§6.2).
+3. Return `ToolResult::ok` with `{ ok: false, needs_human: true, reason }` via `needs_human_ok` (§5.1). Axis parks (§6.2).
 4. Operator either:
    - Does the action in **You** mode (human tools execute; pending is cleared without replay), or
-   - Hits **Confirm** once: replay that tool with `CallerContext::gui()` under the §5.2 Confirm exception. Toolbar lock is unchanged afterward (Confirm does not force You mode as a lasting toggle).
-5. **Deny** (dismiss): drop `PendingSensitive`; fail closed; remember the denial for the rest of this Axis turn so the same args do not re-queue.
+   - Hits **Confirm** once via `browser_hitl_confirm` / `vox_browser_confirm_sensitive` `{ page_id }`: replay that tool with `CallerContext::gui()` under the §5.2 Confirm exception. Toolbar lock is unchanged afterward (Confirm does not force You mode as a lasting toggle). Confirm may run even when the toolbar already shows `lock=agent`.
+5. **Deny** via `browser_hitl_deny` / `vox_browser_deny_sensitive` `{ page_id }`: drop `PendingSensitive`; fail closed; remember the denial for the rest of this Axis turn so the same args do not re-queue.
 
-**Secrets:** `PendingSensitive.args_json` may hold passwords / OTP / cookie blobs. Never write it to `action_log`, toast copy, telemetry, or disk. Clear the pending record (and args) on Confirm success, Deny, Done/`resume_axis`, or daemon drop.
+**Secrets:** `PendingSensitive.args_json` may hold passwords / OTP / cookie blobs. It MUST NOT appear in `Debug` (§4). Toast / `action_log` show **reason only** — never `args_json` or secret substrings. Never write args to telemetry or disk. Clear the pending record (and args) on Confirm success, Deny, Done/`resume_axis`, or daemon drop.
 
-GUI: reuse the existing `needs_human` toast + `action_log`. Add Confirm / Deny actions on that toast. No dedicated HITL panel.
+GUI: reuse the existing `needs_human` toast + `action_log`. Wire Confirm / Deny to the named Tauri commands above. No dedicated HITL panel.
 
 ## 8. File map
 
 | File | Role |
 | --- | --- |
 | Create: `crates/vox-orchestrator-mcp/src/browser_lock.rs` | `CallerContext`, lock map moved off `browser_tools.rs`, `ensure_control_lock(page_id, ctx)` |
-| Create: `crates/vox-orchestrator-mcp/src/browser_hitl.rs` | Park/resume, `PendingSensitive`, mute predicate, `vox_browser_yield` handler |
+| Create: `crates/vox-orchestrator-mcp/src/browser_hitl.rs` | Park/resume, `PendingSensitive`, mute predicate, `vox_browser_yield`, `needs_human_ok`, Confirm/Deny handlers (`vox_browser_confirm_sensitive` / `vox_browser_deny_sensitive`) |
 | Modify: `caller_role.rs` | Keep `CallerRole` / `from_env`. Do not make Axis use `trusted_caller_role()` |
 | Modify: daemon / `handle_tool_call` | Attach `CallerContext` from entry surface |
-| Modify: `agent_loop.rs` | After tool dispatch only: if `needs_human`, park (helper in `browser_hitl.rs`). Do not grow the loop with lock tables |
+| Modify: `crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs` | After tool dispatch only: if `/data/needs_human`, park (helper in `browser_hitl.rs`). Do not grow the loop with lock tables |
 | Modify: `browser_tools.rs` | Call the new modules; **no** new lock/HITL bodies here (already ~1498 lines) |
-| Modify: `vox-gui` `commands/browser.rs` + toolbar | Done = Agent toggle → `resume_axis`; Confirm/Deny on the existing toast |
-| Modify: `contracts/operations/catalog.v1.yaml` | Describe `vox_browser_yield`; then `vox ci operations-sync --target all --write` |
+| Modify: `is_sensitive_name` / AX sensitive marking (same crate as today) | Expand name patterns for OTP / 2fa / one-time / verification → `AxRef.sensitive` (§7.1) |
+| Modify: fill / type / `browser_act` CSS arms | Agent password-ish CSS fill/type → §7 park (same as AX fill) |
+| Switch to `ctx` (not `trusted_caller_role()`) for sensitive / export | Every call site that today gates `respect_sensitive`, password/OTP fill park, cookie import park, or human-only cookie **export** on `trusted_caller_role()` — pass `CallerContext` and use `ctx.role` (§7.0) |
+| Modify: screenshot / screencast frame path | Mute branch **skips** `persist_browser_frame_png` (no new `browser-frames/` file) |
+| Modify: `vox-gui` `commands/browser.rs` + toolbar | Done = Agent toggle → `resume_axis`; Tauri `browser_hitl_confirm` / `browser_hitl_deny` on the existing toast |
+| Modify: `contracts/operations/catalog.v1.yaml` | Describe `vox_browser_yield`, `vox_browser_confirm_sensitive`, `vox_browser_deny_sensitive`; then `vox ci operations-sync --target all --write` |
 | Modify: `docs/src/architecture/where-things-live.md` | One row for HITL lock + park |
 | Modify: parent + chat-harness specs | Follow-on pointer only — do not absorb this work into those plans |
 
@@ -243,13 +290,20 @@ Do **not** grow `engine.rs`. Do **not** add Playwright. No new crate.
 | Test | Asserts |
 | --- | --- |
 | Identity matrix | `Gui` × `{none,human,agent}` and `Axis` × `{none,human,agent}` match §5.1 |
+| Stdio lock matrix | Stdio Human / Stdio Agent × `{none,human,agent}` match §5.1 columns |
 | Inversion gone | Axis + `lock=human` cannot `goto` / `click` / `fill` |
 | Lock admin | Axis cannot `set_control_lock`; GUI can flip either way |
 | Yield | `vox_browser_yield` sets human + parks; Agent toggle resumes |
-| `needs_human` parks | Password/CAPTCHA JSON stops the loop fixture (no second `llm_chat`) |
-| Mute | Agent + `lock=human` → tool JSON has no `/data/path`; `mcp_contents_for_tool_json` **and** `llm_tool_message` have no image part; no new cache write |
+| `needs_human` parks | Password/CAPTCHA JSON stops the loop fixture (no second `llm_chat`); any Axis `needs_human` sets `owner=human` |
+| Mute | Agent + `lock=human` → tool JSON has no `/data/path`; `mcp_contents_for_tool_json` **and** `llm_tool_message` have no image part |
+| Mute skips persist | Mute branch does not call `persist_browser_frame_png` / creates no new file under `browser-frames/` |
 | Sensitive | Cookie import / password fill from Axis does not call the plugin; Confirm replays as GUI |
+| Named Confirm/Deny API | `browser_hitl_confirm` / `vox_browser_confirm_sensitive` and deny twins exist and take `{ page_id }`; Confirm dispatches with `CallerContext::gui()` |
+| Confirm while `lock=agent` | Confirm still replays under §5.2 exception without changing toolbar lock |
 | Deny | Same args in the same turn do not execute |
+| `respect_sensitive` under Axis | Axis (`ctx.role == Agent`) parks on sensitive fill; GUI (`ctx.role == Human`) does not — gated on `ctx`, not `trusted_caller_role()` |
+| CSS fill sensitive | Agent `browser_fill` / `browser_type` / `browser_act` CSS fill on password-ish input parks like AX fill |
+| Secret non-logging | Toast / `action_log` / `Debug` of `PendingSensitive` may show `reason`; secret substrings from `args_json` must not appear |
 | `close` | Axis may close a human-locked tab |
 | Observe text | Axis `snapshot` on a human-locked tab still returns a tree |
 

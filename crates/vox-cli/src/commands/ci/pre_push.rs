@@ -2,9 +2,10 @@
 //!
 //! ## Profiles
 //!
-//! - **Fast (default):** `cargo fmt`, line-endings, ssot-drift, **scoped** doc lint +
-//!   doctest on changed `docs/src/**/*.md` (excludes `docs/src/archive/`), and workspace
-//!   drift-check. Tuned so hooks finish quickly; CI still runs full docs-quality.
+//! - **Fast (default):** chunked `rustfmt --check` (`scripts/fmt.vox` / `check_fmt`),
+//!   line-endings, ssot-drift, **scoped** doc lint + doctest on changed
+//!   `docs/src/**/*.md` (excludes `docs/src/archive/`), and workspace drift-check.
+//!   Tuned so hooks finish quickly; CI still runs full docs-quality.
 //! - **`--complete`:** historical full static gate — whole-tree doc lint + doctest under
 //!   `docs/src/`, doc-inventory, workspace clippy (`-D warnings`), scoped TOESTUB.
 //! - **`--full`:** `--complete` plus **`cargo nextest run --workspace --profile ci`**
@@ -499,7 +500,7 @@ fn append_prepush_audit_log(root: &Path, opts: &PrePushOpts, total_ms: u64) -> R
 fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
     let mut v: Vec<OwnedStep> = vec![
         OwnedStep {
-            label: "cargo fmt --all -- --check".into(),
+            label: "rustfmt --check (workspace, chunked)".into(),
             scope: None,
             run: Box::new(step_fmt),
         },

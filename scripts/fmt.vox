@@ -258,13 +258,18 @@ fn main() {
     let mut rustfmt_toml = false;
     let mut paths = [];
 
+    // `--all` / crate args must not require a dirty git tree (or git at all for
+    // path selection). Only the dirty default calls collect_dirty_paths().
     if crates.len() > 0 {
         scope = "crates";
         paths = target_roots(crates);
+    } else if want_all {
+        scope = "workspace";
+        paths = target_roots([]);
     } else {
         let dirty = collect_dirty_paths();
         rustfmt_toml = rustfmt_toml_dirty(dirty);
-        if want_all or rustfmt_toml {
+        if rustfmt_toml {
             scope = "workspace";
             paths = target_roots([]);
         } else {
@@ -293,7 +298,22 @@ fn main() {
         }
     } else {
         if check {
-            print("fmt: " + str(failed) + " chunk(s) need formatting. Run `vox run scripts/fmt.vox` to fix.")
+            if scope == "workspace" {
+                print("fmt: " + str(failed) + " chunk(s) need formatting. Fix with `vox run scripts/fmt.vox -- --all`.")
+            } else if scope == "crates" {
+                let mut crate_args = "";
+                let mut ci = 0;
+                while ci < crates.len() {
+                    if ci > 0 {
+                        crate_args = crate_args + " ";
+                    }
+                    crate_args = crate_args + crates.get(ci).unwrap();
+                    ci = ci + 1;
+                }
+                print("fmt: " + str(failed) + " chunk(s) need formatting. Fix with `vox run scripts/fmt.vox -- " + crate_args + "`.")
+            } else {
+                print("fmt: " + str(failed) + " chunk(s) need formatting. Dirty-default fix: `vox run scripts/fmt.vox`. Pre-push/CI needs full workspace: `vox run scripts/fmt.vox -- --all`.")
+            }
         } else {
             print("fmt: " + str(failed) + " rustfmt chunk(s) failed.")
         }
