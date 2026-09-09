@@ -1,4 +1,3 @@
-import json
 import fs
 import process
 
@@ -93,10 +92,10 @@ fn main() {
     let final_state = state_view(final_response)
     let plane = string_field(final_state, "plane")
     let last_error = final_state.get("last_error")
-    if plane is not "live" {
+    if not (plane == "live") {
         fail(bin, "state is not live or has last_error")
     }
-    if last_error is not null and not last_error.unwrap().is_null() {
+    if not (last_error is null) and not last_error.unwrap().is_null() {
         fail(bin, "state is not live or has last_error")
     }
 
@@ -108,7 +107,7 @@ fn main() {
     let assistant_text = last_bubble.get("content").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
     let bubble_role = last_bubble.get("role").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
     let bubble_error = last_bubble.get("error").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
-    if bubble_role is not "assistant" or assistant_text.trim() == "" or bubble_error {
+    if not (bubble_role == "assistant") or assistant_text.trim() == "" or bubble_error {
         fail(bin, "reply_ok returned an empty or error assistant bubble")
     }
 
