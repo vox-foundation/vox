@@ -4,6 +4,7 @@ import {
   type PickerModel,
   type ProviderStatus,
 } from './modelPicker';
+import type { DriveTurnEvent } from './driveEvents';
 
 export type DrivePlane = 'live' | 'headless';
 export type DriveExecution = 'sync' | 'background' | 'plan';
@@ -82,6 +83,7 @@ export interface DriveClaims {
   picker_ui: boolean;
   composer_knobs: boolean;
   bubbles: boolean;
+  events: boolean;
 }
 
 export interface DriveState {
@@ -96,6 +98,10 @@ export interface DriveState {
     models: string[];
   };
   bubbles: unknown[];
+  events: DriveTurnEvent[];
+  events_dropped: number;
+  last_turn_id: string | null;
+  next_seq: number;
   last_error: string | null;
   orch_fresh: boolean;
   claims: DriveClaims;
@@ -113,9 +119,13 @@ export function emptyLiveState(): DriveState {
     catalog: [],
     probe: { reachable: false, base_url: null, service: null, models: [] },
     bubbles: [],
+    events: [],
+    events_dropped: 0,
+    last_turn_id: null,
+    next_seq: 1,
     last_error: null,
     orch_fresh: false,
-    claims: { picker_ui: true, composer_knobs: true, bubbles: true },
+    claims: { picker_ui: true, composer_knobs: true, bubbles: true, events: true },
   };
 }
 

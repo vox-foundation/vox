@@ -96,6 +96,8 @@ pub struct DriveClaims {
     pub picker_ui: bool,
     pub composer_knobs: bool,
     pub bubbles: bool,
+    #[serde(default)]
+    pub events: bool,
 }
 
 impl DriveClaims {
@@ -104,6 +106,7 @@ impl DriveClaims {
             picker_ui: true,
             composer_knobs: true,
             bubbles: true,
+            events: true,
         }
     }
 
@@ -112,6 +115,7 @@ impl DriveClaims {
             picker_ui: false,
             composer_knobs: false,
             bubbles: false,
+            events: false,
         }
     }
 }
@@ -124,9 +128,21 @@ pub struct DriveState {
     pub catalog: Vec<DriveCatalogRow>,
     pub probe: DriveProbe,
     pub bubbles: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub events: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub events_dropped: u64,
+    #[serde(default)]
+    pub last_turn_id: Option<String>,
+    #[serde(default = "default_next_seq")]
+    pub next_seq: u64,
     pub last_error: Option<String>,
     pub orch_fresh: bool,
     pub claims: DriveClaims,
+}
+
+fn default_next_seq() -> u64 {
+    1
 }
 
 impl DriveState {
@@ -143,6 +159,10 @@ impl DriveState {
                 models: Vec::new(),
             },
             bubbles: Vec::new(),
+            events: Vec::new(),
+            events_dropped: 0,
+            last_turn_id: None,
+            next_seq: 1,
             last_error: None,
             orch_fresh: false,
             claims: DriveClaims::live(),
