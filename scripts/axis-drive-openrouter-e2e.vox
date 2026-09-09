@@ -93,7 +93,10 @@ fn main() {
     let final_state = state_view(final_response)
     let plane = string_field(final_state, "plane")
     let last_error = final_state.get("last_error")
-    if plane is not "live" or (last_error is not null and not last_error.is_null()) {
+    if plane is not "live" {
+        fail(bin, "state is not live or has last_error")
+    }
+    if last_error is not null and not last_error.unwrap().is_null() {
         fail(bin, "state is not live or has last_error")
     }
 
