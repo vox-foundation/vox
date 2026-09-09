@@ -1,0 +1,101 @@
+// vox:caps subprocess fs
+import env
+import fs
+import process
+
+fn fail(message: str) {
+    print("MENS macOS Metal e2e failed: " + message)
+    log.error("MENS macOS Metal e2e failed: " + message)
+    process.exit(1)
+}
+
+fn run_vox(args: list[str]) to bool {
+    let result = process.run("vox", args)
+    if result is null {
+        fail("could not execute vox")
+    }
+    let completed = result.unwrap()
+    if completed.code is not 0 {
+        print(completed.stdout)
+        print(completed.stderr)
+        return false
+    }
+    return true
+}
+
+fn main() {
+    let uname = process.run("uname", ["-s"])
+    if uname is null or uname.unwrap().stdout.trim() is not "Darwin" {
+        print("MENS macOS Metal e2e requires Darwin; skipping with exit 2.")
+        process.exit(2)
+    }
+
+    let model = "Qwen/Qwen2.5-Coder-0.5B-Instruct"
+    let run_dir = "mens/runs/qwen35-08b-metal-e2e"
+    let port = "11435"
+    let baseline = env.get("VOX_MENS_BASELINE")
+
+    print("MENS macOS Metal e2e")
+    print("  Model: " + model)
+    print("  Run:   " + run_dir)
+
+    if not run_vox(["mens", "download", "--model", model]) {
+        fail("model download failed")
+    }
+
+    let train_args = [
+        "mens", "train",
+        "--backend", "qlora",
+        "--tokenizer", "hf",
+        "--device", "metal",
+        "--model", model,
+        "--data-dir", "examples/mens/metal-e2e",
+        "--output-dir", run_dir,
+        "--epochs", "1",
+        "--max-runtime-secs", "300"
+    ]
+    if not run_vox(train_args) {
+        fail("Metal training failed; verify the host-aware training dispatch is present")
+    }
+
+    let report = run_dir + "/collateral_damage_report.json"
+    if not fs.exists(report) {
+        if baseline is null {
+            fail("missing collateral_damage_report.json; set VOX_MENS_BASELINE to a baseline JSON path")
+        }
+        let baseline_path = baseline.unwrap()
+        if not run_vox([
+            "mens", "eval", "collateral-damage",
+            "--pre-score", baseline_path,
+            "--post", run_dir + "/candle_qlora_adapter.safetensors"
+        ]) {
+            fail("collateral-damage evaluation failed")
+        }
+    }
+    if not fs.exists(report) {
+        fail("collateral_damage_report.json was not produced")
+    }
+
+    let serve_id = process.spawn_background("vox", [
+        "mens", "serve", "--model", run_dir,
+        "--host", "127.0.0.1", "--port", port
+    ])
+    match serve_id {
+        Err(e) => fail("could not start serve worker: " + e)
+        Ok(id) => print("Serve worker started with process id " + str(id))
+    }
+
+    let health = process.run("curl", [
+        "--fail", "--silent", "--show-error",
+        "--retry", "10", "--retry-delay", "1",
+        "http://127.0.0.1:" + port + "/v1/models"
+    ])
+    if health is null or health.unwrap().code is not 0 {
+        fail("serve health check failed on port " + port)
+    }
+    let body = health.unwrap().stdout
+    if not body.contains("qwen35-08b-metal-e2e") {
+        fail("serve /v1/models did not list qwen35-08b-metal-e2e")
+    }
+    print("Metal serve health passed; pin mens/qwen35-08b-metal-e2e in Axis Drive.")
+}
