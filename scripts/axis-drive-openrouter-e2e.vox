@@ -4,117 +4,121 @@ import process
 
 fn vox_binary_path() to str {
     if fs.exists("./target/release/vox.exe") {
-        return "./target/release/vox.exe";
+        return "./target/release/vox.exe"
     }
     if fs.exists("./target/release/vox") {
-        return "./target/release/vox";
+        return "./target/release/vox"
     }
     if fs.exists("./target/debug/vox.exe") {
-        return "./target/debug/vox.exe";
+        return "./target/debug/vox.exe"
     }
-    return "./target/debug/vox";
+    return "./target/debug/vox"
 }
 
 fn fail(bin: str, message: str) {
-    log.error("OpenRouter Drive e2e failed: " + message);
-    let _ = process.run(bin, ["gui", "drive", "stop"]);
-    process.exit(1);
+    log.error("OpenRouter Drive e2e failed: " + message)
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+    process.exit(1)
 }
 
 fn run_json(bin: str, args: list[str]) to Json {
-    let result_opt = process.run(bin, args);
+    let result_opt = process.run(bin, args)
     if result_opt is null {
-        fail(bin, "could not execute " + bin);
+        fail(bin, "could not execute " + bin)
     }
-    let result = result_opt.unwrap();
-    if result.code != 0 {
-        fail(bin, "command failed (" + str(result.code) + "): " + result.stderr);
+    let result = result_opt.unwrap()
+    if result.code is not 0 {
+        fail(bin, "command failed (" + str(result.code) + "): " + result.stderr)
     }
-    let parsed = json.parse(result.stdout);
+    let parsed = json.parse(result.stdout)
     if parsed.is_err() {
-        fail(bin, "invalid JSON: " + parsed.unwrap_err());
+        fail(bin, "invalid JSON: " + parsed.unwrap_err())
     }
-    return parsed.unwrap();
+    return parsed.unwrap()
 }
 
 fn state_view(response: Json) to Json {
-    return response.get("state").unwrap_or(response);
+    return response.get("state").unwrap_or(response)
 }
 
 fn string_field(value: Json, key: str) to str {
-    return value.get(key).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("");
+    return value.get(key).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
 }
 
 fn main() {
-    let bin = vox_binary_path();
-
-    let start = process.run(bin, ["gui", "drive", "start"]);
+    let bin = vox_binary_path()
+    let start = process.run(bin, ["gui", "drive", "start"])
     if start is null {
-        fail(bin, "could not execute drive start");
+        fail(bin, "could not execute drive start")
     }
-    let start_result = start.unwrap();
-    if start_result.code != 0 {
-        fail(bin, "drive start failed (" + str(start_result.code) + "): " + start_result.stderr);
+    let start_result = start.unwrap()
+    if start_result.code is not 0 {
+        fail(bin, "drive start failed (" + str(start_result.code) + "): " + start_result.stderr)
     }
 
-    // This deliberately forces catalog IPC before reading state.
-    let _ = run_json(bin, ["gui", "drive", "set", "--knob", "execution=sync"]);
-    let state_response = run_json(bin, ["gui", "drive", "state"]);
-    let state = state_view(state_response);
-    let catalog = state.get("catalog").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([]);
+    // Force catalog IPC before reading state.
+    let _ = run_json(bin, ["gui", "drive", "set", "--knob", "execution=sync"])
+    let state_response = run_json(bin, ["gui", "drive", "state"])
+    let drive_state = state_view(state_response)
+    let catalog = drive_state.get("catalog").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
 
-    let mut chosen = "";
+    let mut chosen = ""
     for row in catalog {
-        let id = string_field(row, "id");
-        let provider_type = string_field(row, "provider_type");
-        let is_tier = id == "auto" or id == "local" or id == "mesh" or id == "cloud";
-        let is_mens = id.starts_with("mens/");
-        let is_openrouter = id == "openrouter/auto" or id.starts_with("openrouter/") or provider_type == "OpenRouter";
-        if chosen == "" and row.get("selectable").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false) and is_openrouter and not is_mens and not is_tier {
-            chosen = id;
+        let id = string_field(row, "id")
+        let provider_type = string_field(row, "provider_type")
+        let is_tier = id == "auto" or id == "local" or id == "mesh" or id == "cloud"
+        let is_mens = id.starts_with("mens/")
+        let is_openrouter = id == "openrouter/auto" or id.starts_with("openrouter/") or provider_type == "OpenRouter"
+        let selectable = row.get("selectable").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+        if chosen == "" and selectable and is_openrouter and not is_mens and not is_tier {
+            chosen = id
         }
     }
     if chosen == "" {
-        fail(bin, "no selectable OpenRouter model; provision SecretId::OpenRouterApiKey and run vox secrets doctor");
+        fail(bin, "no selectable OpenRouter model; provision SecretId::OpenRouterApiKey and run vox secrets doctor")
     }
 
-    let _ = run_json(bin, ["gui", "drive", "set", "--knob", "model_override=" + chosen]);
-    let _ = run_json(bin, ["gui", "drive", "send", "--text", "Reply with one short line containing openrouter-ok"]);
-
-    let wait = process.run(bin, ["gui", "drive", "wait", "--until", "reply_ok", "--timeout", "120s"]);
+    let _ = run_json(bin, ["gui", "drive", "set", "--knob", "model_override=" + chosen])
+    let _ = run_json(bin, ["gui", "drive", "send", "--text", "Reply with one short line containing openrouter-ok"])
+    let wait = process.run(bin, ["gui", "drive", "wait", "--until", "reply_ok", "--timeout", "120s"])
     if wait is null {
-        fail(bin, "could not execute reply_ok wait");
+        fail(bin, "could not execute reply_ok wait")
     }
-    let wait_result = wait.unwrap();
-    if wait_result.code != 0 {
-        fail(bin, "reply_ok wait failed (" + str(wait_result.code) + "): " + wait_result.stderr);
-    }
-
-    let final_response = run_json(bin, ["gui", "drive", "state"]);
-    let final_state = state_view(final_response);
-    let plane = string_field(final_state, "plane");
-    let last_error = final_state.get("last_error");
-    if plane != "live" or (last_error is not null and not last_error.is_null()) {
-        fail(bin, "state is not live or has last_error");
+    let wait_result = wait.unwrap()
+    if wait_result.code is not 0 {
+        fail(bin, "reply_ok wait failed (" + str(wait_result.code) + "): " + wait_result.stderr)
     }
 
-    let bubbles = final_state.get("bubbles").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([]);
-    let last_bubble = bubbles.get(bubbles.len() - 1).unwrap_or(null);
-    let assistant_text = last_bubble.get("content").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("");
-    if last_bubble.get("role").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("") != "assistant" or assistant_text.trim() == "" or last_bubble.get("error").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false) {
-        fail(bin, "reply_ok returned without a non-error assistant bubble");
+    let final_response = run_json(bin, ["gui", "drive", "state"])
+    let final_state = state_view(final_response)
+    let plane = string_field(final_state, "plane")
+    let last_error = final_state.get("last_error")
+    if plane is not "live" or (last_error is not null and not last_error.is_null()) {
+        fail(bin, "state is not live or has last_error")
     }
 
-    let turn_id = string_field(final_state, "last_turn_id");
-    let events = final_state.get("events").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([]);
-    let mut submit_ok = false;
+    let bubbles = final_state.get("bubbles").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+    if bubbles.len() is 0 {
+        fail(bin, "reply_ok returned no assistant bubble")
+    }
+    let last_bubble = bubbles.get(bubbles.len() - 1).unwrap()
+    let assistant_text = last_bubble.get("content").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+    let bubble_role = last_bubble.get("role").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+    let bubble_error = last_bubble.get("error").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+    if bubble_role is not "assistant" or assistant_text.trim() == "" or bubble_error {
+        fail(bin, "reply_ok returned an empty or error assistant bubble")
+    }
+
+    let turn_id = string_field(final_state, "last_turn_id")
+    let events = final_state.get("events").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+    let mut submit_ok = false
     for event in events {
         if string_field(event, "kind") == "submit_ok" and string_field(event, "turn_id") == turn_id {
-            submit_ok = true;
+            submit_ok = true
         }
     }
     if not submit_ok {
-        fail(bin, "state.events is missing submit_ok for last_turn_id");
+        fail(bin, "state.events is missing submit_ok for last_turn_id")
     }
 
     let summary = {
@@ -123,12 +127,15 @@ fn main() {
         "model": chosen,
         "assistant": assistant_text,
         "turn_id": turn_id,
-        "event_count": events.len(),
-    };
-    print(json.stringify(summary));
-    let stop = process.run(bin, ["gui", "drive", "stop"]);
-    if stop is null or stop.unwrap().code != 0 {
-        process.exit(1);
+        "event_count": events.len()
     }
-    process.exit(0);
+    print(json.stringify(summary))
+    let stop = process.run(bin, ["gui", "drive", "stop"])
+    if stop is null {
+        process.exit(1)
+    }
+    if stop.unwrap().code is not 0 {
+        process.exit(1)
+    }
+    process.exit(0)
 }
