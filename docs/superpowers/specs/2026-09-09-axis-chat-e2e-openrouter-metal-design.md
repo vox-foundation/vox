@@ -24,6 +24,7 @@ Six parallel codebase audits (Drive events, Metal train/serve, OpenRouter proof,
 | **P1** | `MIN_CORPUS_PAIRS = 100` + workspace `mens/config/training_contract.yaml` hijacks `--data-dir` | E2e uses per-run contract under `--data-dir`; no tiny `train.jsonl` that trips the gate |
 | **P1** | `--max-steps` flag does not exist | Use `--epochs 1` + `--max-runtime-secs` |
 | **P1** | MensCatalog may not list QLoRA run dirs (expects `final` / `checkpoint-*` dirs) | Pin selectability via VoxLocal stem match + serve, or fix catalog heuristic |
+| **P1** | Metal plugin hub download stubbed; `gpu` feature required for mens train/serve | Pre-download base weights; use GPU-enabled CLI; document in how-to |
 | **P2** | Global agent bus pollutes Drive ring; clear-on-send races late tokens | `active_turn_id` ref + session_id filter; ignore unrelated frames |
 | **P2** | TS-only `DriveState` drift vs Rust `protocol.rs` | Both planes must grow the same fields + `claims.events` |
 

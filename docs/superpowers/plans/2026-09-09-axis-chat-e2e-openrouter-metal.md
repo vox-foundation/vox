@@ -22,6 +22,10 @@
 - Automation is VoxScript; exit non-zero on failure (never print-only).
 - Metal enablement requires CLI gate + populi dispatch + serve worker — not bail removal alone.
 - Do not use `--max-steps` (does not exist). Use `--epochs 1` + `--max-runtime-secs`.
+- Commit `scripts/*.vox`, dogfood JSONL, and how-tos **before** any `vox run` (VoxScript-first cache rule).
+- Metal train/serve needs a **GPU-enabled** `vox-ml-cli` build (`gpu` feature); plain default CLI may hard-error.
+- Metal plugin hub download is stubbed — base weights must be **pre-downloaded** locally before train/serve.
+- Mac scripts (`mens-macos-metal-e2e`, `axis-drive-metal-e2e`) must `process.exit(2)` on non-Darwin (clear message).
 - Do not use retired surfaces (`vox-dei`, `TURSO_URL`, etc.).
 
 ### File map
@@ -632,13 +636,26 @@ Add unit/characterization test that Metal device path selects metal plugin id (o
 
 - [ ] **Step 3: How-to + script**
 
-Document: Apple Silicon, plugin install, `SPIKE_MODEL_ID`, train command, **collateral_damage_report.json** generation (`vox mens eval collateral-damage …` or exact command discovered in codebase), serve:
+How-to frontmatter (required):
+
+```yaml
+---
+title: "How To: Train MENS on macOS Metal"
+description: "Download, QLoRA-train, collateral-check, and serve a Mac Metal pack for Axis Drive."
+category: "How-To Guides"
+status: "current"
+training_eligible: true
+schema_type: "HowTo"
+---
+```
+
+Document: Apple Silicon; GPU-enabled CLI; plugin install; pre-download of `SPIKE_MODEL_ID` (hub stub); train command; **collateral_damage_report.json** with `"status":"pass"` (`vox mens eval collateral-damage …` or exact command from codebase); tokenizer.json in run dir; MensCatalog may not list QLoRA dirs — Drive green via VoxLocal stem match and/or `pin_policy=warn` if needed; serve on non-11434 if Ollama occupies default:
 
 ```bash
 vox mens serve --model mens/runs/qwen35-08b-metal-e2e --host 127.0.0.1 --port 11435
 ```
 
-Drive pin `mens/qwen35-08b-metal-e2e`. Tokenizer must exist in run dir. Non-darwin: script exits 1 with clear message.
+Drive pin `mens/qwen35-08b-metal-e2e`. Script first lines: Darwin check → `process.exit(2)` otherwise.
 
 - [ ] **Step 4: Run automation on Mac**
 
@@ -694,9 +711,9 @@ git commit -m "feat(scripts): Axis Drive Mac Metal e2e proof"
 **Files:** evidence notes only if needed
 
 - [ ] **Step 1:** Tick every §9 checkbox with evidence from Tasks 5 and 8 summary JSON.
-- [ ] **Step 2:** Live failure demos: missing OpenRouter key → script exit ≠ 0 + `submit_err`; broken local pack → same.
-- [ ] **Step 3:** Headless `claims.events === false`; live `=== true`.
-- [ ] **Step 4:** Confirm scripts never call `wait --until reply` for green gates.
+- [ ] **Step 2:** Live failure demos on live plane: (a) OpenRouter with key absent → script exit ≠ 0 + `last_error` + `submit_err`; (b) pin broken local pack / missing tokenizer → same. Optional dedicated `scripts/axis-drive-openrouter-missing-key.vox` if cleaner than env stub.
+- [ ] **Step 3:** Headless `claims.events === false` (explicit); live `claims.events === true`.
+- [ ] **Step 4:** Confirm green scripts use only `wait --until reply_ok` (never bare `reply`).
 
 ```bash
 git commit -m "docs: record Axis chat e2e acceptance evidence" # only if adding evidence
