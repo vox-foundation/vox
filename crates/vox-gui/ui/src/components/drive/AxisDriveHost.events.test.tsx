@@ -12,8 +12,8 @@ interface AgentFrame {
 interface DriveRequestEvent {
   payload: {
     id: string;
-    verb: 'send';
-    body: { text: string };
+    verb: 'send' | 'state';
+    body: { text?: string };
   };
 }
 
@@ -116,5 +116,26 @@ describe('AxisDriveHost agent-event bridge', () => {
     ) as { state: { last_turn_id: string; events: Array<{ kind: string; text?: string; turn_id: string }> } };
     const token = body.state.events.find(event => event.kind === 'token_streamed');
     expect(token).toMatchObject({ text: 'ab', turn_id: body.state.last_turn_id });
+
+    mocks.agentHandler!({
+      id: 8,
+      timestamp_ms: 124,
+      kind: {
+        type: 'token_streamed',
+        text: 'late',
+        session_id: 'sess',
+      },
+    });
+
+    await act(async () => {
+      await mocks.driveHandler!({
+        payload: { id: 'req-2', verb: 'state', body: {} },
+      });
+    });
+    const stateResponds = mocks.invoke.mock.calls.filter(([command]) => command === 'drive_respond');
+    const stateBody = JSON.parse(
+      (stateResponds.at(-1)![1] as { args: { body: string } }).args.body,
+    ) as { state: { events: Array<{ kind: string; text?: string }> } };
+    expect(stateBody.state.events.some(event => event.kind === 'token_streamed' && event.text === 'late')).toBe(false);
   });
 });

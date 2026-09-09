@@ -67,19 +67,26 @@ export function AxisDriveHost({ setters, onSubmit, sessionReady }: AxisDriveHost
             ...loquelaDriveApi(),
             ...setters,
           };
-          const res = await handleDriveRequest({
-            state: stateRef.current,
-            models,
-            statuses,
-            setters: merged,
-            submit: onSubmit,
-            req: event.payload,
-            onTurnStart: (turnId, eventState) => {
-              activeTurnIdRef.current = turnId;
-              stateRef.current = { ...stateRef.current, ...eventState };
-            },
-            getActiveEventState: () => stateRef.current,
-          });
+          let res;
+          try {
+            res = await handleDriveRequest({
+              state: stateRef.current,
+              models,
+              statuses,
+              setters: merged,
+              submit: onSubmit,
+              req: event.payload,
+              onTurnStart: (turnId, eventState) => {
+                activeTurnIdRef.current = turnId;
+                stateRef.current = { ...stateRef.current, ...eventState };
+              },
+              getActiveEventState: () => stateRef.current,
+            });
+          } finally {
+            if (event.payload.verb === 'send') {
+              activeTurnIdRef.current = null;
+            }
+          }
           stateRef.current = res.state;
           await invoke('drive_respond', {
             args: {
