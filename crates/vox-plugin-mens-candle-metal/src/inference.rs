@@ -395,8 +395,8 @@ impl InferenceEngine {
 
         // Greedy decoding without KV cache — re-runs the full context each step.
         // KV-cache autoregressive generation requires forward_with_cache which is
-        // available in vox-populi's candle_model_qwen but not yet in the plugin's
-        // model.rs (SP3 stub). Use full-context forward for correctness.
+        // available in vox-populi's candle_model_qwen but not in the plugin's
+        // model.rs. Use full-context forward for correctness.
         for _ in 0..max_tokens {
             let input = Tensor::new(tokens.as_slice(), &self.device)?.unsqueeze(0)?;
 

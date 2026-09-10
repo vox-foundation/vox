@@ -204,11 +204,45 @@ pub struct ModelPlan {
     pub rationale: String,
 }
 
+/// Parse the Qwen generation from a model id: `Qwen/Qwen3.8-27B` → `3.8`.
+///
+/// One normalizer instead of four leaky substring predicates. The wild spellings of
+/// a minor version are `3.5`, `3_5`, `3-5` and glued `35`, and a trailing `-5B` is a
+/// *size*, not a minor — so a digit group followed by `b` is never taken as a minor.
+/// No Qwen major has reached 10, so a glued 2-digit run splits as major.minor.
+fn qwen_generation(model_id: &str) -> Option<f64> {
+    let l = model_id.to_ascii_lowercase();
+    let b = l.as_bytes();
+    let start = l.rfind("qwen")? + 4;
+    let mut i = start;
+    while i < b.len() && b[i].is_ascii_digit() {
+        i += 1;
+    }
+    let major = l.get(start..i).filter(|d| !d.is_empty())?;
+    if major.len() >= 2 {
+        return format!("{}.{}", &major[..1], &major[1..]).parse().ok();
+    }
+    if i + 1 < b.len() && matches!(b[i], b'.' | b'_' | b'-') && b[i + 1].is_ascii_digit() {
+        let ms = i + 1;
+        let mut j = ms;
+        while j < b.len() && b[j].is_ascii_digit() {
+            j += 1;
+        }
+        // `qwen3-5b` is a 5B dense Qwen3, not Qwen3.5.
+        if b.get(j) != Some(&b'b') {
+            return format!("{major}.{}", &l[ms..j]).parse().ok();
+        }
+    }
+    major.parse().ok()
+}
+
 /// True when a model id belongs to the Qwen3.5 family this ladder manages.
+///
+/// Covers the whole Qwen3.5 *generation*, not just the literal `3.5` string:
+/// `Qwen3.8-27B` declares `model_type: "qwen3_5"` and shares its footprint.
 #[must_use]
 pub fn is_qwen35(model_id: &str) -> bool {
-    let l = model_id.to_ascii_lowercase();
-    l.contains("qwen3.5") || l.contains("qwen3-5") || l.contains("qwen35")
+    qwen_generation(model_id).is_some_and(|v| (3.5..4.0).contains(&v))
 }
 
 /// Pick the largest Qwen3.5 variant (no larger than `max_params_b`) that fits
@@ -244,8 +278,8 @@ pub const QWEN25CODER_LADDER: &[(f64, &str)] = &[
 /// True when a model id is a Qwen2.5-Coder (the coding-focused dense family).
 #[must_use]
 pub fn is_qwen25coder(model_id: &str) -> bool {
-    let l = model_id.to_ascii_lowercase();
-    l.contains("qwen2.5-coder") || l.contains("qwen2_5-coder") || l.contains("qwen25-coder")
+    qwen_generation(model_id).is_some_and(|v| (v - 2.5).abs() < 1e-9)
+        && model_id.to_ascii_lowercase().contains("coder")
 }
 
 /// Pick the largest Qwen2.5-Coder variant (≤ `max_params_b`) that fits `vram_gib`,
@@ -294,8 +328,7 @@ pub const QWEN3_LADDER: &[(f64, &str)] = &[
 /// True when a model id belongs to the Qwen3 family this ladder manages.
 #[must_use]
 pub fn is_qwen3(model_id: &str) -> bool {
-    let l = model_id.to_ascii_lowercase();
-    l.contains("qwen3") && !l.contains("qwen3.5") && !l.contains("qwen3_5") && !l.contains("qwen35")
+    qwen_generation(model_id).is_some_and(|v| (3.0..3.5).contains(&v))
 }
 
 /// Calculate resident VRAM per billion parameters dynamically.
@@ -668,6 +701,81 @@ mod tests {
         assert!(is_qwen35("Qwen/Qwen3.5-4B"));
         assert!(is_qwen35("qwen3.5-2b"));
         assert!(!is_qwen35("meta-llama/Llama-3-8B"));
+    }
+
+    /// Mirrors the family dispatch in `preset_schema.rs` / `train_arm.rs` so the
+    /// behavioral assertions below exercise the routing a real train run takes.
+    fn route_plan(hint: &str, vram_gib: f64) -> ModelPlan {
+        let params_b = params_b_from_model_hint(hint).unwrap_or(7.0);
+        let quant = crate::mens::tensor::finetune_contract::BaseQuantMode::Nf4;
+        if is_qwen25coder(hint) {
+            plan_qwen25coder_with_options(vram_gib, params_b, quant, false)
+        } else if is_qwen35(hint) {
+            plan_qwen35_with_options(vram_gib, params_b, quant, false)
+        } else if is_qwen3(hint) {
+            plan_qwen3_with_options(vram_gib, params_b, quant, false)
+        } else {
+            let p = plan_with_resident(vram_gib, params_b, get_resident_per_b(hint, quant, false));
+            ModelPlan {
+                model_id: hint.to_string(),
+                params_b,
+                seq_len: p.seq_len,
+                batch_size: p.batch_size,
+                grad_accum: p.grad_accum,
+                retreated_from_b: None,
+                over_budget: p.over_budget,
+                rationale: p.rationale,
+            }
+        }
+    }
+
+    #[test]
+    fn qwen38_routes_to_qwen35_family_not_dense_qwen3() {
+        // Qwen/Qwen3.8-27B declares model_type "qwen3_5" — it IS the Qwen3.5 arch.
+        assert!(
+            is_qwen35("Qwen/Qwen3.8-27B"),
+            "3.8 is the Qwen3.5 generation"
+        );
+        assert!(
+            !is_qwen3("Qwen/Qwen3.8-27B"),
+            "3.8 must not fall into the dense Qwen3 ladder"
+        );
+        // And it must be sized with the lighter Qwen3.5 footprint.
+        assert_eq!(
+            get_resident_per_b(
+                "Qwen/Qwen3.8-27B",
+                crate::mens::tensor::finetune_contract::BaseQuantMode::Nf4,
+                false
+            ),
+            3.5
+        );
+    }
+
+    #[test]
+    fn qwen38_27b_plan_does_not_retreat_to_14b() {
+        // The bug in production: a 27B request silently became dense Qwen3-14B.
+        let p = route_plan("Qwen/Qwen3.8-27B", 80.0);
+        assert!(
+            !p.model_id.contains("Qwen3-14B"),
+            "27B request must not be silently downgraded to the dense 14B rung, got {} ({})",
+            p.model_id,
+            p.rationale
+        );
+        assert!(
+            is_qwen35(&p.model_id),
+            "a Qwen3.5-arch request must be planned on the Qwen3.5 ladder, got {}",
+            p.model_id
+        );
+    }
+
+    #[test]
+    fn separator_variants_and_size_suffix_are_not_confused() {
+        // Underscore hole: "qwen3_5-4b" matched NEITHER predicate and fell through.
+        assert!(is_qwen35("Qwen/Qwen3_5-4B"));
+        assert!(!is_qwen3("Qwen/Qwen3_5-4B"));
+        // Mirror hole: "-5B" is a SIZE, not a minor version — this is dense Qwen3.
+        assert!(is_qwen3("Qwen/Qwen3-5B"));
+        assert!(!is_qwen35("Qwen/Qwen3-5B"));
     }
 
     // NOTE: the VOX_MENS_VRAM_SAFETY env override is intentionally not unit-tested

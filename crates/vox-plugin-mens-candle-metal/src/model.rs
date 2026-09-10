@@ -5,22 +5,15 @@
 //! pass (SP6+) this should be extracted into a shared `vox-candle-models` crate so there
 //! is a single canonical copy.
 //!
-//! # SP3 extraction status
+//! # Extraction status
 //!
-//! The forward/backward training code in `vox-populi` is deeply tangled with vox-populi
-//! types (`LoraTrainingConfig`, `QloraEmbedBundle`, `TrainingPair`, `CheckpointState`,
-//! `vox_tensor`, `vox_secrets`, VoxDB async channel, etc.). Untangling into the plugin's
-//! `training.rs` / `checkpoint.rs` is deferred to a follow-up commit; those modules
-//! currently contain stubs that return `Err("not yet wired")`.
+//! The full QLoRA training loop lives in `candle_qlora_train/`; `training.rs` wires
+//! `run_full_training` through to it via the `TrainRequest` JSON envelope. The
+//! per-step wrappers (`run_train_step`, `run_eval_step`) still require the
+//! plugin-host streaming protocol and point callers at `run_full_training`.
 //!
-//! `load_from_path` is also stubbed: the real implementation requires `QloraEmbedBundle`
-//! (preflight logic that reads HF `config.json` and locates safetensors shards), which
-//! lives in vox-populi. Batch 3 wires vox-populi to consume this plugin through the host;
-//! at that point, the plugin can receive the already-loaded `Qwen35Model` via a serialized
-//! handle rather than needing to replicate the full preflight.
-//!
-//! # TODO (batch 4): add `unload_model` verb to `MlBackend` trait to free the boxed
-//! `CandleModel` and avoid the current memory leak on plugin unload.
+//! `load_from_path` builds the handle through `crate::inference::InferenceEngine`,
+//! which runs its own preflight over HF `config.json` and the safetensors shards.
 
 use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::{Module, RmsNorm};
@@ -509,10 +502,8 @@ pub enum Qwen35LayerCache {
 
 // ── CandleModel: the opaque handle stored across plugin calls ─────────────────
 
-/// Opaque model handle stored by the plugin. In the current SP3 stub, `load_from_path`
-/// returns an error — the actual construction requires `QloraEmbedBundle` from
-/// vox-populi's preflight logic. Batch 3 wires vox-populi to construct the model and
-/// pass it to the plugin via an alternative init path.
+/// Opaque model handle stored by the plugin, built by `load_from_path` from a
+/// loaded `InferenceEngine` and freed by the backend's `unload_model`.
 pub struct CandleModel {
     pub _inner: Qwen35Model,
     /// Path to the model directory, stored so `run_inference` can reload the engine.
@@ -533,5 +524,57 @@ impl CandleModel {
             model_path: model_path.to_string(),
             trainer: None, // Trainer is initialized dynamically during run_full_training
         })
+    }
+}
+
+#[cfg(test)]
+mod qwen2_attention_tests {
+    //! Real (non-trivial) shape-correctness check for `Qwen2Attention::forward`.
+    //!
+    //! Builds a tiny single-batch, two-head attention block from actual
+    //! `QuantizedLinear` weights (not mocks) and asserts the output tensor has
+    //! the shape the reshape/transpose/rotary/attend/merge pipeline promises:
+    //! `(batch, seq_len, n_heads * head_dim)`. This fails if the reshape or
+    //! head-merge logic regresses — the class of bug a shape assertion alone
+    //! catches without needing a golden numeric value.
+
+    use super::*;
+    use qlora_rs::QLoraConfig;
+
+    fn tiny_attention(device: &Device) -> Qwen2Attention {
+        let d = 8usize; // d_model == n_heads * head_dim
+        let mut cfg = QLoraConfig::preset_all_bf16(4, 8);
+        // CPU (this test's device) does not support BF16 matmul in this Candle build;
+        // force F32 so the test exercises real forward math instead of skipping.
+        cfg.quantization.compute_dtype = qlora_rs::quantization::ComputeDType::F32;
+        let w = Tensor::randn(0f32, 0.02f32, (d, d), device).unwrap();
+        let mk = || QuantizedLinear::from_weight(&w, None, &cfg, device).unwrap();
+        Qwen2Attention {
+            q_proj: mk(),
+            k_proj: mk(),
+            v_proj: mk(),
+            o_proj: mk(),
+            n_heads: 2,
+            n_kv_heads: 2,
+            head_dim: 4,
+        }
+    }
+
+    #[test]
+    fn forward_preserves_batch_seq_and_merges_heads_back_to_d_model() {
+        let device = Device::Cpu;
+        let attn = tiny_attention(&device);
+        let (batch, seq_len, d_model) = (1usize, 3usize, 8usize);
+        let x = Tensor::randn(0f32, 0.02f32, (batch, seq_len, d_model), &device).unwrap();
+
+        let out = attn
+            .forward(&x, 0, None, None)
+            .expect("forward should succeed");
+
+        assert_eq!(
+            out.dims(),
+            &[batch, seq_len, d_model],
+            "output must merge n_heads*head_dim back to d_model without dropping batch/seq"
+        );
     }
 }
