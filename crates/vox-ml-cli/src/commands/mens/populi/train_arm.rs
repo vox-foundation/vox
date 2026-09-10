@@ -524,6 +524,8 @@ pub async fn run_train(
                 mp
             };
 
+            budget_gate(&final_plan, false)?;
+
             eprintln!("  {} VRAM budget: {}", "⚙".cyan(), final_plan.rationale);
 
             if let Some(from_b) = final_plan.retreated_from_b {
@@ -807,6 +809,29 @@ fn resolve_training_sizing(
     cli.or(domain).or(budget).or(preset_default)
 }
 
+/// Refuse to proceed with a plan that doesn't fit the detected VRAM, unless
+/// `force` is set. `over_budget` is computed by the planner but was
+/// previously never consulted, letting training run straight into an OOM.
+///
+/// `force` has no caller-facing override surface yet (no CLI flag or env var
+/// sets it to `true`) — the call site always passes `false`. The parameter
+/// exists so a future task can wire a real override without touching this
+/// function's signature again.
+fn budget_gate(
+    plan: &vox_populi::mens::tensor::memory_budget::ModelPlan,
+    force: bool,
+) -> anyhow::Result<()> {
+    if plan.over_budget && !force {
+        anyhow::bail!(
+            "model '{}' does not fit in the detected VRAM at the planned seq_len/batch_size ({}); \
+             reduce --seq-len/--batch-size, pick a smaller model, or free up VRAM",
+            plan.model_id,
+            plan.rationale
+        );
+    }
+    Ok(())
+}
+
 /// The version this build stamps into freshly generated corpora.
 fn current_corpus_compiler_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -1027,6 +1052,40 @@ mod sizing_precedence_tests {
     #[test]
     fn all_none_yields_none() {
         assert_eq!(resolve_training_sizing(None, None, None, None), None);
+    }
+}
+
+#[cfg(test)]
+mod budget_gate_tests {
+    use super::budget_gate;
+    use vox_populi::mens::tensor::memory_budget::ModelPlan;
+
+    fn plan(over_budget: bool) -> ModelPlan {
+        ModelPlan {
+            model_id: "Qwen/Qwen3.8-27B".to_string(),
+            params_b: 27.0,
+            seq_len: 256,
+            batch_size: 1,
+            grad_accum: 1,
+            retreated_from_b: None,
+            over_budget,
+            rationale: "test rationale".to_string(),
+        }
+    }
+
+    #[test]
+    fn train_arm_rejects_over_budget_plan_without_override() {
+        assert!(budget_gate(&plan(true), false).is_err());
+    }
+
+    #[test]
+    fn budget_gate_allows_fitting_plan_without_override() {
+        assert!(budget_gate(&plan(false), false).is_ok());
+    }
+
+    #[test]
+    fn budget_gate_allows_over_budget_plan_with_force() {
+        assert!(budget_gate(&plan(true), true).is_ok());
     }
 }
 
