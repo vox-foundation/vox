@@ -1,0 +1,3 @@
+# Per-run contract for the macOS Metal dogfood corpus.
+# Resolved relative to this data dir so the workspace contract cannot hijack e2e.
+train_path: dogfood-metal-e2e.jsonl

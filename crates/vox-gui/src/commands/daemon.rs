@@ -8,9 +8,12 @@
 //!
 //! [`PersistentDaemon`] fixes this by ensuring exactly one long-lived TCP
 //! daemon is reachable, so tool calls, approvals, and the live streams all hit
-//! the same `ServerState`.
+//! the same `ServerState`. On Axis exit, [`PersistentDaemon::shutdown_if_spawned`]
+//! kills the child **only if this process spawned it**; adopted daemons are left
+//! running for CLI / MCP reuse.
 
 use std::process::Stdio;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::process_util::quiet_command;
 
@@ -68,6 +71,8 @@ fn read_token_file() -> Option<String> {
 pub struct PersistentDaemon {
     resolved: RwLock<Option<(String, String)>>,
     child: std::sync::Mutex<Option<std::process::Child>>,
+    /// In-flight orch tool_call count — refuse kill/respawn while > 0.
+    in_flight: AtomicUsize,
     /// Serializes [`Self::reensure`] so concurrent `ensure`/`ensure_live`
     /// callers (e.g. the status stream, the event stream, and the
     /// supervisor's periodic tick all racing at once) cannot each spawn a
@@ -93,6 +98,45 @@ pub struct PersistentDaemon {
 pub struct VersionMismatch {
     pub daemon_version: String,
     pub gui_version: String,
+}
+
+impl PersistentDaemon {
+    /// Mark an in-flight orch RPC so respawn will not kill the child mid-call.
+    pub fn begin_call(&self) {
+        self.in_flight.fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// Pair with [`Self::begin_call`]. Saturating — never wraps to `usize::MAX`.
+    pub fn end_call(&self) {
+        let _ = self
+            .in_flight
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1));
+    }
+
+    fn refuse_kill_while_busy(&self) -> Result<(), String> {
+        if self.in_flight.load(Ordering::SeqCst) > 0 {
+            Err("refusing to kill orchestrator daemon while a tool_call is in flight".to_string())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// RAII: `begin_call` on construct, `end_call` on drop (panic-safe).
+    pub fn in_flight_guard(&self) -> InFlightGuard<'_> {
+        self.begin_call();
+        InFlightGuard { daemon: self }
+    }
+}
+
+/// Drops with [`PersistentDaemon::end_call`] so panics cannot stick `in_flight`.
+pub struct InFlightGuard<'a> {
+    daemon: &'a PersistentDaemon,
+}
+
+impl Drop for InFlightGuard<'_> {
+    fn drop(&mut self) {
+        self.daemon.end_call();
+    }
 }
 
 impl PersistentDaemon {
@@ -174,7 +218,12 @@ impl PersistentDaemon {
         // token) is not adopted, and we fall through to spawning a
         // fresh daemon of our own (which self-heals once the bind
         // becomes available).
-        if let Some(existing_token) = read_token_file()
+        //
+        // Axis Drive fail-closed: never adopt a foreign orch. Pre-existing
+        // daemons were not spawned under VOX_GUI_DRIVE=1 and may lack the
+        // forwarded vault path / cloud keys the Drive child injects.
+        if !refuse_drive_foreign_adopt()
+            && let Some(existing_token) = read_token_file()
             && let Ok(resp) = OrchDaemonClient::with_token(addr.clone(), existing_token.clone())
                 .ping()
                 .await
@@ -227,19 +276,86 @@ impl PersistentDaemon {
         // file before the daemon has written it (the daemon still
         // writes the file too, for other clients to auto-resolve).
         let spawned_token = uuid::Uuid::new_v4().to_string();
-        let child = quiet_command(daemon_bin)
-            .env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
+        let mut cmd = quiet_command(daemon_bin);
+        cmd.env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
             .env("VOX_ORCHESTRATOR_DAEMON_TOKEN", &spawned_token)
             .env("VOX_MCP_CALLER_ROLE", "human")
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stdout(Stdio::null());
+        // Capture daemon stderr under ~/.vox/run so empty-frame tool_call
+        // failures are diagnosable (spawn used to discard stderr entirely).
+        let stderr_path = home
+            .join(".vox")
+            .join("run")
+            .join("orchestrator-daemon.stderr.log");
+        if let Some(parent) = stderr_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&stderr_path)
+        {
+            Ok(file) => {
+                cmd.stderr(Stdio::from(file));
+            }
+            Err(_) => {
+                cmd.stderr(Stdio::null());
+            }
+        }
+        // Axis Drive injects cloud keys + vault path into the GUI process;
+        // forward them so the orch child can resolve OpenRouter for sync chat.
+        for key in [
+            "VOX_SECRETS_VAULT_PATH",
+            "OPENROUTER_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "GEMINI_API_KEY",
+            "RUST_LOG",
+            // ChatHop dogfood trail (Tier D); GUI may set VOX_DOGFOOD_TRACE_PATH.
+            "VOX_DOGFOOD_TRACE_PATH",
+            "RUST_MIN_STACK",
+            // VoxLocal (`vox mens serve`) base URL — Metal e2e uses :11435.
+            "VOX_LOCAL_ENDPOINT",
+        ] {
+            if let Ok(v) = std::env::var(key)
+                && !v.trim().is_empty()
+            {
+                cmd.env(key, v);
+            }
+        }
+        // Default orch diagnostics when the parent did not set RUST_LOG.
+        if std::env::var_os("RUST_LOG").is_none() {
+            cmd.env("RUST_LOG", "info,vox_orchestrator_mcp=info");
+        }
+        // `vox_chat_message` futures are deep enough that the default ~2 MiB
+        // tokio worker stack overflows (abort → empty TCP frame). Prior
+        // Drive/Metal verify needed 32 MiB; set before the child creates its
+        // runtime so RUST_MIN_STACK takes effect on worker threads.
+        if std::env::var_os("RUST_MIN_STACK").is_none() {
+            cmd.env("RUST_MIN_STACK", "33554432");
+        }
+        // Check in-flight *before* spawn so a refused respawn cannot orphan a child.
+        self.refuse_kill_while_busy()?;
+        let mut child = cmd
             .spawn()
             .map_err(|e| format!("failed to spawn vox-orchestrator-d: {e}"))?;
-        if let Ok(mut slot) = self.child.lock()
-            && let Some(mut old) = slot.replace(child)
-        {
-            let _ = old.kill();
+        // TOCTOU: a call may have started between the check and spawn.
+        if let Err(e) = self.refuse_kill_while_busy() {
+            let _ = child.kill();
+            return Err(e);
+        }
+        // Hold the child slot only after a final busy check so we never kill
+        // an adopted/previous daemon while a tool_call is in flight.
+        if let Ok(mut slot) = self.child.lock() {
+            if let Err(e) = self.refuse_kill_while_busy() {
+                drop(slot);
+                let _ = child.kill();
+                return Err(e);
+            }
+            if let Some(mut old) = slot.replace(child) {
+                let _ = old.kill();
+            }
         }
 
         // Poll until the daemon answers an authenticated ping or the
@@ -300,6 +416,59 @@ impl PersistentDaemon {
             }
         });
     }
+
+    /// On Axis exit: kill `vox-orchestrator-d` **only if this process spawned it**.
+    ///
+    /// Adopted daemons (pre-existing on the socket; `child` slot empty) are left
+    /// running so CLI / `vox mcp` clients keep a shared daemon. Policy: kill-if-
+    /// spawned (operator choice 2026-09-09).
+    pub fn shutdown_if_spawned(&self) {
+        // Avoid aborting an in-flight tool_call (empty TCP frame). Brief wait
+        // only — Axis is exiting and must not hang forever.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while self.in_flight.load(Ordering::SeqCst) > 0 && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        if self.in_flight.load(Ordering::SeqCst) > 0 {
+            tracing::warn!(
+                in_flight = self.in_flight.load(Ordering::SeqCst),
+                "stopping Axis-spawned orch while tool_call still in flight"
+            );
+        }
+        let Ok(mut slot) = self.child.lock() else {
+            return;
+        };
+        if let Some(mut child) = slot.take() {
+            tracing::info!(
+                pid = child.id(),
+                "stopping Axis-spawned vox-orchestrator-d on exit"
+            );
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+
+    /// Whether this handle currently owns a Child it spawned (test/diagnostics).
+    #[cfg(test)]
+    pub fn holds_spawned_child(&self) -> bool {
+        self.child.lock().map(|g| g.is_some()).unwrap_or(false)
+    }
+}
+
+/// Returns whether the shared orchestrator daemon answers an authenticated ping
+/// (adopting or spawning as needed). Used by Axis Drive to stamp `orch_fresh`.
+#[tauri::command]
+pub async fn orchestrator_daemon_ready(
+    state: tauri::State<'_, std::sync::Arc<PersistentDaemon>>,
+) -> Result<bool, String> {
+    Ok(state.ensure_live().await.is_ok())
+}
+
+/// Axis Drive must not adopt a foreign orch that predates this process's
+/// forwarded vault path / cloud keys. Fail closed: skip adopt and spawn fresh
+/// under `VOX_GUI_DRIVE=1` (e2e Step 0 stops a conflicting listener first).
+fn refuse_drive_foreign_adopt() -> bool {
+    std::env::var("VOX_GUI_DRIVE").ok().as_deref() == Some("1")
 }
 
 /// Returns the last-detected daemon/GUI version mismatch, if any (T2/Task 2).
@@ -387,6 +556,25 @@ mod version_mismatch_tests {
     fn no_mismatch_reported_when_version_field_missing() {
         let resp = serde_json::json!({"ok": true});
         assert_eq!(detect_version_mismatch(&resp), None);
+    }
+
+    #[test]
+    fn drive_foreign_adopt_refused_when_drive_env_set() {
+        let prev = std::env::var_os("VOX_GUI_DRIVE");
+        unsafe {
+            std::env::remove_var("VOX_GUI_DRIVE");
+        }
+        assert!(!refuse_drive_foreign_adopt());
+        unsafe {
+            std::env::set_var("VOX_GUI_DRIVE", "1");
+        }
+        assert!(refuse_drive_foreign_adopt());
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("VOX_GUI_DRIVE", v),
+                None => std::env::remove_var("VOX_GUI_DRIVE"),
+            }
+        }
     }
 
     #[tokio::test]
@@ -601,6 +789,33 @@ mod tests {
         *pd.resolved.write().await = Some(("127.0.0.1:1".to_string(), "tok".to_string()));
         pd.invalidate().await;
         assert!(pd.resolved.read().await.is_none());
+    }
+
+    #[test]
+    fn shutdown_if_spawned_is_noop_when_daemon_was_only_adopted() {
+        let pd = PersistentDaemon::default();
+        assert!(!pd.holds_spawned_child());
+        pd.shutdown_if_spawned();
+        assert!(!pd.holds_spawned_child());
+    }
+
+    #[test]
+    fn refuse_kill_while_busy_when_in_flight() {
+        let pd = PersistentDaemon::default();
+        assert!(pd.refuse_kill_while_busy().is_ok());
+        pd.begin_call();
+        assert!(pd.refuse_kill_while_busy().is_err());
+        pd.end_call();
+        assert!(pd.refuse_kill_while_busy().is_ok());
+    }
+
+    #[test]
+    fn end_call_does_not_underflow_in_flight() {
+        let pd = PersistentDaemon::default();
+        pd.end_call();
+        pd.end_call();
+        assert_eq!(pd.in_flight.load(Ordering::SeqCst), 0);
+        assert!(pd.refuse_kill_while_busy().is_ok());
     }
 
     const D_20MS: std::time::Duration = std::time::Duration::from_millis(20);

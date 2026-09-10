@@ -27,6 +27,7 @@ pub(crate) const KNOWN_DIAGNOSIS_IDS: &[&str] = &[
     "sccache.pathological",
     "sccache.shadowed_shim",
     "vox.schema_drift",
+    "vox.schema_legacy",
     "linker.lld_missing",
     "linker.gui_carveout_missing",
     "ci.hook_guard_stale_binary",
@@ -254,17 +255,44 @@ pub(crate) async fn schema_health(checks: &mut Vec<Check>) {
     let Ok(cfg) = vox_db::DbConfig::resolve_canonical() else {
         return;
     };
+    let path_hint = match &cfg {
+        #[cfg(feature = "local")]
+        vox_db::DbConfig::Local { path } => path.clone(),
+        other => format!("{other:?}"),
+    };
     match vox_db::VoxDb::connect(cfg).await {
         Ok(_) => checks.push(Check::pass(
             "vox: schema version",
-            format!("binary baseline {baseline}, DB on baseline"),
+            format!("binary baseline {baseline}, DB on baseline ({path_hint})"),
         )),
         Err(vox_db::StoreError::LegacySchemaChain { max_version }) => {
-            if let Some(detail) = schema_drift(baseline, max_version) {
-                checks.push(Check::fail("vox: schema drift", diag(
-                    "vox.schema_drift", "error", &detail,
-                    "rebuild vox if your source has the newer migration, else this DB is from a newer vox than your checkout: cargo build -p vox-cli --release",
-                    false)));
+            let detail = format!(
+                "path={path_hint}, max_version={max_version}, binary baseline={baseline}. \
+                 Export with `vox codex export-legacy` then import into a fresh baseline DB. \
+                 Do not delete interactive repo `.vox/store.db` or the canonical user DB."
+            );
+            if let Some(drift) = schema_drift(baseline, max_version) {
+                checks.push(Check::fail(
+                    "vox: schema drift",
+                    diag(
+                        "vox.schema_drift",
+                        "error",
+                        &format!("{drift}; {detail}"),
+                        "rebuild vox if your source has the newer migration, else this DB is from a newer vox than your checkout: cargo build -p vox-cli --release",
+                        false,
+                    ),
+                ));
+            } else {
+                checks.push(Check::fail(
+                    "vox: legacy schema",
+                    diag(
+                        "vox.schema_legacy",
+                        "error",
+                        &detail,
+                        "vox codex export-legacy → fresh Codex DB → vox codex import-legacy",
+                        false,
+                    ),
+                ));
             }
         }
         Err(_) => {} // other connect errors are not a schema-drift signal
@@ -458,7 +486,7 @@ pub(crate) fn check_kind_for_diag(id: &str) -> Option<DiagCheckKind> {
         }
         "docker.wsl_wedged" | "docker.daemon_down" | "docker.absent" => Some(DiagCheckKind::Docker),
         "sccache.pathological" | "sccache.shadowed_shim" => Some(DiagCheckKind::Sccache),
-        "vox.schema_drift" => Some(DiagCheckKind::Schema),
+        "vox.schema_drift" | "vox.schema_legacy" => Some(DiagCheckKind::Schema),
         "linker.lld_missing" | "linker.gui_carveout_missing" => Some(DiagCheckKind::Linker),
         "ci.hook_guard_stale_binary" => Some(DiagCheckKind::HookGuard),
         _ => None,

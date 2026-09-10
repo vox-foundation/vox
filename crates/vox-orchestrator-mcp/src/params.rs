@@ -249,6 +249,10 @@ pub struct SubmitTaskParams {
     #[serde(default)]
     #[schemars(length(max = 256))]
     pub trace_id: Option<String>,
+    /// Optional ChatHop / Drive turn id; forwarded via enqueue hints onto [`AgentTask::turn_id`].
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub turn_id: Option<String>,
     /// Optional budget constraints for the task (USD cost and/or latency).
     #[serde(default)]
     pub budget: Option<BudgetParams>,

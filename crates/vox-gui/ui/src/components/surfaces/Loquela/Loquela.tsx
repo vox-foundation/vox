@@ -11,6 +11,8 @@ import {
   COMPOSER_HISTORY_CAP,
   LOQUELA_FILE_PICKER_DEBOUNCE_MS,
   LOQUELA_FILE_PICKER_LIMIT,
+  LOQUELA_MODEL_SEARCH_DEBOUNCE_MS,
+  LOQUELA_MODEL_SEARCH_LIMIT,
   LOQUELA_TIER_MODEL_COUNT,
 } from '../../../config/constants';
 import {
@@ -261,6 +263,10 @@ export function Loquela({
   const [histIdx,   setHistIdx]   = useState(-1);
   const [expanded,  setExpanded]  = useState(false);
   const [runtimeTiers, setRuntimeTiers] = useState(LQ_TIERS);
+  const [modelLoadStatus, setModelLoadStatus] = useState<'idle' | 'loading' | 'ok' | 'empty' | 'error'>('idle');
+  const [liveSearchTiers, setLiveSearchTiers] = useState<typeof LQ_TIERS | null>(null);
+  const [liveSearchStatus, setLiveSearchStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const modelSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [intent, setIntent] = useState<IntentFields>(EMPTY_INTENT);
   const [intentOpen, setIntentOpen] = useState(false);
 
@@ -336,11 +342,21 @@ export function Loquela({
   useEffect(() => {
     let cancelled = false;
     const loadTiers = () => {
+      setModelLoadStatus('loading');
       Promise.all([
         voxTransport.listModels(LOQUELA_TIER_MODEL_COUNT),
         invoke<ProviderStatus[]>('inference_provider_status').catch(() => []),
       ]).then(([models, statuses]) => {
-        if (cancelled || !Array.isArray(models) || models.length === 0) return;
+        if (cancelled) return;
+        if (!Array.isArray(models)) {
+          setModelLoadStatus('error');
+          return;
+        }
+        if (models.length === 0) {
+          setRuntimeTiers(ROUTING_TIERS);
+          setModelLoadStatus('empty');
+          return;
+        }
         const statusRows = Array.isArray(statuses) ? statuses : [];
         const available = filterPickerModels(
           models
@@ -358,10 +374,13 @@ export function Loquela({
           lat: null as number | null,
         }));
         setRuntimeTiers([...ROUTING_TIERS, ...dynamic]);
+        setModelLoadStatus('ok');
         if (!isRoutingTierId(tier) && !dynamic.some(d => d.id === tier)) {
           setTier('auto');
         }
-      }).catch(() => {});
+      }).catch(() => {
+        if (!cancelled) setModelLoadStatus('error');
+      });
     };
     loadTiers();
     // Embedded mini-render: one initial load only — no 60s poll, no focus refresh.
@@ -376,6 +395,60 @@ export function Loquela({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [embedded]);
+
+  // Live keyed-provider autocomplete (OpenRouter TTL + Anthropic/Google/Mens) —
+  // does not rely on the disk model-catalog cache.
+  useEffect(() => {
+    if (!tierOpen) {
+      setLiveSearchTiers(null);
+      setLiveSearchStatus('idle');
+      if (modelSearchDebounceRef.current) clearTimeout(modelSearchDebounceRef.current);
+      return;
+    }
+    const q = tierQuery.trim();
+    if (!q) {
+      setLiveSearchTiers(null);
+      setLiveSearchStatus('idle');
+      return;
+    }
+    if (modelSearchDebounceRef.current) clearTimeout(modelSearchDebounceRef.current);
+    modelSearchDebounceRef.current = setTimeout(() => {
+      setLiveSearchStatus('loading');
+      voxTransport
+        .searchModels(q, LOQUELA_MODEL_SEARCH_LIMIT)
+        .then((models: unknown) => {
+          if (!Array.isArray(models)) {
+            setLiveSearchStatus('error');
+            return;
+          }
+          const rows = (models as Array<{
+            id?: string;
+            model_id?: string;
+            display_name?: string;
+            provider?: string;
+            provider_type?: string;
+          }>)
+            .map(m => normalizeModelCard(m))
+            .filter((m): m is PickerModel => m != null)
+            .map(m => ({
+              id: m.id,
+              label: m.label,
+              detail: m.providerType || m.provider || 'live',
+              cost: null as number | null,
+              lat: null as number | null,
+            }));
+          setLiveSearchTiers(rows);
+          setLiveSearchStatus('ok');
+        })
+        .catch(() => {
+          setLiveSearchTiers(null);
+          setLiveSearchStatus('error');
+        });
+    }, LOQUELA_MODEL_SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (modelSearchDebounceRef.current) clearTimeout(modelSearchDebounceRef.current);
+    };
+  }, [tierOpen, tierQuery]);
 
   const allSlash = useMemo(() => buildSlashEntries(skills), [skills]);
   const filteredSlash = useMemo(() => {
@@ -398,15 +471,26 @@ export function Loquela({
     runtimeTiers.find(t => t.id === effectiveTierId) ||
     runtimeTiers.find(t => t.id === 'auto') ||
     runtimeTiers[runtimeTiers.length - 1];
-  const visibleTiers = runtimeTiers.filter(t => {
+  const visibleTiers = useMemo(() => {
     const q = tierQuery.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      t.id.toLowerCase().includes(q) ||
-      t.label.toLowerCase().includes(q) ||
-      (t.detail ?? '').toLowerCase().includes(q)
-    );
-  });
+    if (q && liveSearchTiers !== null) {
+      const routingHits = ROUTING_TIERS.filter(
+        t =>
+          t.id.toLowerCase().includes(q) ||
+          t.label.toLowerCase().includes(q) ||
+          (t.detail ?? '').toLowerCase().includes(q),
+      );
+      return [...routingHits, ...liveSearchTiers];
+    }
+    return runtimeTiers.filter(t => {
+      if (!q) return true;
+      return (
+        t.id.toLowerCase().includes(q) ||
+        t.label.toLowerCase().includes(q) ||
+        (t.detail ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [tierQuery, liveSearchTiers, runtimeTiers]);
   const triggerLabel = isRoutingTierId(tierObj.id)
     ? tierObj.label.split(' · ')[0]
     : shortModelLabel(tierObj.id);
@@ -805,17 +889,33 @@ export function Loquela({
             <Icon.list className="size-3" aria-hidden="true" /> Intent{hasIntent(intent) ? ' ·' : ''}
           </button>
 
-          <div className="relative" ref={tierRootRef}>
+          <div className="relative flex items-center gap-1.5" ref={tierRootRef}>
             <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); setModeOpen(false); if (!tierOpen) setTierQuery(''); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
               <Icon.cpu className="size-3 text-cyan-300" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{triggerLabel}</span>
               <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
             </button>
+            {modelLoadStatus === 'error' && (
+              <span className="font-mono text-[9px] text-amber-300" data-testid="model-load-status">Models unavailable</span>
+            )}
+            {modelLoadStatus === 'empty' && (
+              <span className="font-mono text-[9px] text-text-muted" data-testid="model-load-status">No models loaded</span>
+            )}
             <Popover open={tierOpen}>
               <div className="w-[min(22rem,80vw)]">
                 <div className="sticky top-0 z-10 bg-bg-base">
                   <ModelPickerSearch value={tierQuery} onChange={setTierQuery} />
                 </div>
                 <div data-testid="model-picker-scroll" className="max-h-72 overflow-y-auto overscroll-contain custom-scrollbar">
+                  {liveSearchStatus === 'loading' && tierQuery.trim() && (
+                    <div className="px-2 py-1.5 font-mono text-[10px] text-text-muted" data-testid="model-search-status">
+                      Searching live catalogs…
+                    </div>
+                  )}
+                  {liveSearchStatus === 'error' && tierQuery.trim() && (
+                    <div className="px-2 py-1.5 font-mono text-[10px] text-amber-300" data-testid="model-search-status">
+                      Live search failed — showing cached list
+                    </div>
+                  )}
                   {visibleTiers.map(t => (
                     <button type="button" key={t.id} onClick={() => {
                       setTier(t.id);
@@ -829,7 +929,7 @@ export function Loquela({
                       </div>
                     </button>
                   ))}
-                  {visibleTiers.length === 0 && (
+                  {visibleTiers.length === 0 && liveSearchStatus !== 'loading' && (
                     <div className="px-2 py-1.5 font-mono text-[10px] text-text-muted">No keyed models match</div>
                   )}
                 </div>

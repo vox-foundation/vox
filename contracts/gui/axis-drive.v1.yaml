@@ -32,6 +32,16 @@ errors:
   model_not_selectable: 409
   unauthorized: 401
   send_in_flight: 409
+wait_until:
+  reply: "last_error set OR last bubble role=assistant (settled; may be error)"
+  reply_ok: "last_error null AND last assistant bubble non-empty AND error!=true"
+  error: "last_error non-null"
+  selectable: "selectable=<catalog_id>"
+  event: "event=<kind> matches state.events[].kind"
+state_snapshot:
+  events: "DriveTurnEvent[] cap 500"
+  events_dropped: integer
+  last_turn_id: "string|null"
 # pin_policy: fail is Drive-only and stricter than the click path
 # (ChatModelPicker does not 409 an unselectable pin).
 drive_only_stricter_than_click:

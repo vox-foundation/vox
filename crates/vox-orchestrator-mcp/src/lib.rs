@@ -45,6 +45,7 @@ pub mod benchmark_tools;
 pub mod browser_tools;
 /// Trusted caller role for browser control-lock authorization.
 pub mod caller_role;
+pub mod chat_hop;
 /// Shared LLM model resolution for chat tools.
 pub mod chat_model_resolve;
 /// Socrates grounding + telemetry helpers for chat tools.
@@ -125,6 +126,7 @@ pub(crate) mod text_normalization;
 #[cfg(feature = "toestub-gate")]
 pub mod toestub_tools;
 pub mod tool_aliases;
+pub mod tool_envelope;
 /// Strip `image_base64` from MCP tool JSON and build image parts for chat.
 pub mod tool_images;
 /// `vox_tool_search` — keyword search over the tool registry (progressive disclosure).

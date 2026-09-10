@@ -39,7 +39,10 @@ runs:
         )
         # Allowlist-parse extras from env (never interpolate into the script body).
         if [[ -n "${EXTRA_PACKAGES}" ]]; then
-          if [[ ! "${EXTRA_PACKAGES}" =~ ^[a-zA-Z0-9.+ -]*$ ]]; then
+          # Keep the regex in a variable — an unescaped space inside `[[ =~ ]]`
+          # is a bash syntax error ("syntax error in conditional expression").
+          _extra_re='^[a-zA-Z0-9.+ -]*$'
+          if [[ ! "${EXTRA_PACKAGES}" =~ ${_extra_re} ]]; then
             echo "::error::extra-packages contains disallowed characters: ${EXTRA_PACKAGES}"
             exit 1
           fi

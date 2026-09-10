@@ -75,8 +75,7 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
             Ok(vox_config::inference::hf_router_chat_completions_url())
         }
         ProviderType::VoxLocal => {
-            let url = std::env::var("VOX_LOCAL_ENDPOINT")
-                .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
+            let url = crate::llm_bridge::providers::vox_local_generate_base_url();
             Ok(format!("{}/generate", url.trim_end_matches('/')))
         }
         ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => {

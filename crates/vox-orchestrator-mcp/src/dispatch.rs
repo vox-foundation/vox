@@ -427,6 +427,8 @@ pub async fn handle_tool_call_with_mode(
 
     // Operation capture (sub-project 1): best-effort, redacted, fire-and-forget.
     // Runs only for executed tools (guard rejections returned earlier).
+    let call_succeeded = crate::tool_envelope::tool_dispatch_call_succeeded(&result);
+
     crate::operation_capture::spawn_capture(
         state.db.clone(),
         state.orchestrator_config.operations_capture_enabled,
@@ -439,7 +441,7 @@ pub async fn handle_tool_call_with_mode(
         session_id.map(|s| s.to_string()),
         agent_id.map(|s| s.to_string()),
         duration_ms,
-        result.is_err(),
+        !call_succeeded,
     );
 
     // Track E — emit structured telemetry for every MCP tool call.
@@ -455,8 +457,8 @@ pub async fn handle_tool_call_with_mode(
             mode: mode.to_string(),
         }));
 
-        // edit_pattern — only on successful file mutations.
-        if result.is_ok() && is_file_mutation(name_canonical) {
+        // edit_pattern — only on successful file mutations (envelope success).
+        if call_succeeded && is_file_mutation(name_canonical) {
             let op_type = file_op_type(name_canonical);
             let file_kind = args
                 .get("path")
@@ -481,9 +483,12 @@ pub async fn handle_tool_call_with_mode(
             }));
         }
 
-        // error_surface — only on failures.
-        if let Err(ref e) = result {
-            let error_class = error_class_from_err(e);
+        // error_surface — Result::Err **or** ToolResult error envelope.
+        if !call_succeeded {
+            let error_class = match &result {
+                Err(e) => error_class_from_err(e),
+                Ok(_) => "tool_envelope_error",
+            };
             let subsystem = subsystem_from_tool(name_canonical);
             vox_telemetry::record_event!(&TelemetryEvent::ErrorSurface(ErrorSurfaceEvent {
                 error_class: error_class.to_string(),
@@ -499,7 +504,7 @@ pub async fn handle_tool_call_with_mode(
             trace_id = %tid,
             tool = name_canonical,
             duration_ms,
-            success = result.is_ok(),
+            success = call_succeeded,
             "mcp_tool_call"
         );
     }
@@ -514,7 +519,7 @@ pub async fn handle_tool_call_with_mode(
             "tool": name_canonical,
             "args": args_stored,
             "duration_ms": duration_ms,
-            "success": result.is_ok(),
+            "success": call_succeeded,
             "repository_id": state.repository.repository_id,
             "mutation_kind": vox_orchestrator::agentos::mutation_classifier::mutation_kind_for_tool(name_canonical),
         });
@@ -532,7 +537,7 @@ pub async fn handle_tool_call_with_mode(
                 "tool": name_canonical,
                 "args": args_stored,
                 "duration_ms": duration_ms,
-                "success": result.is_ok(),
+                "success": call_succeeded,
                 "repository_id": state.repository.repository_id,
                 "mutation_kind": vox_orchestrator::agentos::mutation_classifier::mutation_kind_for_tool(name_canonical),
             });
@@ -552,6 +557,22 @@ pub async fn handle_tool_call_with_mode(
             .await;
         }
     }
+
+    let turn_id_for_hop = args
+        .get("turn_id")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string);
+    crate::chat_hop::record_mcp_tool_hop(
+        state,
+        name_canonical,
+        trace_for_telemetry.clone(),
+        turn_id_for_hop,
+        session_id.map(ToString::to_string),
+        call_succeeded,
+        duration_ms as u64,
+    );
 
     result
 }

@@ -211,6 +211,23 @@ struct PlanResponseSchema {
 /// Generate a structured plan for a goal. Optionally writes PLAN.md to the workspace root.
 /// This backs the Cursor-style "Planning Mode" in the extension and in Vox agents.
 pub async fn plan_goal(state: &ServerState, params: PlanParams) -> String {
+    if params
+        .trace_id
+        .as_deref()
+        .is_some_and(|s| !s.trim().is_empty())
+        || params
+            .turn_id
+            .as_deref()
+            .is_some_and(|s| !s.trim().is_empty())
+    {
+        tracing::debug!(
+            target: "vox_mcp::plan",
+            trace_id = ?params.trace_id,
+            turn_id = ?params.turn_id,
+            session_id = ?params.session_id,
+            "vox_plan ChatHop correlation ids"
+        );
+    }
     let max_tasks = params.max_tasks.unwrap_or(30);
     let plan_depth = params.plan_depth.unwrap_or_default();
     let scope_note = if params.scope_files.is_empty() {

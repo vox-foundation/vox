@@ -45,6 +45,19 @@ describe('axisDrive', () => {
     expect(rows[0]?.reason).toBe('status_unavailable');
   });
 
+  it('copies provider fields into catalog rows', () => {
+    const rows = snapshotCatalog(
+      [{ id: 'openrouter/auto', label: 'auto', provider: 'OpenRouter', providerType: 'OpenRouter' }],
+      [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null }],
+    );
+    expect(rows[0]).toMatchObject({
+      id: 'openrouter/auto',
+      selectable: true,
+      provider: 'OpenRouter',
+      provider_type: 'OpenRouter',
+    });
+  });
+
   it('parseKnobPairs splits key=value', () => {
     const set = parseKnobPairs([
       'model_override=mens/e2e-smoke',

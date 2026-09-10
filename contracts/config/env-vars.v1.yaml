@@ -876,6 +876,12 @@ variables:
     required: false
     introduced_in: "0.6.0"
     description: "Path to the 0600 bearer token file. Do not put the token value in the environment."
+  - name: "VOX_GUI_DRIVE_ALLOW_STORE_RESET"
+    owner_crate: "vox-gui"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    description: "When VOX_GUI_DRIVE=1 and VOX_GUI_DRIVE_STORE_ROOT is set, allow wiping a LegacySchemaChain Drive store.db once and recreating on the binary baseline. Never auto-wipes interactive or canonical DBs."
   - name: "VOX_GUI_PLAYWRIGHT"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -4259,7 +4265,7 @@ variables:
     kind: "string"
     required: false
     introduced_in: "0.5.0"
-    description: "Base URL for the VoxLocal (MENS) inference server. Defaults to http://127.0.0.1:11434 (in-tree `vox-ml-cli mens serve`, Ollama-compat port). Older docs reference :7863 — that was an aspirational pre-implementation value that never shipped."
+    description: "Base URL for the VoxLocal (MENS) inference server (`vox mens serve`). When unset, Axis/GUI probe http://127.0.0.1:11434 then :11435 and use the first endpoint whose /health reports service=vox-ml-cli (Ollama on :11434 is ignored). Set explicitly to pin a non-default port."
   - name: "VOX_CONFIG_DIR"
     owner_crate: "vox-cli"
     kind: "string"

@@ -28,7 +28,19 @@ fn drive_child_env(
     store_root: &std::path::Path,
     token_path: &std::path::Path,
 ) -> Vec<(String, String)> {
-    vec![
+    // Default: pin Clavis to the user home store so Drive's cwd under
+    // `~/.vox/gui-drive/<profile>` cannot open a cwd-relative empty vault.
+    // Honesty scripts may override via parent `VOX_SECRETS_VAULT_PATH`.
+    let vault_path = std::env::var("VOX_SECRETS_VAULT_PATH")
+        .ok()
+        .filter(|p| !p.trim().is_empty())
+        .unwrap_or_else(|| {
+            vox_secrets::sources::auth_json::vox_dir()
+                .join("clavis_vault.db")
+                .display()
+                .to_string()
+        });
+    let mut env = vec![
         ("VOX_GUI_DRIVE".into(), "1".into()),
         (
             "VOX_GUI_DRIVE_SHOW".into(),
@@ -46,7 +58,48 @@ fn drive_child_env(
             "VOX_GUI_DRIVE_TOKEN_PATH".into(),
             token_path.display().to_string(),
         ),
-    ]
+        ("VOX_SECRETS_VAULT_PATH".into(), vault_path),
+        // Inherit parent dogfood dir so orch ChatHop JSONL lands where e2e expects.
+        // Deep `vox_chat_message` futures need >2 MiB worker stacks (else abort).
+        ("RUST_MIN_STACK".into(), "33554432".into()),
+    ];
+    if let Ok(dogfood) = std::env::var("VOX_DOGFOOD_TRACE_PATH")
+        && !dogfood.trim().is_empty()
+    {
+        env.push(("VOX_DOGFOOD_TRACE_PATH".into(), dogfood));
+    }
+    if let Ok(reset) = std::env::var("VOX_GUI_DRIVE_ALLOW_STORE_RESET")
+        && reset.trim() == "1"
+    {
+        env.push(("VOX_GUI_DRIVE_ALLOW_STORE_RESET".into(), "1".into()));
+    }
+    // Metal / VoxLocal serve often binds :11435 when Ollama owns :11434.
+    // Forward so Axis probe + orch routing share the parent's endpoint pin.
+    if let Ok(endpoint) = std::env::var("VOX_LOCAL_ENDPOINT")
+        && !endpoint.trim().is_empty()
+    {
+        env.push(("VOX_LOCAL_ENDPOINT".into(), endpoint));
+    }
+    // Axis/Tauri may not resolve the Clavis vault the same way as the CLI
+    // (cwd + keyring ACL). Forward cloud keys the parent CLI can already
+    // resolve so Drive catalog + orch chat see the same credentials.
+    // Honesty scripts set an empty vault + empty env keys so these resolve None.
+    for (id, canonical) in [
+        (
+            vox_secrets::SecretId::OpenRouterApiKey,
+            "OPENROUTER_API_KEY",
+        ),
+        (vox_secrets::SecretId::AnthropicApiKey, "ANTHROPIC_API_KEY"),
+        (vox_secrets::SecretId::OpenaiApiKey, "OPENAI_API_KEY"),
+        (vox_secrets::SecretId::GeminiApiKey, "GEMINI_API_KEY"),
+    ] {
+        if let Some(value) = vox_secrets::resolve_secret_for_cli(id).expose()
+            && !value.trim().is_empty()
+        {
+            env.push((canonical.into(), value.to_string()));
+        }
+    }
+    env
 }
 
 async fn start(args: DriveStartArgs) -> Result<()> {
@@ -182,9 +235,7 @@ fn set(args: DriveSetArgs) -> Result<()> {
     let body = serde_json::Value::Object(map).to_string();
     let (status, resp) = client::post("set", &body)?;
     println!("{resp}");
-    if status >= 400 {
-        bail!("set failed ({status})");
-    }
+    client::require_ok_json_body(status, &resp)?;
     Ok(())
 }
 
@@ -202,8 +253,11 @@ fn send(args: DriveSendArgs) -> Result<()> {
     let body = serde_json::json!({ "text": args.text }).to_string();
     let (status, resp) = client::post("send", &body)?;
     println!("{resp}");
-    if status >= 400 {
-        bail!("send failed ({status})");
+    client::require_ok_json_body(status, &resp)?;
+    // Live plane returns HTTP 200 with `last_error` set on soft submit
+    // failures — exit non-zero so e2e cannot treat send alone as success.
+    if client::response_has_last_error(&resp) {
+        bail!("send failed (last_error set)");
     }
     Ok(())
 }
@@ -211,9 +265,7 @@ fn send(args: DriveSendArgs) -> Result<()> {
 fn state() -> Result<()> {
     let (status, resp) = client::post("state", "{}")?;
     println!("{resp}");
-    if status >= 400 {
-        bail!("state failed ({status})");
-    }
+    client::require_ok_json_body(status, &resp)?;
     Ok(())
 }
 
@@ -242,9 +294,13 @@ fn headless(cmd: DriveHeadlessCmd) -> Result<()> {
         .context("stdin")?
         .write_all(req.to_string().as_bytes())?;
     let out = child.wait_with_output()?;
-    print!("{}", String::from_utf8_lossy(&out.stdout));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    print!("{stdout}");
     if !out.status.success() {
         bail!("headless failed");
+    }
+    if client::headless_response_failed(&stdout) {
+        bail!("headless failed (error envelope)");
     }
     Ok(())
 }
@@ -307,6 +363,54 @@ mod tests {
         assert!(
             env.iter()
                 .any(|(k, v)| k == "VOX_GUI_DRIVE_STORE_ROOT" && v.ends_with("gui-drive/agent-1"))
+        );
+        assert!(
+            env.iter()
+                .any(|(k, v)| k == "VOX_SECRETS_VAULT_PATH" && v.ends_with("clavis_vault.db"))
+        );
+        let vault = env
+            .iter()
+            .find(|(k, _)| k == "VOX_SECRETS_VAULT_PATH")
+            .map(|(_, v)| v.as_str())
+            .expect("vault path");
+        let vault_path = std::path::Path::new(vault);
+        assert!(
+            vault_path.is_absolute(),
+            "Drive vault pin must be absolute, got {vault}"
+        );
+        assert!(
+            env.iter()
+                .any(|(k, v)| k == "RUST_MIN_STACK" && v == "33554432"),
+            "Drive must pin RUST_MIN_STACK so orch workers survive deep chat futures"
+        );
+    }
+
+    #[test]
+    #[allow(unsafe_code)] // set_var/remove_var unsafe on Rust 2024; serialised by this test alone.
+    fn drive_env_honors_parent_secrets_vault_path_override() {
+        struct Restore(Option<String>);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                match &self.0 {
+                    Some(v) => unsafe { std::env::set_var("VOX_SECRETS_VAULT_PATH", v) },
+                    None => unsafe { std::env::remove_var("VOX_SECRETS_VAULT_PATH") },
+                }
+            }
+        }
+        let _guard = Restore(std::env::var("VOX_SECRETS_VAULT_PATH").ok());
+        let override_path = "/tmp/vox-drive-honesty-empty-vault.db";
+        unsafe { std::env::set_var("VOX_SECRETS_VAULT_PATH", override_path) };
+        let env = drive_child_env(
+            false,
+            std::path::Path::new("/tmp/gui-drive/agent-1"),
+            std::path::Path::new("/tmp/run/gui-drive.token"),
+        );
+        assert_eq!(
+            env.iter()
+                .find(|(k, _)| k == "VOX_SECRETS_VAULT_PATH")
+                .map(|(_, v)| v.as_str()),
+            Some(override_path),
+            "honesty scripts must be able to pin an empty vault into the Drive child"
         );
     }
 

@@ -178,6 +178,13 @@ pub async fn run_train(
         // `Device::new_metal(0)` path. Install that plugin with
         // `--features metal` (`cargo build -p vox-plugin-mens-candle-cuda
         // --release --features metal` then `vox plugin install --path …`).
+        #[cfg(target_os = "macos")]
+        if matches!(device_kind, vox_populi::mens::DeviceKind::Metal) {
+            // Metal uses the runtime plugin's complete `run_full_training`
+            // path; SP3-D stubs do not block this dispatch.
+            #[cfg(feature = "gpu")]
+            crate::commands::mens::plugin_heal::ensure_metal_plugin(true)?;
+        }
     }
 
     tracing::debug!(
@@ -450,5 +457,18 @@ pub async fn run_train(
         eprintln!("  Canonical QLoRA (when `gpu` is enabled): `vox mens train --backend qlora …`");
         eprintln!("  See docs/src/reference/mens-training.md");
         Ok(())
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    #[test]
+    fn metal_qlora_error_is_not_the_old_dead_gate_message() {
+        let source = include_str!("run_train.rs");
+        let old_gate = ["`--device metal` for Candle QLoRA", " is not supported yet"].concat();
+        assert!(
+            !source.contains(&old_gate),
+            "Metal QLoRA must no longer use the old dead-gate error"
+        );
     }
 }

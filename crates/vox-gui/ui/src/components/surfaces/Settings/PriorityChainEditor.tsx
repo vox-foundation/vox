@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
+import { MODEL_LIST_LIMIT } from '../../../config/constants';
 import { voxTransport } from '../../../transport';
 
 // --- SelectionPolicy JSON shape (mirrors vox_orchestrator::models::SelectionPolicy) ---
@@ -105,7 +106,7 @@ export function PriorityChainEditor({ pushToast }: Props) {
         setLoading(false);
       }
       try {
-        const cards = await voxTransport.listModels(120);
+        const cards = await voxTransport.listModels(MODEL_LIST_LIMIT);
         setModels((cards as any[]).map((c) => c.id).filter(Boolean));
       } catch {
         // model list is optional; PinModel falls back to a free-text input.

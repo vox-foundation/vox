@@ -10,7 +10,7 @@ export const CHAT_TURN_KEYS = [
   'session_id', 'content', 'execution', 'model_override', 'tier',
   'clutch', 'risk', 'context_files', 'active_skill', 'skill_exclusions',
   'grounding_check_enabled', 'priority', 'dry_run', 'allow_duplicate',
-  'mode', 'chat_session_id',
+  'mode', 'chat_session_id', 'trace_id', 'turn_id',
 ] as const;
 
 export interface BuildChatTurnCtx {
@@ -27,6 +27,16 @@ export interface BuildChatTurnCtx {
    *  callers that don't set it (the sync path, where the two are the same)
    *  still get a correct value. */
   chatSessionId?: string | null;
+  /** Optional pre-minted correlation ids (App mints once per send). */
+  traceId?: string | null;
+  turnId?: string | null;
+}
+
+function mintId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 /** The composer-payload subset the builder reads. Structural rather than
@@ -47,9 +57,20 @@ export interface ChatTurnSource {
   mode?: string | null;
   files?: string[];
   context?: unknown;
+  /** Pre-minted correlation ids (Drive send); App must prefer these. */
+  turn_id?: string | null;
+  trace_id?: string | null;
 }
 
 export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): ChatTurnInput {
+  const fromPayloadTrace = payload.trace_id?.trim();
+  const fromPayloadTurn = payload.turn_id?.trim();
+  const traceId = (ctx.traceId && ctx.traceId.trim())
+    || fromPayloadTrace
+    || mintId();
+  const turnId = (ctx.turnId && ctx.turnId.trim())
+    || fromPayloadTurn
+    || mintId();
   return {
     session_id: ctx.sessionId,
     content: payload.description,
@@ -72,5 +93,7 @@ export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): C
     allow_duplicate: ctx.allowDuplicate ?? null,
     mode: payload.mode ?? null,
     chat_session_id: ctx.chatSessionId ?? ctx.sessionId ?? null,
+    trace_id: traceId,
+    turn_id: turnId,
   };
 }

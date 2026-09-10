@@ -68,6 +68,9 @@ pub struct ChatMessageParams {
     /// Optional end-to-end trace id; forwarded to retrieval (`vox-search`) for logging and sidecar HTTP.
     #[serde(default)]
     pub trace_id: Option<String>,
+    /// Per-submit turn id from Axis / Drive (ChatHop + Drive event correlation).
+    #[serde(default)]
+    pub turn_id: Option<String>,
     /// Optional correlation id; used for retrieval when `trace_id` is unset.
     #[serde(default)]
     pub correlation_id: Option<String>,
@@ -293,6 +296,12 @@ pub struct PlanParams {
     /// Optional top_p override (0.0–1.0).
     #[serde(default)]
     pub top_p: Option<f32>,
+    /// End-to-end ChatHop correlation (UUID minted once per `/plan` send).
+    #[serde(default)]
+    pub trace_id: Option<String>,
+    /// Per-submit turn id (UUID); pairs with Drive `last_turn_id` and ChatHop JSONL.
+    #[serde(default)]
+    pub turn_id: Option<String>,
 }
 
 /// Arguments for `vox_replan` — forwards to DeI `ai.plan.replan` when `vox-orchestrator-d` is available.
@@ -524,5 +533,27 @@ mod chat_params_tests {
         assert_eq!(p.mode, None);
         assert_eq!(p.priority, None);
         assert_eq!(p.dry_run, None);
+    }
+}
+
+#[cfg(test)]
+mod plan_params_tests {
+    use super::PlanParams;
+
+    #[test]
+    fn plan_params_parses_trace_and_turn_ids() {
+        let p: PlanParams =
+            serde_json::from_str(r#"{"goal":"ship it","trace_id":"trace-1","turn_id":"turn-1"}"#)
+                .expect("deserialize");
+        assert_eq!(p.goal, "ship it");
+        assert_eq!(p.trace_id.as_deref(), Some("trace-1"));
+        assert_eq!(p.turn_id.as_deref(), Some("turn-1"));
+    }
+
+    #[test]
+    fn plan_params_correlation_ids_default_absent() {
+        let p: PlanParams = serde_json::from_str(r#"{"goal":"ship it"}"#).expect("deserialize");
+        assert!(p.trace_id.is_none());
+        assert!(p.turn_id.is_none());
     }
 }
