@@ -56,15 +56,20 @@ pub fn handle_headless(req: &Value) -> Value {
     }
 }
 
+fn headless_claims() -> Value {
+    json!({
+        "picker_ui": false,
+        "composer_knobs": false,
+        "bubbles": false,
+        "events": false,
+    })
+}
+
 fn headless_ok(mut extra: Value) -> Value {
     let obj = extra.as_object_mut().cloned().unwrap_or_default();
     let mut out = json!({
         "plane": "headless",
-        "claims": {
-            "picker_ui": false,
-            "composer_knobs": false,
-            "bubbles": false,
-        },
+        "claims": headless_claims(),
     });
     if let Some(map) = out.as_object_mut() {
         for (k, v) in obj {
@@ -77,11 +82,7 @@ fn headless_ok(mut extra: Value) -> Value {
 fn headless_error(code: &str, status: u16) -> Value {
     json!({
         "plane": "headless",
-        "claims": {
-            "picker_ui": false,
-            "composer_knobs": false,
-            "bubbles": false,
-        },
+        "claims": headless_claims(),
         "error": code,
         "status": status,
     })
@@ -98,6 +99,7 @@ mod tests {
         assert_eq!(out["claims"]["picker_ui"], false);
         assert_eq!(out["claims"]["composer_knobs"], false);
         assert_eq!(out["claims"]["bubbles"], false);
+        assert_eq!(out["claims"]["events"], false);
         assert_eq!(out["error"], "empty_text");
     }
 
@@ -106,6 +108,7 @@ mod tests {
         let out = handle_headless(&json!({ "verb": "state" }));
         assert_eq!(out["plane"], "headless");
         assert_eq!(out["claims"]["picker_ui"], false);
+        assert_eq!(out["claims"]["events"], false);
         assert_eq!(out["state"]["plane"], "headless");
     }
 }

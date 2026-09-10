@@ -59,6 +59,12 @@ export const LOQUELA_TIER_MODEL_COUNT = MODEL_LIST_LIMIT;
 /** Loquela @file picker debounce (ms). */
 export const LOQUELA_FILE_PICKER_DEBOUNCE_MS = 200;
 
+/** Loquela "Run on" live model-search debounce (ms). */
+export const LOQUELA_MODEL_SEARCH_DEBOUNCE_MS = 200;
+
+/** Loquela live model-search result cap. */
+export const LOQUELA_MODEL_SEARCH_LIMIT = 80;
+
 /** Loquela @file picker suggestion cap. */
 export const LOQUELA_FILE_PICKER_LIMIT = 20;
 

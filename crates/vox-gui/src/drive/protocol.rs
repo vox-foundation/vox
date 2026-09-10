@@ -96,6 +96,8 @@ pub struct DriveClaims {
     pub picker_ui: bool,
     pub composer_knobs: bool,
     pub bubbles: bool,
+    #[serde(default)]
+    pub events: bool,
 }
 
 impl DriveClaims {
@@ -104,6 +106,7 @@ impl DriveClaims {
             picker_ui: true,
             composer_knobs: true,
             bubbles: true,
+            events: true,
         }
     }
 
@@ -112,6 +115,7 @@ impl DriveClaims {
             picker_ui: false,
             composer_knobs: false,
             bubbles: false,
+            events: false,
         }
     }
 }
@@ -124,9 +128,21 @@ pub struct DriveState {
     pub catalog: Vec<DriveCatalogRow>,
     pub probe: DriveProbe,
     pub bubbles: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub events: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub events_dropped: u64,
+    #[serde(default)]
+    pub last_turn_id: Option<String>,
+    #[serde(default = "default_next_seq")]
+    pub next_seq: u64,
     pub last_error: Option<String>,
     pub orch_fresh: bool,
     pub claims: DriveClaims,
+}
+
+fn default_next_seq() -> u64 {
+    1
 }
 
 impl DriveState {
@@ -143,6 +159,10 @@ impl DriveState {
                 models: Vec::new(),
             },
             bubbles: Vec::new(),
+            events: Vec::new(),
+            events_dropped: 0,
+            last_turn_id: None,
+            next_seq: 1,
             last_error: None,
             orch_fresh: false,
             claims: DriveClaims::live(),
@@ -252,6 +272,8 @@ struct AxisDriveContract {
     health_service: String,
     set_keys: BTreeMap<String, serde_yaml::Value>,
     errors: BTreeMap<String, u16>,
+    wait_until: BTreeMap<String, String>,
+    state_snapshot: BTreeMap<String, serde_yaml::Value>,
 }
 
 #[cfg(test)]
@@ -297,6 +319,18 @@ mod tests {
         assert_eq!(contract.errors.get("unknown_key"), Some(&400));
         assert_eq!(contract.errors.get("model_not_selectable"), Some(&409));
         assert_eq!(contract.errors.get("unauthorized"), Some(&401));
+        for predicate in ["reply", "reply_ok", "error", "selectable", "event"] {
+            assert!(
+                contract.wait_until.contains_key(predicate),
+                "missing wait predicate {predicate}"
+            );
+        }
+        for key in ["events", "events_dropped", "last_turn_id"] {
+            assert!(
+                contract.state_snapshot.contains_key(key),
+                "missing state snapshot key {key}"
+            );
+        }
     }
 
     #[test]

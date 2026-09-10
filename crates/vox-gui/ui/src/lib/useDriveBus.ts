@@ -8,6 +8,18 @@ import {
   type DriveState,
 } from './axisDrive';
 import type { PickerModel, ProviderStatus } from './modelPicker';
+import {
+  appendDriveEvent,
+  clearDriveEvents,
+  type DriveEventState,
+} from './driveEvents';
+
+function mintCorrelationId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 export interface DriveSetters {
   setChatModelOverride: (id: string | null) => void;
@@ -35,6 +47,10 @@ export interface DriveSubmitPayload {
   files?: string[];
   priority?: string | null;
   active_skill?: string | null;
+  /** Minted once in Drive send; App must reuse so ChatHop matches last_turn_id. */
+  turn_id?: string | null;
+  /** Minted once in Drive send; pairs with ChatHop JSONL `trace_id`. */
+  trace_id?: string | null;
 }
 
 /** Result of App `onSubmit` / `handleLoquelaSubmit`. Drive send must surface this. */
@@ -91,6 +107,8 @@ export interface HandleDriveRequestArgs {
   setters?: DriveSetters;
   submit: (payload: DriveSubmitPayload) => Promise<unknown> | unknown;
   req: DriveRequest;
+  onTurnStart?: (turnId: string, state: DriveEventState) => void;
+  getActiveEventState?: () => DriveEventState;
 }
 
 /** Drive-only: click path does not 409 an unselectable pin. */
@@ -115,12 +133,27 @@ export function assertPinSelectable(
 }
 
 export function driveVerbNeedsCatalog(verb: DriveRequest['verb']): boolean {
+  // `state` / `show` must not refresh catalog — `wait --until` polls `state`
+  // every ~200ms and would otherwise hammer model IPC (~600 rebuilds / 120s).
   return verb === 'set' || verb === 'send';
+}
+
+/** Catalog for a Drive response: refresh when models were loaded; else keep prior. */
+export function catalogForDriveVerb(
+  models: HandleDriveRequestArgs['models'],
+  statuses: HandleDriveRequestArgs['statuses'],
+  prior: DriveState['catalog'],
+): DriveState['catalog'] {
+  if (models.length > 0 || statuses.length > 0) {
+    return snapshotCatalog(models, statuses);
+  }
+  return prior ?? [];
 }
 
 export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<DriveHttpLike> {
   let state = args.state;
-  const catalog = snapshotCatalog(args.models, args.statuses);
+  // `state`/`show` skip catalog IPC (empty models) — must not wipe a prior set/send catalog.
+  const catalog = catalogForDriveVerb(args.models, args.statuses, state.catalog);
   if (args.req.verb === 'state') {
     return { status: 200, plane: 'live', state: { ...state, catalog } };
   }
@@ -152,6 +185,8 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
     }
     const blocked = assertPinSelectable(state, args.models, args.statuses);
     if (blocked) return blocked;
+    const turnId = mintCorrelationId();
+    const traceId = mintCorrelationId();
     const payload: DriveSubmitPayload = {
       description: text,
       execution_mode: executionToComposerMode(state.knobs.execution),
@@ -164,9 +199,19 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
       files: state.knobs.context_files,
       priority: state.knobs.priority ?? null,
       active_skill: state.knobs.active_skill ?? null,
+      turn_id: turnId,
+      trace_id: traceId,
     };
     let lastError: string | null = null;
     let assistantText: string | null = null;
+    let eventState = clearDriveEvents({
+      events: state.events,
+      events_dropped: state.events_dropped,
+      last_turn_id: state.last_turn_id,
+      next_seq: state.next_seq,
+    });
+    eventState = { ...eventState, last_turn_id: turnId };
+    args.onTurnStart?.(turnId, eventState);
     try {
       const interpreted = interpretDriveSubmit(await args.submit(payload));
       lastError = interpreted.lastError;
@@ -174,6 +219,15 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
     }
+    const activeEventState = args.getActiveEventState?.();
+    if (activeEventState?.last_turn_id === turnId) {
+      eventState = activeEventState;
+    }
+    eventState = appendDriveEvent(eventState, {
+      turn_id: turnId,
+      kind: lastError ? 'submit_err' : 'submit_ok',
+      text: lastError ?? assistantText ?? undefined,
+    });
     const bubbles: unknown[] = [...state.bubbles, { role: 'user', content: text }];
     if (lastError) {
       bubbles.push({ role: 'assistant', content: lastError, error: true });
@@ -188,6 +242,10 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
         catalog,
         bubbles,
         last_error: lastError,
+        events: eventState.events,
+        events_dropped: eventState.events_dropped,
+        last_turn_id: eventState.last_turn_id,
+        next_seq: eventState.next_seq,
       },
     };
   }

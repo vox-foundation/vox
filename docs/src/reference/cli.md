@@ -186,7 +186,7 @@ Launch Axis, or drive a dedicated hidden debug Axis. Feature-gated (`--features 
 | `vox gui drive set` | Set knobs (`--knob key=value`, repeatable). Unselectable pin is Drive-only 409. |
 | `vox gui drive send` | Submit text through the live composer (`--text`). |
 | `vox gui drive state` | Snapshot Drive state (pin, catalog, knobs). |
-| `vox gui drive wait` | Block until a catalog/state predicate (`--until`, `--timeout`). |
+| `vox gui drive wait` | Block until a catalog/state predicate (`--until reply|reply_ok|error|event=<kind>|selectable=<id>`, `--timeout`). `reply` accepts settled errors; `reply_ok` requires a non-empty, non-error assistant bubble. |
 | `vox gui drive headless` | Stdin/stdout JSON plane (`picker_ui`/`composer_knobs`/`bubbles` all false). |
 | `vox gui drive headless state` | Headless state snapshot. |
 | `vox gui drive headless set` | Headless knob set. |

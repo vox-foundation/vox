@@ -91,13 +91,6 @@ fn local_availability(
     }
 }
 
-fn vox_local_endpoint_base() -> String {
-    std::env::var("VOX_LOCAL_ENDPOINT")
-        .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string())
-        .trim_end_matches('/')
-        .to_string()
-}
-
 fn parse_vox_local_model_ids(body: &serde_json::Value) -> Vec<String> {
     body.get("data")
         .and_then(|d| d.as_array())
@@ -109,59 +102,49 @@ fn parse_vox_local_model_ids(body: &serde_json::Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn vox_local_health_identifies_serve(body: &str) -> bool {
-    serde_json::from_str::<serde_json::Value>(body)
-        .ok()
-        .and_then(|v| {
-            v.get("service")
-                .and_then(|s| s.as_str())
-                .map(|s| s == "vox-ml-cli")
-        })
-        .unwrap_or(false)
-}
-
 async fn probe_vox_local() -> (Option<bool>, Vec<String>) {
-    let base = vox_local_endpoint_base();
-    let client = vox_http_client::client();
-    let timeout = std::time::Duration::from_secs(2);
-    let identify = |url: String| {
-        let client = client.clone();
-        async move {
-            match client.get(url).timeout(timeout).send().await {
-                Ok(resp) if resp.status().is_success() => resp
-                    .text()
-                    .await
-                    .ok()
-                    .is_some_and(|body| vox_local_health_identifies_serve(&body)),
-                _ => false,
-            }
-        }
-    };
-    let healthy = {
-        if identify(format!("{base}/health")).await {
-            true
-        } else {
-            identify(format!("{base}/ready")).await
-        }
-    };
-    if !healthy {
+    let candidates = vox_config::inference::vox_local_endpoint_probe_candidates();
+    if candidates.is_empty() {
         return (Some(false), Vec::new());
     }
-    let models = match client
-        .get(format!("{base}/v1/models"))
-        .timeout(timeout)
-        .send()
-        .await
-    {
-        Ok(resp) if resp.status().is_success() => resp
-            .json::<serde_json::Value>()
+    let client = vox_http_client::client();
+    let timeout = std::time::Duration::from_secs(2);
+    for base in candidates {
+        let mut identifies_serve = false;
+        for path in ["/health", "/ready"] {
+            let url = format!("{base}{path}");
+            match client.get(url).timeout(timeout).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    if let Ok(body) = resp.text().await {
+                        if vox_config::inference::vox_local_health_identifies_serve(&body) {
+                            identifies_serve = true;
+                            break;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        if !identifies_serve {
+            continue;
+        }
+        let models = match client
+            .get(format!("{base}/v1/models"))
+            .timeout(timeout)
+            .send()
             .await
-            .ok()
-            .map(|body| parse_vox_local_model_ids(&body))
-            .unwrap_or_default(),
-        _ => Vec::new(),
-    };
-    (Some(true), models)
+        {
+            Ok(resp) if resp.status().is_success() => resp
+                .json::<serde_json::Value>()
+                .await
+                .ok()
+                .map(|body| parse_vox_local_model_ids(&body))
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+        return (Some(true), models);
+    }
+    (Some(false), Vec::new())
 }
 
 /// Per-backend availability (B9): credential presence for every candidate
@@ -271,10 +254,27 @@ mod tests {
 
     #[test]
     fn vox_local_health_requires_ml_cli_service() {
+        use vox_config::inference::vox_local_health_identifies_serve;
         assert!(vox_local_health_identifies_serve(
             r#"{"status":"ok","service":"vox-ml-cli"}"#
         ));
         assert!(!vox_local_health_identifies_serve(r#"{"status":"ok"}"#));
         assert!(!vox_local_health_identifies_serve("Ollama is running"));
+    }
+
+    #[test]
+    fn vox_local_probe_candidates_prefer_explicit_env_over_defaults() {
+        use vox_config::inference::vox_local_endpoint_probe_candidates_from;
+        assert_eq!(
+            vox_local_endpoint_probe_candidates_from(Some("http://127.0.0.1:11435")),
+            vec!["http://127.0.0.1:11435".to_string()]
+        );
+        assert_eq!(
+            vox_local_endpoint_probe_candidates_from(None),
+            vec![
+                "http://127.0.0.1:11434".to_string(),
+                "http://127.0.0.1:11435".to_string(),
+            ]
+        );
     }
 }

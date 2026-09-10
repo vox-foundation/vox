@@ -70,6 +70,12 @@ pub struct ChatTurnInput {
     /// the sync path has no `mode` concept in `vox_chat_message`.
     #[serde(default)]
     pub mode: Option<String>,
+    /// End-to-end ChatHop / telemetry correlation (UUID). GUI mints once per send.
+    #[serde(default)]
+    pub trace_id: Option<String>,
+    /// Per-submit turn id (UUID). Correlates Drive events with ChatHop JSONL.
+    #[serde(default)]
+    pub turn_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -200,6 +206,14 @@ pub fn sync_tool_args(input: &ChatTurnInput) -> serde_json::Value {
     if let Some(v) = input.dry_run {
         obj.insert("dry_run".into(), serde_json::json!(v));
     }
+    for (key, val) in [
+        ("trace_id", non_blank(&input.trace_id)),
+        ("turn_id", non_blank(&input.turn_id)),
+    ] {
+        if let Some(v) = val {
+            obj.insert(key.into(), serde_json::json!(v));
+        }
+    }
     args
 }
 
@@ -232,6 +246,8 @@ pub fn background_input(input: &ChatTurnInput) -> SubmitTaskInput {
             .chat_session_id
             .clone()
             .or_else(|| Some(input.session_id.clone())),
+        trace_id: input.trace_id.clone(),
+        turn_id: input.turn_id.clone(),
     }
 }
 
@@ -272,6 +288,7 @@ async fn run_sync(
         Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
         None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
     };
+    let _in_flight = daemon.in_flight_guard();
     let envelope = client
         .call(
             vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
@@ -356,11 +373,21 @@ async fn run_background(
 /// other two execution branches) is a hard reject, not a silently-ignored
 /// extra.
 pub fn plan_tool_args(input: &ChatTurnInput) -> serde_json::Value {
-    serde_json::json!({
+    let mut args = serde_json::json!({
         "goal": input.content,
         "session_id": input.session_id,
         "require_approval": true,
-    })
+    });
+    let obj = args.as_object_mut().expect("json! object");
+    for (key, val) in [
+        ("trace_id", non_blank(&input.trace_id)),
+        ("turn_id", non_blank(&input.turn_id)),
+    ] {
+        if let Some(v) = val {
+            obj.insert(key.into(), serde_json::json!(v));
+        }
+    }
+    args
 }
 
 /// `vox_plan`'s `ToolResult<PlanResult>` envelope has a flat `data` object
@@ -421,6 +448,8 @@ async fn run_plan(
         Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
         None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
     };
+    // Same in-flight guard as `run_sync` — plan LLM rounds can run long.
+    let _in_flight = daemon.in_flight_guard();
     let envelope = client
         .call(
             vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
@@ -450,6 +479,8 @@ mod tests {
         "allow_duplicate",
         "grounding_check_enabled",
         "chat_session_id",
+        "trace_id",
+        "turn_id",
     ];
 
     fn keys_of<T: serde::Serialize>(v: &T) -> BTreeSet<String> {
@@ -511,23 +542,37 @@ mod tests {
     }
 
     #[test]
-    fn plan_tool_args_carries_exactly_goal_session_id_require_approval() {
+    fn plan_tool_args_carries_goal_session_id_require_approval_and_correlation_ids() {
         let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
-            "session_id": "s1", "content": "add a health endpoint", "mode": "plan"
+            "session_id": "s1", "content": "add a health endpoint", "mode": "plan",
+            "trace_id": "trace-plan-1", "turn_id": "turn-plan-1"
         }))
         .expect("input");
         let args = plan_tool_args(&input);
         assert_eq!(args["goal"], "add a health endpoint");
         assert_eq!(args["session_id"], "s1");
         assert_eq!(args["require_approval"], true);
+        assert_eq!(args["trace_id"], "trace-plan-1");
+        assert_eq!(args["turn_id"], "turn-plan-1");
         let obj = args.as_object().expect("json! object");
-        assert_eq!(
-            obj.len(),
-            3,
-            "vox_plan's schema is additionalProperties:false — a stray key is a hard reject: {obj:?}"
+        assert!(
+            !obj.contains_key("mode") && !obj.contains_key("prompt"),
+            "vox_plan's schema is additionalProperties:false — stray keys are hard rejects: {obj:?}"
         );
-        assert!(obj.get("mode").is_none());
-        assert!(obj.get("prompt").is_none());
+    }
+
+    #[test]
+    fn plan_tool_args_omit_blank_correlation_ids() {
+        let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "s1", "content": "add a health endpoint", "mode": "plan",
+            "trace_id": "   ", "turn_id": ""
+        }))
+        .expect("input");
+        let args = plan_tool_args(&input);
+        let obj = args.as_object().expect("json! object");
+        assert_eq!(obj.len(), 3);
+        assert!(obj.get("trace_id").is_none());
+        assert!(obj.get("turn_id").is_none());
     }
 
     #[test]
@@ -549,7 +594,8 @@ mod tests {
             "context_files": ["crates/vox-crypto/src/lib.rs"],
             "active_skill": "ponytail",
             "clutch": "genius", "risk": "low",
-            "priority": "urgent", "dry_run": true
+            "priority": "urgent", "dry_run": true,
+            "trace_id": "trace-abc", "turn_id": "turn-xyz"
         }))
         .expect("input");
         let args = sync_tool_args(&input);
@@ -562,6 +608,8 @@ mod tests {
         // Bug 2: priority/dry_run were silently dropped on the sync path.
         assert_eq!(args["priority"], "urgent");
         assert_eq!(args["dry_run"], true);
+        assert_eq!(args["trace_id"], "trace-abc");
+        assert_eq!(args["turn_id"], "turn-xyz");
         // `cognitive_profile` must NEVER be set from the tier: its values are
         // fast|reasoning|creative, and setting it switches the turn off the
         // agent loop onto mcp_infer_completion, killing tool calls and
@@ -589,7 +637,8 @@ mod tests {
             "clutch": "efficiency", "risk": "moderate",
             "context_files": ["a.rs", "b.rs"], "priority": "urgent",
             "dry_run": true, "active_skill": "ponytail", "allow_duplicate": false,
-            "mode": "act"
+            "mode": "act",
+            "trace_id": "trace-bg-1", "turn_id": "turn-bg-1"
         }))
         .expect("input");
         let out = background_input(&input);
@@ -604,6 +653,8 @@ mod tests {
         // Bug 1: mode (e.g. `/spawn`'s "act") must reach SubmitTaskInput.mode
         // -> control_plane::submit_task_params -> enqueue_hints.mode.
         assert_eq!(out.mode.as_deref(), Some("act"));
+        assert_eq!(out.trace_id.as_deref(), Some("trace-bg-1"));
+        assert_eq!(out.turn_id.as_deref(), Some("turn-bg-1"));
         assert!(out.task_category.is_none());
     }
 

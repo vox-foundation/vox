@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { emptyLiveState } from './axisDrive';
-import { assertPinSelectable, driveVerbNeedsCatalog, handleDriveRequest } from './useDriveBus';
+import {
+  assertPinSelectable,
+  driveVerbNeedsCatalog,
+  handleDriveRequest,
+  interpretDriveSubmit,
+} from './useDriveBus';
 import type { PickerModel, ProviderStatus } from './modelPicker';
 
 const localDown: ProviderStatus[] = [
@@ -16,6 +21,43 @@ const localDown: ProviderStatus[] = [
 const localModel: PickerModel[] = [
   { id: 'mens/e2e-smoke-metal', label: 'metal', provider: 'VoxLocal', providerType: 'local' },
 ];
+
+describe('interpretDriveSubmit', () => {
+  it('matrix: null / ok false / error text / ok true / bracket error', () => {
+    expect(interpretDriveSubmit(null)).toEqual({
+      lastError: 'submit_unspecified',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ ok: false, error: 'nope' })).toEqual({
+      lastError: 'nope',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ ok: false })).toEqual({
+      lastError: 'submit_failed',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ error: 'soft' })).toEqual({
+      lastError: 'soft',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ ok: true, text: 'hello' })).toEqual({
+      lastError: null,
+      assistantText: 'hello',
+    });
+    expect(interpretDriveSubmit({ ok: true, text: '[error: boom]' })).toEqual({
+      lastError: '[error: boom]',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ ok: true, text: 'error: boom' })).toEqual({
+      lastError: 'error: boom',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ ok: true })).toEqual({
+      lastError: null,
+      assistantText: null,
+    });
+  });
+});
 
 describe('handleDriveRequest', () => {
   it('send calls submit with description and maps sync→chat', async () => {
@@ -161,11 +203,103 @@ describe('handleDriveRequest', () => {
     expect(res.state.bubbles.at(-1)).toMatchObject({ role: 'assistant', error: true, content: 'boom' });
   });
 
-  it('state and show skip catalog IPC; set and send do not', () => {
+  it('send clears prior events and records submit_err', async () => {
+    const state = emptyLiveState();
+    state.events = [{ seq: 1, ts_ms: 1, kind: 'old', turn_id: 'old', text: 'x' }];
+    state.next_seq = 2;
+    const res = await handleDriveRequest({
+      req: { id: '1', verb: 'send', body: { text: 'hi' } },
+      state,
+      models: [{ id: 'openrouter/auto', provider: 'OpenRouter', providerType: 'OpenRouter' } as any],
+      statuses: [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null } as any],
+      submit: async () => ({ ok: false, error: 'boom' }),
+    });
+    expect(res.state.events.some((e: any) => e.kind === 'old')).toBe(false);
+    expect(res.state.events.some((e: any) => e.kind === 'submit_err')).toBe(true);
+    expect(res.state.last_error).toBe('boom');
+    expect(res.state.last_turn_id).toBeTruthy();
+  });
+
+  it('send records submit_ok with assistant text', async () => {
+    const res = await handleDriveRequest({
+      req: { id: '1', verb: 'send', body: { text: 'hi' } },
+      state: emptyLiveState(),
+      models: [],
+      statuses: [],
+      submit: async () => ({ ok: true, text: 'hello-assistant' }),
+    });
+    expect(res.state.last_error).toBeNull();
+    expect(res.state.events.some((e: any) => e.kind === 'submit_ok' && e.text === 'hello-assistant')).toBe(true);
+  });
+
+  it('send mints turn_id/trace_id once and passes them to submit', async () => {
+    const submit = vi.fn(async (payload: any) => {
+      expect(payload.turn_id).toBeTruthy();
+      expect(payload.trace_id).toBeTruthy();
+      expect(payload.turn_id).not.toBe(payload.trace_id);
+      return { ok: true, text: 'ok' };
+    });
+    const res = await handleDriveRequest({
+      req: { id: '1', verb: 'send', body: { text: 'hi' } },
+      state: emptyLiveState(),
+      models: [],
+      statuses: [],
+      submit,
+    });
+    expect(submit).toHaveBeenCalledOnce();
+    const payload = submit.mock.calls[0][0];
+    expect(res.state.last_turn_id).toBe(payload.turn_id);
+    expect(res.state.events.some((e: any) => e.kind === 'submit_ok' && e.turn_id === payload.turn_id)).toBe(true);
+  });
+
+  it('mutation: send path references clearDriveEvents and appendDriveEvent', () => {
+    const src = handleDriveRequest.toString();
+    expect(src).toMatch(/clearDriveEvents/);
+    expect(src).toMatch(/appendDriveEvent/);
+  });
+
+  it('only set and send require catalog IPC; state/show poll without refresh', () => {
     expect(driveVerbNeedsCatalog('state')).toBe(false);
     expect(driveVerbNeedsCatalog('show')).toBe(false);
     expect(driveVerbNeedsCatalog('set')).toBe(true);
     expect(driveVerbNeedsCatalog('send')).toBe(true);
+  });
+
+  it('state with empty models preserves prior catalog (wait --until selectable)', async () => {
+    const state = emptyLiveState();
+    state.catalog = [
+      {
+        id: 'mens/qwen38-hub',
+        selectable: true,
+        reason: null,
+        provider: 'populi_local',
+        provider_type: 'VoxLocal',
+      },
+    ];
+    const res = await handleDriveRequest({
+      state,
+      models: [],
+      statuses: [],
+      submit: vi.fn(),
+      req: { id: '1', verb: 'state', body: {} },
+    });
+    expect(res.state.catalog).toEqual(state.catalog);
+  });
+
+  it('state includes OpenRouter provider_type in its catalog snapshot', async () => {
+    const res = await handleDriveRequest({
+      state: emptyLiveState(),
+      models: [
+        { id: 'openrouter/auto', label: 'auto', provider: 'OpenRouter', providerType: 'OpenRouter' },
+      ],
+      statuses: [{ provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null }],
+      submit: vi.fn(),
+      req: { id: '1', verb: 'state', body: {} },
+    });
+    expect(res.state.catalog[0]).toMatchObject({
+      id: 'openrouter/auto',
+      provider_type: 'OpenRouter',
+    });
   });
 
   it('mutation: deleting the selectable check would miss the 409', () => {

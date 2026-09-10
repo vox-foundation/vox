@@ -23,7 +23,7 @@ pub struct InferenceRequest {
 
 /// Spawn the inference worker thread and return the channel sender.
 ///
-/// Wires into the `mens-candle-cuda` plugin via `MlBackend::run_inference`, which
+/// Wires into the host-selected Candle plugin via `MlBackend::run_inference`, which
 /// loads the model directory (expects tokenizer.json, candle_qlora_adapter.safetensors /
 /// merged.safetensors, adapter_manifest.json, config.json) on the first request and
 /// generates from the plugin's `InferenceEngine::generate`. The plugin reloads the engine
@@ -41,15 +41,27 @@ pub fn spawn_inference_worker(
     let (tx, rx) = std::sync::mpsc::sync_channel::<InferenceRequest>(8);
     std::thread::spawn(move || {
         // Load the plugin once; keep it alive for the worker's lifetime.
-        let plugin_result = vox_plugin_host::cached_code_plugin("mens-candle-cuda");
-        let plugin = match plugin_result {
-            Ok(p) => p,
+        let plugin_id = match resolve_ml_backend_plugin(&vox_plugin_host::probe()) {
+            Ok(id) => id,
             Err(e) => {
-                tracing::error!("mens-candle-cuda plugin not found: {e}");
+                tracing::error!("no ML backend plugin matches this host: {e}");
                 while let Ok(req) = rx.recv() {
                     let _ = req
                         .reply
-                        .send(Err(format!("mens-candle-cuda plugin unavailable: {e}")));
+                        .send(Err(format!("no ML backend plugin matches this host: {e}")));
+                }
+                return;
+            }
+        };
+        let plugin_result = vox_plugin_host::cached_code_plugin(plugin_id);
+        let plugin = match plugin_result {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::error!("{plugin_id} plugin not found: {e}");
+                while let Ok(req) = rx.recv() {
+                    let _ = req
+                        .reply
+                        .send(Err(format!("{plugin_id} plugin unavailable: {e}")));
                 }
                 return;
             }
@@ -57,11 +69,9 @@ pub fn spawn_inference_worker(
         let backend = match plugin.plugin.as_ml_backend().into_option() {
             Some(b) => b,
             None => {
-                tracing::error!("mens-candle-cuda plugin has no MlBackend");
+                tracing::error!("{plugin_id} plugin has no MlBackend");
                 while let Ok(req) = rx.recv() {
-                    let _ = req
-                        .reply
-                        .send(Err("mens-candle-cuda has no MlBackend".into()));
+                    let _ = req.reply.send(Err(format!("{plugin_id} has no MlBackend")));
                 }
                 return;
             }
@@ -105,4 +115,30 @@ pub fn spawn_inference_worker(
         drop(handle);
     });
     tx
+}
+
+#[cfg(feature = "execution-api")]
+fn resolve_ml_backend_plugin(
+    capabilities: &vox_plugin_host::CapabilitySet,
+) -> Result<&'static str, vox_plugin_host::errors::LoadError> {
+    vox_plugin_host::resolve_extension_point(
+        "MlBackend",
+        crate::commands::schola::merge_qlora::ML_BACKEND_CANDIDATES,
+        capabilities,
+    )
+}
+
+#[cfg(all(test, feature = "execution-api"))]
+mod tests {
+    use super::resolve_ml_backend_plugin;
+
+    #[test]
+    fn metal_capability_selects_metal_serve_plugin() {
+        let capabilities =
+            vox_plugin_host::CapabilitySet::from_tags(["cpu-only", "apple-silicon", "metal"]);
+        assert_eq!(
+            resolve_ml_backend_plugin(&capabilities).unwrap(),
+            "mens-candle-metal"
+        );
+    }
 }

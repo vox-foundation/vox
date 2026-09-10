@@ -1,0 +1,193 @@
+// vox:caps subprocess fs
+import fs
+import process
+
+fn vox_binary_path() to str {
+    // Prefer debug when present so local agent/Drive e2e picks up uncommitted
+    // workspace builds (release is often stale).
+    if fs.exists("./target/debug/vox.exe") {
+        return "./target/debug/vox.exe"
+    }
+    if fs.exists("./target/debug/vox") {
+        return "./target/debug/vox"
+    }
+    if fs.exists("./target/release/vox.exe") {
+        return "./target/release/vox.exe"
+    }
+    if fs.exists("./target/release/vox") {
+        return "./target/release/vox"
+    }
+    return "./target/debug/vox"
+}
+
+fn fail(bin: str, message: str) {
+    print("Metal Drive e2e failed: " + message)
+    log.error("Metal Drive e2e failed: " + message)
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+    process.exit(1)
+}
+
+fn run_json(bin: str, args: list[str]) to Json {
+    let result_opt = process.run(bin, args)
+    if result_opt is null {
+        fail(bin, "could not execute " + bin)
+    }
+    let result = result_opt.unwrap()
+    if result.code is not 0 {
+        fail(bin, "command failed (" + str(result.code) + "): " + result.stderr)
+    }
+    let parsed = json.parse(result.stdout)
+    if parsed.is_err() {
+        fail(bin, "invalid JSON: " + parsed.unwrap_err())
+    }
+    return parsed.unwrap()
+}
+
+fn state_view(response: Json) to Json {
+    return response.get("state").unwrap_or(response)
+}
+
+fn string_field(value: Json, key: str) to str {
+    return value.get(key).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+}
+
+fn main() {
+    let uname = process.run("uname", ["-s"])
+    if uname is null {
+        print("Axis Drive Metal e2e requires Darwin; skipping with exit 2.")
+        process.exit(2)
+    }
+    let osname = uname.unwrap().stdout.trim()
+    if osname != "Darwin" {
+        print("Axis Drive Metal e2e requires Darwin; skipping with exit 2.")
+        process.exit(2)
+    }
+
+    let pin = "mens/qwen35-08b-metal-e2e"
+    let port = "11435"
+    let bin = vox_binary_path()
+
+    let health = process.run("curl", [
+        "--fail", "--silent", "--show-error",
+        "http://127.0.0.1:" + port + "/v1/models"
+    ])
+    if health is null or health.unwrap().code is not 0 {
+        fail(bin, "serve probe failed on port " + port + "; run scripts/mens-macos-metal-e2e.vox first")
+    }
+    let models_body = health.unwrap().stdout
+    if not models_body.contains("qwen35-08b-metal-e2e") {
+        fail(bin, "serve /v1/models did not list qwen35-08b-metal-e2e")
+    }
+
+    // Step 0: stop prior Drive + foreign orch so spawn gets VOX_GUI_DRIVE env.
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+    let _ = process.run("pkill", ["-x", "vox-orchestrator-d"])
+
+    // Prefer a fresh Drive profile so LegacySchema (schema_max > binary baseline)
+    // on `default` cannot block listener bind. Parent must export
+    // VOX_GUI_DRIVE_ALLOW_STORE_RESET=1 and VOX_LOCAL_ENDPOINT=http://127.0.0.1:11435.
+    let start = process.run(bin, ["gui", "drive", "start", "--profile", "metal-e2e"])
+    if start is null {
+        fail(bin, "could not execute drive start")
+    }
+    let start_result = start.unwrap()
+    if start_result.code is not 0 {
+        fail(bin, "drive start failed (" + str(start_result.code) + "): " + start_result.stderr)
+    }
+
+    let _ = run_json(bin, ["gui", "drive", "set", "--knob", "execution=sync"])
+    let _ = run_json(bin, ["gui", "drive", "set", "--knob", "model_override=" + pin])
+
+    let state_response = run_json(bin, ["gui", "drive", "state"])
+    let drive_state = state_view(state_response)
+    let orch_fresh = drive_state.get("orch_fresh").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+    if not orch_fresh {
+        fail(bin, "orch_fresh=false after start — foreign orch may still be adopted or spawn failed")
+    }
+    let catalog = drive_state.get("catalog").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+    let pin_policy = string_field(drive_state, "pin_policy")
+    let mut pin_selectable = false
+    for row in catalog {
+        if string_field(row, "id") == pin {
+            pin_selectable = row.get("selectable").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+        }
+    }
+    if not pin_selectable and pin_policy == "fail" {
+        fail(bin, "catalog pin " + pin + " not selectable under pin_policy=fail")
+    }
+
+    let _ = run_json(bin, ["gui", "drive", "send", "--text", "Reply with one short line containing metal-ok"])
+    let wait = process.run(bin, ["gui", "drive", "wait", "--until", "reply_ok", "--timeout", "180s"])
+    if wait is null {
+        fail(bin, "could not execute reply_ok wait")
+    }
+    let wait_result = wait.unwrap()
+    if wait_result.code is not 0 {
+        fail(bin, "reply_ok wait failed (" + str(wait_result.code) + "): " + wait_result.stderr)
+    }
+
+    let final_response = run_json(bin, ["gui", "drive", "state"])
+    let final_state = state_view(final_response)
+    let plane = string_field(final_state, "plane")
+    let last_error = final_state.get("last_error")
+    if not (plane == "live") {
+        fail(bin, "state is not live")
+    }
+    if not (last_error is null) and not last_error.unwrap().is_null() {
+        fail(bin, "last_error is set: " + last_error.unwrap().to_string())
+    }
+
+    let bubbles = final_state.get("bubbles").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+    if bubbles.len() is 0 {
+        fail(bin, "reply_ok returned no assistant bubble")
+    }
+    let last_bubble = bubbles.get(bubbles.len() - 1).unwrap()
+    let assistant_text = last_bubble.get("content").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+    let bubble_role = last_bubble.get("role").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+    let bubble_error = last_bubble.get("error").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+    if not (bubble_role == "assistant") or assistant_text.trim() == "" or bubble_error {
+        fail(bin, "reply_ok returned an empty or error assistant bubble")
+    }
+
+    // Honesty: sticky Metal pin must not silently bill OpenRouter.
+    let events = final_state.get("events").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+    let mut saw_openrouter_cost = false
+    for event in events {
+        let kind = string_field(event, "kind")
+        let raw = string_field(event, "raw")
+        if kind == "cost_incurred" and raw.contains("\"provider\":\"openrouter\"") {
+            saw_openrouter_cost = true
+        }
+    }
+    if saw_openrouter_cost {
+        fail(bin, "Metal pin routed to OpenRouter (cost_incurred provider=openrouter); VoxLocal sticky resolve failed")
+    }
+
+    let turn_id = string_field(final_state, "last_turn_id")
+    let mut submit_ok = false
+    let mut kinds = ""
+    for event in events {
+        let kind = string_field(event, "kind")
+        if kinds == "" {
+            kinds = kind
+        } else {
+            kinds = kinds + "," + kind
+        }
+        if kind == "submit_ok" and string_field(event, "turn_id") == turn_id {
+            submit_ok = true
+        }
+    }
+    if not submit_ok {
+        fail(bin, "state.events is missing submit_ok for last_turn_id; kinds=" + kinds)
+    }
+
+    print("{\"status\":\"pass\",\"plane\":\"" + plane + "\",\"model\":\"" + pin + "\",\"turn_id\":\"" + turn_id + "\",\"event_kinds\":\"" + kinds + "\",\"event_count\":" + str(events.len()) + "}")
+    let stop = process.run(bin, ["gui", "drive", "stop"])
+    if stop is null {
+        process.exit(1)
+    }
+    if stop.unwrap().code is not 0 {
+        process.exit(1)
+    }
+    process.exit(0)
+}

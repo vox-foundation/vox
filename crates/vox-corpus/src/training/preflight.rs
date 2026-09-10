@@ -12,6 +12,8 @@ pub const PRIMARY_TRAIN_FILE: &str = "train.jsonl";
 pub const FALLBACK_TRAIN_FILE: &str = "validated.jsonl";
 /// Optional YAML contract under workspace `mens/config/`.
 pub const CONTRACT_PATH: &str = "mens/config/training_contract.yaml";
+/// Optional per-run contract inside a training `--data-dir`.
+pub const DATA_DIR_CONTRACT_FILE: &str = "training_contract.yaml";
 
 /// Where the resolved training JSONL came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,16 +58,18 @@ struct TrainContract {
     train_path: Option<String>,
 }
 
-/// Parse `mens/config/training_contract.yaml` when present; returns override train path if set.
-pub fn load_contract(workspace: &Path) -> anyhow::Result<Option<PathBuf>> {
-    let p = workspace.join(CONTRACT_PATH);
-    if !p.is_file() {
+/// Parse a training contract YAML; returns override train path if set.
+///
+/// Relative `train_path` values are resolved against `path_base` (workspace root for
+/// the workspace contract, or the data directory for a per-run contract).
+fn load_contract_file(contract: &Path, path_base: &Path) -> anyhow::Result<Option<PathBuf>> {
+    if !contract.is_file() {
         return Ok(None);
     }
-    let raw = read_utf8_path_capped(&p)
-        .with_context(|| format!("read training contract {}", p.display()))?;
+    let raw = read_utf8_path_capped(contract)
+        .with_context(|| format!("read training contract {}", contract.display()))?;
     let c: TrainContract = serde_yaml::from_str(&raw)
-        .with_context(|| format!("parse YAML contract {}", p.display()))?;
+        .with_context(|| format!("parse YAML contract {}", contract.display()))?;
     let Some(rel) = c.train_path.filter(|s| !s.trim().is_empty()) else {
         return Ok(None);
     };
@@ -73,36 +77,53 @@ pub fn load_contract(workspace: &Path) -> anyhow::Result<Option<PathBuf>> {
     let full = if path.is_absolute() {
         path
     } else {
-        workspace.join(path)
+        path_base.join(path)
     };
     Ok(Some(full))
 }
 
-/// Pick training JSONL: explicit **`training_contract.yaml`** `train_path` wins over a stale
-/// `data_dir/train.jsonl` when both exist, then primary, then fallback.
+/// Parse `mens/config/training_contract.yaml` when present; returns override train path if set.
+pub fn load_contract(workspace: &Path) -> anyhow::Result<Option<PathBuf>> {
+    load_contract_file(&workspace.join(CONTRACT_PATH), workspace)
+}
+
+fn resolve_from_contract(
+    contract_file: &Path,
+    train_path: PathBuf,
+) -> anyhow::Result<ResolvedTrainInput> {
+    if !train_path.is_file() {
+        anyhow::bail!(
+            "Training contract `{}` sets `train_path` -> `{}`, but that file does not exist.\n\
+             Fix the path or edit the YAML so training does not silently ignore the contract and use `{}` under the data directory.",
+            contract_file.display(),
+            train_path.display(),
+            PRIMARY_TRAIN_FILE
+        );
+    }
+    let n = count_nonempty_lines(&train_path).ok();
+    Ok(ResolvedTrainInput {
+        path: train_path,
+        source: ResolveSource::Contract,
+        sample_count: n,
+    })
+}
+
+/// Pick training JSONL: per-run **`data_dir/training_contract.yaml`** wins over the
+/// workspace contract, then either contract's `train_path` wins over a stale
+/// `data_dir/train.jsonl`, then primary, then fallback.
 pub fn resolve_train_input(
     data_dir: &Path,
     workspace: Option<&Path>,
 ) -> anyhow::Result<ResolvedTrainInput> {
+    let data_dir_contract = data_dir.join(DATA_DIR_CONTRACT_FILE);
+    if let Some(contract_path) = load_contract_file(&data_dir_contract, data_dir)? {
+        return resolve_from_contract(&data_dir_contract, contract_path);
+    }
+
     if let Some(ws) = workspace
         && let Some(contract_path) = load_contract(ws)?
     {
-        if !contract_path.is_file() {
-            let contract_file = ws.join(CONTRACT_PATH);
-            anyhow::bail!(
-                "Training contract `{}` sets `train_path` -> `{}`, but that file does not exist.\n\
-                 Fix the path or edit the YAML so training does not silently ignore the contract and use `{}` under the data directory.",
-                contract_file.display(),
-                contract_path.display(),
-                PRIMARY_TRAIN_FILE
-            );
-        }
-        let n = count_nonempty_lines(&contract_path).ok();
-        return Ok(ResolvedTrainInput {
-            path: contract_path,
-            source: ResolveSource::Contract,
-            sample_count: n,
-        });
+        return resolve_from_contract(&ws.join(CONTRACT_PATH), contract_path);
     }
 
     let primary = data_dir.join(PRIMARY_TRAIN_FILE);
@@ -126,12 +147,12 @@ pub fn resolve_train_input(
     }
 
     anyhow::bail!(
-        "No training JSONL found. Expected {} or {} under {} (or {} via {}).",
+        "No training JSONL found. Expected {} or {} under {} (or {} / {}).",
         PRIMARY_TRAIN_FILE,
         FALLBACK_TRAIN_FILE,
         data_dir.display(),
-        CONTRACT_PATH,
-        "mens/config/training_contract.yaml"
+        data_dir.join(DATA_DIR_CONTRACT_FILE).display(),
+        CONTRACT_PATH
     )
 }
 
@@ -226,5 +247,33 @@ mod tests {
         let r = resolve_train_input(&data, Some(ws)).expect("resolve");
         assert_eq!(r.source, ResolveSource::Contract);
         assert_eq!(r.path, contract_target);
+    }
+
+    #[test]
+    fn data_dir_contract_wins_over_workspace_contract() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let data = tmp.path().join("metal-e2e");
+        std::fs::create_dir_all(&data).unwrap();
+        let ws: &std::path::Path = tmp.path();
+
+        let workspace_target = ws.join("workspace_train.jsonl");
+        std::fs::write(
+            &workspace_target,
+            "{\"prompt\":\"workspace\",\"response\":\"x\"}\n",
+        )
+        .unwrap();
+        let cfg_dir = ws.join("mens/config");
+        std::fs::create_dir_all(&cfg_dir).unwrap();
+        let mut f = std::fs::File::create(cfg_dir.join("training_contract.yaml")).unwrap();
+        writeln!(f, "train_path: workspace_train.jsonl").unwrap();
+
+        let local_target = data.join("dogfood-metal-e2e.jsonl");
+        std::fs::write(&local_target, "{\"prompt\":\"local\",\"response\":\"y\"}\n").unwrap();
+        let mut local = std::fs::File::create(data.join(DATA_DIR_CONTRACT_FILE)).unwrap();
+        writeln!(local, "train_path: dogfood-metal-e2e.jsonl").unwrap();
+
+        let r = resolve_train_input(&data, Some(ws)).expect("resolve");
+        assert_eq!(r.source, ResolveSource::Contract);
+        assert_eq!(r.path, local_target);
     }
 }

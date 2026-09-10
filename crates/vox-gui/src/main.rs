@@ -6,7 +6,7 @@ mod drive;
 
 use commands::app_state::GuiState;
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Manager, RunEvent};
 
 #[tokio::main]
 async fn main() {
@@ -109,11 +109,20 @@ async fn main() {
             app.manage(pool);
 
             // Single persistent orchestrator daemon shared by tool calls,
-            // approvals, and the status/event streams.
+            // approvals, and the status/event streams. Warm it synchronously
+            // so the first chat send is not racing a cold spawn (up to ~15s).
             let daemon = app
                 .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
                 .inner()
                 .clone();
+            if let Err(err) = tokio::task::block_in_place(|| {
+                tauri::async_runtime::block_on(daemon.ensure())
+            }) {
+                tracing::warn!(
+                    error = %err,
+                    "orchestrator daemon not ready at Axis launch; streams will retry"
+                );
+            }
             // B1: start the live orchestrator status stream, re-emitting each
             // snapshot as the "vox://orch-status" Tauri event.
             commands::orchestrator::spawn_orchestrator_status_stream(
@@ -242,6 +251,7 @@ async fn main() {
             commands::dynamic_mapping::get_command_metadata,
             commands::dynamic_mapping::get_full_registry,
             commands::models::list_model_cards,
+            commands::models::search_model_cards,
             commands::models::get_active_model,
             commands::models::set_active_model,
             commands::models::get_routing_summary_live,
@@ -356,8 +366,19 @@ async fn main() {
             commands::mission_control::list_subagent_tree,
             commands::mission_control::list_mc_approvals,
             commands::mission_control::set_task_mesh_policy,
+            commands::daemon::orchestrator_daemon_ready,
             commands::daemon::orchestrator_version_mismatch,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let RunEvent::Exit = event {
+                // Policy: kill orchestrator only if this Axis spawned it.
+                // Adopted shared daemons stay up for CLI / MCP.
+                if let Some(daemon) = app_handle.try_state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
+                {
+                    daemon.inner().shutdown_if_spawned();
+                }
+            }
+        });
 }

@@ -45,13 +45,13 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | **App SQL plane** (`vox-sql`) | Backend-only app data-plane connectivity for generated/runtime SQL backends. | `VOX_APP_DB_URL` (falls back to `VOX_DB_URL` when unset). |
 | **Secrets vault** (`vox-secrets` cloudless backend) | Encrypted secret material at rest in a **separate** SQLite / libSQL database. | See vault vars below. |
 
-**Vault URL / file (precedence):** `VOX_SECRETS_VAULT_PATH` (local path → `file:` URL) → `VOX_SECRETS_VAULT_URL` → `VOX_SECRETS_AUTO_VAULT` / `VOX_SECRETS_AUTO_PREFER_VAULT` → when compat aliases allowed (`VOX_SECRETS_HARD_CUT` off and cutover phase not `enforce`/`decommission`): `VOX_TURSO_URL` → `TURSO_URL` → default `file:.vox/secrets_vault.db`.
+**Vault URL / file (precedence):** `VOX_SECRETS_VAULT_PATH` (local path → `file:` URL) → `VOX_SECRETS_VAULT_URL` → `VOX_SECRETS_AUTO_VAULT` / `VOX_SECRETS_AUTO_PREFER_VAULT` → when compat aliases allowed (`VOX_SECRETS_HARD_CUT` off and cutover phase not `enforce`/`decommission`): `VOX_TURSO_URL` → `TURSO_URL` → default absolute `$HOME/.vox/clavis_vault.db`.
 
 **Vault remote token (precedence):** `VOX_SECRETS_VAULT_TOKEN` → compat `VOX_TURSO_TOKEN` → `TURSO_AUTH_TOKEN` (same gating as URL aliases).
 
 | Variable | Role |
 |----------|------|
-| `VOX_SECRETS_VAULT_PATH` | Local vault SQLite path; opened as `file:` (preferred for repo-local vaults). |
+| `VOX_SECRETS_VAULT_PATH` | Local vault SQLite path; opened as `file:` (preferred for repo-local vaults). Default when unset: absolute `$HOME/.vox/clavis_vault.db` (not cwd-relative). |
 | `VOX_SECRETS_VAULT_URL` | Explicit vault URL (`file:…` or `libsql://…`). |
 | `VOX_SECRETS_VAULT_TOKEN` | Auth token when `VOX_SECRETS_VAULT_URL` is remote. |
 | `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | > [!WARNING] DEPRECATED for vault<br>Read only when compat aliases allowed; migrate to `VOX_SECRETS_VAULT_*`. |
