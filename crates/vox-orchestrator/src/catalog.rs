@@ -631,6 +631,8 @@ impl MensCatalog {
 ///
 /// Training writes `candle_qlora_adapter.safetensors` at the run root.
 /// Older layouts used a `final/` or `checkpoint-*` subdirectory.
+/// Kept for unit tests; production catalog listing uses [`mens_run_dir_is_listable`].
+#[cfg(test)]
 fn mens_run_is_complete(path: &std::path::Path) -> bool {
     let Ok(rd) = std::fs::read_dir(path) else {
         return false;
