@@ -588,12 +588,16 @@ pub fn run_candle_qlora_train(
             max_grad_norm: Some(1.0),
         },
         num_epochs: config.epochs,
-        // Use the standard candle AdamW optimizer, NOT the paged one. The paged
-        // optimizer (qlora-rs default) computes AdamW updates into a *clone* of each
-        // Var's tensor and never writes them back (training.rs step_param does
-        // `*param = …` on a local clone) — so LoRA weights stay frozen at random init
-        // and the run produces a non-learning (noise) adapter. LoRA optimizer state for
-        // rank-r adapters is tiny, so CPU paging buys nothing here anyway.
+        // `use_paged_optimizer: false` is required, not cosmetic:
+        // `patches/qlora-rs-1.0.5/src/training.rs`'s paged-optimizer branch
+        // (`self.paged_optimizer`) has no call to `clip_grad_norm` at all, so
+        // `max_grad_norm` above is silently ignored whenever the paged path is
+        // active — which, absent this override, is always (the crate's default
+        // is `true`). `false` selects the `self.optimizer` branch instead,
+        // which does clip. (The paged optimizer's updates do land — it calls
+        // `var.set(&param)` — so this is a gradient-clipping bug, not a
+        // frozen-weights one. LoRA optimizer state for rank-r adapters is
+        // tiny, so CPU paging buys nothing here anyway.)
         use_paged_optimizer: false,
         ..Default::default()
     };
