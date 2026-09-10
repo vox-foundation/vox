@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { backendAvailable, BackendUnavailableError } from './lib/backendGuard';
+import { MODEL_LIST_LIMIT } from './config/constants';
 import type { ActionManifest } from './types/actionManifest';
 import type {
   CommandCatalog,
@@ -406,7 +407,7 @@ class VoxTransport {
     return safeInvoke<CommandCatalog>('get_command_catalog');
   }
 
-  async listModels(limit = 120) {
+  async listModels(limit = MODEL_LIST_LIMIT) {
     return safeInvoke('list_model_cards', { limit });
   }
 
@@ -466,7 +467,7 @@ class VoxTransport {
 
   async callTool(name: string, args: Record<string, any> = {}): Promise<ExecuteOutput> {
     if (name === 'vox_list_models') {
-      const models = await this.listModels(args.limit ?? 120);
+      const models = await this.listModels(args.limit ?? MODEL_LIST_LIMIT);
       return { exit_code: 0, stdout: JSON.stringify(models), stderr: '' };
     }
     if (name === 'vox_set_active_model' && args.model_id) {

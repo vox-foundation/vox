@@ -75,6 +75,10 @@ export interface ChatPayload {
    * the daemon's default (off) in place.
    */
   grounding_check_enabled?: boolean | null;
+  /** Drive-minted turn id; when set, App must not re-mint. */
+  turn_id?: string | null;
+  /** Drive-minted trace id; when set, App must not re-mint. */
+  trace_id?: string | null;
 }
 
 /** What `handleLoquelaSubmit` returns so Drive send can parse last_error. */

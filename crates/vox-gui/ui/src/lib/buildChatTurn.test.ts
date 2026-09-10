@@ -51,6 +51,24 @@ describe('buildChatTurn', () => {
     expect(out.turn_id).toBe('turn-fixed');
   });
 
+  it('prefers payload turn_id/trace_id when ctx omits them (Drive handoff)', () => {
+    const out = buildChatTurn(
+      { ...full, turn_id: 'drive-turn', trace_id: 'drive-trace' },
+      { sessionId: 's1' },
+    );
+    expect(out.turn_id).toBe('drive-turn');
+    expect(out.trace_id).toBe('drive-trace');
+  });
+
+  it('ctx ids win over payload ids when both set', () => {
+    const out = buildChatTurn(
+      { ...full, turn_id: 'drive-turn', trace_id: 'drive-trace' },
+      { sessionId: 's1', turnId: 'ctx-turn', traceId: 'ctx-trace' },
+    );
+    expect(out.turn_id).toBe('ctx-turn');
+    expect(out.trace_id).toBe('ctx-trace');
+  });
+
   it('falls back chat_session_id to the dispatch sessionId when ctx omits it', () => {
     const out = buildChatTurn(full, { sessionId: 's1' });
     expect(out.chat_session_id).toBe('s1');

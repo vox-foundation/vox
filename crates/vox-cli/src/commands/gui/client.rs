@@ -67,6 +67,22 @@ pub fn response_has_last_error(body: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Drive verbs must return HTTP 200 with a non-empty JSON body.
+/// Soft failures (empty TCP frame → status 0, truncated responses) previously
+/// exited 0 because callers only bailed on `status >= 400`.
+pub fn require_ok_json_body(status: u16, body: &str) -> Result<()> {
+    if status != 200 {
+        bail!("drive HTTP {status} (expected 200); body={body}");
+    }
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        bail!("drive response body empty (HTTP 200)");
+    }
+    serde_json::from_str::<serde_json::Value>(trimmed)
+        .map_err(|e| anyhow::anyhow!("drive response is not JSON: {e}; body={body}"))?;
+    Ok(())
+}
+
 fn has_submit_ok_for_turn(view: &serde_json::Value, turn_id: &str) -> bool {
     view.get("events")
         .and_then(|e| e.as_array())
@@ -240,5 +256,14 @@ mod tests {
             r#"{"status":200,"state":{"last_error":null}}"#
         ));
         assert!(!response_has_last_error(r#"{"status":200,"state":{}}"#));
+    }
+
+    #[test]
+    fn require_ok_json_body_rejects_soft_failures() {
+        assert!(require_ok_json_body(0, "").is_err());
+        assert!(require_ok_json_body(200, "").is_err());
+        assert!(require_ok_json_body(200, "not-json").is_err());
+        assert!(require_ok_json_body(409, r#"{"error":"x"}"#).is_err());
+        assert!(require_ok_json_body(200, r#"{"status":200,"state":{}}"#).is_ok());
     }
 }

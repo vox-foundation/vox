@@ -57,11 +57,20 @@ export interface ChatTurnSource {
   mode?: string | null;
   files?: string[];
   context?: unknown;
+  /** Pre-minted correlation ids (Drive send); App must prefer these. */
+  turn_id?: string | null;
+  trace_id?: string | null;
 }
 
 export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): ChatTurnInput {
-  const traceId = (ctx.traceId && ctx.traceId.trim()) || mintId();
-  const turnId = (ctx.turnId && ctx.turnId.trim()) || mintId();
+  const fromPayloadTrace = payload.trace_id?.trim();
+  const fromPayloadTurn = payload.turn_id?.trim();
+  const traceId = (ctx.traceId && ctx.traceId.trim())
+    || fromPayloadTrace
+    || mintId();
+  const turnId = (ctx.turnId && ctx.turnId.trim())
+    || fromPayloadTurn
+    || mintId();
   return {
     session_id: ctx.sessionId,
     content: payload.description,

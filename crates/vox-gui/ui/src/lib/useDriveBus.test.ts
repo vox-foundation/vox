@@ -232,6 +232,26 @@ describe('handleDriveRequest', () => {
     expect(res.state.events.some((e: any) => e.kind === 'submit_ok' && e.text === 'hello-assistant')).toBe(true);
   });
 
+  it('send mints turn_id/trace_id once and passes them to submit', async () => {
+    const submit = vi.fn(async (payload: any) => {
+      expect(payload.turn_id).toBeTruthy();
+      expect(payload.trace_id).toBeTruthy();
+      expect(payload.turn_id).not.toBe(payload.trace_id);
+      return { ok: true, text: 'ok' };
+    });
+    const res = await handleDriveRequest({
+      req: { id: '1', verb: 'send', body: { text: 'hi' } },
+      state: emptyLiveState(),
+      models: [],
+      statuses: [],
+      submit,
+    });
+    expect(submit).toHaveBeenCalledOnce();
+    const payload = submit.mock.calls[0][0];
+    expect(res.state.last_turn_id).toBe(payload.turn_id);
+    expect(res.state.events.some((e: any) => e.kind === 'submit_ok' && e.turn_id === payload.turn_id)).toBe(true);
+  });
+
   it('mutation: send path references clearDriveEvents and appendDriveEvent', () => {
     const src = handleDriveRequest.toString();
     expect(src).toMatch(/clearDriveEvents/);

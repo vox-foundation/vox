@@ -228,9 +228,7 @@ fn set(args: DriveSetArgs) -> Result<()> {
     let body = serde_json::Value::Object(map).to_string();
     let (status, resp) = client::post("set", &body)?;
     println!("{resp}");
-    if status >= 400 {
-        bail!("set failed ({status})");
-    }
+    client::require_ok_json_body(status, &resp)?;
     Ok(())
 }
 
@@ -248,9 +246,7 @@ fn send(args: DriveSendArgs) -> Result<()> {
     let body = serde_json::json!({ "text": args.text }).to_string();
     let (status, resp) = client::post("send", &body)?;
     println!("{resp}");
-    if status >= 400 {
-        bail!("send failed ({status})");
-    }
+    client::require_ok_json_body(status, &resp)?;
     // Live plane returns HTTP 200 with `last_error` set on soft submit
     // failures — exit non-zero so e2e cannot treat send alone as success.
     if client::response_has_last_error(&resp) {
@@ -262,9 +258,7 @@ fn send(args: DriveSendArgs) -> Result<()> {
 fn state() -> Result<()> {
     let (status, resp) = client::post("state", "{}")?;
     println!("{resp}");
-    if status >= 400 {
-        bail!("state failed ({status})");
-    }
+    client::require_ok_json_body(status, &resp)?;
     Ok(())
 }
 
@@ -293,9 +287,15 @@ fn headless(cmd: DriveHeadlessCmd) -> Result<()> {
         .context("stdin")?
         .write_all(req.to_string().as_bytes())?;
     let out = child.wait_with_output()?;
-    print!("{}", String::from_utf8_lossy(&out.stdout));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    print!("{stdout}");
     if !out.status.success() {
         bail!("headless failed");
+    }
+    // Headless send can exit 0 with a JSON envelope that still carries
+    // last_error — match live `send` honesty.
+    if matches!(cmd, DriveHeadlessCmd::Send(_)) && client::response_has_last_error(&stdout) {
+        bail!("headless send failed (last_error set)");
     }
     Ok(())
 }

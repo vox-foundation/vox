@@ -295,13 +295,13 @@ git commit -m "feat(gui): record Drive submit_ok/submit_err events"
 
 ### Task 3: Mirror agent-event frames into the Drive ring
 
-**Status (2026-09-10 closeout): PARTIAL**
+**Status (2026-09-10): DONE**
 
 Shipped: Drive ring records `submit_ok` / `submit_err`, `token_streamed` (and related agent frames) for the active turn; Metal e2e observed `event_kinds=research_executed,token_streamed,token_streamed,submit_ok`.
 
-**Still constrained (honesty):**
-- Drive CLI `gui drive send` / `set` / `state` may print errors on stderr while exiting **0** with empty stdout — VoxScript `run_json` must treat empty stdout as failure (Metal e2e hit this when Drive failed to bind). Prefer checking `status` JSON or non-empty stdout, not exit code alone.
-- `cost_incurred` / hop `turn_id` may differ from Drive `last_turn_id` when research + chat share a session; OpenRouter fallthrough of sticky `mens/*` pins is fixed in orch sticky resolve (synthesize VoxLocal) — assert no `provider\":\"openrouter\"` on Metal e2e cost events.
+Honesty residuals closed:
+- Drive CLI `set` / `send` / `state` require HTTP 200 + non-empty JSON (`require_ok_json_body`); soft empty/status-0 no longer exits 0. Headless send also fails on `last_error`.
+- Drive send mints `turn_id`/`trace_id` once and passes them on `DriveSubmitPayload`; App/`buildChatTurn` reuse them so ChatHop matches Drive `last_turn_id`.
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/drive/AxisDriveHost.tsx`
@@ -344,12 +344,12 @@ Extract `attachDriveAgentListener` if mounting React is heavy — **required**, 
 
 - [x] **Step 4: Run UI tests**
 
-- [ ] **Residual:** tighten Drive CLI non-zero exit on session errors (send-exit honesty).
+- [x] **Residual:** Drive CLI non-zero exit on soft/empty responses + single-mint turn/trace handoff.
 Run: `pnpm --dir crates/vox-gui/ui test src/lib/driveEvents.test.ts src/lib/useDriveBus.test.ts src/components/drive/`
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit** (landed with Axis chat honesty leftovers branch)
 
 ```bash
 git add crates/vox-gui/ui/src/components/drive/AxisDriveHost.tsx \
@@ -712,7 +712,7 @@ git commit -m "docs: record Axis chat e2e acceptance evidence" # only if adding 
 | Audit P0 reply FP → `reply_ok` | Task 4 |
 | Event ring + raw cap + redaction | Task 1 |
 | submit_* on send | Task 2 |
-| `kind.text` agent mirror + active turn | Task 3 (PARTIAL — see send-exit honesty) |
+| `kind.text` agent mirror + active turn | Task 3 (DONE — CLI honesty + turn_id handoff) |
 | Catalog provider fields / state loads catalog | Task 5 |
 | OpenRouter green via `reply_ok` | Task 5 / Task 9 |
 | Metal spike / multimodal gate | Task 0 |

@@ -40,6 +40,10 @@ export interface DriveSubmitPayload {
   files?: string[];
   priority?: string | null;
   active_skill?: string | null;
+  /** Minted once in Drive send; App must reuse so ChatHop matches last_turn_id. */
+  turn_id?: string | null;
+  /** Minted once in Drive send; pairs with ChatHop JSONL `trace_id`. */
+  trace_id?: string | null;
 }
 
 /** Result of App `onSubmit` / `handleLoquelaSubmit`. Drive send must surface this. */
@@ -159,6 +163,8 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
     }
     const blocked = assertPinSelectable(state, args.models, args.statuses);
     if (blocked) return blocked;
+    const turnId = crypto.randomUUID();
+    const traceId = crypto.randomUUID();
     const payload: DriveSubmitPayload = {
       description: text,
       execution_mode: executionToComposerMode(state.knobs.execution),
@@ -171,10 +177,11 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
       files: state.knobs.context_files,
       priority: state.knobs.priority ?? null,
       active_skill: state.knobs.active_skill ?? null,
+      turn_id: turnId,
+      trace_id: traceId,
     };
     let lastError: string | null = null;
     let assistantText: string | null = null;
-    const turnId = crypto.randomUUID();
     let eventState = clearDriveEvents({
       events: state.events,
       events_dropped: state.events_dropped,

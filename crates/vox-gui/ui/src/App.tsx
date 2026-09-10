@@ -1146,15 +1146,18 @@ export default function App() {
     // `submitResolved` is the sole writer of `taskToSession`, the map that
     // routes every task_*/token_streamed frame to a bubble and replays the
     // 30s pending buffer. See spec §6.
-    // Mint once per send so ChatHop JSONL and Drive events share ids.
+    // Prefer Drive-minted ids so ChatHop JSONL matches Drive `last_turn_id`.
+    // Composer / non-Drive paths still mint here when payload omits them.
     const traceId =
-      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      (payload.trace_id && payload.trace_id.trim())
+      || (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
-        : `trace-${Date.now()}`;
+        : `trace-${Date.now()}`);
     const turnId =
-      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      (payload.turn_id && payload.turn_id.trim())
+      || (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
-        : `turn-${Date.now()}`;
+        : `turn-${Date.now()}`);
     const turn = buildChatTurn(payload, {
       sessionId,
       modelOverride: chatModelOverride,

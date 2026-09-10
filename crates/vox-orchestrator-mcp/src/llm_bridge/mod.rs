@@ -54,7 +54,8 @@ pub struct VoxLocalGenerateResult {
 /// Generate Vox code via the local MENS inference server.
 ///
 /// Benefits over a raw HTTP call: the health probe result is TTL-cached (30 s),
-/// and the endpoint is resolved from `VOX_LOCAL_ENDPOINT` (default 127.0.0.1:11434).
+/// and the endpoint walks `vox_local_endpoint_probe_candidates` (explicit
+/// `VOX_LOCAL_ENDPOINT`, else `:11434` then `:11435`).
 pub async fn vox_local_generate(
     client: &reqwest::Client,
     prompt: &str,
@@ -69,8 +70,7 @@ pub async fn vox_local_generate(
         .await
         .map_err(|e: HttpInferError| e.message)?;
 
-    let base = std::env::var("VOX_LOCAL_ENDPOINT")
-        .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
+    let base = providers::vox_local_generate_base_url();
     let endpoint = format!("{}/generate", base.trim_end_matches('/'));
 
     #[derive(serde::Serialize)]
@@ -123,4 +123,23 @@ pub async fn vox_local_generate(
         warnings: parsed.warnings,
         attempts: parsed.attempts,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clamp_http_max_output_tokens_bounds() {
+        assert_eq!(clamp_http_max_output_tokens(0), 1);
+        assert!(clamp_http_max_output_tokens(u64::MAX) <= limits::HTTP_MAX_OUTPUT_TOKENS_CAP);
+        assert_eq!(clamp_http_max_output_tokens(128), 128);
+    }
+
+    #[test]
+    fn vox_local_generate_base_url_is_nonempty() {
+        let base = providers::vox_local_generate_base_url();
+        assert!(!base.trim().is_empty());
+        assert!(base.starts_with("http"));
+    }
 }

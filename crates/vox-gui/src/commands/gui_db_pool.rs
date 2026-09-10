@@ -29,13 +29,9 @@ impl GuiDbPool {
                     // Never wipe interactive/canonical DBs. Drive stores only,
                     // and only when explicitly opted in.
                     if !drive_store_reset_allowed() {
-                        tracing::warn!(
-                            max_version,
-                            root = %root,
-                            "Drive store legacy schema (max_version={max_version}); \
-                             set VOX_GUI_DRIVE_ALLOW_STORE_RESET=1 to wipe and recreate \
-                             under VOX_GUI_DRIVE_STORE_ROOT only"
-                        );
+                        let msg = legacy_schema_drive_message(&root, max_version);
+                        tracing::error!(max_version, root = %root, "{msg}");
+                        eprintln!("vox-gui: {msg}");
                         None
                     } else {
                         wipe_drive_store(root_path);
@@ -81,6 +77,20 @@ fn drive_store_reset_allowed() -> bool {
             .ok()
             .as_deref()
             == Some("1")
+}
+
+/// Actionable message when Drive hits a schema ahead of this binary's baseline.
+/// Do **not** invent a higher `BASELINE_VERSION` — wipe the Drive profile store
+/// (with `VOX_GUI_DRIVE_ALLOW_STORE_RESET=1`) or use a fresh `--profile`.
+fn legacy_schema_drive_message(root: &str, max_version: i64) -> String {
+    format!(
+        "Drive store legacy/ahead schema at {root} (schema_max={max_version}, \
+         binary BASELINE_VERSION={}); empty GuiDbPool — set \
+         VOX_GUI_DRIVE_ALLOW_STORE_RESET=1 with VOX_GUI_DRIVE=1 to wipe only under \
+         VOX_GUI_DRIVE_STORE_ROOT, or use a fresh Drive --profile. Do not bump \
+         BASELINE_VERSION to match a stale store.",
+        vox_db::schema::BASELINE_VERSION
+    )
 }
 
 fn wipe_drive_store(root_path: &Path) {
@@ -163,5 +173,17 @@ mod tests {
                 None => std::env::remove_var("VOX_GUI_DRIVE_ALLOW_STORE_RESET"),
             }
         }
+    }
+
+    #[test]
+    fn legacy_schema_message_names_baseline_and_reset_flag() {
+        let msg = legacy_schema_drive_message("/tmp/drive-prof", 93);
+        assert!(msg.contains("schema_max=93"));
+        assert!(msg.contains(&format!(
+            "BASELINE_VERSION={}",
+            vox_db::schema::BASELINE_VERSION
+        )));
+        assert!(msg.contains("VOX_GUI_DRIVE_ALLOW_STORE_RESET=1"));
+        assert!(msg.contains("Do not bump BASELINE_VERSION"));
     }
 }
