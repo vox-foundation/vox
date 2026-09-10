@@ -192,6 +192,35 @@ fn default_device_kind() -> DeviceKind {
     DeviceKind::Best
 }
 
+/// Build the `qlora-rs` training config from the resolved `LoraTrainingConfig`
+/// and the already-computed warmup step count.
+///
+/// `use_paged_optimizer: false` is required, not cosmetic:
+/// `patches/qlora-rs-1.0.5/src/training.rs`'s paged-optimizer branch
+/// (`self.paged_optimizer`) has no call to `clip_grad_norm` at all, so
+/// `max_grad_norm` below is silently ignored whenever the paged path is
+/// active — which, absent this override, is always (the crate's default is
+/// `true`). `false` selects the `self.optimizer` branch instead, which does
+/// clip. (The paged optimizer's updates do land — it calls `var.set(&param)`
+/// — so this is a gradient-clipping bug, not a frozen-weights one.)
+pub(super) fn build_train_cfg(
+    config: &LoraTrainingConfig,
+    warmup_steps: usize,
+) -> QLoraTrainingConfig {
+    QLoraTrainingConfig {
+        adapter_config: AdapterTrainingConfig {
+            learning_rate: config.learning_rate,
+            lr_schedule: LrSchedule::LinearWarmup { warmup_steps },
+            weight_decay: 0.01,
+            gradient_accumulation_steps: config.grad_accum.max(1),
+            max_grad_norm: Some(1.0),
+        },
+        num_epochs: config.epochs,
+        use_paged_optimizer: false,
+        ..Default::default()
+    }
+}
+
 /// Main entry point — called from `crate::training::run_full_training`.
 pub fn run_candle_qlora_train(
     data_dir: &Path,
@@ -438,17 +467,7 @@ pub fn run_candle_qlora_train(
         .warmup_steps
         .min((total_optimizer_steps_planned / 10).max(1) as usize);
 
-    let train_cfg = QLoraTrainingConfig {
-        adapter_config: AdapterTrainingConfig {
-            learning_rate: config.learning_rate,
-            lr_schedule: LrSchedule::LinearWarmup { warmup_steps },
-            weight_decay: 0.01,
-            gradient_accumulation_steps: config.grad_accum.max(1),
-            max_grad_norm: Some(1.0),
-        },
-        num_epochs: config.epochs,
-        ..Default::default()
-    };
+    let train_cfg = build_train_cfg(config, warmup_steps);
 
     let mut trainer = QLoraTrainer::new(train_cfg, device.clone());
 
@@ -1045,5 +1064,21 @@ mod tests {
         let resolved_data = resolved.flatten_all().unwrap().to_vec1::<f32>().unwrap();
         assert_eq!(resolved_data, wte_data);
         assert_eq!(base_key, "model.embed_tokens.weight");
+    }
+
+    /// `qlora-rs`'s paged-optimizer branch never calls `clip_grad_norm`
+    /// (`patches/qlora-rs-1.0.5/src/training.rs`, `self.paged_optimizer` arm),
+    /// so `max_grad_norm` is silently ignored whenever the paged optimizer is
+    /// active — which is always, absent an explicit override, since that's
+    /// the crate's default. `build_train_cfg` must disable it so the
+    /// `self.optimizer` branch (which does clip) runs instead, matching CUDA.
+    #[test]
+    fn metal_train_cfg_disables_paged_optimizer_so_grad_clipping_applies() {
+        let config = LoraTrainingConfig::default();
+        let cfg = build_train_cfg(&config, 10);
+        assert!(
+            !cfg.use_paged_optimizer,
+            "paged optimizer skips clip_grad_norm entirely; must be disabled"
+        );
     }
 }
