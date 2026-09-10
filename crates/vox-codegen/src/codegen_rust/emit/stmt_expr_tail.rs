@@ -460,7 +460,7 @@ pub(super) fn is_vox_namespace_ident(name: &str) -> bool {
     )
 }
 
-fn hir_expr_span(expr: &HirExpr) -> Span {
+pub(super) fn hir_expr_span(expr: &HirExpr) -> Span {
     match expr {
         HirExpr::IntLit(_, s) => *s,
         HirExpr::FloatLit(_, s) => *s,

@@ -12,7 +12,7 @@ use std::process::Command;
 /// How `vox run` chooses between app (compilerd / generated server) and script execution.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, ValueEnum)]
 pub enum RunMode {
-    /// If the file has no `@page` (first 8 KiB scan), run as a script when `script-execution` is enabled; else app path. Override with `Vox.toml` `[web] run_mode` or `VOX_WEB_RUN_MODE`.
+    /// Script-shaped files (`fn main()`, no service surfaces) use the HIR interpreter (no cargo). Service-shaped files stay on the native/app lane. Native escape hatches: `--mode script`, `Vox.toml [web] run_mode = "script"`, `VOX_WEB_RUN_MODE=script`.
     #[default]
     Auto,
     /// Always use the app / dev-server path (build + `target/generated` server).
@@ -38,10 +38,24 @@ pub fn parse_run_mode_from_str(s: &str) -> RunMode {
 /// Run a `.vox` file via the tree-walking HIR interpreter (no native compile step).
 /// Extracted so it can be invoked from both `--mode interp` and the `--mode auto`
 /// fallback path when `script-execution` Cargo feature is not compiled in.
-async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
+async fn run_interp(
+    file: &Path,
+    args: &[String],
+    caps_tokens: &[String],
+    max_steps: Option<usize>,
+    max_memory: Option<usize>,
+    max_disk: Option<usize>,
+    max_files: Option<usize>,
+    max_depth: Option<usize>,
+) -> Result<()> {
+    if let Some(bytes) = max_memory {
+        crate::mem_limit::arm(bytes);
+    }
+    install_exit_signal_handler();
+
     let source = std::fs::read_to_string(file).context("Failed to read file")?;
 
-    let mut caps = std::collections::HashSet::new();
+    let mut legacy_words = Vec::new();
     let mut has_caps_directive = false;
     if let Some(first_line) = source.lines().next() {
         if first_line.starts_with("// vox:caps ") {
@@ -50,7 +64,7 @@ async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
                 .trim_start_matches("// vox:caps ")
                 .split_whitespace()
             {
-                caps.insert(cap.to_string());
+                legacy_words.push(cap.to_string());
             }
         }
     }
@@ -60,23 +74,66 @@ async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
         .map_err(|e| anyhow::anyhow!("Parse failed: {:?}", e))?;
     let lowered = vox_compiler::hir::lower::lower_module(&module);
 
-    let mut interpreter = vox_compiler::eval::Interpreter::new(10_000_000);
-    if has_caps_directive {
-        interpreter.caps = Some(caps);
-    }
+    let caps = if !caps_tokens.is_empty() {
+        // One token per `--caps` flag — do not comma-join (Windows TEMP may
+        // contain commas). Parse each token and merge.
+        let mut set = vox_compiler::eval::caps::CapabilitySet::parse(&caps_tokens[0])
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        for tok in &caps_tokens[1..] {
+            set.merge(
+                vox_compiler::eval::caps::CapabilitySet::parse(tok)
+                    .map_err(|e| anyhow::anyhow!("{e}"))?,
+            );
+        }
+        set
+    } else if has_caps_directive {
+        vox_compiler::eval::caps::CapabilitySet::from_legacy_directive(&legacy_words)
+    } else {
+        vox_compiler::eval::caps::CapabilitySet::developer_default()
+    };
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(max_steps.unwrap_or(10_000_000));
+    interpreter.caps = caps;
+    interpreter.script_args = args.to_vec();
+    interpreter.max_eval_depth = max_depth.unwrap_or(vox_compiler::eval::MAX_EVAL_DEPTH);
+    interpreter.fs_quota.max_disk_bytes = max_disk;
+    interpreter.fs_quota.max_files = max_files;
     if let Ok(abs) = std::fs::canonicalize(file) {
         interpreter.set_source_path(abs);
     } else {
         interpreter.set_source_path(file.to_path_buf());
     }
 
-    interpreter
+    let res = match interpreter
         .run_module(&lowered)
-        .map_err(|e| anyhow::anyhow!("Eval failed: {:?}", e))?;
-
-    let res = interpreter
-        .call("main", vec![])
-        .map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?;
+        .and_then(|()| interpreter.call("main", vec![]))
+    {
+        Ok(res) => res,
+        Err(vox_compiler::eval::EvalError::CapabilityDenied { ns, method }) => {
+            eprintln!(
+                "vox: capability denied: {ns}.{method} — grant with --caps <token> (see isolation.md)"
+            );
+            std::process::exit(77);
+        }
+        Err(vox_compiler::eval::EvalError::StepLimitExceeded)
+        | Err(vox_compiler::eval::EvalError::RecursionLimitExceeded) => {
+            eprintln!(
+                "vox: execution budget exceeded; pass --max-steps / --max-depth or use --mode script"
+            );
+            std::process::exit(78);
+        }
+        Err(vox_compiler::eval::EvalError::Interrupted) => {
+            interpreter.flush_exit_commands();
+            exit_interrupted();
+        }
+        Err(e) => {
+            return Err(anyhow::anyhow!("Eval failed: {:?}", e));
+        }
+    };
+    if vox_compiler::eval::signal_exit_requested() {
+        interpreter.flush_exit_commands();
+        exit_interrupted();
+    }
     // Only print the return value when it's meaningful (non-Null). Suppresses
     // the spurious trailing `Null` that scripts using bare `return;` produced.
     // Use the value's *display* form (e.g. `ok`), not Debug (`Str("ok")`), so
@@ -85,21 +142,118 @@ async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
         println!("{}", vox_compiler::eval::builtins::vox_value_display(&res));
     }
 
-    vox_compiler::eval::builtins::vox_flush_exit_commands();
+    interpreter.flush_exit_commands();
+    crate::mem_limit::disarm();
     Ok(())
 }
 
+/// Install SIGINT/SIGTERM (Unix) / console-ctrl (Windows) so `run_interp`
+/// can flush `process.register_exit_command` on the interpreter thread.
+/// Installed only from [`run_interp`] so other embedders do not inherit it.
+#[allow(unsafe_code)]
+fn install_exit_signal_handler() {
+    #[cfg(unix)]
+    // SAFETY: handler only stores an AtomicBool (async-signal-safe).
+    unsafe {
+        libc::signal(
+            libc::SIGINT,
+            handle_exit_signal as *const () as libc::sighandler_t,
+        );
+        libc::signal(
+            libc::SIGTERM,
+            handle_exit_signal as *const () as libc::sighandler_t,
+        );
+    }
+    #[cfg(windows)]
+    unsafe {
+        windows_sys::Win32::System::Console::SetConsoleCtrlHandler(Some(win_ctrl_handler), 1);
+    }
+}
+
+#[cfg(unix)]
+extern "C" fn handle_exit_signal(_: libc::c_int) {
+    // Async-signal-safe: AtomicBool store only. Do not lock or spawn.
+    vox_compiler::eval::request_signal_exit();
+}
+
+#[cfg(windows)]
+#[allow(unsafe_code)]
+unsafe extern "system" fn win_ctrl_handler(_: u32) -> i32 {
+    // Helper thread (not a Unix signal handler), but still do not spawn here.
+    vox_compiler::eval::request_signal_exit();
+    1
+}
+
+#[allow(unsafe_code)]
+fn exit_interrupted() -> ! {
+    #[cfg(unix)]
+    // SAFETY: `_exit` skips atexit so the counting allocator is not re-entered.
+    #[allow(unsafe_code)]
+    unsafe {
+        libc::_exit(130);
+    }
+    #[cfg(windows)]
+    #[allow(unsafe_code)]
+    unsafe {
+        windows_sys::Win32::System::Threading::TerminateProcess(
+            windows_sys::Win32::System::Threading::GetCurrentProcess(),
+            130,
+        );
+        loop {
+            std::hint::spin_loop();
+        }
+    }
+    #[cfg(not(any(unix, windows)))]
+    std::process::exit(130);
+}
+
 /// Execute the `vox run` command (dispatch to App or Script mode).
-pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
+pub async fn run(
+    file: &Path,
+    args: &[String],
+    mode: RunMode,
+    caps: &[String],
+    max_steps: Option<usize>,
+    max_memory: Option<usize>,
+    max_disk: Option<usize>,
+    max_files: Option<usize>,
+    max_depth: Option<usize>,
+) -> Result<()> {
     if mode == RunMode::Interp {
-        return run_interp(file, args).await;
+        return run_interp(
+            file, args, caps, max_steps, max_memory, max_disk, max_files, max_depth,
+        )
+        .await;
+    }
+
+    let web_mode = vox_config::VoxConfig::load().web_run_mode;
+    let head = match vox_bounded_fs::read_utf8_path_capped(file) {
+        Ok(s) => {
+            let end = usize::min(8192, s.len());
+            s[..end].to_string()
+        }
+        Err(_) => String::new(),
+    };
+    if mode == RunMode::Auto {
+        let script_shaped = crate::commands::runtime::run::run::is_script_shaped(&head);
+        if head.contains("fn main(") && !script_shaped {
+            eprintln!(
+                "vox: this program declares a service surface; running it on the native lane (use --mode script to silence this)"
+            );
+        }
+        if web_mode != vox_config::WebRunMode::Script && script_shaped {
+            return run_interp(
+                file, args, caps, max_steps, max_memory, max_disk, max_files, max_depth,
+            )
+            .await;
+        }
     }
 
     let use_script = match mode {
         RunMode::App => false,
         RunMode::Script => true,
         RunMode::Interp => unreachable!(),
-        RunMode::Auto => match vox_config::VoxConfig::load().web_run_mode {
+        RunMode::Auto => match web_mode {
             vox_config::WebRunMode::App => false,
             vox_config::WebRunMode::Script => true,
             vox_config::WebRunMode::Auto => {
@@ -120,7 +274,6 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
             sandbox: false,
             allow_mcp: false,
             no_cache: false,
-            isolation: None,
             trust_class: Some("trusted_dev".into()),
             wasi_dirs: Vec::new(),
             target_triple: None,
@@ -142,7 +295,10 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
                 path = %file.display(),
                 "script-execution feature absent; auto-falling back to --mode interp"
             );
-            return run_interp(file, args).await;
+            return run_interp(
+                file, args, caps, max_steps, max_memory, max_disk, max_files, max_depth,
+            )
+            .await;
         }
         anyhow::bail!(
             "`vox run --mode script` requires a vox build with `--features script-execution`. \
@@ -393,5 +549,34 @@ mod build_target_gate_tests {
     fn client_target_preserves_heuristic_result() {
         assert!(resolve_has_frontend(BuildTarget::Client, true));
         assert!(!resolve_has_frontend(BuildTarget::Client, false));
+    }
+
+    #[test]
+    fn unix_signal_handler_only_sets_a_flag() {
+        let src = include_str!("run.rs");
+        let start = src
+            .find("fn handle_exit_signal")
+            .expect("unix handler present");
+        let after = &src[start..];
+        let end = after.find("\n}\n").expect("handler body end");
+        let body = &after[..=end];
+        assert!(
+            body.contains("request_signal_exit"),
+            "handler must set the AtomicBool"
+        );
+        assert!(
+            !body.contains("flush_signal_exit_commands"),
+            "handler must not lock or spawn"
+        );
+        assert!(!body.contains("Command::"), "handler must not spawn");
+        assert!(
+            !body.contains("libc::_exit"),
+            "handler must return so the interpreter thread can flush"
+        );
+        assert!(!body.contains(".lock("), "handler must not take a mutex");
+        assert!(
+            !body.contains("exit_interrupted"),
+            "slice must not include the interpreter-thread exit helper"
+        );
     }
 }

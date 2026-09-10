@@ -584,7 +584,11 @@ async fn handle_tool_call_inner(
     {
         let ws = state.workspace_mcp.read();
         if ws.tool_by_name(name).is_some() {
-            return match crate::workspace_mcp::dispatch_workspace_tool(&ws, name, &args) {
+            let root = state
+                .workspace_root
+                .clone()
+                .unwrap_or_else(|| state.repository.root.clone());
+            return match crate::workspace_mcp::dispatch_workspace_tool(&ws, name, &args, &root) {
                 Ok(json) => Ok(json),
                 Err(e) => Ok(ToolResult::<()>::err(e).to_json()),
             };
@@ -1791,6 +1795,30 @@ async fn handle_tool_call_inner(
         "vox_browser_act" => {
             Ok(browser_tools::browser_act(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "heavy-browser")]
+        "vox_browser_open_ex" => {
+            Ok(browser_tools::browser_open_ex(state, serde_json::from_value(args)?).await)
+        }
+        #[cfg(feature = "heavy-browser")]
+        "vox_browser_snapshot" => {
+            Ok(browser_tools::browser_snapshot(state, serde_json::from_value(args)?).await)
+        }
+        #[cfg(feature = "heavy-browser")]
+        "vox_browser_click_ref" => {
+            Ok(browser_tools::browser_click_ref(state, serde_json::from_value(args)?).await)
+        }
+        #[cfg(feature = "heavy-browser")]
+        "vox_browser_fill_ref" => {
+            Ok(browser_tools::browser_fill_ref(state, serde_json::from_value(args)?).await)
+        }
+        #[cfg(feature = "heavy-browser")]
+        "vox_browser_cookies_export" => {
+            Ok(browser_tools::browser_cookies_export(state, serde_json::from_value(args)?).await)
+        }
+        #[cfg(feature = "heavy-browser")]
+        "vox_browser_cookies_import" => {
+            Ok(browser_tools::browser_cookies_import(state, serde_json::from_value(args)?).await)
+        }
 
         "vox_benchmark_list" => {
             Ok(benchmark_tools::benchmark_list(state, serde_json::from_value(args)?).await)
@@ -2001,6 +2029,12 @@ mod registry_dispatch_tests {
         "vox_browser_extract",
         "vox_browser_extract_json",
         "vox_browser_act",
+        "vox_browser_snapshot",
+        "vox_browser_open_ex",
+        "vox_browser_click_ref",
+        "vox_browser_fill_ref",
+        "vox_browser_cookies_export",
+        "vox_browser_cookies_import",
         // T0.3: always_requires_approval — parks unconditionally under every
         // PermissionMode (including accept_all) and is never satisfied by
         // the persisted allowlist (see permission_modes::RISK_CLASSES /

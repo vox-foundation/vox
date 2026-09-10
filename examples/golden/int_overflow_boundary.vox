@@ -1,0 +1,17 @@
+// ---
+// title: "Integer overflow is a fault"
+// description: "i64 overflow exits non-zero on both tiers after overflow-checks = true."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, print]
+// training_eligible: true
+// difficulty: intermediate
+// ---
+// EXPECT: before
+// EXPECT-EXIT: nonzero-both
+pub fn main() {
+  print("before")
+  let x = 9223372036854775807
+  print(str(x + 1))
+}

@@ -198,6 +198,11 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_browser_click_ref
+  description: Click an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_browser_click_xy
   description: Click at viewport coordinates (x,y) on an existing page_id session.
   product_lane: interop
@@ -205,6 +210,16 @@ tools:
   tier: core
 - name: vox_browser_close
   description: Close a browser tab by page_id and shut down the host when no tabs remain.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_cookies_export
+  description: Export cookies to a file under the browser profiles directory. Returns count and path only — cookie values never appear in the MCP payload.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_cookies_import
+  description: Import cookies from a cookies.json file jailed under the browser profiles directory. MCP result has no cookie values.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -220,6 +235,11 @@ tools:
   tier: core
 - name: vox_browser_fill
   description: Focus an input and type text (CSS selector or xpath:/…).
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_fill_ref
+  description: Fill an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -248,6 +268,11 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_browser_open_ex
+  description: Open a Chromium tab with launch mode ephemeral, named, or attach. Named mode requires save_profile or stored cookie consent. Empty VOX_BROWSER_ALLOWED_HOSTS with Named or Attach is an operator risk — set the var in production.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_browser_page_info
   description: Get URL/title and history navigation booleans for page_id.
   product_lane: interop
@@ -264,7 +289,7 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_browser_screencast_frame
-  description: Capture one CDP screencast frame and return image_base64 plus viewport dimensions.
+  description: Capture one CDP screencast frame, persist under browser-frames cache, return path and viewport dimensions.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -274,7 +299,7 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_browser_screenshot_viewport
-  description: Capture viewport-only PNG and return base64 for live UI streaming.
+  description: Capture viewport-only PNG, persist under browser-frames cache, return path and dimensions.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -290,6 +315,11 @@ tools:
   tier: core
 - name: vox_browser_set_viewport
   description: Set viewport width/height for deterministic coordinate mapping.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_snapshot
+  description: Capture a compact accessibility snapshot with stable element refs for ref-based actions; use these refs instead of CSS selectors.
   product_lane: interop
   http_read_role_eligible: false
   tier: core

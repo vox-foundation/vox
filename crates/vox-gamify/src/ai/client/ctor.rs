@@ -499,3 +499,17 @@ impl FreeAiClient {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn explicit_provider_is_reported_as_active() {
+        let client = FreeAiClient::new(vec![FreeAiProvider::Deterministic]);
+        assert_eq!(
+            client.active_provider_info(),
+            ("deterministic".to_string(), "none".to_string())
+        );
+    }
+}

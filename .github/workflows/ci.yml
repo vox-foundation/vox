@@ -1172,11 +1172,17 @@ jobs:
       # under 30 min.  Uses an exact filter so none of the other 250+ intentionally-
       # ignored tests are swept in.  max-threads=1 is enforced by [test-groups.slow] in
       # .config/nextest.toml; the CI profile slow-timeout terminates after 3×180s.
+      #
+      # `golden_differential_gate` (interp vs. one generated native crate per
+      # `examples/golden/**/*.vox` EXPECT) is deliberately NOT in this filter, nor in
+      # `--include-slow` (crates/vox-cli/src/commands/ci/pre_push.rs) — its one-crate
+      # native bundle build is a ~6-8 min cold build, too slow for a merge-blocking PR
+      # check. It runs on a schedule instead: `.github/workflows/differential-gate-nightly.yml`.
       - name: Run slow test partition (arch-check, scientia timeout, codegen bundle)
         if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         run: |
           cargo nextest run \
-            -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check)' \
+            -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check) or (package(vox-mesh-transport) + binary(interp_executor))' \
             --run-ignored ignored-only \
             --profile ci
 

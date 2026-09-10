@@ -95,7 +95,7 @@ jobs:
 
       - name: Install system deps (Linux — GTK/wry required)
         if: runner.os == 'Linux'
-        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+        uses: ./.github/actions/install-linux-system-deps
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.11
@@ -168,7 +168,7 @@ jobs:
 
       - name: Install system deps (Linux — GTK/wry required)
         if: runner.os == 'Linux'
-        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+        uses: ./.github/actions/install-linux-system-deps
 
       # `-p` with no `--workspace`: each is a separate feature resolution, which is
       # what `cargo install --path` does. `--all-targets` because plain `cargo check`

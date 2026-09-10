@@ -325,6 +325,14 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_browser_click_ref",
+      "mcp_tool": "vox_browser_click_ref",
+      "implicit": false,
+      "title": "Browser Click Ref",
+      "description_model": "Click an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_browser_click_xy",
       "mcp_tool": "vox_browser_click_xy",
       "implicit": false,
@@ -338,6 +346,22 @@
       "implicit": false,
       "title": "Browser Close",
       "description_model": "Close a browser tab by page_id and shut down the host when no tabs remain.",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_browser_cookies_export",
+      "mcp_tool": "vox_browser_cookies_export",
+      "implicit": false,
+      "title": "Browser Cookies Export",
+      "description_model": "Export cookies to a file under the browser profiles directory. Returns count and path only — cookie values never appear in the MCP payload.",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_browser_cookies_import",
+      "mcp_tool": "vox_browser_cookies_import",
+      "implicit": false,
+      "title": "Browser Cookies Import",
+      "description_model": "Import cookies from a cookies.json file jailed under the browser profiles directory. MCP result has no cookie values.",
       "curated": true
     },
     {
@@ -362,6 +386,14 @@
       "implicit": false,
       "title": "Browser Fill",
       "description_model": "Focus an input and type text (CSS selector or xpath:/…).",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_browser_fill_ref",
+      "mcp_tool": "vox_browser_fill_ref",
+      "implicit": false,
+      "title": "Browser Fill Ref",
+      "description_model": "Fill an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false.",
       "curated": true
     },
     {
@@ -405,6 +437,14 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_browser_open_ex",
+      "mcp_tool": "vox_browser_open_ex",
+      "implicit": false,
+      "title": "Browser Open Extended",
+      "description_model": "Open a Chromium tab with launch mode ephemeral, named, or attach. Named mode requires save_profile or stored cookie consent. Empty VOX_BROWSER_ALLOWED_HOSTS with Named or Attach is an operator risk — set the var in production.",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_browser_page_info",
       "mcp_tool": "vox_browser_page_info",
       "implicit": false,
@@ -433,7 +473,7 @@
       "mcp_tool": "vox_browser_screencast_frame",
       "implicit": false,
       "title": "Browser Screencast Frame",
-      "description_model": "Capture one CDP screencast frame and return image_base64 plus viewport dimensions.",
+      "description_model": "Capture one CDP screencast frame, persist under browser-frames cache, return path and viewport dimensions.",
       "curated": true
     },
     {
@@ -449,7 +489,7 @@
       "mcp_tool": "vox_browser_screenshot_viewport",
       "implicit": false,
       "title": "Browser Screenshot Viewport",
-      "description_model": "Capture viewport-only PNG and return base64 for live UI streaming.",
+      "description_model": "Capture viewport-only PNG, persist under browser-frames cache, return path and dimensions.",
       "curated": true
     },
     {
@@ -474,6 +514,14 @@
       "implicit": false,
       "title": "Browser Set Viewport",
       "description_model": "Set viewport width/height for deterministic coordinate mapping.",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_browser_snapshot",
+      "mcp_tool": "vox_browser_snapshot",
+      "implicit": false,
+      "title": "Browser Snapshot",
+      "description_model": "Capture a compact accessibility snapshot with stable element refs for ref-based actions; use these refs instead of CSS selectors.",
       "curated": true
     },
     {
@@ -6470,16 +6518,6 @@
         "baseline"
       ],
       "mens_planner_visible": true,
-      "curated": true
-    },
-    {
-      "capability_id": "cli.wasm",
-      "cli_path": [
-        "wasm"
-      ],
-      "implicit": false,
-      "title": "Wasm",
-      "description_model": "Raw precompiled WASI module execution (needs `--features script-wasi`)",
       "curated": true
     }
   ],

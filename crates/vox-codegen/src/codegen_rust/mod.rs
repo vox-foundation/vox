@@ -293,15 +293,6 @@ mod tests {
         );
     }
 
-    // ── WASI guardrail tests (unchanged) ─────────────────────────────────────
-
-    #[test]
-    fn wasi_clean_script_passes_guardrail() {
-        let module = empty_module();
-        let result = generate_script_with_target(&module, "test-script", None, ScriptTarget::Wasi);
-        assert!(result.is_ok(), "clean WASI script should pass guardrail");
-    }
-
     #[test]
     fn script_cargo_toml_merges_rust_import_dependencies() {
         let sp = Span::new(0, 0);

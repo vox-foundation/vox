@@ -27,6 +27,30 @@ knobs:
     default_value: "Qwen/Qwen2.5-Coder-7B-Instruct"
     since: "2026-06-15"
 
+  - name: mens_live_mem_margin_pct
+    env_var: VOX_MENS_LIVE_MEM_MARGIN_PCT
+    description: Fractional safety margin (0.0-1.0, default 0.15) subtracted from macOS vm_stat reclaimable pages when sizing training memory.
+    owner_crate: vox-populi
+    status: active
+    default_value: "0.15"
+    since: "2026-09-06"
+
+  - name: mens_disable_live_mem
+    env_var: VOX_MENS_DISABLE_LIVE_MEM
+    description: When 1/true, skip vm_stat live-available memory and use the static hw.memsize-minus-reserve heuristic.
+    owner_crate: vox-populi
+    status: active
+    default_value: "0"
+    since: "2026-09-06"
+
+  - name: mens_unified_mem_reserve_gib
+    env_var: VOX_MENS_UNIFIED_MEM_RESERVE_GIB
+    description: GiB reserved for macOS/GUI on unified-memory hosts when using the static nameplate fallback.
+    owner_crate: vox-populi
+    status: active
+    default_value: "12.0"
+    since: "2026-09-06"
+
   - name: rag_chunk_chars
     env_var: VOX_RAG_CHUNK_CHARS
     description: Maximum character count per RAG markdown chunk.

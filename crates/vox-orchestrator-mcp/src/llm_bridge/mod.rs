@@ -130,9 +130,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn clamp_http_max_output_tokens_bounds() {
+    fn output_token_clamp_enforces_both_bounds() {
         assert_eq!(clamp_http_max_output_tokens(0), 1);
-        assert!(clamp_http_max_output_tokens(u64::MAX) <= limits::HTTP_MAX_OUTPUT_TOKENS_CAP);
+        assert_eq!(
+            clamp_http_max_output_tokens(u64::MAX),
+            limits::HTTP_MAX_OUTPUT_TOKENS_CAP
+        );
         assert_eq!(clamp_http_max_output_tokens(128), 128);
     }
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { backendAvailable, sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
 import { useLabel } from '../../../hooks/useLanguage';
@@ -14,6 +14,13 @@ import {
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import { BrowserToolbar, type ControlMode } from './BrowserToolbar';
+import { mapClickToViewport } from './clickMap';
+import type { LaunchMode } from './launchMode';
+import { isLoopbackPreviewUrl } from './previewUrl';
+import { overlayItems, type OverlayRef } from './refOverlay';
+
+export { mapClickToViewport } from './clickMap';
 
 interface BrowserViewProps {
   pushToast: (item: Toast) => void;
@@ -35,32 +42,13 @@ interface PlaywrightValidateResult {
 }
 
 type BrowserTab = 'preview' | 'agent';
-type ControlMode = 'you' | 'agent';
 const DEFAULT_VIEWPORT_WIDTH = 1280;
 const DEFAULT_VIEWPORT_HEIGHT = 800;
 
 const MAX_ACTION_LOG = 50;
 
-export function mapClickToViewport(
-  clientX: number,
-  clientY: number,
-  rect: { left: number; top: number; width: number; height: number },
-  viewWidth: number,
-  viewHeight: number,
-): { x: number; y: number } | null {
-  if (rect.width <= 0 || rect.height <= 0 || viewWidth <= 0 || viewHeight <= 0) return null;
-  const scale = Math.min(rect.width / viewWidth, rect.height / viewHeight);
-  const shownW = viewWidth * scale;
-  const shownH = viewHeight * scale;
-  const padX = (rect.width - shownW) / 2;
-  const padY = (rect.height - shownH) / 2;
-  const localX = clientX - rect.left - padX;
-  const localY = clientY - rect.top - padY;
-  if (localX < 0 || localY < 0 || localX > shownW || localY > shownH) return null;
-  return {
-    x: (localX / shownW) * viewWidth,
-    y: (localY / shownH) * viewHeight,
-  };
+interface SnapshotPayload {
+  refs?: Record<string, OverlayRef>;
 }
 
 export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
@@ -74,7 +62,12 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
 
   const [agentUrl, setAgentUrl] = useState('https://example.com');
   const [headless, setHeadless] = useState(true);
+  const [launchMode, setLaunchMode] = useState<LaunchMode>('ephemeral');
+  const [profileId, setProfileId] = useState('');
+  const [saveProfile, setSaveProfile] = useState(false);
+  const [cdpUrl, setCdpUrl] = useState('http://127.0.0.1:9222');
   const [pageId, setPageId] = useState<string | null>(null);
+  const lastNeedsHumanLine = useRef<string | null>(null);
   const [pages, setPages] = useState<BrowserPageSummary[]>([]);
   const [pageInfo, setPageInfo] = useState<BrowserPageInfo | null>(null);
   const [agentNavUrl, setAgentNavUrl] = useState('');
@@ -83,6 +76,11 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const [frame, setFrame] = useState<BrowserFramePayload | null>(null);
   const [actionLog, setActionLog] = useState<string[]>([]);
   const [validateOut, setValidateOut] = useState('');
+  const [showRefs, setShowRefs] = useState(false);
+  const [snapshotRefs, setSnapshotRefs] = useState<Record<string, OverlayRef>>({});
+  const frameBoxRef = useRef<HTMLDivElement>(null);
+  const frameImgRef = useRef<HTMLImageElement>(null);
+  const [frameSize, setFrameSize] = useState({ frameW: 0, frameH: 0 });
 
   const refreshPreviewStatus = useCallback(async () => {
     try {
@@ -166,6 +164,26 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     refreshPageInfo(pageId);
   }, [pageId, refreshPageInfo]);
 
+  const toastNeedsHuman = useCallback(
+    (reason?: string | null) => {
+      pushToast({
+        tone: 'warn',
+        title: 'Human action required',
+        body: reason || undefined,
+        cause: 'backend-ok',
+      });
+    },
+    [pushToast],
+  );
+
+  useEffect(() => {
+    const hit = [...actionLog].reverse().find((line) => line.startsWith('needs_human:'));
+    if (hit && hit !== lastNeedsHumanLine.current) {
+      lastNeedsHumanLine.current = hit;
+      toastNeedsHuman(hit.slice('needs_human:'.length).trim());
+    }
+  }, [actionLog, toastNeedsHuman]);
+
   // Surface genuine agent-driven browser activity from the orchestrator event
   // stream. NOTE: AgentEventKind has no general "tool invoked" variant, so the
   // only browser-identifying signal available here is `tool_timed_out` (carries
@@ -212,6 +230,9 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listenPreviewAvailable((payload: PreviewAvailablePayload) => {
+      if (!isLoopbackPreviewUrl(payload.url)) {
+        return;
+      }
       setPreviewFrameBlocked(false);
       setTab('preview');
       setPreview({
@@ -306,12 +327,28 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const openAgentSession = async () => {
     setBusy(true);
     try {
-      const result = await invoke<{ page_id: string | null }>('browser_open_session', {
-        input: { url: agentUrl.trim(), headless },
+      const result = await invoke<{
+        page_id: string | null;
+        needs_human?: boolean;
+        reason?: string | null;
+      }>('browser_open_session', {
+        input: {
+          url: agentUrl.trim(),
+          headless,
+          mode: launchMode,
+          profile_id: launchMode === 'named' ? profileId.trim() || null : null,
+          save_profile: launchMode === 'ephemeral' ? null : saveProfile,
+          cdp_url: launchMode === 'connect-chrome' ? cdpUrl.trim() || null : null,
+        },
       });
       setPageId(result.page_id ?? null);
       setTab('agent');
-      pushToast({ tone: 'ok', title: 'Browser session opened', body: result.page_id ?? undefined, cause: 'backend-ok' });
+      if (result.needs_human) {
+        lastNeedsHumanLine.current = `needs_human: ${result.reason ?? 'needs_human'}`;
+        toastNeedsHuman(result.reason);
+      } else {
+        pushToast({ tone: 'ok', title: 'Browser session opened', body: result.page_id ?? undefined, cause: 'backend-ok' });
+      }
       await refreshSessionStatus();
       await refreshPages();
       await refreshPageInfo(result.page_id ?? null);
@@ -329,12 +366,46 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       setPageId(null);
       setFrame(null);
       setPageInfo(null);
+      setShowRefs(false);
+      setSnapshotRefs({});
       pushToast({ tone: 'info', title: 'Browser session closed', cause: 'backend-ok' });
       await refreshPages();
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Close failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    const el = frameImgRef.current ?? frameBoxRef.current;
+    if (!el) return;
+    const syncSize = () => {
+      const rect = el.getBoundingClientRect();
+      setFrameSize({ frameW: rect.width, frameH: rect.height });
+    };
+    syncSize();
+    const observer = new ResizeObserver(syncSize);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [tab, frame]);
+
+  const captureSnapshot = async () => {
+    try {
+      const snap = await invoke<SnapshotPayload>('browser_snapshot');
+      setSnapshotRefs(snap.refs ?? {});
+    } catch (err) {
+      setSnapshotRefs({});
+      pushToast({ tone: 'warn', title: 'Snapshot failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    }
+  };
+
+  const onShowRefsChange = async (checked: boolean) => {
+    setShowRefs(checked);
+    if (checked) {
+      await captureSnapshot();
+    } else {
+      setSnapshotRefs({});
     }
   };
 
@@ -359,6 +430,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       setPageId(selectedPageId);
       await refreshSessionStatus();
       await refreshPageInfo(selectedPageId);
+      if (showRefs) await captureSnapshot();
       pushToast({ tone: 'ok', title: 'Attached session', body: selectedPageId, cause: 'backend-ok' });
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Attach failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
@@ -374,6 +446,8 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       if (pageId === selectedPageId) {
         setPageId(null);
         setPageInfo(null);
+        setShowRefs(false);
+        setSnapshotRefs({});
       }
       await refreshPages();
       pushToast({ tone: 'info', title: 'Page closed', body: selectedPageId, cause: 'backend-ok' });
@@ -400,6 +474,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     try {
       await invoke('browser_navigate', { input: { action } });
       await refreshPageInfo(pageId);
+      if (showRefs) await captureSnapshot();
     } catch (err) {
       pushToast({ tone: 'warn', title: `Navigation ${action} failed`, body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
@@ -413,6 +488,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     try {
       await invoke('browser_goto_url', { input: { url: agentNavUrl.trim() } });
       await refreshPageInfo(pageId);
+      if (showRefs) await captureSnapshot();
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Goto failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
@@ -424,7 +500,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     if (!pageId || controlMode !== 'you') return;
     const viewWidth = frame?.viewport_width ?? DEFAULT_VIEWPORT_WIDTH;
     const viewHeight = frame?.viewport_height ?? DEFAULT_VIEWPORT_HEIGHT;
-    const rect = event.currentTarget.getBoundingClientRect();
+    const rect = (frameImgRef.current ?? event.currentTarget).getBoundingClientRect();
     const mapped = mapClickToViewport(
       event.clientX,
       event.clientY,
@@ -505,7 +581,9 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     }
   };
 
-  const activePreviewUrl = preview?.url ?? (previewUrl.trim() || null);
+  const rawPreviewUrl = preview?.url ?? (previewUrl.trim() || null);
+  const activePreviewUrl =
+    rawPreviewUrl && isLoopbackPreviewUrl(rawPreviewUrl) ? rawPreviewUrl : null;
 
   return (
     <section className="space-y-4">
@@ -634,158 +712,60 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
 
       {tab === 'agent' && (
         <div className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-            <label className="block space-y-1">
-              <span className="text-[10px] uppercase tracking-wider text-text-muted">Agent browser URL</span>
-              <input
-                value={agentUrl}
-                onChange={(e) => setAgentUrl(e.target.value)}
-                className="w-full rounded-lg bg-overlay-subtle border border-border-subtle px-3 py-2 text-sm text-text-secondary"
-              />
-            </label>
-            <label className="flex items-end gap-2 pb-1">
-              <input
-                type="checkbox"
-                checked={headless}
-                onChange={(e) => setHeadless(e.target.checked)}
-                className="rounded-sm"
-              />
-              <span className="text-[11px] text-text-muted">Headless</span>
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={openAgentSession}
-              className="rounded-lg bg-brass/20 text-brass px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
-            >
-              Open session
-            </button>
-            <button
-              type="button"
-              disabled={busy || !pageId}
-              onClick={closeAgentSession}
-              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
-            >
-              Close
-            </button>
-            <button
-              type="button"
-              disabled={!pageId || busy}
-              onClick={captureFrame}
-              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
-            >
-              Capture frame
-            </button>
-            <button
-              type="button"
-              disabled={!pageId || busy || !(pageInfo?.can_go_back ?? false)}
-              onClick={() => navigate('back')}
-              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
-            >
-              Back
-            </button>
-            <button
-              type="button"
-              disabled={!pageId || busy || !(pageInfo?.can_go_forward ?? false)}
-              onClick={() => navigate('forward')}
-              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
-            >
-              Forward
-            </button>
-            <button
-              type="button"
-              disabled={!pageId || busy}
-              onClick={() => navigate('reload')}
-              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
-            >
-              Reload
-            </button>
-            <button
-              type="button"
-              disabled={!pageId || busy}
-              onClick={() => navigate('stop')}
-              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
-            >
-              Stop
-            </button>
-            <button
-              type="button"
-              aria-pressed={controlMode === 'agent'}
-              onClick={() => setControlModeRemote(controlMode === 'you' ? 'agent' : 'you')}
-              className={`rounded-lg px-4 py-2 text-[11px] uppercase tracking-wider ${
-                controlMode === 'you'
-                  ? 'bg-brass/20 text-brass'
-                  : 'bg-overlay-subtle text-text-secondary'
-              }`}
-            >
-              Mode: {controlMode === 'you' ? 'You' : 'Agent'}
-            </button>
-          </div>
-          <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+          <BrowserToolbar
+            agentUrl={agentUrl}
+            onAgentUrlChange={setAgentUrl}
+            headless={headless}
+            onHeadlessChange={setHeadless}
+            launchMode={launchMode}
+            onLaunchModeChange={setLaunchMode}
+            profileId={profileId}
+            onProfileIdChange={setProfileId}
+            saveProfile={saveProfile}
+            onSaveProfileChange={setSaveProfile}
+            cdpUrl={cdpUrl}
+            onCdpUrlChange={setCdpUrl}
+            busy={busy}
+            pageId={pageId}
+            pageInfo={pageInfo}
+            pages={pages}
+            agentNavUrl={agentNavUrl}
+            onAgentNavUrlChange={setAgentNavUrl}
+            controlMode={controlMode}
+            onOpen={openAgentSession}
+            onClose={closeAgentSession}
+            onCapture={captureFrame}
+            onNavigate={navigate}
+            onGoto={gotoUrl}
+            onAttach={attachPage}
+            onClosePage={closePage}
+            onControlModeToggle={() => setControlModeRemote(controlMode === 'you' ? 'agent' : 'you')}
+          />
+          <label className="flex items-center gap-2">
             <input
-              value={agentNavUrl}
-              onChange={(e) => setAgentNavUrl(e.target.value)}
-              className="w-full rounded-lg bg-overlay-subtle border border-border-subtle px-3 py-2 text-sm text-text-secondary"
-              placeholder="https://example.com"
+              type="checkbox"
+              checked={showRefs}
+              disabled={!pageId}
+              onChange={(e) => {
+                void onShowRefsChange(e.target.checked);
+              }}
+              className="rounded-sm"
             />
-            <button
-              type="button"
-              disabled={!pageId || busy || !agentNavUrl.trim()}
-              onClick={gotoUrl}
-              className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
-            >
-              Go
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {pages.map((p) => {
-              const active = p.page_id === pageId;
-              return (
-                <div
-                  key={p.page_id}
-                  className={`rounded-lg px-3 py-1.5 text-[11px] max-w-[280px] truncate ${
-                    active
-                      ? 'bg-brass/20 text-brass border border-brass/40'
-                      : 'bg-overlay-subtle text-text-secondary border border-border-subtle'
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => attachPage(p.page_id)}
-                    className="mr-2 max-w-[220px] truncate align-middle"
-                    title={`${p.title || '(untitled)'} — ${p.url}`}
-                  >
-                    {(p.title || '(untitled)').slice(0, 42)}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => closePage(p.page_id)}
-                    className="align-middle text-text-muted hover:text-text-primary"
-                    aria-label={`Close ${p.title || p.page_id}`}
-                    title="Close tab"
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-[11px] text-text-muted font-mono">
-            page_id={pageId ?? '—'} · can_go_back={String(pageInfo?.can_go_back ?? false)} · can_go_forward={String(pageInfo?.can_go_forward ?? false)}
-          </p>
+            <span className="text-[11px] text-text-muted">Show refs</span>
+          </label>
           <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
             <div
+              ref={frameBoxRef}
               tabIndex={0}
               onClick={onFrameClick}
               onWheel={onFrameWheel}
               onKeyDown={onFrameKeyDown}
-              className="rounded-xl border border-border-subtle bg-black/30 min-h-[360px] flex items-center justify-center overflow-hidden focus:outline-hidden focus:ring-2 focus:ring-brass/30"
+              className="relative rounded-xl border border-border-subtle bg-black/30 min-h-[360px] flex items-center justify-center overflow-hidden focus:outline-hidden focus:ring-2 focus:ring-brass/30"
             >
               {frame?.image_base64 ? (
                 <img
-                  src={`data:image/png;base64,${frame.image_base64}`}
+                  ref={frameImgRef}
+                  src={`data:${frame.mime ?? "image/png"};base64,${frame.image_base64}`}
                   alt="Agent browser frame"
                   className="w-full h-full max-h-[480px] object-contain pointer-events-none"
                 />
@@ -794,6 +774,26 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                   {frame?.error ?? 'No frame yet — open a session or wait for the live stream (~3s).'}
                 </span>
               )}
+              {showRefs &&
+                overlayItems(snapshotRefs, {
+                  frameW: frameSize.frameW,
+                  frameH: frameSize.frameH,
+                  viewW: frame?.viewport_width ?? DEFAULT_VIEWPORT_WIDTH,
+                  viewH: frame?.viewport_height ?? DEFAULT_VIEWPORT_HEIGHT,
+                }).map((item) => (
+                  <span
+                    key={item.refId}
+                    className="absolute pointer-events-none border border-brass/70 bg-brass/15 text-[10px] leading-none text-brass font-mono px-0.5"
+                    style={{
+                      left: item.left,
+                      top: item.top,
+                      width: item.width,
+                      height: item.height,
+                    }}
+                  >
+                    [{item.refId}]
+                  </span>
+                ))}
             </div>
             <div className="rounded-xl border border-border-subtle bg-black/20 p-3 max-h-[360px] overflow-auto">
               <h3 className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Action log</h3>

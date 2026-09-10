@@ -44,7 +44,7 @@ fn run_expect_int(src: &str) -> i64 {
 
 fn run_expect_str(src: &str) -> String {
     match run(src).expect("run") {
-        VoxValue::Str(s) => s,
+        VoxValue::Str(s) => s.to_string(),
         other => panic!("expected Str, got {other:?}"),
     }
 }

@@ -71,8 +71,9 @@ pub fn run() -> Result<()> {
                 errors.push(format!("fixture tool '{tool}' not in federated surface"));
                 continue;
             }
-            let resp =
-                vox_orchestrator_mcp::workspace_mcp::dispatch_workspace_tool(surface, tool, &args);
+            let resp = vox_orchestrator_mcp::workspace_mcp::dispatch_workspace_tool(
+                surface, tool, &args, &repo,
+            );
             match resp {
                 Ok(json) => {
                     let v: serde_json::Value = serde_json::from_str(&json)?;
@@ -90,7 +91,9 @@ pub fn run() -> Result<()> {
                 errors.push(format!("fixture resource '{uri}' not in federated surface"));
                 continue;
             }
-            match vox_orchestrator_mcp::workspace_mcp::dispatch_workspace_resource(surface, uri) {
+            match vox_orchestrator_mcp::workspace_mcp::dispatch_workspace_resource(
+                surface, uri, &repo,
+            ) {
                 Ok(body) => {
                     if let Some(expected) = &row.expected_body
                         && body != *expected

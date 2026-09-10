@@ -85,6 +85,13 @@ pub fn vox_flush_exit_commands() {
 ///
 /// For provenance, signatures, or any security-sensitive hashing, use
 /// `vox_hash_secure` (BLAKE3-based) instead.
+///
+/// Algorithmically identical to `vox_crypto::hash_fast_hex` (used by the
+/// interp's `crypto.hash_fast` and native codegen's `crypto.hash_fast` emit —
+/// see `builtin_registry.rs`), but implemented independently here because
+/// this crate cannot take a normal dependency on `vox-crypto` (would require
+/// a `crate-edges` ledger entry). Equivalence is enforced by a same-file dev
+/// test: `hash_fast_matches_vox_crypto_hash_fast_hex` in `builtins/tests.rs`.
 pub fn vox_hash_fast(input: &str) -> String {
     use xxhash_rust::xxh3::xxh3_128;
     let h = xxh3_128(input.as_bytes());
@@ -128,6 +135,29 @@ pub fn vox_now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+/// Native-codegen backing for bare `process.cwd()` (Task 2, interpreter-first
+/// execution PR 2). Mirrors the interpreter's `Some("process") => "cwd"` arm
+/// in `crates/vox-compiler/src/eval/builtins.rs` — both swallow the error
+/// case to an empty string rather than surfacing a `Result`, since `cwd`
+/// failing (deleted CWD, permissions) is rare enough that stdlib treats it
+/// as best-effort, matching `fs.cwd`'s native emit in `builtin_registry.rs`.
+pub fn vox_process_cwd() -> String {
+    std::env::current_dir()
+        .map(|p| p.display().to_string())
+        .unwrap_or_default()
+}
+
+/// Native-codegen backing for bare `secrets.resolve(key)` (Task 2). `key` is
+/// looked up by canonical env name / alias / `Debug` spelling via
+/// `SecretId::from_str` (see `vox-secrets/src/spec/ids.rs`); an unknown key
+/// or a key with no resolved value both yield `None` — same shape as the
+/// interpreter's `Some("secrets") => "resolve"` arm.
+pub fn vox_secrets_resolve(key: &str) -> Option<String> {
+    let id: vox_secrets::SecretId = std::str::FromStr::from_str(key).ok()?;
+    let resolved = vox_secrets::resolve_secret_with_context(id, "script");
+    resolved.expose().map(|v| v.to_string())
 }
 
 pub fn vox_log_debug(message: &str) {
@@ -322,12 +352,102 @@ pub fn vox_json_render(v: &VoxJson) -> Result<String, String> {
     serde_json::to_string(&v.0).map_err(|e| e.to_string())
 }
 
+/// Native-codegen SSOT for `str(x)` / `print(...)`'s surface text — must
+/// stay byte-identical to the interpreter's
+/// `vox_compiler::eval::builtins::vox_value_display` (Task 2 Step 5,
+/// `display_composites.vox`). Codegen (`("str", 1)` / `("print", n)` in
+/// `vox-codegen/src/codegen_rust/emit/stmt_expr.rs::emit_display_arg`)
+/// converts its argument to a `serde_json::Value` first; `Ok`/`Err`/`Some`
+/// literal constructor calls are handled at codegen time instead (recursive
+/// `format!`, never through this function) because serde's `Option`
+/// serialization is transparent (`Some(x)` → `x`'s own JSON, `None` →
+/// `null`) and would otherwise be indistinguishable from a bare scalar once
+/// erased to `Value` — same reasoning as `Ok`/`Err`'s unconstrained-`E`
+/// dead end (`route_json_shortcut`). This function therefore only needs to
+/// handle the shapes JSON *can* represent faithfully: null, bool, number,
+/// string, array, object.
+///
+/// Formatting rules (mirrors `vox_value_display`):
+/// - `null` → `"null"` (matches the interpreter's `VoxValue::Null` surface
+///   form in `vox_value_display`)
+/// - whole-number float → integer-looking (`5`, not `5.0`)
+/// - string → raw content, unquoted
+/// - array → `[v1, v2]`
+/// - object → `{k: v, k2: v2}` in insertion order (`serde_json`'s
+///   `preserve_order` feature, Step 3, keeps this matching source order)
+pub fn vox_display(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::Null => "null".to_string(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Number(n) => {
+            if n.is_f64() {
+                if let Some(f) = n.as_f64() {
+                    if f.is_finite() && f.fract() == 0.0 {
+                        return format!("{}", f as i64);
+                    }
+                }
+            }
+            n.to_string()
+        }
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Array(items) => {
+            let inner: Vec<String> = items.iter().map(vox_display).collect();
+            format!("[{}]", inner.join(", "))
+        }
+        serde_json::Value::Object(map) => {
+            let inner: Vec<String> = map
+                .iter()
+                .map(|(k, val)| format!("{k}: {}", vox_display(val)))
+                .collect();
+            format!("{{{}}}", inner.join(", "))
+        }
+    }
+}
+
+/// Report a caught panic payload to stderr and exit the process with code 1.
+///
+/// Task 2 Step 10: native codegen (`pipeline.rs`) wraps every generated `main`
+/// variant in `std::panic::catch_unwind` (sync mains) or a `tokio::spawn` +
+/// `JoinHandle` (the async-`main` variant, where a plain `catch_unwind` around
+/// an `.await`-ing closure isn't well-defined) so a Vox-script fault exits 1
+/// with a clean message instead of the default Rust panic exit code (101) and
+/// backtrace-shaped output — matching the interpreter tier
+/// (`int_overflow_produces_clean_error_not_panic`,
+/// `crates/vox-compiler/tests/eval_typeck_parity_test.rs`), which already
+/// turns faults into a clean `eprintln!` + `process::exit(1)` rather than an
+/// unwinding Rust panic.
+///
+/// Never returns — callers can use it directly as a match arm / `Result::Err`
+/// handler of any expected type, since `!` coerces.
+pub fn vox_report_panic_and_exit(payload: Box<dyn std::any::Any + Send>) -> ! {
+    eprintln!("{}", panic_payload_message(&*payload));
+    std::process::exit(1);
+}
+
+/// Extract a human-readable message from a `std::panic::catch_unwind` /
+/// `tokio::task::JoinError::into_panic` payload. Split out of
+/// `vox_report_panic_and_exit` purely so the formatting logic is unit-testable
+/// (`vox_report_panic_and_exit` itself calls `process::exit` and can't be
+/// called from a test without killing the test process).
+fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        (*s).to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "script panicked with a non-string payload".to_string()
+    }
+}
+
 /// Read a process environment variable (`std.env.get` in Vox scripts).
 pub fn vox_env_get(key: &str) -> Option<String> {
     std::env::var(key).ok()
 }
 
 /// List directory entries (non-recursive) as file names (`std.fs.list_dir`).
+///
+/// Sorted — matches the interpreter twin (`interp_fs_list_dir`, `eval/builtins.rs`)
+/// so both tiers return byte-identical (order-stable) output (Task 2 Step 7).
 pub fn vox_list_dir(path: &str) -> Result<Vec<String>, String> {
     let rd = std::fs::read_dir(path).map_err(|e| e.to_string())?;
     let mut out = Vec::new();
@@ -335,6 +455,7 @@ pub fn vox_list_dir(path: &str) -> Result<Vec<String>, String> {
         let ent = ent.map_err(|e| e.to_string())?;
         out.push(ent.file_name().to_string_lossy().into_owned());
     }
+    out.sort();
     Ok(out)
 }
 
@@ -366,6 +487,10 @@ fn vox_file_record_from_meta(
 }
 
 /// Structured directory listing (`std.fs.list_dir_detailed`).
+///
+/// Sorted — matches the interpreter twin (`interp_fs_list_dir_detailed`,
+/// `eval/shell_stdlib.rs`) so both tiers return byte-identical (order-stable)
+/// output (Task 2 Step 7).
 pub fn vox_fs_list_dir_detailed(dir: &str) -> Result<Vec<VoxFileRecord>, String> {
     let rd = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
     let mut out = Vec::new();
@@ -380,6 +505,7 @@ pub fn vox_fs_list_dir_detailed(dir: &str) -> Result<Vec<VoxFileRecord>, String>
         let full = path_buf.to_string_lossy().into_owned();
         out.push(vox_file_record_from_meta(&full, &name, &meta));
     }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
 }
 

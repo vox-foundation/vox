@@ -12,7 +12,7 @@ pub fn run(file: &Path, _args: &[String]) -> Result<()> {
 
     // Parse `// vox:caps <cap1> <cap2> …` on the very first line (parity with
     // vox-cli's `run_interp`).
-    let mut caps = std::collections::HashSet::new();
+    let mut legacy_words = Vec::new();
     let mut has_caps_directive = false;
     if let Some(first_line) = source.lines().next()
         && first_line.starts_with("// vox:caps ")
@@ -22,7 +22,7 @@ pub fn run(file: &Path, _args: &[String]) -> Result<()> {
             .trim_start_matches("// vox:caps ")
             .split_whitespace()
         {
-            caps.insert(cap.to_string());
+            legacy_words.push(cap.to_string());
         }
     }
 
@@ -32,9 +32,12 @@ pub fn run(file: &Path, _args: &[String]) -> Result<()> {
     let lowered = vox_compiler::hir::lower::lower_module(&module);
 
     let mut interpreter = vox_compiler::eval::Interpreter::new(10_000_000);
-    if has_caps_directive {
-        interpreter.caps = Some(caps);
-    }
+    // Explicit, not the constructor's default — parity with vox-cli's `run_interp`.
+    interpreter.caps = if has_caps_directive {
+        vox_compiler::eval::caps::CapabilitySet::from_legacy_directive(&legacy_words)
+    } else {
+        vox_compiler::eval::caps::CapabilitySet::developer_default()
+    };
     if let Ok(abs) = std::fs::canonicalize(file) {
         interpreter.set_source_path(abs);
     } else {
@@ -53,6 +56,6 @@ pub fn run(file: &Path, _args: &[String]) -> Result<()> {
         println!("{}", vox_compiler::eval::builtins::vox_value_display(&res));
     }
 
-    vox_compiler::eval::builtins::vox_flush_exit_commands();
+    interpreter.flush_exit_commands();
     Ok(())
 }

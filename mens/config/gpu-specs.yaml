@@ -267,6 +267,11 @@ train_bases:
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 20000, methods: [qlora] }
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 44000, methods: [lora] }
     - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 60000, methods: [qlora] }
+    # Apple Silicon 128 GB tier (usable ~116 GiB after the GUI reserve): 32B
+    # un-quantized LoRA. floor_mb is a provisional estimate — 64 GB of BF16
+    # weights plus optimizer/activation headroom — pending a measured peak
+    # (docs/superpowers/plans/2026-09-05-mens-mac-training-enablement.md Task 4).
+    - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 100000, methods: [lora] }
   agentic_default:
     - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct",         floor_mb: 11000, methods: [qlora, dpo] }
     # USER DECISION (Qwen3 everywhere): the Qwen3-8B rung (floor 12000) outranks the
@@ -275,6 +280,8 @@ train_bases:
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 20000, methods: [qlora] }
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 44000, methods: [lora] }
     - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 60000, methods: [qlora] }
+    # Apple Silicon 128 GB tier — see strong_code_default above for the note.
+    - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 100000, methods: [lora] }
 
 # TODO: B6.0 vLLM compat spike
 # B6.0 requires standing up a real vLLM instance with Qwen3 + a trained QLoRA adapter.

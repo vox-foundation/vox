@@ -19,6 +19,7 @@ pub use stream::{llm_stream, llm_stream_activity};
 pub use types::{
     LlmChatMessage, LlmConfig, LlmResponse, LlmToolDef, ModelMetric, ModelRegistryEntry,
 };
+pub use vox_llm_egress::{LlmContentPart, LlmImageUrl};
 pub use vox_telemetry::{
     FixtureModelIntentResolvedEvent, OrchSubagentDispatchEvent, SubagentDispatchTelemetryPayload,
 };

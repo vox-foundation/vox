@@ -181,6 +181,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_BROWSER_ALLOWED_HOSTS"
+    owner_crate: "vox-plugin-browser"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Optional comma-separated browser navigation host allowlist; entries may be exact hosts or wildcard subdomains such as *.example.com."
   - name: "VOX_BROWSER_LLM_CONTEXT_CHARS"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -193,6 +199,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_BROWSER_PROFILES_DIR"
+    owner_crate: "vox-config"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Override directory for named Chromium profiles and consents.json; default is <data_dir>/browser-profiles."
   - name: "VOX_BUDGET_USD"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -4422,6 +4434,24 @@ variables:
     required: false
     introduced_in: "0.6.0"
     description: "MENS training: enable activation gradient checkpointing to reduce VRAM (default off for small models)."
+  - name: "VOX_MENS_LIVE_MEM_MARGIN_PCT"
+    owner_crate: "vox-populi"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "MENS: fractional safety margin (0.0-1.0, default 0.15) subtracted from macOS vm_stat reclaimable pages when sizing training memory."
+  - name: "VOX_MENS_DISABLE_LIVE_MEM"
+    owner_crate: "vox-populi"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    description: "MENS: when 1/true, skip vm_stat live-available memory and use the static hw.memsize-minus-reserve heuristic (deterministic CI)."
+  - name: "VOX_MENS_UNIFIED_MEM_RESERVE_GIB"
+    owner_crate: "vox-populi"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "MENS: GiB reserved for macOS/GUI on unified-memory hosts when using the static nameplate fallback (default 12)."
   - name: "VOX_MENS_SKIP_EVAL"
     owner_crate: "vox-cli"
     kind: "bool"
@@ -4514,7 +4544,7 @@ variables:
     introduced_in: "0.5.0"
     description: "Referenced from workspace sources; locate callsites with rg."
   - name: "VOX_CACHE_DIR"
-    owner_crate: "vox-cli"
+    owner_crate: "vox-config"
     kind: "string"
     required: false
     introduced_in: "0.5.0"

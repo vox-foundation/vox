@@ -757,13 +757,13 @@ pub(crate) async fn run_agent_turn(
                         }
                     }
 
-                    messages.push(LlmChatMessage {
-                        role: "tool".into(),
+                    messages.push(crate::tool_images::llm_tool_message(
+                        call.id.clone(),
+                        call.name.clone(),
                         content,
-                        tool_call_id: Some(call.id.clone()),
-                        name: Some(call.name.clone()),
-                        ..Default::default()
-                    });
+                        &vox_config::paths::browser_frames_cache_dir(),
+                    ));
+                    crate::tool_images::retain_latest_tool_image(&mut messages);
                 }
 
                 if iteration + 1 == max_iterations {

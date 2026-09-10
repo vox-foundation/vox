@@ -6,7 +6,7 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-description = "Codegen + WebIR + vox_ir extracted from vox-compiler. Consumes analysis types from vox-compiler."
+description = "Codegen + WebIR + hir_export extracted from vox-compiler. Consumes analysis types from vox-compiler."
 publish = false
 
 [features]

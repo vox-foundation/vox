@@ -169,6 +169,7 @@ export interface BrowserFramePayload {
   image_base64: string | null;
   viewport_width: number | null;
   viewport_height: number | null;
+  mime?: string | null;
   action_log: string[];
   error: string | null;
 }

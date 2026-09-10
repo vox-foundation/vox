@@ -52,7 +52,7 @@ pub fn execute_repo_op(
             }
             let label = match args.first() {
                 None => None,
-                Some(VoxValue::Str(s)) => Some(s.as_str()),
+                Some(VoxValue::Str(s)) => Some(s.as_ref()),
                 Some(other) => {
                     return Err(EvalError::TypeError {
                         expected: "str",

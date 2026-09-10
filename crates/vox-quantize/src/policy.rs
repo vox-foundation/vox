@@ -19,6 +19,10 @@ impl TensorRole {
         let k = key.to_ascii_lowercase();
         if k.ends_with("layernorm.weight")
             || k.ends_with(".norm.weight")
+            // Dense Qwen3's per-head q_norm/k_norm end in "_norm.weight"
+            // (underscore), which ".norm.weight" (dot) does not match.
+            || k.ends_with("q_norm.weight")
+            || k.ends_with("k_norm.weight")
             || k == "model.language_model.norm.weight"
             || k.ends_with(".a_log")
             || k.ends_with(".dt_bias")
@@ -110,6 +114,28 @@ pub fn resolve_dtype(target: GgmlDType, last_dim: usize) -> GgmlDType {
 mod tests {
     use super::*;
     use candle_core::quantized::GgmlDType;
+
+    #[test]
+    fn role_classification_keeps_qk_norm_f32() {
+        // Real dense Qwen3 checkpoints (e.g. Qwen/Qwen3-0.6B) carry a per-head
+        // RMSNorm on Q/K before RoPE. `q_norm.weight`/`k_norm.weight` end in
+        // "_norm.weight" (underscore), not ".norm.weight" (dot) like
+        // input_layernorm/post_attention_layernorm — so the existing
+        // `.ends_with(".norm.weight")` check misses them, and this small,
+        // precision-sensitive per-head vector was falling through to the
+        // default Matrix role and getting quantized (confirmed: produced a
+        // Q8_0 fallback on a real checkpoint this session, which downstream
+        // code that only reads the F32 map cannot even load, since ADR-043's
+        // policy is that norms stay F32 on disk).
+        assert_eq!(
+            TensorRole::from_key("model.language_model.layers.3.self_attn.q_norm.weight"),
+            TensorRole::KeepF32
+        );
+        assert_eq!(
+            TensorRole::from_key("model.language_model.layers.3.self_attn.k_norm.weight"),
+            TensorRole::KeepF32
+        );
+    }
 
     #[test]
     fn role_classification_keeps_norms_f32() {

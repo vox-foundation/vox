@@ -110,7 +110,7 @@ pub(super) async fn run_gpu_training(
         device_profile,
         resolved.sample_count,
         cli_overrides,
-    );
+    )?;
     let rank = profile.rank;
     let alpha = profile.alpha;
     let seq_len = profile.seq_len;

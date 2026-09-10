@@ -141,7 +141,7 @@ Top-level **`vox generate`** (`crates/vox-cli/src/commands/generate.rs`) posts t
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--port` | _(from `VOX_PORT` or 3000)_ | Sets `VOX_PORT` for the generated Axum server and Vite `/api` proxy |
-| `--mode` | `auto` | `app` = always generated server; `script` = `fn main()` script lane (**needs** `cargo build -p vox-cli --features script-execution`); `auto` = script lane when the file has no `@page` and the binary was built with `script-execution`. |
+| `--mode` | `auto` | `app` = always generated server; `script` = native `fn main()` lane (**needs** `cargo build -p vox-cli --features script-execution`); `auto` = HIR interpreter for script-shaped files (`fn main()`, no service surfaces — no cargo on PATH); service-shaped files stay on the native/app lane. Native escape hatches: `--mode script`, `Vox.toml [web] run_mode = "script"`, `VOX_WEB_RUN_MODE=script`. |
 
 Backend listens on the port from **`VOX_PORT`** (or **3000**) — same variable the generated `main.rs` reads.
 
@@ -149,7 +149,7 @@ Backend listens on the port from **`VOX_PORT`** (or **3000**) — same variable 
 
 ### `vox script <file> [-- <args>…]` (feature `script-execution`)
 
-**Not in default builds.** Same script runner as `vox run --mode script`, with explicit flags: `--sandbox`, `--no-cache`, `--isolation`, `--trust-class`. Build: `cargo build -p vox-cli --features script-execution`.
+**Not in default builds.** Same script runner as `vox run --mode script`, with explicit flags: `--sandbox`, `--no-cache`, `--trust-class`. Build: `cargo build -p vox-cli --features script-execution`.
 
 When **`VOX_MESH_ENABLED=1`** and the binary is built with **`--features populi`** (pulls in `vox-populi`; optionally combine with **`script-execution`**), `vox script` / script-mode `vox run` **best-effort** publishes a node record to the local registry file (see [mens SSOT](populi.md)).
 
@@ -872,7 +872,6 @@ The sections above document 50 of the 76 top-level `vox` commands. The remaining
 | `vox snapshot` | Insta snapshot helpers: detect and clean up orphaned `.snap` files (`vox snapshot orphans [--clean]`) |
 | `vox stop` | Emergency stop the orchestrator (MCP/daemon local stop request) |
 | `vox term` | Headless-capable ratatui terminal UI — block-model shell + AI agent strip |
-| `vox wasm` | Raw precompiled WASI module execution (needs `--features script-wasi`) |
 
 ## CLI command reachability
 
@@ -952,7 +951,6 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `repair` | default | `commands::repair` |
 | `rollback` | default | `commands::rollback` |
 | `term` | default | `vox_term::app::run` |
-| `wasm` | `script-wasi` | `commands::wasm` |
 
 ### `vox-compilerd` RPC (not CLI variants)
 

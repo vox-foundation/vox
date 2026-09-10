@@ -4,6 +4,7 @@
     "vox-actor-runtime": [
       "vox-bounded-fs",
       "vox-config",
+      "vox-crypto",
       "vox-foundation",
       "vox-http-client",
       "vox-llm-egress",
@@ -235,6 +236,7 @@
       "vox-codegen",
       "vox-codegen-ts",
       "vox-config",
+      "vox-crypto",
       "vox-eval",
       "vox-foundation",
       "vox-grammar-export",
@@ -941,6 +943,7 @@
       "vox-config",
       "vox-db",
       "vox-journal",
+      "vox-mesh-transport",
       "vox-populi",
       "vox-runtime",
       "workspace-hack"

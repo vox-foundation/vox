@@ -68,3 +68,37 @@ symbols:
     replacement: "no arg-based approval bypass; use a transport-authenticated permission mode (T0.2/T0.3)"
     rationale: "Security-critical HITL backdoor (T0.1, 2026-07-02): reading `args.get(\"user_approval\")` in the MCP dispatch chokepoint let any tool-call argument — including ones composed by the LLM agent itself — skip the human-approval gate on dangerous tools (vox_run_shell, vox_deploy, vox_multi_replace(_file), vox_write_file, vox_delete_file). The gate must always park for a real human decision; do not reintroduce an args-based fast path. Only the `.get(\"user_approval\")` read call shape is banned, not the bare string, since tests must legitimately construct `json!({\"user_approval\": true})` to prove the key is ignored."
     scan_rust_source: true
+  # ADR-048: interpreter is the isolation tier. Docs that still recommend these
+  # names as live surfaces fail `vox ci retired-symbol-check`.
+  - id: isolation-wasm-container-gvisor-microvm
+    pattern: "--isolation (?:wasm|container|gvisor|microvm)"
+    replacement: "interpreter isolation (`vox run` / `vox run --interp`); caps via repeatable `--caps`"
+    rationale: "ADR-048. The interpreter is the isolation tier. wasm/container/gvisor/microvm lanes are retired."
+  - id: vox-wasm-run
+    pattern: "\\bvox wasm\\b"
+    replacement: "vox run (interpreter)"
+    rationale: "ADR-048. `vox wasm run` and the script-wasi feature are deleted."
+  - id: script-wasi-feature
+    pattern: "\\bscript-wasi\\b"
+    replacement: "interpreter (`vox run`)"
+    rationale: "ADR-048. The script-wasi cargo feature and WASI script backend are retired."
+  - id: probe-only-executor
+    pattern: "\\bProbeOnlyExecutor\\b"
+    replacement: "InterpExecutor"
+    rationale: "ADR-048 Task 10. Mesh-received Vox runs under InterpExecutor; probe-only is gone."
+  - id: microvm-runtime
+    pattern: "\\bMicroVmRuntime\\b"
+    replacement: "interpreter isolation (ADR-048)"
+    rationale: "ADR-048 Task 13. The MicroVM stub is deleted. Do not re-introduce a runtime type."
+  - id: tier-microvm
+    pattern: "Tier::MicroVm"
+    replacement: "interpreter isolation (ADR-048); planner error-path stays"
+    rationale: "ADR-048. Retirement story only; do not delete the enum variant (planner error-path stays)."
+  - id: vox-mesh-exec-policy-secret
+    pattern: "\\bVoxMeshExecPolicy\\b"
+    replacement: "receiver-imposed `--caps`"
+    rationale: "ADR-048 Task 10. SecretId deleted. The VOX_MESH_EXEC_POLICY *config* key for placement survives."
+  - id: exec-bundle-b64
+    pattern: "\\bexec_bundle_b64\\b"
+    replacement: "VoxScript source on the mesh stream"
+    rationale: "ADR-048 Task 10. The native-bundle lane is deleted; the mesh ships source only."

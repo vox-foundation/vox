@@ -110,3 +110,28 @@ pub fn backend_telemetry_labels(backend: ChatRouteBackend) -> (&'static str, &'s
         ChatRouteBackend::VoxLocal => ("vox", "local"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn route_backend_and_telemetry_labels_stay_aligned() {
+        let route = ChatProviderRouteKind::ManualOpenAiCompatible {
+            base_url: "HTTPS://GENERATIVELANGUAGE.GOOGLEAPIS.COM/v1beta".into(),
+            model: "gemini".into(),
+            bearer: None,
+        };
+        let backend = route_backend_for_chat_route(&route);
+        assert_eq!(backend, ChatRouteBackend::GeminiDirect);
+        assert_eq!(backend_telemetry_labels(backend), ("google", "direct"));
+
+        let mesh = ChatProviderRouteKind::PopuliMesh {
+            base_url: "http://mesh.local".into(),
+            model: "mens".into(),
+        };
+        let backend = route_backend_for_chat_route(&mesh);
+        assert_eq!(backend, ChatRouteBackend::PopuliMesh);
+        assert_eq!(backend_telemetry_labels(backend), ("mens", "populi_mesh"));
+    }
+}

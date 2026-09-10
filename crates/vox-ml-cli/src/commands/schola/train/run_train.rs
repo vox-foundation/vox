@@ -95,15 +95,40 @@ pub async fn run_train(
         }
     }
 
+    let gpu_info = vox_populi::mens::probe_gpu();
+    let workspace_root = vox_corpus::training::contract::find_workspace_root();
+
     let mut model = model;
+    let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if let Some(resolved) =
+        vox_populi::mens::tensor::spoke_base_resolver::maybe_resolve_metal_default_base(
+            model.as_deref(),
+            env_default_model.as_deref(),
+            &gpu_info.vendor,
+            matches!(
+                device_kind,
+                vox_populi::mens::DeviceKind::Best | vox_populi::mens::DeviceKind::Metal
+            ),
+            workspace_root.as_deref(),
+            gpu_info.vram_mb,
+        )?
+    {
+        tracing::info!(
+            model = %resolved,
+            vram_mb = gpu_info.vram_mb,
+            "Using Metal-resolved HF model (`--model` omitted; agentic_default ladder)."
+        );
+        model = Some(resolved);
+    }
     if matches!(
         train_backend,
         vox_populi::mens::PopuliTrainBackend::CandleQlora
     ) && model.is_none()
     {
-        let resolved = vox_populi::mens::resolve_default_model_id(
-            std::env::var("VOX_MENS_DEFAULT_MODEL").ok().as_deref(),
-        );
+        let resolved = vox_populi::mens::resolve_default_model_id(env_default_model.as_deref());
         tracing::info!(
             model = %resolved,
             "Using default HF model for Candle QLoRA (`--model` omitted; see contracts/mens/training-presets.v1.yaml)."
@@ -149,6 +174,10 @@ pub async fn run_train(
             #[cfg(feature = "mens-candle-cuda")]
             crate::commands::mens::plugin_heal::ensure_cuda_plugin(true)?;
         }
+        // `--device metal` dispatches through mens-candle-cuda's
+        // `Device::new_metal(0)` path. Install that plugin with
+        // `--features metal` (`cargo build -p vox-plugin-mens-candle-cuda
+        // --release --features metal` then `vox plugin install --path …`).
         #[cfg(target_os = "macos")]
         if matches!(device_kind, vox_populi::mens::DeviceKind::Metal) {
             // Metal uses the runtime plugin's complete `run_full_training`
@@ -217,7 +246,6 @@ pub async fn run_train(
         }
     }
 
-    let workspace_root = vox_corpus::training::contract::find_workspace_root();
     let data_dir = vox_corpus::training::contract::normalize_workspace_relative_path(
         data_dir,
         workspace_root.as_deref(),
@@ -230,9 +258,11 @@ pub async fn run_train(
         vox_corpus::training::contract::normalize_training_resume_path(r, workspace_root.as_deref())
     });
 
-    let gpu_info = vox_populi::mens::probe_gpu();
-    let device_profile =
-        vox_populi::mens::DeviceProfile::from_gpu_info(&gpu_info.model_name, gpu_info.vram_mb);
+    let device_profile = vox_populi::mens::DeviceProfile::from_gpu_info(
+        &gpu_info.model_name,
+        gpu_info.vram_mb,
+        &gpu_info.vendor,
+    );
     let cli_overrides = vox_populi::mens::CliOverrides {
         rank,
         alpha,
@@ -252,7 +282,7 @@ pub async fn run_train(
         device_profile.clone(),
         None,
         cli_overrides.clone(),
-    );
+    )?;
 
     tracing::debug!(
         model = ?model,

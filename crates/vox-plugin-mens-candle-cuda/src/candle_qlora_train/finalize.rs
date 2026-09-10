@@ -55,9 +55,45 @@ fn build_adapter_manifest_v3(
         d_model,
         rank,
         alpha,
-        config.base_model.clone(),
+        resolved_serve_base_model(config),
         adapter_provenance_from_config(config),
     )
+}
+
+/// Prefer a local snapshot directory for serve. HF ids like `Qwen/Qwen3-0.6B`
+/// are not loadable by the plugin inference engine (`base_model` must be a dir).
+fn resolved_serve_base_model(config: &LoraTrainingConfig) -> Option<String> {
+    if let Some(ref id) = config.base_model {
+        if Path::new(id).is_dir() {
+            return Some(id.clone());
+        }
+    }
+    if let Some((_, ref cfg)) = config.base_model_paths {
+        if let Some(parent) = cfg.parent() {
+            if parent.is_dir() {
+                return Some(parent.display().to_string());
+            }
+        }
+    }
+    config.base_model.clone()
+}
+
+/// Copy tokenizer.json + config.json into the run dir so `vox mens serve` can
+/// load without a second download / hand-copy.
+fn stage_serve_sidecars(out: &Path, config: &LoraTrainingConfig) -> Result<()> {
+    if let Some(ref tok) = config.tokenizer_path {
+        if tok.is_file() {
+            std::fs::copy(tok, out.join("tokenizer.json"))
+                .with_context(|| format!("copy tokenizer from {}", tok.display()))?;
+        }
+    }
+    if let Some((_, ref cfg)) = config.base_model_paths {
+        if cfg.is_file() {
+            std::fs::copy(cfg, out.join("config.json"))
+                .with_context(|| format!("copy config.json from {}", cfg.display()))?;
+        }
+    }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -84,6 +120,11 @@ pub(super) fn finalize_training_run(
     trainer
         .save_adapter(&final_path)
         .context("save final adapter")?;
+    if let Err(e) = stage_serve_sidecars(out, config) {
+        train_log::warn(&format!(
+            "serve sidecars (tokenizer.json/config.json) not staged: {e}"
+        ));
+    }
 
     let final_avg_loss = if total_step_count > 0 {
         total_loss_sum / total_step_count as f64
@@ -248,4 +289,54 @@ pub(super) fn finalize_training_run(
         total_tokens,
         ms_per_step,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{resolved_serve_base_model, stage_serve_sidecars};
+    use crate::config::LoraTrainingConfig;
+    use std::fs;
+
+    #[test]
+    fn resolved_serve_base_model_keeps_existing_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().display().to_string();
+        let mut cfg = LoraTrainingConfig::default();
+        cfg.base_model = Some(path.clone());
+        assert_eq!(resolved_serve_base_model(&cfg), Some(path));
+    }
+
+    #[test]
+    fn resolved_serve_base_model_uses_config_parent_for_hf_id() {
+        let snap = tempfile::tempdir().unwrap();
+        let cfg_path = snap.path().join("config.json");
+        fs::write(&cfg_path, "{}").unwrap();
+        let expected = snap.path().display().to_string();
+        let mut cfg = LoraTrainingConfig::default();
+        cfg.base_model = Some("Qwen/Qwen3-0.6B".into());
+        cfg.base_model_paths = Some((vec![], cfg_path));
+        assert_eq!(resolved_serve_base_model(&cfg), Some(expected));
+    }
+
+    #[test]
+    fn stage_serve_sidecars_copies_tokenizer_and_config() {
+        let src = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
+        let tok = src.path().join("tokenizer.json");
+        let cfg_path = src.path().join("config.json");
+        fs::write(&tok, "tok").unwrap();
+        fs::write(&cfg_path, "{}").unwrap();
+        let mut cfg = LoraTrainingConfig::default();
+        cfg.tokenizer_path = Some(tok);
+        cfg.base_model_paths = Some((vec![], cfg_path));
+        stage_serve_sidecars(out.path(), &cfg).unwrap();
+        assert_eq!(
+            fs::read_to_string(out.path().join("tokenizer.json")).unwrap(),
+            "tok"
+        );
+        assert_eq!(
+            fs::read_to_string(out.path().join("config.json")).unwrap(),
+            "{}"
+        );
+    }
 }

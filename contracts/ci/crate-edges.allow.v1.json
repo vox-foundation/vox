@@ -347,10 +347,6 @@
     ],
     [
       "vox-cli",
-      "vox-wasm-engine"
-    ],
-    [
-      "vox-cli",
       "vox-workflow-runtime"
     ],
     [
@@ -647,6 +643,10 @@
     ],
     [
       "vox-compiler",
+      "vox-crypto"
+    ],
+    [
+      "vox-compiler",
       "vox-eval"
     ],
     [
@@ -851,6 +851,10 @@
     ],
     [
       "vox-gamify",
+      "vox-actor-runtime"
+    ],
+    [
+      "vox-gamify",
       "vox-bounded-fs"
     ],
     [
@@ -1050,6 +1054,10 @@
       "vox-mesh-types"
     ],
     [
+      "vox-mesh-transport",
+      "vox-mesh-types"
+    ],
+    [
       "vox-ml-cli",
       "vox-actor-runtime"
     ],
@@ -1096,6 +1104,10 @@
     [
       "vox-ml-cli",
       "vox-foundation"
+    ],
+    [
+      "vox-ml-cli",
+      "vox-git"
     ],
     [
       "vox-ml-cli",
@@ -1211,11 +1223,19 @@
     ],
     [
       "vox-orchestrator",
+      "vox-mesh-transport"
+    ],
+    [
+      "vox-orchestrator",
       "vox-mesh-types"
     ],
     [
       "vox-orchestrator",
       "vox-orchestrator-types"
+    ],
+    [
+      "vox-orchestrator",
+      "vox-plugin-nvml-probe"
     ],
     [
       "vox-orchestrator",
@@ -1303,6 +1323,10 @@
     ],
     [
       "vox-orchestrator-mcp",
+      "vox-cli-core"
+    ],
+    [
+      "vox-orchestrator-mcp",
       "vox-code-audit"
     ],
     [
@@ -1364,10 +1388,6 @@
     [
       "vox-orchestrator-mcp",
       "vox-mcp-registry"
-    ],
-    [
-      "vox-orchestrator-mcp",
-      "vox-mesh-transport"
     ],
     [
       "vox-orchestrator-mcp",
@@ -1448,6 +1468,10 @@
     [
       "vox-orchestrator-mcp",
       "vox-secrets"
+    ],
+    [
+      "vox-orchestrator-mcp",
+      "vox-similarity"
     ],
     [
       "vox-orchestrator-mcp",
@@ -1891,6 +1915,10 @@
     ],
     [
       "vox-research-shim",
+      "vox-publisher"
+    ],
+    [
+      "vox-research-shim",
       "vox-research-events"
     ],
     [
@@ -2079,6 +2107,10 @@
     ],
     [
       "vox-term",
+      "vox-config"
+    ],
+    [
+      "vox-term",
       "vox-terminal-core"
     ],
     [
@@ -2128,6 +2160,10 @@
     [
       "vox-workflow-runtime",
       "vox-journal"
+    ],
+    [
+      "vox-workflow-runtime",
+      "vox-mesh-transport"
     ],
     [
       "vox-workflow-runtime",

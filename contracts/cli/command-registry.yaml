@@ -3786,17 +3786,6 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::visus::dispatch
-- surface: vox-cli
-  path:
-  - wasm
-  status: active
-  latin_ns: null
-  product_lane: app
-  feature_gate: script-wasi
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: commands::wasm
 - surface: compilerd
   path:
   - build

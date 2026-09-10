@@ -569,7 +569,6 @@ test
 train
 update
 upgrade
-wasm
 workflow
 workflow/drain
 workflow/ls

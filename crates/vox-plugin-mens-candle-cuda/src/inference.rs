@@ -33,6 +33,58 @@ pub enum InferenceModel {
     Qwen35(Qwen35Model),
 }
 
+/// Compute dtype for QLoRA dequantization, chosen by device rather than by
+/// `QLoraConfig::default()`'s training-tuned BF16. Candle's CPU backend has
+/// no BF16 matmul kernel at all — confirmed by a real serve-time failure
+/// ("unsupported dtype BF16 for op matmul") — so CPU inference must use F32.
+/// Metal training on this lane also dequants to F32 (no F32→F64 / BF16
+/// kernels on the path we hit). CUDA keeps BF16.
+fn compute_dtype_for_device(device: &Device) -> qlora_rs::ComputeDType {
+    if device.is_cuda() {
+        qlora_rs::ComputeDType::BF16
+    } else {
+        qlora_rs::ComputeDType::F32
+    }
+}
+
+/// Resolve the Candle device for inference. `Best` on a Metal-featured
+/// macOS build prefers `Device::new_metal(0)` (same rule as training).
+fn resolve_inference_device(device_kind: &crate::device::DeviceKind) -> Result<Device> {
+    match device_kind {
+        crate::device::DeviceKind::Cpu => Ok(Device::Cpu),
+        crate::device::DeviceKind::Cuda => {
+            #[cfg(feature = "cuda")]
+            {
+                Ok(Device::new_cuda(0)?)
+            }
+            #[cfg(not(feature = "cuda"))]
+            {
+                Ok(Device::Cpu)
+            }
+        }
+        crate::device::DeviceKind::Metal | crate::device::DeviceKind::Best => {
+            #[cfg(feature = "metal")]
+            {
+                match Device::new_metal(0) {
+                    Ok(device) => Ok(device),
+                    Err(err) if matches!(device_kind, crate::device::DeviceKind::Best) => {
+                        tracing::warn!(
+                            "Metal unavailable for inference — falling back to CPU: {err}"
+                        );
+                        Ok(Device::Cpu)
+                    }
+                    Err(err) => Err(err.into()),
+                }
+            }
+            #[cfg(not(feature = "metal"))]
+            {
+                let _ = device_kind;
+                Ok(Device::Cpu)
+            }
+        }
+    }
+}
+
 fn resolve_adapter_manifest_path(model_dir: &Path) -> Option<std::path::PathBuf> {
     let manifest = model_dir.join("adapter_manifest.json");
     if manifest.is_file() {
@@ -69,16 +121,7 @@ impl InferenceEngine {
         let _tokenizer = Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| anyhow::anyhow!("load tokenizer: {e}"))?;
 
-        let _device = match device_kind {
-            crate::device::DeviceKind::Cpu => Device::Cpu,
-            _ => {
-                #[cfg(feature = "cuda")]
-                let dev = Device::new_cuda(0).unwrap_or(Device::Cpu);
-                #[cfg(not(feature = "cuda"))]
-                let dev = Device::Cpu;
-                dev
-            }
-        };
+        let _device = resolve_inference_device(device_kind)?;
 
         let adapter_path = model_dir.join("candle_qlora_adapter.safetensors");
         let meta_path = resolve_adapter_manifest_path(model_dir)
@@ -135,7 +178,13 @@ impl InferenceEngine {
         for b in &all_buffers {
             weight_maps.push(SafeTensors::deserialize(b)?);
         }
-        let qlora_cfg = qlora_rs::qlora::QLoraConfig::default();
+        // QLoraConfig::default() hardcodes BF16 compute ("CRITICAL: BF16 for
+        // stability" — tuned for training on CUDA/Metal, where BF16 matmul is
+        // native). Candle's CPU backend does not support BF16 matmul at all
+        // ("unsupported dtype BF16 for op matmul"), so CPU inference must
+        // override to F32 regardless of the training-tuned default.
+        let mut qlora_cfg = qlora_rs::qlora::QLoraConfig::default();
+        qlora_cfg.quantization.compute_dtype = compute_dtype_for_device(&_device);
 
         // Helper to find a tensor in any map
         let get_tensor = |key: &str| -> Result<Tensor> {
@@ -296,6 +345,16 @@ impl InferenceEngine {
                     let q_bias = get_tensor(&format!("{p}.self_attn.q_proj.bias")).ok();
                     let k_bias = get_tensor(&format!("{p}.self_attn.k_proj.bias")).ok();
                     let v_bias = get_tensor(&format!("{p}.self_attn.v_proj.bias")).ok();
+                    // Dense Qwen3's per-head q_norm/k_norm (optional — absent on
+                    // Qwen2/Qwen2.5). Must match training (mod.rs loads these the
+                    // same way) or a merged/served model drifts, exactly like the
+                    // qkv biases above.
+                    let q_norm = get_tensor(&format!("{p}.self_attn.q_norm.weight"))
+                        .ok()
+                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
+                    let k_norm = get_tensor(&format!("{p}.self_attn.k_norm.weight"))
+                        .ok()
+                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
                     Qwen35AttentionBlock::Full(Qwen2Attention {
                         q_proj,
                         k_proj,
@@ -307,6 +366,8 @@ impl InferenceEngine {
                         n_heads,
                         n_kv_heads,
                         head_dim,
+                        q_norm,
+                        k_norm,
                     })
                 };
 
@@ -483,7 +544,35 @@ pub fn run(model_dir: &str, prompt_json: &str) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_adapter_manifest_path;
+    use super::{compute_dtype_for_device, resolve_adapter_manifest_path};
+
+    #[test]
+    fn compute_dtype_is_f32_on_cpu_bf16_on_cuda() {
+        // Candle's CPU backend cannot matmul BF16 at all — this is the one
+        // rung of the device-dtype ladder that MUST be F32, not a tuning
+        // choice. CUDA keeps the training-tuned BF16 default. Metal uses
+        // F32 to match this lane's training compute.
+        assert!(matches!(
+            compute_dtype_for_device(&candle_core::Device::Cpu),
+            qlora_rs::ComputeDType::F32
+        ));
+    }
+
+    #[test]
+    fn resolve_inference_device_cpu_is_cpu() {
+        let d = super::resolve_inference_device(&crate::device::DeviceKind::Cpu).unwrap();
+        assert!(d.is_cpu());
+    }
+
+    #[cfg(feature = "metal")]
+    #[test]
+    fn resolve_inference_device_best_prefers_metal_when_available() {
+        let d = super::resolve_inference_device(&crate::device::DeviceKind::Best).unwrap();
+        assert!(
+            d.is_metal() || d.is_cpu(),
+            "Best must land on Metal or CPU fallback, got {d:?}"
+        );
+    }
 
     #[test]
     fn resolve_adapter_manifest_finds_v3() {

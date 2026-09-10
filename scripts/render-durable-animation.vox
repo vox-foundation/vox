@@ -3,7 +3,7 @@
 // Migrated 2026-05-24 to canonical Vox idioms:
 //   - `-> str` -> `to str`
 //   - `!` -> `not`
-//   - process.run + env.get + process.cwd returns wrapped types
+//   - process.run + env.get return wrapped types; process.cwd() returns bare str
 
 import fs
 import path
@@ -44,7 +44,7 @@ fn run_step(label: str, cmd: str, args: list[str]) {
 }
 
 fn main() {
-    let repo = process.cwd().unwrap_or(".")
+    let repo = process.cwd()
     let tool_dir = path.join(repo, "apps/build-tools/render-durable-animation")
     let webp_out = path.join(repo, "docs/src/assets/durable_essentialist_loop.webp")
     let frames_dir = path.join(tool_dir, "frames")

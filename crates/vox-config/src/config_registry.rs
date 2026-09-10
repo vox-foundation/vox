@@ -587,6 +587,9 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         label: "Mesh Max Stale Ms",
         hint: "Maximum staleness for mesh nodes in monitoring.",
     },
+    // Surviving VOX_MESH_EXEC_POLICY is task *placement* (local_only /
+    // prefer_remote / remote_only). The SecretId::VoxMeshExecPolicy exec-ladder
+    // (no-exec / source-only / permissive) was deleted with the bundle lane.
     ConfigKey {
         key: "VOX_MESH_EXEC_POLICY",
         kind: ConfigKind::String,

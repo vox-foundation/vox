@@ -146,7 +146,7 @@ pub struct RunArgs {
     /// Backend listen port (sets `VOX_PORT` for generated Axum and Vite proxy)
     #[arg(long)]
     pub port: Option<u16>,
-    /// `app` = generated server; `script` = `fn main()` script lane; `auto` = heuristic.
+    /// `app` = generated server; `script` = native `fn main()` lane; `auto` = interpreter for script-shaped files (no cargo). Native escape hatches: `--mode script`, `Vox.toml [web] run_mode = "script"`, `VOX_WEB_RUN_MODE=script`.
     #[arg(long, value_enum, default_value_t = crate::commands::run::RunMode::Auto)]
     pub mode: crate::commands::run::RunMode,
     /// Alias for --mode interp (HIR interpreter)
@@ -158,31 +158,26 @@ pub struct RunArgs {
     /// Alias for --mode app (full web app)
     #[arg(long, conflicts_with = "mode")]
     pub app: bool,
+    /// Repeatable capability token (`fs:ro=<dir>`, `env:ro`, …). Overrides `// vox:caps`.
+    #[arg(long = "caps", action = clap::ArgAction::Append)]
+    pub caps: Vec<String>,
+    /// Max evaluated HIR nodes (interpreter). Bounds nodes, not CPU time.
+    #[arg(long)]
+    pub max_steps: Option<usize>,
+    /// Heap ceiling in bytes (interpreter). Armed after CLI parse.
+    #[arg(long)]
+    pub max_memory: Option<usize>,
+    /// Filesystem write ceiling in bytes (interpreter). Unset for local developer runs.
+    #[arg(long)]
+    pub max_disk: Option<usize>,
+    /// Filesystem inode creation ceiling (interpreter). Unset for local developer runs.
+    #[arg(long)]
+    pub max_files: Option<usize>,
+    /// Max closure-application depth (interpreter). Default 1024.
+    #[arg(long)]
+    pub max_depth: Option<usize>,
     #[arg(trailing_var_arg = true)]
     pub args: Vec<String>,
-}
-
-/// Parse `--isolation` for `vox script` — only wasm/wasi/permissive tiers are wired today.
-#[cfg(feature = "script-execution")]
-fn script_isolation_tier(raw: &str) -> Result<String, String> {
-    match raw.to_lowercase().as_str() {
-        "wasm" | "wasi" | "wasmtime" | "permissive" | "host" | "none" => Ok(raw.to_string()),
-        "container" | "docker" | "podman" | "oci" => {
-            Err("--isolation container is not available for `vox script`. \
-             Use --isolation wasm for sandboxing or `vox deploy` for OCI containers."
-                .to_string())
-        }
-        "gvisor" | "runsc" => Err(
-            "--isolation gvisor is not wired into `vox script`. Use --isolation wasm instead."
-                .to_string(),
-        ),
-        "microvm" | "firecracker" | "kata" | "hyperv" | "hyper-v" => {
-            Err("--isolation microvm is not wired into `vox script`.".to_string())
-        }
-        other => Err(format!(
-            "Unknown isolation tier: {other}. Valid for `vox script`: wasm, wasi, permissive"
-        )),
-    }
 }
 
 /// `vox script` / `vox fabrica script`
@@ -195,40 +190,11 @@ pub struct ScriptArgs {
     pub sandbox: bool,
     #[arg(long, default_value_t = false)]
     pub no_cache: bool,
-    /// Isolation tier: `wasm`/`wasi` (sandboxed) or `permissive` (host). Container/gvisor/microvm are not available for script mode.
-    #[arg(long, value_parser = script_isolation_tier)]
-    pub isolation: Option<String>,
     #[arg(long)]
     pub trust_class: Option<String>,
     /// Optional target triple for cross-compilation (Wave 4).
     #[arg(long)]
     pub target_triple: Option<String>,
-    #[arg(trailing_var_arg = true)]
-    pub args: Vec<String>,
-}
-
-/// `vox wasm run` — execute a raw precompiled WASI module via the in-process
-/// wasmtime SSOT (vox-wasm-engine). NOT feature-gated: raw-`.wasm` execution must
-/// always be available (the mesh worker + control plane shell out to it).
-#[derive(Args, Clone, Debug)]
-pub struct WasmRunArgs {
-    /// Path to a precompiled `.wasm` (WASI preview1) module.
-    #[arg(required = true)]
-    pub file: std::path::PathBuf,
-    /// Fuel limit (wasmtime instructions). Omitted / 0 = unlimited.
-    #[arg(long)]
-    pub fuel: Option<u64>,
-    /// Read-only preopen, repeatable: `HOST[:GUEST]` (guest defaults to host).
-    #[arg(long = "preopen-ro", value_name = "HOST[:GUEST]")]
-    pub preopen_ro: Vec<String>,
-    /// Read-write preopen, repeatable: `HOST[:GUEST]`.
-    #[arg(long = "preopen-rw", value_name = "HOST[:GUEST]")]
-    pub preopen_rw: Vec<String>,
-    /// Environment variable exposed to the guest (WASI), repeatable: KEY=VALUE.
-    /// This is how the mesh worker forwards tier-gated secrets into the sandbox.
-    #[arg(long = "env", value_name = "KEY=VALUE")]
-    pub env: Vec<String>,
-    /// Guest argv (`argv[0]` is synthesized from the module stem).
     #[arg(trailing_var_arg = true)]
     pub args: Vec<String>,
 }

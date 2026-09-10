@@ -1,6 +1,7 @@
 pub use vox_eval::*;
 
 pub mod builtins;
+pub mod caps;
 pub mod db;
 pub mod env;
 pub mod expr;
@@ -11,7 +12,102 @@ pub mod value;
 
 use crate::hir::nodes::HirModule;
 use env::Scope;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use value::VoxValue;
+
+#[cfg(test)]
+use std::cell::Cell;
+#[cfg(test)]
+use std::sync::MutexGuard;
+
+/// Dual-write of `process.register_exit_command` so the SIGINT/SIGTERM handler
+/// installed by `vox run --mode interp` can flush the queue. Not installed from
+/// `Interpreter::new` or other embedders.
+static SIGNAL_EXIT_COMMANDS: Mutex<Vec<(String, Vec<String>)>> = Mutex::new(Vec::new());
+
+/// Set from the Unix signal handler (async-signal-safe: AtomicBool store only).
+/// The interpreter thread observes this in [`Interpreter::track_step`] and
+/// returns [`EvalError::Interrupted`] — never from the handler. Flush is
+/// [`flush_signal_exit_commands`] on the interpreter thread.
+static SIGNAL_EXIT_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+/// Serializes unit tests that mutate [`SIGNAL_EXIT_REQUESTED`] with other
+/// [`Interpreter::track_step`] callers in this crate's lib-test binary.
+#[cfg(test)]
+static TRACK_STEP_SERIAL: Mutex<()> = Mutex::new(());
+
+#[cfg(test)]
+thread_local! {
+    static TRACK_STEP_SERIAL_HELD: Cell<bool> = const { Cell::new(false) };
+}
+
+#[cfg(test)]
+struct TrackStepSerialGuard {
+    _lock: MutexGuard<'static, ()>,
+}
+
+#[cfg(test)]
+impl Drop for TrackStepSerialGuard {
+    fn drop(&mut self) {
+        TRACK_STEP_SERIAL_HELD.with(|held| held.set(false));
+    }
+}
+
+/// Re-entrant so a test can hold the lock across a `track_step` call.
+#[cfg(test)]
+fn acquire_track_step_serial() -> Option<TrackStepSerialGuard> {
+    if TRACK_STEP_SERIAL_HELD.with(Cell::get) {
+        return None;
+    }
+    let guard = TRACK_STEP_SERIAL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    TRACK_STEP_SERIAL_HELD.with(|held| held.set(true));
+    Some(TrackStepSerialGuard { _lock: guard })
+}
+
+pub(crate) fn record_signal_exit_command(cmd: String, args: Vec<String>) {
+    if let Ok(mut q) = SIGNAL_EXIT_COMMANDS.lock() {
+        q.push((cmd, args));
+    }
+}
+
+/// Async-signal-safe request that the interpreter thread flush and exit.
+/// The Unix SIGINT/SIGTERM handler must only call this (no lock, no spawn).
+pub fn request_signal_exit() {
+    SIGNAL_EXIT_REQUESTED.store(true, Ordering::Relaxed);
+}
+
+/// Whether [`request_signal_exit`] has been observed.
+pub fn signal_exit_requested() -> bool {
+    SIGNAL_EXIT_REQUESTED.load(Ordering::Relaxed)
+}
+
+fn take_signal_exit_commands() -> Vec<(String, Vec<String>)> {
+    match SIGNAL_EXIT_COMMANDS.lock() {
+        Ok(mut q) => std::mem::take(&mut *q),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Drain the signal-visible exit-command queue on the interpreter thread.
+/// Must not be called from a Unix signal handler (`Command` allocates).
+pub fn flush_signal_exit_commands() {
+    let mut q = take_signal_exit_commands();
+    builtins::flush_exit_command_list(&mut q);
+}
+
+fn clear_signal_exit_commands() {
+    if let Ok(mut q) = SIGNAL_EXIT_COMMANDS.lock() {
+        q.clear();
+    }
+}
+
+#[cfg(test)]
+fn signal_exit_queue_len() -> usize {
+    SIGNAL_EXIT_COMMANDS.lock().map(|q| q.len()).unwrap_or(0)
+}
 
 #[derive(Debug)]
 pub enum EvalError {
@@ -25,8 +121,44 @@ pub enum EvalError {
         found: usize,
     },
     StepLimitExceeded,
+    RecursionLimitExceeded,
     AssertionFailed(String),
     Panic(String),
+    CapabilityDenied {
+        ns: String,
+        method: String,
+    },
+    /// SIGINT/SIGTERM requested via [`request_signal_exit`]. `run_interp`
+    /// flushes exit commands on the interpreter thread, then exits 130.
+    Interrupted,
+}
+
+/// Default closure-application depth. Incremented only in `apply_closure`
+/// (not every `eval_expr`). Overridable via `Interpreter.max_eval_depth`
+/// / `vox run --max-depth`.
+pub const MAX_EVAL_DEPTH: usize = 1024;
+
+#[derive(Debug, Default)]
+pub struct FsQuota {
+    pub max_disk_bytes: Option<usize>,
+    pub max_files: Option<usize>,
+    used_disk_bytes: usize,
+    used_files: usize,
+}
+
+impl FsQuota {
+    pub(crate) fn permits(&self, bytes: usize, files: usize) -> bool {
+        self.max_disk_bytes
+            .is_none_or(|max| self.used_disk_bytes.saturating_add(bytes) <= max)
+            && self
+                .max_files
+                .is_none_or(|max| self.used_files.saturating_add(files) <= max)
+    }
+
+    pub(crate) fn charge(&mut self, bytes: usize, files: usize) {
+        self.used_disk_bytes = self.used_disk_bytes.saturating_add(bytes);
+        self.used_files = self.used_files.saturating_add(files);
+    }
 }
 
 pub struct Interpreter {
@@ -34,11 +166,18 @@ pub struct Interpreter {
     pub module_scope: Scope,
     pub step_limit: usize,
     pub steps: usize,
-    pub caps: Option<std::collections::HashSet<String>>,
+    pub caps: caps::CapabilitySet,
     /// Absolute path of the file currently being run, used as the resolution
     /// base for intra-project `import "./helpers/foo.vox"` directives.
     /// When `None`, local-file imports are reported as an error.
     pub source_path: Option<std::path::PathBuf>,
+    /// Script-facing CLI arguments (everything after the script path on the
+    /// `vox run` command line), surfaced to Vox code via `env.args()` as
+    /// `[source_path] ++ script_args` — matching the native argv shape
+    /// (`[bin-or-script] ++ args`, `backend/native.rs`). Defaults to empty;
+    /// the CLI sets this from the parsed `ARGS...` (Task 2 Step 9; Task 6
+    /// wires the CLI call site).
+    pub script_args: Vec<String>,
     /// Set of canonicalized paths already loaded — guards against import
     /// cycles. A re-entrant resolve sees the path here and aborts with
     /// `EvalError::AssertionFailed` naming the cycle.
@@ -51,6 +190,18 @@ pub struct Interpreter {
     /// In-memory VCS store for `repo.*` operations under `--mode interp`.
     /// See [`crate::eval::repo`].
     pub repo: crate::eval::repo::RepoStore,
+    /// Queued `process.register_exit_command` entries. The process-global
+    /// OnceLock / signal handler moves here so a denied register cannot
+    /// enqueue work; `run_interp` installs the handler in Task 6.
+    pub exit_commands: Vec<(String, Vec<String>)>,
+    /// Seeded from `caps.random_seed()` so `random:seed=` is repeatable.
+    pub rng: Option<rand::rngs::StdRng>,
+    /// Current `apply_closure` nesting. Bounded by [`Self::max_eval_depth`].
+    pub eval_depth: usize,
+    /// Closure-application depth ceiling. Defaults to [`MAX_EVAL_DEPTH`].
+    pub max_eval_depth: usize,
+    /// In-process filesystem budget. Both limits are unset for local developer runs.
+    pub fs_quota: FsQuota,
 }
 
 impl Interpreter {
@@ -62,77 +213,88 @@ impl Interpreter {
             "fs".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("fs".to_string()),
+                VoxValue::Str("fs".to_string().into()),
             )]),
         );
         scope.set(
             "process".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("process".to_string()),
+                VoxValue::Str("process".to_string().into()),
             )]),
         );
         scope.set(
             "env".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("env".to_string()),
+                VoxValue::Str("env".to_string().into()),
             )]),
         );
         scope.set(
             "path".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("path".to_string()),
+                VoxValue::Str("path".to_string().into()),
             )]),
         );
         scope.set(
             "secrets".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("secrets".to_string()),
+                VoxValue::Str("secrets".to_string().into()),
             )]),
         );
         scope.set(
             "json".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("json".to_string()),
+                VoxValue::Str("json".to_string().into()),
             )]),
         );
         scope.set(
             "regex".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("regex".to_string()),
+                VoxValue::Str("regex".to_string().into()),
             )]),
         );
         scope.set(
             "log".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("log".to_string()),
+                VoxValue::Str("log".to_string().into()),
             )]),
         );
         scope.set(
             "time".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("time".to_string()),
+                VoxValue::Str("time".to_string().into()),
             )]),
         );
         scope.set(
             "io".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("io".to_string()),
+                VoxValue::Str("io".to_string().into()),
             )]),
         );
         scope.set(
             "repo".to_string(),
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("repo".to_string()),
+                VoxValue::Str("repo".to_string().into()),
+            )]),
+        );
+        // Bare `crypto.hash_fast(...)` (Task 1b's `crypto_hash_parity.vox`
+        // calls this, not `std.crypto`) — typeck already binds `crypto` only
+        // under `std`; this seeds the interp-side bare namespace so it
+        // resolves the same way `fs`/`process`/`secrets` do above.
+        scope.set(
+            "crypto".to_string(),
+            VoxValue::object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str("crypto".to_string().into()),
             )]),
         );
 
@@ -142,98 +304,98 @@ impl Interpreter {
                 "fs".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("fs".to_string()),
+                    VoxValue::Str("fs".to_string().into()),
                 )]),
             ),
             (
                 "process".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("process".to_string()),
+                    VoxValue::Str("process".to_string().into()),
                 )]),
             ),
             (
                 "env".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("env".to_string()),
+                    VoxValue::Str("env".to_string().into()),
                 )]),
             ),
             (
                 "path".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("path".to_string()),
+                    VoxValue::Str("path".to_string().into()),
                 )]),
             ),
             (
                 "json".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("json".to_string()),
+                    VoxValue::Str("json".to_string().into()),
                 )]),
             ),
             (
                 "agentos".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("agentos".to_string()),
+                    VoxValue::Str("agentos".to_string().into()),
                 )]),
             ),
             (
                 "csv".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("csv".to_string()),
+                    VoxValue::Str("csv".to_string().into()),
                 )]),
             ),
             (
                 "toml".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("toml".to_string()),
+                    VoxValue::Str("toml".to_string().into()),
                 )]),
             ),
             (
                 "yaml".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("yaml".to_string()),
+                    VoxValue::Str("yaml".to_string().into()),
                 )]),
             ),
             (
                 "io".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("io".to_string()),
+                    VoxValue::Str("io".to_string().into()),
                 )]),
             ),
             (
                 "log".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("log".to_string()),
+                    VoxValue::Str("log".to_string().into()),
                 )]),
             ),
             (
                 "time".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("time".to_string()),
+                    VoxValue::Str("time".to_string().into()),
                 )]),
             ),
             (
                 "http".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("http".to_string()),
+                    VoxValue::Str("http".to_string().into()),
                 )]),
             ),
             (
                 "regex".to_string(),
                 VoxValue::object(vec![(
                     "__namespace__".to_string(),
-                    VoxValue::Str("regex".to_string()),
+                    VoxValue::Str("regex".to_string().into()),
                 )]),
             ),
         ]);
@@ -244,15 +406,30 @@ impl Interpreter {
             module_scope: scope,
             step_limit,
             steps: 0,
-            caps: None,
+            caps: caps::CapabilitySet::developer_default(),
             source_path: None,
+            script_args: Vec::new(),
             loaded_imports: std::collections::HashSet::new(),
             db: crate::eval::db::DbStore::default(),
             repo: crate::eval::repo::RepoStore::default(),
+            exit_commands: Vec::new(),
+            rng: None,
+            eval_depth: 0,
+            max_eval_depth: MAX_EVAL_DEPTH,
+            fs_quota: FsQuota::default(),
+        }
+    }
+
+    fn seed_rng_from_caps(&mut self) {
+        if self.rng.is_none()
+            && let Some(seed) = self.caps.random_seed()
+        {
+            self.rng = Some(rand::SeedableRng::seed_from_u64(seed));
         }
     }
 
     pub fn run_module(&mut self, module: &HirModule) -> Result<(), EvalError> {
+        self.seed_rng_from_caps();
         // Seed built-in Option/Result constructors so scripts can write
         // `return Ok("...")` / `Err(msg)` / `Some(v)` / `None` directly.
         // Per closures-and-stdlib alignment 2026-05-23 (corpus run-mode parity).
@@ -381,6 +558,13 @@ impl Interpreter {
             ))
         })?;
 
+        if !self.caps.allows_path(&canonical, false) {
+            return Err(EvalError::CapabilityDenied {
+                ns: "fs".into(),
+                method: "import".into(),
+            });
+        }
+
         if !self.loaded_imports.insert(canonical.clone()) {
             // Already loaded — idempotent re-import is OK (diamond pattern).
             // Cycle detection is handled by the recursive descent: if we are
@@ -497,6 +681,7 @@ impl Interpreter {
     }
 
     pub fn call(&mut self, name: &str, args: Vec<VoxValue>) -> Result<VoxValue, EvalError> {
+        self.seed_rng_from_caps();
         let val = self
             .scope
             .get(name)
@@ -564,11 +749,15 @@ impl Interpreter {
             // P5: auto-checkpoint on successful return of a @versioned function.
             // `result?` above already restored the scope (on BOTH success and
             // error) and short-circuits on error, so the auto-snapshot is
-            // recorded only for a successful call. The snapshot performs a `Vcs`
-            // effect; it inherits the same ungated behavior as explicit `repo.*`
-            // calls (`eval/repo.rs` does not consult `interp.caps`), so we do not
-            // add a new caps gate here — consistent with `repo.*` (design §4.3).
+            // recorded only for a successful call. Restrictive embedders
+            // (`parse("")`, MCP `from_roots`) must not snapshot.
             if is_versioned {
+                if !self.caps.allows_versioned_snapshot() {
+                    return Err(EvalError::CapabilityDenied {
+                        ns: "repo".into(),
+                        method: "snapshot".into(),
+                    });
+                }
                 self.repo.snapshot(Some(&format!("@versioned {fn_name}")));
             }
             Ok(res)
@@ -581,11 +770,82 @@ impl Interpreter {
     }
 
     pub fn track_step(&mut self) -> Result<(), EvalError> {
+        #[cfg(test)]
+        let _serial = acquire_track_step_serial();
+        if signal_exit_requested() {
+            return Err(EvalError::Interrupted);
+        }
         self.steps += 1;
         if self.steps >= self.step_limit {
             Err(EvalError::StepLimitExceeded)
         } else {
             Ok(())
         }
+    }
+
+    /// Run every queued `process.register_exit_command` and clear the list.
+    /// Callers (`run_interp`, `process.exit`) use this instead of a process
+    /// global so a denied register cannot enqueue work.
+    pub fn flush_exit_commands(&mut self) {
+        clear_signal_exit_commands();
+        crate::eval::builtins::flush_exit_command_list(&mut self.exit_commands);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Always clears [`SIGNAL_EXIT_REQUESTED`] so a panic cannot leave later
+    /// `track_step` callers [`EvalError::Interrupted`].
+    struct SignalExitRequestedGuard;
+
+    impl Drop for SignalExitRequestedGuard {
+        fn drop(&mut self) {
+            SIGNAL_EXIT_REQUESTED.store(false, Ordering::Relaxed);
+        }
+    }
+
+    impl SignalExitRequestedGuard {
+        fn arm() -> Self {
+            SIGNAL_EXIT_REQUESTED.store(false, Ordering::Relaxed);
+            Self
+        }
+    }
+
+    #[test]
+    fn flush_signal_exit_commands_drains_the_static_queue() {
+        record_signal_exit_command("not-a-real-binary-vox-test".into(), Vec::new());
+        assert_eq!(signal_exit_queue_len(), 1);
+        let drained = take_signal_exit_commands();
+        assert_eq!(drained.len(), 1);
+        assert_eq!(signal_exit_queue_len(), 0);
+        // Second drain / flush is a no-op against the probed (now empty) queue.
+        assert!(take_signal_exit_commands().is_empty());
+        flush_signal_exit_commands();
+        assert_eq!(signal_exit_queue_len(), 0);
+    }
+
+    #[test]
+    fn request_signal_exit_stops_track_step() {
+        // Hold the serial lock for the whole test so other `track_step` callers
+        // wait; `_reset` is declared after so it drops first (flag cleared
+        // before the lock is released).
+        let _serial = acquire_track_step_serial();
+        let _reset = SignalExitRequestedGuard::arm();
+        request_signal_exit();
+        assert!(signal_exit_requested());
+        let mut interp = Interpreter::new(1_000);
+        assert!(matches!(interp.track_step(), Err(EvalError::Interrupted)));
+    }
+
+    #[test]
+    fn flush_exit_commands_drains_the_interpreter_queue() {
+        let mut interp = Interpreter::new(1_000);
+        interp
+            .exit_commands
+            .push(("true".into(), Vec::<String>::new()));
+        interp.flush_exit_commands();
+        assert!(interp.exit_commands.is_empty());
     }
 }

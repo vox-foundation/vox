@@ -7,6 +7,8 @@ pub mod exec_source;
 #[cfg(feature = "populi-transport")]
 pub mod jwe;
 #[cfg(feature = "populi-transport")]
+pub mod mesh_relay;
+#[cfg(feature = "populi-transport")]
 mod remote_poller;
 #[cfg(not(feature = "populi-transport"))]
 #[path = "remote_poller_noop.rs"]
@@ -17,7 +19,6 @@ mod remote_worker;
 #[path = "remote_worker_noop.rs"]
 mod remote_worker;
 pub mod secret_bag;
-pub mod secret_gate;
 pub mod traceparent;
 
 pub use crate::types::{A2AMessage, A2AMessageType, MessageId};

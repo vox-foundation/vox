@@ -79,13 +79,13 @@ async fn main() -> anyhow::Result<()> {
         let cmd = args[idx].as_str();
         let is_ml = matches!(
             cmd,
-            "mens" | "oratio" | "speech" | "populi" | "mesh" | "train"
+            "mens" | "oratio" | "speech" | "populi" | "mesh" | "train" | "quantize"
         );
         let is_ext_ml = cmd == "ext"
             && args.len() > idx + 1
             && matches!(
                 args[idx + 1].as_str(),
-                "mens" | "oratio" | "speech" | "populi" | "mesh" | "train"
+                "mens" | "oratio" | "speech" | "populi" | "mesh" | "train" | "quantize"
             );
 
         if is_ml || is_ext_ml {
@@ -116,12 +116,19 @@ async fn main() -> anyhow::Result<()> {
                         primary_cmd
                     );
                     if vox_cli::contributor_mode::is_contributor_mode() {
-                        // `populi` is not in vox-ml-cli's default features, so a bare
-                        // install produces a binary whose `populi` subcommand is
-                        // cfg'd out — and the user retries the same failing command.
-                        eprintln!(
-                            "Please run: cargo install --path crates/vox-ml-cli --features populi"
-                        );
+                        if primary_cmd != "quantize" {
+                            // `populi` is not in vox-ml-cli's default features, so a bare
+                            // install produces a binary whose `populi` subcommand is
+                            // cfg'd out — and the user retries the same failing command.
+                            eprintln!(
+                                "Please run: cargo install --path crates/vox-ml-cli --features populi"
+                            );
+                        } else {
+                            // `quantize` is likewise not in vox-ml-cli's default features.
+                            eprintln!(
+                                "Please run: cargo install --path crates/vox-ml-cli --features quantize"
+                            );
+                        }
                     } else {
                         // Installed-user remedy: no cargo, no repo-relative path. The
                         // ML subsystem ships as the `vox-ml-cli` binary in the `full`

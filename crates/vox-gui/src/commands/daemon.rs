@@ -207,6 +207,13 @@ impl PersistentDaemon {
                 .await
         {
             *self.last_version_mismatch.write().await = detect_version_mismatch(&resp);
+            if !existing_daemon_is_adoptable_for_gui(&resp) {
+                return Err(
+                    "existing vox-orchestrator-d is not human-role; stop it and let the GUI spawn \
+(or restart it with VOX_MCP_CALLER_ROLE=human)"
+                        .to_string(),
+                );
+            }
             *self.resolved.write().await = Some((addr.clone(), existing_token));
             return Ok(addr);
         }
@@ -250,6 +257,7 @@ impl PersistentDaemon {
         let mut cmd = quiet_command(daemon_bin);
         cmd.env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
             .env("VOX_ORCHESTRATOR_DAEMON_TOKEN", &spawned_token)
+            .env("VOX_MCP_CALLER_ROLE", "human")
             .stdin(Stdio::null())
             .stdout(Stdio::null());
         // Capture daemon stderr under ~/.vox/run so empty-frame tool_call
@@ -425,6 +433,15 @@ pub async fn orchestrator_version_mismatch(
     Ok(state.last_version_mismatch.read().await.clone())
 }
 
+/// Adopt only when ping proves the daemon was launched with a human MCP role.
+/// A missing `caller_role` (older daemon) fails closed.
+pub fn existing_daemon_is_adoptable_for_gui(ping_response: &serde_json::Value) -> bool {
+    ping_response
+        .get("caller_role")
+        .and_then(|v| v.as_str())
+        .is_some_and(|s| s.eq_ignore_ascii_case("human"))
+}
+
 /// Compares the daemon's self-reported `version` (from its ping response)
 /// against this GUI binary's own compile-time version. Returns `None` when
 /// they match (or the daemon's response is missing the field — an older
@@ -448,6 +465,26 @@ pub fn detect_version_mismatch(ping_response: &serde_json::Value) -> Option<Vers
 #[cfg(test)]
 mod version_mismatch_tests {
     use super::*;
+
+    #[test]
+    fn adopt_requires_human_caller_role() {
+        assert!(!existing_daemon_is_adoptable_for_gui(&serde_json::json!({
+            "ok": true,
+            "version": env!("CARGO_PKG_VERSION")
+        })));
+        assert!(!existing_daemon_is_adoptable_for_gui(&serde_json::json!({
+            "ok": true,
+            "caller_role": "agent"
+        })));
+        assert!(existing_daemon_is_adoptable_for_gui(&serde_json::json!({
+            "ok": true,
+            "caller_role": "human"
+        })));
+        assert!(existing_daemon_is_adoptable_for_gui(&serde_json::json!({
+            "ok": true,
+            "caller_role": "HUMAN"
+        })));
+    }
 
     #[test]
     fn no_mismatch_when_versions_match() {

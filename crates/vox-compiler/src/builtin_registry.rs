@@ -851,8 +851,12 @@ pub fn std_namespace_runtime_call(
     args: &[String],
 ) -> Option<String> {
     match (namespace, method) {
-        ("crypto", "hash_fast") if !args.is_empty() => Some(format!(
-            "vox_actor_runtime::builtins::vox_hash_fast(&{})",
+        // Task 2 (interpreter-first execution, PR 2): route through `vox-crypto`
+        // directly (not `vox_actor_runtime::builtins::vox_hash_fast`) so both the
+        // interp (`eval/builtins.rs` `Some("crypto")` arm) and native tiers call
+        // the same SSOT hex-hashing helper — `crypto_hash_parity.vox`.
+        ("crypto", "hash_fast") if args.len() == 1 => Some(format!(
+            "vox_crypto::hash_fast_hex(({}).as_bytes())",
             args[0]
         )),
         ("crypto", "hash_secure") if !args.is_empty() => Some(format!(
@@ -860,7 +864,16 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("crypto", "uuid") => Some("vox_actor_runtime::builtins::vox_uuid()".to_string()),
-        ("time", "now_ms") => Some("vox_actor_runtime::builtins::vox_now_ms()".to_string()),
+        ("time", "now_ms" | "now") => Some("vox_actor_runtime::builtins::vox_now_ms()".to_string()),
+        ("json", "encode" | "stringify") if args.len() == 1 => Some(format!(
+            "vox_actor_runtime::builtins::vox_json_render(&({})).unwrap_or_default()",
+            args[0]
+        )),
+        ("process", "cwd") => Some("vox_actor_runtime::builtins::vox_process_cwd()".to_string()),
+        ("secrets", "resolve") if args.len() == 1 => Some(format!(
+            "vox_actor_runtime::builtins::vox_secrets_resolve(({}).as_str())",
+            args[0]
+        )),
         ("log", "debug") if !args.is_empty() => Some(format!(
             "vox_actor_runtime::builtins::vox_log_debug(({}).as_str())",
             args[0]
@@ -1336,11 +1349,17 @@ pub const NAMESPACE_BUILTINS: &[(&str, &str, usize, u8)] = &[
     ("time", "now_ms", 0, surface::IR),
     // agentos
     ("agentos", "mutation_kind_for_tool", 1, surface::IR),
-    // crypto + http — NATIVE/codegen only. The tree-walking interpreter has no
-    // crypto/network stack; scripts needing these run via --mode script.
-    ("crypto", "hash_fast", 1, surface::RUST),
-    ("crypto", "hash_secure", 1, surface::RUST),
-    ("crypto", "uuid", 0, surface::RUST),
+    // crypto — interp + native (Task 2 re-review: the interpreter had a
+    // silent-fail gap for `hash_secure`/`uuid` even though both typechecked
+    // and lowered on native codegen; `eval/builtins.rs`'s `Some("crypto")`
+    // arm now implements all three, so this table can assert both surfaces
+    // and `interpreter_dispatches_every_interp_builtin` actually exercises
+    // them instead of skipping them via the (now-stale) RUST-only flag).
+    // http remains NATIVE/codegen only — the tree-walking interpreter has no
+    // network stack; scripts needing it run via `--mode script`.
+    ("crypto", "hash_fast", 1, surface::IR),
+    ("crypto", "hash_secure", 1, surface::IR),
+    ("crypto", "uuid", 0, surface::IR),
     ("http", "get_text", 1, surface::RUST),
     ("http", "post_json", 2, surface::RUST),
 ];
@@ -1371,7 +1390,7 @@ mod namespace_builtin_parity_tests {
     fn ns_receiver(ns: &str) -> VoxValue {
         VoxValue::object(vec![(
             "__namespace__".to_string(),
-            VoxValue::Str(ns.to_string()),
+            VoxValue::Str(ns.to_string().into()),
         )])
     }
 
@@ -1397,11 +1416,27 @@ mod namespace_builtin_parity_tests {
             if (*ns, *method) == ("process", "exit") {
                 continue;
             }
+            // env.args needs `Interpreter.source_path`/`script_args` (Task 2
+            // Step 9), which this free function doesn't have access to — it's
+            // dispatched earlier, in `eval/expr.rs`'s method-call handling,
+            // before falling through to `call_builtin_method`. Its interp arm
+            // exists by inspection there; `ns_receiver`'s dummy `env` object
+            // never reaches this probe for the real call path.
+            if (*ns, *method) == ("env", "args") {
+                continue;
+            }
             let (ns, method, argc) = (*ns, *method, *argc);
             let probe = std::panic::catch_unwind(|| {
-                let args: Vec<VoxValue> =
-                    (0..argc).map(|_| VoxValue::Str("x".to_string())).collect();
-                call_builtin_method(&ns_receiver(ns), method, args, None)
+                let args: Vec<VoxValue> = (0..argc)
+                    .map(|_| VoxValue::Str("x".to_string().into()))
+                    .collect();
+                call_builtin_method(
+                    &ns_receiver(ns),
+                    method,
+                    args,
+                    &crate::eval::caps::CapabilitySet::developer_default(),
+                    None,
+                )
             });
             if matches!(probe, Ok(None)) {
                 missing.push(format!("std.{ns}.{method}"));
@@ -1515,7 +1550,7 @@ mod namespace_builtin_parity_tests {
     #[test]
     fn interpreter_return_shape_matches_typecheck() {
         fn s(x: &str) -> VoxValue {
-            VoxValue::Str(x.to_string())
+            VoxValue::Str(x.to_string().into())
         }
         let obj_k1 = VoxValue::object(vec![("k".to_string(), VoxValue::Int(1))]);
         let probes: Vec<(&str, &str, Vec<VoxValue>)> = vec![
@@ -1555,14 +1590,17 @@ mod namespace_builtin_parity_tests {
             ("yaml", "parse", vec![s("k: 1")]),
             ("yaml", "render", vec![obj_k1.clone()]),
             ("time", "now_ms", vec![]),
-            ("env", "args", vec![]),
+            // env.args is intentionally absent here: it needs
+            // `Interpreter.source_path`/`script_args` (Task 2 Step 9) and is
+            // dispatched earlier in `eval/expr.rs`, not via this probe's bare
+            // `call_builtin_method`. See `interpreter_dispatches_every_interp_builtin`.
             ("env", "get", vec![s("PATH")]),
             ("agentos", "mutation_kind_for_tool", vec![s("read_file")]),
         ];
         let receiver = |ns: &str| {
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str(ns.to_string()),
+                VoxValue::Str(ns.to_string().into()),
             )])
         };
         let mut mismatches = Vec::new();
@@ -1574,7 +1612,13 @@ mod namespace_builtin_parity_tests {
                     continue;
                 }
             };
-            match call_builtin_method(&receiver(ns), method, args, None) {
+            match call_builtin_method(
+                &receiver(ns),
+                method,
+                args,
+                &crate::eval::caps::CapabilitySet::developer_default(),
+                None,
+            ) {
                 Some(val) => {
                     if !shape_matches(&ret, &val) {
                         mismatches.push(format!(
@@ -1602,12 +1646,12 @@ mod namespace_builtin_parity_tests {
     #[test]
     fn interpreter_return_shape_matches_typecheck_fs_process() {
         fn s(x: &str) -> VoxValue {
-            VoxValue::Str(x.to_string())
+            VoxValue::Str(x.to_string().into())
         }
         let receiver = |ns: &str| {
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str(ns.to_string()),
+                VoxValue::Str(ns.to_string().into()),
             )])
         };
 
@@ -1683,7 +1727,13 @@ mod namespace_builtin_parity_tests {
                     continue;
                 }
             };
-            match call_builtin_method(&receiver(ns), method, args, None) {
+            match call_builtin_method(
+                &receiver(ns),
+                method,
+                args,
+                &crate::eval::caps::CapabilitySet::developer_default(),
+                None,
+            ) {
                 Some(val) => {
                     if !shape_matches(&ret, &val) {
                         mismatches.push(format!(

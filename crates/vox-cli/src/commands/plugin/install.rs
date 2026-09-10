@@ -207,9 +207,20 @@ fn record_artifact_checksums(
         return Ok(());
     }
 
+    // A local `--path` dev install (build one platform, install from the
+    // crate dir) naturally supplies only the CURRENT triple's artifact, even
+    // though a multi-platform plugin's Plugin.toml legitimately declares
+    // every platform's filename (true for the real release bundle). Only the
+    // current triple's presence is guaranteed by the earlier "artifact for
+    // this triple was not found" check in `install_from_path` — checksum
+    // whatever else actually landed in `dest`, and skip what didn't, rather
+    // than treating an absent OTHER platform's file as an install failure.
     let mut hashes = std::collections::BTreeMap::new();
     for (triple, filename) in declared {
         let artifact_path = dest.join(filename);
+        if !artifact_path.is_file() {
+            continue;
+        }
         let bytes = std::fs::read(&artifact_path)
             .with_context(|| format!("reading {} to checksum it", artifact_path.display()))?;
         use sha3::{Digest, Sha3_256};
@@ -1147,6 +1158,71 @@ version = \"../../..\"
         assert_eq!(
             recorded, expected,
             "recorded hash must match the real artifact bytes, not a placeholder"
+        );
+    }
+
+    /// A legitimate local `--path` dev install (e.g. `cargo build -p
+    /// vox-plugin-foo --release` then `vox plugin install --path
+    /// crates/vox-plugin-foo`) naturally supplies only the CURRENT platform's
+    /// built artifact — that's what one `cargo build` on one machine produces.
+    /// A multi-platform plugin's Plugin.toml legitimately declares other
+    /// platforms' filenames too (they exist in the real release bundle), but
+    /// `record_artifact_checksums` tried to hash every declared entry
+    /// unconditionally and errored on the ones this local build never
+    /// produced — breaking the exact workflow the earlier
+    /// "artifact for this triple was not found" guard is supposed to leave
+    /// open (that guard only checks the CURRENT triple's artifact).
+    #[test]
+    #[allow(unsafe_code)] // `set_var`/`remove_var` are unsafe on Rust 2024; PLUGINS_DIR_LOCK serialises this test's mutators.
+    fn install_from_path_ignores_undeclared_other_platform_artifacts() {
+        let _guard = PLUGINS_DIR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let triple = vox_plugin_types::current_target_triple()
+            .expect("test host must be a supported triple");
+
+        let src = tempfile::tempdir().expect("src tempdir");
+        // Only the current triple's file actually exists in this local build...
+        std::fs::write(src.path().join("libdemo_current.bin"), b"real bytes")
+            .expect("write current-triple artifact");
+        // ...but Plugin.toml declares another platform too, as a real
+        // multi-platform plugin's manifest does.
+        std::fs::write(
+            src.path().join("Plugin.toml"),
+            format!(
+                "[plugin]\nid = \"multi-platform-demo\"\nversion = \"0.1.0\"\n\n\
+                 [plugin.payload]\nkind = \"code\"\nabi-version = 1\n\n\
+                 [plugin.payload.artifacts]\n\"{triple}\" = \"libdemo_current.bin\"\n\
+                 \"some-other-triple\" = \"libdemo_other.bin\"\n"
+            ),
+        )
+        .expect("write Plugin.toml");
+
+        let plugins_dir = tempfile::tempdir().expect("plugins tempdir");
+        // vox-arch-check: allow abs-path (test-local tempdir, not a repo path)
+        unsafe { std::env::set_var("VOX_PLUGINS_DIR", plugins_dir.path()) };
+        let result = install_from_path(src.path(), true);
+        unsafe { std::env::remove_var("VOX_PLUGINS_DIR") };
+        result.expect("install must succeed even though a DIFFERENT platform's artifact is absent");
+
+        let dest_manifest = plugins_dir
+            .path()
+            .join("multi-platform-demo")
+            .join("0.1.0")
+            .join("Plugin.toml");
+        let installed: toml::Value = toml::from_str(
+            &std::fs::read_to_string(&dest_manifest).expect("read installed manifest"),
+        )
+        .expect("installed manifest must still parse");
+        assert!(
+            installed["plugin"]["payload"]["artifacts-sha3"]
+                .get(triple)
+                .is_some(),
+            "the current triple's artifact must still be checksummed"
+        );
+        assert!(
+            installed["plugin"]["payload"]["artifacts-sha3"]
+                .get("some-other-triple")
+                .is_none(),
+            "an undeclared-and-absent other platform's artifact must not appear in the checksum table"
         );
     }
 
