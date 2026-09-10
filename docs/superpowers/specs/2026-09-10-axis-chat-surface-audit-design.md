@@ -115,7 +115,9 @@ Non-goals for v1: merging ChatHop with `DriveTurnEvent`; writing hops from `vox-
 | Doctor schema check | Canonical user `vox.db` |
 | ChatHop | Dogfood dir under `VOX_DOGFOOD_TRACE_PATH` (Tier D) |
 
-## 9. Timeout SSOT
+## 9. Timeout SSOT + orch stack
+
+Named durations live in `crates/vox-config/src/timeouts.rs` (`D_180S`, `D_195S`, …).
 
 | Layer | Ceiling |
 |---|---|
@@ -123,10 +125,8 @@ Non-goals for v1: merging ChatHop with `DriveTurnEvent`; writing hops from `vox-
 | MCP dispatch `vox_chat_message` | `CHAT_MESSAGE_TIMEOUT` = 180s (`dispatch_timeout.rs`) |
 | Orch TCP client read | `ORCH_CLIENT_READ_DEADLINE` = `D_195S` (margin after dispatch) |
 
-Do not lower the client deadline below the dispatch timeout or empty-frame EOFs return before Error frames.
+Do not lower the client deadline below the dispatch timeout or empty-frame EOFs return before Error frames. Do not reintroduce bare `Duration::from_secs(180)` at these call sites — `vox-drift-check` flags common timeout literals.
+
+**Orch worker stack:** `vox-orchestrator-d` builds its tokio runtime with a **32 MiB** thread stack (override via `RUST_MIN_STACK` bytes). Default ~2 MiB stacks abort inside `vox_chat_message` ExtraDispatch; the client then sees an empty `orch.tool_call` frame. Drive/`PersistentDaemon` also forward `RUST_MIN_STACK` and `VOX_DOGFOOD_TRACE_PATH` into child env.
 
 Drive LegacySchema wipe requires `VOX_GUI_DRIVE=1` **and** `VOX_GUI_DRIVE_ALLOW_STORE_RESET=1`. Doctor prints `path`, `max_version`, and binary `baseline` and never auto-deletes interactive/canonical DBs.
-
-## 9. Timeout SSOT
-
-Named durations live in `crates/vox-config/src/timeouts.rs` (`D_180S`, `D_195S`, …). Drive live HTTP hop (`bridge.rs` `recv_timeout`) uses **`D_180S`** so sync `chat_turn` can outlive cold orch + LLM while `wait --until reply_ok` remains the long poll. Orch client read deadline is **`D_195S`** (`ORCH_CLIENT_READ_DEADLINE`). Do not reintroduce bare `Duration::from_secs(180)` at these call sites — `vox-drift-check` flags common timeout literals.

@@ -579,6 +579,31 @@ pub async fn discover_populi_mesh_models() -> Result<Vec<ModelSpec>, anyhow::Err
     }
 }
 
+/// Returns true when `path` looks like a listable MENS training run under `mens/runs/`.
+///
+/// Accepts legacy layouts with a `final` or `checkpoint-*` child entry, and flat QLoRA/LoRA
+/// packs that match what `vox mens serve` / Candle inference load (`tokenizer.json` plus adapter
+/// artifacts).
+fn mens_run_dir_is_listable(path: &std::path::Path) -> std::io::Result<bool> {
+    let has_checkpoint_marker = std::fs::read_dir(path)?.flatten().any(|e| {
+        e.file_name()
+            .to_str()
+            .map(|s| s == "final" || s.starts_with("checkpoint-"))
+            .unwrap_or(false)
+    });
+    if has_checkpoint_marker {
+        return Ok(true);
+    }
+
+    if !path.join("tokenizer.json").is_file() {
+        return Ok(false);
+    }
+
+    Ok(path.join("candle_qlora_adapter.safetensors").is_file()
+        || path.join("adapter_manifest.json").is_file()
+        || path.join("merged.safetensors").is_file())
+}
+
 /// A catalog for local MENS checkpoints.
 pub struct MensCatalog {
     root: std::path::PathBuf,
@@ -609,15 +634,7 @@ impl ModelCatalog for MensCatalog {
                     .unwrap_or("unknown")
                     .to_string();
 
-                // Look for 'final' or 'checkpoint-*' subdirs to confirm it's a valid run
-                let has_checkpoint = std::fs::read_dir(&path)?.flatten().any(|e| {
-                    e.file_name()
-                        .to_str()
-                        .map(|s| s == "final" || s.starts_with("checkpoint-"))
-                        .unwrap_or(false)
-                });
-
-                if has_checkpoint {
+                if mens_run_dir_is_listable(&path)? {
                     specs.push(ModelSpec {
                         id: format!("mens/{}", name),
                         canonical_slug: format!("mens/{}", name),
@@ -966,5 +983,75 @@ impl LiteLLMCatalog {
 impl Default for LiteLLMCatalog {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod mens_catalog_tests {
+    use super::*;
+    use std::fs;
+    use std::path::Path;
+
+    fn touch(path: &Path) {
+        fs::write(path, b"").expect("touch file");
+    }
+
+    fn run_dir(root: &Path, name: &str) -> std::path::PathBuf {
+        let dir = root.join("mens").join("runs").join(name);
+        fs::create_dir_all(&dir).expect("create run dir");
+        dir
+    }
+
+    async fn listed_ids(root: &Path) -> Vec<String> {
+        MensCatalog::new(root)
+            .refresh()
+            .await
+            .expect("refresh")
+            .into_iter()
+            .map(|spec| spec.id)
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn mens_catalog_lists_checkpoint_subdir_run() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let run = run_dir(temp.path(), "legacy-checkpoint-run");
+        fs::create_dir_all(run.join("checkpoint-1000")).expect("checkpoint subdir");
+
+        let ids = listed_ids(temp.path()).await;
+        assert_eq!(ids, vec!["mens/legacy-checkpoint-run".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn mens_catalog_lists_flat_qlora_pack() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let run = run_dir(temp.path(), "qwen35-08b-metal-e2e");
+        touch(&run.join("tokenizer.json"));
+        touch(&run.join("candle_qlora_adapter.safetensors"));
+        touch(&run.join("adapter_manifest.json"));
+        touch(&run.join("checkpoint_epoch_1.safetensors"));
+
+        let ids = listed_ids(temp.path()).await;
+        assert_eq!(ids, vec!["mens/qwen35-08b-metal-e2e".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn mens_catalog_skips_empty_run_dir() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        run_dir(temp.path(), "junk-empty");
+
+        let ids = listed_ids(temp.path()).await;
+        assert!(ids.is_empty());
+    }
+
+    #[test]
+    fn mens_run_dir_is_listable_accepts_adapter_manifest_only_with_tokenizer() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let run = temp.path().join("run");
+        fs::create_dir_all(&run).expect("run dir");
+        touch(&run.join("tokenizer.json"));
+        touch(&run.join("adapter_manifest.json"));
+
+        assert!(mens_run_dir_is_listable(&run).expect("listable"));
     }
 }

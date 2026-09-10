@@ -90,6 +90,7 @@ pub mod capability_probe;
 /// Dynamic model catalogs.
 pub mod catalog;
 pub mod catalog_classifier;
+pub mod catalog_live;
 /// Five-signal circuit breaker for doom-loop detection (D6).
 pub mod circuit_breaker;
 /// DB-backed clarification inbox drain (Codex `a2a_messages`).

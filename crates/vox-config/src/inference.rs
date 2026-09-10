@@ -161,6 +161,62 @@ pub fn openai_embeddings_url() -> String {
     format!("{}/embeddings", openai_compatible_base_url())
 }
 
+/// Default VoxLocal (`vox mens serve`) base URL — same port as Ollama for co-location.
+pub const VOX_LOCAL_ENDPOINT_DEFAULT: &str = "http://127.0.0.1:11434";
+
+/// Alternate loopback port when Ollama already binds `:11434` (macOS Metal how-to).
+pub const VOX_LOCAL_ENDPOINT_OLLAMA_CONFLICT_ALT: &str = "http://127.0.0.1:11435";
+
+/// Probe order when **`VOX_LOCAL_ENDPOINT`** is unset (first `vox-ml-cli` health wins).
+pub const VOX_LOCAL_ENDPOINT_PROBE_CANDIDATES: &[&str] = &[
+    VOX_LOCAL_ENDPOINT_DEFAULT,
+    VOX_LOCAL_ENDPOINT_OLLAMA_CONFLICT_ALT,
+];
+
+/// Trim trailing slashes from a VoxLocal base URL.
+#[must_use]
+pub fn normalize_vox_local_base_url(base: &str) -> String {
+    base.trim().trim_end_matches('/').to_string()
+}
+
+/// Returns VoxLocal base URLs to probe, in order.
+///
+/// When `explicit` is [`Some`], only that URL is returned (honors `VOX_LOCAL_ENDPOINT`
+/// override). When [`None`], returns [`VOX_LOCAL_ENDPOINT_PROBE_CANDIDATES`].
+#[must_use]
+pub fn vox_local_endpoint_probe_candidates_from(explicit: Option<&str>) -> Vec<String> {
+    if let Some(url) = explicit {
+        let trimmed = url.trim();
+        if trimmed.is_empty() {
+            return Vec::new();
+        }
+        return vec![normalize_vox_local_base_url(trimmed)];
+    }
+    VOX_LOCAL_ENDPOINT_PROBE_CANDIDATES
+        .iter()
+        .map(|candidate| normalize_vox_local_base_url(candidate))
+        .collect()
+}
+
+/// VoxLocal probe targets: explicit **`VOX_LOCAL_ENDPOINT`** or the default candidate list.
+#[must_use]
+pub fn vox_local_endpoint_probe_candidates() -> Vec<String> {
+    vox_local_endpoint_probe_candidates_from(std::env::var("VOX_LOCAL_ENDPOINT").ok().as_deref())
+}
+
+/// True when a `/health` or `/ready` body identifies `vox mens serve` (`vox-ml-cli`).
+#[must_use]
+pub fn vox_local_health_identifies_serve(body: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| {
+            v.get("service")
+                .and_then(|s| s.as_str())
+                .map(|s| s == "vox-ml-cli")
+        })
+        .unwrap_or(false)
+}
+
 /// Local Ollama-compatible API base URL.
 ///
 /// Precedence: **`VOX_POPULI_LOCAL_OLLAMA_URL`** → **`POPULI_URL`** → **`OLLAMA_URL`** → `http://localhost:11434`.
@@ -713,5 +769,34 @@ mod tests {
         assert!(!research_prefer_free_tier_from(Some("false")));
         assert!(!research_prefer_free_tier_from(Some("")));
         assert!(!research_prefer_free_tier_from(None));
+    }
+
+    #[test]
+    fn vox_local_probe_candidates_default_when_env_unset() {
+        assert_eq!(
+            vox_local_endpoint_probe_candidates_from(None),
+            vec![
+                "http://127.0.0.1:11434".to_string(),
+                "http://127.0.0.1:11435".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn vox_local_probe_candidates_honors_explicit_override() {
+        assert_eq!(
+            vox_local_endpoint_probe_candidates_from(Some("http://127.0.0.1:17863/")),
+            vec!["http://127.0.0.1:17863".to_string()]
+        );
+        assert!(vox_local_endpoint_probe_candidates_from(Some("  ")).is_empty());
+    }
+
+    #[test]
+    fn vox_local_health_identifies_serve_requires_ml_cli_service() {
+        assert!(vox_local_health_identifies_serve(
+            r#"{"status":"ok","service":"vox-ml-cli"}"#
+        ));
+        assert!(!vox_local_health_identifies_serve(r#"{"status":"ok"}"#));
+        assert!(!vox_local_health_identifies_serve("Ollama is running"));
     }
 }

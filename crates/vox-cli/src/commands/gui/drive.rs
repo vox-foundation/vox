@@ -53,7 +53,27 @@ fn drive_child_env(
             token_path.display().to_string(),
         ),
         ("VOX_SECRETS_VAULT_PATH".into(), vault_path),
+        // Inherit parent dogfood dir so orch ChatHop JSONL lands where e2e expects.
+        // Deep `vox_chat_message` futures need >2 MiB worker stacks (else abort).
+        ("RUST_MIN_STACK".into(), "33554432".into()),
     ];
+    if let Ok(dogfood) = std::env::var("VOX_DOGFOOD_TRACE_PATH")
+        && !dogfood.trim().is_empty()
+    {
+        env.push(("VOX_DOGFOOD_TRACE_PATH".into(), dogfood));
+    }
+    if let Ok(reset) = std::env::var("VOX_GUI_DRIVE_ALLOW_STORE_RESET")
+        && reset.trim() == "1"
+    {
+        env.push(("VOX_GUI_DRIVE_ALLOW_STORE_RESET".into(), "1".into()));
+    }
+    // Metal / VoxLocal serve often binds :11435 when Ollama owns :11434.
+    // Forward so Axis probe + orch routing share the parent's endpoint pin.
+    if let Ok(endpoint) = std::env::var("VOX_LOCAL_ENDPOINT")
+        && !endpoint.trim().is_empty()
+    {
+        env.push(("VOX_LOCAL_ENDPOINT".into(), endpoint));
+    }
     // Axis/Tauri may not resolve the Clavis vault the same way as the CLI
     // (cwd + keyring ACL). Forward cloud keys the parent CLI can already
     // resolve so Drive catalog + orch chat see the same credentials.
@@ -352,6 +372,11 @@ mod tests {
         assert!(
             vault_path.is_absolute(),
             "Drive vault pin must be absolute, got {vault}"
+        );
+        assert!(
+            env.iter()
+                .any(|(k, v)| k == "RUST_MIN_STACK" && v == "33554432"),
+            "Drive must pin RUST_MIN_STACK so orch workers survive deep chat futures"
         );
     }
 

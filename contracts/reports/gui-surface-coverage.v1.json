@@ -1418,6 +1418,7 @@
     "scan_training_corpus",
     "scientia_cost_rollup",
     "scientia_dashboard_snapshot",
+    "search_model_cards",
     "secretary_confirm_task",
     "secrets_backend_status",
     "set_active_model",

@@ -282,6 +282,11 @@ impl PersistentDaemon {
             "OPENAI_API_KEY",
             "GEMINI_API_KEY",
             "RUST_LOG",
+            // ChatHop dogfood trail (Tier D); GUI may set VOX_DOGFOOD_TRACE_PATH.
+            "VOX_DOGFOOD_TRACE_PATH",
+            "RUST_MIN_STACK",
+            // VoxLocal (`vox mens serve`) base URL — Metal e2e uses :11435.
+            "VOX_LOCAL_ENDPOINT",
         ] {
             if let Ok(v) = std::env::var(key)
                 && !v.trim().is_empty()
@@ -292,6 +297,13 @@ impl PersistentDaemon {
         // Default orch diagnostics when the parent did not set RUST_LOG.
         if std::env::var_os("RUST_LOG").is_none() {
             cmd.env("RUST_LOG", "info,vox_orchestrator_mcp=info");
+        }
+        // `vox_chat_message` futures are deep enough that the default ~2 MiB
+        // tokio worker stack overflows (abort → empty TCP frame). Prior
+        // Drive/Metal verify needed 32 MiB; set before the child creates its
+        // runtime so RUST_MIN_STACK takes effect on worker threads.
+        if std::env::var_os("RUST_MIN_STACK").is_none() {
+            cmd.env("RUST_MIN_STACK", "33554432");
         }
         let child = cmd
             .spawn()

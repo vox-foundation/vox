@@ -412,6 +412,18 @@ describe('Loquela', () => {
       const cap = typeof limit === 'number' ? limit : 0;
       return Promise.resolve(catalog.slice(0, cap));
     });
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'resolve_default_task_policy') {
+        return Promise.resolve({ clutch: 'efficiency', risk: 'moderate' });
+      }
+      if (cmd === 'inference_provider_status') {
+        return Promise.resolve([
+          { provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null },
+          { provider: 'VoxLocal', key_present: true, is_local: true, local_reachable: true, local_models: ['e2e-smoke-metal'] },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
     renderLoquela();
     await waitFor(() => {
       expect(mockListModels).toHaveBeenCalledWith(MODEL_LIST_LIMIT);
@@ -425,6 +437,18 @@ describe('Loquela', () => {
     expect(search.parentElement?.className).not.toMatch(/bg-zinc-/);
     expect(scroller.className).toMatch(/overflow-y-auto/);
     expect(scroller.className).toMatch(/max-h-/);
-    expect(screen.getByText('mens/e2e-smoke-metal')).toBeInTheDocument();
+    expect(await screen.findByText('mens/e2e-smoke-metal')).toBeInTheDocument();
+  });
+
+  it('surfaces a short status when listModels returns an empty catalog', async () => {
+    mockListModels.mockResolvedValue([]);
+    renderLoquela();
+    expect(await screen.findByTestId('model-load-status')).toHaveTextContent(/no models loaded/i);
+  });
+
+  it('surfaces a short status when listModels fails', async () => {
+    mockListModels.mockRejectedValue(new Error('ipc unavailable'));
+    renderLoquela();
+    expect(await screen.findByTestId('model-load-status')).toHaveTextContent(/models unavailable/i);
   });
 });

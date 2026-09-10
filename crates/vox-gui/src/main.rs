@@ -251,6 +251,7 @@ async fn main() {
             commands::dynamic_mapping::get_command_metadata,
             commands::dynamic_mapping::get_full_registry,
             commands::models::list_model_cards,
+            commands::models::search_model_cards,
             commands::models::get_active_model,
             commands::models::set_active_model,
             commands::models::get_routing_summary_live,

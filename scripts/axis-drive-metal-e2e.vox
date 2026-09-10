@@ -79,7 +79,14 @@ fn main() {
         fail(bin, "serve /v1/models did not list qwen35-08b-metal-e2e")
     }
 
-    let start = process.run(bin, ["gui", "drive", "start"])
+    // Step 0: stop prior Drive + foreign orch so spawn gets VOX_GUI_DRIVE env.
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+    let _ = process.run("pkill", ["-x", "vox-orchestrator-d"])
+
+    // Prefer a fresh Drive profile so LegacySchema (schema_max > binary baseline)
+    // on `default` cannot block listener bind. Parent must export
+    // VOX_GUI_DRIVE_ALLOW_STORE_RESET=1 and VOX_LOCAL_ENDPOINT=http://127.0.0.1:11435.
+    let start = process.run(bin, ["gui", "drive", "start", "--profile", "metal-e2e"])
     if start is null {
         fail(bin, "could not execute drive start")
     }
@@ -93,6 +100,10 @@ fn main() {
 
     let state_response = run_json(bin, ["gui", "drive", "state"])
     let drive_state = state_view(state_response)
+    let orch_fresh = drive_state.get("orch_fresh").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+    if not orch_fresh {
+        fail(bin, "orch_fresh=false after start — foreign orch may still be adopted or spawn failed")
+    }
     let catalog = drive_state.get("catalog").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
     let pin_policy = string_field(drive_state, "pin_policy")
     let mut pin_selectable = false
@@ -138,8 +149,21 @@ fn main() {
         fail(bin, "reply_ok returned an empty or error assistant bubble")
     }
 
-    let turn_id = string_field(final_state, "last_turn_id")
+    // Honesty: sticky Metal pin must not silently bill OpenRouter.
     let events = final_state.get("events").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+    let mut saw_openrouter_cost = false
+    for event in events {
+        let kind = string_field(event, "kind")
+        let raw = string_field(event, "raw")
+        if kind == "cost_incurred" and raw.contains("\"provider\":\"openrouter\"") {
+            saw_openrouter_cost = true
+        }
+    }
+    if saw_openrouter_cost {
+        fail(bin, "Metal pin routed to OpenRouter (cost_incurred provider=openrouter); VoxLocal sticky resolve failed")
+    }
+
+    let turn_id = string_field(final_state, "last_turn_id")
     let mut submit_ok = false
     let mut kinds = ""
     for event in events {
