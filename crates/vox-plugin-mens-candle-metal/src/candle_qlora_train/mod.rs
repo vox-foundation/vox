@@ -448,6 +448,25 @@ pub fn run_candle_qlora_train(
     #[allow(unsafe_code)]
     let vb_mmap =
         unsafe { VarBuilder::from_mmaped_safetensors(&bundle.weight_paths, DType::F32, &device)? };
+    // CPU-resident view of the SAME base weights. Apple Silicon is unified memory, so
+    // there's no discrete VRAM pool to spare here the way there is on CUDA — but a
+    // tensor placed on `Device::Metal(_)` still occupies a real, budgeted Metal-buffer
+    // allocation tracked by the driver (the same "usable unified memory" resource
+    // `vram_autodetect.rs` reasons about), separate from the bytes just sitting in
+    // mmap'd host RAM. Loading the big per-layer projection weights (q/k/v/o) F32 on
+    // the CPU and quantizing them there means the full-precision weight never occupies
+    // a Metal buffer during construction — only the small NF4 result is uploaded to
+    // build the BF16 cache, avoiding a Metal-buffer-residency peak at build time.
+    // Embeddings, norms, biases and the LM head stay on `vb_mmap` (device) since
+    // they're used directly there without an intervening quantization step.
+    #[allow(unsafe_code)]
+    let vb_mmap_cpu = unsafe {
+        VarBuilder::from_mmaped_safetensors(
+            &bundle.weight_paths,
+            DType::F32,
+            &candle_core::Device::Cpu,
+        )?
+    };
     train_log::info(&format!(
         "Loading embeddings ('{}') to device...",
         bundle.embed_key
@@ -661,20 +680,22 @@ pub fn run_candle_qlora_train(
 
                 let q_rows = n_heads * head_dim;
                 let q_fallback_rows = q_rows.saturating_mul(2);
-                let mut w_q = vb_mmap
+                // Load projection weights on the CPU (vb_mmap_cpu) — they are quantized on
+                // the CPU so the F32 base never occupies a Metal buffer during build.
+                let mut w_q = vb_mmap_cpu
                     .get((q_rows, bundle.d_model), &q_key)
-                    .or_else(|_| vb_mmap.get((q_fallback_rows, bundle.d_model), &q_key))?
+                    .or_else(|_| vb_mmap_cpu.get((q_fallback_rows, bundle.d_model), &q_key))?
                     .to_dtype(DType::F32)?;
                 if w_q.dim(0)? > q_rows {
                     w_q = w_q.narrow(0, 0, q_rows)?;
                 }
-                let w_k = vb_mmap
+                let w_k = vb_mmap_cpu
                     .get((kv_dim, bundle.d_model), &k_key)?
                     .to_dtype(DType::F32)?;
-                let w_v = vb_mmap
+                let w_v = vb_mmap_cpu
                     .get((kv_dim, bundle.d_model), &v_key)?
                     .to_dtype(DType::F32)?;
-                let w_o = vb_mmap
+                let w_o = vb_mmap_cpu
                     .get((bundle.d_model, q_rows), &o_key)?
                     .to_dtype(DType::F32)?;
 
@@ -1080,5 +1101,53 @@ mod tests {
             !cfg.use_paged_optimizer,
             "paged optimizer skips clip_grad_norm entirely; must be disabled"
         );
+    }
+
+    /// The big frozen projection weights must load through a CPU-resident
+    /// `VarBuilder` (`vb_mmap_cpu`), not the training-device one (`vb_mmap`),
+    /// so quantization happens before anything is uploaded to the Metal
+    /// device. This proves the underlying property: a `VarBuilder` built on
+    /// `Device::Cpu` yields tensors whose `.device()` really is `Device::Cpu`
+    /// — distinct from the same weight loaded through a `VarBuilder` on the
+    /// real training device — using a real on-disk `.safetensors` fixture,
+    /// the same mechanism `vb_mmap_cpu` uses in production.
+    #[test]
+    fn metal_projection_weights_load_on_cpu_varbuilder() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("fixture.safetensors");
+
+        // Write one small tensor standing in for a q_proj weight.
+        let src = Tensor::randn(0f32, 1f32, (4, 4), &Device::Cpu).unwrap();
+        src.save_safetensors("q_proj.weight", &path).unwrap();
+        let paths = vec![path];
+
+        // Real training device: Metal when available, Cpu fallback in a
+        // sandboxed/no-GPU test environment (mirrors device_select.rs).
+        let train_device = Device::new_metal(0).unwrap_or(Device::Cpu);
+
+        #[allow(unsafe_code)]
+        let vb_mmap_cpu = unsafe {
+            VarBuilder::from_mmaped_safetensors(&paths, DType::F32, &Device::Cpu).unwrap()
+        };
+        #[allow(unsafe_code)]
+        let vb_mmap = unsafe {
+            VarBuilder::from_mmaped_safetensors(&paths, DType::F32, &train_device).unwrap()
+        };
+
+        let w_cpu = vb_mmap_cpu.get((4, 4), "q_proj.weight").unwrap();
+        let w_device = vb_mmap.get((4, 4), "q_proj.weight").unwrap();
+
+        assert!(
+            matches!(w_cpu.device(), Device::Cpu),
+            "vb_mmap_cpu must yield CPU-resident tensors, got {:?}",
+            w_cpu.device()
+        );
+        if !matches!(train_device, Device::Cpu) {
+            assert!(
+                !matches!(w_device.device(), Device::Cpu),
+                "training-device VarBuilder should not yield a CPU tensor when a real \
+                 Metal device is present, proving the two builders are distinct"
+            );
+        }
     }
 }
