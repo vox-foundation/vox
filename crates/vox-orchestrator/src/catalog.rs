@@ -292,27 +292,40 @@ mod tests {
     }
 
     #[test]
-    fn mens_run_is_complete_accepts_qlora_adapter_at_run_root() {
+    fn mens_run_dir_is_listable_requires_tokenizer_with_adapter() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let run = tmp.path().join("e2e-smoke");
         std::fs::create_dir_all(&run).expect("run dir");
         assert!(
-            !mens_run_is_complete(&run),
+            !mens_run_dir_is_listable(&run).expect("listable"),
             "empty run dir must not register"
         );
         std::fs::write(run.join("candle_qlora_adapter.safetensors"), b"stub").expect("adapter");
         assert!(
-            mens_run_is_complete(&run),
-            "QLoRA adapter at run root is a complete local run"
+            !mens_run_dir_is_listable(&run).expect("listable"),
+            "adapter alone is not serveable without tokenizer.json"
+        );
+        std::fs::write(run.join("tokenizer.json"), b"{}").expect("tokenizer");
+        assert!(
+            !mens_run_dir_is_listable(&run).expect("listable"),
+            "adapter + tokenizer without manifest is not serveable"
+        );
+        std::fs::write(run.join("adapter_manifest.json"), b"{}").expect("manifest");
+        assert!(
+            mens_run_dir_is_listable(&run).expect("listable"),
+            "adapter + tokenizer + manifest at run root is listable"
         );
     }
 
     #[test]
-    fn mens_run_is_complete_accepts_legacy_final_subdir() {
+    fn mens_run_dir_is_listable_rejects_empty_final_subdir() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let run = tmp.path().join("legacy");
         std::fs::create_dir_all(run.join("final")).expect("final");
-        assert!(mens_run_is_complete(&run));
+        assert!(
+            !mens_run_dir_is_listable(&run).expect("listable"),
+            "empty final/ subdir must not register"
+        );
     }
 }
 /// Parses Ollama's `details.parameter_size` field (e.g. `"8.2B"`, `"70M"`,
@@ -591,29 +604,42 @@ pub async fn discover_populi_mesh_models() -> Result<Vec<ModelSpec>, anyhow::Err
     }
 }
 
+/// True when `dir` has artifacts `vox mens serve` / Candle inference can load.
+///
+/// Candle requires `tokenizer.json` plus **both** the LoRA adapter weights and
+/// `adapter_manifest.json` (merged.safetensors alone is not a load path).
+fn mens_run_has_serveable_artifacts(dir: &std::path::Path) -> bool {
+    dir.join("tokenizer.json").is_file()
+        && dir.join("candle_qlora_adapter.safetensors").is_file()
+        && dir.join("adapter_manifest.json").is_file()
+}
+
 /// Returns true when `path` looks like a listable MENS training run under `mens/runs/`.
 ///
-/// Accepts legacy layouts with a `final` or `checkpoint-*` child entry, and flat QLoRA/LoRA
-/// packs that match what `vox mens serve` / Candle inference load (`tokenizer.json` plus adapter
+/// Accepts legacy layouts with a `final` or `checkpoint-*` child that contains serveable
+/// artifacts, and flat QLoRA/LoRA packs at the run root (`tokenizer.json` plus adapter
 /// artifacts).
 fn mens_run_dir_is_listable(path: &std::path::Path) -> std::io::Result<bool> {
-    let has_checkpoint_marker = std::fs::read_dir(path)?.flatten().any(|e| {
-        e.file_name()
-            .to_str()
-            .map(|s| s == "final" || s.starts_with("checkpoint-"))
-            .unwrap_or(false)
-    });
-    if has_checkpoint_marker {
+    if mens_run_has_serveable_artifacts(path) {
         return Ok(true);
     }
 
-    if !path.join("tokenizer.json").is_file() {
-        return Ok(false);
+    for entry in std::fs::read_dir(path)?.flatten() {
+        if !entry.path().is_dir() {
+            continue;
+        }
+        let file_name = entry.file_name();
+        let Some(name) = file_name.to_str() else {
+            continue;
+        };
+        if (name == "final" || name.starts_with("checkpoint-"))
+            && mens_run_has_serveable_artifacts(&entry.path())
+        {
+            return Ok(true);
+        }
     }
 
-    Ok(path.join("candle_qlora_adapter.safetensors").is_file()
-        || path.join("adapter_manifest.json").is_file()
-        || path.join("merged.safetensors").is_file())
+    Ok(false)
 }
 
 /// A catalog for local MENS checkpoints.
@@ -625,29 +651,6 @@ impl MensCatalog {
     pub fn new(root: impl Into<std::path::PathBuf>) -> Self {
         Self { root: root.into() }
     }
-}
-
-/// True when a `mens/runs/<name>` directory is a serveable local run.
-///
-/// Training writes `candle_qlora_adapter.safetensors` at the run root.
-/// Older layouts used a `final/` or `checkpoint-*` subdirectory.
-/// Kept for unit tests; production catalog listing uses [`mens_run_dir_is_listable`].
-#[cfg(test)]
-fn mens_run_is_complete(path: &std::path::Path) -> bool {
-    let Ok(rd) = std::fs::read_dir(path) else {
-        return false;
-    };
-    rd.flatten().any(|e| {
-        e.file_name()
-            .to_str()
-            .map(|s| {
-                s == "candle_qlora_adapter.safetensors"
-                    || s == "adapter_manifest.json"
-                    || s == "final"
-                    || s.starts_with("checkpoint-")
-            })
-            .unwrap_or(false)
-    })
 }
 
 #[async_trait::async_trait]
@@ -1048,10 +1051,24 @@ mod mens_catalog_tests {
     }
 
     #[tokio::test]
-    async fn mens_catalog_lists_checkpoint_subdir_run() {
+    async fn mens_catalog_skips_empty_checkpoint_subdir_run() {
         let temp = tempfile::tempdir().expect("tempdir");
         let run = run_dir(temp.path(), "legacy-checkpoint-run");
         fs::create_dir_all(run.join("checkpoint-1000")).expect("checkpoint subdir");
+
+        let ids = listed_ids(temp.path()).await;
+        assert!(ids.is_empty(), "empty checkpoint-* subdir must not list");
+    }
+
+    #[tokio::test]
+    async fn mens_catalog_lists_checkpoint_subdir_with_artifacts() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let run = run_dir(temp.path(), "legacy-checkpoint-run");
+        let ckpt = run.join("checkpoint-1000");
+        fs::create_dir_all(&ckpt).expect("checkpoint subdir");
+        touch(&ckpt.join("tokenizer.json"));
+        touch(&ckpt.join("candle_qlora_adapter.safetensors"));
+        touch(&ckpt.join("adapter_manifest.json"));
 
         let ids = listed_ids(temp.path()).await;
         assert_eq!(ids, vec!["mens/legacy-checkpoint-run".to_string()]);
@@ -1080,13 +1097,28 @@ mod mens_catalog_tests {
     }
 
     #[test]
-    fn mens_run_dir_is_listable_accepts_adapter_manifest_only_with_tokenizer() {
+    fn mens_run_dir_is_listable_rejects_adapter_manifest_only_with_tokenizer() {
         let temp = tempfile::tempdir().expect("tempdir");
         let run = temp.path().join("run");
         fs::create_dir_all(&run).expect("run dir");
         touch(&run.join("tokenizer.json"));
         touch(&run.join("adapter_manifest.json"));
 
-        assert!(mens_run_dir_is_listable(&run).expect("listable"));
+        assert!(
+            !mens_run_dir_is_listable(&run).expect("listable"),
+            "manifest without candle_qlora_adapter.safetensors is not serveable"
+        );
+    }
+
+    #[test]
+    fn mens_run_dir_is_listable_rejects_empty_checkpoint_subdir() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let run = temp.path().join("run");
+        fs::create_dir_all(run.join("checkpoint-1000")).expect("checkpoint subdir");
+
+        assert!(
+            !mens_run_dir_is_listable(&run).expect("listable"),
+            "checkpoint-* without serveable artifacts must not list"
+        );
     }
 }

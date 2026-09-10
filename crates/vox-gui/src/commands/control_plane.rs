@@ -50,8 +50,8 @@ pub struct SubmitTaskInput {
     /// End-to-end ChatHop correlation (UUID). Forwarded as `enqueue_hints.trace_id`.
     #[serde(default)]
     pub trace_id: Option<String>,
-    /// Per-submit turn id (UUID). Serialized top-level on SUBMIT_TASK params;
-    /// the daemon ignores unknown keys until a consumer lands.
+    /// Per-submit turn id (UUID). Forwarded as `enqueue_hints.turn_id` onto
+    /// [`vox_orchestrator::TaskEnqueueHints`] / [`vox_orchestrator::AgentTask`].
     #[serde(default)]
     pub turn_id: Option<String>,
 }

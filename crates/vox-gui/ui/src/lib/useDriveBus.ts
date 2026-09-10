@@ -133,12 +133,27 @@ export function assertPinSelectable(
 }
 
 export function driveVerbNeedsCatalog(verb: DriveRequest['verb']): boolean {
-  return verb === 'set' || verb === 'send' || verb === 'state';
+  // `state` / `show` must not refresh catalog — `wait --until` polls `state`
+  // every ~200ms and would otherwise hammer model IPC (~600 rebuilds / 120s).
+  return verb === 'set' || verb === 'send';
+}
+
+/** Catalog for a Drive response: refresh when models were loaded; else keep prior. */
+export function catalogForDriveVerb(
+  models: HandleDriveRequestArgs['models'],
+  statuses: HandleDriveRequestArgs['statuses'],
+  prior: DriveState['catalog'],
+): DriveState['catalog'] {
+  if (models.length > 0 || statuses.length > 0) {
+    return snapshotCatalog(models, statuses);
+  }
+  return prior ?? [];
 }
 
 export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<DriveHttpLike> {
   let state = args.state;
-  const catalog = snapshotCatalog(args.models, args.statuses);
+  // `state`/`show` skip catalog IPC (empty models) — must not wipe a prior set/send catalog.
+  const catalog = catalogForDriveVerb(args.models, args.statuses, state.catalog);
   if (args.req.verb === 'state') {
     return { status: 200, plane: 'live', state: { ...state, catalog } };
   }

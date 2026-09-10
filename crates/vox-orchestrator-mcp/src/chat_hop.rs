@@ -185,6 +185,18 @@ pub fn record_mcp_tool_hop(
     append_chat_hop(&path, &rec);
 }
 
+/// Classify dispatch failures from `try_run_agent_turn` / `call_llm` into a
+/// [`TurnOutcome`]. Budget guard errors use `BudgetGuardError::Exceeded`'s
+/// Display format (`"{Daily|Session} budget of $… exceeded (spent $…)"`).
+pub fn turn_outcome_for_dispatch_err(err: &str) -> TurnOutcome {
+    let unwrapped = err.strip_prefix("LLM error: ").unwrap_or(err);
+    if unwrapped.starts_with("Daily budget of $") || unwrapped.starts_with("Session budget of $") {
+        TurnOutcome::BudgetDenied
+    } else {
+        TurnOutcome::LlmError
+    }
+}
+
 /// Turn-boundary hop at the end of `vox_chat_message`.
 pub fn record_turn_boundary(
     state: &crate::server_state::ServerState,
@@ -262,5 +274,27 @@ mod tests {
     fn looks_like_secret_detects_sk_prefix() {
         assert!(looks_like_secret("sk-or-v1-abc"));
         assert!(!looks_like_secret("trace-uuid-here"));
+    }
+
+    #[test]
+    fn turn_outcome_for_dispatch_err_classifies_budget_guard_display() {
+        assert_eq!(
+            turn_outcome_for_dispatch_err("Session budget of $5.00 exceeded (spent $5.10)"),
+            TurnOutcome::BudgetDenied
+        );
+        assert_eq!(
+            turn_outcome_for_dispatch_err("Daily budget of $20.00 exceeded (spent $20.03)"),
+            TurnOutcome::BudgetDenied
+        );
+        assert_eq!(
+            turn_outcome_for_dispatch_err(
+                "LLM error: Daily budget of $0.01 exceeded (spent $0.02)"
+            ),
+            TurnOutcome::BudgetDenied
+        );
+        assert_eq!(
+            turn_outcome_for_dispatch_err("connection refused"),
+            TurnOutcome::LlmError
+        );
     }
 }

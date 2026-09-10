@@ -28,12 +28,18 @@ fn drive_child_env(
     store_root: &std::path::Path,
     token_path: &std::path::Path,
 ) -> Vec<(String, String)> {
-    // Pin the Clavis vault to the user home store so Drive's cwd under
+    // Default: pin Clavis to the user home store so Drive's cwd under
     // `~/.vox/gui-drive/<profile>` cannot open a cwd-relative empty vault.
-    let vault_path = vox_secrets::sources::auth_json::vox_dir()
-        .join("clavis_vault.db")
-        .display()
-        .to_string();
+    // Honesty scripts may override via parent `VOX_SECRETS_VAULT_PATH`.
+    let vault_path = std::env::var("VOX_SECRETS_VAULT_PATH")
+        .ok()
+        .filter(|p| !p.trim().is_empty())
+        .unwrap_or_else(|| {
+            vox_secrets::sources::auth_json::vox_dir()
+                .join("clavis_vault.db")
+                .display()
+                .to_string()
+        });
     let mut env = vec![
         ("VOX_GUI_DRIVE".into(), "1".into()),
         (
@@ -77,6 +83,7 @@ fn drive_child_env(
     // Axis/Tauri may not resolve the Clavis vault the same way as the CLI
     // (cwd + keyring ACL). Forward cloud keys the parent CLI can already
     // resolve so Drive catalog + orch chat see the same credentials.
+    // Honesty scripts set an empty vault + empty env keys so these resolve None.
     for (id, canonical) in [
         (
             vox_secrets::SecretId::OpenRouterApiKey,
@@ -375,6 +382,35 @@ mod tests {
             env.iter()
                 .any(|(k, v)| k == "RUST_MIN_STACK" && v == "33554432"),
             "Drive must pin RUST_MIN_STACK so orch workers survive deep chat futures"
+        );
+    }
+
+    #[test]
+    #[allow(unsafe_code)] // set_var/remove_var unsafe on Rust 2024; serialised by this test alone.
+    fn drive_env_honors_parent_secrets_vault_path_override() {
+        struct Restore(Option<String>);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                match &self.0 {
+                    Some(v) => unsafe { std::env::set_var("VOX_SECRETS_VAULT_PATH", v) },
+                    None => unsafe { std::env::remove_var("VOX_SECRETS_VAULT_PATH") },
+                }
+            }
+        }
+        let _guard = Restore(std::env::var("VOX_SECRETS_VAULT_PATH").ok());
+        let override_path = "/tmp/vox-drive-honesty-empty-vault.db";
+        unsafe { std::env::set_var("VOX_SECRETS_VAULT_PATH", override_path) };
+        let env = drive_child_env(
+            false,
+            std::path::Path::new("/tmp/gui-drive/agent-1"),
+            std::path::Path::new("/tmp/run/gui-drive.token"),
+        );
+        assert_eq!(
+            env.iter()
+                .find(|(k, _)| k == "VOX_SECRETS_VAULT_PATH")
+                .map(|(_, v)| v.as_str()),
+            Some(override_path),
+            "honesty scripts must be able to pin an empty vault into the Drive child"
         );
     }
 

@@ -258,11 +258,32 @@ describe('handleDriveRequest', () => {
     expect(src).toMatch(/appendDriveEvent/);
   });
 
-  it('state, set, and send require catalog IPC; show does not', () => {
-    expect(driveVerbNeedsCatalog('state')).toBe(true);
+  it('only set and send require catalog IPC; state/show poll without refresh', () => {
+    expect(driveVerbNeedsCatalog('state')).toBe(false);
     expect(driveVerbNeedsCatalog('show')).toBe(false);
     expect(driveVerbNeedsCatalog('set')).toBe(true);
     expect(driveVerbNeedsCatalog('send')).toBe(true);
+  });
+
+  it('state with empty models preserves prior catalog (wait --until selectable)', async () => {
+    const state = emptyLiveState();
+    state.catalog = [
+      {
+        id: 'mens/qwen38-hub',
+        selectable: true,
+        reason: null,
+        provider: 'populi_local',
+        provider_type: 'VoxLocal',
+      },
+    ];
+    const res = await handleDriveRequest({
+      state,
+      models: [],
+      statuses: [],
+      submit: vi.fn(),
+      req: { id: '1', verb: 'state', body: {} },
+    });
+    expect(res.state.catalog).toEqual(state.catalog);
   });
 
   it('state includes OpenRouter provider_type in its catalog snapshot', async () => {

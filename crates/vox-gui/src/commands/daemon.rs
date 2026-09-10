@@ -106,9 +106,11 @@ impl PersistentDaemon {
         self.in_flight.fetch_add(1, Ordering::SeqCst);
     }
 
-    /// Pair with [`Self::begin_call`].
+    /// Pair with [`Self::begin_call`]. Saturating — never wraps to `usize::MAX`.
     pub fn end_call(&self) {
-        self.in_flight.fetch_sub(1, Ordering::SeqCst);
+        let _ = self
+            .in_flight
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1));
     }
 
     fn refuse_kill_while_busy(&self) -> Result<(), String> {
@@ -118,6 +120,26 @@ impl PersistentDaemon {
             Ok(())
         }
     }
+
+    /// RAII: `begin_call` on construct, `end_call` on drop (panic-safe).
+    pub fn in_flight_guard(&self) -> InFlightGuard<'_> {
+        self.begin_call();
+        InFlightGuard { daemon: self }
+    }
+}
+
+/// Drops with [`PersistentDaemon::end_call`] so panics cannot stick `in_flight`.
+pub struct InFlightGuard<'a> {
+    daemon: &'a PersistentDaemon,
+}
+
+impl Drop for InFlightGuard<'_> {
+    fn drop(&mut self) {
+        self.daemon.end_call();
+    }
+}
+
+impl PersistentDaemon {
     /// Ensure one long-lived TCP daemon is reachable; returns its address.
     ///
     /// Cached on success (subsequent calls reuse the address); failures are not
@@ -313,14 +335,27 @@ impl PersistentDaemon {
         if std::env::var_os("RUST_MIN_STACK").is_none() {
             cmd.env("RUST_MIN_STACK", "33554432");
         }
-        let child = cmd
+        // Check in-flight *before* spawn so a refused respawn cannot orphan a child.
+        self.refuse_kill_while_busy()?;
+        let mut child = cmd
             .spawn()
             .map_err(|e| format!("failed to spawn vox-orchestrator-d: {e}"))?;
-        self.refuse_kill_while_busy()?;
-        if let Ok(mut slot) = self.child.lock()
-            && let Some(mut old) = slot.replace(child)
-        {
-            let _ = old.kill();
+        // TOCTOU: a call may have started between the check and spawn.
+        if let Err(e) = self.refuse_kill_while_busy() {
+            let _ = child.kill();
+            return Err(e);
+        }
+        // Hold the child slot only after a final busy check so we never kill
+        // an adopted/previous daemon while a tool_call is in flight.
+        if let Ok(mut slot) = self.child.lock() {
+            if let Err(e) = self.refuse_kill_while_busy() {
+                drop(slot);
+                let _ = child.kill();
+                return Err(e);
+            }
+            if let Some(mut old) = slot.replace(child) {
+                let _ = old.kill();
+            }
         }
 
         // Poll until the daemon answers an authenticated ping or the
@@ -388,6 +423,18 @@ impl PersistentDaemon {
     /// running so CLI / `vox mcp` clients keep a shared daemon. Policy: kill-if-
     /// spawned (operator choice 2026-09-09).
     pub fn shutdown_if_spawned(&self) {
+        // Avoid aborting an in-flight tool_call (empty TCP frame). Brief wait
+        // only — Axis is exiting and must not hang forever.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while self.in_flight.load(Ordering::SeqCst) > 0 && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        if self.in_flight.load(Ordering::SeqCst) > 0 {
+            tracing::warn!(
+                in_flight = self.in_flight.load(Ordering::SeqCst),
+                "stopping Axis-spawned orch while tool_call still in flight"
+            );
+        }
         let Ok(mut slot) = self.child.lock() else {
             return;
         };
@@ -750,6 +797,25 @@ mod tests {
         assert!(!pd.holds_spawned_child());
         pd.shutdown_if_spawned();
         assert!(!pd.holds_spawned_child());
+    }
+
+    #[test]
+    fn refuse_kill_while_busy_when_in_flight() {
+        let pd = PersistentDaemon::default();
+        assert!(pd.refuse_kill_while_busy().is_ok());
+        pd.begin_call();
+        assert!(pd.refuse_kill_while_busy().is_err());
+        pd.end_call();
+        assert!(pd.refuse_kill_while_busy().is_ok());
+    }
+
+    #[test]
+    fn end_call_does_not_underflow_in_flight() {
+        let pd = PersistentDaemon::default();
+        pd.end_call();
+        pd.end_call();
+        assert_eq!(pd.in_flight.load(Ordering::SeqCst), 0);
+        assert!(pd.refuse_kill_while_busy().is_ok());
     }
 
     const D_20MS: std::time::Duration = std::time::Duration::from_millis(20);

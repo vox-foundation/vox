@@ -31,8 +31,15 @@ fn main() {
     // Dead local endpoint — no mens serve here.
     std.env.set("VOX_LOCAL_ENDPOINT", "http://127.0.0.1:17999")
     std.env.set("VOX_GUI_DRIVE_ALLOW_STORE_RESET", "1")
-    // Avoid OpenRouter fallthrough looking like success.
+    // Empty env vars do not strip Clavis vault keys (drive_child_env uses resolve_secret_for_cli).
+    // Parent vault path is forwarded into the Drive child (see drive_child_env).
+    let empty_vault = "/tmp/vox-drive-metal-honesty-empty-vault.db"
+    let _ = fs.remove(empty_vault)
+    std.env.set("VOX_SECRETS_VAULT_PATH", empty_vault)
     std.env.set("OPENROUTER_API_KEY", "")
+    std.env.set("ANTHROPIC_API_KEY", "")
+    std.env.set("OPENAI_API_KEY", "")
+    std.env.set("GEMINI_API_KEY", "")
 
     let start = process.run(bin, [
         "gui", "drive", "start",

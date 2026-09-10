@@ -128,7 +128,7 @@ describe('AxisDriveHost agent-event bridge', () => {
     expect(stateRef.current.events.some(e => e.text === 'keep')).toBe(true);
   });
 
-  it('loadModels uses MODEL_LIST_LIMIT when catalog is needed', async () => {
+  it('loadModels uses MODEL_LIST_LIMIT on set/send; state skips catalog IPC', async () => {
     render(
       <AxisDriveHost
         setters={{ setChatModelOverride: vi.fn() }}
@@ -143,6 +143,16 @@ describe('AxisDriveHost agent-event bridge', () => {
     await act(async () => {
       await mocks.driveHandler!({
         payload: { id: 'req-1', verb: 'state', body: {} },
+      });
+    });
+    expect(mocks.listModels).not.toHaveBeenCalled();
+    await act(async () => {
+      await mocks.driveHandler!({
+        payload: {
+          id: 'req-2',
+          verb: 'set',
+          body: { model_override: 'openrouter/auto' },
+        },
       });
     });
     expect(mocks.listModels).toHaveBeenCalledWith(MODEL_LIST_LIMIT);

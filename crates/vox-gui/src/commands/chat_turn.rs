@@ -288,16 +288,14 @@ async fn run_sync(
         Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
         None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
     };
-    daemon.begin_call();
+    let _in_flight = daemon.in_flight_guard();
     let envelope = client
         .call(
             vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
             serde_json::json!({ "name": "vox_chat_message", "args": sync_tool_args(&input) }),
         )
         .await
-        .map_err(|e| e.to_string());
-    daemon.end_call();
-    let envelope = envelope?;
+        .map_err(|e| e.to_string())?;
     let reply = crate::commands::chat::parse_chat_message_envelope(&envelope)?;
     let grounding_flagged = if input.grounding_check_enabled == Some(true) {
         Some(vox_orchestrator::grounding::assess_reply_confidence(&reply.content).flagged)
@@ -450,6 +448,8 @@ async fn run_plan(
         Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
         None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
     };
+    // Same in-flight guard as `run_sync` — plan LLM rounds can run long.
+    let _in_flight = daemon.in_flight_guard();
     let envelope = client
         .call(
             vox_foundation::protocol::orch_daemon_method::TOOL_CALL,

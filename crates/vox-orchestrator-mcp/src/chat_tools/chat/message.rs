@@ -922,7 +922,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                             emit_turn_hop(
                                 Some(session_id.as_str()),
                                 false,
-                                crate::chat_hop::TurnOutcome::LlmError,
+                                crate::chat_hop::turn_outcome_for_dispatch_err(&e),
                             );
                             return ToolResult::<String>::err_with_remediation(
                                 format!("LLM error: {e}"),
@@ -1003,7 +1003,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 emit_turn_hop(
                     Some(session_id.as_str()),
                     false,
-                    crate::chat_hop::TurnOutcome::LlmError,
+                    crate::chat_hop::turn_outcome_for_dispatch_err(&e),
                 );
                 return ToolResult::<String>::err_with_remediation(
                     format!("LLM error: {e}"),
@@ -1051,7 +1051,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     emit_turn_hop(
                         Some(session_id.as_str()),
                         false,
-                        crate::chat_hop::TurnOutcome::LlmError,
+                        crate::chat_hop::turn_outcome_for_dispatch_err(&e),
                     );
                     return ToolResult::<String>::err_with_remediation(
                         format!("LLM error: {e}"),
@@ -1652,6 +1652,11 @@ mod tests {
         assert!(
             err.to_lowercase().contains("budget"),
             "expected error to mention budget, got: {err}"
+        );
+        assert_eq!(
+            crate::chat_hop::turn_outcome_for_dispatch_err(&err),
+            crate::chat_hop::TurnOutcome::BudgetDenied,
+            "budget guard refusal must classify as BudgetDenied, not LlmError"
         );
     }
 
