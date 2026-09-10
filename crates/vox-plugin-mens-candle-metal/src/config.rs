@@ -174,6 +174,13 @@ pub struct LoraTrainingConfig {
     pub chatml: ChatmlConfig,
     /// Optional dynamic hook for running code evaluations (e.g. "cargo_build")
     pub reward_hook: Option<String>,
+    /// Activation/gradient checkpointing: segment the transformer stack and
+    /// recompute each segment's forward during backward so only ~1 segment's
+    /// activations are retained at once. Trades ~1 extra forward for a much lower
+    /// single-backward VRAM peak. Default off. Not yet wired into the training
+    /// loop — see `Qwen35Model::forward_checkpointed` in `model.rs`.
+    #[serde(default)]
+    pub gradient_checkpointing: bool,
 }
 
 impl Default for LoraTrainingConfig {
@@ -228,6 +235,26 @@ impl Default for LoraTrainingConfig {
             allow_cpu_fallback: true,
             chatml: ChatmlConfig::default(),
             reward_hook: None,
+            gradient_checkpointing: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deployment_target_as_str_is_stable() {
+        assert_eq!(
+            TrainingDeploymentTarget::Workstation.as_str(),
+            "workstation"
+        );
+        assert_eq!(TrainingDeploymentTarget::MobileEdge.as_str(), "mobile_edge");
+    }
+
+    #[test]
+    fn gradient_checkpointing_defaults_off() {
+        assert!(!LoraTrainingConfig::default().gradient_checkpointing);
     }
 }
