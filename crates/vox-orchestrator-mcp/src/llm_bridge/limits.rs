@@ -10,7 +10,7 @@ pub(crate) const OLLAMA_PROBE_TIMEOUT_SECS: u64 = 2;
 pub(crate) const OLLAMA_PROBE_CACHE_TTL_SECS: u64 = 30;
 
 /// Timeout for VoxLocal `GET /health` probe.
-pub(crate) const VOX_LOCAL_PROBE_TIMEOUT_SECS: u64 = 1;
+pub(crate) const VOX_LOCAL_PROBE_TIMEOUT_SECS: u64 = 2;
 
 /// Reuse successful VoxLocal probe for this duration (per process).
 pub(crate) const VOX_LOCAL_PROBE_CACHE_TTL_SECS: u64 = 30;

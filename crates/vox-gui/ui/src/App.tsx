@@ -1358,7 +1358,12 @@ export default function App() {
     skillExclusionsRef.current = next;
     setSkillExclusions(next);
     const last = lastChatPayloadRef.current;
-    if (last) handleLoquelaSubmit(last, next);
+    if (last) {
+      // Fresh correlation ids for the retry — reusing Drive-minted turn/trace
+      // would merge two logical turns in ChatHop JSONL.
+      const { turn_id: _turn, trace_id: _trace, ...rest } = last;
+      handleLoquelaSubmit(rest, next);
+    }
   }, [handleLoquelaSubmit]);
 
   const handleLoquelaSlash = useCallback(async (

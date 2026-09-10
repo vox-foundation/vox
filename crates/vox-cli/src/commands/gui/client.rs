@@ -29,7 +29,12 @@ pub fn wait_until(until: &str, timeout: &str) -> Result<()> {
     let start = std::time::Instant::now();
     loop {
         let (status, body) = post("state", "{}")?;
-        if status == 200 && matches_until(until, &body) {
+        // Soft/broken listener (empty TCP, non-JSON, non-200) must fail fast —
+        // spinning until timeout hides Drive bind failures.
+        if let Err(e) = require_ok_json_body(status, &body) {
+            bail!("wait aborted: {e}");
+        }
+        if matches_until(until, &body) {
             println!("{body}");
             return Ok(());
         }
@@ -58,13 +63,31 @@ fn drive_view(v: &serde_json::Value) -> &serde_json::Value {
     v.get("state").unwrap_or(v)
 }
 
+fn last_error_present(v: &serde_json::Value) -> bool {
+    match v.get("last_error") {
+        Some(serde_json::Value::Null) | None => false,
+        Some(serde_json::Value::String(s)) => !s.trim().is_empty(),
+        Some(_) => true,
+    }
+}
+
 /// True when the Drive JSON body reports a non-null `last_error` (nested or flat).
 pub fn response_has_last_error(body: &str) -> bool {
     let v: serde_json::Value = serde_json::from_str(body).unwrap_or(serde_json::Value::Null);
-    drive_view(&v)
-        .get("last_error")
-        .map(|x| !x.is_null())
-        .unwrap_or(false)
+    if last_error_present(drive_view(&v)) {
+        return true;
+    }
+    // Root may carry last_error even when `state` exists with null.
+    last_error_present(&v)
+}
+
+fn truncate_body_for_err(body: &str) -> String {
+    const MAX: usize = 512;
+    let t = body.trim();
+    if t.len() <= MAX {
+        return t.to_string();
+    }
+    format!("{}…", &t[..MAX])
 }
 
 /// Drive verbs must return HTTP 200 with a non-empty JSON body.
@@ -72,15 +95,38 @@ pub fn response_has_last_error(body: &str) -> bool {
 /// exited 0 because callers only bailed on `status >= 400`.
 pub fn require_ok_json_body(status: u16, body: &str) -> Result<()> {
     if status != 200 {
-        bail!("drive HTTP {status} (expected 200); body={body}");
+        bail!(
+            "drive HTTP {status} (expected 200); body={}",
+            truncate_body_for_err(body)
+        );
     }
     let trimmed = body.trim();
     if trimmed.is_empty() {
         bail!("drive response body empty (HTTP 200)");
     }
-    serde_json::from_str::<serde_json::Value>(trimmed)
-        .map_err(|e| anyhow::anyhow!("drive response is not JSON: {e}; body={body}"))?;
+    serde_json::from_str::<serde_json::Value>(trimmed).map_err(|e| {
+        anyhow::anyhow!(
+            "drive response is not JSON: {e}; body={}",
+            truncate_body_for_err(body)
+        )
+    })?;
     Ok(())
+}
+
+/// Headless stdout honesty: fail on envelope `status >= 400`, top-level `error`,
+/// or live-shaped `last_error` (when headless eventually mirrors live).
+pub fn headless_response_failed(stdout: &str) -> bool {
+    let v: serde_json::Value =
+        serde_json::from_str(stdout.trim()).unwrap_or(serde_json::Value::Null);
+    if let Some(s) = v.get("status").and_then(|x| x.as_u64()) {
+        if s >= 400 {
+            return true;
+        }
+    }
+    if v.get("error").map(|e| !e.is_null()).unwrap_or(false) {
+        return true;
+    }
+    response_has_last_error(stdout)
 }
 
 fn has_submit_ok_for_turn(view: &serde_json::Value, turn_id: &str) -> bool {
@@ -256,6 +302,28 @@ mod tests {
             r#"{"status":200,"state":{"last_error":null}}"#
         ));
         assert!(!response_has_last_error(r#"{"status":200,"state":{}}"#));
+        // Root last_error wins when nested is null.
+        assert!(response_has_last_error(
+            r#"{"state":{"last_error":null},"last_error":"root-boom"}"#
+        ));
+        // Empty string is not a real error.
+        assert!(!response_has_last_error(r#"{"state":{"last_error":""}}"#));
+    }
+
+    #[test]
+    fn response_has_last_error_live_send_envelope() {
+        let body = r#"{"status":200,"plane":"live","state":{"last_error":"tokenizer missing"}}"#;
+        assert!(response_has_last_error(body));
+    }
+
+    #[test]
+    fn headless_response_failed_on_error_status() {
+        assert!(headless_response_failed(
+            r#"{"error":"unknown_verb","status":404}"#
+        ));
+        assert!(!headless_response_failed(
+            r#"{"plane":"headless","accepted":true,"text":"hi"}"#
+        ));
     }
 
     #[test]

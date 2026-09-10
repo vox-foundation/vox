@@ -14,6 +14,13 @@ import {
   type DriveEventState,
 } from './driveEvents';
 
+function mintCorrelationId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export interface DriveSetters {
   setChatModelOverride: (id: string | null) => void;
   setGroundingCheckEnabled?: (enabled: boolean) => void;
@@ -163,8 +170,8 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
     }
     const blocked = assertPinSelectable(state, args.models, args.statuses);
     if (blocked) return blocked;
-    const turnId = crypto.randomUUID();
-    const traceId = crypto.randomUUID();
+    const turnId = mintCorrelationId();
+    const traceId = mintCorrelationId();
     const payload: DriveSubmitPayload = {
       description: text,
       execution_mode: executionToComposerMode(state.knobs.execution),

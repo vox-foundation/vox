@@ -292,10 +292,8 @@ fn headless(cmd: DriveHeadlessCmd) -> Result<()> {
     if !out.status.success() {
         bail!("headless failed");
     }
-    // Headless send can exit 0 with a JSON envelope that still carries
-    // last_error — match live `send` honesty.
-    if matches!(cmd, DriveHeadlessCmd::Send(_)) && client::response_has_last_error(&stdout) {
-        bail!("headless send failed (last_error set)");
+    if client::headless_response_failed(&stdout) {
+        bail!("headless failed (error envelope)");
     }
     Ok(())
 }

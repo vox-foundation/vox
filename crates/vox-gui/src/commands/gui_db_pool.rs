@@ -62,9 +62,23 @@ impl GuiDbPool {
     }
 
     pub fn handle(&self) -> Result<Arc<VoxDb>, String> {
-        self.db
-            .clone()
-            .ok_or_else(|| "workspace database unavailable".to_string())
+        self.db.clone().ok_or_else(|| {
+            if std::env::var("VOX_GUI_DRIVE_STORE_ROOT")
+                .ok()
+                .filter(|s| !s.is_empty())
+                .is_some()
+            {
+                format!(
+                    "Drive workspace database unavailable (empty GuiDbPool). \
+                     If you saw schema_max ahead of BASELINE_VERSION={}, set \
+                     VOX_GUI_DRIVE_ALLOW_STORE_RESET=1 with VOX_GUI_DRIVE=1 or \
+                     use a fresh Drive --profile.",
+                    vox_db::schema::BASELINE_VERSION
+                )
+            } else {
+                "workspace database unavailable".to_string()
+            }
+        })
     }
 }
 
@@ -185,5 +199,29 @@ mod tests {
         )));
         assert!(msg.contains("VOX_GUI_DRIVE_ALLOW_STORE_RESET=1"));
         assert!(msg.contains("Do not bump BASELINE_VERSION"));
+    }
+
+    #[test]
+    fn empty_drive_pool_handle_mentions_baseline() {
+        let prev = std::env::var_os("VOX_GUI_DRIVE_STORE_ROOT");
+        unsafe {
+            std::env::set_var("VOX_GUI_DRIVE_STORE_ROOT", "/tmp/drive-empty-pool");
+        }
+        let pool = GuiDbPool { db: None };
+        let err = match pool.handle() {
+            Ok(_) => panic!("expected empty pool Err"),
+            Err(e) => e,
+        };
+        assert!(err.contains("empty GuiDbPool"));
+        assert!(err.contains(&format!(
+            "BASELINE_VERSION={}",
+            vox_db::schema::BASELINE_VERSION
+        )));
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("VOX_GUI_DRIVE_STORE_ROOT", v),
+                None => std::env::remove_var("VOX_GUI_DRIVE_STORE_ROOT"),
+            }
+        }
     }
 }
