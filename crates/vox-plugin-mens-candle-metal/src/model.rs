@@ -16,7 +16,7 @@
 //! which runs its own preflight over HF `config.json` and the safetensors shards.
 
 use candle_core::{DType, Device, Result, Tensor};
-use candle_nn::{Module, RmsNorm};
+use candle_nn::RmsNorm;
 use qlora_rs::qlora::QuantizedLinear;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -452,7 +452,7 @@ impl Qwen35LinearAttention {
         }
         let y_flat = y.reshape((b * seq_len * self.num_v_heads, self.head_v_dim))?;
         let z_flat = z.reshape((b * seq_len * self.num_v_heads, self.head_v_dim))?;
-        let y_norm = self.norm.forward(&y_flat)?;
+        let y_norm = rms_norm_f32(&self.norm, &y_flat)?;
         let y_gate = y_norm.broadcast_mul(&candle_nn::ops::silu(&z_flat)?)?;
         y = y_gate.reshape((b, seq_len, value_dim))?;
 
@@ -902,6 +902,50 @@ mod gradient_checkpoint_tests {
         }
     }
 
+    /// Builds a layer whose attention is the Gated-DeltaNet `Linear` variant
+    /// (not `Full`), so gradient tests can exercise `Qwen35LinearAttention::forward`'s
+    /// `self.norm` call — the site `build_layer` structurally cannot reach.
+    fn build_layer_linear(vb: VarBuilder, d: usize, dev: &Device) -> Qwen35Layer {
+        // num_v_heads * d must be a multiple of the quantizer's block size (64) for
+        // b_proj/a_proj to quantize; d=64 with 8 heads keeps every projection here
+        // a clean multiple of 64.
+        let num_k_heads = 8usize;
+        let num_v_heads = 8usize;
+        let head_k_dim = d / num_k_heads;
+        let head_v_dim = d / num_v_heads;
+        let key_dim = num_k_heads * head_k_dim;
+        let value_dim = num_v_heads * head_v_dim;
+        let qkv_dim = key_dim + key_dim + value_dim;
+        let kernel = 4usize;
+
+        let attn = Qwen35LinearAttention {
+            qkv_proj: qlin(vb.pp("qkv"), qkv_dim, d, dev),
+            z_proj: qlin(vb.pp("z"), value_dim, d, dev),
+            b_proj: qlin(vb.pp("b"), num_v_heads, d, dev),
+            a_proj: qlin(vb.pp("a"), num_v_heads, d, dev),
+            out_proj: qlin(vb.pp("o"), d, value_dim, dev),
+            conv_weight: Tensor::randn(0f32, 0.02f32, (qkv_dim, kernel), dev).unwrap(),
+            dt_bias: Tensor::zeros(num_v_heads, DType::F32, dev).unwrap(),
+            a_log: Tensor::zeros(num_v_heads, DType::F32, dev).unwrap(),
+            norm: RmsNorm::new(Tensor::ones(head_v_dim, DType::F32, dev).unwrap(), 1e-6),
+            num_k_heads,
+            num_v_heads,
+            head_k_dim,
+            head_v_dim,
+        };
+        Qwen35Layer {
+            input_layernorm: RmsNorm::new(Tensor::ones(d, DType::F32, dev).unwrap(), 1e-6),
+            attention: Qwen35AttentionBlock::Linear(attn),
+            post_attention_layernorm: RmsNorm::new(Tensor::ones(d, DType::F32, dev).unwrap(), 1e-6),
+            mlp: Qwen2MLP {
+                gate_proj: qlin(vb.pp("g"), d * 2, d, dev),
+                up_proj: qlin(vb.pp("u"), d * 2, d, dev),
+                down_proj: qlin(vb.pp("dn"), d, d * 2, dev),
+            },
+            inv_freq: None,
+        }
+    }
+
     fn build_model(
         vb: VarBuilder,
         d: usize,
@@ -992,6 +1036,134 @@ mod gradient_checkpoint_tests {
         }
 
         // ── Compare per-Var grads ───────────────────────────────────────────
+        let mut compared = 0usize;
+        for v in &lora_vars {
+            match (g_eager.get(v.as_tensor()), grads.get(v.as_tensor())) {
+                (Some(a), Some(b)) => {
+                    let name = varmap_name(&varmap, v);
+                    let av: Vec<f32> = a.flatten_all().unwrap().to_vec1().unwrap();
+                    let bv: Vec<f32> = b.flatten_all().unwrap().to_vec1().unwrap();
+                    for (x, y) in av.iter().zip(bv.iter()) {
+                        let denom = x.abs().max(1e-3);
+                        assert!(
+                            (x - y).abs() / denom < 1e-2,
+                            "grad mismatch for {name}: eager={x} ckpt={y}"
+                        );
+                    }
+                    compared += 1;
+                }
+                (None, None) => {}
+                (a, b) => panic!(
+                    "grad presence mismatch: eager={} ckpt={}",
+                    a.is_some(),
+                    b.is_some()
+                ),
+            }
+        }
+        assert!(
+            compared >= n_layers,
+            "expected grads for >= {n_layers} vars, got {compared}"
+        );
+    }
+
+    /// Same eager-vs-checkpointed grad comparison as
+    /// `checkpointed_model_backward_matches_eager_grads`, but with a Gated-DeltaNet
+    /// `Linear`-attention layer in the mix. `build_layer` only ever constructs
+    /// `Qwen35AttentionBlock::Full`, so that test cannot reach
+    /// `Qwen35LinearAttention::forward`'s `self.norm` call — this one does, and is
+    /// the regression guard for that site specifically.
+    #[test]
+    fn checkpointed_model_backward_matches_eager_grads_linear_attention() {
+        let dev = Device::Cpu;
+        // d=64 (rather than the 8 other tests in this module use) because
+        // Qwen35LinearAttention's b_proj/a_proj project to num_v_heads outputs,
+        // and the quantizer requires each weight's element count to be a
+        // multiple of its 64-element block size.
+        let (d, n_layers, vocab, seq) = (64usize, 4usize, 16usize, 5usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+
+        let embed = Tensor::randn(0f32, 0.02f32, (vocab, d), &dev).unwrap();
+        let layers: Vec<Qwen35Layer> = (0..n_layers)
+            .map(|i| {
+                let lvb = vb.pp(format!("layer{i}"));
+                if i % 2 == 0 {
+                    build_layer_linear(lvb, d, &dev)
+                } else {
+                    build_layer(lvb, d, 2, &dev)
+                }
+            })
+            .collect();
+        let lm_head = QuantizedLinear::from_weight_with_varbuilder(
+            &embed.clone(),
+            None,
+            &qcfg(),
+            vb.pp("lm_head"),
+        )
+        .unwrap();
+        let model = Qwen35Model {
+            embed_tokens: embed,
+            layers,
+            norm: RmsNorm::new(Tensor::ones(d, DType::F32, &dev).unwrap(), 1e-6),
+            lm_head,
+        };
+
+        let input_ids = Tensor::from_vec(vec![1u32, 2, 3, 4, 5], (1, seq), &dev).unwrap();
+        let targets = Tensor::from_vec(vec![2u32, 3, 4, 5, 6], (1, seq), &dev).unwrap();
+
+        let lora_vars: Vec<Var> = varmap.all_vars();
+        assert!(!lora_vars.is_empty(), "no LoRA vars registered");
+
+        let logits_eager = model.forward(&input_ids).unwrap();
+        let loss_eager = ce_loss(&logits_eager, &targets);
+        let g_eager = loss_eager.backward().unwrap();
+
+        // Direct regression guard for the bug this test exists to catch: candle-nn's
+        // fused `RmsNorm::forward` records `BackpropOp::none()` — it doesn't produce
+        // wrong gradients, it silently SEVERS the graph, so nothing upstream of it
+        // gets a gradient at all. In `Qwen35LinearAttention::forward`, `self.norm`
+        // sits between the qkv/z/b/a projections and `out_proj`, so if `.norm.forward()`
+        // (rather than `rms_norm_f32`) is used, every LoRA weight feeding those
+        // projections silently gets `None` in both the eager AND the checkpointed
+        // backward alike — which is exactly why the eager-vs-checkpointed comparison
+        // below cannot detect this class of bug: both sides agree on the same missing
+        // gradient. Assert directly that gradient reaches a pre-norm var instead.
+        let pre_norm_var = lora_vars
+            .iter()
+            .find(|v| varmap_name(&varmap, v) == "layer0.qkv.lora_a.weight")
+            .expect("layer0 must be the Linear-attention variant with a qkv LoRA var");
+        let pre_norm_grad = g_eager
+            .get(pre_norm_var.as_tensor())
+            .expect(
+                "no eager gradient reached layer0.qkv.lora_a.weight — self.norm in \
+                 Qwen35LinearAttention::forward is almost certainly using the fused \
+                 `.forward()` (BackpropOp::none, severs the graph) instead of \
+                 `rms_norm_f32`",
+            )
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+        assert!(
+            pre_norm_grad.iter().any(|g| g.abs() > 1e-8),
+            "gradient for layer0.qkv.lora_a.weight is all-zero — self.norm in \
+             Qwen35LinearAttention::forward is severing the graph"
+        );
+
+        let ckpt = model.forward_checkpointed(&input_ids, 2).unwrap();
+        assert_eq!(ckpt.segments.len(), 2);
+
+        let loss_ck = ce_loss(&ckpt.logits, &targets);
+        let mut grads = loss_ck.backward().unwrap();
+        let last = ckpt.segments.last().unwrap();
+        let mut upstream = grads.get(&last.input).cloned().unwrap();
+        for seg in ckpt.segments.iter().rev().skip(1) {
+            let (input_var, seg_out) = model.recompute_segment(seg).unwrap();
+            let seg_grads = qlora_rs::backward_from_cotangent(&seg_out, &upstream).unwrap();
+            qlora_rs::accumulate_grads_for_vars(&mut grads, &seg_grads, &lora_vars).unwrap();
+            upstream = seg_grads.get(input_var.as_tensor()).cloned().unwrap();
+        }
+
         let mut compared = 0usize;
         for v in &lora_vars {
             match (g_eager.get(v.as_tensor()), grads.get(v.as_tensor())) {
