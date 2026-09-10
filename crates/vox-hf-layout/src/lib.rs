@@ -64,6 +64,15 @@ pub struct HfTransformerLayout {
     pub dims: ConfigDims,
 }
 
+/// True for tensor keys belonging to Qwen3.8-27B's vision tower
+/// (`model.visual.*`) or its multi-token-prediction head (`mtp.*`) — neither
+/// is part of the text tower this crate extracts a layout for, and neither
+/// should be requested, downloaded, or validated against by a text-only
+/// QLoRA loader.
+pub fn is_vision_or_mtp_key(key: &str) -> bool {
+    key.starts_with("model.visual.") || key.starts_with("mtp.")
+}
+
 impl HfTransformerLayout {
     /// Parse `config.json` at `path` into a structured layout.
     pub fn from_config_path(path: &Path) -> anyhow::Result<Self> {
@@ -110,10 +119,16 @@ impl HfTransformerLayout {
         // they carry a separate `text_config` block: `qwen35_text_config` below
         // reads dims exclusively from that block, never from `vision_config`, so
         // there is nothing vision-specific for the text QLoRA trainer to choke
-        // on — it never sees the vision tower's weights or config at all (the
-        // weight loader separately skips `visual.*`/`vision_tower.*` tensors by
-        // name; see hf_keymap). What genuinely cannot be trained is a VLM with
-        // NO text_config at all — there would be nothing to extract dims from.
+        // on. The weight loader never *requests* `model.visual.*` / `mtp.*`
+        // tensors in the first place, because every lookup here is by exact key
+        // name built from `namespace_prefix` (`model.language_model.layers.*`
+        // for this text_config-wrapped shape) — nothing enumerates shard keys,
+        // so vision/MTP tensors are skipped as an emergent side effect, not an
+        // explicit filter. [`is_vision_or_mtp_key`] is that explicit check,
+        // for callers (validation passes, diagnostics, shard selection)
+        // that do enumerate keys and need to exclude these towers on purpose.
+        // What genuinely cannot be trained is a VLM with NO text_config at all
+        // — there would be nothing to extract dims from.
         let is_conditional_generation = architectures
             .iter()
             .any(|a| a.contains("ForConditionalGeneration"));
@@ -431,7 +446,19 @@ impl From<StackedCausalCfg> for ConfigDims {
 
 #[cfg(test)]
 mod tests {
-    use super::{HfArchitecture, HfTransformerLayout};
+    use super::{HfArchitecture, HfTransformerLayout, is_vision_or_mtp_key};
+
+    #[test]
+    fn vision_and_mtp_keys_are_excluded_from_required_key_set() {
+        // Real key shapes from the Qwen3.8-27B checkpoint (verified this session).
+        assert!(is_vision_or_mtp_key(
+            "model.visual.blocks.0.attn.qkv.weight"
+        ));
+        assert!(is_vision_or_mtp_key("mtp.fc.weight"));
+        assert!(!is_vision_or_mtp_key(
+            "model.language_model.layers.0.self_attn.q_proj.weight"
+        ));
+    }
 
     #[test]
     fn vlm_checkpoint_with_text_config_loads_the_text_tower_only() {
