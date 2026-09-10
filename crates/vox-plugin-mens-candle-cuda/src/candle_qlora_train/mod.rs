@@ -53,6 +53,33 @@ fn activation_compute_dtype(device: &Device) -> DType {
 /// Global flag for graceful interruption (Ctrl+C).
 pub(super) static PAUSE_FLAG: AtomicBool = AtomicBool::new(false);
 
+/// Resolve which tensor backs `lm_head.weight`: the real untied head when the
+/// checkpoint has one, otherwise the tied-embeddings fallback.
+///
+/// Serve (`inference.rs`) always prefers a real `lm_head.weight` tensor and
+/// only falls back to the embedding matrix when it's absent. Train must agree,
+/// or a model with an untied head (e.g. Qwen3.8-27B) computes logits against
+/// the wrong matrix during training while serve uses the right one.
+///
+/// - `tie_word_embeddings == false` and `lm_head_tensor` is `Some` → use it.
+/// - Otherwise (tied, or the key is genuinely absent from the checkpoint) →
+///   fall back to deriving the head from `wte`, matching the historical
+///   behavior small tied models depend on.
+///
+/// Returns the resolved weight tensor and the base-weight key name used to
+/// load it (for `base_key_map` bookkeeping).
+pub(super) fn resolve_lm_head_source(
+    wte: &Tensor,
+    lm_head_tensor: Option<&Tensor>,
+    tie_word_embeddings: bool,
+    embed_key: &str,
+) -> Result<(Tensor, String)> {
+    if !tie_word_embeddings && let Some(t) = lm_head_tensor {
+        return Ok((t.clone(), "lm_head.weight".to_string()));
+    }
+    Ok((wte.clone(), embed_key.to_string()))
+}
+
 pub(super) enum TrainGraphModel {
     Qwen35(crate::model::Qwen35Model),
 }
@@ -998,13 +1025,25 @@ pub fn run_candle_qlora_train(
                 .to_dtype(DType::F32)?
         };
         let final_norm = candle_nn::RmsNorm::new(fnorm_w, 1e-6);
-        // LM head is tied to the embeddings; build it from the F32 weight so the
-        // QuantizedLinear builder can quantize it. It is cached internally in
-        // the compute_dtype (BF16). `Qwen35Model::forward` casts the resulting
-        // logits back to F32 before the cross-entropy loss.
-        let w_lm = wte.to_dtype(DType::F32)?;
+        // LM head may be tied to the embeddings or a genuinely untied
+        // `lm_head.weight` tensor (e.g. Qwen3.8-27B) — resolve_lm_head_source
+        // picks the right one, matching serve's lookup-then-fallback. Build it
+        // from the F32 weight so the QuantizedLinear builder can quantize it.
+        // It is cached internally in the compute_dtype (BF16).
+        // `Qwen35Model::forward` casts the resulting logits back to F32 before
+        // the cross-entropy loss.
+        let lm_head_tensor = vb_mmap
+            .get((bundle.vocab, bundle.d_model), "lm_head.weight")
+            .ok()
+            .and_then(|t| t.to_dtype(DType::F32).ok());
+        let (w_lm, lm_base) = resolve_lm_head_source(
+            &wte,
+            lm_head_tensor.as_ref(),
+            bundle.layout.tie_word_embeddings,
+            &bundle.embed_key,
+        )?;
+        let w_lm = w_lm.to_dtype(DType::F32)?;
         let lm_label = "lm_head".to_string();
-        let lm_base = bundle.embed_key.clone();
         let lm_head = QuantizedLinear::from_weight_with_varbuilder(
             &w_lm,
             None,
@@ -1114,3 +1153,63 @@ mod epoch_boundary;
 mod finalize;
 mod training_loop;
 mod validation;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Serve prefers a real `lm_head.weight` over the embedding matrix when the
+    /// checkpoint is untied (`tie_word_embeddings == false`); train must resolve
+    /// to the same tensor, not silently derive from `wte`. `wte` and `lm_head`
+    /// are built from different RNG seeds so their data provably differs —
+    /// asserting against `wte` here would fail if the fix regressed.
+    #[test]
+    fn untied_lm_head_is_loaded_not_derived_from_embeddings() {
+        let device = Device::Cpu;
+        let wte = Tensor::randn(0f32, 1f32, (8, 4), &device).unwrap();
+        let lm_head = Tensor::randn(5f32, 1f32, (8, 4), &device).unwrap();
+
+        let (resolved, base_key) =
+            resolve_lm_head_source(&wte, Some(&lm_head), false, "model.embed_tokens.weight")
+                .unwrap();
+
+        let resolved_data = resolved.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        let lm_head_data = lm_head.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        let wte_data = wte.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+
+        assert_eq!(
+            resolved_data, lm_head_data,
+            "must resolve to lm_head.weight"
+        );
+        assert_ne!(
+            resolved_data, wte_data,
+            "must NOT derive from wte when the checkpoint ships an untied head"
+        );
+        assert_eq!(base_key, "lm_head.weight");
+    }
+
+    /// The tied-embeddings fallback (small Qwen3 dense models, and checkpoints
+    /// where `lm_head.weight` is genuinely absent) must keep working.
+    #[test]
+    fn tied_lm_head_falls_back_to_embeddings() {
+        let device = Device::Cpu;
+        let wte = Tensor::randn(0f32, 1f32, (8, 4), &device).unwrap();
+        let lm_head = Tensor::randn(5f32, 1f32, (8, 4), &device).unwrap();
+
+        // tie_word_embeddings == true: ignore a present lm_head.weight.
+        let (resolved, base_key) =
+            resolve_lm_head_source(&wte, Some(&lm_head), true, "model.embed_tokens.weight")
+                .unwrap();
+        let resolved_data = resolved.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        let wte_data = wte.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        assert_eq!(resolved_data, wte_data);
+        assert_eq!(base_key, "model.embed_tokens.weight");
+
+        // lm_head.weight genuinely absent: fall back regardless of the flag.
+        let (resolved, base_key) =
+            resolve_lm_head_source(&wte, None, false, "model.embed_tokens.weight").unwrap();
+        let resolved_data = resolved.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        assert_eq!(resolved_data, wte_data);
+        assert_eq!(base_key, "model.embed_tokens.weight");
+    }
+}

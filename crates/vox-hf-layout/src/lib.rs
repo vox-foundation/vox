@@ -54,6 +54,12 @@ pub struct HfTransformerLayout {
     pub linear_key_head_dim: Option<usize>,
     pub linear_value_head_dim: Option<usize>,
     pub linear_conv_kernel_dim: Option<usize>,
+    /// Whether the checkpoint ties `lm_head.weight` to the input embedding matrix.
+    /// Read from root-level `tie_word_embeddings`, falling back to the same key
+    /// nested under `text_config` for VLM-shaped checkpoints. Defaults to `true`
+    /// (the legacy tied-embeddings behavior) when the key is absent entirely, since
+    /// small Qwen3 dense checkpoints rely on that default.
+    pub tie_word_embeddings: bool,
     /// Same numbers as the HF fields above, in [`ConfigDims`] shape (legacy / graph code).
     pub dims: ConfigDims,
 }
@@ -130,6 +136,9 @@ impl HfTransformerLayout {
         }
 
         let cfg_source = qwen35_text_config(v, architecture).unwrap_or(v);
+        let tie_word_embeddings = json_bool(v, "tie_word_embeddings")
+            .or_else(|| json_bool(cfg_source, "tie_word_embeddings"))
+            .unwrap_or(true);
 
         // Llama / Mistral / Qwen2 / Qwen3.5 and many causal LMs.
         if let (Some(h), Some(nh), Some(nl), Some(vs)) = (
@@ -186,6 +195,7 @@ impl HfTransformerLayout {
                 linear_key_head_dim: json_usize(cfg_source, "linear_key_head_dim"),
                 linear_value_head_dim: json_usize(cfg_source, "linear_value_head_dim"),
                 linear_conv_kernel_dim: json_usize(cfg_source, "linear_conv_kernel_dim"),
+                tie_word_embeddings,
                 dims,
             });
         }
@@ -226,6 +236,7 @@ impl HfTransformerLayout {
                 linear_key_head_dim: None,
                 linear_value_head_dim: None,
                 linear_conv_kernel_dim: None,
+                tie_word_embeddings,
                 dims,
             });
         }
@@ -266,6 +277,10 @@ fn json_usize(v: &Value, key: &str) -> Option<usize> {
 
 fn json_f64(v: &Value, key: &str) -> Option<f64> {
     v.get(key).and_then(|x| x.as_f64())
+}
+
+fn json_bool(v: &Value, key: &str) -> Option<bool> {
+    v.get(key).and_then(|x| x.as_bool())
 }
 
 fn json_string_vec(v: &Value, key: &str) -> Option<Vec<String>> {
@@ -531,6 +546,84 @@ mod tests {
         assert_eq!(layout.num_hidden_layers, 4);
         assert_eq!(layout.layer_types.len(), 4);
         assert_eq!(layout.layer_types[0], "linear_attention");
+    }
+
+    #[test]
+    fn parses_tie_word_embeddings_false_at_root() {
+        // Qwen3.8-27B ships an untied lm_head.weight: tie_word_embeddings=false
+        // at root level, alongside a nested text_config block.
+        let raw = r#"{
+            "model_type":"qwen3_5",
+            "architectures":["Qwen3_5ForCausalLM"],
+            "tie_word_embeddings":false,
+            "text_config":{
+                "hidden_size":1024,
+                "num_attention_heads":16,
+                "num_hidden_layers":4,
+                "vocab_size":151936
+            }
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("qwen3_5 parse");
+        assert!(
+            !layout.tie_word_embeddings,
+            "untied checkpoint must not report tie_word_embeddings=true"
+        );
+    }
+
+    #[test]
+    fn parses_tie_word_embeddings_false_nested_under_text_config() {
+        // This model's config shape nests text fields under text_config; the
+        // key must also be honored from there, not just the root.
+        let raw = r#"{
+            "model_type":"qwen3_5",
+            "architectures":["Qwen3_5ForCausalLM"],
+            "text_config":{
+                "hidden_size":1024,
+                "num_attention_heads":16,
+                "num_hidden_layers":4,
+                "vocab_size":151936,
+                "tie_word_embeddings":false
+            }
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("qwen3_5 parse");
+        assert!(
+            !layout.tie_word_embeddings,
+            "nested tie_word_embeddings=false under text_config must be honored"
+        );
+    }
+
+    #[test]
+    fn tie_word_embeddings_true_is_parsed() {
+        let raw = r#"{
+            "model_type":"qwen3",
+            "architectures":["Qwen3ForCausalLM"],
+            "tie_word_embeddings":true,
+            "hidden_size":1024,
+            "num_attention_heads":16,
+            "num_hidden_layers":28,
+            "vocab_size":151936
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("dense qwen3 parse");
+        assert!(layout.tie_word_embeddings);
+    }
+
+    #[test]
+    fn tie_word_embeddings_defaults_to_true_when_absent() {
+        // Small Qwen3 dense checkpoints below tying scale rely on the
+        // derive-from-wte fallback continuing to work when the key is missing.
+        let raw = r#"{
+            "model_type":"qwen3",
+            "architectures":["Qwen3ForCausalLM"],
+            "hidden_size":1024,
+            "num_attention_heads":16,
+            "num_hidden_layers":28,
+            "vocab_size":151936
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("dense qwen3 parse");
+        assert!(
+            layout.tie_word_embeddings,
+            "missing tie_word_embeddings must default to true (tied) for legacy checkpoints"
+        );
     }
 
     #[test]
