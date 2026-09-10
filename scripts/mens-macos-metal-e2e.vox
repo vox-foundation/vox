@@ -20,7 +20,24 @@ fn run_vox(args: list[str]) to bool {
         print(completed.stderr)
         return false
     }
+    // Soft-skip / gpu-warning-only paths must not false-green.
+    let combined = completed.stdout + "\n" + completed.stderr
+    if combined.contains("gpu feature") or combined.contains("GPU feature") or combined.contains("without --features gpu") {
+        fail("train/serve emitted a gpu soft-skip warning; rebuild with --features gpu,execution-api")
+    }
     return true
+}
+
+fn preflight_gpu_cli() {
+    // Prefer a workspace binary known to include Metal/Candle features when present.
+    let probe = process.run("vox", ["mens", "train", "--help"])
+    if probe is null {
+        fail("vox binary missing; build with cargo build -p vox-cli --features gui and vox-ml-cli --features gpu,execution-api")
+    }
+    let help = probe.unwrap().stdout + probe.unwrap().stderr
+    if help.contains("cuda-only") and not help.contains("metal") {
+        print("warning: mens train help looks CUDA-centric; ensure Metal backend is compiled in")
+    }
 }
 
 fn main() {
@@ -29,6 +46,8 @@ fn main() {
         print("MENS macOS Metal e2e requires Darwin; skipping with exit 2.")
         process.exit(2)
     }
+
+    preflight_gpu_cli()
 
     let model = "Qwen/Qwen2.5-Coder-0.5B-Instruct"
     let run_dir = "mens/runs/qwen35-08b-metal-e2e"
@@ -55,6 +74,22 @@ fn main() {
     ]
     if not run_vox(train_args) {
         fail("Metal training failed; verify the host-aware training dispatch is present")
+    }
+
+    // Artifact asserts — adapter files must exist (not just exit 0).
+    let adapter_candidates = [
+        run_dir + "/adapter_model.safetensors",
+        run_dir + "/adapter_model.bin",
+        run_dir + "/final/adapter_model.safetensors"
+    ]
+    let mut has_adapter = false
+    for p in adapter_candidates {
+        if fs.exists(p) {
+            has_adapter = true
+        }
+    }
+    if not has_adapter {
+        fail("no adapter artifact under " + run_dir + " after train")
     }
 
     let report = run_dir + "/collateral_damage_report.json"

@@ -1,0 +1,70 @@
+import fs
+import process
+
+// Failure-honesty: missing OpenRouter key must not false-green Drive chat.
+// Expect non-zero exit from send and/or reply_ok wait — never pass on last_error.
+
+fn vox_binary_path() to str {
+    if fs.exists("./target/debug/vox") {
+        return "./target/debug/vox"
+    }
+    if fs.exists("./target/debug/vox.exe") {
+        return "./target/debug/vox.exe"
+    }
+    if fs.exists("./target/release/vox") {
+        return "./target/release/vox"
+    }
+    return "./target/debug/vox"
+}
+
+fn fail(bin: str, message: str) {
+    print("OpenRouter failure-honesty failed: " + message)
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+    process.exit(1)
+}
+
+fn main() {
+    let bin = vox_binary_path()
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+
+    // Strip cloud keys from this process so Drive child inherits empty keys.
+    // Vault may still have a key — force an isolated empty vault path.
+    let empty_vault = "/tmp/vox-drive-honesty-empty-vault.db"
+    let _ = fs.remove(empty_vault)
+    process.set_env("VOX_SECRETS_VAULT_PATH", empty_vault)
+    process.set_env("OPENROUTER_API_KEY", "")
+    process.set_env("ANTHROPIC_API_KEY", "")
+    process.set_env("OPENAI_API_KEY", "")
+
+    let start = process.run(bin, ["gui", "drive", "start"])
+    if start is null {
+        fail(bin, "could not execute drive start")
+    }
+    if start.unwrap().code is not 0 {
+        // Start failing closed without keys is acceptable honesty.
+        print("{\"status\":\"pass\",\"reason\":\"drive_start_refused_without_keys\"}")
+        process.exit(0)
+    }
+
+    let _ = process.run(bin, ["gui", "drive", "set", "--knob", "execution=sync"])
+    let send = process.run(bin, [
+        "gui", "drive", "send", "--text", "say hi"
+    ])
+    if send is null {
+        fail(bin, "could not execute send")
+    }
+    let send_code = send.unwrap().code
+    let wait = process.run(bin, ["gui", "drive", "wait", "--until", "reply_ok", "--timeout", "30s"])
+    let wait_code = 1
+    if wait is not null {
+        wait_code = wait.unwrap().code
+    }
+
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+
+    // Honesty: at least one of send/wait must fail (non-zero). Passing both is a false green.
+    if send_code is 0 and wait_code is 0 {
+        fail(bin, "false green: send and reply_ok both exited 0 without OpenRouter key")
+    }
+    print("{\"status\":\"pass\",\"send_code\":" + str(send_code) + ",\"wait_code\":" + str(wait_code) + "}")
+}

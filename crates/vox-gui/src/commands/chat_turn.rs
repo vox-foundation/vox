@@ -70,6 +70,12 @@ pub struct ChatTurnInput {
     /// the sync path has no `mode` concept in `vox_chat_message`.
     #[serde(default)]
     pub mode: Option<String>,
+    /// End-to-end ChatHop / telemetry correlation (UUID). GUI mints once per send.
+    #[serde(default)]
+    pub trace_id: Option<String>,
+    /// Per-submit turn id (UUID). Correlates Drive events with ChatHop JSONL.
+    #[serde(default)]
+    pub turn_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -200,6 +206,14 @@ pub fn sync_tool_args(input: &ChatTurnInput) -> serde_json::Value {
     if let Some(v) = input.dry_run {
         obj.insert("dry_run".into(), serde_json::json!(v));
     }
+    for (key, val) in [
+        ("trace_id", non_blank(&input.trace_id)),
+        ("turn_id", non_blank(&input.turn_id)),
+    ] {
+        if let Some(v) = val {
+            obj.insert(key.into(), serde_json::json!(v));
+        }
+    }
     args
 }
 
@@ -272,13 +286,16 @@ async fn run_sync(
         Some(token) => vox_orchestrator::orch_daemon::OrchDaemonClient::with_token(addr, token),
         None => vox_orchestrator::orch_daemon::OrchDaemonClient::new(addr),
     };
+    daemon.begin_call();
     let envelope = client
         .call(
             vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
             serde_json::json!({ "name": "vox_chat_message", "args": sync_tool_args(&input) }),
         )
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string());
+    daemon.end_call();
+    let envelope = envelope?;
     let reply = crate::commands::chat::parse_chat_message_envelope(&envelope)?;
     let grounding_flagged = if input.grounding_check_enabled == Some(true) {
         Some(vox_orchestrator::grounding::assess_reply_confidence(&reply.content).flagged)
@@ -549,7 +566,8 @@ mod tests {
             "context_files": ["crates/vox-crypto/src/lib.rs"],
             "active_skill": "ponytail",
             "clutch": "genius", "risk": "low",
-            "priority": "urgent", "dry_run": true
+            "priority": "urgent", "dry_run": true,
+            "trace_id": "trace-abc", "turn_id": "turn-xyz"
         }))
         .expect("input");
         let args = sync_tool_args(&input);
@@ -562,6 +580,8 @@ mod tests {
         // Bug 2: priority/dry_run were silently dropped on the sync path.
         assert_eq!(args["priority"], "urgent");
         assert_eq!(args["dry_run"], true);
+        assert_eq!(args["trace_id"], "trace-abc");
+        assert_eq!(args["turn_id"], "turn-xyz");
         // `cognitive_profile` must NEVER be set from the tier: its values are
         // fast|reasoning|creative, and setting it switches the turn off the
         // agent loop onto mcp_infer_completion, killing tool calls and

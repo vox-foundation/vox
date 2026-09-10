@@ -37,6 +37,18 @@ describe('buildChatTurn', () => {
     // Bug 3: the real originating session, not the (possibly synthetic)
     // dispatch session_id.
     expect(out.chat_session_id).toBe('real-chat-session');
+    expect(out.trace_id).toBeTruthy();
+    expect(out.turn_id).toBeTruthy();
+  });
+
+  it('uses pre-minted correlation ids when provided', () => {
+    const out = buildChatTurn(full, {
+      sessionId: 's1',
+      traceId: 'trace-fixed',
+      turnId: 'turn-fixed',
+    });
+    expect(out.trace_id).toBe('trace-fixed');
+    expect(out.turn_id).toBe('turn-fixed');
   });
 
   it('falls back chat_session_id to the dispatch sessionId when ctx omits it', () => {

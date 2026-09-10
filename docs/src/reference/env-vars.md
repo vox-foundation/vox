@@ -51,7 +51,7 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 
 | Variable | Role |
 |----------|------|
-| `VOX_SECRETS_VAULT_PATH` | Local vault SQLite path; opened as `file:` (preferred for repo-local vaults). |
+| `VOX_SECRETS_VAULT_PATH` | Local vault SQLite path; opened as `file:` (preferred for repo-local vaults). Default when unset: absolute `$HOME/.vox/clavis_vault.db` (not cwd-relative). |
 | `VOX_SECRETS_VAULT_URL` | Explicit vault URL (`file:…` or `libsql://…`). |
 | `VOX_SECRETS_VAULT_TOKEN` | Auth token when `VOX_SECRETS_VAULT_URL` is remote. |
 | `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | > [!WARNING] DEPRECATED for vault<br>Read only when compat aliases allowed; migrate to `VOX_SECRETS_VAULT_*`. |

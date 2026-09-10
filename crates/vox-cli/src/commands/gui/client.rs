@@ -58,6 +58,26 @@ fn drive_view(v: &serde_json::Value) -> &serde_json::Value {
     v.get("state").unwrap_or(v)
 }
 
+/// True when the Drive JSON body reports a non-null `last_error` (nested or flat).
+pub fn response_has_last_error(body: &str) -> bool {
+    let v: serde_json::Value = serde_json::from_str(body).unwrap_or(serde_json::Value::Null);
+    drive_view(&v)
+        .get("last_error")
+        .map(|x| !x.is_null())
+        .unwrap_or(false)
+}
+
+fn has_submit_ok_for_turn(view: &serde_json::Value, turn_id: &str) -> bool {
+    view.get("events")
+        .and_then(|e| e.as_array())
+        .into_iter()
+        .flatten()
+        .any(|row| {
+            row.get("kind").and_then(|k| k.as_str()) == Some("submit_ok")
+                && row.get("turn_id").and_then(|t| t.as_str()) == Some(turn_id)
+        })
+}
+
 fn matches_until(until: &str, body: &str) -> bool {
     let v: serde_json::Value = serde_json::from_str(body).unwrap_or(serde_json::Value::Null);
     let view = drive_view(&v);
@@ -115,11 +135,23 @@ fn matches_until(until: &str, body: &str) -> bool {
         if bubble.get("error") == Some(&serde_json::Value::Bool(true)) {
             return false;
         }
-        return bubble
+        let content_ok = bubble
             .get("content")
             .and_then(|c| c.as_str())
             .map(|s| !s.trim().is_empty())
             .unwrap_or(false);
+        if !content_ok {
+            return false;
+        }
+        // Turn-scoped honesty: require submit_ok for last_turn_id so a stale
+        // assistant bubble cannot green-light wait without a matching submit.
+        let Some(turn_id) = view.get("last_turn_id").and_then(|t| t.as_str()) else {
+            return false;
+        };
+        if turn_id.is_empty() {
+            return false;
+        }
+        return has_submit_ok_for_turn(view, turn_id);
     }
     if let Some(kind) = until.strip_prefix("event=") {
         if kind.is_empty() {
@@ -179,12 +211,34 @@ mod tests {
 
     #[test]
     fn matches_reply_ok_rejects_error_settlement() {
-        let err = r#"{"status":200,"state":{"last_error":"load tokenizer","bubbles":[{"role":"assistant","error":true,"content":"load tokenizer"}]}}"#;
+        let err = r#"{"status":200,"state":{"last_error":"load tokenizer","bubbles":[{"role":"assistant","error":true,"content":"load tokenizer"}],"last_turn_id":"t1","events":[{"kind":"submit_err","turn_id":"t1"}]}}"#;
         assert!(matches_until("reply", err)); // legacy: settled
         assert!(!matches_until("reply_ok", err));
-        let ok = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"user","content":"hi"},{"role":"assistant","content":"hello"}]}}"#;
+        let ok = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"user","content":"hi"},{"role":"assistant","content":"hello"}],"last_turn_id":"t1","events":[{"kind":"submit_ok","turn_id":"t1"}]}}"#;
         assert!(matches_until("reply_ok", ok));
-        let empty_asst = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"assistant","content":""}]}}"#;
+        let empty_asst = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"assistant","content":""}],"last_turn_id":"t1","events":[{"kind":"submit_ok","turn_id":"t1"}]}}"#;
         assert!(!matches_until("reply_ok", empty_asst));
+    }
+
+    #[test]
+    fn matches_reply_ok_requires_submit_ok_for_last_turn_id() {
+        let bubble_only = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"assistant","content":"hello"}],"last_turn_id":"t1","events":[]}}"#;
+        assert!(!matches_until("reply_ok", bubble_only));
+        let wrong_turn = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"assistant","content":"hello"}],"last_turn_id":"t1","events":[{"kind":"submit_ok","turn_id":"other"}]}}"#;
+        assert!(!matches_until("reply_ok", wrong_turn));
+        let matched = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"assistant","content":"hello"}],"last_turn_id":"t1","events":[{"kind":"submit_ok","turn_id":"t1"}]}}"#;
+        assert!(matches_until("reply_ok", matched));
+    }
+
+    #[test]
+    fn response_has_last_error_nested_and_flat() {
+        assert!(response_has_last_error(
+            r#"{"status":200,"state":{"last_error":"boom"}}"#
+        ));
+        assert!(response_has_last_error(r#"{"last_error":"boom"}"#));
+        assert!(!response_has_last_error(
+            r#"{"status":200,"state":{"last_error":null}}"#
+        ));
+        assert!(!response_has_last_error(r#"{"status":200,"state":{}}"#));
     }
 }

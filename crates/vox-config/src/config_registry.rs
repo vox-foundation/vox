@@ -1961,6 +1961,20 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         label: "Axis Drive token path",
         hint: "Path to the 0600 bearer file. Never set VOX_GUI_DRIVE_TOKEN (ps leak).",
     },
+    ConfigKey {
+        key: "VOX_GUI_DRIVE_ALLOW_STORE_RESET",
+        kind: ConfigKind::Bool,
+        default: DefaultValue::Literal("false"),
+        bound: None,
+        group: Group::Runtime,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Axis Drive allow store reset",
+        hint: "With VOX_GUI_DRIVE=1, wipe LegacySchemaChain store.db under VOX_GUI_DRIVE_STORE_ROOT only.",
+    },
 ];
 
 /// All registered keys (for the parity gate).

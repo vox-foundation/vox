@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use vox_config::timeouts::D_180S;
 
 /// Injected before page JS so drive never reads/writes the user's pin key.
 pub const DRIVE_ISOLATION_SCRIPT: &str = r#"
@@ -110,7 +110,9 @@ pub fn start_live<R: Runtime>(
                 body,
             },
         );
-        match rx.recv_timeout(Duration::from_secs(90)) {
+        // Sync chat_turn can exceed 90s (cold orch + LLM). Drive `wait
+        // --until reply_ok` is the long poll; the HTTP hop must outlive it.
+        match rx.recv_timeout(D_180S) {
             Ok(resp) => resp,
             Err(RecvTimeoutError::Timeout) => DriveHttpResponse {
                 status: 504,

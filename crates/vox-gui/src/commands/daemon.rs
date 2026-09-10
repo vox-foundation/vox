@@ -13,6 +13,7 @@
 //! running for CLI / MCP reuse.
 
 use std::process::Stdio;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::process_util::quiet_command;
 
@@ -70,6 +71,8 @@ fn read_token_file() -> Option<String> {
 pub struct PersistentDaemon {
     resolved: RwLock<Option<(String, String)>>,
     child: std::sync::Mutex<Option<std::process::Child>>,
+    /// In-flight orch tool_call count — refuse kill/respawn while > 0.
+    in_flight: AtomicUsize,
     /// Serializes [`Self::reensure`] so concurrent `ensure`/`ensure_live`
     /// callers (e.g. the status stream, the event stream, and the
     /// supervisor's periodic tick all racing at once) cannot each spawn a
@@ -98,6 +101,23 @@ pub struct VersionMismatch {
 }
 
 impl PersistentDaemon {
+    /// Mark an in-flight orch RPC so respawn will not kill the child mid-call.
+    pub fn begin_call(&self) {
+        self.in_flight.fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// Pair with [`Self::begin_call`].
+    pub fn end_call(&self) {
+        self.in_flight.fetch_sub(1, Ordering::SeqCst);
+    }
+
+    fn refuse_kill_while_busy(&self) -> Result<(), String> {
+        if self.in_flight.load(Ordering::SeqCst) > 0 {
+            Err("refusing to kill orchestrator daemon while a tool_call is in flight".to_string())
+        } else {
+            Ok(())
+        }
+    }
     /// Ensure one long-lived TCP daemon is reachable; returns its address.
     ///
     /// Cached on success (subsequent calls reuse the address); failures are not
@@ -176,7 +196,12 @@ impl PersistentDaemon {
         // token) is not adopted, and we fall through to spawning a
         // fresh daemon of our own (which self-heals once the bind
         // becomes available).
-        if let Some(existing_token) = read_token_file()
+        //
+        // Axis Drive fail-closed: never adopt a foreign orch. Pre-existing
+        // daemons were not spawned under VOX_GUI_DRIVE=1 and may lack the
+        // forwarded vault path / cloud keys the Drive child injects.
+        if !refuse_drive_foreign_adopt()
+            && let Some(existing_token) = read_token_file()
             && let Ok(resp) = OrchDaemonClient::with_token(addr.clone(), existing_token.clone())
                 .ping()
                 .await
@@ -222,14 +247,56 @@ impl PersistentDaemon {
         // file before the daemon has written it (the daemon still
         // writes the file too, for other clients to auto-resolve).
         let spawned_token = uuid::Uuid::new_v4().to_string();
-        let child = quiet_command(daemon_bin)
-            .env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
+        let mut cmd = quiet_command(daemon_bin);
+        cmd.env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
             .env("VOX_ORCHESTRATOR_DAEMON_TOKEN", &spawned_token)
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stdout(Stdio::null());
+        // Capture daemon stderr under ~/.vox/run so empty-frame tool_call
+        // failures are diagnosable (spawn used to discard stderr entirely).
+        let stderr_path = home
+            .join(".vox")
+            .join("run")
+            .join("orchestrator-daemon.stderr.log");
+        if let Some(parent) = stderr_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&stderr_path)
+        {
+            Ok(file) => {
+                cmd.stderr(Stdio::from(file));
+            }
+            Err(_) => {
+                cmd.stderr(Stdio::null());
+            }
+        }
+        // Axis Drive injects cloud keys + vault path into the GUI process;
+        // forward them so the orch child can resolve OpenRouter for sync chat.
+        for key in [
+            "VOX_SECRETS_VAULT_PATH",
+            "OPENROUTER_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "GEMINI_API_KEY",
+            "RUST_LOG",
+        ] {
+            if let Ok(v) = std::env::var(key)
+                && !v.trim().is_empty()
+            {
+                cmd.env(key, v);
+            }
+        }
+        // Default orch diagnostics when the parent did not set RUST_LOG.
+        if std::env::var_os("RUST_LOG").is_none() {
+            cmd.env("RUST_LOG", "info,vox_orchestrator_mcp=info");
+        }
+        let child = cmd
             .spawn()
             .map_err(|e| format!("failed to spawn vox-orchestrator-d: {e}"))?;
+        self.refuse_kill_while_busy()?;
         if let Ok(mut slot) = self.child.lock()
             && let Some(mut old) = slot.replace(child)
         {
@@ -330,6 +397,13 @@ pub async fn orchestrator_daemon_ready(
     Ok(state.ensure_live().await.is_ok())
 }
 
+/// Axis Drive must not adopt a foreign orch that predates this process's
+/// forwarded vault path / cloud keys. Fail closed: skip adopt and spawn fresh
+/// under `VOX_GUI_DRIVE=1` (e2e Step 0 stops a conflicting listener first).
+fn refuse_drive_foreign_adopt() -> bool {
+    std::env::var("VOX_GUI_DRIVE").ok().as_deref() == Some("1")
+}
+
 /// Returns the last-detected daemon/GUI version mismatch, if any (T2/Task 2).
 /// `None` when versions match or no mismatch has been observed yet.
 #[tauri::command]
@@ -386,6 +460,25 @@ mod version_mismatch_tests {
     fn no_mismatch_reported_when_version_field_missing() {
         let resp = serde_json::json!({"ok": true});
         assert_eq!(detect_version_mismatch(&resp), None);
+    }
+
+    #[test]
+    fn drive_foreign_adopt_refused_when_drive_env_set() {
+        let prev = std::env::var_os("VOX_GUI_DRIVE");
+        unsafe {
+            std::env::remove_var("VOX_GUI_DRIVE");
+        }
+        assert!(!refuse_drive_foreign_adopt());
+        unsafe {
+            std::env::set_var("VOX_GUI_DRIVE", "1");
+        }
+        assert!(refuse_drive_foreign_adopt());
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("VOX_GUI_DRIVE", v),
+                None => std::env::remove_var("VOX_GUI_DRIVE"),
+            }
+        }
     }
 
     #[tokio::test]

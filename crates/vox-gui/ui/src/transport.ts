@@ -410,6 +410,11 @@ class VoxTransport {
     return safeInvoke('list_model_cards', { limit });
   }
 
+  /** Live keyed-provider search (OpenRouter TTL cache + Anthropic/Google/Mens). */
+  async searchModels(query: string, limit = 80) {
+    return safeInvoke('search_model_cards', { query, limit });
+  }
+
   async getActiveModel() {
     return safeInvoke<string | null>('get_active_model');
   }
@@ -1020,6 +1025,10 @@ export interface ChatTurnInput {
    *  (which can be a synthetic background-session id). See Rust
    *  `ChatTurnInput::chat_session_id`. */
   chat_session_id?: string | null;
+  /** End-to-end ChatHop correlation (UUID minted once per send). */
+  trace_id?: string | null;
+  /** Per-submit turn id (UUID); pairs with Drive `last_turn_id`. */
+  turn_id?: string | null;
 }
 
 /** Mirrors Rust `ChatTurnDto` returned by `chat_turn`. On the background branch

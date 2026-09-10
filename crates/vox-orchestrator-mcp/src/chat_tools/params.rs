@@ -68,6 +68,9 @@ pub struct ChatMessageParams {
     /// Optional end-to-end trace id; forwarded to retrieval (`vox-search`) for logging and sidecar HTTP.
     #[serde(default)]
     pub trace_id: Option<String>,
+    /// Per-submit turn id from Axis / Drive (ChatHop + Drive event correlation).
+    #[serde(default)]
+    pub turn_id: Option<String>,
     /// Optional correlation id; used for retrieval when `trace_id` is unset.
     #[serde(default)]
     pub correlation_id: Option<String>,

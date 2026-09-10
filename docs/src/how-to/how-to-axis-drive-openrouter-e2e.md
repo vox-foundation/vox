@@ -38,6 +38,16 @@ non-error assistant bubble, and a `submit_ok` event for the final turn.
 
 - A missing selectable model means the OpenRouter secret is unavailable or
   provider status could not be loaded. Run `vox secrets doctor`.
+- Step 0 stops a prior Drive session and best-effort kills a foreign
+  `vox-orchestrator-d` so the GUI refuses adopt and spawns under
+  `VOX_GUI_DRIVE=1` with the vault path + cloud keys. If `orch_fresh` is
+  false after start, a keyless foreign daemon is still holding the port.
+- `send` exits non-zero when the JSON body has `last_error` even if HTTP is
+  200. Prefer `wait --until reply_ok` (requires `submit_ok` for
+  `last_turn_id`) over bare `reply`.
+- Drive HTTP hop timeout is `D_180S` (see
+  `docs/superpowers/specs/2026-09-10-axis-chat-surface-audit-design.md` §9).
+- Catalog fetch uses `MODEL_LIST_LIMIT` (2000), same as Loquela.
 - `reply_ok` is intentional: bare `reply` means only that a turn settled and
   can also match an error response.
 - Stop an orphaned session with `vox gui drive stop`.

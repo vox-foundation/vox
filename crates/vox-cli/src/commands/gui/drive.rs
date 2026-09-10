@@ -28,7 +28,13 @@ fn drive_child_env(
     store_root: &std::path::Path,
     token_path: &std::path::Path,
 ) -> Vec<(String, String)> {
-    vec![
+    // Pin the Clavis vault to the user home store so Drive's cwd under
+    // `~/.vox/gui-drive/<profile>` cannot open a cwd-relative empty vault.
+    let vault_path = vox_secrets::sources::auth_json::vox_dir()
+        .join("clavis_vault.db")
+        .display()
+        .to_string();
+    let mut env = vec![
         ("VOX_GUI_DRIVE".into(), "1".into()),
         (
             "VOX_GUI_DRIVE_SHOW".into(),
@@ -46,7 +52,27 @@ fn drive_child_env(
             "VOX_GUI_DRIVE_TOKEN_PATH".into(),
             token_path.display().to_string(),
         ),
-    ]
+        ("VOX_SECRETS_VAULT_PATH".into(), vault_path),
+    ];
+    // Axis/Tauri may not resolve the Clavis vault the same way as the CLI
+    // (cwd + keyring ACL). Forward cloud keys the parent CLI can already
+    // resolve so Drive catalog + orch chat see the same credentials.
+    for (id, canonical) in [
+        (
+            vox_secrets::SecretId::OpenRouterApiKey,
+            "OPENROUTER_API_KEY",
+        ),
+        (vox_secrets::SecretId::AnthropicApiKey, "ANTHROPIC_API_KEY"),
+        (vox_secrets::SecretId::OpenaiApiKey, "OPENAI_API_KEY"),
+        (vox_secrets::SecretId::GeminiApiKey, "GEMINI_API_KEY"),
+    ] {
+        if let Some(value) = vox_secrets::resolve_secret_for_cli(id).expose()
+            && !value.trim().is_empty()
+        {
+            env.push((canonical.into(), value.to_string()));
+        }
+    }
+    env
 }
 
 async fn start(args: DriveStartArgs) -> Result<()> {
@@ -205,6 +231,11 @@ fn send(args: DriveSendArgs) -> Result<()> {
     if status >= 400 {
         bail!("send failed ({status})");
     }
+    // Live plane returns HTTP 200 with `last_error` set on soft submit
+    // failures — exit non-zero so e2e cannot treat send alone as success.
+    if client::response_has_last_error(&resp) {
+        bail!("send failed (last_error set)");
+    }
     Ok(())
 }
 
@@ -307,6 +338,20 @@ mod tests {
         assert!(
             env.iter()
                 .any(|(k, v)| k == "VOX_GUI_DRIVE_STORE_ROOT" && v.ends_with("gui-drive/agent-1"))
+        );
+        assert!(
+            env.iter()
+                .any(|(k, v)| k == "VOX_SECRETS_VAULT_PATH" && v.ends_with("clavis_vault.db"))
+        );
+        let vault = env
+            .iter()
+            .find(|(k, _)| k == "VOX_SECRETS_VAULT_PATH")
+            .map(|(_, v)| v.as_str())
+            .expect("vault path");
+        let vault_path = std::path::Path::new(vault);
+        assert!(
+            vault_path.is_absolute(),
+            "Drive vault pin must be absolute, got {vault}"
         );
     }
 

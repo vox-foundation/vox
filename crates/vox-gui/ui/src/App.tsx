@@ -1146,6 +1146,15 @@ export default function App() {
     // `submitResolved` is the sole writer of `taskToSession`, the map that
     // routes every task_*/token_streamed frame to a bubble and replays the
     // 30s pending buffer. See spec §6.
+    // Mint once per send so ChatHop JSONL and Drive events share ids.
+    const traceId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `trace-${Date.now()}`;
+    const turnId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `turn-${Date.now()}`;
     const turn = buildChatTurn(payload, {
       sessionId,
       modelOverride: chatModelOverride,
@@ -1162,6 +1171,8 @@ export default function App() {
       // `newBackgroundSessionId` call sites). Carries delegation lineage to
       // the backend even when the dispatch session itself is disposable.
       chatSessionId: activeSessionId,
+      traceId,
+      turnId,
     });
 
     // Checked BEFORE chat_append_message persists anything: a second send
@@ -1176,6 +1187,11 @@ export default function App() {
         cause: 'validation',
       });
       return { ok: false, error: 'A reply is still in progress for this chat.' };
+    }
+    // Claim the in-flight slot immediately after the check (before any
+    // await) so a duplicate Drive listener cannot start a second sync turn.
+    if (turn.execution === 'sync') {
+      chatSendInFlightRef.current.add(sessionId);
     }
 
     invoke('chat_append_message', {
@@ -1268,7 +1284,6 @@ export default function App() {
     }
 
     // Sync: terminal request/response, no task to correlate against.
-    chatSendInFlightRef.current.add(sessionId);
     const tempId = nextGuiRunId();
     dispatchSessionChat({
       type: 'chatPending',
@@ -1714,6 +1729,18 @@ export default function App() {
     grounding_check_enabled: groundingCheckEnabled,
   }), [handleLoquelaSubmit, activeSessionId, chatModelOverride, groundingCheckEnabled]);
 
+  // Stable setters object so AxisDriveHost's drive://request effect does not
+  // re-subscribe on every App render (double-listen → "reply still in progress").
+  const driveSetters = useMemo(
+    () => ({
+      setChatModelOverride,
+      setGroundingCheckEnabled,
+      setActiveSkill: (id: string | null) => setActiveSkill(id ? { id, name: id } : null),
+      setSkillExclusions,
+    }),
+    [setChatModelOverride, setGroundingCheckEnabled, setSkillExclusions],
+  );
+
   const loquelaComposer = (
     <Loquela
       chips={chips}
@@ -1989,12 +2016,8 @@ export default function App() {
 
       <AxisDriveHost
         sessionReady={Boolean(activeSessionId)}
-        setters={{
-          setChatModelOverride,
-          setGroundingCheckEnabled,
-          setActiveSkill: (id) => setActiveSkill(id ? { id, name: id } : null),
-          setSkillExclusions,
-        }}
+        sessionId={activeSessionId}
+        setters={driveSetters}
         onSubmit={submitFromComposer}
       />
 

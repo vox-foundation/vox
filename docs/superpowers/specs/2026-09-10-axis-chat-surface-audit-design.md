@@ -114,3 +114,19 @@ Non-goals for v1: merging ChatHop with `DriveTurnEvent`; writing hops from `vox-
 | Axis Drive | `~/.vox/gui-drive/<profile>/.vox/store.db` when `VOX_GUI_DRIVE_STORE_ROOT` set |
 | Doctor schema check | Canonical user `vox.db` |
 | ChatHop | Dogfood dir under `VOX_DOGFOOD_TRACE_PATH` (Tier D) |
+
+## 9. Timeout SSOT
+
+| Layer | Ceiling |
+|---|---|
+| Drive HTTP bridge `recv_timeout` | `vox_config::timeouts::D_180S` |
+| MCP dispatch `vox_chat_message` | `CHAT_MESSAGE_TIMEOUT` = 180s (`dispatch_timeout.rs`) |
+| Orch TCP client read | `ORCH_CLIENT_READ_DEADLINE` = `D_195S` (margin after dispatch) |
+
+Do not lower the client deadline below the dispatch timeout or empty-frame EOFs return before Error frames.
+
+Drive LegacySchema wipe requires `VOX_GUI_DRIVE=1` **and** `VOX_GUI_DRIVE_ALLOW_STORE_RESET=1`. Doctor prints `path`, `max_version`, and binary `baseline` and never auto-deletes interactive/canonical DBs.
+
+## 9. Timeout SSOT
+
+Named durations live in `crates/vox-config/src/timeouts.rs` (`D_180S`, `D_195S`, …). Drive live HTTP hop (`bridge.rs` `recv_timeout`) uses **`D_180S`** so sync `chat_turn` can outlive cold orch + LLM while `wait --until reply_ok` remains the long poll. Orch client read deadline is **`D_195S`** (`ORCH_CLIENT_READ_DEADLINE`). Do not reintroduce bare `Duration::from_secs(180)` at these call sites — `vox-drift-check` flags common timeout literals.

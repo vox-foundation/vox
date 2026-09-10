@@ -86,11 +86,19 @@ curl -s http://127.0.0.1:11435/health
 curl -s http://127.0.0.1:11435/v1/models
 ```
 
-Pin the Drive stem `mens/qwen35-08b-metal-e2e`. A QLoRA directory may not
-appear as a normal `MensCatalog` row because the catalog favors `final` and
-`checkpoint-*` directories. The Drive path can still be green through the
-VoxLocal stem match; use `pin_policy=warn` during catalog refresh if the local
-catalog is intentionally incomplete.
+When **`VOX_LOCAL_ENDPOINT`** is unset, Axis and the GUI probe `:11434` then
+`:11435` and pick the first server whose `/health` reports
+`service == "vox-ml-cli"` (Ollama on `:11434` is ignored). Set
+**`VOX_LOCAL_ENDPOINT=http://127.0.0.1:11435`** to pin a non-default port.
+
+Pin the Drive stem `mens/qwen35-08b-metal-e2e`. After a picker open or catalog
+refresh, QLoRA packs with `tokenizer.json` plus adapter artifacts
+(`candle_qlora_adapter.safetensors`, `adapter_manifest.json`, or
+`merged.safetensors`) are listed in `MensCatalog`. Legacy runs with a `final` or
+`checkpoint-*` subdirectory are listed too. If a run dir is still empty of those
+markers, the Drive path can still be green through the VoxLocal stem match; use
+`pin_policy=warn` during catalog refresh when the local catalog is intentionally
+incomplete.
 
 ## Run the automation
 

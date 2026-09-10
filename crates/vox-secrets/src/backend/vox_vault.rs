@@ -5,7 +5,7 @@
 //! 2. `VOX_SECRETS_VAULT_URL` — explicit URL (`file:…` or `libsql://…`).
 //! 3. When compatibility aliases are allowed (not `VOX_SECRETS_HARD_CUT` and not cutover
 //!    `enforce` / `decommission`): `VOX_TURSO_URL` then `TURSO_URL`.
-//! 4. Default: `file:.vox/clavis_vault.db`.
+//! 4. Default: absolute `$HOME/.vox/clavis_vault.db` (`file:///…`).
 //!
 //! **Remote token:** `VOX_SECRETS_VAULT_TOKEN`, then compat `VOX_TURSO_TOKEN` / `TURSO_AUTH_TOKEN`
 //! when allowed. Codex uses `VOX_DB_URL` / `VOX_DB_TOKEN`; do not conflate with this vault plane.
@@ -1013,7 +1013,16 @@ fn resolve_cloudless_db_url() -> String {
             }
         }
     }
-    "file:.vox/clavis_vault.db".to_string()
+    // Absolute under `$HOME/.vox` (same root as the master-key fallback).
+    // A cwd-relative `file:.vox/clavis_vault.db` made Axis Drive / Tauri
+    // (cwd often `~/.vox/gui-drive/<profile>`) open a different empty vault
+    // than the CLI, so OpenRouter showed Present in `vox secrets doctor`
+    // and `key_missing` in Drive.
+    path_to_vault_file_url(
+        &crate::sources::auth_json::vox_dir()
+            .join("clavis_vault.db")
+            .to_string_lossy(),
+    )
 }
 
 fn resolve_cloudless_auth_token() -> String {
@@ -1728,6 +1737,44 @@ mod path_url_tests {
         assert_eq!(
             local, native,
             "round-trip must preserve the native absolute path Turso can open"
+        );
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn default_cloudless_url_is_absolute_under_home() {
+        use std::sync::Mutex;
+        static ENV_LOCK: Mutex<()> = Mutex::new(());
+        let _g = ENV_LOCK.lock().expect("env lock");
+
+        let prev_path = std::env::var_os("VOX_SECRETS_VAULT_PATH");
+        let prev_url = std::env::var_os("VOX_SECRETS_VAULT_URL");
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+            std::env::remove_var("VOX_SECRETS_VAULT_URL");
+        }
+        let url = resolve_cloudless_db_url();
+        unsafe {
+            match prev_path {
+                Some(v) => std::env::set_var("VOX_SECRETS_VAULT_PATH", v),
+                None => std::env::remove_var("VOX_SECRETS_VAULT_PATH"),
+            }
+            match prev_url {
+                Some(v) => std::env::set_var("VOX_SECRETS_VAULT_URL", v),
+                None => std::env::remove_var("VOX_SECRETS_VAULT_URL"),
+            }
+        }
+        assert!(
+            url.starts_with("file:///"),
+            "default vault must be an absolute file URL, got {url}"
+        );
+        assert!(
+            !url.contains("file:.vox/"),
+            "cwd-relative default vault regresses Drive/CLI split-brain: {url}"
+        );
+        assert!(
+            url.contains("clavis_vault.db"),
+            "expected clavis_vault.db in {url}"
         );
     }
 

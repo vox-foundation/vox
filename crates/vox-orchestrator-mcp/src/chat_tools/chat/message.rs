@@ -472,6 +472,25 @@ async fn try_run_agent_turn(
 /// **Cognitive Profile Routing**: Pass `"fast"`, `"reasoning"`, or `"creative"` to influence
 /// model selection and temperature without changing the MCP tool contract.
 pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> String {
+    let hop_started = std::time::Instant::now();
+    let hop_trace = params
+        .trace_id
+        .clone()
+        .or_else(|| params.correlation_id.clone());
+    let hop_turn = params.turn_id.clone();
+    let emit_turn_hop =
+        |session: Option<&str>, success: bool, outcome: crate::chat_hop::TurnOutcome| {
+            crate::chat_hop::record_turn_boundary(
+                state,
+                hop_trace.clone(),
+                hop_turn.clone(),
+                session.map(str::to_string),
+                success,
+                hop_started.elapsed().as_millis() as u64,
+                outcome,
+            );
+        };
+
     // 1. Resolve @mentions in the prompt
     let workspace_root = state
         .workspace_root
@@ -491,6 +510,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             (c.text, Some((hash, conflict_count, objective_count)))
         }
         Err(e) => {
+            emit_turn_hop(None, false, crate::chat_hop::TurnOutcome::Unknown);
             return ToolResult::<String>::err_with_remediation(
                 format!("Prompt rejected by safety canonicalizer: {e}"),
                 REM_CHAT_CANONICAL,
@@ -899,6 +919,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                             vec![],
                         ),
                         Err(e) => {
+                            emit_turn_hop(
+                                Some(session_id.as_str()),
+                                false,
+                                crate::chat_hop::TurnOutcome::LlmError,
+                            );
                             return ToolResult::<String>::err_with_remediation(
                                 format!("LLM error: {e}"),
                                 REM_LLM_COMPLETION,
@@ -935,6 +960,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                             vec![],
                         ),
                         Err(e2) => {
+                            emit_turn_hop(
+                                Some(session_id.as_str()),
+                                false,
+                                crate::chat_hop::TurnOutcome::LlmError,
+                            );
                             return ToolResult::<String>::err_with_remediation(
                                 format!("LLM error: {e2}"),
                                 REM_LLM_COMPLETION,
@@ -970,6 +1000,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         {
             Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason, r.events),
             Some(Err(e)) => {
+                emit_turn_hop(
+                    Some(session_id.as_str()),
+                    false,
+                    crate::chat_hop::TurnOutcome::LlmError,
+                );
                 return ToolResult::<String>::err_with_remediation(
                     format!("LLM error: {e}"),
                     REM_LLM_COMPLETION,
@@ -1013,6 +1048,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     vec![],
                 ),
                 Err(e) => {
+                    emit_turn_hop(
+                        Some(session_id.as_str()),
+                        false,
+                        crate::chat_hop::TurnOutcome::LlmError,
+                    );
                     return ToolResult::<String>::err_with_remediation(
                         format!("LLM error: {e}"),
                         REM_LLM_COMPLETION,
@@ -1411,6 +1451,19 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         "retrieval": retrieval_evidence,
         "events": events,
     });
+
+    let turn_outcome = if response_text.contains("cut off after")
+        && response_text.contains("tool-use round-trips")
+    {
+        crate::chat_hop::TurnOutcome::IterationLimit
+    } else {
+        crate::chat_hop::TurnOutcome::Ok
+    };
+    emit_turn_hop(
+        Some(session_id.as_str()),
+        matches!(turn_outcome, crate::chat_hop::TurnOutcome::Ok),
+        turn_outcome,
+    );
 
     ToolResult::ok(result).to_json()
 }

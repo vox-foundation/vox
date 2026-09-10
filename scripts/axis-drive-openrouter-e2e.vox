@@ -2,14 +2,19 @@ import fs
 import process
 
 fn vox_binary_path() to str {
+    // Prefer debug when present so local agent/Drive e2e picks up uncommitted
+    // workspace builds (release is often stale).
+    if fs.exists("./target/debug/vox.exe") {
+        return "./target/debug/vox.exe"
+    }
+    if fs.exists("./target/debug/vox") {
+        return "./target/debug/vox"
+    }
     if fs.exists("./target/release/vox.exe") {
         return "./target/release/vox.exe"
     }
     if fs.exists("./target/release/vox") {
         return "./target/release/vox"
-    }
-    if fs.exists("./target/debug/vox.exe") {
-        return "./target/debug/vox.exe"
     }
     return "./target/debug/vox"
 }
@@ -47,6 +52,15 @@ fn string_field(value: Json, key: str) to str {
 
 fn main() {
     let bin = vox_binary_path()
+
+    // Step 0: stop prior Drive and best-effort clear a foreign orch so Drive
+    // refuses adopt and spawns under VOX_GUI_DRIVE=1 with vault/keys env.
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+    // Unix: kill leftover vox-orchestrator-d holding :9745 (no-op if absent).
+    let _ = process.run("pkill", ["-x", "vox-orchestrator-d"])
+    // Windows best-effort (ignored when taskkill/binary absent).
+    let _ = process.run("taskkill", ["/IM", "vox-orchestrator-d.exe", "/F"])
+
     let start = process.run(bin, ["gui", "drive", "start"])
     if start is null {
         fail(bin, "could not execute drive start")
@@ -60,9 +74,26 @@ fn main() {
     let _ = run_json(bin, ["gui", "drive", "set", "--knob", "execution=sync"])
     let state_response = run_json(bin, ["gui", "drive", "state"])
     let drive_state = state_view(state_response)
+    // Spawn path (not foreign adopt): orch_fresh stamps true when Drive's daemon is live.
+    let orch_fresh = drive_state.get("orch_fresh").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+    if not orch_fresh {
+        fail(bin, "orch_fresh=false after start — foreign orch may still be adopted or spawn failed")
+    }
     let catalog = drive_state.get("catalog").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
 
     let mut chosen = ""
+    // Prefer a known-fast OpenRouter slug when present so e2e is not pinned to
+    // the first alphabetical catalog row (often a cold / flaky model).
+    let preferred = ["anthropic/claude-3-haiku", "openrouter/auto", "openai/gpt-4o-mini"]
+    for pref in preferred {
+        for row in catalog {
+            let id = string_field(row, "id")
+            let selectable = row.get("selectable").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+            if selectable and id == pref {
+                chosen = id
+            }
+        }
+    }
     for row in catalog {
         let id = string_field(row, "id")
         let provider_type = string_field(row, "provider_type")

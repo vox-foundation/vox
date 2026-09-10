@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { emptyLiveState } from './axisDrive';
-import { assertPinSelectable, driveVerbNeedsCatalog, handleDriveRequest } from './useDriveBus';
+import {
+  assertPinSelectable,
+  driveVerbNeedsCatalog,
+  handleDriveRequest,
+  interpretDriveSubmit,
+} from './useDriveBus';
 import type { PickerModel, ProviderStatus } from './modelPicker';
 
 const localDown: ProviderStatus[] = [
@@ -16,6 +21,43 @@ const localDown: ProviderStatus[] = [
 const localModel: PickerModel[] = [
   { id: 'mens/e2e-smoke-metal', label: 'metal', provider: 'VoxLocal', providerType: 'local' },
 ];
+
+describe('interpretDriveSubmit', () => {
+  it('matrix: null / ok false / error text / ok true / bracket error', () => {
+    expect(interpretDriveSubmit(null)).toEqual({
+      lastError: 'submit_unspecified',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ ok: false, error: 'nope' })).toEqual({
+      lastError: 'nope',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ ok: false })).toEqual({
+      lastError: 'submit_failed',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ error: 'soft' })).toEqual({
+      lastError: 'soft',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ ok: true, text: 'hello' })).toEqual({
+      lastError: null,
+      assistantText: 'hello',
+    });
+    expect(interpretDriveSubmit({ ok: true, text: '[error: boom]' })).toEqual({
+      lastError: '[error: boom]',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ ok: true, text: 'error: boom' })).toEqual({
+      lastError: 'error: boom',
+      assistantText: null,
+    });
+    expect(interpretDriveSubmit({ ok: true })).toEqual({
+      lastError: null,
+      assistantText: null,
+    });
+  });
+});
 
 describe('handleDriveRequest', () => {
   it('send calls submit with description and maps sync→chat', async () => {

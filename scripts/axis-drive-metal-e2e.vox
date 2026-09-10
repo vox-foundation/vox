@@ -3,14 +3,19 @@ import fs
 import process
 
 fn vox_binary_path() to str {
+    // Prefer debug when present so local agent/Drive e2e picks up uncommitted
+    // workspace builds (release is often stale).
+    if fs.exists("./target/debug/vox.exe") {
+        return "./target/debug/vox.exe"
+    }
+    if fs.exists("./target/debug/vox") {
+        return "./target/debug/vox"
+    }
     if fs.exists("./target/release/vox.exe") {
         return "./target/release/vox.exe"
     }
     if fs.exists("./target/release/vox") {
         return "./target/release/vox"
-    }
-    if fs.exists("./target/debug/vox.exe") {
-        return "./target/debug/vox.exe"
     }
     return "./target/debug/vox"
 }
