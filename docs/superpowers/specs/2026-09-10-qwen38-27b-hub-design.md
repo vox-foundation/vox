@@ -105,6 +105,19 @@ A 128 GB Mac has **116 GiB** usable: `128 − 12` where 12 is
 `DEFAULT_UNIFIED_MEM_RESERVE_GIB` (`vram_autodetect.rs:362`). Not the "~110" an
 earlier draft invented.
 
+## 4.4 Accepted risk: `rope_scaling` and `rms_norm_eps`
+
+Neither is read from config anywhere in the tree today: `rope_scaling` has zero
+repo hits (no YaRN/linear-scaled/mRoPE support), and `rms_norm_eps` is
+hardcoded `1e-6` in both trainers rather than parsed. **Decision: accept this
+risk rather than fix it in Phase 0.** Qwen3.8-27B's native context is 262144
+tokens and nothing in Phases 0-3 exercises long-context RoPE scaling or a
+non-default eps, so the gap is invisible to every gate this program runs.
+Fixing it would add a fifth touch to the same `model.rs` / `vox-hf-layout`
+files already carrying P0.1, P0.2, P0.4, and P0.7's changes, for no
+gate-blocking benefit. Cost if wrong: a future long-context or non-default-eps
+checkpoint degrades silently until this is revisited.
+
 ## 5. Quantization policy
 
 `vox-quantize` is real and shipped: `policy.rs`, `engine.rs`, CLI at
