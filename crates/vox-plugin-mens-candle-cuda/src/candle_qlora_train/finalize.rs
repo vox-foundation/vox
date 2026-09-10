@@ -63,17 +63,16 @@ fn build_adapter_manifest_v3(
 /// Prefer a local snapshot directory for serve. HF ids like `Qwen/Qwen3-0.6B`
 /// are not loadable by the plugin inference engine (`base_model` must be a dir).
 fn resolved_serve_base_model(config: &LoraTrainingConfig) -> Option<String> {
-    if let Some(ref id) = config.base_model {
-        if Path::new(id).is_dir() {
-            return Some(id.clone());
-        }
+    if let Some(ref id) = config.base_model
+        && Path::new(id).is_dir()
+    {
+        return Some(id.clone());
     }
-    if let Some((_, ref cfg)) = config.base_model_paths {
-        if let Some(parent) = cfg.parent() {
-            if parent.is_dir() {
-                return Some(parent.display().to_string());
-            }
-        }
+    if let Some((_, ref cfg)) = config.base_model_paths
+        && let Some(parent) = cfg.parent()
+        && parent.is_dir()
+    {
+        return Some(parent.display().to_string());
     }
     config.base_model.clone()
 }
@@ -81,17 +80,17 @@ fn resolved_serve_base_model(config: &LoraTrainingConfig) -> Option<String> {
 /// Copy tokenizer.json + config.json into the run dir so `vox mens serve` can
 /// load without a second download / hand-copy.
 fn stage_serve_sidecars(out: &Path, config: &LoraTrainingConfig) -> Result<()> {
-    if let Some(ref tok) = config.tokenizer_path {
-        if tok.is_file() {
-            std::fs::copy(tok, out.join("tokenizer.json"))
-                .with_context(|| format!("copy tokenizer from {}", tok.display()))?;
-        }
+    if let Some(ref tok) = config.tokenizer_path
+        && tok.is_file()
+    {
+        std::fs::copy(tok, out.join("tokenizer.json"))
+            .with_context(|| format!("copy tokenizer from {}", tok.display()))?;
     }
-    if let Some((_, ref cfg)) = config.base_model_paths {
-        if cfg.is_file() {
-            std::fs::copy(cfg, out.join("config.json"))
-                .with_context(|| format!("copy config.json from {}", cfg.display()))?;
-        }
+    if let Some((_, ref cfg)) = config.base_model_paths
+        && cfg.is_file()
+    {
+        std::fs::copy(cfg, out.join("config.json"))
+            .with_context(|| format!("copy config.json from {}", cfg.display()))?;
     }
     Ok(())
 }
