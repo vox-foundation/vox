@@ -124,6 +124,21 @@ pub(crate) async fn probe_vox_local_health(client: &reqwest::Client) -> Result<(
         // yet; a concurrent successful walk must not be wiped by this miss.
     }
 
+    match probe_vox_local_health_among(client, &candidates).await {
+        Ok(base) => {
+            store_probe_winner(base, fp);
+            Ok(())
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// Walk `candidates` and return the first base whose `/health` or `/ready` body
+/// identifies `vox-ml-cli`. Does not read or write the TTL cache.
+pub(crate) async fn probe_vox_local_health_among(
+    client: &reqwest::Client,
+    candidates: &[String],
+) -> Result<String, HttpInferError> {
     if candidates.is_empty() {
         return Err(HttpInferError {
             status: 0,
@@ -133,10 +148,9 @@ pub(crate) async fn probe_vox_local_health(client: &reqwest::Client) -> Result<(
     }
 
     let mut last_err = String::new();
-    for base in &candidates {
+    for base in candidates {
         if health_ok_at(client, base).await {
-            store_probe_winner(base.clone(), fp);
-            return Ok(());
+            return Ok(base.clone());
         }
         last_err = format!("no healthy vox-ml-cli at {base}/{{health,ready}}");
     }
@@ -257,5 +271,36 @@ mod tests {
             base.contains("11435"),
             "warm cache should win over first candidate; got {base}"
         );
+    }
+
+    #[tokio::test]
+    async fn probe_among_skips_ollama_like_health_picks_vox_ml_cli() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let ollama_like = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/health"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("Ollama is running"))
+            .mount(&ollama_like)
+            .await;
+
+        let vox_ml = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/health"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "status": "ok",
+                "service": "vox-ml-cli"
+            })))
+            .mount(&vox_ml)
+            .await;
+
+        let client = reqwest::Client::new();
+        let candidates = vec![ollama_like.uri(), vox_ml.uri()];
+        let winner = probe_vox_local_health_among(&client, &candidates)
+            .await
+            .expect("should find vox-ml-cli on second candidate");
+
+        assert_eq!(winner, vox_ml.uri());
     }
 }

@@ -13,6 +13,162 @@ use crate::ai::validate::urlencode;
 
 use super::FreeAiClient;
 
+mod vox_local_probe {
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{Duration, Instant};
+
+    use crate::ai::error::AiError;
+
+    const VOX_LOCAL_PROBE_TIMEOUT_SECS: u64 = 2;
+    const VOX_LOCAL_PROBE_CACHE_TTL_SECS: u64 = 30;
+
+    #[derive(Clone, Debug)]
+    struct VoxLocalProbeCache {
+        cached_at: Instant,
+        base: String,
+        candidates_fingerprint: String,
+    }
+
+    fn vox_local_probe_cache() -> &'static Mutex<Option<VoxLocalProbeCache>> {
+        static CACHE: OnceLock<Mutex<Option<VoxLocalProbeCache>>> = OnceLock::new();
+        CACHE.get_or_init(|| Mutex::new(None))
+    }
+
+    fn candidates_fingerprint(candidates: &[String]) -> String {
+        candidates.join("\n")
+    }
+
+    async fn health_ok_at(client: &reqwest::Client, base: &str) -> bool {
+        let root = base.trim_end_matches('/');
+        for path in ["/health", "/ready"] {
+            let url = format!("{root}{path}");
+            let Ok(res) = client
+                .get(&url)
+                .timeout(Duration::from_secs(VOX_LOCAL_PROBE_TIMEOUT_SECS))
+                .send()
+                .await
+            else {
+                continue;
+            };
+            if !res.status().is_success() {
+                continue;
+            }
+            let Ok(body) = res.text().await else {
+                continue;
+            };
+            if vox_config::inference::vox_local_health_identifies_serve(&body) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn store_probe_winner(base: String, fingerprint: String) {
+        let mut cache = vox_local_probe_cache()
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        *cache = Some(VoxLocalProbeCache {
+            cached_at: Instant::now(),
+            base,
+            candidates_fingerprint: fingerprint,
+        });
+    }
+
+    /// Sync base URL: TTL-cached winner, else first probe candidate.
+    #[allow(dead_code)] // sync cold-path; streaming callers use `resolve_vox_local_generate_url`
+    pub(super) fn vox_local_generate_base_url() -> String {
+        let candidates = vox_config::inference::vox_local_endpoint_probe_candidates();
+        let fp = candidates_fingerprint(&candidates);
+        if let Ok(guard) = vox_local_probe_cache().lock() {
+            if let Some(entry) = guard.as_ref() {
+                if entry.candidates_fingerprint == fp
+                    && entry.cached_at.elapsed()
+                        < Duration::from_secs(VOX_LOCAL_PROBE_CACHE_TTL_SECS)
+                {
+                    return entry.base.clone();
+                }
+            }
+        }
+        candidates
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| "http://127.0.0.1:11434".to_string())
+    }
+
+    #[allow(dead_code)] // exercised by unit tests; streaming uses `resolve_vox_local_generate_url`
+    pub(super) fn vox_local_generate_url() -> String {
+        format!(
+            "{}/generate",
+            vox_local_generate_base_url().trim_end_matches('/')
+        )
+    }
+
+    /// Probe candidates, cache the first healthy `vox-ml-cli` base, return `/generate` URL.
+    pub(super) async fn resolve_vox_local_generate_url(
+        client: &reqwest::Client,
+    ) -> Result<String, AiError> {
+        let ttl = Duration::from_secs(VOX_LOCAL_PROBE_CACHE_TTL_SECS);
+        let candidates = vox_config::inference::vox_local_endpoint_probe_candidates();
+        let fp = candidates_fingerprint(&candidates);
+
+        let cached_base = {
+            let cache = vox_local_probe_cache()
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            cache.as_ref().and_then(|entry| {
+                if entry.candidates_fingerprint == fp && entry.cached_at.elapsed() < ttl {
+                    Some(entry.base.clone())
+                } else {
+                    None
+                }
+            })
+        };
+
+        if let Some(base) = cached_base {
+            if health_ok_at(client, &base).await {
+                store_probe_winner(base.clone(), fp);
+                return Ok(format!("{}/generate", base.trim_end_matches('/')));
+            }
+        }
+
+        if candidates.is_empty() {
+            return Err(AiError::AllProvidersFailed(
+                "VoxLocal probe candidates empty (VOX_LOCAL_ENDPOINT is blank)".into(),
+            ));
+        }
+
+        let mut last_err = String::new();
+        for base in &candidates {
+            if health_ok_at(client, base).await {
+                store_probe_winner(base.clone(), fp);
+                return Ok(format!("{}/generate", base.trim_end_matches('/')));
+            }
+            last_err = format!("no healthy vox-ml-cli at {base}/{{health,ready}}");
+        }
+
+        Err(AiError::AllProvidersFailed(format!(
+            "VoxLocal unreachable ({last_err}); run `vox mens serve` (often :11435 when Ollama owns :11434) or set VOX_LOCAL_ENDPOINT."
+        )))
+    }
+
+    #[cfg(test)]
+    pub(super) fn clear_probe_cache_for_test() {
+        if let Ok(mut g) = vox_local_probe_cache().lock() {
+            *g = None;
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn store_probe_winner_for_test(base: String, fingerprint: String) {
+        store_probe_winner(base, fingerprint);
+    }
+
+    #[cfg(test)]
+    pub(super) fn candidates_fingerprint_for_test(candidates: &[String]) -> String {
+        candidates_fingerprint(candidates)
+    }
+}
+
 impl FreeAiClient {
     /// POST to Ollama `/api/generate` with stream=true.
     ///
@@ -90,13 +246,13 @@ impl FreeAiClient {
     ///
     /// The Axis chat picker stores `mens/<run>` as `model_override`, which used
     /// to hit Ollama `/api/generate` (wrong wire + wrong port when Ollama
-    /// already owns `:11434`). Honor `VOX_LOCAL_ENDPOINT` the same way
-    /// `VoxLocalAdapter` does. Metal first-token can exceed the cascade
-    /// client's 15s timeout, so this request overrides it.
+    /// already owns `:11434`). Walks [`vox_config::inference::vox_local_endpoint_probe_candidates`]
+    /// with TTL-cached winner after a successful `/health` or `/ready` probe.
+    /// Metal first-token can exceed the cascade client's 15s timeout, so the
+    /// POST overrides it.
+    #[allow(dead_code)] // exercised by unit tests; streaming uses `resolve_vox_local_generate_url`
     pub(crate) fn vox_local_generate_url() -> String {
-        let base = std::env::var("VOX_LOCAL_ENDPOINT")
-            .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
-        format!("{}/generate", base.trim_end_matches('/'))
+        vox_local_probe::vox_local_generate_url()
     }
 
     pub(crate) async fn stream_vox_local(
@@ -104,7 +260,12 @@ impl FreeAiClient {
         prompt: &str,
         model: Option<&str>,
     ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
-        let url = Self::vox_local_generate_url();
+        let url = match vox_local_probe::resolve_vox_local_generate_url(http).await {
+            Ok(url) => url,
+            Err(e) => {
+                return Box::pin(futures_util::stream::once(async move { Err(e) }));
+            }
+        };
         let mut body = serde_json::json!({
             "prompt": prompt,
             "validate": false,
@@ -669,9 +830,26 @@ mod vox_local_stream_tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     use super::super::{FreeAiClient, StreamRoute};
+    use super::vox_local_probe::{
+        candidates_fingerprint_for_test, clear_probe_cache_for_test, store_probe_winner_for_test,
+        vox_local_generate_base_url,
+    };
     use crate::ai::provider::FreeAiProvider;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    async fn mount_vox_local_health(server: &MockServer) {
+        for health_path in ["/health", "/ready"] {
+            Mock::given(method("GET"))
+                .and(path(health_path))
+                .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "status": "ok",
+                    "service": "vox-ml-cli"
+                })))
+                .mount(server)
+                .await;
+        }
+    }
 
     fn restore_vox_local_endpoint(prev: Option<String>) {
         unsafe {
@@ -692,11 +870,21 @@ mod vox_local_stream_tests {
         Ok(got)
     }
 
+    fn post_generate_requests(
+        received: &[wiremock::Request],
+    ) -> impl Iterator<Item = &wiremock::Request> {
+        received
+            .iter()
+            .filter(|r| r.method.as_str() == "POST" && r.url.path() == "/generate")
+    }
+
     #[tokio::test]
     #[allow(clippy::await_holding_lock)]
     async fn stream_vox_local_posts_generate_to_vox_local_endpoint() {
         let _guard = ENV_LOCK.lock().expect("env lock");
+        clear_probe_cache_for_test();
         let server = MockServer::start().await;
+        mount_vox_local_health(&server).await;
         Mock::given(method("POST"))
             .and(path("/generate"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -726,8 +914,10 @@ mod vox_local_stream_tests {
             .received_requests()
             .await
             .expect("mock tracks requests");
-        assert_eq!(received.len(), 1);
-        let body: serde_json::Value = serde_json::from_slice(&received[0].body).expect("json body");
+        let generate_posts: Vec<_> = post_generate_requests(&received).collect();
+        assert_eq!(generate_posts.len(), 1, "expected one POST /generate");
+        let body: serde_json::Value =
+            serde_json::from_slice(&generate_posts[0].body).expect("json body");
         assert_eq!(body["validate"], false);
         assert_eq!(body["prompt"], "What is the capital of France?");
         assert_eq!(body["max_tokens"], 512);
@@ -735,8 +925,9 @@ mod vox_local_stream_tests {
     }
 
     #[test]
-    fn vox_local_generate_url_honors_env() {
+    fn vox_local_generate_url_honors_env_when_cache_cold() {
         let _guard = ENV_LOCK.lock().expect("env lock");
+        clear_probe_cache_for_test();
         let prev = std::env::var("VOX_LOCAL_ENDPOINT").ok();
         unsafe {
             std::env::set_var("VOX_LOCAL_ENDPOINT", "http://127.0.0.1:17863");
@@ -748,11 +939,48 @@ mod vox_local_stream_tests {
         restore_vox_local_endpoint(prev);
     }
 
+    #[test]
+    fn vox_local_generate_base_url_falls_back_to_first_candidate_when_cache_cold() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        clear_probe_cache_for_test();
+        let prev = std::env::var("VOX_LOCAL_ENDPOINT").ok();
+        unsafe {
+            std::env::remove_var("VOX_LOCAL_ENDPOINT");
+        }
+        let base = vox_local_generate_base_url();
+        restore_vox_local_endpoint(prev);
+        assert!(
+            base.contains("11434") || base.contains("11435") || !base.is_empty(),
+            "unexpected base {base}"
+        );
+    }
+
+    #[test]
+    fn vox_local_generate_base_url_prefers_cached_winner() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let prev = std::env::var("VOX_LOCAL_ENDPOINT").ok();
+        unsafe {
+            std::env::remove_var("VOX_LOCAL_ENDPOINT");
+        }
+        let fp = candidates_fingerprint_for_test(
+            &vox_config::inference::vox_local_endpoint_probe_candidates(),
+        );
+        store_probe_winner_for_test("http://127.0.0.1:11435".into(), fp);
+        let base = vox_local_generate_base_url();
+        restore_vox_local_endpoint(prev);
+        assert!(
+            base.contains("11435"),
+            "warm cache should win over first candidate; got {base}"
+        );
+    }
+
     #[tokio::test]
     #[allow(clippy::await_holding_lock)]
     async fn user_model_override_mens_slug_posts_generate_to_vox_local_endpoint() {
         let _guard = ENV_LOCK.lock().expect("env lock");
+        clear_probe_cache_for_test();
         let server = MockServer::start().await;
+        mount_vox_local_health(&server).await;
         Mock::given(method("POST"))
             .and(path("/generate"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -793,9 +1021,14 @@ mod vox_local_stream_tests {
             .received_requests()
             .await
             .expect("mock tracks requests");
-        assert_eq!(received.len(), 1, "mens override must hit VoxLocal only");
-        assert_eq!(received[0].url.path(), "/generate");
-        let body: serde_json::Value = serde_json::from_slice(&received[0].body).expect("json body");
+        let generate_posts: Vec<_> = post_generate_requests(&received).collect();
+        assert_eq!(
+            generate_posts.len(),
+            1,
+            "mens override must POST /generate exactly once"
+        );
+        let body: serde_json::Value =
+            serde_json::from_slice(&generate_posts[0].body).expect("json body");
         assert_eq!(body["prompt"], "smoke");
         assert_eq!(body["max_tokens"], 512);
         assert_eq!(body["model"], "mens/e2e-smoke-metal");

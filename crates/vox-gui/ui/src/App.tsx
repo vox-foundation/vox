@@ -1419,12 +1419,22 @@ export default function App() {
           // neither of which applies here — `execution: 'plan'` returns no
           // assistant row (see chat_turn.rs's run_plan), just the plan DAG's
           // session id/version to point PlanPanel at.
+          const traceId =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `trace-${Date.now()}`;
+          const turnId =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `turn-${Date.now()}`;
           const dto = await sendChatTurnRaw({
             session_id: sessionId,
             content: goal,
             execution: 'plan',
             context_files: [],
             skill_exclusions: [],
+            trace_id: traceId,
+            turn_id: turnId,
           });
           if (bindGen !== planBindGenRef.current || !dto.plan_session_id) return;
           const current = activeSessionIdRef.current;

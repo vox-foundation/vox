@@ -297,11 +297,10 @@ git commit -m "feat(gui): record Drive submit_ok/submit_err events"
 
 **Status (2026-09-10): DONE**
 
-Shipped: Drive ring records `submit_ok` / `submit_err`, `token_streamed` (and related agent frames) for the active turn; Metal e2e observed `event_kinds=research_executed,token_streamed,token_streamed,submit_ok`.
-
-Honesty residuals closed:
-- Drive CLI `set` / `send` / `state` require HTTP 200 + non-empty JSON (`require_ok_json_body`); soft empty/status-0 no longer exits 0. Headless send also fails on `last_error`.
-- Drive send mints `turn_id`/`trace_id` once and passes them on `DriveSubmitPayload`; App/`buildChatTurn` reuse them so ChatHop matches Drive `last_turn_id`.
+Honesty residuals closed (follow-up):
+- `/plan` and background `chat_turn` forward `trace_id`/`turn_id` (PlanParams + enqueue_hints).
+- Gamify VoxLocal walks `:11434`/`:11435` with serve identity probe.
+- Orch probe wiremock two-port walk test; Metal failure-honesty script added.
 
 **Files:**
 - Modify: `crates/vox-gui/ui/src/components/drive/AxisDriveHost.tsx`

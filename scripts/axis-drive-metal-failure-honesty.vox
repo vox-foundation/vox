@@ -1,0 +1,94 @@
+import fs
+import process
+
+// Failure-honesty: broken/missing local VoxLocal pack must not false-green Metal Drive.
+// Pins a mens/* model with VOX_LOCAL_ENDPOINT pointing at a dead port; set or send
+// must refuse (non-zero exit, model_not_selectable, or last_error / submit_err).
+
+fn vox_binary_path() to str {
+    if fs.exists("./target/debug/vox") {
+        return "./target/debug/vox"
+    }
+    if fs.exists("./target/debug/vox.exe") {
+        return "./target/debug/vox.exe"
+    }
+    if fs.exists("./target/release/vox") {
+        return "./target/release/vox"
+    }
+    return "./target/debug/vox"
+}
+
+fn fail(bin: str, message: str) {
+    print("Metal failure-honesty failed: " + message)
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+    process.exit(1)
+}
+
+fn main() {
+    let bin = vox_binary_path()
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+
+    // Dead local endpoint — no mens serve here.
+    std.env.set("VOX_LOCAL_ENDPOINT", "http://127.0.0.1:17999")
+    std.env.set("VOX_GUI_DRIVE_ALLOW_STORE_RESET", "1")
+    // Avoid OpenRouter fallthrough looking like success.
+    std.env.set("OPENROUTER_API_KEY", "")
+
+    let start = process.run(bin, [
+        "gui", "drive", "start",
+        "--profile", "metal-failure-honesty"
+    ])
+    if start is null {
+        fail(bin, "could not execute drive start")
+    }
+    if start.unwrap().code is not 0 {
+        print("{\"status\":\"pass\",\"reason\":\"drive_start_refused_without_local\"}")
+        process.exit(0)
+    }
+
+    let set = process.run(bin, [
+        "gui", "drive", "set",
+        "--knob", "execution=sync",
+        "--knob", "model_override=mens/qwen35-08b-metal-e2e",
+        "--knob", "pin_policy=fail"
+    ])
+    if set is null {
+        fail(bin, "could not execute drive set")
+    }
+    let set_code = set.unwrap().code
+    let set_out = set.unwrap().stdout + set.unwrap().stderr
+
+    if set_code is not 0 {
+        let _ = process.run(bin, ["gui", "drive", "stop"])
+        print("{\"status\":\"pass\",\"reason\":\"set_refused_broken_local\",\"set_code\":" + str(set_code) + "}")
+        process.exit(0)
+    }
+    if set_out.contains("model_not_selectable") or set_out.contains("not_listed") or set_out.contains("unreachable") {
+        let _ = process.run(bin, ["gui", "drive", "stop"])
+        print("{\"status\":\"pass\",\"reason\":\"model_not_selectable_or_unreachable\"}")
+        process.exit(0)
+    }
+
+    // If pin somehow accepted, send must still fail closed.
+    let send = process.run(bin, ["gui", "drive", "send", "--text", "ping"])
+    if send is null {
+        fail(bin, "could not execute drive send")
+    }
+    let send_code = send.unwrap().code
+    let send_out = send.unwrap().stdout + send.unwrap().stderr
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+
+    if send_code is not 0 {
+        print("{\"status\":\"pass\",\"reason\":\"send_failed_broken_local\",\"send_code\":" + str(send_code) + "}")
+        process.exit(0)
+    }
+    if send_out.contains("last_error") and not send_out.contains("\"last_error\":null") {
+        print("{\"status\":\"pass\",\"reason\":\"send_last_error_set\"}")
+        process.exit(0)
+    }
+    if send_out.contains("submit_err") {
+        print("{\"status\":\"pass\",\"reason\":\"submit_err_event\"}")
+        process.exit(0)
+    }
+    fail(bin, "false green: mens pin/send succeeded with dead VOX_LOCAL_ENDPOINT")
+}

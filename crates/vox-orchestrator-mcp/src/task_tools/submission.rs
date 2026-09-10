@@ -142,6 +142,11 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         && params.risk.is_none()
         && params.trigger_source.is_none()
         && params.chat_session_id.is_none()
+        && params.trace_id.is_none()
+        && params.turn_id.is_none()
+        && params.budget.is_none()
+        && params.active_skill.is_none()
+        && params.tenant_id.is_none()
     {
         return None;
     }
@@ -169,6 +174,7 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
             max_latency_ms: b.max_latency_ms,
         }),
         trace_id: params.trace_id.clone(),
+        turn_id: params.turn_id.clone(),
         active_skill: params.active_skill.clone(),
         clutch: params.clutch.clone(),
         grounding_check_enabled: None,
@@ -888,5 +894,20 @@ mod trigger_source_forwarding_tests {
         assert_eq!(hints.clutch.as_deref(), Some("free"));
         assert_eq!(hints.risk.as_deref(), Some("high"));
         assert_eq!(hints.trigger_source.as_deref(), Some("automated"));
+    }
+
+    #[test]
+    fn forwards_trace_id_and_turn_id_when_only_correlation_fields_set() {
+        let params: SubmitTaskParams = serde_json::from_value(serde_json::json!({
+            "description": "t",
+            "files": [],
+            "trace_id": "trace-only",
+            "turn_id": "turn-only",
+        }))
+        .expect("valid SubmitTaskParams JSON");
+        let hints = enqueue_hints_from_submit_params(&params)
+            .expect("hints should be produced when only correlation ids are set");
+        assert_eq!(hints.trace_id.as_deref(), Some("trace-only"));
+        assert_eq!(hints.turn_id.as_deref(), Some("turn-only"));
     }
 }
