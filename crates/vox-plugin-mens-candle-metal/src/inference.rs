@@ -269,14 +269,34 @@ impl InferenceEngine {
                         &qlora_cfg,
                         &_device,
                     )?;
+                    // Qwen2/Qwen2.5 additive qkv biases (optional — absent on pure Qwen3.5).
+                    // Must match training (mod.rs loads these) or a merged/served model drifts.
+                    let q_bias = get_tensor(&format!("{p}.self_attn.q_proj.bias")).ok();
+                    let k_bias = get_tensor(&format!("{p}.self_attn.k_proj.bias")).ok();
+                    let v_bias = get_tensor(&format!("{p}.self_attn.v_proj.bias")).ok();
+                    // Dense Qwen3's per-head q_norm/k_norm (optional — absent on
+                    // Qwen2/Qwen2.5). Must match training (mod.rs loads these the
+                    // same way) or a merged/served model drifts, exactly like the
+                    // qkv biases above.
+                    let q_norm = get_tensor(&format!("{p}.self_attn.q_norm.weight"))
+                        .ok()
+                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
+                    let k_norm = get_tensor(&format!("{p}.self_attn.k_norm.weight"))
+                        .ok()
+                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
                     Qwen35AttentionBlock::Full(Qwen2Attention {
                         q_proj,
                         k_proj,
                         v_proj,
                         o_proj,
+                        q_bias,
+                        k_bias,
+                        v_bias,
                         n_heads,
                         n_kv_heads,
                         head_dim,
+                        q_norm,
+                        k_norm,
                     })
                 };
 

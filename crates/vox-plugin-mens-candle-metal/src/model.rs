@@ -31,6 +31,21 @@ fn causal_mask(seq_len: usize, device: &Device) -> Result<Tensor> {
     Tensor::from_vec(data, (1, 1, seq_len, seq_len), device)
 }
 
+/// Differentiable RMSNorm with an F32-stable reduction that preserves the activation
+/// dtype. candle's `RmsNorm::forward_diff` upcasts BF16/F16 to F32 for the variance, but
+/// casts the normalized result back to the *input* dtype before multiplying by the (F32)
+/// norm weight — which would mix dtypes on the BF16-activation path. We sidestep that by
+/// running `forward_diff` in F32 (norm weights are F32) and casting the result back to the
+/// input's activation dtype. On the all-F32 path both casts are no-ops.
+fn rms_norm_f32(norm: &RmsNorm, x: &Tensor) -> Result<Tensor> {
+    let in_dtype = x.dtype();
+    if in_dtype == DType::F32 {
+        return norm.forward_diff(x);
+    }
+    norm.forward_diff(&x.to_dtype(DType::F32)?)?
+        .to_dtype(in_dtype)
+}
+
 fn repeat_kv(x: &Tensor, n_rep: usize) -> Result<Tensor> {
     if n_rep == 1 {
         return Ok(x.clone());
@@ -55,9 +70,23 @@ pub struct Qwen2Attention {
     pub k_proj: QuantizedLinear,
     pub v_proj: QuantizedLinear,
     pub o_proj: QuantizedLinear,
+    /// Qwen2/Qwen2.5 use additive biases on the q/k/v projections. Omitting them
+    /// makes the forward subtly wrong (the model — and any adapter trained against
+    /// it — only matches a bias-less engine, not standard Qwen2). `None` for
+    /// architectures without qkv bias.
+    pub q_bias: Option<Tensor>,
+    pub k_bias: Option<Tensor>,
+    pub v_bias: Option<Tensor>,
     pub n_heads: usize,
     pub n_kv_heads: usize,
     pub head_dim: usize,
+    /// Dense Qwen3's per-head RMSNorm on Q/K, applied right after projection
+    /// and before RoPE. `None` for Qwen2/Qwen2.5-style checkpoints, which
+    /// don't have it. Confirmed load-bearing: a real Qwen/Qwen3-0.6B
+    /// checkpoint produced fluent-looking garbage output without it (real
+    /// weights, real tokenizer, no crash — just wrong numbers).
+    pub q_norm: Option<RmsNorm>,
+    pub k_norm: Option<RmsNorm>,
 }
 
 impl Qwen2Attention {
@@ -84,12 +113,38 @@ impl Qwen2Attention {
             .forward(x)
             .map_err(|e| candle_core::Error::Msg(e.to_string()))?;
 
-        let q = q
-            .reshape((b, seq_len, self.n_heads, self.head_dim))?
-            .transpose(1, 2)?;
-        let k = k
-            .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
-            .transpose(1, 2)?;
+        // Qwen2/Qwen2.5 additive qkv biases (broadcast over [b, seq, out_features]).
+        // The activation dtype follows the configured compute dtype. Biases are
+        // loaded F32; cast them to the activation dtype at point-of-use so the
+        // broadcast_add never mixes dtypes (no-op on the F32 path).
+        let act_dtype = q.dtype();
+        let q = match &self.q_bias {
+            Some(bias) => q.broadcast_add(&bias.to_dtype(act_dtype)?)?,
+            None => q,
+        };
+        let k = match &self.k_bias {
+            Some(bias) => k.broadcast_add(&bias.to_dtype(act_dtype)?)?,
+            None => k,
+        };
+        let v = match &self.v_bias {
+            Some(bias) => v.broadcast_add(&bias.to_dtype(act_dtype)?)?,
+            None => v,
+        };
+
+        let q = q.reshape((b, seq_len, self.n_heads, self.head_dim))?;
+        let q = match &self.q_norm {
+            Some(norm) => rms_norm_f32(norm, &q)?,
+            None => q,
+        };
+        let q = q.transpose(1, 2)?;
+
+        let k = k.reshape((b, seq_len, self.n_kv_heads, self.head_dim))?;
+        let k = match &self.k_norm {
+            Some(norm) => rms_norm_f32(norm, &k)?,
+            None => k,
+        };
+        let k = k.transpose(1, 2)?;
+
         let v = v
             .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
             .transpose(1, 2)?;
@@ -554,9 +609,14 @@ mod qwen2_attention_tests {
             k_proj: mk(),
             v_proj: mk(),
             o_proj: mk(),
+            q_bias: None,
+            k_bias: None,
+            v_bias: None,
             n_heads: 2,
             n_kv_heads: 2,
             head_dim: 4,
+            q_norm: None,
+            k_norm: None,
         }
     }
 
@@ -575,6 +635,69 @@ mod qwen2_attention_tests {
             out.dims(),
             &[batch, seq_len, d_model],
             "output must merge n_heads*head_dim back to d_model without dropping batch/seq"
+        );
+    }
+
+    /// Dense Qwen3's per-head q_norm/k_norm must actually change the forward
+    /// output when present — confirmed load-bearing on a real Qwen/Qwen3-0.6B
+    /// checkpoint: omitting it produced fluent-looking garbage text, not a
+    /// crash. Builds two attention blocks from the SAME deterministic weight
+    /// tensors (quantization is deterministic given the same input) so the
+    /// only difference is q_norm/k_norm's presence.
+    #[test]
+    fn qk_norm_changes_output_when_present() {
+        let device = Device::Cpu;
+        let d = 8usize;
+        let mut cfg = QLoraConfig::preset_all_bf16(4, 8);
+        cfg.quantization.compute_dtype = qlora_rs::quantization::ComputeDType::F32;
+        let w = Tensor::arange(0u32, (d * d) as u32, &device)
+            .unwrap()
+            .to_dtype(DType::F32)
+            .unwrap()
+            .reshape((d, d))
+            .unwrap()
+            .affine(0.01, 0.0)
+            .unwrap();
+        let build = |q_norm: Option<RmsNorm>, k_norm: Option<RmsNorm>| Qwen2Attention {
+            q_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            k_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            v_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            o_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            q_bias: None,
+            k_bias: None,
+            v_bias: None,
+            n_heads: 2,
+            n_kv_heads: 2,
+            head_dim: 4,
+            q_norm,
+            k_norm,
+        };
+
+        let x = Tensor::randn(0f32, 1f32, (1, 3, d), &device).unwrap();
+        let without_norm = build(None, None)
+            .forward(&x, 0, None, None)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+
+        let norm_weight = Tensor::new(&[2.0f32, 0.5, 3.0, 1.5], &device).unwrap();
+        let with_norm = build(
+            Some(RmsNorm::new(norm_weight.clone(), 1e-6)),
+            Some(RmsNorm::new(norm_weight, 1e-6)),
+        )
+        .forward(&x, 0, None, None)
+        .unwrap()
+        .flatten_all()
+        .unwrap()
+        .to_vec1::<f32>()
+        .unwrap();
+
+        assert_ne!(
+            without_norm, with_norm,
+            "q_norm/k_norm must change the forward output — if this fails, \
+             Qwen2Attention is silently ignoring them"
         );
     }
 }
