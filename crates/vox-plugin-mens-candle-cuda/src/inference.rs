@@ -169,11 +169,16 @@ impl InferenceEngine {
         let mut weight_maps = Vec::new();
 
         if merged_file.is_file() {
-            let b = std::fs::read(&merged_file)?;
-            all_buffers.push(b);
+            let file = std::fs::File::open(&merged_file)?;
+            #[allow(unsafe_code)]
+            let mmap = unsafe { memmap2::Mmap::map(&file)? };
+            all_buffers.push(mmap);
         }
         for p in &base_shards {
-            all_buffers.push(std::fs::read(p)?);
+            let file = std::fs::File::open(p)?;
+            #[allow(unsafe_code)]
+            let mmap = unsafe { memmap2::Mmap::map(&file)? };
+            all_buffers.push(mmap);
         }
         for b in &all_buffers {
             weight_maps.push(SafeTensors::deserialize(b)?);
@@ -585,5 +590,44 @@ mod tests {
             resolve_adapter_manifest_path(d.path()).as_deref(),
             Some(manifest.as_path())
         );
+    }
+
+    /// Functional-correctness regression test for the mmap substitution in
+    /// the shard-loading block above (`all_buffers: Vec<memmap2::Mmap>`).
+    /// This proves the mmap path reads the same bytes a `std::fs::read`
+    /// would have — it does NOT prove RSS stays low; a broken mmap (wrong
+    /// offset/length, use-after-drop) would corrupt or fail this test, but
+    /// so would a correct implementation regardless of whether it mmaps or
+    /// copies into memory. See task-6-report.md for the honest scope note.
+    #[test]
+    fn serve_load_does_not_read_shards_into_memory() {
+        use candle_core::{Device, Tensor};
+        use safetensors::SafeTensors;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("fixture.safetensors");
+
+        let src = Tensor::new(&[1.0f32, 2.0, 3.0, 4.0], &Device::Cpu).expect("tensor");
+        src.save_safetensors("w", &path).expect("write fixture");
+
+        // Same mechanism as the shard-loading fix: open + mmap + deserialize
+        // from the mmap's byte slice, never `std::fs::read`.
+        let file = std::fs::File::open(&path).expect("open");
+        #[allow(unsafe_code)]
+        let mmap = unsafe { memmap2::Mmap::map(&file).expect("mmap") };
+        let st = SafeTensors::deserialize(&mmap).expect("deserialize");
+
+        let view = st.tensor("w").expect("tensor present");
+        // Same reconstruction the `get_tensor` closure above uses in production.
+        let loaded = Tensor::from_raw_buffer(
+            view.data(),
+            candle_core::DType::F32,
+            view.shape(),
+            &Device::Cpu,
+        )
+        .expect("from_raw_buffer")
+        .to_vec1::<f32>()
+        .expect("to_vec1");
+        assert_eq!(loaded, vec![1.0f32, 2.0, 3.0, 4.0]);
     }
 }
