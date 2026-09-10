@@ -89,6 +89,29 @@ fn download_size_notice(repo_id: &str, is_default: bool, safetensors_count: usiz
     }
 }
 
+/// Shape of `model.safetensors.index.json` we care about — only
+/// `weight_map` (tensor key -> shard filename) is used; `metadata` is
+/// ignored.
+#[derive(serde::Deserialize)]
+struct SafetensorsIndex {
+    weight_map: std::collections::HashMap<String, String>,
+}
+
+/// Given the parsed `weight_map` from `model.safetensors.index.json`
+/// (tensor key -> shard filename), return the set of shard filenames that
+/// carry at least one text-tower tensor. Vision/MTP-only shards are
+/// excluded. Pure, no I/O — classification is delegated to
+/// [`vox_hf_layout::is_vision_or_mtp_key`] rather than reimplemented here.
+fn required_shard_filenames(
+    weight_map: &std::collections::HashMap<String, String>,
+) -> std::collections::HashSet<String> {
+    weight_map
+        .iter()
+        .filter(|(key, _)| !vox_hf_layout::is_vision_or_mtp_key(key))
+        .map(|(_, shard)| shard.clone())
+        .collect()
+}
+
 fn normalize_hf_token_env() {
     let token_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::HuggingFaceToken);
     let token = token_resolved.expose();
@@ -113,6 +136,8 @@ pub struct DownloadedModelFiles {
     pub config: PathBuf,
     pub weights: Vec<PathBuf>,
     pub tokenizer: Option<PathBuf>,
+    pub tokenizer_config: Option<PathBuf>,
+    pub chat_template: Option<PathBuf>,
 }
 
 impl DownloadedModelFiles {
@@ -185,6 +210,34 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         }
     }
 
+    let mut tokenizer_config = None::<PathBuf>;
+    if siblings
+        .iter()
+        .any(|s| s.rfilename == "tokenizer_config.json")
+    {
+        tokenizer_config = Some(
+            repo.download_file()
+                .filename("tokenizer_config.json")
+                .send()
+                .await
+                .map_err(|e| anyhow::anyhow!("download tokenizer_config.json: {e}"))?,
+        );
+    }
+
+    let mut chat_template = None::<PathBuf>;
+    if siblings
+        .iter()
+        .any(|s| s.rfilename == "chat_template.jinja")
+    {
+        chat_template = Some(
+            repo.download_file()
+                .filename("chat_template.jinja")
+                .send()
+                .await
+                .map_err(|e| anyhow::anyhow!("download chat_template.jinja: {e}"))?,
+        );
+    }
+
     let mut weight_names: Vec<&str> = siblings
         .iter()
         .map(|s| s.rfilename.as_str())
@@ -195,6 +248,40 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         anyhow::bail!(
             "repo {repo_id} has no *.safetensors files in the Hub manifest; need a safetensors-based model"
         );
+    }
+
+    // If the shard index is present, use it to select only the shards
+    // carrying text-tower tensors (see `required_shard_filenames`), rather
+    // than downloading every `*.safetensors` sibling (which also pulls
+    // vision-tower and MTP-head shards a text-only trainer never needs).
+    // Intersected with the extension-based `weight_names` above as a safety
+    // net: a filename the index names is never downloaded unless it is also
+    // a confirmed real `*.safetensors` sibling. Repos without an index
+    // (e.g. unsharded single-file models) fall back to the existing,
+    // unchanged extension-based enumeration.
+    const SAFETENSORS_INDEX_FILENAME: &str = "model.safetensors.index.json";
+    if siblings
+        .iter()
+        .any(|s| s.rfilename == SAFETENSORS_INDEX_FILENAME)
+    {
+        let index_path = repo
+            .download_file()
+            .filename(SAFETENSORS_INDEX_FILENAME)
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("download {SAFETENSORS_INDEX_FILENAME}: {e}"))?;
+        let index_json = std::fs::read_to_string(&index_path)
+            .map_err(|e| anyhow::anyhow!("read {SAFETENSORS_INDEX_FILENAME}: {e}"))?;
+        let index: SafetensorsIndex = serde_json::from_str(&index_json)
+            .map_err(|e| anyhow::anyhow!("parse {SAFETENSORS_INDEX_FILENAME}: {e}"))?;
+        let required = required_shard_filenames(&index.weight_map);
+        weight_names.retain(|n| required.contains(*n));
+        if weight_names.is_empty() {
+            anyhow::bail!(
+                "repo {repo_id} index {SAFETENSORS_INDEX_FILENAME} names no shard that is \
+                 also a *.safetensors sibling"
+            );
+        }
     }
 
     let mut weights = Vec::with_capacity(weight_names.len());
@@ -213,6 +300,8 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         config,
         weights,
         tokenizer,
+        tokenizer_config,
+        chat_template,
     })
 }
 
@@ -338,6 +427,37 @@ mod tests {
         assert!(
             msg.contains('3') && msg.contains("safetensors"),
             "must state the checkable safetensors file count: {msg}"
+        );
+    }
+
+    #[test]
+    fn download_selects_only_shards_named_in_index() {
+        let weight_map: std::collections::HashMap<String, String> = [
+            (
+                "model.language_model.layers.0.self_attn.q_proj.weight".to_string(),
+                "model-00001-of-00002.safetensors".to_string(),
+            ),
+            (
+                "model.visual.blocks.0.attn.qkv.weight".to_string(),
+                "model-00002-of-00002.safetensors".to_string(),
+            ),
+            (
+                "mtp.fc.weight".to_string(),
+                "model-00002-of-00002.safetensors".to_string(),
+            ),
+        ]
+        .into_iter()
+        .collect();
+
+        let required = super::required_shard_filenames(&weight_map);
+
+        assert!(
+            required.contains("model-00001-of-00002.safetensors"),
+            "must include the shard carrying a text-tower tensor: {required:?}"
+        );
+        assert!(
+            !required.contains("model-00002-of-00002.safetensors"),
+            "must exclude the vision/mtp-only shard: {required:?}"
         );
     }
 
