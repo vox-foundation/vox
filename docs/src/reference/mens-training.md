@@ -280,7 +280,7 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
     | `anti_stub` | `eval_local_report.json` | `vox mens eval-local` |
     | `review_recurrence` | `review_metrics.json` | review pipeline |
 
-    **First-run bootstrap:** on a fresh system with no prior `mens/runs/latest/`, the Step 2 pre-flight gate (full policy) will block because `benchmark_passatk.json`, `eval_local_report.json`, and `review_metrics.json` do not exist yet. Use `VOX_MENS_FORCE_TRAIN=1` to bypass for the initial run. After training, run `vox mens eval-local` to produce the passatk and anti_stub files, then run the review pipeline. Subsequent runs will pass the pre-flight gate against those artifacts.
+    **First-run bootstrap:** on a fresh system with no prior `mens/runs/latest/`, the Step 2 pre-flight gate (full policy) will block because `benchmark_passatk.json`, `eval_local_report.json`, and `review_metrics.json` do not exist yet — there is nothing to gate on. For this first run, skip the pre-flight check with `VOX_MENS_SKIP_EVAL=1` (it only skips the artifact-presence check in Step 2; it does not touch the VRAM budget gate in Step 3). After training, run `vox mens eval-local` to produce the passatk and anti_stub files, then run the review pipeline to produce `review_metrics.json`. Subsequent runs will pass the pre-flight gate against those artifacts.
 
     Run the full gate once those steps complete: `vox mens eval-gate --run-dir mens/runs/latest` (uses `eval-gates.yaml` — all gates blocking).
 

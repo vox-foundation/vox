@@ -846,6 +846,14 @@ fn budget_gate(
             plan.rationale
         );
     }
+    if plan.over_budget && force {
+        eprintln!(
+            "!! VOX_MENS_FORCE_TRAIN=1 — the VRAM budget gate is DISABLED.\n\
+             !! '{}' does not fit the detected VRAM ({}).\n\
+             !! This run is expected to OOM. Unset VOX_MENS_FORCE_TRAIN to restore the gate.",
+            plan.model_id, plan.rationale
+        );
+    }
     Ok(())
 }
 
@@ -1143,6 +1151,27 @@ mod budget_gate_tests {
             Some(v) => unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", v) },
             None => unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") },
         }
+    }
+
+    /// `mens-training.md`'s first-run bootstrap paragraph must route new users
+    /// through the missing-artifacts fix (`VOX_MENS_SKIP_EVAL`, `vox mens
+    /// eval-local`), not through `VOX_MENS_FORCE_TRAIN` — that var also
+    /// disables the unrelated VRAM budget gate above and can walk a first-run
+    /// user straight into an OOM.
+    #[test]
+    fn the_first_run_docs_do_not_route_new_users_through_the_oom_override() {
+        let doc = include_str!("../../../../../../docs/src/reference/mens-training.md");
+        let para = doc
+            .split("**First-run bootstrap:**")
+            .nth(1)
+            .expect("the first-run bootstrap paragraph exists")
+            .split("\n\n")
+            .next()
+            .unwrap_or_default();
+        assert!(
+            !para.contains("VOX_MENS_FORCE_TRAIN"),
+            "the first-run instructions must not disable the memory gate"
+        );
     }
 }
 
