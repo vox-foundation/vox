@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 
 /// A SafeTensors model source: single `model.safetensors` or sharded via
 /// `model.safetensors.index.json` (HF `weight_map`).
+#[derive(Debug)]
 pub struct SafeTensorsSource {
     map: HashMap<String, PathBuf>,
     names: Vec<String>,
@@ -89,6 +90,19 @@ fn header_entry_dtype(entry: &serde_json::Value) -> Option<candle_core::DType> {
     candle_core::DType::try_from(raw).ok()
 }
 
+/// Finds the first `*.weight` entry whose dtype is `U32` and whose sibling
+/// `*.scales` entry exists in the same dtype map — the MLX packed-weight
+/// signature. Neither condition alone is proof: `U32` alone could be a
+/// legitimate index tensor, and a `.scales` sibling alone doesn't imply the
+/// paired weight is packed.
+fn packed_u32_weight(dtypes: &HashMap<String, candle_core::DType>) -> Option<&str> {
+    dtypes.iter().find_map(|(name, dtype)| {
+        let base = name.strip_suffix(".weight")?;
+        (*dtype == candle_core::DType::U32 && dtypes.contains_key(&format!("{base}.scales")))
+            .then_some(name.as_str())
+    })
+}
+
 impl SafeTensorsSource {
     pub fn open(dir: &Path) -> Result<Self, QuantizeError> {
         let index = dir.join("model.safetensors.index.json");
@@ -115,12 +129,28 @@ impl SafeTensorsSource {
         // Group by shard (then by name for determinism) so the one-slot cache
         // in `load_f32` sees each shard exactly once.
         names.sort_by(|a, b| (&map[a], a).cmp(&(&map[b], b)));
-        Ok(Self {
+        let this = Self {
             map,
             names,
             cached: std::cell::RefCell::new(None),
             loads: std::cell::Cell::new(0),
-        })
+        };
+
+        // MLX quantized checkpoints store packed weights as U32 with sibling
+        // `.scales` / `.biases`. load_f32 would upcast the packed integers and
+        // QTensor::quantize would return a finite mse on noise, so verify()
+        // passes and a nonsense artifact ships. Refuse here — there is no
+        // later stage that can tell the difference.
+        let dtypes = this.tensor_dtypes()?;
+        if let Some(name) = packed_u32_weight(&dtypes) {
+            return Err(QuantizeError::ReadModel(format!(
+                "`{name}` is a U32 packed weight with .scales/.biases siblings — this is an MLX \
+                 quantized checkpoint, which this engine cannot consume (it would upcast the \
+                 packed integers and quantize noise with a finite error). Use the bf16 original."
+            )));
+        }
+
+        Ok(this)
     }
 
     pub fn tensor_names(&self) -> &[String] {
@@ -346,5 +376,42 @@ mod tests {
         // load_f32 does need the data section, so it fails against the
         // truncated fixture -- that's expected and irrelevant to this test.
         assert_eq!(src.shard_loads(), 0, "no shard has been loaded yet");
+    }
+
+    /// Catches: accepting an MLX-packed checkpoint. MLX stores quantized
+    /// weights as U32 with sibling `.scales`/`.biases`; load_f32 would upcast
+    /// the packed integers and QTensor::quantize would return a FINITE mse on
+    /// noise, so `verify` passes and a nonsense artifact ships. There is no
+    /// later stage that catches this -- refusing at open is the only guard.
+    #[test]
+    fn open_refuses_an_mlx_packed_checkpoint() {
+        let dir = tempfile::tempdir().unwrap();
+        let dev = Device::Cpu;
+        let mut map: HashMap<String, Tensor> = HashMap::new();
+        map.insert(
+            "language_model.model.layers.0.self_attn.q_proj.weight".into(),
+            Tensor::zeros((256, 32), candle_core::DType::U32, &dev).unwrap(),
+        );
+        map.insert(
+            "language_model.model.layers.0.self_attn.q_proj.scales".into(),
+            Tensor::zeros((256, 4), candle_core::DType::F32, &dev).unwrap(),
+        );
+        map.insert(
+            "language_model.model.layers.0.self_attn.q_proj.biases".into(),
+            Tensor::zeros((256, 4), candle_core::DType::F32, &dev).unwrap(),
+        );
+        candle_core::safetensors::save(&map, dir.path().join("model.safetensors")).unwrap();
+
+        let err = SafeTensorsSource::open(dir.path())
+            .expect_err("an MLX-packed checkpoint must be refused, not quantized");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("MLX"),
+            "the error must name MLX so the fix is obvious: {msg}"
+        );
+        assert!(
+            msg.contains("bf16"),
+            "the error must name the valid input: {msg}"
+        );
     }
 }
