@@ -8,7 +8,7 @@
 //! the adapter metadata is not a local directory path the call returns an error directing the
 //! caller to pre-download the model. This matches the deferred-rewire pattern from SP3.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use candle_core::{Device, Tensor};
@@ -39,6 +39,23 @@ fn resolve_adapter_manifest_path(model_dir: &Path) -> Option<std::path::PathBuf>
         return Some(manifest);
     }
     None
+}
+
+/// Every safetensors file whose tensors feed the inference weight map, in
+/// search order. The adapter comes first: it must win over the frozen base,
+/// or a trained run silently serves base weights.
+pub fn weight_sources(model_dir: &Path, base_shards: &[PathBuf]) -> Vec<PathBuf> {
+    let mut sources = Vec::new();
+    let adapter = model_dir.join("candle_qlora_adapter.safetensors");
+    if adapter.is_file() {
+        sources.push(adapter);
+    }
+    let merged = model_dir.join("merged.safetensors");
+    if merged.is_file() {
+        sources.push(merged);
+    }
+    sources.extend(base_shards.iter().cloned());
+    sources
 }
 
 impl InferenceEngine {
@@ -99,18 +116,11 @@ impl InferenceEngine {
             );
         };
 
-        let merged_file = model_dir.join("merged.safetensors");
         let mut all_buffers = Vec::new();
         let mut weight_maps = Vec::new();
 
-        if merged_file.is_file() {
-            let file = std::fs::File::open(&merged_file)?;
-            #[allow(unsafe_code)]
-            let mmap = unsafe { memmap2::Mmap::map(&file)? };
-            all_buffers.push(mmap);
-        }
-        for p in &base_shards {
-            let file = std::fs::File::open(p)?;
+        for p in weight_sources(model_dir, &base_shards) {
+            let file = std::fs::File::open(&p)?;
             #[allow(unsafe_code)]
             let mmap = unsafe { memmap2::Mmap::map(&file)? };
             all_buffers.push(mmap);
@@ -472,6 +482,35 @@ pub fn run(model_dir: &str, prompt_json: &str) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::resolve_adapter_manifest_path;
+    use super::weight_sources;
+
+    #[test]
+    fn the_adapter_is_a_weight_source_and_outranks_the_base() {
+        let d = tempfile::tempdir().unwrap();
+        let adapter = d.path().join("candle_qlora_adapter.safetensors");
+        std::fs::write(&adapter, b"").unwrap();
+        let base = d.path().join("model-00001-of-00001.safetensors");
+
+        let sources = weight_sources(d.path(), std::slice::from_ref(&base));
+        assert!(
+            sources.contains(&adapter),
+            "the trained adapter must be read at inference; without it the frozen base model answers"
+        );
+        assert_eq!(
+            sources[0], adapter,
+            "the adapter must precede the base, or base weights shadow the trained ones"
+        );
+    }
+
+    #[test]
+    fn a_run_directory_with_no_adapter_still_serves_its_base() {
+        let d = tempfile::tempdir().unwrap();
+        let base = d.path().join("model-00001-of-00001.safetensors");
+        assert_eq!(
+            weight_sources(d.path(), std::slice::from_ref(&base)),
+            vec![base]
+        );
+    }
 
     #[test]
     fn resolve_adapter_manifest_finds_v3() {
