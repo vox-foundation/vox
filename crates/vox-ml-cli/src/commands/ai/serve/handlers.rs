@@ -9,21 +9,9 @@ use super::worker::InferenceRequest;
 #[cfg(feature = "execution-api")]
 use crate::commands::ai::model_id::mismatched_model_error;
 #[cfg(feature = "execution-api")]
-use axum::{
-    Json,
-    extract::State,
-    http::StatusCode,
-    response::{
-        IntoResponse,
-        sse::{Event, Sse},
-    },
-};
-#[cfg(feature = "execution-api")]
-use std::convert::Infallible;
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 #[cfg(feature = "execution-api")]
 use std::sync::Arc;
-#[cfg(feature = "execution-api")]
-use tokio_stream::{StreamExt, wrappers::ReceiverStream};
 #[cfg(feature = "execution-api")]
 use vox_corpus::corpus::structured_eval::StructuredFailReason;
 
@@ -145,7 +133,6 @@ pub async fn do_generate(
             top_k: 40,
             output_mode: output_mode.map(String::from),
             reply: reply_tx,
-            stream_tx: None,
         };
         let tx = state.tx.clone();
         let send_ok = tokio::task::spawn_blocking(move || tx.send(ir))
@@ -211,79 +198,6 @@ pub async fn do_generate(
         }
         attempt += 1;
     }
-}
-
-/// SSE Streaming variant of the completions endpoint.
-#[cfg(feature = "execution-api")]
-pub async fn do_completions_stream(
-    State(state): State<AppState>,
-    Json(req): Json<GenerateRequest>,
-) -> axum::response::Response {
-    if let Some(msg) = mismatched_model_error(req.model.as_deref(), state.model_name.as_ref()) {
-        return (
-            StatusCode::CONFLICT,
-            Json(GenerateResponse {
-                text: msg.clone(),
-                code: msg.clone(),
-                tokens_generated: 0,
-                model: state.model_name.to_string(),
-                object: "text_completion",
-                choices: vec![],
-                repair_attempts: None,
-                valid: false,
-                errors: vec![msg],
-            }),
-        )
-            .into_response();
-    }
-    let output_mode = req.output_mode.as_deref().and_then(parse_output_mode_label);
-
-    let (stream_tx, stream_rx) = tokio::sync::mpsc::channel(32);
-    let (reply_tx, _) = tokio::sync::oneshot::channel();
-    let prompt = prompt_for_output_mode(&req.prompt, output_mode);
-
-    let ir = InferenceRequest {
-        prompt,
-        max_tokens: req.max_tokens,
-        temperature: req.temperature,
-        top_k: 40,
-        output_mode: output_mode.map(String::from),
-        reply: reply_tx,
-        stream_tx: Some(stream_tx),
-    };
-
-    let tx = state.tx.clone();
-    let model_name = state.model_name.to_string();
-
-    tokio::task::spawn_blocking(move || {
-        let _ = tx.send(ir);
-    });
-
-    let stream = ReceiverStream::new(stream_rx).map(move |chunk_result| match chunk_result {
-        Ok(chunk) => {
-            let json = serde_json::json!({
-                "id": "compl-stream",
-                "object": "text_completion",
-                "model": model_name,
-                "choices": [{
-                    "text": chunk,
-                    "index": 0,
-                    "finish_reason": null
-                }]
-            });
-            Ok::<Event, Infallible>(
-                Event::default()
-                    .data(serde_json::to_string(&json).unwrap_or_else(|_| "{}".to_string())),
-            )
-        }
-        Err(e) => {
-            Ok::<Event, Infallible>(Event::default().data(format!("{{\"error\": \"{}\"}}", e)))
-        }
-    });
-
-    Sse::new(stream)
-        .keep_alive(axum::response::sse::KeepAlive::new())
-        .into_response()
 }
 
 #[cfg(feature = "execution-api")]

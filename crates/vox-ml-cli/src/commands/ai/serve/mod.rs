@@ -121,10 +121,6 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
         .route("/v1/generate", post(handlers::do_generate))
         .route("/generate", post(handlers::do_generate))
         .route("/v1/completions", post(handlers::do_generate))
-        .route(
-            "/v1/completions/stream",
-            post(handlers::do_completions_stream),
-        )
         .with_state(state);
 
     let addr = format!("{}:{}", config.host, config.port);

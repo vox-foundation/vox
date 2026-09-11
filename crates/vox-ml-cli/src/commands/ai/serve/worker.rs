@@ -22,7 +22,6 @@ pub struct InferenceRequest {
     pub top_k: usize,
     pub output_mode: Option<String>,
     pub reply: tokio::sync::oneshot::Sender<Result<String, String>>,
-    pub stream_tx: Option<tokio::sync::mpsc::Sender<Result<String, String>>>,
 }
 
 /// Spawn the inference worker thread and return the channel sender.
@@ -174,7 +173,6 @@ mod tests {
             top_k: 40,
             output_mode: Some("strict_json".into()),
             reply: tx,
-            stream_tx: None,
         };
         let v: serde_json::Value =
             serde_json::from_str(&inference_payload("YOU ARE VOX", &req)).unwrap();
