@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-11T04:02:24.513Z",
+  "generated_at": "2026-09-11T14:45:14.006Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -14775,10 +14775,10 @@
     {
       "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs",
       "kind": "rust",
-      "lines_total": 1179,
+      "lines_total": 1195,
       "lines_triple_slash": 56,
       "lines_inner_doc": 7,
-      "lines_plain_comment": 54,
+      "lines_plain_comment": 61,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16473,6 +16473,17 @@
       "lines_triple_slash": 44,
       "lines_inner_doc": 1,
       "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-quantize/src/policy.rs",
+      "kind": "rust",
+      "lines_total": 337,
+      "lines_triple_slash": 43,
+      "lines_inner_doc": 2,
+      "lines_plain_comment": 24,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18238,17 +18249,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-quantize/src/policy.rs",
-      "kind": "rust",
-      "lines_total": 326,
-      "lines_triple_slash": 32,
-      "lines_inner_doc": 2,
-      "lines_plain_comment": 24,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-cli/src/commands/runtime/run/sandbox.rs",
       "kind": "rust",
       "lines_total": 312,
@@ -19393,6 +19393,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-hf-layout/src/lib.rs",
+      "kind": "rust",
+      "lines_total": 928,
+      "lines_triple_slash": 27,
+      "lines_inner_doc": 2,
+      "lines_plain_comment": 81,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs",
       "kind": "rust",
       "lines_total": 925,
@@ -19751,17 +19762,6 @@
       "lines_triple_slash": 28,
       "lines_inner_doc": 0,
       "lines_plain_comment": 171,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-hf-layout/src/lib.rs",
-      "kind": "rust",
-      "lines_total": 892,
-      "lines_triple_slash": 26,
-      "lines_inner_doc": 2,
-      "lines_plain_comment": 67,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -25654,7 +25654,7 @@
     {
       "path": "crates/vox-ml-cli/src/commands/quantize.rs",
       "kind": "rust",
-      "lines_total": 223,
+      "lines_total": 224,
       "lines_triple_slash": 15,
       "lines_inner_doc": 1,
       "lines_plain_comment": 11,
