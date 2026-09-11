@@ -49,7 +49,6 @@ pub fn recombine_with_shard_budget(
     // Validate shape agreement up front, from headers only -- a merged
     // override never needs the base tensor's data, only its shape and dtype.
     let base_shapes = base.tensor_shapes()?;
-    let base_dtypes = base.tensor_dtypes()?;
     for (name, m) in merged {
         if let Some(base_dims) = base_shapes.get(name) {
             let merged_dims = m.dims().to_vec();
@@ -93,19 +92,18 @@ pub fn recombine_with_shard_budget(
     for (i, group) in groups.iter().enumerate() {
         let mut shard: HashMap<String, candle_core::Tensor> = HashMap::new();
         for name in group {
-            // A merged override replaces the base tensor outright. Its dtype
-            // is checked against the base's (from the header, not loaded
-            // data): matching dtypes are written as-is with no upcast at
-            // all; a mismatch is cast to the base's on-disk dtype so the
-            // recombined checkpoint never silently mixes dtypes for one
-            // logical tensor across a merge. `to_dtype` is only ever called
-            // on the small merged override, never on the (possibly huge)
-            // base tensor.
+            // Every non-overridden tensor comes back from `load_f32` upcast
+            // to F32. A merged override must match that, or the recombined
+            // checkpoint mixes dtypes across tensors (every base tensor F32,
+            // every overridden one whatever dtype the merge produced) even
+            // though nothing here signals that split. `to_dtype` is only
+            // ever called on the small merged override, never on the
+            // (possibly huge) base tensor.
             let t = match merged.get(name) {
-                Some(m) => match base_dtypes.get(name) {
-                    Some(&base_dtype) if m.dtype() != base_dtype => m.to_dtype(base_dtype)?,
-                    _ => m.clone(),
-                },
+                Some(m) if m.dtype() != candle_core::DType::F32 => {
+                    m.to_dtype(candle_core::DType::F32)?
+                }
+                Some(m) => m.clone(),
                 None => base.load_f32(name)?,
             };
             total_size += t.elem_count() as u64 * t.dtype().size_in_bytes() as u64;
@@ -317,13 +315,11 @@ mod tests {
 
     /// Catches: writing a merged override's dtype unconditionally
     /// (`Some(m) => m.clone()` with no dtype check at all). A merged tensor
-    /// with a genuinely different dtype than its base counterpart must come
-    /// out of `recombine` in the base's dtype, not silently keep its own --
-    /// otherwise a reader that doesn't upcast every tensor (unlike
-    /// `SafeTensorsSource::load_f32`) gets mixed dtypes for what should be
-    /// one consistent checkpoint.
+    /// with a non-F32 dtype must come out of `recombine` as F32, not
+    /// silently keep its own -- matching what `load_f32` already does for
+    /// every non-overridden tensor.
     #[test]
-    fn merged_override_dtype_mismatch_is_cast_to_base_dtype() {
+    fn merged_override_dtype_mismatch_is_cast_to_f32() {
         let dev = Device::Cpu;
         let base = tempfile::tempdir().unwrap();
         let merged = tempfile::tempdir().unwrap();
@@ -357,11 +353,73 @@ mod tests {
         assert_eq!(
             result["w"].dtype(),
             candle_core::DType::F32,
-            "a merged override that disagrees with the base's dtype must be cast to the base's dtype, not written as-is"
+            "a merged override with a non-F32 dtype must be cast to F32, not written as-is"
         );
         assert_eq!(
             result["w"].mean_all().unwrap().to_scalar::<f32>().unwrap(),
             2.0
         );
+    }
+
+    /// Catches: casting a merged override to the BASE's on-disk dtype
+    /// instead of F32 (the bug this fix corrects). Against a real BF16 Qwen3
+    /// checkpoint, `load_f32` upcasts every non-overridden tensor to F32
+    /// while a base-dtype cast leaves the overridden tensor BF16 -- exactly
+    /// the mixed-dtype output the comment above claims this code prevents.
+    /// Asserts every tensor in the output is F32, not just the override.
+    #[test]
+    fn bf16_base_with_override_recombines_uniformly_to_f32() {
+        let dev = Device::Cpu;
+        let base = tempfile::tempdir().unwrap();
+        let merged = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
+
+        // Base checkpoint is BF16 throughout, as a real Qwen3 checkpoint is.
+        let mut b: HashMap<String, Tensor> = HashMap::new();
+        b.insert(
+            "w_adapted".into(),
+            Tensor::full(1.0f32, (256, 256), &dev)
+                .unwrap()
+                .to_dtype(candle_core::DType::BF16)
+                .unwrap(),
+        );
+        b.insert(
+            "w_frozen".into(),
+            Tensor::full(3.0f32, (256, 256), &dev)
+                .unwrap()
+                .to_dtype(candle_core::DType::BF16)
+                .unwrap(),
+        );
+        candle_core::safetensors::save(&b, base.path().join("model.safetensors")).unwrap();
+        std::fs::write(base.path().join("config.json"), r#"{"model_type":"test"}"#).unwrap();
+
+        // Merge overrides one tensor, itself BF16 (as candle's training path
+        // produces), leaving the other untouched.
+        let mut m: HashMap<String, Tensor> = HashMap::new();
+        m.insert(
+            "w_adapted".into(),
+            Tensor::full(2.0f32, (256, 256), &dev)
+                .unwrap()
+                .to_dtype(candle_core::DType::BF16)
+                .unwrap(),
+        );
+        candle_core::safetensors::save(&m, merged.path().join("merged.safetensors")).unwrap();
+
+        recombine(
+            base.path(),
+            &merged.path().join("merged.safetensors"),
+            out.path(),
+        )
+        .unwrap();
+
+        let result =
+            candle_core::safetensors::load(out.path().join("model.safetensors"), &dev).unwrap();
+        for (name, tensor) in &result {
+            assert_eq!(
+                tensor.dtype(),
+                candle_core::DType::F32,
+                "tensor `{name}` must be F32 -- recombine must not mix dtypes"
+            );
+        }
     }
 }
