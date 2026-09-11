@@ -10,6 +10,8 @@ pub mod device;
 pub mod hf_keymap;
 pub mod hf_load;
 pub mod manifest;
+#[cfg(feature = "mens")]
+pub mod memory_model;
 pub mod model_card;
 pub mod telemetry;
 pub mod telemetry_schema;
