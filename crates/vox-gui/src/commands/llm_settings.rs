@@ -115,11 +115,11 @@ async fn probe_vox_local() -> (Option<bool>, Vec<String>) {
             let url = format!("{base}{path}");
             match client.get(url).timeout(timeout).send().await {
                 Ok(resp) if resp.status().is_success() => {
-                    if let Ok(body) = resp.text().await {
-                        if vox_config::inference::vox_local_health_identifies_serve(&body) {
-                            identifies_serve = true;
-                            break;
-                        }
+                    if let Ok(body) = resp.text().await
+                        && vox_config::inference::vox_local_health_identifies_serve(&body)
+                    {
+                        identifies_serve = true;
+                        break;
                     }
                 }
                 _ => {}
