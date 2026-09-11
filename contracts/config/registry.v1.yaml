@@ -51,6 +51,22 @@ knobs:
     default_value: "12.0"
     since: "2026-09-06"
 
+  - name: mens_device
+    env_var: VOX_MENS_DEVICE
+    description: Override training device for full-pipeline.vox (e.g. metal for a Mac run).
+    owner_crate: vox-cli
+    status: active
+    default_value: "cuda"
+    since: "2026-09-10"
+
+  - name: mens_preset
+    env_var: VOX_MENS_PRESET
+    description: Override training preset for full-pipeline.vox.
+    owner_crate: vox-cli
+    status: active
+    default_value: "qwen_4080_16g"
+    since: "2026-09-10"
+
   - name: rag_chunk_chars
     env_var: VOX_RAG_CHUNK_CHARS
     description: Maximum character count per RAG markdown chunk.

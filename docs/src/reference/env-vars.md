@@ -317,6 +317,8 @@ See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-sso
 | `VOX_MENS_BACKGROUND` | `1` / `true` — spawn training as a background process in `full-pipeline.vox`. |
 | `VOX_MENS_DOMAIN` | Domain adapter target for `full-pipeline.vox` (default: `vox-lang`). Selects the domain-specific mix config (`mix-{domain}.yaml`). |
 | `VOX_MENS_EPOCHS` | Override training epoch count for `full-pipeline.vox` (default: `3`). |
+| `VOX_MENS_DEVICE` | Override training device for `full-pipeline.vox` (default: `cuda`; e.g. `metal` for a Mac run). |
+| `VOX_MENS_PRESET` | Override training preset for `full-pipeline.vox` (default: `qwen_4080_16g`). |
 | `VOX_INFERENCE_PROFILE` | `desktop_ollama` (default), `cloud_openai_compatible`, `mobile_litert`, `mobile_coreml`, `lan_gateway`; gates **vox-mcp** local Ollama + Ollama fallback to `desktop_ollama` / `lan_gateway` only; see [`vox_config::inference`](../../../crates/vox-config/src/inference.rs) and [mobile-edge-ai.md](mobile-edge-ai.md). |
 | `VOX_AUTO_MODEL_STRATEGY` | OpenRouter strategy for auto model ids: `provider_auto` or `preferred_model`; see [`vox_config::routing_policy`](../../../crates/vox-config/src/routing_policy.rs). |
 | `VOX_AUTO_ROUTING_PRIORITY` | Weighted MCP auto-routing priorities (`efficiency,precision,latency,availability,balance,mobile`) as `k=v` CSV. |

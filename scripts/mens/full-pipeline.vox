@@ -18,8 +18,17 @@ fn main() {
         epochs = epochs_env.unwrap()
     }
 
-    let device = "cuda"
-    let preset = "qwen_4080_16g"
+    let mut device = "cuda"
+    let device_env = env.get("VOX_MENS_DEVICE")
+    if device_env isnt null {
+        device = device_env.unwrap()
+    }
+
+    let mut preset = "qwen_4080_16g"
+    let preset_env = env.get("VOX_MENS_PRESET")
+    if preset_env isnt null {
+        preset = preset_env.unwrap()
+    }
 
     let skip_mix_env = env.get("VOX_MENS_SKIP_MIX")
     let skip_eval_env = env.get("VOX_MENS_SKIP_EVAL")

@@ -4416,6 +4416,18 @@ variables:
     required: false
     introduced_in: "0.5.0"
     description: "MENS training epoch override for mens CLI workflows."
+  - name: "VOX_MENS_DEVICE"
+    owner_crate: "vox-cli"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "MENS pipeline training device override (e.g. cuda, metal) for mens CLI workflows."
+  - name: "VOX_MENS_PRESET"
+    owner_crate: "vox-cli"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "MENS pipeline training preset override for mens CLI workflows."
   - name: "VOX_MENS_FORCE_TRAIN"
     owner_crate: "vox-cli"
     kind: "bool"
