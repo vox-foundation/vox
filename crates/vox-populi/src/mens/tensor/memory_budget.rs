@@ -129,12 +129,36 @@ pub fn plan(vram_gib: f64, model_params_b: f64) -> BudgetPlan {
 
 /// As [`plan`], but with an explicit resident-footprint-per-billion-params so
 /// different model families (Qwen3.5 vs dense Qwen2) get accurate budgets.
+///
+/// Applies [`safety_fraction`] to `vram_gib` itself, then delegates to
+/// [`plan_with_resident_from_budget`]. A caller that has *already* derived a
+/// canonical usable-bytes budget (e.g. `memory_model::budget_gate_usable_bytes`,
+/// which applies its own `SAFETY_FRACTION`) must call
+/// [`plan_with_resident_from_budget`] directly instead of this function —
+/// calling both would apply a safety margin twice.
 #[must_use]
 pub fn plan_with_resident(vram_gib: f64, model_params_b: f64, resident_per_b: f64) -> BudgetPlan {
     let safety = safety_fraction();
     let budget = vram_gib * safety;
+    let mut plan = plan_with_resident_from_budget(budget, model_params_b, resident_per_b);
+    plan.rationale = format!("VRAM {vram_gib:.0} GiB × {safety:.2} = {}", plan.rationale);
+    plan
+}
+
+/// Core sizing computation over an already-decided usable GiB budget — no
+/// safety fraction is applied here. [`plan_with_resident`] is the thin
+/// wrapper that derives `budget_gib` from raw VRAM via [`safety_fraction`];
+/// call this directly when the budget was already scaled by a canonical
+/// single source (e.g. `memory_model::plan_for`/`budget_gate_usable_bytes`),
+/// so headroom is applied exactly once rather than compounded.
+#[must_use]
+pub fn plan_with_resident_from_budget(
+    budget_gib: f64,
+    model_params_b: f64,
+    resident_per_b: f64,
+) -> BudgetPlan {
     let resident = resident_gib_at(model_params_b, resident_per_b);
-    let activation_budget = budget - resident;
+    let activation_budget = budget_gib - resident;
 
     // Not enough room for the model itself + any activations: floor the config and
     // flag it. The caller decides whether to proceed (it may still run with luck) or
@@ -148,7 +172,7 @@ pub fn plan_with_resident(vram_gib: f64, model_params_b: f64, resident_per_b: f6
             over_budget: true,
             rationale: format!(
                 "model resident ≈{resident:.1} GiB leaves only {activation_budget:.1} GiB of a \
-                 {budget:.1} GiB budget for activations — below the floor for seq {floor_seq}. \
+                 {budget_gib:.1} GiB budget for activations — below the floor for seq {floor_seq}. \
                  Using the smallest config; consider a smaller model or more VRAM."
             ),
         };
@@ -181,9 +205,8 @@ pub fn plan_with_resident(vram_gib: f64, model_params_b: f64, resident_per_b: f6
         grad_accum,
         over_budget: false,
         rationale: format!(
-            "VRAM {vram_gib:.0} GiB × {safety:.2} = {budget:.1} GiB budget; model resident \
-             ≈{resident:.1} GiB → seq {chosen_seq}, batch {batch_size}, grad_accum {grad_accum} \
-             (≈{used:.1} GiB est. peak)."
+            "{budget_gib:.1} GiB budget; model resident ≈{resident:.1} GiB → seq {chosen_seq}, \
+             batch {batch_size}, grad_accum {grad_accum} (≈{used:.1} GiB est. peak)."
         ),
     }
 }

@@ -411,6 +411,26 @@ pub fn load_registry() -> Option<serde_yaml::Value> {
     TrainPresetRegistry::load()
 }
 
+/// The canonical usable-VRAM budget (GiB) for the generic (non-Qwen-family)
+/// budget-fallback branch — routes through
+/// `memory_model::budget_gate_usable_bytes` so `SAFETY_FRACTION` is applied
+/// exactly once, with `vram_limit_fraction` (an operator-visible throttle,
+/// distinct from the baked-in safety margin) layered on top.
+///
+/// The result MUST be fed to `memory_budget::plan_with_resident_from_budget`,
+/// never to `plan_with_resident`/`plan_*_with_options` — those apply their own
+/// internal `safety_fraction()` on top of whatever `vram_gib` they're given,
+/// which would compound with this function's own `SAFETY_FRACTION`.
+fn resident_budget_gib(vram_gib: f64, vram_limit_fraction: Option<f32>) -> f64 {
+    use crate::mens::tensor::memory_model::{DeviceBudget, budget_gate_usable_bytes};
+    const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
+    let budget = DeviceBudget {
+        working_set_bytes: (vram_gib.max(0.0) * GIB).round() as u64,
+        operator_fraction: vram_limit_fraction.map(|f| f as f64),
+    };
+    budget_gate_usable_bytes(&budget) as f64 / GIB
+}
+
 /// Resolve preset from `VOX_TRAIN_PROFILE` env, CLI `--preset`, device heuristics, and overrides.
 ///
 /// Metal `"auto"` (including the omitted-preset default) fails closed when
@@ -518,10 +538,16 @@ pub fn resolve_effective_profile(
         Some((seq, batch, accum))
     } else if device.vram_mb > 0 {
         // Fallback: run budget planner internally
-        let mut vram_gib = (device.vram_mb as f64) / 1024.0;
-        if let Some(frac) = overrides.vram_limit_fraction {
-            vram_gib *= frac as f64;
-        }
+        //
+        // NOTE: `overrides.vram_limit_fraction` is deliberately NOT pre-multiplied
+        // into `vram_gib` here — the qwen-family `plan_*_with_options` calls below
+        // each apply their own internal safety fraction to whatever `vram_gib` they
+        // receive, so doing it here would compound two independent safety-margin
+        // applications. The generic (non-Qwen-family) branch instead routes through
+        // `memory_model::budget_gate_usable_bytes` via `resident_budget_gib`, the one
+        // canonical place the operator's fraction composes with the safety fraction
+        // exactly once.
+        let vram_gib = (device.vram_mb as f64) / 1024.0;
 
         let hint = model_hint.unwrap_or(crate::mens::DEFAULT_MODEL_ID);
         let params_b =
@@ -564,8 +590,9 @@ pub fn resolve_effective_profile(
                 gradient_checkpointing,
                 params_b,
             );
-            let p = crate::mens::tensor::memory_budget::plan_with_resident(
-                vram_gib,
+            let budget_gib = resident_budget_gib(vram_gib, overrides.vram_limit_fraction);
+            let p = crate::mens::tensor::memory_budget::plan_with_resident_from_budget(
+                budget_gib,
                 params_b,
                 resident_per_b,
             );
@@ -688,6 +715,45 @@ impl TrainingPreset {
             .filter(|(_, p)| p.max_vram_mb <= vram_mb)
             .max_by_key(|(_, p)| p.max_vram_mb)
             .map(|(k, v)| (k.as_str(), v))
+    }
+}
+
+#[cfg(test)]
+mod resident_budget_gib_tests {
+    use super::resident_budget_gib;
+
+    /// Fix-round regression test: previously `vram_gib *= vram_limit_fraction`
+    /// here, then the pre-scaled `vram_gib` was handed to
+    /// `memory_budget::plan_with_resident`, which multiplied by its own
+    /// internal safety fraction (`DEFAULT_SAFETY = 0.88`) again. This function
+    /// must apply the operator fraction exactly once, composed with
+    /// `memory_model::SAFETY_FRACTION`.
+    #[test]
+    fn operator_fraction_does_not_compound_with_a_second_safety_application() {
+        use crate::mens::tensor::memory_model::SAFETY_FRACTION;
+        let vram_gib = 24.0;
+        let got = resident_budget_gib(vram_gib, Some(0.8));
+        let expected = vram_gib * SAFETY_FRACTION * 0.8;
+        assert!(
+            (got - expected).abs() < 1e-6,
+            "got {got}, expected exactly one composed application: {expected}"
+        );
+        assert!(
+            got < vram_gib,
+            "an operator throttle must shrink the budget"
+        );
+    }
+
+    #[test]
+    fn no_operator_fraction_applies_only_safety_fraction() {
+        use crate::mens::tensor::memory_model::SAFETY_FRACTION;
+        let vram_gib = 24.0;
+        let got = resident_budget_gib(vram_gib, None);
+        let expected = vram_gib * SAFETY_FRACTION;
+        assert!(
+            (got - expected).abs() < 1e-6,
+            "got {got}, expected {expected}"
+        );
     }
 }
 

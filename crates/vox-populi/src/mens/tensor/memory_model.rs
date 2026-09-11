@@ -422,6 +422,12 @@ pub const SAFETY_FRACTION: f64 = 0.88;
 #[derive(Debug, Clone, Copy)]
 pub struct DeviceBudget {
     pub working_set_bytes: u64,
+    /// An operator-specified additional throttle (e.g. `--vram-limit-fraction`,
+    /// used to share a card with other processes or intentionally under-run
+    /// during background training) layered ON TOP of `SAFETY_FRACTION` — a
+    /// distinct, user-visible concern from the baked-in OOM margin, not a
+    /// second application of it. `None` means no additional throttle.
+    pub operator_fraction: Option<f64>,
 }
 
 /// What the caller is asking to run: the request `plan_for` reports on, not
@@ -450,11 +456,15 @@ pub struct Plan {
     pub usable_bytes: u64,
 }
 
-/// `SAFETY_FRACTION` taken off a device's working set — called from exactly
-/// two places: `plan_for` and `budget_gate_usable_bytes`, both of which must
-/// consume this value once, never re-scale it.
+/// `SAFETY_FRACTION` taken off a device's working set, then `operator_fraction`
+/// (if any) layered on top — called from exactly two places: `plan_for` and
+/// `budget_gate_usable_bytes`, both of which must consume this value once,
+/// never re-scale it and never re-apply `operator_fraction` a second time
+/// downstream (e.g. `memory_budget::plan_with_resident`'s own internal
+/// safety fraction).
 fn usable_bytes(budget: &DeviceBudget) -> u64 {
-    (budget.working_set_bytes as f64 * SAFETY_FRACTION).round() as u64
+    let operator = budget.operator_fraction.unwrap_or(1.0);
+    (budget.working_set_bytes as f64 * SAFETY_FRACTION * operator).round() as u64
 }
 
 /// Report whether `request` fits `shape` on `budget`, using the calibration
@@ -501,10 +511,12 @@ pub fn budget_gate_usable_bytes(budget: &DeviceBudget) -> u64 {
 mod plan_for_tests {
     use super::*;
 
-    /// M5 Max-shaped device budget: 128 GiB unified memory as the working set.
+    /// M5 Max-shaped device budget: 128 GiB unified memory as the working set,
+    /// no operator throttle.
     fn m5max() -> DeviceBudget {
         DeviceBudget {
             working_set_bytes: 128 * 1024 * 1024 * 1024,
+            operator_fraction: None,
         }
     }
 
@@ -570,6 +582,36 @@ lanes:
             once,
             "budget_gate must consume plan_for's usable_bytes, not scale it again"
         );
+    }
+
+    #[test]
+    fn an_operator_throttle_layers_on_top_of_safety_fraction_exactly_once() {
+        // Pins the composed behavior for Task 5's fix-round gap: `vram_limit_fraction`
+        // (an explicit, operator-visible cap — e.g. `--background` defaults it to 0.8)
+        // is a DIFFERENT concern from `SAFETY_FRACTION` (the baked-in OOM margin), so
+        // it layers ON TOP, applied exactly once by `usable_bytes` itself — never
+        // re-applied a second time downstream by a caller (that second application is
+        // the actual bug this fix-round closes: train_arm.rs/preset_schema.rs used to
+        // pre-multiply by this same fraction *and then* hand the result to
+        // `memory_budget::plan_with_resident`, which multiplied by its own internal
+        // safety fraction again).
+        let uncapped = DeviceBudget {
+            working_set_bytes: 128 * 1024 * 1024 * 1024,
+            operator_fraction: None,
+        };
+        let throttled = DeviceBudget {
+            operator_fraction: Some(0.8),
+            ..uncapped
+        };
+        let expected = (throttled.working_set_bytes as f64 * SAFETY_FRACTION * 0.8).round() as u64;
+        assert_eq!(
+            budget_gate_usable_bytes(&throttled),
+            expected,
+            "operator_fraction must compose with SAFETY_FRACTION exactly once, not compound \
+             with a second independent safety application"
+        );
+        // Sanity: the throttle must actually shrink the budget relative to uncapped.
+        assert!(budget_gate_usable_bytes(&throttled) < budget_gate_usable_bytes(&uncapped));
     }
 }
 

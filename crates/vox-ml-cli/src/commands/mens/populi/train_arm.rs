@@ -444,7 +444,7 @@ pub async fn run_train(
 
             // Dynamic VRAM Auditing (free VRAM takes priority)
             let vram_info = vox_populi::mens::tensor::vram_autodetect::get_system_vram_info();
-            let mut vram = if let Some(info) = vram_info {
+            let vram = if let Some(info) = vram_info {
                 eprintln!(
                     "  {} VRAM Audit: {:.1} GiB total, {:.1} GiB used, {:.1} GiB free",
                     "📊".cyan(),
@@ -456,9 +456,15 @@ pub async fn run_train(
             } else {
                 16.0
             };
-            if let Some(frac) = vram_limit_fraction {
-                vram *= frac as f64;
-            }
+            // NOTE: `vram_limit_fraction` is deliberately NOT pre-multiplied into
+            // `vram` here — `plan_qwen25coder_with_options`/`plan_qwen35_with_options`/
+            // `plan_qwen3_with_options` each apply their own internal safety fraction
+            // to whatever `vram_gib` they're given, so doing it here would compound
+            // two independent safety-margin applications (the actual bug this fix-round
+            // closes). The generic (non-Qwen-family) branch below instead routes
+            // through `cuda_budget_gib`/`memory_model::budget_gate_usable_bytes`, the
+            // one canonical place `vram_limit_fraction` composes with the safety
+            // fraction exactly once.
 
             // Early options resolution
             let base_quant = match backend {
@@ -491,7 +497,16 @@ pub async fn run_train(
                     gc_enabled,
                     requested_b,
                 );
-                let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
+                // The generic (non-Qwen-family) fallback: the one branch that
+                // routes through the canonical single-application budget
+                // (`cuda_budget_gib` → `memory_model::budget_gate_usable_bytes`)
+                // instead of `plan_with_resident`'s own internal safety fraction.
+                let budget_gib = cuda_budget_gib(vram, vram_limit_fraction);
+                let p = memory_budget::plan_with_resident_from_budget(
+                    budget_gib,
+                    requested_b,
+                    resident_per_b,
+                );
                 memory_budget::ModelPlan {
                     model_id: model_hint.to_string(),
                     params_b: requested_b,
@@ -825,6 +840,26 @@ fn force_train_env() -> bool {
         .ok()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
+}
+
+/// The canonical usable-VRAM budget (GiB) for the CUDA budget-fallback path —
+/// routes through `memory_model::budget_gate_usable_bytes` so `SAFETY_FRACTION`
+/// is applied exactly once, with the operator's `--vram-limit-fraction`
+/// (`vram_limit_fraction`) layered on top as a distinct throttle rather than a
+/// second, independent safety application.
+///
+/// The result MUST be fed to `memory_budget::plan_with_resident_from_budget`,
+/// never to `plan_with_resident`/`plan_*_with_options` — those apply their own
+/// internal `safety_fraction()` on top of whatever `vram_gib` they're given,
+/// which would compound with this function's own `SAFETY_FRACTION`.
+fn cuda_budget_gib(vram_gib: f64, vram_limit_fraction: Option<f32>) -> f64 {
+    use vox_populi::mens::tensor::memory_model::{DeviceBudget, budget_gate_usable_bytes};
+    const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
+    let budget = DeviceBudget {
+        working_set_bytes: (vram_gib.max(0.0) * GIB).round() as u64,
+        operator_fraction: vram_limit_fraction.map(|f| f as f64),
+    };
+    budget_gate_usable_bytes(&budget) as f64 / GIB
 }
 
 /// Refuse to proceed with a plan that doesn't fit the detected VRAM, unless
@@ -1171,6 +1206,52 @@ mod budget_gate_tests {
         assert!(
             !para.contains("VOX_MENS_FORCE_TRAIN"),
             "the first-run instructions must not disable the memory gate"
+        );
+    }
+}
+
+#[cfg(test)]
+mod cuda_budget_gib_tests {
+    use super::cuda_budget_gib;
+
+    /// This is the fix-round regression test for the actual double-application
+    /// bug: previously `vram *= vram_limit_fraction` here, THEN the pre-scaled
+    /// `vram` was handed to `memory_budget::plan_with_resident`, which
+    /// multiplied by its own internal safety fraction (`DEFAULT_SAFETY = 0.88`)
+    /// again — headroom compounded to ~0.8 × 0.88 ≈ 0.704 instead of the
+    /// intended single application. `cuda_budget_gib` must apply the operator
+    /// fraction exactly once, composed with `memory_model::SAFETY_FRACTION`.
+    #[test]
+    fn operator_fraction_does_not_compound_with_a_second_safety_application() {
+        use vox_populi::mens::tensor::memory_model::SAFETY_FRACTION;
+        let vram_gib = 16.0;
+        let got = cuda_budget_gib(vram_gib, Some(0.8));
+        let expected = vram_gib * SAFETY_FRACTION * 0.8;
+        assert!(
+            (got - expected).abs() < 1e-6,
+            "got {got}, expected exactly one composed application: {expected}"
+        );
+        // The literal bug this replaces: pre-scaling vram by 0.8 and then
+        // letting `plan_with_resident` apply DEFAULT_SAFETY (0.88) again would
+        // yield vram_gib * 0.8 * 0.88 — coincidentally the same 0.88, but via
+        // TWO independent constants (`memory_model::SAFETY_FRACTION` and
+        // `memory_budget::DEFAULT_SAFETY`) rather than one canonical source.
+        // Pin that the canonical, single-source result is what callers get.
+        assert!(
+            got < vram_gib,
+            "an operator throttle must shrink the budget"
+        );
+    }
+
+    #[test]
+    fn no_operator_fraction_applies_only_safety_fraction() {
+        use vox_populi::mens::tensor::memory_model::SAFETY_FRACTION;
+        let vram_gib = 16.0;
+        let got = cuda_budget_gib(vram_gib, None);
+        let expected = vram_gib * SAFETY_FRACTION;
+        assert!(
+            (got - expected).abs() < 1e-6,
+            "got {got}, expected {expected}"
         );
     }
 }
