@@ -369,8 +369,9 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 }
             }
 
-            // Serve via the built-in Axum server (execution-api feature) when available.
-            // Falls back to the external vox-schola binary only when execution-api is off.
+            // Serve via the built-in Axum server, gated behind the execution-api feature.
+            // There is no standalone "vox-schola" binary in this workspace to fall back
+            // to, so a binary built without execution-api can't serve locally at all.
             #[cfg(feature = "execution-api")]
             {
                 let cfg = crate::commands::ai::serve::ServeConfig {
@@ -388,22 +389,14 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
 
             #[cfg(not(feature = "execution-api"))]
             {
-                println!("Delegating to vox-schola serve...");
-                let mut cmd = std::process::Command::new("vox-schola");
-                cmd.arg("serve");
-                cmd.arg("--model").arg(model);
-                cmd.arg("--port").arg(port.to_string());
-                cmd.arg("--host").arg(host);
-                cmd.arg("--max-tokens").arg(max_tokens.to_string());
-                cmd.arg("--temperature").arg(temperature.to_string());
-
-                let status = cmd
-                    .status()
-                    .map_err(|e| anyhow::anyhow!("Failed to spawn vox-schola: {}", e))?;
-                if !status.success() {
-                    anyhow::bail!("vox-schola serve exited with status: {}", status);
-                }
-                Ok(())
+                let _ = (model, port, host, max_tokens, temperature);
+                anyhow::bail!(
+                    "vox mens serve requires the `execution-api` cargo feature, which was \
+                     not enabled when this binary was built.\n\n\
+                     To enable, rebuild from the workspace root with:\n\n  \
+                     cargo build -p vox-ml-cli --release --features gpu,execution-api,mens-candle-cuda\n\n\
+                     (swap `mens-candle-cuda` for the ML backend plugin matching this host)."
+                );
             }
         }
 

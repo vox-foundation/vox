@@ -43,6 +43,12 @@
       "path_glob": "**/vox-gui/src/commands/daemon.rs",
       "reason": "Legacy: already 525 non-blank lines on main before the 2026-08-01 llm-guidance-token-audit merge touched it (a clippy collapsible_if fix reduced it by 1 line). Pending decomposition, not introduced by this change.",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-ml-cli/src/commands/mens/populi/dispatch.rs",
+      "reason": "pub fn run() is the pre-existing CLI dispatch match (predates the 2026-09-10 qwen38-27b-hub Task 18 fix, which only edits the Serve arm's execution-api-off fallback). Unit-testing the full dispatch surface (constructing every PopuliAction variant, feature-gated arms) is a separate, out-of-scope effort.",
+      "owner": "robot"
     }
   ]
 }
