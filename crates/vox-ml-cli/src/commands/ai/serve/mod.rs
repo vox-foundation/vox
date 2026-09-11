@@ -242,7 +242,7 @@ mod tests {
     #[test]
     fn serve_config_defaults() {
         let cfg = ServeConfig::default();
-        assert_eq!(cfg.port, 8080);
+        assert_eq!(cfg.port, 11434);
         assert_eq!(cfg.max_tokens, 256);
         assert!((cfg.temperature - 0.7).abs() < 1e-6);
         assert_eq!(cfg.host, "127.0.0.1");
