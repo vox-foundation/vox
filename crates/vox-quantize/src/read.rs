@@ -80,6 +80,13 @@ fn header_entry_shape(entry: &serde_json::Value) -> Option<Vec<usize>> {
         .collect()
 }
 
+/// Dtype of a tensor from its safetensors header entry (`dtype: "F32"`) — no
+/// tensor data is read.
+fn header_entry_dtype(entry: &serde_json::Value) -> Option<candle_core::DType> {
+    let raw: safetensors::Dtype = serde_json::from_value(entry.get("dtype")?.clone()).ok()?;
+    candle_core::DType::try_from(raw).ok()
+}
+
 impl SafeTensorsSource {
     pub fn open(dir: &Path) -> Result<Self, QuantizeError> {
         let index = dir.join("model.safetensors.index.json");
@@ -174,6 +181,25 @@ impl SafeTensorsSource {
             }
         }
         Ok(shapes)
+    }
+
+    /// Dtype of each tensor, read from safetensors headers only — no tensor
+    /// data is loaded. Lets a merged-override write decide whether it needs
+    /// to cast without loading the base tensor's data.
+    pub(crate) fn tensor_dtypes(
+        &self,
+    ) -> Result<HashMap<String, candle_core::DType>, QuantizeError> {
+        let mut dtypes = HashMap::new();
+        for path in self.unique_paths() {
+            for (name, entry) in read_header(path)? {
+                if name != "__metadata__"
+                    && let Some(dtype) = header_entry_dtype(&entry)
+                {
+                    dtypes.insert(name, dtype);
+                }
+            }
+        }
+        Ok(dtypes)
     }
 
     fn unique_paths(&self) -> std::collections::HashSet<&PathBuf> {

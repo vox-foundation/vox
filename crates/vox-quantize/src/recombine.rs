@@ -47,8 +47,9 @@ pub fn recombine_with_shard_budget(
     }
 
     // Validate shape agreement up front, from headers only -- a merged
-    // override never needs the base tensor's data, only its shape.
+    // override never needs the base tensor's data, only its shape and dtype.
     let base_shapes = base.tensor_shapes()?;
+    let base_dtypes = base.tensor_dtypes()?;
     for (name, m) in merged {
         if let Some(base_dims) = base_shapes.get(name) {
             let merged_dims = m.dims().to_vec();
@@ -92,11 +93,19 @@ pub fn recombine_with_shard_budget(
     for (i, group) in groups.iter().enumerate() {
         let mut shard: HashMap<String, candle_core::Tensor> = HashMap::new();
         for name in group {
-            // A merged override replaces the base tensor outright -- its own
-            // dtype is preserved, with no upcast of either side, since the
-            // shape check above never needed the base tensor's data.
+            // A merged override replaces the base tensor outright. Its dtype
+            // is checked against the base's (from the header, not loaded
+            // data): matching dtypes are written as-is with no upcast at
+            // all; a mismatch is cast to the base's on-disk dtype so the
+            // recombined checkpoint never silently mixes dtypes for one
+            // logical tensor across a merge. `to_dtype` is only ever called
+            // on the small merged override, never on the (possibly huge)
+            // base tensor.
             let t = match merged.get(name) {
-                Some(m) => m.clone(),
+                Some(m) => match base_dtypes.get(name) {
+                    Some(&base_dtype) if m.dtype() != base_dtype => m.to_dtype(base_dtype)?,
+                    _ => m.clone(),
+                },
                 None => base.load_f32(name)?,
             };
             total_size += t.elem_count() as u64 * t.dtype().size_in_bytes() as u64;
@@ -304,5 +313,55 @@ mod tests {
             out.path(),
         );
         assert!(err.is_err(), "shape mismatch must error");
+    }
+
+    /// Catches: writing a merged override's dtype unconditionally
+    /// (`Some(m) => m.clone()` with no dtype check at all). A merged tensor
+    /// with a genuinely different dtype than its base counterpart must come
+    /// out of `recombine` in the base's dtype, not silently keep its own --
+    /// otherwise a reader that doesn't upcast every tensor (unlike
+    /// `SafeTensorsSource::load_f32`) gets mixed dtypes for what should be
+    /// one consistent checkpoint.
+    #[test]
+    fn merged_override_dtype_mismatch_is_cast_to_base_dtype() {
+        let dev = Device::Cpu;
+        let base = tempfile::tempdir().unwrap();
+        let merged = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
+
+        let mut b: HashMap<String, Tensor> = HashMap::new();
+        b.insert("w".into(), Tensor::full(1.0f32, (256, 256), &dev).unwrap());
+        candle_core::safetensors::save(&b, base.path().join("model.safetensors")).unwrap();
+        std::fs::write(base.path().join("config.json"), r#"{"model_type":"test"}"#).unwrap();
+
+        // Merged override is BF16 while the base tensor is F32.
+        let mut m: HashMap<String, Tensor> = HashMap::new();
+        m.insert(
+            "w".into(),
+            Tensor::full(2.0f32, (256, 256), &dev)
+                .unwrap()
+                .to_dtype(candle_core::DType::BF16)
+                .unwrap(),
+        );
+        candle_core::safetensors::save(&m, merged.path().join("merged.safetensors")).unwrap();
+
+        recombine(
+            base.path(),
+            &merged.path().join("merged.safetensors"),
+            out.path(),
+        )
+        .unwrap();
+
+        let result =
+            candle_core::safetensors::load(out.path().join("model.safetensors"), &dev).unwrap();
+        assert_eq!(
+            result["w"].dtype(),
+            candle_core::DType::F32,
+            "a merged override that disagrees with the base's dtype must be cast to the base's dtype, not written as-is"
+        );
+        assert_eq!(
+            result["w"].mean_all().unwrap().to_scalar::<f32>().unwrap(),
+            2.0
+        );
     }
 }
