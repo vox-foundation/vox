@@ -55,10 +55,11 @@ pub struct HfTransformerLayout {
     pub linear_value_head_dim: Option<usize>,
     pub linear_conv_kernel_dim: Option<usize>,
     /// Whether the checkpoint ties `lm_head.weight` to the input embedding matrix.
-    /// Read from root-level `tie_word_embeddings`, falling back to the same key
-    /// nested under `text_config` for VLM-shaped checkpoints. Defaults to `true`
-    /// (the legacy tied-embeddings behavior) when the key is absent entirely, since
-    /// small Qwen3 dense checkpoints rely on that default.
+    /// Read from `text_config.tie_word_embeddings` when the checkpoint is
+    /// VLM-shaped (the text tower's own block is authoritative, matching how every
+    /// other dim here is read), falling back to the root-level key. Defaults to
+    /// `true` (the legacy tied-embeddings behavior) when the key is absent from
+    /// both, since small Qwen3 dense checkpoints rely on that default.
     pub tie_word_embeddings: bool,
     /// Same numbers as the HF fields above, in [`ConfigDims`] shape (legacy / graph code).
     pub dims: ConfigDims,
@@ -151,8 +152,16 @@ impl HfTransformerLayout {
         }
 
         let cfg_source = qwen35_text_config(v, architecture).unwrap_or(v);
-        let tie_word_embeddings = json_bool(v, "tie_word_embeddings")
-            .or_else(|| json_bool(cfg_source, "tie_word_embeddings"))
+        // Read from `cfg_source` first, falling back to the root, for the same
+        // reason every other field above reads `cfg_source`: on a VLM-shaped
+        // checkpoint the text tower's own `text_config` block is authoritative,
+        // and a wrapper-level root value can describe the multimodal model rather
+        // than the text tower we are extracting. Identical either way for the
+        // common case where `cfg_source == v`. Defaults to `true` (legacy tied
+        // behavior) when absent from both, since small Qwen3 dense checkpoints
+        // rely on that default.
+        let tie_word_embeddings = json_bool(cfg_source, "tie_word_embeddings")
+            .or_else(|| json_bool(v, "tie_word_embeddings"))
             .unwrap_or(true);
 
         // Llama / Mistral / Qwen2 / Qwen3.5 and many causal LMs.
@@ -703,6 +712,33 @@ mod tests {
         assert!(
             !layout.tie_word_embeddings,
             "nested tie_word_embeddings=false under text_config must be honored"
+        );
+    }
+
+    #[test]
+    fn nested_tie_word_embeddings_wins_over_a_conflicting_root() {
+        // When a VLM-shaped config declares the key in BOTH places and they
+        // disagree, the text tower's own `text_config` value is authoritative —
+        // the root can describe the wrapper multimodal model, not the text tower
+        // this layout represents. Reading the root here would make an untied text
+        // tower look tied, and the QLoRA trainer would then derive the LM head
+        // from the embedding matrix instead of loading the real `lm_head.weight`.
+        let raw = r#"{
+            "model_type":"qwen3_5",
+            "architectures":["Qwen3_5ForConditionalGeneration"],
+            "tie_word_embeddings":true,
+            "text_config":{
+                "hidden_size":1024,
+                "num_attention_heads":16,
+                "num_hidden_layers":4,
+                "vocab_size":151936,
+                "tie_word_embeddings":false
+            }
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("qwen3_5 parse");
+        assert!(
+            !layout.tie_word_embeddings,
+            "text_config.tie_word_embeddings must win over a conflicting root value"
         );
     }
 

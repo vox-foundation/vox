@@ -133,6 +133,17 @@ pub fn needed_gib(params_b: f64, bpw: f64) -> f64 {
 /// margin; callers wanting headroom should pass a smaller `usable_gib`.
 /// A `Manual` mixture without a usable bpw estimate is never rejected here
 /// (unknown, not infeasible).
+///
+/// **Accuracy caveat:** the boosted-role split is pinned to
+/// [`QWEN3_27B_BOOSTED_ROLE_FRACTION`], measured from `Qwen/Qwen3.8-27B`. That
+/// fraction is a property of the *architecture*, not of the mixture, so the
+/// estimate drifts for models whose embedding/LM-head share of total parameters
+/// differs materially — a small model with a large vocabulary (e.g. Qwen3-0.6B,
+/// where embeddings alone are a quarter of all parameters) has a much higher
+/// boosted fraction, so its true bpw is higher than this computes and the check
+/// can pass a model that does not actually fit. Treat a `true` here as "not
+/// obviously too big" rather than a guarantee. Use [`mixture_bpw`] directly with
+/// a measured fraction when the architecture is known.
 pub fn fits_target_tier(params_b: f64, mixture: &QuantMixture, usable_gib: f64) -> bool {
     match mixture_bpw(mixture, QWEN3_27B_BOOSTED_ROLE_FRACTION) {
         Some(bpw) => needed_gib(params_b, bpw) <= usable_gib,

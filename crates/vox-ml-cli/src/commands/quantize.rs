@@ -89,7 +89,8 @@ pub fn run(args: QuantizeArgs) -> anyhow::Result<()> {
             .unwrap_or(f64::NAN);
             let needed = vox_quantize::needed_gib(params_b, bpw);
             anyhow::bail!(
-                "{:.1}B params at --to {} needs ~{needed:.1} GiB, target has ~{target_gib:.1} GiB, short by ~{:.1} GiB — try a larger tier or a different --to mixture",
+                "{:.1}B params at --to {} needs ~{needed:.1} GiB, target has ~{target_gib:.1} GiB, short by ~{:.1} GiB — try a larger tier or a different --to mixture \
+                 (estimate is weights-only and assumes the Qwen3-27B boosted-role split; it is approximate for other architectures)",
                 params_b,
                 args.to,
                 needed - target_gib,
