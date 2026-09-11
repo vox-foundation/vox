@@ -18608,6 +18608,7 @@ dependencies = [
  "hf-hub",
  "jsonschema",
  "jsonwebtoken",
+ "objc2-metal",
  "openapiv3",
  "owo-colors 4.3.0",
  "qlora-rs",

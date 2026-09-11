@@ -34,9 +34,29 @@ impl HardwareRegistry {
     }
 
     /// Monitors real-time telemetry (not cached).
-    /// NVML telemetry is owned by vox-plugin-nvml-probe.
+    ///
+    /// Metal (macOS): live via `MTLDevice.currentAllocatedSize` /
+    /// `recommendedMaxWorkingSetSize` (see [`macos_metal::monitor_metal`]).
+    ///
+    /// CUDA: **not yet wired**. `vox-plugin-nvml-probe` (layer 3) reports this
+    /// telemetry, but `vox-populi` is layer 2 — a static dependency would be an
+    /// upward edge disallowed by the crate-layers "downward-only" rule (see
+    /// `contracts/ci/crate-layers.v1.json`), and adding a `crate-edges`
+    /// exception is user-authorized-only (see `AGENTS.md` §Dependency
+    /// Discipline). `vox-orchestrator` (also layer 3) already calls
+    /// `vox_plugin_nvml_probe::probe::device_metrics()` directly — see
+    /// `crates/vox-orchestrator/src/models/vram.rs` for the pattern to reuse
+    /// once a human approves either a ledger exception or moving this call
+    /// site to a layer-3-or-above crate.
     pub fn monitor() -> Option<types::GpuTelemetry> {
-        None
+        #[cfg(target_os = "macos")]
+        {
+            macos_metal::monitor_metal()
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            None
+        }
     }
 
     /// Invalidates the cache, forcing the next [`Self::probe`] call to re-probe.

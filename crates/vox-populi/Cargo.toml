@@ -51,6 +51,7 @@ mens = [
     "dep:vox-db",
     "dep:vox-bounded-fs",
     "dep:vox-hf-layout",
+    "dep:objc2-metal",
 ]
 mens-candle-qlora = [
     "mens",
@@ -158,6 +159,15 @@ vox-package.workspace = true
 # mens-candle-qlora. Gated under that same feature so the dep tracks its consumer.
 vox-quantize = { workspace = true, optional = true }
 vox-orchestrator-queue.workspace = true
+
+# macOS-only: live GPU memory telemetry for HardwareRegistry::monitor(). Already
+# pinned in Cargo.lock via candle-core (mens-candle-qlora), so this adds no new
+# crate version, only a direct dependency edge for `mens/hardware/macos_metal.rs`.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-metal = { version = "0.3.2", optional = true, default-features = false, features = [
+    "std",
+    "MTLDevice",
+] }
 
 [dev-dependencies]
 jsonschema = { workspace = true, default-features = false }
