@@ -7,14 +7,31 @@
 //! "this shape fits and here's how much it costs" — an `Oom` row's peak is
 //! real memory pressure, but selecting it as the best-known-good point would
 //! recommend the shape that just failed.
+//!
+//! ## Current calibration status: `candle-metal` is NOT fit
+//!
+//! As of 2026-09-11 exactly one real `Fits` record exists for the
+//! `candle-metal` lane (Qwen3-0.6B, batch=2×seq=512, on this repo's Apple M5
+//! Max dev host) — see
+//! `docs/src/architecture/measurements/2026-09-11-candle-metal-calibration.json`
+//! and its companion `.md` writeup for the full story, including a real
+//! `preset_schema.rs` bug that silently changed the requested shape. One
+//! point cannot determine a slope (`fit_a_lane` below refuses on purpose —
+//! see `single_real_candle_metal_point_refuses_to_fit`), so `a_candle_metal`
+//! has no fitted value yet. A second measurement (same host/lane, a
+//! different `tokens_per_step` or model) is a follow-up, not a blocker:
+//! callers needing a memory-budget coefficient for `candle-metal` today
+//! should treat it as `Seeded`/`Uncalibrated`, the same honest-absence
+//! pattern `accel_budget::query_accel_budget()` already uses for the CUDA
+//! lane on non-macOS (returns `None` rather than a fabricated number).
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FitOutcome {
     Fits,
     Oom,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CalibrationRecord {
     pub host_key: String,
     pub lane: String,
@@ -210,6 +227,41 @@ mod tests {
         assert!(
             fit_a_lane(&rows).is_none(),
             "one point cannot determine a slope; fitting it invents a degree of freedom"
+        );
+    }
+
+    /// The single real `candle-metal` measurement on disk (see the module
+    /// doc comment) must parse into a `CalibrationRecord`, and `fit_a_lane`
+    /// must honestly refuse to fit a slope from it alone — this documents
+    /// the current calibration state rather than hiding it.
+    #[test]
+    fn single_real_candle_metal_point_refuses_to_fit() {
+        let raw = include_str!(
+            "../../../../../docs/src/architecture/measurements/2026-09-11-candle-metal-calibration.json"
+        );
+        let doc: serde_json::Value = serde_json::from_str(raw).expect("valid JSON");
+        let records: Vec<CalibrationRecord> = serde_json::from_value(doc["records"].clone())
+            .expect("records parse as CalibrationRecord");
+
+        assert_eq!(
+            records.len(),
+            1,
+            "exactly one real candle-metal point exists so far"
+        );
+        let r = &records[0];
+        assert_eq!(r.host_key, "AppleM5Max-115448725504");
+        assert_eq!(r.lane, "candle-metal");
+        assert_eq!(r.model, "Qwen/Qwen3-0.6B");
+        assert_eq!(r.layers, 28);
+        assert_eq!(r.hidden, 1024);
+        assert_eq!(r.tokens_per_step, 1024);
+        assert_eq!(r.outcome, FitOutcome::Fits);
+        assert_eq!(r.peak_bytes, Some(53_439_004_672));
+
+        assert!(
+            fit_a_lane(&records).is_none(),
+            "a_candle_metal must not be fit from a single point; it is honestly Uncalibrated \
+             until a second measurement lands"
         );
     }
 }
