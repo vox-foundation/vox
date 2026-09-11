@@ -128,12 +128,28 @@ format ADR is at
 
 ### 5.1 Q4_K_M does not fit a 16 GB 4080
 
-Mixture: `0.78 × 4.500 + 0.22 × 6.5625 = 4.954` bpw.
-Weights alone: `27e9 × 4.954 / 8 = 15.57 GiB`.
+The Q6_K-boosted role share is **0.303**, measured from the checkpoint's own
+safetensors headers (every tensor classified with `TensorRole::from_key`,
+element counts summed) — not estimated:
+
+| role | shape | count | params |
+|---|---|---|---|
+| `down_proj` | 5120 × 17408 | 65 (64 layers + 1 MTP) | 5,793,382,400 |
+| `embed_tokens` | 248320 × 5120 | 1 | 1,271,398,400 |
+| `lm_head` | 248320 × 5120 | 1 (untied — counted separately) | 1,271,398,400 |
+| `v_proj` | 1024 × 5120 | 17 (16 full-attn + 1 MTP) | 89,128,960 |
+| **boosted total** | | | **8,425,308,160** |
+| **all params** | | | **27,781,427,952** |
+
+`8,425,308,160 / 27,781,427,952 = 0.3033`.
+
+Mixture: `0.697 × 4.500 + 0.303 × 6.5625 = 5.125` bpw.
+Weights alone: `27e9 × 5.125 / 8 = 16.11 GiB` (at the checkpoint's real
+27.78e9 params, 16.57 GiB).
 A live 16 GB device reports **13926 MB** usable
 (`vram_autodetect.rs:309-310`) ≈ 15.1 GiB — the weights already overflow before
-any cache. Add ~2.0 GiB KV at 8k and ~0.8 GiB buffers → **18.4 GiB needed**,
-short by ~3.3 GiB at any useful context.
+any cache. Add ~2.0 GiB KV at 8k and ~0.8 GiB buffers → **18.9 GiB needed**,
+short by ~3.8 GiB at any useful context.
 
 Fitting 16 GB requires **≤ 3.9 bpw** (Q3_K_M ≈ 12.3 GiB). `QuantMixture`
 (`crates/vox-quantize/src/policy.rs:50-56`) has **no Q3 variant** —
@@ -182,11 +198,20 @@ The machinery is already written and unwired: `paired_compare` and
 sites**, and `corpus_score.rs:105` already emits `per_problem_pass_at_1` for
 exactly this purpose.
 
+`evaluate_gate` expects `paired` to come from
+**`paired_compare(baseline, challenger)`** — argument order is load-bearing.
+Under that order `paired.b_only` is the **regression** count (baseline passed,
+challenger failed) and `paired.c_only` is the **improvement** count (challenger
+passed, baseline failed). The field names read as "the first/second argument's
+exclusive passes", not "baseline/challenger" — do not swap the call order or
+rename the fields to match intuition, or the gate inverts (blocking
+improvements, passing regressions).
+
 | Rule | Threshold |
 |---|---|
 | Regression definition | failed **all 3** greedy draws |
-| Block | `c_only > 3` on 164 |
-| Block | `c_only > b_only` **and** McNemar p < 0.05 |
+| Block | `b_only > 3` on 164 (regressions: baseline passed, challenger failed) |
+| Block | `b_only > c_only` **and** McNemar p < 0.05 (net regression) |
 | Absolute floor | `n_cheated == 0` |
 | Absolute floor | `compile_rate >= 0.90` |
 | Absolute floor | `pass_at_1 >= 0.60` |

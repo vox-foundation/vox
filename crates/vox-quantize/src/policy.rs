@@ -95,10 +95,18 @@ pub fn bits_per_weight(dtype: GgmlDType) -> f64 {
 /// all bumped to Q6K by `QuantMixture::target_for`) rather than the default
 /// Matrix role. `target_for` only maps *a* role to *a* dtype — it has no
 /// notion of how many parameters each role covers, which is a property of
-/// the checkpoint's architecture, not of the policy. Measured for
-/// Qwen3.8-27B's layer layout; see
-/// docs/superpowers/specs/2026-09-10-qwen38-27b-hub-design.md §5.1.
-pub const QWEN3_27B_BOOSTED_ROLE_FRACTION: f64 = 0.22;
+/// the checkpoint's architecture, not of the policy.
+///
+/// Measured directly from `Qwen/Qwen3.8-27B`'s safetensors headers by
+/// classifying every tensor with `TensorRole::from_key` and summing
+/// element counts (27,781,427,952 total params):
+///   down_proj  65 x 5120 x 17408 = 5,793,382,400  (64 layers + 1 MTP layer)
+///   embed_tokens   248320 x 5120 = 1,271,398,400
+///   lm_head        248320 x 5120 = 1,271,398,400  (untied, counted separately)
+///   v_proj     17 x 1024 x 5120  =    89,128,960  (16 full-attn + 1 MTP layer)
+///                        total   = 8,425,308,160 / 27,781,427,952 = 0.3033
+/// See docs/superpowers/specs/2026-09-10-qwen38-27b-hub-design.md §5.1.
+pub const QWEN3_27B_BOOSTED_ROLE_FRACTION: f64 = 0.303;
 
 /// Weighted-average bits-per-weight for `mixture`, given the fraction of
 /// parameters in "boosted" roles (DownProj/VProj/Embedding/Output) vs the
@@ -239,20 +247,21 @@ mod tests {
 
     #[test]
     fn q4km_mixture_bpw_matches_spec_arithmetic() {
-        // 0.78 x 4.500 + 0.22 x 6.5625 = 4.95375 (spec §5.1, rounded there
-        // to 4.954). The dtype bpw terms come from bits_per_weight (real
-        // candle_core block layout); only the 0.78/0.22 role split is a
-        // named architecture constant.
+        // 0.697 x 4.500 + 0.303 x 6.5625 = 5.1249375 (spec §5.1, rounded
+        // there to 5.125). The dtype bpw terms come from bits_per_weight
+        // (real candle_core block layout); only the 0.697/0.303 role split
+        // is a named architecture constant.
         let bpw = mixture_bpw(&QuantMixture::Q4KM, QWEN3_27B_BOOSTED_ROLE_FRACTION).unwrap();
         assert!(
-            (bpw - 4.95375).abs() < 1e-9,
-            "expected ~4.95375 bpw, got {bpw}"
+            (bpw - 5.1249375).abs() < 1e-9,
+            "expected ~5.1249375 bpw, got {bpw}"
         );
     }
 
     #[test]
     fn q4_k_m_27b_is_rejected_for_16gb_tier() {
-        // 27e9 params * 4.95375 bpw / 8 / GiB ~= 15.57 GiB > 15.1 GiB usable.
+        // 27e9 params * 5.1249375 bpw / 8 / GiB ~= 16.11 GiB > 15.1 GiB
+        // usable. (At the checkpoint's real 27.78e9 params: ~16.57 GiB.)
         assert!(!fits_target_tier(27.0, &QuantMixture::Q4KM, 15.1));
         // A genuinely sufficient tier (spec's 24 GB minimum consume target)
         // fits the same mixture.
