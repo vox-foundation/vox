@@ -4,7 +4,11 @@ use candle_core::Device;
 use std::collections::HashMap;
 use std::path::Path;
 
-/// Build a complete f32 model in `out_dir` by taking every base tensor and
+/// Default shard budget: matches the common Hugging Face convention so
+/// recombined output looks like an ordinary sharded checkpoint.
+const DEFAULT_SHARD_BYTES: u64 = 5 * 1024 * 1024 * 1024;
+
+/// Build a complete model in `out_dir` by taking every base tensor and
 /// overwriting the keys present in the merged subset. Errors if the subset
 /// contains a key absent from the base (a sign of an adapter/base mismatch).
 pub fn recombine(
@@ -12,8 +16,25 @@ pub fn recombine(
     merged_subset: &Path,
     out_dir: &Path,
 ) -> Result<(), QuantizeError> {
-    let base = SafeTensorsSource::open(base_dir)?;
     let merged = candle_core::safetensors::load(merged_subset, &Device::Cpu)?;
+    recombine_with_shard_budget(base_dir, &merged, out_dir, DEFAULT_SHARD_BYTES)
+}
+
+/// Same as [`recombine`], but writes shards of at most `shard_bytes` each
+/// instead of one unsharded file, and takes the merged overrides already
+/// loaded rather than a path to load them from.
+///
+/// Never holds more than one shard's worth of tensors resident: sizes for
+/// grouping come from safetensors headers (no tensor data read), and each
+/// shard's tensors are loaded, written, and dropped before the next group is
+/// read.
+pub fn recombine_with_shard_budget(
+    base_dir: &Path,
+    merged: &HashMap<String, candle_core::Tensor>,
+    out_dir: &Path,
+    shard_bytes: u64,
+) -> Result<(), QuantizeError> {
+    let base = SafeTensorsSource::open(base_dir)?;
 
     let base_names: std::collections::HashSet<&str> =
         base.tensor_names().iter().map(|s| s.as_str()).collect();
@@ -25,27 +46,84 @@ pub fn recombine(
         }
     }
 
-    let mut complete: HashMap<String, candle_core::Tensor> = HashMap::new();
-    for name in base.tensor_names() {
-        let t = match merged.get(name) {
-            Some(m) => {
-                let base_tensor = base.load_f32(name)?;
-                let merged_dims = m.dims().to_vec();
-                let base_dims = base_tensor.dims().to_vec();
-                if merged_dims != base_dims {
-                    return Err(QuantizeError::ReadModel(format!(
-                        "merged key `{name}` shape {merged_dims:?} does not match base shape {base_dims:?} — adapter/base mismatch"
-                    )));
-                }
-                m.to_dtype(candle_core::DType::F32)?
+    // Validate shape agreement up front, from headers only -- a merged
+    // override never needs the base tensor's data, only its shape.
+    let base_shapes = base.tensor_shapes()?;
+    for (name, m) in merged {
+        if let Some(base_dims) = base_shapes.get(name) {
+            let merged_dims = m.dims().to_vec();
+            if &merged_dims != base_dims {
+                return Err(QuantizeError::ReadModel(format!(
+                    "merged key `{name}` shape {merged_dims:?} does not match base shape {base_dims:?} — adapter/base mismatch"
+                )));
             }
-            None => base.load_f32(name)?,
-        };
-        complete.insert(name.clone(), t);
+        }
     }
 
+    // Group tensor names into shards by byte size alone -- no tensor data is
+    // read for this pass, so the shard count is known before the first write.
+    let sizes = base.tensor_byte_sizes()?;
+    let mut groups: Vec<Vec<String>> = Vec::new();
+    let mut current: Vec<String> = Vec::new();
+    let mut current_bytes: u64 = 0;
+    for name in base.tensor_names() {
+        let size = sizes.get(name).copied().unwrap_or(0);
+        if !current.is_empty() && current_bytes + size > shard_bytes {
+            groups.push(std::mem::take(&mut current));
+            current_bytes = 0;
+        }
+        current.push(name.clone());
+        current_bytes += size;
+    }
+    if !current.is_empty() {
+        groups.push(current);
+    }
+    let shard_count = groups.len();
+    // A model whose whole checkpoint fits under one budget still writes the
+    // plain unsharded `model.safetensors` (no index) that `recombine`
+    // produced before this change -- sharding machinery with one shard would
+    // otherwise be an unannounced output-format break for every small model.
+    let sharded = shard_count > 1;
+
     std::fs::create_dir_all(out_dir)?;
-    candle_core::safetensors::save(&complete, out_dir.join("model.safetensors"))?;
+    let mut weight_map = serde_json::Map::new();
+    let mut total_size: u64 = 0;
+
+    for (i, group) in groups.iter().enumerate() {
+        let mut shard: HashMap<String, candle_core::Tensor> = HashMap::new();
+        for name in group {
+            // A merged override replaces the base tensor outright -- its own
+            // dtype is preserved, with no upcast of either side, since the
+            // shape check above never needed the base tensor's data.
+            let t = match merged.get(name) {
+                Some(m) => m.clone(),
+                None => base.load_f32(name)?,
+            };
+            total_size += t.elem_count() as u64 * t.dtype().size_in_bytes() as u64;
+            shard.insert(name.clone(), t);
+        }
+        let filename = if sharded {
+            format!("model-{:05}-of-{:05}.safetensors", i + 1, shard_count)
+        } else {
+            "model.safetensors".to_string()
+        };
+        candle_core::safetensors::save(&shard, out_dir.join(&filename))?;
+        for name in group {
+            weight_map.insert(name.clone(), serde_json::Value::String(filename.clone()));
+        }
+        // `shard` drops here, before the next group is loaded.
+    }
+
+    if sharded {
+        let index = serde_json::json!({
+            "metadata": { "total_size": total_size },
+            "weight_map": weight_map,
+        });
+        let bytes = serde_json::to_vec_pretty(&index)
+            .map_err(|e| QuantizeError::ReadModel(format!("failed to serialize index: {e}")))?;
+        std::fs::write(out_dir.join("model.safetensors.index.json"), bytes)?;
+    }
+
     let cfg = base_dir.join("config.json");
     if cfg.exists() {
         std::fs::copy(&cfg, out_dir.join("config.json"))?;
@@ -58,6 +136,67 @@ mod tests {
     use super::*;
     use candle_core::{Device, Tensor};
     use std::collections::HashMap;
+
+    /// Write a single-file base checkpoint of F32 tensors with the given
+    /// element counts, plus a minimal config.json, and return its directory.
+    fn write_fake_base(root: &std::path::Path, tensors: &[(&str, usize)]) -> std::path::PathBuf {
+        let dir = root.join("base");
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut map: HashMap<String, Tensor> = HashMap::new();
+        for (name, elems) in tensors {
+            map.insert(
+                (*name).to_string(),
+                Tensor::zeros((*elems,), candle_core::DType::F32, &Device::Cpu).unwrap(),
+            );
+        }
+        candle_core::safetensors::save(&map, dir.join("model.safetensors")).unwrap();
+        std::fs::write(dir.join("config.json"), r#"{"model_type":"test"}"#).unwrap();
+        dir
+    }
+
+    #[test]
+    fn recombine_does_not_hold_the_whole_model_resident() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = write_fake_base(
+            dir.path(),
+            &[("a", 4096), ("b", 4096), ("c", 4096), ("d", 4096)],
+        );
+        let out = dir.path().join("out");
+        recombine_with_shard_budget(&base, &HashMap::new(), &out, 8192).unwrap();
+
+        let shards = std::fs::read_dir(&out)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".safetensors"))
+            .count();
+        assert!(
+            shards >= 2,
+            "a model larger than the shard budget must be written in shards, got {shards}"
+        );
+        assert!(
+            out.join("model.safetensors.index.json").exists(),
+            "sharded output needs an index or no reader can load it"
+        );
+    }
+
+    #[test]
+    fn recombine_preserves_every_tensor_across_shards() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = write_fake_base(
+            dir.path(),
+            &[("a", 4096), ("b", 4096), ("c", 4096), ("d", 4096)],
+        );
+        let out = dir.path().join("out");
+        recombine_with_shard_budget(&base, &HashMap::new(), &out, 8192).unwrap();
+        let index: serde_json::Value = serde_json::from_reader(
+            std::fs::File::open(out.join("model.safetensors.index.json")).unwrap(),
+        )
+        .unwrap();
+        let map = index["weight_map"].as_object().expect("weight_map");
+        for name in ["a", "b", "c", "d"] {
+            assert!(map.contains_key(name), "sharding dropped tensor `{name}`");
+        }
+    }
 
     #[test]
     fn merged_subset_overrides_base_keys() {

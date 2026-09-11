@@ -31,7 +31,7 @@ struct ShardIndex {
 /// enumerate `st.keys()`, which materializes the whole checkpoint and then
 /// drops it. On the unsharded intermediate `recombine` writes, that is the
 /// entire model in RAM before any tensor has been quantized.
-fn header_tensor_names(path: &Path) -> Result<Vec<String>, QuantizeError> {
+fn read_header(path: &Path) -> Result<serde_json::Map<String, serde_json::Value>, QuantizeError> {
     use std::io::Read;
     let mut f = std::fs::File::open(path)?;
     let mut len_buf = [0u8; 8];
@@ -47,14 +47,37 @@ fn header_tensor_names(path: &Path) -> Result<Vec<String>, QuantizeError> {
     f.read_exact(&mut header)?;
     let json: serde_json::Value = serde_json::from_slice(&header)
         .map_err(|e| QuantizeError::ReadModel(format!("{}: {e}", path.display())))?;
-    let obj = json.as_object().ok_or_else(|| {
+    json.as_object().cloned().ok_or_else(|| {
         QuantizeError::ReadModel(format!("header is not an object in {}", path.display()))
-    })?;
-    Ok(obj
+    })
+}
+
+fn header_tensor_names(path: &Path) -> Result<Vec<String>, QuantizeError> {
+    Ok(read_header(path)?
         .keys()
         .filter(|k| k.as_str() != "__metadata__")
         .cloned()
         .collect())
+}
+
+/// Byte length of a tensor's data section, from its safetensors header entry
+/// (`data_offsets: [start, end]`) — no tensor data is read.
+fn header_entry_byte_len(entry: &serde_json::Value) -> Option<u64> {
+    let offsets = entry.get("data_offsets")?.as_array()?;
+    let start = offsets.first()?.as_u64()?;
+    let end = offsets.get(1)?.as_u64()?;
+    end.checked_sub(start)
+}
+
+/// Shape of a tensor from its safetensors header entry (`shape: [..]`) — no
+/// tensor data is read.
+fn header_entry_shape(entry: &serde_json::Value) -> Option<Vec<usize>> {
+    entry
+        .get("shape")?
+        .as_array()?
+        .iter()
+        .map(|v| v.as_u64().map(|n| n as usize))
+        .collect()
 }
 
 impl SafeTensorsSource {
@@ -117,6 +140,44 @@ impl SafeTensorsSource {
             QuantizeError::ReadModel(format!("tensor `{name}` missing from shard"))
         })?;
         Ok(t.to_dtype(candle_core::DType::F32)?)
+    }
+
+    /// Byte size of each tensor's data, read from safetensors headers only —
+    /// no tensor data is loaded. Headers are grouped by file so each is
+    /// parsed once regardless of how many tensors it holds.
+    pub(crate) fn tensor_byte_sizes(&self) -> Result<HashMap<String, u64>, QuantizeError> {
+        let mut sizes = HashMap::new();
+        for path in self.unique_paths() {
+            for (name, entry) in read_header(path)? {
+                if name != "__metadata__"
+                    && let Some(len) = header_entry_byte_len(&entry)
+                {
+                    sizes.insert(name, len);
+                }
+            }
+        }
+        Ok(sizes)
+    }
+
+    /// Shape of each tensor, read from safetensors headers only — no tensor
+    /// data is loaded. Lets a merged-override shape check skip loading the
+    /// base tensor entirely.
+    pub(crate) fn tensor_shapes(&self) -> Result<HashMap<String, Vec<usize>>, QuantizeError> {
+        let mut shapes = HashMap::new();
+        for path in self.unique_paths() {
+            for (name, entry) in read_header(path)? {
+                if name != "__metadata__"
+                    && let Some(shape) = header_entry_shape(&entry)
+                {
+                    shapes.insert(name, shape);
+                }
+            }
+        }
+        Ok(shapes)
+    }
+
+    fn unique_paths(&self) -> std::collections::HashSet<&PathBuf> {
+        self.map.values().collect()
     }
 
     /// Number of shard files actually deserialized by `load_f32`. Test-only

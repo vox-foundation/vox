@@ -194,7 +194,8 @@ pub fn run_merge_qlora(
             .parent()
             .map(std::path::Path::to_path_buf)
             .unwrap_or_else(|| std::path::PathBuf::from("."));
-        // recombine writes <recombined>/model.safetensors + copies base config.json
+        // recombine writes <recombined>/model.safetensors (or sharded
+        // model-*.safetensors + index, for large bases) + copies base config.json
         let recombined = out_parent.join("recombined_full");
         // Clear any stale recombined dir so a prior sharded run's
         // model.safetensors.index.json can't mislead the reader.
