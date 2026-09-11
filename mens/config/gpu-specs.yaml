@@ -245,8 +245,13 @@ presets:
 # variant whose floor_mb <= detected VRAM. methods = train methods this base supports.
 # Keys match domain-profiles.yaml base.model values exactly.
 train_bases:
-  # Qwen3 dense ladder — revision-pinned. NOTE: @<sha> hashes are placeholders;
-  # pin to real HF commit hashes (hf_id@sha) before production training runs.
+  # Qwen3 dense ladder — revision-pinned. NOTE: every Qwen3 @<sha> below is a
+  # real, pinned HF commit hash (verified by the vox-populi integration test
+  # gpu_specs_agentic_default_qwen3_hf_ids_have_real_sha_format); the legacy
+  # Qwen2.5-Coder rungs are intentionally left unpinned (floating to `main`).
+  # Do not add a Qwen3 rung with an unpinned/placeholder revision —
+  # ensure_not_placeholder() rejects it at train/dispatch time, but that
+  # guard runs late; keep entries pinned up front.
   qwen3_code:
     - { hf_id: "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca", floor_mb: 2000,  methods: [qlora] }   # CPU / ≤8 GB dev
     - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",   floor_mb: 12000, methods: [qlora] }   # 16 GB tier
