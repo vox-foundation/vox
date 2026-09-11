@@ -8,7 +8,9 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use candle_core::{DType, Device, Tensor};
@@ -33,6 +35,89 @@ pub(super) const QLORA_ETA_EMA_ALPHA: f64 = 0.2;
 
 /// Global flag for graceful interruption (Ctrl+C).
 pub(super) static PAUSE_FLAG: AtomicBool = AtomicBool::new(false);
+
+/// Samples a training device's currently-allocated bytes on a background
+/// thread, retaining the maximum observed value. This is what turns a
+/// `CalibrationRecord::peak_bytes` (see `vox_populi::mens::tensor::calibration`)
+/// into a real measurement of an actual `candle-metal` run instead of a
+/// predicted estimate — no external tooling, no Python probe.
+pub struct PeakSampler {
+    peak_bytes: Arc<AtomicU64>,
+    stop: Arc<AtomicBool>,
+    handle: Option<std::thread::JoinHandle<()>>,
+}
+
+impl PeakSampler {
+    /// Starts sampling `device` every `interval`, from before the first
+    /// training step. A non-Metal device (CPU, CUDA, or a build without the
+    /// `metal` feature) reports a constant 0 for the life of the sampler —
+    /// an honest "unmeasured", not a fabricated number (same convention as
+    /// `vox_populi::mens::tensor::accel_budget::query_accel_budget` on
+    /// non-macOS).
+    pub fn start(device: &Device, interval: Duration) -> Self {
+        let peak_bytes = Arc::new(AtomicU64::new(0));
+        let stop = Arc::new(AtomicBool::new(false));
+        let handle =
+            spawn_peak_sampler_thread(device, interval, Arc::clone(&peak_bytes), Arc::clone(&stop));
+        Self {
+            peak_bytes,
+            stop,
+            handle,
+        }
+    }
+
+    /// The largest allocated-bytes value observed since `start`. Read this
+    /// after the last training step.
+    pub fn observed_peak_bytes(&self) -> u64 {
+        self.peak_bytes.load(Ordering::Relaxed)
+    }
+}
+
+impl Drop for PeakSampler {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+#[cfg(feature = "metal")]
+fn spawn_peak_sampler_thread(
+    device: &Device,
+    interval: Duration,
+    peak_bytes: Arc<AtomicU64>,
+    stop: Arc<AtomicBool>,
+) -> Option<std::thread::JoinHandle<()>> {
+    let Device::Metal(metal_device) = device else {
+        return None;
+    };
+    // Verified against objc2-metal's precedent in `accel_budget.rs`: this
+    // crate reaches the same `MTLDevice` through the `metal` crate that
+    // candle-core's Metal backend is built on (`MetalDevice::metal_device`,
+    // candle-core 0.10.2 `src/metal_backend/device.rs:126`), and
+    // `currentAllocatedSize` is `metal::Device::current_allocated_size`
+    // (`metal` 0.29.0 `src/device.rs:2096`).
+    let metal_device = metal_device.metal_device().clone();
+    Some(std::thread::spawn(move || {
+        while !stop.load(Ordering::Relaxed) {
+            let current = metal_device.current_allocated_size() as u64;
+            peak_bytes.fetch_max(current, Ordering::Relaxed);
+            std::thread::sleep(interval);
+        }
+    }))
+}
+
+#[cfg(not(feature = "metal"))]
+#[rustfmt::skip] // keeps the toestub-ignore comment pinned to the fn signature line
+fn spawn_peak_sampler_thread( // toestub-ignore(skeleton/hollow-fn): honest "unmeasured" stub for builds without the `metal` feature, matching accel_budget::query_accel_budget's non-macOS `None` — there is no allocated-bytes reading to take.
+    _device: &Device,
+    _interval: Duration,
+    _peak_bytes: Arc<AtomicU64>,
+    _stop: Arc<AtomicBool>,
+) -> Option<std::thread::JoinHandle<()>> {
+    None
+}
 
 /// Resolve which tensor backs `lm_head.weight`: the real untied head when the
 /// checkpoint has one, otherwise the tied-embeddings fallback.
@@ -1192,5 +1277,16 @@ mod tests {
                  Metal device is present, proving the two builders are distinct"
             );
         }
+    }
+
+    /// A non-Metal device (CPU here; also true for CUDA and for a build
+    /// without the `metal` feature) must report 0, not a fabricated number —
+    /// the same "honest unmeasured" convention `accel_budget::query_accel_budget`
+    /// uses on non-macOS.
+    #[test]
+    fn peak_sampler_on_a_non_metal_device_reports_zero() {
+        let sampler = PeakSampler::start(&Device::Cpu, std::time::Duration::from_millis(1));
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        assert_eq!(sampler.observed_peak_bytes(), 0);
     }
 }

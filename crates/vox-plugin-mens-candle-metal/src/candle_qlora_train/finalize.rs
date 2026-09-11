@@ -79,6 +79,7 @@ pub(super) fn finalize_training_run(
     last_avg_val_loss: Option<f64>,
     stats: TrainingLoopStats,
     run_start_inst: Instant,
+    peak_metal_bytes: u64,
 ) -> Result<TrainingSummary> {
     let final_path = out.join("candle_qlora_adapter.safetensors");
     trainer
@@ -156,6 +157,7 @@ pub(super) fn finalize_training_run(
             "skip_token_id_oob": stats.skip_token_id_oob,
             "final_adapter": final_path.display().to_string(),
             "run_id": run_id,
+            "peak_metal_allocated_bytes": peak_metal_bytes,
         }),
     )?;
 
@@ -199,6 +201,7 @@ pub(super) fn finalize_training_run(
             "avg_train_loss": final_avg_loss,
             "avg_val_loss_last_epoch": last_avg_val_loss,
             "total_tokens": total_tokens,
+            "peak_metal_allocated_bytes": peak_metal_bytes,
             "artifacts": {
                 "final_adapter": final_path.display().to_string(),
                 "training_skip_stats": out.join("training_skip_stats.json").display().to_string(),
