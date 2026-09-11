@@ -355,7 +355,16 @@ pub fn get_resident_per_b(
     };
     let gc_offset = if gradient_checkpointing {
         if is_qwen35_model {
-            -1.8 + QWEN35_GC_OFFSET_SLOPE_PER_B * (model_params_b - 4.0)
+            // The slope is calibrated only over the validated [4, 27] range (the two
+            // hardware/spec anchors). Clamp the size used in the slope term to 27.0 so a
+            // future rung larger than the 27B anchor reuses the 27B rate instead of
+            // extrapolating the line further — that extrapolation goes negative around
+            // B≈42 (see Finding 2), which would make `plan_with_resident` compute a
+            // negative resident and inflate the apparent activation budget. Failing safe
+            // here means a mildly conservative (higher-than-needed) resident estimate for
+            // hypothetical >27B models, not a pathological one.
+            let slope_b = model_params_b.min(27.0);
+            -1.8 + QWEN35_GC_OFFSET_SLOPE_PER_B * (slope_b - 4.0)
         } else {
             -1.8
         }
@@ -1002,6 +1011,61 @@ mod semcov_wave15_tests {
             pct_off <= 0.10,
             "resident({resident}) must be within 10% of measured target {target}, off by {:.1}%",
             pct_off * 100.0
+        );
+    }
+
+    #[test]
+    fn qwen35_9b_gc_resident_per_b_is_pinned() {
+        use crate::mens::tensor::finetune_contract::BaseQuantMode;
+        // Pins the CURRENT computed value for the real, already-shipping 9B rung in
+        // QWEN35_LADDER under gradient checkpointing (train_arm.rs / preset_schema.rs
+        // auto-enable GC for any qwen35 request >= 2.9B, so this path is reachable in
+        // production). This is a disclosed documentation-of-behavior test, NOT a
+        // hardware-verified claim — no 9B hardware measurement exists (only 4B and 27B
+        // are calibration anchors). If this value changes, that's a deliberate formula
+        // change to review, not an accidental drift.
+        let per_b = get_resident_per_b("Qwen/Qwen3.5-9B", BaseQuantMode::Nf4, true, 9.0);
+        assert!(
+            (per_b - 1.4968).abs() < 1e-9,
+            "9B qwen3.5 GC resident_per_b changed: expected 1.4968, got {per_b}"
+        );
+    }
+
+    #[test]
+    fn qwen35_ladder_plan_covers_gradient_checkpointing_path() {
+        // Ladder-level coverage for gradient_checkpointing = true on a qwen3.5 size.
+        // Every existing ladder test hardcodes gradient_checkpointing = false, so the
+        // size-dependent GC formula (and its interaction with plan_with_resident) had
+        // zero coverage beyond the two isolated anchor-point assertions above.
+        use crate::mens::tensor::finetune_contract::BaseQuantMode;
+        let p = plan_qwen35_with_options(24.0, 9.0, BaseQuantMode::Nf4, true);
+        assert_eq!(p.model_id, "Qwen/Qwen3.5-9B");
+        assert!(
+            !p.over_budget,
+            "9B with GC should fit 24 GiB, got over_budget: {}",
+            p.rationale
+        );
+    }
+
+    #[test]
+    fn qwen35_gc_offset_clamps_slope_beyond_27b_anchor() {
+        use crate::mens::tensor::finetune_contract::BaseQuantMode;
+        // The linear slope is calibrated only over [4, 27] (the two hardware/spec
+        // anchors). Beyond 27B it must clamp to the 27B rate rather than continuing the
+        // line — unclamped, the line crosses zero around B≈42 and goes strongly negative
+        // by B=60, which would make plan_with_resident's `budget - resident` inflate the
+        // apparent activation budget (a dangerously large planned seq_len/batch_size).
+        let per_b_27 = get_resident_per_b("Qwen/Qwen3.5-27B", BaseQuantMode::Nf4, true, 27.0);
+        let per_b_50 = get_resident_per_b("Qwen/Qwen3.5-50B", BaseQuantMode::Nf4, true, 50.0);
+        assert_eq!(
+            per_b_27, per_b_50,
+            "resident_per_b for a hypothetical >27B model must clamp to the 27B rate"
+        );
+        // And the result must stay sane (positive resident), not go pathological.
+        let resident_50 = resident_gib_at(50.0, per_b_50);
+        assert!(
+            resident_50 > 0.0,
+            "resident for a hypothetical 50B model must stay positive, got {resident_50}"
         );
     }
 
