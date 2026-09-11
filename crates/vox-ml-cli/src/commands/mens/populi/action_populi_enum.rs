@@ -423,6 +423,18 @@ pub enum PopuliAction {
         /// consume it. Without this the directory is deleted after quantizing.
         #[arg(long, default_value_t = false)]
         keep_merged: bool,
+        /// Write a quantized GGUF here via llama.cpp. Required for Qwen3
+        /// bases, which `ollama create` refuses. Implies --keep-merged.
+        #[arg(long)]
+        gguf_out: Option<PathBuf>,
+        /// Path to a cloned and built llama.cpp checkout (provides
+        /// convert_hf_to_gguf.py and llama-quantize). Required with
+        /// --gguf-out. A flag rather than an env var: the checkout is a
+        /// per-invocation input, and a new VOX_* var would need rows in
+        /// registry.v1.yaml, env-vars.v1.yaml and config-registry-baseline.txt
+        /// plus bumps to two exact-count config gates.
+        #[arg(long, requires = "gguf_out")]
+        llama_cpp: Option<PathBuf>,
     },
 
     /// Export merged safetensors weights to GGUF (not yet implemented).

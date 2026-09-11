@@ -459,7 +459,18 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             output,
             quantize,
             keep_merged,
-        } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output, quantize, keep_merged),
+            gguf_out,
+            llama_cpp,
+        } => merge_qlora::run_merge_qlora(
+            base_shard,
+            adapter,
+            meta,
+            output,
+            quantize,
+            keep_merged,
+            gguf_out,
+            llama_cpp,
+        ),
 
         PopuliAction::ExportGguf { input, output } => {
             anyhow::bail!(

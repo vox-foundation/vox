@@ -5,7 +5,7 @@
 //! via `MlBackend::merge_adapter`.
 //! The adapter directory must contain `adapter_manifest.json` (v3) written by training.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
@@ -79,7 +79,17 @@ pub fn run_merge_qlora(
     output: PathBuf,
     quantize: Option<String>,
     keep_merged: bool,
+    gguf_out: Option<PathBuf>,
+    llama_cpp: Option<PathBuf>,
 ) -> anyhow::Result<()> {
+    // clap's `requires = "gguf_out"` on --llama-cpp covers only that
+    // direction; --gguf-out without --llama-cpp must be rejected here.
+    if gguf_out.is_some() && llama_cpp.is_none() {
+        anyhow::bail!("--gguf-out requires --llama-cpp <checkout dir>");
+    }
+    // The converter needs the recombined directory that --keep-merged
+    // preserves; force it on rather than making the user pass both.
+    let keep_merged = keep_merged || gguf_out.is_some();
     if base_shards.is_empty() {
         anyhow::bail!("pass at least one `--base-shard` safetensors path");
     }
@@ -184,12 +194,14 @@ pub fn run_merge_qlora(
         );
     }
 
-    // Optional: recombine the merged subset over the full base weights and
-    // quantize the result. `output` is the merged-subset FILE; `base_dir` is the
-    // directory holding the base model (config.json + shards), derived above as
-    // the parent of the first `--base-shard`.
-    if let Some(mixture_str) = quantize.as_deref() {
-        let mixture = crate::commands::quantize::parse_mixture(mixture_str)?;
+    // Optional: recombine the merged subset over the full base weights,
+    // optionally quantize (vox's own mixture) and/or export a llama.cpp
+    // GGUF. `output` is the merged-subset FILE; `base_dir` is the directory
+    // holding the base model (config.json + shards), derived above as the
+    // parent of the first `--base-shard`. --gguf-out needs the recombined
+    // directory even without --quantize, since llama.cpp does its own
+    // quantization downstream.
+    if quantize.is_some() || gguf_out.is_some() {
         let out_parent = output
             .parent()
             .map(std::path::Path::to_path_buf)
@@ -202,25 +214,89 @@ pub fn run_merge_qlora(
         let _ = std::fs::remove_dir_all(&recombined);
         vox_quantize::recombine::recombine(&base_dir, &output, &recombined)
             .with_context(|| format!("recombine over base {}", base_dir.display()))?;
-        let q_out = out_parent.join("quantized");
-        // Clear any stale quantized dir from a prior run before reuse.
-        let _ = std::fs::remove_dir_all(&q_out);
-        let report = vox_quantize::quantize(&vox_quantize::QuantizeRequest {
-            input_dir: recombined.clone(),
-            output_dir: q_out.clone(),
-            mixture,
-            verify: true,
-            device: vox_quantize::DevicePref::Auto, // GPU when available
-        })
-        .with_context(|| "quantize recombined model")?;
-        println!(
-            "Quantized merged model -> {} ({:.2}x)",
-            q_out.display(),
-            report.compression_ratio
-        );
+
+        if let Some(mixture_str) = quantize.as_deref() {
+            let mixture = crate::commands::quantize::parse_mixture(mixture_str)?;
+            let q_out = out_parent.join("quantized");
+            // Clear any stale quantized dir from a prior run before reuse.
+            let _ = std::fs::remove_dir_all(&q_out);
+            let report = vox_quantize::quantize(&vox_quantize::QuantizeRequest {
+                input_dir: recombined.clone(),
+                output_dir: q_out.clone(),
+                mixture,
+                verify: true,
+                device: vox_quantize::DevicePref::Auto, // GPU when available
+            })
+            .with_context(|| "quantize recombined model")?;
+            println!(
+                "Quantized merged model -> {} ({:.2}x)",
+                q_out.display(),
+                report.compression_ratio
+            );
+        }
+
         finish_recombined(&recombined, &base_dir, keep_merged)?;
+
+        if let (Some(gguf_out), Some(llama_cpp)) = (gguf_out.as_deref(), llama_cpp.as_deref()) {
+            // llama-quantize's k-quant names are the uppercase spelling of
+            // vox's own --quantize mixture names (q4_k_m -> Q4_K_M); default
+            // to Q4_K_M when --quantize was not passed.
+            let quant = quantize
+                .as_deref()
+                .map(str::to_uppercase)
+                .unwrap_or_else(|| "Q4_K_M".to_string());
+            run_llama_cpp_lane(llama_cpp, &recombined, gguf_out, &quant)?;
+        }
     }
 
+    Ok(())
+}
+
+/// Runs the llama.cpp GGUF lane end to end: locate the converter and
+/// quantizer, run both subprocesses, and clean up the f16 intermediate on
+/// success (left in place on failure so a retry can resume at quantize).
+fn run_llama_cpp_lane(
+    llama_cpp: &Path,
+    merged_dir: &Path,
+    gguf_out: &Path,
+    quant: &str,
+) -> anyhow::Result<()> {
+    let converter = llama_cpp.join("convert_hf_to_gguf.py");
+    if !converter.is_file() {
+        anyhow::bail!(
+            "--llama-cpp checkout is missing convert_hf_to_gguf.py: checked {}",
+            converter.display()
+        );
+    }
+    let quantizer = llama_cpp.join("build/bin/llama-quantize");
+    if !quantizer.is_file() {
+        anyhow::bail!(
+            "--llama-cpp checkout is missing the built llama-quantize binary: checked {}",
+            quantizer.display()
+        );
+    }
+
+    let (convert_argv, quantize_argv) = llama_cpp_commands(llama_cpp, merged_dir, gguf_out, quant);
+    let intermediate = gguf_out.with_extension("f16.gguf");
+
+    let status = std::process::Command::new(&convert_argv[0])
+        .args(&convert_argv[1..])
+        .status()
+        .with_context(|| format!("spawn {}", convert_argv[0]))?;
+    if !status.success() {
+        anyhow::bail!("convert_hf_to_gguf.py failed (status {status})");
+    }
+
+    let status = std::process::Command::new(&quantize_argv[0])
+        .args(&quantize_argv[1..])
+        .status()
+        .with_context(|| format!("spawn {}", quantize_argv[0]))?;
+    if !status.success() {
+        anyhow::bail!("llama-quantize failed (status {status})");
+    }
+
+    let _ = std::fs::remove_file(&intermediate);
+    println!("Wrote GGUF -> {}", gguf_out.display());
     Ok(())
 }
 
@@ -287,6 +363,117 @@ fn finish_recombined(
         recombined.display()
     );
     Ok(())
+}
+
+/// The two argv vectors for the llama.cpp GGUF lane: convert the merged
+/// SafeTensors *directory* to an f16 gguf, then quantize that intermediate
+/// to `quant`.
+///
+/// This lane exists because `ollama create` refuses Qwen3ForCausalLM (MENS's
+/// default base) and its --experimental converter cannot emit k-quants. For
+/// llama/gemma2 bases the Ollama lane is cheaper; see `--keep-merged`.
+///
+/// `convert_hf_to_gguf.py` is llama.cpp's own script, invoked as a
+/// third-party tool. AGENTS.md's VoxScript-first rule bans glue *we author*;
+/// it does not require reimplementing someone else's converter.
+#[must_use]
+pub fn llama_cpp_commands(
+    llama_cpp: &Path,
+    merged_dir: &Path,
+    gguf_out: &Path,
+    quant: &str,
+) -> (Vec<String>, Vec<String>) {
+    let intermediate = gguf_out.with_extension("f16.gguf");
+    let convert = vec![
+        "python3".to_string(),
+        llama_cpp
+            .join("convert_hf_to_gguf.py")
+            .display()
+            .to_string(),
+        merged_dir.display().to_string(),
+        "--outfile".to_string(),
+        intermediate.display().to_string(),
+        "--outtype".to_string(),
+        "f16".to_string(),
+    ];
+    let quantize = vec![
+        llama_cpp
+            .join("build/bin/llama-quantize")
+            .display()
+            .to_string(),
+        intermediate.display().to_string(),
+        gguf_out.display().to_string(),
+        quant.to_string(),
+    ];
+    (convert, quantize)
+}
+
+#[cfg(test)]
+mod gguf_lane_tests {
+    use super::*;
+
+    /// Catches: pointing the converter at the merged .safetensors FILE
+    /// instead of the directory. convert_hf_to_gguf.py takes a model
+    /// directory (it reads config.json and the tokenizer beside the
+    /// weights); handed a file it exits with a usage error that reads like
+    /// a missing dependency.
+    #[test]
+    fn the_converter_is_given_the_directory_and_the_quantizer_the_file() {
+        let (convert, quantize) = llama_cpp_commands(
+            std::path::Path::new("/opt/llama.cpp"),
+            std::path::Path::new("/tmp/merged/recombined_full"),
+            std::path::Path::new("/tmp/out/model-q4_k_m.gguf"),
+            "Q4_K_M",
+        );
+        assert!(
+            convert.iter().any(|a| a == "/tmp/merged/recombined_full"),
+            "converter must take the model directory: {convert:?}"
+        );
+        assert!(
+            convert.iter().any(|a| a.ends_with("convert_hf_to_gguf.py")),
+            "{convert:?}"
+        );
+        assert!(
+            !convert.iter().any(|a| a.ends_with(".safetensors")),
+            "the converter takes a directory, never a weights file: {convert:?}"
+        );
+
+        assert!(
+            quantize.iter().any(|a| a.ends_with("llama-quantize")),
+            "{quantize:?}"
+        );
+        assert!(
+            quantize.last().is_some_and(|a| a == "Q4_K_M"),
+            "llama-quantize takes the type as its LAST argument: {quantize:?}"
+        );
+    }
+
+    /// Catches: emitting the f16 intermediate at the final --gguf-out path.
+    /// llama-quantize reads one gguf and writes another; if both are the
+    /// same path it truncates its own input and produces a corrupt file
+    /// with a zero exit status on some builds.
+    #[test]
+    fn the_intermediate_and_the_final_gguf_are_different_paths() {
+        let (convert, quantize) = llama_cpp_commands(
+            std::path::Path::new("/opt/llama.cpp"),
+            std::path::Path::new("/tmp/merged/recombined_full"),
+            std::path::Path::new("/tmp/out/model-q4_k_m.gguf"),
+            "Q4_K_M",
+        );
+        let intermediate = convert
+            .iter()
+            .find(|a| a.ends_with(".gguf"))
+            .expect("converter writes a gguf: {convert:?}");
+        assert_ne!(
+            intermediate.as_str(),
+            "/tmp/out/model-q4_k_m.gguf",
+            "the f16 intermediate must not be the final output path"
+        );
+        assert!(
+            quantize.iter().any(|a| a == intermediate),
+            "llama-quantize must read the intermediate the converter wrote: {quantize:?}"
+        );
+    }
 }
 
 #[cfg(test)]
