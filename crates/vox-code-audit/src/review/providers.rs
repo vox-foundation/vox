@@ -211,6 +211,10 @@ mod ollama_ssot_tests {
     /// With the literal, OLLAMA_URL cannot redirect the client, so
     /// mens-serving-ssot.md's "point POPULI_URL at your server" story is
     /// false for every vox-code-audit review.
+    // ponytail: this crate has no shared env-mutation lock (unlike
+    // vox-orchestrator-mcp's CHAT_MESSAGE_ENV_LOCK); a second test racing
+    // OLLAMA_URL under `cargo test`'s default parallelism would flake. Add
+    // one if a second OLLAMA_URL-mutating test lands in this crate.
     #[test]
     fn ollama_default_url_resolves_through_the_config_ssot() {
         // SAFETY: single-threaded scope; the var is restored below and no

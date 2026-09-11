@@ -1429,6 +1429,7 @@ mod tests {
     /// loses its tools with no error anywhere.
     #[test]
     fn ollama_keeps_tool_calling_when_the_url_secret_is_unset() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
         // SAFETY: restored below; no other test here reads these keys.
         unsafe {
             std::env::remove_var("OLLAMA_URL");
