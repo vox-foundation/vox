@@ -6,62 +6,31 @@ fn main() {
     print("  ╚══════════════════════════════════════════════════╝")
     print("")
 
-    let mut domain = "vox-lang"
-    let domain_env = env.get("VOX_MENS_DOMAIN")
-    if domain_env isnt null {
-        domain = domain_env.unwrap()
-    }
+    let domain = env.get("VOX_MENS_DOMAIN").unwrap_or("vox-lang")
+    let epochs = env.get("VOX_MENS_EPOCHS").unwrap_or("3")
+    let device = env.get("VOX_MENS_DEVICE").unwrap_or("cuda")
+    let preset = env.get("VOX_MENS_PRESET").unwrap_or("qwen_4080_16g")
 
-    let mut epochs = "3"
-    let epochs_env = env.get("VOX_MENS_EPOCHS")
-    if epochs_env isnt null {
-        epochs = epochs_env.unwrap()
-    }
-
-    let mut device = "cuda"
-    let device_env = env.get("VOX_MENS_DEVICE")
-    if device_env isnt null {
-        device = device_env.unwrap()
-    }
-
-    let mut preset = "qwen_4080_16g"
-    let preset_env = env.get("VOX_MENS_PRESET")
-    if preset_env isnt null {
-        preset = preset_env.unwrap()
-    }
-
-    let skip_mix_env = env.get("VOX_MENS_SKIP_MIX")
-    let skip_eval_env = env.get("VOX_MENS_SKIP_EVAL")
-    let background_env = env.get("VOX_MENS_BACKGROUND")
+    let skip_mix_val = env.get("VOX_MENS_SKIP_MIX").unwrap_or("")
+    let skip_eval_val = env.get("VOX_MENS_SKIP_EVAL").unwrap_or("")
+    let background_val = env.get("VOX_MENS_BACKGROUND").unwrap_or("")
 
     let mut skip_mix = false
-    if skip_mix_env isnt null {
-        let val = skip_mix_env.unwrap()
-        if val == "1" { skip_mix = true }
-        if val == "true" { skip_mix = true }
-    }
+    if skip_mix_val == "1" { skip_mix = true }
+    if skip_mix_val == "true" { skip_mix = true }
 
     let mut skip_eval = false
-    if skip_eval_env isnt null {
-        let val = skip_eval_env.unwrap()
-        if val == "1" { skip_eval = true }
-        if val == "true" { skip_eval = true }
-    }
+    if skip_eval_val == "1" { skip_eval = true }
+    if skip_eval_val == "true" { skip_eval = true }
 
     let mut background = false
-    if background_env isnt null {
-        let val = background_env.unwrap()
-        if val == "1" { background = true }
-        if val == "true" { background = true }
-    }
+    if background_val == "1" { background = true }
+    if background_val == "true" { background = true }
 
-    let force_env = env.get("VOX_MENS_FORCE_TRAIN")
+    let force_val = env.get("VOX_MENS_FORCE_TRAIN").unwrap_or("")
     let mut force_train = false
-    if force_env isnt null {
-        let val = force_env.unwrap()
-        if val == "1" { force_train = true }
-        if val == "true" { force_train = true }
-    }
+    if force_val == "1" { force_train = true }
+    if force_val == "true" { force_train = true }
 
     print("  Domain:   " + domain)
     print("  Epochs:   " + epochs)
