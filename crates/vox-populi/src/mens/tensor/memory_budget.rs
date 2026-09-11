@@ -607,6 +607,50 @@ pub fn params_b_from_model_hint(hint: &str) -> Option<f64> {
     None
 }
 
+/// A single out-of-memory event observed mid-training, carried from the
+/// step loop to [`render_oom`] for an actionable report and to the
+/// calibration telemetry for the constants documented at the top of this
+/// file.
+#[derive(Debug, Clone, Copy)]
+pub struct OomEvent {
+    pub step: u32,
+    pub observed_bytes: u64,
+    pub batch_size: usize,
+    pub seq_len: usize,
+    pub predicted_bytes: u64,
+}
+
+/// True if `e` is a CUDA or Metal allocator failure, false for anything else
+/// (I/O, config, etc.) — a training run must refuse-and-checkpoint on a real
+/// OOM but must not mistake an unrelated failure (e.g. a missing data file)
+/// for one and suggest lowering the batch size.
+///
+/// Matches both driver lanes' actual strings, not just CUDA's — CUDA and
+/// Metal report allocator failure differently, and Metal additionally
+/// surfaces some OOMs as a generic command-buffer error (code 8).
+pub fn is_oom(e: &anyhow::Error) -> bool {
+    let s = e.to_string().to_ascii_lowercase();
+    s.contains("out of memory")
+        || s.contains("greater than the maximum allowed buffer size")
+        || s.contains("mtlcommandbuffererror(8)")
+}
+
+/// Render an [`OomEvent`] into an actionable, human-readable report: where
+/// training died, what shape it was attempting, and that the run checkpointed
+/// and can be resumed.
+pub fn render_oom(ev: &OomEvent) -> String {
+    format!(
+        "out of memory at step {step}: attempting batch {batch} seq_len {seq_len} \
+         (predicted {predicted:.2} GiB, observed {observed:.2} GiB peak); \
+         checkpoint flushed, resume the run to continue",
+        step = ev.step,
+        batch = ev.batch_size,
+        seq_len = ev.seq_len,
+        predicted = ev.predicted_bytes as f64 / 1e9,
+        observed = ev.observed_bytes as f64 / 1e9,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1128,5 +1172,39 @@ mod semcov_wave15_tests {
                 "QWEN3_LADDER id must be a Qwen3 base, got {id}"
             );
         }
+    }
+
+    #[test]
+    fn every_lanes_oom_is_recognised_and_nothing_else_is() {
+        for s in [
+            "CUDA out of memory. Tried to allocate 2.00 GiB",
+            "[METAL] Attempting to allocate 122.10 GiB which is greater than the maximum allowed buffer size",
+            "Metal error: MTLCommandBufferError(8)",
+        ] {
+            assert!(is_oom(&anyhow::anyhow!("{s}")), "missed a real OOM: {s}");
+        }
+        assert!(
+            !is_oom(&anyhow::anyhow!(
+                "failed to open train.jsonl: No such file or directory"
+            )),
+            "a disk error must not be reported as an OOM, or the fix suggested is wrong"
+        );
+    }
+
+    #[test]
+    fn an_oom_report_names_the_step_the_shape_and_the_recovery() {
+        let s = render_oom(&OomEvent {
+            step: 412,
+            observed_bytes: 96_000_000_000,
+            batch_size: 4,
+            seq_len: 1024,
+            predicted_bytes: 122_100_000_000,
+        });
+        assert!(s.contains("412"), "say where it died: {s}");
+        assert!(
+            s.contains("batch 4") && s.contains("1024"),
+            "say what it was attempting: {s}"
+        );
+        assert!(s.contains("checkpoint"), "say the run is resumable: {s}");
     }
 }

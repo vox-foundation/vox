@@ -8,6 +8,9 @@ pub mod events {
     pub const TRAIN_STEP: &str = "step";
     pub const TRAIN_COMPLETE: &str = "train_complete";
     pub const GPU_FALLBACK: &str = "gpu_fallback";
+    /// Emitted once when the step loop classifies an allocator failure as an
+    /// OOM; doubles as a calibration record for `memory_budget.rs` constants.
+    pub const OOM: &str = "oom";
 }
 
 /// Common payload keys across Burn and Candle.

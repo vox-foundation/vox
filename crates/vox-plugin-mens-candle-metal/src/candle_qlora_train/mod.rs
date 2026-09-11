@@ -1067,6 +1067,7 @@ mod db_thread;
 mod device_select;
 mod epoch_boundary;
 mod finalize;
+mod oom;
 mod training_loop;
 mod validation;
 

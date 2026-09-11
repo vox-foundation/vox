@@ -55,6 +55,18 @@
       "path_glob": "**/vox-plugin-browser/src/hosts.rs",
       "reason": "existing_host_policy's Ok(()) body is the pre-existing, intentional no-op policy (a host already in the map may take another page, so there is nothing to reject) -- predates the 2026-09-10 clippy-wave fix in this file, which only gates debug_host_key behind #[cfg(test)]. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-plugin-mens-candle-metal/src/candle_qlora_train/training_loop/mod.rs",
+      "reason": "run_training_loop drives a live Candle/Metal QLoRA trainer end to end; exercised via integration/manual training runs, not a unit harness. Pre-existing (file had zero #[test] blocks before Task 7 OOM wiring touched it).",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/mod.rs",
+      "reason": "run_training_loop drives a live Candle/CUDA QLoRA trainer end to end; exercised via integration/manual training runs, not a unit harness. Pre-existing (file had zero #[test] blocks before Task 7 OOM wiring touched it).",
+      "owner": "robot"
     }
   ]
 }
