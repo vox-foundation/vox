@@ -313,7 +313,7 @@ See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-sso
 | `VOX_MENS_EXPERIMENTAL_OPTIMIZER` | Guard flag required when `optimizer_experiment_mode` is set to a non-`off` value. |
 | `VOX_MENS_SKIP_EVAL` | `1` / `true` — skip Step 2 pre-flight eval gate in `full-pipeline.vox` (use when `eval_results.json` is stale or absent on first run). |
 | `VOX_MENS_SKIP_MIX` | `1` / `true` — skip Step 1 corpus mix in `full-pipeline.vox` (use when corpus is already fresh). |
-| `VOX_MENS_FORCE_TRAIN` | `1` / `true` — proceed past a failing pre-flight or post-train gate in `full-pipeline.vox`; marks receipt as degraded. Dev iteration only. |
+| `VOX_MENS_FORCE_TRAIN` | `1` / `true` — proceed past a failing pre-flight or post-train gate in `full-pipeline.vox`, and past `vox mens train`'s VRAM budget gate (`budget_gate` in `train_arm.rs`); marks receipt as degraded. Dev iteration only. |
 | `VOX_MENS_BACKGROUND` | `1` / `true` — spawn training as a background process in `full-pipeline.vox`. |
 | `VOX_MENS_DOMAIN` | Domain adapter target for `full-pipeline.vox` (default: `vox-lang`). Selects the domain-specific mix config (`mix-{domain}.yaml`). |
 | `VOX_MENS_EPOCHS` | Override training epoch count for `full-pipeline.vox` (default: `3`). |
