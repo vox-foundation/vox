@@ -31,7 +31,9 @@ struct ShardIndex {
 /// enumerate `st.keys()`, which materializes the whole checkpoint and then
 /// drops it. On the unsharded intermediate `recombine` writes, that is the
 /// entire model in RAM before any tensor has been quantized.
-fn read_header(path: &Path) -> Result<serde_json::Map<String, serde_json::Value>, QuantizeError> {
+pub(crate) fn read_header(
+    path: &Path,
+) -> Result<serde_json::Map<String, serde_json::Value>, QuantizeError> {
     use std::io::Read;
     let mut f = std::fs::File::open(path)?;
     let mut len_buf = [0u8; 8];
@@ -71,7 +73,7 @@ fn header_entry_byte_len(entry: &serde_json::Value) -> Option<u64> {
 
 /// Shape of a tensor from its safetensors header entry (`shape: [..]`) — no
 /// tensor data is read.
-fn header_entry_shape(entry: &serde_json::Value) -> Option<Vec<usize>> {
+pub(crate) fn header_entry_shape(entry: &serde_json::Value) -> Option<Vec<usize>> {
     entry
         .get("shape")?
         .as_array()?

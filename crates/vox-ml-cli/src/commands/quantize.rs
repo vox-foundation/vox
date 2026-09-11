@@ -31,22 +31,6 @@ pub struct QuantizeArgs {
     pub target_vram_gib: Option<f64>,
 }
 
-/// Estimate a model's parameter count (in billions) from the total byte size
-/// of its `*.safetensors` files, assuming a BF16 source (2 bytes/param) —
-/// this pipeline's checkpoints are saved as bf16 safetensors (see
-/// `vox-populi::mens::hub`). Fast, pre-flight, file-size-only: no tensor
-/// data is read.
-fn estimate_params_b(input_dir: &std::path::Path) -> anyhow::Result<f64> {
-    let mut total_bytes = 0u64;
-    for entry in std::fs::read_dir(input_dir)? {
-        let entry = entry?;
-        if entry.path().extension().is_some_and(|e| e == "safetensors") {
-            total_bytes += entry.metadata()?.len();
-        }
-    }
-    Ok(total_bytes as f64 / 2.0 / 1e9)
-}
-
 pub fn parse_mixture(s: &str) -> anyhow::Result<QuantMixture> {
     Ok(match s.to_ascii_lowercase().as_str() {
         "q4_k_m" => QuantMixture::Q4KM,
@@ -80,20 +64,15 @@ pub fn run(args: QuantizeArgs) -> anyhow::Result<()> {
     let device = parse_device(&args.device)?;
 
     if let Some(target_gib) = args.target_vram_gib {
-        let params_b = estimate_params_b(&args.input)?;
-        if !vox_quantize::fits_target_tier(params_b, &mixture, target_gib) {
-            let bpw = vox_quantize::policy::mixture_bpw(
-                &mixture,
-                vox_quantize::policy::QWEN3_27B_BOOSTED_ROLE_FRACTION,
-            )
-            .unwrap_or(f64::NAN);
-            let needed = vox_quantize::needed_gib(params_b, bpw);
+        let plan = vox_quantize::plan_quantize(&args.input, &mixture)?;
+        let gib = |b: u64| b as f64 / (1024.0 * 1024.0 * 1024.0);
+        let output_gib = gib(plan.output_bytes);
+        if output_gib > target_gib {
             anyhow::bail!(
-                "{:.1}B params at --to {} needs ~{needed:.1} GiB, target has ~{target_gib:.1} GiB, short by ~{:.1} GiB — try a larger tier or a different --to mixture \
-                 (estimate is weights-only and assumes the Qwen3-27B boosted-role split; it is approximate for other architectures)",
-                params_b,
+                "--to {} needs {output_gib:.2} GiB of weights (peak {:.2} GiB), target has ~{target_gib:.1} GiB, short by ~{:.2} GiB — try a larger tier or a different --to mixture",
                 args.to,
-                needed - target_gib,
+                gib(plan.peak_bytes),
+                output_gib - target_gib,
             );
         }
     }
@@ -156,29 +135,24 @@ mod tests {
     }
 
     #[test]
-    fn estimate_params_b_halves_safetensors_bytes_for_bf16() {
+    fn run_rejects_a_model_whose_planned_output_exceeds_the_target() {
         let dir = tempfile::tempdir().unwrap();
-        // 54e9 bytes of bf16 (2 bytes/param) -> 27B params. A sparse file
-        // (set_len, no actual writes) is enough since only the declared
-        // length is read.
-        let f = std::fs::File::create(dir.path().join("model-00001.safetensors")).unwrap();
-        f.set_len(54_000_000_000).unwrap();
-        // A non-safetensors file must be ignored.
         std::fs::write(dir.path().join("config.json"), b"{}").unwrap();
-
-        let params_b = estimate_params_b(dir.path()).unwrap();
-        assert!(
-            (params_b - 27.0).abs() < 1e-6,
-            "expected ~27.0B params, got {params_b}"
+        // A real, small safetensors fixture (plan_quantize reads real
+        // headers, not file sizes) with a matrix tensor sized big enough
+        // that its exact Q4_K_M output easily exceeds a near-zero target.
+        let mut map: std::collections::HashMap<String, candle_core::Tensor> =
+            std::collections::HashMap::new();
+        map.insert(
+            "model.layers.0.self_attn.q_proj.weight".into(),
+            candle_core::Tensor::zeros(
+                (4096, 4096),
+                candle_core::DType::F32,
+                &candle_core::Device::Cpu,
+            )
+            .unwrap(),
         );
-    }
-
-    #[test]
-    fn run_rejects_q4_k_m_27b_against_16gb_target() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("config.json"), b"{}").unwrap();
-        let f = std::fs::File::create(dir.path().join("model-00001.safetensors")).unwrap();
-        f.set_len(54_000_000_000).unwrap(); // ~27B bf16 params
+        candle_core::safetensors::save(&map, dir.path().join("model.safetensors")).unwrap();
 
         let out = tempfile::tempdir().unwrap();
         let err = run(QuantizeArgs {
@@ -188,7 +162,7 @@ mod tests {
             no_verify: false,
             device: "auto".into(),
             json: false,
-            target_vram_gib: Some(15.1),
+            target_vram_gib: Some(0.001),
         })
         .unwrap_err();
         let msg = err.to_string();
