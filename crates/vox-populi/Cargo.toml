@@ -76,6 +76,7 @@ mens-cloud = [
     "mens",
     "dep:reqwest",
     "dep:vox-http-client",
+    "vox-db/host-integration",
 ]
 # Opt-in grand-network discovery publishing via the Provider Atlas (P6-T6).
 mesh-discovery-publish = [

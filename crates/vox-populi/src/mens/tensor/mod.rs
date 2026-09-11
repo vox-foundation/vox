@@ -57,7 +57,7 @@ pub mod domain_router;
 pub mod execution_planner;
 #[cfg(feature = "mens-train")]
 pub mod external_serving_handoff;
-#[cfg(feature = "mens-train")]
+#[cfg(any(feature = "mens-train", feature = "mens-cloud"))]
 pub mod finetune_contract;
 #[cfg(feature = "mens-train")]
 pub mod finetune_registry;
@@ -79,7 +79,7 @@ pub mod spoke_base_resolver;
 // on `domain_profiles` above. Consumed by `vox ci spoke-check`.
 #[cfg(feature = "mens")]
 pub mod spoke_validate;
-#[cfg(feature = "mens-train")]
+#[cfg(any(feature = "mens-train", feature = "mens-cloud"))]
 pub mod train_backend;
 #[cfg(feature = "mens-train")]
 pub mod train_jsonl_preflight;
