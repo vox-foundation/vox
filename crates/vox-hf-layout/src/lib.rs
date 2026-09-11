@@ -476,10 +476,10 @@ mod tests {
             "text_config":{
                 "hidden_size":5120,
                 "num_attention_heads":24,
-                "num_key_value_heads":24,
+                "num_key_value_heads":4,
                 "num_hidden_layers":8,
                 "vocab_size":248320,
-                "intermediate_size":13824,
+                "intermediate_size":17408,
                 "max_position_embeddings":262144,
                 "linear_num_key_heads":16,
                 "linear_num_value_heads":48,
@@ -503,6 +503,93 @@ mod tests {
         assert_eq!(layout.num_hidden_layers, 8);
         assert_eq!(layout.vocab_size, 248320);
         assert_eq!(layout.namespace_prefix, "model.language_model.layers");
+    }
+
+    #[test]
+    fn qwen38_27b_config_yields_expected_layout_dims() {
+        // Regression guard, not a bug-fix test: the underlying parse already
+        // works (see `vlm_checkpoint_with_text_config_loads_the_text_tower_only`
+        // above). This pins the REAL, full-scale Qwen/Qwen3.8-27B config.json
+        // values (verified this session) so a future change to
+        // `qwen35_text_config` or the layer_types parser that silently breaks
+        // this specific checkpoint gets caught.
+        //
+        // full_attention_interval:4 -> every 4th layer (0-indexed 3, 7, 11...)
+        // is full_attention, the rest linear_attention: 16 full / 48 linear
+        // across the real 64-layer stack.
+        let layer_types_json = (0..64)
+            .map(|i| {
+                if i % 4 == 3 {
+                    "\"full_attention\""
+                } else {
+                    "\"linear_attention\""
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let raw = format!(
+            r#"{{
+                "model_type":"qwen3_5",
+                "architectures":["Qwen3_5ForConditionalGeneration"],
+                "text_config":{{
+                    "hidden_size":5120,
+                    "num_attention_heads":24,
+                    "num_key_value_heads":4,
+                    "num_hidden_layers":64,
+                    "vocab_size":248320,
+                    "intermediate_size":17408,
+                    "max_position_embeddings":262144,
+                    "head_dim":256,
+                    "layer_types":[{layer_types_json}]
+                }},
+                "vision_config":{{
+                    "depth":27,
+                    "hidden_size":1152
+                }},
+                "image_token_id":248056,
+                "video_token_id":248057
+            }}"#
+        );
+        let layout = HfTransformerLayout::from_config_json_str(&raw)
+            .expect("real Qwen3.8-27B config must load");
+        assert_eq!(layout.architecture, HfArchitecture::Qwen35);
+        assert_eq!(layout.hidden_size, 5120);
+        assert_eq!(layout.num_hidden_layers, 64);
+        assert_eq!(layout.num_attention_heads, 24);
+        assert_eq!(
+            layout.num_key_value_heads, 4,
+            "real model uses GQA, not MHA"
+        );
+        assert_eq!(layout.vocab_size, 248320);
+        assert_eq!(layout.intermediate_size, Some(17408));
+        assert_eq!(layout.max_position_embeddings, Some(262144));
+        assert_eq!(
+            layout.head_dim,
+            Some(256),
+            "explicit head_dim field, not hidden_size/num_attention_heads division"
+        );
+        assert_eq!(layout.namespace_prefix, "model.language_model.layers");
+        assert_eq!(layout.layer_types.len(), 64);
+        let full_count = layout
+            .layer_types
+            .iter()
+            .filter(|t| t.as_str() == "full_attention")
+            .count();
+        let linear_count = layout
+            .layer_types
+            .iter()
+            .filter(|t| t.as_str() == "linear_attention")
+            .count();
+        assert_eq!(full_count, 16);
+        assert_eq!(linear_count, 48);
+        assert_eq!(
+            layout.layer_types[3], "full_attention",
+            "4th layer (0-indexed 3) must be full_attention per full_attention_interval:4"
+        );
+        assert_eq!(
+            &layout.layer_types[0..3],
+            &["linear_attention", "linear_attention", "linear_attention"]
+        );
     }
 
     #[test]
