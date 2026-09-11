@@ -2,18 +2,13 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BrowserLaunchMode {
+    #[default]
     Ephemeral,
     Named,
     Attach,
-}
-
-impl Default for BrowserLaunchMode {
-    fn default() -> Self {
-        Self::Ephemeral
-    }
 }
 
 fn default_true() -> bool {
@@ -187,6 +182,7 @@ pub fn cookie_export_public_json(path: &str, count: usize) -> serde_json::Value 
     })
 }
 
+#[cfg(test)]
 pub fn cookie_import_path_ok(root: &Path, candidate: &Path) -> bool {
     vox_config::paths::cookie_import_path_ok(root, candidate)
 }

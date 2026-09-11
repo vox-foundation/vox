@@ -118,6 +118,7 @@ impl HostRegistry {
         Some((page, dropped))
     }
 
+    #[cfg(test)]
     pub(crate) fn debug_host_key(&self, page_id: &str) -> Option<HostKey> {
         self.page_keys.get(page_id).cloned()
     }

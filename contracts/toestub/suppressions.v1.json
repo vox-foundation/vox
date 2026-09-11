@@ -49,6 +49,12 @@
       "path_glob": "**/vox-ml-cli/src/commands/mens/populi/dispatch.rs",
       "reason": "pub fn run() is the pre-existing CLI dispatch match (predates the 2026-09-10 qwen38-27b-hub Task 18 fix, which only edits the Serve arm's execution-api-off fallback). Unit-testing the full dispatch surface (constructing every PopuliAction variant, feature-gated arms) is a separate, out-of-scope effort.",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/hollow-fn",
+      "path_glob": "**/vox-plugin-browser/src/hosts.rs",
+      "reason": "existing_host_policy's Ok(()) body is the pre-existing, intentional no-op policy (a host already in the map may take another page, so there is nothing to reject) -- predates the 2026-09-10 clippy-wave fix in this file, which only gates debug_host_key behind #[cfg(test)]. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
     }
   ]
 }
