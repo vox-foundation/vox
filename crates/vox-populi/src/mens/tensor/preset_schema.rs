@@ -42,7 +42,7 @@ impl DeviceProfile {
 }
 
 /// Effective training hyperparameters after preset + overrides + dataset scaling heuristics.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TrainPresetProfile {
     pub rank: usize,
     pub alpha: f32,
@@ -109,6 +109,7 @@ fn apply_qwen_size_ladder_policy(
     mut p: TrainPresetProfile,
     class: QwenSizeClass,
     vram_mb: u64,
+    model_hint: Option<&str>,
 ) -> TrainPresetProfile {
     match class {
         QwenSizeClass::S0p6 => {
@@ -160,7 +161,56 @@ fn apply_qwen_size_ladder_policy(
                 p.grad_accum = p.grad_accum.max(8);
             }
         }
-        QwenSizeClass::Other => {}
+        QwenSizeClass::Other => {
+            // Not a string-matched rung — fall back to the actual numeric param
+            // count so an unrecognized-but-large model (e.g. "Qwen3.8-27B") still
+            // gets floored instead of running with whatever permissive values the
+            // base preset started with.
+            if let Some(params_b) =
+                model_hint.and_then(crate::mens::tensor::memory_budget::params_b_from_model_hint)
+            {
+                if params_b >= 24.0 {
+                    // As large as or larger than the S32 tier — apply the same floor.
+                    p.rank = p.rank.min(8);
+                    p.alpha = p.alpha.min(16.0);
+                    if vram_mb <= 24_576 {
+                        p.seq_len = p.seq_len.min(256);
+                        p.batch_size = 1;
+                        p.grad_accum = p.grad_accum.max(16);
+                        p.lr = p.lr.min(1.0e-4);
+                    } else if vram_mb <= 49_152 {
+                        p.seq_len = p.seq_len.min(384);
+                        p.batch_size = p.batch_size.min(1);
+                        p.grad_accum = p.grad_accum.max(12);
+                    } else {
+                        p.seq_len = p.seq_len.min(768);
+                        p.grad_accum = p.grad_accum.max(8);
+                    }
+                } else if params_b >= 12.0 {
+                    // S14-equivalent floor for anything in that range not string-matched.
+                    p.rank = p.rank.min(8);
+                    p.alpha = p.alpha.min(16.0);
+                    if vram_mb <= 16_384 {
+                        p.seq_len = p.seq_len.min(256);
+                        p.batch_size = 1;
+                        p.grad_accum = p.grad_accum.max(16);
+                        p.lr = p.lr.min(1.0e-4);
+                    } else if vram_mb <= 24_576 {
+                        p.seq_len = p.seq_len.min(384);
+                        p.batch_size = p.batch_size.min(1);
+                        p.grad_accum = p.grad_accum.max(12);
+                    } else {
+                        p.seq_len = p.seq_len.min(512);
+                        p.grad_accum = p.grad_accum.max(8);
+                    }
+                }
+                // Below ~12B and unrecognized: leave as-is, matching today's
+                // behavior — don't over-constrain a genuinely small, merely
+                // unmatched model.
+            }
+            // No hint at all, or size unparseable: leave as-is (today's behavior;
+            // there is nothing to reason about without a number).
+        }
     }
     p
 }
@@ -440,7 +490,7 @@ pub fn resolve_effective_profile(
     }
 
     if let Some(class) = detect_qwen_size_class(model_hint) {
-        p = apply_qwen_size_ladder_policy(p, class, device.vram_mb);
+        p = apply_qwen_size_ladder_policy(p, class, device.vram_mb, model_hint);
     }
 
     // Determine the VRAM budget limits, either from the passed pre-computed overrides
@@ -814,6 +864,66 @@ mod qwen3_preset_tests {
             p.seq_len <= 256,
             "14B on 16GB must floor seq_len to <=256, got {}",
             p.seq_len
+        );
+    }
+
+    #[test]
+    fn size_class_other_still_clamps_rank_seq_batch() {
+        // "Qwen/Qwen3.8-27B" matches none of the S0.6/S8/S14/S32 substrings
+        // (note: "8b" is not a substring of "27b"), so it falls into `Other`.
+        // `Other` must still reason about the real numeric param count (27B)
+        // and clamp like the S32 tier on a constrained card, not no-op.
+        let hint = "Qwen/Qwen3.8-27B";
+        let class = super::detect_qwen_size_class(Some(hint)).expect("qwen hint must classify");
+        assert_eq!(class, super::QwenSizeClass::Other);
+
+        let permissive = TrainPresetProfile {
+            rank: 64,
+            alpha: 128.0,
+            seq_len: 4096,
+            batch_size: 8,
+            grad_accum: 1,
+            epochs: 3,
+            warmup: 100,
+            lr: 2e-4,
+        };
+        let got = super::apply_qwen_size_ladder_policy(permissive, class, 24_576, Some(hint));
+        assert!(
+            got.rank <= 8,
+            "27B on 24GB must clamp rank down like the S32 tier, got {}",
+            got.rank
+        );
+        assert!(
+            got.seq_len <= 256,
+            "27B on 24GB must floor seq_len like the S32 tier, got {}",
+            got.seq_len
+        );
+        assert_eq!(got.batch_size, 1, "27B on 24GB must be single micro-batch");
+    }
+
+    #[test]
+    fn size_class_other_small_unmatched_model_is_unchanged() {
+        // A genuinely small, merely-unmatched model must keep today's exact
+        // no-op behavior: `Other` should not over-constrain it.
+        let hint = "Qwen/Qwen3-1.5B-custom";
+        let class = super::detect_qwen_size_class(Some(hint)).expect("qwen hint must classify");
+        assert_eq!(class, super::QwenSizeClass::Other);
+
+        let permissive = TrainPresetProfile {
+            rank: 64,
+            alpha: 128.0,
+            seq_len: 4096,
+            batch_size: 8,
+            grad_accum: 1,
+            epochs: 3,
+            warmup: 100,
+            lr: 2e-4,
+        };
+        let got =
+            super::apply_qwen_size_ladder_policy(permissive.clone(), class, 24_576, Some(hint));
+        assert_eq!(
+            got, permissive,
+            "small unmatched model must be left unchanged by Other, today's behavior"
         );
     }
 
