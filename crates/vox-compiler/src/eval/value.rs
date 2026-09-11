@@ -127,6 +127,13 @@ impl PartialEq for VoxValue {
             (Self::Tuple(a), Self::Tuple(b)) => a == b,
             (Self::Null, Self::Null) => true,
             (Self::Option(a), Self::Option(b)) => a == b,
+            // `Option::None` and the `null` literal are the same absence of
+            // a value at runtime (both print as "None"/"null" and both fail
+            // `is_some()`), so they must compare equal — otherwise the
+            // idiomatic `x is null` / `x == null` guard on an `Option[T]`
+            // (e.g. `env.get()`, `process.run()`) is silently dead code and
+            // `x isnt null` is always true. `Some(_)` never matches `Null`.
+            (Self::Null, Self::Option(None)) | (Self::Option(None), Self::Null) => true,
             (Self::Result(a), Self::Result(b)) => a == b,
             (Self::Constructor(a), Self::Constructor(b)) => a == b,
             (
