@@ -36,7 +36,7 @@ pub fn spawn_inference_worker(
 ) -> SyncSender<InferenceRequest> {
     let model_path = config.model_path.to_string_lossy().to_string();
     let _ = model_name;
-    let _ = system_prompt;
+    let system_prompt = system_prompt.to_string();
 
     let (tx, rx) = std::sync::mpsc::sync_channel::<InferenceRequest>(8);
     std::thread::spawn(move || {
@@ -89,12 +89,7 @@ pub fn spawn_inference_worker(
 
         tracing::info!("Inference worker ready — model: {model_path}");
         while let Ok(req) = rx.recv() {
-            let prompt_json = serde_json::json!({
-                "prompt": req.prompt,
-                "max_tokens": req.max_tokens,
-                "temperature": req.temperature,
-            })
-            .to_string();
+            let prompt_json = inference_payload(&system_prompt, &req);
             let result = backend
                 .run_inference(&handle, prompt_json.as_str().into())
                 .into_result()
@@ -117,6 +112,21 @@ pub fn spawn_inference_worker(
     tx
 }
 
+/// Build the JSON payload sent to the ML backend's `run_inference`, carrying the
+/// trained system prompt and the sampling parameters the request specified.
+#[cfg(feature = "execution-api")]
+fn inference_payload(system_prompt: &str, req: &InferenceRequest) -> String {
+    serde_json::json!({
+        "system": system_prompt,
+        "prompt": req.prompt,
+        "max_tokens": req.max_tokens,
+        "temperature": req.temperature,
+        "top_k": req.top_k,
+        "output_mode": req.output_mode,
+    })
+    .to_string()
+}
+
 #[cfg(feature = "execution-api")]
 fn resolve_ml_backend_plugin(
     capabilities: &vox_plugin_host::CapabilitySet,
@@ -130,7 +140,7 @@ fn resolve_ml_backend_plugin(
 
 #[cfg(all(test, feature = "execution-api"))]
 mod tests {
-    use super::resolve_ml_backend_plugin;
+    use super::{InferenceRequest, inference_payload, resolve_ml_backend_plugin};
 
     #[test]
     fn metal_capability_selects_metal_serve_plugin() {
@@ -139,6 +149,31 @@ mod tests {
         assert_eq!(
             resolve_ml_backend_plugin(&capabilities).unwrap(),
             "mens-candle-metal"
+        );
+    }
+
+    #[test]
+    fn the_payload_carries_the_system_prompt_and_the_sampling_parameters() {
+        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let req = InferenceRequest {
+            prompt: "hi".into(),
+            max_tokens: 8,
+            temperature: 0.0,
+            top_k: 40,
+            output_mode: Some("strict_json".into()),
+            reply: tx,
+            stream_tx: None,
+        };
+        let v: serde_json::Value =
+            serde_json::from_str(&inference_payload("YOU ARE VOX", &req)).unwrap();
+        assert_eq!(
+            v["system"], "YOU ARE VOX",
+            "the trained prompt format must reach the model"
+        );
+        assert_eq!(v["top_k"], 40);
+        assert_eq!(
+            v["output_mode"], "strict_json",
+            "the JSON repair loop retries a model that was never asked for JSON"
         );
     }
 }
