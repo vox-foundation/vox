@@ -305,6 +305,10 @@ the backend.
   HTTP API; conversion goes through the existing `external_serving_handoff.rs`.
   This is the second interop path; it's the on-ramp for the millions of
   users with Ollama already installed.
+  > **Historical note (2026-09-11):** this backend was deleted (the
+  > "running elsewhere" plan's Task 7, commit `74b84f310`); the sections
+  > below that still list it are kept as the plan's original record, not a
+  > live surface description.
 
 ### 3.4 Cold-start CAS fetch
 

@@ -92,12 +92,6 @@ pub fn bits_per_weight(dtype: GgmlDType) -> f64 {
     dtype.type_size() as f64 * 8.0 / dtype.block_size() as f64
 }
 
-/// Weights-only footprint in GiB for a `params_b`-billion-parameter model at
-/// `bpw` bits per weight.
-pub fn needed_gib(params_b: f64, bpw: f64) -> f64 {
-    params_b * 1e9 * bpw / 8.0 / (1024.0 * 1024.0 * 1024.0)
-}
-
 /// Exact sizing for a `plan_quantize` run: the output artifact's size, the
 /// peak RAM the engine needs to produce it, and the derived bpw/params.
 #[derive(Debug, Clone, Copy, PartialEq)]
