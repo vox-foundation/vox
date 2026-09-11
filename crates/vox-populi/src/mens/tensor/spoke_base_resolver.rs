@@ -561,4 +561,33 @@ mod tests {
             base.methods
         );
     }
+
+    #[test]
+    fn resolve_base_model_picks_27b_at_measured_big_box_memory() {
+        // Task 15 (plan ID P1.5): the new Qwen3.8-27B QLoRA rung (floor_mb
+        // 43000) must be resolvable at an intermediate Mac memory size, AND
+        // must NOT displace Qwen3-32B as the real 128 GB (~118_784 MB) default
+        // — that pin flip is Phase 3's job, not this task's. See the scope
+        // ruling in .superpowers/sdd/2026-09-10-qwen38-27b-hub/task-15-brief.md.
+        let root = workspace_root();
+
+        // Positive case: strictly between the new rung's floor (43000) and the
+        // next rung up (Qwen3-14B LoRA at 44000) — only the 27B rung fits here.
+        let mid = resolve_base_model(root, "agentic_default", Some(43_500))
+            .expect("43_500 MB should resolve the Qwen3.8-27B QLoRA rung");
+        assert_eq!(
+            mid, "Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+            "43_500 MB agentic_default must resolve Qwen3.8-27B, got {mid}"
+        );
+
+        // Negative case (the non-goal): a real 128 GB Mac (116 GiB usable =
+        // 118_784 MB) must still resolve Qwen3-32B, not Qwen3.8-27B — no pin
+        // flip at the top end.
+        let big_box = resolve_base_model(root, "agentic_default", Some(118_784))
+            .expect("118_784 MB should resolve a base");
+        assert_eq!(
+            big_box, "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
+            "118_784 MB agentic_default must still resolve Qwen3-32B (no pin flip yet), got {big_box}"
+        );
+    }
 }
