@@ -586,26 +586,9 @@ mod tests {
     use std::time::SystemTime;
 
     use super::*;
-    use crate::mens::cloud::{CloudProviderConfig, ProviderKind};
+    use crate::mens::cloud::{CloudProviderConfig, ProviderKind, test_offer};
 
     // ── Shared mock builders ──────────────────────────────────────────────────
-
-    fn test_offer() -> GpuOffer {
-        GpuOffer {
-            provider: ProviderKind::RunPod,
-            offer_id: "offer-1".into(),
-            gpu_name: "rtx 4090".into(),
-            gpu_count: 1,
-            vram_mb: 24576,
-            price_per_hour_usd: 1.0,
-            is_spot: true,
-            reliability_pct: 95.0,
-            auto_terminate: false,
-            fetched_at: Some(std::time::Instant::now()),
-            datacenter_region: None,
-            cuda_max: None,
-        }
-    }
 
     fn test_spec(config: &CloudProviderConfig) -> CloudJobSpec {
         let mut s = CloudJobSpec::new_train(config);
