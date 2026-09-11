@@ -198,10 +198,8 @@ pub fn run_merge_qlora(
     // optionally quantize (vox's own mixture) and/or export a llama.cpp
     // GGUF. `output` is the merged-subset FILE; `base_dir` is the directory
     // holding the base model (config.json + shards), derived above as the
-    // parent of the first `--base-shard`. --gguf-out needs the recombined
-    // directory even without --quantize, since llama.cpp does its own
-    // quantization downstream.
-    if quantize.is_some() || gguf_out.is_some() {
+    // parent of the first `--base-shard`.
+    if needs_recombine(&quantize, &gguf_out, keep_merged) {
         let out_parent = output
             .parent()
             .map(std::path::Path::to_path_buf)
@@ -324,6 +322,26 @@ pub fn render_ollama_modelfile(num_ctx: usize, license: &str) -> String {
     );
     s.push_str(&format!("LICENSE \"\"\"{license}\"\"\"\n"));
     s
+}
+
+/// Whether `run_merge_qlora` must produce `recombined_full/` at all.
+///
+/// --gguf-out needs the recombined directory even without --quantize, since
+/// llama.cpp does its own quantization downstream. --keep-merged alone (the
+/// pure-Ollama lane, where `ollama create -q` does its own quantizing) also
+/// needs it -- without this arm, `merge-qlora --keep-merged` with neither
+/// --quantize nor --gguf-out silently kept nothing, despite --keep-merged's
+/// own help text promising a kept directory.
+///
+/// Extracted so the gate is testable without a real base checkpoint, adapter,
+/// or ML backend plugin.
+#[must_use]
+fn needs_recombine(
+    quantize: &Option<String>,
+    gguf_out: &Option<PathBuf>,
+    keep_merged: bool,
+) -> bool {
+    quantize.is_some() || gguf_out.is_some() || keep_merged
 }
 
 /// Post-quantize disposition of `recombined_full/`. With `keep_merged`, copy
@@ -510,6 +528,27 @@ mod ollama_publish_tests {
     fn modelfile_emits_no_adapter_directive() {
         let m = render_ollama_modelfile(8192, "apache-2.0");
         assert!(!m.contains("ADAPTER"), "got: {m}");
+    }
+
+    /// Catches: reverting the gate to `quantize.is_some() || gguf_out.is_some()`
+    /// (dropping the `|| keep_merged` arm this fix adds), which makes
+    /// `merge-qlora --keep-merged` alone -- the natural invocation for the
+    /// pure-Ollama lane, where Ollama does its own quantizing via
+    /// `ollama create -q` -- silently keep nothing despite --keep-merged's
+    /// own help text promising a kept directory.
+    #[test]
+    fn keep_merged_alone_still_needs_recombine() {
+        assert!(
+            needs_recombine(&None, &None, true),
+            "--keep-merged with neither --quantize nor --gguf-out must still recombine"
+        );
+        assert!(!needs_recombine(&None, &None, false));
+        assert!(needs_recombine(&Some("q4_k_m".to_string()), &None, false));
+        assert!(needs_recombine(
+            &None,
+            &Some(std::path::PathBuf::from("/tmp/out.gguf")),
+            false
+        ));
     }
 
     /// Catches: reverting `if keep_merged { .. } else { remove_dir_all }` at
