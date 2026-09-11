@@ -496,6 +496,7 @@ pub fn resolve_effective_profile(
                 hint,
                 quant,
                 gradient_checkpointing,
+                params_b,
             );
             let p = crate::mens::tensor::memory_budget::plan_with_resident(
                 vram_gib,
@@ -521,6 +522,7 @@ pub fn resolve_effective_profile(
                 hint,
                 quant,
                 gradient_checkpointing,
+                params_b,
             );
             let p = crate::mens::tensor::memory_budget::plan_with_resident(
                 vram_gib,

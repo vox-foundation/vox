@@ -485,8 +485,12 @@ pub async fn run_train(
             } else if memory_budget::is_qwen3(model_hint) {
                 memory_budget::plan_qwen3_with_options(vram, requested_b, base_quant, gc_enabled)
             } else {
-                let resident_per_b =
-                    memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
+                let resident_per_b = memory_budget::get_resident_per_b(
+                    model_hint,
+                    base_quant,
+                    gc_enabled,
+                    requested_b,
+                );
                 let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
                 memory_budget::ModelPlan {
                     model_id: model_hint.to_string(),
@@ -504,8 +508,12 @@ pub async fn run_train(
             // we must not use the retreated model's generous constraints (it would cause OOM).
             // Instead, re-solve the budget specifically for the pinned model parameters.
             let final_plan = if effective_model.is_some() && mp.retreated_from_b.is_some() {
-                let resident_per_b =
-                    memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
+                let resident_per_b = memory_budget::get_resident_per_b(
+                    model_hint,
+                    base_quant,
+                    gc_enabled,
+                    requested_b,
+                );
                 let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
                 memory_budget::ModelPlan {
                     model_id: model_hint.to_string(),

@@ -331,20 +331,47 @@ pub fn is_qwen3(model_id: &str) -> bool {
     qwen_generation(model_id).is_some_and(|v| (3.0..3.5).contains(&v))
 }
 
+/// Slope (GiB/B per B of size) of the size-dependent GC offset for the Qwen3.5
+/// family. Solves the line through `gc_offset(4.0) == -1.8` (pinned, hardware-
+/// grounded 4B calibration) and `gc_offset(27.0) ≈ -2.735` (spec §4.2: resident-only
+/// target 22.26 GiB at 27B ⇒ target_per_b = (22.26 - 1.6) / 27 ⇒ gc_offset =
+/// target_per_b - base(3.5) - quant_offset(0.0 for NF4) ≈ -2.7348).
+/// slope = (-2.7348 - (-1.8)) / (27.0 - 4.0) ≈ -0.04064.
+const QWEN35_GC_OFFSET_SLOPE_PER_B: f64 = -0.04064;
+
 /// Calculate resident VRAM per billion parameters dynamically.
 #[must_use]
 pub fn get_resident_per_b(
     model_id: &str,
     quant_mode: super::finetune_contract::BaseQuantMode,
     gradient_checkpointing: bool,
+    model_params_b: f64,
 ) -> f64 {
-    let base = if is_qwen35(model_id) { 3.5 } else { 5.0 };
+    let is_qwen35_model = is_qwen35(model_id);
+    let base = if is_qwen35_model { 3.5 } else { 5.0 };
     let quant_offset = match quant_mode {
         super::finetune_contract::BaseQuantMode::None => 1.5,
         super::finetune_contract::BaseQuantMode::Nf4 => 0.0,
     };
-    let gc_offset = if gradient_checkpointing { -1.8 } else { 0.0 };
-    f64::max(base + quant_offset + gc_offset, 1.5)
+    let gc_offset = if gradient_checkpointing {
+        if is_qwen35_model {
+            -1.8 + QWEN35_GC_OFFSET_SLOPE_PER_B * (model_params_b - 4.0)
+        } else {
+            -1.8
+        }
+    } else {
+        0.0
+    };
+    let per_b = base + quant_offset + gc_offset;
+    // The 1.5 GiB/B floor guards the flat-rate model against nonsensically low
+    // estimates. It does not apply to the qwen3.5+GC size-dependent formula above
+    // 4B, which *intentionally* drops below 1.5 as fixed embedding/LM-head cost is
+    // amortized over more parameters (see QWEN35_GC_OFFSET_SLOPE_PER_B doc comment).
+    if is_qwen35_model && gradient_checkpointing {
+        per_b
+    } else {
+        f64::max(per_b, 1.5)
+    }
 }
 
 /// Pick the largest Qwen3 variant (no larger than `max_params_b`) that fits `vram_gib`.
@@ -371,7 +398,7 @@ pub fn plan_qwen3_with_options(
         if params > max_params_b + 1e-9 {
             continue;
         }
-        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing, params);
         let p = plan_with_resident(vram_gib, params, resident_per_b);
         let retreated = (params - max_params_b).abs() > 1e-9;
         let rationale = if retreated {
@@ -399,7 +426,7 @@ pub fn plan_qwen3_with_options(
     }
     smallest_tried.unwrap_or_else(|| {
         let (params, id) = *QWEN3_LADDER.last().unwrap();
-        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing, params);
         let p = plan_with_resident(vram_gib, params, resident_per_b);
         ModelPlan {
             model_id: id.to_string(),
@@ -427,7 +454,7 @@ pub fn plan_qwen35_with_options(
         if params > max_params_b + 1e-9 {
             continue;
         }
-        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing, params);
         let p = plan_with_resident(vram_gib, params, resident_per_b);
         let retreated = (params - max_params_b).abs() > 1e-9;
         let rationale = if retreated {
@@ -455,7 +482,7 @@ pub fn plan_qwen35_with_options(
     }
     smallest_tried.unwrap_or_else(|| {
         let (params, id) = *QWEN35_LADDER.last().unwrap();
-        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing, params);
         let p = plan_with_resident(vram_gib, params, resident_per_b);
         ModelPlan {
             model_id: id.to_string(),
@@ -483,7 +510,7 @@ pub fn plan_qwen25coder_with_options(
         if params > max_params_b + 1e-9 {
             continue;
         }
-        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing, params);
         let p = plan_with_resident(vram_gib, params, resident_per_b);
         let retreated = (params - max_params_b).abs() > 1e-9;
         let rationale = if retreated {
@@ -511,7 +538,7 @@ pub fn plan_qwen25coder_with_options(
     }
     smallest_tried.unwrap_or_else(|| {
         let (params, id) = *QWEN25CODER_LADDER.last().unwrap();
-        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing);
+        let resident_per_b = get_resident_per_b(id, quant_mode, gradient_checkpointing, params);
         let p = plan_with_resident(vram_gib, params, resident_per_b);
         ModelPlan {
             model_id: id.to_string(),
@@ -715,7 +742,11 @@ mod tests {
         } else if is_qwen3(hint) {
             plan_qwen3_with_options(vram_gib, params_b, quant, false)
         } else {
-            let p = plan_with_resident(vram_gib, params_b, get_resident_per_b(hint, quant, false));
+            let p = plan_with_resident(
+                vram_gib,
+                params_b,
+                get_resident_per_b(hint, quant, false, params_b),
+            );
             ModelPlan {
                 model_id: hint.to_string(),
                 params_b,
@@ -745,7 +776,8 @@ mod tests {
             get_resident_per_b(
                 "Qwen/Qwen3.8-27B",
                 crate::mens::tensor::finetune_contract::BaseQuantMode::Nf4,
-                false
+                false,
+                27.0
             ),
             3.5
         );
@@ -915,15 +947,30 @@ mod semcov_wave15_tests {
         // BaseQuantMode::None adds +1.5 -> 6.5
         // Gradient checkpointing subtracts -1.8 -> 3.2
         assert_eq!(
-            get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::None, false),
+            get_resident_per_b(
+                "Qwen/Qwen2.5-Coder-7B-Instruct",
+                BaseQuantMode::None,
+                false,
+                7.0
+            ),
             6.5
         );
         assert_eq!(
-            get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::Nf4, false),
+            get_resident_per_b(
+                "Qwen/Qwen2.5-Coder-7B-Instruct",
+                BaseQuantMode::Nf4,
+                false,
+                7.0
+            ),
             5.0
         );
         assert_eq!(
-            get_resident_per_b("Qwen/Qwen2.5-Coder-7B-Instruct", BaseQuantMode::Nf4, true),
+            get_resident_per_b(
+                "Qwen/Qwen2.5-Coder-7B-Instruct",
+                BaseQuantMode::Nf4,
+                true,
+                7.0
+            ),
             3.2
         );
 
@@ -931,16 +978,30 @@ mod semcov_wave15_tests {
         // BaseQuantMode::None adds +1.5 -> 5.0
         // Gradient checkpointing subtracts -1.8 -> 1.7
         assert_eq!(
-            get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::None, false),
+            get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::None, false, 4.0),
             5.0
         );
         assert_eq!(
-            get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::Nf4, false),
+            get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::Nf4, false, 4.0),
             3.5
         );
         assert_eq!(
-            get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::Nf4, true),
+            get_resident_per_b("Qwen/Qwen3.5-4B", BaseQuantMode::Nf4, true, 4.0),
             1.7
+        );
+    }
+
+    #[test]
+    fn qlora_27b_resident_estimate_within_10pct_of_measured() {
+        use crate::mens::tensor::finetune_contract::BaseQuantMode;
+        let per_b = get_resident_per_b("Qwen/Qwen3.8-27B", BaseQuantMode::Nf4, true, 27.0);
+        let resident = 27.0 * per_b + FIXED_OVERHEAD_GIB;
+        let target = 22.26;
+        let pct_off = (resident - target).abs() / target;
+        assert!(
+            pct_off <= 0.10,
+            "resident({resident}) must be within 10% of measured target {target}, off by {:.1}%",
+            pct_off * 100.0
         );
     }
 
