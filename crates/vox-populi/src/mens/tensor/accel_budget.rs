@@ -34,6 +34,9 @@ impl AccelBudget {
     }
 }
 
+// Verified against objc2-metal 0.3.2's generated/MTLDevice.rs:722
+// (recommendedMaxWorkingSetSize) and :1740 (maxBufferLength) — re-check on any
+// objc2-metal version bump.
 #[cfg(target_os = "macos")]
 pub fn query_accel_budget() -> Option<AccelBudget> {
     use objc2_metal::{MTLCreateSystemDefaultDevice, MTLDevice};
