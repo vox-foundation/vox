@@ -1187,7 +1187,7 @@ jobs:
             --profile ci
 
       - name: Serving path unit tests
-        run: cargo test -p vox-ml-cli --features execution-api --lib
+        run: cargo test -p vox-ml-cli --features execution-api,gpu --lib
 
       # Phase 5 — Test-tier budget check (warn-only until budgets file is updated post Phase 2+3).
       # Reads the nextest JUnit elapsed time and compares against contracts/budgets/test-tier-budgets.v1.yaml.
