@@ -38,6 +38,13 @@ pub struct ArtifactWriter {
     /// output path and the real one isn't known until `finish` is called.
     out_dir: PathBuf,
     owns_scratch: bool,
+    /// Whether `out_dir` has actually been created on disk yet. For
+    /// `owns_scratch = true` (constructed via [`Self::new`]) this starts
+    /// `false`: creation is deferred to the first call to [`Self::stage`],
+    /// which can return `Err`, instead of happening in `new()`, which
+    /// cannot. Always `true` for `with_shard_budget`, which creates its
+    /// (caller-supplied) directory eagerly since it can fail there.
+    scratch_ready: bool,
     shard_bytes: u64,
     pending: HashMap<String, (Vec<u8>, candle_core::DType, Vec<usize>)>,
     pending_bytes: u64,
@@ -76,16 +83,40 @@ impl Default for ArtifactWriter {
 impl ArtifactWriter {
     /// Streaming writer with no output directory yet -- flushes shards to a
     /// scratch directory as tensors are added and moves them into the real
-    /// directory at [`Self::finish`]. Keeps `new()`'s no-argument signature
-    /// so `engine.rs` (which doesn't know the output directory at
-    /// construction time) is unchanged.
+    /// directory at [`Self::finish`]. Keeps `new()`'s no-argument,
+    /// non-fallible signature so `engine.rs` (which doesn't know the output
+    /// directory at construction time) is unchanged.
+    ///
+    /// Creating the scratch directory can fail (disk full, no writable temp
+    /// root, ...), but `new()` can't return `Result`, so that creation is
+    /// deferred to the first call to [`Self::stage`] (from `add_quantized`
+    /// or `add_f32`), which already returns `Result` and can propagate it
+    /// via `QuantizeError::Io` instead of panicking.
     pub fn new() -> Self {
-        let out_dir = Self::scratch_dir();
-        std::fs::create_dir_all(&out_dir)
-            .expect("ArtifactWriter::new: failed to create scratch dir for streaming shards");
+        Self {
+            out_dir: Self::scratch_dir(),
+            owns_scratch: true,
+            scratch_ready: false,
+            shard_bytes: DEFAULT_SHARD_BYTES,
+            pending: HashMap::new(),
+            pending_bytes: 0,
+            shard_paths: Vec::new(),
+            weight_map: HashMap::new(),
+            meta: HashMap::new(),
+        }
+    }
+
+    /// Test-only seam: build a `new()`-shaped writer (streaming into a
+    /// scratch dir, `finish` moves shards out) but with an explicit,
+    /// possibly-uncreatable scratch path, so the lazy-creation error path in
+    /// [`Self::stage`] can be exercised without depending on the real OS
+    /// temp directory ever failing to create.
+    #[cfg(test)]
+    fn new_with_scratch_dir(out_dir: PathBuf) -> Self {
         Self {
             out_dir,
             owns_scratch: true,
+            scratch_ready: false,
             shard_bytes: DEFAULT_SHARD_BYTES,
             pending: HashMap::new(),
             pending_bytes: 0,
@@ -120,6 +151,7 @@ impl ArtifactWriter {
         Ok(Self {
             out_dir: out_dir.to_path_buf(),
             owns_scratch: false,
+            scratch_ready: true,
             shard_bytes,
             pending: HashMap::new(),
             pending_bytes: 0,
@@ -180,6 +212,10 @@ impl ArtifactWriter {
         dtype: candle_core::DType,
         shape: Vec<usize>,
     ) -> Result<(), QuantizeError> {
+        if !self.scratch_ready {
+            std::fs::create_dir_all(&self.out_dir)?;
+            self.scratch_ready = true;
+        }
         let len = bytes.len() as u64;
         if !self.pending.is_empty() && self.pending_bytes + len > self.shard_bytes {
             self.flush()?;
@@ -332,6 +368,31 @@ mod tests {
         assert_eq!(meta["tensors"]["norm"]["quantized"], false);
         assert_eq!(meta["mixture"], "Q4_K_M");
         assert!(dir.path().join("model.safetensors").exists());
+    }
+
+    /// Catches: reverting `new()`'s deferred scratch-dir creation to an
+    /// eager `.expect()` in `new()` itself (as it was before this test was
+    /// added). `new()` can't return `Result`, so a failure to create its
+    /// scratch directory has to surface from the first fallible call that
+    /// touches it (`add_f32`/`add_quantized`, via `stage`) as a proper
+    /// `Err`, not a panic. Forces the failure by pointing the scratch dir at
+    /// a path whose parent is a regular file -- `create_dir_all` can never
+    /// succeed under a file.
+    #[test]
+    fn scratch_dir_creation_failure_surfaces_as_err_not_panic() {
+        let dir = tempfile::tempdir().unwrap();
+        let blocker_file = dir.path().join("blocker");
+        std::fs::write(&blocker_file, b"not a directory").unwrap();
+        let unusable_scratch = blocker_file.join("scratch");
+
+        let mut artifact = ArtifactWriter::new_with_scratch_dir(unusable_scratch);
+        let t = Tensor::ones((4,), candle_core::DType::F32, &Device::Cpu).unwrap();
+        let result = artifact.add_f32("w", &t);
+
+        assert!(
+            result.is_err(),
+            "an unusable scratch dir must surface as Err from add_f32, not panic"
+        );
     }
 
     /// Catches: reverting to accumulate-everything-then-save-once. The
