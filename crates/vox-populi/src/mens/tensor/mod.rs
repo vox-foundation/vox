@@ -2,6 +2,7 @@
 
 #![allow(clippy::module_inception)]
 
+pub mod accel_budget;
 pub mod data;
 pub mod device;
 pub mod hf_keymap;
