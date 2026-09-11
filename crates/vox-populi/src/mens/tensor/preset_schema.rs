@@ -126,15 +126,20 @@ fn apply_qwen_size_ladder_policy(
             p.grad_accum = p.grad_accum.max(8);
         }
         QwenSizeClass::S14 => {
-            // 14B requires a tighter envelope on 16/24 GB class cards.
-            p.rank = p.rank.min(8);
-            p.alpha = p.alpha.min(16.0);
+            // 14B requires a tighter envelope on 16/24 GB class cards — but the
+            // rank/alpha floor is part of THAT envelope, not a blanket rule, so
+            // it must live inside the memory conditionals it's gated by. A card
+            // with enough VRAM (the `else` arm) must not inherit it.
             if vram_mb <= 16_384 {
+                p.rank = p.rank.min(8);
+                p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(256);
                 p.batch_size = 1;
                 p.grad_accum = p.grad_accum.max(16);
                 p.lr = p.lr.min(1.0e-4);
             } else if vram_mb <= 24_576 {
+                p.rank = p.rank.min(8);
+                p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(384);
                 p.batch_size = p.batch_size.min(1);
                 p.grad_accum = p.grad_accum.max(12);
@@ -144,15 +149,19 @@ fn apply_qwen_size_ladder_policy(
             }
         }
         QwenSizeClass::S32 => {
-            // 32B is only viable on very large cards; floor it hard everywhere else.
-            p.rank = p.rank.min(8);
-            p.alpha = p.alpha.min(16.0);
+            // 32B is only viable on very large cards; floor it hard on the
+            // small/medium tiers, but the large-card `else` arm must not
+            // inherit the small-card rank/alpha clamp.
             if vram_mb <= 24_576 {
+                p.rank = p.rank.min(8);
+                p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(256);
                 p.batch_size = 1;
                 p.grad_accum = p.grad_accum.max(16);
                 p.lr = p.lr.min(1.0e-4);
             } else if vram_mb <= 49_152 {
+                p.rank = p.rank.min(8);
+                p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(384);
                 p.batch_size = p.batch_size.min(1);
                 p.grad_accum = p.grad_accum.max(12);
@@ -170,15 +179,19 @@ fn apply_qwen_size_ladder_policy(
                 model_hint.and_then(crate::mens::tensor::memory_budget::params_b_from_model_hint)
             {
                 if params_b >= 24.0 {
-                    // As large as or larger than the S32 tier — apply the same floor.
-                    p.rank = p.rank.min(8);
-                    p.alpha = p.alpha.min(16.0);
+                    // As large as or larger than the S32 tier — apply the same
+                    // floor, gated by the same memory conditionals (the
+                    // large-card `else` arm must not inherit the clamp).
                     if vram_mb <= 24_576 {
+                        p.rank = p.rank.min(8);
+                        p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(256);
                         p.batch_size = 1;
                         p.grad_accum = p.grad_accum.max(16);
                         p.lr = p.lr.min(1.0e-4);
                     } else if vram_mb <= 49_152 {
+                        p.rank = p.rank.min(8);
+                        p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(384);
                         p.batch_size = p.batch_size.min(1);
                         p.grad_accum = p.grad_accum.max(12);
@@ -187,15 +200,18 @@ fn apply_qwen_size_ladder_policy(
                         p.grad_accum = p.grad_accum.max(8);
                     }
                 } else if params_b >= 12.0 {
-                    // S14-equivalent floor for anything in that range not string-matched.
-                    p.rank = p.rank.min(8);
-                    p.alpha = p.alpha.min(16.0);
+                    // S14-equivalent floor for anything in that range not
+                    // string-matched, same gating discipline as above.
                     if vram_mb <= 16_384 {
+                        p.rank = p.rank.min(8);
+                        p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(256);
                         p.batch_size = 1;
                         p.grad_accum = p.grad_accum.max(16);
                         p.lr = p.lr.min(1.0e-4);
                     } else if vram_mb <= 24_576 {
+                        p.rank = p.rank.min(8);
+                        p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(384);
                         p.batch_size = p.batch_size.min(1);
                         p.grad_accum = p.grad_accum.max(12);
@@ -925,6 +941,48 @@ mod qwen3_preset_tests {
             got, permissive,
             "small unmatched model must be left unchanged by Other, today's behavior"
         );
+    }
+
+    #[test]
+    fn a_large_machine_does_not_get_the_small_card_clamp_in_any_size_class() {
+        // Task 5: the rank/alpha clamps at S14/S32/Other must be gated by the
+        // vram_mb memory conditionals they sit next to, not fire unconditionally
+        // above them. A 110 GB budget is nowhere near any of these tiers' tight
+        // envelope and must not inherit the 16 GB card's rank floor.
+        let base = TrainPresetProfile {
+            rank: 64,
+            alpha: 128.0,
+            seq_len: 4096,
+            batch_size: 8,
+            grad_accum: 1,
+            epochs: 3,
+            warmup: 100,
+            lr: 2e-4,
+        };
+        for (class, hint) in [
+            (QwenSizeClass::S14, Some("Qwen3-14B")),
+            (QwenSizeClass::S32, Some("Qwen3-32B")),
+            (QwenSizeClass::Other, Some("Qwen3.8-27B")), // the model this program is about
+        ] {
+            let big = apply_qwen_size_ladder_policy(base.clone(), class, 110_000, hint);
+            assert!(
+                big.rank > 8,
+                "{class:?}: a 110 GB budget must not get the 16 GB card's rank, got {}",
+                big.rank
+            );
+        }
+        let small =
+            apply_qwen_size_ladder_policy(base, QwenSizeClass::S32, 16_384, Some("Qwen3-32B"));
+        assert_eq!(small.rank, 8, "a 16 GB card still gets the tight envelope");
+    }
+
+    #[test]
+    fn the_27b_is_classified_other_not_s32() {
+        // If this ever changes, the clamp fix above must move with it.
+        assert!(matches!(
+            detect_qwen_size_class(Some("Qwen3.8-27B")),
+            Some(QwenSizeClass::Other)
+        ));
     }
 
     #[test]

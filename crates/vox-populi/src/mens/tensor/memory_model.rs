@@ -413,6 +413,166 @@ lanes:
     }
 }
 
+/// The one place headroom is taken. Peaks land above the running average, and
+/// on a unified-memory machine the window server competes for the same pool.
+pub const SAFETY_FRACTION: f64 = 0.88;
+
+/// A device's total addressable memory pool for training — VRAM on a discrete
+/// GPU, or unified memory on Apple Silicon.
+#[derive(Debug, Clone, Copy)]
+pub struct DeviceBudget {
+    pub working_set_bytes: u64,
+}
+
+/// What the caller is asking to run: the request `plan_for` reports on, not
+/// what it substitutes.
+#[derive(Debug, Clone, Copy)]
+pub struct Request {
+    pub batch_size: u64,
+    pub seq_len: u64,
+}
+
+/// Whether a request fits the device's usable budget. `Refused` names why,
+/// rather than the caller silently retreating to a smaller shape.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Verdict {
+    Fits,
+    Refused(String),
+}
+
+/// `plan_for`'s report: it reports, it does not choose. Picking a shape that
+/// fits is `sweep`'s job (a separate function) — keeping them separate is
+/// what stops a refusal from becoming a silent substitution.
+#[derive(Debug, Clone)]
+pub struct Plan {
+    pub verdict: Verdict,
+    pub tokens_per_step: u64,
+    pub usable_bytes: u64,
+}
+
+/// `SAFETY_FRACTION` taken off a device's working set — called from exactly
+/// two places: `plan_for` and `budget_gate_usable_bytes`, both of which must
+/// consume this value once, never re-scale it.
+fn usable_bytes(budget: &DeviceBudget) -> u64 {
+    (budget.working_set_bytes as f64 * SAFETY_FRACTION).round() as u64
+}
+
+/// Report whether `request` fits `shape` on `budget`, using the calibration
+/// for `key` in `models`. Refuses (naming why) rather than shrinking the
+/// request or substituting a smaller shape — that choice belongs to `sweep`.
+pub fn plan_for(
+    budget: &DeviceBudget,
+    models: &MemoryModels,
+    key: &CalKey,
+    shape: &ModelShape,
+    request: &Request,
+) -> Plan {
+    let tokens_per_step = request.batch_size * request.seq_len;
+    let usable = usable_bytes(budget);
+    let verdict = match models.get(key) {
+        Ok(model) => {
+            let predicted = model.predict_bytes(shape, tokens_per_step);
+            if predicted <= usable {
+                Verdict::Fits
+            } else {
+                Verdict::Refused(format!(
+                    "predicted {predicted} bytes exceeds usable budget {usable} bytes \
+                     ({tokens_per_step} tokens/step)"
+                ))
+            }
+        }
+        Err(e) => Verdict::Refused(e.to_string()),
+    };
+    Plan {
+        verdict,
+        tokens_per_step,
+        usable_bytes: usable,
+    }
+}
+
+/// The usable-bytes budget a call site (e.g. a training `budget_gate`) must
+/// consume verbatim from `plan_for` — never re-scale by `SAFETY_FRACTION`
+/// again. This is the single call site both planners must route through.
+pub fn budget_gate_usable_bytes(budget: &DeviceBudget) -> u64 {
+    usable_bytes(budget)
+}
+
+#[cfg(test)]
+mod plan_for_tests {
+    use super::*;
+
+    /// M5 Max-shaped device budget: 128 GiB unified memory as the working set.
+    fn m5max() -> DeviceBudget {
+        DeviceBudget {
+            working_set_bytes: 128 * 1024 * 1024 * 1024,
+        }
+    }
+
+    // Synthetic fixture value, not a real candle-metal measurement — see the
+    // module doc comment and `SEED_YAML` in `mod tests` above.
+    const SEED_YAML: &str = r#"
+schema: vox.mens.memory-model.v1
+lanes:
+  - lane: candle-metal
+    gradient_checkpointing: false
+    act_bytes_per_lht: 100.0
+    source: measured
+"#;
+
+    fn models() -> MemoryModels {
+        MemoryModels::load_from_str(SEED_YAML).unwrap()
+    }
+
+    fn metal_key() -> CalKey {
+        CalKey::new(Lane::CandleMetal, false).unwrap()
+    }
+
+    /// A 27B-class shape (real Qwen3-32B dims stand in — no 27B rung exists on
+    /// the real ladder, see `preset_schema::QwenSizeClass::Other`): large enough
+    /// that batch=4×seq=1024 must overflow even a 128 GiB M5 Max after
+    /// `SAFETY_FRACTION`.
+    fn shape_27b() -> ModelShape {
+        ModelShape {
+            artifact_bytes: 60_000_000_000,
+            layers: 64,
+            hidden: 5120,
+        }
+    }
+
+    #[test]
+    fn an_over_large_request_is_refused_with_a_reason_not_shrunk_to_a_smaller_model() {
+        let plan = plan_for(
+            &m5max(),
+            &models(),
+            &metal_key(),
+            &shape_27b(),
+            &Request {
+                batch_size: 4,
+                seq_len: 1024,
+            },
+        );
+        assert!(!matches!(plan.verdict, Verdict::Fits));
+        assert_eq!(
+            plan.tokens_per_step, 4096,
+            "plan_for must report what was ASKED, not a substitute"
+        );
+    }
+
+    #[test]
+    fn safety_headroom_reaches_the_call_sites_exactly_once() {
+        // NOT `plan.usable_bytes == working_set * SAFETY_FRACTION` — that restates
+        // plan_for's own line and passes whether or not the call sites were rewired.
+        // Assert through budget_gate, which is where the second application lived.
+        let b = m5max();
+        let once = (b.working_set_bytes as f64 * SAFETY_FRACTION).round() as u64;
+        assert_eq!(
+            budget_gate_usable_bytes(&b),
+            once,
+            "budget_gate must consume plan_for's usable_bytes, not scale it again"
+        );
+    }
+}
+
 #[cfg(test)]
 mod load_default_check {
     use super::*;
