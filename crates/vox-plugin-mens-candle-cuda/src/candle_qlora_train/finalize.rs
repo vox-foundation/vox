@@ -300,8 +300,10 @@ mod tests {
     fn resolved_serve_base_model_keeps_existing_directory() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().display().to_string();
-        let mut cfg = LoraTrainingConfig::default();
-        cfg.base_model = Some(path.clone());
+        let cfg = LoraTrainingConfig {
+            base_model: Some(path.clone()),
+            ..Default::default()
+        };
         assert_eq!(resolved_serve_base_model(&cfg), Some(path));
     }
 
@@ -311,9 +313,11 @@ mod tests {
         let cfg_path = snap.path().join("config.json");
         fs::write(&cfg_path, "{}").unwrap();
         let expected = snap.path().display().to_string();
-        let mut cfg = LoraTrainingConfig::default();
-        cfg.base_model = Some("Qwen/Qwen3-0.6B".into());
-        cfg.base_model_paths = Some((vec![], cfg_path));
+        let cfg = LoraTrainingConfig {
+            base_model: Some("Qwen/Qwen3-0.6B".into()),
+            base_model_paths: Some((vec![], cfg_path)),
+            ..Default::default()
+        };
         assert_eq!(resolved_serve_base_model(&cfg), Some(expected));
     }
 
@@ -325,9 +329,11 @@ mod tests {
         let cfg_path = src.path().join("config.json");
         fs::write(&tok, "tok").unwrap();
         fs::write(&cfg_path, "{}").unwrap();
-        let mut cfg = LoraTrainingConfig::default();
-        cfg.tokenizer_path = Some(tok);
-        cfg.base_model_paths = Some((vec![], cfg_path));
+        let cfg = LoraTrainingConfig {
+            tokenizer_path: Some(tok),
+            base_model_paths: Some((vec![], cfg_path)),
+            ..Default::default()
+        };
         stage_serve_sidecars(out.path(), &cfg).unwrap();
         assert_eq!(
             fs::read_to_string(out.path().join("tokenizer.json")).unwrap(),
