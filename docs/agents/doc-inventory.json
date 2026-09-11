@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-11T03:07:26.534Z",
+  "generated_at": "2026-09-11T03:40:54.069Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -44090,7 +44090,7 @@
     {
       "path": "crates/vox-plugin-browser/src/hosts.rs",
       "kind": "rust",
-      "lines_total": 484,
+      "lines_total": 485,
       "lines_triple_slash": 2,
       "lines_inner_doc": 0,
       "lines_plain_comment": 4,
@@ -51801,7 +51801,7 @@
     {
       "path": "crates/vox-plugin-browser/src/policy.rs",
       "kind": "rust",
-      "lines_total": 341,
+      "lines_total": 337,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
