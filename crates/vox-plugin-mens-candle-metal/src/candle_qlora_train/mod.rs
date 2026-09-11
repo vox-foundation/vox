@@ -37,10 +37,12 @@ pub(super) static PAUSE_FLAG: AtomicBool = AtomicBool::new(false);
 /// Resolve which tensor backs `lm_head.weight`: the real untied head when the
 /// checkpoint has one, otherwise the tied-embeddings fallback.
 ///
-/// Serve (`inference.rs`) always prefers a real `lm_head.weight` tensor and
-/// only falls back to the embedding matrix when it's absent. Train must agree,
-/// or a model with an untied head (e.g. Qwen3.8-27B) computes logits against
-/// the wrong matrix during training while serve uses the right one.
+/// This matches serve's preference for a real `lm_head.weight` when present:
+/// without it, a model with an untied head (e.g. Qwen3.8-27B) computes logits
+/// against the wrong matrix during training while serve uses the right one.
+/// (Serve's own check in `inference.rs` is pure tensor presence — it never
+/// consults `tie_word_embeddings` — so the two agree for every real
+/// checkpoint, but they are not the same predicate.)
 ///
 /// - `tie_word_embeddings == false` and `lm_head_tensor` is `Some` → use it.
 /// - Otherwise (tied, or the key is genuinely absent from the checkpoint) →
@@ -457,8 +459,9 @@ pub fn run_candle_qlora_train(
     // the CPU and quantizing them there means the full-precision weight never occupies
     // a Metal buffer during construction — only the small NF4 result is uploaded to
     // build the BF16 cache, avoiding a Metal-buffer-residency peak at build time.
-    // Embeddings, norms, biases and the LM head stay on `vb_mmap` (device) since
-    // they're used directly there without an intervening quantization step.
+    // Embeddings, norms, biases stay on `vb_mmap` (device) since they're used directly
+    // there without an intervening quantization step; the LM head does not — it
+    // is quantized like the projections, so it loads from `vb_mmap_cpu` too.
     #[allow(unsafe_code)]
     let vb_mmap_cpu = unsafe {
         VarBuilder::from_mmaped_safetensors(
@@ -913,10 +916,33 @@ pub fn run_candle_qlora_train(
                 .to_dtype(DType::F32)?
         };
         let final_norm = candle_nn::RmsNorm::new(fnorm_w, 1e-6);
-        let lm_head_tensor = vb_mmap
+        // Load the untied head on the CPU (vb_mmap_cpu), like the projection
+        // weights above: it is quantized during construction, and for
+        // Qwen3.8-27B it is 248320x5120 F32 (~4.7 GiB) — a second multi-GiB
+        // device allocation on top of the already-resident F32 embeddings if
+        // taken from `vb_mmap`. `QuantizedLinear::from_weight_with_varbuilder`
+        // quantizes on the base weight's own device and uploads only the BF16
+        // cache, so the result is identical wherever the base lives.
+        let lm_head_tensor = match vb_mmap_cpu
             .get((bundle.vocab, bundle.d_model), "lm_head.weight")
-            .ok()
-            .and_then(|t| t.to_dtype(DType::F32).ok());
+            .and_then(|t| t.to_dtype(DType::F32))
+        {
+            Ok(t) => Some(t),
+            Err(e) => {
+                // A genuinely tied checkpoint has no `lm_head.weight`, so an
+                // error is expected and silent there. When the layout says the
+                // head is untied, a failed load means a real head was expected
+                // and we are about to silently train the derived one instead.
+                if !bundle.layout.tie_word_embeddings {
+                    train_log::warn(&format!(
+                        "lm_head.weight load failed for an untied checkpoint ({e}); \
+                         falling back to deriving the LM head from the embedding \
+                         matrix — training and serving will disagree on the head."
+                    ));
+                }
+                None
+            }
+        };
         let (w_lm, lm_base) = resolve_lm_head_source(
             &wte,
             lm_head_tensor.as_ref(),
