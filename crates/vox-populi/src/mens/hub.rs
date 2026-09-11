@@ -45,6 +45,11 @@ fn repo_name_without_revision(repo_id: &str) -> &str {
     repo_id.split('@').next().unwrap_or(repo_id)
 }
 
+/// The `<sha>` in `owner/name@<sha>`, if present.
+fn repo_revision(repo_id: &str) -> Option<&str> {
+    repo_id.rsplit_once('@').map(|(_, rev)| rev)
+}
+
 /// True iff `repo_id` names the same repo as [`super::DEFAULT_MODEL_ID`],
 /// ignoring any `@<revision>` suffix on either side.
 ///
@@ -157,10 +162,12 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
     ensure_download_allowed(repo_id)?;
     normalize_hf_token_env();
     let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
-    let (owner, name) = split_id(repo_id);
+    let revision = repo_revision(repo_id);
+    let (owner, name) = split_id(repo_name_without_revision(repo_id));
     let repo = client.model(owner, name);
     let info = repo
         .info()
+        .maybe_revision(revision)
         .send()
         .await
         .map_err(|e| anyhow::anyhow!("hf-hub repo info for {repo_id}: {e}"))?;
@@ -187,6 +194,7 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
     let config = repo
         .download_file()
         .filename("config.json")
+        .maybe_revision(revision)
         .send()
         .await
         .map_err(|e| anyhow::anyhow!("download config.json: {e}"))?;
@@ -202,6 +210,7 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
             tokenizer = Some(
                 repo.download_file()
                     .filename(name)
+                    .maybe_revision(revision)
                     .send()
                     .await
                     .map_err(|e| anyhow::anyhow!("download {name}: {e}"))?,
@@ -218,6 +227,7 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         tokenizer_config = Some(
             repo.download_file()
                 .filename("tokenizer_config.json")
+                .maybe_revision(revision)
                 .send()
                 .await
                 .map_err(|e| anyhow::anyhow!("download tokenizer_config.json: {e}"))?,
@@ -232,6 +242,7 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         chat_template = Some(
             repo.download_file()
                 .filename("chat_template.jinja")
+                .maybe_revision(revision)
                 .send()
                 .await
                 .map_err(|e| anyhow::anyhow!("download chat_template.jinja: {e}"))?,
@@ -267,6 +278,7 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         let index_path = repo
             .download_file()
             .filename(SAFETENSORS_INDEX_FILENAME)
+            .maybe_revision(revision)
             .send()
             .await
             .map_err(|e| anyhow::anyhow!("download {SAFETENSORS_INDEX_FILENAME}: {e}"))?;
@@ -289,6 +301,7 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         let p = repo
             .download_file()
             .filename(w)
+            .maybe_revision(revision)
             .send()
             .await
             .map_err(|e| anyhow::anyhow!("download {w}: {e}"))?;
@@ -398,6 +411,29 @@ mod tests {
         assert!(!super::is_default_model_repo(
             "some-org/unrelated-repo@deadbeef"
         ));
+    }
+
+    #[test]
+    fn the_pin_is_stripped_from_the_name_and_sent_as_a_revision() {
+        assert_eq!(
+            super::repo_name_without_revision("Qwen/Qwen3-8B@1d4bf0"),
+            "Qwen/Qwen3-8B"
+        );
+        assert_eq!(super::repo_revision("Qwen/Qwen3-8B@1d4bf0"), Some("1d4bf0"));
+        assert_eq!(super::repo_revision("Qwen/Qwen3-8B"), None);
+
+        // The bug: split_id splits on '/' only, so the pin lands in the repo NAME.
+        let (_, raw) = hf_hub::split_id("Qwen/Qwen3-8B@1d4bf0");
+        assert!(
+            raw.contains('@'),
+            "precondition: hf-hub does not strip revisions"
+        );
+        let (_, fixed) =
+            hf_hub::split_id(super::repo_name_without_revision("Qwen/Qwen3-8B@1d4bf0"));
+        assert_eq!(
+            fixed, "Qwen3-8B",
+            "the name sent to the Hub must carry no pin"
+        );
     }
 
     #[test]
