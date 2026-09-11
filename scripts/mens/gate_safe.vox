@@ -3,22 +3,15 @@
 // Logic: Runs 'vox ci mens-gate --isolated-runner' with profile and log file.
 
 fn main() {
-    let mut profile = "training"
-    let mut log_file = ""
-    
-    // Simple arg parsing (since std.args is not fully typed in interpretation yet, 
+    // Simple arg parsing (since std.args is not fully typed in interpretation yet,
     // we use env as a workaround or just take defaults).
-    // Actually, full-pipeline.vox uses env.get.
-    
-    let profile_env = env.get("VOX_GATE_PROFILE")
-    if profile_env isnt null {
-        profile = profile_env.unwrap()
-    }
-    
-    let log_file_env = env.get("VOX_GATE_LOG_FILE")
-    if log_file_env isnt null {
-        log_file = log_file_env.unwrap()
-    }
+    // `env.get(...)` returns an Option; `x isnt null` on an Option is always true
+    // regardless of whether it holds a value, so `.unwrap_or(default)` is the
+    // correct idiom here, not `if x isnt null { x.unwrap() }` (which panics
+    // whenever the var is genuinely unset — see scripts/mens/full-pipeline.vox's
+    // history for the same defect, already fixed there the same way).
+    let profile = env.get("VOX_GATE_PROFILE").unwrap_or("training")
+    let log_file = env.get("VOX_GATE_LOG_FILE").unwrap_or("")
 
     print("--- Vox Gate Safe ---")
     print("Profile: " + profile)
