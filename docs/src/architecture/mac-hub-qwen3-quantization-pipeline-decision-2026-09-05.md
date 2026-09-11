@@ -7,6 +7,31 @@ status: "current"
 
 # Mac-as-hub, Qwen3, and the quantization ladder (2026-09-05)
 
+## Revision 8 (2026-09-10) — the 27B rung is live and resolvable, and is NOT yet gated
+
+Status disclosure, not a decision change. `Qwen/Qwen3.8-27B` is now a real rung
+in the spoke ladder (`mens/config/gpu-specs.yaml`, `strong_code_default` and
+`agentic_default`, `floor_mb: 34000`, SHA-pinned). It sits directly below the
+`Qwen3-14B` LoRA rung at `floor_mb: 44000`, so `spoke_base_resolver`
+**auto-resolves 27B for any machine reporting available memory in
+[34,000, 44,000) MB** — an intermediate Apple Silicon tier (a 48 GB Mac after
+the GUI reserve), not just the 128 GB hub. The first `vox mens train` there will
+start a real **55.6 GB** download (the checkpoint's own
+`model.safetensors.index.json` reports `total_size: 55,562,855,904`) with no
+further opt-in.
+
+What that rung has **not** been through: it has not been downloaded, trained,
+quantized, or evaluated by this program. The eval gate
+(`evaluate_gate` over a `paired_compare(baseline, challenger)` on all 164
+fixtures) and the identity gate are **Phase 3 work and not complete**. Those two
+gates are the remaining prerequisite before 27B becomes the **128 GB** hub
+default.
+
+**The 128 GB default is unchanged by this.** The hub pin flip has not happened
+and is not implied by the rung existing; only the intermediate 32–48 GB tiers
+resolve to 27B today. An operator on those tiers who does not want the download
+should pin a smaller base explicitly.
+
 ## Revision 2 (same day) — corrections after a deeper code audit
 
 The first draft of this document was written before auditing `mens/config/` and

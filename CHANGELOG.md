@@ -19,6 +19,14 @@ All notable changes to the Vox project are documented here.
 - **Uniform `--json` across the build lane** — `vox --json build`, `vox --json test`, and `vox --json run` (script lane) emit stable single-line `BuildLaneEnvelope` JSON (`envelope_version`, `command`, `ok`, `error_count`, `warning_count`, `diagnostics` using the same `VoxCompilerDiagnosticPayload` as `vox check`, optional `exit_code`) on stdout; human progress notes move to stderr so stdout stays JSONL-parseable. `vox build` guarantees exactly one envelope line per invocation regardless of which stage fails.
 - **`vox doctor --diag <id>`** — run and report only the build-health check that can produce a given `[diag id=…]` (e.g. `sccache.pathological`); exits non-zero when the diagnosis fires, and unknown ids list the registered-id registry.
 
+### Fixed
+
+- **QLoRA training now loads the real `lm_head.weight` for untied checkpoints** (Metal and CUDA trainers). Previously the LM head was *always* derived from the embedding matrix, which is wrong for every currently-shipping Qwen3 base: `Qwen3-8B` (the 16 GB `DEFAULT_MODEL_ID`), `Qwen3-14B`, `Qwen3-32B`, and `Qwen3.8-27B` all ship `tie_word_embeddings: false` with a real, distinct `lm_head.weight`, so training optimized logits against the wrong matrix while serving used the right one. **Adapters trained before this change are not numerically comparable to adapters trained after it** — re-train rather than comparing across the boundary. Genuinely tied checkpoints (no `lm_head.weight` present) keep the previous derive-from-embeddings behavior. The untied head is loaded CPU-side (`vb_mmap_cpu`) like the projection weights, so it does not add a multi-GiB device-buffer peak during graph construction (~4.7 GiB for Qwen3.8-27B's 248320x5120 head).
+
+### Changed
+
+- **`VOX_MENS_FORCE_TRAIN` now also overrides the `vox mens train` VRAM budget gate.** The gate that refuses an over-budget plan previously had no operator override at all; setting `VOX_MENS_FORCE_TRAIN=1` (or `true`) proceeds past it, matching the var's existing "proceed past a failing gate" meaning. Unset or `0` still rejects.
+
 ## [0.6.0] - 2026-05-26
 
 **Release theme:** Single-machine multi-agent with no data loss; `@endpoint` decorator surface retired; language hardening. All Phase 0 (foundations), Phase 1 (language spine), Phase 3 (VCS gossip), Hopper Hp-T1..T4 (unified task intake), and Telemetry unification Phases A–D deliverables from the mesh SSOT.
