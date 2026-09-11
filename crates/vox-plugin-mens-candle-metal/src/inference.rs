@@ -42,8 +42,16 @@ fn resolve_adapter_manifest_path(model_dir: &Path) -> Option<std::path::PathBuf>
 }
 
 /// Every safetensors file whose tensors feed the inference weight map, in
-/// search order. The adapter comes first: it must win over the frozen base,
-/// or a trained run silently serves base weights.
+/// search order: adapter before merged before base shards.
+///
+/// This establishes the deterministic *search order* a future delta-application
+/// step needs — it does NOT itself apply the LoRA delta. The adapter's tensor
+/// keys (`<logical>.lora_a`, `<logical>.lora_b`) never match any key the model
+/// actually looks up (all base-model key names), so an un-merged run's served
+/// output is unchanged from before this function existed: it still serves base
+/// weights. Wiring the delta (`W + BA·α/r`) belongs in `get_tensor`, keyed off a
+/// matching adapter entry — see `merge.rs`'s `merge_qlora_into_base_subset` for
+/// the reference computation to port there.
 pub fn weight_sources(model_dir: &Path, base_shards: &[PathBuf]) -> Vec<PathBuf> {
     let mut sources = Vec::new();
     let adapter = model_dir.join("candle_qlora_adapter.safetensors");
@@ -393,10 +401,16 @@ impl InferenceEngine {
         #[derive(serde::Deserialize)]
         struct PromptRequest {
             prompt: String,
+            #[serde(default)]
+            system: Option<String>,
             #[serde(default = "default_max_tokens")]
             max_tokens: usize,
             #[serde(default = "default_temperature")]
             temperature: f64,
+            // TODO(serving-defects): `top_k` and `output_mode` are still sent by
+            // worker.rs's inference_payload but not deserialized here, so greedy-vs-
+            // sampled decoding and structured-output enforcement remain unwired.
+            // Out of scope for this fix (system-prompt wiring only).
         }
         fn default_max_tokens() -> usize {
             256
@@ -408,11 +422,13 @@ impl InferenceEngine {
         let req: PromptRequest = serde_json::from_str(prompt_json)
             .map_err(|e| anyhow::anyhow!("parse prompt_json: {e}"))?;
 
-        let generated = self.generate(&req.prompt, req.max_tokens, req.temperature)?;
+        let prompt = assemble_prompt(req.system.as_deref(), &req.prompt);
+
+        let generated = self.generate(&prompt, req.max_tokens, req.temperature)?;
 
         let out = serde_json::json!({
             "generated_text": generated,
-            "prompt_tokens": self.tokenizer.encode(req.prompt.as_str(), true)
+            "prompt_tokens": self.tokenizer.encode(prompt.as_str(), true)
                 .map(|e| e.len()).unwrap_or(0),
         });
         Ok(out.to_string())
@@ -471,6 +487,17 @@ impl InferenceEngine {
 
 /// Entry point called from `backend.rs` `run_inference`.
 ///
+/// Prepend the trained system prompt to the user prompt, if one was sent.
+/// Plain `"{system}\n\n{prompt}"` — there's no existing chat-template
+/// convention in this file (no BOS/EOS role tags), so this keeps the same
+/// flat-text shape `generate` already expects.
+fn assemble_prompt(system: Option<&str>, prompt: &str) -> String {
+    match system {
+        Some(system) if !system.is_empty() => format!("{system}\n\n{prompt}"),
+        _ => prompt.to_string(),
+    }
+}
+
 /// `model_dir_json` is a JSON string with a `"model_dir"` field pointing to the
 /// local model directory, plus the prompt fields consumed by `generate_from_json`.
 pub fn run(model_dir: &str, prompt_json: &str) -> Result<String> {
@@ -481,8 +508,20 @@ pub fn run(model_dir: &str, prompt_json: &str) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
+    use super::assemble_prompt;
     use super::resolve_adapter_manifest_path;
     use super::weight_sources;
+
+    #[test]
+    fn assemble_prompt_prepends_system_when_present() {
+        let out = assemble_prompt(Some("YOU ARE VOX"), "hello");
+        assert_eq!(out, "YOU ARE VOX\n\nhello");
+    }
+
+    #[test]
+    fn assemble_prompt_is_unchanged_when_system_absent() {
+        assert_eq!(assemble_prompt(None, "hello"), "hello");
+    }
 
     #[test]
     fn the_adapter_is_a_weight_source_and_outranks_the_base() {

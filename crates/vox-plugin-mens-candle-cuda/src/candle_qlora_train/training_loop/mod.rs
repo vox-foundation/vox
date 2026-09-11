@@ -66,9 +66,10 @@ fn checkpoint_and_bail_on_oom(
     }
 
     let ckpt_path = out.join(format!("oom_step_{global_step}.safetensors"));
-    if let Err(e) = trainer.save_adapter(&ckpt_path) {
+    let checkpoint_error = trainer.save_adapter(&ckpt_path).err().map(|e| {
         train_log::warn(&format!("OOM adapter checkpoint save failed: {e}"));
-    }
+        e.to_string()
+    });
     let state = crate::checkpoint_state::CheckpointState {
         schema: crate::checkpoint_state::CHECKPOINT_SCHEMA.to_string(),
         run_id: run_id.to_string(),
@@ -103,6 +104,7 @@ fn checkpoint_and_bail_on_oom(
         batch_size: config.batch_size.max(1),
         seq_len: config.seq_len,
         predicted_bytes: 0,
+        checkpoint_error,
     };
     let msg = super::oom::render_oom(&ev);
     if let Err(e) = telemetry::append(
