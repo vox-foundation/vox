@@ -418,6 +418,11 @@ pub enum PopuliAction {
         /// (q4_k_m|q5_k_m|q6_k|q8_0). Writes a quantized artifact next to --output.
         #[arg(long)]
         quantize: Option<String>,
+        /// Keep `recombined_full/` (merged SafeTensors + config + tokenizer +
+        /// Modelfile) so `ollama create -q q4_K_M <name> -f Modelfile` can
+        /// consume it. Without this the directory is deleted after quantizing.
+        #[arg(long, default_value_t = false)]
+        keep_merged: bool,
     },
 
     /// Export merged safetensors weights to GGUF (not yet implemented).

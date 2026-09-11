@@ -458,15 +458,21 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             meta,
             output,
             quantize,
-        } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output, quantize),
+            keep_merged,
+        } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output, quantize, keep_merged),
 
         PopuliAction::ExportGguf { input, output } => {
             anyhow::bail!(
-                "NOT_IMPLEMENTED: `vox mens export-gguf` is not wired yet.\n\
-                 Merge adapter weights first:\n\
-                   vox mens merge-qlora --base-shard <base> --adapter <adapter> \\\n\
-                     --meta <meta.json> --output <merged.safetensors>\n\
-                 Then track GGUF export in docs/superpowers/specs/2026-05-31-vox-quantize-engine-design.md.\n\
+                "`vox mens export-gguf` is not a separate step. Two routes, by base architecture:\n  \
+                 llama / gemma2 base — let Ollama convert:\n    \
+                 vox mens merge-qlora --base-shard <base> --adapter <adapter> \\\n      \
+                   --meta <meta.json> --output <merged.safetensors> \\\n      \
+                   --quantize q4_k_m --keep-merged\n    \
+                 cd <merged-parent>/recombined_full && ollama create -q q4_K_M <name> -f Modelfile\n  \
+                 Qwen3 base (MENS default) — ollama create rejects the architecture; use llama.cpp:\n    \
+                 vox mens merge-qlora --base-shard <base> --adapter <adapter> \\\n      \
+                   --meta <meta.json> --output <merged.safetensors> \\\n      \
+                   --keep-merged --gguf-out <out.gguf> --llama-cpp <llama.cpp checkout>\n\
                  Requested: input={} output={}",
                 input.display(),
                 output.display()

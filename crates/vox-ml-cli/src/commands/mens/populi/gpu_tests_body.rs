@@ -58,7 +58,7 @@ fn merge_qlora_rejects_burn_bin_adapter() {
     let base = dir.path().join("base.safetensors");
     std::fs::write(&base, []).expect("base shard");
     let out = dir.path().join("merged.safetensors");
-    let result = merge_qlora::run_merge_qlora(vec![base], adapter, meta, out, None);
+    let result = merge_qlora::run_merge_qlora(vec![base], adapter, meta, out, None, false);
     assert!(result.is_err(), "expected rejection of Burn bin adapter");
     let msg = result.unwrap_err().to_string();
     assert!(
@@ -97,11 +97,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
         TensorView::new(Dtype::F32, vec![vocab, d], wb.as_slice()).unwrap(),
     );
     let base_path = dir.path().join("model.safetensors");
-    std::fs::write(
-        &base_path,
-        safetensors::serialize(&base_map, None).unwrap(),
-    )
-    .unwrap();
+    std::fs::write(&base_path, safetensors::serialize(&base_map, None).unwrap()).unwrap();
 
     let fa = vec![1.0f32; rank * d];
     let fb = vec![1.0f32; vocab * rank];
@@ -146,8 +142,15 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
     .unwrap();
 
     let out_path = dir.path().join("merged.safetensors");
-    merge_qlora::run_merge_qlora(vec![base_path], ad_path, meta_path, out_path.clone(), None)
-        .expect("merge-qlora");
+    merge_qlora::run_merge_qlora(
+        vec![base_path],
+        ad_path,
+        meta_path,
+        out_path.clone(),
+        None,
+        false,
+    )
+    .expect("merge-qlora");
 
     let mut delta = vec![0f32; vocab * d];
     for i in 0..vocab {
@@ -200,11 +203,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
         TensorView::new(Dtype::F32, vec![vocab, d], wb.as_slice()).unwrap(),
     );
     let base_path = dir.path().join("model.safetensors");
-    std::fs::write(
-        &base_path,
-        safetensors::serialize(&base_map, None).unwrap(),
-    )
-    .unwrap();
+    std::fs::write(&base_path, safetensors::serialize(&base_map, None).unwrap()).unwrap();
 
     let fa = vec![1.0f32; rank * d];
     let fb = vec![1.0f32; vocab * rank];
@@ -256,8 +255,15 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
     .unwrap();
 
     let out_path = dir.path().join("merged_v3.safetensors");
-    merge_qlora::run_merge_qlora(vec![base_path], ad_path, meta_path, out_path.clone(), None)
-        .expect("merge-qlora v3 meta");
+    merge_qlora::run_merge_qlora(
+        vec![base_path],
+        ad_path,
+        meta_path,
+        out_path.clone(),
+        None,
+        false,
+    )
+    .expect("merge-qlora v3 meta");
 
     let mut delta = vec![0f32; vocab * d];
     for i in 0..vocab {

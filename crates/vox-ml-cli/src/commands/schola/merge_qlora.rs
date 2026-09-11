@@ -78,6 +78,7 @@ pub fn run_merge_qlora(
     meta: PathBuf,
     output: PathBuf,
     quantize: Option<String>,
+    keep_merged: bool,
 ) -> anyhow::Result<()> {
     if base_shards.is_empty() {
         anyhow::bail!("pass at least one `--base-shard` safetensors path");
@@ -216,8 +217,142 @@ pub fn run_merge_qlora(
             q_out.display(),
             report.compression_ratio
         );
-        let _ = std::fs::remove_dir_all(&recombined);
+        finish_recombined(&recombined, &base_dir, keep_merged)?;
     }
 
     Ok(())
+}
+
+/// Modelfile for a merged checkpoint. `FROM .` imports the SafeTensors
+/// directory itself, so `ollama create` runs its own conversion.
+///
+/// Applies only to base architectures Ollama's converter supports (llama,
+/// gemma2). Qwen3 bases are rejected by `ollama create` with
+/// `unsupported architecture "Qwen3ForCausalLM"` and go through the
+/// llama.cpp lane instead. This renderer does not gate on architecture:
+/// Ollama's enumeration is upstream and a hardcoded copy would rot.
+///
+/// No `ADAPTER` directive: Ollama's safetensors adapter converter covers
+/// llama and gemma2 bases only — merged weights are the supported route.
+#[must_use]
+pub fn render_ollama_modelfile(num_ctx: usize, license: &str) -> String {
+    let mut s = String::from("FROM .\n");
+    s.push_str(&format!("PARAMETER num_ctx {num_ctx}\n"));
+    // Must match training's prompt_format "qwen_chatml_im_start"
+    // (vox_populi::mens::tensor::external_serving_handoff); a mismatch serves
+    // the model off-distribution.
+    s.push_str(
+        "TEMPLATE \"\"\"{{ if .System }}<|im_start|>system\n{{ .System }}<|im_end|>\n{{ end }}\
+         <|im_start|>user\n{{ .Prompt }}<|im_end|>\n<|im_start|>assistant\n\"\"\"\n",
+    );
+    s.push_str(&format!("LICENSE \"\"\"{license}\"\"\"\n"));
+    s
+}
+
+/// Post-quantize disposition of `recombined_full/`. With `keep_merged`, copy
+/// the tokenizer files Ollama's converter needs and write a Modelfile beside
+/// the weights; without it, delete the directory as before.
+///
+/// Extracted from the body of `run_merge_qlora` so the keep-vs-delete
+/// decision is testable without a real base checkpoint and adapter.
+fn finish_recombined(
+    recombined: &std::path::Path,
+    base_dir: &std::path::Path,
+    keep_merged: bool,
+) -> anyhow::Result<()> {
+    if !keep_merged {
+        let _ = std::fs::remove_dir_all(recombined);
+        return Ok(());
+    }
+    for f in [
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "generation_config.json",
+    ] {
+        let src = base_dir.join(f);
+        if src.exists() {
+            std::fs::copy(&src, recombined.join(f))
+                .with_context(|| format!("copy {f} into recombined_full"))?;
+        }
+    }
+    std::fs::write(
+        recombined.join("Modelfile"),
+        render_ollama_modelfile(8192, "apache-2.0"),
+    )
+    .context("write Modelfile")?;
+    println!(
+        "Merged model kept at {} — for a llama/gemma2 base, publish with:\n  cd {} && ollama create -q q4_K_M <name> -f Modelfile\nFor a Qwen3 base, `ollama create` rejects the architecture; use `vox mens merge-qlora --gguf-out <file> --llama-cpp <dir>` instead.",
+        recombined.display(),
+        recombined.display()
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod ollama_publish_tests {
+    use super::*;
+
+    /// Catches: emitting `FROM model.safetensors` or `FROM <abs path>`.
+    /// `ollama create` converts a *directory*; a file path is rejected, and
+    /// an absolute path breaks the moment the run dir is copied anywhere.
+    #[test]
+    fn modelfile_imports_the_directory_relatively() {
+        let m = render_ollama_modelfile(8192, "apache-2.0");
+        assert!(m.starts_with("FROM .\n"), "got: {m}");
+        assert!(m.contains("PARAMETER num_ctx 8192"), "got: {m}");
+    }
+
+    /// Catches: dropping the TEMPLATE. MENS trains with prompt_format
+    /// "qwen_chatml_im_start" (external_serving_handoff.rs:40); a Modelfile
+    /// without the matching ChatML template serves the model
+    /// off-distribution, which looks like a bad checkpoint rather than a
+    /// bad Modelfile.
+    #[test]
+    fn modelfile_template_matches_the_training_prompt_format() {
+        let m = render_ollama_modelfile(8192, "apache-2.0");
+        assert!(m.contains("<|im_start|>"), "got: {m}");
+        assert!(m.contains("<|im_end|>"), "got: {m}");
+    }
+
+    /// Catches: emitting an ADAPTER directive. Ollama's safetensors adapter
+    /// converter handles base architectures llama and gemma2 only, and it
+    /// would fail on a LoRA adapter regardless of the merged-weight route
+    /// this Modelfile describes.
+    #[test]
+    fn modelfile_emits_no_adapter_directive() {
+        let m = render_ollama_modelfile(8192, "apache-2.0");
+        assert!(!m.contains("ADAPTER"), "got: {m}");
+    }
+
+    /// Catches: reverting `if keep_merged { .. } else { remove_dir_all }` at
+    /// :219 back to an unconditional delete -- i.e. undoing this entire
+    /// feature. The three renderer tests above are all pure string checks
+    /// and stay green against that revert, so without this one the task has
+    /// no regression guard at all.
+    ///
+    /// Drives the gated block directly rather than through run_merge_qlora,
+    /// which needs a real base checkpoint and an adapter.
+    #[test]
+    fn keep_merged_leaves_the_recombined_directory_and_its_modelfile_on_disk() {
+        let dir = tempfile::tempdir().unwrap();
+        let recombined = dir.path().join("recombined_full");
+        std::fs::create_dir_all(&recombined).unwrap();
+        std::fs::write(recombined.join("model.safetensors"), b"stub").unwrap();
+
+        finish_recombined(&recombined, dir.path(), true).unwrap();
+        assert!(
+            recombined.join("model.safetensors").is_file(),
+            "--keep-merged must keep the merged artifact; it was deleted"
+        );
+        assert!(
+            recombined.join("Modelfile").is_file(),
+            "--keep-merged must write a Modelfile next to the weights"
+        );
+
+        finish_recombined(&recombined, dir.path(), false).unwrap();
+        assert!(
+            !recombined.exists(),
+            "without --keep-merged the recombined dir is still deleted"
+        );
+    }
 }
