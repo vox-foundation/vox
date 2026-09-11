@@ -45,7 +45,7 @@ pub enum ReviewProvider {
     /// Local Ollama instance — zero auth, zero cost.
     Ollama {
         #[serde(default = "default_ollama_url")]
-        /// Base URL for Ollama (no `/v1` suffix); default `http://localhost:11434`.
+        /// Base URL for Ollama (no `/v1` suffix); resolved via `local_ollama_populi_base_url()`.
         url: String,
         #[serde(default = "default_ollama_model")]
         /// Tag pulled into Ollama (e.g. `codellama`).
@@ -83,9 +83,11 @@ pub fn default_openai_base_url() -> String {
 pub fn default_gemini_model() -> String {
     "gemini-3-flash".to_string()
 }
-/// Default Ollama listen URL when `OLLAMA_URL` is unset.
+/// Default Ollama listen URL. Resolved via `local_ollama_populi_base_url()`
+/// (`VOX_POPULI_LOCAL_OLLAMA_URL` -> `POPULI_URL` -> `OLLAMA_URL` -> default)
+/// so a self-hosted server can be targeted without a code change.
 pub fn default_ollama_url() -> String {
-    "http://localhost:11434".to_string()
+    vox_config::inference::local_ollama_populi_base_url()
 }
 /// Default Ollama model tag when `OLLAMA_MODEL` is unset.
 pub fn default_ollama_model() -> String {
@@ -199,4 +201,25 @@ pub fn probe_ollama(url: &str) -> bool {
             code.trim() == "200"
         })
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod ollama_ssot_tests {
+    use super::*;
+
+    /// Catches: reverting the body to a hardcoded "http://localhost:11434".
+    /// With the literal, OLLAMA_URL cannot redirect the client, so
+    /// mens-serving-ssot.md's "point POPULI_URL at your server" story is
+    /// false for every vox-code-audit review.
+    #[test]
+    fn ollama_default_url_resolves_through_the_config_ssot() {
+        // SAFETY: single-threaded scope; the var is restored below and no
+        // other test in this crate reads OLLAMA_URL.
+        unsafe { std::env::set_var("OLLAMA_URL", "http://ssot-probe:1234") };
+        vox_config::snapshot::bump(&["OLLAMA_URL"]);
+        let got = default_ollama_url();
+        unsafe { std::env::remove_var("OLLAMA_URL") };
+        vox_config::snapshot::bump(&["OLLAMA_URL"]);
+        assert_eq!(got, "http://ssot-probe:1234");
+    }
 }

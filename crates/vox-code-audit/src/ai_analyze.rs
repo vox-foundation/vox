@@ -27,7 +27,7 @@ pub enum AiProvider {
     /// Local Ollama instance — zero auth, the recommended default.
     /// Requires Ollama installed and a model pulled (e.g. `ollama pull codellama`).
     Ollama {
-        /// Ollama API endpoint (default: http://localhost:11434)
+        /// Ollama API endpoint (default: resolved via `local_ollama_populi_base_url()`)
         #[serde(default = "default_ollama_url")]
         url: String,
         /// Model name (default: codellama)
@@ -56,7 +56,7 @@ pub enum AiProvider {
 }
 
 fn default_ollama_url() -> String {
-    "http://localhost:11434".to_string()
+    crate::review::providers::default_ollama_url()
 }
 
 fn default_ollama_model() -> String {
