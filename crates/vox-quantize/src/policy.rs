@@ -83,6 +83,55 @@ impl QuantMixture {
     }
 }
 
+/// Bits-per-weight for a GGML quantized dtype, derived from candle_core's
+/// real block layout (`type_size` bytes / `block_size` elements) — never a
+/// separately hardcoded constant.
+pub fn bits_per_weight(dtype: GgmlDType) -> f64 {
+    dtype.type_size() as f64 * 8.0 / dtype.block_size() as f64
+}
+
+/// Fraction of a dense transformer's quantizable parameters that fall into
+/// Q4_K_M/Q5_K_M's "boosted" roles (DownProj + VProj + Embedding + Output,
+/// all bumped to Q6K by `QuantMixture::target_for`) rather than the default
+/// Matrix role. `target_for` only maps *a* role to *a* dtype — it has no
+/// notion of how many parameters each role covers, which is a property of
+/// the checkpoint's architecture, not of the policy. Measured for
+/// Qwen3.8-27B's layer layout; see
+/// docs/superpowers/specs/2026-09-10-qwen38-27b-hub-design.md §5.1.
+pub const QWEN3_27B_BOOSTED_ROLE_FRACTION: f64 = 0.22;
+
+/// Weighted-average bits-per-weight for `mixture`, given the fraction of
+/// parameters in "boosted" roles (DownProj/VProj/Embedding/Output) vs the
+/// default Matrix role. Uses `QuantMixture::target_for`'s real role→dtype
+/// assignments, not a restated bpw constant. Returns `None` for a `Manual`
+/// mixture that doesn't map both roles.
+pub fn mixture_bpw(mixture: &QuantMixture, boosted_fraction: f64) -> Option<f64> {
+    let default_dtype = mixture.target_for(TensorRole::Matrix)?;
+    let boosted_dtype = mixture.target_for(TensorRole::DownProj)?;
+    Some(
+        (1.0 - boosted_fraction) * bits_per_weight(default_dtype)
+            + boosted_fraction * bits_per_weight(boosted_dtype),
+    )
+}
+
+/// Weights-only footprint in GiB for a `params_b`-billion-parameter model at
+/// `bpw` bits per weight.
+pub fn needed_gib(params_b: f64, bpw: f64) -> f64 {
+    params_b * 1e9 * bpw / 8.0 / (1024.0 * 1024.0 * 1024.0)
+}
+
+/// Does a `params_b`-billion-parameter model at `mixture` fit in
+/// `usable_gib` of usable VRAM? Weights only — no KV cache or compute-buffer
+/// margin; callers wanting headroom should pass a smaller `usable_gib`.
+/// A `Manual` mixture without a usable bpw estimate is never rejected here
+/// (unknown, not infeasible).
+pub fn fits_target_tier(params_b: f64, mixture: &QuantMixture, usable_gib: f64) -> bool {
+    match mixture_bpw(mixture, QWEN3_27B_BOOSTED_ROLE_FRACTION) {
+        Some(bpw) => needed_gib(params_b, bpw) <= usable_gib,
+        None => true,
+    }
+}
+
 /// Enforce GGML block-size alignment against the tensor's last dimension.
 pub fn resolve_dtype(target: GgmlDType, last_dim: usize) -> GgmlDType {
     let is_kquant = matches!(
@@ -178,6 +227,36 @@ mod tests {
         assert_eq!(m.target_for(TensorRole::VProj), Some(GgmlDType::Q6K));
         assert_eq!(m.target_for(TensorRole::Embedding), Some(GgmlDType::Q6K));
         assert_eq!(m.target_for(TensorRole::KeepF32), None);
+    }
+
+    #[test]
+    fn bits_per_weight_matches_ggml_block_layout() {
+        // 144-byte BlockQ4K / 256-elem block, 210-byte BlockQ6K / 256-elem
+        // block — the exact figures the spec restates as 4.500 / 6.5625.
+        assert_eq!(bits_per_weight(GgmlDType::Q4K), 4.5);
+        assert_eq!(bits_per_weight(GgmlDType::Q6K), 6.5625);
+    }
+
+    #[test]
+    fn q4km_mixture_bpw_matches_spec_arithmetic() {
+        // 0.78 x 4.500 + 0.22 x 6.5625 = 4.95375 (spec §5.1, rounded there
+        // to 4.954). The dtype bpw terms come from bits_per_weight (real
+        // candle_core block layout); only the 0.78/0.22 role split is a
+        // named architecture constant.
+        let bpw = mixture_bpw(&QuantMixture::Q4KM, QWEN3_27B_BOOSTED_ROLE_FRACTION).unwrap();
+        assert!(
+            (bpw - 4.95375).abs() < 1e-9,
+            "expected ~4.95375 bpw, got {bpw}"
+        );
+    }
+
+    #[test]
+    fn q4_k_m_27b_is_rejected_for_16gb_tier() {
+        // 27e9 params * 4.95375 bpw / 8 / GiB ~= 15.57 GiB > 15.1 GiB usable.
+        assert!(!fits_target_tier(27.0, &QuantMixture::Q4KM, 15.1));
+        // A genuinely sufficient tier (spec's 24 GB minimum consume target)
+        // fits the same mixture.
+        assert!(fits_target_tier(27.0, &QuantMixture::Q4KM, 24.0));
     }
 
     #[test]

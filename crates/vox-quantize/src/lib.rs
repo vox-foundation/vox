@@ -15,7 +15,7 @@ pub mod write;
 pub use device::DevicePref;
 pub use engine::{QuantizeRequest, quantize};
 pub use error::QuantizeError;
-pub use policy::{QuantMixture, TensorRole};
+pub use policy::{QuantMixture, TensorRole, fits_target_tier, needed_gib};
 pub use verify::{QuantReport, TensorQuantStat};
 
 #[cfg(test)]
