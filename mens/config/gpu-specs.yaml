@@ -274,14 +274,21 @@ train_bases:
     # design spec's worked total resident+activation footprint (~24.4 GiB:
     # NF4 weights + bf16 embed/lm_head + LoRA/AdamW/grad state + activations
     # + allocator slack, docs/superpowers/specs/2026-09-10-qwen38-27b-hub-design.md
-    # §4.1) plus headroom against that measurement uncertainty, pending a
-    # measured peak. Chosen just below the existing 44000 (14B-LoRA) rung so
-    # it does not shift any already-tested agentic_default resolution point
-    # (see agentic_default_rungs_pin_live_available_mb), and well below the
-    # 32B/60000 QLoRA rung so this does NOT change any resolution at or above
-    # 60 GB — see the scope ruling in
+    # §4.1) pending a measured peak. Derived two ways that converge on the
+    # same range: (a) the spec's ~24,986 MB total footprint already includes
+    # optimizer/activation/allocator overhead, so it needs only a modest pad
+    # (not the 2-3x other rungs carry, which would double-count); (b) the
+    # other rungs in this file run 2.25x-2.96x their bare NF4 weight size
+    # (8B: 2.37x, 14B-QLoRA: 2.25x, 32B-QLoRA: 2.96x) — applying that same
+    # multiplier to 27B's ~13,281 MB bare NF4 weight cost gives ~29,880-
+    # 39,312 MB. 34000 sits in both ranges. This deliberately lands BELOW the
+    # pre-existing, hardware-measured 41779 MB case in
+    # agentic_default_rungs_pin_live_available_mb, so Qwen3.8-27B correctly
+    # displaces Qwen3-14B-LoRA at that real memory tier — the intended
+    # effect of adding a cheaper-to-run, more capable rung, not a
+    # regression to avoid. See the scope ruling in
     # .superpowers/sdd/2026-09-10-qwen38-27b-hub/task-15-brief.md.
-    - { hf_id: "Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",  floor_mb: 43000, methods: [qlora] }
+    - { hf_id: "Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",  floor_mb: 34000, methods: [qlora] }
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 44000, methods: [lora] }
     - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 60000, methods: [qlora] }
     # Apple Silicon 128 GB tier (usable ~116 GiB after the GUI reserve): 32B
@@ -296,8 +303,9 @@ train_bases:
     - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",     floor_mb: 12000, methods: [qlora] }
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 20000, methods: [qlora] }
     # Qwen3.8-27B QLoRA — see strong_code_default above for the sizing note.
-    # Deliberately below the 32B/60000 QLoRA rung so 60 GB+ resolution is unchanged.
-    - { hf_id: "Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",  floor_mb: 43000, methods: [qlora] }
+    # Deliberately below the 32B/60000 QLoRA rung so 60 GB+ resolution is unchanged;
+    # deliberately below the real, measured 41779 MB tier so it correctly wins there.
+    - { hf_id: "Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",  floor_mb: 34000, methods: [qlora] }
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 44000, methods: [lora] }
     - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 60000, methods: [qlora] }
     # Apple Silicon 128 GB tier — see strong_code_default above for the note.

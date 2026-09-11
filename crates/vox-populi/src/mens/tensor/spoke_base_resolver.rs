@@ -506,7 +506,14 @@ mod tests {
             (20890, Some(("Qwen3-14B", "qlora"))),
             (27853, Some(("Qwen3-14B", "qlora"))),
             (31334, Some(("Qwen3-14B", "qlora"))),
-            (41779, Some(("Qwen3-14B", "qlora"))),
+            // Task 15 (plan ID P1.5): the new Qwen3.8-27B QLoRA rung
+            // (floor_mb 34000) correctly displaces Qwen3-14B-LoRA at this
+            // real, hardware-measured Mac memory tier — QLoRA's genuinely
+            // lower memory need legitimately wins here. This is the
+            // disclosed, intended consequence of adding a more capable,
+            // cheaper-to-run rung, not a regression; see the scope ruling
+            // in .superpowers/sdd/2026-09-10-qwen38-27b-hub/task-15-brief.md.
+            (41779, Some(("Qwen3.8-27B", "qlora"))),
             (55706, Some(("Qwen3-14B", "lora"))),
             (83558, Some(("Qwen3-32B", "qlora"))),
             (111411, Some(("Qwen3-32B", "lora"))),
@@ -565,19 +572,24 @@ mod tests {
     #[test]
     fn resolve_base_model_picks_27b_at_measured_big_box_memory() {
         // Task 15 (plan ID P1.5): the new Qwen3.8-27B QLoRA rung (floor_mb
-        // 43000) must be resolvable at an intermediate Mac memory size, AND
-        // must NOT displace Qwen3-32B as the real 128 GB (~118_784 MB) default
-        // — that pin flip is Phase 3's job, not this task's. See the scope
-        // ruling in .superpowers/sdd/2026-09-10-qwen38-27b-hub/task-15-brief.md.
+        // 34000) must be resolvable at a real, hardware-measured Mac memory
+        // tier, AND must NOT displace Qwen3-32B as the real 128 GB
+        // (~118_784 MB) default — that pin flip is Phase 3's job, not this
+        // task's. See the scope ruling in
+        // .superpowers/sdd/2026-09-10-qwen38-27b-hub/task-15-brief.md.
         let root = workspace_root();
 
-        // Positive case: strictly between the new rung's floor (43000) and the
-        // next rung up (Qwen3-14B LoRA at 44000) — only the 27B rung fits here.
-        let mid = resolve_base_model(root, "agentic_default", Some(43_500))
-            .expect("43_500 MB should resolve the Qwen3.8-27B QLoRA rung");
+        // Positive case: the real, hardware-measured 41779 MB tier (also
+        // pinned in agentic_default_rungs_pin_live_available_mb) — above the
+        // new rung's floor (34000) and below the next rung up (Qwen3-14B
+        // LoRA at 44000), so only the 27B rung fits. This proves
+        // reachability on hardware this file already models, not merely in
+        // the abstract.
+        let mid = resolve_base_model(root, "agentic_default", Some(41_779))
+            .expect("41_779 MB should resolve the Qwen3.8-27B QLoRA rung");
         assert_eq!(
             mid, "Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
-            "43_500 MB agentic_default must resolve Qwen3.8-27B, got {mid}"
+            "41_779 MB agentic_default must resolve Qwen3.8-27B, got {mid}"
         );
 
         // Negative case (the non-goal): a real 128 GB Mac (116 GiB usable =
