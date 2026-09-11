@@ -13,14 +13,14 @@ schema_type: "TechArticle"
 
 After **`vox mens train`** (Candle QLoRA, default), the **supported local inference server** is **`vox mens serve --model <run_dir>`**. This runs an in-process Axum server built into `vox-ml-cli`, gated behind the **`execution-api`** cargo feature — there is no standalone `vox-schola` binary in this workspace, so a build without `execution-api` cannot serve locally at all (rebuild with `cargo build -p vox-ml-cli --release --features gpu,execution-api,mens-candle-cuda`, swapping the backend plugin feature for the one matching your host). It loads the run directory (`candle_qlora_adapter.safetensors`, `tokenizer.json`, shards) and exposes:
 
-- **`POST /v1/chat/completions`** — OpenAI Chat Completions
-- **`POST /api/chat`** — Ollama-shaped chat (used by MCP `vox-mcp` when the provider is Ollama)
-- **`POST /api/generate`** — Ollama-shaped generate (**required** for **`vox-gamify`** streaming and **`vox-actor-runtime` `PopuliClient::generate`**)
-- **`GET /api/tags`** — model list for probes
-- **`GET /api/version`** — JSON including a **`cuda`** hint when `--device` is CUDA (for capability probes)
-- **`POST /api/embeddings`** — **501** (not implemented; use Ollama.app or another stack for embeddings)
+- **`GET /health`** — liveness
+- **`GET /ready`** — readiness
+- **`GET /v1/models`** — model list
+- **`POST /generate`** — generate
+- **`POST /v1/generate`** — generate (same handler as `/generate`)
+- **`POST /v1/completions`** — completions (same handler as `/generate`)
 
-This is **not** the same process as **Ollama.app** on `http://localhost:11434`, but it speaks a **compatible subset** of Ollama HTTP so you can point **`POPULI_URL`** (or **`OLLAMA_URL`**) at this server's listen address. Note that the CLI's own `--port` default is also `11434` (`DEFAULT_INFERENCE_PORT`), so pass `--port` explicitly (as in the example below) when Ollama.app might already be running on the same host.
+This server does **not** implement the Ollama HTTP API (no `/api/generate`, `/api/chat`, `/api/tags`, `/api/version`, or `/api/embeddings`), and it is **not** the same process as **Ollama.app** on `http://localhost:11434`. Pointing **`POPULI_URL`** or **`OLLAMA_URL`** at it will not interoperate with clients expecting Ollama-shaped routes. Note that the CLI's own `--port` default is also `11434` (`DEFAULT_INFERENCE_PORT`), so pass `--port` explicitly (as in the example below) when Ollama.app might already be running on the same host.
 
 ## Quick start
 
@@ -29,11 +29,11 @@ This is **not** the same process as **Ollama.app** on `http://localhost:11434`, 
    (requires a `vox-ml-cli` build with `--features execution-api`; see above)
 3. Point clients at the server:
    - **`POPULI_URL=http://127.0.0.1:11435`** (precedence over **`OLLAMA_URL`**; see [`vox_config::inference::local_ollama_populi_base_url`](../../../crates/vox-config/src/inference.rs))
-   - **`POPULI_MODEL=my-mens`** must match the name returned by **`GET /api/tags`** (the run directory's final path component)
+   - **`POPULI_MODEL=my-mens`** must match the name returned by **`GET /v1/models`** (the run directory's final path component)
 
 ## Orchestrator and agent-to-agent
 
-The in-tree orchestrator’s **`AiTaskProcessor`** uses **`vox_gamify::FreeAiClient`**, which calls **`POST …/api/generate`** for the local Ollama lane. This server implements `/api/generate`, so orchestrator streaming works when **`POPULI_URL`** targets it.
+The in-tree orchestrator’s **`AiTaskProcessor`** uses **`vox_gamify::FreeAiClient`**, which calls **`POST …/api/generate`** for the local Ollama lane. This server does not implement `/api/generate`, so orchestrator streaming does not work against it when **`POPULI_URL`** targets it.
 
 **`Vox.toml` `[mesh]`** (or legacy **`[mens]`**) can record a stable inference base for operators and tooling:
 
@@ -49,7 +49,7 @@ The default model registry uses **`POPULI_MODEL`** for the local Ollama provider
 
 ## MCP
 
-MCP’s Ollama bridge uses **`POST /api/chat`**, which this server already supports. With **`OLLAMA_HOST`** or equivalent base URL pointing at it, MCP interoperates without code changes.
+MCP’s Ollama bridge uses **`POST /api/chat`**, which this server does not support.
 
 ## Machine-readable handoff
 

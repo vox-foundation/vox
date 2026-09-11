@@ -25,7 +25,7 @@ pub struct ExternalServingHandoffV1 {
 impl ExternalServingHandoffV1 {
     const SCHEMA: &'static str = "vox_external_serving_handoff_v1";
 
-    /// After Candle QLoRA training: serve locally with `vox-schola serve --model <artifact_dir>`.
+    /// After Candle QLoRA training: serve locally with `vox mens serve --model <artifact_dir>`.
     #[must_use]
     pub fn schola_training_run(run_dir: &Path, base_model: &str, adapter_filename: &str) -> Self {
         let tok = run_dir.join("tokenizer.json");
@@ -40,7 +40,7 @@ impl ExternalServingHandoffV1 {
             adapter_path: Some(adapter_filename.to_string()),
             openai_base_url: None,
             notes: Some(
-                "Local: vox-schola serve (OpenAI /v1/chat/completions + Ollama-shaped /api/generate, /api/chat). Set POPULI_URL to http://HOST:PORT and POPULI_MODEL to match --model-name or run directory name."
+                "Local: vox mens serve --model <artifact_dir> (requires a vox-ml-cli build with --features execution-api). Routes: POST /generate, /v1/generate, /v1/completions; GET /health, /ready, /v1/models. This server does NOT speak the Ollama HTTP API, so POPULI_URL/OLLAMA_URL clients will not interoperate with it."
                     .to_string(),
             ),
         }
@@ -71,7 +71,7 @@ impl ExternalServingHandoffV1 {
             adapter_path: Some(merged_shard_path.display().to_string()),
             openai_base_url: None,
             notes: Some(
-                "Merged f32 subset shard(s); not loaded by vox-schola serve. Use vLLM, HF Transformers, or import paths documented in mens-serving-ssot.md."
+                "Merged f32 subset shard(s); not loaded by vox mens serve. Use vLLM, HF Transformers, or import paths documented in mens-serving-ssot.md."
                     .to_string(),
             ),
         }
@@ -87,4 +87,49 @@ pub fn write_handoff(
     let s = serde_json::to_string_pretty(handoff)?;
     std::fs::write(&p, s)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod handoff_honesty_tests {
+    use super::*;
+
+    /// Catches: restoring the `vox-schola serve` / Ollama-route notes string.
+    /// This file is machine-readable output consumed by automation, so a
+    /// nonexistent binary name in it is a broken contract, not a typo.
+    #[test]
+    fn handoff_names_no_binary_and_no_route_that_does_not_exist() {
+        let cases = [
+            serde_json::to_string(&ExternalServingHandoffV1::schola_training_run(
+                Path::new("/tmp/run"),
+                "Qwen/Qwen3.8-27B",
+                "candle_qlora_adapter.safetensors",
+            ))
+            .unwrap(),
+            serde_json::to_string(&ExternalServingHandoffV1::merged_qlora_subset(
+                Path::new("/tmp/run/merged.safetensors"),
+                "Qwen/Qwen3.8-27B",
+                None,
+            ))
+            .unwrap(),
+        ];
+        for json in cases {
+            assert!(
+                !json.contains("vox-schola"),
+                "handoff names a binary this workspace does not build: {json}"
+            );
+            for phantom in [
+                "/api/generate",
+                "/api/chat",
+                "/api/tags",
+                "/api/version",
+                "/api/embeddings",
+                "/v1/chat/completions",
+            ] {
+                assert!(
+                    !json.contains(phantom),
+                    "handoff advertises route {phantom}, which ai/serve/mod.rs does not register: {json}"
+                );
+            }
+        }
+    }
 }
