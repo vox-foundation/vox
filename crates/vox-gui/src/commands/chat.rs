@@ -866,6 +866,59 @@ mod tests {
         assert_eq!(reply.selection_reason, None);
     }
 
+    /// Proves the "honesty gate" (plan P3.2): `model_id` reports the
+    /// server's actually-*served* model (`data.model_used`), never a
+    /// silent fallback or an echo of anything else in the envelope.
+    ///
+    /// `ChatSendInput` (see above) carries no "requested model" / pinned
+    /// model field, and none reaches `parse_chat_message_envelope` — so
+    /// the request-vs-served mismatch scenario described in the plan
+    /// isn't directly constructible at this layer. Instead this proves
+    /// the next-strongest property: `model_id` comes from `model_used`
+    /// and only `model_used`.
+    ///
+    /// Case 1 plants a decoy `data.model` field with a *different* value
+    /// than `model_used`, plus reply text that itself names a third
+    /// model — a hypothetical regression that read the wrong key (e.g.
+    /// `data.get("model")`) or scraped the reply text would report a
+    /// value other than `model_used` here, so this fails against that
+    /// bug even though it passes the existing narrower test.
+    ///
+    /// Case 2 omits `model_used` entirely and asserts `model_id` is
+    /// `None` rather than falling back to the decoy `model` field or
+    /// anything else present in the envelope.
+    #[test]
+    fn chat_turn_reports_model_id_of_served_hub() {
+        // Case 1: model_used is present and differs from every other
+        // model-shaped string in the envelope — the served value must win.
+        let envelope = serde_json::json!({
+            "success": true,
+            "data": {
+                "message": {
+                    "id": "m1",
+                    "role": "assistant",
+                    "content": "Sure, I'm gpt-4-turbo and happy to help."
+                },
+                "model": "requested/pinned-decoy",
+                "model_used": "qwen/qwen3.8-27b-hub"
+            }
+        });
+        let reply = parse_chat_message_envelope(&envelope).expect("parse ok");
+        assert_eq!(reply.model_id.as_deref(), Some("qwen/qwen3.8-27b-hub"));
+
+        // Case 2: the server reports no resolved model at all — model_id
+        // must be None, not a fallback to the decoy `model` field.
+        let envelope_no_model_used = serde_json::json!({
+            "success": true,
+            "data": {
+                "message": {"id": "m2", "role": "assistant", "content": "hi"},
+                "model": "requested/pinned-decoy"
+            }
+        });
+        let reply2 = parse_chat_message_envelope(&envelope_no_model_used).expect("parse ok");
+        assert_eq!(reply2.model_id, None);
+    }
+
     #[test]
     fn parse_chat_message_envelope_reports_tool_error() {
         let envelope = serde_json::json!({"success": false, "error": "model unavailable"});
