@@ -42,6 +42,7 @@ fn parse_output_mode_label(raw: &str) -> Option<&'static str> {
 pub struct AppState {
     pub tx: std::sync::mpsc::SyncSender<InferenceRequest>,
     pub model_name: Arc<str>,
+    pub ready: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[cfg(feature = "execution-api")]
@@ -52,13 +53,25 @@ pub async fn health() -> impl IntoResponse {
     )
 }
 
-/// Readiness probe — server is up and accepting requests.
-/// Model loading happens in worker thread; first inference may block until ready.
+/// True once the worker thread has finished loading the model.
 #[cfg(feature = "execution-api")]
-pub async fn ready() -> impl IntoResponse {
+fn readiness(ready: &Arc<std::sync::atomic::AtomicBool>) -> bool {
+    ready.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+/// Readiness probe — true only once the model has finished loading in the worker
+/// thread. `/health` above answers "the process is up"; this answers "the model
+/// is loaded and the server can actually serve requests".
+#[cfg(feature = "execution-api")]
+pub async fn ready(State(state): State<AppState>) -> impl IntoResponse {
+    let is_ready = readiness(&state.ready);
     (
-        StatusCode::OK,
-        Json(serde_json::json!({"ready": true, "service": "vox-ml-cli"})),
+        if is_ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        },
+        Json(serde_json::json!({"ready": is_ready, "service": "vox-ml-cli"})),
     )
 }
 
@@ -340,5 +353,19 @@ mod semcov_wave2_tests {
         assert_eq!(parse_output_mode_label("unknown"), None);
         assert_eq!(parse_output_mode_label(""), None);
         assert_eq!(parse_output_mode_label("json"), None);
+    }
+
+    #[test]
+    fn ready_is_false_until_the_model_loads_and_false_again_if_it_fails() {
+        let ready = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        assert!(
+            !readiness(&ready),
+            "a server whose model has not loaded is not ready"
+        );
+        ready.store(true, std::sync::atomic::Ordering::SeqCst);
+        assert!(
+            readiness(&ready),
+            "once the model is loaded the server is ready"
+        );
     }
 }

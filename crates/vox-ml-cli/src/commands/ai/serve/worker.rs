@@ -6,6 +6,10 @@ use super::config::ServeConfig;
 use anyhow::Result;
 #[cfg(feature = "execution-api")]
 #[cfg(feature = "execution-api")]
+use std::sync::Arc;
+#[cfg(feature = "execution-api")]
+use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(feature = "execution-api")]
 use std::sync::mpsc::SyncSender;
 
 /// Internal message sent from Axum handlers to the inference worker thread.
@@ -33,18 +37,22 @@ pub fn spawn_inference_worker(
     config: &ServeConfig,
     model_name: &str,
     system_prompt: &str,
-) -> SyncSender<InferenceRequest> {
+) -> (SyncSender<InferenceRequest>, Arc<AtomicBool>) {
     let model_path = config.model_path.to_string_lossy().to_string();
     let _ = model_name;
     let system_prompt = system_prompt.to_string();
+    let ready = Arc::new(AtomicBool::new(false));
+    let ready_for_worker = Arc::clone(&ready);
 
     let (tx, rx) = std::sync::mpsc::sync_channel::<InferenceRequest>(8);
     std::thread::spawn(move || {
+        let ready = ready_for_worker;
         // Load the plugin once; keep it alive for the worker's lifetime.
         let plugin_id = match resolve_ml_backend_plugin(&vox_plugin_host::probe()) {
             Ok(id) => id,
             Err(e) => {
                 tracing::error!("no ML backend plugin matches this host: {e}");
+                ready.store(false, Ordering::SeqCst);
                 while let Ok(req) = rx.recv() {
                     let _ = req
                         .reply
@@ -58,6 +66,7 @@ pub fn spawn_inference_worker(
             Ok(p) => p,
             Err(e) => {
                 tracing::error!("{plugin_id} plugin not found: {e}");
+                ready.store(false, Ordering::SeqCst);
                 while let Ok(req) = rx.recv() {
                     let _ = req
                         .reply
@@ -70,6 +79,7 @@ pub fn spawn_inference_worker(
             Some(b) => b,
             None => {
                 tracing::error!("{plugin_id} plugin has no MlBackend");
+                ready.store(false, Ordering::SeqCst);
                 while let Ok(req) = rx.recv() {
                     let _ = req.reply.send(Err(format!("{plugin_id} has no MlBackend")));
                 }
@@ -80,12 +90,14 @@ pub fn spawn_inference_worker(
             Ok(h) => h,
             Err(e) => {
                 tracing::error!("load_model({model_path}): {e}");
+                ready.store(false, Ordering::SeqCst);
                 while let Ok(req) = rx.recv() {
                     let _ = req.reply.send(Err(format!("load_model failed: {e}")));
                 }
                 return;
             }
         };
+        ready.store(true, Ordering::SeqCst);
 
         tracing::info!("Inference worker ready — model: {model_path}");
         while let Ok(req) = rx.recv() {
@@ -109,7 +121,7 @@ pub fn spawn_inference_worker(
 
         drop(handle);
     });
-    tx
+    (tx, ready)
 }
 
 /// Build the JSON payload sent to the ML backend's `run_inference`, carrying the

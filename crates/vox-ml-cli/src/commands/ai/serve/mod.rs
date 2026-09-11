@@ -106,11 +106,12 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
         .system_prompt
         .clone()
         .unwrap_or_else(vox_corpus::training::generate_training_system_prompt);
-    let tx = worker::spawn_inference_worker(config, &model_name, &system_prompt);
+    let (tx, ready) = worker::spawn_inference_worker(config, &model_name, &system_prompt);
 
     let state = handlers::AppState {
         tx,
         model_name: Arc::from(model_name.as_str()),
+        ready,
     };
 
     let app = Router::new()
