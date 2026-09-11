@@ -11,11 +11,50 @@ use std::path::{Path, PathBuf};
 pub struct SafeTensorsSource {
     map: HashMap<String, PathBuf>,
     names: Vec<String>,
+    /// One-slot shard cache. `names` is grouped by shard, so a single slot
+    /// yields exactly one load per shard and bounds peak RSS to one shard.
+    /// Previously `load_f32` called `candle_core::safetensors::load` (fs::read
+    /// + full deserialize, no mmap) once per tensor.
+    cached: std::cell::RefCell<Option<(PathBuf, HashMap<String, Tensor>)>>,
+    loads: std::cell::Cell<usize>,
 }
 
 #[derive(serde::Deserialize)]
 struct ShardIndex {
     weight_map: HashMap<String, String>,
+}
+
+/// Tensor names from a safetensors file's header, reading only the 8-byte
+/// length prefix and the JSON header itself — never tensor data.
+///
+/// `open` previously called `candle_core::safetensors::load` here purely to
+/// enumerate `st.keys()`, which materializes the whole checkpoint and then
+/// drops it. On the unsharded intermediate `recombine` writes, that is the
+/// entire model in RAM before any tensor has been quantized.
+fn header_tensor_names(path: &Path) -> Result<Vec<String>, QuantizeError> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(path)?;
+    let mut len_buf = [0u8; 8];
+    f.read_exact(&mut len_buf)?;
+    let header_len = u64::from_le_bytes(len_buf);
+    let header_len = usize::try_from(header_len).map_err(|_| {
+        QuantizeError::ReadModel(format!(
+            "header length overflows usize in {}",
+            path.display()
+        ))
+    })?;
+    let mut header = vec![0u8; header_len];
+    f.read_exact(&mut header)?;
+    let json: serde_json::Value = serde_json::from_slice(&header)
+        .map_err(|e| QuantizeError::ReadModel(format!("{}: {e}", path.display())))?;
+    let obj = json.as_object().ok_or_else(|| {
+        QuantizeError::ReadModel(format!("header is not an object in {}", path.display()))
+    })?;
+    Ok(obj
+        .keys()
+        .filter(|k| k.as_str() != "__metadata__")
+        .cloned()
+        .collect())
 }
 
 impl SafeTensorsSource {
@@ -31,9 +70,8 @@ impl SafeTensorsSource {
                 map.insert(name, dir.join(file));
             }
         } else if single.exists() {
-            let st = candle_core::safetensors::load(&single, &Device::Cpu)?;
-            for name in st.keys() {
-                map.insert(name.clone(), single.clone());
+            for name in header_tensor_names(&single)? {
+                map.insert(name, single.clone());
             }
         } else {
             return Err(QuantizeError::ReadModel(format!(
@@ -41,8 +79,16 @@ impl SafeTensorsSource {
                 dir.display()
             )));
         }
-        let names: Vec<String> = map.keys().cloned().collect();
-        Ok(Self { map, names })
+        let mut names: Vec<String> = map.keys().cloned().collect();
+        // Group by shard (then by name for determinism) so the one-slot cache
+        // in `load_f32` sees each shard exactly once.
+        names.sort_by(|a, b| (&map[a], a).cmp(&(&map[b], b)));
+        Ok(Self {
+            map,
+            names,
+            cached: std::cell::RefCell::new(None),
+            loads: std::cell::Cell::new(0),
+        })
     }
 
     pub fn tensor_names(&self) -> &[String] {
@@ -55,11 +101,29 @@ impl SafeTensorsSource {
             .map
             .get(name)
             .ok_or_else(|| QuantizeError::ReadModel(format!("tensor `{name}` not found")))?;
-        let st = candle_core::safetensors::load(path, &Device::Cpu)?;
-        let t = st.get(name).ok_or_else(|| {
+
+        let mut slot = self.cached.borrow_mut();
+        let hit = slot.as_ref().is_some_and(|(p, _)| p == path);
+        if !hit {
+            // Drop the previous shard before reading the next one so peak RSS
+            // stays near one shard rather than the whole checkpoint.
+            *slot = None;
+            let tensors = candle_core::safetensors::load(path, &Device::Cpu)?;
+            self.loads.set(self.loads.get() + 1);
+            *slot = Some((path.clone(), tensors));
+        }
+        let (_, tensors) = slot.as_ref().expect("just populated");
+        let t = tensors.get(name).ok_or_else(|| {
             QuantizeError::ReadModel(format!("tensor `{name}` missing from shard"))
         })?;
         Ok(t.to_dtype(candle_core::DType::F32)?)
+    }
+
+    /// Number of shard files actually deserialized by `load_f32`. Test-only
+    /// observability for the read-amplification guard; not part of the API.
+    #[cfg(test)]
+    fn shard_loads(&self) -> usize {
+        self.loads.get()
     }
 }
 
@@ -103,5 +167,95 @@ mod tests {
         names.sort();
         assert_eq!(names, vec!["a".to_string(), "b".to_string()]);
         assert_eq!(src.load_f32("b").unwrap().dims(), &[2, 256]);
+    }
+
+    /// Catches: reverting `load_f32` to a per-tensor
+    /// `candle_core::safetensors::load` (the read-amplification bug — four
+    /// tensors would cost four shard loads), and dropping the shard grouping
+    /// in `open` (which makes the one-slot cache thrash back to one load per
+    /// tensor). Both mutations are observable here; neither is observable
+    /// from a cache driven by a fake loader.
+    #[test]
+    fn sharded_reads_group_by_shard_and_load_each_shard_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let t = || Tensor::zeros((2, 256), candle_core::DType::F32, &Device::Cpu).unwrap();
+        write_st(
+            dir.path(),
+            "model-00001-of-00002.safetensors",
+            &[("a1", t()), ("a2", t())],
+        );
+        write_st(
+            dir.path(),
+            "model-00002-of-00002.safetensors",
+            &[("b1", t()), ("b2", t())],
+        );
+        std::fs::write(
+            dir.path().join("model.safetensors.index.json"),
+            r#"{"weight_map":{
+                "a1":"model-00001-of-00002.safetensors",
+                "a2":"model-00001-of-00002.safetensors",
+                "b1":"model-00002-of-00002.safetensors",
+                "b2":"model-00002-of-00002.safetensors"}}"#,
+        )
+        .unwrap();
+
+        let src = SafeTensorsSource::open(dir.path()).unwrap();
+        assert_eq!(
+            src.tensor_names(),
+            &[
+                "a1".to_string(),
+                "a2".to_string(),
+                "b1".to_string(),
+                "b2".to_string()
+            ],
+            "names must be grouped by shard so a one-slot cache suffices"
+        );
+
+        for name in src.tensor_names().to_vec() {
+            assert_eq!(src.load_f32(&name).unwrap().dims(), &[2, 256]);
+        }
+        assert_eq!(
+            src.shard_loads(),
+            2,
+            "four tensors across two shards must cost two shard loads"
+        );
+    }
+
+    /// Catches: reverting `open`'s no-index branch to
+    /// `candle_core::safetensors::load(&single, ..)` just to read `st.keys()`.
+    /// That loads the whole checkpoint to enumerate names and discards it —
+    /// fatal on the ~111 GB unsharded intermediate `recombine` writes.
+    ///
+    /// Note this does NOT use `shard_loads()` as the observable: that counter
+    /// lives on `Self`, which doesn't exist yet while `open`'s branch runs, so
+    /// no instance-level counter can ever see what a full-load mutation did
+    /// there (verified: asserting `shard_loads() == 0` right after `open()`
+    /// stayed green even with the buggy full-load call restored by hand).
+    /// Instead the fixture truncates the file to just its header — the
+    /// tensor-data section is entirely gone. A header-only reader still
+    /// succeeds; `candle_core::safetensors::load` needs the data section and
+    /// errors, so `open()` failing is the real, code-path-independent signal.
+    #[test]
+    fn open_enumerates_a_single_file_model_without_loading_tensor_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let t = || Tensor::zeros((2, 256), candle_core::DType::F32, &Device::Cpu).unwrap();
+        let path = dir.path().join("model.safetensors");
+        write_st(dir.path(), "model.safetensors", &[("w1", t()), ("w2", t())]);
+
+        // Truncate to header-only: 8-byte length prefix + that many header
+        // bytes, dropping every byte of actual tensor data.
+        let bytes = std::fs::read(&path).unwrap();
+        let header_len = u64::from_le_bytes(bytes[0..8].try_into().unwrap()) as usize;
+        std::fs::write(&path, &bytes[..8 + header_len]).unwrap();
+
+        let src = SafeTensorsSource::open(dir.path())
+            .expect("header-only read must not require the (now-missing) tensor data section");
+        let mut names = src.tensor_names().to_vec();
+        names.sort();
+        assert_eq!(names, vec!["w1".to_string(), "w2".to_string()]);
+
+        // load_f32 does need the data section, so it fails against the
+        // truncated fixture -- that's expected and irrelevant to this test.
+        assert_eq!(src.shard_loads(), 0, "no shard has been loaded yet");
     }
 }
