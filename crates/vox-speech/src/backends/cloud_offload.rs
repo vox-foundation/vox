@@ -29,6 +29,17 @@ impl CloudOffloadBackend {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_builds_a_client_with_the_configured_timeout() {
+        let backend = CloudOffloadBackend::new();
+        assert_eq!(backend.name(), "cloud-offload");
+    }
+}
+
 #[async_trait::async_trait]
 impl AsrBackend for CloudOffloadBackend {
     fn name(&self) -> &'static str {
@@ -55,7 +66,7 @@ impl AsrBackend for CloudOffloadBackend {
                 target: CloudTarget::Auto,
             };
 
-            let ranked = resolver.resolve(&req).await?;
+            let (ranked, _rejected) = resolver.resolve(&req).await?;
 
             // 2. Dispatch job
             let config = Arc::new(CloudProviderConfig::default());

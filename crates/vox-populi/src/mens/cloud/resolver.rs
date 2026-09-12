@@ -10,6 +10,7 @@ use super::{
     BudgetLedger, CloudJobSpec, CloudProvider, CloudProviderConfig, CloudTarget, GpuOffer,
     JobHandle, JobKind, ProviderKind,
     estimator::{EstimateSource, TimeEstimator},
+    offer_filter::{UnsuitableReason, offer_is_suitable},
     runpod_provider::RunPodClient,
     vast::VastClient,
     watchdog::CloudWatchdog,
@@ -150,7 +151,10 @@ impl CloudResolver {
     /// Query all configured providers and return offers ranked by estimated cost.
     ///
     /// Providers are queried in parallel; individual failures are logged and skipped.
-    pub async fn resolve(&self, req: &ResolveRequest) -> anyhow::Result<Vec<ResolvedOffer>> {
+    pub async fn resolve(
+        &self,
+        req: &ResolveRequest,
+    ) -> anyhow::Result<(Vec<ResolvedOffer>, Vec<(String, UnsuitableReason)>)> {
         self.budget.check_capacity(req.max_acceptable_cost).await?;
 
         let use_vast =
@@ -218,53 +222,11 @@ impl CloudResolver {
 
         let remaining = self.budget.remaining_usd().await;
 
-        let mut ranked: Vec<ResolvedOffer> = all
-            .into_iter()
-            .filter_map(|offer| {
-                let overhead = if offer.auto_terminate {
-                    OVERHEAD_AUTO_TERMINATE
-                } else {
-                    OVERHEAD_POLL_TERMINATE
-                };
-                let (est_secs, source) = self.estimator.estimate(
-                    &offer.gpu_name,
-                    req.seq_len,
-                    req.batch_size,
-                    req.num_samples,
-                    req.epochs,
-                );
-                let total_secs = est_secs * overhead;
-                let cost = (total_secs / 3600.0) * offer.price_per_hour_usd;
-
-                if cost > remaining || cost > req.max_acceptable_cost {
-                    return None;
-                }
-
-                Some(ResolvedOffer {
-                    effective_preset: "auto",
-                    estimated_secs: total_secs,
-                    estimated_cost_usd: cost,
-                    estimate_source: source,
-                    offer,
-                })
-            })
-            .collect();
-
-        // Sort: cheapest → prefer auto_terminate → higher reliability
-        ranked.sort_by(|a, b| {
-            a.estimated_cost_usd
-                .partial_cmp(&b.estimated_cost_usd)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then(b.offer.auto_terminate.cmp(&a.offer.auto_terminate))
-                .then(
-                    b.offer
-                        .reliability_pct
-                        .partial_cmp(&a.offer.reliability_pct)
-                        .unwrap_or(std::cmp::Ordering::Equal),
-                )
-        });
-
-        Ok(ranked)
+        let (ranked, rejected) = rank_offers(all, req, &self.config, &self.estimator, remaining);
+        for (id, reason) in &rejected {
+            tracing::debug!(offer_id = %id, reason = %reason, "offer filtered out");
+        }
+        Ok((ranked, rejected))
     }
 
     /// Dispatch a job to the top-ranked offer, start watchdog, return handle.
@@ -283,7 +245,7 @@ impl CloudResolver {
             num_samples: spec.num_samples,
             epochs: spec.epochs,
         };
-        let ranked = self.resolve(&req).await?;
+        let (ranked, _rejected) = self.resolve(&req).await?;
         let (_handle, join, _provider) = self.dispatch_top(&ranked, &spec).await?;
 
         // Wait for the watchdog if requested or just return handle
@@ -402,6 +364,71 @@ impl CloudResolver {
     }
 }
 
+/// Cost, filter, and rank offers. Pure: no I/O, no clock.
+///
+/// Returns `(ranked, rejected)`. Rejections carry their reason so the caller can tell
+/// the operator *why* the board is empty instead of "no offers found".
+pub(crate) fn rank_offers(
+    offers: Vec<GpuOffer>,
+    req: &ResolveRequest,
+    config: &CloudProviderConfig,
+    estimator: &TimeEstimator,
+    remaining_usd: f64,
+) -> (Vec<ResolvedOffer>, Vec<(String, UnsuitableReason)>) {
+    let mut rejected: Vec<(String, UnsuitableReason)> = vec![];
+    let mut ranked: Vec<ResolvedOffer> = vec![];
+
+    for offer in offers {
+        if let Err(reason) = offer_is_suitable(&offer, config, req.min_vram_mb) {
+            rejected.push((offer.offer_id.clone(), reason));
+            continue;
+        }
+
+        let overhead = if offer.auto_terminate {
+            OVERHEAD_AUTO_TERMINATE
+        } else {
+            OVERHEAD_POLL_TERMINATE
+        };
+        let (est_secs, source) = estimator.estimate(
+            &offer.gpu_name,
+            req.seq_len,
+            req.batch_size,
+            req.num_samples,
+            req.epochs,
+        );
+        let total_secs = est_secs * overhead;
+        let cost = (total_secs / 3600.0) * offer.price_per_hour_usd;
+
+        if cost > remaining_usd || cost > req.max_acceptable_cost {
+            continue;
+        }
+
+        ranked.push(ResolvedOffer {
+            effective_preset: "auto",
+            estimated_secs: total_secs,
+            estimated_cost_usd: cost,
+            estimate_source: source,
+            offer,
+        });
+    }
+
+    // Sort: cheapest → prefer auto_terminate → higher reliability.
+    ranked.sort_by(|a, b| {
+        a.estimated_cost_usd
+            .partial_cmp(&b.estimated_cost_usd)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(b.offer.auto_terminate.cmp(&a.offer.auto_terminate))
+            .then(
+                b.offer
+                    .reliability_pct
+                    .partial_cmp(&a.offer.reliability_pct)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            )
+    });
+
+    (ranked, rejected)
+}
+
 /// Convenience constructor for a standard training job spec.
 pub fn build_train_spec(
     config: &CloudProviderConfig,
@@ -474,5 +501,101 @@ mod tests {
         assert_eq!(train.preset, "auto");
         let serve = build_serve_spec(&config, "some-model".to_string(), 60, 8080);
         assert_eq!(serve.preset, "auto");
+    }
+}
+
+#[cfg(test)]
+mod rank_tests {
+    use super::*;
+    use crate::mens::cloud::{ProviderKind, test_offer};
+
+    fn offer(id: &str, gpu_count: u32, vram_mb: u64, usd: f64) -> GpuOffer {
+        GpuOffer {
+            provider: ProviderKind::Vast,
+            offer_id: id.into(),
+            gpu_name: "h100 sxm".into(),
+            gpu_count,
+            vram_mb,
+            price_per_hour_usd: usd,
+            reliability_pct: 97.0,
+            auto_terminate: true,
+            ..test_offer()
+        }
+    }
+
+    /// Same shape as `pipeline_dispatch::tests::zero_estimator`: an empty specs file
+    /// keeps the estimator on its conservative fallback tier, which is deterministic.
+    fn test_estimator() -> TimeEstimator {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("gpu-specs.yaml");
+        std::fs::write(&path, "gpus: {}\npresets: {}\n").unwrap();
+        TimeEstimator::new(&path, vec![]).unwrap()
+    }
+
+    fn req(min_vram_mb: u64) -> ResolveRequest {
+        ResolveRequest {
+            min_vram_mb,
+            seq_len: 512,
+            batch_size: 1,
+            num_samples: 8,
+            epochs: 1,
+            // Budget must never be the thing that drops an offer in this test --
+            // otherwise a deleted filter still yields a "correct-looking" ranking.
+            max_acceptable_cost: f64::MAX,
+            target: CloudTarget::Auto,
+        }
+    }
+
+    /// MUTATION CAUGHT: deleting the `offer_is_suitable` call from `rank_offers`.
+    /// Without it the 8-GPU node survives -- and because it is *not* the cheapest
+    /// row, a test that only asserted "the H100 ranks first" would still pass. This
+    /// asserts the node is absent, which is the only assertion the mutant fails.
+    #[test]
+    fn ranking_drops_a_paid_multi_gpu_node_and_keeps_the_single_gpu_offer() {
+        let offers = vec![
+            offer("node-8x", 8, 655_360, 16.72),
+            offer("single-h100", 1, 81_920, 2.09),
+        ];
+        let (ranked, rejected) = rank_offers(
+            offers,
+            &req(81_920),
+            &CloudProviderConfig::default(),
+            &test_estimator(),
+            f64::MAX,
+        );
+
+        let ids: Vec<&str> = ranked.iter().map(|r| r.offer.offer_id.as_str()).collect();
+        assert_eq!(ids, ["single-h100"], "the 8-GPU node must not be rankable");
+        assert!(
+            rejected.iter().any(
+                |(id, r)| id == "node-8x" && matches!(r, UnsuitableReason::MultiGpuNode { .. })
+            ),
+            "the rejection must be reported with its reason, got {rejected:?}"
+        );
+    }
+
+    /// MUTATION CAUGHT: swallowing rejections silently (returning only the ranked
+    /// vec). An operator whose whole board was filtered out needs to see why, or
+    /// the failure reads as "the provider has no capacity" and they go buy the
+    /// wrong thing somewhere else.
+    #[test]
+    fn every_rejected_offer_is_reported_with_a_reason() {
+        let offers = vec![offer("too-small", 1, 24_576, 0.44)];
+        let (ranked, rejected) = rank_offers(
+            offers,
+            &req(81_920),
+            &CloudProviderConfig::default(),
+            &test_estimator(),
+            f64::MAX,
+        );
+        assert!(ranked.is_empty());
+        assert_eq!(rejected.len(), 1);
+        assert!(matches!(
+            rejected[0].1,
+            UnsuitableReason::InsufficientVram {
+                per_gpu_mb: 24_576,
+                required_mb: 81_920
+            }
+        ));
     }
 }

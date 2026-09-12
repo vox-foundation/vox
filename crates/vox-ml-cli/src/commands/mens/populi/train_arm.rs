@@ -167,7 +167,7 @@ pub async fn run_train(
                 );
                 None
             } else {
-                let ranked = resolver
+                let (ranked, _rejected) = resolver
                     .resolve(&vox_populi::mens::cloud::ResolveRequest {
                         target: std::str::FromStr::from_str(&cloud)?,
                         min_vram_mb: 24000,
