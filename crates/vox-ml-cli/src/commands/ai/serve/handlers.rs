@@ -3,7 +3,11 @@
 #[cfg(feature = "execution-api")]
 use super::prompt::{prompt_for_output_mode, validate_structured_output_with_reason};
 #[cfg(feature = "execution-api")]
-use super::schema::{Choice, GenerateRequest, GenerateResponse};
+use super::schema::{
+    ChatCompletionChoice, ChatCompletionMessage, ChatCompletionRequest, ChatCompletionResponse,
+    ChatCompletionResponseMessage, ChatCompletionToolCall, ChatCompletionToolCallFunction, Choice,
+    GenerateRequest, GenerateResponse,
+};
 #[cfg(feature = "execution-api")]
 use super::worker::InferenceRequest;
 #[cfg(feature = "execution-api")]
@@ -200,6 +204,156 @@ pub async fn do_generate(
     }
 }
 
+/// Task B2: extract a requested tool's name from either OpenAI's
+/// `{"type":"function","function":{"name":...}}` shape or the flatter
+/// `{"name":...}` shape, so both are accepted from a `tools[]` entry.
+#[cfg(feature = "execution-api")]
+fn tool_def_name(tool: &serde_json::Value) -> Option<&str> {
+    tool.get("function")
+        .and_then(|f| f.get("name"))
+        .or_else(|| tool.get("name"))
+        .and_then(|v| v.as_str())
+}
+
+/// Task B2: extract a requested tool's description the same way `tool_def_name`
+/// extracts its name — used only to enrich the flattened prompt.
+#[cfg(feature = "execution-api")]
+fn tool_def_description(tool: &serde_json::Value) -> Option<&str> {
+    tool.get("function")
+        .and_then(|f| f.get("description"))
+        .or_else(|| tool.get("description"))
+        .and_then(|v| v.as_str())
+}
+
+/// Task B2: flatten `messages[]` (+ an optional tool catalog) into the single
+/// prompt string `do_generate` already knows how to handle. Deliberately a
+/// plain textual rendering, not a chat template — this server has no
+/// model-specific chat template registry, and the flattened form only needs
+/// to be good enough for the model to (a) see the conversation so far and
+/// (b) know which tool names/descriptions it may respond with as JSON when
+/// `tools` is non-empty.
+#[cfg(feature = "execution-api")]
+fn flatten_chat_messages(
+    messages: &[ChatCompletionMessage],
+    tools: Option<&[serde_json::Value]>,
+) -> String {
+    let mut out = String::new();
+    if let Some(tools) = tools.filter(|t| !t.is_empty()) {
+        out.push_str(
+            "Available tools (to call one, respond with ONLY a single JSON object \
+             shaped like {\"name\": \"<tool>\", \"arguments\": {...}}):\n",
+        );
+        for tool in tools {
+            let name = tool_def_name(tool).unwrap_or("unknown");
+            let description = tool_def_description(tool).unwrap_or("");
+            out.push_str(&format!("- {name}: {description}\n"));
+        }
+        out.push('\n');
+    }
+    for message in messages {
+        let content = message.content.as_deref().unwrap_or("");
+        out.push_str(&message.role);
+        out.push_str(": ");
+        out.push_str(content);
+        out.push('\n');
+    }
+    out.push_str("assistant:");
+    out
+}
+
+/// `POST /v1/chat/completions` (Task B2, MENS end-to-end completion, Route A).
+///
+/// Thin adapter: flattens the request onto [`GenerateRequest`] and delegates
+/// to [`do_generate`] — the SAME worker channel and sampling/validation/retry
+/// pipeline every other route already uses (non-goal: a second one). When
+/// `tools` is present, reuses the existing `tool_args_json` output_mode (see
+/// `prompt.rs`) so `do_generate` itself retries toward a `{"name",
+/// "arguments"}`-shaped reply; this route only re-wraps the result into
+/// `choices[].message`, populating `tool_calls` when that reply is
+/// schema-valid AND names a tool this request actually offered. Otherwise the
+/// raw text comes back as `content` — the well-known small-model failure mode
+/// the salvage policy in `vox-orchestrator-mcp`'s `agent_loop.rs` handles as a
+/// client-side fallback (regex-scanning `content` for the same shape), not
+/// something this route hard-fails on.
+#[cfg(feature = "execution-api")]
+pub async fn do_chat_completions(
+    State(state): State<AppState>,
+    Json(req): Json<ChatCompletionRequest>,
+) -> (StatusCode, Json<ChatCompletionResponse>) {
+    let has_tools = req.tools.as_ref().is_some_and(|t| !t.is_empty());
+    let prompt = flatten_chat_messages(&req.messages, req.tools.as_deref());
+
+    let generate_req = GenerateRequest {
+        prompt,
+        max_tokens: req.max_tokens.unwrap_or(256),
+        temperature: req.temperature.unwrap_or(0.7),
+        model: req.model.clone(),
+        output_mode: has_tools.then(|| "tool_args_json".to_string()),
+        max_retries: 3,
+        schema: has_tools.then(|| serde_json::json!({"name": "string", "arguments": "object"})),
+        stream: false,
+    };
+
+    let (status, Json(gen_resp)) = do_generate(State(state), Json(generate_req)).await;
+
+    // Only trust a tool-call candidate when do_generate's own schema check
+    // passed (guaranteeing `{"name": <string>, "arguments": <object>}`) AND
+    // the name matches a tool this request actually offered — an arbitrary
+    // string the model happened to emit is never surfaced as a call.
+    let tool_call = (has_tools && gen_resp.valid)
+        .then(|| serde_json::from_str::<serde_json::Value>(gen_resp.text.trim()).ok())
+        .flatten()
+        .filter(|v| {
+            v.get("name").and_then(|n| n.as_str()).is_some_and(|name| {
+                req.tools
+                    .as_deref()
+                    .unwrap_or(&[])
+                    .iter()
+                    .any(|t| tool_def_name(t) == Some(name))
+            })
+        });
+
+    let message = match tool_call {
+        Some(v) => {
+            let name = v["name"].as_str().unwrap_or_default().to_string();
+            let arguments =
+                serde_json::to_string(v.get("arguments").unwrap_or(&serde_json::Value::Null))
+                    .unwrap_or_else(|_| "{}".to_string());
+            ChatCompletionResponseMessage {
+                role: "assistant",
+                content: None,
+                tool_calls: Some(vec![ChatCompletionToolCall {
+                    id: format!("call_{}", uuid::Uuid::new_v4()),
+                    kind: "function",
+                    function: ChatCompletionToolCallFunction { name, arguments },
+                }]),
+            }
+        }
+        None => ChatCompletionResponseMessage {
+            role: "assistant",
+            content: Some(gen_resp.text.clone()),
+            tool_calls: None,
+        },
+    };
+
+    let finish_reason = if message.tool_calls.is_some() {
+        "tool_calls"
+    } else {
+        "stop"
+    };
+    let resp = ChatCompletionResponse {
+        id: format!("chatcmpl-{}", uuid::Uuid::new_v4()),
+        object: "chat.completion",
+        model: gen_resp.model,
+        choices: vec![ChatCompletionChoice {
+            index: 0,
+            message,
+            finish_reason,
+        }],
+    };
+    (status, Json(resp))
+}
+
 #[cfg(feature = "execution-api")]
 #[cfg(test)]
 mod semcov_wave2_tests {
@@ -281,5 +435,164 @@ mod semcov_wave2_tests {
             readiness(&ready),
             "once the model is loaded the server is ready"
         );
+    }
+}
+
+/// Task B2 (MENS end-to-end completion): `/v1/chat/completions` adapter tests.
+#[cfg(feature = "execution-api")]
+#[cfg(test)]
+mod chat_completions_tests {
+    use super::*;
+    use crate::commands::ai::serve::worker::InferenceRequest;
+
+    #[test]
+    fn tool_def_name_accepts_openai_and_flat_shapes() {
+        let openai = serde_json::json!({"type": "function", "function": {"name": "read_file"}});
+        let flat = serde_json::json!({"name": "read_file"});
+        assert_eq!(tool_def_name(&openai), Some("read_file"));
+        assert_eq!(tool_def_name(&flat), Some("read_file"));
+        assert_eq!(tool_def_name(&serde_json::json!({})), None);
+    }
+
+    #[test]
+    fn tool_def_description_accepts_openai_and_flat_shapes() {
+        let openai = serde_json::json!({"type": "function", "function": {"name": "x", "description": "reads a file"}});
+        let flat = serde_json::json!({"name": "x", "description": "reads a file"});
+        assert_eq!(tool_def_description(&openai), Some("reads a file"));
+        assert_eq!(tool_def_description(&flat), Some("reads a file"));
+    }
+
+    #[test]
+    fn flatten_chat_messages_includes_tool_catalog_and_role_prefixed_turns() {
+        let messages = vec![
+            ChatCompletionMessage {
+                role: "system".to_string(),
+                content: Some("be helpful".to_string()),
+            },
+            ChatCompletionMessage {
+                role: "user".to_string(),
+                content: Some("what's the weather?".to_string()),
+            },
+        ];
+        let tools = vec![serde_json::json!({
+            "type": "function",
+            "function": {"name": "get_weather", "description": "looks up the weather"}
+        })];
+        let flattened = flatten_chat_messages(&messages, Some(&tools));
+        assert!(flattened.contains("get_weather"));
+        assert!(flattened.contains("looks up the weather"));
+        assert!(flattened.contains("system: be helpful"));
+        assert!(flattened.contains("user: what's the weather?"));
+        assert!(flattened.ends_with("assistant:"));
+    }
+
+    #[test]
+    fn flatten_chat_messages_omits_tool_catalog_when_no_tools_offered() {
+        let messages = vec![ChatCompletionMessage {
+            role: "user".to_string(),
+            content: Some("hi".to_string()),
+        }];
+        let flattened = flatten_chat_messages(&messages, None);
+        assert!(!flattened.contains("Available tools"));
+        assert!(flattened.contains("user: hi"));
+    }
+
+    /// Spawn a fake worker thread that replies with a fixed string to every
+    /// request, mirroring the real worker's channel shape closely enough for
+    /// `do_chat_completions` (a thin wrapper over `do_generate`) to be
+    /// exercised end-to-end without a real model checkpoint.
+    fn fake_app_state(reply: &'static str) -> AppState {
+        let (tx, rx) = std::sync::mpsc::sync_channel::<InferenceRequest>(8);
+        std::thread::spawn(move || {
+            while let Ok(req) = rx.recv() {
+                let _ = req.reply.send(Ok(reply.to_string()));
+            }
+        });
+        AppState {
+            tx,
+            model_name: std::sync::Arc::from("test-model"),
+            ready: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        }
+    }
+
+    #[tokio::test]
+    async fn do_chat_completions_emits_tool_calls_for_a_schema_valid_offered_tool() {
+        let state = fake_app_state(r#"{"name":"get_weather","arguments":{"city":"nyc"}}"#);
+        let req = ChatCompletionRequest {
+            messages: vec![ChatCompletionMessage {
+                role: "user".to_string(),
+                content: Some("what's the weather in nyc?".to_string()),
+            }],
+            model: None,
+            max_tokens: None,
+            temperature: None,
+            tools: Some(vec![serde_json::json!({
+                "type": "function",
+                "function": {"name": "get_weather", "description": "looks up the weather"}
+            })]),
+        };
+        let (status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        let message = &resp.choices[0].message;
+        let tool_calls = message
+            .tool_calls
+            .as_ref()
+            .expect("a schema-valid, offered tool name must produce tool_calls");
+        assert_eq!(tool_calls[0].function.name, "get_weather");
+        assert_eq!(tool_calls[0].function.arguments, r#"{"city":"nyc"}"#);
+        assert!(
+            message.content.is_none(),
+            "a tool-call reply carries no plain-text content"
+        );
+        assert_eq!(resp.choices[0].finish_reason, "tool_calls");
+    }
+
+    #[tokio::test]
+    async fn do_chat_completions_falls_back_to_plain_text_for_an_unoffered_tool_name() {
+        // Schema-valid JSON, but `send_email` was never offered — must not be
+        // surfaced as a dispatchable tool call.
+        let state = fake_app_state(r#"{"name":"send_email","arguments":{}}"#);
+        let req = ChatCompletionRequest {
+            messages: vec![ChatCompletionMessage {
+                role: "user".to_string(),
+                content: Some("what's the weather?".to_string()),
+            }],
+            model: None,
+            max_tokens: None,
+            temperature: None,
+            tools: Some(vec![serde_json::json!({
+                "type": "function",
+                "function": {"name": "get_weather"}
+            })]),
+        };
+        let (_status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
+        let message = &resp.choices[0].message;
+        assert!(
+            message.tool_calls.is_none(),
+            "a tool name that was never offered must never be dispatched"
+        );
+        assert!(message.content.is_some());
+        assert_eq!(resp.choices[0].finish_reason, "stop");
+    }
+
+    #[tokio::test]
+    async fn do_chat_completions_with_no_tools_returns_plain_content() {
+        let state = fake_app_state("just a plain answer");
+        let req = ChatCompletionRequest {
+            messages: vec![ChatCompletionMessage {
+                role: "user".to_string(),
+                content: Some("hi".to_string()),
+            }],
+            model: None,
+            max_tokens: None,
+            temperature: None,
+            tools: None,
+        };
+        let (status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        let message = &resp.choices[0].message;
+        assert_eq!(message.content.as_deref(), Some("just a plain answer"));
+        assert!(message.tool_calls.is_none());
+        assert_eq!(resp.choices[0].finish_reason, "stop");
     }
 }

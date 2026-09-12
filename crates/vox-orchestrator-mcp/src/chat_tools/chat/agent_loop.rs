@@ -56,11 +56,17 @@ pub(crate) static CHAT_MESSAGE_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex
 ///   `ModelRegistry::get_llm_config` conversion for the same provider type
 ///   (`crates/vox-orchestrator/src/models/registry.rs`).
 ///
+/// - [`ProviderType::VoxLocal`]: local `vox mens serve` (Task B2, MENS
+///   end-to-end completion). Maps to `$VOX_LOCAL_ENDPOINT/v1/chat/completions`
+///   (or the config SSOT's default probe candidate when unset) — the new
+///   OpenAI-chat-shaped route added to `vox-ml-cli`'s serve binary alongside
+///   its existing `/v1/completions` (text-prompt) route.
+///
 /// Returns `None` for every other [`ProviderType`] (`GoogleDirect`,
-/// `HuggingFaceRouter`, `VoxLocal`, `PopuliMesh`, `Anthropic`, `Mistral`,
-/// `DeepSeek`, `SambaNova`, `Groq`, `Cerebras`, `Custom`; `Ollama` never
-/// returns `None` — an empty/unset `OLLAMA_URL` falls back to the config
-/// SSOT default) — those require the
+/// `HuggingFaceRouter`, `PopuliMesh`, `Anthropic`, `Mistral`,
+/// `DeepSeek`, `SambaNova`, `Groq`, `Cerebras`, `Custom`; `Ollama` and
+/// `VoxLocal` never return `None` — an empty/unset env falls back to the
+/// config SSOT default) — those require the
 /// provider-specific fallback chains, dedicated-endpoint resolution, or
 /// unreachable-provider handling that only
 /// `crate::llm_bridge::infer::mcp_infer_completion` implements, and this mapper
@@ -103,9 +109,44 @@ pub(crate) fn model_spec_to_llm_config(spec: &ModelSpec) -> Option<LlmConfig> {
                 telemetry_skip_interaction: true,
             })
         }
+        ProviderType::VoxLocal => {
+            // Task B2: mirror the Ollama arm above — resolve through the config
+            // SSOT, never inline a URL. `vox_local_endpoint_probe_candidates()`
+            // returns a single-element list when `VOX_LOCAL_ENDPOINT` is set
+            // (tests use this to point at a mock server) and the default
+            // two-candidate probe list otherwise; this mapper does no runtime
+            // health probing (consistent with its doc comment above), so it
+            // takes the first candidate, same as `vox mens serve`'s own default
+            // bind port.
+            let base = vox_config::inference::vox_local_endpoint_probe_candidates()
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| vox_config::inference::VOX_LOCAL_ENDPOINT_DEFAULT.to_string());
+            let base_url = format!("{}/v1/chat/completions", base.trim_end_matches('/'));
+            Some(LlmConfig {
+                provider: "vox-local".to_string(),
+                model: spec.id.clone(),
+                cost_per_1k: None,
+                base_url: Some(base_url),
+                api_key: None,
+                temperature: None,
+                top_p: None,
+                max_tokens: Some(spec.max_tokens),
+                response_format: None,
+                tools: None,
+                tool_choice: None,
+                timeout_ms: None,
+                telemetry_session_id: None,
+                telemetry_user_id: None,
+                telemetry_task_category: None,
+                telemetry_strength_tag: None,
+                telemetry_trace_id: None,
+                telemetry_attempt_number: None,
+                telemetry_skip_interaction: true,
+            })
+        }
         ProviderType::GoogleDirect
         | ProviderType::HuggingFaceRouter
-        | ProviderType::VoxLocal
         | ProviderType::PopuliMesh
         | ProviderType::Anthropic
         | ProviderType::Mistral
@@ -169,6 +210,23 @@ pub struct AgentTurnOutcome {
     /// Task M3: time per output token, in ms, from the final iteration's response. `None`
     /// when that iteration had zero completion tokens.
     pub tpot_ms: Option<f64>,
+    /// Task B2 (MENS end-to-end completion, VoxLocal tool-calling salvage policy):
+    /// total tool calls dispatched this turn, including calls recovered from
+    /// unstructured text via the salvage policy (see `telemetry`'s
+    /// `tool_call_salvaged` key). Always equal to `tool_calls_made` today — a
+    /// separate field so callers keyed on "was anything dispatched" don't need to
+    /// know this struct predates the salvage policy.
+    pub tool_calls_dispatched: usize,
+    /// Task B2: the turn's final assistant-facing text, or `None` only when the
+    /// loop hit `max_iterations` mid-tool-call with no final answer produced
+    /// (`hit_iteration_limit: true` and `final_text` empty).
+    pub reply_text: Option<String>,
+    /// Task B2: per-turn telemetry flags. Currently only ever carries
+    /// `tool_call_salvaged: true` when a dispatched call this turn was recovered
+    /// from unstructured model text (§salvage policy) rather than the provider's
+    /// structured `tool_calls` field — never removed once set, even if a later
+    /// iteration in the same turn dispatches a clean structured call too.
+    pub telemetry: std::collections::HashMap<String, serde_json::Value>,
 }
 
 /// Max chars of a model-authored string (e.g. a raw skill id) echoed into a
@@ -425,6 +483,133 @@ async fn stream_final_answer(
     })
 }
 
+/// Task B2 salvage-policy step 2: given a model's raw text content and the tool
+/// defs actually offered this turn, look for a tool call embedded as prose
+/// instead of structured `tool_calls` — the expected failure mode of a small
+/// (e.g. VoxLocal/MENS) model, per `serve/prompt.rs`'s
+/// `validate_structured_output_with_reason`, which already establishes that
+/// this codebase treats post-hoc text repair as the norm, not a rare edge
+/// case, for this class of output.
+///
+/// Looks for a JSON object shaped like `{"name": "...", "arguments": {...}}`,
+/// either inside a fenced ` ```json ` block or bare in the text, and returns it
+/// as a synthetic tool-call-shaped [`serde_json::Value`] (`{"id", "name",
+/// "arguments"}` — the caller round-trips this through `serde_json` into the
+/// real `vox_llm_egress::EgressToolCall` wire type at the point it's needed,
+/// which avoids this module taking a direct `vox-llm-egress` crate edge just
+/// for this one construction site; see the crate-edges dependency-discipline
+/// policy) ONLY when `name` matches one of `tool_defs` — an arbitrary string
+/// the model happened to say is never dispatched. Returns `None` on no match,
+/// a malformed candidate, or an unoffered tool name; the caller treats `None`
+/// as "the model declined to call a tool", never as an error.
+fn salvage_tool_call_from_text(text: &str, tool_defs: &[LlmToolDef]) -> Option<serde_json::Value> {
+    let candidate = fenced_json_candidate(text).or_else(|| bare_json_candidate(text))?;
+    let obj = candidate.as_object()?;
+    let name = obj.get("name")?.as_str()?;
+    if !tool_defs.iter().any(|t| t.name == name) {
+        return None;
+    }
+    let arguments = obj
+        .get("arguments")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    Some(serde_json::json!({
+        // Salvaged calls have no provider-assigned id (there was no structured
+        // tool_calls entry to assign one); synthesize one so the result can
+        // still be correlated back to this call in the `role: "tool"` message.
+        "id": format!("salvaged-{}", uuid::Uuid::new_v4()),
+        "name": name,
+        "arguments": arguments,
+    }))
+}
+
+/// Salvage step 2a: a fenced ` ```json { ... } ``` ` block containing an
+/// object with both `"name"` and `"arguments"` keys.
+fn fenced_json_candidate(text: &str) -> Option<serde_json::Value> {
+    static FENCE_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = FENCE_RE
+        .get_or_init(|| regex::Regex::new(r"(?s)```json\s*(\{.*?\})\s*```").expect("static regex"));
+    for caps in re.captures_iter(text) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&caps[1]) {
+            if is_tool_call_shape(&v) {
+                return Some(v);
+            }
+        }
+    }
+    None
+}
+
+/// Salvage step 2b: a bare (non-fenced) `{"name": ..., "arguments": ...}`
+/// object anywhere in the text. Regex only locates the `"name"..."arguments"`
+/// key pair (arguments' own nested braces make a pure-regex extraction of the
+/// whole object unreliable); the surrounding JSON object is then recovered by
+/// brace-matching outward from that match, and parsed for real by `serde_json`
+/// — the regex is a locator, not a parser.
+fn bare_json_candidate(text: &str) -> Option<serde_json::Value> {
+    static NAME_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = NAME_RE.get_or_init(|| {
+        regex::Regex::new(r#""name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:"#).expect("static regex")
+    });
+    for m in re.find_iter(text) {
+        if let Some(obj_src) = enclosing_json_object(text, m.start()) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(obj_src) {
+                if is_tool_call_shape(&v) {
+                    return Some(v);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn is_tool_call_shape(v: &serde_json::Value) -> bool {
+    v.as_object()
+        .is_some_and(|o| o.get("name").is_some_and(serde_json::Value::is_string))
+}
+
+/// Given a byte offset known to sit inside a JSON object's key/value area, walk
+/// backward to that object's opening `{` (skipping over any nested `{...}`
+/// closed before reaching it) and forward to the matching closing `}`, and
+/// return the enclosing `text` slice. `None` if the braces are unbalanced.
+fn enclosing_json_object(text: &str, pos: usize) -> Option<&str> {
+    let bytes = text.as_bytes();
+    let mut depth = 0i32;
+    let mut start = None;
+    let mut i = pos;
+    loop {
+        match bytes.get(i) {
+            Some(b'}') => depth += 1,
+            Some(b'{') => {
+                if depth == 0 {
+                    start = Some(i);
+                    break;
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+        if i == 0 {
+            break;
+        }
+        i -= 1;
+    }
+    let start = start?;
+    let mut depth = 0i32;
+    for (j, b) in bytes.iter().enumerate().skip(start) {
+        match b {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return text.get(start..=j);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 /// Run one user turn of the tool-calling agent loop to completion.
 ///
 /// `messages` passed to the first `llm_chat` call is `[system] + prior_conversation
@@ -546,6 +731,10 @@ pub(crate) async fn run_agent_turn(
     let mut latency_ms: Option<u64> = None;
     let mut ttft_ms: Option<u64> = None;
     let mut tpot_ms: Option<f64> = None;
+    // Task B2 salvage policy: sticky per-turn telemetry, currently only
+    // `tool_call_salvaged`. Never cleared once set within a turn.
+    let mut telemetry: std::collections::HashMap<String, serde_json::Value> =
+        std::collections::HashMap::new();
 
     for iteration in 0..max_iterations {
         let mut config = llm_config_template.clone();
@@ -591,210 +780,222 @@ pub(crate) async fn run_agent_turn(
         ttft_ms = resp.ttft_ms;
         tpot_ms = resp.tpot_ms;
 
-        match resp.tool_calls {
-            Some(calls) if !calls.is_empty() => {
-                messages.push(LlmChatMessage {
-                    role: "assistant".into(),
-                    content: resp.content,
-                    tool_calls: Some(calls.clone()),
-                    ..Default::default()
-                });
+        // Task B2 three-step salvage policy (MENS end-to-end completion, VoxLocal
+        // tool-calling): (1) structured `tool_calls` wins when present and
+        // non-empty; (2) otherwise regex-scan the text content for a
+        // tool-shaped JSON object naming a tool this turn actually offered, and
+        // treat it as a salvaged call; (3) otherwise this is a plain-text
+        // answer, not a failure. No branch below hard-fails the turn.
+        let wire_calls = resp.tool_calls.unwrap_or_default();
+        let (calls, salvaged) = if !wire_calls.is_empty() {
+            (wire_calls, false)
+        } else if let Some(candidate) = salvage_tool_call_from_text(&resp.content, &tool_defs) {
+            // Round-trip through serde_json rather than naming
+            // `vox_llm_egress::EgressToolCall` directly here — see
+            // `salvage_tool_call_from_text`'s doc comment. The target type is
+            // pinned by this `if`/`else`'s other arms (both `Vec<EgressToolCall>`),
+            // so this infers correctly without an explicit annotation.
+            let synthesized = serde_json::from_value(serde_json::Value::Array(vec![candidate]))
+                .unwrap_or_default();
+            (synthesized, true)
+        } else {
+            (Vec::new(), false)
+        };
 
-                for call in &calls {
-                    tool_calls_made += 1;
-                    // Phase D Task D1: inject the chat session id (and this
-                    // call's own provider id as the delegation "origin turn")
-                    // into the OUTGOING dispatch args only — never into
-                    // `call.arguments` itself, which is what gets recorded into
-                    // `messages`/`events`/the harness scorer below. Only
-                    // `vox_spawn_agent`/`vox_submit_task` params structs declare
-                    // these fields; every other tool's `deny_unknown_fields`
-                    // schema would reject them, so this is scoped to the two
-                    // delegation tools rather than injected unconditionally.
-                    let mut dispatch_args = call.arguments.clone();
-                    if matches!(call.name.as_str(), "vox_spawn_agent" | "vox_submit_task") {
-                        if let Some(session) = session_id.filter(|s| !s.is_empty()) {
-                            if dispatch_args.is_null() {
-                                dispatch_args = serde_json::Value::Object(serde_json::Map::new());
-                            }
-                            if let Some(obj) = dispatch_args.as_object_mut() {
-                                obj.insert(
-                                    "chat_session_id".to_string(),
-                                    serde_json::Value::String(session.to_string()),
-                                );
-                                obj.insert(
-                                    "origin_turn_id".to_string(),
-                                    serde_json::Value::String(call.id.clone()),
-                                );
-                            }
+        if !calls.is_empty() {
+            if salvaged {
+                telemetry.insert(
+                    "tool_call_salvaged".to_string(),
+                    serde_json::Value::Bool(true),
+                );
+            }
+            messages.push(LlmChatMessage {
+                role: "assistant".into(),
+                content: resp.content,
+                tool_calls: Some(calls.clone()),
+                ..Default::default()
+            });
+
+            for call in &calls {
+                tool_calls_made += 1;
+                // Phase D Task D1: inject the chat session id (and this
+                // call's own provider id as the delegation "origin turn")
+                // into the OUTGOING dispatch args only — never into
+                // `call.arguments` itself, which is what gets recorded into
+                // `messages`/`events`/the harness scorer below. Only
+                // `vox_spawn_agent`/`vox_submit_task` params structs declare
+                // these fields; every other tool's `deny_unknown_fields`
+                // schema would reject them, so this is scoped to the two
+                // delegation tools rather than injected unconditionally.
+                let mut dispatch_args = call.arguments.clone();
+                if matches!(call.name.as_str(), "vox_spawn_agent" | "vox_submit_task") {
+                    if let Some(session) = session_id.filter(|s| !s.is_empty()) {
+                        if dispatch_args.is_null() {
+                            dispatch_args = serde_json::Value::Object(serde_json::Map::new());
+                        }
+                        if let Some(obj) = dispatch_args.as_object_mut() {
+                            obj.insert(
+                                "chat_session_id".to_string(),
+                                serde_json::Value::String(session.to_string()),
+                            );
+                            obj.insert(
+                                "origin_turn_id".to_string(),
+                                serde_json::Value::String(call.id.clone()),
+                            );
                         }
                     }
-                    let result = crate::dispatch::handle_tool_call_with_mode(
-                        state,
-                        &call.name,
-                        dispatch_args,
-                        permission_mode,
-                    )
-                    .await;
-                    let dispatch_ok = result.is_ok();
-                    let content = match result {
-                        Ok(s) => s,
-                        Err(e) => format!("Error: {e}"),
-                    };
-                    let call_succeeded = dispatch_ok
-                        && !content.starts_with("Error:")
-                        && !crate::server_state::tool_json_envelope_is_error(&content);
-                    // Derived from the RESULT (`call_succeeded`, computed above from
-                    // what dispatch actually did), never from `call.arguments` alone
-                    // — see `turn_event_for_result`'s doc comment for why that
-                    // distinction is security-load-bearing.
-                    if let Some(ev) =
-                        turn_event_for_result(&call.name, &call.arguments, &content, call_succeeded)
-                    {
-                        events.push(ev);
-                    }
+                }
+                let result = crate::dispatch::handle_tool_call_with_mode(
+                    state,
+                    &call.name,
+                    dispatch_args,
+                    permission_mode,
+                )
+                .await;
+                let dispatch_ok = result.is_ok();
+                let content = match result {
+                    Ok(s) => s,
+                    Err(e) => format!("Error: {e}"),
+                };
+                let call_succeeded = dispatch_ok
+                    && !content.starts_with("Error:")
+                    && !crate::server_state::tool_json_envelope_is_error(&content);
+                // Derived from the RESULT (`call_succeeded`, computed above from
+                // what dispatch actually did), never from `call.arguments` alone
+                // — see `turn_event_for_result`'s doc comment for why that
+                // distinction is security-load-bearing.
+                if let Some(ev) =
+                    turn_event_for_result(&call.name, &call.arguments, &content, call_succeeded)
+                {
+                    events.push(ev);
+                }
 
-                    if harness_detection_enabled {
-                        let is_error = content.starts_with("Error:")
-                            || crate::server_state::tool_json_envelope_is_error(&content);
-                        // Redact before it ever enters the scorer's activity
-                        // buffer — that buffer is later sent to the judge LLM
-                        // and stored in evidence_json verbatim, so redaction
-                        // must happen at the point of recording, not only
-                        // when building the single-call summary that used to
-                        // be sent (see recent_activity() below).
-                        let redacted_args = vox_redact::redact_args(&call.arguments).to_string();
-                        let redacted_content = if is_error {
-                            vox_redact::redact_owned(&content)
-                        } else {
-                            String::new()
-                        };
-                        let crossed =
-                            harness_scorer.record(&call.name, &redacted_args, &redacted_content);
-                        if crossed {
-                            let recent_activity = harness_scorer.recent_activity();
-                            let db = state.db.clone();
-                            let session_key = session_id.map(str::to_string);
-                            // The judge's own model must be a real, resolved id — a
-                            // literal "auto" is not a recognized provider and every
-                            // real call would fail silently (judge() swallows LLM
-                            // errors and returns None). Resolve it the same way
-                            // propose_harness_issue_fix does.
-                            let judge_model =
-                                vox_orchestrator::models::select_with_default_registry(
-                                    &vox_orchestrator::models::SelectionIntent::review(),
-                                )
-                                .map(|o| o.model_id)
-                                .unwrap_or_else(|| "google/gemini-3.1-pro".to_string());
-                            tokio::spawn(async move {
-                                let Some(issue) = super::harness_issue_judge::judge(
-                                    &recent_activity,
-                                    &judge_model,
-                                )
-                                .await
-                                else {
-                                    return;
-                                };
-                                let Some(db) = db else {
-                                    return;
-                                };
-                                // The scorer can re-cross threshold more than once
-                                // per turn on the same stuck-loop signature; dedup
-                                // against any still-pending issue for this
-                                // session/category so one incident doesn't flood
-                                // the review queue with duplicate rows.
-                                if let Some(session_key) = session_key.as_deref() {
-                                    match db
-                                        .has_pending_harness_issue_for_session(
-                                            session_key,
-                                            &issue.category,
-                                        )
-                                        .await
-                                    {
-                                        Ok(true) => return,
-                                        Ok(false) => {}
-                                        Err(e) => {
-                                            tracing::warn!(
-                                                target: "harness_issue_judge",
-                                                error = %e,
-                                                "failed to check for a pending duplicate harness issue"
-                                            );
-                                        }
-                                    }
-                                }
-                                let insert_result = db
-                                    .insert_harness_issue(vox_db::NewHarnessIssue {
-                                        source: "chat_session",
-                                        session_key: session_key.as_deref(),
-                                        target_path: None,
-                                        detected_at_ms: chrono::Utc::now().timestamp_millis(),
-                                        category: &issue.category,
-                                        severity: &issue.severity,
-                                        summary: &issue.summary,
-                                        evidence_json: &serde_json::json!({
-                                            "excerpt": recent_activity
-                                        })
-                                        .to_string(),
-                                    })
-                                    .await;
-                                if let Err(e) = insert_result {
-                                    // The has_pending_harness_issue_for_session check
-                                    // above is a fast-path only — the database's own
-                                    // partial unique index on (session_key, category)
-                                    // WHERE status='pending' AND source='chat_session'
-                                    // is the actual dedup enforcement, closing the race
-                                    // between two concurrently-spawned judge tasks that
-                                    // both passed the check before either inserted.
-                                    // That expected race outcome (not a real failure)
-                                    // surfaces as a unique-constraint violation here.
-                                    if e.to_string().to_ascii_lowercase().contains("unique") {
-                                        tracing::debug!(
-                                            target: "harness_issue_judge",
-                                            "duplicate harness issue insert raced with another judge task; dropped"
-                                        );
-                                    } else {
+                if harness_detection_enabled {
+                    let is_error = content.starts_with("Error:")
+                        || crate::server_state::tool_json_envelope_is_error(&content);
+                    // Redact before it ever enters the scorer's activity
+                    // buffer — that buffer is later sent to the judge LLM
+                    // and stored in evidence_json verbatim, so redaction
+                    // must happen at the point of recording, not only
+                    // when building the single-call summary that used to
+                    // be sent (see recent_activity() below).
+                    let redacted_args = vox_redact::redact_args(&call.arguments).to_string();
+                    let redacted_content = if is_error {
+                        vox_redact::redact_owned(&content)
+                    } else {
+                        String::new()
+                    };
+                    let crossed =
+                        harness_scorer.record(&call.name, &redacted_args, &redacted_content);
+                    if crossed {
+                        let recent_activity = harness_scorer.recent_activity();
+                        let db = state.db.clone();
+                        let session_key = session_id.map(str::to_string);
+                        // The judge's own model must be a real, resolved id — a
+                        // literal "auto" is not a recognized provider and every
+                        // real call would fail silently (judge() swallows LLM
+                        // errors and returns None). Resolve it the same way
+                        // propose_harness_issue_fix does.
+                        let judge_model = vox_orchestrator::models::select_with_default_registry(
+                            &vox_orchestrator::models::SelectionIntent::review(),
+                        )
+                        .map(|o| o.model_id)
+                        .unwrap_or_else(|| "google/gemini-3.1-pro".to_string());
+                        tokio::spawn(async move {
+                            let Some(issue) =
+                                super::harness_issue_judge::judge(&recent_activity, &judge_model)
+                                    .await
+                            else {
+                                return;
+                            };
+                            let Some(db) = db else {
+                                return;
+                            };
+                            // The scorer can re-cross threshold more than once
+                            // per turn on the same stuck-loop signature; dedup
+                            // against any still-pending issue for this
+                            // session/category so one incident doesn't flood
+                            // the review queue with duplicate rows.
+                            if let Some(session_key) = session_key.as_deref() {
+                                match db
+                                    .has_pending_harness_issue_for_session(
+                                        session_key,
+                                        &issue.category,
+                                    )
+                                    .await
+                                {
+                                    Ok(true) => return,
+                                    Ok(false) => {}
+                                    Err(e) => {
                                         tracing::warn!(
                                             target: "harness_issue_judge",
                                             error = %e,
-                                            "failed to insert detected harness issue"
+                                            "failed to check for a pending duplicate harness issue"
                                         );
                                     }
                                 }
-                            });
-                            harness_scorer.reset();
-                        }
+                            }
+                            let insert_result = db
+                                .insert_harness_issue(vox_db::NewHarnessIssue {
+                                    source: "chat_session",
+                                    session_key: session_key.as_deref(),
+                                    target_path: None,
+                                    detected_at_ms: chrono::Utc::now().timestamp_millis(),
+                                    category: &issue.category,
+                                    severity: &issue.severity,
+                                    summary: &issue.summary,
+                                    evidence_json: &serde_json::json!({
+                                        "excerpt": recent_activity
+                                    })
+                                    .to_string(),
+                                })
+                                .await;
+                            if let Err(e) = insert_result {
+                                // The has_pending_harness_issue_for_session check
+                                // above is a fast-path only — the database's own
+                                // partial unique index on (session_key, category)
+                                // WHERE status='pending' AND source='chat_session'
+                                // is the actual dedup enforcement, closing the race
+                                // between two concurrently-spawned judge tasks that
+                                // both passed the check before either inserted.
+                                // That expected race outcome (not a real failure)
+                                // surfaces as a unique-constraint violation here.
+                                if e.to_string().to_ascii_lowercase().contains("unique") {
+                                    tracing::debug!(
+                                        target: "harness_issue_judge",
+                                        "duplicate harness issue insert raced with another judge task; dropped"
+                                    );
+                                } else {
+                                    tracing::warn!(
+                                        target: "harness_issue_judge",
+                                        error = %e,
+                                        "failed to insert detected harness issue"
+                                    );
+                                }
+                            }
+                        });
+                        harness_scorer.reset();
                     }
-
-                    messages.push(crate::tool_images::llm_tool_message(
-                        call.id.clone(),
-                        call.name.clone(),
-                        content,
-                        &vox_config::paths::browser_frames_cache_dir(),
-                    ));
-                    crate::tool_images::retain_latest_tool_image(&mut messages);
                 }
 
-                if iteration + 1 == max_iterations {
-                    return Ok(AgentTurnOutcome {
-                        final_text: String::new(),
-                        model_used,
-                        tool_calls_made,
-                        hit_iteration_limit: true,
-                        total_tokens,
-                        events,
-                        latency_ms,
-                        ttft_ms,
-                        tpot_ms,
-                    });
-                }
-                // Otherwise loop: ask the model again with the tool results appended.
+                messages.push(crate::tool_images::llm_tool_message(
+                    call.id.clone(),
+                    call.name.clone(),
+                    content,
+                    &vox_config::paths::browser_frames_cache_dir(),
+                ));
+                crate::tool_images::retain_latest_tool_image(&mut messages);
             }
-            _ => {
+
+            if iteration + 1 == max_iterations {
                 return Ok(AgentTurnOutcome {
-                    final_text: resp.content,
+                    final_text: String::new(),
                     model_used,
                     tool_calls_made,
-                    hit_iteration_limit: false,
+                    tool_calls_dispatched: tool_calls_made,
+                    reply_text: None,
+                    telemetry,
+                    hit_iteration_limit: true,
                     total_tokens,
                     events,
                     latency_ms,
@@ -802,6 +1003,22 @@ pub(crate) async fn run_agent_turn(
                     tpot_ms,
                 });
             }
+            // Otherwise loop: ask the model again with the tool results appended.
+        } else {
+            return Ok(AgentTurnOutcome {
+                final_text: resp.content.clone(),
+                model_used,
+                tool_calls_made,
+                tool_calls_dispatched: tool_calls_made,
+                reply_text: Some(resp.content),
+                telemetry,
+                hit_iteration_limit: false,
+                total_tokens,
+                events,
+                latency_ms,
+                ttft_ms,
+                tpot_ms,
+            });
         }
     }
 
@@ -813,6 +1030,9 @@ pub(crate) async fn run_agent_turn(
         final_text: String::new(),
         model_used,
         tool_calls_made,
+        tool_calls_dispatched: tool_calls_made,
+        reply_text: None,
+        telemetry,
         hit_iteration_limit: true,
         total_tokens,
         events,
@@ -1445,6 +1665,191 @@ mod tests {
             cfg.base_url.as_deref(),
             Some("http://localhost:11434/v1/chat/completions"),
             "must fall back to the config SSOT default"
+        );
+    }
+
+    /// Task B2 (MENS end-to-end completion, Route A): a VoxLocal-routed turn
+    /// must send tool schemas on the wire, dispatch a requested call, and feed
+    /// the RESULT back as a second round-trip — the exact gap `.is_some()`
+    /// cannot see (a `VoxLocal => Some(LlmConfig::default())` stub would pass a
+    /// weaker assertion and then fail against a nonexistent base URL).
+    #[tokio::test]
+    #[allow(unsafe_code)] // env var mutation under a process-wide lock, like existing env tests
+    #[allow(clippy::await_holding_lock)] // intentional: the std Mutex must stay held for the
+    // entire test body to serialize access to the process-global VOX_LOCAL_ENDPOINT env var
+    // against any other test that might touch it; this test never runs concurrently with
+    // itself, so there's no deadlock risk from the held guard.
+    async fn a_mens_turn_dispatches_a_tool_and_feeds_the_result_back() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        // Turn 1: the model requests a tool. Turn 2: it answers using the result.
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(tool_call_response_body()))
+            .up_to_n_times(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(plain_response_body("done")))
+            .mount(&server)
+            .await;
+
+        let prev = std::env::var("VOX_LOCAL_ENDPOINT").ok();
+        // SAFETY: restored below under the same env lock; no other test in this
+        // module reads VOX_LOCAL_ENDPOINT.
+        unsafe {
+            std::env::set_var("VOX_LOCAL_ENDPOINT", server.uri());
+        }
+
+        let spec = model_spec(ProviderType::VoxLocal, "mens/demo-run");
+        let cfg = model_spec_to_llm_config(&spec).expect("VoxLocal must map");
+        assert!(
+            cfg.base_url
+                .as_deref()
+                .is_some_and(|u| u.ends_with("/v1/chat/completions")),
+            "the arm must point at chat-completions, not /generate: {:?}",
+            cfg.base_url
+        );
+        assert_eq!(
+            cfg.max_tokens,
+            Some(spec.max_tokens),
+            "the catalog's claim must reach the wire"
+        );
+
+        let state = test_state();
+        let out = run_agent_turn(
+            &state,
+            Some("sess-b2"),
+            vec![],
+            "system prompt".to_string(),
+            "what's the git status?".to_string(),
+            None,
+            None,
+            cfg,
+            DEFAULT_MAX_ITERATIONS,
+            false,
+        )
+        .await
+        .expect("run_agent_turn should succeed");
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("VOX_LOCAL_ENDPOINT", v) },
+            None => unsafe { std::env::remove_var("VOX_LOCAL_ENDPOINT") },
+        }
+
+        let requests = server.received_requests().await.expect("received requests");
+        let bodies: Vec<serde_json::Value> = requests
+            .iter()
+            .map(|r| serde_json::from_slice(&r.body).expect("json body"))
+            .collect();
+        assert_eq!(
+            bodies.len(),
+            2,
+            "a tool call must produce a second round-trip"
+        );
+        assert!(
+            bodies[0]["tools"].as_array().is_some_and(|t| !t.is_empty()),
+            "tool schemas must be sent, or the model can never request one"
+        );
+        assert_eq!(
+            bodies[1]["messages"].as_array().unwrap().last().unwrap()["role"],
+            "tool",
+            "the tool RESULT must be fed back — this is what is_some() cannot see"
+        );
+        assert_eq!(out.tool_calls_dispatched, 1);
+    }
+
+    /// Task B2 salvage policy step 2: a tool call embedded as prose (a fenced
+    /// ```json block) instead of structured `tool_calls` — the expected
+    /// failure mode of a small model — must still dispatch, tagged
+    /// `tool_call_salvaged: true` so a salvage is never indistinguishable from
+    /// a clean structured call.
+    #[tokio::test]
+    async fn a_near_miss_tool_call_is_salvaged_and_tagged_not_hard_failed() {
+        let server = MockServer::start().await;
+        // `vox_answer_question` (unlike `vox_git_status`) is actually within the
+        // turn's offered-tool set (alphabetical registry order, capped at
+        // `DEFAULT_MAX_TOOLS` — see `select_tools_for_turn`), which the salvage
+        // policy requires before treating any text-embedded JSON as a real call.
+        let near_miss = plain_response_body(
+            "I'll use vox_answer_question. ```json\n{\"name\":\"vox_answer_question\",\"arguments\":{}}\n```",
+        );
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(near_miss))
+            .up_to_n_times(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(plain_response_body("done, saw the tool result")),
+            )
+            .mount(&server)
+            .await;
+
+        let state = test_state();
+        let config = test_config(format!("{}/chat/completions", server.uri()));
+        let out = run_agent_turn(
+            &state,
+            Some("sess-salvage"),
+            vec![],
+            "system prompt".to_string(),
+            "what's the git status?".to_string(),
+            None,
+            None,
+            config,
+            DEFAULT_MAX_ITERATIONS,
+            false,
+        )
+        .await
+        .expect("run_agent_turn should succeed even with a near-miss tool call");
+
+        assert_eq!(
+            out.tool_calls_dispatched, 1,
+            "a near-miss must still dispatch"
+        );
+        assert_eq!(
+            out.telemetry.get("tool_call_salvaged"),
+            Some(&serde_json::Value::Bool(true)),
+            "a salvage must be visible, not indistinguishable from a clean structured call"
+        );
+    }
+
+    /// Task B2 salvage policy step 3: ordinary prose with no tool-shaped JSON
+    /// anywhere completes as a plain answer — "the model declined to call a
+    /// tool" is not a turn failure.
+    #[tokio::test]
+    async fn no_tool_shaped_text_completes_as_a_plain_answer_not_a_turn_failure() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body(
+                    "The git status looks clean, nothing to report.",
+                )),
+            )
+            .mount(&server)
+            .await;
+
+        let state = test_state();
+        let config = test_config(format!("{}/chat/completions", server.uri()));
+        let out = run_agent_turn(
+            &state,
+            Some("sess-plain"),
+            vec![],
+            "system prompt".to_string(),
+            "what's the git status?".to_string(),
+            None,
+            None,
+            config,
+            DEFAULT_MAX_ITERATIONS,
+            false,
+        )
+        .await
+        .expect("run_agent_turn should succeed with a plain-text answer");
+
+        assert_eq!(out.tool_calls_dispatched, 0);
+        assert!(
+            out.reply_text.is_some(),
+            "declining to call a tool must not fail the turn"
         );
     }
 

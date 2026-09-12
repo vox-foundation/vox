@@ -190,6 +190,8 @@ pub fn run_eval_local(
                             "semantic_pass": v.semantic_pass,
                             "anti_stub_pass": v.anti_stub_pass,
                             "tool_call_json_valid": looks_like_json_tool_call(&completion),
+                            "tool_name_exists": tool_call_names_a_tool(&completion),
+                            "tool_call_salvaged": tool_call_was_salvaged(&completion),
                             "checks": v.checks,
                             "completion_preview": completion.chars().take(240).collect::<String>(),
                         });
@@ -496,6 +498,107 @@ fn looks_like_json_tool_call(source: &str) -> bool {
     serde_json::from_str::<serde_json::Value>(source.trim()).is_ok()
 }
 
+/// Task B2 (MENS end-to-end completion): extract a tool-call-shaped JSON
+/// object (`{"name": ...}`) from `source`, either as the whole trimmed text
+/// or via the same fenced-block / bare-text brace-matching extraction
+/// `vox-orchestrator-mcp`'s `agent_loop.rs` salvage policy performs on a
+/// live turn — duplicated here (a ~25-line helper, not a shared crate edge:
+/// see the dependency-discipline defactor policy) because this benchmark
+/// harness calls the raw inference engine directly (`run_inference`), never
+/// the `/v1/chat/completions` HTTP route, so there is no live turn to
+/// observe the salvage from.
+fn extract_tool_call_json(source: &str) -> Option<serde_json::Value> {
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(source.trim())
+        && v.get("name").is_some()
+    {
+        return Some(v);
+    }
+    static FENCE_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let fence_re = FENCE_RE
+        .get_or_init(|| regex::Regex::new(r"(?s)```json\s*(\{.*?\})\s*```").expect("static regex"));
+    for caps in fence_re.captures_iter(source) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&caps[1])
+            && v.get("name").is_some()
+        {
+            return Some(v);
+        }
+    }
+    static NAME_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let name_re =
+        NAME_RE.get_or_init(|| regex::Regex::new(r#""name"\s*:\s*"[^"]*""#).expect("static regex"));
+    for m in name_re.find_iter(source) {
+        let bytes = source.as_bytes();
+        let mut depth = 0i32;
+        let mut start = None;
+        let mut i = m.start();
+        loop {
+            match bytes.get(i) {
+                Some(b'}') => depth += 1,
+                Some(b'{') => {
+                    if depth == 0 {
+                        start = Some(i);
+                        break;
+                    }
+                    depth -= 1;
+                }
+                _ => {}
+            }
+            if i == 0 {
+                break;
+            }
+            i -= 1;
+        }
+        let Some(start) = start else { continue };
+        let mut depth = 0i32;
+        for (j, b) in bytes.iter().enumerate().skip(start) {
+            match b {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        if let Some(slice) = source.get(start..=j)
+                            && let Ok(v) = serde_json::from_str::<serde_json::Value>(slice)
+                            && v.get("name").is_some()
+                        {
+                            return Some(v);
+                        }
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    None
+}
+
+/// Task B2: cheap format signal — does `source` contain a tool-call-shaped
+/// JSON object naming a (non-empty-string) tool at all, structured or
+/// salvaged. Like `looks_like_json_tool_call`, this is not a verifier that
+/// the name is a real registered tool: this harness has no tool catalog to
+/// check names against (unlike the live `/v1/chat/completions` route, which
+/// does — see `vox-ml-cli`'s `serve/handlers.rs`).
+fn tool_call_names_a_tool(source: &str) -> bool {
+    extract_tool_call_json(source)
+        .and_then(|v| {
+            v.get("name")
+                .and_then(|n| n.as_str())
+                .map(|s| !s.is_empty())
+        })
+        .unwrap_or(false)
+}
+
+/// Task B2: true when a tool-call-shaped JSON object was only recoverable
+/// via prose/fenced-block extraction (`source.trim()` alone does not parse
+/// as JSON) — the same "step 2" condition `agent_loop.rs`'s salvage policy
+/// uses to tag `tool_call_salvaged: true` on a live turn.
+fn tool_call_was_salvaged(source: &str) -> bool {
+    if serde_json::from_str::<serde_json::Value>(source.trim()).is_ok() {
+        return false;
+    }
+    extract_tool_call_json(source).is_some()
+}
+
 /// Aggregate the `eval_results.json` keys eval-local can *honestly* produce
 /// from its own already-computed per-item results — the same
 /// `verify_completion` pass / json-shape signal, not a second verifier.
@@ -553,6 +656,31 @@ fn aggregate_gate_producer_keys(
         out.insert(
             "tool_call_valid_json_rate".to_string(),
             serde_json::json!(valid_json / n),
+        );
+
+        // Task B2 (MENS end-to-end completion): give `eval-gates-agents.yaml`'s
+        // `tool_name_exists_rate` and `tool_call_salvage_rate` a producer,
+        // same shape as `tool_call_valid_json_rate` above — the fraction of
+        // agent/tool-trace rows whose completion named a tool at all
+        // (`tool_name_exists`), and the fraction that only did so via the
+        // salvage policy's prose/fenced extraction rather than clean JSON
+        // (`tool_call_salvaged`). A high salvage rate is the B0 signal that
+        // the route needs a bigger base model, not a per-turn failure.
+        let names_a_tool = agent_rows
+            .iter()
+            .filter(|e| any_sample_flag(e, "tool_name_exists"))
+            .count() as f64;
+        out.insert(
+            "tool_name_exists_rate".to_string(),
+            serde_json::json!(names_a_tool / n),
+        );
+        let salvaged = agent_rows
+            .iter()
+            .filter(|e| any_sample_flag(e, "tool_call_salvaged"))
+            .count() as f64;
+        out.insert(
+            "tool_call_salvage_rate".to_string(),
+            serde_json::json!(salvaged / n),
         );
     }
 
@@ -699,6 +827,62 @@ mod tests {
             r#"{"tool_name":"x","arguments":{}}"#
         ));
         assert!(!looks_like_json_tool_call("not json at all"));
+    }
+
+    #[test]
+    fn tool_call_names_a_tool_accepts_clean_and_salvaged_shapes() {
+        assert!(tool_call_names_a_tool(
+            r#"{"name":"read_file","arguments":{}}"#
+        ));
+        assert!(tool_call_names_a_tool(
+            "I'll use it. ```json\n{\"name\":\"read_file\",\"arguments\":{}}\n```"
+        ));
+        assert!(!tool_call_names_a_tool("just prose, no tool call here"));
+        assert!(!tool_call_names_a_tool(r#"{"arguments":{}}"#));
+    }
+
+    #[test]
+    fn tool_call_was_salvaged_only_when_extraction_was_needed() {
+        assert!(
+            !tool_call_was_salvaged(r#"{"name":"read_file","arguments":{}}"#),
+            "clean top-level JSON is not a salvage"
+        );
+        assert!(tool_call_was_salvaged(
+            "I'll use it. ```json\n{\"name\":\"read_file\",\"arguments\":{}}\n```"
+        ));
+        assert!(!tool_call_was_salvaged("no tool call in this text at all"));
+    }
+
+    #[test]
+    fn tool_name_exists_and_salvage_rates_from_agent_rows() {
+        fn entry_with_flags(
+            category: &str,
+            name_exists: bool,
+            salvaged: bool,
+        ) -> serde_json::Value {
+            serde_json::json!({
+                "category": category,
+                "pass_at_k": true,
+                "samples": [
+                    {"tool_call_json_valid": false, "tool_name_exists": name_exists, "tool_call_salvaged": salvaged}
+                ],
+            })
+        }
+        let results = vec![
+            entry_with_flags("agent_trace", true, false),
+            entry_with_flags("agent_trace", true, true),
+            entry_with_flags("tool_trace", false, false),
+            entry_with_flags("tool_trace", false, false),
+        ];
+        let keys = aggregate_gate_producer_keys(&results);
+        assert_eq!(
+            keys.get("tool_name_exists_rate").and_then(|v| v.as_f64()),
+            Some(0.5)
+        );
+        assert_eq!(
+            keys.get("tool_call_salvage_rate").and_then(|v| v.as_f64()),
+            Some(0.25)
+        );
     }
 
     #[test]
