@@ -174,7 +174,18 @@ pub async fn run_probe(
         }
 
         if verbose {
-            match model.as_deref() {
+            // I3 fix: a model that isn't cached locally yet must NOT trigger a
+            // download just because this ran (e.g. from the GUI's GPU Probe
+            // card on every surface mount/Refresh — see
+            // `MensTrainingView.tsx`/`CommandCardsView.tsx`'s "arg-free,
+            // read-only" contract). Only a model already on disk gets the
+            // real fit check; otherwise this falls back to the same
+            // VRAM-only `recommend_config` profile as no `--model` at all,
+            // Task 9 already preserved for exactly this case.
+            let cached_repo_id = model
+                .as_deref()
+                .filter(|repo_id| vox_populi::mens::hub::is_model_cached(repo_id).unwrap_or(false));
+            match cached_repo_id {
                 Some(repo_id) => {
                     print_model_fit_verdict(repo_id, seq_len, gradient_checkpointing)?;
                 }
@@ -205,10 +216,20 @@ pub async fn run_probe(
                         profile.max_seq_len,
                     );
                     println!();
-                    println!(
-                        "  Pass --model <hf-repo> for a real fit check against this host's \
-                         actual memory budget."
-                    );
+                    if let Some(repo_id) = model.as_deref() {
+                        println!(
+                            "  `{repo_id}` is not cached locally yet, so no real fit check ran \
+                             (this would otherwise trigger a multi-GB download). Run \
+                             `vox mens train --model {repo_id}` (or `vox mens probe --detailed \
+                             --model {repo_id}` again once it's cached) for a real fit check \
+                             against this host's actual memory budget."
+                        );
+                    } else {
+                        println!(
+                            "  Pass --model <hf-repo> for a real fit check against this host's \
+                             actual memory budget."
+                        );
+                    }
                 }
             }
         }

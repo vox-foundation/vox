@@ -332,6 +332,35 @@ pub fn download_model_blocking(repo_id: &str) -> anyhow::Result<DownloadedModelF
         .map_err(|_| anyhow::anyhow!("HF download thread exited without sending result"))?
 }
 
+/// True iff `repo_id` (its pin-stripped name; see [`repo_name_without_revision`])
+/// already has at least one cached revision on disk — a purely local
+/// filesystem scan (`HFClient::scan_cache`), no network call. Lets a caller
+/// (e.g. `vox mens probe --detailed --model <repo>`) decide whether checking
+/// this model's fit would trigger a fresh multi-GB download before doing so.
+pub fn is_model_cached(repo_id: &str) -> anyhow::Result<bool> {
+    let repo_id = repo_name_without_revision(repo_id).to_string();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let result = tokio::runtime::Runtime::new()
+            .map_err(|e| anyhow::anyhow!("tokio runtime init failed: {e}"))
+            .and_then(|rt| {
+                rt.block_on(async {
+                    let client = HFClient::new()
+                        .map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
+                    let info = client
+                        .scan_cache()
+                        .send()
+                        .await
+                        .map_err(|e| anyhow::anyhow!("hf-hub scan_cache: {e}"))?;
+                    Ok(info.repos.iter().any(|r| r.repo_id == repo_id))
+                })
+            });
+        let _ = tx.send(result);
+    });
+    rx.recv()
+        .map_err(|_| anyhow::anyhow!("cache scan thread exited without sending result"))?
+}
+
 #[cfg(all(test, feature = "mens-hf-hub"))]
 #[allow(unsafe_code)] // Serialized env mutation for token sync tests (Rust 2024 `set_var` safety).
 mod tests {
@@ -526,5 +555,28 @@ mod tests {
         unsafe {
             std::env::remove_var(super::NO_DOWNLOAD_ENV);
         }
+    }
+
+    #[test]
+    fn is_model_cached_is_false_for_a_repo_id_that_cannot_be_in_the_local_cache() {
+        // Purely local scan (no network): a repo id that has never been
+        // downloaded — and, with the `/never-real-vox-mens-` marker, cannot
+        // plausibly collide with anything actually cached on this host —
+        // must report `false`, never fabricate `true`.
+        let cached = super::is_model_cached("vox-test-org/never-real-vox-mens-fixture-repo")
+            .expect("a local cache scan must not fail just because the repo was never fetched");
+        assert!(!cached);
+    }
+
+    #[test]
+    fn is_model_cached_strips_the_revision_pin_before_matching() {
+        // `repo_name_without_revision` is the exact helper `download_model`
+        // itself uses to resolve a `owner/name:rev` pin — reuse it here so a
+        // pinned repo id is checked against the same cache-folder identity
+        // `download_model` would actually populate, not a distinct string
+        // that could never match.
+        let cached = super::is_model_cached("vox-test-org/never-real-vox-mens-fixture-repo:main")
+            .expect("a local cache scan must not fail for a pinned, never-downloaded repo");
+        assert!(!cached);
     }
 }

@@ -21,6 +21,14 @@ interface MensTrainingViewProps {
  * `vox mens probe --detailed --model <id>`, the dry run of
  * `vox mens train --model <id>` (see `render_verdict` in
  * `crates/vox-populi/src/mens/tensor/memory_model.rs`).
+ *
+ * `--model <id>` is safe to pass unconditionally here even though
+ * `CommandCardsView` runs every card on mount and on every Refresh
+ * click: `probe.rs`'s `run_probe` only runs the real (downloading) fit
+ * check when `hub::is_model_cached(id)` says the model is already on
+ * disk; otherwise it falls back to the VRAM-only `recommend_config`
+ * profile, so simply viewing this surface never triggers a fresh
+ * multi-GB Hugging Face download.
  */
 export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
   const [activeModel, setActiveModel] = useState<string | null>(null);
