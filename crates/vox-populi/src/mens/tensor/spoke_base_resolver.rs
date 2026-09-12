@@ -161,9 +161,11 @@ pub fn resolve_metal_default_base(
     let base = pick_base(&overlay, "agentic_default", vram_mb as u32).map_err(|e| {
         anyhow::anyhow!(
             "{e} (live-available unified memory: {vram_mb} MB; agentic_default floor is 11000 MB). \
-             Pass --model, set VOX_MENS_DEFAULT_MODEL, or free memory. (`VOX_MENS_DISABLE_LIVE_MEM` \
-             is no longer read — the vm_stat/sysctl heuristic it toggled was replaced by Metal's own \
-             `recommendedMaxWorkingSetSize` accessor, see `hardware::macos_metal::probe_metal`.)"
+             Pass --model, set VOX_MENS_DEFAULT_MODEL, or free memory. (This `vram_mb` comes from \
+             `hardware::macos_metal::probe_metal`'s `recommendedMaxWorkingSetSize` accessor, not \
+             live `vm_stat` pressure — that's a separate, additional constraint applied to the \
+             training working-set budget in `tensor::accel_budget::query_accel_budget`. \
+             `VOX_MENS_DISABLE_LIVE_MEM` is not a recognized toggle for either path.)"
         )
     })?;
     ensure_not_placeholder(&base.hf_id)?;
