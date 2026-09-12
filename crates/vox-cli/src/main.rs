@@ -95,7 +95,20 @@ async fn main() -> anyhow::Result<()> {
             // top-level command + its phantom `vox-schola` binary were removed;
             // training lives under `vox mens train`, which uses the internal
             // `vox-ml-cli` `commands::schola` module.)
-            let mut command = Command::new("vox-ml-cli");
+            //
+            // Resolve the sibling binary next to this executable first (a
+            // packaged GUI bundles `vox-ml-cli` as a second Tauri `externalBin`
+            // right next to `vox`, but a packaged app's inherited PATH never
+            // includes its own `Contents/MacOS/`, so a bare `Command::new`
+            // lookup would never find it there) before falling back to
+            // `~/.vox/bin` and finally a bare PATH lookup — the same resolution
+            // order `resolve_managed_binary_path` already uses for the
+            // `vox-orchestrator-d` sidecar (see `vox-gui/src/commands/daemon.rs`).
+            let ml_cli_binary =
+                vox_cli_core::daemon_ipc::process_supervision::resolve_managed_binary_path(
+                    "vox-ml-cli",
+                );
+            let mut command = Command::new(ml_cli_binary);
             if primary_cmd == "train" {
                 // `vox train` -> `vox-ml-cli mens train`
                 command.arg("mens");
