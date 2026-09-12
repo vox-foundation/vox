@@ -4985,6 +4985,17 @@
       "curated": true
     },
     {
+      "capability_id": "cli.mens.cloud-estimate",
+      "cli_path": [
+        "mens",
+        "cloud-estimate"
+      ],
+      "implicit": false,
+      "title": "Mens Cloud-estimate",
+      "description_model": "CLI operation `vox mens cloud-estimate`",
+      "curated": true
+    },
+    {
       "capability_id": "cli.mens.corpus",
       "cli_path": [
         "mens",

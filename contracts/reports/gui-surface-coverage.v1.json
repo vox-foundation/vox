@@ -939,6 +939,7 @@
     "mens",
     "mens.bench-completion",
     "mens.check",
+    "mens.cloud-estimate",
     "mens.corpus",
     "mens.eval-gate",
     "mens.eval-local",

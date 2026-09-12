@@ -19,6 +19,8 @@
 
 /// Latency and throughput benchmarking for completions.
 pub mod bench_completion;
+#[cfg(feature = "cloud")]
+pub mod cloud_estimate;
 #[cfg(feature = "gpu")]
 pub mod eval_collateral;
 pub(crate) mod eval_gate;

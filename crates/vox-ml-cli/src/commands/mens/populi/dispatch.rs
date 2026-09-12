@@ -702,6 +702,28 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 output,
                 format,
             } => crate::commands::mens::system_prompt_template::run(output, &format).await,
+
+            #[cfg(feature = "cloud")]
+            super::mens_tail_subcommands::PopuliMensTail::CloudEstimate {
+                model_dir,
+                target,
+                max_budget,
+                batch_size,
+                seq_len,
+                num_samples,
+                epochs,
+            } => {
+                crate::commands::mens::cloud_estimate::run(
+                    model_dir,
+                    target,
+                    max_budget,
+                    batch_size,
+                    seq_len,
+                    num_samples,
+                    epochs,
+                )
+                .await
+            }
         },
     }
 }

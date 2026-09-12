@@ -2130,6 +2130,18 @@ operations:
 - surface: vox-cli
   path:
   - mens
+  - cloud-estimate
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: cloud
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
   - corpus
   status: active
   latin_ns: mens

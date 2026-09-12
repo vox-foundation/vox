@@ -7588,6 +7588,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
+- id: mens.cloud-estimate
+  title: Mens Cloud-estimate
+  description: CLI operation `vox mens cloud-estimate`
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - mens
+    - cloud-estimate
+    status: active
+    latin_ns: mens
+    handler_rust: null
+    feature_gate: cloud
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: mens.corpus
   title: Mens Corpus
   description: CLI operation `vox mens corpus`
