@@ -27,6 +27,9 @@ pub struct InferenceEngine {
     pub model: InferenceModel,
     pub tokenizer: Tokenizer,
     pub device: Device,
+    /// Stop tokens read from the model's own `config.json` at load. Empty when
+    /// the config carries none — generation then runs to `max_tokens`.
+    pub eos_token_ids: Vec<u32>,
 }
 
 pub enum InferenceModel {
@@ -67,6 +70,38 @@ fn synthesize_rope_inv_freq(
         vals.push(1.0_f32 / theta.powf(exponent));
     }
     Ok(Tensor::from_vec(vals, (half,), device)?)
+}
+
+/// Stop-token ids declared by a model's `config.json`.
+///
+/// HF configs spell this two ways and Qwen3 uses both across its family: a
+/// scalar (`"eos_token_id": 151645`) and a list (`"eos_token_id": [151645,
+/// 151643]`). Anything else — absent, null, or a non-integer — yields no stop
+/// tokens rather than a guess, because guessing is how `151643` (which is
+/// Qwen3's **BOS**) got hardcoded here in the first place and generation never
+/// terminated early.
+fn eos_token_ids(config_json: &str) -> Vec<u32> {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(config_json) else {
+        return Vec::new();
+    };
+    // VLM-shaped checkpoints keep the text tower's ids under `text_config`,
+    // matching how every other dim in this lane is read (see `vox_hf_layout`).
+    let field = v
+        .get("text_config")
+        .and_then(|t| t.get("eos_token_id"))
+        .or_else(|| v.get("eos_token_id"));
+    match field {
+        Some(serde_json::Value::Array(items)) => items
+            .iter()
+            .filter_map(|x| x.as_u64().and_then(|n| u32::try_from(n).ok()))
+            .collect(),
+        Some(other) => other
+            .as_u64()
+            .and_then(|n| u32::try_from(n).ok())
+            .into_iter()
+            .collect(),
+        None => Vec::new(),
+    }
 }
 
 fn resolve_adapter_manifest_path(model_dir: &Path) -> Option<std::path::PathBuf> {
@@ -185,6 +220,14 @@ impl InferenceEngine {
         // all, so both devices on this lane override to F32.
         let mut qlora_cfg = qlora_rs::qlora::QLoraConfig::default();
         qlora_cfg.quantization.compute_dtype = compute_dtype_for_device(&_device);
+        // Dequantize each frozen base weight ONCE at load instead of on every
+        // forward pass. `dequantize_nf4_gpu` is gated on `device.is_cuda()`, so
+        // off CUDA the on-the-fly path is a CPU scalar loop over every weight,
+        // every token — which dominated serving time on Metal. The trade is
+        // resident memory (one dequantized copy of the base, at the compute
+        // dtype); this is the serving path, where that copy is the point.
+        // `QLoraConfig::preset_*_inference` sets the same flag.
+        qlora_cfg.cache_dequantized = true;
 
         // Helper to find a tensor in any map
         let get_tensor = |key: &str| -> Result<Tensor> {
@@ -235,13 +278,13 @@ impl InferenceEngine {
         };
 
         let config_path = model_dir.join("config.json");
-        let mut layout = if config_path.is_file() {
-            let s = std::fs::read_to_string(&config_path)
-                .map_err(|e| anyhow::anyhow!("read config.json: {e}"))?;
-            crate::hf_layout::HfTransformerLayout::from_config_json_str(&s)?
-        } else {
+        if !config_path.is_file() {
             anyhow::bail!("config.json missing in {}", model_dir.display());
-        };
+        }
+        let config_raw = std::fs::read_to_string(&config_path)
+            .map_err(|e| anyhow::anyhow!("read config.json: {e}"))?;
+        let eos_token_ids = eos_token_ids(&config_raw);
+        let mut layout = crate::hf_layout::HfTransformerLayout::from_config_json_str(&config_raw)?;
 
         if layout.architecture == HfArchitecture::Qwen35 {
             let p = format!("{}.0.input_layernorm.weight", layout.namespace_prefix);
@@ -476,6 +519,7 @@ impl InferenceEngine {
             model,
             tokenizer: _tokenizer,
             device: _device,
+            eos_token_ids,
         })
     }
 
@@ -535,7 +579,7 @@ impl InferenceEngine {
         temperature: f64,
         top_k: usize,
     ) -> Result<String> {
-        let mut tokens = self
+        let prompt_tokens = self
             .tokenizer
             .encode(prompt, true)
             .map_err(|e| anyhow::anyhow!("tokenizer error: {e}"))?
@@ -545,16 +589,28 @@ impl InferenceEngine {
         let mut generated = String::new();
         let mut rng = rand::thread_rng();
 
-        // Decoding without KV cache — re-runs the full context each step.
-        // KV-cache autoregressive generation requires forward_with_cache which is
-        // available in vox-populi's candle_model_qwen but not in the plugin's
-        // model.rs. Use full-context forward for correctness.
+        // KV-cached decoding: the prompt is forwarded ONCE (the prefill, at
+        // position 0), and each step after that forwards only the single token
+        // just sampled, at the absolute position of the tokens already cached.
+        // `pos` therefore advances by exactly what was submitted — it is what
+        // RoPE keys off, so drifting it produces wrong logits rather than an
+        // error. Without this the loop re-forwarded the whole context every
+        // step, which is quadratic in the reply length.
+        let mut cache = match &self.model {
+            InferenceModel::Qwen35(model) => model.empty_cache(),
+        };
+        let mut pos = 0usize;
+        let mut step_input = prompt_tokens;
+
         for _ in 0..max_tokens {
-            let input = Tensor::new(tokens.as_slice(), &self.device)?.unsqueeze(0)?;
+            let submitted = step_input.len();
+            let input = Tensor::new(step_input.as_slice(), &self.device)?.unsqueeze(0)?;
 
             let logits = match &self.model {
-                InferenceModel::Qwen35(model) => model.forward(&input)?,
+                InferenceModel::Qwen35(model) => model.forward_cached(&input, pos, &mut cache)?,
             };
+            pos += submitted;
+
             let logits = logits.squeeze(0)?;
             let seq = logits.dim(0)?;
             let logits = logits.narrow(0, seq.saturating_sub(1), 1)?.squeeze(0)?;
@@ -562,15 +618,18 @@ impl InferenceEngine {
             let slice = logits.to_vec1::<f32>()?;
             let next_token = sample_next_token(&slice, temperature, top_k, &mut rng);
 
+            // Stop tokens come from the model's own config.json (see
+            // `eos_token_ids`). This used to break on a hardcoded 151643, which
+            // is Qwen3's BOS — so nothing ever stopped early. Break BEFORE
+            // appending, so the stop marker is not emitted as reply text.
+            if self.eos_token_ids.contains(&next_token) {
+                break;
+            }
+
             if let Ok(char_str) = self.tokenizer.decode(&[next_token], false) {
                 generated.push_str(&char_str);
             }
-            tokens.push(next_token);
-
-            // EOS token for Qwen2 family
-            if next_token == 151643 {
-                break;
-            }
+            step_input = vec![next_token];
         }
 
         Ok(generated)
@@ -791,6 +850,76 @@ pub fn run(model_dir: &str, prompt_json: &str) -> Result<String> {
     let path = std::path::Path::new(model_dir);
     let mut engine = InferenceEngine::load(path, &crate::device::DeviceKind::Best)?;
     engine.generate_from_json(prompt_json)
+}
+
+/// Live-hardware gates: these need a real model on disk and a real Metal GPU, so
+/// they are `#[ignore]`d and run explicitly:
+///
+/// ```text
+/// VOX_MENS_DEMO_RUN_DIR=<run dir> \
+///   cargo test -p vox-plugin-mens-candle-metal --features metal -- --ignored
+/// ```
+///
+/// The run dir is a MENS run directory (`config.json`, `tokenizer.json`,
+/// `candle_qlora_adapter.safetensors`, `adapter_manifest.json`) — exactly what
+/// `vox mens serve --model` is pointed at.
+#[cfg(test)]
+mod live_metal_tests {
+    use super::InferenceEngine;
+
+    fn demo_run_dir() -> std::path::PathBuf {
+        let raw = std::env::var("VOX_MENS_DEMO_RUN_DIR").expect(
+            "set VOX_MENS_DEMO_RUN_DIR to a MENS run directory to run the live Metal gates",
+        );
+        std::path::PathBuf::from(raw)
+    }
+
+    fn load_demo_engine() -> InferenceEngine {
+        InferenceEngine::load(&demo_run_dir(), &crate::device::DeviceKind::Best)
+            .expect("load demo engine")
+    }
+
+    fn load_demo_config() -> String {
+        std::fs::read_to_string(demo_run_dir().join("config.json")).expect("read demo config.json")
+    }
+
+    #[test]
+    #[ignore = "needs a real model directory and Metal hardware"]
+    fn generation_sustains_a_usable_token_rate() {
+        // 0.6B on Metal. The pre-fix engine measured 1.76 tok/s at this length;
+        // the floor below is deliberately far under what a cached engine gives,
+        // so this asserts "not quadratic", not "fast".
+        //
+        // 256, not 128: at 128 tokens the dequant cache alone clears 15 tok/s
+        // even with the KV cache reverted (measured: 14.88), so a shorter run
+        // barely separates the two fixes. The quadratic term only dominates once
+        // the reply is long — which is also the length the serve gate cares
+        // about (`max_tokens` defaults to 256).
+        const TOKENS: usize = 256;
+        let mut engine = load_demo_engine();
+        let t0 = std::time::Instant::now();
+        let out = engine
+            .generate("Write a Vox function that adds two ints.", TOKENS, 0.0, 0)
+            .unwrap();
+        let rate = TOKENS as f64 / t0.elapsed().as_secs_f64();
+        eprintln!("measured rate: {rate:.4} tok/s over {:?}", t0.elapsed());
+        assert!(
+            rate >= 15.0,
+            "only {rate:.2} tok/s — the KV cache or the dequant cache is not engaged"
+        );
+        assert!(!out.is_empty());
+    }
+
+    #[test]
+    #[ignore = "needs a real model directory"]
+    fn the_demo_config_eos_is_read_from_disk_not_hardcoded() {
+        // 151643 is BOS. The real EOS is 151645 and must come from config.json.
+        assert_eq!(
+            super::eos_token_ids(&load_demo_config()),
+            vec![151645],
+            "EOS must be read from config.json, not hardcoded"
+        );
+    }
 }
 
 #[cfg(test)]
@@ -1109,6 +1238,41 @@ mod tests {
             !adapter_deltas_must_be_folded(d.path()),
             "merged.safetensors already contains W + BA·alpha/r — folding again doubles it"
         );
+    }
+
+    /// 151643 is Qwen3's **BOS**; the generation loop used to break on it, so
+    /// nothing ever stopped early. The stop ids must come from config.json, and
+    /// both HF spellings — scalar and list — have to work.
+    #[test]
+    fn eos_ids_come_from_config_json_in_both_shapes() {
+        use super::eos_token_ids;
+        assert_eq!(
+            eos_token_ids(r#"{"bos_token_id": 151643, "eos_token_id": 151645}"#),
+            vec![151645],
+            "the scalar spelling must be read, and must not pick up bos_token_id"
+        );
+        assert_eq!(
+            eos_token_ids(r#"{"eos_token_id": [151645, 151643]}"#),
+            vec![151645, 151643],
+            "Qwen3 configs can carry a list of stop ids"
+        );
+        // VLM-shaped checkpoints keep the text tower's ids in `text_config`.
+        assert_eq!(
+            eos_token_ids(r#"{"eos_token_id": 1, "text_config": {"eos_token_id": 151645}}"#),
+            vec![151645]
+        );
+        // No usable value => no stop tokens, rather than a guessed one.
+        for absent in [
+            r#"{"bos_token_id": 151643}"#,
+            r#"{"eos_token_id": null}"#,
+            r#"{"eos_token_id": "im_end"}"#,
+            "not json at all",
+        ] {
+            assert!(
+                eos_token_ids(absent).is_empty(),
+                "must not invent a stop token from {absent}"
+            );
+        }
     }
 
     #[test]

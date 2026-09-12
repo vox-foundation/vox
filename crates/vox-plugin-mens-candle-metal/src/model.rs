@@ -90,12 +90,16 @@ pub struct Qwen2Attention {
 }
 
 impl Qwen2Attention {
+    /// `kv_cache` is a *slot*, not a pre-shaped buffer: `Some(&mut None)` means
+    /// "cache this layer, starting empty" (the prefill) and `Some(&mut Some(..))`
+    /// appends to what is already there (each decode step). Passing `None`
+    /// disables caching entirely, which is what training does.
     pub fn forward(
         &self,
         x: &Tensor,
         pos: usize,
         inv_freq: Option<&Tensor>,
-        kv_cache: Option<&mut (Tensor, Tensor)>,
+        kv_cache: Option<&mut Option<(Tensor, Tensor)>>,
     ) -> Result<Tensor> {
         let (b, seq_len, _d_model) = x.dims3()?;
         let device = x.device();
@@ -155,15 +159,32 @@ impl Qwen2Attention {
             (q, k)
         };
 
-        let (k, v) = if let Some((k_prev, v_prev)) = kv_cache {
-            let k = Tensor::cat(&[&*k_prev, &k], 2)?;
-            let v = Tensor::cat(&[&*v_prev, &v], 2)?;
-            *k_prev = k.clone();
-            *v_prev = v.clone();
-            (k, v)
-        } else {
-            (k, v)
+        let (k, v) = match kv_cache {
+            Some(slot) => {
+                let (k, v) = match slot.as_ref() {
+                    Some((k_prev, v_prev)) => (
+                        Tensor::cat(&[k_prev, &k], 2)?,
+                        Tensor::cat(&[v_prev, &v], 2)?,
+                    ),
+                    None => (k, v),
+                };
+                *slot = Some((k.clone(), v.clone()));
+                (k, v)
+            }
+            None => (k, v),
         };
+
+        // `causal_mask` below is square in `seq_len`, so a multi-token forward is
+        // only correct when nothing was cached before it (the prefill). Feeding a
+        // multi-token chunk on top of a populated cache would silently mask the
+        // wrong positions rather than fail, so it fails here instead.
+        if seq_len > 1 && k.dim(2)? != seq_len {
+            return Err(candle_core::Error::Msg(format!(
+                "multi-token forward over a populated KV cache is not supported: \
+                 seq_len={seq_len}, cached+new keys={}. Prefill once, then feed one token per step.",
+                k.dim(2)?
+            )));
+        }
 
         let n_rep = self.n_heads / self.n_kv_heads;
         let k = repeat_kv(&k, n_rep)?;
@@ -334,7 +355,7 @@ impl Qwen35LinearAttention {
         x: &Tensor,
         pos: usize,
         inv_freq: Option<&Tensor>,
-        state_cache: Option<&mut Tensor>,
+        state_cache: Option<&mut Option<Tensor>>,
     ) -> Result<Tensor> {
         let (b, seq_len, _d_model) = x.dims3()?;
         let device = x.device();
@@ -401,8 +422,8 @@ impl Qwen35LinearAttention {
             key = Self::repeat_heads_bshd(&key, rep)?;
         }
 
-        let mut state = if let Some(state_prev) = state_cache.as_ref() {
-            (**state_prev).clone()
+        let mut state = if let Some(state_prev) = state_cache.as_ref().and_then(|s| s.as_ref()) {
+            state_prev.clone()
         } else {
             Tensor::zeros(
                 (b, self.num_v_heads, self.head_k_dim, self.head_v_dim),
@@ -442,8 +463,8 @@ impl Qwen35LinearAttention {
             outs.push(out_t);
         }
 
-        if let Some(state_prev) = state_cache {
-            *state_prev = state.clone();
+        if let Some(slot) = state_cache {
+            *slot = Some(state.clone());
         }
 
         let mut y = Tensor::stack(&outs, 1)?;
@@ -600,6 +621,53 @@ impl Qwen35Model {
         self.head_forward(&x)
     }
 
+    /// An empty decode cache, one slot per layer, shaped to each layer's
+    /// attention kind. Every slot starts empty; the prefill fills it.
+    pub fn empty_cache(&self) -> Vec<Qwen35LayerCache> {
+        self.layers
+            .iter()
+            .map(|l| match &l.attention {
+                Qwen35AttentionBlock::Full(_) => Qwen35LayerCache::Full(None),
+                Qwen35AttentionBlock::Linear(_) => Qwen35LayerCache::Linear(None),
+            })
+            .collect()
+    }
+
+    /// Forward over `input_ids` starting at absolute position `pos`, carrying
+    /// per-layer decode state in `cache`.
+    ///
+    /// The generation loop calls this **once** with the whole prompt at `pos = 0`
+    /// (the prefill), then once per step with a single new token at
+    /// `pos = number of tokens already cached`. `pos` drives RoPE, so feeding a
+    /// token at the wrong position silently produces wrong logits; the caller is
+    /// responsible for advancing it by the number of tokens it just submitted.
+    pub fn forward_cached(
+        &self,
+        input_ids: &Tensor,
+        pos: usize,
+        cache: &mut [Qwen35LayerCache],
+    ) -> Result<Tensor> {
+        if cache.len() != self.layers.len() {
+            return Err(candle_core::Error::Msg(format!(
+                "KV cache has {} slots but the model has {} layers",
+                cache.len(),
+                self.layers.len()
+            )));
+        }
+        let (b, seq_len) = input_ids.dims2()?;
+        let d_model = self.embed_tokens.dim(1)?;
+        let ids = input_ids.flatten_all()?;
+        let mut x = self
+            .embed_tokens
+            .index_select(&ids, 0)?
+            .reshape((b, seq_len, d_model))?;
+
+        for (layer, slot) in self.layers.iter().zip(cache.iter_mut()) {
+            x = layer.forward(&x, pos, Some(slot))?;
+        }
+        self.head_forward(&x)
+    }
+
     /// Final norm + clamp + lm_head, shared by the eager and checkpointed
     /// forward so logits are identical for the same input.
     fn head_forward(&self, x: &Tensor) -> Result<Tensor> {
@@ -695,9 +763,13 @@ impl Qwen35Model {
     }
 }
 
+/// Per-layer decode state. Each variant holds `None` until the prefill fills it,
+/// so a fresh cache needs no shape or device knowledge to construct.
 pub enum Qwen35LayerCache {
-    Full((Tensor, Tensor)),
-    Linear(Tensor),
+    /// Full attention: the concatenated `(keys, values)` for every position so far.
+    Full(Option<(Tensor, Tensor)>),
+    /// Gated-DeltaNet linear attention: the recurrent state matrix.
+    Linear(Option<Tensor>),
 }
 
 // ── CandleModel: the opaque handle stored across plugin calls ─────────────────
@@ -843,6 +915,200 @@ mod qwen2_attention_tests {
             without_norm, with_norm,
             "q_norm/k_norm must change the forward output — if this fails, \
              Qwen2Attention is silently ignoring them"
+        );
+    }
+}
+
+#[cfg(test)]
+mod kv_cache_tests {
+    //! The load-bearing correctness gate for KV-cached decoding: a prefill
+    //! followed by one-token steps must produce the **same** logits as
+    //! re-forwarding the whole context, or generation gets fast and wrong —
+    //! strictly worse than slow and right. RoPE is switched on (`inv_freq` is
+    //! `Some`) precisely so an off-by-one in `pos` shows up here; with no rotary
+    //! table the positions are indistinguishable and the test proves nothing.
+
+    use super::*;
+    use qlora_rs::QLoraConfig;
+
+    fn qcfg() -> QLoraConfig {
+        let mut c = QLoraConfig::preset_all_bf16(4, 8);
+        c.quantization.compute_dtype = qlora_rs::quantization::ComputeDType::F32;
+        c
+    }
+
+    fn model_with_rope(d: usize, n_heads: usize, n_layers: usize, vocab: usize) -> Qwen35Model {
+        let dev = Device::Cpu;
+        let head_dim = d / n_heads;
+        let qlin = |d_out: usize, d_in: usize| {
+            // Deterministic, non-symmetric weights: a constant weight makes every
+            // position identical, which would hide a position bug.
+            let w = Tensor::arange(0u32, (d_out * d_in) as u32, &dev)
+                .unwrap()
+                .to_dtype(DType::F32)
+                .unwrap()
+                .reshape((d_out, d_in))
+                .unwrap()
+                .affine(0.003, -0.1)
+                .unwrap();
+            QuantizedLinear::from_weight(&w, None, &qcfg(), &dev).unwrap()
+        };
+        let inv_freq = Tensor::from_vec(
+            (0..head_dim / 2)
+                .map(|i| 1.0f32 / 10_000f32.powf(2.0 * i as f32 / head_dim as f32))
+                .collect::<Vec<f32>>(),
+            (head_dim / 2,),
+            &dev,
+        )
+        .unwrap();
+        let layers = (0..n_layers)
+            .map(|_| Qwen35Layer {
+                input_layernorm: RmsNorm::new(Tensor::ones(d, DType::F32, &dev).unwrap(), 1e-6),
+                attention: Qwen35AttentionBlock::Full(Qwen2Attention {
+                    q_proj: qlin(d, d),
+                    k_proj: qlin(d, d),
+                    v_proj: qlin(d, d),
+                    o_proj: qlin(d, d),
+                    q_bias: None,
+                    k_bias: None,
+                    v_bias: None,
+                    n_heads,
+                    n_kv_heads: n_heads,
+                    head_dim,
+                    q_norm: None,
+                    k_norm: None,
+                }),
+                post_attention_layernorm: RmsNorm::new(
+                    Tensor::ones(d, DType::F32, &dev).unwrap(),
+                    1e-6,
+                ),
+                mlp: Qwen2MLP {
+                    gate_proj: qlin(d * 2, d),
+                    up_proj: qlin(d * 2, d),
+                    down_proj: qlin(d, d * 2),
+                },
+                inv_freq: Some(inv_freq.clone()),
+            })
+            .collect();
+        Qwen35Model {
+            embed_tokens: Tensor::randn(0f32, 0.02f32, (vocab, d), &dev).unwrap(),
+            layers,
+            norm: RmsNorm::new(Tensor::ones(d, DType::F32, &dev).unwrap(), 1e-6),
+            lm_head: QuantizedLinear::from_weight(
+                &Tensor::randn(0f32, 0.02f32, (vocab, d), &dev).unwrap(),
+                None,
+                &qcfg(),
+                &dev,
+            )
+            .unwrap(),
+        }
+    }
+
+    fn last_row(logits: &Tensor) -> Vec<f32> {
+        let l = logits.squeeze(0).unwrap();
+        let n = l.dim(0).unwrap();
+        l.narrow(0, n - 1, 1)
+            .unwrap()
+            .squeeze(0)
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap()
+    }
+
+    fn ids(v: &[u32]) -> Tensor {
+        Tensor::from_vec(v.to_vec(), (1, v.len()), &Device::Cpu).unwrap()
+    }
+
+    #[test]
+    fn prefill_then_single_token_steps_match_the_uncached_forward() {
+        let model = model_with_rope(8, 2, 2, 16);
+        let seq: [u32; 5] = [1, 7, 3, 12, 5];
+
+        // Reference: what the old (quadratic) loop computed at the last position.
+        let reference = last_row(&model.forward(&ids(&seq)).unwrap());
+
+        // Cached: prefill the first three, then feed one token per step.
+        let mut cache = model.empty_cache();
+        assert_eq!(cache.len(), 2);
+        model
+            .forward_cached(&ids(&seq[..3]), 0, &mut cache)
+            .unwrap();
+        model
+            .forward_cached(&ids(&seq[3..4]), 3, &mut cache)
+            .unwrap();
+        let cached = last_row(
+            &model
+                .forward_cached(&ids(&seq[4..5]), 4, &mut cache)
+                .unwrap(),
+        );
+
+        for (i, (a, b)) in reference.iter().zip(cached.iter()).enumerate() {
+            assert!(
+                (a - b).abs() < 1e-3,
+                "cached decode diverged from the full forward at logit {i}: {a} vs {b}"
+            );
+        }
+    }
+
+    /// The position argument must actually be load-bearing: feeding the last
+    /// token at the wrong `pos` has to change the logits. If this passes with
+    /// identical values, RoPE is not being applied and the test above would
+    /// accept an off-by-one.
+    #[test]
+    fn feeding_a_token_at_the_wrong_position_changes_the_logits() {
+        let model = model_with_rope(8, 2, 2, 16);
+        let seq: [u32; 5] = [1, 7, 3, 12, 5];
+
+        let run = |last_pos: usize| {
+            let mut cache = model.empty_cache();
+            model
+                .forward_cached(&ids(&seq[..4]), 0, &mut cache)
+                .unwrap();
+            last_row(
+                &model
+                    .forward_cached(&ids(&seq[4..5]), last_pos, &mut cache)
+                    .unwrap(),
+            )
+        };
+        assert_ne!(run(4), run(9), "RoPE position is not reaching the forward");
+    }
+
+    /// A multi-token chunk on top of a populated cache would be masked wrong
+    /// rather than rejected, so the attention guards it. Silent wrongness here
+    /// is the failure mode this whole task exists to avoid.
+    #[test]
+    fn a_multi_token_forward_over_a_populated_cache_is_refused() {
+        let model = model_with_rope(8, 2, 2, 16);
+        let seq: [u32; 5] = [1, 7, 3, 12, 5];
+        let mut cache = model.empty_cache();
+        model
+            .forward_cached(&ids(&seq[..3]), 0, &mut cache)
+            .unwrap();
+        let err = model
+            .forward_cached(&ids(&seq[3..5]), 3, &mut cache)
+            .expect_err("a 2-token chunk over a 3-token cache must not be silently mis-masked");
+        assert!(
+            err.to_string().contains("populated KV cache"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn an_empty_cache_has_one_slot_per_layer_and_starts_unfilled() {
+        let model = model_with_rope(8, 2, 3, 16);
+        let cache = model.empty_cache();
+        assert_eq!(cache.len(), 3);
+        assert!(
+            cache
+                .iter()
+                .all(|c| matches!(c, Qwen35LayerCache::Full(None))),
+            "every slot must start empty so the prefill fills it"
+        );
+        assert!(
+            model
+                .forward_cached(&ids(&[1, 2]), 0, &mut model.empty_cache()[..2])
+                .is_err(),
+            "a cache with the wrong slot count must be rejected, not silently truncated"
         );
     }
 }
