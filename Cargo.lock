@@ -17865,6 +17865,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "serial_test",
  "sysinfo 0.39.3",
  "tempfile",
  "tokio",

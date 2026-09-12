@@ -1,3 +1,5 @@
+use serial_test::serial;
+
 use super::bfcl::BfclGate;
 use super::check_run::check_run;
 use super::policy::EvalGatePolicy;
@@ -1019,6 +1021,7 @@ fn safety_eval_side_effecting_tools_are_never_called_in_eval_path() {
 // ---------------------------------------------------------------------------
 
 #[test]
+#[serial] // reads process-global cwd; must not race the cwd-chdir test below.
 fn check_run_always_includes_a_leakage_gate() {
     // `check_run` walks up from cwd to find the real
     // `mens/data/heldout_bench/manifest.json` (Task D3 expanded it to 52
@@ -1043,6 +1046,62 @@ fn check_run_always_includes_a_leakage_gate() {
     assert!(
         g.passed,
         "the current heldout_bench manifest must be leak-free: {}",
+        g.message
+    );
+}
+
+/// Locks in `find_upward`'s "not found" branch for the leakage precondition:
+/// when `mens/data/heldout_bench/manifest.json` can't be located by walking
+/// up from cwd (e.g. a packaged binary invoked outside any Vox workspace
+/// checkout), `check_leakage_precondition` must report a non-blocking
+/// "not applicable" result rather than failing closed on an environment
+/// difference — see the doc comment on `check_leakage_precondition` in
+/// `check_run.rs` for why this is deliberate leniency, not a bug. Without
+/// this test, that leniency could silently flip either direction (become a
+/// hard failure, or start reporting `passed: true` in a way that looks like
+/// leakage was actually checked) with no test catching the change.
+#[test]
+#[serial] // chdirs the process; must not race the cwd-reading test above.
+fn check_leakage_precondition_reports_not_applicable_outside_workspace() {
+    let original_cwd = std::env::current_dir().expect("get cwd");
+
+    // A fresh OS temp dir (outside this repo) has no `mens/` anywhere between
+    // it and the filesystem root, so `find_upward` walks all the way up and
+    // returns `None` — this is the "packaged binary run outside the
+    // workspace" case the leniency exists for.
+    let outside_dir = tempfile::tempdir().expect("tempdir outside workspace");
+    let run_dir = tempfile::tempdir().expect("run dir");
+    let policy_path = run_dir.path().join("policy.yaml");
+    std::fs::write(&policy_path, "version: \"1\"\n").unwrap();
+
+    std::env::set_current_dir(outside_dir.path()).expect("chdir outside workspace");
+    let results = check_run(run_dir.path(), &policy_path);
+    // Always restore cwd before asserting so a failure doesn't poison
+    // subsequent tests in the same process.
+    std::env::set_current_dir(&original_cwd).expect("restore cwd");
+
+    let results = results.expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "leakage")
+        .expect("leakage gate must always be present, even when not applicable");
+
+    assert!(
+        g.passed,
+        "not-applicable leakage precondition must report passed=true, got: {g:?}"
+    );
+    assert!(
+        !g.block,
+        "not-applicable leakage precondition must not block, got: {g:?}"
+    );
+    assert!(
+        g.message.contains("mens/data/heldout_bench/manifest.json"),
+        "message should name the bench path it couldn't find: {}",
+        g.message
+    );
+    assert!(
+        g.message.contains("not applicable"),
+        "message should say the precondition is not applicable: {}",
         g.message
     );
 }
