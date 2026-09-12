@@ -167,10 +167,23 @@ pub async fn run_train(
                 );
                 None
             } else {
+                // Same threshold logic `vox mens cloud-estimate` uses (Task 3) and
+                // `CloudResolver::dispatch` uses for Train jobs, so the read-only
+                // estimate and every real dispatch path agree on whether an offer
+                // is big enough. No local model directory exists yet on a
+                // from-scratch cloud run, so this sizes from Hub API metadata
+                // (one small request, no weight bytes) rather than
+                // `ModelShape::from_model_dir`.
+                let min_vram_mb = vox_populi::mens::cloud::min_vram_mb_for_training(
+                    &spec.model_id,
+                    spec.batch_size,
+                    spec.seq_len,
+                )
+                .await?;
                 let (ranked, _rejected) = resolver
                     .resolve(&vox_populi::mens::cloud::ResolveRequest {
                         target: std::str::FromStr::from_str(&cloud)?,
-                        min_vram_mb: 24000,
+                        min_vram_mb,
                         max_acceptable_cost: spec
                             .max_budget_usd
                             .unwrap_or(resolver.config.max_budget_usd),

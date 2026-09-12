@@ -56,6 +56,64 @@ pub struct ResolveRequest {
     pub target: CloudTarget,
 }
 
+/// The old, pre-memory-SSOT default: a flat 24GB assumption, used only where
+/// [`min_vram_mb_for_dispatch`] cannot size the real request (inference/agent
+/// jobs, which `plan_for`'s training-shaped `Request` does not model; or a Hub
+/// lookup failure for a training job — see that function's doc comment).
+const LEGACY_DEFAULT_MIN_VRAM_MB: u64 = 24_000;
+
+/// Derive `min_vram_mb` for a real training dispatch the same way `vox mens
+/// cloud-estimate` derives it: fetch the model's shape from the Hub API (no
+/// download — see [`crate::mens::hub::model_shape_from_hub`]) and run it through
+/// [`min_vram_mb_for_cuda`], the same `plan_for` threshold cloud-estimate uses.
+/// This is what closes the disagreement between the read-only estimate and the
+/// real dispatch decision — see the mens-cloud-training final-review finding
+/// this exists to fix.
+///
+/// `pub` (not just used by [`min_vram_mb_for_dispatch`] below) because
+/// `vox-ml-cli`'s `train_arm.rs` cloud path drives `resolve` + `dispatch_top`
+/// directly instead of [`CloudResolver::dispatch`] and needs the identical
+/// sizing rather than a re-implementation that could drift from this one.
+///
+/// Fails closed on a Hub lookup error (gated repo, no network, or an
+/// uncalibrated lane) — dispatch should stop rather than silently under-size
+/// the rental.
+pub async fn min_vram_mb_for_training(
+    model_id: &str,
+    batch_size: usize,
+    seq_len: usize,
+) -> anyhow::Result<u64> {
+    use crate::mens::hub::model_shape_from_hub;
+    use crate::mens::tensor::memory_model::{Request, min_vram_mb_for_cuda};
+
+    let shape = model_shape_from_hub(model_id).await.map_err(|e| {
+        anyhow::anyhow!(
+            "cannot size cloud dispatch for `{model_id}`: {e}. Run `vox mens cloud-estimate \
+             --model-dir <dir>` against a local copy to diagnose, or measure the lane with \
+             `vox mens probe --measure`."
+        )
+    })?;
+    let request = Request {
+        batch_size: batch_size as u64,
+        seq_len: seq_len as u64,
+    };
+    min_vram_mb_for_cuda(&shape, &request)
+}
+
+/// Derive `min_vram_mb` for [`CloudResolver::dispatch`]. Scoped to
+/// [`JobKind::Train`]: `plan_for`'s `Request` (batch_size × seq_len activation
+/// memory) models a *training* step, not inference serving (weights + KV
+/// cache, no activations/gradients) — reusing [`min_vram_mb_for_training`] for
+/// `Infer`/`Agent` would produce a confidently wrong number, not a merely
+/// approximate one. Those job kinds keep [`LEGACY_DEFAULT_MIN_VRAM_MB`] until a
+/// real inference memory model exists.
+async fn min_vram_mb_for_dispatch(spec: &CloudJobSpec) -> anyhow::Result<u64> {
+    if spec.job_kind != JobKind::Train {
+        return Ok(LEGACY_DEFAULT_MIN_VRAM_MB);
+    }
+    min_vram_mb_for_training(&spec.model_id, spec.batch_size, spec.seq_len).await
+}
+
 /// Overhead factor per provider (accounts for launch + teardown time in cost estimate).
 ///
 /// Vast.ai: fire-and-forget termination → 10% overhead.
@@ -236,9 +294,10 @@ impl CloudResolver {
     pub async fn dispatch(&self, spec: CloudJobSpec, target_str: &str) -> anyhow::Result<()> {
         use std::str::FromStr;
         let target = CloudTarget::from_str(target_str)?;
+        let min_vram_mb = min_vram_mb_for_dispatch(&spec).await?;
         let req = ResolveRequest {
             target,
-            min_vram_mb: 24000, // 24GB default (preset "auto" handles specifics)
+            min_vram_mb,
             max_acceptable_cost: spec.max_budget_usd.unwrap_or(self.config.max_budget_usd),
             seq_len: spec.seq_len,
             batch_size: spec.batch_size,
@@ -501,6 +560,23 @@ mod tests {
         assert_eq!(train.preset, "auto");
         let serve = build_serve_spec(&config, "some-model".to_string(), 60, 8080);
         assert_eq!(serve.preset, "auto");
+    }
+
+    /// MUTATION CAUGHT: routing `Infer`/`Agent` jobs through the Hub-based
+    /// `min_vram_mb_for_cuda` sizing (which models training-step activation
+    /// memory, not inference serving). `min_vram_mb_for_dispatch` must return
+    /// the legacy constant for these job kinds without making a network call —
+    /// a `#[tokio::test]` with no network available still passes only if the
+    /// Train-only branch is never taken for `Infer`.
+    #[tokio::test]
+    async fn infer_jobs_keep_the_legacy_default_without_a_hub_lookup() {
+        let config = CloudProviderConfig::default();
+        let spec = build_serve_spec(&config, "some-model".to_string(), 60, 8080);
+        assert_eq!(spec.job_kind, JobKind::Infer);
+        let got = min_vram_mb_for_dispatch(&spec)
+            .await
+            .expect("infer sizing must not require network");
+        assert_eq!(got, LEGACY_DEFAULT_MIN_VRAM_MB);
     }
 }
 

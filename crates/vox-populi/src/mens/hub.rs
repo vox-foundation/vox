@@ -361,6 +361,47 @@ pub fn is_model_cached(repo_id: &str) -> anyhow::Result<bool> {
         .map_err(|_| anyhow::anyhow!("cache scan thread exited without sending result"))?
 }
 
+/// Fetch [`super::tensor::memory_model::ModelShape`] for `repo_id` via the Hub's
+/// `expand=["config","safetensors"]` metadata endpoint — a single small JSON
+/// response, no weight bytes downloaded.
+///
+/// Exists so cloud dispatch (`mens::cloud::resolver::CloudResolver::dispatch`,
+/// and `vox-ml-cli`'s `train_arm.rs` cloud path) can size the VRAM requirement
+/// the same way `vox mens cloud-estimate` does even when nothing has been
+/// downloaded locally yet — a from-scratch cloud-only run has no local model
+/// directory for [`super::tensor::memory_model::ModelShape::from_model_dir`] to
+/// read. Both `config` and `safetensors` must be present in the response, or
+/// this fails closed rather than guessing.
+pub async fn model_shape_from_hub(
+    repo_id: &str,
+) -> anyhow::Result<super::tensor::memory_model::ModelShape> {
+    normalize_hf_token_env();
+    let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
+    let revision = repo_revision(repo_id);
+    let (owner, name) = split_id(repo_name_without_revision(repo_id));
+    let repo = client.model(owner, name);
+    let info = repo
+        .info()
+        .maybe_revision(revision)
+        .expand(vec!["config".to_string(), "safetensors".to_string()])
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("hf-hub repo info (config+safetensors) for {repo_id}: {e}"))?;
+
+    let config = info.config.ok_or_else(|| {
+        anyhow::anyhow!(
+            "repo {repo_id} info returned no `config` metadata; cannot size for cloud dispatch"
+        )
+    })?;
+    let safetensors = info.safetensors.ok_or_else(|| {
+        anyhow::anyhow!(
+            "repo {repo_id} info returned no `safetensors` metadata; cannot size for cloud dispatch"
+        )
+    })?;
+
+    super::tensor::memory_model::ModelShape::from_hub_metadata(&config, &safetensors.parameters)
+}
+
 #[cfg(all(test, feature = "mens-hf-hub"))]
 #[allow(unsafe_code)] // Serialized env mutation for token sync tests (Rust 2024 `set_var` safety).
 mod tests {

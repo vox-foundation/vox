@@ -43,7 +43,7 @@ pub use pipeline_dispatch::{
     poll_until_done, post_training_flow, read_checkpoint_uri, register_challenger,
     sync_checkpoint_down,
 };
-pub use resolver::{CloudResolver, ResolveRequest};
+pub use resolver::{CloudResolver, ResolveRequest, min_vram_mb_for_training};
 
 use std::time::{Duration, SystemTime};
 

@@ -74,6 +74,7 @@ mens-train = ["mens", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:v
 mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
+    "mens-hf-hub",
     "dep:reqwest",
     "dep:vox-http-client",
     "vox-db/host-integration",

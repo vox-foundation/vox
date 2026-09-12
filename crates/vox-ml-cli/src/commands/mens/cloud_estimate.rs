@@ -9,9 +9,7 @@
 use anyhow::Result;
 use vox_populi::mens::cloud::CloudTarget;
 use vox_populi::mens::cloud::resolver::{CloudResolver, ResolveRequest};
-use vox_populi::mens::tensor::memory_model::{
-    CalKey, DeviceBudget, Lane, MemoryModels, ModelShape, Request, Verdict, plan_for,
-};
+use vox_populi::mens::tensor::memory_model::{ModelShape, Request, min_vram_mb_for_cuda};
 
 /// One row of the estimate table.
 ///
@@ -69,39 +67,12 @@ pub async fn run(
         seq_len: seq_len as u64,
     };
 
-    // Every rented offer is CUDA. `plan_for` is infallible: it reports a
-    // verdict rather than erroring, so an uncalibrated lane surfaces as
-    // `Verdict::Refused` with `predicted_bytes: None` (see
-    // `MemoryModels::get`, the sole source of that error text) rather than a
-    // silently-borrowed constant from another lane.
-    let cuda_key = CalKey::new(Lane::CandleCuda, true)?;
-    let models = MemoryModels::load_default()?;
-    // A generous ceiling: this call exists to get `predicted_bytes`, not to
-    // gate against a particular device's usable memory — the resolver (with
-    // real per-offer VRAM) does that gating for the rented rows.
-    let sizing_budget = DeviceBudget {
-        working_set_bytes: u64::MAX / 2,
-        operator_fraction: None,
-    };
-    let plan = plan_for(&sizing_budget, &models, &cuda_key, &shape, &request);
-
-    let predicted_bytes = match (&plan.verdict, plan.predicted_bytes) {
-        (_, Some(bytes)) => bytes,
-        (Verdict::Refused(reason), None) => {
-            anyhow::bail!(
-                "cannot size a candle-cuda run: {reason}. The memory model has no \
-                 measured constant for this lane; borrowing another lane's constant \
-                 would produce a confident wrong estimate. Measure it first (see the \
-                 memory-SSOT plan) or pass an explicit --min-vram-mb."
-            );
-        }
-        (Verdict::Fits, None) => unreachable!("Fits verdict always carries predicted_bytes"),
-    };
-
-    // Only a u64 crosses the seam into the resolver. `GpuOffer.vram_mb` is
-    // populated from Vast's `gpu_ram` and RunPod's memory field, both MiB in
-    // practice despite the field name — div_ceil(1_048_576) matches that.
-    let min_vram_mb = predicted_bytes.div_ceil(1_048_576);
+    // Every rented offer is CUDA. `min_vram_mb_for_cuda` is the same threshold
+    // real cloud dispatch uses (`CloudResolver::dispatch`, `train_arm.rs`) —
+    // this command and actual dispatch can never disagree about whether an
+    // offer is big enough. It fails closed (naming the lane and the fix)
+    // rather than borrowing another lane's constant when uncalibrated.
+    let min_vram_mb = min_vram_mb_for_cuda(&shape, &request)?;
 
     let resolver = CloudResolver::new_from_env().await?;
     let target: CloudTarget = target.parse()?;

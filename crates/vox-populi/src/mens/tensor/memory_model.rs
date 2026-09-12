@@ -162,25 +162,8 @@ impl ModelShape {
             .with_context(|| format!("reading {}", config_path.display()))?;
         let cfg: RawConfig = serde_json::from_str(&raw)
             .with_context(|| format!("parsing {}", config_path.display()))?;
-
-        let (layers, hidden) = match (cfg.num_hidden_layers, cfg.hidden_size) {
-            (Some(l), Some(h)) => (l, h),
-            _ => {
-                let text = cfg.text_config.ok_or_else(|| {
-                    anyhow!(
-                        "{} has no num_hidden_layers/hidden_size at top level and no text_config",
-                        config_path.display()
-                    )
-                })?;
-                match (text.num_hidden_layers, text.hidden_size) {
-                    (Some(l), Some(h)) => (l, h),
-                    _ => bail!(
-                        "{} text_config is missing num_hidden_layers/hidden_size",
-                        config_path.display()
-                    ),
-                }
-            }
-        };
+        let (layers, hidden) =
+            layers_and_hidden(cfg).with_context(|| format!("{}", config_path.display()))?;
 
         let mut artifact_bytes = 0u64;
         for entry in
@@ -198,6 +181,107 @@ impl ModelShape {
             hidden,
         })
     }
+
+    /// Build shape facts from HF Hub API metadata (`expand=["config","safetensors"]`)
+    /// instead of a local directory — no weight bytes downloaded.
+    ///
+    /// Exists so cloud dispatch (`CloudResolver::dispatch`, `train_arm.rs`'s cloud
+    /// path) can size a request the same way `vox mens cloud-estimate` does even
+    /// before any local model directory exists — a from-scratch cloud-only run has
+    /// nothing on disk to read with [`Self::from_model_dir`]. See
+    /// `crate::mens::hub::model_shape_from_hub`, the sole caller.
+    ///
+    /// `params_by_dtype` is the Hub's `safetensors.parameters` map (dtype name ->
+    /// parameter count); `artifact_bytes` approximates on-disk safetensors size as
+    /// `sum(count * bytes_per_dtype)`, which omits safetensors' small per-file
+    /// header overhead — negligible for VRAM sizing.
+    pub fn from_hub_metadata(
+        config: &serde_json::Value,
+        params_by_dtype: &HashMap<String, u64>,
+    ) -> Result<Self> {
+        let cfg: RawConfig = serde_json::from_value(config.clone())
+            .context("parsing Hub-reported config metadata")?;
+        let (layers, hidden) = layers_and_hidden(cfg).context("Hub-reported config metadata")?;
+        let artifact_bytes = params_by_dtype
+            .iter()
+            .map(|(dtype, count)| count * bytes_per_dtype(dtype))
+            .sum();
+        Ok(ModelShape {
+            artifact_bytes,
+            layers,
+            hidden,
+        })
+    }
+}
+
+/// Extract `(num_hidden_layers, hidden_size)` from a parsed config — top-level
+/// fields first, falling back to `text_config.*` for multimodal configs. Shared
+/// by [`ModelShape::from_model_dir`] (reads `config.json` off disk) and
+/// [`ModelShape::from_hub_metadata`] (reads the Hub API's `config` field).
+fn layers_and_hidden(cfg: RawConfig) -> Result<(u32, u32)> {
+    match (cfg.num_hidden_layers, cfg.hidden_size) {
+        (Some(l), Some(h)) => Ok((l, h)),
+        _ => {
+            let text = cfg.text_config.ok_or_else(|| {
+                anyhow!("has no num_hidden_layers/hidden_size at top level and no text_config")
+            })?;
+            match (text.num_hidden_layers, text.hidden_size) {
+                (Some(l), Some(h)) => Ok((l, h)),
+                _ => bail!("text_config is missing num_hidden_layers/hidden_size"),
+            }
+        }
+    }
+}
+
+/// Bytes per parameter for a safetensors dtype name, as reported by the Hub's
+/// `safetensors.parameters` map. Unknown dtypes fall back to 2 bytes (bf16/fp16
+/// is the common training/serving dtype) rather than erroring — this is a
+/// sizing approximation, not an exact readout.
+fn bytes_per_dtype(dtype: &str) -> u64 {
+    match dtype.to_ascii_uppercase().as_str() {
+        "F64" | "I64" | "U64" => 8,
+        "F32" | "I32" | "U32" => 4,
+        "F16" | "BF16" | "I16" | "U16" => 2,
+        "I8" | "U8" | "BOOL" => 1,
+        _ => 2,
+    }
+}
+
+/// Predict the CUDA VRAM requirement (MiB) for training `shape` under `request`,
+/// via the same measured `plan_for` threshold `vox mens cloud-estimate` uses.
+/// Every rented cloud offer is CUDA (see `resolver::dispatch`'s doc comment).
+///
+/// Exists so the read-only `vox mens cloud-estimate` command and real cloud
+/// dispatch (`CloudResolver::dispatch`, `train_arm.rs`) can never disagree about
+/// whether an offer is big enough — both call this instead of hardcoding a
+/// threshold. `plan_for` is infallible in the `Fits`/budget-exceeded cases;
+/// fails closed (naming the lane and the fix) only when the lane itself has no
+/// measured calibration (see [`MemoryModels::get`]).
+pub fn min_vram_mb_for_cuda(shape: &ModelShape, request: &Request) -> Result<u64> {
+    let cuda_key = CalKey::new(Lane::CandleCuda, true)?;
+    let models = MemoryModels::load_default()?;
+    // A generous ceiling: this call exists to get `predicted_bytes`, not to
+    // gate against a particular device's usable memory — the resolver (with
+    // real per-offer VRAM) does that gating for the rented rows.
+    let sizing_budget = DeviceBudget {
+        working_set_bytes: u64::MAX / 2,
+        operator_fraction: None,
+    };
+    let plan = plan_for(&sizing_budget, &models, &cuda_key, shape, request);
+    let predicted_bytes = match (&plan.verdict, plan.predicted_bytes) {
+        (_, Some(bytes)) => bytes,
+        (Verdict::Refused(reason), None) => bail!(
+            "cannot size a candle-cuda run: {reason}. The memory model has no \
+             measured constant for this lane; borrowing another lane's constant \
+             would produce a confident wrong estimate. Measure it first with \
+             `vox mens probe --measure` (see the memory-SSOT plan)."
+        ),
+        (Verdict::Fits, None) => unreachable!("Fits verdict always carries predicted_bytes"),
+    };
+    // Only a u64 crosses this seam. `GpuOffer.vram_mb` is populated from Vast's
+    // `gpu_ram` and RunPod's memory field, both MiB in practice despite the
+    // field name — div_ceil(1_048_576) matches that.
+    Ok(predicted_bytes.div_ceil(1_048_576))
 }
 
 #[derive(serde::Deserialize)]
@@ -424,6 +508,76 @@ lanes:
                  new={new_bytes} old={old_bytes} rel_err={rel_err}"
             );
         }
+    }
+
+    /// `from_hub_metadata` must read the same `(layers, hidden)` shape as
+    /// `from_model_dir` from an equivalent config, and derive `artifact_bytes`
+    /// from the Hub's per-dtype parameter counts instead of scanning a
+    /// directory — this is what lets cloud dispatch size a repo it has not
+    /// downloaded (see `crate::mens::hub::model_shape_from_hub`).
+    #[test]
+    fn from_hub_metadata_matches_from_model_dir_shape_and_sizes_by_dtype() {
+        let config = serde_json::json!({
+            "text_config": { "num_hidden_layers": 64u32, "hidden_size": 5120u32 }
+        });
+        let mut params = HashMap::new();
+        params.insert("BF16".to_string(), 1_000_000u64);
+        let s = ModelShape::from_hub_metadata(&config, &params).unwrap();
+        assert_eq!((s.layers, s.hidden), (64, 5120));
+        assert_eq!(
+            s.artifact_bytes, 2_000_000,
+            "BF16 is 2 bytes/param: 1,000,000 params -> 2,000,000 bytes"
+        );
+    }
+
+    /// MUTATION CAUGHT: summing dtype byte-widths instead of per-dtype
+    /// `count * width` (e.g. treating every param as 2 bytes regardless of
+    /// dtype would silently under-size a repo with an F32 head).
+    #[test]
+    fn from_hub_metadata_sums_bytes_across_mixed_dtypes() {
+        let config = serde_json::json!({
+            "num_hidden_layers": 1u32, "hidden_size": 1u32
+        });
+        let mut params = HashMap::new();
+        params.insert("BF16".to_string(), 1_000u64); // 2 bytes each
+        params.insert("F32".to_string(), 1_000u64); // 4 bytes each
+        let s = ModelShape::from_hub_metadata(&config, &params).unwrap();
+        assert_eq!(s.artifact_bytes, 2_000 + 4_000);
+    }
+
+    /// A config with neither top-level nor `text_config` layer/hidden fields
+    /// must fail closed rather than defaulting to zero-sized shape — a silent
+    /// zero would under-size every rented offer's VRAM requirement.
+    #[test]
+    fn from_hub_metadata_rejects_a_config_missing_shape_fields() {
+        let config = serde_json::json!({ "some_other_field": true });
+        let err = ModelShape::from_hub_metadata(&config, &HashMap::new()).unwrap_err();
+        let msg = format!("{err:?}"); // Debug renders the full anyhow context chain
+        assert!(
+            msg.contains("num_hidden_layers"),
+            "error must name the missing fields: {msg}"
+        );
+    }
+
+    /// `min_vram_mb_for_cuda` must report the seeded candle-cuda lane's
+    /// prediction, MiB-rounded up — not bytes, not truncated down (which would
+    /// under-size the rental by up to 1 MiB).
+    #[test]
+    fn min_vram_mb_for_cuda_rounds_bytes_up_to_whole_mebibytes() {
+        let shape = ModelShape {
+            artifact_bytes: 3 * 1_048_576 + 1, // just over 3 MiB of weights
+            layers: 1,
+            hidden: 1,
+        };
+        let request = Request {
+            batch_size: 1,
+            seq_len: 1,
+        };
+        let mb = min_vram_mb_for_cuda(&shape, &request).unwrap();
+        assert!(
+            mb >= 4,
+            "3 MiB + 1 byte of weights alone must round up past 3 MiB, got {mb}"
+        );
     }
 }
 
