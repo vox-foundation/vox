@@ -484,11 +484,10 @@ pub struct Plan {
 }
 
 /// `SAFETY_FRACTION` taken off a device's working set, then `operator_fraction`
-/// (if any) layered on top — called from exactly two places: `plan_for` and
-/// `budget_gate_usable_bytes`, both of which must consume this value once,
-/// never re-scale it and never re-apply `operator_fraction` a second time
-/// downstream (e.g. `memory_budget::plan_with_resident`'s own internal
-/// safety fraction).
+/// (if any) layered on top — `plan_for` is the sole caller, and must consume
+/// this value once, never re-scale it and never re-apply `operator_fraction`
+/// a second time downstream (e.g. `memory_budget::plan_with_resident`'s own
+/// internal safety fraction).
 fn usable_bytes(budget: &DeviceBudget) -> u64 {
     let operator = budget.operator_fraction.unwrap_or(1.0);
     (budget.working_set_bytes as f64 * SAFETY_FRACTION * operator).round() as u64
@@ -530,13 +529,6 @@ pub fn plan_for(
         predicted_bytes,
         auto: false,
     }
-}
-
-/// The usable-bytes budget a call site (e.g. a training `budget_gate`) must
-/// consume verbatim from `plan_for` — never re-scale by `SAFETY_FRACTION`
-/// again. This is the single call site both planners must route through.
-pub fn budget_gate_usable_bytes(budget: &DeviceBudget) -> u64 {
-    usable_bytes(budget)
 }
 
 /// Pick the largest batch size (at a fixed `seq_len`) that fits — a single
@@ -652,13 +644,14 @@ lanes:
     fn safety_headroom_reaches_the_call_sites_exactly_once() {
         // NOT `plan.usable_bytes == working_set * SAFETY_FRACTION` — that restates
         // plan_for's own line and passes whether or not the call sites were rewired.
-        // Assert through budget_gate, which is where the second application lived.
+        // Assert against `usable_bytes` directly (the old `budget_gate_usable_bytes`
+        // public wrapper was deleted for having zero non-test callers).
         let b = m5max();
         let once = (b.working_set_bytes as f64 * SAFETY_FRACTION).round() as u64;
         assert_eq!(
-            budget_gate_usable_bytes(&b),
+            usable_bytes(&b),
             once,
-            "budget_gate must consume plan_for's usable_bytes, not scale it again"
+            "usable_bytes must apply SAFETY_FRACTION exactly once"
         );
     }
 
@@ -706,13 +699,13 @@ lanes:
         };
         let expected = (throttled.working_set_bytes as f64 * SAFETY_FRACTION * 0.8).round() as u64;
         assert_eq!(
-            budget_gate_usable_bytes(&throttled),
+            usable_bytes(&throttled),
             expected,
             "operator_fraction must compose with SAFETY_FRACTION exactly once, not compound \
              with a second independent safety application"
         );
         // Sanity: the throttle must actually shrink the budget relative to uncapped.
-        assert!(budget_gate_usable_bytes(&throttled) < budget_gate_usable_bytes(&uncapped));
+        assert!(usable_bytes(&throttled) < usable_bytes(&uncapped));
     }
 }
 

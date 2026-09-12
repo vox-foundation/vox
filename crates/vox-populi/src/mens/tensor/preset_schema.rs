@@ -110,6 +110,7 @@ fn apply_qwen_size_ladder_policy(
     class: QwenSizeClass,
     vram_mb: u64,
     model_hint: Option<&str>,
+    explicit_batch_size: Option<usize>,
 ) -> TrainPresetProfile {
     match class {
         QwenSizeClass::S0p6 => {
@@ -117,7 +118,13 @@ fn apply_qwen_size_ladder_policy(
             p.rank = p.rank.min(16);
             p.alpha = p.alpha.min(32.0);
             p.seq_len = p.seq_len.clamp(384, 1024);
-            p.batch_size = p.batch_size.max(2);
+            // M2 fix: this floor is a DEFAULT for the unset case, not a
+            // blanket rule — an explicit `--batch-size 1` must be respected,
+            // not silently bumped to 2 (flagged in Task 3, never actually
+            // fixed until this final review pass).
+            if explicit_batch_size.is_none() {
+                p.batch_size = p.batch_size.max(2);
+            }
             p.grad_accum = p.grad_accum.max(4);
         }
         QwenSizeClass::S8 => {
@@ -526,7 +533,13 @@ pub fn resolve_effective_profile(
     }
 
     if let Some(class) = detect_qwen_size_class(model_hint) {
-        p = apply_qwen_size_ladder_policy(p, class, device.vram_mb, model_hint);
+        p = apply_qwen_size_ladder_policy(
+            p,
+            class,
+            device.vram_mb,
+            model_hint,
+            overrides.batch_size,
+        );
     }
 
     // The VRAM budget limits, when a caller has already sized this run via the
@@ -815,6 +828,47 @@ mod qwen3_preset_tests {
     }
 
     #[test]
+    fn s0p6_floors_batch_size_to_2_only_when_unset() {
+        // Default (no explicit --batch-size): the roomy-activations floor
+        // still applies, same as before this fix.
+        let permissive = TrainPresetProfile {
+            rank: 64,
+            alpha: 128.0,
+            seq_len: 4096,
+            batch_size: 1,
+            grad_accum: 1,
+            epochs: 3,
+            warmup: 100,
+            lr: 2e-4,
+        };
+        let defaulted = super::apply_qwen_size_ladder_policy(
+            permissive.clone(),
+            QwenSizeClass::S0p6,
+            24_576,
+            Some("Qwen/Qwen3-0.6B"),
+            None,
+        );
+        assert_eq!(
+            defaulted.batch_size, 2,
+            "unset batch_size must still be floored to 2"
+        );
+
+        // M2 fix (the actual regression this test exists to close): an
+        // EXPLICIT `--batch-size 1` must be respected, not silently bumped.
+        let explicit = super::apply_qwen_size_ladder_policy(
+            permissive,
+            QwenSizeClass::S0p6,
+            24_576,
+            Some("Qwen/Qwen3-0.6B"),
+            Some(1),
+        );
+        assert_eq!(
+            explicit.batch_size, 1,
+            "an explicit --batch-size 1 must not be floored to 2"
+        );
+    }
+
+    #[test]
     fn size_class_other_still_clamps_rank_seq_batch() {
         // "Qwen/Qwen3.8-27B" matches none of the S0.6/S8/S14/S32 substrings
         // (note: "8b" is not a substring of "27b"), so it falls into `Other`.
@@ -834,7 +888,7 @@ mod qwen3_preset_tests {
             warmup: 100,
             lr: 2e-4,
         };
-        let got = super::apply_qwen_size_ladder_policy(permissive, class, 24_576, Some(hint));
+        let got = super::apply_qwen_size_ladder_policy(permissive, class, 24_576, Some(hint), None);
         assert!(
             got.rank <= 8,
             "27B on 24GB must clamp rank down like the S32 tier, got {}",
@@ -866,8 +920,13 @@ mod qwen3_preset_tests {
             warmup: 100,
             lr: 2e-4,
         };
-        let got =
-            super::apply_qwen_size_ladder_policy(permissive.clone(), class, 24_576, Some(hint));
+        let got = super::apply_qwen_size_ladder_policy(
+            permissive.clone(),
+            class,
+            24_576,
+            Some(hint),
+            None,
+        );
         assert_eq!(
             got, permissive,
             "small unmatched model must be left unchanged by Other, today's behavior"
@@ -895,15 +954,20 @@ mod qwen3_preset_tests {
             (QwenSizeClass::S32, Some("Qwen3-32B")),
             (QwenSizeClass::Other, Some("Qwen3.8-27B")), // the model this program is about
         ] {
-            let big = apply_qwen_size_ladder_policy(base.clone(), class, 110_000, hint);
+            let big = apply_qwen_size_ladder_policy(base.clone(), class, 110_000, hint, None);
             assert!(
                 big.rank > 8,
                 "{class:?}: a 110 GB budget must not get the 16 GB card's rank, got {}",
                 big.rank
             );
         }
-        let small =
-            apply_qwen_size_ladder_policy(base, QwenSizeClass::S32, 16_384, Some("Qwen3-32B"));
+        let small = apply_qwen_size_ladder_policy(
+            base,
+            QwenSizeClass::S32,
+            16_384,
+            Some("Qwen3-32B"),
+            None,
+        );
         assert_eq!(small.rank, 8, "a 16 GB card still gets the tight envelope");
     }
 
