@@ -6,6 +6,7 @@ import {
   normalizeModelCard,
   providerKey,
   shortModelLabel,
+  unselectableReason,
 } from './modelPicker';
 
 const openrouterUp = {
@@ -150,6 +151,37 @@ describe('isModelSelectable', () => {
     })!;
     expect(isModelSelectable(cloud, [])).toBe(true);
     expect(isModelSelectable(mens, [])).toBe(false);
+  });
+});
+
+describe('unselectableReason', () => {
+  it('returns null once the model is selectable', () => {
+    const mens = normalizeModelCard({
+      id: 'mens/e2e-smoke-metal',
+      provider: 'populi_local',
+      provider_type: 'VoxLocal',
+    })!;
+    expect(unselectableReason(mens, [voxLocal])).toBeNull();
+  });
+
+  it('reports "server not running" when the local probe is unreachable', () => {
+    const mens = normalizeModelCard({
+      id: 'mens/foo',
+      provider: 'populi_local',
+      provider_type: 'VoxLocal',
+    })!;
+    expect(unselectableReason(mens, [voxLocalDown])).toBe('server not running');
+    const ollama = normalizeModelCard({ id: 'ollama/llama3', provider: 'ollama' })!;
+    expect(unselectableReason(ollama, [ollamaDown])).toBe('server not running');
+  });
+
+  it('reports "not found in local models" when the server is up but lacks the id', () => {
+    const other = normalizeModelCard({
+      id: 'mens/other-run',
+      provider: 'populi_local',
+      provider_type: 'VoxLocal',
+    })!;
+    expect(unselectableReason(other, [voxLocal])).toBe('not found in local models');
   });
 });
 

@@ -121,6 +121,34 @@ describe('ChatModelPicker', () => {
     expect(onApplied).not.toHaveBeenCalled();
   });
 
+  it('shows an unreachable local model dimmed with its reason and a Start server link, not clickable', async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'list_model_cards') return [{ id: 'mens/foo', provider: 'mens' }];
+      if (cmd === 'inference_provider_status') {
+        return [{ provider: 'mens', key_present: true, is_local: true, local_reachable: false }];
+      }
+      return null;
+    });
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const user = userEvent.setup();
+    const onApplied = vi.fn();
+    render(<ChatModelPicker activeModel={null} onApplied={onApplied} />);
+    await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
+    await screen.findByRole('searchbox', { name: /search models/i });
+    // The row is visible with its reason, but is NOT a selectable option.
+    expect(screen.getByText('mens/foo')).toBeDefined();
+    expect(screen.getByText(/server not running/i)).toBeDefined();
+    expect(screen.queryByRole('option', { name: /mens\/foo/i })).toBeNull();
+
+    const startLink = screen.getByRole('button', { name: /start server/i });
+    await user.click(startLink);
+    expect(onApplied).not.toHaveBeenCalled();
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'vox://navigate-surface', detail: { view: 'mens' } }),
+    );
+    dispatchSpy.mockRestore();
+  });
+
   it('narrows the keyed catalog through the search box, including OpenRouter ids', async () => {
     invoke.mockImplementation(async (cmd: string) => {
       if (cmd === 'list_model_cards') {

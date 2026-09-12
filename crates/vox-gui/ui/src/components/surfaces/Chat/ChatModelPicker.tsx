@@ -3,7 +3,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import {
   filterPickerModels,
+  isLocalProviderName,
+  modelMatchesQuery,
   normalizeModelCard,
+  unselectableReason,
   type PickerModel,
   type ProviderStatus,
 } from '../../../lib/modelPicker';
@@ -82,8 +85,26 @@ export function ChatModelPicker({
     [models, statuses, query],
   );
 
+  // Local models (e.g. a freshly-trained `mens/foo`) that filterPickerModels
+  // drops for cause — server not running, or not yet in local_models — get
+  // shown dimmed with their reason instead of silently vanishing.
+  const unreachableLocal = useMemo(
+    () =>
+      models
+        .filter(m => isLocalProviderName(m.provider) || isLocalProviderName(m.providerType))
+        .filter(m => modelMatchesQuery(m, query))
+        .map(m => ({ model: m, reason: unselectableReason(m, statuses) }))
+        .filter((r): r is { model: PickerModel; reason: string } => r.reason != null),
+    [models, statuses, query],
+  );
+
   const apply = (id: string | null) => {
     onApplied?.(id);
+    setOpen(false);
+  };
+
+  const goStartMensServer = () => {
+    window.dispatchEvent(new CustomEvent('vox://navigate-surface', { detail: { view: 'mens' } }));
     setOpen(false);
   };
 
@@ -128,7 +149,24 @@ export function ChatModelPicker({
                 {m.id}
               </button>
             ))}
-            {visible.length === 0 && (
+            {unreachableLocal.map(({ model: m, reason }) => (
+              <div
+                key={m.id}
+                className="flex items-center justify-between gap-2 truncate rounded px-2 py-1 font-mono text-[10px] text-text-muted opacity-60"
+              >
+                <span className="min-w-0 flex-1 truncate" title={`${m.id} — ${reason}`}>
+                  <span>{m.id}</span>{' — '}<span>{reason}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={goStartMensServer}
+                  className="shrink-0 text-brass underline opacity-100 hover:text-brass/80"
+                >
+                  Start server
+                </button>
+              </div>
+            ))}
+            {visible.length === 0 && unreachableLocal.length === 0 && (
               <div className="px-2 py-1.5 font-mono text-[10px] text-text-muted">
                 No keyed models match
               </div>

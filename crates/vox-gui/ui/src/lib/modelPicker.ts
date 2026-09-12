@@ -121,6 +121,22 @@ export function isModelSelectable(model: PickerModel, statuses: ProviderStatus[]
   return s.key_present;
 }
 
+/** Why a model can't be picked right now, or null when it can. Mirrors
+ *  isModelSelectable's branches so a caller can render the reason instead of
+ *  silently dropping the row (filterPickerModels still drops it — this is
+ *  for callers that want to show a dimmed, explained row instead). */
+export function unselectableReason(model: PickerModel, statuses: ProviderStatus[]): string | null {
+  if (isModelSelectable(model, statuses)) return null;
+  const s = statusForModel(model, statuses);
+  if (s?.is_local) {
+    return s.local_reachable !== true ? 'server not running' : 'not found in local models';
+  }
+  if (!s && (isLocalProviderName(model.provider) || isLocalProviderName(model.providerType))) {
+    return 'server not running';
+  }
+  return 'provider not configured';
+}
+
 export function modelMatchesQuery(model: PickerModel, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
