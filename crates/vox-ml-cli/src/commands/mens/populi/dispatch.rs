@@ -355,7 +355,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 let report_path = model.join("collateral_damage_report.json");
                 if !report_path.exists() {
                     anyhow::bail!(
-                        "eval_collateral_damage check not found! Run `vox mens eval collateral-damage --pre-score <baseline.json> --post <adapter>` before serving this adapter."
+                        "eval_collateral_damage check not found! Run `vox mens eval-collateral-damage --pre-score <baseline.json> --post-adapter <adapter>` before serving this adapter."
                     );
                 }
 
