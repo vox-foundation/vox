@@ -21,6 +21,11 @@ pub struct InferenceRequest {
     pub temperature: f32,
     pub top_k: usize,
     pub output_mode: Option<String>,
+    /// Per-request system prompt override (see `GenerateRequest::system_prompt`
+    /// in `schema.rs`). When present and non-empty, REPLACES the worker's
+    /// startup-default system prompt for this request; otherwise the
+    /// startup default is used unchanged.
+    pub system_prompt: Option<String>,
     pub reply: tokio::sync::oneshot::Sender<Result<String, String>>,
 }
 
@@ -124,9 +129,19 @@ pub fn spawn_inference_worker(
 }
 
 /// Build the JSON payload sent to the ML backend's `run_inference`, carrying the
-/// trained system prompt and the sampling parameters the request specified.
+/// system prompt and the sampling parameters the request specified.
+///
+/// Precedence: a non-empty `req.system_prompt` (the caller's per-request
+/// override) REPLACES `default_system_prompt` (the server's startup-baked
+/// default) entirely — never stacked with it. An absent or empty
+/// `req.system_prompt` falls back to `default_system_prompt` unchanged.
 #[cfg(feature = "execution-api")]
-fn inference_payload(system_prompt: &str, req: &InferenceRequest) -> String {
+fn inference_payload(default_system_prompt: &str, req: &InferenceRequest) -> String {
+    let system_prompt = req
+        .system_prompt
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .unwrap_or(default_system_prompt);
     serde_json::json!({
         "system": system_prompt,
         "prompt": req.prompt,
@@ -172,6 +187,7 @@ mod tests {
             temperature: 0.0,
             top_k: 40,
             output_mode: Some("strict_json".into()),
+            system_prompt: None,
             reply: tx,
         };
         let v: serde_json::Value =
@@ -185,5 +201,73 @@ mod tests {
             v["output_mode"], "strict_json",
             "the JSON repair loop retries a model that was never asked for JSON"
         );
+    }
+
+    /// (a) A non-empty per-request `system_prompt` REPLACES the server's
+    /// startup default entirely — the default text must not appear anywhere
+    /// in the payload sent to the worker.
+    #[test]
+    fn per_request_system_prompt_replaces_the_startup_default() {
+        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let req = InferenceRequest {
+            prompt: "hi".into(),
+            max_tokens: 8,
+            temperature: 0.0,
+            top_k: 40,
+            output_mode: None,
+            system_prompt: Some("CALLER OVERRIDE".into()),
+            reply: tx,
+        };
+        let v: serde_json::Value =
+            serde_json::from_str(&inference_payload("STARTUP DEFAULT", &req)).unwrap();
+        assert_eq!(v["system"], "CALLER OVERRIDE");
+        assert_ne!(
+            v["system"].as_str().unwrap(),
+            "STARTUP DEFAULT",
+            "override must replace, never append alongside, the startup default"
+        );
+        assert!(
+            !v["system"].as_str().unwrap().contains("STARTUP DEFAULT"),
+            "the startup default text must not leak into an overridden payload"
+        );
+    }
+
+    /// (b) An absent per-request `system_prompt` falls back to the server's
+    /// startup default, unchanged.
+    #[test]
+    fn absent_system_prompt_falls_back_to_startup_default() {
+        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let req = InferenceRequest {
+            prompt: "hi".into(),
+            max_tokens: 8,
+            temperature: 0.0,
+            top_k: 40,
+            output_mode: None,
+            system_prompt: None,
+            reply: tx,
+        };
+        let v: serde_json::Value =
+            serde_json::from_str(&inference_payload("STARTUP DEFAULT", &req)).unwrap();
+        assert_eq!(v["system"], "STARTUP DEFAULT");
+    }
+
+    /// (b) An empty-string per-request `system_prompt` (as opposed to
+    /// absent) also falls back to the startup default — empty is treated as
+    /// "no override", not as "override with nothing".
+    #[test]
+    fn empty_system_prompt_falls_back_to_startup_default() {
+        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let req = InferenceRequest {
+            prompt: "hi".into(),
+            max_tokens: 8,
+            temperature: 0.0,
+            top_k: 40,
+            output_mode: None,
+            system_prompt: Some(String::new()),
+            reply: tx,
+        };
+        let v: serde_json::Value =
+            serde_json::from_str(&inference_payload("STARTUP DEFAULT", &req)).unwrap();
+        assert_eq!(v["system"], "STARTUP DEFAULT");
     }
 }

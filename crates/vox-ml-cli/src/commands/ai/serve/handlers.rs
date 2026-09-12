@@ -136,6 +136,7 @@ pub async fn do_generate(
             temperature: req.temperature,
             top_k: 40,
             output_mode: output_mode.map(String::from),
+            system_prompt: req.system_prompt.clone(),
             reply: reply_tx,
         };
         let tx = state.tx.clone();
@@ -292,6 +293,10 @@ pub async fn do_chat_completions(
         max_retries: 3,
         schema: has_tools.then(|| serde_json::json!({"name": "string", "arguments": "object"})),
         stream: false,
+        // `/v1/chat/completions` has no system-role-carrying wire field of its
+        // own yet (messages[] already carries a "system" role entry, flattened
+        // into the prompt above) — no per-request override to thread here.
+        system_prompt: None,
     };
 
     let (status, Json(gen_resp)) = do_generate(State(state), Json(generate_req)).await;

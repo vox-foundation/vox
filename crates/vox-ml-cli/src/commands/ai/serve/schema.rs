@@ -25,6 +25,14 @@ pub struct GenerateRequest {
     /// P018: Optional flag to stream the response via SSE.
     #[serde(default)]
     pub stream: bool,
+    /// Per-request system prompt override. When present and non-empty, this
+    /// REPLACES the server's startup-default system prompt for this request
+    /// only — it is never appended alongside the default. Absent or empty
+    /// falls back to the server's startup default, matching pre-existing
+    /// behavior exactly. `#[serde(default)]` keeps old callers (no key in
+    /// the JSON body at all) unaffected.
+    #[serde(default)]
+    pub system_prompt: Option<String>,
 }
 
 #[cfg(feature = "execution-api")]
@@ -162,4 +170,30 @@ pub struct ChatCompletionToolCall {
 pub struct ChatCompletionToolCallFunction {
     pub name: String,
     pub arguments: String,
+}
+
+#[cfg(all(test, feature = "execution-api"))]
+mod tests {
+    use super::GenerateRequest;
+
+    /// (c) Backward compat: a `GenerateRequest` JSON body with no
+    /// `system_prompt` key at all — the shape every caller sent before this
+    /// field existed — must deserialize with `system_prompt: None`, so
+    /// `do_generate`/`inference_payload` fall back to the server's startup
+    /// default exactly as before this fix.
+    #[test]
+    fn generate_request_without_system_prompt_key_defaults_to_none() {
+        let req: GenerateRequest =
+            serde_json::from_str(r#"{"prompt": "hello", "max_tokens": 64}"#).unwrap();
+        assert_eq!(req.system_prompt, None);
+        assert_eq!(req.prompt, "hello");
+        assert_eq!(req.max_tokens, 64);
+    }
+
+    #[test]
+    fn generate_request_with_system_prompt_key_deserializes_it() {
+        let req: GenerateRequest =
+            serde_json::from_str(r#"{"prompt": "hi", "system_prompt": "be terse"}"#).unwrap();
+        assert_eq!(req.system_prompt.as_deref(), Some("be terse"));
+    }
 }
