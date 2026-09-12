@@ -1,0 +1,73 @@
+// vox:caps fs
+// scripts/mens-corpus/build_rust_authoring_corpus.vox
+//
+// Task D2 (2026-09-12-mens-end-to-end-completion): `mens/config/mix-rust.yaml`
+// requires `target/dogfood/rust_authoring.validated.jsonl` (optional: false)
+// but nothing generated it, and the raw `mens/data/mix_sources/rust_source.jsonl`
+// (19,664 lines) is tagged `lane: rust_context`, which isn't in mix-rust.yaml's
+// `include_lanes` allow-list — so every row was filtered out
+// (skipped_reason: no_lines_passed_filters).
+//
+// This script derives the required validated file from the raw source:
+//   - drops rows using retired decorator spellings (`@query`/`@mutation`/
+//     `@component` became hard parse errors 2026-06-30 — teaching them is
+//     teaching code the compiler rejects)
+//   - relabels `lane: rust_context` -> `lane: vox_rust_authoring` (the
+//     canonical lane for instruction->idiomatic-Rust pairs; already in
+//     mix-rust.yaml's include_lanes, so no config change needed for this file)
+//
+// Usage: vox run scripts/mens-corpus/build_rust_authoring_corpus.vox
+
+import fs
+
+fn main() {
+    let input_path = "mens/data/mix_sources/rust_source.jsonl"
+    let output_path = "target/dogfood/rust_authoring.validated.jsonl"
+
+    let content_res = fs.read(input_path)
+    if content_res.is_err() {
+        print("[build_rust_authoring_corpus] failed to read " + input_path)
+        return
+    }
+    let content = content_res.unwrap()
+
+    let raw_lines = content.split("\n")
+    let n = raw_lines.len()
+
+    let mut kept: list[str] = []
+    let mut total = 0
+    let mut purged = 0
+
+    let mut i = 0
+    while i < n {
+        let line = raw_lines.get(i).unwrap()
+        let trimmed = line.trim()
+        if trimmed.len() > 0 {
+            total = total + 1
+            if trimmed.contains("@query") or trimmed.contains("@mutation") or trimmed.contains("@component") {
+                purged = purged + 1
+            } else {
+                let relabeled = trimmed.replace("\"lane\":\"rust_context\"", "\"lane\":\"vox_rust_authoring\"")
+                kept = kept.push(relabeled)
+            }
+        }
+        i = i + 1
+    }
+
+    if not fs.exists("target/dogfood") {
+        match fs.mkdir("target/dogfood") { Ok(_) => {} Error(_) => {} }
+    }
+
+    let mut body = ""
+    let mut j = 0
+    while j < kept.len() {
+        body = body + kept.get(j).unwrap() + "\n"
+        j = j + 1
+    }
+    fs.write_file(output_path, body)
+
+    print("[build_rust_authoring_corpus] input_lines=" + str(total))
+    print("[build_rust_authoring_corpus] purged_retired_syntax=" + str(purged))
+    print("[build_rust_authoring_corpus] output_lines=" + str(kept.len()))
+    print("[build_rust_authoring_corpus] wrote " + output_path)
+}
