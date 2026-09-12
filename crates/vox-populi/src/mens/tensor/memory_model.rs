@@ -171,7 +171,12 @@ impl ModelShape {
         {
             let entry = entry?;
             if entry.path().extension().and_then(|e| e.to_str()) == Some("safetensors") {
-                artifact_bytes += entry.metadata()?.len();
+                // `DirEntry::metadata()` does not follow symlinks, and every
+                // weight file in a Hugging Face Hub cache's `snapshots/` dir
+                // is a symlink into `blobs/` — `std::fs::metadata` follows
+                // the link to the real (multi-GB) target instead of
+                // reporting the symlink's own few-dozen-byte size.
+                artifact_bytes += std::fs::metadata(entry.path())?.len();
             }
         }
 
@@ -461,6 +466,29 @@ lanes:
         std::fs::write(dir.path().join("model.safetensors"), vec![0u8; 1024]).unwrap();
         let s = ModelShape::from_model_dir(dir.path()).unwrap();
         assert_eq!((s.layers, s.hidden, s.artifact_bytes), (64, 5120, 1024));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn model_shape_follows_symlinked_weights_like_a_real_hf_cache() {
+        // Every weight file in a Hugging Face Hub cache's `snapshots/` dir is
+        // a symlink into `blobs/` — `DirEntry::metadata()` reports the
+        // symlink's own size (tens of bytes), not the real target's, unless
+        // `from_model_dir` resolves the link before reading the length.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("config.json"),
+            r#"{"num_hidden_layers":32,"hidden_size":4096}"#,
+        )
+        .unwrap();
+        let blob = dir.path().join("real_blob");
+        std::fs::write(&blob, vec![0u8; 5_000_000]).unwrap();
+        std::os::unix::fs::symlink(&blob, dir.path().join("model.safetensors")).unwrap();
+        let s = ModelShape::from_model_dir(dir.path()).unwrap();
+        assert_eq!(
+            s.artifact_bytes, 5_000_000,
+            "artifact_bytes must be the symlink target's size, not the symlink's own size"
+        );
     }
 
     /// The shipped contract row for `candle-cuda` must reproduce the old

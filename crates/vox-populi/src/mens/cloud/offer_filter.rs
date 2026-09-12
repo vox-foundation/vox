@@ -33,6 +33,14 @@ pub enum UnsuitableReason {
         /// `config.min_reliability * 100.0`.
         floor_pct: f32,
     },
+    /// The full-run cost exceeds the operator's budget.
+    OverBudget {
+        /// Estimated cost of the whole run on this offer.
+        estimated_cost_usd: f64,
+        /// The budget it was measured against (remaining balance, or
+        /// `--max-budget`, whichever was tighter).
+        budget_usd: f64,
+    },
 }
 
 impl std::fmt::Display for UnsuitableReason {
@@ -58,6 +66,15 @@ impl std::fmt::Display for UnsuitableReason {
                 write!(
                     f,
                     "reliability {reliability_pct:.1}% < floor {floor_pct:.1}%"
+                )
+            }
+            Self::OverBudget {
+                estimated_cost_usd,
+                budget_usd,
+            } => {
+                write!(
+                    f,
+                    "estimated ${estimated_cost_usd:.2} > ${budget_usd:.2} budget"
                 )
             }
         }

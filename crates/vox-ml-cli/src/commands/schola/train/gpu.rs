@@ -356,6 +356,19 @@ pub(super) async fn run_gpu_training(
                 );
             }
         }
+    } else {
+        // No `--model` was passed (e.g. `--resume <checkpoint>` alone), so
+        // no base model is downloaded and no `ModelShape` exists — the
+        // `sweep`/`plan_for` VRAM check above never runs. This is the same
+        // "no basis to refuse" bucket as `NoMeasurement`, not a measured
+        // pass: say so explicitly rather than silently skipping the check
+        // with no message at all.
+        eprintln!(
+            "  {} VRAM check skipped: no --model was given, so no on-disk model shape exists to \
+             measure against. Proceeding with batch_size={batch_size}, seq_len={seq_len} \
+             UNVERIFIED.",
+            "⚠".yellow()
+        );
     }
 
     let train_file_path =

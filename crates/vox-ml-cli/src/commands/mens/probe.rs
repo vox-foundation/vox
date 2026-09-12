@@ -286,6 +286,16 @@ fn print_model_fit_verdict(
         BudgetSource::Metal => Lane::CandleMetal,
         BudgetSource::Cuda => Lane::CandleCuda,
     };
+    // Replicate `gpu.rs::run_gpu_training`'s auto-enable rule exactly
+    // (`gc_explicit || params_b_from_model_hint(model) >= 2.9`) — otherwise
+    // this "dry run of `vox mens train --model <repo_id>`" builds a
+    // different `CalKey` than the real run, and can report the opposite
+    // verdict (Refused here, Fits there, or vice versa) for any model at or
+    // above the checkpointing threshold.
+    let gradient_checkpointing = gradient_checkpointing
+        || vox_populi::mens::tensor::memory_budget::params_b_from_model_hint(repo_id)
+            .map(|b| b >= 2.9)
+            .unwrap_or(false);
     let key = CalKey::new(lane, gradient_checkpointing)?;
     let models = MemoryModels::load_default()?;
     let budget = DeviceBudget {

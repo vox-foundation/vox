@@ -141,14 +141,21 @@ fn apply_qwen_size_ladder_policy(
                 p.rank = p.rank.min(8);
                 p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(256);
-                p.batch_size = 1;
+                // Same M2 fix as S0p6 above, generalized: this is a DEFAULT
+                // for the unset case, not a blanket override of an explicit
+                // `--batch-size`.
+                if explicit_batch_size.is_none() {
+                    p.batch_size = 1;
+                }
                 p.grad_accum = p.grad_accum.max(16);
                 p.lr = p.lr.min(1.0e-4);
             } else if vram_mb <= 24_576 {
                 p.rank = p.rank.min(8);
                 p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(384);
-                p.batch_size = p.batch_size.min(1);
+                if explicit_batch_size.is_none() {
+                    p.batch_size = p.batch_size.min(1);
+                }
                 p.grad_accum = p.grad_accum.max(12);
             } else {
                 p.seq_len = p.seq_len.min(512);
@@ -163,14 +170,18 @@ fn apply_qwen_size_ladder_policy(
                 p.rank = p.rank.min(8);
                 p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(256);
-                p.batch_size = 1;
+                if explicit_batch_size.is_none() {
+                    p.batch_size = 1;
+                }
                 p.grad_accum = p.grad_accum.max(16);
                 p.lr = p.lr.min(1.0e-4);
             } else if vram_mb <= 49_152 {
                 p.rank = p.rank.min(8);
                 p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(384);
-                p.batch_size = p.batch_size.min(1);
+                if explicit_batch_size.is_none() {
+                    p.batch_size = p.batch_size.min(1);
+                }
                 p.grad_accum = p.grad_accum.max(12);
             } else {
                 p.seq_len = p.seq_len.min(768);
@@ -193,14 +204,18 @@ fn apply_qwen_size_ladder_policy(
                         p.rank = p.rank.min(8);
                         p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(256);
-                        p.batch_size = 1;
+                        if explicit_batch_size.is_none() {
+                            p.batch_size = 1;
+                        }
                         p.grad_accum = p.grad_accum.max(16);
                         p.lr = p.lr.min(1.0e-4);
                     } else if vram_mb <= 49_152 {
                         p.rank = p.rank.min(8);
                         p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(384);
-                        p.batch_size = p.batch_size.min(1);
+                        if explicit_batch_size.is_none() {
+                            p.batch_size = p.batch_size.min(1);
+                        }
                         p.grad_accum = p.grad_accum.max(12);
                     } else {
                         p.seq_len = p.seq_len.min(768);
@@ -213,14 +228,18 @@ fn apply_qwen_size_ladder_policy(
                         p.rank = p.rank.min(8);
                         p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(256);
-                        p.batch_size = 1;
+                        if explicit_batch_size.is_none() {
+                            p.batch_size = 1;
+                        }
                         p.grad_accum = p.grad_accum.max(16);
                         p.lr = p.lr.min(1.0e-4);
                     } else if vram_mb <= 24_576 {
                         p.rank = p.rank.min(8);
                         p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(384);
-                        p.batch_size = p.batch_size.min(1);
+                        if explicit_batch_size.is_none() {
+                            p.batch_size = p.batch_size.min(1);
+                        }
                         p.grad_accum = p.grad_accum.max(12);
                     } else {
                         p.seq_len = p.seq_len.min(512);
@@ -865,6 +884,48 @@ mod qwen3_preset_tests {
         assert_eq!(
             explicit.batch_size, 1,
             "an explicit --batch-size 1 must not be floored to 2"
+        );
+    }
+
+    /// The same M2/S0p6 fix, generalized to the sibling branches that were
+    /// missed the first time (flagged in a later review pass): S14/S32/Other
+    /// all hard-floor `batch_size` on constrained VRAM tiers, and each of
+    /// those floors must be a DEFAULT for the unset case, not a blanket
+    /// override of an explicit `--batch-size`.
+    #[test]
+    fn s14_respects_an_explicit_batch_size_on_the_16gb_tier() {
+        let permissive = TrainPresetProfile {
+            rank: 64,
+            alpha: 128.0,
+            seq_len: 4096,
+            batch_size: 4,
+            grad_accum: 1,
+            epochs: 3,
+            warmup: 100,
+            lr: 2e-4,
+        };
+        let defaulted = super::apply_qwen_size_ladder_policy(
+            permissive.clone(),
+            QwenSizeClass::S14,
+            16_384,
+            Some("Qwen/Qwen3-14B"),
+            None,
+        );
+        assert_eq!(
+            defaulted.batch_size, 1,
+            "unset batch_size must still be floored to 1 on a 16GB card"
+        );
+
+        let explicit = super::apply_qwen_size_ladder_policy(
+            permissive,
+            QwenSizeClass::S14,
+            16_384,
+            Some("Qwen/Qwen3-14B"),
+            Some(4),
+        );
+        assert_eq!(
+            explicit.batch_size, 4,
+            "an explicit --batch-size 4 must not be floored to 1 on the S14 rung either"
         );
     }
 

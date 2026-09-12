@@ -180,7 +180,7 @@ pub async fn run_train(
                     spec.seq_len,
                 )
                 .await?;
-                let (ranked, _rejected) = resolver
+                let (ranked, rejected) = resolver
                     .resolve(&vox_populi::mens::cloud::ResolveRequest {
                         target: std::str::FromStr::from_str(&cloud)?,
                         min_vram_mb,
@@ -193,6 +193,16 @@ pub async fn run_train(
                         epochs: spec.epochs,
                     })
                     .await?;
+                if ranked.is_empty() && !rejected.is_empty() {
+                    // Every real dispatch path used to lose these reasons in
+                    // a `tracing::debug!` the operator never sees — surface
+                    // them here, at the one point they're about to be told
+                    // only "no offers to dispatch" while spending money.
+                    eprintln!("  ⚠ No suitable cloud offers — every candidate was rejected:");
+                    for (offer_id, reason) in &rejected {
+                        eprintln!("      {offer_id}: {reason}");
+                    }
+                }
                 let (handle, watchdog, provider) = resolver.dispatch_top(&ranked, &spec).await?;
                 // Record the idempotency key so a concurrent / retried invocation
                 // detects the in-flight job and reuses it.

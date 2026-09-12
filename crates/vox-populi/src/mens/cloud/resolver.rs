@@ -304,7 +304,17 @@ impl CloudResolver {
             num_samples: spec.num_samples,
             epochs: spec.epochs,
         };
-        let (ranked, _rejected) = self.resolve(&req).await?;
+        let (ranked, rejected) = self.resolve(&req).await?;
+        if ranked.is_empty() && !rejected.is_empty() {
+            // `dispatch_top` below only ever says "no offers to dispatch" —
+            // surface why here, at the one path a caller who is about to
+            // spend money actually reaches, instead of dropping this into
+            // `tracing::debug!` where nobody watching the CLI sees it.
+            eprintln!("  ⚠ No suitable cloud offers — every candidate was rejected:");
+            for (offer_id, reason) in &rejected {
+                eprintln!("      {offer_id}: {reason}");
+            }
+        }
         let (_handle, join, _provider) = self.dispatch_top(&ranked, &spec).await?;
 
         // Wait for the watchdog if requested or just return handle
@@ -458,7 +468,15 @@ pub(crate) fn rank_offers(
         let total_secs = est_secs * overhead;
         let cost = (total_secs / 3600.0) * offer.price_per_hour_usd;
 
-        if cost > remaining_usd || cost > req.max_acceptable_cost {
+        let budget_usd = remaining_usd.min(req.max_acceptable_cost);
+        if cost > budget_usd {
+            rejected.push((
+                offer.offer_id.clone(),
+                UnsuitableReason::OverBudget {
+                    estimated_cost_usd: cost,
+                    budget_usd,
+                },
+            ));
             continue;
         }
 
@@ -673,5 +691,31 @@ mod rank_tests {
                 required_mb: 81_920
             }
         ));
+    }
+
+    /// MUTATION CAUGHT: reverting the over-budget branch to a bare `continue`.
+    /// A board that is entirely priced above budget must not look identical to
+    /// a board with no suitable offers at all — the operator needs "raise
+    /// --max-budget", not "no capacity exists".
+    #[test]
+    fn an_over_budget_offer_is_reported_with_a_reason_not_silently_dropped() {
+        let offers = vec![offer("single-h100", 1, 81_920, 50.0)];
+        // A budget of $0 is exceeded by any offer with a positive estimated
+        // cost, regardless of what the synthetic estimator's tiny fixture
+        // sample count works out to in wall-clock seconds.
+        let (ranked, rejected) = rank_offers(
+            offers,
+            &req(81_920),
+            &CloudProviderConfig::default(),
+            &test_estimator(),
+            0.0,
+        );
+        assert_eq!(ranked.len(), 0, "expected no ranked offers");
+        assert_eq!(rejected.len(), 1, "got {rejected:?}");
+        assert!(
+            matches!(rejected[0].1, UnsuitableReason::OverBudget { budget_usd, .. } if budget_usd == 0.0),
+            "got {:?}",
+            rejected[0].1
+        );
     }
 }
