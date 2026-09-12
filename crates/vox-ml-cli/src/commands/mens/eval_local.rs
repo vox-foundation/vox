@@ -418,12 +418,13 @@ pub fn run_eval_local(
             )?;
             eprintln!("  pass@k summary saved: {}", passk_path.display());
 
-            // Give eval-gates-agents.yaml's tool_call_valid_json_rate a producer:
+            // Give eval-gates-agents.yaml's tool_call_salvage_rate a producer:
             // merge (not clobber) it into eval_results.json. rust_compile_rate /
-            // clippy_clean_rate are deliberately NOT touched here — see
-            // aggregate_gate_producer_keys's doc comment for why (they already
-            // have a real cargo-build/clippy producer via `vox corpus eval`, and
-            // this path used to silently overwrite it with a weaker proxy).
+            // clippy_clean_rate / tool_call_valid_json_rate / tool_name_exists_rate
+            // are deliberately NOT touched here — see aggregate_gate_producer_keys's
+            // doc comment for why (they already have real producers via
+            // `vox corpus eval`, and this path used to silently overwrite them
+            // with a weaker proxy).
             let eval_results_path = parent.join("eval_results.json");
             let mut eval_results_obj = read_json_object_or_empty(&eval_results_path);
             eval_results_obj.extend(aggregate_gate_producer_keys(&results));
@@ -623,25 +624,44 @@ fn tool_call_was_salvaged(source: &str) -> bool {
 /// from its own already-computed per-item results — the same
 /// `verify_completion` pass / json-shape signal, not a second verifier.
 ///
-/// Only `tool_call_valid_json_rate` is emitted here. `rust_compile_rate` /
-/// `clippy_clean_rate` are deliberately **not** computed by this function:
-/// `eval-gates-rust.yaml` already has a real producer for those two keys —
-/// `vox corpus eval` (`compute_rust_spoke_metrics` in
-/// `vox-corpus/src/corpus/eval_rust_metrics.rs`), which spawns actual `cargo
-/// build`/`cargo clippy` and is already wired into the mens pipeline's `Eval`
-/// stage, writing into the same `run_dir/eval_results.json` this function's
-/// caller also targets. eval-local's own verifier never runs a Rust compiler
-/// or clippy — its `pass_at_k`/`anti_stub_pass` are both downstream of the
-/// same anti-stub heuristic (`pass = pass && anti_stub_pass`), so a prior
-/// version of this function reported `rust_compile_rate` and
-/// `clippy_clean_rate` as two names for one proxy signal, and — because it
-/// ran *after* the real producer in the natural pipeline order — silently
-/// overwrote the real compiler/linter signal with it. Reintroducing either
-/// key here would need eval-local to actually invoke `cargo build`/`cargo
-/// clippy` on the candidate's completion, which is out of scope for this
-/// function (see Task A3 report, "Part (a) fix").
+/// Only `tool_call_salvage_rate` is emitted here. `rust_compile_rate` /
+/// `clippy_clean_rate` / `tool_call_valid_json_rate` / `tool_name_exists_rate`
+/// are deliberately **not** computed by this function: each already has a
+/// real, corpus-derived producer wired into `vox corpus eval`
+/// (`crates/vox-ml-cli/src/commands/corpus/stats.rs::run_eval`), which writes
+/// into the same `run_dir/eval_results.json` this function's caller also
+/// targets, as part of the mens pipeline's `Eval` stage — i.e. *before*
+/// eval-local runs, per the natural pipeline order (train -> corpus-eval ->
+/// eval-local).
 ///
-/// A category with zero rows omits `tool_call_valid_json_rate` entirely
+/// - `rust_compile_rate`/`clippy_clean_rate`: `compute_rust_spoke_metrics`
+///   (`vox-corpus/src/corpus/eval_rust_metrics.rs`) spawns actual `cargo
+///   build`/`cargo clippy`.
+/// - `tool_call_valid_json_rate`/`tool_name_exists_rate`:
+///   `compute_agentic_spoke_metrics`
+///   (`vox-corpus/src/corpus/eval_agentic_metrics.rs`) checks the training
+///   corpus's own agent_trace/tool_trace rows against the real tool
+///   registry (`vox_mcp_registry`), the same "written by the eval step"
+///   producer `eval-gates-agents.yaml`'s header comment documents.
+///
+/// eval-local's own verifier never runs a Rust compiler, clippy, or the real
+/// tool registry — its `pass_at_k`/`anti_stub_pass`/`tool_call_json_valid`/
+/// `tool_name_exists` sample flags are all downstream of the same
+/// benchmark-completion heuristics, not the ground-truth checks the real
+/// producers use. A prior version of this function computed
+/// `rust_compile_rate`/`clippy_clean_rate` from that proxy and — because it
+/// ran *after* the real producer in the natural pipeline order — silently
+/// overwrote the real compiler/linter signal with it (see Task A3 report,
+/// "Part (a) fix"). Emitting `tool_call_valid_json_rate`/
+/// `tool_name_exists_rate` here would reintroduce the identical collision
+/// against `compute_agentic_spoke_metrics`'s output now that it is wired
+/// into `run_eval`, so those two keys were removed from this function's
+/// output (a mens-end-to-end-completion fast-follow) the same way the rust
+/// keys never appear here.
+///
+/// `tool_call_salvage_rate` has no other producer, so it stays here.
+///
+/// A category with zero rows omits `tool_call_salvage_rate` entirely
 /// (matches the existing "not applicable" semantics elsewhere in
 /// `check_run.rs`).
 fn aggregate_gate_producer_keys(
@@ -669,31 +689,6 @@ fn aggregate_gate_producer_keys(
         .collect();
     if !agent_rows.is_empty() {
         let n = agent_rows.len() as f64;
-        let valid_json = agent_rows
-            .iter()
-            .filter(|e| any_sample_flag(e, "tool_call_json_valid"))
-            .count() as f64;
-        out.insert(
-            "tool_call_valid_json_rate".to_string(),
-            serde_json::json!(valid_json / n),
-        );
-
-        // Task B2 (MENS end-to-end completion): give `eval-gates-agents.yaml`'s
-        // `tool_name_exists_rate` and `tool_call_salvage_rate` a producer,
-        // same shape as `tool_call_valid_json_rate` above — the fraction of
-        // agent/tool-trace rows whose completion named a tool at all
-        // (`tool_name_exists`), and the fraction that only did so via the
-        // salvage policy's prose/fenced extraction rather than clean JSON
-        // (`tool_call_salvaged`). A high salvage rate is the B0 signal that
-        // the route needs a bigger base model, not a per-turn failure.
-        let names_a_tool = agent_rows
-            .iter()
-            .filter(|e| any_sample_flag(e, "tool_name_exists"))
-            .count() as f64;
-        out.insert(
-            "tool_name_exists_rate".to_string(),
-            serde_json::json!(names_a_tool / n),
-        );
         let salvaged = agent_rows
             .iter()
             .filter(|e| any_sample_flag(e, "tool_call_salvaged"))
@@ -828,16 +823,20 @@ mod tests {
     }
 
     #[test]
-    fn tool_call_valid_json_rate_from_agent_rows() {
+    fn aggregate_gate_producer_keys_never_emits_tool_call_valid_json_rate() {
+        // mens-end-to-end-completion fast-follow: `compute_agentic_spoke_metrics`
+        // (wired into `vox corpus eval`'s `run_eval`) is now the real,
+        // corpus-derived producer for `tool_call_valid_json_rate`. eval-local
+        // must never emit it, or it clobbers that real signal on merge (the
+        // exact collision class already fixed for the rust keys below).
         let mut passing = entry("agent_trace", true, true);
         passing["samples"][0]["tool_call_json_valid"] = serde_json::json!(true);
         let failing = entry("tool_trace", false, false);
         let results = vec![passing, failing];
         let keys = aggregate_gate_producer_keys(&results);
-        assert_eq!(
-            keys.get("tool_call_valid_json_rate")
-                .and_then(|v| v.as_f64()),
-            Some(0.5)
+        assert!(
+            !keys.contains_key("tool_call_valid_json_rate"),
+            "eval-local must defer to compute_agentic_spoke_metrics for tool_call_valid_json_rate: {keys:?}"
         );
     }
 
@@ -908,7 +907,12 @@ mod tests {
     }
 
     #[test]
-    fn tool_name_exists_and_salvage_rates_from_agent_rows() {
+    fn tool_name_exists_rate_never_emitted_but_salvage_rate_is() {
+        // mens-end-to-end-completion fast-follow: same deferral as
+        // tool_call_valid_json_rate above, for `tool_name_exists_rate` —
+        // `compute_agentic_spoke_metrics` is now its real producer.
+        // `tool_call_salvage_rate` has no other producer, so it still comes
+        // from here.
         fn entry_with_flags(
             category: &str,
             name_exists: bool,
@@ -929,9 +933,9 @@ mod tests {
             entry_with_flags("tool_trace", false, false),
         ];
         let keys = aggregate_gate_producer_keys(&results);
-        assert_eq!(
-            keys.get("tool_name_exists_rate").and_then(|v| v.as_f64()),
-            Some(0.5)
+        assert!(
+            !keys.contains_key("tool_name_exists_rate"),
+            "eval-local must defer to compute_agentic_spoke_metrics for tool_name_exists_rate: {keys:?}"
         );
         assert_eq!(
             keys.get("tool_call_salvage_rate").and_then(|v| v.as_f64()),
@@ -1011,6 +1015,50 @@ mod tests {
         assert_eq!(
             v["clippy_clean_rate"], 0.91,
             "real clippy-backed clippy_clean_rate must survive eval-local's merge untouched"
+        );
+    }
+
+    #[test]
+    fn eval_results_json_merge_leaves_real_agentic_producer_values_untouched() {
+        // mens-end-to-end-completion fast-follow, agentic-key analogue of the
+        // rust test above: `vox corpus eval` (compute_agentic_spoke_metrics —
+        // real tool-registry-backed check) may already have written
+        // tool_call_valid_json_rate/tool_name_exists_rate into
+        // eval_results.json before eval-local runs. eval-local's merge must
+        // never touch those two keys, no matter what its own results
+        // contain — proven here by feeding it an agent_trace row that would
+        // previously (before this fix) have produced
+        // tool_call_valid_json_rate=0.0/tool_name_exists_rate=0.0, and
+        // confirming the real producer's 0.93/0.88 survive exactly.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("eval_results.json");
+        std::fs::write(
+            &path,
+            r#"{"tool_call_valid_json_rate": 0.93, "tool_name_exists_rate": 0.88}"#,
+        )
+        .unwrap();
+
+        let mut merged = read_json_object_or_empty(&path);
+        merged.extend(aggregate_gate_producer_keys(&[entry(
+            "agent_trace",
+            false,
+            false,
+        )]));
+        std::fs::write(
+            &path,
+            serde_json::to_string_pretty(&serde_json::Value::Object(merged)).unwrap(),
+        )
+        .unwrap();
+
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(
+            v["tool_call_valid_json_rate"], 0.93,
+            "real corpus-backed tool_call_valid_json_rate must survive eval-local's merge untouched"
+        );
+        assert_eq!(
+            v["tool_name_exists_rate"], 0.88,
+            "real corpus-backed tool_name_exists_rate must survive eval-local's merge untouched"
         );
     }
 }
