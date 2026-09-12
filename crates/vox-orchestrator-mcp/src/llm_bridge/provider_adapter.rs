@@ -234,8 +234,23 @@ struct VoxLocalGenerateRequest {
     prompt: String,
     validate: bool,
     max_retries: u32,
+    max_tokens: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     model: Option<String>,
+}
+
+/// Builds the outgoing `/generate` request body for the VoxLocal adapter.
+/// Threads the caller's requested `max_t` through, rather than relying on
+/// the server's own default (`GenerateRequest::max_tokens` defaults to 256
+/// in `vox-ml-cli`'s serve schema).
+fn build_vox_local_request(req: &InferRequest<'_>, model: &str) -> VoxLocalGenerateRequest {
+    VoxLocalGenerateRequest {
+        prompt: extract_prompt_text(&req.user_prompt),
+        validate: true,
+        max_retries: 3,
+        max_tokens: req.max_t,
+        model: Some(model.to_string()),
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -275,13 +290,7 @@ impl ProviderAdapter for VoxLocalAdapter {
         Box::pin(async move {
             probe_vox_local_health(client).await?;
             let endpoint = endpoint_for(model)?;
-            let prompt = extract_prompt_text(&req.user_prompt);
-            let body = VoxLocalGenerateRequest {
-                prompt,
-                validate: true,
-                max_retries: 3,
-                model: Some(model.id.clone()),
-            };
+            let body = build_vox_local_request(&req, &model.id);
             let resp = client
                 .post(&endpoint)
                 .json(&body)
@@ -444,10 +453,25 @@ mod tests {
             prompt: "fn main() {}".into(),
             validate: true,
             max_retries: 3,
+            max_tokens: 256,
             model: Some("mens/e2e-smoke-metal".into()),
         };
         let v = serde_json::to_value(&body).expect("serialize");
         assert_eq!(v["model"], "mens/e2e-smoke-metal");
         assert_eq!(v["prompt"], "fn main() {}");
+    }
+
+    /// max_t = 4096 is deliberately non-default: the server's
+    /// `GenerateRequest::max_tokens` defaults to 256, so this value could
+    /// never accidentally match a wrong-code path that ignores req.max_t.
+    #[test]
+    fn vox_local_request_threads_caller_max_tokens() {
+        let mut req = make_infer_request(None, None);
+        req.max_t = 4096;
+        let body = build_vox_local_request(&req, "mens/e2e-smoke-metal");
+        assert_eq!(body.max_tokens, 4096);
+
+        let v = serde_json::to_value(&body).expect("serialize");
+        assert_eq!(v["max_tokens"], 4096);
     }
 }
