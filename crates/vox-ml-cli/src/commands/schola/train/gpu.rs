@@ -221,7 +221,12 @@ pub(super) async fn run_gpu_training(
         // this replaces had NO such precondition and ran unconditionally.
         let auto_size_outcome = if no_explicit_sizing {
             // No explicit sizing: find the largest batch size that fits.
-            auto_size_from_model_dir(&files.cache_dir, seq_len as u64, gradient_checkpointing)
+            auto_size_from_model_dir(
+                &files.cache_dir,
+                seq_len as u64,
+                gradient_checkpointing,
+                vram_limit_fraction,
+            )
         } else {
             // Explicit sizing: the shape is already chosen — verify it
             // fits rather than searching for a different one. `plan_for`
@@ -233,6 +238,7 @@ pub(super) async fn run_gpu_training(
                 batch_size as u64,
                 seq_len as u64,
                 gradient_checkpointing,
+                vram_limit_fraction,
             )
         };
         match auto_size_outcome {
@@ -488,7 +494,15 @@ enum AutoSizeOutcome {
 /// budget" is. `None` means no basis to measure anything (e.g. no
 /// accelerator detected) — the caller's own outcome type carries that as
 /// `NoMeasurement`, not an `Err`.
-fn accel_budget_and_lane() -> Option<(
+///
+/// `vram_limit_fraction` (I1 fix) is the CLI's `--vram-limit-fraction` /
+/// `--background`-implied value — it MUST land in `operator_fraction` here
+/// so it actually composes with `SAFETY_FRACTION` (see `memory_model::
+/// usable_bytes`); before this fix it was hardcoded to `None` and the flag
+/// had zero effect on sizing or refusal.
+fn accel_budget_and_lane(
+    vram_limit_fraction: Option<f32>,
+) -> Option<(
     vox_populi::mens::tensor::memory_model::DeviceBudget,
     vox_populi::mens::tensor::memory_model::Lane,
 )> {
@@ -503,7 +517,7 @@ fn accel_budget_and_lane() -> Option<(
     Some((
         DeviceBudget {
             working_set_bytes: accel.working_set_bytes,
-            operator_fraction: None,
+            operator_fraction: vram_limit_fraction.map(f64::from),
         },
         lane,
     ))
@@ -522,10 +536,11 @@ fn auto_size_from_model_dir(
     model_dir: &std::path::Path,
     seq_len: u64,
     gradient_checkpointing: bool,
+    vram_limit_fraction: Option<f32>,
 ) -> Result<AutoSizeOutcome> {
     use vox_populi::mens::tensor::memory_model::MemoryModels;
 
-    let Some((budget, lane)) = accel_budget_and_lane() else {
+    let Some((budget, lane)) = accel_budget_and_lane(vram_limit_fraction) else {
         return Ok(AutoSizeOutcome::NoMeasurement(
             "no accelerator budget available on this host".to_string(),
         ));
@@ -591,10 +606,11 @@ fn verify_request_from_model_dir(
     batch_size: u64,
     seq_len: u64,
     gradient_checkpointing: bool,
+    vram_limit_fraction: Option<f32>,
 ) -> Result<AutoSizeOutcome> {
     use vox_populi::mens::tensor::memory_model::MemoryModels;
 
-    let Some((budget, lane)) = accel_budget_and_lane() else {
+    let Some((budget, lane)) = accel_budget_and_lane(vram_limit_fraction) else {
         return Ok(AutoSizeOutcome::NoMeasurement(
             "no accelerator budget available on this host".to_string(),
         ));
@@ -732,10 +748,29 @@ fn apply_auto_size_outcome(
 #[cfg(test)]
 mod auto_size_tests {
     use super::{
-        AutoSizeOutcome, SizingDecision, apply_auto_size_outcome, auto_size_with_budget,
-        force_train_env, verify_request_with_budget,
+        AutoSizeOutcome, SizingDecision, accel_budget_and_lane, apply_auto_size_outcome,
+        auto_size_with_budget, force_train_env, verify_request_with_budget,
     };
     use vox_populi::mens::tensor::memory_model::{DeviceBudget, Lane, MemoryModels};
+
+    /// I1 fix: `--vram-limit-fraction` (or `--background`'s implicit 0.8) must
+    /// actually reach `DeviceBudget::operator_fraction` — before this fix
+    /// `accel_budget_and_lane` hardcoded `operator_fraction: None`, so the
+    /// flag had zero effect on sizing or refusal. A GPU-less host (no
+    /// `AccelBudget` at all) is a valid, non-panicking answer here too — same
+    /// convention as `accel_budget::query_accel_budget`'s own same-file test.
+    #[test]
+    fn accel_budget_and_lane_threads_vram_limit_fraction_into_operator_fraction() {
+        if let Some((budget, _lane)) = accel_budget_and_lane(Some(0.8)) {
+            assert_eq!(
+                budget.operator_fraction,
+                Some(f64::from(0.8f32)),
+                "--vram-limit-fraction must land in operator_fraction, not be dropped"
+            );
+        }
+        // `None` (no accelerator on this host) is also a valid answer.
+        let _ = accel_budget_and_lane(None);
+    }
 
     // Synthetic fixture — not a real candle-metal measurement, matches the
     // convention in memory_model.rs's own tests.
