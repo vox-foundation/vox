@@ -1,7 +1,11 @@
-# M4 live demo — local fine-tune served on Metal, base vs adapter
+---
+title: "M4 Live Demo: Base vs Adapter"
+description: "The live, evidenced confirmation that a locally fine-tuned model served on Metal produces measurably different output from the base model, with the two real serving bugs found and fixed along the way."
+category: "Architecture SSOTs"
+status: "current"
+---
 
 Date: 2026-09-12. Host: Apple M5 Max, 128 GB, macOS, Metal.
-Worktree: `.claude/worktrees/m4-live-demo` (branch `verify/m4-live-demo`, based on `main` @ `068098217`).
 
 **Verdict: milestone confirmed.** The same prompt, sent over HTTP to `vox mens serve`
 on Metal, produced measurably different text from the base model and from the
@@ -57,10 +61,11 @@ is complete. Test: `a_run_directory_is_sized_by_its_adapter_not_its_inode`.
 
 ## 3. Adapter provenance (option (b), stated plainly)
 
-No `vox mens train` run was attempted. Per the brief's bounded-time rule, a
-deliberately large **synthetic-but-structurally-real** adapter was constructed
-instead, using the exact key spelling and manifest shape `merge.rs`'s own test
-fixtures produce:
+No `vox mens train` run was attempted. Per the bounded-time process rule this
+session established after an earlier live-measurement attempt burned excessive
+time chasing a full training run, a deliberately large **synthetic-but-structurally-real**
+adapter was constructed instead, using the exact key spelling and manifest shape
+`merge.rs`'s own test fixtures produce:
 
 - `lm_head.lora_a.weight` `[4, 1024]`, `lm_head.lora_b.weight` `[151936, 4]`, F32.
 - `adapter_manifest.json` v3, `base_key_map = {"lm_head": "lm_head.weight"}`,
@@ -71,8 +76,8 @@ fixtures produce:
 - **Adapter run** (`run_adapter`): `lora_a[0, :] = 1/1024` (so `a·h ≈ mean(h)`) and
   `lora_b[9707, 0] = 4000`. Token id **9707 is `"Hello"`**.
 - Both directories were freshly created and asserted to contain **no**
-  `merged.safetensors` (risk factor 3), so `adapter_deltas_must_be_folded` returns
-  true and the delta is folded at load.
+  `merged.safetensors`, so `adapter_deltas_must_be_folded` returns true and the
+  delta is folded at load.
 
 `assert_adapter_fully_applied` passed on both loads — `InferenceEngine::load`
 returned successfully and the worker reported ready; that assertion runs
@@ -101,10 +106,10 @@ curl -s -X POST http://127.0.0.1:18113/v1/generate -H 'content-type: application
   -d '{"prompt":"The capital of France is","max_tokens":24,"temperature":0}'
 ```
 
-**Determinism (risk factor 4):** `temperature: 0` was passed explicitly on both
-requests. `sample_next_token` returns `argmax` when `temperature <= 0.0`, before
-`top_k` (hardcoded 40 in the handler) is consulted — so the hardcoded `top_k` is
-inert and both runs are greedy. Confirmed empirically: the adapter request repeated
+**Determinism:** `temperature: 0` was passed explicitly on both requests.
+`sample_next_token` returns `argmax` when `temperature <= 0.0`, before `top_k`
+(hardcoded 40 in the handler) is consulted — so the hardcoded `top_k` is inert
+and both runs are greedy. Confirmed empirically: the adapter request repeated
 verbatim returned a byte-identical response.
 
 ## 5. Results
@@ -129,12 +134,12 @@ Wait... Why don't they...
 Wait... Why don't they...
 ```
 
-**Measurably and attributably different.** The outputs diverge from the third token
-onward, and the divergence is exactly what the adapter encodes: `"Hello"` —
-token 9707, the single row `lora_b` boosts — appears in the adapter output and
+**Measurably and attributably different.** The outputs diverge from the third
+token onward, and the divergence is exactly what the adapter encodes: `"Hello"`
+— token 9707, the single row `lora_b` boosts — appears in the adapter output and
 nowhere in the base output. This is not sampling noise (both runs are greedy and
-reproducible) and it is not a coincidental difference: the injected token is the one
-that shows up.
+reproducible) and it is not a coincidental difference: the injected token is the
+one that shows up.
 
 Metal is genuinely in use: the first attempt ran with the `metal` feature off and
 took **187 s** for the same 13 tokens; with `--features metal` the same request
@@ -147,20 +152,19 @@ harness in this repo drives `mens serve`, and `vox-gui` cannot build in a fresh
 worktree without a sidecar + `ui/dist` bootstrap. What was confirmed:
 
 1. **The GUI model picker would list this adapter directory.** `MensCatalog`
-   (`crates/vox-orchestrator/src/catalog.rs`, `is_listable_mens_run` ~line 610)
-   lists any directory under `<root>/mens/runs/` holding `tokenizer.json` +
+   (`crates/vox-orchestrator/src/catalog.rs`, `is_listable_mens_run`) lists any
+   directory under `<root>/mens/runs/` holding `tokenizer.json` +
    `candle_qlora_adapter.safetensors` + `adapter_manifest.json` — exactly the shape
    of `run_adapter`. `ModelsView.tsx` renders `mens/`-prefixed entries as a
    selectable local model.
-2. **Chatting with such a model reaches the server I tested.**
+2. **Chatting with such a model reaches the server tested here.**
    `endpoint_for(ProviderType::VoxLocal)` →
-   `crates/vox-orchestrator-mcp/src/llm_bridge/provider_endpoints.rs:77-80` →
+   `crates/vox-orchestrator-mcp/src/llm_bridge/provider_endpoints.rs` →
    `<base>/generate`, base defaulting to `http://127.0.0.1:11434`
    (`VOX_LOCAL_ENDPOINT_DEFAULT`) — which is `vox mens serve`'s
    `DEFAULT_INFERENCE_PORT` and the same handler as the `/v1/generate` route used
    above (`serve/mod.rs` registers `/generate`, `/v1/generate` and
-   `/v1/completions` on one handler). The serve response deliberately carries
-   `code` / `valid` / `errors` for `VoxLocalAdapter`.
+   `/v1/completions` on one handler).
 3. **From there the path is the one exercised.** handler → `worker.rs`
    `spawn_inference_worker` → `resolve_ml_backend_plugin` → `mens-candle-metal` →
    `MlBackend::load_model` → `CandleModel::load_from_path` →
@@ -199,3 +203,5 @@ one-card addition on an existing, proven seam, but it is not there today.
 - `vox mens serve` refuses to serve an adapter run without a
   `collateral_damage_report.json` whose `status` is `"pass"`. The demo runs carry a
   stub report; a real adapter needs the real eval.
+- The GUI's Mens surface has no `mens serve` card — the natural next scoped
+  follow-up, since every other piece of the seam it would use is already proven.
