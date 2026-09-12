@@ -367,6 +367,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                         "eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served."
                     );
                 }
+
+                assert_serve_preconditions(&model)?;
             }
 
             // Serve via the built-in Axum server, gated behind the execution-api feature.
@@ -752,6 +754,88 @@ fn export_gguf_not_implemented_message(
         input.display(),
         output.display()
     )
+}
+
+/// Refuse to serve a model whose `gate_receipt.json` says `overall_passed: true`
+/// while every individual gate inside it actually verified nothing (all
+/// "not applicable" / "skipped" / "missing" messages). `eval_gate` has
+/// branches that turn a missing artifact into a passing gate; this is the
+/// serve-boundary backstop that catches every present and future silent-skip
+/// without having to touch each of those branches individually.
+#[cfg(feature = "gpu")]
+fn assert_serve_preconditions(run_dir: &std::path::Path) -> Result<()> {
+    use anyhow::Context;
+
+    let receipt_path = run_dir.join("gate_receipt.json");
+    let receipt: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(
+        &receipt_path,
+    )
+    .with_context(|| {
+        format!(
+            "no gate_receipt.json in {} — run `vox mens eval-gate --run-dir {} --policy <p>` first",
+            run_dir.display(),
+            run_dir.display()
+        )
+    })?)?;
+    anyhow::ensure!(
+        receipt.get("overall_passed") == Some(&serde_json::Value::Bool(true)),
+        "eval-gate did not pass for this run; refusing to serve"
+    );
+    // A receipt whose gates all said "not applicable"/"skipped"/"missing" is not evidence.
+    let substantive = receipt["gates"].as_array().map_or(0, |g| {
+        g.iter()
+            .filter(|r| {
+                let m = r["message"].as_str().unwrap_or("");
+                !m.contains("not applicable") && !m.contains("skipped") && !m.contains("missing")
+            })
+            .count()
+    });
+    anyhow::ensure!(
+        substantive >= 2,
+        "gate_receipt.json has {substantive} substantive gates — every check was skipped for a \
+         missing artifact. Produce eval_results.json and baseline_report.json, then re-gate."
+    );
+    Ok(())
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod serve_preconditions_tests {
+    use super::*;
+
+    #[test]
+    fn a_receipt_whose_every_gate_skipped_is_not_evidence() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("gate_receipt.json"),
+            r#"{
+          "overall_passed": true,
+          "gates": [
+            {"name":"rust_compile_rate","passed":true,"message":"not applicable (no rust_authoring rows)"},
+            {"name":"pass_at_k","passed":true,"message":"baseline file missing (skipped regression check)"}
+          ]}"#,
+        )
+        .unwrap();
+        let err = assert_serve_preconditions(dir.path())
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("0 substantive gates"), "got: {err}");
+    }
+
+    #[test]
+    fn a_receipt_with_two_real_gates_is_accepted() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("gate_receipt.json"),
+            r#"{
+          "overall_passed": true,
+          "gates": [
+            {"name":"throughput","passed":true,"message":"142 tok/s >= 100"},
+            {"name":"supervised_ratio","passed":true,"message":"0.71 >= 0.60"}
+          ]}"#,
+        )
+        .unwrap();
+        assert!(assert_serve_preconditions(dir.path()).is_ok());
+    }
 }
 
 #[cfg(all(test, feature = "gpu"))]
