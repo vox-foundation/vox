@@ -68,7 +68,14 @@ anti_stub:
   min_pass_rate: 0.92
   max_placeholder_event_rate: 0.08
   max_trivial_placeholder_event_rate: 0.08
-  min_construct_richness_mean: 0.20
+  # Must equal ANTI_STUB_MIN_CONSTRUCT_RICHNESS in crates/vox-ml-cli/src/commands/mens/eval_local.rs.
+  # Every task in mens/data/heldout_bench/manifest.json asks for exactly one top-level
+  # declaration, so AstEvalReport::coverage_score() (distinct-construct-kind-count / 8) tops
+  # out at 1/8 = 0.125 for even a perfect answer. A higher floor here rejects every correct
+  # single-declaration answer — this is the *mean* across a run of the same per-answer score
+  # the Rust constant floors, so it is structurally bound to the same ceiling. Kept in sync by
+  # `eval_gate_thresholds_match_anti_stub_min_construct_richness` in eval_local.rs's test module.
+  min_construct_richness_mean: 0.125
   block: true
 
 review_recurrence:

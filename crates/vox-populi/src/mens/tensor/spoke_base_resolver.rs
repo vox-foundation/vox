@@ -122,6 +122,25 @@ fn license_for_hf_id(
         .map(|b| (b.license.clone(), b.attribution_required))
 }
 
+/// Conservative attribution-requirement default for a `--license-class` override whose
+/// base has no `gpu-specs.yaml` entry to confirm it against. Only a small explicit
+/// allowlist of licenses with no attribution obligation is treated as permissive;
+/// everything else (including anything unrecognized) defaults to `true`. Wrongly
+/// requiring attribution is a labeling nuisance; wrongly suppressing it for a
+/// license that needs it is a compliance violation — this defaults to the safer
+/// direction instead of assuming permissive like the bug this replaces did.
+fn default_attribution_required(license_class: &str) -> bool {
+    const NO_ATTRIBUTION_REQUIRED: &[&str] = &[
+        "apache-2.0",
+        "mit",
+        "bsd-2-clause",
+        "bsd-3-clause",
+        "unlicense",
+        "cc0-1.0",
+    ];
+    !NO_ATTRIBUTION_REQUIRED.contains(&license_class.trim().to_ascii_lowercase().as_str())
+}
+
 /// Resolve the effective `(license_class, attribution_required)` for a training
 /// or merge run: an explicit `cli_override` always wins; otherwise the license
 /// comes from the resolved base's `license:` entry in `gpu-specs.yaml`
@@ -136,7 +155,15 @@ pub fn resolve_license_class(
 ) -> anyhow::Result<(String, bool)> {
     let resolved = hf_id.and_then(|id| license_for_hf_id(workspace_root, id));
     if let Some(explicit) = cli_override {
-        let attribution_required = resolved.map(|(_, attr)| attr).unwrap_or(false);
+        // If the base IS in gpu-specs.yaml, trust its recorded attribution_required — it was
+        // reviewed when the entry was added. If the base is unmapped (`resolved` is `None`:
+        // no hf_id, or an hf_id not in `train_bases`), there is nothing to trust, so fall back
+        // to `default_attribution_required` rather than silently assuming `false` — the same
+        // "never silently default toward permissive" rule this function already enforces for
+        // the missing-license-class case below.
+        let attribution_required = resolved
+            .map(|(_, attr)| attr)
+            .unwrap_or_else(|| default_attribution_required(&explicit));
         return Ok((explicit, attribution_required));
     }
     match resolved {
@@ -700,12 +727,38 @@ mod tests {
 
     #[test]
     fn resolve_license_class_cli_override_wins_even_for_unknown_base() {
-        let (license, _attribution_required) = resolve_license_class(
+        let (license, attribution_required) = resolve_license_class(
             Some(workspace_root()),
             Some("some/unmapped-model"),
             Some("mit".into()),
         )
         .expect("explicit override must always resolve");
         assert_eq!(license, "mit");
+        assert!(
+            !attribution_required,
+            "mit is a known no-attribution-required permissive license"
+        );
+    }
+
+    /// Regression test: an unmapped base with a `--license-class` override that names a
+    /// license NOT on the known-permissive allowlist must default `attribution_required`
+    /// to `true`, never silently to `false`. Before the fix, any unmapped base silently got
+    /// `attribution_required = false` regardless of which license was passed — wrongly
+    /// suppressing attribution for exactly the license family that needs it.
+    #[test]
+    fn resolve_license_class_defaults_attribution_required_true_for_unknown_license_on_unmapped_base()
+     {
+        let (license, attribution_required) = resolve_license_class(
+            Some(workspace_root()),
+            Some("some/unmapped-model"),
+            Some("cc-by-nc-4.0".into()),
+        )
+        .expect("explicit override must always resolve");
+        assert_eq!(license, "cc-by-nc-4.0");
+        assert!(
+            attribution_required,
+            "an unrecognized, non-permissive license override on an unmapped base must \
+             default to attribution_required = true, not silently false"
+        );
     }
 }

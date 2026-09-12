@@ -1146,6 +1146,50 @@ mod tests {
         );
     }
 
+    /// The per-answer fix above (`ANTI_STUB_MIN_CONSTRUCT_RICHNESS = 0.125`) is necessary but
+    /// not sufficient: `construct_richness_mean` (the MEAN of this same score across a whole
+    /// eval run) feeds a *separate* blocking gate read from `mens/config/eval-gates.yaml` by
+    /// `check_run.rs`, which was never updated in the same fix and stayed at the old 0.20 floor
+    /// — still structurally unpassable by a perfect single-declaration-per-task bench, by the
+    /// identical argument. This asserts both real YAML policy files carry the corrected
+    /// threshold, so the "fixed one, forgot the other" bug class can't silently recur.
+    #[test]
+    fn eval_gate_yaml_thresholds_match_anti_stub_min_construct_richness() {
+        let config_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../mens/config");
+        for name in ["eval-gates.yaml", "eval-gates-post-train.yaml"] {
+            let path = config_dir.join(name);
+            let policy = crate::commands::mens::eval_gate::load_policy(&path)
+                .unwrap_or_else(|e| panic!("failed to load {}: {e}", path.display()));
+            assert_eq!(
+                policy.anti_stub.min_construct_richness_mean, ANTI_STUB_MIN_CONSTRUCT_RICHNESS,
+                "{name}'s anti_stub.min_construct_richness_mean must match \
+                 ANTI_STUB_MIN_CONSTRUCT_RICHNESS in eval_local.rs — they gate the same \
+                 per-answer construct-richness score (per-answer floor vs. run-mean floor) \
+                 and must move together"
+            );
+        }
+    }
+
+    /// Acceptance test for the blocking-gate fix itself: a perfect run whose every answer is a
+    /// correct single-declaration bench solution has `construct_richness_mean == 0.125` (the
+    /// mean of identical per-answer scores). Confirm that value now clears the real
+    /// `eval-gates.yaml` blocking threshold — reproducing the exact comparison
+    /// `check_run.rs::check_run` performs, without needing a full training run directory.
+    #[test]
+    fn perfect_run_construct_richness_mean_clears_fixed_blocking_gate() {
+        let construct_richness_mean = ANTI_STUB_MIN_CONSTRUCT_RICHNESS; // perfect single-decl run
+        let config_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../mens/config");
+        let policy =
+            crate::commands::mens::eval_gate::load_policy(&config_dir.join("eval-gates.yaml"))
+                .expect("load eval-gates.yaml");
+        assert!(
+            construct_richness_mean >= policy.anti_stub.min_construct_richness_mean,
+            "a perfect single-declaration bench run (mean={construct_richness_mean}) must clear \
+             the blocking construct-richness-mean gate ({}), or every correct model is rejected",
+            policy.anti_stub.min_construct_richness_mean
+        );
+    }
+
     /// Companion to the test above: a genuinely stubbed body for the same
     /// task must still fail the anti-stub gate after the fix — the
     /// construct-richness floor was never what caught this class of stub

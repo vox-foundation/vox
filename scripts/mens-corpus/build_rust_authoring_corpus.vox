@@ -1,4 +1,4 @@
-// vox:caps fs
+// vox:caps fs process
 // scripts/mens-corpus/build_rust_authoring_corpus.vox
 //
 // Task D2 (2026-09-12-mens-end-to-end-completion): `mens/config/mix-rust.yaml`
@@ -27,8 +27,18 @@
 // report's fix-report section for the full row-by-row review.
 //
 // Usage: vox run scripts/mens-corpus/build_rust_authoring_corpus.vox
+//
+// Fast-follow (final-review Important finding #5): a purely textual replace can silently
+// match zero rows if the upstream JSONL's serialization ever adds whitespace
+// (`"lane": "rust_context"` instead of `"lane":"rust_context"`) — every row then passes
+// through unrelabeled, mix-rust.yaml's `include_lanes` filter drops all of them downstream,
+// and `total == kept.len()` looks identical to a fully successful run (this is the exact D2
+// zero-signal failure mode this script exists to prevent). So this script now counts how many
+// rows it actually relabeled and hard-fails (non-zero exit) when that count is zero on a
+// non-empty input, instead of silently writing a corpus with no real signal.
 
 import fs
+import process
 
 fn main() {
     let input_path = "mens/data/mix_sources/rust_source.jsonl"
@@ -46,6 +56,7 @@ fn main() {
 
     let mut kept: list[str] = []
     let mut total = 0
+    let mut relabeled_count = 0
 
     let mut i = 0
     while i < n {
@@ -54,9 +65,20 @@ fn main() {
         if trimmed.len() > 0 {
             total = total + 1
             let relabeled = trimmed.replace("\"lane\":\"rust_context\"", "\"lane\":\"vox_rust_authoring\"")
+            if not (relabeled is trimmed) {
+                relabeled_count = relabeled_count + 1
+            }
             kept = kept.push(relabeled)
         }
         i = i + 1
+    }
+
+    print("[build_rust_authoring_corpus] input_lines=" + str(total))
+    print("[build_rust_authoring_corpus] relabeled_lines=" + str(relabeled_count))
+
+    if total > 0 and relabeled_count is 0 {
+        print("[build_rust_authoring_corpus] FATAL: 0 of " + str(total) + " input lines matched the rust_context lane marker — the relabel would silently produce a zero-signal corpus (every row still tagged with a lane mix-rust.yaml's include_lanes filters out). Check whether " + input_path + "'s lane field serialization changed.")
+        process.exit(1)
     }
 
     if not fs.exists("target/dogfood") {
@@ -71,7 +93,6 @@ fn main() {
     }
     fs.write_file(output_path, body)
 
-    print("[build_rust_authoring_corpus] input_lines=" + str(total))
     print("[build_rust_authoring_corpus] output_lines=" + str(kept.len()))
     print("[build_rust_authoring_corpus] wrote " + output_path)
 }

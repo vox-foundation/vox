@@ -69,7 +69,37 @@ pub(super) async fn run_generate(
 }
 
 pub(super) async fn run_extract(dir: &Path, output: &Path) -> Result<()> {
-    let entries = crate::training::walk_vox_files(dir);
+    let walked = crate::training::walk_vox_files(dir);
+
+    // Drop `// training_eligible: false` files (held-out eval tasks, deprecated golden
+    // examples) before anything else touches them — mirrors the guard in
+    // `vox_corpus::corpus::extract_vox`'s own extractor. See leakage incident: a bare
+    // `walk_vox_files` + `build_training_record` pass pulled 31/31 held-out humaneval-vox
+    // reference.vox files into the corpus unfiltered.
+    let mut leakage_filtered = 0u32;
+    let entries: Vec<_> = walked
+        .into_iter()
+        .filter(|path| {
+            let eligible = read_utf8_path_capped(path)
+                .map(|content| vox_corpus::corpus::extract_vox::is_eligible_for_training(&content))
+                .unwrap_or(true);
+            if !eligible {
+                leakage_filtered += 1;
+            }
+            eligible
+        })
+        .collect();
+
+    if leakage_filtered > 0 {
+        eprintln!(
+            "{}",
+            format!(
+                "  ⊘ Skipped {} file(s) marked training_eligible: false",
+                leakage_filtered
+            )
+            .yellow()
+        );
+    }
 
     if entries.is_empty() {
         eprintln!(
@@ -977,4 +1007,34 @@ async fn curate_record_via_ai(
         .to_string();
 
     Ok((record, score, reason))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::run_extract;
+
+    /// Regression test for the leakage bug: `run_extract` must never emit a training
+    /// record for a `.vox` file marked `training_eligible: false` — that marker is how
+    /// held-out eval tasks (e.g. humaneval-vox reference solutions) opt out of the corpus.
+    #[tokio::test]
+    async fn run_extract_skips_training_ineligible_files() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let src_dir = tmp.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("held_out.vox"),
+            "// training_eligible: false\nfn secret_solution(x: int) to int {\n    return x + 1\n}\n",
+        )
+        .unwrap();
+
+        let output = tmp.path().join("out.jsonl");
+        run_extract(&src_dir, &output).await.expect("run_extract");
+
+        let produced = std::fs::read_to_string(&output).unwrap_or_default();
+        let record_count = produced.lines().filter(|l| !l.trim().is_empty()).count();
+        assert_eq!(
+            record_count, 0,
+            "expected zero training records for a training_eligible: false file, got: {produced}"
+        );
+    }
 }
