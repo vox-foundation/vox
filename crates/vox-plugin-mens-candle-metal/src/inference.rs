@@ -58,7 +58,7 @@ fn adapter_deltas_must_be_folded(model_dir: &Path) -> bool {
 /// The adapter file contributes no *base* keys (its tensors are named
 /// `<logical>.lora_a.weight` / `.lora_b.weight`), so it never shadows a base
 /// weight here; the trained delta is folded in separately by
-/// `merge::lora_deltas_by_base_key`, gated on `adapter_deltas_must_be_folded`.
+/// `merge::lora_factors_by_base_key`, gated on `adapter_deltas_must_be_folded`.
 pub fn weight_sources(model_dir: &Path, base_shards: &[PathBuf]) -> Vec<PathBuf> {
     let mut sources = Vec::new();
     let adapter = model_dir.join("candle_qlora_adapter.safetensors");
