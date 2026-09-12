@@ -205,3 +205,108 @@ one-card addition on an existing, proven seam, but it is not there today.
   stub report; a real adapter needs the real eval.
 - The GUI's Mens surface has no `mens serve` card — the natural next scoped
   follow-up, since every other piece of the seam it would use is already proven.
+
+## 9. Task B0 pre-flight — can Qwen3-0.6B emit a parseable tool call?
+
+**Question.** B2 (opening the agent loop to VoxLocal/MENS models) assumes a
+small MENS model can reliably emit well-formed tool-call JSON when given tool
+schemas. This had never been tested. Per the plan's B0 spike, 20
+tool-calling-shaped prompts were sent to this same M4 fixture and scored for
+parseable `{name, arguments}` output.
+
+**Method used, and why.** This branch has not yet landed B2's OpenAI-compatible
+`/v1/chat/completions` route — there is no server-side endpoint that accepts a
+`tools` array and returns structured `tool_calls`. Approach (a) from the task
+brief was used: each prompt spelled out one tool's name, description, and
+parameters directly in the prompt text sent to the existing `/v1/generate`
+endpoint, with an explicit instruction to reply with only a
+`{"name": ..., "arguments": {...}}` JSON object. Greedy decoding
+(`temperature: 0`), `max_tokens: 128`. This tests the load-bearing question for
+B2 — can the model produce parseable tool-call JSON at all when asked — without
+inventing any part of B2's wire format. No prompt was drawn from
+`mens/data/heldout_bench/manifest.json` (checked; that manifest covers Vox
+language constructs, not tool calling, so there was no overlap risk).
+
+**Fixture.** Same run-directory shape as §3: a fresh zero-delta `lm_head`
+LoRA adapter (`lora_a [4,1024]`, `lora_b [151936,4]`, all zeros, F32) over the
+cached `Qwen/Qwen3-0.6B` snapshot, `adapter_manifest.json` v3, plus a stub
+`collateral_damage_report.json` (`status: "pass"`) and `gate_receipt.json`
+(`overall_passed: true`, two named substantive gates) so `vox mens serve`'s
+serve-boundary gates admit it. Not committed (binary + stub gate artifacts);
+built fresh in the session scratchpad.
+
+**Serve command** (single foreground call, health-checked, `timeout`-wrapped,
+port 18112 — not 11434/11435):
+
+```bash
+VOX_PLUGINS_DIR="$S/plugins" ./target/debug/vox-ml-cli mens serve \
+  --model "$S/run_b0" --host 127.0.0.1 --port 18112 \
+  --temperature 0 --max-tokens 128
+```
+
+Health check: `{"status":"ok","service":"vox-ml-cli"}`. Each of the 20 prompts
+was posted to `POST /v1/generate` with `{"prompt": ..., "max_tokens": 128,
+"temperature": 0}`. All 20 completed inside one 560s foreground window,
+16-25s each (consistent with Z1's measured Metal throughput).
+
+**Scoring.** A reply counted as a pass if it contained a JSON object,
+anywhere in the (often rambling) generated text, that parsed cleanly and
+matched `{"name": <str>, "arguments": {...}}` with `name` equal to the one
+tool actually offered in that prompt. Extraction: find `{"name"`, then
+brace-match to the closing `}`, then `json.loads` it — this is deliberately
+generous (a real B2 without a repair shim would need the JSON to be the
+*entire* reply, which is stricter), but it answers "can the model produce
+this shape at all," which is the pre-flight's question.
+
+**Results — 10/20 tools called with valid, correctly-named JSON:**
+
+| # | tool offered | verdict | notes |
+|---|---|---|---|
+| 1 | `read_file` | fail | no JSON emitted; degenerated into repeating prose |
+| 2 | `list_dir` | fail | emitted `{"files": [...], "directories": [...]}` — not the `{name, arguments}` shape, despite the prompt describing that shape twice in the reply |
+| 3 | `get_weather` | fail | prose only ("65 degrees"), repeated |
+| 4 | `search_web` | fail | described intent to call the tool, never emitted JSON |
+| 5 | `send_email` | fail | repeated "should respond with the JSON object," never did |
+| 6 | `get_time` | **pass** | `{"name": "get_time", "arguments": {"timezone": "Tokyo"}}` embedded after reasoning text |
+| 7 | `calculator` | fail | correct arithmetic answer (8194) in prose, no tool call |
+| 8 | `delete_file` | **pass** | `{"name": "delete_file", "arguments": {"path": "/tmp/old_notes.txt"}}` as the first thing emitted |
+| 9 | `create_calendar_event` | **pass** | `{"name": "create_calendar_event", "arguments": {"title": "Dentist", "date": "2026-09-20", "time": "09:00"}}` |
+| 10 | `get_stock_price` | fail | prose only ("$100.00"), no JSON |
+| 11 | `translate_text` | **pass** | `{"name": "translate_text", "arguments": {"text": "good morning", "target_language": "French"}}` |
+| 12 | `run_shell_command` | **pass** | `{"name": "run_shell_command", "arguments": {"command": "whoami"}}` as the first thing emitted |
+| 13 | `set_reminder` | **pass** | `{"name": "set_reminder", "arguments": {"message": "Remind me to call mom", "due": "2026-09-13T18:00:00"}}` |
+| 14 | `lookup_definition` | **pass** | `{"name": "lookup_definition", "arguments": {"word": "ephemeral"}}` after a prose answer |
+| 15 | `convert_currency` | **pass** | `{"name": "convert_currency", "arguments": {"amount": 100, "from": "USD", "to": "EUR"}}` as the first thing emitted, correct values |
+| 16 | `get_file_size` | fail | prose only (fabricated "1000000 bytes"), no JSON |
+| 17 | `book_flight` | **pass** | `{"name": "book_flight", "arguments": {"from": "SFO", "to": "JFK", "date": "2026-10-01"}}` as the first thing emitted, correct values |
+| 18 | `query_database` | fail | emitted `{"data": [...]}` shaped like a tool *result*, not a call |
+| 19 | `resize_image` | **pass** | `{"name": "resize_image", "arguments": {"path": "/tmp/photo.png", "width": 800, "height": 600}}` after prose |
+| 20 | `get_directions` | fail | degenerated into repeating a fabricated street address |
+
+`tool_call_valid_json_rate = 10/20 = 0.5`. Full request/response payloads for
+all 20 prompts are preserved in the B0 task report
+(`.superpowers/sdd/2026-09-12-mens-end-to-end-completion/task-B0-report.md`),
+not reproduced here.
+
+**Qualitative pattern.** Every failure was one of two shapes: (a) the model
+answered the user's question in prose and never attempted the tool-call
+format at all (7 of 10 failures), or (b) it emitted *some* JSON but shaped
+like a hypothetical tool result rather than a call (`list_dir`,
+`query_database`). No failure was a near-miss on the `{name, arguments}`
+shape itself (e.g. a typo'd key, unbalanced braces, wrong quoting) — when
+the model did attempt the shape, it got the JSON syntax and field names
+right every time, including correct argument values. Passes were also
+inconsistent about *position*: some replies opened directly with the JSON
+(`delete_file`, `run_shell_command`, `convert_currency`, `book_flight`),
+others buried it after several sentences of reasoning (`get_time`,
+`create_calendar_event`, `translate_text`, `set_reminder`,
+`lookup_definition`, `resize_image`).
+
+**Ruling (per the B0 decision table): 0.5 falls in the 0.3-0.7 band.**
+**Proceed to B2, but B2 must add a tolerant extraction shim (scan the full
+reply for an embedded `{name, arguments}` object rather than requiring the
+whole reply to be that JSON) and must surface every such salvage to the
+user as an explicit repair, not silently normalize it.** A hard requirement
+that the entire reply be valid, bare JSON would fail more than half of these
+20 cases outright, even though the model does reliably know the target shape
+and the correct argument values once it decides to emit it.
