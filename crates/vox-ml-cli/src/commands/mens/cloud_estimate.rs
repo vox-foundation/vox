@@ -9,7 +9,6 @@
 use anyhow::Result;
 use vox_populi::mens::cloud::CloudTarget;
 use vox_populi::mens::cloud::resolver::{CloudResolver, ResolveRequest};
-use vox_populi::mens::tensor::accel_budget::query_accel_budget;
 use vox_populi::mens::tensor::memory_model::{
     CalKey, DeviceBudget, Lane, MemoryModels, ModelShape, Request, Verdict, plan_for,
 };
@@ -41,20 +40,20 @@ pub fn format_row(
     )
 }
 
-/// Local row: always $0 — there is no local timing model in this command (no
-/// `TimeEstimator` profile exists for "this host"), so wall time is reported
-/// as 0.0h rather than guessed. The row's job is to name the local device and
-/// show it costs nothing; `vox mens train` (no `--cloud`) gives real timing.
-fn local_row() -> String {
-    let device_name = query_accel_budget()
-        .map(|b| b.device_name)
-        .unwrap_or_else(|| "local".to_string());
-    format_row(&device_name, "-", 1, 0.0, 0.0, 0.0)
-}
-
 /// Rank live cloud GPU offers for `model_dir` and print the estimated bill.
 /// Read-only: resolves and ranks via [`CloudResolver::resolve`], never
 /// dispatches or provisions anything.
+///
+/// There is exactly one local row, and it comes from `CloudResolver::resolve`
+/// itself (`LocalProvider::list_offers`, requested whenever `target` is
+/// `auto` or `local`): a real `GpuOffer` priced at $0/hr and timed through the
+/// same `TimeEstimator` three-tier estimation as every rented offer, not a
+/// hand-rolled placeholder. Two competing "local" rows with disagreeing
+/// numbers (one real, one a guess) would be exactly the kind of
+/// confidently-wrong output this command exists to prevent — so this
+/// function does not construct its own. The $0/hr price sorts it to the top
+/// of `resolve`'s cost-ranked list on its own (see `rank_offers`), which is
+/// what "print the local row first" means in practice for `--target auto`.
 pub async fn run(
     model_dir: std::path::PathBuf,
     target: String,
@@ -69,10 +68,6 @@ pub async fn run(
         batch_size: batch_size as u64,
         seq_len: seq_len as u64,
     };
-
-    // Print the free local row first — the point of this command is the
-    // comparison, not the cheapest rental.
-    println!("{}", local_row());
 
     // Every rented offer is CUDA. `plan_for` is infallible: it reports a
     // verdict rather than erroring, so an uncalibrated lane surfaces as
