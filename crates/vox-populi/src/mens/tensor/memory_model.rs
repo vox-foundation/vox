@@ -35,6 +35,8 @@ use std::path::Path;
 
 use anyhow::{Context, Result, anyhow, bail};
 
+use super::accel_budget::AccelBudget;
+
 /// The two real Vox training backends. MLX is intentionally absent — it is
 /// an external reference measurement in `docs/src/architecture/measurements/`,
 /// never a lane Vox trains on; see [`super::calibration::best_record`].
@@ -466,6 +468,19 @@ pub struct Plan {
     pub verdict: Verdict,
     pub tokens_per_step: u64,
     pub usable_bytes: u64,
+    /// The request `plan_for` was actually asked to evaluate — carried
+    /// through so a renderer (see [`render_verdict`]) can name the batch
+    /// size and seq_len it is reporting on without a second parameter.
+    pub request: Request,
+    /// `Some(bytes)` whenever a calibration existed to predict from (both
+    /// `Fits` and a budget-exceeded `Refused` carry this); `None` only when
+    /// the lane itself was uncalibrated, so there was nothing to predict.
+    pub predicted_bytes: Option<u64>,
+    /// Whether `request` was picked automatically (e.g. by [`sweep`]) or is
+    /// an already-chosen size `plan_for` is merely verifying. `plan_for`
+    /// itself cannot know this — it defaults to `false`; a caller building
+    /// an auto-sized plan for display sets it explicitly.
+    pub auto: bool,
 }
 
 /// `SAFETY_FRACTION` taken off a device's working set, then `operator_fraction`
@@ -491,9 +506,11 @@ pub fn plan_for(
 ) -> Plan {
     let tokens_per_step = request.batch_size * request.seq_len;
     let usable = usable_bytes(budget);
+    let mut predicted_bytes = None;
     let verdict = match models.get(key) {
         Ok(model) => {
             let predicted = model.predict_bytes(shape, tokens_per_step);
+            predicted_bytes = Some(predicted);
             if predicted <= usable {
                 Verdict::Fits
             } else {
@@ -509,6 +526,9 @@ pub fn plan_for(
         verdict,
         tokens_per_step,
         usable_bytes: usable,
+        request: *request,
+        predicted_bytes,
+        auto: false,
     }
 }
 
@@ -707,5 +727,225 @@ mod load_default_check {
             .get(&CalKey::new(Lane::CandleCuda, true).unwrap())
             .unwrap();
         assert_eq!(m.source, CalSource::Seeded);
+    }
+}
+
+/// Real binary GiB (1024^3) — matching `AccelBudget`'s own measured numbers
+/// (`accel_budget.rs`'s "107.52 GiB" / "80.64 GiB" doc comments), not the
+/// 1e9-based "GiB" that `candle_qlora_train/oom.rs` quotes verbatim from a
+/// real driver error string in a different crate.
+fn gib(bytes: u64) -> f64 {
+    bytes as f64 / (1024.0 * 1024.0 * 1024.0)
+}
+
+/// Render a [`Plan`] into a full report of a training-fit decision: model
+/// size, both accelerator caps, the usable budget with its safety fraction
+/// named, the chosen shape (tagged `[auto]` or `[you asked for this]`), the
+/// predicted peak and headroom, and the verdict — on EVERY path, not only on
+/// refusal. A renderer that speaks only on failure would pass a
+/// refusal-only test while telling a user nothing when a plan fits, which is
+/// the exact defect this function exists to close (see the GPU Probe card's
+/// "Detected accelerators + LoRA fit" promise).
+///
+/// On refusal, names which cap bound (the single-allocation limit or the
+/// usable working-set budget) and the largest batch size (at the same
+/// `seq_len`) that would fit — derived algebraically from this one plan's
+/// own numbers (`predicted_bytes` is linear in `tokens_per_step`), so this
+/// needs no second `sweep` call and no `MemoryModels`/`CalKey` parameters.
+pub fn render_verdict(plan: &Plan, budget: &AccelBudget, shape: &ModelShape) -> String {
+    use std::fmt::Write as _;
+
+    let tag = if plan.auto {
+        "[auto]"
+    } else {
+        "[you asked for this]"
+    };
+    let mut out = String::new();
+    let _ = writeln!(out, "model artifact: {:.1} GiB", gib(shape.artifact_bytes));
+    let _ = writeln!(
+        out,
+        "device: {} (working set {:.1} GiB, max single alloc {:.1} GiB)",
+        budget.device_name,
+        gib(budget.working_set_bytes),
+        gib(budget.max_alloc_bytes)
+    );
+    let _ = writeln!(
+        out,
+        "usable budget: {:.1} GiB ({:.0}% safety fraction applied)",
+        gib(plan.usable_bytes),
+        SAFETY_FRACTION * 100.0
+    );
+    let _ = writeln!(
+        out,
+        "chosen shape {tag}: batch {} seq_len {} ({} tokens/step)",
+        plan.request.batch_size, plan.request.seq_len, plan.tokens_per_step
+    );
+
+    match (&plan.verdict, plan.predicted_bytes) {
+        (Verdict::Fits, Some(predicted)) => {
+            let headroom = plan.usable_bytes.saturating_sub(predicted);
+            let _ = writeln!(
+                out,
+                "predicted peak: {:.1} GiB, headroom: {:.1} GiB",
+                gib(predicted),
+                gib(headroom)
+            );
+            out.push_str("verdict: FITS\n");
+        }
+        (Verdict::Fits, None) => {
+            // Unreachable in practice (plan_for only returns Fits when a
+            // model prediction succeeded), but keep the verdict line so a
+            // future caller building a Plan by hand never gets a blank
+            // report on the happy path.
+            out.push_str("verdict: FITS\n");
+        }
+        (Verdict::Refused(reason), Some(predicted)) => {
+            let alloc_cap_broken = !budget.single_alloc_fits(predicted);
+            let (cap_bytes, cap_name) = if alloc_cap_broken {
+                (budget.max_alloc_bytes, "single-allocation limit")
+            } else {
+                (plan.usable_bytes, "usable working-set budget")
+            };
+            let _ = writeln!(
+                out,
+                "predicted peak: {:.1} GiB exceeds the {cap_name} ({:.1} GiB)",
+                gib(predicted),
+                gib(cap_bytes)
+            );
+
+            // Back out bytes-per-token from this one plan (predicted is
+            // linear in tokens_per_step: predicted = artifact_bytes +
+            // rate * tokens_per_step) and solve for the largest batch size
+            // (at the same seq_len) that would stay under the binding cap.
+            let rate = (predicted as f64 - shape.artifact_bytes as f64)
+                / plan.tokens_per_step.max(1) as f64;
+            let fix = if rate > 0.0 {
+                let max_tokens = (cap_bytes as f64 - shape.artifact_bytes as f64) / rate;
+                let max_batch = if max_tokens > 0.0 {
+                    (max_tokens / plan.request.seq_len.max(1) as f64).floor() as u64
+                } else {
+                    0
+                };
+                if max_batch >= 1 {
+                    format!(
+                        "reduce --batch-size to {max_batch} (or lower --seq-len) to fit at {cap_name}"
+                    )
+                } else {
+                    "even batch 1 does not fit at this --seq-len; lower --seq-len too".to_string()
+                }
+            } else {
+                "reduce --batch-size or --seq-len to shrink the predicted peak".to_string()
+            };
+            let _ = writeln!(out, "verdict: REFUSED — {reason}\nfix: {fix}");
+        }
+        (Verdict::Refused(reason), None) => {
+            let _ = writeln!(
+                out,
+                "verdict: REFUSED — {reason}\nfix: run `vox mens probe --measure` to calibrate this lane"
+            );
+        }
+    }
+
+    out
+}
+
+#[cfg(test)]
+mod render_verdict_tests {
+    use super::super::accel_budget::BudgetSource;
+    use super::*;
+
+    /// Real measured M5 Max numbers (see `accel_budget.rs`'s own "measured
+    /// M5 Max" test fixture): 107.52 GiB working set, 80.64 GiB max single
+    /// allocation.
+    fn m5max() -> AccelBudget {
+        AccelBudget {
+            device_name: "Apple M5 Max".to_string(),
+            total_bytes: 115_448_725_504,
+            working_set_bytes: 115_448_725_504,
+            max_alloc_bytes: 86_587_244_544,
+            source: BudgetSource::Metal,
+        }
+    }
+
+    /// A 27B-class shape (mirrors `plan_for_tests::shape_27b`).
+    fn shape_27b() -> ModelShape {
+        ModelShape {
+            artifact_bytes: 60_000_000_000,
+            layers: 64,
+            hidden: 5120,
+        }
+    }
+
+    fn fits_plan_auto() -> Plan {
+        Plan {
+            verdict: Verdict::Fits,
+            tokens_per_step: 512,
+            usable_bytes: (115_448_725_504f64 * SAFETY_FRACTION).round() as u64,
+            request: Request {
+                batch_size: 1,
+                seq_len: 512,
+            },
+            predicted_bytes: Some(65_000_000_000),
+            auto: true,
+        }
+    }
+
+    /// The measured b4x1024 OOM: 122.1 GiB needed against an 80.6 GiB
+    /// single-allocation cap (see `oom.rs`'s "122.10 GiB" real driver quote
+    /// for the same class of event, in a different crate/convention).
+    fn single_alloc_too_large_plan() -> Plan {
+        let predicted = (122.1f64 * 1024.0 * 1024.0 * 1024.0).round() as u64;
+        Plan {
+            verdict: Verdict::Refused(format!("predicted {predicted} bytes exceeds usable budget")),
+            tokens_per_step: 4096,
+            usable_bytes: (115_448_725_504f64 * SAFETY_FRACTION).round() as u64,
+            request: Request {
+                batch_size: 4,
+                seq_len: 1024,
+            },
+            predicted_bytes: Some(predicted),
+            auto: false,
+        }
+    }
+
+    #[test]
+    fn a_fitting_plan_states_what_was_chosen_and_that_it_was_automatic() {
+        let s = render_verdict(&fits_plan_auto(), &m5max(), &shape_27b());
+        assert!(s.contains("batch 1"), "name the shape it picked: {s}");
+        assert!(s.contains("512"), "name the seq len: {s}");
+        assert!(
+            s.contains("[auto]"),
+            "say the user did not choose this: {s}"
+        );
+        assert!(
+            s.contains("GiB"),
+            "state predicted AND budget on the happy path too: {s}"
+        );
+    }
+
+    #[test]
+    fn a_refusal_states_the_cap_it_broke_and_the_knob_that_fixes_it() {
+        let s = render_verdict(&single_alloc_too_large_plan(), &m5max(), &shape_27b());
+        assert!(s.contains("122.1"), "state what it needs: {s}");
+        assert!(s.contains("80.6"), "state the cap it broke: {s}");
+        assert!(s.contains("batch"), "name the knob that fixes it: {s}");
+    }
+
+    #[test]
+    fn an_uncalibrated_refusal_still_names_the_fix_without_a_predicted_number() {
+        let plan = Plan {
+            verdict: Verdict::Refused("no memory-model calibration for lane candle-metal".into()),
+            tokens_per_step: 512,
+            usable_bytes: 100,
+            request: Request {
+                batch_size: 1,
+                seq_len: 512,
+            },
+            predicted_bytes: None,
+            auto: true,
+        };
+        let s = render_verdict(&plan, &m5max(), &shape_27b());
+        assert!(s.contains("REFUSED"));
+        assert!(s.contains("probe --measure"));
     }
 }

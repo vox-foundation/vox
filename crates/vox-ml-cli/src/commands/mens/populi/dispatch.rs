@@ -412,6 +412,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             model_dir,
             seq_len,
             gradient_checkpointing,
+            model,
         } => {
             let v = detailed || _global_verbose;
             if measure {
@@ -419,7 +420,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             } else if sweep {
                 probe::run_sweep(model_dir, seq_len, gradient_checkpointing)
             } else {
-                probe::run_probe(v).await
+                probe::run_probe(v, model, seq_len, gradient_checkpointing).await
             }
         }
 

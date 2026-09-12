@@ -358,6 +358,12 @@ pub enum PopuliAction {
         /// Show detailed hardware metadata and recommended hyperparameter presets.
         #[arg(long, short = 'd')]
         detailed: bool,
+        /// HF Hub model to check with `--detailed`: the dry run of `vox mens
+        /// train --model <repo>` — downloads (or reuses the cached) model
+        /// and reports the real `sweep`/`plan_for` fit verdict against this
+        /// host's actual memory budget, instead of a VRAM-only estimate.
+        #[arg(long)]
+        model: Option<String>,
         /// Report this host's real accelerator memory budget (working-set /
         /// max single-allocation bytes) as a calibration measurement — the
         /// fix named by an "uncalibrated lane" error from `vox mens train`.

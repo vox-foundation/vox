@@ -5,6 +5,7 @@ import { CoverageView } from './Coverage/CoverageView';
 import { ResearchView } from './Research/ResearchView';
 import { PublicationsView } from './Publications/PublicationsView';
 import { SubAgentsView } from './SubAgents/SubAgentsView';
+import { MensTrainingView } from './Models/MensTrainingView';
 import type { Toast } from '../../types/tauri';
 
 /**
@@ -39,11 +40,10 @@ function commandSurface(
 export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecoratorProps>> = {
   scientia: ScientiaSurface,
   coverage: CoverageView,
-  mens: commandSurface('Vox Mens', 'ML training & local models', [
-    { key: 'status', title: 'Training Status', description: 'Latest run telemetry', path: ['mens', 'status'] },
-    { key: 'models', title: 'Model Registry', description: 'Locally trained models', path: ['mens', 'models'] },
-    { key: 'probe', title: 'GPU Probe', description: 'Detected accelerators + LoRA fit', path: ['mens', 'probe'] },
-  ]),
+  // Bespoke, not `commandSurface`: the GPU Probe card needs the model the
+  // user actually selected (`get_active_model`) to check a real fit, not a
+  // static arg-free command — see `Models/MensTrainingView.tsx`.
+  mens: MensTrainingView,
   populi: commandSurface('Vox Populi', 'Distributed mesh network', [
     { key: 'status', title: 'Mesh Status', description: 'Network health + overlay diagnostics', path: ['populi', 'status'] },
     { key: 'registry', title: 'Local Snapshot', description: 'On-disk registry + environment', path: ['populi', 'registry-snapshot'] },

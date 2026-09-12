@@ -107,10 +107,29 @@ pub fn run_sweep(
     }
 }
 
-pub async fn run_probe(verbose: bool) -> Result<()> {
+/// `vox mens probe --detailed [--model <repo>]`.
+///
+/// With `--model`, this is the dry run of `vox mens train --model <repo>`:
+/// it downloads (or reuses the cached) model, then reports the exact
+/// `sweep`/`plan_for` verdict the real training run's auto-sizing path would
+/// reach, rendered with [`render_verdict`] — the same renderer `--sweep`
+/// could use, so the GPU Probe card's "Detected accelerators + LoRA fit"
+/// promise is no longer just a VRAM number (see the defect this closes:
+/// `CommandCardsView.tsx`/`decoratorRegistry.ts` invoke this command with a
+/// hardcoded empty argv, so the "fit" half of that promise never ran).
+///
+/// Without `--model`, there is no model on disk to build a real
+/// `ModelShape` from, so this keeps the pre-existing VRAM-only
+/// `recommend_config` profile rather than refusing outright.
+pub async fn run_probe(
+    verbose: bool,
+    model: Option<String>,
+    seq_len: u64,
+    gradient_checkpointing: bool,
+) -> Result<()> {
     #[cfg(not(feature = "gpu"))]
     {
-        let _ = verbose;
+        let _ = (verbose, model, seq_len, gradient_checkpointing);
         anyhow::bail!("`vox mens probe` requires --features gpu");
     }
     #[cfg(feature = "gpu")]
@@ -155,35 +174,119 @@ pub async fn run_probe(verbose: bool) -> Result<()> {
         }
 
         if verbose {
-            let profile = recommend_config(summary.vram_mb);
-            println!();
-            println!(
-                "{}",
-                format!(
-                    "Recommended config for this hardware ({} profile):",
-                    profile.label
-                )
-                .bold()
-                .magenta()
-            );
-            println!(
-                "  --rank {} --batch-size {} --seq-len {}",
-                profile.suggested_rank, profile.suggested_batch, profile.max_seq_len
-            );
-            println!();
-            println!("  Example training command:");
-            println!(
-                "    {} mens train --device {} --rank {} --batch-size {} --seq-len {}",
-                "vox".cyan(),
-                summary.backend.as_cli_flag(),
-                profile.suggested_rank,
-                profile.suggested_batch,
-                profile.max_seq_len,
-            );
+            match model.as_deref() {
+                Some(repo_id) => {
+                    print_model_fit_verdict(repo_id, seq_len, gradient_checkpointing)?;
+                }
+                None => {
+                    let profile = recommend_config(summary.vram_mb);
+                    println!();
+                    println!(
+                        "{}",
+                        format!(
+                            "Recommended config for this hardware ({} profile):",
+                            profile.label
+                        )
+                        .bold()
+                        .magenta()
+                    );
+                    println!(
+                        "  --rank {} --batch-size {} --seq-len {}",
+                        profile.suggested_rank, profile.suggested_batch, profile.max_seq_len
+                    );
+                    println!();
+                    println!("  Example training command:");
+                    println!(
+                        "    {} mens train --device {} --rank {} --batch-size {} --seq-len {}",
+                        "vox".cyan(),
+                        summary.backend.as_cli_flag(),
+                        profile.suggested_rank,
+                        profile.suggested_batch,
+                        profile.max_seq_len,
+                    );
+                    println!();
+                    println!(
+                        "  Pass --model <hf-repo> for a real fit check against this host's \
+                         actual memory budget."
+                    );
+                }
+            }
         }
 
         Ok(())
     } // end #[cfg(feature = "gpu")]
+}
+
+/// The `--model` half of `run_probe --detailed`: download (or reuse) the
+/// real model, measure this host's real accelerator budget, and render the
+/// exact `sweep`/`plan_for` verdict `vox mens train --model <repo_id>`'s
+/// auto-sizing path would reach — never a fabricated or param-count-based
+/// estimate. `sweep` failing (nothing fits, even batch 1) is not treated as
+/// this function's own error: `plan_for` at batch=1 is called instead so
+/// `render_verdict` can still explain WHY, which is strictly more useful
+/// than a bare `Err` here.
+#[cfg(feature = "gpu")]
+fn print_model_fit_verdict(
+    repo_id: &str,
+    seq_len: u64,
+    gradient_checkpointing: bool,
+) -> Result<()> {
+    use owo_colors::OwoColorize;
+    use vox_populi::mens::tensor::accel_budget::{BudgetSource, query_accel_budget};
+    use vox_populi::mens::tensor::memory_model::{
+        CalKey, DeviceBudget, Lane, MemoryModels, ModelShape, Request, plan_for, render_verdict,
+        sweep,
+    };
+
+    println!();
+    println!(
+        "{}",
+        format!("Dry run of `vox mens train --model {repo_id}`:")
+            .bold()
+            .magenta()
+    );
+    eprintln!(
+        "  {} Downloading base model from Hugging Face: {}",
+        "📥".cyan(),
+        repo_id
+    );
+    let files = vox_populi::mens::hub::download_model_blocking(repo_id).map_err(|e| {
+        anyhow::anyhow!(
+            "HF download failed for `{repo_id}` ({e}). \
+             Set HF token env vars if this is a gated repo and retry."
+        )
+    })?;
+    eprintln!("  {} Cached at {}", "✓".green(), files.cache_dir.display());
+
+    let shape = ModelShape::from_model_dir(&files.cache_dir)?;
+    let accel = query_accel_budget()
+        .ok_or_else(|| anyhow::anyhow!("no accelerator budget available on this host"))?;
+    let lane = match accel.source {
+        BudgetSource::Metal => Lane::CandleMetal,
+        BudgetSource::Cuda => Lane::CandleCuda,
+    };
+    let key = CalKey::new(lane, gradient_checkpointing)?;
+    let models = MemoryModels::load_default()?;
+    let budget = DeviceBudget {
+        working_set_bytes: accel.working_set_bytes,
+        operator_fraction: None,
+    };
+
+    let request = match sweep(&budget, &models, &key, &shape, seq_len) {
+        Ok(req) => req,
+        // Even batch=1 was refused (or the lane is uncalibrated) — verify
+        // the smallest possible request instead, so `render_verdict` below
+        // still has a real `Plan` to explain the refusal from.
+        Err(_) => Request {
+            batch_size: 1,
+            seq_len,
+        },
+    };
+    let mut plan = plan_for(&budget, &models, &key, &shape, &request);
+    plan.auto = true;
+
+    println!("{}", render_verdict(&plan, &accel, &shape));
+    Ok(())
 }
 
 #[cfg(all(test, feature = "mens-base"))]

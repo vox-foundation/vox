@@ -7,14 +7,16 @@ use std::path::PathBuf;
 #[test]
 fn probe_runs_without_gpu() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(probe::run_probe(false));
+    let result = rt.block_on(probe::run_probe(false, None, 512, false));
     assert!(result.is_ok());
 }
 
 #[test]
 fn probe_verbose_runs_without_gpu() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(probe::run_probe(true));
+    // No --model: must stay the old VRAM-only profile path, which needs no
+    // network and always succeeds — it must NOT attempt a download.
+    let result = rt.block_on(probe::run_probe(true, None, 512, false));
     assert!(result.is_ok());
 }
 
@@ -97,11 +99,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
         TensorView::new(Dtype::F32, vec![vocab, d], wb.as_slice()).unwrap(),
     );
     let base_path = dir.path().join("model.safetensors");
-    std::fs::write(
-        &base_path,
-        safetensors::serialize(&base_map, None).unwrap(),
-    )
-    .unwrap();
+    std::fs::write(&base_path, safetensors::serialize(&base_map, None).unwrap()).unwrap();
 
     let fa = vec![1.0f32; rank * d];
     let fb = vec![1.0f32; vocab * rank];
@@ -200,11 +198,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
         TensorView::new(Dtype::F32, vec![vocab, d], wb.as_slice()).unwrap(),
     );
     let base_path = dir.path().join("model.safetensors");
-    std::fs::write(
-        &base_path,
-        safetensors::serialize(&base_map, None).unwrap(),
-    )
-    .unwrap();
+    std::fs::write(&base_path, safetensors::serialize(&base_map, None).unwrap()).unwrap();
 
     let fa = vec![1.0f32; rank * d];
     let fb = vec![1.0f32; vocab * rank];
