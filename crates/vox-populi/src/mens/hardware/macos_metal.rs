@@ -66,6 +66,92 @@ pub fn probe_metal() -> Option<HardwareSummary> { // toestub-ignore(skeleton/hol
     None
 }
 
+/// Minimum safety reserve subtracted from live-reclaimable memory, in bytes,
+/// even when the proportional margin would compute less — protects a
+/// nearly-idle small Mac from a near-zero margin. Matches the constant this
+/// logic used before the vram_autodetect ladder deletion (`MIN_LIVE_MEM_RESERVE_GIB`,
+/// 2 GiB) and the plan's cited `max(15%, 2 GiB)` reserve.
+const MIN_LIVE_PRESSURE_RESERVE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+
+/// Proportional margin taken off live-reclaimable memory before it's treated
+/// as available budget. Matches the deleted `vram_autodetect` default.
+const LIVE_PRESSURE_MARGIN_PCT: f64 = 0.15;
+
+/// Parse `vm_stat` output into `(page_size_bytes, free_pages, inactive_pages, speculative_pages)`.
+/// `None` if any required field is missing or unparseable.
+///
+/// Ported from the deleted `vram_autodetect::parse_vm_stat` (English `vm_stat`
+/// output only, same class of limitation as the `nvidia-smi` CSV parser).
+/// Purgeable pages are omitted from the reclaimable sum by design.
+#[cfg(target_os = "macos")]
+fn parse_vm_stat(stdout: &str) -> Option<(u64, u64, u64, u64)> {
+    fn trailing_count(rest: &str) -> Option<u64> {
+        rest.trim().trim_end_matches('.').parse::<u64>().ok()
+    }
+
+    let mut page_size = None;
+    let mut free = None;
+    let mut inactive = None;
+    let mut speculative = None;
+
+    for line in stdout.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("Mach Virtual Memory Statistics: (page size of ") {
+            let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+            page_size = digits.parse::<u64>().ok().filter(|&n| n > 0);
+        } else if let Some(rest) = line.strip_prefix("Pages free:") {
+            free = trailing_count(rest);
+        } else if let Some(rest) = line.strip_prefix("Pages inactive:") {
+            inactive = trailing_count(rest);
+        } else if let Some(rest) = line.strip_prefix("Pages speculative:") {
+            speculative = trailing_count(rest);
+        }
+    }
+
+    Some((page_size?, free?, inactive?, speculative?))
+}
+
+/// Reduce a reclaimable-memory pool (bytes) by a proportional margin, floored
+/// at a minimum absolute reserve so a small pool isn't left with almost no
+/// margin. Pure function, independently testable without a real Mac.
+fn apply_live_pressure_margin(
+    reclaimable_bytes: u64,
+    margin_pct: f64,
+    min_reserve_bytes: u64,
+) -> u64 {
+    let margin = ((reclaimable_bytes as f64 * margin_pct) as u64).max(min_reserve_bytes);
+    reclaimable_bytes.saturating_sub(margin)
+}
+
+/// Live memory-pressure-derived working-set estimate, in bytes: current
+/// free+inactive+speculative pages (the standard macOS reclaimable-memory
+/// definition, read via `vm_stat`) minus a reserve for the OS/GUI.
+///
+/// This is an ADDITIONAL, more conservative signal alongside
+/// `recommendedMaxWorkingSetSize` — it reacts to what other processes are
+/// currently using, which the driver's static advisory does not. It does not
+/// replace the driver advisory (see `query_accel_budget`'s doc comment) and
+/// it is not a resurrection of the deleted static VRAM ladder: it produces
+/// one number, not a lookup table.
+///
+/// `None` if `vm_stat` fails to run or its output can't be parsed — callers
+/// should fall back to the driver advisory alone in that case.
+#[cfg(target_os = "macos")]
+pub(crate) fn live_pressure_budget_bytes() -> Option<u64> {
+    let out = std::process::Command::new("vm_stat").output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let (page_size, free, inactive, speculative) =
+        parse_vm_stat(&String::from_utf8_lossy(&out.stdout))?;
+    let reclaimable_bytes = (free + inactive + speculative).saturating_mul(page_size);
+    Some(apply_live_pressure_margin(
+        reclaimable_bytes,
+        LIVE_PRESSURE_MARGIN_PCT,
+        MIN_LIVE_PRESSURE_RESERVE_BYTES,
+    ))
+}
+
 /// Rounds a byte count up to the nearest whole megabyte.
 ///
 /// `MTLDevice.currentAllocatedSize` on a freshly-created device context is
@@ -152,5 +238,62 @@ mod tests {
         assert_eq!(bytes_to_mb_ceil(65_536), 1);
         assert_eq!(bytes_to_mb_ceil(1024 * 1024), 1);
         assert_eq!(bytes_to_mb_ceil(1024 * 1024 + 1), 2);
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn parse_vm_stat_reads_page_size_and_reclaimable_pages() {
+        // Real `vm_stat` output shape (page size of 16384 bytes).
+        let sample = "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n\
+Pages free:                                    53189.\n\
+Pages active:                                3598773.\n\
+Pages inactive:                              2935813.\n\
+Pages speculative:                            712573.\n\
+Pages throttled:                                   0.\n\
+Pages wired down:                             413750.\n\
+Pages purgeable:                               17793.\n";
+        let (page_size, free, inactive, speculative) = parse_vm_stat(sample).expect("parses");
+        assert_eq!(page_size, 16384);
+        assert_eq!(free, 53189);
+        assert_eq!(inactive, 2935813);
+        assert_eq!(speculative, 712573);
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn parse_vm_stat_rejects_missing_fields() {
+        assert!(parse_vm_stat("").is_none());
+        assert!(
+            parse_vm_stat("Mach Virtual Memory Statistics: (page size of 16384 bytes)\n").is_none()
+        );
+    }
+
+    #[test]
+    fn apply_live_pressure_margin_uses_proportional_reserve_above_the_floor() {
+        // 40 GiB reclaimable, 15% margin -> 6 GiB margin (above the 2 GiB floor) -> 34 GiB.
+        let gib = 1024u64 * 1024 * 1024;
+        assert_eq!(
+            apply_live_pressure_margin(40 * gib, 0.15, MIN_LIVE_PRESSURE_RESERVE_BYTES),
+            34 * gib
+        );
+    }
+
+    #[test]
+    fn apply_live_pressure_margin_floors_the_reserve_on_small_pools() {
+        // 5 GiB reclaimable, 15% would be 0.75 GiB -- the 2 GiB floor wins.
+        let gib = 1024u64 * 1024 * 1024;
+        assert_eq!(
+            apply_live_pressure_margin(5 * gib, 0.15, MIN_LIVE_PRESSURE_RESERVE_BYTES),
+            3 * gib
+        );
+    }
+
+    #[test]
+    fn apply_live_pressure_margin_never_underflows() {
+        let gib = 1024u64 * 1024 * 1024;
+        assert_eq!(
+            apply_live_pressure_margin(gib, 0.15, MIN_LIVE_PRESSURE_RESERVE_BYTES),
+            0
+        );
     }
 }
