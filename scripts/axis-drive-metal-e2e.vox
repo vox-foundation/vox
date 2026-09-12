@@ -1,6 +1,7 @@
 // vox:caps subprocess fs
 import fs
 import process
+import env
 
 fn vox_binary_path() to str {
     // Prefer debug when present so local agent/Drive e2e picks up uncommitted
@@ -51,6 +52,81 @@ fn string_field(value: Json, key: str) to str {
     return value.get(key).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
 }
 
+// Last assistant bubble's text, or "" if the bubble list is empty — used by
+// both the demo turn and the nonce-echo turn so neither has to duplicate the
+// bubbles/get/unwrap_or chain.
+fn last_assistant_text(drive_state_json: Json) to str {
+    let bubbles = drive_state_json.get("bubbles").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+    if bubbles.len() is 0 {
+        return ""
+    }
+    let last_bubble = bubbles.get(bubbles.len() - 1).unwrap()
+    return string_field(last_bubble, "content")
+}
+
+// Extraction rule (Task B3 step 5): the FIRST ```vox fenced code block in the
+// model's reply. Returns None when no fence opens, or when one opens but
+// never closes — both are extraction failures, not "nothing to extract".
+// Callers MUST fail() on None; "no fence found -> skip" is the exact
+// false-green shape this repo has shipped before (see task-B3-brief.md).
+fn first_vox_fence(text: str) to Option[str] {
+    let lines = text.split("\n")
+    let mut in_fence = false
+    let mut collected = ""
+    for line in lines {
+        let trimmed = line.trim()
+        if in_fence {
+            if trimmed.starts_with("```") {
+                return Some(collected)
+            }
+            if collected == "" {
+                collected = line
+            } else {
+                collected = collected + "\n" + line
+            }
+        } else {
+            if trimmed.starts_with("```vox") {
+                in_fence = true
+            }
+        }
+    }
+    return None
+}
+
+// Minimal OpenAI-chat-shaped POST against a `mens serve` (or compatible)
+// endpoint, greedy (temperature 0) so two calls against the same weights are
+// deterministic and comparable. Returns None on any transport/parse failure
+// so callers can fail() with their own context.
+fn chat_completion_text(url: str, prompt: str) to Option[str] {
+    let escaped = prompt.replace("\"", "\\\"")
+    let body = "{\"model\":\"probe\",\"temperature\":0,\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"" + escaped + "\"}]}"
+    let result = process.run("curl", [
+        "--fail", "--silent", "--show-error",
+        "-X", "POST", url,
+        "-H", "Content-Type: application/json",
+        "-d", body
+    ])
+    if result is null {
+        return None
+    }
+    let completed = result.unwrap()
+    if completed.code is not 0 {
+        return None
+    }
+    let parsed = json.parse(completed.stdout)
+    if parsed.is_err() {
+        return None
+    }
+    let j = parsed.unwrap()
+    let choices = j.get("choices").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+    if choices.len() is 0 {
+        return None
+    }
+    let choice = choices.get(0).unwrap()
+    let msg = choice.get("message").unwrap_or(choice)
+    return Some(string_field(msg, "content"))
+}
+
 fn main() {
     let uname = process.run("uname", ["-s"])
     if uname is null {
@@ -66,18 +142,6 @@ fn main() {
     let pin = "mens/qwen35-08b-metal-e2e"
     let port = "11435"
     let bin = vox_binary_path()
-
-    let health = process.run("curl", [
-        "--fail", "--silent", "--show-error",
-        "http://127.0.0.1:" + port + "/v1/models"
-    ])
-    if health is null or health.unwrap().code is not 0 {
-        fail(bin, "serve probe failed on port " + port + "; run scripts/mens-macos-metal-e2e.vox first")
-    }
-    let models_body = health.unwrap().stdout
-    if not models_body.contains("qwen35-08b-metal-e2e") {
-        fail(bin, "serve /v1/models did not list qwen35-08b-metal-e2e")
-    }
 
     // Step 0: stop prior Drive + foreign orch so spawn gets VOX_GUI_DRIVE env.
     let _ = process.run(bin, ["gui", "drive", "stop"])
@@ -100,6 +164,28 @@ fn main() {
 
     let state_response = run_json(bin, ["gui", "drive", "state"])
     let drive_state = state_view(state_response)
+
+    // Step 6: assert the GUI's OWN view of reachability, not a direct curl to
+    // /v1/models. `gui drive state` already carries `probe.reachable` and
+    // `probe.models` (crates/vox-gui/src/drive/protocol.rs::DriveProbe) — this
+    // is what Axis itself believes about the serve leg, which is the thing an
+    // operator/agent actually looks at, not the raw HTTP transport.
+    let probe = drive_state.get("probe").unwrap_or(drive_state)
+    let probe_reachable = probe.get("reachable").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+    if not probe_reachable {
+        fail(bin, "gui drive state probe.reachable=false; run scripts/mens-macos-metal-e2e.vox first")
+    }
+    let probe_models = probe.get("models").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+    let mut probe_has_pin = false
+    for m in probe_models {
+        if m.as_str().unwrap_or("") == pin {
+            probe_has_pin = true
+        }
+    }
+    if not probe_has_pin {
+        fail(bin, "gui drive state probe.models does not contain " + pin + " — the GUI's own probe does not see the pinned model")
+    }
+
     let orch_fresh = drive_state.get("orch_fresh").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
     if not orch_fresh {
         fail(bin, "orch_fresh=false after start — foreign orch may still be adopted or spawn failed")
@@ -107,16 +193,40 @@ fn main() {
     let catalog = drive_state.get("catalog").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
     let pin_policy = string_field(drive_state, "pin_policy")
     let mut pin_selectable = false
+    let mut pin_reason = ""
     for row in catalog {
         if string_field(row, "id") == pin {
             pin_selectable = row.get("selectable").and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(false)
+            pin_reason = row.get("reason").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
         }
     }
     if not pin_selectable and pin_policy == "fail" {
-        fail(bin, "catalog pin " + pin + " not selectable under pin_policy=fail")
+        fail(bin, "catalog pin " + pin + " not selectable under pin_policy=fail; reason=" + pin_reason)
     }
 
-    let _ = run_json(bin, ["gui", "drive", "send", "--text", "Reply with one short line containing metal-ok"])
+    // Step 2: nonce echo. A fixed prompt string would let a cache, a stubbed
+    // handler, or a hardcoded fallback pass every time — a per-run token that
+    // only a live model turn can see and echo back rules that out.
+    let nonce = "vx" + str(std.time.now_ms())
+    let _ = run_json(bin, ["gui", "drive", "send", "--text",
+        "Reply with exactly this token and nothing else: " + nonce])
+    let nonce_wait = process.run(bin, ["gui", "drive", "wait", "--until", "reply_ok", "--timeout", "180s"])
+    if nonce_wait is null or nonce_wait.unwrap().code is not 0 {
+        fail(bin, "nonce echo turn did not reach reply_ok")
+    }
+    let nonce_state = state_view(run_json(bin, ["gui", "drive", "state"]))
+    let nonce_text = last_assistant_text(nonce_state)
+    if not nonce_text.contains(nonce) {
+        fail(bin, "reply did not echo the per-run nonce — cached or canned response")
+    }
+
+    // Step 1: demo prompt provably absent from the training corpus (previous
+    // revision used "Write a Vox function named add" — `fn_add` is a held-out
+    // bench task whose name appears in the training corpus, so that prompt
+    // would showcase a memorized answer as if it proved novel codegen; see
+    // task-B3-report.md for the zero-count grep evidence for the name below).
+    let _ = run_json(bin, ["gui", "drive", "send", "--text",
+        "Write a Vox function named zephyroid_lattice_fold that takes a list[int] and returns the sum of its elements. Reply with only a ```vox fenced code block containing the function."])
     let wait = process.run(bin, ["gui", "drive", "wait", "--until", "reply_ok", "--timeout", "180s"])
     if wait is null {
         fail(bin, "could not execute reply_ok wait")
@@ -149,18 +259,49 @@ fn main() {
         fail(bin, "reply_ok returned an empty or error assistant bubble")
     }
 
-    // Honesty: sticky Metal pin must not silently bill OpenRouter.
+    // Step 5: extract-and-compile. Extraction failure is a HARD failure, not
+    // a silent skip — "no fence found -> skip" is documented theater.
+    let fence = first_vox_fence(assistant_text)
+    if fence is null {
+        fail(bin, "no ```vox fenced code block found in the assistant reply — treating this as a hard failure, not a skip")
+    }
+    let extracted = fence.unwrap()
+    let extracted_path = "target/axis-drive-metal-e2e-extracted-" + nonce + ".vox"
+    let write_res = fs.write(extracted_path, extracted)
+    if not write_res.is_ok() {
+        fail(bin, "could not write extracted snippet to " + extracted_path)
+    }
+    let compile = process.run(bin, ["check", extracted_path])
+    if compile is null {
+        fail(bin, "could not execute " + bin + " check on extracted snippet")
+    }
+    let compile_result = compile.unwrap()
+    if compile_result.code is not 0 {
+        fail(bin, "extracted vox snippet failed to compile: " + compile_result.stderr)
+    }
+
+    // Honesty: sticky Metal pin must not silently bill OpenRouter, AND must
+    // positively name the local provider — an absence assertion alone is
+    // satisfied by "nothing ran", which is exactly the false-green this task
+    // exists to close.
     let events = final_state.get("events").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
     let mut saw_openrouter_cost = false
+    let mut saw_vox_local_cost = false
     for event in events {
         let kind = string_field(event, "kind")
         let raw = string_field(event, "raw")
         if kind == "cost_incurred" and raw.contains("\"provider\":\"openrouter\"") {
             saw_openrouter_cost = true
         }
+        if kind == "cost_incurred" and raw.contains("\"provider\":\"vox_local\"") {
+            saw_vox_local_cost = true
+        }
     }
     if saw_openrouter_cost {
         fail(bin, "Metal pin routed to OpenRouter (cost_incurred provider=openrouter); VoxLocal sticky resolve failed")
+    }
+    if not saw_vox_local_cost {
+        fail(bin, "no cost_incurred event names provider=vox_local — cannot positively confirm the reply actually came from the local VoxLocal serve leg (absence of openrouter alone does not prove this)")
     }
 
     let turn_id = string_field(final_state, "last_turn_id")
@@ -179,6 +320,50 @@ fn main() {
     }
     if not submit_ok {
         fail(bin, "state.events is missing submit_ok for last_turn_id; kinds=" + kinds)
+    }
+
+    // Step 4: adapter-vs-base. Nothing else in this repo checks whether the
+    // served reply actually used the trained adapter versus a silent fallback
+    // to base (untrained) weights — without this, a broken adapter load would
+    // pass every assertion above. The check requires a second endpoint
+    // serving ONLY the base weights (no adapter) for a same-prompt, greedy
+    // comparison; `crates/vox-plugin-mens-candle-metal/src/inference.rs`
+    // hard-requires an adapter file and manifest to load at all (it errors if
+    // either is missing — see `resolve_adapter_manifest_path` /
+    // "LoRA adapter or adapter_manifest.json not found"), and neither
+    // `vox mens serve` nor `vox mens eval-local` nor `vox chat` (OpenRouter
+    // only) expose a "serve base weights, no adapter" mode. That is a genuine
+    // infrastructure gap, not something to fake here (see task-B3-report.md).
+    // Until that mode exists, an operator can point VOX_MENS_BASE_ENDPOINT at
+    // a base-only OpenAI-chat-compatible endpoint to opt in; absent that, this
+    // check fails closed rather than silently passing.
+    let base_endpoint = env.get("VOX_MENS_BASE_ENDPOINT")
+    if base_endpoint is null {
+        fail(bin, "VOX_MENS_BASE_ENDPOINT is not set — no base-only (no-adapter) serving mode exists in this repo today, so adapter-vs-base cannot be verified live; see task-B3-report.md for the gap and the code paths that would need one")
+    }
+    let base_url = base_endpoint.unwrap()
+    let compare_prompt = "Reply with exactly this token and nothing else: " + nonce
+    let adapter_reply = chat_completion_text("http://127.0.0.1:" + port + "/v1/chat/completions", compare_prompt)
+    let base_reply = chat_completion_text(base_url, compare_prompt)
+    if adapter_reply is null or base_reply is null {
+        fail(bin, "adapter-vs-base comparison could not reach both endpoints")
+    }
+    if adapter_reply.unwrap() == base_reply.unwrap() {
+        fail(bin, "adapter output is byte-identical to base output for the same greedy prompt — the adapter is not actually being applied (silent fallback to base weights)")
+    }
+
+    // Step 3: positive provider assertion (above) paired with the negative
+    // control no absence-assertion can fake — stop the serve process this
+    // turn claims to be testing, re-send, and require the turn to now fail.
+    // If it still succeeds, the reply was never actually coming from serve.
+    let _ = process.run("pkill", ["-f", "mens serve"])
+    let _ = process.run("sleep", ["2"])
+    let control_nonce = nonce + "-control"
+    let _ = run_json(bin, ["gui", "drive", "send", "--text",
+        "Reply with exactly this token and nothing else: " + control_nonce])
+    let control_wait = process.run(bin, ["gui", "drive", "wait", "--until", "reply_ok", "--timeout", "20s"])
+    if control_wait is not null and control_wait.unwrap().code is 0 {
+        fail(bin, "turn still succeeded after stopping mens serve — the reply was never actually coming from the server this e2e claims to test")
     }
 
     print("{\"status\":\"pass\",\"plane\":\"" + plane + "\",\"model\":\"" + pin + "\",\"turn_id\":\"" + turn_id + "\",\"event_kinds\":\"" + kinds + "\",\"event_count\":" + str(events.len()) + "}")
