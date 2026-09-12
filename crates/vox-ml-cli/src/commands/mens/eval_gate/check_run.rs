@@ -702,7 +702,16 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                         ));
                     }
                 } else {
-                    msg.push_str(" baseline file missing (skipped regression check)");
+                    // A3 (c): a *configured* baseline_file that is absent must hard-fail
+                    // the gate, not silently skip the regression check — the same defect
+                    // class Task A1/A2 fixed elsewhere (a policy reading a file nobody
+                    // produced yet reading as "pass"/"not applicable" instead of "broken").
+                    pass = false;
+                    msg.push_str(&format!(
+                        " baseline file missing: {} — beat-base comparison required but not \
+                         found (run `vox mens eval-local --base ...` to produce it)",
+                        baseline_path.display()
+                    ));
                 }
             }
             results.push(GateResult {

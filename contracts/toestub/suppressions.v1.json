@@ -67,6 +67,12 @@
       "path_glob": "**/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/mod.rs",
       "reason": "run_training_loop drives a live Candle/CUDA QLoRA trainer end to end; exercised via integration/manual training runs, not a unit harness. Pre-existing (file had zero #[test] blocks before Task 7 OOM wiring touched it).",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-ml-cli/src/commands/mens/eval_gate/check_run.rs",
+      "reason": "check_run is pre-existing (predates Task A3's pass_at_k missing-baseline hard-fail fix, which only edits one else-branch) and is exercised by 69 #[test]s in the sibling eval_gate/tests.rs, including the new pass_at_k_gate_hard_fails_when_baseline_configured_but_missing added for this change. tdd-guard only looks for inline #[test] blocks in the same file, not the crate's established sibling-file test convention for this module.",
+      "owner": "robot"
     }
   ]
 }

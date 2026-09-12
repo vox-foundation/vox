@@ -568,6 +568,48 @@ rust_compile_rate:
 }
 
 #[test]
+fn pass_at_k_gate_hard_fails_when_baseline_configured_but_missing() {
+    // Task A3 (c): a configured baseline_file that is absent must hard-fail
+    // the gate, not silently skip the regression check — the defect class
+    // D-3/A1/A2 already fixed elsewhere in this plan, found here too.
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("benchmark_passatk.json"),
+        r#"{"pass_rate_at_1":0.90,"pass_rate_at_k":0.95}"#,
+    )
+    .unwrap();
+    // Deliberately do NOT write baseline_passatk.json.
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+pass_at_k:
+  min_pass_rate_at_1: 0.10
+  min_pass_rate_at_k: 0.10
+  max_regression_drop: 0.05
+  baseline_file: baseline_passatk.json
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "pass_at_k")
+        .expect("gate");
+    assert!(
+        !g.passed,
+        "a configured-but-missing baseline must hard-fail, not skip: {}",
+        g.message
+    );
+    assert!(
+        g.message.to_lowercase().contains("baseline"),
+        "message should explain the missing baseline: {}",
+        g.message
+    );
+}
+
+#[test]
 fn agentic_gates_pass_when_rates_above_threshold() {
     let dir = tempfile::tempdir().expect("tempdir");
     std::fs::write(
