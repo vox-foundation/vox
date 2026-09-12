@@ -67,8 +67,8 @@ export function MessageBubble({
           <ModelBadge
             model={message.modelId}
             // ponytail: derived from the id prefix, not the backend's actual
-            // provider/cost record — see Task C4 report for the honest
-            // ParsedChatReply-threading follow-up.
+            // provider/cost record — chat.rs's ParsedChatReply /
+            // parse_chat_message_envelope would be the honest source.
             provider={message.modelId.startsWith('mens/') ? 'local' : undefined}
             costUsd={message.modelId.startsWith('mens/') ? 0 : undefined}
             latencyMs={message.latencyMs}
