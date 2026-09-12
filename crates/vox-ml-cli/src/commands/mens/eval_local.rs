@@ -416,10 +416,12 @@ pub fn run_eval_local(
             )?;
             eprintln!("  pass@k summary saved: {}", passk_path.display());
 
-            // Give the eval-gates-rust.yaml / eval-gates-agents.yaml policies a
-            // producer: merge (not clobber) rust_compile_rate / clippy_clean_rate /
-            // tool_call_valid_json_rate into eval_results.json, derived from the
-            // same verify_completion pass/anti-stub signal computed above.
+            // Give eval-gates-agents.yaml's tool_call_valid_json_rate a producer:
+            // merge (not clobber) it into eval_results.json. rust_compile_rate /
+            // clippy_clean_rate are deliberately NOT touched here — see
+            // aggregate_gate_producer_keys's doc comment for why (they already
+            // have a real cargo-build/clippy producer via `vox corpus eval`, and
+            // this path used to silently overwrite it with a weaker proxy).
             let eval_results_path = parent.join("eval_results.json");
             let mut eval_results_obj = read_json_object_or_empty(&eval_results_path);
             eval_results_obj.extend(aggregate_gate_producer_keys(&results));
@@ -494,15 +496,31 @@ fn looks_like_json_tool_call(source: &str) -> bool {
     serde_json::from_str::<serde_json::Value>(source.trim()).is_ok()
 }
 
-/// Aggregate the `eval_results.json` keys the `eval-gates-rust.yaml` /
-/// `eval-gates-agents.yaml` policies gate on (`rust_compile_rate`,
-/// `clippy_clean_rate`, `tool_call_valid_json_rate`) from eval-local's own
-/// already-computed per-item results — the same `verify_completion` pass /
-/// anti-stub / json-shape signal, not a second verifier.
+/// Aggregate the `eval_results.json` keys eval-local can *honestly* produce
+/// from its own already-computed per-item results — the same
+/// `verify_completion` pass / json-shape signal, not a second verifier.
 ///
-/// A category with zero rows in this benchmark run omits its key entirely
-/// (matches the "not applicable" semantics `check_run.rs` already expects for
-/// `rust_compile_rate` / `clippy_clean_rate` — see `corpus/stats.rs`).
+/// Only `tool_call_valid_json_rate` is emitted here. `rust_compile_rate` /
+/// `clippy_clean_rate` are deliberately **not** computed by this function:
+/// `eval-gates-rust.yaml` already has a real producer for those two keys —
+/// `vox corpus eval` (`compute_rust_spoke_metrics` in
+/// `vox-corpus/src/corpus/eval_rust_metrics.rs`), which spawns actual `cargo
+/// build`/`cargo clippy` and is already wired into the mens pipeline's `Eval`
+/// stage, writing into the same `run_dir/eval_results.json` this function's
+/// caller also targets. eval-local's own verifier never runs a Rust compiler
+/// or clippy — its `pass_at_k`/`anti_stub_pass` are both downstream of the
+/// same anti-stub heuristic (`pass = pass && anti_stub_pass`), so a prior
+/// version of this function reported `rust_compile_rate` and
+/// `clippy_clean_rate` as two names for one proxy signal, and — because it
+/// ran *after* the real producer in the natural pipeline order — silently
+/// overwrote the real compiler/linter signal with it. Reintroducing either
+/// key here would need eval-local to actually invoke `cargo build`/`cargo
+/// clippy` on the candidate's completion, which is out of scope for this
+/// function (see Task A3 report, "Part (a) fix").
+///
+/// A category with zero rows omits `tool_call_valid_json_rate` entirely
+/// (matches the existing "not applicable" semantics elsewhere in
+/// `check_run.rs`).
 fn aggregate_gate_producer_keys(
     results: &[serde_json::Value],
 ) -> serde_json::Map<String, serde_json::Value> {
@@ -521,35 +539,6 @@ fn aggregate_gate_producer_keys(
     }
 
     let mut out = serde_json::Map::new();
-
-    let rust_rows: Vec<&serde_json::Value> = results
-        .iter()
-        .filter(|e| category_of(e) == "rust_authoring")
-        .collect();
-    if !rust_rows.is_empty() {
-        let n = rust_rows.len() as f64;
-        let compiled = rust_rows
-            .iter()
-            .filter(|e| {
-                e.get("pass_at_k")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false)
-            })
-            .count() as f64;
-        out.insert(
-            "rust_compile_rate".to_string(),
-            serde_json::json!(compiled / n),
-        );
-
-        let clean = rust_rows
-            .iter()
-            .filter(|e| any_sample_flag(e, "anti_stub_pass"))
-            .count() as f64;
-        out.insert(
-            "clippy_clean_rate".to_string(),
-            serde_json::json!(clean / n),
-        );
-    }
 
     let agent_rows: Vec<&serde_json::Value> = results
         .iter()
@@ -669,31 +658,25 @@ mod tests {
     }
 
     #[test]
-    fn rust_compile_rate_reflects_candidate_pass_fail() {
-        // A2 (Task A3): eval_local must give eval-gates-rust.yaml a real producer.
-        // One rust_authoring row that fails to compile → rate 0.0, which fails
-        // the `min_pct: 0.70` gate in eval-gates-rust.yaml.
-        let results = vec![entry("rust_authoring", false, false)];
+    fn aggregate_gate_producer_keys_never_emits_rust_keys() {
+        // Fix for review finding #1 (Task A3 follow-up): eval-local's own
+        // verifier never runs cargo build/clippy — its old rust_compile_rate
+        // and clippy_clean_rate were both downstream of the same
+        // anti_stub_pass heuristic (rust_compile_rate <= clippy_clean_rate by
+        // construction, since `pass = pass && anti_stub_pass`), so it was a
+        // proxy pretending to be a compiler signal. Even feeding it a
+        // rust_authoring row that would previously have produced
+        // rust_compile_rate=1.0 must emit neither key now.
+        let results = vec![entry("rust_authoring", true, true)];
         let keys = aggregate_gate_producer_keys(&results);
-        assert_eq!(
-            keys.get("rust_compile_rate").and_then(|v| v.as_f64()),
-            Some(0.0),
-            "non-compiling candidate must produce rust_compile_rate=0.0"
+        assert!(
+            !keys.contains_key("rust_compile_rate"),
+            "eval-local must never compute rust_compile_rate (no compiler runs here): {keys:?}"
         );
-        assert_eq!(
-            keys.get("clippy_clean_rate").and_then(|v| v.as_f64()),
-            Some(0.0)
+        assert!(
+            !keys.contains_key("clippy_clean_rate"),
+            "eval-local must never compute clippy_clean_rate (no clippy runs here): {keys:?}"
         );
-    }
-
-    #[test]
-    fn rust_compile_rate_omitted_when_no_rust_rows() {
-        // "Not applicable" semantics (check_run.rs): no rust_authoring rows in
-        // this benchmark → omit the key entirely, never report a fake 0.0.
-        let results = vec![entry("vox_general", true, true)];
-        let keys = aggregate_gate_producer_keys(&results);
-        assert!(!keys.contains_key("rust_compile_rate"));
-        assert!(!keys.contains_key("clippy_clean_rate"));
     }
 
     #[test]
@@ -733,7 +716,7 @@ mod tests {
 
         let mut merged = read_json_object_or_empty(&path);
         merged.extend(aggregate_gate_producer_keys(&[entry(
-            "rust_authoring",
+            "agent_trace",
             true,
             true,
         )]));
@@ -747,6 +730,49 @@ mod tests {
             serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(v["vox_parse_rate"], 0.99);
         assert_eq!(v["construct_coverage_pct"], 42.0);
-        assert_eq!(v["rust_compile_rate"], 1.0);
+    }
+
+    #[test]
+    fn eval_results_json_merge_leaves_real_rust_producer_values_untouched() {
+        // Fix for review finding #2 (Task A3 follow-up): `vox corpus eval`
+        // (compute_rust_spoke_metrics — real cargo build/clippy) may already
+        // have written rust_compile_rate/clippy_clean_rate into
+        // eval_results.json before eval-local runs (the natural pipeline
+        // order is train -> corpus-eval -> eval-local). eval-local's merge
+        // must never touch those two keys, no matter what its own results
+        // contain — proven here by feeding it a rust_authoring row that
+        // would previously (before the fix) have produced
+        // rust_compile_rate=0.0, and confirming the real producer's 0.87/0.91
+        // survive exactly.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("eval_results.json");
+        std::fs::write(
+            &path,
+            r#"{"rust_compile_rate": 0.87, "clippy_clean_rate": 0.91}"#,
+        )
+        .unwrap();
+
+        let mut merged = read_json_object_or_empty(&path);
+        merged.extend(aggregate_gate_producer_keys(&[entry(
+            "rust_authoring",
+            false,
+            false,
+        )]));
+        std::fs::write(
+            &path,
+            serde_json::to_string_pretty(&serde_json::Value::Object(merged)).unwrap(),
+        )
+        .unwrap();
+
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(
+            v["rust_compile_rate"], 0.87,
+            "real compiler-backed rust_compile_rate must survive eval-local's merge untouched"
+        );
+        assert_eq!(
+            v["clippy_clean_rate"], 0.91,
+            "real clippy-backed clippy_clean_rate must survive eval-local's merge untouched"
+        );
     }
 }
