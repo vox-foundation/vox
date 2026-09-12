@@ -923,15 +923,19 @@ mod tests {
         set
     }
 
-    /// The mutation an earlier review actually performed: revert one of the
-    /// `QuantizedLinear::from_weight` call sites to a raw `get_tensor` and the
-    /// whole suite still passed, because nothing executes `load` without a real
-    /// multi-shard model on disk.
+    /// A CI-time early warning that a linear projection stopped going through
+    /// the adapter path — NOT the safety guarantee. The real guarantee is
+    /// `assert_adapter_fully_applied`, which runs at the end of every `load` in
+    /// production and fails loudly there; this test just catches the same
+    /// mistake earlier, at review time, without a model on disk.
     ///
-    /// No unit test can execute those call sites, so this asserts on the source
-    /// text instead — the one thing that *can* see them. Crude on purpose: it
-    /// fails the moment any linear layer is built from an unadapted weight,
-    /// which is precisely the defect this file was changed to fix.
+    /// It asserts on source text because no unit test can execute those call
+    /// sites (they need a real multi-shard model), and the text is the only
+    /// thing that can see them. Two review mutations motivated its current
+    /// shape: reverting a call site to `get_tensor` in place, and hoisting the
+    /// fetch into a local (`let q_raw = get_tensor(..)`) before constructing
+    /// the layer. The substring check catches the first; only an EXACT count
+    /// catches the second, since a loose `>=` bound tolerates losing one site.
     #[test]
     fn no_linear_layer_is_built_from_an_unadapted_weight() {
         let src = include_str!("inference.rs");
@@ -943,13 +947,19 @@ mod tests {
             "a QuantizedLinear is being built straight from get_tensor — that layer serves \
              base weights even with an adapter loaded. Use linear_weight instead."
         );
-        // 13 real call sites + the one inside this test module's own fixtures.
-        assert!(
-            adapted >= 13,
-            "expected every linear projection to go through linear_weight, found {adapted} \
-             (offenders build {offenders} QuantizedLinear total)"
+        // 13 real call sites + 1 for the matcher literal on the line above,
+        // which `include_str!` also sees. Exact, not `>=`: a lower bound lets a
+        // refactor delete one call site and still pass.
+        assert_eq!(
+            adapted, EXPECTED_ADAPTED_OCCURRENCES,
+            "expected exactly {EXPECTED_ADAPTED_OCCURRENCES} occurrences (13 linear projections \
+             + this test's own matcher literal), found {adapted}. A projection is being loaded \
+             without the adapter, or a call site moved — {offenders} QuantizedLinear built total."
         );
     }
+
+    /// 13 linear projections + the matcher string literal in the test above.
+    const EXPECTED_ADAPTED_OCCURRENCES: usize = 14;
 
     /// B3: the wiring guard. Reverting ONE call site to a plain `get_tensor`
     /// drops its key from the requested set — and that must be a hard load

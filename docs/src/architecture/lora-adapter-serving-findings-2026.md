@@ -80,19 +80,31 @@ reintroducing the original defect at that site — left all 57 tests passing. Th
 headline test hand-built the delta application in its own body, so it tested
 candle/qlora arithmetic rather than any wiring.
 
-Three guards now exist:
+Three guards now exist. **The safety property is the first one; the other two are
+early warnings.** Do not read the static text-matching test as the thing that makes
+an unapplied adapter unshippable — it is not.
 
-1. **`assert_adapter_fully_applied`**, called at the end of `load`. `linear_weight`
-   records every key it fetches; the check then fails unless every trained delta
-   key was requested by some call site (catches an adapter keyed to a tensor
-   nothing loads — the tied-head spelling mismatch) **and** every projection
-   `linear_projection_keys(layout)` declares was requested (catches a call site
-   reverted to `get_tensor`). Both halves are pure functions, unit-tested.
-2. **`no_linear_layer_is_built_from_an_unadapted_weight`** — a source-level test
-   over `include_str!("inference.rs")`. Crude on purpose: no unit test can execute
-   those call sites without a real multi-shard model on disk, and the source text
-   is the only thing that can see them. This is the test that catches the exact
-   mutation the review performed.
+1. **`assert_adapter_fully_applied`** — the actual guarantee. It runs at the end of
+   every `InferenceEngine::load` in **both** crates, in production, not just under
+   `cargo test`. `linear_weight` records every key it fetches; the check then fails
+   the load unless every trained delta key was requested by some call site (catches
+   an adapter keyed to a tensor nothing loads — the tied-head spelling mismatch)
+   **and** every projection `linear_projection_keys(layout)` declares was requested
+   (catches a call site that stopped going through the adapter path, however it was
+   spelled). A model whose adapter is not fully applied therefore refuses to serve
+   rather than quietly serving base weights. Both halves are pure functions and are
+   unit-tested directly.
+2. **`no_linear_layer_is_built_from_an_unadapted_weight`** — a CI-time early warning,
+   not a safety guarantee. It asserts on `include_str!("inference.rs")` because no
+   unit test can execute those call sites without a real multi-shard model, so the
+   source text is the only thing that can see them at test time. Its value is
+   catching the mistake at review time instead of at first load. Its limits are
+   real: it is text matching, so it sees call-site *deletions* in the current
+   formatting and nothing more. Two review mutations shaped it — reverting a call
+   site to `get_tensor` in place (caught by the substring check) and hoisting the
+   fetch into a local before constructing the layer (caught **only** by asserting
+   the exact occurrence count; an earlier `>= 13` lower bound tolerated losing one
+   site and let that refactor through).
 3. **`every_key_training_can_map_to_is_one_inference_requests`** — asserts every
    base key `candle_qlora_train` can put in `base_key_map` is a key inference
    actually fetches, so a spelling drift on either side is caught statically.
