@@ -50,7 +50,8 @@
       }
     ],
     "externalBin": [
-      "../../target/release/vox"
+      "../../target/release/vox",
+      "../../target/release/vox-ml-cli"
     ],
     "createUpdaterArtifacts": false,
     "macOS": {
