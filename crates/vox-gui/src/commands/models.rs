@@ -1,6 +1,6 @@
 //! Tauri commands for model registry, routing preferences, and scoreboard surfaces.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::Serialize;
 use vox_config::AutoRoutingPriority;
@@ -232,6 +232,20 @@ pub async fn search_model_cards(
     Ok(specs.iter().map(|m| model_spec_to_card(m, None)).collect())
 }
 
+/// In-process fallback for the active-model round trip, used only when the
+/// workspace DB is unreachable (or the row hasn't landed yet). Replaces a
+/// prior `unsafe { std::env::set_var("VOX_MODEL", ...) }`: mutating the
+/// process environment from an async fn in a multi-threaded Tauri process is
+/// a data-race hazard, and it also collided with `VOX_MODEL` as a genuine
+/// user-set launch-time default (`docs/agents/config-hierarchy.md`) — writing
+/// here would have silently overridden that for the rest of the process's
+/// life. This static is local to the GUI's own display of the active model;
+/// it does not affect daemon-side routing (see `mcp_chat_model_override`).
+fn active_model_override() -> &'static Mutex<Option<String>> {
+    static OVERRIDE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+    OVERRIDE.get_or_init(|| Mutex::new(None))
+}
+
 #[tauri::command]
 pub async fn set_active_model(model_id: String) -> Result<(), String> {
     if model_id.trim().is_empty() {
@@ -241,17 +255,32 @@ pub async fn set_active_model(model_id: String) -> Result<(), String> {
     if reg.get(&model_id).is_none() {
         return Err(format!("model {model_id} not found in registry"));
     }
-    unsafe {
-        std::env::set_var("VOX_MODEL", model_id.trim());
-    }
+    let trimmed = model_id.trim().to_string();
+    *active_model_override().lock().unwrap() = Some(trimmed.clone());
     if let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
     {
         let _ = db
-            .set_user_preference("local_user", "active_model", model_id.trim())
+            .set_user_preference("local_user", "active_model", &trimmed)
             .await;
     }
     Ok(())
+}
+
+/// What [`get_active_model`] returns when the DB preference is absent or
+/// unreadable: the in-process override set by [`set_active_model`] (same
+/// GUI-process display fallback the old env round trip provided), else the
+/// genuine user-set `VOX_MODEL` launch-time env var. Pure / no I/O beyond
+/// the mutex and `resolve_secret`, so it's testable without a DB.
+fn active_model_fallback() -> Option<String> {
+    if let Some(v) = active_model_override().lock().unwrap().clone() {
+        return Some(v);
+    }
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxModel)
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
 }
 
 #[tauri::command]
@@ -263,11 +292,7 @@ pub async fn get_active_model() -> Result<Option<String>, String> {
     {
         return Ok(Some(v));
     }
-    Ok(vox_secrets::resolve_secret(vox_secrets::SecretId::VoxModel)
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string))
+    Ok(active_model_fallback())
 }
 
 pub async fn get_routing_summary(daemon: &PersistentDaemon) -> Result<RoutingSummaryDto, String> {
@@ -650,6 +675,26 @@ pub async fn nudge_routing_intention(axis: String, direction: String) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn active_model_fallback_returns_in_process_override_when_set() {
+        // Simulates get_active_model's post-DB-miss path: the DB row is
+        // absent/unreadable, so it falls through to active_model_fallback().
+        // This proves set_active_model's in-process write (which replaced the
+        // unsafe VOX_MODEL env round trip) is actually observed by
+        // get_active_model when the DB is unavailable.
+        *active_model_override().lock().unwrap() = None;
+        assert_eq!(active_model_fallback(), None);
+
+        *active_model_override().lock().unwrap() = Some("mens/just-set-model".to_string());
+        assert_eq!(
+            active_model_fallback(),
+            Some("mens/just-set-model".to_string())
+        );
+
+        // Clean up so this test doesn't leak state into others in the binary.
+        *active_model_override().lock().unwrap() = None;
+    }
 
     #[test]
     fn routing_priority_csv_shape() {
