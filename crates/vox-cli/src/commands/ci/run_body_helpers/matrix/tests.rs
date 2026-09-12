@@ -1,9 +1,40 @@
 use std::path::{Path, PathBuf};
 
 use super::{
-    collect_legacy_script_glue_violations, nested_cargo_target_dir, resolve_mens_gate_manifest_path,
+    collect_legacy_script_glue_violations, nested_cargo_target_dir,
+    resolve_mens_gate_manifest_path, rewrite_test_to_nextest,
 };
 use crate::commands::ci::constants::FEATURE_SETS;
+
+#[test]
+fn rewrite_test_to_nextest_switches_subcommand_and_appends_no_tests_fail() {
+    let args: Vec<String> = ["test", "-p", "vox-populi", "--lib", "execution_planner"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    let rewritten = rewrite_test_to_nextest(args);
+    assert_eq!(
+        rewritten,
+        vec![
+            "nextest",
+            "run",
+            "-p",
+            "vox-populi",
+            "--lib",
+            "execution_planner",
+            "--no-tests=fail",
+        ]
+    );
+}
+
+#[test]
+fn rewrite_test_to_nextest_leaves_non_test_commands_untouched() {
+    let args: Vec<String> = ["check", "-p", "vox-cli"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    assert_eq!(rewrite_test_to_nextest(args.clone()), args);
+}
 
 #[test]
 fn feature_sets_include_script_execution_lane() {
