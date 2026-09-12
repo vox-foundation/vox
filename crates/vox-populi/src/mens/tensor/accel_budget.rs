@@ -9,8 +9,15 @@ pub enum BudgetSource {
 #[derive(Debug, Clone)]
 pub struct AccelBudget {
     pub device_name: String,
+    /// Metal: the driver's static `recommendedMaxWorkingSetSize` advisory,
+    /// unadjusted. CUDA: total VRAM. See `working_set_bytes` for the
+    /// live-pressure-adjusted effective budget.
     pub total_bytes: u64,
-    /// Metal: `recommendedMaxWorkingSetSize`. CUDA: total VRAM.
+    /// Metal: `min(recommendedMaxWorkingSetSize, live memory pressure)` — the
+    /// driver's static advisory does not react to what other processes
+    /// (browser, IDE, other apps) are using right now, so it's combined with
+    /// a live `vm_stat`-derived reading and the smaller of the two wins. CUDA:
+    /// total VRAM (no live-pressure signal implemented for CUDA here).
     pub working_set_bytes: u64,
     /// Largest single allocation. Metal: `maxBufferLength`. Binds before
     /// `working_set_bytes` on large-batch runs.
@@ -34,17 +41,34 @@ impl AccelBudget {
     }
 }
 
+/// Combine the driver's static working-set advisory with a live
+/// memory-pressure reading, taking the more conservative (smaller) of the
+/// two. The driver advisory (`recommendedMaxWorkingSetSize`) doesn't react to
+/// what other processes (browser, IDE, other apps) are using right now; a
+/// pure live-pressure read ignores the hardware ceiling. Neither alone is
+/// trustworthy, so the effective budget is their minimum. `None` live
+/// pressure (e.g. `vm_stat` unavailable/unparseable) leaves the driver
+/// advisory untouched. Not `#[cfg]`-gated so it's testable on every host.
+fn combine_with_live_pressure(driver_advisory_bytes: u64, live_pressure_bytes: Option<u64>) -> u64 {
+    match live_pressure_bytes {
+        Some(live) => driver_advisory_bytes.min(live),
+        None => driver_advisory_bytes,
+    }
+}
+
 // Verified against objc2-metal 0.3.2's generated/MTLDevice.rs:722
 // (recommendedMaxWorkingSetSize) and :1740 (maxBufferLength) — re-check on any
 // objc2-metal version bump.
 #[cfg(target_os = "macos")]
 pub fn query_accel_budget() -> Option<AccelBudget> {
+    use crate::mens::hardware::macos_metal::live_pressure_budget_bytes;
     use objc2_metal::{MTLCreateSystemDefaultDevice, MTLDevice};
     let device = MTLCreateSystemDefaultDevice()?;
-    let working = device.recommendedMaxWorkingSetSize();
+    let driver_advisory = device.recommendedMaxWorkingSetSize();
+    let working = combine_with_live_pressure(driver_advisory, live_pressure_budget_bytes());
     Some(AccelBudget {
         device_name: device.name().to_string(),
-        total_bytes: working,
+        total_bytes: driver_advisory,
         working_set_bytes: working,
         // NSUInteger is usize; the struct field is u64.
         max_alloc_bytes: device.maxBufferLength() as u64,
@@ -219,6 +243,37 @@ lanes:
             },
         );
         assert!(matches!(refused.verdict, Verdict::Refused(_)));
+    }
+
+    // ── live memory pressure as an additional, more-conservative constraint ──
+
+    #[test]
+    fn combine_with_live_pressure_takes_live_reading_when_tighter() {
+        let driver_advisory = 100 * 1024 * 1024 * 1024; // 100 GiB
+        let live_pressure = 40 * 1024 * 1024 * 1024; // 40 GiB free right now
+        assert_eq!(
+            combine_with_live_pressure(driver_advisory, Some(live_pressure)),
+            live_pressure
+        );
+    }
+
+    #[test]
+    fn combine_with_live_pressure_takes_driver_advisory_when_tighter() {
+        let driver_advisory = 40 * 1024 * 1024 * 1024; // 40 GiB hardware ceiling
+        let live_pressure = 100 * 1024 * 1024 * 1024; // plenty currently free
+        assert_eq!(
+            combine_with_live_pressure(driver_advisory, Some(live_pressure)),
+            driver_advisory
+        );
+    }
+
+    #[test]
+    fn combine_with_live_pressure_falls_back_to_driver_advisory_when_unavailable() {
+        let driver_advisory = 64 * 1024 * 1024 * 1024;
+        assert_eq!(
+            combine_with_live_pressure(driver_advisory, None),
+            driver_advisory
+        );
     }
 
     #[test]

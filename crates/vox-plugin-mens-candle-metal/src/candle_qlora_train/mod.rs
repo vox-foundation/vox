@@ -239,7 +239,7 @@ fn compute_cosine_lr(step: u32, warmup: usize, total: u32, base_lr: f64) -> f64 
     }
 }
 
-fn synthesize_rope_inv_freq(
+pub(crate) fn synthesize_rope_inv_freq(
     head_dim: usize,
     rope_theta: Option<f64>,
     device: &Device,
