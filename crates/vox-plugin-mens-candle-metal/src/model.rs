@@ -654,6 +654,27 @@ impl Qwen35Model {
                 self.layers.len()
             )));
         }
+        // A Gated-DeltaNet layer's recurrent state IS cached correctly, but the
+        // k-tap causal short conv in front of it
+        // (`Qwen35LinearAttention::causal_depthwise_conv_silu`) keeps no
+        // cross-call state: it reads taps `t - j` from the CURRENT chunk and
+        // treats anything earlier as zero. A whole-context forward therefore
+        // always saw the real history; a one-token decode step would silently
+        // drop every tap but `j = 0` and return plausible, wrong logits. Refuse
+        // the second call onto a populated Linear slot rather than serve that.
+        // Fixing it properly means caching the conv's last `k - 1` inputs, which
+        // is a larger change than this path is scoped for.
+        if let Some(i) = cache
+            .iter()
+            .position(|c| matches!(c, Qwen35LayerCache::Linear(Some(_))))
+        {
+            return Err(candle_core::Error::Msg(format!(
+                "incremental decode over a linear-attention layer is unsupported \
+                 (layer {i}): short-conv state caching is unimplemented, so the \
+                 depthwise conv would see zeros where the previous tokens should be. \
+                 Re-forward the full context for hybrid models instead."
+            )));
+        }
         let (b, seq_len) = input_ids.dims2()?;
         let d_model = self.embed_tokens.dim(1)?;
         let ids = input_ids.flatten_all()?;
@@ -1091,6 +1112,137 @@ mod kv_cache_tests {
             err.to_string().contains("populated KV cache"),
             "unexpected error: {err}"
         );
+    }
+
+    /// A two-layer hybrid stack: one full-attention layer and one Gated-DeltaNet
+    /// `Linear` layer, matching what `inference.rs` builds for a `layer_types`
+    /// config carrying `"linear_attention"`. `d = 64` with 8 heads keeps every
+    /// projection a multiple of the NF4 quantizer's 64-element block.
+    fn hybrid_model() -> Qwen35Model {
+        let dev = Device::Cpu;
+        let d = 64usize;
+        let (num_k_heads, num_v_heads) = (8usize, 8usize);
+        let (head_k_dim, head_v_dim) = (d / num_k_heads, d / num_v_heads);
+        let key_dim = num_k_heads * head_k_dim;
+        let value_dim = num_v_heads * head_v_dim;
+        let qkv_dim = key_dim * 2 + value_dim;
+        let kernel = 4usize;
+        let qlin = |d_out: usize, d_in: usize| {
+            let w = Tensor::randn(0f32, 0.02f32, (d_out, d_in), &dev).unwrap();
+            QuantizedLinear::from_weight(&w, None, &qcfg(), &dev).unwrap()
+        };
+        let norm = |n: usize| RmsNorm::new(Tensor::ones(n, DType::F32, &dev).unwrap(), 1e-6);
+        let mlp = || Qwen2MLP {
+            gate_proj: qlin(d * 2, d),
+            up_proj: qlin(d * 2, d),
+            down_proj: qlin(d, d * 2),
+        };
+        let linear = Qwen35Layer {
+            input_layernorm: norm(d),
+            attention: Qwen35AttentionBlock::Linear(Qwen35LinearAttention {
+                qkv_proj: qlin(qkv_dim, d),
+                z_proj: qlin(value_dim, d),
+                b_proj: qlin(num_v_heads, d),
+                a_proj: qlin(num_v_heads, d),
+                out_proj: qlin(d, value_dim),
+                conv_weight: Tensor::randn(0f32, 0.02f32, (qkv_dim, kernel), &dev).unwrap(),
+                dt_bias: Tensor::zeros(num_v_heads, DType::F32, &dev).unwrap(),
+                a_log: Tensor::zeros(num_v_heads, DType::F32, &dev).unwrap(),
+                norm: norm(head_v_dim),
+                num_k_heads,
+                num_v_heads,
+                head_k_dim,
+                head_v_dim,
+            }),
+            post_attention_layernorm: norm(d),
+            mlp: mlp(),
+            inv_freq: None,
+        };
+        let full = Qwen35Layer {
+            input_layernorm: norm(d),
+            attention: Qwen35AttentionBlock::Full(Qwen2Attention {
+                q_proj: qlin(d, d),
+                k_proj: qlin(d, d),
+                v_proj: qlin(d, d),
+                o_proj: qlin(d, d),
+                q_bias: None,
+                k_bias: None,
+                v_bias: None,
+                n_heads: 8,
+                n_kv_heads: 8,
+                head_dim: d / 8,
+                q_norm: None,
+                k_norm: None,
+            }),
+            post_attention_layernorm: norm(d),
+            mlp: mlp(),
+            inv_freq: None,
+        };
+        Qwen35Model {
+            embed_tokens: Tensor::randn(0f32, 0.02f32, (16, d), &dev).unwrap(),
+            layers: vec![full, linear],
+            norm: norm(d),
+            lm_head: QuantizedLinear::from_weight(
+                &Tensor::randn(0f32, 0.02f32, (16, d), &dev).unwrap(),
+                None,
+                &qcfg(),
+                &dev,
+            )
+            .unwrap(),
+        }
+    }
+
+    /// `Qwen35LinearAttention`'s k-tap causal short conv keeps no cross-call
+    /// state — it reads taps from the current chunk and treats anything earlier
+    /// as zero. So a one-token decode step on a hybrid model would drop every
+    /// tap but `j = 0` and return plausible, wrong logits. Fast and wrong is
+    /// strictly worse than slow and right, so the step is refused.
+    ///
+    /// This is not a hypothetical layer: `inference.rs` builds
+    /// `Qwen35AttentionBlock::Linear` whenever `config.json`'s `layer_types`
+    /// names `linear_attention`.
+    #[test]
+    fn an_incremental_step_on_a_linear_attention_layer_is_refused() {
+        let model = hybrid_model();
+        let seq: [u32; 5] = [1, 7, 3, 12, 5];
+        let mut cache = model.empty_cache();
+        assert!(
+            matches!(cache[1], Qwen35LayerCache::Linear(None)),
+            "fixture must actually contain a linear-attention layer"
+        );
+
+        // The prefill is a single forward over an EMPTY cache — the conv sees the
+        // whole context, exactly as the uncached path did. It must NOT trip.
+        model
+            .forward_cached(&ids(&seq[..4]), 0, &mut cache)
+            .expect("a prefill into an empty cache is the shape the short conv can serve");
+        assert!(
+            matches!(cache[1], Qwen35LayerCache::Linear(Some(_))),
+            "the prefill must have filled the linear layer's recurrent state"
+        );
+
+        let err = model
+            .forward_cached(&ids(&seq[4..5]), 4, &mut cache)
+            .expect_err("a decode step over a linear layer must be refused, not mis-convolved");
+        assert!(
+            err.to_string()
+                .contains("short-conv state caching is unimplemented"),
+            "unexpected error: {err}"
+        );
+    }
+
+    /// The guard must be specific to linear attention: a pure full-attention
+    /// stack decodes incrementally and must not be caught by it.
+    #[test]
+    fn the_linear_attention_guard_does_not_fire_on_a_full_attention_stack() {
+        let model = model_with_rope(8, 2, 2, 16);
+        let mut cache = model.empty_cache();
+        model
+            .forward_cached(&ids(&[1, 7, 3]), 0, &mut cache)
+            .unwrap();
+        model
+            .forward_cached(&ids(&[12]), 3, &mut cache)
+            .expect("full attention caches keys and values correctly and must still decode");
     }
 
     #[test]
