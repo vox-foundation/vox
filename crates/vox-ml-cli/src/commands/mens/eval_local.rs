@@ -498,34 +498,54 @@ fn looks_like_json_tool_call(source: &str) -> bool {
     serde_json::from_str::<serde_json::Value>(source.trim()).is_ok()
 }
 
+/// Cheap shape check mirroring `agent_loop.rs`'s `is_tool_call_shape`: an
+/// object with a `"name"` key whose value is a string. Deliberately does
+/// *not* require `"arguments"` — the live route's `fenced_json_candidate`
+/// doesn't either (see `extract_tool_call_json`'s doc comment).
+fn is_tool_call_shape(v: &serde_json::Value) -> bool {
+    v.as_object()
+        .is_some_and(|o| o.get("name").is_some_and(serde_json::Value::is_string))
+}
+
 /// Task B2 (MENS end-to-end completion): extract a tool-call-shaped JSON
-/// object (`{"name": ...}`) from `source`, either as the whole trimmed text
-/// or via the same fenced-block / bare-text brace-matching extraction
-/// `vox-orchestrator-mcp`'s `agent_loop.rs` salvage policy performs on a
-/// live turn — duplicated here (a ~25-line helper, not a shared crate edge:
-/// see the dependency-discipline defactor policy) because this benchmark
-/// harness calls the raw inference engine directly (`run_inference`), never
-/// the `/v1/chat/completions` HTTP route, so there is no live turn to
-/// observe the salvage from.
+/// object (`{"name": ...}`) from `source`, via the same fenced-block /
+/// bare-text brace-matching extraction `vox-orchestrator-mcp`'s
+/// `agent_loop.rs` salvage policy (`salvage_tool_call_from_text`) performs on
+/// a live turn — duplicated here (not a shared crate edge: see the
+/// dependency-discipline defactor policy) because this benchmark harness
+/// calls the raw inference engine directly (`run_inference`), never the
+/// `/v1/chat/completions` HTTP route, so there is no live turn to observe the
+/// salvage from.
+///
+/// Mirrors the live route's two-tier strictness *exactly*, because a looser
+/// match here made `tool_call_salvage_rate` read more optimistic than what a
+/// real turn would recover (found in review after this duplicate first
+/// diverged from `agent_loop.rs`):
+///   - a fenced ` ```json {...} ``` ` block only needs `"name"` to be a
+///     string (`is_tool_call_shape`, no `"arguments"` requirement) — same as
+///     `fenced_json_candidate`.
+///   - bare (non-fenced) text — including a whole completion that happens to
+///     be top-level JSON — requires `"name"` and `"arguments"` to appear as
+///     an *adjacent* literal key pair before brace-matching is even
+///     attempted, same as `bare_json_candidate`. A model emitting an extra
+///     key between them, or `"arguments"` before `"name"`, is a shape the
+///     live salvage step does NOT recover, so this harness must not credit
+///     it either.
 fn extract_tool_call_json(source: &str) -> Option<serde_json::Value> {
-    if let Ok(v) = serde_json::from_str::<serde_json::Value>(source.trim())
-        && v.get("name").is_some()
-    {
-        return Some(v);
-    }
     static FENCE_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let fence_re = FENCE_RE
         .get_or_init(|| regex::Regex::new(r"(?s)```json\s*(\{.*?\})\s*```").expect("static regex"));
     for caps in fence_re.captures_iter(source) {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&caps[1])
-            && v.get("name").is_some()
+            && is_tool_call_shape(&v)
         {
             return Some(v);
         }
     }
     static NAME_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    let name_re =
-        NAME_RE.get_or_init(|| regex::Regex::new(r#""name"\s*:\s*"[^"]*""#).expect("static regex"));
+    let name_re = NAME_RE.get_or_init(|| {
+        regex::Regex::new(r#""name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:"#).expect("static regex")
+    });
     for m in name_re.find_iter(source) {
         let bytes = source.as_bytes();
         let mut depth = 0i32;
@@ -558,7 +578,7 @@ fn extract_tool_call_json(source: &str) -> Option<serde_json::Value> {
                     if depth == 0 {
                         if let Some(slice) = source.get(start..=j)
                             && let Ok(v) = serde_json::from_str::<serde_json::Value>(slice)
-                            && v.get("name").is_some()
+                            && is_tool_call_shape(&v)
                         {
                             return Some(v);
                         }
@@ -839,6 +859,40 @@ mod tests {
         ));
         assert!(!tool_call_names_a_tool("just prose, no tool call here"));
         assert!(!tool_call_names_a_tool(r#"{"arguments":{}}"#));
+    }
+
+    #[test]
+    fn extract_tool_call_json_rejects_extra_key_between_name_and_arguments() {
+        // Fix for the salvage-regex divergence (Task followup): the live
+        // `/v1/chat/completions` route's `bare_json_candidate`
+        // (crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs)
+        // requires `"name"` and `"arguments"` to appear as an adjacent
+        // literal key pair before it will brace-match and salvage a bare
+        // (non-fenced) tool call. A model emitting an extra key wedged in
+        // between is a shape the live route does NOT recover — this harness
+        // must not credit it as a salvage/tool-name-exists hit either, or
+        // `tool_call_salvage_rate` reads more optimistic than what users
+        // actually experience.
+        let text = r#"{"name": "read_file", "notes": "some extra context", "arguments": {}}"#;
+        assert!(
+            extract_tool_call_json(text).is_none(),
+            "extra key between name and arguments must not be salvaged"
+        );
+        assert!(!tool_call_names_a_tool(text));
+    }
+
+    #[test]
+    fn extract_tool_call_json_rejects_arguments_before_name() {
+        // Same divergence, other direction: agent_loop.rs's regex anchors on
+        // `"name"` occurring before `"arguments"` — arguments-first ordering
+        // does not match it, so the live route completes the turn as plain
+        // text rather than salvaging.
+        let text = r#"{"arguments": {}, "name": "read_file"}"#;
+        assert!(
+            extract_tool_call_json(text).is_none(),
+            "arguments-before-name ordering must not be salvaged"
+        );
+        assert!(!tool_call_names_a_tool(text));
     }
 
     #[test]
