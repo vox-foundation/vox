@@ -7,7 +7,20 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 use vox_bounded_fs::read_utf8_path_capped;
-const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.20;
+// `AstEvalReport::coverage_score()` is distinct-construct-*kind*-count / 8, not
+// a body-substance metric: every task in `mens/data/heldout_bench/manifest.json`
+// asks for exactly one top-level declaration, so a correct answer and an
+// empty-body stub of it both declare the same single kind and score exactly
+// 1/8 = 0.125 — the metric cannot tell them apart at any threshold. The old
+// 0.20 floor didn't add stub protection, it just made this dimension reject
+// every single-declaration answer, correct or not (verified empirically: the
+// manifest's own hand-authored `answer` for `workflow_fetch_save` scores
+// 0.125 and failed the gate). Floor it at the maximum a single declaration
+// can reach instead; `placeholder_marker_hits` and `is_trivial_placeholder_output`
+// (checked alongside this in `verify_completion`) are what actually catch a
+// stubbed body — this dimension only rejects the *degenerate* case of zero
+// declared constructs (parse failure or a fully empty module).
+const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.125;
 
 pub fn run_eval_local(
     model: Option<PathBuf>,
@@ -1103,6 +1116,51 @@ mod tests {
         assert_eq!(
             v["tool_name_exists_rate"], 0.88,
             "real corpus-backed tool_name_exists_rate must survive eval-local's merge untouched"
+        );
+    }
+
+    /// Fast-follow (Task -1A corpus-ceiling kill test): every task in
+    /// `mens/data/heldout_bench/manifest.json` asks for exactly one
+    /// top-level declaration, so `AstEvalReport::coverage_score()`
+    /// (distinct construct kinds / 8) tops out at 1/8 = 0.125 for *any*
+    /// correct single-declaration answer — below the old 0.20 anti-stub
+    /// floor. This reproduces that with the manifest's own hand-authored,
+    /// verified-correct answer for `workflow_fetch_save`.
+    #[test]
+    fn anti_stub_gate_accepts_correct_single_declaration_answer() {
+        let answer = "workflow fetch_and_save(url: str) to str {\n    let data = http.get(url)\n    fs.write_file(\"output.txt\", data)\n    return data\n}";
+        let dir = tempfile::tempdir().unwrap();
+        let v = verify_completion(answer, dir.path(), "", "workflow_fetch_save", 0, &[]);
+
+        let richness = v.checks["construct_richness_score"].as_f64().unwrap();
+        assert!(
+            (richness - 0.125).abs() < 1e-9,
+            "a single top-level declaration can only reach 1/8 distinct \
+             construct kinds; got {richness}"
+        );
+        assert!(
+            v.anti_stub_pass,
+            "a verified-correct single-declaration answer must pass the \
+             anti-stub gate: {:?}",
+            v.checks
+        );
+    }
+
+    /// Companion to the test above: a genuinely stubbed body for the same
+    /// task must still fail the anti-stub gate after the fix — the
+    /// construct-richness floor was never what caught this class of stub
+    /// (a stub's `fn`/`workflow` kind scores identically to a correct
+    /// answer's); `placeholder_marker_hits` is, and must keep working.
+    #[test]
+    fn anti_stub_gate_still_rejects_placeholder_stub_for_same_task() {
+        let stub = "workflow fetch_and_save(url: str) to str {\n    // TODO: implement\n}";
+        let dir = tempfile::tempdir().unwrap();
+        let v = verify_completion(stub, dir.path(), "", "workflow_fetch_save", 0, &[]);
+
+        assert!(
+            !v.anti_stub_pass,
+            "a TODO-stubbed body must still fail the anti-stub gate: {:?}",
+            v.checks
         );
     }
 }
