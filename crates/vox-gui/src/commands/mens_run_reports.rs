@@ -183,6 +183,15 @@ mod tests {
     }
 
     #[test]
+    fn a_malformed_gate_receipt_json_degrades_to_none_not_a_panic() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("gate_receipt.json"), "{ not valid json !!").unwrap();
+
+        let result = read_run_reports(dir.path());
+        assert_eq!(result.gate_receipt, None);
+    }
+
+    #[test]
     fn a_failed_gate_receipt_names_the_degraded_gate() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(

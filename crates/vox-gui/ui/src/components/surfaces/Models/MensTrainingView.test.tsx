@@ -136,4 +136,47 @@ describe('MensTrainingView', () => {
     expect(status.textContent).not.toBe('Gate passed (0 substantive gates)');
     expect(status.textContent).toMatch(/0 substantive/i);
   });
+
+  it('does not render a plain green pass when the receipt has only 1 substantive gate', async () => {
+    // The real backend (assert_serve_preconditions in dispatch.rs) refuses
+    // to serve when substantive_gate_count < 2, so a receipt with exactly 1
+    // substantive gate is already backend-rejected evidence. The GUI must
+    // not show more confidence than the backend has.
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'get_active_model') return Promise.resolve(null);
+      if (cmd === 'execute_command') {
+        return Promise.resolve({ exit_code: 0, stdout: '', stderr: '' });
+      }
+      if (cmd === 'mens_serve_status') {
+        return Promise.resolve({ running: false, port: null, default_port: 11435 });
+      }
+      if (cmd === 'inference_provider_status') return Promise.resolve([]);
+      if (cmd === 'mens_run_reports') {
+        return Promise.resolve({
+          eval_local: null,
+          gate_receipt: {
+            overall_passed: true,
+            substantive_gate_count: 1,
+            failed_gates: [],
+            gates: [
+              { name: 'pass_at_k', passed: true, message: '0.65 >= 0.60' },
+              { name: 'rust_compile_rate', passed: true, message: 'not applicable (no rows)' },
+            ],
+          },
+          collateral_damage: null,
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    render(<MensTrainingView pushToast={noop} />);
+    await loadRunDir('/tmp/some-run-dir');
+
+    const status = await screen.findByTestId('gate-receipt-status');
+    // Same class-name-equality assertion style as the count===0 case above:
+    // a substring match here would be vacuous.
+    expect(status.className).not.toBe('text-emerald-400');
+    expect(status.textContent).not.toBe('Gate passed (1 substantive gates)');
+    expect(status.textContent).toMatch(/1 substantive/i);
+  });
 });

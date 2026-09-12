@@ -41,15 +41,16 @@ interface MensRunReportsDto {
 }
 
 /**
- * Visual tone for the gate receipt line. A receipt that passed with zero
- * substantive gates (Task A2's `assert_serve_preconditions` counting — see
- * `crates/vox-gui/src/commands/mens_run_reports.rs`) is not evidence of
- * anything and must never render the same as a real pass, so it gets its
- * own "warn" tone rather than falling through to "pass".
+ * Visual tone for the gate receipt line. `assert_serve_preconditions`
+ * (Task A2, `crates/vox-ml-cli/src/commands/mens/populi/dispatch.rs`)
+ * refuses to serve unless `substantive_gate_count >= 2`, so a receipt below
+ * that threshold is already backend-rejected evidence and must never render
+ * the same as a real pass — it gets "warn" instead of falling through to
+ * "pass".
  */
 function gateTone(receipt: GateReceiptDto): 'pass' | 'warn' | 'fail' {
   if (!receipt.overall_passed) return 'fail';
-  if (receipt.substantive_gate_count === 0) return 'warn';
+  if (receipt.substantive_gate_count < 2) return 'warn';
   return 'pass';
 }
 
@@ -110,7 +111,10 @@ function MensRunReportsPanel({ pushToast }: { pushToast: (item: Toast) => void }
               return (
                 <div data-testid="gate-receipt-status" className={TONE_CLASS[tone]}>
                   {tone === 'fail' && 'Gate FAILED'}
-                  {tone === 'warn' && 'Gate passed, but 0 substantive gates — not real evidence'}
+                  {tone === 'warn' &&
+                    `Gate passed, but only ${reports.gate_receipt.substantive_gate_count} substantive gate${
+                      reports.gate_receipt.substantive_gate_count === 1 ? '' : 's'
+                    } — not enough evidence to serve`}
                   {tone === 'pass' && 'Gate passed'}
                   {' '}({reports.gate_receipt.substantive_gate_count} substantive gates)
                   {reports.gate_receipt.failed_gates.length > 0 && (
