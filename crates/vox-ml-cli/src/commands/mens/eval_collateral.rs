@@ -37,6 +37,13 @@ pub(crate) fn run_collateral_damage_with(
             })?,
     )?;
 
+    if pre.is_empty() {
+        anyhow::bail!(
+            "pre-score file {} has an empty \"benchmarks\" object — nothing to score",
+            pre_score_path.display()
+        );
+    }
+
     let mut scores: Vec<(String, f64, f64)> = Vec::with_capacity(pre.len());
     for (bench, pre_score) in &pre {
         let post = score_bench(bench)?; // fails loudly; never falls back to `pre`
@@ -218,6 +225,26 @@ mod tests {
         assert!(
             err.contains("benchmarks"),
             "error must name the missing key: {err}"
+        );
+        assert!(!dir.path().join("collateral_damage_report.json").exists());
+    }
+
+    #[test]
+    fn an_empty_benchmarks_object_is_a_hard_error() {
+        // {"benchmarks": {}} passes the `is_object()` filter but has nothing to
+        // score. Without this guard, the loop below never runs, the suite call
+        // returns `Ok(vec![])` for an empty slice, and a vacuous "pass" report
+        // gets written having loaded the adapter zero times.
+        let dir = tempfile::tempdir().unwrap();
+        let pre = dir.path().join("pre.json");
+        std::fs::write(&pre, r#"{"benchmarks":{}}"#).unwrap();
+        let mut scorer = |_: &str| Ok(1.0);
+        let err = run_collateral_damage_with(&pre, dir.path(), &mut scorer)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("nothing to score"),
+            "error must say there was nothing to score: {err}"
         );
         assert!(!dir.path().join("collateral_damage_report.json").exists());
     }
