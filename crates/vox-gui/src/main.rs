@@ -78,6 +78,9 @@ async fn main() {
         .manage(std::sync::Arc::new(
             commands::browser::BrowserState::default(),
         ))
+        .manage(std::sync::Arc::new(
+            commands::mens_serve::MensServeState::default(),
+        ))
         .setup(move |app| {
             if drive_flags.drive {
                 let runtime = app.state::<drive::bridge::DriveRuntime>();
@@ -236,6 +239,9 @@ async fn main() {
             commands::llm_settings::set_llm_config,
             commands::llm_settings::openrouter_key_status,
             commands::llm_settings::inference_provider_status,
+            commands::mens_serve::mens_serve_status,
+            commands::mens_serve::mens_serve_start,
+            commands::mens_serve::mens_serve_stop,
             commands::docs_index::vox_docs_index,
             commands::docs_index::read_doc_markdown,
             commands::orchestrator::get_orchestrator_status,

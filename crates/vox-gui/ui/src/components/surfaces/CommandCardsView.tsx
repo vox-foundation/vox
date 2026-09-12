@@ -40,6 +40,10 @@ interface CommandCardsViewProps {
  * the shared `execute_command` Tauri path (the runAction seam) on mount and on
  * Refresh, rendering each result in a card. Used by every surface decorator so
  * Scientia / Mens / Populi / Research share one implementation.
+ *
+ * Not for `vox mens serve`: `execute_command` awaits process exit, and
+ * `serve` never exits — see `Models/MensServePanel.tsx` for the supervised
+ * child-process pattern that one needs instead.
  */
 export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandCardsViewProps) {
   const [results, setResults] = useState<Record<string, CardResult>>({});

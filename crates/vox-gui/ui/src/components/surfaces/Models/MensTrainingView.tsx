@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { CommandCardsView, SurfaceCard } from '../CommandCardsView';
+import { MensServePanel } from './MensServePanel';
 import type { Toast } from '../../../types/tauri';
 
 interface MensTrainingViewProps {
@@ -71,11 +72,14 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
   ];
 
   return (
-    <CommandCardsView
-      title="Vox Mens"
-      subtitle="ML training & local models"
-      cards={cards}
-      pushToast={pushToast}
-    />
+    <div className="space-y-4">
+      <MensServePanel pushToast={pushToast} />
+      <CommandCardsView
+        title="Vox Mens"
+        subtitle="ML training & local models"
+        cards={cards}
+        pushToast={pushToast}
+      />
+    </div>
   );
 }

@@ -104,6 +104,13 @@ fn parse_vox_local_model_ids(body: &serde_json::Value) -> Vec<String> {
 
 async fn probe_vox_local() -> (Option<bool>, Vec<String>) {
     let candidates = vox_config::inference::vox_local_endpoint_probe_candidates();
+    probe_vox_local_bases(&candidates).await
+}
+
+/// Core of [`probe_vox_local`], parameterized over the base URLs to try, so
+/// `commands::mens_serve` can reuse the exact same readiness check against
+/// the one port it just spawned instead of writing a second probe.
+pub(crate) async fn probe_vox_local_bases(candidates: &[String]) -> (Option<bool>, Vec<String>) {
     if candidates.is_empty() {
         return (Some(false), Vec::new());
     }
