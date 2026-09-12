@@ -154,6 +154,8 @@ pub(super) fn finalize_training_run(
             device = device_label,
             ckpt = final_path.display(),
         ),
+        license_class: config.license_class.clone(),
+        attribution_required: config.attribution_required,
     };
     if let Err(e) = model_card::write(out, &card) {
         train_log::warn(&format!("MODEL_CARD.md could not be written: {e}"));

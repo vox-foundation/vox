@@ -388,6 +388,18 @@ pub(super) async fn run_gpu_training(
         gpu_info.model_name.clone()
     };
 
+    // Resolve license_class from the base's `gpu-specs.yaml` `train_bases` entry;
+    // `--license-class` (already collected as `license_class` above) is an
+    // override, not the only source. Hard error (never a silent apache-2.0
+    // fallback) when neither the base nor an override provides one.
+    let (license_class, attribution_required) =
+        vox_populi::mens::tensor::spoke_base_resolver::resolve_license_class(
+            workspace_root.as_deref(),
+            model.as_deref(),
+            license_class,
+        )
+        .map(|(lic, attr)| (Some(lic), attr || attribution_required))?;
+
     let config = vox_populi::mens::LoraTrainingConfig {
         base_model: model,
         base_model_family,

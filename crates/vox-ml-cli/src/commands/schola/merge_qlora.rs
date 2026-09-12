@@ -81,6 +81,7 @@ pub fn run_merge_qlora(
     keep_merged: bool,
     gguf_out: Option<PathBuf>,
     llama_cpp: Option<PathBuf>,
+    license_class: Option<String>,
 ) -> anyhow::Result<()> {
     // clap's `requires = "gguf_out"` on --llama-cpp covers only that
     // direction; --gguf-out without --llama-cpp must be rejected here.
@@ -233,7 +234,27 @@ pub fn run_merge_qlora(
             );
         }
 
-        finish_recombined(&recombined, &base_dir, keep_merged)?;
+        // License resolution only matters for the Ollama Modelfile lane
+        // (`--keep-merged`), so only resolve (and only hard-error) there —
+        // never make `--quantize`/`--gguf-out` alone depend on it.
+        let resolved_license = if keep_merged {
+            let workspace_root = vox_corpus::training::contract::find_workspace_root();
+            Some(
+                vox_populi::mens::tensor::spoke_base_resolver::resolve_license_class(
+                    workspace_root.as_deref(),
+                    Some(base),
+                    license_class.clone(),
+                )?,
+            )
+        } else {
+            None
+        };
+        finish_recombined(
+            &recombined,
+            &base_dir,
+            keep_merged,
+            resolved_license.as_ref().map(|(lic, _)| lic.as_str()),
+        )?;
 
         if let (Some(gguf_out), Some(llama_cpp)) = (gguf_out.as_deref(), llama_cpp.as_deref()) {
             // llama-quantize's k-quant names are the uppercase spelling of
@@ -354,6 +375,7 @@ fn finish_recombined(
     recombined: &std::path::Path,
     base_dir: &std::path::Path,
     keep_merged: bool,
+    resolved_license: Option<&str>,
 ) -> anyhow::Result<()> {
     if !keep_merged {
         let _ = std::fs::remove_dir_all(recombined);
@@ -370,9 +392,16 @@ fn finish_recombined(
                 .with_context(|| format!("copy {f} into recombined_full"))?;
         }
     }
+    // `run_merge_qlora` always resolves (and hard-errors on failure) before
+    // calling this with `keep_merged: true` — a `None` here means a caller
+    // skipped that resolution, which is a bug at the call site, not something
+    // to paper over with a default license.
+    let license = resolved_license.ok_or_else(|| {
+        anyhow::anyhow!("finish_recombined: keep_merged requires a resolved license")
+    })?;
     std::fs::write(
         recombined.join("Modelfile"),
-        render_ollama_modelfile(8192, "apache-2.0"),
+        render_ollama_modelfile(8192, license),
     )
     .context("write Modelfile")?;
     println!(
@@ -566,7 +595,7 @@ mod ollama_publish_tests {
         std::fs::create_dir_all(&recombined).unwrap();
         std::fs::write(recombined.join("model.safetensors"), b"stub").unwrap();
 
-        finish_recombined(&recombined, dir.path(), true).unwrap();
+        finish_recombined(&recombined, dir.path(), true, Some("apache-2.0")).unwrap();
         assert!(
             recombined.join("model.safetensors").is_file(),
             "--keep-merged must keep the merged artifact; it was deleted"
@@ -576,7 +605,7 @@ mod ollama_publish_tests {
             "--keep-merged must write a Modelfile next to the weights"
         );
 
-        finish_recombined(&recombined, dir.path(), false).unwrap();
+        finish_recombined(&recombined, dir.path(), false, None).unwrap();
         assert!(
             !recombined.exists(),
             "without --keep-merged the recombined dir is still deleted"

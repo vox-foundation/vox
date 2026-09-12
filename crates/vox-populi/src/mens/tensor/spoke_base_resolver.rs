@@ -43,6 +43,17 @@ pub struct TrainBase {
     pub floor_mb: u32,
     #[serde(default)]
     pub methods: Vec<String>,
+    /// SPDX-ish license identifier for this exact base checkpoint (e.g.
+    /// `apache-2.0`, `qwen-research`). `None` when this rung has no known
+    /// license mapping yet — `resolve_license_class` treats that as a hard
+    /// error unless the caller passes an explicit override, rather than
+    /// silently defaulting to any particular license.
+    #[serde(default)]
+    pub license: Option<String>,
+    /// Whether downstream publication of an artifact trained from this base
+    /// must carry an attribution notice per the base's license terms.
+    #[serde(default)]
+    pub attribution_required: bool,
 }
 
 /// Largest candidate for `tag` whose `floor_mb <= vram_mb`. Errors if the tag is
@@ -89,6 +100,53 @@ pub fn load_overlay(root: &std::path::Path) -> anyhow::Result<HashMap<String, Ve
     match std::fs::read_to_string(&p) {
         Ok(s) => parse_overlay(&s),
         Err(_) => load_embedded_overlay(),
+    }
+}
+
+/// License metadata for a concrete `hf_id` (exact match, including any pinned
+/// `@sha` suffix), looked up across every `train_bases` rung regardless of tag.
+/// `None` when `hf_id` doesn't appear in any known rung (e.g. an ad hoc
+/// `--model` that isn't in `gpu-specs.yaml`).
+fn license_for_hf_id(
+    workspace_root: Option<&std::path::Path>,
+    hf_id: &str,
+) -> Option<(Option<String>, bool)> {
+    let overlay = match workspace_root {
+        Some(root) => load_overlay(root).ok()?,
+        None => load_embedded_overlay().ok()?,
+    };
+    overlay
+        .values()
+        .flatten()
+        .find(|b| b.hf_id == hf_id)
+        .map(|b| (b.license.clone(), b.attribution_required))
+}
+
+/// Resolve the effective `(license_class, attribution_required)` for a training
+/// or merge run: an explicit `cli_override` always wins; otherwise the license
+/// comes from the resolved base's `license:` entry in `gpu-specs.yaml`
+/// (matched by exact `hf_id`). Returns a hard `Err` — never a silent default
+/// like `apache-2.0` — when neither source provides a license class, so a
+/// missing mapping surfaces immediately instead of mislabeling every trained
+/// model's contract identity as license-free.
+pub fn resolve_license_class(
+    workspace_root: Option<&std::path::Path>,
+    hf_id: Option<&str>,
+    cli_override: Option<String>,
+) -> anyhow::Result<(String, bool)> {
+    let resolved = hf_id.and_then(|id| license_for_hf_id(workspace_root, id));
+    if let Some(explicit) = cli_override {
+        let attribution_required = resolved.map(|(_, attr)| attr).unwrap_or(false);
+        return Ok((explicit, attribution_required));
+    }
+    match resolved {
+        Some((Some(license), attribution_required)) => Ok((license, attribution_required)),
+        _ => anyhow::bail!(
+            "no license_class resolved for base model {hf_id:?}: it has no `license:` entry in \
+             mens/config/gpu-specs.yaml train_bases (or isn't a known train_bases rung at all), \
+             and no --license-class override was given. Pass --license-class explicitly, or add \
+             a `license:` entry for this base in gpu-specs.yaml — never assume a default license."
+        ),
     }
 }
 
@@ -212,11 +270,15 @@ mod tests {
                     hf_id: "small".into(),
                     floor_mb: 6000,
                     methods: vec!["qlora".into()],
+                    license: Some("apache-2.0".into()),
+                    attribution_required: false,
                 },
                 TrainBase {
                     hf_id: "big".into(),
                     floor_mb: 11000,
                     methods: vec!["qlora".into()],
+                    license: None,
+                    attribution_required: false,
                 },
             ],
         );
@@ -604,5 +666,46 @@ mod tests {
             big_box, "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
             "118_784 MB agentic_default must still resolve Qwen3-32B (no pin flip yet), got {big_box}"
         );
+    }
+
+    #[test]
+    fn resolve_license_class_uses_gpu_specs_license_when_present() {
+        let (license, attribution_required) = resolve_license_class(
+            Some(workspace_root()),
+            Some("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
+            None,
+        )
+        .expect("Qwen3-8B has a license: entry in gpu-specs.yaml");
+        assert_eq!(license, "apache-2.0");
+        assert!(!attribution_required);
+    }
+
+    /// Qwen3.8-27B has no `license:` entry in gpu-specs.yaml today — its real
+    /// license could not be confirmed with confidence, so it is deliberately
+    /// left unmapped rather than guessed. Resolving it with no override must
+    /// be a hard error, never a silent fallback (e.g. to `apache-2.0`).
+    #[test]
+    fn resolve_license_class_hard_errors_when_base_has_no_license_entry() {
+        let err = resolve_license_class(
+            Some(workspace_root()),
+            Some("Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"),
+            None,
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("no license_class resolved"),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn resolve_license_class_cli_override_wins_even_for_unknown_base() {
+        let (license, _attribution_required) = resolve_license_class(
+            Some(workspace_root()),
+            Some("some/unmapped-model"),
+            Some("mit".into()),
+        )
+        .expect("explicit override must always resolve");
+        assert_eq!(license, "mit");
     }
 }

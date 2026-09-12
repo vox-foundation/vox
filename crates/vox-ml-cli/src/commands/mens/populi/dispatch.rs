@@ -477,6 +477,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             keep_merged,
             gguf_out,
             llama_cpp,
+            license_class,
         } => merge_qlora::run_merge_qlora(
             base_shard,
             adapter,
@@ -486,6 +487,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             keep_merged,
             gguf_out,
             llama_cpp,
+            license_class,
         ),
 
         PopuliAction::ExportGguf { input, output } => {

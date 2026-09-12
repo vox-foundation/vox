@@ -461,6 +461,12 @@ pub enum PopuliAction {
         /// plus bumps to two exact-count config gates.
         #[arg(long, requires = "gguf_out")]
         llama_cpp: Option<PathBuf>,
+        /// Provenance override: license class for the Ollama Modelfile's `LICENSE`
+        /// block (only consulted with `--keep-merged`). Overrides the base model's
+        /// resolved `license:` entry in `mens/config/gpu-specs.yaml`; required when
+        /// the base has no such entry (hard error otherwise, never a silent default).
+        #[arg(long)]
+        license_class: Option<String>,
     },
 
     /// Export merged safetensors weights to GGUF (not yet implemented).

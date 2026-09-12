@@ -23,6 +23,16 @@ pub struct ModelCard {
     pub n_layers: usize,
     pub n_heads: usize,
     pub notes: String,
+    /// Resolved license class of `base_model` (from `gpu-specs.yaml` `train_bases`
+    /// or an explicit `--license-class` override). `None` when no run-level
+    /// provenance was threaded through to this card (e.g. a plain `--model` not
+    /// in `train_bases` and no override) — the training path itself hard-errors
+    /// in that case, so a `None` here only occurs on card-writer paths that
+    /// don't carry provenance at all.
+    pub license_class: Option<String>,
+    /// Whether downstream publication of this artifact must carry an
+    /// attribution notice for the base model's license terms.
+    pub attribution_required: bool,
 }
 
 pub fn write(out_dir: &Path, card: &ModelCard) -> anyhow::Result<()> {
@@ -34,6 +44,17 @@ pub fn write(out_dir: &Path, card: &ModelCard) -> anyhow::Result<()> {
         s.push_str("## Base model\n");
         s.push_str(b);
         s.push_str("\n\n");
+    }
+    if let Some(ref lic) = card.license_class {
+        s.push_str("## License\n");
+        s.push_str(&format!("- base model license: `{lic}`\n"));
+        if card.attribution_required {
+            s.push_str(
+                "- **Attribution required**: this base model's license requires an \
+                 attribution notice on any downstream publication of this artifact.\n",
+            );
+        }
+        s.push('\n');
     }
     s.push_str("## Data\n");
     s.push_str(&format!("- train file: `{}`\n", card.train_file));
@@ -47,4 +68,46 @@ pub fn write(out_dir: &Path, card: &ModelCard) -> anyhow::Result<()> {
     s.push('\n');
     std::fs::write(out_dir.join("MODEL_CARD.md"), s)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn base_card() -> ModelCard {
+        ModelCard {
+            title: "t".into(),
+            base_model: Some("Qwen/Qwen3-8B".into()),
+            train_file: "train.jsonl".into(),
+            vocab_size: 1,
+            d_model: 1,
+            n_layers: 1,
+            n_heads: 1,
+            notes: "n".into(),
+            license_class: None,
+            attribution_required: false,
+        }
+    }
+
+    #[test]
+    fn write_renders_license_and_attribution_notice_when_required() {
+        let dir = tempfile::tempdir().unwrap();
+        let card = ModelCard {
+            license_class: Some("qwen-research".into()),
+            attribution_required: true,
+            ..base_card()
+        };
+        write(dir.path(), &card).unwrap();
+        let text = std::fs::read_to_string(dir.path().join("MODEL_CARD.md")).unwrap();
+        assert!(text.contains("qwen-research"));
+        assert!(text.contains("Attribution required"));
+    }
+
+    #[test]
+    fn write_omits_license_section_when_none() {
+        let dir = tempfile::tempdir().unwrap();
+        write(dir.path(), &base_card()).unwrap();
+        let text = std::fs::read_to_string(dir.path().join("MODEL_CARD.md")).unwrap();
+        assert!(!text.contains("## License"));
+    }
 }
