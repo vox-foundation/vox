@@ -534,7 +534,22 @@ pub fn sweep(
         })
         .last()
         .ok_or_else(|| {
-            anyhow!("no batch size fits {shape:?} at seq_len={seq_len} within the usable budget")
+            // Even `batch_size=1` was refused — surface `plan_for`'s own reason
+            // (e.g. an uncalibrated lane names itself and the `probe --measure`
+            // fix) rather than a generic "nothing fits", which would hide an
+            // uncalibrated-lane error behind a misleading budget message.
+            let smallest = Request {
+                batch_size: 1,
+                seq_len,
+            };
+            match plan_for(budget, models, key, shape, &smallest).verdict {
+                Verdict::Refused(reason) => {
+                    anyhow!("sweep found nothing that fits at seq_len={seq_len}: {reason}")
+                }
+                Verdict::Fits => anyhow!(
+                    "no batch size fits {shape:?} at seq_len={seq_len} within the usable budget"
+                ),
+            }
         })
 }
 
