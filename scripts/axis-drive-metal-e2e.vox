@@ -322,6 +322,25 @@ fn main() {
         fail(bin, "state.events is missing submit_ok for last_turn_id; kinds=" + kinds)
     }
 
+    // Step 3: positive provider assertion (above) paired with the negative
+    // control no absence-assertion can fake — stop the serve process this
+    // turn claims to be testing, re-send, and require the turn to now fail.
+    // If it still succeeds, the reply was never actually coming from serve.
+    // This runs BEFORE step 4 (not after) so it always executes on every real
+    // invocation: step 4 fails closed today (see below) on every run because
+    // no base-only serving mode exists in this repo, and a check ordered
+    // after an unconditionally-failing one would never be reached in
+    // practice — see task-B3-report.md's fix-round note.
+    let _ = process.run("pkill", ["-f", "mens serve"])
+    let _ = process.run("sleep", ["2"])
+    let control_nonce = nonce + "-control"
+    let _ = run_json(bin, ["gui", "drive", "send", "--text",
+        "Reply with exactly this token and nothing else: " + control_nonce])
+    let control_wait = process.run(bin, ["gui", "drive", "wait", "--until", "reply_ok", "--timeout", "20s"])
+    if control_wait is not null and control_wait.unwrap().code is 0 {
+        fail(bin, "turn still succeeded after stopping mens serve — the reply was never actually coming from the server this e2e claims to test")
+    }
+
     // Step 4: adapter-vs-base. Nothing else in this repo checks whether the
     // served reply actually used the trained adapter versus a silent fallback
     // to base (untrained) weights — without this, a broken adapter load would
@@ -336,7 +355,10 @@ fn main() {
     // infrastructure gap, not something to fake here (see task-B3-report.md).
     // Until that mode exists, an operator can point VOX_MENS_BASE_ENDPOINT at
     // a base-only OpenAI-chat-compatible endpoint to opt in; absent that, this
-    // check fails closed rather than silently passing.
+    // check fails closed rather than silently passing. It runs LAST (after
+    // the step 3 negative control, which already killed serve) precisely
+    // because it fails closed on the missing env var before ever attempting
+    // to reach an endpoint — serve's state by this point doesn't matter.
     let base_endpoint = env.get("VOX_MENS_BASE_ENDPOINT")
     if base_endpoint is null {
         fail(bin, "VOX_MENS_BASE_ENDPOINT is not set — no base-only (no-adapter) serving mode exists in this repo today, so adapter-vs-base cannot be verified live; see task-B3-report.md for the gap and the code paths that would need one")
@@ -350,20 +372,6 @@ fn main() {
     }
     if adapter_reply.unwrap() == base_reply.unwrap() {
         fail(bin, "adapter output is byte-identical to base output for the same greedy prompt — the adapter is not actually being applied (silent fallback to base weights)")
-    }
-
-    // Step 3: positive provider assertion (above) paired with the negative
-    // control no absence-assertion can fake — stop the serve process this
-    // turn claims to be testing, re-send, and require the turn to now fail.
-    // If it still succeeds, the reply was never actually coming from serve.
-    let _ = process.run("pkill", ["-f", "mens serve"])
-    let _ = process.run("sleep", ["2"])
-    let control_nonce = nonce + "-control"
-    let _ = run_json(bin, ["gui", "drive", "send", "--text",
-        "Reply with exactly this token and nothing else: " + control_nonce])
-    let control_wait = process.run(bin, ["gui", "drive", "wait", "--until", "reply_ok", "--timeout", "20s"])
-    if control_wait is not null and control_wait.unwrap().code is 0 {
-        fail(bin, "turn still succeeded after stopping mens serve — the reply was never actually coming from the server this e2e claims to test")
     }
 
     print("{\"status\":\"pass\",\"plane\":\"" + plane + "\",\"model\":\"" + pin + "\",\"turn_id\":\"" + turn_id + "\",\"event_kinds\":\"" + kinds + "\",\"event_count\":" + str(events.len()) + "}")
