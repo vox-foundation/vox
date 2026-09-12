@@ -836,6 +836,82 @@ mod serve_preconditions_tests {
         .unwrap();
         assert!(assert_serve_preconditions(dir.path()).is_ok());
     }
+
+    /// Z1 fixed a ~100x throughput regression (proven floor ~22-25 tok/s on Metal);
+    /// this locks in that a run which measured below the real, shipped throughput
+    /// floor (`mens/config/eval-gates.yaml`) is refused at the serve boundary —
+    /// not just theoretically possible to refuse, but actually refused by the
+    /// policy this repo ships. Runs the real `eval-gate` pipeline (not a
+    /// hand-authored receipt) so a future change that silently makes the
+    /// throughput gate non-blocking again is caught here.
+    ///
+    /// Every other blocking gate in that policy (pass_at_k, anti_stub,
+    /// review_recurrence) is given a fixture that satisfies it, so the only
+    /// gate deciding the outcome is throughput.
+    #[test]
+    fn a_below_floor_throughput_run_is_refused_by_the_real_policy() {
+        let dir = tempfile::tempdir().unwrap();
+
+        // Far below the `cpu` floor (1.0 tok/s) in mens/config/eval-gates.yaml —
+        // no manifest is written, so device_profile defaults to "cpu".
+        std::fs::write(
+            dir.path().join("telemetry.jsonl"),
+            "{\"tokens_per_sec\": 0.2}\n",
+        )
+        .unwrap();
+
+        // Satisfy pass_at_k (block: true, needs metrics + baseline file).
+        std::fs::write(
+            dir.path().join("benchmark_passatk.json"),
+            r#"{"pass_rate_at_1":0.30,"pass_rate_at_k":0.60}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("baseline_passatk.json"),
+            r#"{"pass_rate_at_1":0.30,"pass_rate_at_k":0.60}"#,
+        )
+        .unwrap();
+
+        // Satisfy anti_stub (block: true).
+        std::fs::write(
+            dir.path().join("eval_local_report.json"),
+            r#"{"anti_stub_task_success":0.95,"placeholder_event_rate":0.05,
+                "trivial_placeholder_event_rate":0.05,"construct_richness_mean":0.25}"#,
+        )
+        .unwrap();
+
+        // Satisfy review_recurrence (block: true).
+        std::fs::write(
+            dir.path().join("review_metrics.json"),
+            r#"{"repeated_finding_rate":0.10,"post_training_regression_rate":0.05,
+                "recurrence_delta":0.02}"#,
+        )
+        .unwrap();
+
+        let workspace_root = vox_corpus::training::contract::find_workspace_root()
+            .expect("test runs inside the vox cargo workspace");
+        let policy_path = workspace_root.join("mens/config/eval-gates.yaml");
+        assert!(
+            policy_path.exists(),
+            "expected the shipped policy at {}",
+            policy_path.display()
+        );
+
+        let exit_code = crate::commands::mens::eval_gate::run_eval_gate(
+            dir.path().to_path_buf(),
+            Some(policy_path),
+        )
+        .unwrap();
+        assert_eq!(
+            exit_code, 1,
+            "eval-gate must report failure for a below-floor throughput run"
+        );
+
+        let err = assert_serve_preconditions(dir.path())
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("eval-gate did not pass"), "got: {err}");
+    }
 }
 
 #[cfg(all(test, feature = "gpu"))]
