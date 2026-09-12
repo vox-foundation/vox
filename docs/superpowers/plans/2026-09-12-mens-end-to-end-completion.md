@@ -296,7 +296,7 @@ Nothing downstream is trustworthy until this lands. Four tasks, all CPU-only.
 > **Execution notes.**
 > **Revision 1's sample code for this task did not compile.** It cited a `vox_eval::BenchRef` type, a `report.status` field, and a `report.degradations` collection. **None exist.** `CollateralDamageReport` (`lib.rs:251`) has `benchmark_name / pre_training_score / post_training_score / degradation / degradation_rate / exceeds_threshold`, and failure is `Err(first_failing_report)`. The `"status": "pass"` string the serve gate reads is built in an ad-hoc `json!` literal — an **envelope key, not a type**.
 > **`run_collateral_damage` calls `std::process::exit(1)` on the fail branch.** Any test driving the real function down that path kills the test binary. Lifting that `exit` to the CLI boundary is part of this task.
-> **Define the pre-score file format here.** `eval_collateral.rs:21-27` iterates `pre_json.as_object()` and treats **every f64-valued key** as a benchmark name. `eval_local.rs:370-398` writes `{model, bench, max_tokens, temperature, k, seed_base, total, passed_at_1, pass_rate_at_1, category_stats, results}`. Feeding one to the other fabricates "benchmarks" named `max_tokens`, `temperature`, `k`, `seed_base`. Either normalize on read or require a named sub-object — **decide and state which in your report**, then implement it.
+> **Pre-score file format — decided: a dedicated `{"benchmarks": {name: score, ...}}` shape, not eval-local's raw report.** `eval_collateral.rs:21-27` currently iterates `pre_json.as_object()` and treats **every f64-valued key** as a benchmark name; feeding it `eval_local.rs`'s report (`{model, bench, max_tokens, temperature, k, seed_base, total, passed_at_1, pass_rate_at_1, category_stats, results}`) fabricates "benchmarks" named `max_tokens`, `temperature`, `k`, `seed_base`. Loosely normalizing on read (guessing which keys are real benchmarks) is exactly the kind of silent-tolerance bug this lane exists to remove. Require the named sub-object instead: `run_collateral_damage_with` reads `pre_json["benchmarks"].as_object()` and **hard-errors** (not falls back) if that key is absent or not an object. Add a one-line projector — `eval_local`'s `category_stats` (name → `pass_rate_at_1`) already has the right shape; a caller wanting to feed an eval-local report into this path maps `category_stats` into `{"benchmarks": ...}` before writing the pre-score file. Do not build that projector in this task (R9) — note it as a one-line follow-up in your report if a caller needs it.
 > Build `--features gpu,execution-api`, warmed per R2.
 > **Do not write a pure `build_report_from_scores(pre, post)` function.** A function *handed* `post` cannot observe where `post` came from — and "`post` came from `pre`" is the entire bug. The seam must be the scorer.
 
@@ -307,7 +307,7 @@ Nothing downstream is trustworthy until this lands. Four tasks, all CPU-only.
 fn a_degraded_adapter_writes_a_failing_report() {
     let dir = tempfile::tempdir().unwrap();
     let pre = dir.path().join("pre.json");
-    std::fs::write(&pre, r#"{"general_bench":0.85,"code_bench":0.90}"#).unwrap();
+    std::fs::write(&pre, r#"{"benchmarks":{"general_bench":0.85,"code_bench":0.90}}"#).unwrap();
 
     let mut asked: Vec<String> = Vec::new();
     let mut scorer = |bench: &str| {
@@ -332,11 +332,25 @@ fn a_degraded_adapter_writes_a_failing_report() {
 fn an_unloadable_adapter_fails_loudly_and_writes_no_passing_report() {
     let dir = tempfile::tempdir().unwrap();
     let pre = dir.path().join("pre.json");
-    std::fs::write(&pre, r#"{"general_bench":0.85}"#).unwrap();
+    std::fs::write(&pre, r#"{"benchmarks":{"general_bench":0.85}}"#).unwrap();
     let mut scorer = |_: &str| anyhow::bail!("adapter not found");
     assert!(run_collateral_damage_with(&pre, dir.path(), &mut scorer).is_err());
     assert!(!dir.path().join("collateral_damage_report.json").exists(),
             "a load failure must never leave a report the serve gate would accept");
+}
+
+#[test]
+fn a_pre_score_file_without_the_benchmarks_key_is_a_hard_error() {
+    // The exact shape of the bug this format decision prevents: handing the
+    // parser an eval-local report (or anything else with top-level f64 keys)
+    // must not silently fabricate benchmark names from unrelated fields.
+    let dir = tempfile::tempdir().unwrap();
+    let pre = dir.path().join("pre.json");
+    std::fs::write(&pre, r#"{"model":"mens/demo","max_tokens":256,"pass_rate_at_1":0.7}"#).unwrap();
+    let mut scorer = |_: &str| Ok(1.0);
+    let err = run_collateral_damage_with(&pre, dir.path(), &mut scorer).unwrap_err().to_string();
+    assert!(err.contains("benchmarks"), "error must name the missing key: {err}");
+    assert!(!dir.path().join("collateral_damage_report.json").exists());
 }
 ```
 
@@ -353,8 +367,13 @@ pub(crate) fn run_collateral_damage_with(
     run_dir: &Path,
     score_bench: &mut dyn FnMut(&str) -> anyhow::Result<f64>,
 ) -> anyhow::Result<i32> {
-    let pre: BTreeMap<String, f64> =
+    let pre_file: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(pre_score_path)?)?;
+    let pre: BTreeMap<String, f64> = serde_json::from_value(
+        pre_file.get("benchmarks").cloned().ok_or_else(|| anyhow::anyhow!(
+            "pre-score file {} has no \"benchmarks\" object — refusing to guess which \
+             top-level keys are benchmark names", pre_score_path.display()))?,
+    )?;
     let mut scores: Vec<(String, f64, f64)> = Vec::new();
     for (bench, pre_score) in &pre {
         let post = score_bench(bench)?;          // fails loudly; no unwrap_or(pre)
@@ -502,7 +521,8 @@ anyhow::ensure!(substantive >= 2,
 > **Execution notes.**
 > **This task is blocked on Lane 0.** Raising the effective `max_tokens` against a quadratic, non-terminating loop makes chat worse, not better (L-1). Do not dispatch it before Z1 is merged and its throughput assertion is green.
 > **Revision 1's sample test did not compile.** The real type is `InferRequest<'a> { system_prompt: &'a str, user_prompt: vox_openai::ChatMessageContent<'a>, max_t: u64, temperature: Option<f32>, top_p: Option<f32>, json_mode: bool, tools: Option<Value>, tool_choice: Option<Value> }` (`:27-36`) — lifetime-parameterized, **no `Default` impl**, and every field name in Revision 1 was wrong. **Use the existing `make_infer_request(...)` helper**; extend it rather than writing a struct literal. `extract_prompt_text` takes `&ChatMessageContent<'_>`, not `&InferRequest`. `VoxLocalGenerateRequest.model` is `Option<String>`.
-> **The server already injects its own system prompt.** `serve/mod.rs:105-108` falls back to `vox_corpus::training::generate_training_system_prompt()`. So the model *is* steered — just not by the caller. **Revision 1 said "the system prompt is dropped" and would have shipped a fix that stacks two system prompts.** Decide the precedence (caller wins, or caller is appended), state it in your report, and test it.
+> **The server already injects its own system prompt.** `serve/mod.rs:105-108` falls back to `vox_corpus::training::generate_training_system_prompt()`. So the model *is* steered — just not by the caller. **Revision 1 said "the system prompt is dropped" and would have shipped a fix that stacks two system prompts.**
+> **Precedence — decided: caller replaces, never appends.** When `InferRequest.system_prompt` is non-empty, it is the *only* system prompt sent — it fully replaces the server's `generate_training_system_prompt()` default, not prepended or appended to it. When it is empty (`""`), the server's default applies unchanged. Rationale: this is standard OpenAI-compatible client behavior (a supplied system message is authoritative), it is the simplest rule to test (`prompt.matches("You are").count() == 1` regardless of which branch fired), and appending risks the two prompts giving contradictory instructions the model has no way to reconcile. Implement the replace/default switch in `build_vox_local_request`, not in the server — the server's default stays a true fallback for callers that never set a system prompt at all (e.g. a raw `/generate` call).
 > The rest of the intent is verified: `VoxLocalGenerateRequest` is `{prompt, validate, max_retries, model}` (`:232-239`); `GenerateRequest` (`serve/schema.rs:8-28`) has `max_tokens: usize` defaulting to **256** (`:31-33`), and **no `validate` field**. Removing `validate` is a genuine no-op on the wire. The catalog advertises `max_tokens: 8192` (`catalog.rs:681`).
 
 - [ ] **Step 1: Write the failing test.** Do **not** assert `v.get("validate").is_none()` — a tautology about your own struct. The load-bearing assertion is the round-trip: the adapter's body must deserialize as the **server's** `GenerateRequest`. That is the only thing in the repo that fails if the two structs drift again.
@@ -533,11 +553,33 @@ async fn the_server_honors_max_tokens_and_exactly_one_system_prompt() {
                "the server injects its own system prompt — do not stack two");
     assert_eq!(resp.model, "mens/demo");
 }
+
+#[tokio::test]
+async fn an_empty_caller_prompt_falls_back_to_the_server_default() {
+    // The other half of the precedence rule: replace only when the caller
+    // actually supplied one. An empty system_prompt must not blank the model out.
+    let (tx, rx) = std::sync::mpsc::sync_channel::<InferenceRequest>(1);
+    let seen = std::thread::spawn(move || {
+        let ir = rx.recv().unwrap();
+        let _ = ir.reply.send(Ok("ok".into()));
+        ir.prompt.clone()
+    });
+    let state = AppState { tx, model_name: "mens/demo".into(),
+                           ready: Arc::new(AtomicBool::new(true)) };
+    let mut req = make_infer_request(/* … */);
+    req.system_prompt = ""; // caller supplied nothing
+    let body = build_vox_local_request(&req, "mens/demo");
+    let req: GenerateRequest = serde_json::from_value(serde_json::to_value(&body).unwrap()).unwrap();
+    let (_, _) = do_generate(State(state), Json(req)).await;
+    let prompt = seen.join().unwrap();
+    assert_eq!(prompt.matches("You are").count(), 1,
+               "an empty caller prompt must still get the server's default, not nothing");
+}
 ```
 
-- [ ] **Step 2: Verify it fails.** `--features gpu,execution-api` (the schema types are `#[cfg(feature = "execution-api")]`; without it the code under test does not compile).
-- [ ] **Step 3: Implement** `build_vox_local_request`, **and call it from `VoxLocalAdapter::infer`** (`:279-284`). A builder the adapter does not use is theater — the defeating mutation is to add the function and leave `infer` building its body inline.
-- [ ] **Step 4: Verify it passes.** — [ ] **Step 5: Mutation-verify** (delete the call site in `infer`, confirm failure, restore; paste both). — [ ] **Step 6: Commit.**
+- [ ] **Step 2: Verify both fail.** `--features gpu,execution-api` (the schema types are `#[cfg(feature = "execution-api")]`; without it the code under test does not compile).
+- [ ] **Step 3: Implement** `build_vox_local_request` with the replace-when-present / default-when-empty switch, **and call it from `VoxLocalAdapter::infer`** (`:279-284`). A builder the adapter does not use is theater — the defeating mutation is to add the function and leave `infer` building its body inline.
+- [ ] **Step 4: Verify both pass.** — [ ] **Step 5: Mutation-verify** (delete the call site in `infer`, confirm failure, restore; paste both). — [ ] **Step 6: Commit.**
 
 ---
 
@@ -555,7 +597,9 @@ async fn the_server_honors_max_tokens_and_exactly_one_system_prompt() {
 > **`contracts/orchestration/providers.v1.yaml` is codegen input**, not documentation — `vox-orchestrator-types/build.rs` generates Rust from it and `data_ssot_guards.rs` gates it. Its `VoxLocal` row asserts `supports_openai_compat: false` and the comment *"Speaks OpenAI v1/completions (text-prompt) — NOT v1/chat/completions (messages)."* **This task makes both false.** Flip the flag, rewrite the description, run `vox ci ssot-drift`, **all in the same commit**. Revision 1 never mentioned this file.
 > **Resolve the base URL through the config SSOT**, mirroring the Ollama arm above it, which deliberately uses `vox_config::inference::local_ollama_populi_base_url` with a comment on why an unset env must not disable tool-calling. Use `vox_config::inference::vox_local_endpoint_probe_candidates()`. **Do not inline a URL** (see Task E3, and note `VOX_LOCAL_ENDPOINT` *replaces* the candidate list entirely — `vox-config/src/inference.rs:187-193`).
 > The helper is `fn model_spec(provider_type: ProviderType, id: &str)` at `agent_loop.rs:1383`. Revision 1 cited `:1375` and swapped the arguments.
-> **New silent failure this route creates:** the server must *emit* `choices[].message.tool_calls`. A small model will emit prose about the tool, or near-miss JSON. If parsing fails, `resp.tool_calls` is empty, the loop takes the text branch, and the user sees a fluent reply that did nothing — **indistinguishable from a model that chose not to call a tool.** Per B0's ruling: either salvage a tool-shaped blob **and surface it as a repair**, or fail the turn loudly. Silent degradation to "chatted about the tool" is the worst option and is the default you get by doing nothing.
+> **New silent failure this route creates, and the policy for it — decided: always salvage, always surface, never hard-fail the turn.** The server must *emit* `choices[].message.tool_calls`. A small model will emit prose about the tool, or near-miss JSON. `validate_structured_output_with_reason` (`serve/prompt.rs:47`) already proves the codebase's pattern for this class of problem: it is a **post-hoc text check**, not a guided-decoding constraint — there is no mechanism anywhere in this serve path that forces the model's output into a schema during generation, so a malformed tool call is not a rare edge case, it is the expected failure mode of a small model. Failing the turn outright on every one of those would make chat unusable well before Lane D ever trains a `tool-selection` spoke.
+> **The policy:** (1) parse `choices[].message.tool_calls` first; if non-empty and well-formed, dispatch normally. (2) If empty, regex-scan the text content for a JSON object shaped like `{"name": "...", "arguments": {...}}` (or a fenced ```` ```json ```` block containing one); if found and `name` matches a tool the turn actually offered, treat it as a salvaged call — tag the turn's telemetry with `tool_call_salvaged: true` and prefix nothing to the user-visible reply (the salvage is a repair of the wire format, not of intent, and the user should see a normal tool result). (3) If no tool-shaped JSON is found anywhere in the text, the turn completes as a plain-text answer — this is the "the model chose not to call a tool" case and is not a failure. **Never hard-fail a turn solely because tool-call parsing missed** — a total-turn failure on every non-conforming reply is worse for the user than an occasional missed dispatch, and B0's rate metric is the mechanism for deciding whether the whole route is worth it, not a per-turn kill switch.
+> B0's ruling still governs *scope*, not this behavior: at ≥0.7 this policy is sufficient as specified; at 0.3-0.7 step (2)'s salvage carries the real weight and its match rate must be watched via `tool_call_salvaged` in the metrics from Step 8; at ≤0.3, per B0, stop before writing any of this.
 > **Serialize after B1 and after B0's ruling; before B3.** Owns `serve/{handlers,schema,mod}.rs` exclusively.
 
 - [ ] **Step 1: Write the failing test.** `.is_some()` is the weakest possible assertion — the minimal change satisfying it is `VoxLocal => Some(LlmConfig::default())`, which makes the turn proceed and then fail against a nonexistent base URL, **worse** than today's clean fallback. Assert the wire:
@@ -589,13 +633,40 @@ async fn a_mens_turn_dispatches_a_tool_and_feeds_the_result_back() {
 
 `bodies.len() == 2` is exact, not `>= 1`: a regression that sends schemas but drops the result-feedback leg fails it.
 
-- [ ] **Step 2: Verify it fails.**
+Add a second test for the salvage policy itself, since Step 1's test only covers the well-formed case:
+
+```rust
+#[tokio::test]
+async fn a_near_miss_tool_call_is_salvaged_and_tagged_not_hard_failed() {
+    // The server replies with the tool call embedded in prose instead of
+    // structured tool_calls — the expected failure mode of a small model.
+    let server = httpmock::MockServer::start_async().await;
+    /* mount a handler whose first reply has empty tool_calls and content:
+       "I'll use read_file. ```json\n{\"name\":\"read_file\",\"arguments\":{\"path\":\"x\"}}\n```" */
+
+    let out = run_agent_turn(/* … */).await.unwrap();
+    assert_eq!(out.tool_calls_dispatched, 1, "a near-miss must still dispatch");
+    assert!(out.telemetry.get("tool_call_salvaged") == Some(&serde_json::Value::Bool(true)),
+            "a salvage must be visible, not indistinguishable from a clean structured call");
+}
+
+#[tokio::test]
+async fn no_tool_shaped_text_completes_as_a_plain_answer_not_a_turn_failure() {
+    let server = httpmock::MockServer::start_async().await;
+    /* mount a handler whose reply has empty tool_calls and ordinary prose */
+    let out = run_agent_turn(/* … */).await.unwrap();
+    assert_eq!(out.tool_calls_dispatched, 0);
+    assert!(out.reply_text.is_some(), "declining to call a tool must not fail the turn");
+}
+```
+
+- [ ] **Step 2: Verify all three fail.**
 - [ ] **Step 3: Add the `/v1/chat/completions` route**, delegating to `do_generate`. Shapes into `schema.rs` behind `execution-api`.
 - [ ] **Step 4: Add the `ProviderType::VoxLocal` arm**, base URL from `vox-config`.
-- [ ] **Step 5: Handle the empty-`tool_calls` case per B0's ruling** — salvage-and-surface, or fail loudly. Never silent.
+- [ ] **Step 5: Implement the three-step salvage policy above** — parse structured `tool_calls` first; on empty, regex-scan text for a `{"name":..,"arguments":..}` shape (fenced or bare) matching an offered tool and dispatch it tagged `tool_call_salvaged: true`; on no match, complete as plain text. **No branch hard-fails the turn.**
 - [ ] **Step 6: Flip `providers.v1.yaml`** and run `cargo run -p vox-cli -- ci ssot-drift`.
-- [ ] **Step 7: Verify it passes.**
-- [ ] **Step 8: Emit the rate.** Write `tool_call_valid_json_rate` and `tool_name_exists_rate` into `eval_results.json` (A3 created the producer) so `eval-gates-agents.yaml` can gate on the metric it already names.
+- [ ] **Step 7: Verify all three tests pass.**
+- [ ] **Step 8: Emit the rates.** Write `tool_call_valid_json_rate`, `tool_name_exists_rate`, and `tool_call_salvage_rate` into `eval_results.json` (A3 created the producer) so `eval-gates-agents.yaml` can gate on the metrics it already names. A high salvage rate is the signal that B0's route needs a bigger base, not the turn failures a hard-fail policy would have hidden this behind.
 - [ ] **Step 9: Mutation-verify.** Drop the tool-result feedback leg, confirm the `bodies[1]` assertion fails, restore. Paste both.
 - [ ] **Step 10: Commit** — one commit, all files: the contract flip and the route must never be separable.
 
@@ -640,7 +711,7 @@ Ordered C1 → C2 → C3 → C4 → C5. **C1 first, because C2 is untestable in 
 **Files:** Modify `crates/vox-gui/tauri.conf.json` (`externalBin`); `scripts/gui-build.vox`
 
 > **Execution notes.** Per L-6, the GUI's three existing MENS cards likely render `Error: vox-ml-cli is not installed or not in PATH` outside a dev checkout, and `mens models` is broken even *with* the binary because `models` is behind the non-default `gpu` feature. Everything else in Lane C is dead without this.
-> **Pre-decided (R12): bundle `vox-ml-cli` built with `--features gpu,execution-api`.** If the bundle-size cost is prohibitive — **measure it and say so** — the fallback is to detect the missing binary once on the `mens` surface and render an install instruction, **not** three identical opaque errors.
+> **Decided, no branch: bundle `vox-ml-cli` built with `--features gpu,execution-api`.** This task's completion criterion is "the three existing cards render real output from a packaged app," full stop — do not treat the bundle-size delta as a decision point requiring a fallback design in this task. `gpu` pulls in `vox-tensor`/`vox-plugin-host`/`vox-quantize` (already linked into the primary `vox` binary the app already bundles, since MENS training runs through the same CLI surface), so the marginal delta from adding a second binary with the same feature set is expected to be tens of MB, not hundreds — report the actual number, but ship it regardless. **Only if the measured delta exceeds 200MB**, stop and report that specific number as a blocker rather than silently building the install-instruction fallback — that redesign is a separate, larger task (a detect-and-message UX plus a way to fetch the binary on demand) and does not belong folded into this one under time pressure.
 
 - [ ] **Step 1:** Reproduce. Build the app, launch from **Finder**, paste what the three cards render.
 - [ ] **Step 2:** Add `vox-ml-cli` to `externalBin`; build with `--features gpu,execution-api` in `gui-build.vox`.
