@@ -107,8 +107,7 @@ fn main() {
                 None => {}
             }
             
-            log("Starting training...")
-            process.run("vox", [
+            let mut train_args: list[str] = [
                 "mens", "train",
                 "--backend", "qlora",
                 "--tokenizer", "hf",
@@ -117,7 +116,34 @@ fn main() {
                 "--data-dir", "/workspace/data",
                 "--output-dir", "/workspace/output",
                 "--device", "cuda"
-            ])
+            ]
+
+            // The dispatcher (vast.rs/runpod_provider.rs `build_env_map`) sizes
+            // the rental against `spec.batch_size`/`spec.seq_len` BEFORE renting
+            // the GPU. Pass those exact values through as explicit CLI flags so
+            // this worker cannot silently re-derive a larger, unverified shape
+            // from its own preset ladder.
+            let batch_size_opt = env.get("VOX_MENS_BATCH_SIZE")
+            match batch_size_opt {
+                Some(batch_size) => {
+                    if batch_size isnt "" {
+                        train_args = train_args.push("--batch-size").push(batch_size)
+                    }
+                }
+                None => {}
+            }
+            let seq_len_opt = env.get("VOX_MENS_SEQ_LEN")
+            match seq_len_opt {
+                Some(seq_len) => {
+                    if seq_len isnt "" {
+                        train_args = train_args.push("--seq-len").push(seq_len)
+                    }
+                }
+                None => {}
+            }
+
+            log("Starting training...")
+            process.run("vox", train_args)
             log("Training complete — adapter at /workspace/output")
             
             let adapter_upload_hf_opt = env.get("VOX_ADAPTER_UPLOAD_HF")
