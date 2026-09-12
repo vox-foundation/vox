@@ -214,7 +214,7 @@ pub(super) async fn run_gpu_training(
         if no_explicit_sizing {
             match auto_size_from_model_dir(&files.cache_dir, seq_len as u64, gradient_checkpointing)
             {
-                Ok(picked) => {
+                Ok(AutoSizeOutcome::Sized(picked)) => {
                     eprintln!(
                         "  {} Auto-sized via sweep: batch_size {} → {} at seq_len {} \
                          (largest shape that fits this host's real memory budget).",
@@ -226,7 +226,47 @@ pub(super) async fn run_gpu_training(
                     batch_size = picked.batch_size as usize;
                     seq_len = picked.seq_len as usize;
                 }
+                Ok(AutoSizeOutcome::NoMeasurement(reason)) => {
+                    // No calibration row for this lane (e.g. candle-metal has
+                    // none yet) — there is no measured basis to accept or
+                    // refuse this config, so this is NOT the same as a
+                    // measured refusal below. Warn and fall back to the
+                    // preset's own seq_len/batch_size.
+                    eprintln!(
+                        "  {} Auto-sizing via sweep unavailable ({reason}); using preset \
+                         sizing instead (batch_size={batch_size}, seq_len={seq_len}). This lane \
+                         is uncalibrated, so nothing here has verified this config fits — \
+                         measure it with `vox mens probe --measure`.",
+                        "⚠".yellow()
+                    );
+                }
+                Ok(AutoSizeOutcome::Refused(reason)) => {
+                    // The lane IS calibrated and plan_for measured that even
+                    // batch_size=1 does not fit. This is a REAL refusal, not
+                    // an absence of data — never silently proceed into an
+                    // OOM (this is the exact failure class this program
+                    // exists to fix). Mirrors the old train_arm.rs
+                    // `budget_gate`'s VOX_MENS_FORCE_TRAIN escape hatch.
+                    if force_train_env() {
+                        eprintln!(
+                            "  {} VOX_MENS_FORCE_TRAIN=1 — proceeding despite a measured VRAM \
+                             refusal: {reason}",
+                            "⚠".yellow()
+                        );
+                    } else {
+                        anyhow::bail!(
+                            "model does not fit in the detected VRAM at batch_size={batch_size}, \
+                             seq_len={seq_len}: {reason}\n\
+                             reduce --seq-len/--batch-size, pick a smaller model, or set \
+                             VOX_MENS_FORCE_TRAIN=1 to proceed anyway."
+                        );
+                    }
+                }
                 Err(e) => {
+                    // Could not even attempt a measurement (accelerator probe
+                    // failed, ModelShape unreadable, ...) — same "no basis to
+                    // refuse" bucket as NoMeasurement above, not a measured
+                    // refusal.
                     eprintln!(
                         "  {} Auto-sizing via sweep unavailable ({e}); using preset/VRAM-budget \
                          sizing instead (batch_size={batch_size}, seq_len={seq_len}).",
@@ -394,26 +434,54 @@ pub(super) async fn run_gpu_training(
     Ok(())
 }
 
+/// Outcome of attempting to auto-size against the real per-host memory
+/// model. Distinguishes two genuinely different cases the caller must NOT
+/// treat the same way:
+///
+/// - [`Self::NoMeasurement`]: the lane has no calibration row (e.g.
+///   `candle-metal` today) or the attempt could not even be made (no
+///   accelerator budget, unreadable `ModelShape`, ...). There is no
+///   measured basis to accept or refuse this config — warn and fall back.
+/// - [`Self::Refused`]: the lane IS calibrated and `plan_for` measured that
+///   this config does not fit, even at the smallest batch size. This is a
+///   REAL, measured refusal, not an absence of data.
+///
+/// Flattening both into one warn-and-proceed branch was a real regression
+/// (fix round 1 of Task 8): it silently dropped the old `train_arm.rs`
+/// `budget_gate`'s refusal-with-`VOX_MENS_FORCE_TRAIN`-override contract for
+/// the (now much more common) case of a calibrated lane whose measured
+/// prediction genuinely exceeds the usable budget.
+#[derive(Debug)]
+enum AutoSizeOutcome {
+    Sized(vox_populi::mens::tensor::memory_model::Request),
+    NoMeasurement(String),
+    Refused(String),
+}
+
 /// `vox mens train`'s no-sizing-flags default (Step 4): the largest batch
 /// size that fits this host's REAL memory budget for the model now sitting
 /// at `model_dir`, via the same `memory_model::sweep`/`plan_for` entry point
 /// `vox mens probe --sweep` calls — not a second, parallel sizing algorithm.
 /// Queries the real accelerator (`accel_budget::query_accel_budget`) rather
 /// than trusting the CLI's `--device` intent, since that can be `Best`.
-/// Fails closed (naming why) for an uncalibrated lane — e.g. `candle-metal`
-/// has no fitted row yet — so the caller can fall back to the existing
-/// preset/VRAM-ladder sizing rather than blocking training on a missing
-/// calibration.
+/// Returns `Ok(AutoSizeOutcome::NoMeasurement(_))` — never an `Err` — for an
+/// uncalibrated lane or an unattemptable measurement, so the caller can fall
+/// back to preset sizing without treating that the same as a measured
+/// refusal (see [`AutoSizeOutcome`]). `Err` is reserved for genuinely
+/// exceptional setup failures the caller should still surface.
 fn auto_size_from_model_dir(
     model_dir: &std::path::Path,
     seq_len: u64,
     gradient_checkpointing: bool,
-) -> Result<vox_populi::mens::tensor::memory_model::Request> {
+) -> Result<AutoSizeOutcome> {
     use vox_populi::mens::tensor::accel_budget::{BudgetSource, query_accel_budget};
     use vox_populi::mens::tensor::memory_model::{DeviceBudget, Lane, MemoryModels};
 
-    let accel = query_accel_budget()
-        .ok_or_else(|| anyhow::anyhow!("no accelerator budget available on this host"))?;
+    let Some(accel) = query_accel_budget() else {
+        return Ok(AutoSizeOutcome::NoMeasurement(
+            "no accelerator budget available on this host".to_string(),
+        ));
+    };
     let lane = match accel.source {
         BudgetSource::Metal => Lane::CandleMetal,
         BudgetSource::Cuda => Lane::CandleCuda,
@@ -436,7 +504,14 @@ fn auto_size_from_model_dir(
 /// The pure decision `auto_size_from_model_dir` delegates to, with the
 /// hardware query and contract load already resolved by the caller — split
 /// out so this can be exercised without live hardware, while still calling
-/// the real `sweep`, never a reimplementation of it.
+/// the real `sweep`/`MemoryModels::get`, never a reimplementation of them.
+///
+/// Checks calibration presence itself (via `models.get`) BEFORE calling
+/// `sweep`, specifically so an uncalibrated lane can be told apart from a
+/// calibrated lane `sweep` refused — `plan_for`'s own `Verdict` type
+/// flattens both into `Refused(reason)` internally (a differently-worded
+/// string is the only difference), so that distinction has to be made here,
+/// one layer up, not inside `sweep`/`plan_for` themselves.
 fn auto_size_with_budget(
     model_dir: &std::path::Path,
     seq_len: u64,
@@ -444,17 +519,38 @@ fn auto_size_with_budget(
     budget: &vox_populi::mens::tensor::memory_model::DeviceBudget,
     lane: vox_populi::mens::tensor::memory_model::Lane,
     models: &vox_populi::mens::tensor::memory_model::MemoryModels,
-) -> Result<vox_populi::mens::tensor::memory_model::Request> {
+) -> Result<AutoSizeOutcome> {
     use vox_populi::mens::tensor::memory_model::{CalKey, ModelShape, sweep};
 
     let key = CalKey::new(lane, gradient_checkpointing)?;
     let shape = ModelShape::from_model_dir(model_dir)?;
-    sweep(budget, models, &key, &shape, seq_len)
+
+    if let Err(e) = models.get(&key) {
+        return Ok(AutoSizeOutcome::NoMeasurement(e.to_string()));
+    }
+
+    Ok(match sweep(budget, models, &key, &shape, seq_len) {
+        Ok(req) => AutoSizeOutcome::Sized(req),
+        Err(e) => AutoSizeOutcome::Refused(e.to_string()),
+    })
+}
+
+/// `VOX_MENS_FORCE_TRAIN=1`/`true` — the registered operator override
+/// meaning "proceed past a failing gate", including the VRAM-fit refusal
+/// above. Restores exactly the escape hatch `train_arm.rs`'s deleted
+/// `budget_gate`/`force_train_env` used to provide for the params_b-only
+/// ladder's `ModelPlan.over_budget`, now applied to the real measured
+/// `plan_for` verdict instead.
+fn force_train_env() -> bool {
+    std::env::var("VOX_MENS_FORCE_TRAIN")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
 mod auto_size_tests {
-    use super::auto_size_with_budget;
+    use super::{AutoSizeOutcome, auto_size_with_budget, force_train_env};
     use vox_populi::mens::tensor::memory_model::{DeviceBudget, Lane, MemoryModels};
 
     // Synthetic fixture — not a real candle-metal measurement, matches the
@@ -497,9 +593,12 @@ lanes:
         };
         let models = MemoryModels::load_from_str(SEED_YAML).unwrap();
 
-        let via_wrapper =
+        let outcome =
             auto_size_with_budget(dir.path(), 512, false, &budget, Lane::CandleMetal, &models)
-                .expect("something fits a 128 GiB budget at this tiny shape");
+                .expect("no setup error for a calibrated lane and a readable model dir");
+        let AutoSizeOutcome::Sized(via_wrapper) = outcome else {
+            panic!("expected Sized for a calibrated lane and a 128 GiB budget, got {outcome:?}");
+        };
 
         // Directly reconstruct what `sweep` alone would answer for the same
         // inputs and assert byte-for-byte equality — proving the wrapper is
@@ -513,11 +612,12 @@ lanes:
         assert_eq!(via_wrapper.seq_len, direct.seq_len);
     }
 
-    /// An uncalibrated lane (no `candle-metal` row) must refuse, naming why,
-    /// rather than fabricating a batch size — the caller (`gpu.rs`'s
-    /// `run_gpu_training`) is what falls back to preset/VRAM sizing.
+    /// An uncalibrated lane (no `candle-metal` row) must report
+    /// `NoMeasurement` naming why, rather than fabricating a batch size OR
+    /// being conflated with a measured refusal — the caller (`gpu.rs`'s
+    /// `run_gpu_training`) treats these as genuinely different outcomes.
     #[test]
-    fn auto_size_with_budget_refuses_for_an_uncalibrated_lane() {
+    fn auto_size_with_budget_reports_no_measurement_for_an_uncalibrated_lane() {
         let dir = model_dir_fixture();
         let budget = DeviceBudget {
             working_set_bytes: 128 * 1024 * 1024 * 1024,
@@ -525,8 +625,73 @@ lanes:
         };
         let empty =
             MemoryModels::load_from_str("schema: vox.mens.memory-model.v1\nlanes: []\n").unwrap();
-        let err = auto_size_with_budget(dir.path(), 512, false, &budget, Lane::CandleMetal, &empty)
-            .expect_err("no candle-metal row exists");
-        assert!(err.to_string().contains("candle-metal"));
+        let outcome =
+            auto_size_with_budget(dir.path(), 512, false, &budget, Lane::CandleMetal, &empty)
+                .expect("no setup error just because the lane is uncalibrated");
+        match outcome {
+            AutoSizeOutcome::NoMeasurement(reason) => {
+                assert!(reason.contains("candle-metal"));
+            }
+            other => panic!("expected NoMeasurement for an uncalibrated lane, got {other:?}"),
+        }
+    }
+
+    /// **Fix-round regression test (the critical safety gap this round
+    /// exists to close):** a CALIBRATED lane whose measured `plan_for`
+    /// verdict refuses even `batch_size=1` must report `Refused`, distinct
+    /// from `NoMeasurement` above — never silently treated as "no data,
+    /// proceed anyway". The old `train_arm.rs::budget_gate` used to `bail!`
+    /// on exactly this case (a real ModelPlan.over_budget); this is its
+    /// replacement's unit-level equivalent. `run_gpu_training`'s call site
+    /// is what turns `Refused` into a `bail!` unless
+    /// `VOX_MENS_FORCE_TRAIN=1` — this test pins the type-level distinction
+    /// that decision depends on.
+    #[test]
+    fn auto_size_with_budget_refuses_for_a_calibrated_lane_that_does_not_fit() {
+        let dir = model_dir_fixture();
+        // 1 KiB: nothing fits at any batch size for this shape, and the
+        // lane below IS calibrated — so this must be a measured refusal,
+        // not an absence of data.
+        let budget = DeviceBudget {
+            working_set_bytes: 1024,
+            operator_fraction: None,
+        };
+        let models = MemoryModels::load_from_str(SEED_YAML).unwrap();
+        let outcome =
+            auto_size_with_budget(dir.path(), 512, false, &budget, Lane::CandleMetal, &models)
+                .expect("no setup error for a calibrated lane, even when it refuses");
+        match outcome {
+            AutoSizeOutcome::Refused(reason) => {
+                assert!(!reason.is_empty());
+            }
+            other => panic!(
+                "expected a measured Refused for a 1 KiB budget on a calibrated lane, got {other:?}"
+            ),
+        }
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn force_train_env_parses_truthy_and_falsy_values() {
+        // Guards concurrent mutation of the process-global env var — no
+        // other test in this binary reads or writes VOX_MENS_FORCE_TRAIN.
+        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prior = std::env::var("VOX_MENS_FORCE_TRAIN").ok();
+
+        // SAFETY: single-threaded section guarded by LOCK above.
+        unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") };
+        assert!(!force_train_env(), "unset -> false");
+        for on in ["1", "true", "TRUE"] {
+            unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", on) };
+            assert!(force_train_env(), "{on} -> true");
+        }
+        unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", "0") };
+        assert!(!force_train_env(), "0 -> false");
+
+        match prior {
+            Some(v) => unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", v) },
+            None => unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") },
+        }
     }
 }

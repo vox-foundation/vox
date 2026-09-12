@@ -432,20 +432,55 @@ pub fn resolve_effective_profile(
             // was deleted (Task 8): its `METAL_*_GIB` constants covered 8B,
             // 14B-QLoRA, 14B-LoRA and 32B with no 27B rung, so a 27B request
             // silently landed on the 14B preset. The fail-closed floor below 6
-            // GiB is the one part of that ladder worth keeping — it is a real
-            // safety property, not a VRAM-fit guess — so it survives standalone.
-            // The fine-grained tier selection above the floor does not: it always
-            // selects the smallest real Metal preset now, and the real per-host
-            // fit comes from `memory_model::sweep`/`plan_for` after the model is
-            // on disk (see `gpu::run_gpu_training`), not a pre-download guess.
-            if device.vram_mb > 0 && (device.vram_mb as f32 / 1024.0) >= 6.0 {
-                base_for_name("qwen3_16g")
-            } else {
-                anyhow::bail!(
+            // GiB is one part of that ladder worth keeping standalone — a real
+            // safety property, not a VRAM-fit guess.
+            //
+            // Fix-round regression (review round 1): collapsing the WHOLE
+            // ladder above the floor to a single fixed `qwen3_16g` selection
+            // was unsafe on its own, not just imprecise — `candle-metal` has
+            // no calibration row in `contracts/mens/memory-model.v1.yaml` as
+            // of this writing, so `memory_model::sweep` (the real per-host
+            // fit check meant to catch an oversized config post-download, see
+            // `gpu::run_gpu_training`) reports `NoMeasurement` on every Mac
+            // today and cannot correct anything here. A small Mac (6-12ish
+            // GiB) landing on `qwen3_16g` (seq 512, batch 1) instead of the
+            // old ladder's `qwen3_dev_cpu` (seq <=256, batch 1, smoke-safe)
+            // therefore had nothing left to catch an unsafe config. Restoring
+            // just this one boundary — not the full multi-tier ladder, which
+            // stays collapsed above it — keeps the one part of the old
+            // behavior that was actually load-bearing for safety on
+            // uncalibrated hardware.
+            const METAL_AUTO_DEV_CPU_CEILING_GIB: f32 = 12_000.0 / 1024.0; // matches the old METAL_QWEN3_8B_QLORA_GIB boundary
+            let vram_gb = (device.vram_mb > 0).then_some(device.vram_mb as f32 / 1024.0);
+            match vram_gb {
+                Some(v) if v >= METAL_AUTO_DEV_CPU_CEILING_GIB => {
+                    // Every real Mac above ~12 GiB now gets the SAME fixed
+                    // preset (`qwen3_16g`) regardless of how much more VRAM
+                    // it actually has — including this program's own primary
+                    // dev hardware (a 116 GiB Mac), which the old ladder
+                    // would have sent to `qwen3_96g` (rank 64/alpha
+                    // 128/seq 2048/batch 4). This is a disclosed capability
+                    // downgrade for the "auto"/omitted-preset default on
+                    // large Macs, not an oversight: `sweep` only restores
+                    // `batch_size` (and only once `candle-metal` is
+                    // calibrated) — it does not touch rank/alpha/seq_len/lr —
+                    // so there is currently no measured basis to pick a
+                    // larger preset safely. A large-Mac user who wants the
+                    // bigger preset's shape today should pass it explicitly
+                    // (`--preset qwen3_96g`).
+                    base_for_name("qwen3_16g")
+                }
+                // Restored fail-safe tier: below the ceiling above (and at or
+                // above the 6 GiB floor), always the smoke-safe preset —
+                // there is no sweep correction available on this lane today,
+                // so this tier must not risk an OOM the way `qwen3_16g`'s
+                // larger seq_len/batch_size could on genuinely small hardware.
+                Some(v) if v >= 6.0 => base_for_name("qwen3_dev_cpu"),
+                Some(_) | None => anyhow::bail!(
                     "no Metal training preset for {} MB live-available memory \
                      (need at least 6 GiB, or pass --preset explicitly)",
                     device.vram_mb
-                )
+                ),
             }
         } else {
             // The old CUDA yaml-driven `TrainingPreset::best_for_vram` VRAM
@@ -1221,13 +1256,41 @@ mod metal_auto_default_tests {
 
     #[test]
     #[serial(vox_base_model_env)]
+    fn metal_auto_below_12gib_stays_on_the_smoke_safe_preset() {
+        // Fix-round regression test: an earlier version of this deletion
+        // collapsed the ENTIRE Metal ladder (including this boundary) to a
+        // single fixed `qwen3_16g` selection above the 6 GiB floor. That was
+        // unsafe, not just imprecise: `candle-metal` has no calibration row
+        // yet, so `memory_model::sweep` cannot correct an oversized config
+        // post-download on this lane (it reports `NoMeasurement` and the
+        // training entry point falls back to whatever preset this function
+        // picked). A small Mac (6-12ish GiB) must land on the deliberately
+        // tiny, smoke-safe `qwen3_dev_cpu` (seq <=256, batch 1, rank 8) — the
+        // one tier of the old ladder this fix-round restores — not on
+        // `qwen3_16g`'s larger seq_len/batch_size.
+        clear_preset_env();
+        let dev = DeviceProfile::from_gpu_info("apple m-series", 8192, "apple"); // 8 GiB
+        let profile = resolve_effective_profile(None, dev, None, no_budget_clamp())
+            .expect("8 GiB is above the 6 GiB fail-closed floor");
+        let expected = base_for_name("qwen3_dev_cpu");
+        assert_eq!(core_fields(&profile), core_fields(&expected));
+        assert_eq!(profile.rank, 8, "qwen3_dev_cpu must be r8 (smoke only)");
+        assert!(profile.seq_len <= 256);
+        assert_eq!(profile.batch_size, 1);
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
     fn metal_auto_no_longer_varies_by_vram_above_the_floor() {
         // The old VRAM-tiered `auto_preset_for` ladder was deleted (Task 8): it
-        // had no 27B rung and silently handed a 27B model the 14B preset. Metal
-        // "auto" now always resolves to the same fixed preset above the 6 GiB
-        // fail-closed floor — a 13.6 GiB and a 116 GiB Mac must select the
-        // identical preset (the real per-host fit comes from
-        // `memory_model::sweep`/`plan_for` post-download, not this selection).
+        // had no 27B rung and silently handed a 27B model the 14B preset. Above
+        // the restored `qwen3_dev_cpu` safety tier (see
+        // `metal_auto_below_12gib_stays_on_the_smoke_safe_preset`), Metal "auto"
+        // now always resolves to the same fixed preset — a 13.6 GiB and a
+        // 116 GiB Mac must select the identical preset (the real per-host fit
+        // comes from `memory_model::sweep`/`plan_for` post-download, not this
+        // selection — disclosed as a real capability downgrade on large Macs
+        // in the branch's own doc comment).
         clear_preset_env();
         let small = DeviceProfile::from_gpu_info("apple m-series", 13926, "apple");
         let huge = DeviceProfile::from_gpu_info("apple m-series", 116 * 1024, "apple");

@@ -26,7 +26,7 @@ All notable changes to the Vox project are documented here.
 
 ### Changed
 
-- **`VOX_MENS_FORCE_TRAIN` now also overrides the `vox mens train` VRAM budget gate.** The gate that refuses an over-budget plan previously had no operator override at all; setting `VOX_MENS_FORCE_TRAIN=1` (or `true`) proceeds past it, matching the var's existing "proceed past a failing gate" meaning. Unset or `0` still rejects.
+- **`VOX_MENS_FORCE_TRAIN` overrides `vox mens train`'s VRAM-fit refusal.** When the accelerator lane is calibrated (has a row in `contracts/mens/memory-model.v1.yaml`) and the real, measured `memory_model::sweep`/`plan_for` verdict refuses the config even at `batch_size=1`, `vox mens train` refuses to proceed unless `VOX_MENS_FORCE_TRAIN=1` (or `true`) is set; unset or `0` still rejects. An uncalibrated lane (no measured basis to accept or refuse) is a separate, warn-and-proceed case, not a refusal. This replaced the earlier params_b-only `budget_gate`/`ModelPlan.over_budget` gate in `train_arm.rs`, deleted as part of the 2026-09-11 memory-model SSOT migration, with the same operator-override contract applied to the new measured entry point.
 
 ## [0.6.0] - 2026-05-26
 

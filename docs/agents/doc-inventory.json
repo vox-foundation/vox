@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-12T01:37:21.954Z",
+  "generated_at": "2026-09-12T02:26:38.595Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -4125,17 +4125,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "docs/src/reference/env-vars.md",
-      "kind": "markdown",
-      "lines_total": 431,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 19,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "docs/superpowers/plans/2026-06-13-history-driven-token-savings.md",
       "kind": "markdown",
       "lines_total": 431,
@@ -4161,6 +4150,17 @@
       "path": "docs/src/architecture/where-things-live.md",
       "kind": "markdown",
       "lines_total": 429,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 19,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/reference/env-vars.md",
+      "kind": "markdown",
+      "lines_total": 428,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
@@ -13994,10 +13994,10 @@
     {
       "path": "crates/vox-populi/src/mens/tensor/preset_schema.rs",
       "kind": "rust",
-      "lines_total": 1260,
+      "lines_total": 1323,
       "lines_triple_slash": 84,
       "lines_inner_doc": 1,
-      "lines_plain_comment": 102,
+      "lines_plain_comment": 147,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14680,6 +14680,17 @@
       "lines_triple_slash": 60,
       "lines_inner_doc": 5,
       "lines_plain_comment": 21,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/schola/train/gpu.rs",
+      "kind": "rust",
+      "lines_total": 697,
+      "lines_triple_slash": 64,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 55,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15611,10 +15622,10 @@
     {
       "path": "crates/vox-populi/src/mens/cloud/resolver.rs",
       "kind": "rust",
-      "lines_total": 458,
+      "lines_total": 478,
       "lines_triple_slash": 48,
       "lines_inner_doc": 4,
-      "lines_plain_comment": 11,
+      "lines_plain_comment": 17,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -21753,17 +21764,6 @@
       "lines_triple_slash": 22,
       "lines_inner_doc": 1,
       "lines_plain_comment": 12,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/schola/train/gpu.rs",
-      "kind": "rust",
-      "lines_total": 532,
-      "lines_triple_slash": 22,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 34,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
