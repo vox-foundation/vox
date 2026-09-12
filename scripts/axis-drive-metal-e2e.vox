@@ -223,8 +223,11 @@ fn main() {
     // Step 1: demo prompt provably absent from the training corpus (previous
     // revision used "Write a Vox function named add" — `fn_add` is a held-out
     // bench task whose name appears in the training corpus, so that prompt
-    // would showcase a memorized answer as if it proved novel codegen; see
-    // task-B3-report.md for the zero-count grep evidence for the name below).
+    // would showcase a memorized answer as if it proved novel codegen).
+    // `zephyroid_lattice_fold` below was confirmed absent from
+    // mens/data/train_mixed_rust.jsonl (`grep -ci` returns 0) before being
+    // chosen — distinctive enough that a zero-count is meaningful evidence,
+    // not a coincidence.
     let _ = run_json(bin, ["gui", "drive", "send", "--text",
         "Write a Vox function named zephyroid_lattice_fold that takes a list[int] and returns the sum of its elements. Reply with only a ```vox fenced code block containing the function."])
     let wait = process.run(bin, ["gui", "drive", "wait", "--until", "reply_ok", "--timeout", "180s"])
@@ -327,10 +330,12 @@ fn main() {
     // turn claims to be testing, re-send, and require the turn to now fail.
     // If it still succeeds, the reply was never actually coming from serve.
     // This runs BEFORE step 4 (not after) so it always executes on every real
-    // invocation: step 4 fails closed today (see below) on every run because
-    // no base-only serving mode exists in this repo, and a check ordered
+    // invocation: step 4 below fails closed on every run because no
+    // base-only serving mode exists in this repo yet, and a check ordered
     // after an unconditionally-failing one would never be reached in
-    // practice — see task-B3-report.md's fix-round note.
+    // practice. Do not move this block back after step 4 — that ordering
+    // was tried and reviewed as a defect: it makes this negative control,
+    // the one check no absence-assertion can fake, dead code.
     let _ = process.run("pkill", ["-f", "mens serve"])
     let _ = process.run("sleep", ["2"])
     let control_nonce = nonce + "-control"
@@ -352,7 +357,7 @@ fn main() {
     // "LoRA adapter or adapter_manifest.json not found"), and neither
     // `vox mens serve` nor `vox mens eval-local` nor `vox chat` (OpenRouter
     // only) expose a "serve base weights, no adapter" mode. That is a genuine
-    // infrastructure gap, not something to fake here (see task-B3-report.md).
+    // infrastructure gap in this repo today, not something to fake here.
     // Until that mode exists, an operator can point VOX_MENS_BASE_ENDPOINT at
     // a base-only OpenAI-chat-compatible endpoint to opt in; absent that, this
     // check fails closed rather than silently passing. It runs LAST (after
@@ -361,7 +366,7 @@ fn main() {
     // to reach an endpoint — serve's state by this point doesn't matter.
     let base_endpoint = env.get("VOX_MENS_BASE_ENDPOINT")
     if base_endpoint is null {
-        fail(bin, "VOX_MENS_BASE_ENDPOINT is not set — no base-only (no-adapter) serving mode exists in this repo today, so adapter-vs-base cannot be verified live; see task-B3-report.md for the gap and the code paths that would need one")
+        fail(bin, "VOX_MENS_BASE_ENDPOINT is not set — no base-only (no-adapter) serving mode exists in this repo today (crates/vox-plugin-mens-candle-metal/src/inference.rs hard-requires the adapter file/manifest to load at all), so adapter-vs-base cannot be verified live until an operator points this at a base-only endpoint")
     }
     let base_url = base_endpoint.unwrap()
     let compare_prompt = "Reply with exactly this token and nothing else: " + nonce
