@@ -6,7 +6,7 @@ use anyhow::Result;
 use tokenizers::Tokenizer;
 
 /// Longest initial run where standalone `prefix_text` tokenization matches `full_text` tokenization.
-pub(super) fn aligned_prefix_token_len(
+pub fn aligned_prefix_token_len(
     tokenizer: &Tokenizer,
     prefix_text: &str,
     full_text: &str,
@@ -45,7 +45,7 @@ pub(super) fn aligned_prefix_token_len(
 }
 
 /// Align byte-level syntax spans (from AST) to token indices and weights.
-pub(super) fn align_syntax_spans_to_tokens(
+pub fn align_syntax_spans_to_tokens(
     encoding: &tokenizers::Encoding,
     spans: &[vox_tensor::data::SyntaxSpan],
     trunc_offset: usize,

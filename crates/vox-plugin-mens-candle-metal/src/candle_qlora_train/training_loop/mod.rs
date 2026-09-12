@@ -24,12 +24,14 @@ use crate::{
     telemetry_schema, train_log, training_summary::TrainingSummary,
 };
 
-pub mod checkpoint;
-pub mod curriculum;
-pub mod encoding;
+// checkpoint / curriculum / encoding / logic / telem_helpers moved to
+// vox-plugin-mens-candle-core — byte-for-byte identical to the CUDA plugin's
+// copies (logic.rs here held only `trajectory_weight_for_pair`).
+pub use vox_plugin_mens_candle_core::candle_qlora_train::training_loop::{
+    checkpoint, curriculum, encoding, logic, telem_helpers,
+};
+
 pub mod forward;
-pub mod logic;
-pub mod telem_helpers;
 pub mod types;
 pub mod validation;
 

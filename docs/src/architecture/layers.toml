@@ -211,6 +211,7 @@ vox-research-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = 
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }
+vox-plugin-mens-candle-core = { layer = 3, sibling_of = ["vox-plugin-mens-candle-cuda", "vox-plugin-mens-candle-metal", "vox-populi"] }  # device-agnostic Candle QLoRA code shared by the two L4 plugins and vox-populi (model_card/manifest); depends on vox-tensor/vox-db (L3), so must sit at L3 too
 vox-speech              = { layer = 3, sibling_of = ["vox-plugin-speech"] }                    # Unit-4 extraction migration: shared code with plugin variant tolerated by drift sweep
 vox-wasm-engine         = { layer = 3 }
 vox-container-types     = { layer = 0 }              # pure types: ContainerRuntime trait, BuildOpts/RunOpts, RuntimePreference, exec_grammar (D-9-rescope step 1)

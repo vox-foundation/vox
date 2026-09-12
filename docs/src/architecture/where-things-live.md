@@ -105,6 +105,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution. |
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool name/description registry from contracts YAML (SSOT). |
 | [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress, no config/secret resolution. |
+| [`vox-plugin-mens-candle-core`](../../../crates/vox-plugin-mens-candle-core/) | Device-agnostic Candle QLoRA training/inference code shared by `vox-plugin-mens-candle-metal` and `vox-plugin-mens-candle-cuda` (config, manifest/model-card types, HF key/layout mapping, merge, preflight, telemetry, device-kind resolution). No cdylib entry point; `rlib` only. |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
 | [`vox-similarity`](../../../crates/vox-similarity/) | Pure simhash/minhash/LSH near-duplicate similarity core for discovery + marketplace dedup. |

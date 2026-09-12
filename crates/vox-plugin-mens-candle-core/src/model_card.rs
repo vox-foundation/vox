@@ -1,6 +1,16 @@
 //! Human-readable `MODEL_CARD.md` next to checkpoints.
 //!
-//! Ported verbatim from `vox-populi/src/mens/tensor/model_card.rs` (SP3 sub-batch C).
+//! Canonical home for the two plugin crates' copies (previously
+//! byte-identical between `vox-plugin-mens-candle-metal` and
+//! `vox-plugin-mens-candle-cuda`), now a single definition both re-export.
+//!
+//! `vox-populi/src/mens/tensor/model_card.rs` carries a THIRD, still-separate
+//! copy of this exact type. Folding it in here too would need vox-populi
+//! (layer 2 in `contracts/ci/crate-layers.v1.json`) to depend on this crate
+//! (layer 4 — set by its own dependency on `vox-tensor`/`vox-hf-layout`,
+//! which sit at layers 3-4), an upward edge that `vox ci crate-edges` blocks
+//! unless a user adds a grandfathered `exceptions` entry (USER-AUTHORIZED-ONLY
+//! per AGENTS.md §Dependency Discipline — not something to add unilaterally).
 
 use std::path::Path;
 

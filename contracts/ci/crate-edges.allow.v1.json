@@ -1558,6 +1558,22 @@
       "vox-telemetry"
     ],
     [
+      "vox-plugin-mens-candle-core",
+      "vox-config"
+    ],
+    [
+      "vox-plugin-mens-candle-core",
+      "vox-db"
+    ],
+    [
+      "vox-plugin-mens-candle-core",
+      "vox-hf-layout"
+    ],
+    [
+      "vox-plugin-mens-candle-core",
+      "vox-tensor"
+    ],
+    [
       "vox-plugin-mens-candle-cuda",
       "vox-compiler"
     ],
@@ -1580,6 +1596,10 @@
     [
       "vox-plugin-mens-candle-cuda",
       "vox-plugin-api"
+    ],
+    [
+      "vox-plugin-mens-candle-cuda",
+      "vox-plugin-mens-candle-core"
     ],
     [
       "vox-plugin-mens-candle-cuda",
@@ -1612,6 +1632,10 @@
     [
       "vox-plugin-mens-candle-metal",
       "vox-plugin-api"
+    ],
+    [
+      "vox-plugin-mens-candle-metal",
+      "vox-plugin-mens-candle-core"
     ],
     [
       "vox-plugin-mens-candle-metal",

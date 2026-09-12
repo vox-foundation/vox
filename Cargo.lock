@@ -18330,6 +18330,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-plugin-mens-candle-core"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "candle-core",
+ "candle-nn",
+ "chrono",
+ "qlora-rs",
+ "rand 0.8.6",
+ "safetensors 0.7.0",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokenizers 0.21.4",
+ "tokio",
+ "tracing",
+ "vox-config",
+ "vox-db",
+ "vox-hf-layout",
+ "vox-tensor",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-plugin-mens-candle-cuda"
 version = "0.6.0"
 dependencies = [
@@ -18359,6 +18383,7 @@ dependencies = [
  "vox-eval",
  "vox-hf-layout",
  "vox-plugin-api",
+ "vox-plugin-mens-candle-core",
  "vox-secrets",
  "vox-tensor",
  "workspace-hack",
@@ -18394,6 +18419,7 @@ dependencies = [
  "vox-eval",
  "vox-hf-layout",
  "vox-plugin-api",
+ "vox-plugin-mens-candle-core",
  "vox-secrets",
  "vox-tensor",
  "workspace-hack",

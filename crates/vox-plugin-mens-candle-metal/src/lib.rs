@@ -12,32 +12,24 @@
 //!
 //! See: docs/src/architecture/plugin-system-redesign-2026.md
 
-pub mod adapter_schema_v3;
 mod backend;
 pub mod candle_qlora_train;
 mod checkpoint;
-pub mod checkpoint_state;
-pub mod config;
 pub mod device;
-pub mod external_serving_handoff;
-pub mod finetune_contract;
-pub mod hf_keymap;
-pub mod hf_layout;
 pub mod inference;
-pub mod manifest;
-pub mod merge;
 mod model;
-pub mod model_card;
-pub mod operator_messages;
-pub mod qlora_preflight;
-pub(crate) mod qlora_weights;
-pub mod telemetry;
-pub mod telemetry_schema;
-pub mod train_jsonl_preflight;
-pub mod train_log;
 mod training;
-pub mod training_summary;
-pub mod training_text;
+
+// Moved to vox-plugin-mens-candle-core — byte-for-byte identical to the CUDA
+// plugin's copies (config/manifest/train_log unified there with a small
+// launch_argv/stderr-echo delta; the rest were exact duplicates). See that
+// crate's lib.rs docs for the full rationale.
+pub use vox_plugin_mens_candle_core::{
+    adapter_schema_v3, checkpoint_state, config, external_serving_handoff, finetune_contract,
+    hf_keymap, hf_layout, manifest, merge, model_card, operator_messages, qlora_preflight,
+    qlora_weights, telemetry, telemetry_schema, train_jsonl_preflight, train_log, training_summary,
+    training_text,
+};
 
 use abi_stable::{
     erased_types::TD_Opaque, export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn,

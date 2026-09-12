@@ -1,6 +1,9 @@
 //! Training progress and GPU visibility via [`tracing`].
 //!
-//! Ported verbatim from `vox-populi/src/mens/tensor/train_log.rs` (SP3 sub-batch C).
+//! Canonical home: previously forked between `vox-plugin-mens-candle-metal` and
+//! `vox-plugin-mens-candle-cuda`; CUDA's copy had gained the stderr echo below
+//! and Metal's hadn't. Both plugins now re-export this module, so Metal gets
+//! the same dll-boundary-safe visibility CUDA already had.
 
 use std::fmt::Display;
 

@@ -1,6 +1,11 @@
 //! Logic bits for training loop.
 //!
-//! Ported verbatim from vox-populi (SP3 sub-batch C).
+//! Canonical home for `trajectory_weight_for_pair`, previously byte-identical
+//! between `vox-plugin-mens-candle-metal`'s `logic.rs` (which held only this
+//! function) and `vox-plugin-mens-candle-cuda`'s `logic.rs` (which also holds
+//! `checkpointed_backward_step`, a CUDA-only gradient-checkpointing addition
+//! not ported to Metal — that function stays in the CUDA plugin, which
+//! re-exports this one alongside it.
 
 use crate::config::LoraTrainingConfig;
 use vox_tensor::data::TrainingPair;

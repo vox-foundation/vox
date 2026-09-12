@@ -1,9 +1,10 @@
 //! Shared training run configuration for all Mens native trainers (`--backend`).
 //!
-//! Copied verbatim from `vox-populi/src/mens/tensor/training_config.rs` (SP3 sub-batch A).
-//! This is pure-data (serde structs, no vox-populi internal type references).
-//! Sub-batches B-D will wire this into the JSON deserialization path for
-//! `run_full_training`.
+//! Canonical home: previously forked between `vox-plugin-mens-candle-metal` and
+//! `vox-plugin-mens-candle-cuda`, differing only in a `launch_argv` field the CUDA
+//! copy had gained and Metal hadn't (plus doc-comment drift). Both plugins now
+//! re-export this module instead of defining their own, so a future field never
+//! has to be added twice. This is pure-data (serde structs, no candle/tokio deps).
 
 /// Where trained artifacts are intended to run (planner gates + manifest hints).
 #[derive(
@@ -243,5 +244,29 @@ impl Default for LoraTrainingConfig {
             launch_argv: Vec::new(),
             gradient_checkpointing: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deployment_target_as_str_is_stable() {
+        assert_eq!(
+            TrainingDeploymentTarget::Workstation.as_str(),
+            "workstation"
+        );
+        assert_eq!(TrainingDeploymentTarget::MobileEdge.as_str(), "mobile_edge");
+    }
+
+    #[test]
+    fn gradient_checkpointing_defaults_off() {
+        assert!(!LoraTrainingConfig::default().gradient_checkpointing);
+    }
+
+    #[test]
+    fn launch_argv_defaults_empty() {
+        assert!(LoraTrainingConfig::default().launch_argv.is_empty());
     }
 }

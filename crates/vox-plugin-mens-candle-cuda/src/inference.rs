@@ -33,57 +33,15 @@ pub enum InferenceModel {
     Qwen35(Qwen35Model),
 }
 
-/// Compute dtype for QLoRA dequantization, chosen by device rather than by
-/// `QLoraConfig::default()`'s training-tuned BF16. Candle's CPU backend has
-/// no BF16 matmul kernel at all — confirmed by a real serve-time failure
-/// ("unsupported dtype BF16 for op matmul") — so CPU inference must use F32.
-/// Metal training on this lane also dequants to F32 (no F32→F64 / BF16
-/// kernels on the path we hit). CUDA keeps BF16.
-fn compute_dtype_for_device(device: &Device) -> qlora_rs::ComputeDType {
-    if device.is_cuda() {
-        qlora_rs::ComputeDType::BF16
-    } else {
-        qlora_rs::ComputeDType::F32
-    }
-}
-
-/// Resolve the Candle device for inference. `Best` on a Metal-featured
-/// macOS build prefers `Device::new_metal(0)` (same rule as training).
-fn resolve_inference_device(device_kind: &crate::device::DeviceKind) -> Result<Device> {
-    match device_kind {
-        crate::device::DeviceKind::Cpu => Ok(Device::Cpu),
-        crate::device::DeviceKind::Cuda => {
-            #[cfg(feature = "cuda")]
-            {
-                Ok(Device::new_cuda(0)?)
-            }
-            #[cfg(not(feature = "cuda"))]
-            {
-                Ok(Device::Cpu)
-            }
-        }
-        crate::device::DeviceKind::Metal | crate::device::DeviceKind::Best => {
-            #[cfg(feature = "metal")]
-            {
-                match Device::new_metal(0) {
-                    Ok(device) => Ok(device),
-                    Err(err) if matches!(device_kind, crate::device::DeviceKind::Best) => {
-                        tracing::warn!(
-                            "Metal unavailable for inference — falling back to CPU: {err}"
-                        );
-                        Ok(Device::Cpu)
-                    }
-                    Err(err) => Err(err.into()),
-                }
-            }
-            #[cfg(not(feature = "metal"))]
-            {
-                let _ = device_kind;
-                Ok(Device::Cpu)
-            }
-        }
-    }
-}
+// `compute_dtype_for_device` and `resolve_inference_device` moved to
+// `vox-plugin-mens-candle-core::inference_device` — Metal's copy of the
+// latter didn't exist at all (see that module's docs for the CPU-fallback
+// bug this fold fixed on the Metal side). Behavior here is unchanged: this
+// crate turns on the `cuda` feature on its `vox-plugin-mens-candle-core` dep,
+// so the shared function's `#[cfg(feature = "cuda")]` arms compile in.
+use vox_plugin_mens_candle_core::inference_device::{
+    compute_dtype_for_device, resolve_inference_device,
+};
 
 fn resolve_adapter_manifest_path(model_dir: &Path) -> Option<std::path::PathBuf> {
     let manifest = model_dir.join("adapter_manifest.json");
@@ -125,27 +83,12 @@ pub fn weight_sources(model_dir: &Path, base_shards: &[PathBuf]) -> Vec<PathBuf>
     sources
 }
 
-/// Synthesize RoPE inverse-frequency table from `rope_theta`, identical to the
-/// trainer's `candle_qlora_train::synthesize_rope_inv_freq`. Kept byte-for-byte in
-/// sync so inference applies the same rotary frequencies the adapter trained against.
-fn synthesize_rope_inv_freq(
-    head_dim: usize,
-    rope_theta: Option<f64>,
-    device: &Device,
-) -> Result<Tensor> {
-    let half = head_dim / 2;
-    if half == 0 {
-        anyhow::bail!("invalid head_dim={head_dim} for RoPE synthesis");
-    }
-    let theta = rope_theta.unwrap_or(10_000.0) as f32;
-    let hd = head_dim as f32;
-    let mut vals = Vec::with_capacity(half);
-    for i in 0..half {
-        let exponent = (2.0_f32 * i as f32) / hd;
-        vals.push(1.0_f32 / theta.powf(exponent));
-    }
-    Ok(Tensor::from_vec(vals, (half,), device)?)
-}
+// `synthesize_rope_inv_freq` moved to `vox-plugin-mens-candle-core::rope` —
+// it used to be forked four ways (this file and `candle_qlora_train::mod` in
+// both plugins) with a comment here claiming the copies were "kept
+// byte-for-byte in sync ... by hand". There is nothing left to keep in sync:
+// all four call sites now use the one definition.
+use vox_plugin_mens_candle_core::rope::synthesize_rope_inv_freq;
 
 impl InferenceEngine {
     pub fn load(model_dir: &Path, device_kind: &crate::device::DeviceKind) -> Result<Self> {

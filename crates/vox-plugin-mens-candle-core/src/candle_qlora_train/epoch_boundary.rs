@@ -7,11 +7,11 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use qlora_rs::training::QLoraTrainer;
 
-use super::TrainingDbEvent;
+use crate::candle_qlora_train::db_event::TrainingDbEvent;
 use crate::{checkpoint_state::CheckpointState, config::LoraTrainingConfig, telemetry, train_log};
 
 #[allow(clippy::too_many_arguments)]
-pub(super) fn finish_epoch(
+pub fn finish_epoch(
     trainer: &mut QLoraTrainer,
     out: &Path,
     config: &LoraTrainingConfig,

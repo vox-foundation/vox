@@ -29,6 +29,11 @@ use crate::hf_layout::HfArchitecture;
 use crate::qlora_preflight::preflight_native_qlora;
 use crate::train_jsonl_preflight::preflight_train_jsonl;
 use crate::train_log;
+// `load_adapter_into_trainer` itself is only called from
+// `training_loop::checkpoint`, which is now a pure re-export of
+// vox-plugin-mens-candle-core's copy — that copy calls the core crate's own
+// `load_adapter_into_trainer` directly, so this crate's `mod.rs` no longer
+// needs its own binding.
 
 /// EMA alpha for ETA calculation.
 pub(super) const QLORA_ETA_EMA_ALPHA: f64 = 0.2;
@@ -162,48 +167,11 @@ impl TrainGraphModel {
 
 // ── DB message bus ────────────────────────────────────────────────────────────
 
-pub(super) enum TrainingDbEvent {
-    Start {
-        run_id: String,
-        adapter_tag: Option<String>,
-        model_name: Option<String>,
-        output_dir: String,
-        data_dir: String,
-        planned_steps: Option<u32>,
-    },
-    Checkpoint {
-        run_id: String,
-        epoch: u32,
-        global_step: u32,
-        last_loss: Option<f32>,
-        adapter_path: String,
-    },
-    EpochSummary {
-        run_id: String,
-        epoch: u32,
-        global_step: u32,
-        avg_loss: f64,
-        avg_val_loss: f64,
-        val_steps: u32,
-    },
-    Complete {
-        run_id: String,
-        global_step: u32,
-        adapter_path: String,
-    },
-    Failed {
-        run_id: String,
-        global_step: u32,
-    },
-    GrpoStep {
-        run_id: String,
-        step: u32,
-        mean_reward: f32,
-        policy_loss: f32,
-        clip_fraction: f32,
-        parse_rate: f32,
-    },
-}
+// `TrainingDbEvent` moved to `vox-plugin-mens-candle-core` — byte-for-byte
+// identical to the CUDA plugin's copy. `pub(super)` re-export (not `pub`)
+// preserves the original visibility: only this crate's `candle_qlora_train`
+// tree uses it.
+pub(super) use vox_plugin_mens_candle_core::candle_qlora_train::db_event::TrainingDbEvent;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(super) struct TrainingLoopStats {
@@ -211,21 +179,6 @@ pub(super) struct TrainingLoopStats {
     pub skip_short_seq: u64,
     pub skip_curriculum: u64,
     pub skip_token_id_oob: u64,
-}
-
-/// Load LoRA adapter weights into a trainer's varmap (warm-start).
-fn load_adapter_into_trainer(trainer: &mut QLoraTrainer, path: &Path) -> Result<()> {
-    if !path.exists() {
-        anyhow::bail!("checkpoint adapter not found: {}", path.display());
-    }
-    trainer
-        .load_lora_weights(path)
-        .context("warm-start LoRA weights")?;
-    train_log::info(&format!(
-        "Warm-started LoRA weights from {}",
-        path.display()
-    ));
-    Ok(())
 }
 
 /// Calculate cosine learning rate with linear warmup.
@@ -239,24 +192,13 @@ fn compute_cosine_lr(step: u32, warmup: usize, total: u32, base_lr: f64) -> f64 
     }
 }
 
-pub(crate) fn synthesize_rope_inv_freq(
-    head_dim: usize,
-    rope_theta: Option<f64>,
-    device: &Device,
-) -> Result<Tensor> {
-    let half = head_dim / 2;
-    if half == 0 {
-        anyhow::bail!("invalid head_dim={} for RoPE synthesis", head_dim);
-    }
-    let theta = rope_theta.unwrap_or(10_000.0) as f32;
-    let hd = head_dim as f32;
-    let mut vals = Vec::with_capacity(half);
-    for i in 0..half {
-        let exponent = (2.0_f32 * i as f32) / hd;
-        vals.push(1.0_f32 / theta.powf(exponent));
-    }
-    Ok(Tensor::from_vec(vals, (half,), device)?)
-}
+// Moved to `vox-plugin-mens-candle-core::rope` — see that module's docs for
+// why (it used to be forked four ways: here, `inference.rs`, and both again
+// in the CUDA plugin). `pub(crate)` re-export preserves the original
+// visibility: `crate::candle_qlora_train::synthesize_rope_inv_freq` is used
+// by `inference.rs`'s regression test that inference and training synthesize
+// the same RoPE table.
+pub(crate) use vox_plugin_mens_candle_core::rope::synthesize_rope_inv_freq;
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
@@ -1146,15 +1088,19 @@ pub fn run_candle_qlora_train(
     result
 }
 
-mod ce_mask_align;
+// ce_mask_align / db_thread / epoch_boundary / oom moved to
+// vox-plugin-mens-candle-core — byte-for-byte identical to the CUDA plugin's
+// copies. `validation` (the 3-line doc-only top-level placeholder, distinct
+// from `training_loop::validation`) moved too but nothing in this crate
+// names it by path, so it is not re-imported here.
+use vox_plugin_mens_candle_core::candle_qlora_train::{
+    ce_mask_align, db_thread, epoch_boundary, oom,
+};
+
 mod checkpoint_mid;
-mod db_thread;
 mod device_select;
-mod epoch_boundary;
 mod finalize;
-mod oom;
 mod training_loop;
-mod validation;
 
 #[cfg(test)]
 mod tests {

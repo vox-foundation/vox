@@ -36,41 +36,21 @@ pub enum InferenceModel {
     Qwen35(Qwen35Model),
 }
 
-/// Compute dtype for QLoRA dequantization, chosen by device rather than by
-/// `QLoraConfig::default()`'s training-tuned BF16. Candle's CPU backend has
-/// no BF16 matmul kernel at all ("unsupported dtype BF16 for op matmul"), so
-/// CPU inference must use F32. Metal training on this lane also dequants to
-/// F32 (no F32→F64 / BF16 kernels on the path we hit), so Metal serving must
-/// match its own trainer's compute dtype. CUDA keeps BF16.
-fn compute_dtype_for_device(device: &Device) -> qlora_rs::ComputeDType {
-    if device.is_cuda() {
-        qlora_rs::ComputeDType::BF16
-    } else {
-        qlora_rs::ComputeDType::F32
-    }
-}
+// `compute_dtype_for_device` and `resolve_inference_device` moved to
+// `vox-plugin-mens-candle-core::inference_device` — the latter used to be
+// missing entirely from this crate (see that module's docs for the L-7 bug
+// this fixes: an explicit `--device metal` request that failed used to fall
+// back to CPU with no warning at all).
+use vox_plugin_mens_candle_core::inference_device::{
+    compute_dtype_for_device, resolve_inference_device,
+};
 
-/// Synthesize RoPE inverse-frequency table from `rope_theta`, identical to the
-/// trainer's `candle_qlora_train::synthesize_rope_inv_freq`. Kept byte-for-byte in
-/// sync so inference applies the same rotary frequencies the adapter trained against.
-fn synthesize_rope_inv_freq(
-    head_dim: usize,
-    rope_theta: Option<f64>,
-    device: &Device,
-) -> Result<Tensor> {
-    let half = head_dim / 2;
-    if half == 0 {
-        anyhow::bail!("invalid head_dim={head_dim} for RoPE synthesis");
-    }
-    let theta = rope_theta.unwrap_or(10_000.0) as f32;
-    let hd = head_dim as f32;
-    let mut vals = Vec::with_capacity(half);
-    for i in 0..half {
-        let exponent = (2.0_f32 * i as f32) / hd;
-        vals.push(1.0_f32 / theta.powf(exponent));
-    }
-    Ok(Tensor::from_vec(vals, (half,), device)?)
-}
+// `synthesize_rope_inv_freq` moved to `vox-plugin-mens-candle-core::rope` —
+// it used to be forked four ways (this file and `candle_qlora_train::mod` in
+// both plugins) with a comment here claiming the copies were "kept
+// byte-for-byte in sync ... by hand". There is nothing left to keep in sync:
+// all four call sites now use the one definition.
+use vox_plugin_mens_candle_core::rope::synthesize_rope_inv_freq;
 
 /// Stop-token ids declared by a model's `config.json`.
 ///
@@ -150,16 +130,7 @@ impl InferenceEngine {
         let _tokenizer = Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| anyhow::anyhow!("load tokenizer: {e}"))?;
 
-        let _device = match device_kind {
-            crate::device::DeviceKind::Cpu => Device::Cpu,
-            _ => {
-                #[cfg(feature = "metal")]
-                let dev = Device::new_metal(0).unwrap_or(Device::Cpu);
-                #[cfg(not(feature = "metal"))]
-                let dev = Device::Cpu;
-                dev
-            }
-        };
+        let _device = resolve_inference_device(device_kind)?;
 
         let adapter_path = model_dir.join("candle_qlora_adapter.safetensors");
         let meta_path = resolve_adapter_manifest_path(model_dir)
@@ -941,6 +912,32 @@ mod tests {
             super::compute_dtype_for_device(&candle_core::Device::Cpu),
             qlora_rs::ComputeDType::F32
         ));
+    }
+
+    // Ported from `vox-plugin-mens-candle-cuda::inference`'s tests of the same
+    // name (see `vox_plugin_mens_candle_core::inference_device`, which now
+    // backs both). Before this crate depended on
+    // `vox-plugin-mens-candle-core::inference_device`, `resolve_inference_device`
+    // did not exist here at all — `InferenceEngine::load` inlined a bare
+    // `Device::new_metal(0).unwrap_or(Device::Cpu)` with no warning and no
+    // error path, so an explicit `--device metal` request that failed to
+    // initialize silently ran on CPU. These two tests, and the
+    // `#[cfg(not(any(feature = "cuda", feature = "metal")))]` explicit-request
+    // tests in `inference_device`, are what would have caught that.
+    #[test]
+    fn resolve_inference_device_cpu_is_cpu() {
+        let d = super::resolve_inference_device(&crate::device::DeviceKind::Cpu).unwrap();
+        assert!(d.is_cpu());
+    }
+
+    #[cfg(feature = "metal")]
+    #[test]
+    fn resolve_inference_device_best_prefers_metal_when_available() {
+        let d = super::resolve_inference_device(&crate::device::DeviceKind::Best).unwrap();
+        assert!(
+            d.is_metal() || d.is_cpu(),
+            "Best must land on Metal or CPU fallback, got {d:?}"
+        );
     }
 
     #[test]

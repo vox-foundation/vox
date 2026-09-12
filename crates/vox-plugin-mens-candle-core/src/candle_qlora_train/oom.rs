@@ -10,7 +10,7 @@
 
 /// A single out-of-memory event observed mid-training.
 #[derive(Debug, Clone)]
-pub(super) struct OomEvent {
+pub struct OomEvent {
     pub step: u32,
     pub observed_bytes: u64,
     pub batch_size: usize,
@@ -24,7 +24,7 @@ pub(super) struct OomEvent {
 
 /// True if `e` is a CUDA or Metal allocator failure, false for anything else
 /// (I/O, config, etc.).
-pub(super) fn is_oom(e: &anyhow::Error) -> bool {
+pub fn is_oom(e: &anyhow::Error) -> bool {
     let s = e.to_string().to_ascii_lowercase();
     s.contains("out of memory")
         || s.contains("greater than the maximum allowed buffer size")
@@ -46,7 +46,7 @@ fn fmt_gib_or_unknown(bytes: u64) -> String {
 /// Render an [`OomEvent`] into an actionable report: where training died,
 /// what shape it was attempting, and whether the run is actually resumable
 /// from a checkpoint.
-pub(super) fn render_oom(ev: &OomEvent) -> String {
+pub fn render_oom(ev: &OomEvent) -> String {
     let checkpoint_note = match &ev.checkpoint_error {
         None => "checkpoint flushed, resume the run to continue".to_string(),
         Some(reason) => format!(

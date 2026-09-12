@@ -24,12 +24,18 @@ use crate::{
     telemetry_schema, train_log, training_summary::TrainingSummary,
 };
 
-pub mod checkpoint;
-pub mod curriculum;
-pub mod encoding;
+// checkpoint / curriculum / encoding / telem_helpers moved to
+// vox-plugin-mens-candle-core — byte-for-byte identical to the Metal plugin's
+// copies.
+pub use vox_plugin_mens_candle_core::candle_qlora_train::training_loop::{
+    checkpoint, curriculum, encoding, telem_helpers,
+};
+
 pub mod forward;
+// `logic` stays local: `checkpointed_backward_step` (gradient-checkpointing
+// support) is CUDA-only. It re-exports `trajectory_weight_for_pair` from
+// vox-plugin-mens-candle-core, which was the only thing in Metal's `logic.rs`.
 pub mod logic;
-pub mod telem_helpers;
 pub mod types;
 pub mod validation;
 

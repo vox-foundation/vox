@@ -2,10 +2,10 @@
 //!
 //! Ported verbatim from vox-populi (SP3 sub-batch C).
 
-use super::TrainingDbEvent;
+use crate::candle_qlora_train::db_event::TrainingDbEvent;
 
 /// Spawn the dedicated DB writer thread.
-pub(super) fn spawn_training_db_writer(
+pub fn spawn_training_db_writer(
     run_id: String,
 ) -> tokio::sync::mpsc::UnboundedSender<TrainingDbEvent> {
     let (db_tx, mut db_rx) = tokio::sync::mpsc::unbounded_channel::<TrainingDbEvent>();
