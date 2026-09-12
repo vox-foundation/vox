@@ -523,12 +523,12 @@ surfaces:
   notes: null
 - view_key: mens
   cli_group: mens
-  representation_tier: curated_decorator
+  representation_tier: live_backend
   nav_label: Training
   nav_icon: brain
   nav_group: compute
   parent_surface: compute
-  notes: null
+  notes: GPU Probe card now reads get_active_model backend state and asks `vox mens probe --detailed --model <id>` for a real fit check, rather than running a static arg-free command (Task 9, 2026-09-11-1-memory-ssot-and-fit-benchmark).
 - view_key: null
   cli_group: migrate
   representation_tier: none

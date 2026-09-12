@@ -266,6 +266,9 @@ pub fn run_training_loop(
     let mut total_theoretical_tokens: u64 = 0;
     let mut total_syntax_weight: f64 = 0.0;
 
+    // Started before the first step so its peak covers the whole run,
+    // including the first-step allocation spike; read after the last step.
+    let peak_sampler = super::PeakSampler::start(device, std::time::Duration::from_millis(200));
     let run_start_inst = Instant::now();
     for epoch in start_epoch..=config.epochs {
         let shuffled_indices = checkpoint::build_epoch_shuffled_indices(
@@ -672,6 +675,10 @@ pub fn run_training_loop(
         )?;
     }
 
+    // Read after the last step, before the sampler thread is torn down.
+    let peak_metal_bytes = peak_sampler.observed_peak_bytes();
+    drop(peak_sampler);
+
     super::finalize::finalize_training_run(
         trainer,
         bundle,
@@ -695,5 +702,6 @@ pub fn run_training_loop(
             skip_token_id_oob,
         },
         run_start_inst,
+        peak_metal_bytes,
     )
 }

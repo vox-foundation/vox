@@ -184,7 +184,10 @@ the same tax already being paid for the hand-written `Qwen35LinearAttention`.
 
 **The lazy-correct alternative: don't implement it.** Vision inference is a
 *consumption* problem, not a training problem. The mesh design already scopes
-`LlamaCppRpc` and `OllamaSubprocess` backends, and `external_serving_handoff.rs`
+`LlamaCppRpc` and `OllamaSubprocess` backends (**historical note, 2026-09-11:**
+`OllamaSubprocess` was deleted — "running elsewhere" plan Task 7, commit
+`74b84f310`; the mentions below are kept as this decision record's original
+reasoning, not a live surface description), and `external_serving_handoff.rs`
 already exists. Serving a VLM through llama.cpp (GGUF + mmproj) or MLX costs
 roughly the plumbing to shell out and parse a response, and it **decouples the
 petal from the stem entirely**: screenshots get understood by a separate,

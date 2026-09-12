@@ -405,9 +405,23 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         #[cfg(feature = "gpu")]
         PopuliAction::Models => crate::commands::mens::models::run_models(_global_verbose),
 
-        PopuliAction::Probe { detailed } => {
+        PopuliAction::Probe {
+            detailed,
+            measure,
+            sweep,
+            model_dir,
+            seq_len,
+            gradient_checkpointing,
+            model,
+        } => {
             let v = detailed || _global_verbose;
-            probe::run_probe(v).await
+            if measure {
+                probe::run_measure()
+            } else if sweep {
+                probe::run_sweep(model_dir, seq_len, gradient_checkpointing)
+            } else {
+                probe::run_probe(v, model, seq_len, gradient_checkpointing).await
+            }
         }
 
         PopuliAction::WatchTelemetry {
@@ -458,19 +472,22 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             meta,
             output,
             quantize,
-        } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output, quantize),
+            keep_merged,
+            gguf_out,
+            llama_cpp,
+        } => merge_qlora::run_merge_qlora(
+            base_shard,
+            adapter,
+            meta,
+            output,
+            quantize,
+            keep_merged,
+            gguf_out,
+            llama_cpp,
+        ),
 
         PopuliAction::ExportGguf { input, output } => {
-            anyhow::bail!(
-                "NOT_IMPLEMENTED: `vox mens export-gguf` is not wired yet.\n\
-                 Merge adapter weights first:\n\
-                   vox mens merge-qlora --base-shard <base> --adapter <adapter> \\\n\
-                     --meta <meta.json> --output <merged.safetensors>\n\
-                 Then track GGUF export in docs/superpowers/specs/2026-05-31-vox-quantize-engine-design.md.\n\
-                 Requested: input={} output={}",
-                input.display(),
-                output.display()
-            );
+            anyhow::bail!(export_gguf_not_implemented_message(&input, &output));
         }
 
         #[cfg(feature = "mens-dei")]
@@ -686,5 +703,71 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 format,
             } => crate::commands::mens::system_prompt_template::run(output, &format).await,
         },
+    }
+}
+
+/// `export-gguf` is not a separate step; this message tells the caller which
+/// of the two `merge-qlora` routes to use instead. Extracted from the
+/// `ExportGguf` dispatch arm so `the_export_gguf_error_only_names_flags_that_exist`
+/// below can check it against `merge-qlora`'s real clap definition without
+/// invoking the CLI.
+fn export_gguf_not_implemented_message(
+    input: &std::path::Path,
+    output: &std::path::Path,
+) -> String {
+    format!(
+        "`vox mens export-gguf` is not a separate step. Two routes, by base architecture:\n  \
+         llama / gemma2 base — let Ollama convert:\n    \
+         vox mens merge-qlora --base-shard <base> --adapter <adapter> \\\n      \
+           --meta <meta.json> --output <merged.safetensors> \\\n      \
+           --quantize q4_k_m --keep-merged\n    \
+         cd <merged-parent>/recombined_full && ollama create -q q4_K_M <name> -f Modelfile\n  \
+         Qwen3 base (MENS default) — ollama create rejects the architecture; use llama.cpp:\n    \
+         vox mens merge-qlora --base-shard <base> --adapter <adapter> \\\n      \
+           --meta <meta.json> --output <merged.safetensors> \\\n      \
+           --keep-merged --gguf-out <out.gguf> --llama-cpp <llama.cpp checkout>\n\
+         Requested: input={} output={}",
+        input.display(),
+        output.display()
+    )
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod export_gguf_message_tests {
+    use super::*;
+    use clap::Subcommand;
+
+    /// Guards against the exact drift class Task 2 of this plan already
+    /// fixed elsewhere: Task 6's `export-gguf` error message names
+    /// `--gguf-out` and `--llama-cpp` as the way forward, and Task 12 added
+    /// those flags to `merge-qlora`. If a later change deletes or renames
+    /// those flags while leaving this message untouched, the message starts
+    /// lying about what `merge-qlora` actually accepts. This test fails the
+    /// moment that happens, and passes today.
+    #[test]
+    fn the_export_gguf_error_only_names_flags_that_exist() {
+        let msg = export_gguf_not_implemented_message(
+            std::path::Path::new("/tmp/in.safetensors"),
+            std::path::Path::new("/tmp/out.gguf"),
+        );
+
+        let merge_qlora_cmd = PopuliAction::augment_subcommands(clap::Command::new("populi"))
+            .find_subcommand("merge-qlora")
+            .expect("merge-qlora subcommand must exist behind the gpu feature")
+            .clone();
+
+        for flag in ["--gguf-out", "--llama-cpp"] {
+            if msg.contains(flag) {
+                let long = &flag[2..];
+                assert!(
+                    merge_qlora_cmd
+                        .get_arguments()
+                        .any(|a| a.get_long() == Some(long)),
+                    "the error message advertises {flag}, which no longer exists on \
+                     `merge-qlora` — Task 12 was cut or renamed its flags, and this \
+                     message is now the same kind of lie Task 2 fixed"
+                );
+            }
+        }
     }
 }

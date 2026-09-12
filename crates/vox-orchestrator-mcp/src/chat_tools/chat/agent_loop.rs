@@ -58,7 +58,9 @@ pub(crate) static CHAT_MESSAGE_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex
 ///
 /// Returns `None` for every other [`ProviderType`] (`GoogleDirect`,
 /// `HuggingFaceRouter`, `VoxLocal`, `PopuliMesh`, `Anthropic`, `Mistral`,
-/// `DeepSeek`, `SambaNova`, `Groq`, `Cerebras`, `Custom`) — those require the
+/// `DeepSeek`, `SambaNova`, `Groq`, `Cerebras`, `Custom`; `Ollama` never
+/// returns `None` — an empty/unset `OLLAMA_URL` falls back to the config
+/// SSOT default) — those require the
 /// provider-specific fallback chains, dedicated-endpoint resolution, or
 /// unreachable-provider handling that only
 /// `crate::llm_bridge::infer::mcp_infer_completion` implements, and this mapper
@@ -69,10 +71,16 @@ pub(crate) fn model_spec_to_llm_config(spec: &ModelSpec) -> Option<LlmConfig> {
     match spec.provider_type {
         ProviderType::OpenRouter => Some(LlmConfig::openrouter(spec.id.clone())),
         ProviderType::Ollama => {
-            let base_url = vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaUrl)
+            // An empty/unset OLLAMA_URL must not disable tool-calling: the
+            // config SSOT already supplies a working default, and returning
+            // None here routes the turn to the non-tool
+            // mcp_infer_completion path with no error.
+            let base = vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaUrl)
                 .expose()
                 .filter(|s: &&str| !s.trim().is_empty())
-                .map(|u: &str| format!("{}/v1/chat/completions", u.trim_end_matches('/')))?;
+                .map(std::string::ToString::to_string)
+                .unwrap_or_else(vox_config::inference::local_ollama_populi_base_url);
+            let base_url = format!("{}/v1/chat/completions", base.trim_end_matches('/'));
             Some(LlmConfig {
                 provider: "ollama".to_string(),
                 model: spec.id.clone(),
@@ -1413,6 +1421,31 @@ mod tests {
     fn model_spec_to_llm_config_returns_none_for_google_direct() {
         let spec = model_spec(ProviderType::GoogleDirect, "gemini-2.0-flash");
         assert!(model_spec_to_llm_config(&spec).is_none());
+    }
+
+    /// Catches: restoring the `?` on the OllamaUrl secret lookup. With it,
+    /// an unset OLLAMA_URL makes this return None and the caller falls back
+    /// to the NON-TOOL mcp_infer_completion path -- an agentic turn silently
+    /// loses its tools with no error anywhere.
+    #[test]
+    fn ollama_keeps_tool_calling_when_the_url_secret_is_unset() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        // SAFETY: restored below; no other test here reads these keys.
+        unsafe {
+            std::env::remove_var("OLLAMA_URL");
+            std::env::remove_var("POPULI_URL");
+            std::env::remove_var("VOX_POPULI_LOCAL_OLLAMA_URL");
+        }
+        vox_config::snapshot::bump(&["OLLAMA_URL", "POPULI_URL", "VOX_POPULI_LOCAL_OLLAMA_URL"]);
+        let spec = model_spec(ProviderType::Ollama, "qwen3:8b");
+        let cfg = model_spec_to_llm_config(&spec)
+            .expect("Ollama must map to a config, not None -- None disables tools");
+        assert_eq!(cfg.provider, "ollama");
+        assert_eq!(
+            cfg.base_url.as_deref(),
+            Some("http://localhost:11434/v1/chat/completions"),
+            "must fall back to the config SSOT default"
+        );
     }
 
     /// Task 1.3d end-to-end proof that F24 is fixed for the mapped-provider case:

@@ -46,9 +46,10 @@ impl FreeAiClient {
         let mut providers = Vec::new();
 
         // 1. Probe Ollama
-        if Self::probe_ollama(OLLAMA_DEFAULT_URL).await {
+        let ollama_url = ollama_default_url();
+        if Self::probe_ollama(&ollama_url).await {
             providers.push(FreeAiProvider::Ollama {
-                url: OLLAMA_DEFAULT_URL.to_string(),
+                url: ollama_url,
                 model: OLLAMA_DEFAULT_MODEL.to_string(),
             });
         }
@@ -272,7 +273,7 @@ impl FreeAiClient {
                 }
             }
         }
-        OLLAMA_DEFAULT_URL.to_string()
+        ollama_default_url()
     }
 
     fn openrouter_key_from_providers(providers: &[FreeAiProvider]) -> String {

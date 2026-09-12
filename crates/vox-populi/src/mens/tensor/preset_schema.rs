@@ -1,7 +1,7 @@
 //! Training hyperparameter presets: 4080, safe, A100-shaped profiles.
 
 use crate::mens::tensor::device::probe_gpu;
-use crate::mens::tensor::vram_autodetect::{AcceleratorKind, auto_preset_for};
+use crate::mens::tensor::vram_autodetect::AcceleratorKind;
 
 /// CLI numeric overrides for auto-tuning.
 #[derive(Debug, Clone, Default)]
@@ -110,6 +110,7 @@ fn apply_qwen_size_ladder_policy(
     class: QwenSizeClass,
     vram_mb: u64,
     model_hint: Option<&str>,
+    explicit_batch_size: Option<usize>,
 ) -> TrainPresetProfile {
     match class {
         QwenSizeClass::S0p6 => {
@@ -117,7 +118,13 @@ fn apply_qwen_size_ladder_policy(
             p.rank = p.rank.min(16);
             p.alpha = p.alpha.min(32.0);
             p.seq_len = p.seq_len.clamp(384, 1024);
-            p.batch_size = p.batch_size.max(2);
+            // M2 fix: this floor is a DEFAULT for the unset case, not a
+            // blanket rule — an explicit `--batch-size 1` must be respected,
+            // not silently bumped to 2 (flagged in Task 3, never actually
+            // fixed until this final review pass).
+            if explicit_batch_size.is_none() {
+                p.batch_size = p.batch_size.max(2);
+            }
             p.grad_accum = p.grad_accum.max(4);
         }
         QwenSizeClass::S8 => {
@@ -126,15 +133,20 @@ fn apply_qwen_size_ladder_policy(
             p.grad_accum = p.grad_accum.max(8);
         }
         QwenSizeClass::S14 => {
-            // 14B requires a tighter envelope on 16/24 GB class cards.
-            p.rank = p.rank.min(8);
-            p.alpha = p.alpha.min(16.0);
+            // 14B requires a tighter envelope on 16/24 GB class cards — but the
+            // rank/alpha floor is part of THAT envelope, not a blanket rule, so
+            // it must live inside the memory conditionals it's gated by. A card
+            // with enough VRAM (the `else` arm) must not inherit it.
             if vram_mb <= 16_384 {
+                p.rank = p.rank.min(8);
+                p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(256);
                 p.batch_size = 1;
                 p.grad_accum = p.grad_accum.max(16);
                 p.lr = p.lr.min(1.0e-4);
             } else if vram_mb <= 24_576 {
+                p.rank = p.rank.min(8);
+                p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(384);
                 p.batch_size = p.batch_size.min(1);
                 p.grad_accum = p.grad_accum.max(12);
@@ -144,15 +156,19 @@ fn apply_qwen_size_ladder_policy(
             }
         }
         QwenSizeClass::S32 => {
-            // 32B is only viable on very large cards; floor it hard everywhere else.
-            p.rank = p.rank.min(8);
-            p.alpha = p.alpha.min(16.0);
+            // 32B is only viable on very large cards; floor it hard on the
+            // small/medium tiers, but the large-card `else` arm must not
+            // inherit the small-card rank/alpha clamp.
             if vram_mb <= 24_576 {
+                p.rank = p.rank.min(8);
+                p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(256);
                 p.batch_size = 1;
                 p.grad_accum = p.grad_accum.max(16);
                 p.lr = p.lr.min(1.0e-4);
             } else if vram_mb <= 49_152 {
+                p.rank = p.rank.min(8);
+                p.alpha = p.alpha.min(16.0);
                 p.seq_len = p.seq_len.min(384);
                 p.batch_size = p.batch_size.min(1);
                 p.grad_accum = p.grad_accum.max(12);
@@ -170,15 +186,19 @@ fn apply_qwen_size_ladder_policy(
                 model_hint.and_then(crate::mens::tensor::memory_budget::params_b_from_model_hint)
             {
                 if params_b >= 24.0 {
-                    // As large as or larger than the S32 tier — apply the same floor.
-                    p.rank = p.rank.min(8);
-                    p.alpha = p.alpha.min(16.0);
+                    // As large as or larger than the S32 tier — apply the same
+                    // floor, gated by the same memory conditionals (the
+                    // large-card `else` arm must not inherit the clamp).
                     if vram_mb <= 24_576 {
+                        p.rank = p.rank.min(8);
+                        p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(256);
                         p.batch_size = 1;
                         p.grad_accum = p.grad_accum.max(16);
                         p.lr = p.lr.min(1.0e-4);
                     } else if vram_mb <= 49_152 {
+                        p.rank = p.rank.min(8);
+                        p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(384);
                         p.batch_size = p.batch_size.min(1);
                         p.grad_accum = p.grad_accum.max(12);
@@ -187,15 +207,18 @@ fn apply_qwen_size_ladder_policy(
                         p.grad_accum = p.grad_accum.max(8);
                     }
                 } else if params_b >= 12.0 {
-                    // S14-equivalent floor for anything in that range not string-matched.
-                    p.rank = p.rank.min(8);
-                    p.alpha = p.alpha.min(16.0);
+                    // S14-equivalent floor for anything in that range not
+                    // string-matched, same gating discipline as above.
                     if vram_mb <= 16_384 {
+                        p.rank = p.rank.min(8);
+                        p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(256);
                         p.batch_size = 1;
                         p.grad_accum = p.grad_accum.max(16);
                         p.lr = p.lr.min(1.0e-4);
                     } else if vram_mb <= 24_576 {
+                        p.rank = p.rank.min(8);
+                        p.alpha = p.alpha.min(16.0);
                         p.seq_len = p.seq_len.min(384);
                         p.batch_size = p.batch_size.min(1);
                         p.grad_accum = p.grad_accum.max(12);
@@ -371,14 +394,6 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
     }
 }
 
-/// Load the global GPU specifications and presets from `mens/config/gpu-specs.yaml`.
-pub fn load_gpu_specs() -> Option<GpuSpecsFile> {
-    let root = vox_corpus::training::contract::find_workspace_root()?;
-    let p = root.join("mens/config/gpu-specs.yaml");
-    let raw = vox_bounded_fs::read_utf8_path_capped(p.as_path()).ok()?;
-    serde_yaml::from_str(&raw).ok()
-}
-
 /// Load optional YAML registry from `mens/config/train-presets.yaml` if present.
 pub struct TrainPresetRegistry;
 
@@ -420,37 +435,65 @@ pub fn resolve_effective_profile(
 
     let mut p = if name == "auto" {
         if kind == AcceleratorKind::Metal {
-            // Never walk the CUDA-shaped yaml `presets:` table on Apple.
-            // `auto_preset_for` already maps 6–16 GiB to `qwen3_dev_cpu`;
-            // anything below that (or unknown VRAM) fail-closes to the same
-            // smoke profile rather than matching `a100`/`h100` by VRAM size.
+            // The old VRAM-tiered `auto_preset_for` ladder (`vram_autodetect.rs`)
+            // was deleted (Task 8): its `METAL_*_GIB` constants covered 8B,
+            // 14B-QLoRA, 14B-LoRA and 32B with no 27B rung, so a 27B request
+            // silently landed on the 14B preset. The fail-closed floor below 6
+            // GiB is one part of that ladder worth keeping standalone — a real
+            // safety property, not a VRAM-fit guess.
+            //
+            // Fix-round regression (review round 1): collapsing the WHOLE
+            // ladder above the floor to a single fixed `qwen3_16g` selection
+            // was unsafe on its own, not just imprecise — `candle-metal` has
+            // no calibration row in `contracts/mens/memory-model.v1.yaml` as
+            // of this writing, so `memory_model::sweep` (the real per-host
+            // fit check meant to catch an oversized config post-download, see
+            // `gpu::run_gpu_training`) reports `NoMeasurement` on every Mac
+            // today and cannot correct anything here. A small Mac (6-12ish
+            // GiB) landing on `qwen3_16g` (seq 512, batch 1) instead of the
+            // old ladder's `qwen3_dev_cpu` (seq <=256, batch 1, smoke-safe)
+            // therefore had nothing left to catch an unsafe config. Restoring
+            // just this one boundary — not the full multi-tier ladder, which
+            // stays collapsed above it — keeps the one part of the old
+            // behavior that was actually load-bearing for safety on
+            // uncalibrated hardware.
+            const METAL_AUTO_DEV_CPU_CEILING_GIB: f32 = 12_000.0 / 1024.0; // matches the old METAL_QWEN3_8B_QLORA_GIB boundary
             let vram_gb = (device.vram_mb > 0).then_some(device.vram_mb as f32 / 1024.0);
-            let metal_name = auto_preset_for(AcceleratorKind::Metal, vram_gb).ok_or_else(|| {
-                anyhow::anyhow!(
+            match vram_gb {
+                Some(v) if v >= METAL_AUTO_DEV_CPU_CEILING_GIB => {
+                    // Every real Mac above ~12 GiB now gets the SAME fixed
+                    // preset (`qwen3_16g`) regardless of how much more VRAM
+                    // it actually has — including this program's own primary
+                    // dev hardware (a 116 GiB Mac), which the old ladder
+                    // would have sent to `qwen3_96g` (rank 64/alpha
+                    // 128/seq 2048/batch 4). This is a disclosed capability
+                    // downgrade for the "auto"/omitted-preset default on
+                    // large Macs, not an oversight: `sweep` only restores
+                    // `batch_size` (and only once `candle-metal` is
+                    // calibrated) — it does not touch rank/alpha/seq_len/lr —
+                    // so there is currently no measured basis to pick a
+                    // larger preset safely. A large-Mac user who wants the
+                    // bigger preset's shape today should pass it explicitly
+                    // (`--preset qwen3_96g`).
+                    base_for_name("qwen3_16g")
+                }
+                // Restored fail-safe tier: below the ceiling above (and at or
+                // above the 6 GiB floor), always the smoke-safe preset —
+                // there is no sweep correction available on this lane today,
+                // so this tier must not risk an OOM the way `qwen3_16g`'s
+                // larger seq_len/batch_size could on genuinely small hardware.
+                Some(v) if v >= 6.0 => base_for_name("qwen3_dev_cpu"),
+                Some(_) | None => anyhow::bail!(
                     "no Metal training preset for {} MB live-available memory \
                      (need at least 6 GiB, or pass --preset explicitly)",
                     device.vram_mb
-                )
-            })?;
-            base_for_name(metal_name)
-        } else if let Some(specs) = load_gpu_specs() {
-            if let Some((_name, preset_spec)) =
-                TrainingPreset::best_for_vram(&specs.presets, device.vram_mb)
-            {
-                TrainPresetProfile {
-                    rank: 16,
-                    alpha: 32.0,
-                    seq_len: preset_spec.seq_len,
-                    batch_size: preset_spec.batch_size,
-                    grad_accum: preset_spec.grad_accum,
-                    epochs: 3,
-                    warmup: 100,
-                    lr: preset_spec.lr,
-                }
-            } else {
-                base_for_name("4080_safe")
+                ),
             }
         } else {
+            // The old CUDA yaml-driven `TrainingPreset::best_for_vram` VRAM
+            // ladder was deleted alongside the Metal one for the same reason
+            // (Task 8) — this fallback (already the value used whenever no
+            // preset matched) is now the sole CUDA "auto" resolution.
             base_for_name("4080_safe")
         }
     } else {
@@ -490,114 +533,29 @@ pub fn resolve_effective_profile(
     }
 
     if let Some(class) = detect_qwen_size_class(model_hint) {
-        p = apply_qwen_size_ladder_policy(p, class, device.vram_mb, model_hint);
+        p = apply_qwen_size_ladder_policy(
+            p,
+            class,
+            device.vram_mb,
+            model_hint,
+            overrides.batch_size,
+        );
     }
 
-    // Determine the VRAM budget limits, either from the passed pre-computed overrides
-    // or by running the budget planner internally as a fallback.
+    // The VRAM budget limits, when a caller has already sized this run via the
+    // measured `memory_model::sweep`/`plan_for` entry point (see
+    // `gpu::run_gpu_training`'s post-download auto-sizing) and passed the
+    // result down as `overrides.budget_*`. The params_b-only ladder that used
+    // to compute this internally when the overrides were absent (Qwen family
+    // classifiers + `get_resident_per_b` + `plan_with_resident*`) was deleted
+    // (Task 8) — it was never more than a params_b guess with no real
+    // `ModelShape`, and every caller now either supplies the measured budget
+    // or gets the plain preset default with no clamp.
     let budget_limits = if let Some(seq) = overrides.budget_seq_len
         && let Some(batch) = overrides.budget_batch_size
         && let Some(accum) = overrides.budget_grad_accum
     {
         Some((seq, batch, accum))
-    } else if device.vram_mb > 0 {
-        // Fallback: run budget planner internally
-        let mut vram_gib = (device.vram_mb as f64) / 1024.0;
-        if let Some(frac) = overrides.vram_limit_fraction {
-            vram_gib *= frac as f64;
-        }
-
-        let hint = model_hint.unwrap_or(crate::mens::DEFAULT_MODEL_ID);
-        let params_b =
-            crate::mens::tensor::memory_budget::params_b_from_model_hint(hint).unwrap_or(7.0);
-
-        let gc_explicit = std::env::var("VOX_MENS_GRADIENT_CHECKPOINTING")
-            .ok()
-            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-            .unwrap_or(false);
-        let gc_auto = params_b >= 2.9;
-        let gradient_checkpointing = gc_explicit || gc_auto;
-
-        let quant = crate::mens::tensor::finetune_contract::BaseQuantMode::Nf4;
-
-        let mp = if crate::mens::tensor::memory_budget::is_qwen25coder(hint) {
-            crate::mens::tensor::memory_budget::plan_qwen25coder_with_options(
-                vram_gib,
-                params_b,
-                quant,
-                gradient_checkpointing,
-            )
-        } else if crate::mens::tensor::memory_budget::is_qwen35(hint) {
-            crate::mens::tensor::memory_budget::plan_qwen35_with_options(
-                vram_gib,
-                params_b,
-                quant,
-                gradient_checkpointing,
-            )
-        } else if crate::mens::tensor::memory_budget::is_qwen3(hint) {
-            crate::mens::tensor::memory_budget::plan_qwen3_with_options(
-                vram_gib,
-                params_b,
-                quant,
-                gradient_checkpointing,
-            )
-        } else {
-            let resident_per_b = crate::mens::tensor::memory_budget::get_resident_per_b(
-                hint,
-                quant,
-                gradient_checkpointing,
-                params_b,
-            );
-            let p = crate::mens::tensor::memory_budget::plan_with_resident(
-                vram_gib,
-                params_b,
-                resident_per_b,
-            );
-            crate::mens::tensor::memory_budget::ModelPlan {
-                model_id: hint.to_string(),
-                params_b,
-                seq_len: p.seq_len,
-                batch_size: p.batch_size,
-                grad_accum: p.grad_accum,
-                retreated_from_b: None,
-                over_budget: p.over_budget,
-                rationale: p.rationale,
-            }
-        };
-
-        // Dual-sizing fix: if the planner retreated, we must re-solve specifically
-        // for the requested model's parameters to avoid OOM at training runtime.
-        let final_plan = if mp.retreated_from_b.is_some() {
-            let resident_per_b = crate::mens::tensor::memory_budget::get_resident_per_b(
-                hint,
-                quant,
-                gradient_checkpointing,
-                params_b,
-            );
-            let p = crate::mens::tensor::memory_budget::plan_with_resident(
-                vram_gib,
-                params_b,
-                resident_per_b,
-            );
-            crate::mens::tensor::memory_budget::ModelPlan {
-                model_id: hint.to_string(),
-                params_b,
-                seq_len: p.seq_len,
-                batch_size: p.batch_size,
-                grad_accum: p.grad_accum,
-                retreated_from_b: None,
-                over_budget: p.over_budget,
-                rationale: p.rationale,
-            }
-        } else {
-            mp
-        };
-
-        Some((
-            final_plan.seq_len,
-            final_plan.batch_size,
-            final_plan.grad_accum,
-        ))
     } else {
         None
     };
@@ -643,10 +601,16 @@ pub struct GpuSpec {
     pub vram_mb: u64,
 }
 
-/// Training preset configuration — auto-selected by VRAM tier for both local and cloud.
+/// Training preset configuration for both local and cloud dispatch.
 ///
 /// Defined once in `gpu-specs.yaml`; consumed by both `vox mens train` (local)
 /// and cloud dispatch (to set container env vars). This is the SSOT for preset configs.
+///
+/// No longer carries `max_vram_mb` / a `best_for_vram` VRAM-tiered auto-selector
+/// — that ladder was deleted (Task 8): it had no 27B rung, so a 27B request
+/// silently landed on the 14B preset. Preset selection for "auto" now always
+/// resolves to a fixed default (see `resolve_effective_profile`); the real
+/// per-host VRAM fit comes from `memory_model::sweep`/`plan_for`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrainingPreset {
     /// Sequence length in tokens.
@@ -657,22 +621,6 @@ pub struct TrainingPreset {
     pub grad_accum: usize,
     /// Learning rate.
     pub lr: f64,
-    /// Maximum VRAM in MB this preset can fit. Used to auto-select from local VRAM.
-    pub max_vram_mb: u64,
-}
-
-impl TrainingPreset {
-    /// Select the best preset for the given VRAM amount.
-    pub fn best_for_vram(
-        presets: &HashMap<String, TrainingPreset>,
-        vram_mb: u64,
-    ) -> Option<(&str, &TrainingPreset)> {
-        presets
-            .iter()
-            .filter(|(_, p)| p.max_vram_mb <= vram_mb)
-            .max_by_key(|(_, p)| p.max_vram_mb)
-            .map(|(k, v)| (k.as_str(), v))
-    }
 }
 
 #[cfg(test)]
@@ -745,7 +693,15 @@ mod preset_tests {
 
     #[test]
     #[serial(vox_base_model_env)]
-    fn presets_are_bounded_by_vram() {
+    fn an_explicit_oversized_preset_is_honored_not_internally_clamped() {
+        // Was `presets_are_bounded_by_vram`: `resolve_effective_profile` used to
+        // clamp an explicit preset's seq_len/batch_size down to a params_b-only
+        // ladder estimate of what the detected VRAM could hold (Task 8 deleted
+        // that internal fallback — get_resident_per_b/plan_with_resident* are
+        // gone). An explicit `--preset` is now honored verbatim by this
+        // function; the real per-host fit check for the no-explicit-sizing-flags
+        // case is `memory_model::sweep`/`plan_for`, applied post-download by the
+        // live training pipeline (`gpu::run_gpu_training`), not here.
         #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-7B-Instruct");
@@ -753,8 +709,12 @@ mod preset_tests {
         let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         let profile = resolve_effective_profile(Some("a100"), dev, None, CliOverrides::default())
             .expect("profile");
-        assert!(profile.seq_len < 1024);
-        assert!(profile.batch_size < 8);
+        let a100 = base_for_name("a100");
+        assert_eq!(
+            (profile.seq_len, profile.batch_size),
+            (a100.seq_len, a100.batch_size),
+            "an explicit preset must resolve to its own nominal shape, unclamped"
+        );
         #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("VOX_BASE_MODEL");
@@ -868,6 +828,47 @@ mod qwen3_preset_tests {
     }
 
     #[test]
+    fn s0p6_floors_batch_size_to_2_only_when_unset() {
+        // Default (no explicit --batch-size): the roomy-activations floor
+        // still applies, same as before this fix.
+        let permissive = TrainPresetProfile {
+            rank: 64,
+            alpha: 128.0,
+            seq_len: 4096,
+            batch_size: 1,
+            grad_accum: 1,
+            epochs: 3,
+            warmup: 100,
+            lr: 2e-4,
+        };
+        let defaulted = super::apply_qwen_size_ladder_policy(
+            permissive.clone(),
+            QwenSizeClass::S0p6,
+            24_576,
+            Some("Qwen/Qwen3-0.6B"),
+            None,
+        );
+        assert_eq!(
+            defaulted.batch_size, 2,
+            "unset batch_size must still be floored to 2"
+        );
+
+        // M2 fix (the actual regression this test exists to close): an
+        // EXPLICIT `--batch-size 1` must be respected, not silently bumped.
+        let explicit = super::apply_qwen_size_ladder_policy(
+            permissive,
+            QwenSizeClass::S0p6,
+            24_576,
+            Some("Qwen/Qwen3-0.6B"),
+            Some(1),
+        );
+        assert_eq!(
+            explicit.batch_size, 1,
+            "an explicit --batch-size 1 must not be floored to 2"
+        );
+    }
+
+    #[test]
     fn size_class_other_still_clamps_rank_seq_batch() {
         // "Qwen/Qwen3.8-27B" matches none of the S0.6/S8/S14/S32 substrings
         // (note: "8b" is not a substring of "27b"), so it falls into `Other`.
@@ -887,7 +888,7 @@ mod qwen3_preset_tests {
             warmup: 100,
             lr: 2e-4,
         };
-        let got = super::apply_qwen_size_ladder_policy(permissive, class, 24_576, Some(hint));
+        let got = super::apply_qwen_size_ladder_policy(permissive, class, 24_576, Some(hint), None);
         assert!(
             got.rank <= 8,
             "27B on 24GB must clamp rank down like the S32 tier, got {}",
@@ -919,12 +920,64 @@ mod qwen3_preset_tests {
             warmup: 100,
             lr: 2e-4,
         };
-        let got =
-            super::apply_qwen_size_ladder_policy(permissive.clone(), class, 24_576, Some(hint));
+        let got = super::apply_qwen_size_ladder_policy(
+            permissive.clone(),
+            class,
+            24_576,
+            Some(hint),
+            None,
+        );
         assert_eq!(
             got, permissive,
             "small unmatched model must be left unchanged by Other, today's behavior"
         );
+    }
+
+    #[test]
+    fn a_large_machine_does_not_get_the_small_card_clamp_in_any_size_class() {
+        // Task 5: the rank/alpha clamps at S14/S32/Other must be gated by the
+        // vram_mb memory conditionals they sit next to, not fire unconditionally
+        // above them. A 110 GB budget is nowhere near any of these tiers' tight
+        // envelope and must not inherit the 16 GB card's rank floor.
+        let base = TrainPresetProfile {
+            rank: 64,
+            alpha: 128.0,
+            seq_len: 4096,
+            batch_size: 8,
+            grad_accum: 1,
+            epochs: 3,
+            warmup: 100,
+            lr: 2e-4,
+        };
+        for (class, hint) in [
+            (QwenSizeClass::S14, Some("Qwen3-14B")),
+            (QwenSizeClass::S32, Some("Qwen3-32B")),
+            (QwenSizeClass::Other, Some("Qwen3.8-27B")), // the model this program is about
+        ] {
+            let big = apply_qwen_size_ladder_policy(base.clone(), class, 110_000, hint, None);
+            assert!(
+                big.rank > 8,
+                "{class:?}: a 110 GB budget must not get the 16 GB card's rank, got {}",
+                big.rank
+            );
+        }
+        let small = apply_qwen_size_ladder_policy(
+            base,
+            QwenSizeClass::S32,
+            16_384,
+            Some("Qwen3-32B"),
+            None,
+        );
+        assert_eq!(small.rank, 8, "a 16 GB card still gets the tight envelope");
+    }
+
+    #[test]
+    fn the_27b_is_classified_other_not_s32() {
+        // If this ever changes, the clamp fix above must move with it.
+        assert!(matches!(
+            detect_qwen_size_class(Some("Qwen3.8-27B")),
+            Some(QwenSizeClass::Other)
+        ));
     }
 
     #[test]
@@ -1267,23 +1320,51 @@ mod metal_auto_default_tests {
 
     #[test]
     #[serial(vox_base_model_env)]
-    fn metal_116g_auto_is_qwen3_96g() {
+    fn metal_auto_below_12gib_stays_on_the_smoke_safe_preset() {
+        // Fix-round regression test: an earlier version of this deletion
+        // collapsed the ENTIRE Metal ladder (including this boundary) to a
+        // single fixed `qwen3_16g` selection above the 6 GiB floor. That was
+        // unsafe, not just imprecise: `candle-metal` has no calibration row
+        // yet, so `memory_model::sweep` cannot correct an oversized config
+        // post-download on this lane (it reports `NoMeasurement` and the
+        // training entry point falls back to whatever preset this function
+        // picked). A small Mac (6-12ish GiB) must land on the deliberately
+        // tiny, smoke-safe `qwen3_dev_cpu` (seq <=256, batch 1, rank 8) — the
+        // one tier of the old ladder this fix-round restores — not on
+        // `qwen3_16g`'s larger seq_len/batch_size.
         clear_preset_env();
-        let dev = DeviceProfile::from_gpu_info("apple m-series", 116 * 1024, "apple");
-        let profile =
-            resolve_effective_profile(None, dev, None, no_budget_clamp()).expect("profile");
-        let expected = base_for_name("qwen3_96g");
-        assert_eq!(profile.rank, expected.rank);
-        assert_eq!(profile.seq_len, expected.seq_len);
-        assert_eq!(profile.batch_size, expected.batch_size);
-        assert_eq!(profile.rank, 64);
-        assert_eq!(profile.seq_len, 2048);
-        assert_eq!(profile.batch_size, 4);
-        // yaml a100 auto hardcodes rank 16, batch_size 8, lr 8e-6
-        assert_ne!(profile.rank, 16);
-        assert_ne!(profile.batch_size, 8);
-        assert_ne!(profile.lr, 8e-6);
-        assert_eq!(profile.lr, expected.lr);
+        let dev = DeviceProfile::from_gpu_info("apple m-series", 8192, "apple"); // 8 GiB
+        let profile = resolve_effective_profile(None, dev, None, no_budget_clamp())
+            .expect("8 GiB is above the 6 GiB fail-closed floor");
+        let expected = base_for_name("qwen3_dev_cpu");
+        assert_eq!(core_fields(&profile), core_fields(&expected));
+        assert_eq!(profile.rank, 8, "qwen3_dev_cpu must be r8 (smoke only)");
+        assert!(profile.seq_len <= 256);
+        assert_eq!(profile.batch_size, 1);
+    }
+
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn metal_auto_no_longer_varies_by_vram_above_the_floor() {
+        // The old VRAM-tiered `auto_preset_for` ladder was deleted (Task 8): it
+        // had no 27B rung and silently handed a 27B model the 14B preset. Above
+        // the restored `qwen3_dev_cpu` safety tier (see
+        // `metal_auto_below_12gib_stays_on_the_smoke_safe_preset`), Metal "auto"
+        // now always resolves to the same fixed preset — a 13.6 GiB and a
+        // 116 GiB Mac must select the identical preset (the real per-host fit
+        // comes from `memory_model::sweep`/`plan_for` post-download, not this
+        // selection — disclosed as a real capability downgrade on large Macs
+        // in the branch's own doc comment).
+        clear_preset_env();
+        let small = DeviceProfile::from_gpu_info("apple m-series", 13926, "apple");
+        let huge = DeviceProfile::from_gpu_info("apple m-series", 116 * 1024, "apple");
+        let small_profile =
+            resolve_effective_profile(None, small, None, no_budget_clamp()).expect("profile");
+        let huge_profile =
+            resolve_effective_profile(None, huge, None, no_budget_clamp()).expect("profile");
+        assert_eq!(core_fields(&small_profile), core_fields(&huge_profile));
+        let expected = base_for_name("qwen3_16g");
+        assert_eq!(core_fields(&huge_profile), core_fields(&expected));
     }
 
     #[test]

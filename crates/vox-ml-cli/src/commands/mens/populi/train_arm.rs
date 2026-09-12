@@ -360,8 +360,9 @@ pub async fn run_train(
     let mut effective_seq_len: Option<usize> = seq_len;
     let mut effective_batch_size: Option<usize> = batch_size;
     let mut effective_grad_accum: Option<usize> = grad_accum;
-    // May be retreated to a smaller Qwen3.5 variant by the VRAM budget below.
-    let mut effective_model = model;
+    // Never silently swapped for a smaller model by the VRAM budget below —
+    // see `never_retreat_the_named_model`.
+    let effective_model = model;
     let mut effective_validation_split_ratio = validation_split_ratio;
     let mut _effective_max_grad_norm = None; // pass down if needed
     let mut effective_curriculum = curriculum;
@@ -427,141 +428,18 @@ pub async fn run_train(
         }
     }
 
-    let mut budget_seq_len = None;
-    let mut budget_batch_size = None;
-    let mut budget_grad_accum = None;
-    {
-        use owo_colors::OwoColorize;
-        let device_is_cuda = vox_populi::mens::normalize_device(&device)
-            .map(|d| matches!(d, vox_populi::mens::DeviceKind::Cuda))
-            .unwrap_or(false);
-        if device_is_cuda {
-            use vox_populi::mens::tensor::finetune_contract::BaseQuantMode;
-            use vox_populi::mens::tensor::memory_budget;
-            let default_model = vox_populi::mens::default_model_id();
-            let model_hint = effective_model.as_deref().unwrap_or(&default_model);
-            let requested_b = memory_budget::params_b_from_model_hint(model_hint).unwrap_or(7.0);
-
-            // Dynamic VRAM Auditing (free VRAM takes priority)
-            let vram_info = vox_populi::mens::tensor::vram_autodetect::get_system_vram_info();
-            let mut vram = if let Some(info) = vram_info {
-                eprintln!(
-                    "  {} VRAM Audit: {:.1} GiB total, {:.1} GiB used, {:.1} GiB free",
-                    "📊".cyan(),
-                    info.total_gb,
-                    info.used_gb,
-                    info.free_gb
-                );
-                info.free_gb as f64
-            } else {
-                16.0
-            };
-            if let Some(frac) = vram_limit_fraction {
-                vram *= frac as f64;
-            }
-
-            // Early options resolution
-            let base_quant = match backend {
-                PopuliTrainBackendCli::Lora => BaseQuantMode::None,
-                PopuliTrainBackendCli::Qlora => BaseQuantMode::Nf4,
-            };
-            let gc_explicit = std::env::var("VOX_MENS_GRADIENT_CHECKPOINTING")
-                .ok()
-                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                .unwrap_or(false);
-            let gc_auto_large = requested_b >= 2.9;
-            let gc_enabled = gc_explicit || gc_auto_large;
-
-            // Run planning options-aware
-            let mp = if memory_budget::is_qwen25coder(model_hint) {
-                memory_budget::plan_qwen25coder_with_options(
-                    vram,
-                    requested_b,
-                    base_quant,
-                    gc_enabled,
-                )
-            } else if memory_budget::is_qwen35(model_hint) {
-                memory_budget::plan_qwen35_with_options(vram, requested_b, base_quant, gc_enabled)
-            } else if memory_budget::is_qwen3(model_hint) {
-                memory_budget::plan_qwen3_with_options(vram, requested_b, base_quant, gc_enabled)
-            } else {
-                let resident_per_b = memory_budget::get_resident_per_b(
-                    model_hint,
-                    base_quant,
-                    gc_enabled,
-                    requested_b,
-                );
-                let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
-                memory_budget::ModelPlan {
-                    model_id: model_hint.to_string(),
-                    params_b: requested_b,
-                    seq_len: p.seq_len,
-                    batch_size: p.batch_size,
-                    grad_accum: p.grad_accum,
-                    retreated_from_b: None,
-                    over_budget: p.over_budget,
-                    rationale: p.rationale,
-                }
-            };
-
-            // Dual-sizing fix: if the model was pinned (effective_model is Some),
-            // we must not use the retreated model's generous constraints (it would cause OOM).
-            // Instead, re-solve the budget specifically for the pinned model parameters.
-            let final_plan = if effective_model.is_some() && mp.retreated_from_b.is_some() {
-                let resident_per_b = memory_budget::get_resident_per_b(
-                    model_hint,
-                    base_quant,
-                    gc_enabled,
-                    requested_b,
-                );
-                let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
-                memory_budget::ModelPlan {
-                    model_id: model_hint.to_string(),
-                    params_b: requested_b,
-                    seq_len: p.seq_len,
-                    batch_size: p.batch_size,
-                    grad_accum: p.grad_accum,
-                    retreated_from_b: None,
-                    over_budget: p.over_budget,
-                    rationale: format!(
-                        "pinned model ≈{requested_b:.1}B solved specifically — {}",
-                        p.rationale
-                    ),
-                }
-            } else {
-                mp
-            };
-
-            budget_gate(&final_plan, force_train_env())?;
-
-            eprintln!("  {} VRAM budget: {}", "⚙".cyan(), final_plan.rationale);
-
-            if let Some(from_b) = final_plan.retreated_from_b {
-                if effective_model.is_none() {
-                    eprintln!(
-                        "  {} Auto-selected {} for {:.0} GiB VRAM (requested ≈{:.1}B would not fit).",
-                        "↓".yellow(),
-                        final_plan.model_id,
-                        vram,
-                        from_b
-                    );
-                    effective_model = Some(final_plan.model_id.clone());
-                } else {
-                    eprintln!(
-                        "  {} {} is pinned but may not fit {:.0} GiB — omit --model to auto-retreat to {}.",
-                        "⚠".yellow(),
-                        model_hint,
-                        vram,
-                        final_plan.model_id
-                    );
-                }
-            }
-
-            budget_seq_len = Some(final_plan.seq_len);
-            budget_batch_size = Some(final_plan.batch_size);
-            budget_grad_accum = Some(final_plan.grad_accum);
-        }
-    }
+    // The old CUDA pre-download budget estimate (params_b-only ladder: Qwen
+    // family classifiers + `get_resident_per_b` + `plan_with_resident*`) was
+    // deleted — no `ModelShape` (real on-disk layer/hidden/artifact-bytes
+    // facts) exists this early, so it was never more than a guess. The real
+    // per-host fit now happens post-download via the measured
+    // `memory_model::sweep`/`plan_for` entry point once the model is on disk
+    // (see `crate::commands::schola::train::gpu::run_gpu_training`); until
+    // then these stay unset and `resolve_effective_profile` uses the plain
+    // preset defaults.
+    let budget_seq_len = None;
+    let budget_batch_size = None;
+    let budget_grad_accum = None;
 
     let parsed_filter = if let Some(cf) = effective_context_filter {
         Some(cf)
@@ -788,75 +666,6 @@ fn run_cloud_eval_gate(
     }
 }
 
-/// Resolve a single training-sizing knob (`seq_len` / `batch_size` / `grad_accum`)
-/// from its candidate sources, applying the canonical precedence:
-///
-/// ```text
-/// explicit CLI flag  >  deliberate domain profile  >  per-model VRAM budget  >  generic preset default
-/// ```
-///
-/// Each argument is `Some` only when that tier actually supplied a value:
-/// - `cli`: the user passed `--seq-len` / `--batch-size` / `--grad-accum`.
-/// - `domain`: a deliberately-chosen domain profile pinned the knob.
-/// - `budget`: the per-model VRAM budget (`memory_budget::plan*`) sized the knob to fit the card.
-/// - `preset_default`: a generic preset's fallback value.
-///
-/// The key correctness property (the "dual-sizing" bug fix): a **generic preset
-/// default must NOT override the VRAM budget** — `budget` is consulted strictly
-/// before `preset_default`, so the budget can shrink an over-large preset and
-/// avoid OOM. Explicit CLI flags and deliberate domain profiles still win over
-/// the budget.
-///
-/// Pure and side-effect-free so it can be unit-tested in isolation.
-fn resolve_training_sizing(
-    cli: Option<usize>,
-    domain: Option<usize>,
-    budget: Option<usize>,
-    preset_default: Option<usize>,
-) -> Option<usize> {
-    cli.or(domain).or(budget).or(preset_default)
-}
-
-/// `VOX_MENS_FORCE_TRAIN=1`/`true` — the registered operator override meaning
-/// "proceed past a failing gate". Same parse shape as the
-/// `VOX_MENS_GRADIENT_CHECKPOINTING` read above.
-fn force_train_env() -> bool {
-    std::env::var("VOX_MENS_FORCE_TRAIN")
-        .ok()
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
-}
-
-/// Refuse to proceed with a plan that doesn't fit the detected VRAM, unless
-/// `force` is set. `over_budget` is computed by the planner but was
-/// previously never consulted, letting training run straight into an OOM.
-///
-/// The call site supplies `force` from `VOX_MENS_FORCE_TRAIN` (the registered
-/// "proceed past a failing gate" env var), so an operator who knows the
-/// planner's estimate is wrong for their machine can proceed anyway.
-fn budget_gate(
-    plan: &vox_populi::mens::tensor::memory_budget::ModelPlan,
-    force: bool,
-) -> anyhow::Result<()> {
-    if plan.over_budget && !force {
-        anyhow::bail!(
-            "model '{}' does not fit in the detected VRAM at the planned seq_len/batch_size ({}); \
-             reduce --seq-len/--batch-size, pick a smaller model, or free up VRAM",
-            plan.model_id,
-            plan.rationale
-        );
-    }
-    if plan.over_budget && force {
-        eprintln!(
-            "!! VOX_MENS_FORCE_TRAIN=1 — the VRAM budget gate is DISABLED.\n\
-             !! '{}' does not fit the detected VRAM ({}).\n\
-             !! This run is expected to OOM. Unset VOX_MENS_FORCE_TRAIN to restore the gate.",
-            plan.model_id, plan.rationale
-        );
-    }
-    Ok(())
-}
-
 /// The version this build stamps into freshly generated corpora.
 fn current_corpus_compiler_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -1010,169 +819,6 @@ async fn refresh_stale_training_corpus(
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod sizing_precedence_tests {
-    use super::resolve_training_sizing;
-
-    /// The headline "dual-sizing" bug: a generic preset must NOT beat the VRAM
-    /// budget. Preset seq=512 + budget seq=256, no explicit CLI / domain → 256.
-    #[test]
-    fn budget_overrides_generic_preset_seq_len() {
-        let resolved = resolve_training_sizing(
-            None,      // no explicit --seq-len
-            None,      // no domain profile
-            Some(256), // VRAM budget
-            Some(512), // generic preset default
-        );
-        assert_eq!(resolved, Some(256));
-    }
-
-    /// Explicit CLI always wins, even over the budget: CLI seq=512 + budget seq=256 → 512.
-    #[test]
-    fn explicit_cli_beats_budget() {
-        let resolved = resolve_training_sizing(Some(512), None, Some(256), Some(512));
-        assert_eq!(resolved, Some(512));
-    }
-
-    /// A deliberate domain profile beats the budget but loses to explicit CLI.
-    #[test]
-    fn domain_beats_budget_but_loses_to_cli() {
-        assert_eq!(
-            resolve_training_sizing(None, Some(1024), Some(256), Some(512)),
-            Some(1024)
-        );
-        assert_eq!(
-            resolve_training_sizing(Some(2048), Some(1024), Some(256), Some(512)),
-            Some(2048)
-        );
-    }
-
-    /// No preset at all: the budget value is used as-is.
-    #[test]
-    fn budget_only_is_used() {
-        assert_eq!(
-            resolve_training_sizing(None, None, Some(256), None),
-            Some(256)
-        );
-    }
-
-    /// batch_size / grad_accum follow the same precedence (one representative case each).
-    #[test]
-    fn budget_overrides_preset_for_batch_and_grad() {
-        // batch_size: preset would set 8, budget shrinks to 1.
-        assert_eq!(
-            resolve_training_sizing(None, None, Some(1), Some(8)),
-            Some(1)
-        );
-        // grad_accum: explicit CLI of 4 wins over budget's 16.
-        assert_eq!(
-            resolve_training_sizing(Some(4), None, Some(16), Some(2)),
-            Some(4)
-        );
-    }
-
-    /// Nothing supplied anywhere → None (caller keeps its own fallback).
-    #[test]
-    fn all_none_yields_none() {
-        assert_eq!(resolve_training_sizing(None, None, None, None), None);
-    }
-}
-
-#[cfg(test)]
-#[allow(unsafe_code)]
-mod budget_gate_tests {
-    use super::budget_gate;
-    use vox_populi::mens::tensor::memory_budget::ModelPlan;
-
-    fn plan(over_budget: bool) -> ModelPlan {
-        ModelPlan {
-            model_id: "Qwen/Qwen3.8-27B".to_string(),
-            params_b: 27.0,
-            seq_len: 256,
-            batch_size: 1,
-            grad_accum: 1,
-            retreated_from_b: None,
-            over_budget,
-            rationale: "test rationale".to_string(),
-        }
-    }
-
-    #[test]
-    fn train_arm_rejects_over_budget_plan_without_override() {
-        assert!(budget_gate(&plan(true), false).is_err());
-    }
-
-    #[test]
-    fn budget_gate_allows_fitting_plan_without_override() {
-        assert!(budget_gate(&plan(false), false).is_ok());
-    }
-
-    #[test]
-    fn budget_gate_allows_over_budget_plan_with_force() {
-        assert!(budget_gate(&plan(true), true).is_ok());
-    }
-
-    /// The call site's `force` comes from `VOX_MENS_FORCE_TRAIN`, so an
-    /// over-budget plan must be rejected when it is unset and allowed when it
-    /// is set — the same two cases the hardcoded-`false` call site could never
-    /// express. Serialized because env vars are process-global.
-    #[test]
-    fn force_train_env_overrides_the_budget_gate() {
-        use super::force_train_env;
-        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let prior = std::env::var("VOX_MENS_FORCE_TRAIN").ok();
-
-        // SAFETY: single-threaded section guarded by LOCK; no other test in
-        // this binary reads VOX_MENS_FORCE_TRAIN.
-        unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") };
-        assert!(!force_train_env(), "unset -> no override");
-        assert!(
-            budget_gate(&plan(true), force_train_env()).is_err(),
-            "over-budget + no override must reject"
-        );
-
-        for on in ["1", "true", "TRUE"] {
-            unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", on) };
-            assert!(force_train_env(), "{on} -> override");
-            assert!(
-                budget_gate(&plan(true), force_train_env()).is_ok(),
-                "over-budget + VOX_MENS_FORCE_TRAIN={on} must proceed"
-            );
-        }
-
-        unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", "0") };
-        assert!(!force_train_env(), "0 -> no override");
-        assert!(budget_gate(&plan(true), force_train_env()).is_err());
-
-        match prior {
-            Some(v) => unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", v) },
-            None => unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") },
-        }
-    }
-
-    /// `mens-training.md`'s first-run bootstrap paragraph must route new users
-    /// through the missing-artifacts fix (`VOX_MENS_SKIP_EVAL`, `vox mens
-    /// eval-local`), not through `VOX_MENS_FORCE_TRAIN` — that var also
-    /// disables the unrelated VRAM budget gate above and can walk a first-run
-    /// user straight into an OOM.
-    #[test]
-    fn the_first_run_docs_do_not_route_new_users_through_the_oom_override() {
-        let doc = include_str!("../../../../../../docs/src/reference/mens-training.md");
-        let para = doc
-            .split("**First-run bootstrap:**")
-            .nth(1)
-            .expect("the first-run bootstrap paragraph exists")
-            .split("\n\n")
-            .next()
-            .unwrap_or_default();
-        assert!(
-            !para.contains("VOX_MENS_FORCE_TRAIN"),
-            "the first-run instructions must not disable the memory gate"
-        );
-    }
 }
 
 #[cfg(all(test, feature = "cloud"))]

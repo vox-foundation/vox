@@ -1,8 +1,10 @@
 //! Quantization policy: tensor-role classification, named k-quant mixtures,
 //! and GGML block-size alignment fallback.
 
+use crate::error::QuantizeError;
 use candle_core::quantized::GgmlDType;
 use std::collections::BTreeMap;
+use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TensorRole {
@@ -90,65 +92,91 @@ pub fn bits_per_weight(dtype: GgmlDType) -> f64 {
     dtype.type_size() as f64 * 8.0 / dtype.block_size() as f64
 }
 
-/// Fraction of a dense transformer's quantizable parameters that fall into
-/// Q4_K_M/Q5_K_M's "boosted" roles (DownProj + VProj + Embedding + Output,
-/// all bumped to Q6K by `QuantMixture::target_for`) rather than the default
-/// Matrix role. `target_for` only maps *a* role to *a* dtype — it has no
-/// notion of how many parameters each role covers, which is a property of
-/// the checkpoint's architecture, not of the policy.
-///
-/// Measured directly from `Qwen/Qwen3.8-27B`'s safetensors headers by
-/// classifying every tensor with `TensorRole::from_key` and summing
-/// element counts (27,781,427,952 total params):
-///   down_proj  65 x 5120 x 17408 = 5,793,382,400  (64 layers + 1 MTP layer)
-///   embed_tokens   248320 x 5120 = 1,271,398,400
-///   lm_head        248320 x 5120 = 1,271,398,400  (untied, counted separately)
-///   v_proj     17 x 1024 x 5120  =    89,128,960  (16 full-attn + 1 MTP layer)
-///                        total   = 8,425,308,160 / 27,781,427,952 = 0.3033
-/// See docs/superpowers/specs/2026-09-10-qwen38-27b-hub-design.md §5.1.
-pub const QWEN3_27B_BOOSTED_ROLE_FRACTION: f64 = 0.303;
-
-/// Weighted-average bits-per-weight for `mixture`, given the fraction of
-/// parameters in "boosted" roles (DownProj/VProj/Embedding/Output) vs the
-/// default Matrix role. Uses `QuantMixture::target_for`'s real role→dtype
-/// assignments, not a restated bpw constant. Returns `None` for a `Manual`
-/// mixture that doesn't map both roles.
-pub fn mixture_bpw(mixture: &QuantMixture, boosted_fraction: f64) -> Option<f64> {
-    let default_dtype = mixture.target_for(TensorRole::Matrix)?;
-    let boosted_dtype = mixture.target_for(TensorRole::DownProj)?;
-    Some(
-        (1.0 - boosted_fraction) * bits_per_weight(default_dtype)
-            + boosted_fraction * bits_per_weight(boosted_dtype),
-    )
+/// Exact sizing for a `plan_quantize` run: the output artifact's size, the
+/// peak RAM the engine needs to produce it, and the derived bpw/params.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct QuantizePlan {
+    /// Total bytes the quantized output will occupy, summed tensor-by-tensor
+    /// from candle's real `GgmlDType::{block_size, type_size}`.
+    pub output_bytes: u64,
+    /// Peak RAM: `2*S_max + output_bytes + 4*4*p_max` (see `plan_quantize`).
+    pub peak_bytes: u64,
+    /// `output_bytes * 8 / params`.
+    pub bits_per_weight: f64,
+    /// Total element count across every tensor in the checkpoint.
+    pub params: u64,
 }
 
-/// Weights-only footprint in GiB for a `params_b`-billion-parameter model at
-/// `bpw` bits per weight.
-pub fn needed_gib(params_b: f64, bpw: f64) -> f64 {
-    params_b * 1e9 * bpw / 8.0 / (1024.0 * 1024.0 * 1024.0)
-}
-
-/// Does a `params_b`-billion-parameter model at `mixture` fit in
-/// `usable_gib` of usable VRAM? Weights only — no KV cache or compute-buffer
-/// margin; callers wanting headroom should pass a smaller `usable_gib`.
-/// A `Manual` mixture without a usable bpw estimate is never rejected here
-/// (unknown, not infeasible).
+/// Size a quantization run exactly from the safetensors headers in
+/// `input_dir`, with no fitted parameter anywhere.
 ///
-/// **Accuracy caveat:** the boosted-role split is pinned to
-/// [`QWEN3_27B_BOOSTED_ROLE_FRACTION`], measured from `Qwen/Qwen3.8-27B`. That
-/// fraction is a property of the *architecture*, not of the mixture, so the
-/// estimate drifts for models whose embedding/LM-head share of total parameters
-/// differs materially — a small model with a large vocabulary (e.g. Qwen3-0.6B,
-/// where embeddings alone are a quarter of all parameters) has a much higher
-/// boosted fraction, so its true bpw is higher than this computes and the check
-/// can pass a model that does not actually fit. Treat a `true` here as "not
-/// obviously too big" rather than a guarantee. Use [`mixture_bpw`] directly with
-/// a measured fraction when the architecture is known.
-pub fn fits_target_tier(params_b: f64, mixture: &QuantMixture, usable_gib: f64) -> bool {
-    match mixture_bpw(mixture, QWEN3_27B_BOOSTED_ROLE_FRACTION) {
-        Some(bpw) => needed_gib(params_b, bpw) <= usable_gib,
-        None => true,
+/// For every tensor in every `*.safetensors` file, classifies its role
+/// (`TensorRole::from_key`), resolves the mixture's target dtype for that
+/// role (`QuantMixture::target_for`), applies GGML block-size alignment
+/// (`resolve_dtype`), and sizes it with candle's real `GgmlDType` block
+/// layout — `elems / block_size * type_size` (this also covers `KeepF32` /
+/// fallback `GgmlDType::F32`, whose `block_size() == 1` and
+/// `type_size() == 4` reduce the same formula to `elems * 4`).
+///
+/// `peak_bytes = 2*S_max + output_bytes + 4*4*p_max`:
+/// - `2*S_max` — the largest shard's on-disk size, doubled for the one-slot
+///   shard cache holding one shard while the next is read (see `read.rs`).
+/// - `output_bytes` — the exact total computed above.
+/// - `4*4*p_max` — `round_trip_mse` (`verify.rs`) holds 4 live F32 buffers
+///   (`src`, `deq`, `diff`, `sq`) the size of the largest tensor.
+pub fn plan_quantize(
+    input_dir: &Path,
+    mixture: &QuantMixture,
+) -> Result<QuantizePlan, QuantizeError> {
+    let mut output_bytes: u64 = 0;
+    let mut params: u64 = 0;
+    let mut s_max: u64 = 0;
+    let mut p_max: u64 = 0;
+
+    for entry in std::fs::read_dir(input_dir)? {
+        let path = entry?.path();
+        if path.extension().is_none_or(|e| e != "safetensors") {
+            continue;
+        }
+        let file_len = std::fs::metadata(&path)?.len();
+        s_max = s_max.max(file_len);
+
+        for (name, entry) in crate::read::read_header(&path)? {
+            if name == "__metadata__" {
+                continue;
+            }
+            let shape = crate::read::header_entry_shape(&entry).ok_or_else(|| {
+                QuantizeError::ReadModel(format!(
+                    "missing shape for `{name}` in {}",
+                    path.display()
+                ))
+            })?;
+            let elems = shape.iter().map(|&d| d as u64).product::<u64>();
+            let last_dim = *shape.last().unwrap_or(&0);
+            params += elems;
+            p_max = p_max.max(elems);
+
+            let dtype = match mixture.target_for(TensorRole::from_key(&name)) {
+                Some(target) => resolve_dtype(target, last_dim),
+                None => GgmlDType::F32,
+            };
+            output_bytes += elems / dtype.block_size() as u64 * dtype.type_size() as u64;
+        }
     }
+
+    let peak_bytes = 2 * s_max + output_bytes + 4 * 4 * p_max;
+    let bits_per_weight = if params == 0 {
+        0.0
+    } else {
+        output_bytes as f64 * 8.0 / params as f64
+    };
+
+    Ok(QuantizePlan {
+        output_bytes,
+        peak_bytes,
+        bits_per_weight,
+        params,
+    })
 }
 
 /// Enforce GGML block-size alignment against the tensor's last dimension.
@@ -257,34 +285,86 @@ mod tests {
     }
 
     #[test]
-    fn q4km_mixture_bpw_matches_spec_arithmetic() {
-        // 0.697 x 4.500 + 0.303 x 6.5625 = 5.1249375 (spec §5.1, rounded
-        // there to 5.125). The dtype bpw terms come from bits_per_weight
-        // (real candle_core block layout); only the 0.697/0.303 role split
-        // is a named architecture constant.
-        let bpw = mixture_bpw(&QuantMixture::Q4KM, QWEN3_27B_BOOSTED_ROLE_FRACTION).unwrap();
-        assert!(
-            (bpw - 5.1249375).abs() < 1e-9,
-            "expected ~5.1249375 bpw, got {bpw}"
-        );
-    }
-
-    #[test]
-    fn q4_k_m_27b_is_rejected_for_16gb_tier() {
-        // 27e9 params * 5.1249375 bpw / 8 / GiB ~= 16.11 GiB > 15.1 GiB
-        // usable. (At the checkpoint's real 27.78e9 params: ~16.57 GiB.)
-        assert!(!fits_target_tier(27.0, &QuantMixture::Q4KM, 15.1));
-        // A genuinely sufficient tier (spec's 24 GB minimum consume target)
-        // fits the same mixture.
-        assert!(fits_target_tier(27.0, &QuantMixture::Q4KM, 24.0));
-    }
-
-    #[test]
     fn alignment_falls_back_below_256() {
         assert_eq!(resolve_dtype(GgmlDType::Q4K, 512), GgmlDType::Q4K);
         assert_eq!(resolve_dtype(GgmlDType::Q4K, 96), GgmlDType::Q8_0);
         assert_eq!(resolve_dtype(GgmlDType::Q4K, 100), GgmlDType::F32);
         assert_eq!(resolve_dtype(GgmlDType::Q8_0, 64), GgmlDType::Q8_0);
+    }
+
+    /// Catches: reintroducing a bpw estimate weighted by a fitted
+    /// architecture constant. This fixture's boosted-role share is nothing
+    /// like Qwen3-27B's 0.303, so a role-fraction estimator and an exact
+    /// header walk disagree here; only the walk matches the size the engine
+    /// actually writes.
+    #[test]
+    fn plan_quantize_sizes_the_output_from_real_ggml_blocks() {
+        use candle_core::{Device, Tensor};
+        use std::collections::HashMap;
+
+        let dir = tempfile::tempdir().unwrap();
+        let dev = Device::Cpu;
+        let mut map: HashMap<String, Tensor> = HashMap::new();
+        // Matrix role -> Q4K; down_proj -> Q6K; a norm -> KeepF32.
+        map.insert(
+            "model.layers.0.self_attn.q_proj.weight".into(),
+            Tensor::zeros((256, 256), candle_core::DType::F32, &dev).unwrap(),
+        );
+        map.insert(
+            "model.layers.0.mlp.down_proj.weight".into(),
+            Tensor::zeros((256, 256), candle_core::DType::F32, &dev).unwrap(),
+        );
+        map.insert(
+            "model.layers.0.input_layernorm.weight".into(),
+            Tensor::zeros((256,), candle_core::DType::F32, &dev).unwrap(),
+        );
+        candle_core::safetensors::save(&map, dir.path().join("model.safetensors")).unwrap();
+
+        let plan = plan_quantize(dir.path(), &QuantMixture::Q4KM).unwrap();
+
+        let q4k = GgmlDType::Q4K;
+        let q6k = GgmlDType::Q6K;
+        let expected = (65536 / q4k.block_size() * q4k.type_size()
+            + 65536 / q6k.block_size() * q6k.type_size()
+            + 256 * 4) as u64;
+        assert_eq!(
+            plan.output_bytes, expected,
+            "output size must come from candle's real block layout, not a bpw constant"
+        );
+        assert_eq!(plan.params, 65536 + 65536 + 256);
+    }
+
+    /// Catches: dropping any term of the peak formula. Every term is a file
+    /// stat or block arithmetic; a peak below the output size or below the
+    /// largest-tensor working set would let a run be scheduled that cannot
+    /// complete, which is the failure this function exists to prevent.
+    #[test]
+    fn plan_quantize_peak_covers_the_shard_cache_the_output_and_the_verify_temporaries() {
+        use candle_core::{Device, Tensor};
+        use std::collections::HashMap;
+
+        let dir = tempfile::tempdir().unwrap();
+        let dev = Device::Cpu;
+        let mut map: HashMap<String, Tensor> = HashMap::new();
+        map.insert(
+            "model.layers.0.self_attn.q_proj.weight".into(),
+            Tensor::zeros((512, 256), candle_core::DType::F32, &dev).unwrap(),
+        );
+        candle_core::safetensors::save(&map, dir.path().join("model.safetensors")).unwrap();
+
+        let plan = plan_quantize(dir.path(), &QuantMixture::Q4KM).unwrap();
+        let shard_bytes = std::fs::metadata(dir.path().join("model.safetensors"))
+            .unwrap()
+            .len();
+        let p_max = 512u64 * 256;
+        assert!(
+            plan.peak_bytes >= 2 * shard_bytes + plan.output_bytes + 4 * 4 * p_max,
+            "peak {} omits a term: 2*S_max={} O={} 4*4*p_max={}",
+            plan.peak_bytes,
+            2 * shard_bytes,
+            plan.output_bytes,
+            4 * 4 * p_max
+        );
     }
 }
 

@@ -1,0 +1,20 @@
+{
+  "schema": "vox_mens_calibration_record_v1",
+  "notes": "Single real measurement for the candle-metal lane. NOT enough points to fit a_candle_metal (fit_a_lane requires two distinct tokens_per_step values at the same model shape). See crates/vox-populi/src/mens/tensor/calibration.rs test `single_real_candle_metal_point_refuses_to_fit` and docs/src/architecture/measurements/2026-09-11-candle-metal-calibration.md for the full story, including the preset_schema.rs batch-size-flooring bug this measurement surfaced.",
+  "records": [
+    {
+      "host_key": "AppleM5Max-115448725504",
+      "lane": "candle-metal",
+      "model": "Qwen/Qwen3-0.6B",
+      "artifact_bytes": 1200000000,
+      "artifact_bytes_note": "approximate: 0.6B params x 2 bytes/param (bf16), from the published model card; not independently measured in this run. artifact_bytes is not consumed by fit_a_lane or best_record, so this approximation does not affect either.",
+      "layers": 28,
+      "hidden": 1024,
+      "tokens_per_step": 1024,
+      "tokens_per_step_note": "actual measured shape was batch=2 x seq=512, not the requested batch=1 x seq=512 -- see preset_schema.rs bug writeup",
+      "outcome": "Fits",
+      "peak_bytes": 53439004672,
+      "source_run": "run_id 20260911T221852Z, global_step=90, optimizer_step_count=22, total_tokens=72246"
+    }
+  ]
+}
