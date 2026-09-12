@@ -358,6 +358,26 @@ pub enum PopuliAction {
         /// Show detailed hardware metadata and recommended hyperparameter presets.
         #[arg(long, short = 'd')]
         detailed: bool,
+        /// Report this host's real accelerator memory budget (working-set /
+        /// max single-allocation bytes) as a calibration measurement — the
+        /// fix named by an "uncalibrated lane" error from `vox mens train`.
+        #[arg(long)]
+        measure: bool,
+        /// Sweep batch sizes at a fixed --seq-len and print the largest one
+        /// that fits this host's real memory budget for --model-dir, using
+        /// the same `plan_for`/`sweep` memory model `vox mens train` uses.
+        #[arg(long)]
+        sweep: bool,
+        /// Local model directory (config.json + *.safetensors) to size for
+        /// `--sweep`.
+        #[arg(long)]
+        model_dir: Option<PathBuf>,
+        /// Fixed sequence length to sweep batch sizes at.
+        #[arg(long, default_value_t = 512)]
+        seq_len: u64,
+        /// Enable the gradient-checkpointing calibration cell for --sweep.
+        #[arg(long)]
+        gradient_checkpointing: bool,
     },
 
     /// Show training run status or BYOK quota usage

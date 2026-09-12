@@ -1600,4 +1600,4 @@ contracts:
       single point cannot determine a slope) — MemoryModels::get fails
       closed for any uncalibrated cell.
     enforced_by:
-      - cargo test -p vox-populi --features mens --lib mens::tensor::memory_model::
+      - "cargo test -p vox-populi --features mens --lib mens::tensor::memory_model::"

@@ -507,6 +507,37 @@ pub fn budget_gate_usable_bytes(budget: &DeviceBudget) -> u64 {
     usable_bytes(budget)
 }
 
+/// Pick the largest batch size (at a fixed `seq_len`) that fits — a single
+/// `take_while` over [`plan_for`], never a second sizing algorithm. Doubles
+/// `batch_size` from 1 and keeps the largest candidate that still `Fits`;
+/// returns `None` when even `batch_size=1` is refused. Reused verbatim by
+/// both an explicit `vox mens probe --sweep` and auto-default training sizing
+/// — one implementation, so a "largest fitting shape" answer never drifts
+/// from what `plan_for` itself would say about that shape.
+pub fn sweep(
+    budget: &DeviceBudget,
+    models: &MemoryModels,
+    key: &CalKey,
+    shape: &ModelShape,
+    seq_len: u64,
+) -> Result<Request> {
+    std::iter::successors(Some(1u64), |b| b.checked_mul(2))
+        .map(|batch_size| Request {
+            batch_size,
+            seq_len,
+        })
+        .take_while(|req| {
+            matches!(
+                plan_for(budget, models, key, shape, req).verdict,
+                Verdict::Fits
+            )
+        })
+        .last()
+        .ok_or_else(|| {
+            anyhow!("no batch size fits {shape:?} at seq_len={seq_len} within the usable budget")
+        })
+}
+
 #[cfg(test)]
 mod plan_for_tests {
     use super::*;
@@ -581,6 +612,29 @@ lanes:
             budget_gate_usable_bytes(&b),
             once,
             "budget_gate must consume plan_for's usable_bytes, not scale it again"
+        );
+    }
+
+    #[test]
+    fn sweep_picks_the_largest_shape_that_fits_not_the_first() {
+        let picked =
+            sweep(&m5max(), &models(), &metal_key(), &shape_27b(), 512).expect("something fits");
+        // Compute the expectation from the model, do not hardcode an index:
+        // every larger candidate must be refused and this one must fit.
+        assert!(matches!(
+            plan_for(&m5max(), &models(), &metal_key(), &shape_27b(), &picked).verdict,
+            Verdict::Fits
+        ));
+        let bigger = Request {
+            batch_size: picked.batch_size * 2,
+            seq_len: picked.seq_len,
+        };
+        assert!(
+            !matches!(
+                plan_for(&m5max(), &models(), &metal_key(), &shape_27b(), &bigger).verdict,
+                Verdict::Fits
+            ),
+            "sweep stopped early: {bigger:?} also fits"
         );
     }
 

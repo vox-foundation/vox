@@ -360,8 +360,9 @@ pub async fn run_train(
     let mut effective_seq_len: Option<usize> = seq_len;
     let mut effective_batch_size: Option<usize> = batch_size;
     let mut effective_grad_accum: Option<usize> = grad_accum;
-    // May be retreated to a smaller Qwen3.5 variant by the VRAM budget below.
-    let mut effective_model = model;
+    // Never silently swapped for a smaller model by the VRAM budget below —
+    // see `never_retreat_the_named_model`.
+    let effective_model = model;
     let mut effective_validation_split_ratio = validation_split_ratio;
     let mut _effective_max_grad_norm = None; // pass down if needed
     let mut effective_curriculum = curriculum;
@@ -519,58 +520,23 @@ pub async fn run_train(
                 }
             };
 
-            // Dual-sizing fix: if the model was pinned (effective_model is Some),
-            // we must not use the retreated model's generous constraints (it would cause OOM).
-            // Instead, re-solve the budget specifically for the pinned model parameters.
-            let final_plan = if effective_model.is_some() && mp.retreated_from_b.is_some() {
-                let resident_per_b = memory_budget::get_resident_per_b(
-                    model_hint,
-                    base_quant,
-                    gc_enabled,
-                    requested_b,
-                );
-                let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
-                memory_budget::ModelPlan {
-                    model_id: model_hint.to_string(),
-                    params_b: requested_b,
-                    seq_len: p.seq_len,
-                    batch_size: p.batch_size,
-                    grad_accum: p.grad_accum,
-                    retreated_from_b: None,
-                    over_budget: p.over_budget,
-                    rationale: format!(
-                        "pinned model ≈{requested_b:.1}B solved specifically — {}",
-                        p.rationale
-                    ),
-                }
-            } else {
-                mp
-            };
+            let final_plan = never_retreat_the_named_model(
+                mp,
+                model_hint,
+                requested_b,
+                vram,
+                base_quant,
+                gc_enabled,
+            );
 
             budget_gate(&final_plan, force_train_env())?;
 
             eprintln!("  {} VRAM budget: {}", "⚙".cyan(), final_plan.rationale);
-
-            if let Some(from_b) = final_plan.retreated_from_b {
-                if effective_model.is_none() {
-                    eprintln!(
-                        "  {} Auto-selected {} for {:.0} GiB VRAM (requested ≈{:.1}B would not fit).",
-                        "↓".yellow(),
-                        final_plan.model_id,
-                        vram,
-                        from_b
-                    );
-                    effective_model = Some(final_plan.model_id.clone());
-                } else {
-                    eprintln!(
-                        "  {} {} is pinned but may not fit {:.0} GiB — omit --model to auto-retreat to {}.",
-                        "⚠".yellow(),
-                        model_hint,
-                        vram,
-                        final_plan.model_id
-                    );
-                }
-            }
+            debug_assert!(
+                final_plan.retreated_from_b.is_none(),
+                "final_plan is always solved specifically for model_hint now; \
+                 a retreat here would mean the ladder's model was used unsolved"
+            );
 
             budget_seq_len = Some(final_plan.seq_len);
             budget_batch_size = Some(final_plan.batch_size);
@@ -860,6 +826,50 @@ fn cuda_budget_gib(vram_gib: f64, vram_limit_fraction: Option<f32>) -> f64 {
         operator_fraction: vram_limit_fraction.map(|f| f as f64),
     };
     budget_gate_usable_bytes(&budget) as f64 / GIB
+}
+
+/// A model the user named — pinned via `--model`, or the resolved default
+/// when unpinned — is never silently substituted for a smaller one. If `mp`
+/// was produced by a Qwen-family ladder that retreated to a different,
+/// smaller `model_id`, discard that retreat entirely and re-solve the budget
+/// specifically for `model_hint`'s own parameters instead (possibly
+/// `over_budget: true` — `budget_gate` is what refuses, not a silent swap).
+///
+/// Before Task 6 this only ran when `effective_model.is_some()` (the "dual
+/// sizing" pinned-model fix); the unpinned case instead printed
+/// "Auto-selected <smaller model>" and quietly reassigned `effective_model`.
+/// Applying the same re-solve unconditionally removes that substitution
+/// entirely — the caller now always gets a plan for the model it actually
+/// asked for.
+fn never_retreat_the_named_model(
+    mp: vox_populi::mens::tensor::memory_budget::ModelPlan,
+    model_hint: &str,
+    requested_b: f64,
+    vram_gib: f64,
+    base_quant: vox_populi::mens::tensor::finetune_contract::BaseQuantMode,
+    gc_enabled: bool,
+) -> vox_populi::mens::tensor::memory_budget::ModelPlan {
+    use vox_populi::mens::tensor::memory_budget;
+
+    if mp.retreated_from_b.is_none() {
+        return mp;
+    }
+    let resident_per_b =
+        memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled, requested_b);
+    let p = memory_budget::plan_with_resident(vram_gib, requested_b, resident_per_b);
+    memory_budget::ModelPlan {
+        model_id: model_hint.to_string(),
+        params_b: requested_b,
+        seq_len: p.seq_len,
+        batch_size: p.batch_size,
+        grad_accum: p.grad_accum,
+        retreated_from_b: None,
+        over_budget: p.over_budget,
+        rationale: format!(
+            "model ≈{requested_b:.1}B solved specifically — {}",
+            p.rationale
+        ),
+    }
 }
 
 /// Refuse to proceed with a plan that doesn't fit the detected VRAM, unless
@@ -1207,6 +1217,80 @@ mod budget_gate_tests {
             !para.contains("VOX_MENS_FORCE_TRAIN"),
             "the first-run instructions must not disable the memory gate"
         );
+    }
+}
+
+#[cfg(test)]
+mod never_retreat_the_named_model_tests {
+    use super::never_retreat_the_named_model;
+    use vox_populi::mens::tensor::finetune_contract::BaseQuantMode;
+    use vox_populi::mens::tensor::memory_budget::ModelPlan;
+
+    fn retreated_plan() -> ModelPlan {
+        // What a Qwen-family ladder returns when the requested ≈27B model
+        // doesn't fit and it retreated to a much smaller variant instead.
+        ModelPlan {
+            model_id: "Qwen/Qwen3-0.6B".to_string(),
+            params_b: 0.6,
+            seq_len: 2048,
+            batch_size: 8,
+            grad_accum: 1,
+            retreated_from_b: Some(27.0),
+            over_budget: false,
+            rationale: "requested ≈27.0B does not fit 16 GiB; retreated to Qwen/Qwen3-0.6B"
+                .to_string(),
+        }
+    }
+
+    /// The mutation this test catches: a call site that keeps using the
+    /// ladder's retreated `mp` (a DIFFERENT, smaller model_id) instead of
+    /// re-solving for the model the user actually named. That is exactly the
+    /// "silent substitution" this task's brief requires deleting.
+    #[test]
+    fn a_retreated_plan_is_never_returned_the_model_id_is_always_the_one_asked_for() {
+        let final_plan = never_retreat_the_named_model(
+            retreated_plan(),
+            "Qwen/Qwen3-27B",
+            27.0,
+            16.0,
+            BaseQuantMode::Nf4,
+            false,
+        );
+        assert_eq!(
+            final_plan.model_id, "Qwen/Qwen3-27B",
+            "must solve for the named model, never the ladder's retreated substitute"
+        );
+        assert!(
+            final_plan.retreated_from_b.is_none(),
+            "the caller must never see a retreat marker once solved specifically"
+        );
+    }
+
+    /// A plan that never retreated is passed through unchanged — no spurious
+    /// re-solve when the ladder already answered for the requested model.
+    #[test]
+    fn a_non_retreated_plan_passes_through_unchanged() {
+        let mp = ModelPlan {
+            model_id: "Qwen/Qwen3-8B".to_string(),
+            params_b: 8.0,
+            seq_len: 512,
+            batch_size: 4,
+            grad_accum: 1,
+            retreated_from_b: None,
+            over_budget: false,
+            rationale: "Qwen/Qwen3-8B — fits".to_string(),
+        };
+        let final_plan = never_retreat_the_named_model(
+            mp.clone(),
+            "Qwen/Qwen3-8B",
+            8.0,
+            24.0,
+            BaseQuantMode::Nf4,
+            false,
+        );
+        assert_eq!(final_plan.model_id, mp.model_id);
+        assert_eq!(final_plan.seq_len, mp.seq_len);
+        assert_eq!(final_plan.batch_size, mp.batch_size);
     }
 }
 
