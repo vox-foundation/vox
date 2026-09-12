@@ -405,9 +405,23 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         #[cfg(feature = "gpu")]
         PopuliAction::Models => crate::commands::mens::models::run_models(_global_verbose),
 
-        PopuliAction::Probe { detailed } => {
+        PopuliAction::Probe {
+            detailed,
+            measure,
+            sweep,
+            model_dir,
+            seq_len,
+            gradient_checkpointing,
+            model,
+        } => {
             let v = detailed || _global_verbose;
-            probe::run_probe(v).await
+            if measure {
+                probe::run_measure()
+            } else if sweep {
+                probe::run_sweep(model_dir, seq_len, gradient_checkpointing)
+            } else {
+                probe::run_probe(v, model, seq_len, gradient_checkpointing).await
+            }
         }
 
         PopuliAction::WatchTelemetry {

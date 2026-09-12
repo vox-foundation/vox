@@ -20,6 +20,12 @@ export interface SurfaceCard {
   description: string;
   /** CLI path passed verbatim to `execute_command` (e.g. ['research', 'status']). */
   path: string[];
+  /**
+   * Extra CLI args forwarded verbatim as `__argv` (e.g. `['--detailed']`).
+   * Defaults to `[]` — most cards are arg-free reads; a card that needs a
+   * flag (e.g. the GPU Probe card's `--detailed` fit check) sets this.
+   */
+  argv?: string[];
 }
 
 interface CommandCardsViewProps {
@@ -47,7 +53,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
         try {
           const out = await invoke<ExecuteOutput>('execute_command', {
             path: card.path,
-            args: { __argv: [] },
+            args: { __argv: card.argv ?? [] },
           });
           next[card.key] = { kind: 'ok', out };
         } catch (err) {

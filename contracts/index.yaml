@@ -1587,3 +1587,17 @@ contracts:
     description: Categories and typed attributes for the hardware market catalog.
     enforced_by:
       - vox ci contracts-index
+
+  - id: mens-memory-model-v1
+    path: contracts/mens/memory-model.v1.yaml
+    owner: mens
+    kind: yaml
+    description: >
+      SSOT for the Mens memory model: one measured (or honestly-seeded)
+      act_bytes_per_lht per (lane, gradient_checkpointing) cell. candle-cuda
+      is seeded from memory_budget.rs's calibrated constants; candle-metal
+      has no row until a real fit lands (one measurement exists but a
+      single point cannot determine a slope) — MemoryModels::get fails
+      closed for any uncalibrated cell.
+    enforced_by:
+      - "cargo test -p vox-populi --features mens --lib mens::tensor::memory_model::"

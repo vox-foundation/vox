@@ -7,14 +7,16 @@ use std::path::PathBuf;
 #[test]
 fn probe_runs_without_gpu() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(probe::run_probe(false));
+    let result = rt.block_on(probe::run_probe(false, None, 512, false));
     assert!(result.is_ok());
 }
 
 #[test]
 fn probe_verbose_runs_without_gpu() {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(probe::run_probe(true));
+    // No --model: must stay the old VRAM-only profile path, which needs no
+    // network and always succeeds — it must NOT attempt a download.
+    let result = rt.block_on(probe::run_probe(true, None, 512, false));
     assert!(result.is_ok());
 }
 

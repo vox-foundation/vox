@@ -2,11 +2,16 @@
 
 #![allow(clippy::module_inception)]
 
+pub mod accel_budget;
+#[cfg(feature = "mens")]
+pub mod calibration;
 pub mod data;
 pub mod device;
 pub mod hf_keymap;
 pub mod hf_load;
 pub mod manifest;
+#[cfg(feature = "mens")]
+pub mod memory_model;
 pub mod model_card;
 pub mod telemetry;
 pub mod telemetry_schema;
