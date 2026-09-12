@@ -98,7 +98,7 @@ fn parse_vm_stat(stdout: &str) -> Option<(u64, u64, u64, u64)> {
         let line = line.trim();
         if let Some(rest) = line.strip_prefix("Mach Virtual Memory Statistics: (page size of ") {
             let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
-            page_size = digits.parse::<u64>().ok();
+            page_size = digits.parse::<u64>().ok().filter(|&n| n > 0);
         } else if let Some(rest) = line.strip_prefix("Pages free:") {
             free = trailing_count(rest);
         } else if let Some(rest) = line.strip_prefix("Pages inactive:") {
