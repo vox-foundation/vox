@@ -385,7 +385,11 @@ pub async fn run_train(
     let mut effective_grad_accum: Option<usize> = grad_accum;
     // Never silently swapped for a smaller model by the VRAM budget below —
     // see `never_retreat_the_named_model`.
-    let effective_model = model;
+    let mut effective_model = model;
+    // Resolved alongside `effective_model` below when `--domain` is given, via
+    // the same `resolve_training_selection` the cloud path already uses (see
+    // `resolve_cloud_spoke_base`) — otherwise stays the raw CLI `--preset`.
+    let mut effective_preset = preset.clone();
     let mut effective_validation_split_ratio = validation_split_ratio;
     let mut _effective_max_grad_norm = None; // pass down if needed
     let mut effective_curriculum = curriculum;
@@ -444,6 +448,22 @@ pub async fn run_train(
                     // Actually simply inform.
                     eprintln!("    Mix config: {}", mix_path.display());
                 }
+
+                // BLOCKER (D1): resolve the domain spoke's base model + preset via
+                // the same real resolver the cloud path already uses
+                // (`resolve_cloud_spoke_base` → `resolve_training_selection`).
+                // Previously `--domain rust --cloud local` left `effective_model`
+                // as the raw (often `None`) `--model` and `preset` as the raw
+                // (often `None`) `--preset`, silently ignoring the domain's
+                // pinned base — CLI-supplied values still win.
+                let (resolved_model, resolved_preset) = resolve_local_spoke_base(
+                    workspace_root.as_deref(),
+                    domain_name,
+                    effective_model.as_deref(),
+                    effective_preset.as_deref(),
+                )?;
+                effective_model = resolved_model;
+                effective_preset = Some(resolved_preset);
             }
             Err(e) => {
                 anyhow::bail!("Failed to load domain profile '{}': {}", domain_name, e);
@@ -490,7 +510,7 @@ pub async fn run_train(
     if let Some(ref log_dir) = spawn_log_dir {
         return crate::commands::schola::train::spawn_train_with_log(log_dir.clone());
     }
-    let deployment_target = if preset.as_deref() == Some("mobile_edge") {
+    let deployment_target = if effective_preset.as_deref() == Some("mobile_edge") {
         vox_populi::mens::TrainingDeploymentTarget::MobileEdge
     } else {
         deployment_target.into()
@@ -515,7 +535,7 @@ pub async fn run_train(
         warmup,
         seed,
         effective_min_rating,
-        preset,
+        effective_preset,
         deployment_target,
         process_priority,
         vram_limit_fraction,
@@ -578,6 +598,42 @@ pub async fn run_train(
     }
 
     train_res
+}
+
+/// Resolve the local spoke base for `--domain <name> --cloud local`: returns
+/// `(model, preset)`.
+///
+/// Mirrors `resolve_cloud_spoke_base` below — same real resolver
+/// (`resolve_training_selection`), same "CLI wins" precedence — but sizes
+/// with VRAM autodetect (`None`) rather than a fixed cloud tier, matching how
+/// `pipeline.rs`'s `PipelineStage::Train` already calls this resolver for a
+/// local run. Not `cfg(feature = "cloud")`: the local path must resolve
+/// regardless of whether the cloud feature is compiled in.
+fn resolve_local_spoke_base(
+    workspace_root: Option<&Path>,
+    domain: &str,
+    cli_model: Option<&str>,
+    cli_preset: Option<&str>,
+) -> anyhow::Result<(Option<String>, String)> {
+    use crate::commands::mens::training_selection::{
+        TrainingSelection, resolve_training_selection,
+    };
+
+    let root = workspace_root
+        .map(Path::to_path_buf)
+        .or_else(vox_corpus::training::contract::find_workspace_root)
+        .ok_or_else(|| {
+            anyhow::anyhow!("could not find workspace root for spoke base resolution")
+        })?;
+
+    let selection = resolve_training_selection(&root, Some(domain), cli_model, cli_preset, None)?;
+
+    match selection {
+        TrainingSelection::Train { model, preset, .. } => Ok((model, preset)),
+        TrainingSelection::Skip { reason } => {
+            anyhow::bail!("spoke '{domain}' is {reason} — nothing to train locally")
+        }
+    }
 }
 
 /// Resolve the cloud spoke base: returns `(hf_id@revision, rung, quantization)`.
@@ -910,5 +966,47 @@ mod cloud_eval_gate_tests {
                 );
             }
         }
+    }
+}
+
+/// D1: `--domain rust --cloud local` wiring. Proves `resolve_local_spoke_base`
+/// (the function `run_train`'s local branch now calls) actually resolves the
+/// spoke's real base + preset — not the bug this replaces, where the local
+/// branch was `let effective_model = model;` and silently kept the raw
+/// (`None`) CLI `--model`/`--preset` regardless of `--domain`.
+///
+/// This is NOT a re-test of `training_selection.rs::rust_resolves_qwen_qlora`
+/// (which already covers the resolver itself) — it exercises the train_arm.rs
+/// wiring on top of it: that the local path's own helper, called with no CLI
+/// overrides, still surfaces the "rust" spoke's Qwen base instead of leaving
+/// `model` as `None` / `preset` unset.
+#[cfg(test)]
+mod local_spoke_base_wiring_tests {
+    use super::resolve_local_spoke_base;
+
+    fn root() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf()
+    }
+
+    #[test]
+    fn domain_rust_resolves_spoke_base_and_preset_not_defaults() {
+        let (model, preset) = resolve_local_spoke_base(Some(&root()), "rust", None, None).unwrap();
+        let model = model.expect("rust spoke must resolve a base model, not None");
+        assert!(
+            model.contains("Qwen"),
+            "expected the rust spoke's Qwen base, got {model:?}"
+        );
+        assert!(!preset.is_empty(), "resolved preset must not be empty");
+    }
+
+    #[test]
+    fn cli_model_still_wins_over_domain_resolution() {
+        let (model, _preset) =
+            resolve_local_spoke_base(Some(&root()), "rust", Some("org/Manual"), None).unwrap();
+        assert_eq!(model.as_deref(), Some("org/Manual"));
     }
 }
