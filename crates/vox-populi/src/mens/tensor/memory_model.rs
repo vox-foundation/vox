@@ -17,12 +17,18 @@
 //!
 //! ## Why `candle-cuda` has a seeded row
 //!
-//! `contracts/mens/memory-model.v1.yaml` seeds `(CandleCuda, true)` from the
-//! constants already calibrated in [`super::memory_budget`]
+//! `contracts/mens/memory-model.v1.yaml` seeds `(CandleCuda, true)` from
+//! constants that were calibrated in `memory_budget.rs`
 //! (`RESIDENT_GIB_PER_B_PARAMS`, `FIXED_OVERHEAD_GIB`,
-//! `ACT_GIB_PER_KTOK_PER_SQRTB`) so the 4080 Super lane keeps working while
-//! it awaits a real measurement. `CalSource::Seeded` marks it as inherited,
-//! not measured.
+//! `ACT_GIB_PER_KTOK_PER_SQRTB`) at the time this row was seeded, so the
+//! 4080 Super lane kept working while it awaited a real measurement. Those
+//! constants were themselves deleted from `memory_budget.rs` by Task 8 of
+//! `2026-09-11-1-memory-ssot-and-fit-benchmark` (this SSOT migration's own
+//! ladder-deletion sweep) — see the module doc comment on
+//! `memory_budget.rs` and the `seeded_candle_cuda_row_reproduces_the_old_
+//! activation_formula_on_real_rungs` test below, which independently
+//! reproduces the formula inline rather than importing the deleted
+//! constants. `CalSource::Seeded` marks this row as inherited, not measured.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -371,17 +377,23 @@ lanes:
         assert_eq!((s.layers, s.hidden, s.artifact_bytes), (64, 5120, 1024));
     }
 
-    /// The shipped contract row for `candle-cuda` must reproduce
-    /// `memory_budget::plan_with_resident`'s activation estimate (today's
-    /// `ACT_GIB_PER_KTOK_PER_SQRTB = 9.5` formula, `memory_budget.rs:46`)
-    /// within 10% on at least two rungs this lane actually serves
-    /// (`QWEN3_LADDER`, `memory_budget.rs:309`) — a CUDA row that silently
-    /// changes the 4080 Super's answers would be a regression dressed as an
-    /// SSOT, not a seed.
+    /// The shipped contract row for `candle-cuda` must reproduce the old
+    /// `memory_budget::plan_with_resident`'s activation estimate (an
+    /// `ACT_GIB_PER_KTOK_PER_SQRTB = 9.5` formula) within 10% on at least
+    /// two rungs this lane actually serves — real Qwen3-14B/8B shapes. Both
+    /// the formula and its `QWEN3_LADDER` source rungs were deleted from
+    /// `memory_budget.rs` by Task 8 of
+    /// `2026-09-11-1-memory-ssot-and-fit-benchmark` (this SSOT migration's
+    /// own ladder-deletion sweep) — the constant and shapes are reproduced
+    /// standalone below so this test does not depend on the deleted code;
+    /// `git log -p -- crates/vox-populi/src/mens/tensor/memory_budget.rs` at
+    /// the commit that deleted them has the original line numbers and
+    /// hardware provenance. A CUDA row that silently changes the 4080
+    /// Super's answers would be a regression dressed as an SSOT, not a seed.
     #[test]
     fn seeded_candle_cuda_row_reproduces_the_old_activation_formula_on_real_rungs() {
         const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
-        const ACT_GIB_PER_KTOK_PER_SQRTB: f64 = 9.5; // memory_budget.rs:46
+        const ACT_GIB_PER_KTOK_PER_SQRTB: f64 = 9.5; // historical memory_budget.rs constant, see doc comment above
 
         fn old_activation_bytes(params_b: f64, tokens_per_step: u64) -> f64 {
             (tokens_per_step as f64 / 1000.0) * params_b.sqrt() * ACT_GIB_PER_KTOK_PER_SQRTB * GIB
@@ -393,7 +405,7 @@ lanes:
             .unwrap();
         let tokens_per_step = 1024u64;
 
-        // Real Qwen3 shapes from QWEN3_LADDER (memory_budget.rs:309-325):
+        // Real Qwen3 shapes from the deleted QWEN3_LADDER, see doc comment above:
         // Qwen3-14B (layers=40, hidden=5120) and Qwen3-8B (layers=36, hidden=4096).
         for (params_b, layers, hidden) in [(14.0, 40u32, 5120u32), (8.0, 36u32, 4096u32)] {
             let shape = ModelShape {

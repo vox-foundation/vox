@@ -204,75 +204,97 @@ pub(super) async fn run_gpu_training(
         tokenizer_path = files.tokenizer.clone();
         eprintln!("  {} Cached at {}", "✓".green(), files.cache_dir.display());
 
-        // Step 4's "no sizing flags" default: now that the model is on disk,
-        // a real `ModelShape` exists, so the live `sweep`/`plan_for` entry
-        // point (the same one `vox mens probe --sweep` calls) can pick the
-        // largest batch size that actually fits this host — not the
-        // Qwen-family/generic ladder's params_b-based estimate. Explicit
-        // `--batch-size`/`--seq-len` are gated, never adjusted, so this only
-        // runs when neither was supplied.
-        if no_explicit_sizing {
-            match auto_size_from_model_dir(&files.cache_dir, seq_len as u64, gradient_checkpointing)
-            {
-                Ok(AutoSizeOutcome::Sized(picked)) => {
-                    eprintln!(
-                        "  {} Auto-sized via sweep: batch_size {} → {} at seq_len {} \
-                         (largest shape that fits this host's real memory budget).",
-                        "📐".cyan(),
-                        batch_size,
-                        picked.batch_size,
-                        picked.seq_len
-                    );
-                    batch_size = picked.batch_size as usize;
-                    seq_len = picked.seq_len as usize;
-                }
-                Ok(AutoSizeOutcome::NoMeasurement(reason)) => {
-                    // No calibration row for this lane (e.g. candle-metal has
-                    // none yet) — there is no measured basis to accept or
-                    // refuse this config, so this is NOT the same as a
-                    // measured refusal below. Warn and fall back to the
-                    // preset's own seq_len/batch_size.
-                    eprintln!(
-                        "  {} Auto-sizing via sweep unavailable ({reason}); using preset \
-                         sizing instead (batch_size={batch_size}, seq_len={seq_len}). This lane \
-                         is uncalibrated, so nothing here has verified this config fits — \
-                         measure it with `vox mens probe --measure`.",
-                        "⚠".yellow()
-                    );
-                }
-                Ok(AutoSizeOutcome::Refused(reason)) => {
-                    // The lane IS calibrated and plan_for measured that even
-                    // batch_size=1 does not fit. This is a REAL refusal, not
-                    // an absence of data — never silently proceed into an
-                    // OOM (this is the exact failure class this program
-                    // exists to fix). Mirrors the old train_arm.rs
-                    // `budget_gate`'s VOX_MENS_FORCE_TRAIN escape hatch.
-                    if force_train_env() {
+        // Step 4: now that the model is on disk, a real `ModelShape` exists,
+        // so the live `sweep`/`plan_for` entry point (the same one
+        // `vox mens probe --sweep` calls) can measure this run against this
+        // host's real memory budget — not the Qwen-family/generic ladder's
+        // params_b-based estimate.
+        //
+        // Two genuinely different cases, NOT one (fix round 2's CRITICAL
+        // fix): `no_explicit_sizing` only controls WHICH measurement runs —
+        // it must never control WHETHER one runs. The refusal below applies
+        // in both branches identically, via the shared `apply_auto_size_
+        // outcome`; an explicitly-sized run (`--seq-len`/`--batch-size`, or
+        // a domain-profile pin) is arguably the higher-risk case, since a
+        // user who hand-picked a size is exactly the person most likely to
+        // have picked one too large — the old `train_arm.rs::budget_gate`
+        // this replaces had NO such precondition and ran unconditionally.
+        let auto_size_outcome = if no_explicit_sizing {
+            // No explicit sizing: find the largest batch size that fits.
+            auto_size_from_model_dir(&files.cache_dir, seq_len as u64, gradient_checkpointing)
+        } else {
+            // Explicit sizing: the shape is already chosen — verify it
+            // fits rather than searching for a different one. `plan_for`
+            // reports on a request, it doesn't choose one (see its own doc
+            // comment in memory_model.rs), which is exactly the primitive
+            // for "does this already-picked size fit".
+            verify_request_from_model_dir(
+                &files.cache_dir,
+                batch_size as u64,
+                seq_len as u64,
+                gradient_checkpointing,
+            )
+        };
+        match auto_size_outcome {
+            Ok(outcome) => {
+                match apply_auto_size_outcome(outcome, force_train_env(), batch_size, seq_len)? {
+                    SizingDecision::Sized {
+                        batch_size: b,
+                        seq_len: s,
+                    } => {
+                        if no_explicit_sizing {
+                            eprintln!(
+                                "  {} Auto-sized via sweep: batch_size {} → {} at seq_len {} \
+                             (largest shape that fits this host's real memory budget).",
+                                "📐".cyan(),
+                                batch_size,
+                                b,
+                                s
+                            );
+                        } else {
+                            eprintln!(
+                                "  {} VRAM check: batch_size={b}, seq_len={s} fits this host's \
+                             measured budget.",
+                                "✓".green()
+                            );
+                        }
+                        batch_size = b;
+                        seq_len = s;
+                    }
+                    SizingDecision::NoMeasurement { reason, .. } => {
+                        // No calibration row for this lane (e.g. candle-metal has
+                        // none yet) — there is no measured basis to accept or
+                        // refuse this config, so this is NOT the same as a
+                        // measured refusal below.
                         eprintln!(
-                            "  {} VOX_MENS_FORCE_TRAIN=1 — proceeding despite a measured VRAM \
-                             refusal: {reason}",
+                            "  {} VRAM check unavailable ({reason}); proceeding with \
+                         batch_size={batch_size}, seq_len={seq_len} UNVERIFIED. This lane is \
+                         uncalibrated, so nothing here has confirmed this config fits — measure \
+                         it with `vox mens probe --measure`.",
                             "⚠".yellow()
                         );
-                    } else {
-                        anyhow::bail!(
-                            "model does not fit in the detected VRAM at batch_size={batch_size}, \
-                             seq_len={seq_len}: {reason}\n\
-                             reduce --seq-len/--batch-size, pick a smaller model, or set \
-                             VOX_MENS_FORCE_TRAIN=1 to proceed anyway."
+                    }
+                    SizingDecision::ForcedPastRefusal { reason, .. } => {
+                        // The lane IS calibrated and plan_for/sweep measured a
+                        // refusal, but the operator explicitly overrode it.
+                        eprintln!(
+                            "  {} VOX_MENS_FORCE_TRAIN=1 — proceeding despite a measured VRAM \
+                         refusal: {reason}",
+                            "⚠".yellow()
                         );
                     }
                 }
-                Err(e) => {
-                    // Could not even attempt a measurement (accelerator probe
-                    // failed, ModelShape unreadable, ...) — same "no basis to
-                    // refuse" bucket as NoMeasurement above, not a measured
-                    // refusal.
-                    eprintln!(
-                        "  {} Auto-sizing via sweep unavailable ({e}); using preset/VRAM-budget \
-                         sizing instead (batch_size={batch_size}, seq_len={seq_len}).",
-                        "⚠".yellow()
-                    );
-                }
+            }
+            Err(e) => {
+                // Could not even attempt a measurement (accelerator probe
+                // failed, ModelShape unreadable, ...) — same "no basis to
+                // refuse" bucket as NoMeasurement above, not a measured
+                // refusal.
+                eprintln!(
+                    "  {} VRAM check unavailable ({e}); proceeding with batch_size={batch_size}, \
+                     seq_len={seq_len} UNVERIFIED.",
+                    "⚠".yellow()
+                );
             }
         }
 
@@ -458,12 +480,39 @@ enum AutoSizeOutcome {
     Refused(String),
 }
 
+/// Resolve this host's `(DeviceBudget, Lane)` from the real accelerator
+/// (`accel_budget::query_accel_budget`) rather than trusting the CLI's
+/// `--device` intent, since that can be `Best`. Shared by both the
+/// auto-sizing (`sweep`) and explicit-sizing (`plan_for`) verification
+/// paths below, so they can never disagree about what "this host's real
+/// budget" is. `None` means no basis to measure anything (e.g. no
+/// accelerator detected) — the caller's own outcome type carries that as
+/// `NoMeasurement`, not an `Err`.
+fn accel_budget_and_lane() -> Option<(
+    vox_populi::mens::tensor::memory_model::DeviceBudget,
+    vox_populi::mens::tensor::memory_model::Lane,
+)> {
+    use vox_populi::mens::tensor::accel_budget::{BudgetSource, query_accel_budget};
+    use vox_populi::mens::tensor::memory_model::{DeviceBudget, Lane};
+
+    let accel = query_accel_budget()?;
+    let lane = match accel.source {
+        BudgetSource::Metal => Lane::CandleMetal,
+        BudgetSource::Cuda => Lane::CandleCuda,
+    };
+    Some((
+        DeviceBudget {
+            working_set_bytes: accel.working_set_bytes,
+            operator_fraction: None,
+        },
+        lane,
+    ))
+}
+
 /// `vox mens train`'s no-sizing-flags default (Step 4): the largest batch
 /// size that fits this host's REAL memory budget for the model now sitting
 /// at `model_dir`, via the same `memory_model::sweep`/`plan_for` entry point
 /// `vox mens probe --sweep` calls — not a second, parallel sizing algorithm.
-/// Queries the real accelerator (`accel_budget::query_accel_budget`) rather
-/// than trusting the CLI's `--device` intent, since that can be `Best`.
 /// Returns `Ok(AutoSizeOutcome::NoMeasurement(_))` — never an `Err` — for an
 /// uncalibrated lane or an unattemptable measurement, so the caller can fall
 /// back to preset sizing without treating that the same as a measured
@@ -474,21 +523,12 @@ fn auto_size_from_model_dir(
     seq_len: u64,
     gradient_checkpointing: bool,
 ) -> Result<AutoSizeOutcome> {
-    use vox_populi::mens::tensor::accel_budget::{BudgetSource, query_accel_budget};
-    use vox_populi::mens::tensor::memory_model::{DeviceBudget, Lane, MemoryModels};
+    use vox_populi::mens::tensor::memory_model::MemoryModels;
 
-    let Some(accel) = query_accel_budget() else {
+    let Some((budget, lane)) = accel_budget_and_lane() else {
         return Ok(AutoSizeOutcome::NoMeasurement(
             "no accelerator budget available on this host".to_string(),
         ));
-    };
-    let lane = match accel.source {
-        BudgetSource::Metal => Lane::CandleMetal,
-        BudgetSource::Cuda => Lane::CandleCuda,
-    };
-    let budget = DeviceBudget {
-        working_set_bytes: accel.working_set_bytes,
-        operator_fraction: None,
     };
     let models = MemoryModels::load_default()?;
     auto_size_with_budget(
@@ -535,12 +575,87 @@ fn auto_size_with_budget(
     })
 }
 
+/// The explicit-sizing counterpart to `auto_size_from_model_dir` (fix round
+/// 2: the CRITICAL gap — an explicitly-sized run, via `--seq-len`/
+/// `--batch-size` or a domain-profile pin, previously got NO measured VRAM
+/// check at all, since the whole `sweep` call was gated behind
+/// `no_explicit_sizing`). `sweep` searches for the largest fitting shape,
+/// which is wrong here — the shape is already chosen; what's needed is
+/// `plan_for`, which — per its own doc comment ("it reports, it does not
+/// choose") — is exactly the right primitive for "does this already-picked
+/// request fit". Reuses the same calibration-presence check, `CalKey`, and
+/// `ModelShape` construction as the auto-sizing path so the two can never
+/// disagree about calibration state.
+fn verify_request_from_model_dir(
+    model_dir: &std::path::Path,
+    batch_size: u64,
+    seq_len: u64,
+    gradient_checkpointing: bool,
+) -> Result<AutoSizeOutcome> {
+    use vox_populi::mens::tensor::memory_model::MemoryModels;
+
+    let Some((budget, lane)) = accel_budget_and_lane() else {
+        return Ok(AutoSizeOutcome::NoMeasurement(
+            "no accelerator budget available on this host".to_string(),
+        ));
+    };
+    let models = MemoryModels::load_default()?;
+    verify_request_with_budget(
+        model_dir,
+        batch_size,
+        seq_len,
+        gradient_checkpointing,
+        &budget,
+        lane,
+        &models,
+    )
+}
+
+/// The pure decision `verify_request_from_model_dir` delegates to — the
+/// `plan_for`-based sibling of `auto_size_with_budget`. Same calibration
+/// check, same key/shape construction; the only difference is verifying
+/// ONE already-chosen `Request` via `plan_for` instead of searching for the
+/// largest fitting one via `sweep`.
+fn verify_request_with_budget(
+    model_dir: &std::path::Path,
+    batch_size: u64,
+    seq_len: u64,
+    gradient_checkpointing: bool,
+    budget: &vox_populi::mens::tensor::memory_model::DeviceBudget,
+    lane: vox_populi::mens::tensor::memory_model::Lane,
+    models: &vox_populi::mens::tensor::memory_model::MemoryModels,
+) -> Result<AutoSizeOutcome> {
+    use vox_populi::mens::tensor::memory_model::{CalKey, ModelShape, Request, Verdict, plan_for};
+
+    let key = CalKey::new(lane, gradient_checkpointing)?;
+    let shape = ModelShape::from_model_dir(model_dir)?;
+
+    if let Err(e) = models.get(&key) {
+        return Ok(AutoSizeOutcome::NoMeasurement(e.to_string()));
+    }
+
+    let request = Request {
+        batch_size,
+        seq_len,
+    };
+    let plan = plan_for(budget, models, &key, &shape, &request);
+    Ok(match plan.verdict {
+        Verdict::Fits => AutoSizeOutcome::Sized(request),
+        Verdict::Refused(reason) => AutoSizeOutcome::Refused(reason),
+    })
+}
+
 /// `VOX_MENS_FORCE_TRAIN=1`/`true` — the registered operator override
 /// meaning "proceed past a failing gate", including the VRAM-fit refusal
 /// above. Restores exactly the escape hatch `train_arm.rs`'s deleted
 /// `budget_gate`/`force_train_env` used to provide for the params_b-only
 /// ladder's `ModelPlan.over_budget`, now applied to the real measured
-/// `plan_for` verdict instead.
+/// `plan_for`/`sweep` verdict instead — including `budget_gate`'s own
+/// unconditional coverage: it ran for every CUDA run regardless of how
+/// sizing was chosen, and (fix round 2) so does this, via both
+/// `auto_size_from_model_dir` (no explicit sizing) and
+/// `verify_request_from_model_dir` (explicit `--seq-len`/`--batch-size` or a
+/// domain-profile pin).
 fn force_train_env() -> bool {
     std::env::var("VOX_MENS_FORCE_TRAIN")
         .ok()
@@ -548,9 +663,78 @@ fn force_train_env() -> bool {
         .unwrap_or(false)
 }
 
+/// What to do with an [`AutoSizeOutcome`] once it's known — the ONE
+/// decision every call site (auto-sizing and explicit-sizing alike) must
+/// make identically, and the safety-critical branch fix round 2 exists to
+/// make directly testable (per this repo's AGENTS.md: "verify
+/// security-relevant guards by mutation, not by observing green tests" —
+/// round 1's tests only pinned `AutoSizeOutcome`'s type-level distinction,
+/// not this decision itself; swapping the `bail!` below for an `eprintln!`
+/// would have left every prior test green).
+#[derive(Debug, PartialEq)]
+enum SizingDecision {
+    /// A real measured fit — either `sweep` found the largest batch size
+    /// that fits, or `plan_for` confirmed the requested (batch_size,
+    /// seq_len) fits. Use these values.
+    Sized { batch_size: usize, seq_len: usize },
+    /// No calibration row for this lane — no measured basis to accept or
+    /// refuse, so fall back to the caller's own (unverified) values.
+    NoMeasurement {
+        batch_size: usize,
+        seq_len: usize,
+        reason: String,
+    },
+    /// The lane IS calibrated and `plan_for`/`sweep` measured a refusal,
+    /// but `VOX_MENS_FORCE_TRAIN=1` is set — proceed with the caller's own
+    /// values anyway, at the operator's explicit request.
+    ForcedPastRefusal {
+        batch_size: usize,
+        seq_len: usize,
+        reason: String,
+    },
+}
+
+/// Pure and side-effect-free (the caller does the printing) so the
+/// bail-vs-proceed decision is unit-testable without a live host. `Err` is
+/// the ONLY outcome for `Refused` without `force` — this is the fail-closed
+/// branch this whole fix round exists to protect: never silently proceed
+/// into a measured OOM.
+fn apply_auto_size_outcome(
+    outcome: AutoSizeOutcome,
+    force: bool,
+    fallback_batch_size: usize,
+    fallback_seq_len: usize,
+) -> Result<SizingDecision> {
+    match outcome {
+        AutoSizeOutcome::Sized(req) => Ok(SizingDecision::Sized {
+            batch_size: req.batch_size as usize,
+            seq_len: req.seq_len as usize,
+        }),
+        AutoSizeOutcome::NoMeasurement(reason) => Ok(SizingDecision::NoMeasurement {
+            batch_size: fallback_batch_size,
+            seq_len: fallback_seq_len,
+            reason,
+        }),
+        AutoSizeOutcome::Refused(reason) if force => Ok(SizingDecision::ForcedPastRefusal {
+            batch_size: fallback_batch_size,
+            seq_len: fallback_seq_len,
+            reason,
+        }),
+        AutoSizeOutcome::Refused(reason) => Err(anyhow::anyhow!(
+            "model does not fit in the detected VRAM at batch_size={fallback_batch_size}, \
+             seq_len={fallback_seq_len}: {reason}\n\
+             reduce --seq-len/--batch-size, pick a smaller model, or set \
+             VOX_MENS_FORCE_TRAIN=1 to proceed anyway."
+        )),
+    }
+}
+
 #[cfg(test)]
 mod auto_size_tests {
-    use super::{AutoSizeOutcome, auto_size_with_budget, force_train_env};
+    use super::{
+        AutoSizeOutcome, SizingDecision, apply_auto_size_outcome, auto_size_with_budget,
+        force_train_env, verify_request_with_budget,
+    };
     use vox_populi::mens::tensor::memory_model::{DeviceBudget, Lane, MemoryModels};
 
     // Synthetic fixture — not a real candle-metal measurement, matches the
@@ -693,5 +877,179 @@ lanes:
             Some(v) => unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", v) },
             None => unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") },
         }
+    }
+
+    // ── verify_request_with_budget (the CRITICAL fix: explicit sizing) ──
+
+    /// The explicit-sizing counterpart to
+    /// `auto_size_with_budget_matches_sweeps_largest_fitting_answer`: a
+    /// calibrated lane and a request that comfortably fits must report
+    /// `Sized` with the SAME (batch_size, seq_len) that was asked for —
+    /// `plan_for` verifies, it does not resize.
+    #[test]
+    fn verify_request_with_budget_confirms_a_fitting_request() {
+        let dir = model_dir_fixture();
+        let budget = DeviceBudget {
+            working_set_bytes: 128 * 1024 * 1024 * 1024,
+            operator_fraction: None,
+        };
+        let models = MemoryModels::load_from_str(SEED_YAML).unwrap();
+        let outcome = verify_request_with_budget(
+            dir.path(),
+            2,
+            512,
+            false,
+            &budget,
+            Lane::CandleMetal,
+            &models,
+        )
+        .expect("no setup error for a calibrated lane and a readable model dir");
+        match outcome {
+            AutoSizeOutcome::Sized(req) => {
+                assert_eq!(req.batch_size, 2);
+                assert_eq!(req.seq_len, 512);
+            }
+            other => panic!("expected Sized for a comfortably-fitting request, got {other:?}"),
+        }
+    }
+
+    /// **The CRITICAL regression this fix round exists to close:** an
+    /// explicitly-sized request (what a user passes via `--batch-size`/
+    /// `--seq-len`, or gets from a domain-profile pin) on a CALIBRATED lane
+    /// that measurably does not fit must report `Refused` — the exact same
+    /// outcome the auto-sizing path already produced. Before this fix
+    /// round, explicit sizing never called `plan_for`/`sweep` at all (the
+    /// whole check lived behind `if no_explicit_sizing`), so this case
+    /// silently proceeded toward an OOM with only a cosmetic 85% warning.
+    #[test]
+    fn verify_request_with_budget_refuses_an_explicit_request_that_does_not_fit() {
+        let dir = model_dir_fixture();
+        let budget = DeviceBudget {
+            working_set_bytes: 1024, // nothing fits
+            operator_fraction: None,
+        };
+        let models = MemoryModels::load_from_str(SEED_YAML).unwrap();
+        let outcome = verify_request_with_budget(
+            dir.path(),
+            8,
+            4096,
+            false,
+            &budget,
+            Lane::CandleMetal,
+            &models,
+        )
+        .expect("no setup error for a calibrated lane, even when it refuses");
+        match outcome {
+            AutoSizeOutcome::Refused(reason) => assert!(!reason.is_empty()),
+            other => panic!(
+                "expected a measured Refused for an oversized explicit request, got {other:?}"
+            ),
+        }
+    }
+
+    #[test]
+    fn verify_request_with_budget_reports_no_measurement_for_an_uncalibrated_lane() {
+        let dir = model_dir_fixture();
+        let budget = DeviceBudget {
+            working_set_bytes: 128 * 1024 * 1024 * 1024,
+            operator_fraction: None,
+        };
+        let empty =
+            MemoryModels::load_from_str("schema: vox.mens.memory-model.v1\nlanes: []\n").unwrap();
+        let outcome = verify_request_with_budget(
+            dir.path(),
+            2,
+            512,
+            false,
+            &budget,
+            Lane::CandleMetal,
+            &empty,
+        )
+        .expect("no setup error just because the lane is uncalibrated");
+        match outcome {
+            AutoSizeOutcome::NoMeasurement(reason) => assert!(reason.contains("candle-metal")),
+            other => panic!("expected NoMeasurement for an uncalibrated lane, got {other:?}"),
+        }
+    }
+
+    // ── apply_auto_size_outcome (mutation-testable bail/proceed decision) ──
+    //
+    // Round 1's tests only pinned `AutoSizeOutcome`'s type-level distinction
+    // — nothing exercised the actual bail-vs-proceed DECISION, so swapping
+    // `bail!` for `eprintln!` at the call site would have left every prior
+    // test green. These call the decision function directly.
+
+    #[test]
+    fn apply_auto_size_outcome_sized_uses_the_measured_values_not_the_fallback() {
+        use vox_populi::mens::tensor::memory_model::Request;
+        let decision = apply_auto_size_outcome(
+            AutoSizeOutcome::Sized(Request {
+                batch_size: 4,
+                seq_len: 1024,
+            }),
+            false,
+            999, // fallback — must NOT appear in the result
+            999,
+        )
+        .expect("Sized never errors");
+        assert_eq!(
+            decision,
+            SizingDecision::Sized {
+                batch_size: 4,
+                seq_len: 1024
+            }
+        );
+    }
+
+    #[test]
+    fn apply_auto_size_outcome_no_measurement_uses_the_fallback_and_never_errors() {
+        let decision = apply_auto_size_outcome(
+            AutoSizeOutcome::NoMeasurement("uncalibrated".into()),
+            false,
+            2,
+            512,
+        )
+        .expect("NoMeasurement never errors, regardless of `force`");
+        assert_eq!(
+            decision,
+            SizingDecision::NoMeasurement {
+                batch_size: 2,
+                seq_len: 512,
+                reason: "uncalibrated".into()
+            }
+        );
+    }
+
+    /// **The exact assertion this fix round exists to make mutation-proof:**
+    /// a measured refusal, with NO operator override, MUST be an `Err` —
+    /// never `Ok`. Deliberately break this (e.g. change `Err` to
+    /// `SizingDecision::ForcedPastRefusal` unconditionally) and this test
+    /// fails; that is the point.
+    #[test]
+    fn apply_auto_size_outcome_refused_without_force_is_an_error() {
+        let result =
+            apply_auto_size_outcome(AutoSizeOutcome::Refused("won't fit".into()), false, 2, 512);
+        assert!(
+            result.is_err(),
+            "a measured refusal with no VOX_MENS_FORCE_TRAIN override must be Err, got {result:?}"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("won't fit"));
+        assert!(msg.contains("VOX_MENS_FORCE_TRAIN"));
+    }
+
+    #[test]
+    fn apply_auto_size_outcome_refused_with_force_proceeds_with_the_fallback() {
+        let decision =
+            apply_auto_size_outcome(AutoSizeOutcome::Refused("won't fit".into()), true, 2, 512)
+                .expect("force=true must turn a refusal into Ok, not Err");
+        assert_eq!(
+            decision,
+            SizingDecision::ForcedPastRefusal {
+                batch_size: 2,
+                seq_len: 512,
+                reason: "won't fit".into()
+            }
+        );
     }
 }

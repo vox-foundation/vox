@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-12T02:26:38.595Z",
+  "generated_at": "2026-09-12T02:56:15.973Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -13222,6 +13222,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-ml-cli/src/commands/schola/train/gpu.rs",
+      "kind": "rust",
+      "lines_total": 1055,
+      "lines_triple_slash": 130,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 71,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-cli/src/commands/db_cli/publication_subcommands.rs",
       "kind": "rust",
       "lines_total": 498,
@@ -13508,6 +13519,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-populi/src/mens/tensor/memory_model.rs",
+      "kind": "rust",
+      "lines_total": 711,
+      "lines_triple_slash": 78,
+      "lines_inner_doc": 31,
+      "lines_plain_comment": 30,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-populi/src/mens/cloud/pipeline_dispatch.rs",
       "kind": "rust",
       "lines_total": 1175,
@@ -13745,17 +13767,6 @@
       "lines_triple_slash": 90,
       "lines_inner_doc": 8,
       "lines_plain_comment": 6,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-populi/src/mens/tensor/memory_model.rs",
-      "kind": "rust",
-      "lines_total": 699,
-      "lines_triple_slash": 72,
-      "lines_inner_doc": 25,
-      "lines_plain_comment": 30,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14680,17 +14691,6 @@
       "lines_triple_slash": 60,
       "lines_inner_doc": 5,
       "lines_plain_comment": 21,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/schola/train/gpu.rs",
-      "kind": "rust",
-      "lines_total": 697,
-      "lines_triple_slash": 64,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 55,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16326,7 +16326,7 @@
     {
       "path": "crates/vox-populi/src/mens/tensor/spoke_base_resolver.rs",
       "kind": "rust",
-      "lines_total": 605,
+      "lines_total": 606,
       "lines_triple_slash": 43,
       "lines_inner_doc": 3,
       "lines_plain_comment": 46,
