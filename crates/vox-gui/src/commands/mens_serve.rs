@@ -150,6 +150,17 @@ impl MensServeState {
         }
         true
     }
+
+    /// On Axis exit: kill the held `vox-ml-cli mens serve` child, if any —
+    /// mirrors `daemon.rs`'s `PersistentDaemon::shutdown_if_spawned`, wired
+    /// into `main.rs`'s `RunEvent::Exit` handler the same way. Unlike the
+    /// orchestrator daemon, mens serve is never "adopted" (there is no
+    /// pre-existing shared instance to leave running for other clients), so
+    /// this always kills whatever is held rather than distinguishing
+    /// spawned-by-us vs. adopted.
+    pub fn shutdown_if_spawned(&self) {
+        self.stop();
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -330,6 +341,46 @@ mod tests {
 
         // stop() is idempotent: nothing to stop the second time.
         assert!(!state.stop());
+    }
+
+    /// Reviewer finding: `shutdown_if_spawned` exists (mirroring
+    /// `daemon.rs::PersistentDaemon::shutdown_if_spawned`) but was not
+    /// originally wired into `main.rs`'s `RunEvent::Exit` handler, so a
+    /// server started from the panel and left running would be orphaned when
+    /// the GUI quit — precisely the failure mode this module's own doc
+    /// comment warns about. `RunEvent::Exit`'s closure itself isn't
+    /// unit-testable (it needs a live Tauri `AppHandle`, same as
+    /// `daemon.rs`'s equivalent — that method has no wiring-level test
+    /// either, only a method-level one below), so this tests at the same
+    /// level `daemon.rs` does: the shutdown method's own behavior, called
+    /// directly, proving a *running* child is actually killed by it (not
+    /// just a no-op check, which wouldn't catch "never wired up").
+    #[tokio::test(flavor = "multi_thread")]
+    async fn shutdown_if_spawned_kills_a_running_child() {
+        let state = MensServeState::default();
+        let port = spawn_fake_health_server();
+        state
+            .start_with(port, spawn_dummy_child)
+            .await
+            .expect("start should succeed");
+        assert!(state.is_running(), "precondition: a child must be held");
+
+        state.shutdown_if_spawned();
+
+        assert!(
+            !state.is_running(),
+            "shutdown_if_spawned must kill a held child, mirroring daemon.rs's exit policy"
+        );
+    }
+
+    /// Mirrors `daemon.rs`'s `shutdown_if_spawned_is_noop_when_daemon_was_only_adopted`:
+    /// calling shutdown with nothing running must not panic or error.
+    #[test]
+    fn shutdown_if_spawned_is_noop_when_nothing_is_running() {
+        let state = MensServeState::default();
+        assert!(!state.is_running());
+        state.shutdown_if_spawned();
+        assert!(!state.is_running());
     }
 
     #[test]

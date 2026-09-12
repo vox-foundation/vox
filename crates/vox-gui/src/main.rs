@@ -385,6 +385,12 @@ async fn main() {
                 {
                     daemon.inner().shutdown_if_spawned();
                 }
+                // Same policy for `vox mens serve`: don't orphan a spawned
+                // child (with a loaded model + bound port) past GUI exit.
+                if let Some(mens_serve) = app_handle.try_state::<std::sync::Arc<commands::mens_serve::MensServeState>>()
+                {
+                    mens_serve.inner().shutdown_if_spawned();
+                }
             }
         });
 }
