@@ -33,6 +33,42 @@ pub enum InferenceModel {
     Qwen35(Qwen35Model),
 }
 
+/// Compute dtype for QLoRA dequantization, chosen by device rather than by
+/// `QLoraConfig::default()`'s training-tuned BF16. Candle's CPU backend has
+/// no BF16 matmul kernel at all ("unsupported dtype BF16 for op matmul"), so
+/// CPU inference must use F32. Metal training on this lane also dequants to
+/// F32 (no F32→F64 / BF16 kernels on the path we hit), so Metal serving must
+/// match its own trainer's compute dtype. CUDA keeps BF16.
+fn compute_dtype_for_device(device: &Device) -> qlora_rs::ComputeDType {
+    if device.is_cuda() {
+        qlora_rs::ComputeDType::BF16
+    } else {
+        qlora_rs::ComputeDType::F32
+    }
+}
+
+/// Synthesize RoPE inverse-frequency table from `rope_theta`, identical to the
+/// trainer's `candle_qlora_train::synthesize_rope_inv_freq`. Kept byte-for-byte in
+/// sync so inference applies the same rotary frequencies the adapter trained against.
+fn synthesize_rope_inv_freq(
+    head_dim: usize,
+    rope_theta: Option<f64>,
+    device: &Device,
+) -> Result<Tensor> {
+    let half = head_dim / 2;
+    if half == 0 {
+        anyhow::bail!("invalid head_dim={head_dim} for RoPE synthesis");
+    }
+    let theta = rope_theta.unwrap_or(10_000.0) as f32;
+    let hd = head_dim as f32;
+    let mut vals = Vec::with_capacity(half);
+    for i in 0..half {
+        let exponent = (2.0_f32 * i as f32) / hd;
+        vals.push(1.0_f32 / theta.powf(exponent));
+    }
+    Ok(Tensor::from_vec(vals, (half,), device)?)
+}
+
 fn resolve_adapter_manifest_path(model_dir: &Path) -> Option<std::path::PathBuf> {
     let manifest = model_dir.join("adapter_manifest.json");
     if manifest.is_file() {
@@ -143,7 +179,12 @@ impl InferenceEngine {
         for b in &all_buffers {
             weight_maps.push(SafeTensors::deserialize(b)?);
         }
-        let qlora_cfg = qlora_rs::qlora::QLoraConfig::default();
+        // QLoraConfig::default() hardcodes BF16 compute ("CRITICAL: BF16 for
+        // stability" — tuned for CUDA training). This lane's Metal trainer
+        // dequantizes to F32, and Candle's CPU backend cannot matmul BF16 at
+        // all, so both devices on this lane override to F32.
+        let mut qlora_cfg = qlora_rs::qlora::QLoraConfig::default();
+        qlora_cfg.quantization.compute_dtype = compute_dtype_for_device(&_device);
 
         // Helper to find a tensor in any map
         let get_tensor = |key: &str| -> Result<Tensor> {
@@ -376,9 +417,16 @@ impl InferenceEngine {
                         &_device,
                     )?,
                 };
+                // RoPE: HF Qwen2.5/Qwen3.5 shards usually omit per-layer `inv_freq`; the
+                // trainer synthesizes it from `config.rope_theta` (see candle_qlora_train::
+                // synthesize_rope_inv_freq). Inference MUST do the same or the forward runs
+                // with zero positional encoding and emits token-salad. Match the trainer.
                 let inv_freq = get_tensor(&format!("{p}.self_attn.rotary_emb.inv_freq"))
                     .or_else(|_| get_tensor(&format!("{p}.linear_attn.rotary_emb.inv_freq")))
-                    .ok();
+                    .ok()
+                    .or_else(|| {
+                        synthesize_rope_inv_freq(head_dim, layout.rope_theta, &_device).ok()
+                    });
 
                 layers.push(Qwen35Layer {
                     input_layernorm: ln1,
@@ -753,6 +801,41 @@ mod tests {
     use super::resolve_adapter_manifest_path;
     use super::sample_next_token;
     use super::weight_sources;
+
+    #[test]
+    fn compute_dtype_is_f32_off_cuda() {
+        // Candle's CPU backend cannot matmul BF16 at all, and this lane's
+        // Metal trainer dequantizes to F32 — serving must match, or the
+        // adapter is applied against a different compute dtype than it
+        // trained under. CUDA (not this crate's device) keeps BF16.
+        assert!(matches!(
+            super::compute_dtype_for_device(&candle_core::Device::Cpu),
+            qlora_rs::ComputeDType::F32
+        ));
+    }
+
+    #[test]
+    fn inference_rope_synthesis_matches_the_trainer() {
+        // Regression guard for the real serving bug: HF Qwen3 checkpoints ship
+        // no `rotary_emb.inv_freq`, so inference must synthesize the SAME table
+        // the trainer did. If these two copies ever drift, the forward runs with
+        // different rotary frequencies than the adapter trained against.
+        let dev = candle_core::Device::Cpu;
+        for (head_dim, theta) in [(128usize, Some(1_000_000.0f64)), (64, None)] {
+            let from_inference = super::synthesize_rope_inv_freq(head_dim, theta, &dev)
+                .unwrap()
+                .to_vec1::<f32>()
+                .unwrap();
+            let from_trainer =
+                crate::candle_qlora_train::synthesize_rope_inv_freq(head_dim, theta, &dev)
+                    .unwrap()
+                    .to_vec1::<f32>()
+                    .unwrap();
+            assert_eq!(from_inference, from_trainer, "head_dim={head_dim}");
+            assert_eq!(from_inference.len(), head_dim / 2);
+        }
+        assert!(super::synthesize_rope_inv_freq(0, None, &dev).is_err());
+    }
 
     /// A tiny `LoraFactors` whose delta is `alpha` everywhere.
     fn ones_factors(
