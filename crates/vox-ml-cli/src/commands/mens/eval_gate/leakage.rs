@@ -1,11 +1,21 @@
-#![allow(dead_code)] // eval-gate helpers, not yet wired
 //! B7.0 — Leakage assertion: verifies no tool appears in both training and eval sets.
 //!
 //! Must run before any gate result is trusted.
-// Built + tested ahead of being wired into the gate path; keep until then.
+//!
+//! Task D3 (2026-09-12-mens-end-to-end-completion): `assert_no_leakage`
+//! (tool-name 3-gram Jaccard, below) had zero non-test callers and — even if
+//! wired up as-is — compares tool *names*, which is useless for a code
+//! corpus. Rather than repurpose it, this module gained a sibling,
+//! [`assert_no_text_leakage`], operating on normalized word n-grams of bench
+//! **answers** vs. corpus **completions**; that sibling is what
+//! `check_run.rs` wires in as a hard precondition. `assert_no_leakage` is
+//! kept (dead outside its own tests) for the BFCL / tool-selection spoke,
+//! where tool-name leakage is exactly the right check — wiring that spoke's
+//! own hard precondition is out of scope for D3's vox-lang bench fix.
+#![allow(dead_code)] // assert_no_leakage (tool-name path): not this task's spoke to wire
 
 use anyhow::{Result, bail};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::Path;
 
 /// Minimal split manifest — mirrors what B1.4 eval_split.rs writes.
@@ -224,6 +234,205 @@ fn check_corpus_rows(corpus_dir: &Path) -> Result<Vec<String>> {
 }
 
 // ---------------------------------------------------------------------------
+// Text n-gram leakage: bench ANSWERS vs. corpus COMPLETIONS (Task D3, part 3)
+// ---------------------------------------------------------------------------
+
+/// One held-out bench task with its reference answer text, as read from
+/// `mens/data/heldout_bench/manifest.json`.
+#[derive(Debug, Clone)]
+pub struct BenchTask {
+    pub id: String,
+    pub answer: String,
+}
+
+/// Word n-gram size for text leakage comparisons. Larger than the 3-*char*
+/// grams used for tool-name near-dup matching above — those compare short
+/// identifiers, this compares multi-line code bodies, so we n-gram over
+/// whitespace-delimited tokens instead of characters.
+const TEXT_NGRAM_SIZE: usize = 8;
+
+/// Jaccard similarity at/above this threshold between a bench answer's
+/// n-grams and a single corpus completion's n-grams is treated as leakage
+/// (the completion is a verbatim or near-verbatim copy of the answer).
+const TEXT_LEAK_THRESHOLD: f64 = 0.5;
+
+/// Lowercase + collapse to whitespace-delimited tokens (drop punctuation-only
+/// noise so formatting differences don't defeat the comparison).
+fn tokenize(s: &str) -> Vec<String> {
+    s.split_whitespace()
+        .map(|w| {
+            w.chars()
+                .filter(|c| c.is_alphanumeric() || *c == '_')
+                .collect::<String>()
+                .to_lowercase()
+        })
+        .filter(|w| !w.is_empty())
+        .collect()
+}
+
+/// Contiguous word n-grams (joined by a separator byte that cannot occur in a
+/// normalized token) from a token stream. Bench answers are often short
+/// (a handful of lines), so a token stream shorter than `n` falls back to a
+/// single gram of the whole sequence rather than an empty set — that still
+/// makes two short-and-identical answers compare as 100% overlap, while two
+/// short-and-different answers compare as 0%, without a special-cased
+/// "too short to compare" abstention hiding real leakage of tiny functions.
+fn word_ngrams(tokens: &[String], n: usize) -> HashSet<String> {
+    if tokens.is_empty() {
+        return HashSet::new();
+    }
+    if tokens.len() < n {
+        let mut set = HashSet::new();
+        set.insert(tokens.join("\u{1}"));
+        return set;
+    }
+    tokens.windows(n).map(|w| w.join("\u{1}")).collect()
+}
+
+/// Generic Jaccard similarity over two sets of n-grams (0.0–1.0). Empty vs.
+/// empty is defined as "cannot compare" (0.0), unlike the tool-name
+/// [`jaccard`] above — an empty answer or empty completion must never read as
+/// "100% similar" and trip the leakage gate.
+fn jaccard_ngrams(a: &HashSet<String>, b: &HashSet<String>) -> f64 {
+    if a.is_empty() || b.is_empty() {
+        return 0.0;
+    }
+    let inter = a.intersection(b).count() as f64;
+    let union = a.union(b).count() as f64;
+    if union == 0.0 { 0.0 } else { inter / union }
+}
+
+/// Load `{id, answer}` pairs from a `heldout_bench/manifest.json`-shaped file
+/// (schema `vox_mens_bench_manifest_v1`: a top-level `benchmarks` array of
+/// objects with `id` and `answer` string fields). Tasks without an `answer`
+/// field are skipped (nothing to compare) rather than erroring, so older
+/// manifests without answers don't hard-fail the gate.
+pub fn load_bench_answers(bench_path: &Path) -> Result<Vec<BenchTask>> {
+    let content = vox_bounded_fs::read_utf8_path_capped(bench_path)?;
+    let v: serde_json::Value = serde_json::from_str(&content)?;
+    let benchmarks = v
+        .get("benchmarks")
+        .and_then(|b| b.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let tasks = benchmarks
+        .iter()
+        .filter_map(|item| {
+            let id = item.get("id")?.as_str()?.to_string();
+            let answer = item.get("answer")?.as_str()?.to_string();
+            Some(BenchTask { id, answer })
+        })
+        .collect();
+    Ok(tasks)
+}
+
+/// Scan every `*.jsonl` file directly under each of `corpus_dirs` for rows
+/// carrying a text completion, under any of the field names this workspace's
+/// mix pipeline uses for the "model output" side of a training row
+/// (`response`, `completion`, `vox_code`). Missing directories are skipped
+/// (optional corpus roots — e.g. `target/dogfood` doesn't exist before the
+/// first corpus build), not an error.
+fn load_corpus_completions(corpus_dirs: &[&Path]) -> Result<Vec<String>> {
+    use std::io::{BufRead, BufReader};
+
+    let mut completions = Vec::new();
+    for dir in corpus_dirs {
+        if !dir.exists() {
+            continue;
+        }
+        let rd = std::fs::read_dir(dir)?;
+        for entry in rd.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
+                continue;
+            }
+            let file = std::fs::File::open(&path)?;
+            let reader = BufReader::new(file);
+            for line in reader.lines() {
+                let line = line?;
+                if line.is_empty() {
+                    continue;
+                }
+                let v: serde_json::Value = match serde_json::from_str(&line) {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
+                let text = v
+                    .get("response")
+                    .or_else(|| v.get("completion"))
+                    .or_else(|| v.get("vox_code"))
+                    .and_then(|t| t.as_str());
+                if let Some(t) = text {
+                    completions.push(t.to_string());
+                }
+            }
+        }
+    }
+    Ok(completions)
+}
+
+/// Assert that no bench task's `answer` text is verbatim (or near-verbatim,
+/// by normalized word-8-gram Jaccard overlap) present in any corpus
+/// completion under `corpus_dirs`.
+///
+/// This is the fix for the class of leakage [`assert_no_leakage`] cannot see:
+/// a code corpus doesn't leak by *tool name*, it leaks when a benchmark's
+/// reference solution (or a close paraphrase of it) is itself a training
+/// example — at which point pass@1 measures memorization, not generalization.
+///
+/// Returns `Ok(())` when clean, `Err(...)` naming every leaked task id and
+/// its overlap score otherwise.
+pub fn assert_no_text_leakage(bench_path: &Path, corpus_dirs: &[&Path]) -> Result<()> {
+    let tasks = load_bench_answers(bench_path)?;
+    let completions = load_corpus_completions(corpus_dirs)?;
+    if completions.is_empty() {
+        // No corpus rows found (e.g. corpus not built yet) — nothing to leak
+        // against. Mirrors `assert_no_leakage`'s `corpus_dir.exists()` guard.
+        return Ok(());
+    }
+    let completion_tokens: Vec<Vec<String>> = completions.iter().map(|c| tokenize(c)).collect();
+
+    let mut leaks: Vec<(String, f64)> = Vec::new();
+    for task in &tasks {
+        let task_tokens = tokenize(&task.answer);
+        if task_tokens.is_empty() {
+            continue; // empty answer — nothing to compare
+        }
+        // Gram size adapts to the answer's own length: a short function must
+        // still be caught if it appears verbatim inside a longer completion,
+        // so both sides are n-grammed at the SAME (possibly small) n rather
+        // than a fixed n that would only ever match same-length text.
+        let n = TEXT_NGRAM_SIZE.min(task_tokens.len());
+        let task_grams = word_ngrams(&task_tokens, n);
+
+        let mut best = 0.0_f64;
+        for ctoks in &completion_tokens {
+            let cg = word_ngrams(ctoks, n);
+            let sim = jaccard_ngrams(&task_grams, &cg);
+            if sim > best {
+                best = sim;
+            }
+        }
+        if best >= TEXT_LEAK_THRESHOLD {
+            leaks.push((task.id.clone(), best));
+        }
+    }
+
+    if !leaks.is_empty() {
+        let details: Vec<String> = leaks
+            .iter()
+            .map(|(id, sim)| format!("{id} (overlap={sim:.2})"))
+            .collect();
+        bail!(
+            "bench-answer / corpus-completion leakage detected ({} task(s)): {}",
+            leaks.len(),
+            details.join(", ")
+        );
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -360,5 +569,122 @@ mod tests {
         assert_eq!(loaded.train_tools, m.train_tools);
         assert_eq!(loaded.eval_tools, m.eval_tools);
         assert_eq!(loaded.seed, 42);
+    }
+
+    // -----------------------------------------------------------------
+    // Text n-gram leakage (Task D3, step 1: the failing test written
+    // before `assert_no_text_leakage` existed — kept as the permanent
+    // regression test now that it passes).
+    // -----------------------------------------------------------------
+
+    fn write_bench(dir: &Path, tasks: &[(&str, &str)]) -> std::path::PathBuf {
+        let benchmarks: Vec<serde_json::Value> = tasks
+            .iter()
+            .map(|(id, answer)| serde_json::json!({"id": id, "answer": answer}))
+            .collect();
+        let doc = serde_json::json!({
+            "schema": "vox_mens_bench_manifest_v1",
+            "benchmarks": benchmarks,
+        });
+        let path = dir.join("manifest.json");
+        std::fs::write(&path, serde_json::to_string(&doc).unwrap()).unwrap();
+        path
+    }
+
+    fn write_corpus_jsonl(dir: &Path, name: &str, completions: &[&str]) {
+        let body: String = completions
+            .iter()
+            .map(|c| serde_json::json!({"response": c}).to_string() + "\n")
+            .collect();
+        std::fs::write(dir.join(name), body).unwrap();
+    }
+
+    const FN_ADD_BODY: &str =
+        "fn add(a: int, b: int) to int {\n    let sum = a + b\n    return sum\n}";
+
+    #[test]
+    fn text_leakage_detected_when_answer_appears_verbatim_in_corpus() {
+        let bench_dir = tempfile::tempdir().unwrap();
+        let bench_path = write_bench(bench_dir.path(), &[("fn_add", FN_ADD_BODY)]);
+
+        let corpus_dir = tempfile::tempdir().unwrap();
+        write_corpus_jsonl(corpus_dir.path(), "train.jsonl", &[FN_ADD_BODY]);
+
+        let err = assert_no_text_leakage(&bench_path, &[corpus_dir.path()]).unwrap_err();
+        assert!(
+            err.to_string().contains("fn_add"),
+            "expected leaked task id in error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn text_leakage_clean_when_answer_absent_from_corpus() {
+        let bench_dir = tempfile::tempdir().unwrap();
+        let bench_path = write_bench(bench_dir.path(), &[("fn_add", FN_ADD_BODY)]);
+
+        let corpus_dir = tempfile::tempdir().unwrap();
+        write_corpus_jsonl(
+            corpus_dir.path(),
+            "train.jsonl",
+            &["fn totally_unrelated_thing(x: str) to str {\n    return x.to_upper()\n}"],
+        );
+
+        assert_no_text_leakage(&bench_path, &[corpus_dir.path()])
+            .expect("distinct completion must not trip the leakage gate");
+    }
+
+    #[test]
+    fn text_leakage_ignores_missing_corpus_dir() {
+        let bench_dir = tempfile::tempdir().unwrap();
+        let bench_path = write_bench(bench_dir.path(), &[("fn_add", FN_ADD_BODY)]);
+        let missing = std::path::Path::new("/does/not/exist/target/dogfood");
+        assert_no_text_leakage(&bench_path, &[missing])
+            .expect("a missing (not-yet-built) corpus dir must not fail the gate");
+    }
+
+    /// Step 5/6 mutation-verification companion: reproduces the 4 tasks
+    /// named leaked in docs/superpowers/plans/2026-09-12-mens-end-to-end-completion.md
+    /// (§L-4) — `fn_add`, `fn_greet`, `query_list_items`, `component_button`
+    /// — against a corpus containing their (former) verbatim answers, and
+    /// confirms every one is caught.
+    #[test]
+    fn all_four_originally_leaked_tasks_are_caught() {
+        let bench_dir = tempfile::tempdir().unwrap();
+        let bench_path = write_bench(
+            bench_dir.path(),
+            &[
+                ("fn_add", FN_ADD_BODY),
+                (
+                    "fn_greet",
+                    "fn greet(name: str) to str {\n    return \"Hello, \" + name\n}",
+                ),
+                (
+                    "query_list_items",
+                    "query list_items() to list[Item] {\n    return db.query(\"select * from items\")\n}",
+                ),
+                (
+                    "component_button",
+                    "component Button(label: str) {\n    render button(label)\n}",
+                ),
+            ],
+        );
+
+        let corpus_dir = tempfile::tempdir().unwrap();
+        write_corpus_jsonl(
+            corpus_dir.path(),
+            "train.jsonl",
+            &[
+                FN_ADD_BODY,
+                "fn greet(name: str) to str {\n    return \"Hello, \" + name\n}",
+                "query list_items() to list[Item] {\n    return db.query(\"select * from items\")\n}",
+                "component Button(label: str) {\n    render button(label)\n}",
+            ],
+        );
+
+        let err = assert_no_text_leakage(&bench_path, &[corpus_dir.path()]).unwrap_err();
+        let msg = err.to_string();
+        for id in ["fn_add", "fn_greet", "query_list_items", "component_button"] {
+            assert!(msg.contains(id), "expected '{id}' in leakage error: {msg}");
+        }
     }
 }

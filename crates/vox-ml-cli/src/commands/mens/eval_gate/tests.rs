@@ -1012,3 +1012,37 @@ fn safety_eval_side_effecting_tools_are_never_called_in_eval_path() {
         violations
     );
 }
+
+// ---------------------------------------------------------------------------
+// Leakage precondition (Task D3, part 3): wired into check_run as a hard,
+// always-evaluated gate (block: true), independent of the policy file.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn check_run_always_includes_a_leakage_gate() {
+    // `check_run` walks up from cwd to find the real
+    // `mens/data/heldout_bench/manifest.json` (Task D3 expanded it to 52
+    // non-leaked tasks) and checks it against `mens/data` / `target/dogfood`
+    // — this exercises that real, repo-checked-in data, not a fixture.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let results = check_run(dir.path(), &{
+        let p = dir.path().join("policy.yaml");
+        std::fs::write(&p, "version: \"1\"\n").unwrap();
+        p
+    })
+    .expect("check_run");
+
+    let g = results
+        .iter()
+        .find(|r| r.name == "leakage")
+        .expect("leakage gate must always be present (hard precondition)");
+    assert!(
+        g.block,
+        "leakage gate must be a hard precondition: block=true"
+    );
+    assert!(
+        g.passed,
+        "the current heldout_bench manifest must be leak-free: {}",
+        g.message
+    );
+}

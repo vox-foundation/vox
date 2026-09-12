@@ -1,0 +1,79 @@
+// vox:caps fs
+// scripts/mens-corpus/build_split_manifest.vox
+//
+// Task D3 (2026-09-12-mens-end-to-end-completion), part 2: emit a
+// split_manifest.json at corpus-build time so `assert_no_leakage`
+// (crates/vox-ml-cli/src/commands/mens/eval_gate/leakage.rs) and future
+// tooling can check which task IDs belong to the held-out/eval split versus
+// the training split, without re-deriving that classification by hand.
+//
+// eval_task_ids  = every task id in mens/data/heldout_bench/manifest.json
+//                  (the vox-lang heldout bench — never trained on).
+// train_task_ids = every contracts/eval/humaneval-vox problem marked
+//                  `training_eligible = true` in its `<id>.spec.toml` (these
+//                  ARE read into the training corpus by
+//                  crates/vox-corpus/src/corpus/extract_vox/part_helpers.rs).
+//
+// Run whenever mens/data/heldout_bench/manifest.json or the humaneval-vox
+// problem set changes: `vox run scripts/mens-corpus/build_split_manifest.vox`
+
+import fs;
+import json;
+
+fn main() {
+    let bench_path = "mens/data/heldout_bench/manifest.json";
+    let problems_dir = "contracts/eval/humaneval-vox/problems";
+    let output_path = "mens/data/heldout_bench/split_manifest.json";
+
+    let bench_content_res = fs.read(bench_path);
+    if bench_content_res.is_err() {
+        print("[build_split_manifest] failed to read " + bench_path);
+        return;
+    }
+    let bench_json = json.parse(bench_content_res.unwrap());
+    if bench_json.is_err() {
+        print("[build_split_manifest] failed to parse " + bench_path);
+        return;
+    }
+    let benchmarks = bench_json.unwrap().get("benchmarks").and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([]);
+
+    let mut eval_ids: list[str] = [];
+    for item in benchmarks {
+        let id = item.get("id").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("");
+        if id.len() > 0 {
+            eval_ids = eval_ids.push(id);
+        }
+    }
+
+    let mut train_ids: list[str] = [];
+    match fs.list_dir(problems_dir) {
+        Ok(entries) => {
+            for entry in entries {
+                if entry.ends_with(".spec.toml") {
+                    let spec_path = problems_dir + "/" + entry;
+                    match fs.read(spec_path) {
+                        Ok(content) => {
+                            if content.contains("training_eligible = true") {
+                                let problem_id = entry.replace(".spec.toml", "");
+                                train_ids = train_ids.push(problem_id);
+                            }
+                        }
+                        Error(m) => print("[build_split_manifest] failed to read " + spec_path + ": " + m)
+                    }
+                }
+            }
+        }
+        Error(m) => print("[build_split_manifest] failed to list " + problems_dir + ": " + m)
+    }
+
+    let out = {
+        "schema": "vox_mens_split_manifest_v1",
+        "description": "Task IDs in the vox-lang held-out eval split (mens/data/heldout_bench) vs. the training split (humaneval-vox problems with training_eligible=true, which the extractor at crates/vox-corpus/src/corpus/extract_vox/part_helpers.rs reads into the training corpus).",
+        "eval_task_ids": eval_ids,
+        "train_task_ids": train_ids
+    };
+    let json_str = json.stringify(out);
+    fs.write_file(output_path, json_str);
+    print("[build_split_manifest] eval_task_ids=" + str(eval_ids.len()) + " train_task_ids=" + str(train_ids.len()));
+    print("[build_split_manifest] wrote " + output_path);
+}
