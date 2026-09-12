@@ -131,7 +131,8 @@ fn score_bench(bench: &str, adapter: &Path) -> Result<f64> {
     std::fs::create_dir_all(&out_dir)?;
     let out = out_dir.join("eval_local_report.json");
     super::eval_local::run_eval_local(
-        adapter.to_path_buf(),
+        Some(adapter.to_path_buf()),
+        None,
         bench_root,
         512,
         0.0,

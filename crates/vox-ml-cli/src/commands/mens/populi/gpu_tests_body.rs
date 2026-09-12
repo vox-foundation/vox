@@ -312,7 +312,8 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
 #[test]
 fn eval_local_missing_model_errors() {
     let result = eval_local::run_eval_local(
-        PathBuf::from("/nonexistent/model.bin"),
+        Some(PathBuf::from("/nonexistent/model.bin")),
+        None,
         PathBuf::from("mens/data/heldout_bench"),
         32,
         0.0,

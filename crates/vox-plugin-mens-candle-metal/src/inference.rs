@@ -17,7 +17,6 @@ use safetensors::Dtype;
 use safetensors::SafeTensors;
 use tokenizers::Tokenizer;
 
-use crate::adapter_schema_v3::PopuliAdapterManifestV3;
 use crate::hf_layout::HfArchitecture;
 use crate::model::{
     Qwen2Attention, Qwen2MLP, Qwen35AttentionBlock, Qwen35Layer, Qwen35LinearAttention, Qwen35Model,
@@ -44,6 +43,14 @@ pub enum InferenceModel {
 use vox_plugin_mens_candle_core::inference_device::{
     compute_dtype_for_device, resolve_inference_device,
 };
+
+// Base-shard / LoRA-delta resolution (including the base-only load path — a
+// model directory with no adapter present) moved to
+// `vox-plugin-mens-candle-core::weight_resolution`, alongside
+// `adapter_deltas_must_be_folded` (previously forked byte-for-byte in this
+// file and the CUDA plugin's `inference.rs`). See that module's docs for why
+// a base-only directory used to be a hard error here.
+use vox_plugin_mens_candle_core::weight_resolution::resolve_weights;
 
 // `synthesize_rope_inv_freq` moved to `vox-plugin-mens-candle-core::rope` —
 // it used to be forked four ways (this file and `candle_qlora_train::mod` in
@@ -92,17 +99,6 @@ fn resolve_adapter_manifest_path(model_dir: &Path) -> Option<std::path::PathBuf>
     None
 }
 
-/// True when the trained adapter's LoRA deltas still have to be folded in at
-/// load time.
-///
-/// `merged.safetensors` already holds `W + BA·α/r` under the *base* key names,
-/// and `weight_sources` puts it ahead of the base shards — so folding the delta
-/// again on top of a merged run would apply it twice. Exactly one of the two
-/// paths may run.
-fn adapter_deltas_must_be_folded(model_dir: &Path) -> bool {
-    !model_dir.join("merged.safetensors").is_file()
-}
-
 /// Every safetensors file whose tensors feed the inference weight map, in
 /// search order: adapter before merged before base shards.
 ///
@@ -136,42 +132,15 @@ impl InferenceEngine {
         let meta_path = resolve_adapter_manifest_path(model_dir)
             .unwrap_or_else(|| model_dir.join("adapter_manifest.json"));
 
-        if !adapter_path.is_file() || !meta_path.is_file() {
-            anyhow::bail!(
-                "LoRA adapter or adapter_manifest.json not found in {}",
-                model_dir.display()
-            );
-        }
-
-        let meta_raw = std::fs::read_to_string(&meta_path)
-            .map_err(|e| anyhow::anyhow!("read manifest {}: {e}", meta_path.display()))?;
-        let meta: PopuliAdapterManifestV3 = serde_json::from_str(&meta_raw)?;
-
-        // Resolve base shards — local directory only; hub download is deferred (see module doc).
-        let base_shards = if let Some(ref base) = meta.base_model {
-            if Path::new(base).is_dir() {
-                let mut shards = Vec::new();
-                for entry in std::fs::read_dir(base)? {
-                    let p = entry?.path();
-                    if p.extension().map(|e| e == "safetensors").unwrap_or(false)
-                        && p.file_name().unwrap().to_string_lossy().contains("model")
-                    {
-                        shards.push(p);
-                    }
-                }
-                shards
-            } else {
-                anyhow::bail!(
-                    "base_model '{}' is not a local directory. Hub download is not supported in \
-                     the plugin; pre-download the model to a local path and update adapter_manifest.json.",
-                    base
-                );
-            }
-        } else {
-            anyhow::bail!(
-                "adapter manifest missing `base_model` reference. Cannot load frozen weights."
-            );
-        };
+        // Base shards + any trained LoRA delta to fold on top of them. A
+        // directory with neither adapter file present resolves as a
+        // base-only load (no delta) instead of the old hard bail — see
+        // `weight_resolution`'s module docs for the two supported shapes
+        // this now serves, and why loading a fine-tune's base model on its
+        // own used to be impossible.
+        let resolved = resolve_weights(model_dir, &adapter_path, &meta_path, &_device)?;
+        let base_shards = resolved.base_shards;
+        let lora_factors = resolved.lora_factors;
 
         let mut all_buffers = Vec::new();
         let mut weight_maps = Vec::new();
@@ -220,15 +189,6 @@ impl InferenceEngine {
                 }
             }
             anyhow::bail!("Weight not found: {key}");
-        };
-
-        // The trained LoRA factors, keyed by base tensor key. Empty for a merged
-        // run (the delta is already baked into `merged.safetensors`) — see
-        // `adapter_deltas_must_be_folded`.
-        let lora_factors = if adapter_deltas_must_be_folded(model_dir) {
-            crate::merge::lora_factors_by_base_key(&adapter_path, &meta, &_device)?
-        } else {
-            std::collections::HashMap::new()
         };
 
         // Every key actually fetched through `linear_weight`. Compared against
@@ -891,16 +851,53 @@ mod live_metal_tests {
             "EOS must be read from config.json, not hardcoded"
         );
     }
+
+    /// The base-only load path's live gate (Task followup: base-only
+    /// inference). `VOX_MENS_BASE_ONLY_DIR` must point at a directory with
+    /// NEITHER `candle_qlora_adapter.safetensors` NOR `adapter_manifest.json`
+    /// — a bare HF snapshot (`config.json`, `tokenizer.json`, its own
+    /// `*.safetensors` shard) — the exact shape an adapter run's
+    /// `adapter_manifest.json`'s `base_model` field points at.
+    ///
+    /// ```text
+    /// VOX_MENS_BASE_ONLY_DIR=<base snapshot dir> \
+    ///   cargo test -p vox-plugin-mens-candle-metal --features metal -- --ignored base_only
+    /// ```
+    #[test]
+    #[ignore = "needs a real base-model directory and Metal hardware"]
+    fn base_only_load_runs_real_inference_with_no_adapter_present() {
+        let raw = std::env::var("VOX_MENS_BASE_ONLY_DIR")
+            .expect("set VOX_MENS_BASE_ONLY_DIR to a base-model directory with no adapter present");
+        let dir = std::path::PathBuf::from(raw);
+        assert!(
+            !dir.join("candle_qlora_adapter.safetensors").is_file()
+                && !dir.join("adapter_manifest.json").is_file(),
+            "VOX_MENS_BASE_ONLY_DIR must have NO adapter present — this test verifies the \
+             base-only path, not the adapter path"
+        );
+
+        let mut engine = InferenceEngine::load(&dir, &crate::device::DeviceKind::Best)
+            .expect("a base-only directory must load without an adapter");
+
+        let out = engine
+            .generate("Write a Vox function that adds two ints.", 64, 0.0, 0)
+            .expect("base-only engine must run real inference");
+        eprintln!("base-only generation: {out:?}");
+        assert!(
+            !out.trim().is_empty(),
+            "base-only inference produced no output at all"
+        );
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::adapter_deltas_must_be_folded;
     use super::assemble_prompt;
     use super::check_output_mode;
     use super::resolve_adapter_manifest_path;
     use super::sample_next_token;
     use super::weight_sources;
+    use vox_plugin_mens_candle_core::weight_resolution::adapter_deltas_must_be_folded;
 
     #[test]
     fn compute_dtype_is_f32_off_cuda() {

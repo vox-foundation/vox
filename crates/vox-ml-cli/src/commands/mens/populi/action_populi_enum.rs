@@ -586,9 +586,15 @@ pub enum PopuliAction {
     #[cfg(feature = "gpu")]
     #[command(name = "eval-local")]
     EvalLocal {
-        /// Path to model checkpoint (.safetensors from `vox mens train`)
-        #[arg(long, required = true)]
-        model: PathBuf,
+        /// Path to model checkpoint (.safetensors from `vox mens train`).
+        /// Exactly one of `--model`/`--base` is required.
+        #[arg(long)]
+        model: Option<PathBuf>,
+        /// Path to a base-model snapshot directory (no adapter present) —
+        /// produces the baseline side of a pass@k/BFCL candidate-vs-base
+        /// comparison. Exactly one of `--model`/`--base` is required.
+        #[arg(long)]
+        base: Option<PathBuf>,
         /// Path to heldout benchmark directory (default: mens/data/heldout_bench)
         #[arg(long, default_value = "mens/data/heldout_bench")]
         bench: PathBuf,

@@ -59,3 +59,4 @@ pub mod train_jsonl_preflight;
 pub mod train_log;
 pub mod training_summary;
 pub mod training_text;
+pub mod weight_resolution;

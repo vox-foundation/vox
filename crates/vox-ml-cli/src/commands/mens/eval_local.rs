@@ -10,7 +10,8 @@ use vox_bounded_fs::read_utf8_path_capped;
 const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.20;
 
 pub fn run_eval_local(
-    model: PathBuf,
+    model: Option<PathBuf>,
+    base: Option<PathBuf>,
     bench: PathBuf,
     max_tokens: usize,
     temperature: f32,
@@ -19,6 +20,19 @@ pub fn run_eval_local(
     output: Option<PathBuf>,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
+
+    // `--base <dir>` points at a base-model snapshot with no adapter present
+    // (the `InferenceEngine::load` base-only path) — the baseline side of a
+    // pass@k/BFCL candidate-vs-base comparison. `--model` is the historical
+    // (adapter or merged run directory) entry point. Exactly one is required;
+    // both being set would silently prefer one over the other.
+    let is_base_only = base.is_some();
+    let model = match (model, base) {
+        (Some(m), None) => m,
+        (None, Some(b)) => b,
+        (None, None) => anyhow::bail!("either --model or --base is required"),
+        (Some(_), Some(_)) => anyhow::bail!("--model and --base are mutually exclusive"),
+    };
 
     if !model.exists() {
         anyhow::bail!(
@@ -372,6 +386,7 @@ pub fn run_eval_local(
 
     let report = serde_json::json!({
         "model": model.to_string_lossy(),
+        "base_only": is_base_only,
         "bench": bench.to_string_lossy(),
         "max_tokens": max_tokens,
         "temperature": temperature,
@@ -789,6 +804,35 @@ fn verify_completion(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `--base <base-model-dir>` is the new base-only load path (Task
+    /// followup: base-only inference); `--model` is unchanged. Neither or
+    /// both being set is a usage error caught before any inference backend
+    /// is touched, not a guess at which one the caller meant.
+    #[test]
+    fn run_eval_local_requires_exactly_one_of_model_or_base() {
+        let bench = PathBuf::from("mens/data/heldout_bench");
+
+        let neither = run_eval_local(None, None, bench.clone(), 8, 0.0, 1, 0, None);
+        let err = neither.expect_err("neither --model nor --base must be a usage error");
+        assert!(
+            err.to_string().contains("either --model or --base"),
+            "{err}"
+        );
+
+        let both = run_eval_local(
+            Some(PathBuf::from("/a")),
+            Some(PathBuf::from("/b")),
+            bench,
+            8,
+            0.0,
+            1,
+            0,
+            None,
+        );
+        let err = both.expect_err("--model and --base together must be a usage error");
+        assert!(err.to_string().contains("mutually exclusive"), "{err}");
+    }
 
     fn entry(category: &str, pass_at_k: bool, anti_stub_pass: bool) -> serde_json::Value {
         serde_json::json!({

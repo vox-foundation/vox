@@ -636,6 +636,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         #[cfg(feature = "gpu")]
         PopuliAction::EvalLocal {
             model,
+            base,
             bench,
             max_tokens,
             temperature,
@@ -644,6 +645,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             output,
         } => eval_local::run_eval_local(
             model,
+            base,
             bench,
             max_tokens,
             temperature,
