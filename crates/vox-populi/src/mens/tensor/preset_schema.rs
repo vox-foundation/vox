@@ -1,7 +1,7 @@
 //! Training hyperparameter presets: 4080, safe, A100-shaped profiles.
 
 use crate::mens::tensor::device::probe_gpu;
-use crate::mens::tensor::vram_autodetect::{AcceleratorKind, auto_preset_for};
+use crate::mens::tensor::vram_autodetect::AcceleratorKind;
 
 /// CLI numeric overrides for auto-tuning.
 #[derive(Debug, Clone, Default)]
@@ -387,14 +387,6 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
     }
 }
 
-/// Load the global GPU specifications and presets from `mens/config/gpu-specs.yaml`.
-pub fn load_gpu_specs() -> Option<GpuSpecsFile> {
-    let root = vox_corpus::training::contract::find_workspace_root()?;
-    let p = root.join("mens/config/gpu-specs.yaml");
-    let raw = vox_bounded_fs::read_utf8_path_capped(p.as_path()).ok()?;
-    serde_yaml::from_str(&raw).ok()
-}
-
 /// Load optional YAML registry from `mens/config/train-presets.yaml` if present.
 pub struct TrainPresetRegistry;
 
@@ -409,26 +401,6 @@ impl TrainPresetRegistry {
 
 pub fn load_registry() -> Option<serde_yaml::Value> {
     TrainPresetRegistry::load()
-}
-
-/// The canonical usable-VRAM budget (GiB) for the generic (non-Qwen-family)
-/// budget-fallback branch — routes through
-/// `memory_model::budget_gate_usable_bytes` so `SAFETY_FRACTION` is applied
-/// exactly once, with `vram_limit_fraction` (an operator-visible throttle,
-/// distinct from the baked-in safety margin) layered on top.
-///
-/// The result MUST be fed to `memory_budget::plan_with_resident_from_budget`,
-/// never to `plan_with_resident`/`plan_*_with_options` — those apply their own
-/// internal `safety_fraction()` on top of whatever `vram_gib` they're given,
-/// which would compound with this function's own `SAFETY_FRACTION`.
-fn resident_budget_gib(vram_gib: f64, vram_limit_fraction: Option<f32>) -> f64 {
-    use crate::mens::tensor::memory_model::{DeviceBudget, budget_gate_usable_bytes};
-    const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
-    let budget = DeviceBudget {
-        working_set_bytes: (vram_gib.max(0.0) * GIB).round() as u64,
-        operator_fraction: vram_limit_fraction.map(|f| f as f64),
-    };
-    budget_gate_usable_bytes(&budget) as f64 / GIB
 }
 
 /// Resolve preset from `VOX_TRAIN_PROFILE` env, CLI `--preset`, device heuristics, and overrides.
@@ -456,37 +428,30 @@ pub fn resolve_effective_profile(
 
     let mut p = if name == "auto" {
         if kind == AcceleratorKind::Metal {
-            // Never walk the CUDA-shaped yaml `presets:` table on Apple.
-            // `auto_preset_for` already maps 6–16 GiB to `qwen3_dev_cpu`;
-            // anything below that (or unknown VRAM) fail-closes to the same
-            // smoke profile rather than matching `a100`/`h100` by VRAM size.
-            let vram_gb = (device.vram_mb > 0).then_some(device.vram_mb as f32 / 1024.0);
-            let metal_name = auto_preset_for(AcceleratorKind::Metal, vram_gb).ok_or_else(|| {
-                anyhow::anyhow!(
+            // The old VRAM-tiered `auto_preset_for` ladder (`vram_autodetect.rs`)
+            // was deleted (Task 8): its `METAL_*_GIB` constants covered 8B,
+            // 14B-QLoRA, 14B-LoRA and 32B with no 27B rung, so a 27B request
+            // silently landed on the 14B preset. The fail-closed floor below 6
+            // GiB is the one part of that ladder worth keeping — it is a real
+            // safety property, not a VRAM-fit guess — so it survives standalone.
+            // The fine-grained tier selection above the floor does not: it always
+            // selects the smallest real Metal preset now, and the real per-host
+            // fit comes from `memory_model::sweep`/`plan_for` after the model is
+            // on disk (see `gpu::run_gpu_training`), not a pre-download guess.
+            if device.vram_mb > 0 && (device.vram_mb as f32 / 1024.0) >= 6.0 {
+                base_for_name("qwen3_16g")
+            } else {
+                anyhow::bail!(
                     "no Metal training preset for {} MB live-available memory \
                      (need at least 6 GiB, or pass --preset explicitly)",
                     device.vram_mb
                 )
-            })?;
-            base_for_name(metal_name)
-        } else if let Some(specs) = load_gpu_specs() {
-            if let Some((_name, preset_spec)) =
-                TrainingPreset::best_for_vram(&specs.presets, device.vram_mb)
-            {
-                TrainPresetProfile {
-                    rank: 16,
-                    alpha: 32.0,
-                    seq_len: preset_spec.seq_len,
-                    batch_size: preset_spec.batch_size,
-                    grad_accum: preset_spec.grad_accum,
-                    epochs: 3,
-                    warmup: 100,
-                    lr: preset_spec.lr,
-                }
-            } else {
-                base_for_name("4080_safe")
             }
         } else {
+            // The old CUDA yaml-driven `TrainingPreset::best_for_vram` VRAM
+            // ladder was deleted alongside the Metal one for the same reason
+            // (Task 8) — this fallback (already the value used whenever no
+            // preset matched) is now the sole CUDA "auto" resolution.
             base_for_name("4080_safe")
         }
     } else {
@@ -529,118 +494,20 @@ pub fn resolve_effective_profile(
         p = apply_qwen_size_ladder_policy(p, class, device.vram_mb, model_hint);
     }
 
-    // Determine the VRAM budget limits, either from the passed pre-computed overrides
-    // or by running the budget planner internally as a fallback.
+    // The VRAM budget limits, when a caller has already sized this run via the
+    // measured `memory_model::sweep`/`plan_for` entry point (see
+    // `gpu::run_gpu_training`'s post-download auto-sizing) and passed the
+    // result down as `overrides.budget_*`. The params_b-only ladder that used
+    // to compute this internally when the overrides were absent (Qwen family
+    // classifiers + `get_resident_per_b` + `plan_with_resident*`) was deleted
+    // (Task 8) — it was never more than a params_b guess with no real
+    // `ModelShape`, and every caller now either supplies the measured budget
+    // or gets the plain preset default with no clamp.
     let budget_limits = if let Some(seq) = overrides.budget_seq_len
         && let Some(batch) = overrides.budget_batch_size
         && let Some(accum) = overrides.budget_grad_accum
     {
         Some((seq, batch, accum))
-    } else if device.vram_mb > 0 {
-        // Fallback: run budget planner internally
-        //
-        // NOTE: `overrides.vram_limit_fraction` is deliberately NOT pre-multiplied
-        // into `vram_gib` here — the qwen-family `plan_*_with_options` calls below
-        // each apply their own internal safety fraction to whatever `vram_gib` they
-        // receive, so doing it here would compound two independent safety-margin
-        // applications. The generic (non-Qwen-family) branch instead routes through
-        // `memory_model::budget_gate_usable_bytes` via `resident_budget_gib`, the one
-        // canonical place the operator's fraction composes with the safety fraction
-        // exactly once.
-        let vram_gib = (device.vram_mb as f64) / 1024.0;
-
-        let hint = model_hint.unwrap_or(crate::mens::DEFAULT_MODEL_ID);
-        let params_b =
-            crate::mens::tensor::memory_budget::params_b_from_model_hint(hint).unwrap_or(7.0);
-
-        let gc_explicit = std::env::var("VOX_MENS_GRADIENT_CHECKPOINTING")
-            .ok()
-            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-            .unwrap_or(false);
-        let gc_auto = params_b >= 2.9;
-        let gradient_checkpointing = gc_explicit || gc_auto;
-
-        let quant = crate::mens::tensor::finetune_contract::BaseQuantMode::Nf4;
-
-        let mp = if crate::mens::tensor::memory_budget::is_qwen25coder(hint) {
-            crate::mens::tensor::memory_budget::plan_qwen25coder_with_options(
-                vram_gib,
-                params_b,
-                quant,
-                gradient_checkpointing,
-            )
-        } else if crate::mens::tensor::memory_budget::is_qwen35(hint) {
-            crate::mens::tensor::memory_budget::plan_qwen35_with_options(
-                vram_gib,
-                params_b,
-                quant,
-                gradient_checkpointing,
-            )
-        } else if crate::mens::tensor::memory_budget::is_qwen3(hint) {
-            crate::mens::tensor::memory_budget::plan_qwen3_with_options(
-                vram_gib,
-                params_b,
-                quant,
-                gradient_checkpointing,
-            )
-        } else {
-            let resident_per_b = crate::mens::tensor::memory_budget::get_resident_per_b(
-                hint,
-                quant,
-                gradient_checkpointing,
-                params_b,
-            );
-            let budget_gib = resident_budget_gib(vram_gib, overrides.vram_limit_fraction);
-            let p = crate::mens::tensor::memory_budget::plan_with_resident_from_budget(
-                budget_gib,
-                params_b,
-                resident_per_b,
-            );
-            crate::mens::tensor::memory_budget::ModelPlan {
-                model_id: hint.to_string(),
-                params_b,
-                seq_len: p.seq_len,
-                batch_size: p.batch_size,
-                grad_accum: p.grad_accum,
-                retreated_from_b: None,
-                over_budget: p.over_budget,
-                rationale: p.rationale,
-            }
-        };
-
-        // Dual-sizing fix: if the planner retreated, we must re-solve specifically
-        // for the requested model's parameters to avoid OOM at training runtime.
-        let final_plan = if mp.retreated_from_b.is_some() {
-            let resident_per_b = crate::mens::tensor::memory_budget::get_resident_per_b(
-                hint,
-                quant,
-                gradient_checkpointing,
-                params_b,
-            );
-            let p = crate::mens::tensor::memory_budget::plan_with_resident(
-                vram_gib,
-                params_b,
-                resident_per_b,
-            );
-            crate::mens::tensor::memory_budget::ModelPlan {
-                model_id: hint.to_string(),
-                params_b,
-                seq_len: p.seq_len,
-                batch_size: p.batch_size,
-                grad_accum: p.grad_accum,
-                retreated_from_b: None,
-                over_budget: p.over_budget,
-                rationale: p.rationale,
-            }
-        } else {
-            mp
-        };
-
-        Some((
-            final_plan.seq_len,
-            final_plan.batch_size,
-            final_plan.grad_accum,
-        ))
     } else {
         None
     };
@@ -686,10 +553,16 @@ pub struct GpuSpec {
     pub vram_mb: u64,
 }
 
-/// Training preset configuration — auto-selected by VRAM tier for both local and cloud.
+/// Training preset configuration for both local and cloud dispatch.
 ///
 /// Defined once in `gpu-specs.yaml`; consumed by both `vox mens train` (local)
 /// and cloud dispatch (to set container env vars). This is the SSOT for preset configs.
+///
+/// No longer carries `max_vram_mb` / a `best_for_vram` VRAM-tiered auto-selector
+/// — that ladder was deleted (Task 8): it had no 27B rung, so a 27B request
+/// silently landed on the 14B preset. Preset selection for "auto" now always
+/// resolves to a fixed default (see `resolve_effective_profile`); the real
+/// per-host VRAM fit comes from `memory_model::sweep`/`plan_for`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrainingPreset {
     /// Sequence length in tokens.
@@ -700,61 +573,6 @@ pub struct TrainingPreset {
     pub grad_accum: usize,
     /// Learning rate.
     pub lr: f64,
-    /// Maximum VRAM in MB this preset can fit. Used to auto-select from local VRAM.
-    pub max_vram_mb: u64,
-}
-
-impl TrainingPreset {
-    /// Select the best preset for the given VRAM amount.
-    pub fn best_for_vram(
-        presets: &HashMap<String, TrainingPreset>,
-        vram_mb: u64,
-    ) -> Option<(&str, &TrainingPreset)> {
-        presets
-            .iter()
-            .filter(|(_, p)| p.max_vram_mb <= vram_mb)
-            .max_by_key(|(_, p)| p.max_vram_mb)
-            .map(|(k, v)| (k.as_str(), v))
-    }
-}
-
-#[cfg(test)]
-mod resident_budget_gib_tests {
-    use super::resident_budget_gib;
-
-    /// Fix-round regression test: previously `vram_gib *= vram_limit_fraction`
-    /// here, then the pre-scaled `vram_gib` was handed to
-    /// `memory_budget::plan_with_resident`, which multiplied by its own
-    /// internal safety fraction (`DEFAULT_SAFETY = 0.88`) again. This function
-    /// must apply the operator fraction exactly once, composed with
-    /// `memory_model::SAFETY_FRACTION`.
-    #[test]
-    fn operator_fraction_does_not_compound_with_a_second_safety_application() {
-        use crate::mens::tensor::memory_model::SAFETY_FRACTION;
-        let vram_gib = 24.0;
-        let got = resident_budget_gib(vram_gib, Some(0.8));
-        let expected = vram_gib * SAFETY_FRACTION * 0.8;
-        assert!(
-            (got - expected).abs() < 1e-6,
-            "got {got}, expected exactly one composed application: {expected}"
-        );
-        assert!(
-            got < vram_gib,
-            "an operator throttle must shrink the budget"
-        );
-    }
-
-    #[test]
-    fn no_operator_fraction_applies_only_safety_fraction() {
-        use crate::mens::tensor::memory_model::SAFETY_FRACTION;
-        let vram_gib = 24.0;
-        let got = resident_budget_gib(vram_gib, None);
-        let expected = vram_gib * SAFETY_FRACTION;
-        assert!(
-            (got - expected).abs() < 1e-6,
-            "got {got}, expected {expected}"
-        );
-    }
 }
 
 #[cfg(test)]
@@ -827,7 +645,15 @@ mod preset_tests {
 
     #[test]
     #[serial(vox_base_model_env)]
-    fn presets_are_bounded_by_vram() {
+    fn an_explicit_oversized_preset_is_honored_not_internally_clamped() {
+        // Was `presets_are_bounded_by_vram`: `resolve_effective_profile` used to
+        // clamp an explicit preset's seq_len/batch_size down to a params_b-only
+        // ladder estimate of what the detected VRAM could hold (Task 8 deleted
+        // that internal fallback — get_resident_per_b/plan_with_resident* are
+        // gone). An explicit `--preset` is now honored verbatim by this
+        // function; the real per-host fit check for the no-explicit-sizing-flags
+        // case is `memory_model::sweep`/`plan_for`, applied post-download by the
+        // live training pipeline (`gpu::run_gpu_training`), not here.
         #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-7B-Instruct");
@@ -835,8 +661,12 @@ mod preset_tests {
         let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384, "nvidia");
         let profile = resolve_effective_profile(Some("a100"), dev, None, CliOverrides::default())
             .expect("profile");
-        assert!(profile.seq_len < 1024);
-        assert!(profile.batch_size < 8);
+        let a100 = base_for_name("a100");
+        assert_eq!(
+            (profile.seq_len, profile.batch_size),
+            (a100.seq_len, a100.batch_size),
+            "an explicit preset must resolve to its own nominal shape, unclamped"
+        );
         #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("VOX_BASE_MODEL");
@@ -1391,23 +1221,23 @@ mod metal_auto_default_tests {
 
     #[test]
     #[serial(vox_base_model_env)]
-    fn metal_116g_auto_is_qwen3_96g() {
+    fn metal_auto_no_longer_varies_by_vram_above_the_floor() {
+        // The old VRAM-tiered `auto_preset_for` ladder was deleted (Task 8): it
+        // had no 27B rung and silently handed a 27B model the 14B preset. Metal
+        // "auto" now always resolves to the same fixed preset above the 6 GiB
+        // fail-closed floor — a 13.6 GiB and a 116 GiB Mac must select the
+        // identical preset (the real per-host fit comes from
+        // `memory_model::sweep`/`plan_for` post-download, not this selection).
         clear_preset_env();
-        let dev = DeviceProfile::from_gpu_info("apple m-series", 116 * 1024, "apple");
-        let profile =
-            resolve_effective_profile(None, dev, None, no_budget_clamp()).expect("profile");
-        let expected = base_for_name("qwen3_96g");
-        assert_eq!(profile.rank, expected.rank);
-        assert_eq!(profile.seq_len, expected.seq_len);
-        assert_eq!(profile.batch_size, expected.batch_size);
-        assert_eq!(profile.rank, 64);
-        assert_eq!(profile.seq_len, 2048);
-        assert_eq!(profile.batch_size, 4);
-        // yaml a100 auto hardcodes rank 16, batch_size 8, lr 8e-6
-        assert_ne!(profile.rank, 16);
-        assert_ne!(profile.batch_size, 8);
-        assert_ne!(profile.lr, 8e-6);
-        assert_eq!(profile.lr, expected.lr);
+        let small = DeviceProfile::from_gpu_info("apple m-series", 13926, "apple");
+        let huge = DeviceProfile::from_gpu_info("apple m-series", 116 * 1024, "apple");
+        let small_profile =
+            resolve_effective_profile(None, small, None, no_budget_clamp()).expect("profile");
+        let huge_profile =
+            resolve_effective_profile(None, huge, None, no_budget_clamp()).expect("profile");
+        assert_eq!(core_fields(&small_profile), core_fields(&huge_profile));
+        let expected = base_for_name("qwen3_16g");
+        assert_eq!(core_fields(&huge_profile), core_fields(&expected));
     }
 
     #[test]

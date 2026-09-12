@@ -26,6 +26,14 @@ pub struct ResolvedOffer {
     /// Which estimation tier produced this result.
     pub estimate_source: EstimateSource,
     /// Canonical preset name for this GPU's VRAM tier.
+    ///
+    /// Always `"auto"` — the VRAM-tiered `preset_for_vram` lookup that used
+    /// to compute this per-offer was deleted (Task 8: it duplicated, and
+    /// disagreed with, the same VRAM-to-preset ladders removed from
+    /// `preset_schema.rs`/`vram_autodetect.rs`, and this field has no reader
+    /// besides its own construction — nothing downstream branches on it).
+    /// Cloud dispatch resolves the real preset via `CloudJobSpec.preset`
+    /// (see `build_train_spec`/`build_serve_spec`), independent of this field.
     pub effective_preset: &'static str,
 }
 
@@ -53,20 +61,6 @@ pub struct ResolveRequest {
 /// RunPod: watchdog-polled termination → 20% overhead.
 const OVERHEAD_AUTO_TERMINATE: f64 = 1.10;
 const OVERHEAD_POLL_TERMINATE: f64 = 1.20;
-
-/// VRAM-tiered preset names aligned with the presets section in `gpu-specs.yaml`.
-pub fn preset_for_vram(vram_mb: u64) -> &'static str {
-    match vram_mb {
-        0..=8191 => "tiny",
-        8192..=10239 => "safe",
-        10240..=16383 => "prosumer_16g",
-        16384..=23039 => "prosumer_16g",
-        23040..=39679 => "prosumer_24g",
-        39680..=49151 => "a6000",
-        49152..=81919 => "a100",
-        _ => "h100",
-    }
-}
 
 /// Queries cloud providers, estimates costs, and returns ranked offers.
 ///
@@ -247,7 +241,7 @@ impl CloudResolver {
                 }
 
                 Some(ResolvedOffer {
-                    effective_preset: preset_for_vram(offer.vram_mb),
+                    effective_preset: "auto",
                     estimated_secs: total_secs,
                     estimated_cost_usd: cost,
                     estimate_source: source,
@@ -460,5 +454,25 @@ pub fn build_serve_spec(
         batch_size: 1,
         serve_port,
         persistent: false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_train_spec_and_build_serve_spec_both_default_to_auto_preset() {
+        // The VRAM-tiered `preset_for_vram` lookup that used to compute
+        // `ResolvedOffer.effective_preset` was deleted (Task 8): it had no
+        // 27B rung and disagreed with the equivalent ladders removed from
+        // preset_schema.rs/vram_autodetect.rs. Cloud dispatch's own preset
+        // resolution is independent of that field and unaffected — both job
+        // spec constructors still request the "auto" preset by default.
+        let config = CloudProviderConfig::default();
+        let train = build_train_spec(&config, None, None, None, vec![]);
+        assert_eq!(train.preset, "auto");
+        let serve = build_serve_spec(&config, "some-model".to_string(), 60, 8080);
+        assert_eq!(serve.preset, "auto");
     }
 }

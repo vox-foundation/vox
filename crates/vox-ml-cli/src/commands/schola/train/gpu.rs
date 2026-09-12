@@ -84,25 +84,20 @@ pub(super) async fn run_gpu_training(
     )?;
     tracing::debug!(path = %resolved.path.display(), source = ?resolved.source, "Preflight resolved train input");
 
-    let mut final_preset = preset.clone();
+    // The old VRAM-tiered `auto_preset` lookup that used to pick `final_preset`
+    // here was deleted (Task 8: it had no 27B rung and silently handed a 27B
+    // model the 14B preset). Leaving `final_preset` unset for CUDA with no
+    // explicit `--preset` is not a behavior change: `resolve_effective_profile`
+    // already resolves an omitted CUDA preset to `DEFAULT_PRESET` ("4080")
+    // regardless, so this was only ever a cosmetic early log line naming a
+    // preset resolve_effective_profile would then independently reproduce.
+    let final_preset = preset.clone();
     if final_preset.is_none() && device.to_lowercase() == "cuda" {
         eprintln!(
             "  {} {}",
             "⚙".cyan(),
             vox_populi::mens::tensor::vram_autodetect::vram_summary(true)
         );
-        let auto_preset = vox_populi::mens::tensor::vram_autodetect::auto_preset(
-            true,
-            vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb(),
-        );
-        if let Some(ap) = auto_preset {
-            eprintln!(
-                "  {} Auto-detected 16 GB VRAM → using preset '{}'",
-                "⚙".cyan(),
-                ap
-            );
-            final_preset = Some(ap.to_string());
-        }
     }
 
     // Captured before `cli_overrides` is moved into `resolve_effective_profile`

@@ -1,16 +1,6 @@
 use crate::mens::hardware::probe::{HardwareProbe, ProbeError};
 use crate::mens::hardware::types::HardwareSummary;
-use crate::mens::tensor::vram_autodetect::VramInfo;
 use async_trait::async_trait;
-
-/// Convert a leaf Apple-memory query into the `HardwareSummary.vram_mb` unit.
-///
-/// `None` → 0 (caller should record `probe_failures`). Must not call
-/// `get_system_vram_info` / `get_system_vram_gb` — those Priority-4-recurse
-/// into `hardware::probe()` → this module.
-fn vram_mb_from_apple_info(info: Option<VramInfo>) -> u64 {
-    info.map(|i| (i.total_gb * 1024.0) as u64).unwrap_or(0)
-}
 
 /// Hardware probe backend using the macOS Metal framework.
 pub struct MacosMetalProbe;
@@ -28,16 +18,32 @@ impl HardwareProbe for MacosMetalProbe {
     }
 }
 
+/// Live VRAM budget from the Metal framework's own advisory accessor.
+///
+/// Replaces the old `vram_autodetect::query_apple_available_memory` shell-out
+/// (`vm_stat` + `sysctl`, a heuristic estimate of live-reclaimable memory).
+/// `recommendedMaxWorkingSetSize` is the driver's own measured working-set
+/// budget for this process on this device — the same accessor `monitor_metal`
+/// already uses for live telemetry — so this is a real value from the
+/// framework, not a shell-parsed guess. Leaf call: must not route through
+/// `get_system_vram_info()` (that function's own fallback recurses into
+/// `hardware::probe()` → this module).
+#[cfg(target_os = "macos")]
+fn recommended_vram_mb() -> u64 {
+    use objc2_metal::MTLDevice;
+    objc2_metal::MTLCreateSystemDefaultDevice()
+        .map(|device| bytes_to_mb_ceil(device.recommendedMaxWorkingSetSize()))
+        .unwrap_or(0)
+}
+
 #[cfg(target_os = "macos")]
 pub fn probe_metal() -> Option<HardwareSummary> {
     use crate::mens::hardware::types::{ComputeBackend, GpuVendor};
-    // Leaf call only — do not route through get_system_vram_info().
-    let vram_mb = vram_mb_from_apple_info(
-        crate::mens::tensor::vram_autodetect::query_apple_available_memory(),
-    );
+    let vram_mb = recommended_vram_mb();
     let probe_failures = if vram_mb == 0 {
         Some(vec![
-            "query_apple_available_memory returned None or zero budget".into(),
+            "MTLCreateSystemDefaultDevice/recommendedMaxWorkingSetSize returned None or zero budget"
+                .into(),
         ])
     } else {
         None
@@ -108,37 +114,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn vram_mb_from_apple_info_converts_usable_gib() {
-        let info = VramInfo {
-            total_gb: 116.0,
-            used_gb: 12.0,
-            free_gb: 116.0,
-        };
-        assert_eq!(vram_mb_from_apple_info(Some(info)), 118784);
-    }
-
-    #[test]
-    fn vram_mb_from_apple_info_none_is_zero() {
-        assert_eq!(vram_mb_from_apple_info(None), 0);
-    }
-
-    #[test]
     #[cfg(target_os = "macos")]
-    fn probe_metal_matches_live_query_when_available() {
-        let Some(info) = crate::mens::tensor::vram_autodetect::query_apple_available_memory()
-        else {
-            return;
-        };
+    fn probe_metal_matches_the_recommended_working_set_accessor() {
+        // `probe_metal` must report the SAME value `recommended_vram_mb` reads
+        // directly from Metal — no independent shell-based estimate anymore.
+        let expected = recommended_vram_mb();
         let summary = probe_metal().expect("macOS always returns Some");
-        let expected = vram_mb_from_apple_info(Some(info));
-        // Two sequential vm_stat reads can differ by a page; allow 1 GiB drift.
-        assert!(summary.vram_mb > 0, "live probe must report real memory");
-        assert!(
-            summary.vram_mb.abs_diff(expected) <= 1024,
-            "probe_metal {} vs conversion {} drifted more than 1 GiB",
-            summary.vram_mb,
-            expected
-        );
+        assert_eq!(summary.vram_mb, expected);
     }
 
     #[test]

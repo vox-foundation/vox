@@ -155,8 +155,9 @@ fn gpu_specs_agentic_default_qwen3_hf_ids_have_real_sha_format() {
 /// the pre-existing training-preset catalogue against real weight sizes, per
 /// Task 7 of `2026-09-11-1-memory-ssot-and-fit-benchmark.md`. Sourced from
 /// citations already in this repo, not re-derived and not fetched from HF:
-/// - `Qwen/Qwen3-{0.6B,8B,14B,32B}`: `memory_budget::QWEN3_LADDER`
-///   (`crates/vox-populi/src/mens/tensor/memory_budget.rs:332`) for params_b;
+/// - `Qwen/Qwen3-{0.6B,8B,14B,32B}`: the params_b for these rungs were pinned
+///   from `memory_budget::QWEN3_LADDER`, deleted in Task 8 of this plan (the
+///   values are inlined below, independent of that now-removed constant);
 ///   layers/hidden corroborated by `memory_model.rs`'s
 ///   `seeded_candle_cuda_row_reproduces_the_old_activation_formula_on_real_rungs`
 ///   (8B/14B) and `shape_27b()`'s "real Qwen3-32B dims stand in" comment (32B).

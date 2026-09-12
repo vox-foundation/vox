@@ -173,9 +173,12 @@ gpus:
 #   batch_size:  Micro-batch size per step
 #   grad_accum:  Gradient accumulation steps (effective batch = batch × grad_accum)
 #   lr:          Learning rate
-#   max_vram_mb: This preset fits in this many MB of VRAM (upper bound for selection)
 #
-# Selection rule: pick the preset with the largest max_vram_mb that still fits.
+# No `max_vram_mb` field anymore: the VRAM-tiered auto-selector that used it
+# (`TrainingPreset::best_for_vram`) was deleted (2026-09, memory-model SSOT
+# migration) — it had no 27B rung and silently handed a 27B model the 14B
+# preset. Real per-host VRAM fit now comes from the measured
+# `mens::tensor::memory_model` sweep/plan_for entry point, not this table.
 
 presets:
   tiny:
@@ -183,14 +186,12 @@ presets:
     batch_size: 1
     grad_accum: 4
     lr: 5.0e-5
-    max_vram_mb: 8192
 
   safe:
     seq_len: 384
     batch_size: 1
     grad_accum: 2
     lr: 3.0e-5
-    max_vram_mb: 10240
 
   # Matches 12GB cards (RTX 3060, RTX 4070)
   prosumer_12g:
@@ -198,7 +199,6 @@ presets:
     batch_size: 1
     grad_accum: 1
     lr: 2.0e-5
-    max_vram_mb: 12288
 
   # Matches 16GB cards — RTX 4080 / 4080 Super / 4070 Ti Super (primary dev GPU)
   prosumer_16g:
@@ -206,7 +206,6 @@ presets:
     batch_size: 1
     grad_accum: 4
     lr: 2.0e-5
-    max_vram_mb: 16384
 
   # Matches 24GB cards — RTX 3090 / 4090 / A10
   prosumer_24g:
@@ -214,7 +213,6 @@ presets:
     batch_size: 2
     grad_accum: 1
     lr: 1.5e-5
-    max_vram_mb: 24576
 
   # Matches NVIDIA A6000 (48GB), L40, L40S
   a6000:
@@ -222,7 +220,6 @@ presets:
     batch_size: 4
     grad_accum: 1
     lr: 1.0e-5
-    max_vram_mb: 49152
 
   # Matches A100 40/80GB, H100 PCIe
   a100:
@@ -230,7 +227,6 @@ presets:
     batch_size: 8
     grad_accum: 1
     lr: 8.0e-6
-    max_vram_mb: 81920
 
   # Matches H100 SXM, H200, B100, B200 (highest tier)
   h100:
@@ -238,7 +234,6 @@ presets:
     batch_size: 16
     grad_accum: 1
     lr: 5.0e-6
-    max_vram_mb: 999999
 
 # Training base candidates per capability tag (referenced by domain-profiles base.model).
 # floor_mb = approx QLoRA VRAM floor on the standard preset. Resolver picks the largest
