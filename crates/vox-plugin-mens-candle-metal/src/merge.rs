@@ -48,6 +48,97 @@ pub fn lora_delta_f32(
     ba.broadcast_mul(&s)
 }
 
+/// Read one LoRA factor for `logical` out of a trained adapter file.
+///
+/// `QLoraTrainer::save_adapter` dumps the varmap verbatim, and peft-rs registers
+/// each factor as a `candle_nn::Linear` weight under the layer's VarBuilder
+/// prefix — so the key on disk is `<logical>.lora_a.weight`, not the bare
+/// `<logical>.lora_a` this module originally looked up.
+///
+/// No fallback to the bare spelling: nothing in this workspace has ever written
+/// it, and the old lookup that expected it could never have succeeded on a real
+/// adapter. A tolerant fallback here would only let a future spelling drift pass
+/// silently, which is the failure mode this whole path exists to kill.
+fn adapter_factor(st: &SafeTensors<'_>, logical: &str, which: &str) -> anyhow::Result<Tensor> {
+    let key = format!("{logical}.{which}.weight");
+    let view = st
+        .tensor(&key)
+        .with_context(|| format!("adapter missing {key}"))?;
+    tensor_from_f32_view(view)
+}
+
+/// One adapter layer's trained LoRA factors, with the scaling they were trained
+/// under.
+///
+/// Deliberately the **factors**, not their product. `a` is `[rank, in]` and `b`
+/// is `[out, rank]`; the dense `B @ A` delta is `[out, in]` — the full F32 size
+/// of the base weight. Holding one product per layer resident would be roughly
+/// an entire F32 copy of every linear layer in the model at once (the LM head
+/// alone is ~4.7 GiB at 27B), which OOMs before a single token is served. The
+/// product is formed transiently in `fold_lora_delta` instead, one weight at a
+/// time, mirroring the streaming discipline `merge_qlora_into_base_subset`
+/// already has.
+pub struct LoraFactors {
+    pub a: Tensor,
+    pub b: Tensor,
+    pub alpha: f64,
+    pub rank: usize,
+}
+
+impl LoraFactors {
+    /// This layer's dense delta `(B @ A) * alpha/rank`. Caller drops it right
+    /// after adding it — never store the result.
+    pub fn delta(&self) -> candle_core::Result<Tensor> {
+        lora_delta_f32(&self.a, &self.b, self.alpha, self.rank)
+    }
+}
+
+/// Every adapter layer's trained LoRA factors, keyed by the BASE tensor key the
+/// delta must be added to, moved onto `device`.
+///
+/// This is the inference-side counterpart of `merge_qlora_into_base_subset`:
+/// same factors, same scaling, no merged file written, and — like it — no more
+/// than one dense delta alive at a time.
+pub fn lora_factors_by_base_key(
+    adapter_path: &Path,
+    meta: &PopuliAdapterManifestV3,
+    device: &Device,
+) -> anyhow::Result<HashMap<String, LoraFactors>> {
+    let bytes = std::fs::read(adapter_path)
+        .with_context(|| format!("read adapter {}", adapter_path.display()))?;
+    let st = SafeTensors::deserialize(&bytes).context("parse adapter safetensors")?;
+
+    let alpha = meta.alpha as f64;
+    let rank = meta.rank;
+    let mut out: HashMap<String, LoraFactors> = HashMap::new();
+
+    for logical in &meta.layer_order {
+        let Some(base_key) = meta.base_key_map.get(logical) else {
+            continue;
+        };
+        let a = adapter_factor(&st, logical, "lora_a")?;
+        let b = adapter_factor(&st, logical, "lora_b")?;
+        // Two adapter layers mapping to one base weight would make "which delta
+        // wins" silent and load-order dependent. Refuse instead of guessing.
+        if out.contains_key(base_key) {
+            anyhow::bail!(
+                "adapter base_key_map maps more than one layer onto base weight {base_key}; \
+                 refusing to guess which delta applies"
+            );
+        }
+        out.insert(
+            base_key.clone(),
+            LoraFactors {
+                a: a.to_device(device)?,
+                b: b.to_device(device)?,
+                alpha,
+                rank,
+            },
+        );
+    }
+    Ok(out)
+}
+
 /// Load a base shard tensor on CPU and normalize to f32.
 fn tensor_from_safetensors_view_f32(view: TensorView<'_>) -> anyhow::Result<Tensor> {
     let shape: Vec<usize> = view.shape().to_vec();
@@ -153,16 +244,8 @@ pub fn merge_qlora_into_base_subset(
         let Some(base_key) = meta.base_key_map.get(logical) else {
             continue;
         };
-        let a_key = format!("{logical}.lora_a");
-        let b_key = format!("{logical}.lora_b");
-        let tv_a = adapter_st
-            .tensor(&a_key)
-            .with_context(|| format!("adapter missing {a_key}"))?;
-        let tv_b = adapter_st
-            .tensor(&b_key)
-            .with_context(|| format!("adapter missing {b_key}"))?;
-        let t_a = tensor_from_f32_view(tv_a)?;
-        let t_b = tensor_from_f32_view(tv_b)?;
+        let t_a = adapter_factor(&adapter_st, logical, "lora_a")?;
+        let t_b = adapter_factor(&adapter_st, logical, "lora_b")?;
         let delta = lora_delta_f32(&t_a, &t_b, alpha, rank).context("lora delta")?;
 
         let w = load_f32_tensor_from_shards(base_paths, base_key.as_str())?;
@@ -251,6 +334,104 @@ mod tests {
         assert_eq!(d.dims(), &[4, 3]);
     }
 
+    /// Write a one-layer adapter under the key spelling `save_adapter` actually
+    /// produces (`<logical>.lora_{a,b}.weight`), plus its v3 manifest.
+    fn write_adapter_fixture(
+        dir: &Path,
+        logical: &str,
+        base_key: &str,
+        a: &Tensor,
+        b: &Tensor,
+        rank: usize,
+        alpha: usize,
+    ) -> (std::path::PathBuf, PopuliAdapterManifestV3) {
+        let to_bytes = |t: &Tensor| {
+            let mut v = Vec::new();
+            for x in t.flatten_all().unwrap().to_vec1::<f32>().unwrap() {
+                v.extend_from_slice(&x.to_le_bytes());
+            }
+            v
+        };
+        let (ab, bb) = (to_bytes(a), to_bytes(b));
+        let mut map: HashMap<String, TensorView<'_>> = HashMap::new();
+        map.insert(
+            format!("{logical}.lora_a.weight"),
+            TensorView::new(Dtype::F32, a.dims().to_vec(), ab.as_slice()).unwrap(),
+        );
+        map.insert(
+            format!("{logical}.lora_b.weight"),
+            TensorView::new(Dtype::F32, b.dims().to_vec(), bb.as_slice()).unwrap(),
+        );
+        let path = dir.join("candle_qlora_adapter.safetensors");
+        std::fs::write(&path, serialize(&map, None).unwrap()).unwrap();
+
+        let mut base_key_map = HashMap::new();
+        base_key_map.insert(logical.to_string(), base_key.to_string());
+        let meta = PopuliAdapterManifestV3::new(
+            crate::finetune_contract::AdapterMethod::Qlora,
+            crate::finetune_contract::BaseQuantMode::Nf4,
+            true,
+            base_key_map,
+            vec![logical.to_string()],
+            b.dim(0).unwrap(),
+            a.dim(1).unwrap(),
+            rank,
+            alpha,
+            None,
+            None,
+        );
+        (path, meta)
+    }
+
+    #[test]
+    fn deltas_are_keyed_by_base_key_and_scaled_by_alpha_over_rank() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dev = Device::Cpu;
+        let (rank, alpha, d, out) = (2usize, 8usize, 3usize, 4usize);
+        let a = Tensor::ones(&[rank, d], DType::F32, &dev).unwrap();
+        let b = Tensor::ones(&[out, rank], DType::F32, &dev).unwrap();
+        let (path, meta) =
+            write_adapter_fixture(dir.path(), "lm_head", "wte.weight", &a, &b, rank, alpha);
+
+        let factors = lora_factors_by_base_key(&path, &meta, &dev).expect("factors");
+        let f = factors
+            .get("wte.weight")
+            .expect("factors must be keyed by the BASE tensor key the model looks up");
+        // Stored as factors, not a dense product — that is the whole point.
+        assert_eq!(f.a.dims(), &[rank, d]);
+        assert_eq!(f.b.dims(), &[out, rank]);
+        let d0 = f.delta().expect("delta");
+        assert_eq!(d0.dims(), &[out, d]);
+        // (B @ A) = rank everywhere; scaled by alpha/rank => alpha.
+        for v in d0.flatten_all().unwrap().to_vec1::<f32>().unwrap() {
+            assert!((v - alpha as f32).abs() < 1e-5, "got {v}");
+        }
+    }
+
+    /// The regression this whole fix exists for: training writes
+    /// `<logical>.lora_a.weight`, and the old lookup asked for the bare
+    /// `<logical>.lora_a`, so every adapter read came back "missing".
+    #[test]
+    fn the_key_spelling_training_writes_is_the_one_we_read() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dev = Device::Cpu;
+        let a = Tensor::ones(&[2, 3], DType::F32, &dev).unwrap();
+        let b = Tensor::ones(&[4, 2], DType::F32, &dev).unwrap();
+        let (path, meta) = write_adapter_fixture(dir.path(), "lm_head", "wte.weight", &a, &b, 2, 4);
+
+        let bytes = std::fs::read(&path).unwrap();
+        let st = SafeTensors::deserialize(&bytes).unwrap();
+        assert!(
+            st.tensor("lm_head.lora_a").is_err(),
+            "fixture must use the on-disk spelling, not the fictitious bare one"
+        );
+        assert!(
+            adapter_factor(&st, "lm_head", "lora_a").is_ok(),
+            "the reader must use the spelling save_adapter actually writes"
+        );
+        assert!(lora_factors_by_base_key(&path, &meta, &dev).is_ok());
+    }
+
     #[test]
     fn merge_v2_applies_lm_head_delta() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -293,11 +474,11 @@ mod tests {
 
         let mut ad_map: HashMap<String, TensorView<'_>> = HashMap::new();
         ad_map.insert(
-            "lm_head.lora_a".into(),
+            "lm_head.lora_a.weight".into(),
             TensorView::new(Dtype::F32, vec![rank, d], ab.as_slice()).unwrap(),
         );
         ad_map.insert(
-            "lm_head.lora_b".into(),
+            "lm_head.lora_b.weight".into(),
             TensorView::new(Dtype::F32, vec![vocab, rank], bb.as_slice()).unwrap(),
         );
         let ad_path = dir.path().join("candle_qlora_adapter.safetensors");
