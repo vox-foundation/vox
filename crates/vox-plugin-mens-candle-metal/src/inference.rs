@@ -431,13 +431,16 @@ impl InferenceEngine {
         })
     }
 
-    /// Autoregressive generation loop with KV cache (greedy decoding, unconstrained).
+    /// Autoregressive generation loop (unconstrained).
     ///
-    /// Grammar-constrained decoding is not available in the plugin build.
     /// `prompt_json` is a JSON object with fields:
     ///   - `"prompt"`: string — the prompt text
+    ///   - `"system"`: string — optional trained system prompt
     ///   - `"max_tokens"`: integer (default 256)
-    ///   - `"temperature"`: float (default 1.0, currently unused — greedy)
+    ///   - `"temperature"`: float (default 1.0; `<= 0` forces greedy)
+    ///   - `"top_k"`: integer (default 0 = full vocabulary; `1` forces greedy)
+    ///   - `"output_mode"`: optional structured-output label — see
+    ///     `check_output_mode` for what this plugin does and does not enforce.
     pub fn generate_from_json(&mut self, prompt_json: &str) -> Result<String> {
         #[derive(serde::Deserialize)]
         struct PromptRequest {
@@ -448,9 +451,10 @@ impl InferenceEngine {
             max_tokens: usize,
             #[serde(default = "default_temperature")]
             temperature: f64,
-            // TODO(serving-defects): `top_k` and `output_mode` are still sent by
-            // worker.rs's inference_payload but not deserialized here, so greedy-vs-
-            // sampled decoding and structured-output enforcement remain unwired.
+            #[serde(default)]
+            top_k: usize,
+            #[serde(default)]
+            output_mode: Option<String>,
         }
         fn default_max_tokens() -> usize {
             256
@@ -462,9 +466,11 @@ impl InferenceEngine {
         let req: PromptRequest = serde_json::from_str(prompt_json)
             .map_err(|e| anyhow::anyhow!("parse prompt_json: {e}"))?;
 
+        check_output_mode(req.output_mode.as_deref())?;
+
         let prompt = assemble_prompt(req.system.as_deref(), &req.prompt);
 
-        let generated = self.generate(&prompt, req.max_tokens, req.temperature)?;
+        let generated = self.generate(&prompt, req.max_tokens, req.temperature, req.top_k)?;
 
         let out = serde_json::json!({
             "generated_text": generated,
@@ -474,7 +480,13 @@ impl InferenceEngine {
         Ok(out.to_string())
     }
 
-    fn generate(&mut self, prompt: &str, max_tokens: usize, _temperature: f64) -> Result<String> {
+    fn generate(
+        &mut self,
+        prompt: &str,
+        max_tokens: usize,
+        temperature: f64,
+        top_k: usize,
+    ) -> Result<String> {
         let mut tokens = self
             .tokenizer
             .encode(prompt, true)
@@ -483,8 +495,9 @@ impl InferenceEngine {
             .to_vec();
 
         let mut generated = String::new();
+        let mut rng = rand::thread_rng();
 
-        // Greedy decoding without KV cache — re-runs the full context each step.
+        // Decoding without KV cache — re-runs the full context each step.
         // KV-cache autoregressive generation requires forward_with_cache which is
         // available in vox-populi's candle_model_qwen but not in the plugin's
         // model.rs. Use full-context forward for correctness.
@@ -499,16 +512,7 @@ impl InferenceEngine {
             let logits = logits.narrow(0, seq.saturating_sub(1), 1)?.squeeze(0)?;
 
             let slice = logits.to_vec1::<f32>()?;
-
-            // Greedy decoding
-            let mut next_token = 0u32;
-            let mut max_val = f32::NEG_INFINITY;
-            for (idx, &v) in slice.iter().enumerate() {
-                if v > max_val {
-                    max_val = v;
-                    next_token = idx as u32;
-                }
-            }
+            let next_token = sample_next_token(&slice, temperature, top_k, &mut rng);
 
             if let Ok(char_str) = self.tokenizer.decode(&[next_token], false) {
                 generated.push_str(&char_str);
@@ -649,6 +653,83 @@ fn assert_adapter_fully_applied<'a>(
     Ok(())
 }
 
+/// Structured-output labels this plugin knows about.
+///
+/// This plugin has **no constrained decoder** — grammar-constrained generation
+/// is deliberately not linked in (see the module doc). For these three labels
+/// that is not a silent lie: `vox-ml-cli`'s serve handlers shape the prompt
+/// (`prompt_for_output_mode`) and then validate + repair-retry the reply
+/// (`validate_structured_output_with_reason`), so enforcement happens upstream
+/// and the label reaches us as advisory context. Any *other* value has nobody
+/// enforcing it, so it fails loudly here instead of being served as free-form
+/// text that the caller believes is structured.
+fn check_output_mode(output_mode: Option<&str>) -> Result<()> {
+    const ADVISORY: [&str; 3] = ["strict_json", "jsonl_records", "tool_args_json"];
+    match output_mode.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Ok(()),
+        Some(mode) if ADVISORY.contains(&mode) => Ok(()),
+        Some(mode) => anyhow::bail!(
+            "unsupported output_mode {mode:?}: this backend does not do constrained decoding, \
+             and only {ADVISORY:?} are prompt-shaped and validated by the serving layer. \
+             Next: drop output_mode, or use one of those labels."
+        ),
+    }
+}
+
+/// Pick the next token: greedy unless both a positive temperature and a top-k
+/// wider than one ask for sampling.
+///
+/// Greedy is the floor, not a special case — `temperature <= 0`, `top_k == 1`,
+/// and a degenerate logit vector all land there, so a caller that does not opt
+/// into sampling keeps the deterministic behavior this path has always had.
+fn sample_next_token(
+    logits: &[f32],
+    temperature: f64,
+    top_k: usize,
+    rng: &mut impl rand::Rng,
+) -> u32 {
+    let argmax = |v: &[f32]| -> u32 {
+        v.iter()
+            .enumerate()
+            .fold((0u32, f32::NEG_INFINITY), |(bi, bv), (i, &x)| {
+                if x > bv { (i as u32, x) } else { (bi, bv) }
+            })
+            .0
+    };
+    if temperature <= 0.0 || top_k == 1 || logits.is_empty() {
+        return argmax(logits);
+    }
+
+    let mut ranked: Vec<(usize, f32)> = logits.iter().copied().enumerate().collect();
+    ranked.sort_unstable_by(|a, b| b.1.total_cmp(&a.1));
+    if top_k > 0 {
+        ranked.truncate(top_k);
+    }
+
+    // Softmax over the kept logits, shifted by the max for numerical stability.
+    let max = ranked[0].1;
+    let mut probs: Vec<f64> = ranked
+        .iter()
+        .map(|(_, l)| (((*l - max) as f64) / temperature).exp())
+        .collect();
+    let sum: f64 = probs.iter().sum();
+    if !sum.is_finite() || sum <= 0.0 {
+        return argmax(logits);
+    }
+    for p in &mut probs {
+        *p /= sum;
+    }
+
+    let mut draw = rng.r#gen::<f64>();
+    for (i, p) in probs.iter().enumerate() {
+        draw -= p;
+        if draw <= 0.0 {
+            return ranked[i].0 as u32;
+        }
+    }
+    ranked[0].0 as u32
+}
+
 fn assemble_prompt(system: Option<&str>, prompt: &str) -> String {
     match system {
         Some(system) if !system.is_empty() => format!("{system}\n\n{prompt}"),
@@ -668,7 +749,9 @@ pub fn run(model_dir: &str, prompt_json: &str) -> Result<String> {
 mod tests {
     use super::adapter_deltas_must_be_folded;
     use super::assemble_prompt;
+    use super::check_output_mode;
     use super::resolve_adapter_manifest_path;
+    use super::sample_next_token;
     use super::weight_sources;
 
     /// A tiny `LoraFactors` whose delta is `alpha` everywhere.
@@ -933,6 +1016,34 @@ mod tests {
             !adapter_deltas_must_be_folded(d.path()),
             "merged.safetensors already contains W + BA·alpha/r — folding again doubles it"
         );
+    }
+
+    #[test]
+    fn top_k_of_one_and_zero_temperature_stay_greedy() {
+        let mut rng = rand::thread_rng();
+        let logits = [0.1f32, 9.0, 0.2, 0.3];
+        assert_eq!(sample_next_token(&logits, 1.0, 1, &mut rng), 1);
+        assert_eq!(sample_next_token(&logits, 0.0, 40, &mut rng), 1);
+    }
+
+    #[test]
+    fn top_k_confines_sampling_to_the_k_best_logits() {
+        let mut rng = rand::thread_rng();
+        // Index 3 is the runner-up; index 0 and 2 must never be drawn at k=2.
+        let logits = [0.0f32, 5.0, 0.0, 4.9];
+        for _ in 0..200 {
+            let t = sample_next_token(&logits, 1.0, 2, &mut rng);
+            assert!(t == 1 || t == 3, "top_k=2 drew outside the top 2: {t}");
+        }
+    }
+
+    #[test]
+    fn an_output_mode_nobody_enforces_is_an_error_not_free_text() {
+        assert!(check_output_mode(None).is_ok());
+        assert!(check_output_mode(Some("")).is_ok());
+        assert!(check_output_mode(Some("strict_json")).is_ok());
+        let err = check_output_mode(Some("yaml")).expect_err("must not silently serve free text");
+        assert!(err.to_string().contains("constrained decoding"), "{err}");
     }
 
     #[test]
