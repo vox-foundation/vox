@@ -2,10 +2,142 @@ import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { CommandCardsView, SurfaceCard } from '../CommandCardsView';
 import { MensServePanel } from './MensServePanel';
+import { Glass } from '../../ui/Glass';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import type { Toast } from '../../../types/tauri';
 
 interface MensTrainingViewProps {
   pushToast: (item: Toast) => void;
+}
+
+interface GateDto {
+  name: string;
+  passed: boolean;
+  message: string;
+}
+
+interface GateReceiptDto {
+  overall_passed: boolean;
+  substantive_gate_count: number;
+  failed_gates: string[];
+  gates: GateDto[];
+}
+
+interface CollateralDamageReportDto {
+  status: string;
+  failed_on: string | null;
+}
+
+interface EvalLocalReportDto {
+  anti_stub_task_success: number;
+  pass_rate_at_k: number;
+  placeholder_event_rate: number;
+}
+
+interface MensRunReportsDto {
+  eval_local: EvalLocalReportDto | null;
+  gate_receipt: GateReceiptDto | null;
+  collateral_damage: CollateralDamageReportDto | null;
+}
+
+/**
+ * Visual tone for the gate receipt line. A receipt that passed with zero
+ * substantive gates (Task A2's `assert_serve_preconditions` counting — see
+ * `crates/vox-gui/src/commands/mens_run_reports.rs`) is not evidence of
+ * anything and must never render the same as a real pass, so it gets its
+ * own "warn" tone rather than falling through to "pass".
+ */
+function gateTone(receipt: GateReceiptDto): 'pass' | 'warn' | 'fail' {
+  if (!receipt.overall_passed) return 'fail';
+  if (receipt.substantive_gate_count === 0) return 'warn';
+  return 'pass';
+}
+
+const TONE_CLASS: Record<'pass' | 'warn' | 'fail', string> = {
+  pass: 'text-emerald-400',
+  warn: 'text-amber-400',
+  fail: 'text-red-400',
+};
+
+/**
+ * Reads and renders the MENS eval/gate report JSON files a previous,
+ * separately-triggered `mens eval-local` / `mens eval-gate` /
+ * `mens eval-collateral-damage` run already wrote to `runDir` — via
+ * `mens_run_reports` (`crates/vox-gui/src/commands/mens_run_reports.rs`).
+ * Deliberately NOT a `CommandCardsView` card: those run on every mount, and
+ * the eval commands themselves are expensive real GPU runs. This only reads
+ * static files, on demand, when the user names a run directory.
+ */
+function MensRunReportsPanel({ pushToast }: { pushToast: (item: Toast) => void }) {
+  const [runDir, setRunDir] = useState('');
+  const [reports, setReports] = useState<MensRunReportsDto | null>(null);
+
+  const loadReports = async (dir: string) => {
+    if (!dir.trim()) {
+      setReports(null);
+      return;
+    }
+    try {
+      const result = await invoke<MensRunReportsDto>('mens_run_reports', { runDir: dir });
+      setReports(result);
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'mens run reports failed', body: sanitizeErrorForToast(err) });
+    }
+  };
+
+  return (
+    <Glass className="p-4 space-y-3">
+      <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">
+        Run Reports
+      </div>
+      <label className="flex flex-col gap-1 text-[10px] uppercase tracking-widest text-text-muted">
+        Run directory
+        <input
+          aria-label="Run directory"
+          type="text"
+          value={runDir}
+          onChange={(e) => setRunDir(e.target.value)}
+          onBlur={() => loadReports(runDir)}
+          placeholder="/path/to/mens/run/dir"
+          className="rounded-lg border border-border-subtle bg-transparent px-2 py-1.5 font-mono text-xs text-text-primary"
+        />
+      </label>
+      {reports && (
+        <div className="space-y-1 font-mono text-[11px]">
+          {reports.gate_receipt ? (
+            (() => {
+              const tone = gateTone(reports.gate_receipt);
+              return (
+                <div data-testid="gate-receipt-status" className={TONE_CLASS[tone]}>
+                  {tone === 'fail' && 'Gate FAILED'}
+                  {tone === 'warn' && 'Gate passed, but 0 substantive gates — not real evidence'}
+                  {tone === 'pass' && 'Gate passed'}
+                  {' '}({reports.gate_receipt.substantive_gate_count} substantive gates)
+                  {reports.gate_receipt.failed_gates.length > 0 && (
+                    <span> — failed: {reports.gate_receipt.failed_gates.join(', ')}</span>
+                  )}
+                </div>
+              );
+            })()
+          ) : (
+            <div className="text-text-muted">No gate_receipt.json in this run dir</div>
+          )}
+          {reports.collateral_damage && (
+            <div className={reports.collateral_damage.status === 'fail' ? TONE_CLASS.fail : TONE_CLASS.pass}>
+              {reports.collateral_damage.status === 'fail'
+                ? `Collateral damage FAILED — ${reports.collateral_damage.failed_on ?? 'unknown benchmark'}`
+                : 'Collateral damage OK'}
+            </div>
+          )}
+          {reports.eval_local && (
+            <div className="text-text-muted">
+              eval-local anti-stub {(reports.eval_local.anti_stub_task_success * 100).toFixed(0)}%
+            </div>
+          )}
+        </div>
+      )}
+    </Glass>
+  );
 }
 
 /**
@@ -74,6 +206,7 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
   return (
     <div className="space-y-4">
       <MensServePanel pushToast={pushToast} />
+      <MensRunReportsPanel pushToast={pushToast} />
       <CommandCardsView
         title="Vox Mens"
         subtitle="ML training & local models"

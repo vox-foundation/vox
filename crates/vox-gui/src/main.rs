@@ -242,6 +242,7 @@ async fn main() {
             commands::mens_serve::mens_serve_status,
             commands::mens_serve::mens_serve_start,
             commands::mens_serve::mens_serve_stop,
+            commands::mens_run_reports::mens_run_reports,
             commands::docs_index::vox_docs_index,
             commands::docs_index::read_doc_markdown,
             commands::orchestrator::get_orchestrator_status,
