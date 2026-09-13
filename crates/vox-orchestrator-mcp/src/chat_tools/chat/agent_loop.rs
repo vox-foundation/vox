@@ -1648,6 +1648,7 @@ mod tests {
     /// to the NON-TOOL mcp_infer_completion path -- an agentic turn silently
     /// loses its tools with no error anywhere.
     #[test]
+    #[allow(unsafe_code)] // test-only env cleanup under the crate-wide lock; no cross-test hazard
     fn ollama_keeps_tool_calling_when_the_url_secret_is_unset() {
         let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
         // SAFETY: restored below; no other test here reads these keys.
