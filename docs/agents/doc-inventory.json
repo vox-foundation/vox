@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-12T02:56:15.973Z",
+  "generated_at": "2026-09-12T23:58:55.156Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -341,6 +341,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-09-11-2-running-elsewhere.md",
+      "kind": "markdown",
+      "lines_total": 2266,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 70,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-06-12-vox-console-discovery-engine.md",
       "kind": "markdown",
       "lines_total": 2216,
@@ -572,6 +583,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md",
+      "kind": "markdown",
+      "lines_total": 1793,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 94,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-07-16-axis-gui-remediation-phase1-bugfixes.md",
       "kind": "markdown",
       "lines_total": 1790,
@@ -579,17 +601,6 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 32,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md",
-      "kind": "markdown",
-      "lines_total": 1789,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 94,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -997,6 +1008,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 44,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-11-3-cloud-training.md",
+      "kind": "markdown",
+      "lines_total": 1322,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 36,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -1562,6 +1584,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/superpowers/plans/2026-09-12-mens-end-to-end-completion.md",
+      "kind": "markdown",
+      "lines_total": 1008,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 57,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/telemetry/2026-05-09-telemetry-phase-d.md",
       "kind": "markdown",
       "lines_total": 1005,
@@ -1619,7 +1652,7 @@
     {
       "path": "docs/src/reference/cli.md",
       "kind": "markdown",
-      "lines_total": 983,
+      "lines_total": 985,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
@@ -1773,7 +1806,7 @@
     {
       "path": "docs/src/architecture/mac-hub-qwen3-quantization-pipeline-decision-2026-09-05.md",
       "kind": "markdown",
-      "lines_total": 923,
+      "lines_total": 926,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
@@ -4136,6 +4169,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/where-things-live.md",
+      "kind": "markdown",
+      "lines_total": 430,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 19,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/plugin-system-redesign-sp3-plan-2026.md",
       "kind": "markdown",
       "lines_total": 429,
@@ -4143,17 +4187,6 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 23,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/architecture/where-things-live.md",
-      "kind": "markdown",
-      "lines_total": 429,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 19,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -5643,6 +5676,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/mens-m4-live-demo-2026-09-12.md",
+      "kind": "markdown",
+      "lines_total": 312,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 12,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/superpowers/plans/2026-06-14-guardrail-capability-plan.md",
       "kind": "markdown",
       "lines_total": 310,
@@ -6310,6 +6354,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 28,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/architecture/mens-program-status-and-requirements-audit-2026-09-12.md",
+      "kind": "markdown",
+      "lines_total": 271,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 9,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -7260,6 +7315,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/architecture/mens-cloud-training-economics-2026-09-11.md",
+      "kind": "markdown",
+      "lines_total": 223,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 12,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/gui-native-roadmap-status-2026.md",
       "kind": "markdown",
       "lines_total": 222,
@@ -8103,6 +8169,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 9,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/architecture/lora-adapter-serving-findings-2026.md",
+      "kind": "markdown",
+      "lines_total": 182,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 10,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -11902,6 +11979,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/reference/mens-serving-ssot.md",
+      "kind": "markdown",
+      "lines_total": 68,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 8,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/_screenshots/research-sources.md",
       "kind": "markdown",
       "lines_total": 67,
@@ -11997,17 +12085,6 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 10,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/reference/mens-serving-ssot.md",
-      "kind": "markdown",
-      "lines_total": 66,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 8,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -12848,6 +12925,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs",
+      "kind": "rust",
+      "lines_total": 2189,
+      "lines_triple_slash": 318,
+      "lines_inner_doc": 21,
+      "lines_plain_comment": 177,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/src/hir/nodes/decl.rs",
       "kind": "rust",
       "lines_total": 1193,
@@ -12865,17 +12953,6 @@
       "lines_triple_slash": 295,
       "lines_inner_doc": 4,
       "lines_plain_comment": 142,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs",
-      "kind": "rust",
-      "lines_total": 1751,
-      "lines_triple_slash": 248,
-      "lines_inner_doc": 21,
-      "lines_plain_comment": 136,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -12936,6 +13013,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-ml-cli/src/commands/mens/populi/action_populi_enum.rs",
+      "kind": "rust",
+      "lines_total": 620,
+      "lines_triple_slash": 212,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-arch-check/src/main.rs",
       "kind": "rust",
       "lines_total": 2300,
@@ -12969,12 +13057,12 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-ml-cli/src/commands/mens/populi/action_populi_enum.rs",
+      "path": "crates/vox-populi/src/mens/tensor/memory_model.rs",
       "kind": "rust",
-      "lines_total": 585,
-      "lines_triple_slash": 189,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
+      "lines_total": 1126,
+      "lines_triple_slash": 154,
+      "lines_inner_doc": 31,
+      "lines_plain_comment": 55,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13035,6 +13123,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-plugin-mens-candle-metal/src/model.rs",
+      "kind": "rust",
+      "lines_total": 1614,
+      "lines_triple_slash": 121,
+      "lines_inner_doc": 35,
+      "lines_plain_comment": 67,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-populi/src/transport/mod.rs",
       "kind": "rust",
       "lines_total": 920,
@@ -13074,6 +13173,17 @@
       "lines_triple_slash": 152,
       "lines_inner_doc": 0,
       "lines_plain_comment": 190,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-metal/src/inference.rs",
+      "kind": "rust",
+      "lines_total": 1390,
+      "lines_triple_slash": 143,
+      "lines_inner_doc": 9,
+      "lines_plain_comment": 116,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13156,6 +13266,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-ml-cli/src/commands/schola/train/gpu.rs",
+      "kind": "rust",
+      "lines_total": 1115,
+      "lines_triple_slash": 142,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 82,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/src/hir/nodes/stmt_expr.rs",
       "kind": "rust",
       "lines_total": 396,
@@ -13217,17 +13338,6 @@
       "lines_triple_slash": 133,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/schola/train/gpu.rs",
-      "kind": "rust",
-      "lines_total": 1055,
-      "lines_triple_slash": 130,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 71,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13387,6 +13497,39 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-ml-cli/src/commands/mens/eval_local.rs",
+      "kind": "rust",
+      "lines_total": 1210,
+      "lines_triple_slash": 117,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 90,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-populi/src/mens/cloud/mod.rs",
+      "kind": "rust",
+      "lines_total": 478,
+      "lines_triple_slash": 92,
+      "lines_inner_doc": 26,
+      "lines_plain_comment": 9,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-cuda/src/inference.rs",
+      "kind": "rust",
+      "lines_total": 1157,
+      "lines_triple_slash": 108,
+      "lines_inner_doc": 9,
+      "lines_plain_comment": 78,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/src/parser/descent/mod.rs",
       "kind": "rust",
       "lines_total": 1179,
@@ -13404,17 +13547,6 @@
       "lines_triple_slash": 85,
       "lines_inner_doc": 30,
       "lines_plain_comment": 18,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-populi/src/mens/cloud/mod.rs",
-      "kind": "rust",
-      "lines_total": 455,
-      "lines_triple_slash": 89,
-      "lines_inner_doc": 26,
-      "lines_plain_comment": 9,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13497,17 +13629,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-metal/src/model.rs",
-      "kind": "rust",
-      "lines_total": 1196,
-      "lines_triple_slash": 81,
-      "lines_inner_doc": 29,
-      "lines_plain_comment": 47,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-cli/src/commands/harness/eval.rs",
       "kind": "rust",
       "lines_total": 754,
@@ -13519,20 +13640,9 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-populi/src/mens/tensor/memory_model.rs",
-      "kind": "rust",
-      "lines_total": 711,
-      "lines_triple_slash": 78,
-      "lines_inner_doc": 31,
-      "lines_plain_comment": 30,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-populi/src/mens/cloud/pipeline_dispatch.rs",
       "kind": "rust",
-      "lines_total": 1175,
+      "lines_total": 1158,
       "lines_triple_slash": 102,
       "lines_inner_doc": 6,
       "lines_plain_comment": 61,
@@ -13624,6 +13734,17 @@
       "lines_triple_slash": 95,
       "lines_inner_doc": 9,
       "lines_plain_comment": 49,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-populi/src/mens/cloud/resolver.rs",
+      "kind": "rust",
+      "lines_total": 721,
+      "lines_triple_slash": 99,
+      "lines_inner_doc": 4,
+      "lines_plain_comment": 25,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -13772,6 +13893,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-ml-cli/src/commands/mens/eval_gate/leakage.rs",
+      "kind": "rust",
+      "lines_total": 690,
+      "lines_triple_slash": 84,
+      "lines_inner_doc": 14,
+      "lines_plain_comment": 41,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-vcs/src/jj_actor.rs",
       "kind": "rust",
       "lines_total": 576,
@@ -13882,6 +14014,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-populi/src/mens/tensor/preset_schema.rs",
+      "kind": "rust",
+      "lines_total": 1448,
+      "lines_triple_slash": 89,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 158,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-scientia/src/review/mod.rs",
       "kind": "rust",
       "lines_total": 480,
@@ -13899,6 +14042,17 @@
       "lines_triple_slash": 67,
       "lines_inner_doc": 22,
       "lines_plain_comment": 39,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/schola/merge_qlora.rs",
+      "kind": "rust",
+      "lines_total": 614,
+      "lines_triple_slash": 83,
+      "lines_inner_doc": 6,
+      "lines_plain_comment": 55,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14003,17 +14157,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-populi/src/mens/tensor/preset_schema.rs",
-      "kind": "rust",
-      "lines_total": 1323,
-      "lines_triple_slash": 84,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 147,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-ml-cli/src/commands/mens/plugin_heal.rs",
       "kind": "rust",
       "lines_total": 187,
@@ -14102,12 +14245,12 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs",
+      "path": "crates/vox-populi/src/mens/tensor/spoke_base_resolver.rs",
       "kind": "rust",
-      "lines_total": 1292,
-      "lines_triple_slash": 73,
-      "lines_inner_doc": 7,
-      "lines_plain_comment": 69,
+      "lines_total": 764,
+      "lines_triple_slash": 77,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 52,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14152,6 +14295,17 @@
       "lines_triple_slash": 80,
       "lines_inner_doc": 0,
       "lines_plain_comment": 5,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs",
+      "kind": "rust",
+      "lines_total": 1238,
+      "lines_triple_slash": 72,
+      "lines_inner_doc": 7,
+      "lines_plain_comment": 89,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14256,6 +14410,28 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-populi/src/mens/hub.rs",
+      "kind": "rust",
+      "lines_total": 623,
+      "lines_triple_slash": 68,
+      "lines_inner_doc": 8,
+      "lines_plain_comment": 45,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/src/commands/mens_serve.rs",
+      "kind": "rust",
+      "lines_total": 413,
+      "lines_triple_slash": 53,
+      "lines_inner_doc": 23,
+      "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/grounding.rs",
       "kind": "rust",
       "lines_total": 1009,
@@ -14295,6 +14471,17 @@
       "lines_triple_slash": 23,
       "lines_inner_doc": 51,
       "lines_plain_comment": 20,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/src/commands/models.rs",
+      "kind": "rust",
+      "lines_total": 856,
+      "lines_triple_slash": 72,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 18,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14526,6 +14713,17 @@
       "lines_triple_slash": 58,
       "lines_inner_doc": 10,
       "lines_plain_comment": 19,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-quantize/src/write.rs",
+      "kind": "rust",
+      "lines_total": 434,
+      "lines_triple_slash": 63,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 7,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -14872,6 +15070,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-quantize/src/read.rs",
+      "kind": "rust",
+      "lines_total": 417,
+      "lines_triple_slash": 61,
+      "lines_inner_doc": 2,
+      "lines_plain_comment": 13,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/models/spec.rs",
       "kind": "rust",
       "lines_total": 395,
@@ -14982,17 +15191,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-populi/src/mens/hub.rs",
-      "kind": "rust",
-      "lines_total": 530,
-      "lines_triple_slash": 52,
-      "lines_inner_doc": 8,
-      "lines_plain_comment": 36,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-actor-runtime/src/mailbox.rs",
       "kind": "rust",
       "lines_total": 226,
@@ -15021,17 +15219,6 @@
       "lines_triple_slash": 50,
       "lines_inner_doc": 9,
       "lines_plain_comment": 21,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/src/commands/models.rs",
-      "kind": "rust",
-      "lines_total": 811,
-      "lines_triple_slash": 58,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 12,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15224,6 +15411,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-populi/src/mens/cloud/offer_filter.rs",
+      "kind": "rust",
+      "lines_total": 235,
+      "lines_triple_slash": 51,
+      "lines_inner_doc": 6,
+      "lines_plain_comment": 6,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator-types/src/socrates_policy/policy_types.rs",
       "kind": "rust",
       "lines_total": 168,
@@ -15312,12 +15510,34 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-plugin-mens-candle-core/src/config.rs",
+      "kind": "rust",
+      "lines_total": 272,
+      "lines_triple_slash": 49,
+      "lines_inner_doc": 7,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator-mcp/src/pending_approvals.rs",
       "kind": "rust",
       "lines_total": 181,
       "lines_triple_slash": 37,
       "lines_inner_doc": 19,
       "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs",
+      "kind": "rust",
+      "lines_total": 1012,
+      "lines_triple_slash": 54,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 86,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15362,17 +15582,6 @@
       "lines_triple_slash": 40,
       "lines_inner_doc": 15,
       "lines_plain_comment": 5,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/config.rs",
-      "kind": "rust",
-      "lines_total": 247,
-      "lines_triple_slash": 49,
-      "lines_inner_doc": 6,
-      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15466,17 +15675,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/inference.rs",
-      "kind": "rust",
-      "lines_total": 711,
-      "lines_triple_slash": 44,
-      "lines_inner_doc": 9,
-      "lines_plain_comment": 34,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator-mcp/tests/pending_approvals_tests.rs",
       "kind": "rust",
       "lines_total": 663,
@@ -15521,6 +15719,28 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-actor-runtime/src/mens.rs",
+      "kind": "rust",
+      "lines_total": 328,
+      "lines_triple_slash": 43,
+      "lines_inner_doc": 10,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-populi/src/mens/hardware/macos_metal.rs",
+      "kind": "rust",
+      "lines_total": 299,
+      "lines_triple_slash": 53,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 9,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/occ.rs",
       "kind": "rust",
       "lines_total": 286,
@@ -15532,18 +15752,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/checkpoint_state.rs",
-      "kind": "rust",
-      "lines_total": 236,
-      "lines_triple_slash": 30,
-      "lines_inner_doc": 23,
-      "lines_plain_comment": 3,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/checkpoint_state.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs",
       "kind": "rust",
       "lines_total": 236,
       "lines_triple_slash": 30,
@@ -15571,17 +15780,6 @@
       "lines_triple_slash": 51,
       "lines_inner_doc": 1,
       "lines_plain_comment": 50,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs",
-      "kind": "rust",
-      "lines_total": 1247,
-      "lines_triple_slash": 45,
-      "lines_inner_doc": 7,
-      "lines_plain_comment": 97,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -15620,23 +15818,12 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-populi/src/mens/cloud/resolver.rs",
+      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs",
       "kind": "rust",
-      "lines_total": 478,
-      "lines_triple_slash": 48,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 17,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/config.rs",
-      "kind": "rust",
-      "lines_total": 260,
-      "lines_triple_slash": 46,
-      "lines_inner_doc": 6,
-      "lines_plain_comment": 0,
+      "lines_total": 1190,
+      "lines_triple_slash": 44,
+      "lines_inner_doc": 7,
+      "lines_plain_comment": 114,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16027,6 +16214,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-plugin-mens-candle-core/src/merge.rs",
+      "kind": "rust",
+      "lines_total": 516,
+      "lines_triple_slash": 43,
+      "lines_inner_doc": 5,
+      "lines_plain_comment": 6,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-db/src/learning.rs",
       "kind": "rust",
       "lines_total": 485,
@@ -16269,23 +16467,23 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-cli/src/main.rs",
+      "kind": "rust",
+      "lines_total": 162,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 47,
+      "lines_plain_comment": 28,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/populi_federation.rs",
       "kind": "rust",
       "lines_total": 155,
       "lines_triple_slash": 44,
       "lines_inner_doc": 3,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-cli/src/main.rs",
-      "kind": "rust",
-      "lines_total": 149,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 47,
-      "lines_plain_comment": 20,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16319,17 +16517,6 @@
       "lines_triple_slash": 41,
       "lines_inner_doc": 5,
       "lines_plain_comment": 71,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-populi/src/mens/tensor/spoke_base_resolver.rs",
-      "kind": "rust",
-      "lines_total": 606,
-      "lines_triple_slash": 43,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 46,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16385,17 +16572,6 @@
       "lines_triple_slash": 31,
       "lines_inner_doc": 15,
       "lines_plain_comment": 10,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-actor-runtime/src/mens.rs",
-      "kind": "rust",
-      "lines_total": 295,
-      "lines_triple_slash": 36,
-      "lines_inner_doc": 10,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16500,17 +16676,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-quantize/src/policy.rs",
-      "kind": "rust",
-      "lines_total": 337,
-      "lines_triple_slash": 43,
-      "lines_inner_doc": 2,
-      "lines_plain_comment": 24,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-mesh-transport/src/endpoint.rs",
       "kind": "rust",
       "lines_total": 332,
@@ -16550,6 +16715,17 @@
       "lines_triple_slash": 33,
       "lines_inner_doc": 12,
       "lines_plain_comment": 13,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-core/src/weight_resolution.rs",
+      "kind": "rust",
+      "lines_total": 194,
+      "lines_triple_slash": 30,
+      "lines_inner_doc": 15,
+      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16654,12 +16830,34 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-populi/src/mens/tensor/accel_budget.rs",
+      "kind": "rust",
+      "lines_total": 290,
+      "lines_triple_slash": 43,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 16,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-gui/src/commands/oauth.rs",
       "kind": "rust",
       "lines_total": 275,
       "lines_triple_slash": 43,
       "lines_inner_doc": 1,
       "lines_plain_comment": 14,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/mens/cloud_estimate.rs",
+      "kind": "rust",
+      "lines_total": 152,
+      "lines_triple_slash": 37,
+      "lines_inner_doc": 7,
+      "lines_plain_comment": 5,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -16786,6 +16984,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-code-audit/src/review/providers.rs",
+      "kind": "rust",
+      "lines_total": 229,
+      "lines_triple_slash": 43,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 11,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-plugin-populi-mesh/src/transport/envelope.rs",
       "kind": "rust",
       "lines_total": 180,
@@ -16836,17 +17045,6 @@
       "lines_triple_slash": 33,
       "lines_inner_doc": 9,
       "lines_plain_comment": 14,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/inference.rs",
-      "kind": "rust",
-      "lines_total": 605,
-      "lines_triple_slash": 33,
-      "lines_inner_doc": 9,
-      "lines_plain_comment": 21,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -17116,6 +17314,28 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-plugin-mens-candle-core/src/inference_device.rs",
+      "kind": "rust",
+      "lines_total": 155,
+      "lines_triple_slash": 23,
+      "lines_inner_doc": 18,
+      "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/mens/populi/mens_tail_subcommands.rs",
+      "kind": "rust",
+      "lines_total": 110,
+      "lines_triple_slash": 40,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator-mcp/src/gamify_tools.rs",
       "kind": "rust",
       "lines_total": 803,
@@ -17276,6 +17496,17 @@
       "lines_triple_slash": 25,
       "lines_inner_doc": 14,
       "lines_plain_comment": 19,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-quantize/src/policy.rs",
+      "kind": "rust",
+      "lines_total": 417,
+      "lines_triple_slash": 37,
+      "lines_inner_doc": 2,
+      "lines_plain_comment": 17,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -17446,23 +17677,23 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-ml-cli/src/commands/mens/eval_gate/leakage.rs",
-      "kind": "rust",
-      "lines_total": 364,
-      "lines_triple_slash": 35,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 27,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-research-shim/src/research/gate.rs",
       "kind": "rust",
       "lines_total": 362,
       "lines_triple_slash": 32,
       "lines_inner_doc": 6,
       "lines_plain_comment": 21,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/mens/probe.rs",
+      "kind": "rust",
+      "lines_total": 343,
+      "lines_triple_slash": 37,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 20,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -17529,17 +17760,6 @@
       "lines_triple_slash": 30,
       "lines_inner_doc": 8,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/device.rs",
-      "kind": "rust",
-      "lines_total": 152,
-      "lines_triple_slash": 29,
-      "lines_inner_doc": 9,
-      "lines_plain_comment": 6,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -17666,17 +17886,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-code-audit/src/review/providers.rs",
-      "kind": "rust",
-      "lines_total": 202,
-      "lines_triple_slash": 37,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 5,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-gamify/src/combo.rs",
       "kind": "rust",
       "lines_total": 202,
@@ -17726,6 +17935,17 @@
       "lines_total": 87,
       "lines_triple_slash": 23,
       "lines_inner_doc": 14,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-core/src/lib.rs",
+      "kind": "rust",
+      "lines_total": 62,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 37,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -17793,6 +18013,17 @@
       "lines_triple_slash": 36,
       "lines_inner_doc": 0,
       "lines_plain_comment": 8,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/ai/serve/handlers.rs",
+      "kind": "rust",
+      "lines_total": 603,
+      "lines_triple_slash": 35,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 9,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18007,6 +18238,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-ml-cli/src/commands/ai/serve/schema.rs",
+      "kind": "rust",
+      "lines_total": 199,
+      "lines_triple_slash": 35,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 13,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-gamify/src/feedback.rs",
       "kind": "rust",
       "lines_total": 196,
@@ -18024,6 +18266,17 @@
       "lines_triple_slash": 33,
       "lines_inner_doc": 3,
       "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-cuda/src/device.rs",
+      "kind": "rust",
+      "lines_total": 134,
+      "lines_triple_slash": 23,
+      "lines_inner_doc": 13,
+      "lines_plain_comment": 6,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18057,17 +18310,6 @@
       "lines_triple_slash": 35,
       "lines_inner_doc": 0,
       "lines_plain_comment": 60,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs",
-      "kind": "rust",
-      "lines_total": 891,
-      "lines_triple_slash": 34,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 65,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -18414,18 +18656,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/qlora_preflight.rs",
-      "kind": "rust",
-      "lines_total": 720,
-      "lines_triple_slash": 15,
-      "lines_inner_doc": 18,
-      "lines_plain_comment": 7,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/qlora_preflight.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/qlora_preflight.rs",
       "kind": "rust",
       "lines_total": 720,
       "lines_triple_slash": 15,
@@ -18860,6 +19091,17 @@
       "lines_triple_slash": 31,
       "lines_inner_doc": 0,
       "lines_plain_comment": 21,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/mens/populi/dispatch.rs",
+      "kind": "rust",
+      "lines_total": 959,
+      "lines_triple_slash": 30,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 70,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -19756,17 +19998,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-ml-cli/src/commands/mens/populi/mens_tail_subcommands.rs",
-      "kind": "rust",
-      "lines_total": 79,
-      "lines_triple_slash": 28,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-gamify/src/achievement/types.rs",
       "kind": "rust",
       "lines_total": 77,
@@ -19905,6 +20136,28 @@
       "lines_triple_slash": 20,
       "lines_inner_doc": 8,
       "lines_plain_comment": 11,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/ai/serve/mod.rs",
+      "kind": "rust",
+      "lines_total": 273,
+      "lines_triple_slash": 5,
+      "lines_inner_doc": 23,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/ai/serve/worker.rs",
+      "kind": "rust",
+      "lines_total": 273,
+      "lines_triple_slash": 27,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -20229,6 +20482,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-populi/src/mens/cloud/vast.rs",
+      "kind": "rust",
+      "lines_total": 447,
+      "lines_triple_slash": 14,
+      "lines_inner_doc": 13,
+      "lines_plain_comment": 15,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-tauri-codegen/src/lib.rs",
       "kind": "rust",
       "lines_total": 439,
@@ -20246,17 +20510,6 @@
       "lines_triple_slash": 18,
       "lines_inner_doc": 9,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-populi/src/mens/cloud/vast.rs",
-      "kind": "rust",
-      "lines_total": 397,
-      "lines_triple_slash": 14,
-      "lines_inner_doc": 13,
-      "lines_plain_comment": 10,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -20517,10 +20770,10 @@
     {
       "path": "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
       "kind": "rust",
-      "lines_total": 1460,
+      "lines_total": 1449,
       "lines_triple_slash": 26,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 44,
+      "lines_plain_comment": 47,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -20653,6 +20906,17 @@
       "lines_triple_slash": 21,
       "lines_inner_doc": 5,
       "lines_plain_comment": 13,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-quantize/src/recombine.rs",
+      "kind": "rust",
+      "lines_total": 425,
+      "lines_triple_slash": 26,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 20,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -21450,6 +21714,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/src/commands/mens_run_reports.rs",
+      "kind": "rust",
+      "lines_total": 268,
+      "lines_triple_slash": 13,
+      "lines_inner_doc": 11,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-db/src/schema/manifest.rs",
       "kind": "rust",
       "lines_total": 263,
@@ -21610,17 +21885,6 @@
       "lines_triple_slash": 7,
       "lines_inner_doc": 17,
       "lines_plain_comment": 11,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-populi/src/mens/hardware/macos_metal.rs",
-      "kind": "rust",
-      "lines_total": 156,
-      "lines_triple_slash": 24,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 6,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -21879,17 +22143,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-ml-cli/src/commands/ai/serve/mod.rs",
-      "kind": "rust",
-      "lines_total": 262,
-      "lines_triple_slash": 5,
-      "lines_inner_doc": 18,
-      "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-populi/src/inference/generate.rs",
       "kind": "rust",
       "lines_total": 262,
@@ -22088,17 +22341,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/logic.rs",
-      "kind": "rust",
-      "lines_total": 116,
-      "lines_triple_slash": 20,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 10,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-http-client/src/lib.rs",
       "kind": "rust",
       "lines_total": 115,
@@ -22149,6 +22391,17 @@
       "lines_triple_slash": 15,
       "lines_inner_doc": 8,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/logic.rs",
+      "kind": "rust",
+      "lines_total": 92,
+      "lines_triple_slash": 20,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 14,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -22214,6 +22467,17 @@
       "lines_total": 545,
       "lines_triple_slash": 17,
       "lines_inner_doc": 5,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/src/llm_bridge/provider_adapter.rs",
+      "kind": "rust",
+      "lines_total": 522,
+      "lines_triple_slash": 22,
+      "lines_inner_doc": 0,
       "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -22902,18 +23166,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/oom.rs",
-      "kind": "rust",
-      "lines_total": 149,
-      "lines_triple_slash": 13,
-      "lines_inner_doc": 8,
-      "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/oom.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/oom.rs",
       "kind": "rust",
       "lines_total": 149,
       "lines_triple_slash": 13,
@@ -22984,6 +23237,17 @@
       "lines_total": 118,
       "lines_triple_slash": 13,
       "lines_inner_doc": 8,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-core/src/model_card.rs",
+      "kind": "rust",
+      "lines_total": 113,
+      "lines_triple_slash": 8,
+      "lines_inner_doc": 13,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -23091,7 +23355,7 @@
     {
       "path": "crates/vox-ml-cli/src/commands/mens/mod.rs",
       "kind": "rust",
-      "lines_total": 56,
+      "lines_total": 58,
       "lines_triple_slash": 3,
       "lines_inner_doc": 18,
       "lines_plain_comment": 0,
@@ -23216,6 +23480,17 @@
       "lines_triple_slash": 15,
       "lines_inner_doc": 5,
       "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-core/src/manifest.rs",
+      "kind": "rust",
+      "lines_total": 374,
+      "lines_triple_slash": 9,
+      "lines_inner_doc": 11,
+      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -23650,6 +23925,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-ml-cli/src/commands/mens/eval_gate/check_run.rs",
+      "kind": "rust",
+      "lines_total": 912,
+      "lines_triple_slash": 18,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 56,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-publisher/src/scientia_prior_art.rs",
       "kind": "rust",
       "lines_total": 772,
@@ -23685,7 +23971,7 @@
     {
       "path": "crates/vox-gamify/src/ai/client/ctor.rs",
       "kind": "rust",
-      "lines_total": 515,
+      "lines_total": 516,
       "lines_triple_slash": 19,
       "lines_inner_doc": 0,
       "lines_plain_comment": 7,
@@ -23705,18 +23991,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/hf_keymap.rs",
-      "kind": "rust",
-      "lines_total": 399,
-      "lines_triple_slash": 15,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/hf_keymap.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/hf_keymap.rs",
       "kind": "rust",
       "lines_total": 399,
       "lines_triple_slash": 15,
@@ -23755,6 +24030,17 @@
       "lines_triple_slash": 18,
       "lines_inner_doc": 1,
       "lines_plain_comment": 21,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/src/commands/llm_settings.rs",
+      "kind": "rust",
+      "lines_total": 287,
+      "lines_triple_slash": 12,
+      "lines_inner_doc": 7,
+      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -24173,6 +24459,17 @@
       "lines_triple_slash": 15,
       "lines_inner_doc": 3,
       "lines_plain_comment": 24,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs",
+      "kind": "rust",
+      "lines_total": 701,
+      "lines_triple_slash": 18,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 13,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -24915,6 +25212,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/types.rs",
+      "kind": "rust",
+      "lines_total": 37,
+      "lines_triple_slash": 5,
+      "lines_inner_doc": 13,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-scientia/src/manuscript/latex/mod.rs",
       "kind": "rust",
       "lines_total": 29,
@@ -25245,17 +25553,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-populi/src/mens/tensor/accel_budget.rs",
-      "kind": "rust",
-      "lines_total": 126,
-      "lines_triple_slash": 16,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 9,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator-mcp/src/kb_tools/params.rs",
       "kind": "rust",
       "lines_total": 119,
@@ -25333,18 +25630,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/operator_messages.rs",
-      "kind": "rust",
-      "lines_total": 76,
-      "lines_triple_slash": 14,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/operator_messages.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/operator_messages.rs",
       "kind": "rust",
       "lines_total": 76,
       "lines_triple_slash": 14,
@@ -25674,17 +25960,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-gui/src/commands/llm_settings.rs",
-      "kind": "rust",
-      "lines_total": 280,
-      "lines_triple_slash": 9,
-      "lines_inner_doc": 7,
-      "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-db/src/store/ops_identity.rs",
       "kind": "rust",
       "lines_total": 255,
@@ -25702,6 +25977,17 @@
       "lines_triple_slash": 1,
       "lines_inner_doc": 15,
       "lines_plain_comment": 13,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/mens/eval_collateral.rs",
+      "kind": "rust",
+      "lines_total": 252,
+      "lines_triple_slash": 16,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 16,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -25757,28 +26043,6 @@
       "lines_triple_slash": 16,
       "lines_inner_doc": 0,
       "lines_plain_comment": 5,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/quantize.rs",
-      "kind": "rust",
-      "lines_total": 224,
-      "lines_triple_slash": 15,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 11,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/mens/probe.rs",
-      "kind": "rust",
-      "lines_total": 209,
-      "lines_triple_slash": 15,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 3,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -26510,18 +26774,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/qlora_weights.rs",
-      "kind": "rust",
-      "lines_total": 156,
-      "lines_triple_slash": 10,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/qlora_weights.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/qlora_weights.rs",
       "kind": "rust",
       "lines_total": 156,
       "lines_triple_slash": 10,
@@ -26697,6 +26950,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gamify/src/ai/provider.rs",
+      "kind": "rust",
+      "lines_total": 109,
+      "lines_triple_slash": 15,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/fatigue_monitor.rs",
       "kind": "rust",
       "lines_total": 96,
@@ -26763,17 +27027,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-gamify/src/ai/provider.rs",
-      "kind": "rust",
-      "lines_total": 80,
-      "lines_triple_slash": 15,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-identity/src/pairing_x25519.rs",
       "kind": "rust",
       "lines_total": 80,
@@ -26791,6 +27044,17 @@
       "lines_triple_slash": 3,
       "lines_inner_doc": 12,
       "lines_plain_comment": 3,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-core/src/device.rs",
+      "kind": "rust",
+      "lines_total": 56,
+      "lines_triple_slash": 7,
+      "lines_inner_doc": 8,
+      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -26862,6 +27126,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-ml-cli/src/commands/ai/inference_defaults.rs",
+      "kind": "rust",
+      "lines_total": 41,
+      "lines_triple_slash": 12,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-corpus/src/corpus/preflight/mod.rs",
       "kind": "rust",
       "lines_total": 40,
@@ -26923,17 +27198,6 @@
       "lines_triple_slash": 9,
       "lines_inner_doc": 5,
       "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs",
-      "kind": "rust",
-      "lines_total": 683,
-      "lines_triple_slash": 14,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 10,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -27522,6 +27786,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-plugin-mens-candle-core/tests/sameness_gate.rs",
+      "kind": "rust",
+      "lines_total": 74,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 14,
+      "lines_plain_comment": 3,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-cli/src/slo_gates.rs",
       "kind": "rust",
       "lines_total": 71,
@@ -27560,6 +27835,17 @@
       "lines_total": 66,
       "lines_triple_slash": 9,
       "lines_inner_doc": 5,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-core/src/rope.rs",
+      "kind": "rust",
+      "lines_total": 62,
+      "lines_triple_slash": 4,
+      "lines_inner_doc": 10,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -27610,12 +27896,34 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-ml-cli/src/commands/mens/eval_gate/tests.rs",
+      "kind": "rust",
+      "lines_total": 1107,
+      "lines_triple_slash": 13,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 67,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator-mcp/src/memory_tools/handlers_memory.rs",
       "kind": "rust",
       "lines_total": 517,
       "lines_triple_slash": 13,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/corpus/stats.rs",
+      "kind": "rust",
+      "lines_total": 515,
+      "lines_triple_slash": 13,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 11,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -27693,39 +28001,6 @@
       "lines_triple_slash": 10,
       "lines_inner_doc": 3,
       "lines_plain_comment": 11,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/manifest.rs",
-      "kind": "rust",
-      "lines_total": 367,
-      "lines_triple_slash": 9,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/merge.rs",
-      "kind": "rust",
-      "lines_total": 335,
-      "lines_triple_slash": 8,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/merge.rs",
-      "kind": "rust",
-      "lines_total": 335,
-      "lines_triple_slash": 8,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -28292,17 +28567,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/lib.rs",
-      "kind": "rust",
-      "lines_total": 75,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 13,
-      "lines_plain_comment": 3,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-compiler/src/serialization.rs",
       "kind": "rust",
       "lines_total": 72,
@@ -28314,12 +28578,12 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-metal/src/lib.rs",
+      "path": "crates/vox-plugin-mens-candle-cuda/src/lib.rs",
       "kind": "rust",
-      "lines_total": 70,
+      "lines_total": 67,
       "lines_triple_slash": 0,
       "lines_inner_doc": 13,
-      "lines_plain_comment": 0,
+      "lines_plain_comment": 7,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -28342,6 +28606,17 @@
       "lines_triple_slash": 3,
       "lines_inner_doc": 10,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-metal/src/lib.rs",
+      "kind": "rust",
+      "lines_total": 62,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 13,
+      "lines_plain_comment": 4,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -28418,6 +28693,17 @@
       "lines_total": 33,
       "lines_triple_slash": 7,
       "lines_inner_doc": 6,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/training_loop/types.rs",
+      "kind": "rust",
+      "lines_total": 31,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 13,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -28749,17 +29035,6 @@
       "lines_triple_slash": 7,
       "lines_inner_doc": 5,
       "lines_plain_comment": 11,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/schola/merge_qlora.rs",
-      "kind": "rust",
-      "lines_total": 223,
-      "lines_triple_slash": 6,
-      "lines_inner_doc": 6,
-      "lines_plain_comment": 36,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -29238,17 +29513,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-metal/src/device.rs",
-      "kind": "rust",
-      "lines_total": 38,
-      "lines_triple_slash": 8,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-gamify/src/ai/error.rs",
       "kind": "rust",
       "lines_total": 37,
@@ -29513,6 +29777,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-corpus/src/corpus/extract_vox/part_helpers.rs",
+      "kind": "rust",
+      "lines_total": 316,
+      "lines_triple_slash": 11,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 10,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/src/parser/descent/stmt.rs",
       "kind": "rust",
       "lines_total": 312,
@@ -29612,6 +29887,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-corpus/src/corpus/eval_agentic_metrics.rs",
+      "kind": "rust",
+      "lines_total": 207,
+      "lines_triple_slash": 10,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 6,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-scientia/src/replay/contract.rs",
       "kind": "rust",
       "lines_total": 206,
@@ -29634,6 +29920,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-ml-cli/src/commands/quantize.rs",
+      "kind": "rust",
+      "lines_total": 198,
+      "lines_triple_slash": 10,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 9,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-research-shim/src/agent_frontmatter.rs",
       "kind": "rust",
       "lines_total": 198,
@@ -29651,17 +29948,6 @@
       "lines_triple_slash": 1,
       "lines_inner_doc": 10,
       "lines_plain_comment": 26,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/ai/serve/worker.rs",
-      "kind": "rust",
-      "lines_total": 189,
-      "lines_triple_slash": 10,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -30096,17 +30382,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-ml-cli/src/commands/ai/serve/schema.rs",
-      "kind": "rust",
-      "lines_total": 71,
-      "lines_triple_slash": 10,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-cli/tests/effort_pricing_parity.rs",
       "kind": "rust",
       "lines_total": 64,
@@ -30277,6 +30552,17 @@
       "lines_total": 22,
       "lines_triple_slash": 8,
       "lines_inner_doc": 3,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-metal/src/device.rs",
+      "kind": "rust",
+      "lines_total": 21,
+      "lines_triple_slash": 2,
+      "lines_inner_doc": 9,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -31264,10 +31550,10 @@
     {
       "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/mod.rs",
       "kind": "rust",
-      "lines_total": 738,
+      "lines_total": 744,
       "lines_triple_slash": 6,
       "lines_inner_doc": 3,
-      "lines_plain_comment": 17,
+      "lines_plain_comment": 23,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -31275,10 +31561,10 @@
     {
       "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/training_loop/mod.rs",
       "kind": "rust",
-      "lines_total": 707,
+      "lines_total": 709,
       "lines_triple_slash": 6,
       "lines_inner_doc": 3,
-      "lines_plain_comment": 9,
+      "lines_plain_comment": 12,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -31367,17 +31653,6 @@
       "lines_triple_slash": 4,
       "lines_inner_doc": 5,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/manifest.rs",
-      "kind": "rust",
-      "lines_total": 358,
-      "lines_triple_slash": 5,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -32439,6 +32714,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/mod.rs",
+      "kind": "rust",
+      "lines_total": 31,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 9,
+      "lines_plain_comment": 3,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator-mcp/src/task_tools/mod.rs",
       "kind": "rust",
       "lines_total": 30,
@@ -32670,6 +32956,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-populi/src/mens/cloud/runpod_provider.rs",
+      "kind": "rust",
+      "lines_total": 399,
+      "lines_triple_slash": 4,
+      "lines_inner_doc": 4,
+      "lines_plain_comment": 9,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-publisher/src/scientia_heuristics.rs",
       "kind": "rust",
       "lines_total": 371,
@@ -32720,17 +33017,6 @@
       "lines_triple_slash": 8,
       "lines_inner_doc": 0,
       "lines_plain_comment": 3,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-populi/src/mens/cloud/runpod_provider.rs",
-      "kind": "rust",
-      "lines_total": 348,
-      "lines_triple_slash": 4,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 7,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -33182,6 +33468,17 @@
       "lines_triple_slash": 7,
       "lines_inner_doc": 1,
       "lines_plain_comment": 7,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-populi/src/mens/tensor/external_serving_handoff.rs",
+      "kind": "rust",
+      "lines_total": 135,
+      "lines_triple_slash": 7,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -33660,17 +33957,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/types.rs",
-      "kind": "rust",
-      "lines_total": 47,
-      "lines_triple_slash": 5,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-mesh-types/src/lib.rs",
       "kind": "rust",
       "lines_total": 46,
@@ -33759,12 +34045,34 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/training_loop/logic.rs",
+      "kind": "rust",
+      "lines_total": 39,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 8,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/src/hir/nodes/mod.rs",
       "kind": "rust",
       "lines_total": 37,
       "lines_triple_slash": 0,
       "lines_inner_doc": 8,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gamify/src/ai/constants.rs",
+      "kind": "rust",
+      "lines_total": 37,
+      "lines_triple_slash": 8,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 4,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -34179,7 +34487,7 @@
     {
       "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/finalize.rs",
       "kind": "rust",
-      "lines_total": 347,
+      "lines_total": 349,
       "lines_triple_slash": 4,
       "lines_inner_doc": 3,
       "lines_plain_comment": 0,
@@ -34271,17 +34579,6 @@
       "lines_triple_slash": 6,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-corpus/src/corpus/extract_vox/part_helpers.rs",
-      "kind": "rust",
-      "lines_total": 269,
-      "lines_triple_slash": 7,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 10,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -35288,6 +35585,28 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-plugin-mens-candle-core/src/train_log.rs",
+      "kind": "rust",
+      "lines_total": 51,
+      "lines_triple_slash": 1,
+      "lines_inner_doc": 6,
+      "lines_plain_comment": 5,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/db_event.rs",
+      "kind": "rust",
+      "lines_total": 50,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 7,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-arch-check/src/json_report.rs",
       "kind": "rust",
       "lines_total": 49,
@@ -35299,18 +35618,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/telemetry_schema.rs",
-      "kind": "rust",
-      "lines_total": 46,
-      "lines_triple_slash": 4,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/telemetry_schema.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/telemetry_schema.rs",
       "kind": "rust",
       "lines_total": 46,
       "lines_triple_slash": 4,
@@ -35464,11 +35772,33 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/training_loop/types.rs",
+      "kind": "rust",
+      "lines_total": 30,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 7,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-graph-reader/src/compare.rs",
       "kind": "rust",
       "lines_total": 29,
       "lines_triple_slash": 6,
       "lines_inner_doc": 1,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/adapter_load.rs",
+      "kind": "rust",
+      "lines_total": 26,
+      "lines_triple_slash": 1,
+      "lines_inner_doc": 6,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -35552,17 +35882,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-ml-cli/src/commands/ai/inference_defaults.rs",
-      "kind": "rust",
-      "lines_total": 12,
-      "lines_triple_slash": 4,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-codegen-ts/src/hir_emit/compat.rs",
       "kind": "rust",
       "lines_total": 11,
@@ -35635,6 +35954,17 @@
       "lines_triple_slash": 5,
       "lines_inner_doc": 1,
       "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/corpus/generate.rs",
+      "kind": "rust",
+      "lines_total": 1040,
+      "lines_triple_slash": 6,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 27,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -36383,6 +36713,17 @@
       "lines_triple_slash": 5,
       "lines_inner_doc": 1,
       "lines_plain_comment": 6,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-plugin-mens-candle-core/src/external_serving_handoff.rs",
+      "kind": "rust",
+      "lines_total": 89,
+      "lines_triple_slash": 3,
+      "lines_inner_doc": 3,
+      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -37235,17 +37576,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-ml-cli/src/commands/corpus/stats.rs",
-      "kind": "rust",
-      "lines_total": 447,
-      "lines_triple_slash": 5,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-identity/src/identity.rs",
       "kind": "rust",
       "lines_total": 426,
@@ -37395,17 +37725,6 @@
       "lines_triple_slash": 5,
       "lines_inner_doc": 0,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/ai/serve/handlers.rs",
-      "kind": "rust",
-      "lines_total": 285,
-      "lines_triple_slash": 4,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -37741,12 +38060,12 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-quantize/src/write.rs",
+      "path": "crates/vox-speech/src/backends/cloud_offload.rs",
       "kind": "rust",
-      "lines_total": 161,
+      "lines_total": 159,
       "lines_triple_slash": 0,
       "lines_inner_doc": 5,
-      "lines_plain_comment": 5,
+      "lines_plain_comment": 11,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -37755,17 +38074,6 @@
       "path": "crates/vox-cli/src/commands/agent.rs",
       "kind": "rust",
       "lines_total": 156,
-      "lines_triple_slash": 4,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-corpus/src/corpus/eval_agentic_metrics.rs",
-      "kind": "rust",
-      "lines_total": 155,
       "lines_triple_slash": 4,
       "lines_inner_doc": 1,
       "lines_plain_comment": 2,
@@ -37791,17 +38099,6 @@
       "lines_triple_slash": 4,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-speech/src/backends/cloud_offload.rs",
-      "kind": "rust",
-      "lines_total": 148,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 11,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -38027,17 +38324,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-quantize/src/read.rs",
-      "kind": "rust",
-      "lines_total": 107,
-      "lines_triple_slash": 3,
-      "lines_inner_doc": 2,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-drift-check/src/cache.rs",
       "kind": "rust",
       "lines_total": 105,
@@ -38236,17 +38522,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-populi/src/mens/tensor/external_serving_handoff.rs",
-      "kind": "rust",
-      "lines_total": 90,
-      "lines_triple_slash": 4,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator-mcp/src/agy_worktree.rs",
       "kind": "rust",
       "lines_total": 86,
@@ -38335,18 +38610,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/ce_mask_align.rs",
-      "kind": "rust",
-      "lines_total": 77,
-      "lines_triple_slash": 2,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/ce_mask_align.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/ce_mask_align.rs",
       "kind": "rust",
       "lines_total": 77,
       "lines_triple_slash": 2,
@@ -38434,18 +38698,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/telem_helpers.rs",
-      "kind": "rust",
-      "lines_total": 67,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 5,
-      "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/training_loop/telem_helpers.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/training_loop/telem_helpers.rs",
       "kind": "rust",
       "lines_total": 67,
       "lines_triple_slash": 0,
@@ -38759,17 +39012,6 @@
       "lines_triple_slash": 1,
       "lines_inner_doc": 4,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gamify/src/ai/constants.rs",
-      "kind": "rust",
-      "lines_total": 32,
-      "lines_triple_slash": 5,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 4,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -39666,18 +39908,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/db_thread.rs",
-      "kind": "rust",
-      "lines_total": 189,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/db_thread.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/db_thread.rs",
       "kind": "rust",
       "lines_total": 189,
       "lines_triple_slash": 1,
@@ -40078,6 +40309,17 @@
       "lines_total": 107,
       "lines_triple_slash": 1,
       "lines_inner_doc": 3,
+      "lines_plain_comment": 8,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-populi/src/mens/tensor/manifest/part_io.rs",
+      "kind": "rust",
+      "lines_total": 105,
+      "lines_triple_slash": 4,
+      "lines_inner_doc": 0,
       "lines_plain_comment": 8,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -40733,17 +40975,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/train_log.rs",
-      "kind": "rust",
-      "lines_total": 48,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 5,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-cli/src/commands/drift_check.rs",
       "kind": "rust",
       "lines_total": 46,
@@ -40766,18 +40997,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/train_jsonl_preflight.rs",
-      "kind": "rust",
-      "lines_total": 45,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/train_jsonl_preflight.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/train_jsonl_preflight.rs",
       "kind": "rust",
       "lines_total": 45,
       "lines_triple_slash": 1,
@@ -40799,12 +41019,12 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-metal/src/train_log.rs",
+      "path": "crates/vox-ml-cli/src/commands/mens/eval_gate/mod.rs",
       "kind": "rust",
-      "lines_total": 41,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
+      "lines_total": 42,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 4,
+      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -40827,17 +41047,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 4,
       "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/mens/eval_gate/mod.rs",
-      "kind": "rust",
-      "lines_total": 39,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -41052,17 +41261,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-populi/src/inference/mod.rs",
-      "kind": "rust",
-      "lines_total": 22,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-quantize/src/lib.rs",
       "kind": "rust",
       "lines_total": 22,
@@ -41118,18 +41316,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/finetune_contract.rs",
-      "kind": "rust",
-      "lines_total": 20,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 4,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/finetune_contract.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/finetune_contract.rs",
       "kind": "rust",
       "lines_total": 20,
       "lines_triple_slash": 0,
@@ -41163,6 +41350,17 @@
     },
     {
       "path": "crates/vox-orchestrator-types/src/socrates_policy/mod.rs",
+      "kind": "rust",
+      "lines_total": 19,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 4,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-populi/src/inference/mod.rs",
       "kind": "rust",
       "lines_total": 19,
       "lines_triple_slash": 0,
@@ -41228,18 +41426,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/training_summary.rs",
-      "kind": "rust",
-      "lines_total": 14,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/training_summary.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/training_summary.rs",
       "kind": "rust",
       "lines_total": 14,
       "lines_triple_slash": 1,
@@ -41399,39 +41586,6 @@
       "lines_triple_slash": 1,
       "lines_inner_doc": 2,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/corpus/generate.rs",
-      "kind": "rust",
-      "lines_total": 980,
-      "lines_triple_slash": 3,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 22,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/mens/eval_gate/tests.rs",
-      "kind": "rust",
-      "lines_total": 972,
-      "lines_triple_slash": 3,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 47,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/mens/eval_gate/check_run.rs",
-      "kind": "rust",
-      "lines_total": 828,
-      "lines_triple_slash": 2,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 45,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -41692,7 +41846,7 @@
     {
       "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/finalize.rs",
       "kind": "rust",
-      "lines_total": 254,
+      "lines_total": 256,
       "lines_triple_slash": 0,
       "lines_inner_doc": 3,
       "lines_plain_comment": 0,
@@ -42075,17 +42229,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-quantize/src/recombine.rs",
-      "kind": "rust",
-      "lines_total": 169,
-      "lines_triple_slash": 3,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator/src/orchestrator/core/telemetry.rs",
       "kind": "rust",
       "lines_total": 166,
@@ -42229,18 +42372,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/checkpoint.rs",
-      "kind": "rust",
-      "lines_total": 132,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/training_loop/checkpoint.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/training_loop/checkpoint.rs",
       "kind": "rust",
       "lines_total": 132,
       "lines_triple_slash": 0,
@@ -42570,18 +42702,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/epoch_boundary.rs",
-      "kind": "rust",
-      "lines_total": 96,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/epoch_boundary.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/epoch_boundary.rs",
       "kind": "rust",
       "lines_total": 96,
       "lines_triple_slash": 0,
@@ -42614,18 +42735,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/adapter_schema_v3.rs",
-      "kind": "rust",
-      "lines_total": 92,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/adapter_schema_v3.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/adapter_schema_v3.rs",
       "kind": "rust",
       "lines_total": 92,
       "lines_triple_slash": 0,
@@ -42735,7 +42845,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/training_text.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/training_text.rs",
       "kind": "rust",
       "lines_total": 79,
       "lines_triple_slash": 0,
@@ -42746,29 +42856,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-metal/src/training_text.rs",
-      "kind": "rust",
-      "lines_total": 79,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/encoding.rs",
-      "kind": "rust",
-      "lines_total": 78,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/training_loop/encoding.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/training_loop/encoding.rs",
       "kind": "rust",
       "lines_total": 78,
       "lines_triple_slash": 0,
@@ -43076,28 +43164,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/external_serving_handoff.rs",
-      "kind": "rust",
-      "lines_total": 54,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/external_serving_handoff.rs",
-      "kind": "rust",
-      "lines_total": 54,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-quantize/src/device.rs",
       "kind": "rust",
       "lines_total": 52,
@@ -43263,44 +43329,11 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/training_loop/types.rs",
-      "kind": "rust",
-      "lines_total": 41,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-drift-check/src/rules/mod.rs",
       "kind": "rust",
       "lines_total": 40,
       "lines_triple_slash": 3,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/model_card.rs",
-      "kind": "rust",
-      "lines_total": 40,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/model_card.rs",
-      "kind": "rust",
-      "lines_total": 40,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -43461,17 +43494,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/training_loop/logic.rs",
-      "kind": "rust",
-      "lines_total": 34,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-config/tests/llm_registry_view.rs",
       "kind": "rust",
       "lines_total": 33,
@@ -43560,18 +43582,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/curriculum.rs",
-      "kind": "rust",
-      "lines_total": 28,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/training_loop/curriculum.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/training_loop/curriculum.rs",
       "kind": "rust",
       "lines_total": 28,
       "lines_triple_slash": 0,
@@ -43648,18 +43659,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/telemetry.rs",
-      "kind": "rust",
-      "lines_total": 22,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/telemetry.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/telemetry.rs",
       "kind": "rust",
       "lines_total": 22,
       "lines_triple_slash": 0,
@@ -44055,18 +44055,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/validation.rs",
-      "kind": "rust",
-      "lines_total": 3,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 3,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/validation.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/validation.rs",
       "kind": "rust",
       "lines_total": 3,
       "lines_triple_slash": 0,
@@ -44083,17 +44072,6 @@
       "lines_triple_slash": 2,
       "lines_inner_doc": 0,
       "lines_plain_comment": 30,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/mens/populi/dispatch.rs",
-      "kind": "rust",
-      "lines_total": 703,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 64,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -44127,6 +44105,17 @@
       "lines_triple_slash": 1,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/schola/train/run_train.rs",
+      "kind": "rust",
+      "lines_total": 542,
+      "lines_triple_slash": 2,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 21,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -44193,17 +44182,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 2,
       "lines_plain_comment": 23,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-orchestrator-mcp/src/llm_bridge/provider_adapter.rs",
-      "kind": "rust",
-      "lines_total": 453,
-      "lines_triple_slash": 2,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -44957,23 +44935,23 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-populi/src/inference/backend.rs",
-      "kind": "rust",
-      "lines_total": 98,
-      "lines_triple_slash": 2,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-populi/src/inference/dispatcher.rs",
       "kind": "rust",
       "lines_total": 98,
       "lines_triple_slash": 2,
       "lines_inner_doc": 0,
       "lines_plain_comment": 4,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-populi/src/inference/backend.rs",
+      "kind": "rust",
+      "lines_total": 97,
+      "lines_triple_slash": 2,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -46756,17 +46734,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 1,
       "lines_plain_comment": 3,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/mens/eval_local.rs",
-      "kind": "rust",
-      "lines_total": 543,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 9,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -48867,17 +48834,6 @@
       "lines_total": 52,
       "lines_triple_slash": 0,
       "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-populi/src/mens/tensor/manifest/part_io.rs",
-      "kind": "rust",
-      "lines_total": 52,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -51150,18 +51106,7 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-plugin-mens-candle-cuda/src/hf_layout.rs",
-      "kind": "rust",
-      "lines_total": 3,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-plugin-mens-candle-metal/src/hf_layout.rs",
+      "path": "crates/vox-plugin-mens-candle-core/src/hf_layout.rs",
       "kind": "rust",
       "lines_total": 3,
       "lines_triple_slash": 0,
@@ -51414,17 +51359,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-ml-cli/src/commands/schola/train/run_train.rs",
-      "kind": "rust",
-      "lines_total": 474,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 17,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-repository/src/repo_catalog/query.rs",
       "kind": "rust",
       "lines_total": 472,
@@ -51634,6 +51568,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/src/main.rs",
+      "kind": "rust",
+      "lines_total": 397,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 30,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "scripts/coverage-graph/os_compat.py",
       "kind": "python",
       "lines_total": 387,
@@ -51662,17 +51607,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-gui/src/main.rs",
-      "kind": "rust",
-      "lines_total": 384,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 28,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -51834,7 +51768,7 @@
     {
       "path": "docs/src/reference/cli-command-surface.generated.md",
       "kind": "markdown",
-      "lines_total": 344,
+      "lines_total": 345,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
@@ -51871,6 +51805,17 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ml-cli/src/commands/mens/populi/gpu_tests_body.rs",
+      "kind": "rust",
+      "lines_total": 330,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 3,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -51937,17 +51882,6 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 10,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ml-cli/src/commands/mens/populi/gpu_tests_body.rs",
-      "kind": "rust",
-      "lines_total": 305,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -52525,6 +52459,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-gui/ui/src/lib/modelPicker.test.ts",
+      "kind": "typescript",
+      "lines_total": 213,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
+    },
+    {
       "path": "crates/vox-integration-tests/tests/parity_contracts_test.rs",
       "kind": "rust",
       "lines_total": 213,
@@ -52633,6 +52578,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "docs/src/architecture/mens-loc-audit-2026-09.md",
+      "kind": "markdown",
+      "lines_total": 200,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 7,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": "crates/vox-plugin-browser/src/input.rs",
@@ -52888,17 +52844,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "crates/vox-gui/ui/src/lib/modelPicker.test.ts",
-      "kind": "typescript",
-      "lines_total": 181,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
-    },
-    {
       "path": "crates/vox-drift-check/src/sweep/numeric_dedup.rs",
       "kind": "rust",
       "lines_total": 180,
@@ -53062,6 +53007,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-gui/ui/src/lib/modelPicker.ts",
+      "kind": "typescript",
+      "lines_total": 169,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "approx // and block comments"
     },
     {
       "path": "docs/src/tutorials/tut-ui-integration.md",
@@ -53381,17 +53337,6 @@
       "lines_other_doc_signal": 7,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "crates/vox-gui/ui/src/lib/modelPicker.ts",
-      "kind": "typescript",
-      "lines_total": 153,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "approx // and block comments"
     },
     {
       "path": ".github/workflows/mobile-eas-build.yml",
@@ -53804,6 +53749,17 @@
       "path": "crates/vox-publisher/src/submission/mod.rs",
       "kind": "rust",
       "lines_total": 130,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/src/commands/ci/run_body_helpers/matrix/tests.rs",
+      "kind": "rust",
+      "lines_total": 129,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
@@ -54714,17 +54670,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "crates/vox-cli/src/commands/ci/run_body_helpers/matrix/tests.rs",
-      "kind": "rust",
-      "lines_total": 98,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "apps/editor/vox-vscode/src/models/ModelRegistry.ts",
       "kind": "typescript",
       "lines_total": 97,
@@ -55330,17 +55275,6 @@
       "notes": "approx // and block comments"
     },
     {
-      "path": "crates/vox-ml-cli/src/commands/mens/eval_collateral.rs",
-      "kind": "rust",
-      "lines_total": 85,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 5,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "docs/src/how-to/how-to-testing-integration.md",
       "kind": "markdown",
       "lines_total": 85,
@@ -55636,6 +55570,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "docs/src/architecture/mens-cloud-env-transmission-fix-2026-09-12.md",
+      "kind": "markdown",
+      "lines_total": 81,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 5,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": "docs/src/archive/research-2026-q1/telemetry-trust-ssot.md",
@@ -56527,6 +56472,17 @@
       "lines_other_doc_signal": 4,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "scripts/populi/gates.yaml",
+      "kind": "yaml",
+      "lines_total": 71,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 37,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "scripts/show/README.md",
@@ -57673,17 +57629,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "scripts/populi/gates.yaml",
-      "kind": "yaml",
-      "lines_total": 61,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 29,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": ".github/workflows/os-compat-report.yml",
       "kind": "yaml",
       "lines_total": 60,
@@ -57707,17 +57652,6 @@
     },
     {
       "path": "crates/vox-populi/src/inference/backends/llama_cpp_rpc.rs",
-      "kind": "rust",
-      "lines_total": 60,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-populi/src/inference/backends/ollama_subprocess.rs",
       "kind": "rust",
       "lines_total": 60,
       "lines_triple_slash": 0,
@@ -57887,7 +57821,7 @@
       "lines_total": 58,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
+      "lines_plain_comment": 3,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
@@ -58333,6 +58267,17 @@
       "notes": "docstrings + # (heuristic)"
     },
     {
+      "path": "crates/vox-gui/src/commands/mod.rs",
+      "kind": "rust",
+      "lines_total": 55,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-gui/ui/e2e/browser-surface.spec.ts",
       "kind": "typescript",
       "lines_total": 55,
@@ -58705,17 +58650,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
-    },
-    {
-      "path": "crates/vox-gui/src/commands/mod.rs",
-      "kind": "rust",
-      "lines_total": 53,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
     },
     {
       "path": "crates/vox-gui/ui/src/hooks/useActiveView.ts",
@@ -64977,17 +64911,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-populi/src/inference/backends/mod.rs",
-      "kind": "rust",
-      "lines_total": 15,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-secrets/src/errors.rs",
       "kind": "rust",
       "lines_total": 15,
@@ -65220,6 +65143,17 @@
     },
     {
       "path": "crates/vox-openclaw-runtime/tests/train_script_test.rs",
+      "kind": "rust",
+      "lines_total": 13,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-populi/src/inference/backends/mod.rs",
       "kind": "rust",
       "lines_total": 13,
       "lines_triple_slash": 0,
@@ -65910,6 +65844,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-orchestrator-mcp/.vox/memory/global/MEMORY.md",
+      "kind": "markdown",
+      "lines_total": 4,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 1,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
       "path": "crates/vox-orchestrator/.vox/memory/global/MEMORY.md",

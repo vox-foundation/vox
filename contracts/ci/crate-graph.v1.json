@@ -649,6 +649,13 @@
       "vox-telemetry",
       "workspace-hack"
     ],
+    "vox-plugin-mens-candle-core": [
+      "vox-config",
+      "vox-db",
+      "vox-hf-layout",
+      "vox-tensor",
+      "workspace-hack"
+    ],
     "vox-plugin-mens-candle-cuda": [
       "vox-compiler",
       "vox-config",
@@ -656,6 +663,7 @@
       "vox-eval",
       "vox-hf-layout",
       "vox-plugin-api",
+      "vox-plugin-mens-candle-core",
       "vox-secrets",
       "vox-tensor",
       "workspace-hack"
@@ -667,6 +675,7 @@
       "vox-eval",
       "vox-hf-layout",
       "vox-plugin-api",
+      "vox-plugin-mens-candle-core",
       "vox-secrets",
       "vox-tensor",
       "workspace-hack"
