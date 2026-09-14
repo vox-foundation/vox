@@ -70,4 +70,17 @@ describe('ResearchClaimAccordion', () => {
     expect(screen.getByText(/Stable across resamples/i)).toBeTruthy();
     expect(screen.queryByText(/Verdict flipped in resampling/i)).toBeNull();
   });
+
+  it('highlights the claim row matching highlightedClaimId and sets element id', () => {
+    const { container } = render(
+      <ResearchClaimAccordion claims={claims} sourceCount={5} highlightedClaimId="c1" />
+    );
+    const claimEl = container.querySelector('#claim-c1');
+    expect(claimEl).toBeTruthy();
+    expect(claimEl?.className).toContain('ring-2 ring-brass');
+
+    const otherEl = container.querySelector('#claim-c2');
+    expect(otherEl).toBeTruthy();
+    expect(otherEl?.className).not.toContain('ring-2 ring-brass');
+  });
 });

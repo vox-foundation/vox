@@ -233,6 +233,7 @@ pub async fn verify_claims_with_config(
         let mut verdicts = Vec::new();
 
         let sample_claim = |claim: &Claim| {
+            let claim = claim.clone();
             let opts = &opts;
             let input = &input;
             let evidence = &evidence;

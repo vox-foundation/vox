@@ -181,6 +181,7 @@ pub fn extract_research_summary(artifact_json: &str) -> ResearchSummary {
                 .iter()
                 .filter_map(|span| url_by_source_id.get(&span.source_id).cloned())
                 .collect();
+            citation_urls.sort();
             citation_urls.dedup();
             let corroboration_count = corroboration_by_claim_id
                 .get(&cv.claim.claim_id)

@@ -10,6 +10,7 @@ import { startResearchAsync } from './researchActions';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { ResearchClaimAccordion, type ResearchClaimRow } from './ResearchClaimAccordion';
 import { HeadlineVerdictBanner } from './HeadlineVerdictBanner';
+import { ResearchReportMarkdown } from './ResearchReportMarkdown';
 
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
 
@@ -76,6 +77,32 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [sessions, setSessions] = useState<ResearchSession[]>([]);
   const [detail, setDetail] = useState<ResearchDetail | null>(null);
+  const [highlightedClaimId, setHighlightedClaimId] = useState<string | null>(null);
+
+  const handleCitationClick = useCallback(
+    (num: number) => {
+      const claimRows = toClaimRows(detail?.claims);
+      if (claimRows.length === 0) return;
+
+      const matchingClaim =
+        claimRows.find((c) => c.claimId === String(num) || c.claimId === `c${num}`) ??
+        (num >= 1 && num <= claimRows.length ? claimRows[num - 1] : claimRows[0]);
+
+      if (matchingClaim) {
+        setHighlightedClaimId(matchingClaim.claimId);
+        const targetId = `claim-${matchingClaim.claimId}`;
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          setTimeout(() => {
+            document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
+          }, 50);
+        }
+      }
+    },
+    [detail?.claims]
+  );
 
   const loadHistory = useCallback(async () => {
     try {
@@ -131,7 +158,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
       // A2: fire-and-forget via the persistent daemon's async executor. Returns
       // {session_id, task_id, status: "running"} immediately — does NOT block on
       // the pipeline. Status transitions arrive through the queue watcher below.
-      const handle = await startResearchAsync({ query });
+      const handle = await startResearchAsync({ query, verifyClaims: true });
       setActiveSessionId(handle.session_id);
       await loadHistory();
     } catch (err) {
@@ -196,30 +223,40 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages(detail.session.status)} />
           {(() => {
             const claimRows = toClaimRows(detail.claims);
-            // Count citations the banner can actually back up as
-            // corroborated, not the raw total source count — otherwise the
-            // headline number contradicts the per-citation TrustChips shown
-            // in the accordion below when few/no citations are corroborated.
-            const corroboratingCitationCount = claimRows.reduce(
-              (sum, c) => sum + c.citations.filter((cite) => cite.trust.kind === 'corroborated').length,
-              0,
-            );
+            const distinctCorroboratingSources = new Set(
+              claimRows.flatMap((c) =>
+                c.citations.filter((cite) => cite.trust.kind === 'corroborated').map((cite) => cite.url)
+              )
+            ).size;
+            const contradictedClaims = claimRows.filter(
+              (c) => c.verdict.toLowerCase() === 'refuted' || c.verdict.toLowerCase() === 'contradicted'
+            ).length;
+            const contestedClaims = claimRows.filter((c) => c.verdict === 'Contested').length;
+
             return (
               <>
                 {claimRows.length > 0 && (
                   <HeadlineVerdictBanner
                     confidenceTier={detail.confidence_tier ?? 'DeepResearch'}
-                    corroboratingSources={corroboratingCitationCount}
-                    contestedClaims={claimRows.filter((c) => c.verdict === 'Contested').length}
+                    corroboratingSources={distinctCorroboratingSources}
+                    contestedClaims={contestedClaims}
+                    contradictedClaims={contradictedClaims}
                     totalClaims={claimRows.length}
                   />
                 )}
-                <pre className="mt-2 max-h-[360px] overflow-auto whitespace-pre-wrap text-[12px] text-text-secondary">
-                  {detail.report_markdown ?? detail.artifact_json ?? '(no artifact persisted)'}
-                </pre>
+                <div className="mt-2 max-h-[360px] overflow-auto">
+                  <ResearchReportMarkdown
+                    markdown={detail.report_markdown ?? detail.artifact_json ?? '(no artifact persisted)'}
+                    onCitationClick={handleCitationClick}
+                  />
+                </div>
                 {claimRows.length > 0 && (
                   <div className="mt-2">
-                    <ResearchClaimAccordion claims={claimRows} sourceCount={detail.source_count ?? 0} />
+                    <ResearchClaimAccordion
+                      claims={claimRows}
+                      sourceCount={detail.source_count ?? 0}
+                      highlightedClaimId={highlightedClaimId ?? undefined}
+                    />
                   </div>
                 )}
               </>

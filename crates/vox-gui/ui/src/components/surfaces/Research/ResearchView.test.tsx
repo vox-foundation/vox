@@ -95,18 +95,15 @@ describe('ResearchView', () => {
     render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
     screen.getByText('What is Vox?').closest('button')!.click();
-    await waitFor(() => expect(screen.getByText(/High confidence/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Preliminary — Awaiting evidence corroboration/i)).toBeTruthy());
     expect(screen.getByText(/1 claim verified · 0 contested · 3 sources/i)).toBeTruthy();
     // The fixture's single citation has corroboration_count: 1 (< 2, so it
     // reads as uncorroborated) — the banner's "N corroborating sources"
-    // figure must reflect that (0), not the unrelated total source_count
-    // (3), or it contradicts the "uncorroborated" TrustChip shown below.
-    expect(screen.getByText(/High confidence — 0 corroborating sources/i)).toBeTruthy();
-    // existing raw-report render is still present, unchanged
+    // figure reflects that (0), so it correctly shows Preliminary instead of false High confidence.
     expect(screen.getByText('The sky is blue.')).toBeTruthy();
   });
 
-  it('counts only citations backed by real corroboration data in the headline banner', async () => {
+  it('counts only citations backed by real corroboration data in the headline banner and requires 2+ for high confidence', async () => {
     detailResponse = {
       ...DETAIL_WITH_CLAIMS,
       claims: [
@@ -116,7 +113,7 @@ describe('ResearchView', () => {
           verdict: 'Supported',
           confidence: 0.9,
           resample_stability: 1.0,
-          citation_urls: ['https://example.com/a'],
+          citation_urls: ['https://example.com/a', 'https://example.com/b'],
           corroboration_count: 3,
         },
       ],
@@ -125,6 +122,59 @@ describe('ResearchView', () => {
     await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
     screen.getByText('What is Vox?').closest('button')!.click();
     await waitFor(() => expect(screen.getByText(/High confidence/i)).toBeTruthy());
-    expect(screen.getByText(/High confidence — 1 corroborating source\b/i)).toBeTruthy();
+    expect(screen.getByText(/High confidence — 2 corroborating sources, no contested claims/i)).toBeTruthy();
+  });
+
+  it('renders refuted warning banner when claims are contradicted', async () => {
+    detailResponse = {
+      ...DETAIL_WITH_CLAIMS,
+      claims: [
+        {
+          claim_id: 'c1',
+          text: 'A refuted claim.',
+          verdict: 'Refuted',
+          confidence: 0.9,
+          resample_stability: 1.0,
+          citation_urls: ['https://example.com/a', 'https://example.com/b'],
+          corroboration_count: 3,
+        },
+      ],
+    };
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+    await waitFor(() => expect(screen.getByText(/Refuted by Evidence/i)).toBeTruthy());
+    expect(screen.getByText(/Refuted by Evidence — 1 of 1 claims contradicted by sources/i)).toBeTruthy();
+  });
+
+  it('clicking a citation button in the report highlights the matching claim row', async () => {
+    detailResponse = {
+      ...DETAIL_WITH_CLAIMS,
+      report_markdown: 'The sky is blue [1].',
+      claims: [
+        {
+          claim_id: 'c1',
+          text: 'The sky is blue.',
+          verdict: 'Supported',
+          confidence: 0.9,
+          resample_stability: 1.0,
+          citation_urls: ['https://example.com/a', 'https://example.com/b'],
+          corroboration_count: 3,
+        },
+      ],
+    };
+    const { container } = render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+
+    const citeButton = await screen.findByRole('button', { name: 'Citation 1' });
+    expect(citeButton).toBeTruthy();
+    citeButton.click();
+
+    await waitFor(() => {
+      const claimEl = container.querySelector('#claim-c1');
+      expect(claimEl).toBeTruthy();
+      expect(claimEl?.className).toContain('ring-2 ring-brass');
+    });
   });
 });

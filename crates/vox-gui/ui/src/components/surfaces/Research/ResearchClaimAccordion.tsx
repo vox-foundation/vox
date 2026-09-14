@@ -21,11 +21,30 @@ export interface ResearchClaimRow {
 export function ResearchClaimAccordion({
   claims,
   sourceCount,
+  highlightedClaimId,
+  isExpanded,
+  onExpandedChange,
 }: {
   claims: ResearchClaimRow[];
   sourceCount: number;
+  highlightedClaimId?: string;
+  isExpanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const expanded = isExpanded !== undefined ? isExpanded : internalExpanded;
+
+  const toggleExpanded = () => {
+    const next = !expanded;
+    setInternalExpanded(next);
+    onExpandedChange?.(next);
+  };
+
+  // Automatically expand if a claim is highlighted
+  if (highlightedClaimId && !expanded && isExpanded === undefined) {
+    setInternalExpanded(true);
+  }
+
   const contestedCount = claims.filter((c) => c.verdict === 'Contested').length;
 
   return (
@@ -33,7 +52,7 @@ export function ResearchClaimAccordion({
       <button
         type="button"
         aria-expanded={expanded}
-        onClick={() => setExpanded((e) => !e)}
+        onClick={toggleExpanded}
         className="flex w-full items-center justify-between gap-2 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-text-secondary hover:bg-overlay-subtle"
       >
         <span>
@@ -47,7 +66,14 @@ export function ResearchClaimAccordion({
       {expanded && (
         <ul className="space-y-2 border-t border-border-subtle p-3" role="list">
           {claims.map((claim) => (
-            <li key={claim.claimId} role="listitem" className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
+            <li
+              key={claim.claimId}
+              id={`claim-${claim.claimId}`}
+              role="listitem"
+              className={`rounded-lg border border-border-subtle bg-overlay-subtle p-3 transition-all ${
+                claim.claimId === highlightedClaimId ? 'ring-2 ring-brass' : ''
+              }`}
+            >
               <div className="mb-1 flex items-center gap-2">
                 <VerdictBadge verdict={claim.verdict} />
                 <span className="font-mono text-[10px] text-text-muted">

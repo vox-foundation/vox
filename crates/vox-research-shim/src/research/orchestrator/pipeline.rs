@@ -528,7 +528,6 @@ pub async fn run_research_with_context_and_session(
     // ── (h) Build citations ───────────────────────────────────────────────────
     let citations: Vec<Citation> = all_hits
         .iter()
-        .take(10)
         .enumerate()
         .map(|(i, h)| Citation {
             source_id: i as i64,
