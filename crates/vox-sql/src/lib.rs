@@ -67,6 +67,16 @@ pub struct SqlDialect {
 }
 
 impl SqlDialect {
+    pub const fn voxdb() -> Self {
+        Self {
+            name: "voxdb",
+            placeholder_style: PlaceholderStyle::QuestionMarkNumbered,
+            identifier_quote_style: IdentifierQuoteStyle::DoubleQuote,
+            upsert_style: UpsertStyle::OnConflict,
+            return_clause_style: ReturnClauseStyle::Returning,
+        }
+    }
+
     pub const fn sqlite() -> Self {
         Self {
             name: "sqlite",
@@ -155,6 +165,9 @@ impl BackendKind {
             || lower.starts_with("sqlite://")
             || lower.starts_with("sqlite:")
             || lower.starts_with("file:")
+            || lower.starts_with("voxdb://")
+            || lower.starts_with("vox-db://")
+            || lower.starts_with("voxdb:")
         {
             return Ok(Self::Libsql);
         }
@@ -833,6 +846,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn voxdb_dialect_shape() {
+        let d = SqlDialect::voxdb();
+        assert_eq!(d.name, "voxdb");
+        assert_eq!(d.placeholder_style, PlaceholderStyle::QuestionMarkNumbered);
+        assert_eq!(d.identifier_quote_style, IdentifierQuoteStyle::DoubleQuote);
+        assert_eq!(d.upsert_style, UpsertStyle::OnConflict);
+    }
+
+    #[test]
     fn sqlite_dialect_shape() {
         let d = SqlDialect::sqlite();
         assert_eq!(d.name, "sqlite");
@@ -872,6 +894,18 @@ mod tests {
         );
         assert_eq!(
             BackendKind::from_url("libsql://example.db").unwrap(),
+            BackendKind::Libsql
+        );
+        assert_eq!(
+            BackendKind::from_url("voxdb://localhost/db").unwrap(),
+            BackendKind::Libsql
+        );
+        assert_eq!(
+            BackendKind::from_url("vox-db://app.db").unwrap(),
+            BackendKind::Libsql
+        );
+        assert_eq!(
+            BackendKind::from_url("voxdb:test.db").unwrap(),
             BackendKind::Libsql
         );
         assert!(BackendKind::from_url("mssql://localhost/db").is_err());

@@ -14,6 +14,9 @@ pub struct SqliteHopper {
     bus: Arc<EventBus>,
 }
 
+/// Canonical alias for VoxDB-backed task hopper.
+pub type VoxDbHopper = SqliteHopper;
+
 impl SqliteHopper {
     pub fn new(db: Arc<vox_db::VoxDb>) -> Self {
         Self {
