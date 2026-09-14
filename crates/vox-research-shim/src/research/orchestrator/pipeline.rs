@@ -321,49 +321,125 @@ pub async fn run_research_with_context_and_session(
     set_session_stage(db, session_id, ResearchStage::VerifyingClaims).await;
     report_progress("Verifying research claims...".to_string(), Some(0.60));
     let claim_verdicts = if query.verify_claims && !draft_claims.is_empty() {
-        verify_claims_with_config(
-            &draft_claims,
-            &query.query,
-            &all_hits,
-            &registry,
-            &research_verifier_cfg,
-            config.llm_endpoint.as_deref(),
-            config.api_key.as_deref(),
-        )
-        .await
-    } else {
-        vec![]
-    };
-    if let Some(db) = db
-        && session_id > 0
-    {
-        for verdict in &claim_verdicts {
-            let claim = &verdict.claim;
-            let _ = db
-                .store_claim(
-                    session_id,
-                    claim.claim_id,
-                    &claim.text,
-                    claim.is_numeric,
-                    claim.is_recent,
-                    claim.is_named_event,
-                )
-                .await;
-            let _ = db
-                .store_claim_verdict(
-                    claim.claim_id,
-                    &verdict.verdict.to_string(),
-                    verdict.confidence,
-                    &research_verifier_cfg.nli_model_id,
-                )
-                .await;
-            for span in &verdict.evidence_spans {
+        let max_age_ms: i64 = 14 * 24 * 60 * 60 * 1000; // 14 days
+        let mut cached_verdicts = Vec::new();
+        let mut claims_to_verify = Vec::new();
+
+        if let Some(db) = db {
+            for claim in &draft_claims {
+                if let Ok(Some(cached)) = db
+                    .get_cached_claim_verdict(claim.claim_id, max_age_ms)
+                    .await
+                {
+                    if cached.confidence >= 0.80 {
+                        let verdict = match cached.verdict.to_ascii_lowercase().as_str() {
+                            "supported" => super::super::verifier::Verdict::Supported,
+                            "contradicted" => super::super::verifier::Verdict::Contradicted,
+                            "contested" => super::super::verifier::Verdict::Contested,
+                            _ => super::super::verifier::Verdict::Unverified,
+                        };
+                        cached_verdicts.push(super::super::verifier::ClaimVerdict {
+                            claim: claim.clone(),
+                            verdict,
+                            confidence: cached.confidence,
+                            supporting_count: if matches!(
+                                verdict,
+                                super::super::verifier::Verdict::Supported
+                            ) {
+                                1
+                            } else {
+                                0
+                            },
+                            contradicting_count: if matches!(
+                                verdict,
+                                super::super::verifier::Verdict::Contradicted
+                            ) {
+                                1
+                            } else {
+                                0
+                            },
+                            evidence_spans: vec![],
+                            resample_stability: 1.0,
+                        });
+                        continue;
+                    }
+                }
+                claims_to_verify.push(claim.clone());
+            }
+        } else {
+            claims_to_verify = draft_claims.clone();
+        }
+
+        let fresh_verdicts = if !claims_to_verify.is_empty() {
+            verify_claims_with_config(
+                &claims_to_verify,
+                &query.query,
+                &all_hits,
+                &registry,
+                &research_verifier_cfg,
+                config.llm_endpoint.as_deref(),
+                config.api_key.as_deref(),
+            )
+            .await
+        } else {
+            vec![]
+        };
+
+        if let Some(db) = db
+            && session_id > 0
+        {
+            for verdict in &fresh_verdicts {
+                let claim = &verdict.claim;
                 let _ = db
-                    .store_evidence_span(claim.claim_id, span.span_start, span.span_end, &span.text)
+                    .store_claim(
+                        session_id,
+                        claim.claim_id,
+                        &claim.text,
+                        claim.is_numeric,
+                        claim.is_recent,
+                        claim.is_named_event,
+                    )
+                    .await;
+                let _ = db
+                    .store_claim_verdict(
+                        claim.claim_id,
+                        &verdict.verdict.to_string(),
+                        verdict.confidence,
+                        &research_verifier_cfg.nli_model_id,
+                    )
+                    .await;
+                for span in &verdict.evidence_spans {
+                    let _ = db
+                        .store_evidence_span(
+                            claim.claim_id,
+                            span.span_start,
+                            span.span_end,
+                            &span.text,
+                        )
+                        .await;
+                }
+            }
+            for verdict in &cached_verdicts {
+                let claim = &verdict.claim;
+                let _ = db
+                    .store_claim(
+                        session_id,
+                        claim.claim_id,
+                        &claim.text,
+                        claim.is_numeric,
+                        claim.is_recent,
+                        claim.is_named_event,
+                    )
                     .await;
             }
         }
-    }
+
+        let mut all_verdicts = fresh_verdicts;
+        all_verdicts.extend(cached_verdicts);
+        all_verdicts
+    } else {
+        vec![]
+    };
     for verdict in &claim_verdicts {
         if matches!(verdict.verdict, super::super::verifier::Verdict::Supported)
             && verdict.confidence > 0.8

@@ -178,8 +178,8 @@ fn avg_score(hits: &[ResearchHit]) -> f64 {
 }
 
 pub(super) async fn gather_web_hits_for_plan(
-    _db: Option<&Codex>,
-    _session_id: i64,
+    db: Option<&Codex>,
+    session_id: i64,
     query: &ResearchQuery,
     plan: &ResearchPlan,
     registry: &ProviderRegistry,
@@ -310,6 +310,58 @@ pub(super) async fn gather_web_hits_for_plan(
             break;
         }
         rounds_done += 1;
+    }
+
+    if let Some(db) = db
+        && session_id > 0
+    {
+        let captured_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis().min(i64::MAX as u128) as i64)
+            .unwrap_or(0)
+            .to_string();
+
+        for hit in &all_hits {
+            let _ = db
+                .create_research_source(session_id, &hit.url, Some(&hit.title))
+                .await;
+
+            let body = if !hit.raw_content.trim().is_empty() {
+                hit.raw_content.clone()
+            } else {
+                hit.snippet.clone()
+            };
+
+            let packet = vox_db::ExternalResearchPacket {
+                topic: query.query.clone(),
+                vendor: "web".to_string(),
+                area: None,
+                source_url: hit.url.clone(),
+                source_type: "web".to_string(),
+                title: hit.title.clone(),
+                captured_at: captured_at.clone(),
+                summary: hit.snippet.clone(),
+                raw_excerpt: hit.snippet.clone(),
+                claims: vec![],
+                tags: vec![],
+                confidence: hit.score,
+                content_hash: String::new(),
+                metadata: serde_json::json!({
+                    "http_status": hit.http_status,
+                    "trust_score": hit.trust_score,
+                    "session_id": session_id,
+                }),
+            };
+
+            let mut req = vox_db::ResearchIngestRequest {
+                packet,
+                body,
+                kb_id: Some(format!("session/{session_id}")),
+                embeddings: vec![],
+            };
+
+            let _ = db.ingest_research_document_async(&mut req).await;
+        }
     }
 
     let dropped_source_count = total_sources_attempted.saturating_sub(all_hits.len());

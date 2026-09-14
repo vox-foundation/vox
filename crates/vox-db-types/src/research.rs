@@ -55,3 +55,22 @@ pub struct ClaimsPendingCounts {
     /// Claims with no non-span verdict row yet (verification pending).
     pub extraction_running: i64,
 }
+
+/// Result hit from full-text or pattern search across research artifacts.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ResearchSearchResult {
+    pub session_id: i64,
+    pub query_text: String,
+    pub snippet: String,
+    pub created_at_ms: i64,
+}
+
+/// Cached claim verification verdict from historical research sessions.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CachedClaimVerdict {
+    pub claim_id: u64,
+    pub verdict: String,
+    pub confidence: f64,
+    pub verifier_model: Option<String>,
+    pub created_at_ms: i64,
+}

@@ -6,8 +6,8 @@ use crate::VoxDb;
 use crate::store::StoreError;
 use turso::params;
 use vox_db_types::{
-    ClaimsPendingCounts, ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary,
-    ScientiaClaimWithVerdict,
+    CachedClaimVerdict, ClaimsPendingCounts, ResearchArtifactRecord, ResearchSearchResult,
+    ResearchSessionRecord, ResearchSessionSummary, ScientiaClaimWithVerdict,
 };
 
 impl VoxDb {
@@ -462,7 +462,223 @@ impl VoxDb {
                     params![session_id, artifact.as_str(), report.as_str(), now],
                 )
                 .await?;
+
+                // Populate / update scientia_research_fts if available
+                let mut query_text = String::new();
+                if let Ok(mut rows) = conn
+                    .query(
+                        "SELECT query_text FROM scientia_research_sessions WHERE id = ?1",
+                        params![session_id],
+                    )
+                    .await
+                {
+                    if let Ok(Some(row)) = rows.next().await {
+                        if let Ok(q) = row.get::<String>(0) {
+                            query_text = q;
+                        }
+                    }
+                }
+
+                let mut claims_text = String::new();
+                if let Ok(mut rows) = conn
+                    .query(
+                        "SELECT text FROM scientia_claims WHERE session_id = ?1",
+                        params![session_id],
+                    )
+                    .await
+                {
+                    let mut claims = Vec::new();
+                    while let Ok(Some(row)) = rows.next().await {
+                        if let Ok(t) = row.get::<String>(0) {
+                            claims.push(t);
+                        }
+                    }
+                    claims_text = claims.join("\n");
+                }
+
+                let _ = conn
+                    .execute(
+                        "DELETE FROM scientia_research_fts WHERE session_id = ?1",
+                        params![session_id],
+                    )
+                    .await;
+                let _ = conn
+                    .execute(
+                        "INSERT INTO scientia_research_fts (session_id, query_text, report_markdown, claims_text) \
+                         VALUES (?1, ?2, ?3, ?4)",
+                        params![session_id, query_text.as_str(), report.as_str(), claims_text.as_str()],
+                    )
+                    .await;
+
                 Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Full-text search across historical research artifacts and claims.
+    ///
+    /// Tries BM25 ranking on `scientia_research_fts` with `snippet()`; falls back to
+    /// LIKE substring matching if FTS5 is not available or query has no FTS hits.
+    pub async fn search_research_artifacts(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<ResearchSearchResult>, StoreError> {
+        let lim = limit.clamp(1, 200) as i64;
+        let q_trimmed = query.trim();
+        if q_trimmed.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let q_fts = sanitize_fts_query(q_trimmed);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        let q_owned = q_trimmed.to_string();
+
+        breaker
+            .call(|| async move {
+                if !q_fts.is_empty() {
+                    let fts_res = conn
+                        .query(
+                            "SELECT f.session_id, f.query_text, \
+                                    snippet(scientia_research_fts, -1, '', '', '...', 32) AS snip, \
+                                    COALESCE(a.created_at_ms, s.started_at_ms, 0) AS created_at_ms, \
+                                    COALESCE(SUBSTR(f.report_markdown, 1, 200), '') AS fallback_snip \
+                             FROM scientia_research_fts f \
+                             LEFT JOIN scientia_research_artifacts a ON a.session_id = f.session_id \
+                             LEFT JOIN scientia_research_sessions s ON s.id = f.session_id \
+                             WHERE scientia_research_fts MATCH ?1 \
+                             ORDER BY bm25(scientia_research_fts) ASC \
+                             LIMIT ?2",
+                            params![q_fts.as_str(), lim],
+                        )
+                        .await;
+
+                    if let Ok(mut rows) = fts_res {
+                        let mut results = Vec::new();
+                        while let Ok(Some(row)) = rows.next().await {
+                            let sid: i64 = row.get(0)?;
+                            let qtext: String = row.get(1)?;
+                            let mut snip: String = row.get(2)?;
+                            let cat: i64 = row.get(3)?;
+                            if snip.trim().is_empty() {
+                                let fallback: String = row.get(4)?;
+                                snip = fallback;
+                            }
+                            results.push(ResearchSearchResult {
+                                session_id: sid,
+                                query_text: qtext,
+                                snippet: snip,
+                                created_at_ms: cat,
+                            });
+                        }
+                        if !results.is_empty() {
+                            return Ok::<Vec<ResearchSearchResult>, StoreError>(results);
+                        }
+                    }
+                }
+
+                // Fallback: LIKE query
+                let pat = format!("%{q_owned}%");
+                let mut rows = conn
+                    .query(
+                        "SELECT a.session_id, s.query_text, \
+                                COALESCE(SUBSTR(a.report_markdown, 1, 200), '') AS snip, \
+                                a.created_at_ms \
+                         FROM scientia_research_artifacts a \
+                         JOIN scientia_research_sessions s ON s.id = a.session_id \
+                         WHERE s.query_text LIKE ?1 OR a.report_markdown LIKE ?1 \
+                            OR EXISTS (SELECT 1 FROM scientia_claims c WHERE c.session_id = a.session_id AND c.text LIKE ?1) \
+                         ORDER BY a.created_at_ms DESC \
+                         LIMIT ?2",
+                        params![pat.as_str(), lim],
+                    )
+                    .await?;
+
+                let mut results = Vec::new();
+                while let Some(row) = rows.next().await? {
+                    let sid: i64 = row.get(0)?;
+                    let qtext: String = row.get(1)?;
+                    let snip: String = row.get(2)?;
+                    let cat: i64 = row.get(3)?;
+                    results.push(ResearchSearchResult {
+                        session_id: sid,
+                        query_text: qtext,
+                        snippet: snip,
+                        created_at_ms: cat,
+                    });
+                }
+                Ok::<Vec<ResearchSearchResult>, StoreError>(results)
+            })
+            .await
+    }
+
+    /// Look up a previously verified claim verdict from historical research sessions.
+    ///
+    /// If `max_age_ms > 0`, only verdicts recorded within the last `max_age_ms` are returned.
+    /// Spans stored as 'Unverified' are filtered out. Returns the newest non-Unverified verdict.
+    pub async fn get_cached_claim_verdict(
+        &self,
+        claim_id: u64,
+        max_age_ms: i64,
+    ) -> Result<Option<CachedClaimVerdict>, StoreError> {
+        let cid = claim_id as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                if max_age_ms > 0 {
+                    let cutoff = now_ms().saturating_sub(max_age_ms);
+                    let mut rows = conn
+                        .query(
+                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
+                             FROM scientia_claim_verdicts \
+                             WHERE claim_id = ?1 AND verdict <> 'Unverified' AND created_at_ms >= ?2 \
+                             ORDER BY created_at_ms DESC, id DESC LIMIT 1",
+                            params![cid, cutoff],
+                        )
+                        .await?;
+                    let Some(row) = rows.next().await? else {
+                        return Ok::<Option<CachedClaimVerdict>, StoreError>(None);
+                    };
+                    let cid_val: i64 = row.get(0)?;
+                    let verdict: String = row.get(1)?;
+                    let confidence: f64 = row.get(2)?;
+                    let verifier_model: Option<String> = row.get(3)?;
+                    let created_at_ms: i64 = row.get(4)?;
+                    Ok(Some(CachedClaimVerdict {
+                        claim_id: cid_val as u64,
+                        verdict,
+                        confidence,
+                        verifier_model,
+                        created_at_ms,
+                    }))
+                } else {
+                    let mut rows = conn
+                        .query(
+                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
+                             FROM scientia_claim_verdicts \
+                             WHERE claim_id = ?1 AND verdict <> 'Unverified' \
+                             ORDER BY created_at_ms DESC, id DESC LIMIT 1",
+                            params![cid],
+                        )
+                        .await?;
+                    let Some(row) = rows.next().await? else {
+                        return Ok::<Option<CachedClaimVerdict>, StoreError>(None);
+                    };
+                    let cid_val: i64 = row.get(0)?;
+                    let verdict: String = row.get(1)?;
+                    let confidence: f64 = row.get(2)?;
+                    let verifier_model: Option<String> = row.get(3)?;
+                    let created_at_ms: i64 = row.get(4)?;
+                    Ok(Some(CachedClaimVerdict {
+                        claim_id: cid_val as u64,
+                        verdict,
+                        confidence,
+                        verifier_model,
+                        created_at_ms,
+                    }))
+                }
             })
             .await
     }
@@ -664,6 +880,21 @@ fn now_ms() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as i64
+}
+
+fn sanitize_fts_query(input: &str) -> String {
+    let tokens: Vec<&str> = input
+        .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+        .filter(|s| !s.is_empty())
+        .collect();
+    if tokens.is_empty() {
+        return String::new();
+    }
+    tokens
+        .into_iter()
+        .map(|t| format!("\"{t}\""))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 #[cfg(test)]

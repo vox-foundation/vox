@@ -7,6 +7,7 @@ use turso::Connection;
 pub async fn apply_schema_extensions(conn: &Connection) -> Result<(), StoreError> {
     apply_knowledge_fts_cutover(conn).await?;
     apply_search_document_chunks_fts_cutover(conn).await?;
+    apply_scientia_research_fts_cutover(conn).await?;
 
     exec_optional_batch(
         conn,
@@ -111,6 +112,25 @@ SELECT rowid, body_text FROM search_document_chunks
 WHERE rowid NOT IN (SELECT rowid FROM search_document_chunks_fts);
 "#;
     exec_optional_batch(conn, batch).await;
+    Ok(())
+}
+
+/// FTS5 over `scientia_research_fts` for historical research artifact full-text search.
+pub async fn apply_scientia_research_fts_cutover(conn: &Connection) -> Result<(), StoreError> {
+    if !has_fts5_support(conn).await? {
+        return Ok(());
+    }
+
+    let sql = r#"
+CREATE VIRTUAL TABLE IF NOT EXISTS scientia_research_fts USING fts5(
+    session_id UNINDEXED,
+    query_text,
+    report_markdown,
+    claims_text,
+    tokenize = 'porter unicode61'
+);
+"#;
+    exec_optional_batch(conn, sql).await;
     Ok(())
 }
 

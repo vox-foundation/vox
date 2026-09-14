@@ -78,6 +78,18 @@ pub enum ResearchCmd {
         #[arg(long, default_value_t = 4)]
         concurrency: usize,
     },
+    /// Search past research artifacts via full-text search.
+    Search {
+        /// Topic / question tokens (join with spaces).
+        #[arg(trailing_var_arg = true, required = true)]
+        query: Vec<String>,
+        /// Maximum results to show.
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        /// Emit JSON instead of text.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
 }
 
 pub async fn run(cmd: ResearchCmd) -> anyhow::Result<()> {
@@ -115,6 +127,10 @@ pub async fn run(cmd: ResearchCmd) -> anyhow::Result<()> {
             format,
             output,
         } => research_result(session_id, &format, output).await,
+        ResearchCmd::Search { query, limit, json } => {
+            let q = query.join(" ").trim().to_string();
+            research_search(q, limit, json).await
+        }
         ResearchCmd::Eval {
             queries,
             output,
@@ -208,6 +224,25 @@ pub async fn research_result(
         std::fs::write(path, rendered)?;
     } else {
         println!("{rendered}");
+    }
+    Ok(())
+}
+
+pub async fn research_search(query: String, limit: usize, json: bool) -> anyhow::Result<()> {
+    let db = connect_research_db().await?;
+    let hits = db.search_research_artifacts(&query, limit).await?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&hits)?);
+    } else if hits.is_empty() {
+        println!("No research artifacts found matching: {query}");
+    } else {
+        println!("Found {} research artifact(s):", hits.len());
+        for hit in hits {
+            println!(
+                "- [Session {}] {}\n  Snippet: {}",
+                hit.session_id, hit.query_text, hit.snippet
+            );
+        }
     }
     Ok(())
 }

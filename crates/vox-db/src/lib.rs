@@ -295,8 +295,9 @@ pub use trust_telemetry::{TrustObservationEntry, TrustObservationInput, TrustRol
 pub use types::now_unix_ms;
 pub use vox_db_types::EvalRunParams;
 pub use vox_db_types::{
-    DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId,
-    ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary,
+    CachedClaimVerdict, DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId,
+    DbUserId, ResearchArtifactRecord, ResearchSearchResult, ResearchSessionRecord,
+    ResearchSessionSummary,
 };
 #[cfg(feature = "host-integration")]
 pub use workspace_journey_store::{
