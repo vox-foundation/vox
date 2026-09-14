@@ -154,6 +154,7 @@ mod tests {
             persist_to_docs: false,
             verify_claims: true,
             site_scope: None,
+            domain_mode: Default::default(),
         }
     }
 

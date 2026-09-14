@@ -13,6 +13,7 @@
 pub mod claims;
 pub(super) mod config;
 pub mod discovery_bridge;
+pub mod domain;
 pub mod emitter;
 pub mod gate;
 pub(super) mod json_parse;
@@ -38,6 +39,7 @@ pub use research_event_metrics_bridge::TELEMETRY_CATALOG_ID_RESEARCH_EVENT_BRIDG
 pub(crate) use research_event_metrics_bridge::spawn_persist_research_event_for_metrics;
 pub use search_policy_feedback::load_rolling_search_policy_feedback;
 pub use types::{
-    Citation, CompetenceSignal, ResearchHit, ResearchMetadata, ResearchPlan, ResearchQuery,
-    ResearchResult, ResearchScope, RetrievalDiagnostics, RoutingTier, SelfVerificationResult,
+    Citation, CompetenceSignal, ResearchDomainMode, ResearchHit, ResearchMetadata, ResearchPlan,
+    ResearchQuery, ResearchResult, ResearchScope, RetrievalDiagnostics, RoutingTier,
+    SelfVerificationResult,
 };

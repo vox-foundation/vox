@@ -12,6 +12,7 @@ async fn run_research_returns_coherent_metadata() {
         persist_to_docs: false,
         verify_claims: false,
         site_scope: None,
+        domain_mode: Default::default(),
     };
     let config = ResearchConfig::default();
 
@@ -44,6 +45,7 @@ async fn run_research_with_codex_persists_session_row() {
         persist_to_docs: false,
         verify_claims: false,
         site_scope: None,
+        domain_mode: Default::default(),
     };
     let config = ResearchConfig::default();
 
@@ -73,6 +75,7 @@ async fn run_research_with_codex_persists_durable_artifact() {
         persist_to_docs: false,
         verify_claims: false,
         site_scope: None,
+        domain_mode: Default::default(),
     };
     let config = ResearchConfig::default();
 
@@ -109,6 +112,7 @@ async fn run_research_emits_scientia_events() {
         persist_to_docs: false,
         verify_claims: false,
         site_scope: None,
+        domain_mode: Default::default(),
     };
 
     let _ = run_research(query, None, &config).await.expect("succeeds");
@@ -130,6 +134,7 @@ async fn run_research_live_web_may_return_sources() {
         persist_to_docs: false,
         verify_claims: false,
         site_scope: None,
+        domain_mode: Default::default(),
     };
     let config = ResearchConfig::default();
 

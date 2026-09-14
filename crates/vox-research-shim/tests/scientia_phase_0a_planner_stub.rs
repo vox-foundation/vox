@@ -12,6 +12,7 @@ async fn planner_without_available_model_falls_back_to_single_subquery() {
         persist_to_docs: false,
         verify_claims: false,
         site_scope: None,
+        domain_mode: Default::default(),
     };
     let plan = decompose_query_with_config(&q, None, None, None, None, None)
         .await

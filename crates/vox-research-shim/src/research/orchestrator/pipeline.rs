@@ -13,9 +13,9 @@ use super::super::gate::{GateInput, score_with_config};
 use super::super::planner::{decompose_query_with_config, plan_to_json};
 use super::super::provider::ProviderRegistry;
 use super::super::types::{
-    Citation, CitationAuditResult, ClaimSupport, CompetenceSignal, ResearchHit, ResearchMetadata,
-    ResearchPlan, ResearchQuery, ResearchResult, ResearchRunArtifact, ResearchScope, ResearchStage,
-    RetrievalDiagnostics, RoutingTier,
+    Citation, CitationAuditResult, ClaimSupport, CompetenceSignal, ResearchDomainMode, ResearchHit,
+    ResearchMetadata, ResearchPlan, ResearchQuery, ResearchResult, ResearchRunArtifact,
+    ResearchScope, ResearchStage, RetrievalDiagnostics, RoutingTier,
 };
 use super::super::verifier::verify_claims_with_config;
 use super::config::ResearchConfig;
@@ -135,7 +135,7 @@ pub async fn run_research_with_context_and_session(
     );
 
     // ── (b) Query decomposition ──────────────────────────────────────────────
-    let plan: ResearchPlan = decompose_query_with_config(
+    let mut plan: ResearchPlan = decompose_query_with_config(
         &query,
         config.llm_endpoint.as_deref(),
         config.api_key.as_deref(),
@@ -151,6 +151,28 @@ pub async fn run_research_with_context_and_session(
         max_sources_per_subquery: query.max_sources,
         planner_degraded: true,
     });
+
+    match query.domain_mode {
+        ResearchDomainMode::Shopping => {
+            let domain_queries =
+                super::super::domain::shopping::generate_shopping_subqueries(&query.query);
+            for sq in domain_queries {
+                if !plan.subqueries.contains(&sq) {
+                    plan.subqueries.push(sq);
+                }
+            }
+        }
+        ResearchDomainMode::CodeGen => {
+            let domain_queries =
+                super::super::domain::codegen::generate_codegen_subqueries(&query.query);
+            for sq in domain_queries {
+                if !plan.subqueries.contains(&sq) {
+                    plan.subqueries.push(sq);
+                }
+            }
+        }
+        ResearchDomainMode::General => {}
+    }
     emit_research_event(
         config,
         db,
@@ -220,6 +242,10 @@ pub async fn run_research_with_context_and_session(
     }
 
     dedupe_hits_by_url(&mut all_hits);
+
+    if query.domain_mode == ResearchDomainMode::Shopping {
+        super::super::domain::shopping::deboost_affiliate_spam(&mut all_hits);
+    }
 
     // ── (d) Retrieval diagnostics ─────────────────────────────────────────────
     let query_terms: Vec<&str> = query.query.split_whitespace().collect();
@@ -520,8 +546,21 @@ pub async fn run_research_with_context_and_session(
         "Synthesizing final research report...".to_string(),
         Some(0.85),
     );
+    let synthesis_query = match query.domain_mode {
+        ResearchDomainMode::Shopping => format!(
+            "{}\n\n{}",
+            query.query,
+            super::super::domain::shopping::shopping_synthesis_instructions()
+        ),
+        ResearchDomainMode::CodeGen => format!(
+            "{}\n\n{}",
+            query.query,
+            super::super::domain::codegen::codegen_synthesis_instructions()
+        ),
+        ResearchDomainMode::General => query.query.clone(),
+    };
     let answer = synthesize_answer_with_llm(SynthesisParams {
-        query: &query.query,
+        query: &synthesis_query,
         hits: &all_hits,
         verdicts: &claim_verdicts,
         endpoint: config.llm_endpoint.as_deref(),
@@ -993,6 +1032,7 @@ mod tests {
             persist_to_docs: false,
             verify_claims: false,
             site_scope: None,
+            domain_mode: ResearchDomainMode::default(),
         };
         let plan = ResearchPlan {
             original_query: query.query.clone(),

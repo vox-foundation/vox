@@ -11,9 +11,11 @@ fn research_query_default_constructs() {
         persist_to_docs: false,
         verify_claims: true,
         site_scope: None,
+        domain_mode: Default::default(),
     };
     assert_eq!(q.query, "test");
     assert_eq!(q.max_sources, 5);
+    assert_eq!(q.domain_mode, ResearchDomainMode::General);
 }
 
 #[test]

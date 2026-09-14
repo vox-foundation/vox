@@ -18,6 +18,16 @@ pub enum ResearchScope {
     Both,
 }
 
+/// Domain engine mode for specialized research decomposition and synthesis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ResearchDomainMode {
+    #[default]
+    General,
+    Shopping,
+    CodeGen,
+}
+
 /// A single research query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResearchQuery {
@@ -29,6 +39,8 @@ pub struct ResearchQuery {
     /// Optional site-scoped crawl restriction (domain only, no scheme).
     /// When set, `web_gather` will also call `ProviderRegistry::map_site`.
     pub site_scope: Option<String>,
+    #[serde(default)]
+    pub domain_mode: ResearchDomainMode,
 }
 
 /// A decomposed research plan: original query + N subqueries.
