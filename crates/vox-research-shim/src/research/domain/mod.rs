@@ -4,7 +4,8 @@ pub mod codegen;
 pub mod shopping;
 
 pub use codegen::{
-    CodeSandboxResult, codegen_synthesis_instructions, extract_code_snippets_from_markdown,
+    CodeSandboxResult, CodeSelfCorrectionResult, attempt_code_self_correction,
+    codegen_synthesis_instructions, extract_code_snippets_from_markdown,
     generate_codegen_subqueries, verify_rust_code_in_sandbox, wrap_code_snippet_if_needed,
 };
 pub use shopping::{
