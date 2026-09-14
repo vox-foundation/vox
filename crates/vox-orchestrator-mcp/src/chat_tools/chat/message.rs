@@ -650,17 +650,58 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             retrieval_evidence = Some(bundle.evidence.clone());
 
             // Check if autonomous deep research should be triggered
-            if should_trigger_autonomous_research(&expanded_prompt, &bundle, params.force_research)
+            let is_research_slash = expanded_prompt.trim_start().starts_with("/research");
+            let is_forced_research = params.force_research == Some(true);
+            if is_research_slash
+                || is_forced_research
+                || should_trigger_autonomous_research(
+                    &expanded_prompt,
+                    &bundle,
+                    params.force_research,
+                )
             {
                 tracing::info!("Triggering autonomous research for additional context");
                 let scope = params.research_scope.as_deref().unwrap_or("both");
 
+                let clean_prompt = if let Some(stripped) =
+                    expanded_prompt.trim_start().strip_prefix("/research")
+                {
+                    stripped.trim().to_string()
+                } else {
+                    expanded_prompt.clone()
+                };
+
+                let query_str = if clean_prompt.is_empty() {
+                    expanded_prompt.clone()
+                } else {
+                    clean_prompt
+                };
+
+                let search_query = if let Some(ref site) = params.site_scope {
+                    if !query_str.contains("site:") {
+                        format!("{query_str} site:{site}")
+                    } else {
+                        query_str
+                    }
+                } else {
+                    query_str
+                };
+
                 // Spawn autonomous research execution
-                let queries = vec![expanded_prompt.clone()];
-                let trigger_reason = format!(
+                let queries = vec![search_query];
+                let mut trigger_reason = format!(
                     "Chat context injection (forced: {:?}, scope: {})",
-                    params.force_research, scope
+                    params
+                        .force_research
+                        .or(if is_research_slash { Some(true) } else { None }),
+                    scope
                 );
+                if let Some(ref dm) = params.domain_mode {
+                    trigger_reason.push_str(&format!(", domain_mode: {dm}"));
+                }
+                if let Some(ref ss) = params.site_scope {
+                    trigger_reason.push_str(&format!(", site_scope: {ss}"));
+                }
 
                 match state
                     .orchestrator

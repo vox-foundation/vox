@@ -290,6 +290,7 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         persist_to_docs: false,
         verify_claims: params.verify_claims.unwrap_or(false),
         site_scope: params.site_scope,
+        domain_mode: Default::default(),
     };
 
     let config = ResearchConfig {
@@ -380,6 +381,7 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
             persist_to_docs: false,
             verify_claims: params.verify_claims.unwrap_or(false),
             site_scope: params.site_scope,
+            domain_mode: Default::default(),
         };
         let ctx = SearchRuntimeContext::new(
             state.repository.root.clone(),

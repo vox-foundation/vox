@@ -34,6 +34,8 @@ async fn test_forced_autonomous_chat_research_triggers() {
         dry_run: None,
         force_research: Some(true),
         research_scope: Some("web".to_string()),
+        domain_mode: None,
+        site_scope: None,
     };
 
     // Since network backends and API keys might not be present in local test environments,

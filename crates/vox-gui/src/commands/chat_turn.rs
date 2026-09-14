@@ -70,6 +70,14 @@ pub struct ChatTurnInput {
     /// the sync path has no `mode` concept in `vox_chat_message`.
     #[serde(default)]
     pub mode: Option<String>,
+    #[serde(default)]
+    pub force_research: Option<bool>,
+    #[serde(default)]
+    pub research_scope: Option<String>,
+    #[serde(default)]
+    pub domain_mode: Option<String>,
+    #[serde(default)]
+    pub site_scope: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -199,6 +207,18 @@ pub fn sync_tool_args(input: &ChatTurnInput) -> serde_json::Value {
     // here regardless so the wire carries it once that lands.
     if let Some(v) = input.dry_run {
         obj.insert("dry_run".into(), serde_json::json!(v));
+    }
+    if let Some(v) = input.force_research {
+        obj.insert("force_research".into(), serde_json::json!(v));
+    }
+    for (key, val) in [
+        ("research_scope", non_blank(&input.research_scope)),
+        ("domain_mode", non_blank(&input.domain_mode)),
+        ("site_scope", non_blank(&input.site_scope)),
+    ] {
+        if let Some(v) = val {
+            obj.insert(key.into(), serde_json::json!(v));
+        }
     }
     args
 }
@@ -636,5 +656,24 @@ mod tests {
         .expect("input");
         let out2 = background_input(&input_no_chat_session);
         assert_eq!(out2.chat_session_id.as_deref(), Some("bg-synthetic-2"));
+    }
+
+    #[test]
+    fn test_sync_tool_args_carries_research_parameters() {
+        let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "s-chat",
+            "content": "Analyze memory safety in C vs Rust",
+            "force_research": true,
+            "research_scope": "web",
+            "domain_mode": "codegen",
+            "site_scope": "docs.rs"
+        }))
+        .expect("deserialize");
+
+        let args = sync_tool_args(&input);
+        assert_eq!(args["force_research"], true);
+        assert_eq!(args["research_scope"], "web");
+        assert_eq!(args["domain_mode"], "codegen");
+        assert_eq!(args["site_scope"], "docs.rs");
     }
 }

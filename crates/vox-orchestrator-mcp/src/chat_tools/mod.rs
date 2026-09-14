@@ -472,6 +472,8 @@ mod routing_tests {
             dry_run: None,
             force_research: None,
             research_scope: None,
+            domain_mode: None,
+            site_scope: None,
         };
         let rich = ChatMessageParams {
             prompt: "Hi".into(),
@@ -502,6 +504,8 @@ mod routing_tests {
             dry_run: None,
             force_research: None,
             research_scope: None,
+            domain_mode: None,
+            site_scope: None,
         };
         let a = chat_grounding_score(&empty, 0);
         let b = chat_grounding_score(&rich, 3);

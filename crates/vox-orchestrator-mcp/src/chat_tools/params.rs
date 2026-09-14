@@ -129,6 +129,12 @@ pub struct ChatMessageParams {
     /// Optional research scope override ("local", "web", or "both")
     #[serde(default)]
     pub research_scope: Option<String>,
+    /// Optional domain mode override ("general", "shopping", "codegen")
+    #[serde(default)]
+    pub domain_mode: Option<String>,
+    /// Optional site scope to restrict search (e.g. "github.com", "docs.rs")
+    #[serde(default)]
+    pub site_scope: Option<String>,
 }
 
 fn default_chat_history_session_id() -> String {
