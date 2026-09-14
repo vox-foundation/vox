@@ -66,6 +66,12 @@ pub struct ResearchRunParams {
     /// When true (default), return JSON-serialized [`vox_research_shim::research::ResearchResult`].
     #[serde(default = "default_research_json")]
     pub json: bool,
+    /// Number of research waves (default 1).
+    #[serde(default)]
+    pub waves: Option<usize>,
+    /// Domain mode: general, shopping, codegen.
+    #[serde(default)]
+    pub domain_mode: Option<String>,
 }
 
 /// MCP arguments: start a long-running research job.
@@ -80,12 +86,37 @@ pub struct ResearchStartParams {
     pub verify_claims: Option<bool>,
     #[serde(default)]
     pub site_scope: Option<String>,
+    /// Number of research waves (default 1).
+    #[serde(default)]
+    pub waves: Option<usize>,
+    /// Domain mode: general, shopping, codegen.
+    #[serde(default)]
+    pub domain_mode: Option<String>,
 }
 
 /// MCP arguments: inspect a research session.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ResearchSessionParams {
     pub session_id: i64,
+}
+
+/// MCP arguments: search persisted research sessions, reports, and verified claims.
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+pub struct ResearchSearchParams {
+    /// Natural-language or keyword search query for the research knowledgebase.
+    pub query: String,
+    /// Maximum number of session records to return (default 10, max 50).
+    #[serde(default)]
+    pub limit: Option<usize>,
+    /// Optional domain mode filter (e.g. 'codegen', 'shopping', 'general').
+    #[serde(default)]
+    pub domain: Option<String>,
+    /// Minimum confidence score threshold for claims (0.0 to 1.0).
+    #[serde(default)]
+    pub min_confidence: Option<f64>,
+    /// When true, only returns claims with 'Supported' verdict.
+    #[serde(default)]
+    pub verified_only: Option<bool>,
 }
 
 fn default_research_json() -> bool {

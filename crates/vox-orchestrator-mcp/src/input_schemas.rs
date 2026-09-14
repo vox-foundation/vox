@@ -331,6 +331,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_research_status" | "vox_research_get" => parse_obj(
             r#"{"type":"object","properties":{"session_id":{"type":"integer","minimum":1}},"required":["session_id"],"additionalProperties":false}"#,
         ),
+        "vox_research_search" => parse_obj(
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"limit":{"type":"integer","minimum":1,"maximum":50},"domain":{"type":"string"},"min_confidence":{"type":"number","minimum":0.0,"maximum":1.0},"verified_only":{"type":"boolean"}},"required":["query"],"additionalProperties":false}"#,
+        ),
 
         // ── Sessions & compaction ─────────────────────────────────────────────
         "vox_session_create" => parse_obj(

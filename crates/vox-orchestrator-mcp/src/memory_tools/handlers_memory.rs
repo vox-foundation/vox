@@ -1,8 +1,8 @@
 use super::config::memory_config_for_state;
 use super::params::{
     KnowledgeQueryParams, MemoryLogParams, MemoryRecallParams, MemorySearchParams,
-    MemoryStoreParams, ResearchRunParams, ResearchSessionParams, ResearchStartParams,
-    SemanticFsDiscoverParams,
+    MemoryStoreParams, ResearchRunParams, ResearchSearchParams, ResearchSessionParams,
+    ResearchStartParams, SemanticFsDiscoverParams,
 };
 use super::retrieval::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::params::ToolResult;
@@ -283,6 +283,11 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         }
     };
 
+    let domain_mode = match params.domain_mode.as_deref() {
+        Some("shopping") => vox_research_shim::research::ResearchDomainMode::Shopping,
+        Some("codegen") => vox_research_shim::research::ResearchDomainMode::CodeGen,
+        _ => vox_research_shim::research::ResearchDomainMode::General,
+    };
     let rq = ResearchQuery {
         query: params.query,
         scope,
@@ -290,7 +295,8 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         persist_to_docs: false,
         verify_claims: params.verify_claims.unwrap_or(false),
         site_scope: params.site_scope,
-        domain_mode: Default::default(),
+        domain_mode,
+        waves: params.waves.unwrap_or(1).clamp(1, 5),
     };
 
     let config = ResearchConfig {
@@ -374,6 +380,11 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
 
     let state = state.clone();
     tokio::spawn(async move {
+        let domain_mode = match params.domain_mode.as_deref() {
+            Some("shopping") => vox_research_shim::research::ResearchDomainMode::Shopping,
+            Some("codegen") => vox_research_shim::research::ResearchDomainMode::CodeGen,
+            _ => vox_research_shim::research::ResearchDomainMode::General,
+        };
         let rq = ResearchQuery {
             query,
             scope,
@@ -381,7 +392,8 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
             persist_to_docs: false,
             verify_claims: params.verify_claims.unwrap_or(false),
             site_scope: params.site_scope,
-            domain_mode: Default::default(),
+            domain_mode,
+            waves: params.waves.unwrap_or(1).clamp(1, 5),
         };
         let ctx = SearchRuntimeContext::new(
             state.repository.root.clone(),
@@ -499,6 +511,68 @@ pub async fn research_get(state: &ServerState, params: ResearchSessionParams) ->
         .to_string(),
     )
     .to_json()
+}
+
+/// Query the research knowledgebase across persisted reports and claims.
+pub async fn research_search(state: &ServerState, params: ResearchSearchParams) -> String {
+    let Some(ref db) = state.db else {
+        return ToolResult::<String>::err_with_remediation(
+            "VoxDb not attached to MCP server.".to_string(),
+            REM_MEMORY_VOXDB,
+        )
+        .to_json();
+    };
+
+    let limit = params.limit.unwrap_or(10).clamp(1, 50);
+    match db.search_research_artifacts(&params.query, limit).await {
+        Ok(hits) => {
+            if hits.is_empty() {
+                return ToolResult::ok(format!(
+                    "No research artifacts found matching '{}'.",
+                    params.query
+                ))
+                .to_json();
+            }
+            let mut out = format!(
+                "# Research Knowledgebase Results for '{}'\n\n",
+                params.query
+            );
+            for hit in hits {
+                out.push_str(&format!(
+                    "### [Session {}] {}\n",
+                    hit.session_id, hit.query_text
+                ));
+                out.push_str(&format!("*Snippet:* {}\n", hit.snippet));
+                if let Ok(claims) = db.list_publication_claims(hit.session_id).await {
+                    let filtered = claims.into_iter().filter(|c| {
+                        let verdict_str = c.verdict.as_deref().unwrap_or("Unverified");
+                        if params.verified_only == Some(true) && verdict_str != "Supported" {
+                            return false;
+                        }
+                        if let Some(min_conf) = params.min_confidence {
+                            let conf = c.confidence.unwrap_or(0.0);
+                            if conf < min_conf {
+                                return false;
+                            }
+                        }
+                        true
+                    });
+                    for c in filtered {
+                        let v = c.verdict.as_deref().unwrap_or("Unverified");
+                        let conf = c.confidence.unwrap_or(0.0);
+                        out.push_str(&format!("- [{}] (conf: {:.2}) {}\n", v, conf, c.text));
+                    }
+                }
+                out.push('\n');
+            }
+            ToolResult::ok(out).to_json()
+        }
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("Search failed: {e}"),
+            REM_RESEARCH_RUN,
+        )
+        .to_json(),
+    }
 }
 
 fn parse_research_scope(

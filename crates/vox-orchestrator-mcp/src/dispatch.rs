@@ -1342,6 +1342,9 @@ async fn handle_tool_call_inner(
         "vox_research_get" => {
             Ok(crate::memory::research_get(state, serde_json::from_value(args)?).await)
         }
+        "vox_research_search" => {
+            Ok(crate::memory::research_search(state, serde_json::from_value(args)?).await)
+        }
         "vox_memory_save_db" => {
             Ok(crate::memory::memory_save_db(state, serde_json::from_value(args)?).await)
         }
