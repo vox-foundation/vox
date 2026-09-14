@@ -508,7 +508,39 @@ impl SelectionIntent {
             complexity: 2,
             context_size_hint: None,
             caller_hint: Some("nli-classifier"),
-            prefer_local: false,
+            prefer_local: true,
+            max_cost_usd_per_call: Some(0.01),
+            cacheable_workload: false,
+            allow_free_in_performance_mode: false,
+        }
+    }
+
+    /// Pre-baked intent for snippet triage / relevance ranking in deep research.
+    #[must_use]
+    pub fn snippet_triage() -> Self {
+        Self {
+            task: TaskCategory::Parsing,
+            axes: SelectionAxes::FAST,
+            complexity: 2,
+            context_size_hint: None,
+            caller_hint: Some("snippet-triage"),
+            prefer_local: true,
+            max_cost_usd_per_call: Some(0.005),
+            cacheable_workload: false,
+            allow_free_in_performance_mode: false,
+        }
+    }
+
+    /// Pre-baked intent for claim extraction in deep research.
+    #[must_use]
+    pub fn claim_extraction() -> Self {
+        Self {
+            task: TaskCategory::Parsing,
+            axes: SelectionAxes::FAST,
+            complexity: 3,
+            context_size_hint: None,
+            caller_hint: Some("claim-extraction"),
+            prefer_local: true,
             max_cost_usd_per_call: Some(0.01),
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
@@ -1037,6 +1069,33 @@ mod tests {
         let i = SelectionIntent::ide_autocomplete();
         assert!(i.prefer_local);
         assert_eq!(i.axes, SelectionAxes::FAST);
+    }
+
+    #[test]
+    fn test_local_first_research_intents() {
+        let nli = SelectionIntent::nli_classifier();
+        assert!(
+            nli.prefer_local,
+            "NLI classifier must prefer local execution"
+        );
+
+        let triage = SelectionIntent::snippet_triage();
+        assert!(
+            triage.prefer_local,
+            "snippet triage must prefer local execution"
+        );
+
+        let extract = SelectionIntent::claim_extraction();
+        assert!(
+            extract.prefer_local,
+            "claim extraction must prefer local execution"
+        );
+
+        let synth = SelectionIntent::research();
+        assert!(
+            !synth.prefer_local,
+            "synthesis must allow cloud frontier models"
+        );
     }
 
     // #[file_serial]: calls decide() against the real bootstrap registry and

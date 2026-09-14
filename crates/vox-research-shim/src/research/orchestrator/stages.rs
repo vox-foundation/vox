@@ -177,11 +177,9 @@ pub(super) async fn synthesize_answer_with_llm(params: SynthesisParams<'_>) -> S
     }
 
     // Try LLM synthesis first.
-    if let (Some(_ep), Some(_key)) = (params.endpoint, params.api_key) {
-        match call_synthesis_llm(&params).await {
-            Ok(answer) => return answer,
-            Err(e) => tracing::warn!("LLM synthesis failed: {e}, falling back to template"),
-        }
+    match call_synthesis_llm(&params).await {
+        Ok(answer) => return answer,
+        Err(e) => tracing::warn!("LLM synthesis failed: {e}, falling back to template"),
     }
 
     // Template fallback.
@@ -450,13 +448,15 @@ async fn chat_stage(
     // intent as the closest fit (future refinement: a dedicated intent).
     let intent = match stage {
         ResearchStage::Judge => vox_orchestrator::models::SelectionIntent::review(),
-        ResearchStage::Synthesis | ResearchStage::SelfVerification => {
-            vox_orchestrator::models::SelectionIntent::research()
+        ResearchStage::Synthesis => vox_orchestrator::models::SelectionIntent::research(),
+        ResearchStage::SelfVerification => {
+            vox_orchestrator::models::SelectionIntent::snippet_triage()
         }
         ResearchStage::Planner => vox_orchestrator::models::SelectionIntent::research(),
-        ResearchStage::ClaimExtraction | ResearchStage::Verification => {
-            vox_orchestrator::models::SelectionIntent::nli_classifier()
+        ResearchStage::ClaimExtraction => {
+            vox_orchestrator::models::SelectionIntent::claim_extraction()
         }
+        ResearchStage::Verification => vox_orchestrator::models::SelectionIntent::nli_classifier(),
     };
     let primary =
         crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(intent);

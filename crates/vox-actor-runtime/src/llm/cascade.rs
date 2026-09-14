@@ -73,6 +73,105 @@ pub async fn chat_with_cascade(
     }
 }
 
+/// Run chat completion over an explicit candidate cascade with schema parsing and fallback.
+///
+/// Iterates through `candidates`, executing each candidate in order with `infer_with_retry`.
+/// If a candidate succeeds and `parser` successfully parses the content, returns `Ok((parsed, response))`.
+/// If `parser` fails or the candidate execution fails, logs a warning/debug and falls back to the next candidate in the cascade.
+pub async fn chat_with_cascade_parsed<T, F>(
+    opts: &ActivityOptions,
+    messages: Vec<LlmChatMessage>,
+    candidates: Vec<LlmConfig>,
+    research_stage: Option<ResearchStage>,
+    parser: F,
+) -> Result<(T, LlmResponse), String>
+where
+    F: Fn(&str) -> Result<T, String>,
+{
+    if candidates.is_empty() {
+        let stage_lbl = research_stage_label(research_stage);
+        vox_telemetry::record_event!(&TelemetryEvent::AiFixture(AiFixtureEvent::PromptDispatch(
+            PromptDispatchTelemetryEvent {
+                stage: stage_lbl,
+                outcome: "error".into(),
+                error: Some("no LLM candidates available for research cascade".into()),
+                redact_count: 0,
+            }
+        )));
+        return Err("no LLM candidates available for research cascade".to_string());
+    }
+
+    let mut last_err = String::from("no candidates succeeded");
+    for candidate in candidates {
+        let res = infer_with_retry(opts, messages.clone(), vec![candidate.clone()]).await;
+        match res {
+            ActivityResult::Ok(Ok((response, _cfg))) => match parser(&response.content) {
+                Ok(parsed) => {
+                    let stage_lbl = research_stage_label(research_stage);
+                    vox_telemetry::record_event!(&TelemetryEvent::AiFixture(
+                        AiFixtureEvent::PromptDispatch(PromptDispatchTelemetryEvent {
+                            stage: stage_lbl,
+                            outcome: "ok".into(),
+                            error: None,
+                            redact_count: 0,
+                        })
+                    ));
+                    return Ok((parsed, response));
+                }
+                Err(parse_err) => {
+                    tracing::warn!(
+                        candidate_model = %candidate.model,
+                        error = %parse_err,
+                        "cascade candidate response failed to parse; trying next candidate"
+                    );
+                    last_err = format!("parse error on model {}: {}", candidate.model, parse_err);
+                }
+            },
+            ActivityResult::Ok(Err(e)) => {
+                tracing::debug!(
+                    candidate_model = %candidate.model,
+                    error = %e,
+                    "cascade candidate inference error; trying next candidate"
+                );
+                last_err = e;
+            }
+            ActivityResult::Failed(e) => {
+                tracing::debug!(
+                    candidate_model = %candidate.model,
+                    error = ?e,
+                    "cascade candidate activity failed; trying next candidate"
+                );
+                last_err = format!("activity failed: {e:?}");
+            }
+            ActivityResult::Cancelled => {
+                let stage_lbl = research_stage_label(research_stage);
+                vox_telemetry::record_event!(&TelemetryEvent::AiFixture(
+                    AiFixtureEvent::PromptDispatch(PromptDispatchTelemetryEvent {
+                        stage: stage_lbl,
+                        outcome: "cancelled".into(),
+                        error: Some("research cascade cancelled".into()),
+                        redact_count: 0,
+                    })
+                ));
+                return Err("research cascade cancelled".to_string());
+            }
+        }
+    }
+
+    let stage_lbl = research_stage_label(research_stage);
+    vox_telemetry::record_event!(&TelemetryEvent::AiFixture(AiFixtureEvent::PromptDispatch(
+        PromptDispatchTelemetryEvent {
+            stage: stage_lbl,
+            outcome: "error".into(),
+            error: Some(last_err.clone()),
+            redact_count: 0,
+        }
+    )));
+    Err(format!(
+        "all cascade candidates failed or failed to parse: {last_err}"
+    ))
+}
+
 /// Ordered, dispatchable OpenRouter model ids for a research call.
 ///
 /// Concrete `:free` slugs from [`vox_config::OPENROUTER_FREE_FALLBACK_MODELS`] are
@@ -330,5 +429,19 @@ mod tests {
         // a configured model that is already a free slug appears exactly once.
         assert_eq!(v.iter().filter(|m| m.as_str() == slug).count(), 1);
         assert_eq!(v, expected_free());
+    }
+
+    #[tokio::test]
+    async fn chat_with_cascade_parsed_empty_candidates_errors() {
+        let res = chat_with_cascade_parsed::<String, _>(
+            &ActivityOptions::default(),
+            vec![],
+            vec![],
+            None,
+            |s| Ok(s.to_string()),
+        )
+        .await;
+        assert!(res.is_err());
+        assert!(res.unwrap_err().contains("no LLM candidates available"));
     }
 }

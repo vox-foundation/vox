@@ -151,6 +151,20 @@ fn majority_verdict(verdicts: &[Verdict]) -> Verdict {
 // `resample_stability` field on `ClaimVerdict`.
 const RESAMPLE_COUNT: usize = 3;
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResampleCheck {
+    pub verdict: Verdict,
+    pub confidence: f64,
+}
+
+pub fn should_early_exit_after_sample_1(confidence: f64) -> bool {
+    confidence >= 0.92
+}
+
+pub fn should_early_exit_after_sample_2(v1: Verdict, v2: Verdict) -> bool {
+    v1 == v2
+}
+
 /// Merges `primary` (from `primary_candidate_for_intent`, if any key-gated
 /// candidate cleared selection) ahead of `fallback` (the cascade), and forces
 /// verification's per-candidate overrides (`max_tokens`, JSON response
@@ -218,68 +232,77 @@ pub async fn verify_claims_with_config(
         let opts = ActivityOptions::new().with_timeout_secs(30);
         let mut verdicts = Vec::new();
 
-        for claim in claims {
-            // Resample the same claim/evidence pair RESAMPLE_COUNT times,
-            // relying on the cascade's nonzero verification temperature
-            // (see `apply_stage_defaults` in vox-actor-runtime's
-            // `llm::cascade` module) to produce genuine variation across
-            // samples. The samples are independent (no shared mutable
-            // state), so run them concurrently rather than sequentially.
-            let sample_futures = (0..RESAMPLE_COUNT).map(|_| {
-                let opts = &opts;
-                let input = &input;
-                let evidence = &evidence;
-                async move {
-                    let primary = crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
+        let sample_claim = |claim: &Claim| {
+            let opts = &opts;
+            let input = &input;
+            let evidence = &evidence;
+            async move {
+                let primary =
+                    crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
                         vox_orchestrator::models::SelectionIntent::nli_classifier(),
                     );
-                    let fallback = cascade_with_optional_manual(
-                        ResearchStage::Verification,
-                        input,
-                        endpoint,
-                        api_key,
-                        Some(input.openrouter_model.as_str()),
-                    );
-                    let candidates = resample_candidates(primary, fallback);
-                    let messages = vec![
-                        LlmChatMessage {
-                            role: "system".to_string(),
-                            content: "Classify whether retrieved evidence supports the claim. \
-                            Output only JSON: {\"verdict\":\"Supported|Contradicted|Contested|Unverified\",\
-                            \"confidence\":0.0,\"supporting_indices\":[0],\"contradicting_indices\":[1]}."
-                                .to_string(), ..Default::default()
-                        },
-                        LlmChatMessage {
-                            role: "user".to_string(),
-                            content: format!(
-                                "Original question: {query}\n\nClaim: {}\n\nEvidence:\n{evidence}",
-                                claim.text
-                            ), ..Default::default()
-                        },
-                    ];
-                    match chat_with_cascade(opts, messages, candidates, None).await {
-                        Ok(response) => {
-                            match parse_verifier_response(
-                                &response.content,
-                                claim.clone(),
-                                evidence_hits,
-                                abstain_threshold,
-                            ) {
-                                Ok(verdict) => verdict,
-                                Err(e) => {
-                                    tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier response invalid");
-                                    unverified(claim.clone())
-                                }
+                let fallback = cascade_with_optional_manual(
+                    ResearchStage::Verification,
+                    input,
+                    endpoint,
+                    api_key,
+                    Some(input.openrouter_model.as_str()),
+                );
+                let candidates = resample_candidates(primary, fallback);
+                let messages = vec![
+                    LlmChatMessage {
+                        role: "system".to_string(),
+                        content: "Classify whether retrieved evidence supports the claim. \
+                        Output only JSON: {\"verdict\":\"Supported|Contradicted|Contested|Unverified\",\
+                        \"confidence\":0.0,\"supporting_indices\":[0],\"contradicting_indices\":[1]}."
+                            .to_string(),
+                        ..Default::default()
+                    },
+                    LlmChatMessage {
+                        role: "user".to_string(),
+                        content: format!(
+                            "Original question: {query}\n\nClaim: {}\n\nEvidence:\n{evidence}",
+                            claim.text
+                        ),
+                        ..Default::default()
+                    },
+                ];
+                match chat_with_cascade(opts, messages, candidates, None).await {
+                    Ok(response) => {
+                        match parse_verifier_response(
+                            &response.content,
+                            claim.clone(),
+                            evidence_hits,
+                            abstain_threshold,
+                        ) {
+                            Ok(verdict) => verdict,
+                            Err(e) => {
+                                tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier response invalid");
+                                unverified(claim.clone())
                             }
                         }
-                        Err(e) => {
-                            tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier cascade failed");
-                            unverified(claim.clone())
-                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier cascade failed");
+                        unverified(claim.clone())
                     }
                 }
-            });
-            let sampled: Vec<ClaimVerdict> = futures::future::join_all(sample_futures).await;
+            }
+        };
+
+        for claim in claims {
+            let s1 = sample_claim(claim).await;
+            let sampled = if should_early_exit_after_sample_1(s1.confidence) {
+                vec![s1]
+            } else {
+                let s2 = sample_claim(claim).await;
+                if should_early_exit_after_sample_2(s1.verdict, s2.verdict) {
+                    vec![s1, s2]
+                } else {
+                    let s3 = sample_claim(claim).await;
+                    vec![s1, s2, s3]
+                }
+            };
             verdicts.push(assemble_resampled_verdict(sampled));
         }
 
@@ -625,5 +648,32 @@ mod tests {
             Verdict::Contradicted,
         ];
         assert_eq!(majority_verdict(&verdicts), Verdict::Supported);
+    }
+
+    #[test]
+    fn test_adaptive_resampling_early_exit_logic() {
+        assert!(
+            should_early_exit_after_sample_1(0.95),
+            "High confidence on sample 1 must exit immediately"
+        );
+        assert!(
+            !should_early_exit_after_sample_1(0.70),
+            "Low confidence on sample 1 must not exit"
+        );
+
+        assert!(
+            should_early_exit_after_sample_2(
+                super::super::types::Verdict::Supported,
+                super::super::types::Verdict::Supported
+            ),
+            "Agreement on sample 2 locks 2/2 majority; must exit"
+        );
+        assert!(
+            !should_early_exit_after_sample_2(
+                super::super::types::Verdict::Supported,
+                super::super::types::Verdict::Contradicted
+            ),
+            "Disagreement requires sample 3 tie-breaker"
+        );
     }
 }
