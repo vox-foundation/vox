@@ -36,16 +36,30 @@ struct ResearchResponse {
     response_time: Option<f64>,
 }
 
-/// Returns true when `VOX_TAVILY_RESEARCH` is set to a truthy value.
+/// Evaluates whether Tavily research is enabled given optional API key and override strings.
+#[must_use]
+pub fn tavily_research_enabled_with_values(
+    api_key: Option<&str>,
+    explicit_override: Option<&str>,
+) -> bool {
+    if let Some(v) = explicit_override {
+        let v = v.trim();
+        if matches!(v, "1" | "true" | "TRUE" | "yes" | "YES" | "on" | "ON") {
+            return true;
+        }
+        if matches!(v, "0" | "false" | "FALSE" | "no" | "NO" | "off" | "OFF") {
+            return false;
+        }
+    }
+    api_key.map(|k| !k.trim().is_empty()).unwrap_or(false)
+}
+
+/// Returns true when `VOX_TAVILY_RESEARCH` is truthy, or auto-enabled when an API key is present.
 #[must_use]
 pub fn tavily_research_enabled() -> bool {
-    match resolve_secret(SecretId::VoxTavilyResearch).expose() {
-        Some(v) => {
-            let v = v.trim();
-            matches!(v, "1" | "true" | "TRUE" | "yes" | "YES" | "on" | "ON")
-        }
-        None => false,
-    }
+    let override_secret = resolve_secret(SecretId::VoxTavilyResearch);
+    let key_secret = resolve_secret(SecretId::TavilyApiKey);
+    tavily_research_enabled_with_values(key_secret.expose(), override_secret.expose())
 }
 
 pub struct TavilyResearchClient {
@@ -166,5 +180,43 @@ mod tests {
     #[test]
     fn research_gate_is_boolean() {
         let _ = tavily_research_enabled();
+    }
+
+    #[test]
+    fn test_tavily_research_enabled_with_values() {
+        // Truthy overrides
+        assert!(tavily_research_enabled_with_values(None, Some("1")));
+        assert!(tavily_research_enabled_with_values(None, Some("true")));
+        assert!(tavily_research_enabled_with_values(None, Some("TRUE")));
+        assert!(tavily_research_enabled_with_values(None, Some("yes")));
+        assert!(tavily_research_enabled_with_values(None, Some("on")));
+
+        // Falsy overrides override even a valid key
+        assert!(!tavily_research_enabled_with_values(
+            Some("tvly-xxx"),
+            Some("0")
+        ));
+        assert!(!tavily_research_enabled_with_values(
+            Some("tvly-xxx"),
+            Some("false")
+        ));
+        assert!(!tavily_research_enabled_with_values(
+            Some("tvly-xxx"),
+            Some("FALSE")
+        ));
+        assert!(!tavily_research_enabled_with_values(
+            Some("tvly-xxx"),
+            Some("no")
+        ));
+        assert!(!tavily_research_enabled_with_values(
+            Some("tvly-xxx"),
+            Some("off")
+        ));
+
+        // Unset override relies on key presence
+        assert!(tavily_research_enabled_with_values(Some("tvly-xxx"), None));
+        assert!(!tavily_research_enabled_with_values(None, None));
+        assert!(!tavily_research_enabled_with_values(Some(""), None));
+        assert!(!tavily_research_enabled_with_values(Some("   "), None));
     }
 }

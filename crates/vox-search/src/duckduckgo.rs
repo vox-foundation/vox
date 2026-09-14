@@ -10,9 +10,49 @@ pub struct DdgResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct DdgResponse {
-    #[serde(rename = "RelatedTopics")]
-    pub related_topics: Vec<DdgResult>,
+#[serde(untagged)]
+pub enum DdgTopicItem {
+    Single(DdgResult),
+    Category {
+        #[serde(rename = "Name")]
+        name: Option<String>,
+        #[serde(rename = "Topics")]
+        topics: Vec<DdgResult>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DdgResponse {
+    #[serde(rename = "RelatedTopics", default)]
+    pub related_topics: Vec<DdgTopicItem>,
+}
+
+impl DdgResponse {
+    pub fn flatten_topics(self, limit: usize) -> Vec<DdgResult> {
+        let mut out = Vec::new();
+        for item in self.related_topics {
+            match item {
+                DdgTopicItem::Single(r) => {
+                    out.push(r);
+                    if out.len() >= limit {
+                        break;
+                    }
+                }
+                DdgTopicItem::Category { topics, .. } => {
+                    for r in topics {
+                        out.push(r);
+                        if out.len() >= limit {
+                            break;
+                        }
+                    }
+                    if out.len() >= limit {
+                        break;
+                    }
+                }
+            }
+        }
+        out
+    }
 }
 
 pub struct DuckDuckGoClient;
@@ -43,9 +83,8 @@ impl DuckDuckGoClient {
 
         let body: DdgResponse = resp.json().await?;
         let results = body
-            .related_topics
+            .flatten_topics(limit)
             .into_iter()
-            .take(limit)
             .map(|r| crate::searxng::SearxngResult {
                 url: r.url,
                 title: r.text.clone(),
@@ -56,5 +95,77 @@ impl DuckDuckGoClient {
             .collect();
 
         Ok(results)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_heterogeneous_ddg_response() {
+        let raw_json = r#"{
+            "RelatedTopics": [
+                {
+                    "FirstURL": "https://duckduckgo.com/c/Rust_(programming_language)",
+                    "Text": "Rust (programming language)"
+                },
+                {
+                    "Name": "Other Languages",
+                    "Topics": [
+                        {
+                            "FirstURL": "https://duckduckgo.com/c/Go_(programming_language)",
+                            "Text": "Go (programming language)"
+                        }
+                    ]
+                }
+            ]
+        }"#;
+
+        let resp: DdgResponse =
+            serde_json::from_str(raw_json).expect("deserialize heterogeneous ddg");
+        let results = resp.flatten_topics(10);
+        assert_eq!(results.len(), 2);
+        assert_eq!(
+            results[0].url,
+            "https://duckduckgo.com/c/Rust_(programming_language)"
+        );
+        assert_eq!(results[0].text, "Rust (programming language)");
+        assert_eq!(
+            results[1].url,
+            "https://duckduckgo.com/c/Go_(programming_language)"
+        );
+        assert_eq!(results[1].text, "Go (programming language)");
+    }
+
+    #[test]
+    fn flatten_topics_respects_limit() {
+        let raw_json = r#"{
+            "RelatedTopics": [
+                {
+                    "FirstURL": "https://example.com/1",
+                    "Text": "One"
+                },
+                {
+                    "Name": "Category",
+                    "Topics": [
+                        {
+                            "FirstURL": "https://example.com/2",
+                            "Text": "Two"
+                        },
+                        {
+                            "FirstURL": "https://example.com/3",
+                            "Text": "Three"
+                        }
+                    ]
+                }
+            ]
+        }"#;
+
+        let resp: DdgResponse = serde_json::from_str(raw_json).unwrap();
+        let results = resp.flatten_topics(2);
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].url, "https://example.com/1");
+        assert_eq!(results[1].url, "https://example.com/2");
     }
 }

@@ -11,19 +11,51 @@ pub fn fnv1a(s: &str) -> u64 {
     hash
 }
 
+fn fnv1a_chars(chars: &[char]) -> u64 {
+    let mut hash: u64 = 14_695_981_039_346_656_037;
+    let mut buf = [0u8; 4];
+    for &c in chars {
+        for &byte in c.encode_utf8(&mut buf).as_bytes() {
+            hash ^= byte as u64;
+            hash = hash.wrapping_mul(1_099_511_628_211);
+        }
+    }
+    hash
+}
+
+/// Computes zero-allocation rolling character hash shingles of length `n`.
 pub fn shingle_hashes(content: &str, n: usize) -> Vec<u64> {
-    if content.is_empty() {
+    if content.is_empty() || n == 0 {
         return Vec::new();
     }
-    let lower = content.to_ascii_lowercase();
-    let chars: Vec<char> = lower.chars().collect();
+    let chars: Vec<char> = content.chars().flat_map(|c| c.to_lowercase()).collect();
     if chars.len() < n {
-        return vec![fnv1a(&lower)];
+        return vec![fnv1a_chars(&chars)];
     }
-    chars
-        .windows(n)
-        .map(|w| fnv1a(&w.iter().collect::<String>()))
-        .collect()
+
+    const BASE: u64 = 1_099_511_628_211;
+    let mut power: u64 = 1;
+    for _ in 0..(n - 1) {
+        power = power.wrapping_mul(BASE);
+    }
+
+    let mut current_hash: u64 = 0;
+    for &c in &chars[..n] {
+        current_hash = current_hash.wrapping_mul(BASE).wrapping_add(c as u64);
+    }
+
+    let mut hashes = Vec::with_capacity(chars.len() - n + 1);
+    hashes.push(current_hash);
+
+    for i in n..chars.len() {
+        let out_char = chars[i - n] as u64;
+        let in_char = chars[i] as u64;
+        current_hash = current_hash.wrapping_sub(out_char.wrapping_mul(power));
+        current_hash = current_hash.wrapping_mul(BASE).wrapping_add(in_char);
+        hashes.push(current_hash);
+    }
+
+    hashes
 }
 
 /// Tracks seen content fingerprints across a research session.
@@ -99,5 +131,15 @@ mod tests {
     fn empty_content_scores_zero() {
         let scorer = NoveltyScorer::new();
         assert_eq!(scorer.score(""), 0.0);
+    }
+
+    #[test]
+    fn large_content_rolling_hashes() {
+        let content = "a".repeat(25_000);
+        let hashes = shingle_hashes(&content, 4);
+        assert_eq!(hashes.len(), 25_000 - 4 + 1);
+        let mut scorer = NoveltyScorer::new();
+        scorer.accept(&content);
+        assert_eq!(scorer.score(&content), 0.0);
     }
 }

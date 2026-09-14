@@ -1,4 +1,3 @@
-#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! Versioned search policy loaded from defaults with `VOX_SEARCH_*` environment overrides.
 //!
 //! SearXNG `engines` / `language` defaults are embedded from
@@ -10,6 +9,21 @@ use crate::searxng_defaults::embedded_searxng_query_defaults;
 
 /// Policy version mirrored into [`vox_db::SearchDiagnostics::policy_version`] and notes.
 pub const SEARCH_POLICY_DEFAULT_VERSION: u32 = 1;
+
+/// Parse prefer_rrf_merge from an optional environment override string (default true).
+#[inline]
+pub fn parse_prefer_rrf_merge(raw: Option<&str>) -> bool {
+    match raw {
+        Some(v) => {
+            let v = v.trim();
+            v == "1"
+                || v.eq_ignore_ascii_case("true")
+                || v.eq_ignore_ascii_case("yes")
+                || v.eq_ignore_ascii_case("on")
+        }
+        None => true, // default ON
+    }
+}
 
 #[inline]
 fn default_chunk_vector_fusion_weight() -> f32 {
@@ -174,21 +188,18 @@ impl Default for SearchPolicy {
             .expose()
             .filter(|s| !s.trim().is_empty())
             .map(std::path::PathBuf::from),
-            prefer_rrf_merge: match vox_secrets::resolve_secret(
-                vox_secrets::SecretId::VoxSearchPreferRrf,
-            )
-            .expose()
-            {
-                Some(v) => {
-                    let v = v.trim();
-                    v == "1"
-                        || v.eq_ignore_ascii_case("true")
-                        || v.eq_ignore_ascii_case("yes")
-                        || v.eq_ignore_ascii_case("on")
-                }
-                None => true, // default ON
+            prefer_rrf_merge: parse_prefer_rrf_merge(
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPreferRrf).expose(),
+            ),
+            tavily_enabled: {
+                let key = vox_secrets::resolve_secret(vox_secrets::SecretId::TavilyApiKey);
+                let override_val =
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyEnabled);
+                crate::tavily_research::tavily_research_enabled_with_values(
+                    key.expose(),
+                    override_val.expose(),
+                )
             },
-            tavily_enabled: parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyEnabled),
             tavily_search_depth: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchTavilyDepth,
             )
@@ -342,11 +353,19 @@ impl SearchPolicy {
                 p.repo_inventory_skip_dirs = dirs;
             }
         }
-        if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyEnabled)
-            .expose()
-            .is_some()
         {
-            p.tavily_enabled = parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyEnabled);
+            let key = vox_secrets::resolve_secret(vox_secrets::SecretId::TavilyApiKey);
+            let override_val =
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyEnabled);
+            p.tavily_enabled = crate::tavily_research::tavily_research_enabled_with_values(
+                key.expose(),
+                override_val.expose(),
+            );
+        }
+        if let Some(v) =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPreferRrf).expose()
+        {
+            p.prefer_rrf_merge = parse_prefer_rrf_merge(Some(v));
         }
         if let Some(v) =
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyDepth).expose()
@@ -572,9 +591,8 @@ fn parse_falsy_env(id: vox_secrets::SecretId) -> bool {
 
 #[cfg(test)]
 mod tests {
-    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
     // field_reassign is a stylistic test-setup pattern here.
-    #![allow(unsafe_code, clippy::field_reassign_with_default)]
+    #![allow(clippy::field_reassign_with_default)]
     use super::*;
 
     #[test]
@@ -614,31 +632,40 @@ mod tests {
     }
 
     #[test]
-    fn rrf_is_enabled_by_default_when_env_unset() {
-        // This test modifies env which is process-global — run tests with --test-threads=1
-        // if env collision becomes a flake.
-        unsafe {
-            std::env::remove_var("VOX_SEARCH_PREFER_RRF");
-        }
-        let policy = SearchPolicy::from_env();
-        assert!(
-            policy.prefer_rrf_merge,
-            "prefer_rrf_merge must default to true; operators set VOX_SEARCH_PREFER_RRF=false to disable"
-        );
+    fn prefer_rrf_merge_pure_parsing() {
+        assert!(parse_prefer_rrf_merge(None));
+        assert!(parse_prefer_rrf_merge(Some("true")));
+        assert!(parse_prefer_rrf_merge(Some("TRUE")));
+        assert!(parse_prefer_rrf_merge(Some("1")));
+        assert!(parse_prefer_rrf_merge(Some("yes")));
+        assert!(parse_prefer_rrf_merge(Some("on")));
+
+        assert!(!parse_prefer_rrf_merge(Some("false")));
+        assert!(!parse_prefer_rrf_merge(Some("FALSE")));
+        assert!(!parse_prefer_rrf_merge(Some("0")));
+        assert!(!parse_prefer_rrf_merge(Some("no")));
+        assert!(!parse_prefer_rrf_merge(Some("off")));
+        assert!(!parse_prefer_rrf_merge(Some("anything_else")));
     }
 
     #[test]
-    fn rrf_disabled_when_env_set_to_false() {
-        unsafe {
-            std::env::set_var("VOX_SEARCH_PREFER_RRF", "false");
-        }
-        let policy = SearchPolicy::from_env();
-        assert!(
-            !policy.prefer_rrf_merge,
-            "VOX_SEARCH_PREFER_RRF=false must disable RRF"
-        );
-        unsafe {
-            std::env::remove_var("VOX_SEARCH_PREFER_RRF");
-        }
+    fn tavily_auto_activation_respects_key_and_override() {
+        use crate::tavily_research::tavily_research_enabled_with_values;
+        // Key present, no explicit override -> auto-enabled
+        assert!(tavily_research_enabled_with_values(Some("tvly-xxx"), None));
+        // Key present, explicit false -> disabled
+        assert!(!tavily_research_enabled_with_values(
+            Some("tvly-xxx"),
+            Some("false")
+        ));
+        assert!(!tavily_research_enabled_with_values(
+            Some("tvly-xxx"),
+            Some("0")
+        ));
+        // Key absent, no explicit override -> disabled
+        assert!(!tavily_research_enabled_with_values(None, None));
+        // Key absent, explicit true -> enabled
+        assert!(tavily_research_enabled_with_values(None, Some("true")));
+        assert!(tavily_research_enabled_with_values(None, Some("1")));
     }
 }

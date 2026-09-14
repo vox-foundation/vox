@@ -14,7 +14,10 @@ pub struct TavilySearchClient {
 impl TavilySearchClient {
     pub fn from_env() -> Option<Self> {
         let binding = resolve_secret(SecretId::TavilyApiKey);
-        let key_str = binding.expose()?;
+        let key_str = binding.expose()?.trim();
+        if key_str.is_empty() {
+            return None;
+        }
         let client = Tavily::builder(key_str)
             .timeout(vox_config::timeouts::D_30S)
             .build()

@@ -13,7 +13,7 @@ impl WebSearchDispatcher {
     ) -> anyhow::Result<Vec<crate::memory_hybrid::HybridSearchHit>> {
         let mut results = Vec::new();
 
-        // Tier 2: SearXNG
+        // Tier 1: SearXNG
         if let Some(base_url) = &policy.searxng_url {
             let client = crate::searxng::SearxngSearchClient::new(base_url.clone());
             match client
@@ -35,22 +35,7 @@ impl WebSearchDispatcher {
             }
         }
 
-        // Tier 3: DuckDuckGo Fallback
-        if results.is_empty() && policy.duckduckgo_fallback_enabled {
-            match crate::duckduckgo::DuckDuckGoClient::search(query, policy.searxng_max_results)
-                .await
-            {
-                Ok(hits) => {
-                    info!(count = hits.len(), "DuckDuckGo fallback succeeded");
-                    results = hits;
-                }
-                Err(e) => {
-                    warn!(error = %e, "DuckDuckGo fallback failed");
-                }
-            }
-        }
-
-        // Tier 4: Tavily (when SearXNG + DDG produced nothing and policy allows it)
+        // Tier 2: Tavily (when SearXNG produced nothing and policy allows it)
         #[cfg(feature = "tavily")]
         if results.is_empty()
             && policy.tavily_enabled
@@ -65,7 +50,7 @@ impl WebSearchDispatcher {
                 .await
             {
                 Ok(hits) => {
-                    info!(count = hits.len(), "Tavily web fallback succeeded");
+                    info!(count = hits.len(), "Tavily web search succeeded");
                     results = hits
                         .into_iter()
                         .map(|h| crate::searxng::SearxngResult {
@@ -78,7 +63,22 @@ impl WebSearchDispatcher {
                         .collect();
                 }
                 Err(e) => {
-                    warn!(error = %e, "Tavily web fallback failed");
+                    warn!(error = %e, "Tavily web search failed");
+                }
+            }
+        }
+
+        // Tier 3: DuckDuckGo Fallback (when SearXNG + Tavily produced nothing)
+        if results.is_empty() && policy.duckduckgo_fallback_enabled {
+            match crate::duckduckgo::DuckDuckGoClient::search(query, policy.searxng_max_results)
+                .await
+            {
+                Ok(hits) => {
+                    info!(count = hits.len(), "DuckDuckGo fallback succeeded");
+                    results = hits;
+                }
+                Err(e) => {
+                    warn!(error = %e, "DuckDuckGo fallback failed");
                 }
             }
         }
@@ -111,9 +111,7 @@ impl WebSearchDispatcher {
             for res in urls_to_scrape {
                 match crate::scraper::fetch_and_extract(&res.url, policy.scraper_timeout_ms).await {
                     Ok(doc) => {
-                        if doc.text_density >= policy.scraper_min_text_density
-                            || !policy.scraper_robots_txt_respect
-                        {
+                        if doc.text_density >= policy.scraper_min_text_density {
                             let mut provenance = vec!["WebResearch".to_string()];
                             if let Some(ref eng) = res.engine {
                                 provenance.push(format!("engine:{eng}"));
@@ -124,6 +122,20 @@ impl WebSearchDispatcher {
                                 title: doc.title.clone(),
                                 content_snippet: doc.markdown.clone(),
                                 score: res.score.unwrap_or(1.0),
+                                provenance,
+                                potential_contradiction: false,
+                            });
+                        } else {
+                            let mut provenance = vec!["WebResearch".to_string()];
+                            if let Some(ref eng) = res.engine {
+                                provenance.push(format!("engine:{eng}"));
+                            }
+                            provenance.push("scraped:false".to_string());
+                            final_hits.push(crate::memory_hybrid::HybridSearchHit {
+                                path: res.url.clone(),
+                                title: res.title.clone(),
+                                content_snippet: res.content.clone(),
+                                score: res.score.unwrap_or(0.5),
                                 provenance,
                                 potential_contradiction: false,
                             });
