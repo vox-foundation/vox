@@ -1,10 +1,119 @@
 use owo_colors::OwoColorize;
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
 use vox_db::{DbConfig, ResearchEvalRunRecord, ResearchEvalSampleRecord, VoxDb, now_unix_ms};
 use vox_search::context::SearchRuntimeContext;
-use vox_search::policy::SearchPolicy;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GoldenQueryItem {
+    pub query: String,
+    #[serde(default)]
+    pub gold_answer: Option<String>,
+    #[serde(default)]
+    pub domain_mode: Option<String>,
+    #[serde(default)]
+    pub expected_sources: Option<Vec<String>>,
+    #[serde(default)]
+    pub is_adversarial: Option<bool>,
+}
+
+pub fn compute_token_recall(gold_answer: &str, model_answer: &str) -> f64 {
+    vox_search::evaluation::calculate_recall_at_5(model_answer, gold_answer)
+}
+
+pub async fn evaluate_single_query_pipeline(
+    run_id: &str,
+    item: &GoldenQueryItem,
+    ctx: &SearchRuntimeContext,
+    db: Option<&VoxDb>,
+    config: &vox_research_shim::research::ResearchConfig,
+) -> anyhow::Result<ResearchEvalSampleRecord> {
+    let start = std::time::Instant::now();
+    let domain_mode = match item
+        .domain_mode
+        .as_deref()
+        .map(|s| s.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("shopping") => vox_research_shim::research::ResearchDomainMode::Shopping,
+        Some("codegen") | Some("code_gen") => {
+            vox_research_shim::research::ResearchDomainMode::CodeGen
+        }
+        _ => vox_research_shim::research::ResearchDomainMode::General,
+    };
+    let query_req = vox_research_shim::research::ResearchQuery {
+        query: item.query.clone(),
+        scope: vox_research_shim::research::ResearchScope::Both,
+        max_sources: 10,
+        persist_to_docs: false,
+        verify_claims: true,
+        site_scope: None,
+        domain_mode,
+    };
+
+    let result =
+        vox_research_shim::research::run_research_with_context(query_req, Some(ctx), db, config)
+            .await?;
+
+    let duration = start.elapsed().as_millis() as i64;
+    let model_answer = result.answer;
+    let evidence_snippets: Vec<String> = result.sources.iter().map(|s| s.snippet.clone()).collect();
+
+    // 1. Calculate groundedness & citation precision from actual report
+    let groundedness =
+        vox_search::evaluation::calculate_groundedness(&model_answer, &evidence_snippets);
+    let (citation_precision, citations_found, citations_supported) =
+        if let Some(ref audit) = result.research_metadata.citation_audit {
+            (
+                audit.precision,
+                audit.checked_citations,
+                audit.supported_citations,
+            )
+        } else {
+            let prec = citation_precision_from_answer(&model_answer, evidence_snippets.len());
+            (prec, result.citations.len(), 0)
+        };
+    let abstained = answer_abstained(&model_answer, evidence_snippets.is_empty());
+    let multi_hop_score = multi_hop_pipeline_score(
+        &item.query,
+        result.research_metadata.subquery_count,
+        result.sources.len(),
+    );
+
+    // 2. Calculate recall against gold answer if provided
+    let recall = item
+        .gold_answer
+        .as_ref()
+        .map(|gold| compute_token_recall(gold, &model_answer));
+
+    let quality_score = (groundedness + citation_precision + recall.unwrap_or(0.5)) / 3.0;
+
+    let sample = ResearchEvalSampleRecord {
+        run_id: run_id.to_string(),
+        query: item.query.clone(),
+        gold_answer: item.gold_answer.clone(),
+        model_answer,
+        recall_at_5: recall,
+        groundedness: Some(groundedness),
+        quality_score: Some(quality_score),
+        latency_ms: Some(duration),
+        evidence: serde_json::json!({
+            "total_claims": result.research_metadata.claim_verdicts.len(),
+            "verdicts": result.research_metadata.claim_verdicts.len(),
+            "sources_count": result.sources.len(),
+            "citation_precision": citation_precision,
+            "abstained": abstained,
+            "citations_found": citations_found,
+            "citations_supported": citations_supported,
+            "multi_hop_score": multi_hop_score,
+        }),
+        recorded_at_ms: now_unix_ms() as i64,
+    };
+
+    Ok(sample)
+}
 
 pub async fn run_eval(
     queries_path: Option<PathBuf>,
@@ -31,7 +140,6 @@ pub async fn run_eval(
 
     // 3. Execution Loop
     let mut results = Vec::new();
-    let policy = SearchPolicy::default();
     let current_dir = std::env::current_dir()?;
     let ctx = SearchRuntimeContext::new(
         current_dir.clone(),
@@ -39,56 +147,25 @@ pub async fn run_eval(
         current_dir.clone(),
         current_dir.join("memory.md"),
     );
+    let config = vox_research_shim::research::ResearchConfig::default();
 
-    for query in &queries {
-        println!("{} Evaluating: {}", "RUN".green(), query);
-        let start = std::time::Instant::now();
+    for item in &queries {
+        println!("{} Evaluating: {}", "RUN".green(), item.query);
+        match evaluate_single_query_pipeline(&run_id, item, &ctx, Some(&db), &config).await {
+            Ok(sample) => results.push(sample),
+            Err(e) => {
+                eprintln!(
+                    "{} Failed evaluating {}: {}",
+                    "WARN".yellow(),
+                    item.query,
+                    e
+                );
+            }
+        }
+    }
 
-        let plan = vox_db::heuristic_search_plan(query, false, None);
-        let execution =
-            vox_search::execution::execute_search_plan(&ctx, query, &plan, 5, &policy, None)
-                .await
-                .map_err(|e| anyhow::anyhow!(e))?;
-
-        let duration = start.elapsed().as_millis() as i64;
-
-        let model_answer = execution.web_lines.join("\n");
-        let evidence_snippets = execution.web_lines.clone();
-
-        // 3.1 Calculate Metrics
-        let recall = Some(0.0); // No gold answer provided in default loop
-        let groundedness =
-            vox_search::evaluation::calculate_groundedness(&model_answer, &evidence_snippets);
-        let citation_precision =
-            citation_precision_from_answer(&model_answer, evidence_snippets.len());
-        let abstained = answer_abstained(&model_answer, evidence_snippets.is_empty());
-        let multi_hop_score =
-            multi_hop_completion_score(query, &execution.backend_mix, &execution.web_lines);
-
-        let sample = ResearchEvalSampleRecord {
-            run_id: run_id.clone(),
-            query: query.clone(),
-            gold_answer: None,
-            model_answer,
-            recall_at_5: recall,
-            groundedness: Some(groundedness),
-            quality_score: Some(
-                (execution.evidence_quality + citation_precision + multi_hop_score) / 3.0,
-            ),
-            latency_ms: Some(duration),
-            evidence: serde_json::json!({
-                "web_lines": execution.web_lines,
-                "citation_precision": citation_precision,
-                "abstained": abstained,
-                "multi_hop_score": multi_hop_score,
-                "evidence_quality": execution.evidence_quality,
-                "citation_coverage": execution.citation_coverage,
-                "recommended_next_action": execution.recommended_next_action,
-            }),
-            recorded_at_ms: now_unix_ms() as i64,
-        };
-
-        results.push(sample);
+    if results.is_empty() {
+        anyhow::bail!("no queries were successfully evaluated");
     }
 
     // 4. Summarize and Persist Run
@@ -108,8 +185,8 @@ pub async fn run_eval(
 
     let run_record = ResearchEvalRunRecord {
         run_id,
-        model_id: "localized-dispatcher-0.1".into(),
-        config: serde_json::json!({ "policy_version": 1 }),
+        model_id: "vox-deep-research-pipeline".into(),
+        config: serde_json::json!({ "policy_version": 2 }),
         metrics: serde_json::json!({
             "avg_quality": avg_quality,
             "avg_latency_ms": avg_latency,
@@ -193,6 +270,21 @@ fn answer_abstained(answer: &str, no_evidence: bool) -> bool {
         || lower.contains("no external sources were found")
 }
 
+fn multi_hop_pipeline_score(query: &str, subquery_count: usize, sources_count: usize) -> f64 {
+    let multi_hop_query = query.contains("compare")
+        || query.contains("trace")
+        || query.contains("then")
+        || query.contains("FRAMES-style")
+        || query.contains("BrowseComp-style");
+    if !multi_hop_query {
+        return 1.0;
+    }
+    let subquery_score = (subquery_count as f64 / 2.0).min(1.0);
+    let source_score = (sources_count as f64 / 3.0).min(1.0);
+    ((subquery_score + source_score) / 2.0).clamp(0.0, 1.0)
+}
+
+#[cfg(test)]
 fn multi_hop_completion_score(
     query: &str,
     backend_mix: &[vox_db::SearchBackend],
@@ -245,53 +337,94 @@ fn average_bool_metric(samples: &[ResearchEvalSampleRecord], key: &str) -> f64 {
         / samples.len() as f64
 }
 
-fn load_queries_file(path: &std::path::Path) -> anyhow::Result<Vec<String>> {
+fn load_queries_file(path: &Path) -> anyhow::Result<Vec<GoldenQueryItem>> {
     let content = std::fs::read_to_string(path)?;
-    let mut queries = Vec::new();
+    if let Ok(items) = serde_json::from_str::<Vec<GoldenQueryItem>>(&content) {
+        return Ok(items);
+    }
+    let mut items = Vec::new();
     for line in content.lines() {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(line)
-            && let Some(q) = json.get("query").and_then(|v| v.as_str())
-        {
-            queries.push(q.to_string());
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        if let Ok(item) = serde_json::from_str::<GoldenQueryItem>(trimmed) {
+            items.push(item);
+        } else if let Ok(val) = serde_json::from_str::<serde_json::Value>(trimmed) {
+            if let Some(q) = val.get("query").and_then(|v| v.as_str()) {
+                items.push(GoldenQueryItem {
+                    query: q.to_string(),
+                    gold_answer: val
+                        .get("gold_answer")
+                        .and_then(|v| v.as_str())
+                        .map(ToString::to_string),
+                    domain_mode: val
+                        .get("domain_mode")
+                        .and_then(|v| v.as_str())
+                        .map(ToString::to_string),
+                    expected_sources: val
+                        .get("expected_sources")
+                        .and_then(|v| serde_json::from_value(v.clone()).ok()),
+                    is_adversarial: val.get("is_adversarial").and_then(|v| v.as_bool()),
+                });
+            }
+        } else {
+            items.push(GoldenQueryItem {
+                query: trimmed.to_string(),
+                gold_answer: None,
+                domain_mode: None,
+                expected_sources: None,
+                is_adversarial: None,
+            });
         }
     }
-    Ok(queries)
+    Ok(items)
 }
 
-fn default_golden_queries() -> Vec<String> {
-    vec![
-        "What are the latest developments in Rust 2024 edition?".into(),
-        "How do I configure SearXNG for private JSON output?".into(),
-        "What is the current price of Ethereum in USD?".into(),
-        "Vox Dei orchestrator architecture overview".into(),
+fn default_golden_queries() -> Vec<GoldenQueryItem> {
+    let queries = [
+        "What are the latest developments in Rust 2024 edition?",
+        "How do I configure SearXNG for private JSON output?",
+        "What is the current price of Ethereum in USD?",
+        "Vox Dei orchestrator architecture overview",
         // Deep-research-style multi-hop prompts (evidence spread across sources)
-        "Compare MLX vs CUDA for on-device LLM fine-tuning: hardware requirements, tooling, and community adoption in 2025.".into(),
-        "Trace the lineage from ReAct agents to modern web-browsing research assistants; name key papers and vendor products.".into(),
-        "Summarize EU AI Act transparency obligations for general-purpose AI models and cite primary regulator sources.".into(),
-        "Where does the Vox research pipeline create Codex sessions?".into(),
-        "Which Vox module converts local search execution rows into research hits?".into(),
-        "How does Vox choose local Mens versus OpenRouter for research LLM calls?".into(),
-        "What contract file declares MCP research tools?".into(),
-        "Which CLI command shows persisted research sessions?".into(),
-        "What DB table stores Scientia research sessions?".into(),
-        "Which verifier verdicts are supported by Vox research?".into(),
-        "What is the fallback behavior when claim extraction has no LLM?".into(),
-        "Which search context fields are required for local retrieval?".into(),
-        "How are research cache keys normalized?".into(),
-        "FRAMES-style: identify the component that plans subqueries, then name the metric recorded after planning.".into(),
-        "FRAMES-style: find the local retrieval bridge and describe how repo hits are cited.".into(),
-        "FRAMES-style: compare synchronous research run with async session status reporting.".into(),
-        "BrowseComp-style: find primary documentation for OpenRouter chat completions and summarize endpoint shape.".into(),
-        "BrowseComp-style: find current Ollama OpenAI compatibility notes and cite the local endpoint.".into(),
-        "BrowseComp-style: find Tavily search API result fields relevant to citations.".into(),
-        "BrowseComp-style: find SearXNG JSON output configuration guidance.".into(),
-        "BrowseComp-style: find CRAG prior art and identify its correction trigger.".into(),
-        "BrowseComp-style: find citation precision evaluation approaches for web QA.".into(),
-        "BrowseComp-style: find Gemini Deep Research public product behavior and compare async expectations.".into(),
-        "BrowseComp-style: find OpenClaw research assistant claims and cite product docs.".into(),
-        "BrowseComp-style: find MiniCheck claim verification model details.".into(),
-        "BrowseComp-style: find CoVE self-verification paper and summarize its loop.".into(),
-    ]
+        "Compare MLX vs CUDA for on-device LLM fine-tuning: hardware requirements, tooling, and community adoption in 2025.",
+        "Trace the lineage from ReAct agents to modern web-browsing research assistants; name key papers and vendor products.",
+        "Summarize EU AI Act transparency obligations for general-purpose AI models and cite primary regulator sources.",
+        "Where does the Vox research pipeline create Codex sessions?",
+        "Which Vox module converts local search execution rows into research hits?",
+        "How does Vox choose local Mens versus OpenRouter for research LLM calls?",
+        "What contract file declares MCP research tools?",
+        "Which CLI command shows persisted research sessions?",
+        "What DB table stores Scientia research sessions?",
+        "Which verifier verdicts are supported by Vox research?",
+        "What is the fallback behavior when claim extraction has no LLM?",
+        "Which search context fields are required for local retrieval?",
+        "How are research cache keys normalized?",
+        "FRAMES-style: identify the component that plans subqueries, then name the metric recorded after planning.",
+        "FRAMES-style: find the local retrieval bridge and describe how repo hits are cited.",
+        "FRAMES-style: compare synchronous research run with async session status reporting.",
+        "BrowseComp-style: find primary documentation for OpenRouter chat completions and summarize endpoint shape.",
+        "BrowseComp-style: find current Ollama OpenAI compatibility notes and cite the local endpoint.",
+        "BrowseComp-style: find Tavily search API result fields relevant to citations.",
+        "BrowseComp-style: find SearXNG JSON output configuration guidance.",
+        "BrowseComp-style: find CRAG prior art and identify its correction trigger.",
+        "BrowseComp-style: find citation precision evaluation approaches for web QA.",
+        "BrowseComp-style: find Gemini Deep Research public product behavior and compare async expectations.",
+        "BrowseComp-style: find OpenClaw research assistant claims and cite product docs.",
+        "BrowseComp-style: find MiniCheck claim verification model details.",
+        "BrowseComp-style: find CoVE self-verification paper and summarize its loop.",
+    ];
+    queries
+        .iter()
+        .map(|q| GoldenQueryItem {
+            query: (*q).to_string(),
+            gold_answer: None,
+            domain_mode: None,
+            expected_sources: None,
+            is_adversarial: None,
+        })
+        .collect()
 }
 
 fn print_styled_summary(run_record: &ResearchEvalRunRecord, avg_quality: f64) {
@@ -363,5 +496,14 @@ mod tests {
         );
 
         assert_eq!(score, 1.0);
+    }
+
+    #[test]
+    fn token_recall_computes_overlap() {
+        let recall = compute_token_recall(
+            "Rust memory safety ownership borrowing",
+            "Rust memory safety is guaranteed by ownership.",
+        );
+        assert!(recall > 0.0);
     }
 }

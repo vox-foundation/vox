@@ -326,6 +326,7 @@ pub async fn run_research_query(
         persist_to_docs: false,
         verify_claims,
         site_scope,
+        domain_mode: Default::default(),
     };
 
     if async_run {
