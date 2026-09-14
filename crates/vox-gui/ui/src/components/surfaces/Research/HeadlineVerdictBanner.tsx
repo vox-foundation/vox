@@ -13,6 +13,7 @@ const BANNER_STYLE: Record<'contested' | 'high' | 'mixed' | 'refuted', string> =
  * the reader gets a trust signal before diving into prose.
  */
 export function HeadlineVerdictBanner({
+  confidenceTier,
   corroboratingSources,
   contestedClaims,
   contradictedClaims = 0,
@@ -43,9 +44,14 @@ export function HeadlineVerdictBanner({
 
   return (
     <div
-      className={`headline-verdict-banner mb-2 rounded-xl border border-border-subtle px-3 py-2 font-mono text-[11px] uppercase tracking-wide ${BANNER_STYLE[tone]}`}
+      className={`headline-verdict-banner mb-2 flex items-center justify-between rounded-xl border border-border-subtle px-3 py-2 font-mono text-[11px] uppercase tracking-wide ${BANNER_STYLE[tone]}`}
     >
-      {message}
+      <span>{message}</span>
+      {confidenceTier && (
+        <span className="opacity-75 text-[10px] lowercase tracking-normal">
+          tier: {confidenceTier}
+        </span>
+      )}
     </div>
   );
 }

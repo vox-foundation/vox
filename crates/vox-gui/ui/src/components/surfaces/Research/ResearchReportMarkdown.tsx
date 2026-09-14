@@ -18,7 +18,8 @@ function renderInline(
   onCitationClick?: (num: number) => void,
   keyPrefix = 'inline'
 ): ReactNode[] {
-  const tokenRegex = /(`[^`]+`|\*\*[^*]+\*\*|\[\d+(?:\s*,\s*\d+)*\](?!\()|\[[^\]]+\]\([^)]+\))/g;
+  const tokenRegex =
+    /(`[^`]+`|\*\*[^*]+\*\*|\[\d+(?:\s*,\s*\d+)*\](?!\()|\[[^\]]+\]\((?:[^()\s]+|\([^()\s]*\))+\))/g;
 
   const elements: ReactNode[] = [];
   let lastIndex = 0;
@@ -50,19 +51,25 @@ function renderInline(
         </strong>
       );
     } else if (token.startsWith('[') && token.includes('](')) {
-      const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
+      const linkMatch = /^\[([^\]]+)\]\((.*)\)$/.exec(token);
       if (linkMatch) {
-        elements.push(
-          <a
-            key={key}
-            href={linkMatch[2]}
-            target="_blank"
-            rel="noreferrer"
-            className="text-brass underline decoration-dotted hover:text-brass/80"
-          >
-            {linkMatch[1]}
-          </a>
-        );
+        const rawUrl = linkMatch[2].trim();
+        const isSafeProtocol = /^(https?:\/\/|mailto:)/i.test(rawUrl);
+        if (isSafeProtocol) {
+          elements.push(
+            <a
+              key={key}
+              href={rawUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-brass underline decoration-dotted hover:text-brass/80"
+            >
+              {linkMatch[1]}
+            </a>
+          );
+        } else {
+          elements.push(linkMatch[1]);
+        }
       } else {
         elements.push(token);
       }

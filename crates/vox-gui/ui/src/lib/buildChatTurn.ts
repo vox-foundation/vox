@@ -10,7 +10,8 @@ export const CHAT_TURN_KEYS = [
   'session_id', 'content', 'execution', 'model_override', 'tier',
   'clutch', 'risk', 'context_files', 'active_skill', 'skill_exclusions',
   'grounding_check_enabled', 'priority', 'dry_run', 'allow_duplicate',
-  'mode', 'chat_session_id',
+  'mode', 'chat_session_id', 'force_research', 'research_scope',
+  'domain_mode', 'site_scope',
 ] as const;
 
 export interface BuildChatTurnCtx {
@@ -47,18 +48,27 @@ export interface ChatTurnSource {
   mode?: string | null;
   files?: string[];
   context?: unknown;
+  force_research?: boolean | null;
+  research_scope?: string | null;
+  domain_mode?: string | null;
+  site_scope?: string | null;
 }
 
 export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): ChatTurnInput {
+  const isResearchSlash = /^\/(?:research|deepresearch)(?:\s+|$)/i.test(payload.description);
+  const content = isResearchSlash
+    ? payload.description.replace(/^\/(?:research|deepresearch)(?:\s+|$)/i, '').trim()
+    : payload.description;
+
   return {
     session_id: ctx.sessionId,
-    content: payload.description,
+    content,
     execution:
-      payload.execution_mode === 'task'
+      isResearchSlash
         ? 'background'
         : payload.execution_mode === 'plan'
           ? 'plan'
-          : 'sync',
+          : payload.execution_mode === 'task' ? 'background' : 'sync',
     model_override: payload.model_override ?? ctx.modelOverride ?? null,
     tier: payload.tier ?? null,
     clutch: payload.clutch ?? null,
@@ -72,5 +82,9 @@ export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): C
     allow_duplicate: ctx.allowDuplicate ?? null,
     mode: payload.mode ?? null,
     chat_session_id: ctx.chatSessionId ?? ctx.sessionId ?? null,
+    force_research: payload.force_research ?? (isResearchSlash ? true : null),
+    research_scope: payload.research_scope ?? null,
+    domain_mode: payload.domain_mode ?? null,
+    site_scope: payload.site_scope ?? null,
   };
 }

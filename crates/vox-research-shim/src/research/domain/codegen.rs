@@ -70,7 +70,21 @@ pub async fn verify_rust_code_in_sandbox(
             stdin.flush().await?;
             drop(stdin);
         }
-        let output = child.wait_with_output().await?;
+        let output = match tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            child.wait_with_output(),
+        )
+        .await
+        {
+            Ok(res) => res?,
+            Err(_) => {
+                return Ok(CodeSandboxResult {
+                    passed: false,
+                    stdout: String::new(),
+                    stderr: "Compilation timed out after 10 seconds".to_string(),
+                });
+            }
+        };
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let passed = output.status.success();
@@ -88,11 +102,25 @@ pub async fn verify_rust_code_in_sandbox(
             "[package]\nname = \"sandbox_check\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n",
         );
         for dep in dependencies {
-            if dep.contains('=') {
-                cargo_toml.push_str(dep);
+            let trimmed = dep.trim();
+            if trimmed.contains('\n')
+                || trimmed.contains('\r')
+                || trimmed.contains('[')
+                || trimmed.contains(']')
+            {
+                anyhow::bail!("Invalid dependency specifier in sandbox: {dep}");
+            }
+            if trimmed.contains('=') {
+                cargo_toml.push_str(trimmed);
                 cargo_toml.push('\n');
             } else {
-                cargo_toml.push_str(&format!("{dep} = \"*\"\n"));
+                if !trimmed
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+                {
+                    anyhow::bail!("Invalid crate name in sandbox: {trimmed}");
+                }
+                cargo_toml.push_str(&format!("{trimmed} = \"*\"\n"));
             }
         }
         std::fs::write(temp_dir.join("Cargo.toml"), cargo_toml)?;
@@ -105,7 +133,17 @@ pub async fn verify_rust_code_in_sandbox(
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let output = cmd.output().await?;
+        let output =
+            match tokio::time::timeout(std::time::Duration::from_secs(10), cmd.output()).await {
+                Ok(res) => res?,
+                Err(_) => {
+                    return Ok(CodeSandboxResult {
+                        passed: false,
+                        stdout: String::new(),
+                        stderr: "Compilation timed out after 10 seconds".to_string(),
+                    });
+                }
+            };
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let passed = output.status.success();

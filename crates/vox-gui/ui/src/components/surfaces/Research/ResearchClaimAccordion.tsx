@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TrustChip, type TrustSignal } from './TrustChip';
 import { VerdictBadge } from '../Scientia/ClaimsView';
 
@@ -40,10 +40,12 @@ export function ResearchClaimAccordion({
     onExpandedChange?.(next);
   };
 
-  // Automatically expand if a claim is highlighted
-  if (highlightedClaimId && !expanded && isExpanded === undefined) {
-    setInternalExpanded(true);
-  }
+  // Automatically expand when a claim is highlighted
+  useEffect(() => {
+    if (highlightedClaimId && isExpanded === undefined) {
+      setInternalExpanded(true);
+    }
+  }, [highlightedClaimId, isExpanded]);
 
   const contestedCount = claims.filter((c) => c.verdict === 'Contested').length;
 

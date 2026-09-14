@@ -217,7 +217,7 @@ pub async fn verify_claims_with_config(
         use vox_actor_runtime::ActivityOptions;
         use vox_actor_runtime::llm::LlmChatMessage;
         use vox_actor_runtime::llm::cascade::{
-            ResearchStage, cascade_with_optional_manual, chat_with_cascade,
+            ResearchStage, cascade_with_optional_manual, chat_with_cascade_parsed,
         };
         use vox_actor_runtime::model_resolution::RouteResolutionInput;
 
@@ -268,23 +268,27 @@ pub async fn verify_claims_with_config(
                         ..Default::default()
                     },
                 ];
-                match chat_with_cascade(opts, messages, candidates, None).await {
-                    Ok(response) => {
-                        match parse_verifier_response(
-                            &response.content,
+                let parsed_res = chat_with_cascade_parsed(
+                    opts,
+                    messages,
+                    candidates,
+                    Some(ResearchStage::Verification),
+                    |raw| {
+                        parse_verifier_response(
+                            raw,
                             claim.clone(),
                             evidence_hits,
                             abstain_threshold,
-                        ) {
-                            Ok(verdict) => verdict,
-                            Err(e) => {
-                                tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier response invalid");
-                                unverified(claim.clone())
-                            }
-                        }
-                    }
+                        )
+                        .map_err(|e| e.to_string())
+                    },
+                )
+                .await;
+
+                match parsed_res {
+                    Ok((verdict, _resp)) => verdict,
                     Err(e) => {
-                        tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier cascade failed");
+                        tracing::warn!(claim_id = claim.claim_id, error = %e, "verifier cascade failed or returned invalid JSON across candidates");
                         unverified(claim.clone())
                     }
                 }

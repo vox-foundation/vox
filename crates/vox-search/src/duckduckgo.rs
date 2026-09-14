@@ -29,6 +29,9 @@ pub struct DdgResponse {
 
 impl DdgResponse {
     pub fn flatten_topics(self, limit: usize) -> Vec<DdgResult> {
+        if limit == 0 {
+            return Vec::new();
+        }
         let mut out = Vec::new();
         for item in self.related_topics {
             match item {

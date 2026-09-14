@@ -93,7 +93,7 @@ pub async fn extract_claims_with_model(
     {
         use vox_actor_runtime::ActivityOptions;
         use vox_actor_runtime::llm::cascade::{
-            ResearchStage, cascade_with_optional_manual, chat_with_cascade,
+            ResearchStage, cascade_with_optional_manual, chat_with_cascade_parsed,
         };
         use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig};
         use vox_actor_runtime::model_resolution::RouteResolutionInput;
@@ -135,14 +135,20 @@ pub async fn extract_claims_with_model(
             },
         ];
         let opts = ActivityOptions::new().with_timeout_secs(30);
-        match chat_with_cascade(&opts, messages, candidates, None).await {
-            Ok(response) => match parse_claims_response(&response.content) {
-                Ok(claims) => return claims,
-                Err(e) => {
-                    tracing::warn!(error = %e, "research claim extraction response was invalid")
-                }
-            },
-            Err(e) => tracing::warn!(error = %e, "research claim extraction cascade failed"),
+        let parsed_res = chat_with_cascade_parsed(
+            &opts,
+            messages,
+            candidates,
+            Some(ResearchStage::ClaimExtraction),
+            |raw| parse_claims_response(raw).map_err(|e| e.to_string()),
+        )
+        .await;
+
+        match parsed_res {
+            Ok((claims, _resp)) => return claims,
+            Err(e) => {
+                tracing::warn!(error = %e, "research claim extraction cascade failed or returned invalid JSON across candidates");
+            }
         }
     }
 

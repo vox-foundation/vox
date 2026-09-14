@@ -20,6 +20,8 @@ export const APP_SLASH_COMMANDS = [
   '/rollback',
   '/doubt',
   '/diff',
+  '/research',
+  '/deepresearch',
 ] as const;
 
 export type AppSlashCommand = (typeof APP_SLASH_COMMANDS)[number];

@@ -1020,6 +1020,10 @@ export interface ChatTurnInput {
    *  (which can be a synthetic background-session id). See Rust
    *  `ChatTurnInput::chat_session_id`. */
   chat_session_id?: string | null;
+  force_research?: boolean | null;
+  research_scope?: string | null;
+  domain_mode?: string | null;
+  site_scope?: string | null;
 }
 
 /** Mirrors Rust `ChatTurnDto` returned by `chat_turn`. On the background branch

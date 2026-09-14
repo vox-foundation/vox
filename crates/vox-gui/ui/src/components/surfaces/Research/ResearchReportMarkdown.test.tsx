@@ -93,4 +93,12 @@ describe('ResearchReportMarkdown', () => {
     expect(link.getAttribute('href')).toBe('https://vox.foundation');
     expect(screen.queryByRole('button')).toBeNull();
   });
+
+  it('sanitizes unsafe link protocols like javascript: to prevent XSS', () => {
+    const md = `Click here for [malicious link](javascript:alert(1)) payload.`;
+    render(<ResearchReportMarkdown markdown={md} />);
+
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText(/malicious link/)).toBeTruthy();
+  });
 });

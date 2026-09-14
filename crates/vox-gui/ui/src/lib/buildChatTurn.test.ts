@@ -61,4 +61,16 @@ describe('buildChatTurn', () => {
     // emitted it without removing the fold.
     expect(CHAT_TURN_KEYS).not.toContain('intent');
   });
+
+  it('routes /research and /deepresearch slash commands to background execution with force_research', () => {
+    const res1 = buildChatTurn({ description: '/research best noise cancelling headphones' }, { sessionId: 's1' });
+    expect(res1.execution).toBe('background');
+    expect(res1.force_research).toBe(true);
+    expect(res1.content).toBe('best noise cancelling headphones');
+
+    const res2 = buildChatTurn({ description: '/deepresearch compare Rust async runtimes' }, { sessionId: 's1' });
+    expect(res2.execution).toBe('background');
+    expect(res2.force_research).toBe(true);
+    expect(res2.content).toBe('compare Rust async runtimes');
+  });
 });

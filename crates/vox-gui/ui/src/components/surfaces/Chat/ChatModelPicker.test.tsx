@@ -167,7 +167,7 @@ describe('model_override submit-payload wiring', () => {
 describe('execution_mode submit-payload wiring', () => {
   it('buildChatTurn maps execution_mode to `execution`, defaulting to sync', () => {
     const builderSrc = readFileSync(path.resolve(__dirname, '../../../lib/buildChatTurn.ts'), 'utf8');
-    expect(builderSrc).toMatch(/execution:\s*payload\.execution_mode === 'task' \? 'background' : 'sync'/);
+    expect(builderSrc).toMatch(/execution:\s*(?:isResearchSlash\s*\?\s*'background'\s*:\s*)?(?:payload\.execution_mode === 'plan'\s*\?\s*'plan'\s*:\s*)?payload\.execution_mode === 'task' \? 'background' : 'sync'/);
     expect(builderSrc).not.toMatch(/^\s*task_category:/m);
   });
 
@@ -183,7 +183,7 @@ describe('execution_mode submit-payload wiring', () => {
   it("/spawn's direct dispatch says execution_mode: 'task' rather than omitting it", () => {
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
     const spawnBlockMatch = appSrc.match(
-      /base === '\/spawn'\) \{\s*void handleLoquelaSubmit\(\{[^}]*\}\);/,
+      /base === '\/spawn'\) \{[\s\S]*?void handleLoquelaSubmit\(\{[\s\S]*?\}\);/,
     );
     expect(spawnBlockMatch).not.toBeNull();
     expect(spawnBlockMatch?.[0]).toMatch(/execution_mode: 'task'/);

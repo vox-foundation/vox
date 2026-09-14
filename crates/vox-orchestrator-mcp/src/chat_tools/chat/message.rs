@@ -703,9 +703,15 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     trigger_reason.push_str(&format!(", site_scope: {ss}"));
                 }
 
+                let task_id = params
+                    .session_id
+                    .as_deref()
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .map(vox_orchestrator::types::TaskId);
+
                 match state
                     .orchestrator
-                    .perform_autonomous_research(None, None, queries, &trigger_reason)
+                    .perform_autonomous_research(None, task_id, queries, &trigger_reason)
                     .await
                 {
                     Ok(results) => {
