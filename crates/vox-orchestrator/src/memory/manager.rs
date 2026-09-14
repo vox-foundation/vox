@@ -204,15 +204,12 @@ impl MemoryManager {
                 }
 
                 // 2. Upsert a knowledge_node for this fact
+                let meta_json = format!(
+                    "{{\"value\":{:?},\"media_url\":{:?},\"media_type\":{:?}}}",
+                    v, m_url, m_type
+                );
                 if let Err(e) = db
-                    .upsert_knowledge_node(
-                        &k,
-                        "fact",
-                        &k,
-                        Some(&format!("{{\"value\":\"{v}\"}}")),
-                        m_url.as_deref(),
-                        m_type.as_deref(),
-                    )
+                    .upsert_knowledge_node(&k, &k, &v, Some("fact"), Some(&meta_json), None)
                     .await
                 {
                     log_persistence_failure("memory.persist_fact.upsert_knowledge_node", e);
@@ -221,7 +218,7 @@ impl MemoryManager {
                 // 3. Create knowledge_edge links for related facts
                 for r in rels {
                     if let Err(e) = db
-                        .upsert_knowledge_node(&r, "concept", &r, None, None, None)
+                        .upsert_knowledge_node(&r, &r, &r, Some("concept"), None, None)
                         .await
                     {
                         log_persistence_failure("memory.persist_fact.upsert_related_node", e);
@@ -647,5 +644,54 @@ impl MemoryManager {
             }
         }
         Ok(removed)
+    }
+
+    /// Persists verified research findings and key claims to MEMORY.md and VoxDb.
+    pub fn sync_verified_research_findings(
+        &self,
+        query: &str,
+        summary: &str,
+        key_claims: &[(&str, &str)],
+    ) -> Result<(), MemoryError> {
+        let content = self.long_term.read_all().unwrap_or_default();
+        if !content.contains("# Verified Research Knowledgebase") {
+            let header = "\n# Verified Research Knowledgebase\n\n";
+            let _ = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&self.config.memory_md_path)
+                .and_then(|mut f| std::io::Write::write_all(&mut f, header.as_bytes()));
+        }
+
+        let slug = query
+            .to_ascii_lowercase()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '-' })
+            .collect::<String>()
+            .split('-')
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join("-");
+
+        let key = format!("research:{slug}");
+        let mut value = format!("**Query:** {query}\n**Summary:** {summary}\n**Key Claims:**\n");
+        for (claim, verdict) in key_claims {
+            value.push_str(&format!("- [{verdict}] {claim}\n"));
+        }
+
+        self.long_term.set(&key, &value)?;
+
+        if let Some(db) = self.db.clone() {
+            let k = key.clone();
+            let q = query.to_string();
+            let v = value.clone();
+            tokio::spawn(async move {
+                let _ = db
+                    .upsert_knowledge_node(&k, &q, &v, Some("research_finding"), None, None)
+                    .await;
+            });
+        }
+
+        Ok(())
     }
 }
