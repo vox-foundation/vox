@@ -102,7 +102,7 @@ impl WaveExecutionPlan {
     }
 
     /// Computes multi-factor stability metric:
-    /// S = 0.40 * (N_supported / N_total) + 0.30 * mean_resample_stability + 0.30 * (1.0 - N_unresolved / N_total)
+    /// S = 0.50 * (N_supported / N_total) + 0.30 * mean_resample_stability + 0.20 * (1.0 - N_unverified / N_total) - 0.30 * (N_unresolved / N_total)
     pub fn compute_stability(&self) -> f64 {
         let total = self.resolved_verdicts.len();
         if total == 0 {
@@ -114,7 +114,14 @@ impl WaveExecutionPlan {
             .iter()
             .filter(|v| v.verdict == Verdict::Supported)
             .count();
+        let unverified_count = self
+            .resolved_verdicts
+            .iter()
+            .filter(|v| v.verdict == Verdict::Unverified)
+            .count();
+
         let supported_ratio = supported_count as f64 / total as f64;
+        let verified_ratio = (total - unverified_count) as f64 / total as f64;
 
         let mean_resample_stability = self
             .resolved_verdicts
@@ -129,14 +136,15 @@ impl WaveExecutionPlan {
             .filter(|c| matches!(c.status, ContradictionStatus::Unresolved))
             .count();
         let contradiction_penalty = (unresolved_count as f64 / total as f64).min(1.0);
-        let contradiction_term = (1.0 - contradiction_penalty).clamp(0.0, 1.0);
 
-        (0.40 * supported_ratio + 0.30 * mean_resample_stability + 0.30 * contradiction_term)
-            .clamp(0.0, 1.0)
+        let raw_s = 0.50 * supported_ratio + 0.30 * mean_resample_stability + 0.20 * verified_ratio
+            - 0.30 * contradiction_penalty;
+
+        raw_s.clamp(0.0, 1.0)
     }
 
     /// Evaluates early exit condition:
-    /// S >= 0.85 AND N_unresolved == 0 AND (N_supported / N_total) >= 0.60.
+    /// S >= S_threshold AND N_unresolved == 0 AND (N_supported / N_total) >= 0.70 AND (N_unverified / N_total) <= 0.15.
     pub fn should_early_terminate(&self) -> bool {
         let total = self.resolved_verdicts.len();
         if total == 0 {
@@ -148,7 +156,14 @@ impl WaveExecutionPlan {
             .iter()
             .filter(|v| v.verdict == Verdict::Supported)
             .count();
+        let unverified_count = self
+            .resolved_verdicts
+            .iter()
+            .filter(|v| v.verdict == Verdict::Unverified)
+            .count();
+
         let supported_ratio = supported_count as f64 / total as f64;
+        let unverified_ratio = unverified_count as f64 / total as f64;
 
         let unresolved_count = self
             .unresolved_contradictions
@@ -156,8 +171,10 @@ impl WaveExecutionPlan {
             .filter(|c| matches!(c.status, ContradictionStatus::Unresolved))
             .count();
 
-        let s = self.compute_stability();
-        s >= self.stability_threshold && unresolved_count == 0 && supported_ratio >= 0.60
+        self.compute_stability() >= self.stability_threshold
+            && unresolved_count == 0
+            && supported_ratio >= 0.70
+            && unverified_ratio <= 0.15
     }
 
     /// Detects contradictions among a set of verdicts and extracts disambiguation queries for Wave 2.
