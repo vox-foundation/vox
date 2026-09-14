@@ -22,6 +22,7 @@ export const APP_SLASH_COMMANDS = [
   '/diff',
   '/research',
   '/deepresearch',
+  '/research-search',
 ] as const;
 
 export type AppSlashCommand = (typeof APP_SLASH_COMMANDS)[number];
@@ -47,3 +48,134 @@ export function isAppSlashCommand(cmd: string): boolean {
 export function formatSessionBudget(spent: number, cap: number): string {
   return `session $${spent.toFixed(2)} / $${cap.toFixed(2)}`;
 }
+
+export interface ParsedResearchSlashCommand {
+  query: string;
+  isDeep: boolean;
+  waves: number;
+  domainMode: 'general' | 'shopping' | 'codegen';
+  siteScope?: string;
+  subcommand?: 'search' | 'run';
+  minConfidence?: number;
+  verifiedOnly?: boolean;
+}
+
+/** Tokenize command line preserving double and single quotes */
+export function tokenizeCommandLine(input: string): string[] {
+  const tokens: string[] = [];
+  let current = '';
+  let inQuotes: '"' | "'" | null = null;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (inQuotes) {
+      if (ch === inQuotes) {
+        inQuotes = null;
+      } else {
+        current += ch;
+      }
+    } else if (ch === '"' || ch === "'") {
+      inQuotes = ch;
+    } else if (/\s/.test(ch)) {
+      if (current.length > 0) {
+        tokens.push(current);
+        current = '';
+      }
+    } else {
+      current += ch;
+    }
+  }
+  if (current.length > 0) {
+    tokens.push(current);
+  }
+  return tokens;
+}
+
+/**
+ * Parses `/research`, `/deepresearch`, and `/research-search` with typed flags and subcommands:
+ * e.g. `/research --deep --waves=3 --domain=codegen --site=docs.rs tokio async`
+ * e.g. `/research search "rust async concurrency" --min-confidence=0.8`
+ */
+export function parseResearchSlashCommand(input: string): ParsedResearchSlashCommand | null {
+  const trimmed = input.trim();
+  const base = slashCommandBase(trimmed);
+  if (base !== '/research' && base !== '/deepresearch' && base !== '/research-search') {
+    return null;
+  }
+
+  const remainder = trimmed.slice(base.length).trim();
+  const rawTokens = tokenizeCommandLine(remainder);
+
+  let isDeep = base === '/deepresearch';
+  let waves = isDeep ? 3 : 1;
+  let domainMode: 'general' | 'shopping' | 'codegen' = 'general';
+  let siteScope: string | undefined = undefined;
+  let subcommand: 'search' | 'run' | undefined = base === '/research-search' ? 'search' : undefined;
+  let minConfidence: number | undefined = undefined;
+  let verifiedOnly: boolean | undefined = undefined;
+  const queryTokens: string[] = [];
+
+  for (let i = 0; i < rawTokens.length; i++) {
+    const token = rawTokens[i];
+
+    if (i === 0 && (token === 'search' || token === 'run')) {
+      subcommand = token;
+    } else if (token === '--search') {
+      subcommand = 'search';
+    } else if (token === '--deep' || token === '-d') {
+      isDeep = true;
+      if (waves === 1) waves = 3;
+    } else if (token === '--verified-only') {
+      verifiedOnly = true;
+    } else if (token.startsWith('--waves=')) {
+      const w = parseInt(token.slice(8), 10);
+      if (!isNaN(w) && w > 0) {
+        waves = Math.min(Math.max(w, 1), 5);
+        if (waves > 1) isDeep = true;
+      }
+    } else if (token === '--waves' && i + 1 < rawTokens.length) {
+      const w = parseInt(rawTokens[++i], 10);
+      if (!isNaN(w) && w > 0) {
+        waves = Math.min(Math.max(w, 1), 5);
+        if (waves > 1) isDeep = true;
+      }
+    } else if (token.startsWith('--domain=')) {
+      const mode = token.slice(9).toLowerCase();
+      if (mode === 'codegen' || mode === 'shopping' || mode === 'general') {
+        domainMode = mode;
+      }
+    } else if (token === '--domain' && i + 1 < rawTokens.length) {
+      const mode = rawTokens[++i].toLowerCase();
+      if (mode === 'codegen' || mode === 'shopping' || mode === 'general') {
+        domainMode = mode;
+      }
+    } else if (token.startsWith('--site=')) {
+      siteScope = token.slice(7);
+    } else if (token === '--site' && i + 1 < rawTokens.length) {
+      siteScope = rawTokens[++i];
+    } else if (token.startsWith('--min-confidence=')) {
+      const conf = parseFloat(token.slice(17));
+      if (!isNaN(conf)) minConfidence = conf;
+    } else if (token === '--min-confidence' && i + 1 < rawTokens.length) {
+      const conf = parseFloat(rawTokens[++i]);
+      if (!isNaN(conf)) minConfidence = conf;
+    } else {
+      queryTokens.push(token);
+    }
+  }
+
+  const result: ParsedResearchSlashCommand = {
+    query: queryTokens.join(' '),
+    isDeep,
+    waves,
+    domainMode,
+    siteScope,
+  };
+
+  if (subcommand !== undefined) result.subcommand = subcommand;
+  if (minConfidence !== undefined) result.minConfidence = minConfidence;
+  if (verifiedOnly !== undefined) result.verifiedOnly = verifiedOnly;
+
+  return result;
+}
+

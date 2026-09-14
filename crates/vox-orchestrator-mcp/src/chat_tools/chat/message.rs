@@ -649,85 +649,122 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             }
             retrieval_evidence = Some(bundle.evidence.clone());
 
-            // Check if autonomous deep research should be triggered
-            let is_research_slash = expanded_prompt.trim_start().starts_with("/research");
-            let is_forced_research = params.force_research == Some(true);
-            if is_research_slash
-                || is_forced_research
-                || should_trigger_autonomous_research(
-                    &expanded_prompt,
-                    &bundle,
-                    params.force_research,
-                )
-            {
-                tracing::info!("Triggering autonomous research for additional context");
-                let scope = params.research_scope.as_deref().unwrap_or("both");
+            // Check if explicit local knowledgebase search was requested
+            let is_explicit_local_search =
+                expanded_prompt.trim_start().starts_with("/research search")
+                    || expanded_prompt.trim_start().starts_with("/research-search")
+                    || expanded_prompt
+                        .trim_start()
+                        .starts_with("/research --search");
 
-                let clean_prompt = if let Some(stripped) =
-                    expanded_prompt.trim_start().strip_prefix("/research")
+            if is_explicit_local_search {
+                let clean_query = expanded_prompt
+                    .trim_start()
+                    .strip_prefix("/research search")
+                    .or_else(|| {
+                        expanded_prompt
+                            .trim_start()
+                            .strip_prefix("/research-search")
+                    })
+                    .or_else(|| {
+                        expanded_prompt
+                            .trim_start()
+                            .strip_prefix("/research --search")
+                    })
+                    .unwrap_or(&expanded_prompt)
+                    .trim();
+
+                let search_params = crate::memory_tools::ResearchSearchParams {
+                    query: clean_query.to_string(),
+                    limit: Some(5),
+                    domain: None,
+                    min_confidence: None,
+                    verified_only: None,
+                };
+                let result = crate::memory_tools::research_search(state, search_params).await;
+                context_parts.push(format!("[KNOWLEDGEBASE SEARCH RESULT]:\n{result}"));
+            } else {
+                // Check if autonomous deep research should be triggered
+                let is_research_slash = expanded_prompt.trim_start().starts_with("/research")
+                    || expanded_prompt.trim_start().starts_with("/deepresearch");
+                let is_forced_research = params.force_research == Some(true);
+                if is_research_slash
+                    || is_forced_research
+                    || should_trigger_autonomous_research(
+                        &expanded_prompt,
+                        &bundle,
+                        params.force_research,
+                    )
                 {
-                    stripped.trim().to_string()
-                } else {
-                    expanded_prompt.clone()
-                };
+                    tracing::info!("Triggering autonomous research for additional context");
+                    let scope = params.research_scope.as_deref().unwrap_or("both");
 
-                let query_str = if clean_prompt.is_empty() {
-                    expanded_prompt.clone()
-                } else {
-                    clean_prompt
-                };
+                    let clean_prompt = if let Some(stripped) =
+                        expanded_prompt.trim_start().strip_prefix("/research")
+                    {
+                        stripped.trim().to_string()
+                    } else {
+                        expanded_prompt.clone()
+                    };
 
-                let search_query = if let Some(ref site) = params.site_scope {
-                    if !query_str.contains("site:") {
-                        format!("{query_str} site:{site}")
+                    let query_str = if clean_prompt.is_empty() {
+                        expanded_prompt.clone()
+                    } else {
+                        clean_prompt
+                    };
+
+                    let search_query = if let Some(ref site) = params.site_scope {
+                        if !query_str.contains("site:") {
+                            format!("{query_str} site:{site}")
+                        } else {
+                            query_str
+                        }
                     } else {
                         query_str
+                    };
+
+                    // Spawn autonomous research execution
+                    let queries = vec![search_query];
+                    let mut trigger_reason = format!(
+                        "Chat context injection (forced: {:?}, scope: {})",
+                        params
+                            .force_research
+                            .or(if is_research_slash { Some(true) } else { None }),
+                        scope
+                    );
+                    if let Some(ref dm) = params.domain_mode {
+                        trigger_reason.push_str(&format!(", domain_mode: {dm}"));
                     }
-                } else {
-                    query_str
-                };
+                    if let Some(ref ss) = params.site_scope {
+                        trigger_reason.push_str(&format!(", site_scope: {ss}"));
+                    }
 
-                // Spawn autonomous research execution
-                let queries = vec![search_query];
-                let mut trigger_reason = format!(
-                    "Chat context injection (forced: {:?}, scope: {})",
-                    params
-                        .force_research
-                        .or(if is_research_slash { Some(true) } else { None }),
-                    scope
-                );
-                if let Some(ref dm) = params.domain_mode {
-                    trigger_reason.push_str(&format!(", domain_mode: {dm}"));
-                }
-                if let Some(ref ss) = params.site_scope {
-                    trigger_reason.push_str(&format!(", site_scope: {ss}"));
-                }
+                    let task_id = params
+                        .session_id
+                        .as_deref()
+                        .and_then(|s| s.parse::<u64>().ok())
+                        .map(vox_orchestrator::types::TaskId);
 
-                let task_id = params
-                    .session_id
-                    .as_deref()
-                    .and_then(|s| s.parse::<u64>().ok())
-                    .map(vox_orchestrator::types::TaskId);
-
-                match state
-                    .orchestrator
-                    .perform_autonomous_research(None, task_id, queries, &trigger_reason)
-                    .await
-                {
-                    Ok(results) => {
-                        if !results.is_empty() {
-                            let formatted = results.join("\n");
-                            context_parts.push(format!(
-                                "[AUTONOMOUS RESEARCH — SYNTHESIS SUMMARY]:\n{formatted}"
-                            ));
-                            tracing::info!(
-                                count = results.len(),
-                                "Autonomous research results injected successfully"
-                            );
+                    match state
+                        .orchestrator
+                        .perform_autonomous_research(None, task_id, queries, &trigger_reason)
+                        .await
+                    {
+                        Ok(results) => {
+                            if !results.is_empty() {
+                                let formatted = results.join("\n");
+                                context_parts.push(format!(
+                                    "[AUTONOMOUS RESEARCH — SYNTHESIS SUMMARY]:\n{formatted}"
+                                ));
+                                tracing::info!(
+                                    count = results.len(),
+                                    "Autonomous research results injected successfully"
+                                );
+                            }
                         }
-                    }
-                    Err(err) => {
-                        tracing::warn!(error = %err, "Autonomous research execution failed");
+                        Err(err) => {
+                            tracing::warn!(error = %err, "Autonomous research execution failed");
+                        }
                     }
                 }
             }
