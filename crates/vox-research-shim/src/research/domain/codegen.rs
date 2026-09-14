@@ -4,8 +4,6 @@
 //! and migration notes, and provides sandboxed compiler verification.
 
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Result of sandboxed compiler verification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,14 +13,57 @@ pub struct CodeSandboxResult {
     pub stderr: String,
 }
 
-static SANDBOX_COUNTER: AtomicU64 = AtomicU64::new(1);
+/// Extract all fenced code snippets (e.g. ```rust ... ```) from markdown text.
+pub fn extract_code_snippets_from_markdown(text: &str) -> Vec<String> {
+    let mut snippets = Vec::new();
+    let mut in_fence = false;
+    let mut current = Vec::new();
 
-struct TempDirGuard(PathBuf);
-
-impl Drop for TempDirGuard {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("```") {
+            if in_fence {
+                if !current.is_empty() {
+                    snippets.push(current.join("\n"));
+                    current.clear();
+                }
+                in_fence = false;
+            } else {
+                in_fence = true;
+            }
+        } else if in_fence {
+            current.push(line);
+        }
     }
+    snippets
+}
+
+/// Wrap statements or bare expressions in a test probe harness with `#![allow(unused)]`
+/// so that snippets containing only statements (e.g. `let x = 1; assert!(...);`)
+/// can compile cleanly as a standalone library crate.
+pub fn wrap_code_snippet_if_needed(snippet: &str) -> String {
+    let trimmed = snippet.trim();
+    let is_top_level_item = trimmed.starts_with("pub fn ")
+        || trimmed.starts_with("fn ")
+        || trimmed.starts_with("pub struct ")
+        || trimmed.starts_with("struct ")
+        || trimmed.starts_with("pub enum ")
+        || trimmed.starts_with("enum ")
+        || trimmed.starts_with("impl ")
+        || trimmed.starts_with("use ")
+        || trimmed.starts_with("mod ");
+
+    if is_top_level_item && !trimmed.starts_with("let ") {
+        return snippet.to_string();
+    }
+
+    format!(
+        "#![allow(unused_imports, unused_variables, dead_code, unused_must_use)]\n\
+         pub fn __vox_sandbox_probe() {{\n\
+             {}\n\
+         }}",
+        snippet
+    )
 }
 
 /// Generate targeted subqueries for Rust docs.rs signatures, usage, and migration guides.
@@ -48,14 +89,12 @@ pub async fn verify_rust_code_in_sandbox(
     code: &str,
     dependencies: &[&str],
 ) -> anyhow::Result<CodeSandboxResult> {
-    let id = SANDBOX_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let temp_dir =
-        std::env::temp_dir().join(format!("vox-code-sandbox-{}-{}", std::process::id(), id));
-    std::fs::create_dir_all(&temp_dir)?;
-    let _guard = TempDirGuard(temp_dir.clone());
+    let temp_dir_guard = tempfile::Builder::new().prefix("vox-sandbox-").tempdir()?;
+    let temp_dir = temp_dir_guard.path().to_path_buf();
 
     if dependencies.is_empty() {
         let mut cmd = tokio::process::Command::new("rustc");
+        cmd.kill_on_drop(true);
         cmd.args(["--crate-type", "lib", "--emit=metadata", "--out-dir"])
             .arg(&temp_dir)
             .arg("-")
@@ -126,6 +165,7 @@ pub async fn verify_rust_code_in_sandbox(
         std::fs::write(temp_dir.join("Cargo.toml"), cargo_toml)?;
 
         let mut cmd = tokio::process::Command::new("cargo");
+        cmd.kill_on_drop(true);
         cmd.arg("check")
             .arg("--manifest-path")
             .arg(temp_dir.join("Cargo.toml"))
