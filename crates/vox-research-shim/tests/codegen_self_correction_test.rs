@@ -117,4 +117,16 @@ fn test_wrap_code_snippet_doc_comments_and_attributes() {
     let statement = "let a = 10;\nlet b = 20;";
     let wrapped = wrap_code_snippet_if_needed(statement);
     assert!(wrapped.contains("__vox_sandbox_probe"));
+
+    let multiline_derive =
+        "#[derive(\n    Debug,\n    Clone,\n)]\npub struct Config {\n    pub port: u16,\n}";
+    assert_eq!(
+        wrap_code_snippet_if_needed(multiline_derive),
+        multiline_derive
+    );
+
+    let use_with_statements =
+        "use std::collections::HashMap;\nlet mut map = HashMap::new();\nmap.insert(\"key\", 42);";
+    let wrapped_use = wrap_code_snippet_if_needed(use_with_statements);
+    assert!(wrapped_use.contains("__vox_sandbox_probe"));
 }

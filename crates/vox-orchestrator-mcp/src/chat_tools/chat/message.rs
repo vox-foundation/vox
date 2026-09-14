@@ -566,124 +566,167 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         context_parts.push(format!("[OPEN FILES]: {}", params.open_files.join(", ")));
     }
 
+    // Check if explicit local knowledgebase search was requested
+    let is_explicit_local_search = expanded_prompt.trim_start().starts_with("/research search")
+        || expanded_prompt.trim_start().starts_with("/research-search")
+        || expanded_prompt
+            .trim_start()
+            .starts_with("/research --search");
+
+    let explicit_search_result = if is_explicit_local_search {
+        let remainder = expanded_prompt
+            .trim_start()
+            .strip_prefix("/research search")
+            .or_else(|| {
+                expanded_prompt
+                    .trim_start()
+                    .strip_prefix("/research-search")
+            })
+            .or_else(|| {
+                expanded_prompt
+                    .trim_start()
+                    .strip_prefix("/research --search")
+            })
+            .unwrap_or(&expanded_prompt)
+            .trim();
+
+        // Parse typed flags: --domain, --min-confidence, --verified-only, --limit
+        let mut query_tokens = Vec::new();
+        let mut domain = None;
+        let mut min_confidence = None;
+        let mut verified_only = None;
+        let mut limit = Some(5);
+
+        let parts = remainder.split_whitespace().collect::<Vec<_>>();
+        let mut idx = 0;
+        while idx < parts.len() {
+            let p = parts[idx];
+            if let Some(val) = p.strip_prefix("--domain=") {
+                domain = Some(val.trim_matches('"').trim_matches('\'').to_string());
+            } else if p == "--domain" && idx + 1 < parts.len() {
+                idx += 1;
+                domain = Some(parts[idx].trim_matches('"').trim_matches('\'').to_string());
+            } else if let Some(val) = p.strip_prefix("--min-confidence=") {
+                min_confidence = val.parse::<f64>().ok();
+            } else if p == "--min-confidence" && idx + 1 < parts.len() {
+                idx += 1;
+                min_confidence = parts[idx].parse::<f64>().ok();
+            } else if let Some(val) = p.strip_prefix("--limit=") {
+                limit = val.parse::<usize>().ok();
+            } else if p == "--limit" && idx + 1 < parts.len() {
+                idx += 1;
+                limit = parts[idx].parse::<usize>().ok();
+            } else if p == "--verified-only" {
+                verified_only = Some(true);
+            } else {
+                query_tokens.push(p);
+            }
+            idx += 1;
+        }
+
+        let clean_query = query_tokens
+            .join(" ")
+            .trim_matches('"')
+            .trim_matches('\'')
+            .trim()
+            .to_string();
+
+        let search_params = crate::memory_tools::ResearchSearchParams {
+            query: clean_query,
+            limit,
+            domain,
+            min_confidence,
+            verified_only,
+        };
+        Some(crate::memory_tools::research_search(state, search_params).await)
+    } else {
+        None
+    };
+
     // 2b/2c. Unified autonomous retrieval injection:
     // Use the same retrieval pipeline as `vox_memory_search` with deterministic fallback
     // (hybrid -> BM25 -> lexical fallback), then append memory + knowledge snippets.
     let mut retrieval_evidence = None;
-    let retrieval_trace = params
-        .trace_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .or_else(|| {
-            params
-                .correlation_id
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-        });
-    match run_retrieval_bundle(
-        state,
-        &expanded_prompt,
-        RetrievalTriggerMode::AutoChatPreamble,
-        3,
-        retrieval_trace,
-    )
-    .await
-    {
-        Ok(bundle) => {
-            if !bundle.rrf_fused_lines.is_empty() {
-                let snippets = bundle
-                    .rrf_fused_lines
-                    .iter()
-                    .map(|h| format!("- {h}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!(
-                    "[AUTONOMOUS RESEARCH — RRF FUSION (tier: {})]:\n{snippets}",
-                    bundle.evidence.retrieval_tier
-                ));
-            }
-            if !bundle.memory_lines.is_empty() {
-                let snippets = bundle
-                    .memory_lines
-                    .iter()
-                    .map(|h| format!("- {h}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!(
-                    "[AUTONOMOUS RESEARCH — MEMORY (tier: {})]:\n{snippets}",
-                    bundle.evidence.retrieval_tier
-                ));
-            }
-            if !bundle.knowledge_lines.is_empty() {
-                let formatted = bundle
-                    .knowledge_lines
-                    .iter()
-                    .map(|n| format!("- {n}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!(
-                    "[AUTONOMOUS RESEARCH — KNOWLEDGE GRAPH]:\n{formatted}"
-                ));
-            }
-            if !bundle.chunk_lines.is_empty() {
-                let formatted = bundle
-                    .chunk_lines
-                    .iter()
-                    .map(|c| format!("- {c}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!(
-                    "[AUTONOMOUS RESEARCH — DOCUMENT CHUNKS]:\n{formatted}"
-                ));
-            }
-            if !bundle.repo_lines.is_empty() {
-                let formatted = bundle
-                    .repo_lines
-                    .iter()
-                    .map(|c| format!("- {c}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!("[AUTONOMOUS RESEARCH — REPOSITORY]:\n{formatted}"));
-            }
-            retrieval_evidence = Some(bundle.evidence.clone());
+    if explicit_search_result.is_none() {
+        let retrieval_trace = params
+            .trace_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .or_else(|| {
+                params
+                    .correlation_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+            });
+        match run_retrieval_bundle(
+            state,
+            &expanded_prompt,
+            RetrievalTriggerMode::AutoChatPreamble,
+            3,
+            retrieval_trace,
+        )
+        .await
+        {
+            Ok(bundle) => {
+                if !bundle.rrf_fused_lines.is_empty() {
+                    let snippets = bundle
+                        .rrf_fused_lines
+                        .iter()
+                        .map(|h| format!("- {h}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    context_parts.push(format!(
+                        "[AUTONOMOUS RESEARCH — RRF FUSION (tier: {})]:\n{snippets}",
+                        bundle.evidence.retrieval_tier
+                    ));
+                }
+                if !bundle.memory_lines.is_empty() {
+                    let snippets = bundle
+                        .memory_lines
+                        .iter()
+                        .map(|h| format!("- {h}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    context_parts.push(format!(
+                        "[AUTONOMOUS RESEARCH — MEMORY (tier: {})]:\n{snippets}",
+                        bundle.evidence.retrieval_tier
+                    ));
+                }
+                if !bundle.knowledge_lines.is_empty() {
+                    let formatted = bundle
+                        .knowledge_lines
+                        .iter()
+                        .map(|n| format!("- {n}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    context_parts.push(format!(
+                        "[AUTONOMOUS RESEARCH — KNOWLEDGE GRAPH]:\n{formatted}"
+                    ));
+                }
+                if !bundle.chunk_lines.is_empty() {
+                    let formatted = bundle
+                        .chunk_lines
+                        .iter()
+                        .map(|c| format!("- {c}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    context_parts.push(format!(
+                        "[AUTONOMOUS RESEARCH — DOCUMENT CHUNKS]:\n{formatted}"
+                    ));
+                }
+                if !bundle.repo_lines.is_empty() {
+                    let formatted = bundle
+                        .repo_lines
+                        .iter()
+                        .map(|c| format!("- {c}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    context_parts.push(format!("[AUTONOMOUS RESEARCH — REPOSITORY]:\n{formatted}"));
+                }
+                retrieval_evidence = Some(bundle.evidence.clone());
 
-            // Check if explicit local knowledgebase search was requested
-            let is_explicit_local_search =
-                expanded_prompt.trim_start().starts_with("/research search")
-                    || expanded_prompt.trim_start().starts_with("/research-search")
-                    || expanded_prompt
-                        .trim_start()
-                        .starts_with("/research --search");
-
-            if is_explicit_local_search {
-                let clean_query = expanded_prompt
-                    .trim_start()
-                    .strip_prefix("/research search")
-                    .or_else(|| {
-                        expanded_prompt
-                            .trim_start()
-                            .strip_prefix("/research-search")
-                    })
-                    .or_else(|| {
-                        expanded_prompt
-                            .trim_start()
-                            .strip_prefix("/research --search")
-                    })
-                    .unwrap_or(&expanded_prompt)
-                    .trim();
-
-                let search_params = crate::memory_tools::ResearchSearchParams {
-                    query: clean_query.to_string(),
-                    limit: Some(5),
-                    domain: None,
-                    min_confidence: None,
-                    verified_only: None,
-                };
-                let result = crate::memory_tools::research_search(state, search_params).await;
-                context_parts.push(format!("[KNOWLEDGEBASE SEARCH RESULT]:\n{result}"));
-            } else {
                 // Check if autonomous deep research should be triggered
                 let is_research_slash = expanded_prompt.trim_start().starts_with("/research")
                     || expanded_prompt.trim_start().starts_with("/deepresearch");
@@ -767,25 +810,25 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         }
                     }
                 }
+                if !bundle.kb_lines.is_empty() {
+                    let formatted = bundle
+                        .kb_lines
+                        .iter()
+                        .map(|c| format!("- {c}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    context_parts.push(format!(
+                        "[AUTONOMOUS RESEARCH — KNOWLEDGE BASE]:\n{formatted}"
+                    ));
+                }
             }
-            if !bundle.kb_lines.is_empty() {
-                let formatted = bundle
-                    .kb_lines
-                    .iter()
-                    .map(|c| format!("- {c}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!(
-                    "[AUTONOMOUS RESEARCH — KNOWLEDGE BASE]:\n{formatted}"
-                ));
+            Err(e) => {
+                tracing::debug!(
+                    target: "vox_mcp::autonomous_research",
+                    error = %e,
+                    "autonomous retrieval injection failed — continuing without injected context"
+                );
             }
-        }
-        Err(e) => {
-            tracing::debug!(
-                target: "vox_mcp::autonomous_research",
-                error = %e,
-                "autonomous retrieval injection failed — continuing without injected context"
-            );
         }
     }
 
@@ -899,212 +942,223 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     );
     let llm_started = std::time::Instant::now();
 
-    let (response_text, model_used, tokens, selection_reason, events) = match params
-        .cognitive_profile
-        .as_deref()
+    let (response_text, model_used, tokens, selection_reason, events) = if let Some(local_res) =
+        explicit_search_result
     {
-        Some(profile) => {
-            let resolution_template = McpChatModelResolution {
-                allow_cheapest_fallback: profile == "fast",
-                complexity: match profile {
-                    "reasoning" => 9,
-                    "creative" => 7,
-                    _ => 5,
-                },
-                ..Default::default()
-            };
-            let profile_complexity = resolution_template.complexity;
-            let base_temperature = if profile == "creative" {
-                0.8_f32
-            } else {
-                0.3_f32
-            };
-            match resolve_chat_llm_model(
-                state,
-                &user_prompt,
-                resolution_template.clone(),
-                Some(session_id.as_str()),
-            )
-            .await
-            {
-                Ok((model, free_only)) => {
-                    let pref = effective_model_pref(
-                        params.model_override.as_deref(),
-                        match crate::sync_poison::poison_rw_read(
-                            state.mcp_chat_model_override.read(),
-                            "mcp_chat_model_override",
-                        ) {
-                            Ok(g) => g.clone(),
+        (
+            local_res,
+            "local/knowledgebase-fts5".to_string(),
+            0u64,
+            Some("Zero-cost local knowledgebase search".to_string()),
+            vec![],
+        )
+    } else {
+        match params.cognitive_profile.as_deref() {
+            Some(profile) => {
+                let resolution_template = McpChatModelResolution {
+                    allow_cheapest_fallback: profile == "fast",
+                    complexity: match profile {
+                        "reasoning" => 9,
+                        "creative" => 7,
+                        _ => 5,
+                    },
+                    ..Default::default()
+                };
+                let profile_complexity = resolution_template.complexity;
+                let base_temperature = if profile == "creative" {
+                    0.8_f32
+                } else {
+                    0.3_f32
+                };
+                match resolve_chat_llm_model(
+                    state,
+                    &user_prompt,
+                    resolution_template.clone(),
+                    Some(session_id.as_str()),
+                )
+                .await
+                {
+                    Ok((model, free_only)) => {
+                        let pref = effective_model_pref(
+                            params.model_override.as_deref(),
+                            match crate::sync_poison::poison_rw_read(
+                                state.mcp_chat_model_override.read(),
+                                "mcp_chat_model_override",
+                            ) {
+                                Ok(g) => g.clone(),
+                                Err(e) => {
+                                    tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
+                                    None
+                                }
+                            }
+                            .as_deref(),
+                        );
+                        let max_tokens =
+                            crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
+                        let routing = McpInferRouting {
+                            user_prompt: &user_prompt,
+                            sticky_model_pref: pref.as_deref(),
+                            resolution_template,
+                            free_only,
+                            allow_cloud_ollama_fallback: true,
+                            selection_rationale: None,
+                            user_id: Some(session_id.as_str()),
+                        };
+                        match crate::llm_bridge::mcp_infer_completion(
+                            state,
+                            model,
+                            "vox_chat_message",
+                            &system_prompt,
+                            &routing,
+                            max_tokens,
+                            base_temperature,
+                            params.temperature,
+                            params.top_p,
+                            params.json_mode,
+                            params.attachment_manifest.clone(),
+                        )
+                        .await
+                        {
+                            // `mcp_infer_completion` doesn't surface a selection rationale
+                            // (its `McpInferRouting.selection_rationale` above is `None`
+                            // on the cognitive-profile path); record a truthful reason for
+                            // *why* there's no rationale rather than leaving it a silent
+                            // `None` — see Phase B Task B1.
+                            Ok(r) => (
+                                r.0,
+                                r.1,
+                                r.2,
+                                Some(format!(
+                                    "cognitive profile '{profile}' \u{2192} complexity {profile_complexity}; rationale not surfaced"
+                                )),
+                                vec![],
+                            ),
                             Err(e) => {
-                                tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
-                                None
+                                return ToolResult::<String>::err_with_remediation(
+                                    format!("LLM error: {e}"),
+                                    REM_LLM_COMPLETION,
+                                )
+                                .to_json();
                             }
                         }
-                        .as_deref(),
-                    );
-                    let max_tokens =
-                        crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
-                    let routing = McpInferRouting {
-                        user_prompt: &user_prompt,
-                        sticky_model_pref: pref.as_deref(),
-                        resolution_template,
-                        free_only,
-                        allow_cloud_ollama_fallback: true,
-                        selection_rationale: None,
-                        user_id: Some(session_id.as_str()),
-                    };
-                    match crate::llm_bridge::mcp_infer_completion(
-                        state,
-                        model,
-                        "vox_chat_message",
-                        &system_prompt,
-                        &routing,
-                        max_tokens,
-                        base_temperature,
-                        params.temperature,
-                        params.top_p,
-                        params.json_mode,
-                        params.attachment_manifest.clone(),
-                    )
-                    .await
-                    {
-                        // `mcp_infer_completion` doesn't surface a selection rationale
-                        // (its `McpInferRouting.selection_rationale` above is `None`
-                        // on the cognitive-profile path); record a truthful reason for
-                        // *why* there's no rationale rather than leaving it a silent
-                        // `None` — see Phase B Task B1.
-                        Ok(r) => (
-                            r.0,
-                            r.1,
-                            r.2,
-                            Some(format!(
-                                "cognitive profile '{profile}' \u{2192} complexity {profile_complexity}; rationale not surfaced"
-                            )),
-                            vec![],
-                        ),
-                        Err(e) => {
-                            return ToolResult::<String>::err_with_remediation(
-                                format!("LLM error: {e}"),
-                                REM_LLM_COMPLETION,
-                            )
-                            .to_json();
-                        }
                     }
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        target: "vox_mcp::cognitive_routing",
-                        profile,
-                        error = %e,
-                        "cognitive profile model resolution failed — using standard routing"
-                    );
-                    match call_llm(
-                        state,
-                        &system_prompt,
-                        &user_prompt,
-                        Some(session_id.as_str()),
-                        params.temperature,
-                        params.top_p,
-                        params.attachment_manifest.clone(),
-                    )
-                    .await
-                    {
-                        Ok(r) => (
-                            r.0,
-                            r.1,
-                            r.2,
-                            Some(format!(
-                                "Fallback: cognitive-profile resolution failed ({e})"
-                            )),
-                            vec![],
-                        ),
-                        Err(e2) => {
-                            return ToolResult::<String>::err_with_remediation(
-                                format!("LLM error: {e2}"),
-                                REM_LLM_COMPLETION,
-                            )
-                            .to_json();
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "vox_mcp::cognitive_routing",
+                            profile,
+                            error = %e,
+                            "cognitive profile model resolution failed — using standard routing"
+                        );
+                        match call_llm(
+                            state,
+                            &system_prompt,
+                            &user_prompt,
+                            Some(session_id.as_str()),
+                            params.temperature,
+                            params.top_p,
+                            params.attachment_manifest.clone(),
+                        )
+                        .await
+                        {
+                            Ok(r) => (
+                                r.0,
+                                r.1,
+                                r.2,
+                                Some(format!(
+                                    "Fallback: cognitive-profile resolution failed ({e})"
+                                )),
+                                vec![],
+                            ),
+                            Err(e2) => {
+                                return ToolResult::<String>::err_with_remediation(
+                                    format!("LLM error: {e2}"),
+                                    REM_LLM_COMPLETION,
+                                )
+                                .to_json();
+                            }
                         }
                     }
                 }
             }
-        }
-        // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
-        // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
-        // to a simple provider shape and no multimodal attachment is present (the
-        // mapper does not handle vision/attachment content — see
-        // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
-        // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
-        // which still handles every other provider plus vision/budget/fallback.
-        None => match try_run_agent_turn(
-            state,
-            &system_prompt,
-            &user_prompt,
-            session_id.as_str(),
-            params.skill.clone(),
-            params.attachment_manifest.is_some(),
-            params.temperature,
-            params.top_p,
-            params.model_override.as_deref(),
-            params.tier.as_deref(),
-            params.clutch.as_deref(),
-            params.risk.as_deref(),
-        )
-        .await
-        {
-            Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason, r.events),
-            Some(Err(e)) => {
-                return ToolResult::<String>::err_with_remediation(
-                    format!("LLM error: {e}"),
-                    REM_LLM_COMPLETION,
-                )
-                .to_json();
-            }
-            // Bug 2 fix: `try_run_agent_turn` already resolved (or tried to
-            // resolve) this turn's model using `params.model_override` /
-            // `params.tier`. Falling through to plain `call_llm` here used to
-            // silently discard both and re-resolve from only the
-            // process-global override with `allow_cheapest_fallback: true`
-            // unconditionally and no free-tier enforcement -- a different
-            // model could be picked with no error surfaced, and a `tier:
-            // "local"` request could silently escape free-tier enforcement.
-            // `call_llm_with_pref` threads the same per-request pref/tier
-            // through so this fallback resolves consistently with the path
-            // that just failed, instead of picking an unrelated model.
-            None => match call_llm_with_pref(
+            // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
+            // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
+            // to a simple provider shape and no multimodal attachment is present (the
+            // mapper does not handle vision/attachment content — see
+            // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
+            // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
+            // which still handles every other provider plus vision/budget/fallback.
+            None => match try_run_agent_turn(
                 state,
                 &system_prompt,
                 &user_prompt,
-                Some(session_id.as_str()),
+                session_id.as_str(),
+                params.skill.clone(),
+                params.attachment_manifest.is_some(),
                 params.temperature,
                 params.top_p,
-                params.attachment_manifest.clone(),
                 params.model_override.as_deref(),
                 params.tier.as_deref(),
+                params.clutch.as_deref(),
+                params.risk.as_deref(),
             )
             .await
             {
-                // `call_llm_with_pref` resolves via the rationale-carrying resolver
-                // internally but doesn't return the rationale through its
-                // `(String, String, u64)` return type — out of scope for this task
-                // (see `try_run_agent_turn`'s doc comment). Record a truthful reason
-                // for the missing detail rather than a silent `None`.
-                Ok(r) => (
-                    r.0,
-                    r.1,
-                    r.2,
-                    Some("Fallback: attachment present, or provider shape unmapped".to_string()),
-                    vec![],
-                ),
-                Err(e) => {
+                Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason, r.events),
+                Some(Err(e)) => {
                     return ToolResult::<String>::err_with_remediation(
                         format!("LLM error: {e}"),
                         REM_LLM_COMPLETION,
                     )
                     .to_json();
                 }
+                // Bug 2 fix: `try_run_agent_turn` already resolved (or tried to
+                // resolve) this turn's model using `params.model_override` /
+                // `params.tier`. Falling through to plain `call_llm` here used to
+                // silently discard both and re-resolve from only the
+                // process-global override with `allow_cheapest_fallback: true`
+                // unconditionally and no free-tier enforcement -- a different
+                // model could be picked with no error surfaced, and a `tier:
+                // "local"` request could silently escape free-tier enforcement.
+                // `call_llm_with_pref` threads the same per-request pref/tier
+                // through so this fallback resolves consistently with the path
+                // that just failed, instead of picking an unrelated model.
+                None => match call_llm_with_pref(
+                    state,
+                    &system_prompt,
+                    &user_prompt,
+                    Some(session_id.as_str()),
+                    params.temperature,
+                    params.top_p,
+                    params.attachment_manifest.clone(),
+                    params.model_override.as_deref(),
+                    params.tier.as_deref(),
+                )
+                .await
+                {
+                    // `call_llm_with_pref` resolves via the rationale-carrying resolver
+                    // internally but doesn't return the rationale through its
+                    // `(String, String, u64)` return type — out of scope for this task
+                    // (see `try_run_agent_turn`'s doc comment). Record a truthful reason
+                    // for the missing detail rather than a silent `None`.
+                    Ok(r) => (
+                        r.0,
+                        r.1,
+                        r.2,
+                        Some(
+                            "Fallback: attachment present, or provider shape unmapped".to_string(),
+                        ),
+                        vec![],
+                    ),
+                    Err(e) => {
+                        return ToolResult::<String>::err_with_remediation(
+                            format!("LLM error: {e}"),
+                            REM_LLM_COMPLETION,
+                        )
+                        .to_json();
+                    }
+                },
             },
-        },
+        }
     };
 
     // KB signal adapter: fire-and-forget after response is assembled

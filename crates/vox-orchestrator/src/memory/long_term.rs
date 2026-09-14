@@ -104,9 +104,13 @@ impl LongTermMemory {
             out
         };
 
-        let mut f = File::create(&self.path).map_err(MemoryError::Io)?;
-        f.write_all(updated.as_bytes()).map_err(MemoryError::Io)?;
-        f.sync_all().map_err(MemoryError::Io)?;
+        let tmp_path = self.path.with_extension("tmp");
+        {
+            let mut f = File::create(&tmp_path).map_err(MemoryError::Io)?;
+            f.write_all(updated.as_bytes()).map_err(MemoryError::Io)?;
+            f.sync_all().map_err(MemoryError::Io)?;
+        }
+        std::fs::rename(&tmp_path, &self.path).map_err(MemoryError::Io)?;
         Ok(())
     }
 

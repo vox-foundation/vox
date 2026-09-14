@@ -526,7 +526,19 @@ pub async fn research_search(state: &ServerState, params: ResearchSearchParams) 
     let limit = params.limit.unwrap_or(10).clamp(1, 50);
     match db.search_research_artifacts(&params.query, limit).await {
         Ok(hits) => {
-            if hits.is_empty() {
+            let filtered_hits: Vec<_> = if let Some(ref d) = params.domain {
+                let d_lower = d.to_ascii_lowercase();
+                hits.into_iter()
+                    .filter(|h| {
+                        h.query_text.to_ascii_lowercase().contains(&d_lower)
+                            || h.snippet.to_ascii_lowercase().contains(&d_lower)
+                    })
+                    .collect()
+            } else {
+                hits
+            };
+
+            if filtered_hits.is_empty() {
                 return ToolResult::ok(format!(
                     "No research artifacts found matching '{}'.",
                     params.query
@@ -537,7 +549,7 @@ pub async fn research_search(state: &ServerState, params: ResearchSearchParams) 
                 "# Research Knowledgebase Results for '{}'\n\n",
                 params.query
             );
-            for hit in hits {
+            for hit in filtered_hits {
                 out.push_str(&format!(
                     "### [Session {}] {}\n",
                     hit.session_id, hit.query_text

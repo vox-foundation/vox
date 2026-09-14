@@ -28,6 +28,10 @@ pub enum ResearchDomainMode {
     CodeGen,
 }
 
+fn default_waves() -> usize {
+    1
+}
+
 /// A single research query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResearchQuery {
@@ -41,6 +45,23 @@ pub struct ResearchQuery {
     pub site_scope: Option<String>,
     #[serde(default)]
     pub domain_mode: ResearchDomainMode,
+    #[serde(default = "default_waves")]
+    pub waves: usize,
+}
+
+impl Default for ResearchQuery {
+    fn default() -> Self {
+        Self {
+            query: String::new(),
+            scope: ResearchScope::Web,
+            max_sources: 10,
+            persist_to_docs: false,
+            verify_claims: true,
+            site_scope: None,
+            domain_mode: ResearchDomainMode::General,
+            waves: 1,
+        }
+    }
 }
 
 /// A decomposed research plan: original query + N subqueries.
@@ -206,6 +227,10 @@ pub struct ResearchMetadata {
     /// data. Empty when no claims were verified.
     #[serde(default)]
     pub corroboration_counts: Vec<(u64, usize)>,
+    #[serde(default = "default_waves")]
+    pub wave_count: usize,
+    #[serde(default)]
+    pub wave_stability: Option<f64>,
 }
 
 /// Final research result.

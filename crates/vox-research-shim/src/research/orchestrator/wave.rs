@@ -6,10 +6,10 @@
 //! - Wave 3: Adversarial validation & sandboxed empirical execution
 //!
 //! Enforces mathematical multi-factor stability stopping criteria:
-//! S = 0.40 * (N_supported / N_total) + 0.30 * mean_resample_stability + 0.30 * (1.0 - N_unresolved / N_total)
+//! S = 0.50 * (N_supported / N_total) + 0.30 * mean_resample_stability + 0.20 * ((N_total - N_unverified) / N_total) - 0.30 * min(1.0, N_unresolved / N_total)
 //!
 //! Early termination rule:
-//! S >= 0.85 AND N_unresolved == 0 AND (N_supported / N_total) >= 0.60.
+//! S >= 0.85 AND N_unresolved == 0 AND (N_supported / N_total) >= 0.70 AND (N_unverified / N_total) <= 0.15.
 
 use serde::{Deserialize, Serialize};
 
@@ -255,7 +255,23 @@ impl WaveExecutionPlan {
             }
         }
 
-        self.unresolved_contradictions = new_records;
+        let existing_statuses: std::collections::HashMap<u64, ContradictionStatus> = self
+            .unresolved_contradictions
+            .iter()
+            .map(|c| (c.contradiction_id, c.status.clone()))
+            .collect();
+
+        let mut preserved_records = Vec::new();
+        for mut record in new_records {
+            if let Some(prev_status) = existing_statuses.get(&record.contradiction_id) {
+                if !matches!(prev_status, ContradictionStatus::Unresolved) {
+                    record.status = prev_status.clone();
+                }
+            }
+            preserved_records.push(record);
+        }
+
+        self.unresolved_contradictions = preserved_records;
     }
 
     /// Returns subqueries needed for Wave 2 disambiguation.
@@ -397,31 +413,48 @@ impl WaveExecutionPlan {
             }
         }
 
-        // Update contradictions matching this claim_id so early exit does not deadlock
-        for c in &mut self.unresolved_contradictions {
-            if c.claim_id_a == claim_id || c.claim_id_b == claim_id {
-                let winning_id = if correction.final_passed {
-                    claim_id
-                } else if c.claim_id_a == claim_id {
-                    c.claim_id_b
-                } else {
-                    c.claim_id_a
-                };
-                let rationale = if correction.final_passed {
-                    format!(
-                        "Empirical compilation succeeded: {}",
-                        correction.corrected_code.as_deref().unwrap_or_default()
-                    )
-                } else {
-                    format!(
-                        "Compilation failed: {}",
-                        correction.final_error.as_deref().unwrap_or("error")
-                    )
-                };
-                c.status = ContradictionStatus::ResolvedByEmpiricalSandbox {
-                    winning_claim_id: winning_id,
-                    compiler_stdout: rationale,
-                };
+        // Update contradictions matching this claim_id so early exit does not deadlock.
+        // If it was a harness artifact (e.g. missing external dependency in sandbox),
+        // we DO NOT declare the opposing claim as an empirical winner!
+        let is_harness_artifact = if !correction.final_passed {
+            let err_msg = correction
+                .final_error
+                .as_deref()
+                .or(correction.initial_error.as_deref())
+                .unwrap_or("");
+            err_msg.contains("E0432")
+                || err_msg.contains("E0433")
+                || err_msg.contains("cannot find function `main`")
+        } else {
+            false
+        };
+
+        if !is_harness_artifact {
+            for c in &mut self.unresolved_contradictions {
+                if c.claim_id_a == claim_id || c.claim_id_b == claim_id {
+                    let winning_id = if correction.final_passed {
+                        claim_id
+                    } else if c.claim_id_a == claim_id {
+                        c.claim_id_b
+                    } else {
+                        c.claim_id_a
+                    };
+                    let rationale = if correction.final_passed {
+                        format!(
+                            "Empirical compilation succeeded: {}",
+                            correction.corrected_code.as_deref().unwrap_or_default()
+                        )
+                    } else {
+                        format!(
+                            "Compilation failed: {}",
+                            correction.final_error.as_deref().unwrap_or("error")
+                        )
+                    };
+                    c.status = ContradictionStatus::ResolvedByEmpiricalSandbox {
+                        winning_claim_id: winning_id,
+                        compiler_stdout: rationale,
+                    };
+                }
             }
         }
     }
@@ -475,7 +508,7 @@ mod tests {
             })
             .collect();
 
-        // S = 0.40*(5/5) + 0.30*(1.0) + 0.30*(1.0 - 0) = 0.40 + 0.30 + 0.30 = 1.0
+        // S = 0.50*(5/5) + 0.30*(1.0) + 0.20*(5/5) - 0.30*(0) = 0.50 + 0.30 + 0.20 = 1.0
         let s = plan.compute_stability();
         assert!((s - 1.0).abs() < 1e-6, "Stability should be 1.0, got {s}");
         assert!(

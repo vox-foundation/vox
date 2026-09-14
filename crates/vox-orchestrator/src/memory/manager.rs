@@ -654,14 +654,7 @@ impl MemoryManager {
         key_claims: &[(&str, &str)],
     ) -> Result<(), MemoryError> {
         let content = self.long_term.read_all().unwrap_or_default();
-        if !content.contains("# Verified Research Knowledgebase") {
-            let header = "\n# Verified Research Knowledgebase\n\n";
-            let _ = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&self.config.memory_md_path)
-                .and_then(|mut f| std::io::Write::write_all(&mut f, header.as_bytes()));
-        }
+        let needs_header = !content.contains("# Verified Research Knowledgebase");
 
         let slug = query
             .to_ascii_lowercase()
@@ -679,7 +672,24 @@ impl MemoryManager {
             value.push_str(&format!("- [{verdict}] {claim}\n"));
         }
 
-        self.long_term.set(&key, &value)?;
+        if needs_header {
+            let initial = if content.is_empty() {
+                format!("# Verified Research Knowledgebase\n\n## {key}\n{value}\n")
+            } else {
+                format!("{content}\n# Verified Research Knowledgebase\n\n## {key}\n{value}\n")
+            };
+            let tmp_path = self.config.memory_md_path.with_extension("tmp");
+            {
+                use std::io::Write;
+                let mut f = std::fs::File::create(&tmp_path).map_err(MemoryError::Io)?;
+                f.write_all(initial.as_bytes()).map_err(MemoryError::Io)?;
+                f.sync_all().map_err(MemoryError::Io)?;
+            }
+            std::fs::rename(&tmp_path, &self.config.memory_md_path).map_err(MemoryError::Io)?;
+            Ok(())
+        } else {
+            self.long_term.set(&key, &value)
+        }?;
 
         if let Some(db) = self.db.clone() {
             let k = key.clone();

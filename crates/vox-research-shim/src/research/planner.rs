@@ -155,6 +155,7 @@ mod tests {
             verify_claims: true,
             site_scope: None,
             domain_mode: Default::default(),
+            waves: 1,
         }
     }
 

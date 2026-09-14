@@ -103,7 +103,7 @@ pub async fn extract_claims_with_model(
             input.openrouter_model = model.to_string();
         }
         let primary = crate::research::orchestrator::model_dispatch::primary_candidate_for_intent(
-            vox_orchestrator::models::SelectionIntent::nli_classifier(),
+            vox_orchestrator::models::SelectionIntent::claim_extraction(),
         );
         let mut candidates: Vec<LlmConfig> = primary.into_iter().collect();
         candidates.extend(cascade_with_optional_manual(

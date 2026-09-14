@@ -187,41 +187,113 @@ pub(super) async fn synthesize_answer_with_llm(params: SynthesisParams<'_>) -> S
 }
 
 async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<String> {
-    let mut context_budget = params.context_max_chars;
+    use crate::research::distillation::{
+        ClaimEvidenceUnit, EpistemicModality, EvidenceKind, extract_registrable_domain,
+        pack_rag_budget,
+    };
 
-    // Build evidence context from hits.
-    let evidence: String = params
+    // 1. Format verdicts first, including compiler sandbox stderr for contradicted claims
+    let raw_verdicts = params
+        .verdicts
+        .iter()
+        .map(|v| {
+            let stderr_detail = v
+                .evidence_spans
+                .iter()
+                .find(|s| {
+                    s.span_type == super::super::types::SpanType::Contradicting
+                        && s.text.contains("Compiler error")
+                })
+                .map(|s| {
+                    format!(
+                        " [Sandbox Stderr: {}]",
+                        s.text.chars().take(200).collect::<String>()
+                    )
+                })
+                .unwrap_or_default();
+            format!(
+                "{}: {} ({:.0}% confidence){}",
+                v.claim.text,
+                v.verdict,
+                v.confidence * 100.0,
+                stderr_detail
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+
+    let total_budget = params.context_max_chars.max(4000);
+    let max_verdict_budget = if !params.verdicts.is_empty() {
+        (total_budget * 15 / 100).max(1200)
+    } else {
+        0
+    };
+    let verdict_text: String = raw_verdicts.chars().take(max_verdict_budget).collect();
+
+    // 2. Reclaim unused verdict budget for evidence
+    let evidence_budget = total_budget.saturating_sub(verdict_text.len());
+
+    // 3. Convert hits into ClaimEvidenceUnits and pack using partitioned RAG budget
+    let units: Vec<ClaimEvidenceUnit> = params
         .hits
         .iter()
         .enumerate()
         .map(|(i, h)| {
             let snippet = sanitize_evidence(&h.snippet.chars().take(600).collect::<String>());
-            format!("[{}] {}\nURL: {}\n{}\n", i + 1, h.title, h.url, snippet)
+            let domain = extract_registrable_domain(&h.url);
+            let is_contested = params.verdicts.iter().any(|v| {
+                (v.verdict == super::super::types::Verdict::Contradicted
+                    || v.verdict == super::super::types::Verdict::Contested)
+                    && (v.claim.text.contains(&h.title) || snippet.contains(&v.claim.text))
+            });
+            ClaimEvidenceUnit {
+                unit_id: i as u64,
+                kind: EvidenceKind::AtomicFact,
+                subject: h.title.clone(),
+                predicate: "reports".to_string(),
+                object: snippet.clone(),
+                conditions: vec![],
+                modality: EpistemicModality::Definite,
+                verbatim_quote: snippet,
+                span_start: 0,
+                span_end: 0,
+                source_url: h.url.clone(),
+                registrable_domain: domain,
+                trust_score: h.trust_score,
+                corroborating_domains: vec![],
+                is_contradicted_or_contested: is_contested,
+            }
         })
-        .collect::<Vec<_>>()
-        .join("\n");
+        .collect();
 
-    // Truncate to budget.
-    let evidence_text: String = evidence.chars().take(context_budget).collect();
-    context_budget = context_budget.saturating_sub(evidence_text.len());
-
-    // Append verdict summary if room remains.
-    let verdict_text: String = if !params.verdicts.is_empty() && context_budget > 100 {
-        params
-            .verdicts
+    let packed_units = pack_rag_budget(&units, params.query, evidence_budget);
+    let evidence_text: String = if !packed_units.is_empty() {
+        packed_units
             .iter()
-            .map(|v| {
+            .enumerate()
+            .map(|(i, u)| {
                 format!(
-                    "{}: {} ({:.0}% confidence)",
-                    v.claim.text,
-                    v.verdict,
-                    v.confidence * 100.0
+                    "[{}] {}\nURL: {}\n{}\n",
+                    i + 1,
+                    u.subject,
+                    u.source_url,
+                    u.verbatim_quote
                 )
             })
             .collect::<Vec<_>>()
-            .join("; ")
+            .join("\n")
     } else {
-        String::new()
+        let fallback_evidence: String = params
+            .hits
+            .iter()
+            .enumerate()
+            .map(|(i, h)| {
+                let snippet = sanitize_evidence(&h.snippet.chars().take(600).collect::<String>());
+                format!("[{}] {}\nURL: {}\n{}\n", i + 1, h.title, h.url, snippet)
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        fallback_evidence.chars().take(evidence_budget).collect()
     };
 
     let system = format!(
@@ -420,7 +492,7 @@ Sources:\n{context}\n\nQuestion: {q}\n\nAnswer with only 'yes', 'no', or 'unknow
 }
 
 #[cfg(feature = "runtime")]
-async fn chat_stage(
+pub(crate) async fn chat_stage(
     stage: vox_actor_runtime::llm::cascade::ResearchStage,
     endpoint: Option<&str>,
     api_key: Option<&str>,
@@ -489,7 +561,7 @@ async fn chat_stage(
 }
 
 #[cfg(not(feature = "runtime"))]
-async fn chat_stage(
+pub(crate) async fn chat_stage(
     _stage: vox_actor_runtime::llm::cascade::ResearchStage,
     _endpoint: Option<&str>,
     _api_key: Option<&str>,
@@ -544,6 +616,64 @@ mod citation_diversity_tests {
         assert!(
             sys_prompt.contains("Cite every material claim"),
             "judge prompt should use research-appropriate completeness language: {sys_prompt}"
+        );
+    }
+
+    #[test]
+    fn test_synthesis_preserves_claim_verdicts_on_full_budget() {
+        use crate::research::claims::Claim;
+        use crate::research::verifier::{ClaimVerdict, Verdict};
+
+        let verdicts = vec![ClaimVerdict {
+            claim: Claim {
+                claim_id: 42,
+                text: "Target API requires usize parameter".into(),
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+            },
+            verdict: Verdict::Contradicted,
+            confidence: 0.95,
+            supporting_count: 0,
+            contradicting_count: 1,
+            evidence_spans: vec![],
+            resample_stability: 1.0,
+        }];
+
+        // Giant evidence string that exceeds standard context budget
+        let giant_evidence = "Evidence snippet details. ".repeat(500); // ~13,000 chars
+        let hits = vec![crate::research::types::ResearchHit {
+            url: "https://docs.rs/example".into(),
+            title: "Docs".into(),
+            snippet: giant_evidence,
+            score: 0.9,
+            http_status: 200,
+            trust_score: 1.0,
+            raw_content: String::new(),
+        }];
+
+        let params = super::SynthesisParams {
+            query: "What parameter does Target API require?",
+            hits: &hits,
+            verdicts: &verdicts,
+            endpoint: None,
+            api_key: None,
+            model: "test-model",
+            temperature: 0.2,
+            max_tokens: 500,
+            context_max_chars: 4000,
+        };
+
+        // Even with a tight budget (4,000 chars) and 13,000 chars of evidence,
+        // the template synthesis output must still contain the claim text and verdict!
+        let answer = super::synthesize_answer_template(params.query, params.hits, params.verdicts);
+        assert!(
+            answer.contains("Target API requires usize parameter"),
+            "Answer must retain verified claim even when evidence exceeds context budget: {answer}"
+        );
+        assert!(
+            answer.contains("contradicted"),
+            "Answer must retain contradiction verdict even when evidence exceeds context budget: {answer}"
         );
     }
 }

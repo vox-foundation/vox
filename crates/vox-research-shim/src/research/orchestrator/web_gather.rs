@@ -477,6 +477,7 @@ mod tests {
             verify_claims: false,
             site_scope: None,
             domain_mode: Default::default(),
+            waves: 1,
         };
         let plan = ResearchPlan {
             original_query: query.query.clone(),

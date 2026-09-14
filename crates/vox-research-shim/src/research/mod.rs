@@ -13,6 +13,7 @@
 pub mod claims;
 pub(super) mod config;
 pub mod discovery_bridge;
+pub mod distillation;
 pub mod domain;
 pub mod emitter;
 pub mod gate;

@@ -140,7 +140,7 @@ impl Default for ResearchConfig {
             fallback_quality_score: i32::from(
                 ConfidencePolicy::DEFAULT_MIN_REVIEW_FINDING_CONFIDENCE,
             ),
-            synthesis_context_max_chars: 8000,
+            synthesis_context_max_chars: 24000,
             chunk_max_chars: 1200,
             chunk_overlap_chars: 150,
             trust_multiplier: 1.2,

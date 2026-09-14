@@ -28,9 +28,14 @@ pub(super) mod model_dispatch;
 mod pipeline;
 mod pipeline_cache;
 mod stages;
+pub mod wave;
 mod web_gather;
 
 pub use config::{ProgressCallback, ResearchConfig};
 pub use pipeline::{
     run_research, run_research_with_context, run_research_with_context_and_session,
+};
+pub use wave::{
+    ContradictionCategory, ContradictionRecord, ContradictionStatus, TerminationReason,
+    WaveExecutionPlan,
 };

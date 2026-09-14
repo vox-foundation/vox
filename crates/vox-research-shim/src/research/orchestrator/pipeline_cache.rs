@@ -95,6 +95,7 @@ mod tests {
             verify_claims: true,
             site_scope: None,
             domain_mode: Default::default(),
+            waves: 1,
         }
     }
 
@@ -119,6 +120,8 @@ mod tests {
                 self_verification: None,
                 citation_audit: None,
                 corroboration_counts: vec![],
+                wave_count: 1,
+                wave_stability: None,
             },
         }
     }

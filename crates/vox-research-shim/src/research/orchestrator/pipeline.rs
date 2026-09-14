@@ -22,7 +22,7 @@ use super::config::ResearchConfig;
 use super::helpers::{fnv1a_hash, verifier_config_for_research_run};
 use super::pipeline_cache::{research_cache_short_circuit, research_cache_store};
 use super::stages::{
-    JudgeParams, SynthesisParams, evaluate_citation_diversity, judge_quality,
+    JudgeParams, SynthesisParams, chat_stage, evaluate_citation_diversity, judge_quality,
     run_self_verification, synthesize_answer_with_llm,
 };
 use super::web_gather::{gather_local_hits_for_plan, gather_web_hits_for_plan};
@@ -322,8 +322,23 @@ pub async fn run_research_with_context_and_session(
 
     // ── (e) Confidence gate → routing decision ────────────────────────────────
     let draft_claims = {
+        let claim_extraction_text = if !all_hits.is_empty() {
+            let snippets: Vec<String> = all_hits
+                .iter()
+                .take(8)
+                .map(|h| format!("- {}: {}", h.title, h.snippet))
+                .collect();
+            format!(
+                "Topic: {}\n\nEvidence Sources:\n{}",
+                query.query,
+                snippets.join("\n")
+            )
+        } else {
+            query.query.clone()
+        };
+
         let mut claims = extract_claims_with_model(
-            &query.query,
+            &claim_extraction_text,
             config.llm_endpoint.as_deref(),
             config.api_key.as_deref(),
             Some(resolved_llm.claim_model.as_str()),
@@ -351,7 +366,7 @@ pub async fn run_research_with_context_and_session(
     // Set status → verifying_claims before NLI classification.
     set_session_stage(db, session_id, ResearchStage::VerifyingClaims).await;
     report_progress("Verifying research claims...".to_string(), Some(0.60));
-    let claim_verdicts = if query.verify_claims && !draft_claims.is_empty() {
+    let mut claim_verdicts = if query.verify_claims && !draft_claims.is_empty() {
         let max_age_ms: i64 = 14 * 24 * 60 * 60 * 1000; // 14 days
         let mut cached_verdicts = Vec::new();
         let mut claims_to_verify = Vec::new();
@@ -501,6 +516,219 @@ pub async fn run_research_with_context_and_session(
                     session_id: session_id.to_string(),
                 },
             );
+        }
+    }
+
+    // ── (f.2) Multi-Wave Iteration Loop ───────────────────────────────────────
+    let mut wave_plan = if query.waves > 1 {
+        let mut wp = super::wave::WaveExecutionPlan::new(session_id.to_string(), query.waves);
+        wp.detect_contradictions(&claim_verdicts);
+        Some(wp)
+    } else {
+        None
+    };
+
+    if let Some(ref mut wp) = wave_plan {
+        emit_research_event(
+            config,
+            db,
+            ResearchEvent::TelemetryObservation {
+                provider: "wave_engine".to_string(),
+                metric_type: "wave_started".to_string(),
+                value: 1.0,
+                session_id: session_id.to_string(),
+                recorded_at_ms: now_ms_i64(),
+            },
+        );
+
+        for wave_idx in 2..=query.waves {
+            wp.current_wave = wave_idx;
+            emit_research_event(
+                config,
+                db,
+                ResearchEvent::TelemetryObservation {
+                    provider: "wave_engine".to_string(),
+                    metric_type: "wave_started".to_string(),
+                    value: wave_idx as f64,
+                    session_id: session_id.to_string(),
+                    recorded_at_ms: now_ms_i64(),
+                },
+            );
+
+            // Check if early exit criteria met before launching wave
+            if wp.should_early_terminate() {
+                wp.termination_reason = Some(super::wave::TerminationReason::StabilityThresholdMet);
+                tracing::info!(
+                    session_id,
+                    wave_idx,
+                    stability = wp.compute_stability(),
+                    "Multi-wave research met early termination stability threshold"
+                );
+                break;
+            }
+
+            report_progress(
+                format!(
+                    "Wave {wave_idx}/{}: Investigating contradictions...",
+                    query.waves
+                ),
+                Some(0.60 + (wave_idx as f32 / query.waves as f32) * 0.20),
+            );
+
+            // 1. Disambiguation subqueries for detected contradictions
+            let disambig_queries = wp.generate_disambiguation_subqueries();
+            if !disambig_queries.is_empty() {
+                let disambig_plan = ResearchPlan {
+                    original_query: query.query.clone(),
+                    subqueries: disambig_queries,
+                    scope: query.scope.clone(),
+                    max_sources_per_subquery: (query.max_sources / 2).max(2),
+                    planner_degraded: false,
+                };
+                let mut wave_hits = Vec::new();
+                if do_web {
+                    let (h, _, _, _) = gather_web_hits_for_plan(
+                        db,
+                        session_id,
+                        &query,
+                        &disambig_plan,
+                        &registry,
+                        &search_policy,
+                        config,
+                    )
+                    .await;
+                    wave_hits.extend(h);
+                }
+                if do_local && let Some(ctx) = search_ctx {
+                    let (h, _, _, _) =
+                        gather_local_hits_for_plan(ctx, &query, &disambig_plan, &search_policy)
+                            .await;
+                    wave_hits.extend(h);
+                }
+                if !wave_hits.is_empty() {
+                    all_hits.extend(wave_hits);
+                    dedupe_hits_by_url(&mut all_hits);
+                }
+            }
+
+            // 2. Wave 3 / CodeGen: Sandboxed Empirical Code Validation
+            if query.domain_mode == ResearchDomainMode::CodeGen {
+                let candidates: Vec<(u64, String)> = claim_verdicts
+                    .iter()
+                    .filter_map(|verdict| {
+                        let snippets =
+                            crate::research::domain::codegen::extract_code_snippets_from_markdown(
+                                &verdict.claim.text,
+                            );
+                        if let Some(first) = snippets.into_iter().next() {
+                            Some((verdict.claim.claim_id, first))
+                        } else if verdict.claim.text.contains("fn ")
+                            || verdict.claim.text.contains("let ")
+                            || verdict.claim.text.contains("struct ")
+                            || verdict.claim.text.contains("impl ")
+                        {
+                            Some((verdict.claim.claim_id, verdict.claim.text.clone()))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                let mut updated = false;
+                for (claim_id, snippet) in candidates {
+                    let wrapped =
+                        crate::research::domain::codegen::wrap_code_snippet_if_needed(&snippet);
+                    let repair_model = resolved_llm.synthesis_model.clone();
+                    let repair_endpoint = config.llm_endpoint.clone();
+                    let repair_api_key = config.api_key.clone();
+
+                    let correction_res = crate::research::domain::codegen::attempt_code_self_correction(
+                        &wrapped,
+                        &[],
+                        2,
+                        |code_to_fix, compiler_err| {
+                            let model = repair_model.clone();
+                            let endpoint = repair_endpoint.clone();
+                            let api_key = repair_api_key.clone();
+                            let code_str = code_to_fix.to_string();
+                            let err_str = compiler_err.to_string();
+
+                            async move {
+                                let sys = "You are an expert Rust compiler diagnostic repair assistant. \
+Fix the compilation error in the provided Rust code. \
+Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by a one-line explanation of what was fixed."
+                                    .to_string();
+                                let user = format!(
+                                    "The following Rust code failed to compile:\n\n```rust\n{code_str}\n```\n\nCompiler error:\n{err_str}\n\nPlease fix the code."
+                                );
+                                let raw_res = chat_stage(
+                                    vox_actor_runtime::llm::cascade::ResearchStage::SelfVerification,
+                                    endpoint.as_deref(),
+                                    api_key.as_deref(),
+                                    &model,
+                                    0.2,
+                                    1000,
+                                    vec![("system".to_string(), sys), ("user".to_string(), user)],
+                                    None,
+                                )
+                                .await?;
+
+                                let snippets = crate::research::domain::codegen::extract_code_snippets_from_markdown(&raw_res);
+                                let repaired = if let Some(first) = snippets.into_iter().next() {
+                                    crate::research::domain::codegen::wrap_code_snippet_if_needed(&first)
+                                } else {
+                                    crate::research::domain::codegen::wrap_code_snippet_if_needed(&raw_res)
+                                };
+                                let explanation = raw_res
+                                    .lines()
+                                    .filter(|l| !l.trim().starts_with("```"))
+                                    .collect::<Vec<_>>()
+                                    .join(" ");
+                                Ok((repaired, explanation))
+                            }
+                        },
+                    )
+                    .await;
+
+                    if let Ok(correction) = correction_res {
+                        wp.apply_sandbox_self_correction(claim_id, &correction);
+                        updated = true;
+                    }
+                }
+                if updated {
+                    claim_verdicts = wp.resolved_verdicts.clone();
+                }
+            }
+
+            // Re-detect contradictions with updated evidence and verdicts
+            wp.detect_contradictions(&claim_verdicts);
+
+            emit_research_event(
+                config,
+                db,
+                ResearchEvent::TelemetryObservation {
+                    provider: "wave_engine".to_string(),
+                    metric_type: "wave_stability".to_string(),
+                    value: wp.compute_stability(),
+                    session_id: session_id.to_string(),
+                    recorded_at_ms: now_ms_i64(),
+                },
+            );
+
+            if wp.should_early_terminate() {
+                wp.termination_reason = Some(super::wave::TerminationReason::StabilityThresholdMet);
+                tracing::info!(
+                    session_id,
+                    wave_idx,
+                    stability = wp.compute_stability(),
+                    "Multi-wave research completed with high stability"
+                );
+                break;
+            }
+        }
+
+        if wp.termination_reason.is_none() {
+            wp.termination_reason = Some(super::wave::TerminationReason::MaxWavesReached);
         }
     }
 
@@ -739,6 +967,8 @@ pub async fn run_research_with_context_and_session(
         self_verification,
         citation_audit: Some(citation_audit),
         corroboration_counts,
+        wave_count: wave_plan.as_ref().map(|w| w.current_wave).unwrap_or(1),
+        wave_stability: wave_plan.as_ref().map(|w| w.compute_stability()),
     };
 
     let result = ResearchResult {
@@ -1055,6 +1285,7 @@ mod tests {
             verify_claims: false,
             site_scope: None,
             domain_mode: ResearchDomainMode::default(),
+            waves: 1,
         };
         let plan = ResearchPlan {
             original_query: query.query.clone(),
@@ -1083,6 +1314,8 @@ mod tests {
                 self_verification: None,
                 citation_audit: None,
                 corroboration_counts: vec![],
+                wave_count: 1,
+                wave_stability: None,
             },
         };
         let report_markdown = render_research_report_markdown(&query, &plan, &result);

@@ -52,49 +52,116 @@ pub fn extract_code_snippets_from_markdown(text: &str) -> Vec<String> {
 }
 
 /// Wrap statements or bare expressions in a test probe harness with `#![allow(unused)]`
-/// so that snippets containing only statements (e.g. `let x = 1; assert!(...);`)
+/// so that snippets containing only statements (e.g. `let x = 1; assert!(...);` or
+/// `use std::collections::HashMap; let mut m = HashMap::new();`)
 /// can compile cleanly as a standalone library crate.
 pub fn wrap_code_snippet_if_needed(snippet: &str) -> String {
-    let first_code_line = snippet.lines().map(str::trim).find(|line| {
-        !line.is_empty()
-            && !line.starts_with("///")
-            && !line.starts_with("//")
-            && !line.starts_with("#[")
-    });
+    let mut in_attr = false;
+    let mut in_block_comment = false;
+    let mut has_root_statements = false;
+    let mut has_item_def = false;
+    let mut brace_depth: usize = 0;
 
-    let is_top_level_item = if let Some(first) = first_code_line {
-        first.starts_with("pub fn ")
-            || first.starts_with("fn ")
-            || first.starts_with("pub async fn ")
-            || first.starts_with("async fn ")
-            || first.starts_with("pub struct ")
-            || first.starts_with("struct ")
-            || first.starts_with("pub enum ")
-            || first.starts_with("enum ")
-            || first.starts_with("pub trait ")
-            || first.starts_with("trait ")
-            || first.starts_with("pub type ")
-            || first.starts_with("type ")
-            || first.starts_with("pub const ")
-            || first.starts_with("const ")
-            || first.starts_with("impl ")
-            || first.starts_with("use ")
-            || first.starts_with("mod ")
-    } else {
-        false
-    };
+    for line in snippet.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
 
-    if is_top_level_item {
-        return snippet.to_string();
+        // Handle block comments
+        if in_block_comment {
+            if let Some(pos) = trimmed.find("*/") {
+                in_block_comment = false;
+                let remainder = trimmed[pos + 2..].trim();
+                if remainder.is_empty() {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+        } else if trimmed.starts_with("/*") && !trimmed.contains("*/") {
+            in_block_comment = true;
+            continue;
+        }
+
+        // Handle line comments
+        if trimmed.starts_with("//") {
+            continue;
+        }
+
+        // Handle attributes (including multi-line #[...])
+        if in_attr {
+            if trimmed.contains(']') {
+                in_attr = false;
+            }
+            continue;
+        } else if (trimmed.starts_with("#[") || trimmed.starts_with("#!["))
+            && !trimmed.contains(']')
+        {
+            in_attr = true;
+            continue;
+        } else if trimmed.starts_with("#[") || trimmed.starts_with("#![") {
+            continue;
+        }
+
+        // Check if line is an item definition before updating brace depth
+        let is_item_decl = trimmed.starts_with("pub fn ")
+            || trimmed.starts_with("fn ")
+            || trimmed.starts_with("pub async fn ")
+            || trimmed.starts_with("async fn ")
+            || trimmed.starts_with("pub struct ")
+            || trimmed.starts_with("struct ")
+            || trimmed.starts_with("pub enum ")
+            || trimmed.starts_with("enum ")
+            || trimmed.starts_with("pub trait ")
+            || trimmed.starts_with("trait ")
+            || trimmed.starts_with("pub type ")
+            || trimmed.starts_with("type ")
+            || trimmed.starts_with("pub const ")
+            || trimmed.starts_with("const ")
+            || trimmed.starts_with("impl ")
+            || trimmed.starts_with("pub mod ")
+            || trimmed.starts_with("mod ");
+
+        if brace_depth == 0 && is_item_decl {
+            has_item_def = true;
+        } else if brace_depth == 0 {
+            if trimmed.starts_with("let ")
+                || trimmed.starts_with("assert!(")
+                || trimmed.starts_with("assert_eq!(")
+                || trimmed.starts_with("assert_ne!(")
+                || trimmed.starts_with("println!(")
+                || trimmed.starts_with("eprintln!(")
+                || trimmed.starts_with("dbg!(")
+                || (trimmed.ends_with(';') && !trimmed.starts_with("use "))
+            {
+                has_root_statements = true;
+            }
+        }
+
+        // Update brace depth for following lines
+        for c in trimmed.chars() {
+            if c == '{' {
+                brace_depth += 1;
+            } else if c == '}' {
+                brace_depth = brace_depth.saturating_sub(1);
+            }
+        }
     }
 
-    format!(
-        "#![allow(unused_imports, unused_variables, dead_code, unused_must_use)]\n\
-         pub fn __vox_sandbox_probe() {{\n\
-             {}\n\
-         }}",
-        snippet
-    )
+    // If there are top-level statements, or if there are no item definitions at all
+    // (e.g. statements with use, bare expressions, probes), wrap in probe harness.
+    if has_root_statements || !has_item_def {
+        format!(
+            "#![allow(unused_imports, unused_variables, dead_code, unused_must_use)]\n\
+             pub fn __vox_sandbox_probe() {{\n\
+                 {}\n\
+             }}",
+            snippet
+        )
+    } else {
+        snippet.to_string()
+    }
 }
 
 /// Generate targeted subqueries for Rust docs.rs signatures, usage, and migration guides.
@@ -301,4 +368,51 @@ where
         final_error: Some(last_error),
         repair_explanation: last_explanation,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_code_snippets_from_markdown_basic() {
+        let md = "Some text\n```rust\nlet a = 1;\n```\nmore";
+        let snippets = extract_code_snippets_from_markdown(md);
+        assert_eq!(snippets.len(), 1);
+        assert_eq!(snippets[0], "let a = 1;");
+    }
+
+    #[test]
+    fn test_wrap_code_snippet_if_needed_detects_items() {
+        let snippet = "pub fn foo() {}";
+        assert_eq!(wrap_code_snippet_if_needed(snippet), snippet);
+
+        let stmt = "let x = 42;";
+        let wrapped = wrap_code_snippet_if_needed(stmt);
+        assert!(wrapped.contains("__vox_sandbox_probe"));
+    }
+
+    #[test]
+    fn test_generate_codegen_subqueries_format() {
+        let queries = generate_codegen_subqueries("tokio");
+        assert_eq!(queries.len(), 3);
+        assert!(queries[0].contains("tokio"));
+    }
+
+    #[test]
+    fn test_codegen_synthesis_instructions_non_empty() {
+        assert!(!codegen_synthesis_instructions().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_attempt_code_self_correction_inline() {
+        let clean = "pub fn id(x: i32) -> i32 { x }";
+        let res = attempt_code_self_correction(clean, &[], 1, |_code, _err| async move {
+            panic!("Should not be called");
+        })
+        .await
+        .unwrap();
+        assert!(res.initial_passed);
+        assert!(res.final_passed);
+    }
 }

@@ -295,6 +295,8 @@ mod tests {
                 self_verification: None,
                 citation_audit: None,
                 corroboration_counts: vec![],
+                wave_count: 1,
+                wave_stability: None,
             },
         }
     }

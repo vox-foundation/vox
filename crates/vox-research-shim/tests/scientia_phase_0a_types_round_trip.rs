@@ -12,6 +12,7 @@ fn research_query_default_constructs() {
         verify_claims: true,
         site_scope: None,
         domain_mode: Default::default(),
+        waves: 1,
     };
     assert_eq!(q.query, "test");
     assert_eq!(q.max_sources, 5);
@@ -57,6 +58,8 @@ fn research_metadata_planner_degraded_round_trips_json() {
         self_verification: None,
         citation_audit: None,
         corroboration_counts: vec![],
+        wave_count: 1,
+        wave_stability: None,
     };
     let json = serde_json::to_value(&meta).expect("serializes");
     assert_eq!(json["planner_degraded"], true);

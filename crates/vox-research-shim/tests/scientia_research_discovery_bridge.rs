@@ -51,6 +51,8 @@ fn supported_result(session_id: i64, quality: i32) -> ResearchResult {
             self_verification: None,
             citation_audit: None,
             corroboration_counts: vec![],
+            wave_count: 1,
+            wave_stability: None,
         },
     }
 }
