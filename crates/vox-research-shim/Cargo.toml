@@ -33,6 +33,9 @@ serde_json = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tempfile = { workspace = true }
+turso = { workspace = true }
+vox-compiler = { workspace = true }
+sqlparser = "0.54"
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 vox-scientia = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }
