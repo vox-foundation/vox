@@ -366,7 +366,34 @@ impl ModelRegistry {
     /// Credential gate used by the canonical selector: true iff the provider's
     /// primary key is resolvable right now (local providers always pass).
     pub(crate) fn key_is_present_for(m: &ModelSpec) -> bool {
-        provider_secret_is_available(&m.provider_type)
+        if provider_secret_is_available(&m.provider_type) {
+            return true;
+        }
+        if m.id.starts_with("anthropic/") || m.provider == "anthropic" {
+            if vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicApiKey)
+                .expose()
+                .is_some()
+            {
+                return true;
+            }
+        }
+        if m.id.starts_with("openai/") || m.provider == "openai" {
+            if vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiApiKey)
+                .expose()
+                .is_some()
+            {
+                return true;
+            }
+        }
+        if m.id.starts_with("google/") || m.provider == "google" {
+            if vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey)
+                .expose()
+                .is_some()
+            {
+                return true;
+            }
+        }
+        false
     }
 
     fn min_refresh_interval() -> Duration {
@@ -653,7 +680,9 @@ impl ModelRegistry {
             penalty_map: HashMap::new(),
         };
 
-        // Try to load from models.toml in the config directory
+        // In test mode, keep tests hermetic on ModelConfig::default().
+        // In production, try to load from models.toml in the config directory.
+        #[cfg(not(test))]
         let model_config = if let Some(mut config_path) = vox_db::paths::config_dir() {
             config_path.push("models.toml");
             if config_path.exists() {
@@ -677,6 +706,9 @@ impl ModelRegistry {
             ModelConfig::default()
         };
 
+        #[cfg(test)]
+        let model_config = ModelConfig::default();
+
         registry.premium_alias = if model_config.premium_alias.is_empty() {
             vox_config::load_model_routing_config().premium_alias
         } else {
@@ -687,13 +719,16 @@ impl ModelRegistry {
             registry.register(model);
         }
 
-        let cache_file = vox_config::paths::dot_vox_user_dir()
-            .join("cache")
-            .join("model-catalog.v1.json");
-        if let Ok(contents) = std::fs::read_to_string(&cache_file) {
-            if let Ok(cached_models) = serde_json::from_str::<Vec<ModelSpec>>(&contents) {
-                for m in cached_models {
-                    registry.register(m);
+        #[cfg(not(test))]
+        {
+            let cache_file = vox_config::paths::dot_vox_user_dir()
+                .join("cache")
+                .join("model-catalog.v1.json");
+            if let Ok(contents) = std::fs::read_to_string(&cache_file) {
+                if let Ok(cached_models) = serde_json::from_str::<Vec<ModelSpec>>(&contents) {
+                    for m in cached_models {
+                        registry.register(m);
+                    }
                 }
             }
         }
@@ -788,6 +823,7 @@ impl ModelRegistry {
         let result = self.best_for_internal(
             task_type,
             strength,
+            complexity,
             effective_pref,
             allow_free_in_performance_mode,
             &mut pred,
@@ -802,6 +838,7 @@ impl ModelRegistry {
         self.best_for_internal(
             task_type,
             strength,
+            complexity,
             effective_pref,
             allow_free_in_performance_mode,
             &mut pred,
@@ -812,8 +849,9 @@ impl ModelRegistry {
 
     fn best_for_internal(
         &self,
-        _task_type: TaskCategory,
+        task_type: TaskCategory,
         strength: crate::models::StrengthTag,
+        complexity: u8,
         preference: CostPreference,
         allow_free_in_performance_mode: bool,
         pred: &mut impl FnMut(&ModelSpec) -> bool,
@@ -823,7 +861,7 @@ impl ModelRegistry {
         self.models
             .values()
             .filter(|m| {
-                if respect_penalties && self.is_penalized(&m.id, _task_type) {
+                if respect_penalties && self.is_penalized(&m.id, task_type) {
                     return false;
                 }
                 // Removed W1-2 block. The runtime filter will handle dropping Unknown models
@@ -879,62 +917,68 @@ impl ModelRegistry {
 
                 Self::matches_strength(m, strength) && pred(m)
             })
-            .min_by(|a, b| {
-                let get_effective_cost = |m: &ModelSpec| {
-                    if let Some(score) = self.scoreboard.get(&m.id) {
-                        let base_cost = score.cost_per_success_usd.unwrap_or(m.cost_per_1k);
-                        if score.n_calls >= 3 {
-                            // Scoreboard-aware routing: penalize models with low quality scores.
-                            // We use (2.0 - quality) as a multiplier to double cost if quality is 0.
-                            return base_cost * (2.0 - score.quality_score.min(2.0));
-                        }
-                        return base_cost;
-                    }
-                    m.cost_per_1k
-                };
+            .max_by(|a, b| {
+                let score_a = super::scoring::auto_score_model(
+                    a,
+                    complexity,
+                    false,
+                    None,
+                    preference,
+                    None,
+                    self.scoreboard.get(&a.id),
+                );
+                let score_b = super::scoring::auto_score_model(
+                    b,
+                    complexity,
+                    false,
+                    None,
+                    preference,
+                    None,
+                    self.scoreboard.get(&b.id),
+                );
 
-                let cost_a = get_effective_cost(a);
-                let cost_b = get_effective_cost(b);
+                score_a.total_cmp(&score_b).then_with(|| {
+                    let cost_a = a.cost_per_1k;
+                    let cost_b = b.cost_per_1k;
 
-                cost_a.total_cmp(&cost_b).then_with(|| {
-                    // Secondary sort by success rate if costs (adjusted) are equal
-                    let a_sr = self
-                        .scoreboard
-                        .get(&a.id)
-                        .map(|s| s.success_rate)
-                        .unwrap_or(0.5);
-                    let b_sr = self
-                        .scoreboard
-                        .get(&b.id)
-                        .map(|s| s.success_rate)
-                        .unwrap_or(0.5);
-                    b_sr.total_cmp(&a_sr).then_with(|| {
-                        // Tertiary sort by latency if costs and success rates are similar
-                        let a_lat = self
+                    cost_b.total_cmp(&cost_a).then_with(|| {
+                        let a_sr = self
                             .scoreboard
                             .get(&a.id)
-                            .and_then(|s| s.p50_latency_ms)
-                            .unwrap_or(2000);
-                        let b_lat = self
+                            .map(|s| s.success_rate)
+                            .unwrap_or(0.5);
+                        let b_sr = self
                             .scoreboard
                             .get(&b.id)
-                            .and_then(|s| s.p50_latency_ms)
-                            .unwrap_or(2000);
+                            .map(|s| s.success_rate)
+                            .unwrap_or(0.5);
+                        a_sr.total_cmp(&b_sr).then_with(|| {
+                            let a_lat = self
+                                .scoreboard
+                                .get(&a.id)
+                                .and_then(|s| s.p50_latency_ms)
+                                .unwrap_or(2000);
+                            let b_lat = self
+                                .scoreboard
+                                .get(&b.id)
+                                .and_then(|s| s.p50_latency_ms)
+                                .unwrap_or(2000);
 
-                        a_lat.cmp(&b_lat).then_with(|| {
-                            let prefer_mesh = vox_secrets::resolve_secret(
-                                vox_secrets::SecretId::VoxRoutingPreferMesh,
-                            )
-                            .expose()
-                            .map(|s: &str| s.trim() == "true")
-                            .unwrap_or(false);
-                            if prefer_mesh {
-                                let a_is_mesh = a.provider_type == ProviderType::PopuliMesh;
-                                let b_is_mesh = b.provider_type == ProviderType::PopuliMesh;
-                                b_is_mesh.cmp(&a_is_mesh)
-                            } else {
-                                std::cmp::Ordering::Equal
-                            }
+                            b_lat.cmp(&a_lat).then_with(|| {
+                                let prefer_mesh = vox_secrets::resolve_secret(
+                                    vox_secrets::SecretId::VoxRoutingPreferMesh,
+                                )
+                                .expose()
+                                .map(|s: &str| s.trim() == "true")
+                                .unwrap_or(false);
+                                if prefer_mesh {
+                                    let a_is_mesh = a.provider_type == ProviderType::PopuliMesh;
+                                    let b_is_mesh = b.provider_type == ProviderType::PopuliMesh;
+                                    a_is_mesh.cmp(&b_is_mesh)
+                                } else {
+                                    std::cmp::Ordering::Equal
+                                }
+                            })
                         })
                     })
                 })
@@ -1151,7 +1195,28 @@ impl ModelRegistry {
 
     /// Get a specific model definition by ID.
     pub fn get(&self, model_id: &str) -> Option<ModelSpec> {
-        self.models.get(model_id).cloned()
+        let key = model_id.trim();
+        if let Some(m) = self.models.get(key) {
+            return Some(m.clone());
+        }
+        self.models
+            .values()
+            .find(|m| {
+                m.canonical_slug == key
+                    || m.canonical_slug
+                        .strip_prefix("anthropic/")
+                        .unwrap_or(&m.canonical_slug)
+                        == key
+                    || m.canonical_slug
+                        .strip_prefix("google/")
+                        .unwrap_or(&m.canonical_slug)
+                        == key
+                    || m.id == key.strip_prefix("anthropic/").unwrap_or(key)
+                    || m.id == key.strip_prefix("google/").unwrap_or(key)
+                    || m.canonical_slug.starts_with(key)
+                    || m.id.starts_with(key)
+            })
+            .cloned()
     }
 
     /// Lookup the premium-alias model id for a routing key

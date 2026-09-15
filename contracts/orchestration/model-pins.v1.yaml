@@ -31,14 +31,14 @@ schema: vox.orchestration.pins/v1
 # 2026-Q2 transition. When `select()` migrates to read pins.yaml directly, the routing.yaml
 # entries become aliases of these.
 premium_alias:
-  codegen: "anthropic/claude-opus-4.7"
-  debugging: "anthropic/claude-opus-4.7"
-  security: "anthropic/claude-opus-4.7"
-  research: "google/gemini-3.1-pro"
-  planning: "openai/gpt-5.5-pro"
-  review: "anthropic/claude-sonnet-4.6"
+  codegen: "anthropic/claude-3-7-sonnet"
+  debugging: "anthropic/claude-3-7-sonnet"
+  security: "anthropic/claude-3-7-sonnet"
+  research: "google/gemini-2.0-flash"
+  planning: "openai/o3-mini"
+  review: "anthropic/claude-3-7-sonnet"
   logic: "deepseek/deepseek-r1"
-  visus: "qwen/qwen-3.5-vl"
+  visus: "google/gemini-2.0-flash"
 
 # Version pins for reproducibility-critical contexts (CR-L0 eval panel members).
 # When the council requires that "version X must produce identical eval outputs on
@@ -74,21 +74,19 @@ classifier:
 
 # Council signoff metadata. Lint job (vox audit pins) verifies this is current.
 council_signoff:
-  rotation_id: "2026-Q2-rotation-2"
+  rotation_id: "2026-Q3-modern-frontiers"
   approved_by:
     - council
-  approved_at: "2026-05-15"
-  next_review_due: "2026-08-15"
-  rationale_doc: "docs/src/architecture/model-selection-2026-q2.md"
+  approved_at: "2026-09-15"
+  next_review_due: "2026-12-15"
+  rationale_doc: "docs/src/architecture/modern-model-selection-and-cost-accuracy-ssot-2026.md"
 
 # Retirement awareness — list of model ids that have been explicitly retired
 # and should NOT be auto-classified or shadow-evaluated even if they reappear
 # in an upstream catalog (e.g. via OpenRouter alias).
 retired_ids:
   - "claude-mythos-preview-20260407"
-  - "anthropic/claude-3.5-sonnet"
-  - "anthropic/claude-3.5-sonnet:beta"
-  - "openai/gpt-4o"
-  - "openai/gpt-4o-mini"
-  - "google/gemini-2.5-flash"
-  - "google/gemini-2.5-pro"
+  - "google/gemini-2.5-pro-preview"
+  - "qwen/qwen-2.5-72b-instruct"
+  - "qwen/qwen-2.5-coder-32b-instruct"
+  - "mistralai/mixtral-8x7b-instruct-v0.1"

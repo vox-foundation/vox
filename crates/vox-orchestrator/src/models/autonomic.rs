@@ -436,7 +436,7 @@ mod tests {
         let prior = HashSet::new();
         let fresh = vec![
             DiscoveredModel {
-                id: "anthropic/claude-3.5-sonnet".to_string(), // retired
+                id: "claude-mythos-preview-20260407".to_string(), // retired
                 description: None,
                 max_context_tokens: None,
             },
@@ -448,7 +448,7 @@ mod tests {
         ];
         let new_ids = diff_and_emit_discovery(DiscoverySource::OpenRouter, &prior, fresh);
         // Retired ids must not appear.
-        assert!(!new_ids.contains(&"anthropic/claude-3.5-sonnet".to_string()));
+        assert!(!new_ids.contains(&"claude-mythos-preview-20260407".to_string()));
         assert!(new_ids.contains(&"anthropic/claude-future-1".to_string()));
     }
 

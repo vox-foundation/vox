@@ -1212,12 +1212,12 @@ mod tests {
         }
         let outcome = outcome.expect("a model exists");
         // With QUALITY_FIRST axes (intelligence=70), premium alias should fire.
-        // The alias for codegen is `anthropic/claude-opus-4.7` per current routing.yaml.
+        // The alias for codegen is `anthropic/claude-3-7-sonnet` per current routing.yaml.
         match outcome.reason {
             SelectionReason::PremiumAlias {
                 ref alias_model_id, ..
             } => {
-                assert_eq!(alias_model_id, "anthropic/claude-opus-4.7");
+                assert_eq!(alias_model_id, "anthropic/claude-3-7-sonnet");
             }
             other => panic!("expected PremiumAlias, got {:?}", other),
         }
