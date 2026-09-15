@@ -72,9 +72,25 @@ pub async fn execute_shallow_clone_and_probe(
 
     let rev_parse_output = match rev_parse_res {
         Ok(Ok(out)) => out,
-        Ok(Err(err)) => anyhow::bail!("Failed to execute git rev-parse: {err}"),
+        Ok(Err(err)) => {
+            return Ok(GitProbeOutcome {
+                passed: false,
+                head_sha: String::new(),
+                stdout: String::new(),
+                stderr: err.to_string(),
+            });
+        }
         Err(_) => anyhow::bail!("Git rev-parse timed out"),
     };
+
+    if !rev_parse_output.status.success() {
+        return Ok(GitProbeOutcome {
+            passed: false,
+            head_sha: String::new(),
+            stdout: String::from_utf8_lossy(&rev_parse_output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&rev_parse_output.stderr).to_string(),
+        });
+    }
 
     let head_sha = String::from_utf8_lossy(&rev_parse_output.stdout)
         .trim()
@@ -82,6 +98,7 @@ pub async fn execute_shallow_clone_and_probe(
 
     let mut probe = Command::new(probe_command);
     probe.kill_on_drop(true);
+    probe.env("GIT_TERMINAL_PROMPT", "0").env("CI", "1");
     probe.current_dir(&clone_dest).args(args);
 
     let probe_res = tokio::time::timeout(Duration::from_secs(timeout_secs), probe.output()).await;

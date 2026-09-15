@@ -143,3 +143,44 @@ async fn test_execute_shallow_clone_probe_failure() {
     assert!(!outcome.passed);
     assert!(!outcome.head_sha.is_empty());
 }
+
+#[tokio::test]
+async fn test_execute_shallow_clone_failure() {
+    let outcome = execute_shallow_clone_and_probe(
+        "file:///nonexistent/repo/that/does/not/exist",
+        "git",
+        &["status"],
+        10,
+    )
+    .await
+    .expect("clone failure returns outcome");
+
+    assert!(!outcome.passed);
+    assert!(outcome.head_sha.is_empty());
+    assert!(!outcome.stderr.is_empty());
+}
+
+#[tokio::test]
+async fn test_execute_shallow_clone_empty_repo_rev_parse_fails() {
+    let source_dir = tempfile::Builder::new()
+        .prefix("vox-git-test-empty-")
+        .tempdir()
+        .expect("create temp dir");
+
+    let init = git_cmd()
+        .arg("init")
+        .current_dir(source_dir.path())
+        .output()
+        .await
+        .expect("git init");
+    assert!(init.status.success());
+
+    let repo_url = format!("file://{}", source_dir.path().display());
+    let outcome = execute_shallow_clone_and_probe(&repo_url, "git", &["status"], 10)
+        .await
+        .expect("empty repo clone executes with rev-parse failure outcome");
+
+    assert!(!outcome.passed);
+    assert!(outcome.head_sha.is_empty());
+    assert!(!outcome.stderr.is_empty());
+}
