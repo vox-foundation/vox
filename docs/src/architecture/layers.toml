@@ -362,6 +362,7 @@ exempt_files     = [
     "crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs",  # `git rev-parse --short HEAD` for a training-run manifest stamp
     "crates/vox-plugin-host/src/user_install.rs",  # shallow-clone a plugin source URL into a temp dir (HITL-gated, user-initiated)
     "crates/vox-doc-pipeline/src/pipeline/lint.rs",
+    "crates/vox-research-shim/src/research/domain/git_probe.rs",
 ]
 allow_annotation = "// vox-arch-check: allow git-exec"
 reason           = "All git invocations must go through GitExec to honor the concurrency policy."
