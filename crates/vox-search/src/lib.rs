@@ -41,6 +41,7 @@ mod tavily_budget;
 pub mod tavily_extract;
 #[cfg(feature = "tavily")]
 pub mod tavily_research;
+pub mod term_density_reranker;
 pub mod trust;
 pub mod unified;
 pub mod web_dispatcher;
