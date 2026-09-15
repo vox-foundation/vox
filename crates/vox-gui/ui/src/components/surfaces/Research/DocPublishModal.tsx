@@ -121,6 +121,7 @@ export function DocPublishModal({
   const cleanSlug = slug.trim().replace(/^-+|-+$/g, '');
 
   const handlePublish = async () => {
+    if (!allChecksPass) return;
     const finalSlug = cleanSlug || 'unnamed';
     setPublishing(true);
     setPublishError(null);
@@ -134,6 +135,7 @@ export function DocPublishModal({
       setPublishing(false);
     }
   };
+
 
 
   const targetFilename = cleanSlug.endsWith('.md')
@@ -335,11 +337,13 @@ export function DocPublishModal({
                 <button
                   type="button"
                   onClick={handlePublish}
-                  disabled={publishing || !slug.trim() || loading}
+                  disabled={publishing || !slug.trim() || loading || !allChecksPass}
+                  title={!allChecksPass ? 'Cannot publish: frontmatter validation checks failing' : undefined}
                   className="rounded border border-brass/40 bg-brass/20 hover:bg-brass/30 text-brass px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {publishing ? 'Publishing…' : 'Approve & Publish'}
                 </button>
+
               </div>
             </div>
           </div>

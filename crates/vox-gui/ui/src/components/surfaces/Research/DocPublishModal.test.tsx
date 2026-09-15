@@ -292,4 +292,33 @@ status: "current"
     fireEvent.click(screen.getByRole('button', { name: /Validation/i }));
     expect(screen.getByText('Checks Failing')).toBeTruthy();
   });
+
+  it('disables publish button and blocks submission when frontmatter checks fail', async () => {
+    const onPublished = vi.fn();
+    render(
+      <DocPublishModal
+        sessionId={42}
+        isOpen={true}
+        onClose={vi.fn()}
+        onPublished={onPublished}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('session-42-research')).toBeTruthy();
+    });
+
+    // Invalidate frontmatter
+    fireEvent.click(screen.getByRole('button', { name: /Raw Markdown/i }));
+    const textarea = screen.getByLabelText('Raw Markdown Content') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'Malformed markdown without frontmatter' } });
+
+    const publishButton = screen.getByRole('button', { name: /Approve & Publish/i }) as HTMLButtonElement;
+    expect(publishButton.disabled).toBe(true);
+
+    fireEvent.click(publishButton);
+    expect(invokeMock).not.toHaveBeenCalledWith('publish_research_doc', expect.anything());
+    expect(onPublished).not.toHaveBeenCalled();
+  });
 });
+

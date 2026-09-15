@@ -304,8 +304,8 @@ mod tests {
     #[test]
     fn test_severity_tier_as_str_in_file() {
         assert_eq!(SeverityTier::P0Critical.as_str(), "P0 (Critical)");
-        assert_eq!(SeverityTier::P1High.as_str(), "P1 (High)");
-        assert_eq!(SeverityTier::P2Medium.as_str(), "P2 (Medium)");
+        assert_eq!(SeverityTier::P1Important.as_str(), "P1 (Important)");
+        assert_eq!(SeverityTier::P2Minor.as_str(), "P2 (Minor)");
     }
 
     #[test]
@@ -314,12 +314,18 @@ mod tests {
             slug: "test-doc".into(),
             title: "Test Architecture SSOT".into(),
             description: "A test description.".into(),
+            category: "Architecture SSOTs".into(),
+            status: "current".into(),
+            training_eligible: true,
+            training_rationale: None,
+            sort_order: None,
             session_id: 1,
             stability_score: 0.95,
             executive_summary: "Summary text".into(),
-            methodology: "Method text".into(),
-            benchmark_headers: vec!["M1".into()],
-            benchmark_rows: vec![vec!["100".into()]],
+            hypothesis: "Hypothesis text".into(),
+            empirical_outcome_summary: "Outcome text".into(),
+            codebase_refs: vec![],
+            competitive_matrix: vec![],
             verified_claims: vec![],
             sandbox_probes: vec![],
             gaps_and_recommendations: vec![],
@@ -329,4 +335,3 @@ mod tests {
         assert!(doc.contains("title: \"Test Architecture SSOT\""));
     }
 }
-

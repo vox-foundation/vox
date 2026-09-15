@@ -99,7 +99,7 @@ pub async fn save_research_doc(
         raw_slug
     };
 
-    let doc_category = category.unwrap_or_else(|| "Research Findings".to_string());
+    let doc_category = category.unwrap_or_else(|| "Architecture SSOTs".to_string());
     let frontmatter = format!(
         "---\ntitle: \"{}\"\ndescription: \"{}\"\ncategory: \"{}\"\nstatus: \"current\"\n---\n\n",
         title.replace('"', "\\\""),
@@ -301,4 +301,3 @@ mod tests {
         assert_eq!(val["indexed"], true);
     }
 }
-

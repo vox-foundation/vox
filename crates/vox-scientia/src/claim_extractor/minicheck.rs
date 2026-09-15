@@ -54,12 +54,19 @@ impl MiniCheckVerifier {
         }
     }
 
-    pub fn from_env() -> Self {
-        if let Ok(url) = std::env::var("VOX_MINICHECK_ENDPOINT") {
-            Self::http(url)
-        } else {
-            Self::mock()
+    pub fn from_env_with_lookup(
+        lookup: impl FnOnce(&str) -> Result<String, std::env::VarError>,
+    ) -> Self {
+        if let Ok(url) = lookup("VOX_MINICHECK_ENDPOINT") {
+            if !url.trim().is_empty() {
+                return Self::http(url);
+            }
         }
+        Self::mock()
+    }
+
+    pub fn from_env() -> Self {
+        Self::from_env_with_lookup(|k| std::env::var(k))
     }
 
     pub async fn verify_claim(
@@ -280,14 +287,11 @@ mod tests {
 mod semcov_wave2_tests {
     #![allow(unused_imports)]
     use super::*;
-    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn from_env_returns_mock_when_env_var_absent() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        // Ensure the env var is unset for this test.
-        unsafe { std::env::remove_var("VOX_MINICHECK_ENDPOINT") };
-        let verifier = MiniCheckVerifier::from_env();
+        let verifier =
+            MiniCheckVerifier::from_env_with_lookup(|_| Err(std::env::VarError::NotPresent));
         assert!(
             matches!(verifier.backend, MiniCheckBackend::Mock),
             "expected Mock backend when VOX_MINICHECK_ENDPOINT is unset"
@@ -296,11 +300,13 @@ mod semcov_wave2_tests {
 
     #[test]
     fn from_env_returns_http_when_env_var_set() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        unsafe { std::env::set_var("VOX_MINICHECK_ENDPOINT", "http://localhost:9090/verify") };
-        let verifier = MiniCheckVerifier::from_env();
-        // Clean up immediately so other tests are not affected.
-        unsafe { std::env::remove_var("VOX_MINICHECK_ENDPOINT") };
+        let verifier = MiniCheckVerifier::from_env_with_lookup(|k| {
+            if k == "VOX_MINICHECK_ENDPOINT" {
+                Ok("http://localhost:9090/verify".to_string())
+            } else {
+                Err(std::env::VarError::NotPresent)
+            }
+        });
         match verifier.backend {
             MiniCheckBackend::Http { endpoint } => {
                 assert_eq!(endpoint, "http://localhost:9090/verify");

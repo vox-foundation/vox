@@ -241,9 +241,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("doc.md");
         let lock = FileLock::acquire(&target, Duration::from_millis(500)).unwrap();
-        assert!(lock.lock_path().exists());
+        let lock_path = lock.lock_path().to_path_buf();
+        assert!(lock_path.exists());
         drop(lock);
-        assert!(!target.with_extension("lock").exists());
+        assert!(!lock_path.exists());
     }
 
     #[test]
@@ -251,9 +252,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let index = dir.path().join("research-index.md");
         std::fs::write(&index, "## Strategic & Value Proposition\n\n- Existing\n").unwrap();
-        update_research_index_md(&index, "Doc", "doc.md", "Desc", "Strategic").unwrap();
+        update_research_index_md(&index, "Strategic", "doc.md", "Doc", "Desc").unwrap();
         let res = std::fs::read_to_string(&index).unwrap();
-        assert!(res.contains("[Doc](doc.md)"));
+        assert!(res.contains("[Doc](doc.md) — Desc."));
     }
 }
-
