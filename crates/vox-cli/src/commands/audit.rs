@@ -47,6 +47,9 @@ pub enum AuditSubcommand {
     /// `docs/superpowers/specs/2026-05-30-effort-route-design.md`.
     #[command(name = "effort-route")]
     EffortRoute(EffortRouteArgs),
+    /// Audit architecture SSOTs for empirical test citations and verify existence.
+    #[command(name = "research-parity")]
+    ResearchParity(crate::commands::audit_research_parity::ResearchParityArgs),
 }
 
 // ---------------------------------------------------------------------------
@@ -203,6 +206,10 @@ pub fn run_audit_subcommand(cmd: &AuditSubcommand) -> Result<()> {
                 return Ok(());
             }
             anyhow::bail!("core audit gates failed");
+        }
+        AuditSubcommand::ResearchParity(args) => {
+            crate::commands::audit_research_parity::run_research_parity_audit_sync(args)?;
+            return Ok(());
         }
         AuditSubcommand::Effort(_) | AuditSubcommand::EffortRoute(_) => {
             anyhow::bail!("async audit subcommand must be dispatched from cli_dispatch");

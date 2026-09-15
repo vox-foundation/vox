@@ -23,6 +23,9 @@ pub mod audit_effort;
 /// `vox audit effort-route` — routes audit findings to enforcement proposals (D3).
 pub mod audit_route;
 
+/// `vox audit research-parity` — audits architecture SSOTs for empirical test citations.
+pub mod audit_research_parity;
+
 #[cfg(feature = "dei")]
 pub mod attention;
 /// Identity and master key integration (`vox auth`).
