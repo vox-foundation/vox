@@ -104,8 +104,9 @@ pub async fn save_research_doc(
         "---\ntitle: \"{}\"\ndescription: \"{}\"\ncategory: \"{}\"\nstatus: \"current\"\n---\n\n",
         title.replace('"', "\\\""),
         description.replace('"', "\\\""),
-        doc_category
+        doc_category.replace('"', "\\\"")
     );
+
 
     let filename = if slug.ends_with("research") || slug.ends_with("findings") {
         format!("{slug}-2026.md")
