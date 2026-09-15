@@ -9,22 +9,11 @@ pub struct ScrapedDocument {
     pub title: String,
     pub markdown: String,
     pub text_density: f64,
+    pub raw_html: Option<String>,
 }
 
-pub async fn fetch_and_extract(url: &str, timeout_ms: u64) -> anyhow::Result<ScrapedDocument> {
-    let client = vox_http_client::client_builder()
-        .timeout(Duration::from_millis(timeout_ms))
-        .user_agent("VoxResearchBot/1.0 (+https://vox.dev/research-bot)")
-        .build()?;
-
-    let resp = client.get(url).send().await?;
-    let status = resp.status();
-    if !status.is_success() {
-        return Err(anyhow::anyhow!("Failed to fetch URL {}: {}", url, status));
-    }
-
-    let html_content = resp.text().await?;
-    let document = Html::parse_document(&html_content);
+pub fn extract_document_from_html(url: &str, html_content: &str) -> ScrapedDocument {
+    let document = Html::parse_document(html_content);
 
     // 1. Extract Title
     let title_selector = Selector::parse("title").unwrap();
@@ -50,7 +39,7 @@ pub async fn fetch_and_extract(url: &str, timeout_ms: u64) -> anyhow::Result<Scr
         if let Some(body_el) = document.select(&body_selector).next() {
             body_el.html()
         } else {
-            html_content.clone()
+            html_content.to_string()
         }
     };
 
@@ -73,10 +62,27 @@ pub async fn fetch_and_extract(url: &str, timeout_ms: u64) -> anyhow::Result<Scr
         "Scraped document"
     );
 
-    Ok(ScrapedDocument {
+    ScrapedDocument {
         url: url.to_string(),
         title,
         markdown,
         text_density,
-    })
+        raw_html: Some(html_content.to_string()),
+    }
+}
+
+pub async fn fetch_and_extract(url: &str, timeout_ms: u64) -> anyhow::Result<ScrapedDocument> {
+    let client = vox_http_client::client_builder()
+        .timeout(Duration::from_millis(timeout_ms))
+        .user_agent("VoxResearchBot/1.0 (+https://vox.dev/research-bot)")
+        .build()?;
+
+    let resp = client.get(url).send().await?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(anyhow::anyhow!("Failed to fetch URL {}: {}", url, status));
+    }
+
+    let html_content = resp.text().await?;
+    Ok(extract_document_from_html(url, &html_content))
 }

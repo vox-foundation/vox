@@ -25,6 +25,7 @@ pub fn extract_candidate_links(html: &str, base_url: &str, allow_origin: &str) -
     };
 
     let mut links = Vec::new();
+    let mut seen = HashSet::new();
     for element in document.select(&selector) {
         if let Some(href) = element.value().attr("href") {
             let Ok(resolved) = base.join(href) else {
@@ -33,14 +34,14 @@ pub fn extract_candidate_links(html: &str, base_url: &str, allow_origin: &str) -
             let normalized = normalize_crawl_url(&resolved);
             let normalized_str = normalized.to_string();
 
-            if !normalized_str.starts_with(allow_origin) {
+            if normalized.origin().ascii_serialization() != allow_origin {
                 continue;
             }
             let lower = normalized_str.to_lowercase();
             if EXCLUDED_EXTENSIONS.iter().any(|ext| lower.ends_with(ext)) {
                 continue;
             }
-            if !links.contains(&normalized_str) {
+            if seen.insert(normalized_str.clone()) {
                 links.push(normalized_str);
             }
         }
@@ -88,10 +89,12 @@ pub async fn crawl_domain_depth(
     let mut results = Vec::new();
 
     let root_parsed = Url::parse(root_url)?;
-    let allow_origin = root_parsed.origin().ascii_serialization();
+    let normalized_root = normalize_crawl_url(&root_parsed);
+    let allow_origin = normalized_root.origin().ascii_serialization();
+    let start_url = normalized_root.to_string();
 
-    queue.push_back((root_url.to_string(), 0usize));
-    visited.insert(root_url.to_string());
+    queue.push_back((start_url.clone(), 0usize));
+    visited.insert(start_url);
 
     while let Some((current_url, depth)) = queue.pop_front() {
         if results.len() >= max_pages {
@@ -100,29 +103,20 @@ pub async fn crawl_domain_depth(
 
         match fetch_and_extract(&current_url, timeout_ms).await {
             Ok(doc) => {
-                results.push(doc);
-
                 if depth < max_depth {
-                    // Extract links from candidate
-                    let client = vox_http_client::client_builder()
-                        .timeout(std::time::Duration::from_millis(timeout_ms))
-                        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
-                        .build()?;
-                    if let Ok(resp) = client.get(&current_url).send().await {
-                        if let Ok(html) = resp.text().await {
-                            let candidates =
-                                extract_candidate_links(&html, &current_url, &allow_origin);
-                            let prioritized = score_and_prioritize_links(&candidates);
+                    if let Some(html) = doc.raw_html.as_deref() {
+                        let candidates = extract_candidate_links(html, &current_url, &allow_origin);
+                        let prioritized = score_and_prioritize_links(&candidates);
 
-                            for (link, _) in prioritized {
-                                if !visited.contains(&link) && visited.len() < max_pages * 3 {
-                                    visited.insert(link.clone());
-                                    queue.push_back((link, depth + 1));
-                                }
+                        for (link, _) in prioritized.into_iter().take(15) {
+                            if visited.insert(link.clone()) {
+                                queue.push_back((link, depth + 1));
                             }
                         }
                     }
                 }
+
+                results.push(doc);
             }
             Err(e) => {
                 tracing::warn!(url = %current_url, error = %e, "Failed to crawl link");
