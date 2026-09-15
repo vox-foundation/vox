@@ -296,3 +296,37 @@ pub fn render_architecture_ssot(input: &ArchitectureSsotInput) -> Result<String,
 
     Ok(doc)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_severity_tier_as_str_in_file() {
+        assert_eq!(SeverityTier::P0Critical.as_str(), "P0 (Critical)");
+        assert_eq!(SeverityTier::P1High.as_str(), "P1 (High)");
+        assert_eq!(SeverityTier::P2Medium.as_str(), "P2 (Medium)");
+    }
+
+    #[test]
+    fn test_render_architecture_ssot_in_file() {
+        let input = ArchitectureSsotInput {
+            slug: "test-doc".into(),
+            title: "Test Architecture SSOT".into(),
+            description: "A test description.".into(),
+            session_id: 1,
+            stability_score: 0.95,
+            executive_summary: "Summary text".into(),
+            methodology: "Method text".into(),
+            benchmark_headers: vec!["M1".into()],
+            benchmark_rows: vec![vec!["100".into()]],
+            verified_claims: vec![],
+            sandbox_probes: vec![],
+            gaps_and_recommendations: vec![],
+            roadmap_phases: vec![],
+        };
+        let doc = render_architecture_ssot(&input).expect("render");
+        assert!(doc.contains("title: \"Test Architecture SSOT\""));
+    }
+}
+

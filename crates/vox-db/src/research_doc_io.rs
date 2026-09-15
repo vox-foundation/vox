@@ -223,3 +223,37 @@ pub fn update_research_index_md(
     let updated_content = lines.join("\n") + "\n";
     atomic_write_secure(index_path, updated_content.as_bytes())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_atomic_write_secure_in_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("sub/test.txt");
+        atomic_write_secure(&target, b"hello").unwrap();
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_file_lock_in_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("doc.md");
+        let lock = FileLock::acquire(&target, Duration::from_millis(500)).unwrap();
+        assert!(lock.lock_path().exists());
+        drop(lock);
+        assert!(!target.with_extension("lock").exists());
+    }
+
+    #[test]
+    fn test_update_research_index_in_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let index = dir.path().join("research-index.md");
+        std::fs::write(&index, "## Strategic & Value Proposition\n\n- Existing\n").unwrap();
+        update_research_index_md(&index, "Doc", "doc.md", "Desc", "Strategic").unwrap();
+        let res = std::fs::read_to_string(&index).unwrap();
+        assert!(res.contains("[Doc](doc.md)"));
+    }
+}
+

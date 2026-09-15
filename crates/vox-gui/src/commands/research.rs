@@ -270,3 +270,35 @@ pub async fn publish_research_doc(
         indexed,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_doc_draft_preview_dto_serialization() {
+        let draft = DocDraftPreview {
+            slug: "test-slug".into(),
+            title: "Test Title".into(),
+            filename: "test-slug-2026.md".into(),
+            markdown_content: "---".into(),
+            is_valid: true,
+            validation_errors: vec![],
+        };
+        let val = serde_json::to_value(&draft).unwrap();
+        assert_eq!(val["slug"], "test-slug");
+        assert_eq!(val["is_valid"], true);
+    }
+
+    #[test]
+    fn test_publish_doc_result_dto_serialization() {
+        let res = PublishDocResult {
+            file_path: "/path/to/doc.md".into(),
+            relative_path: "docs/src/architecture/doc.md".into(),
+            indexed: true,
+        };
+        let val = serde_json::to_value(&res).unwrap();
+        assert_eq!(val["indexed"], true);
+    }
+}
+

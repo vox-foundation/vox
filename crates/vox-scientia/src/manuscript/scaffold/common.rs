@@ -47,3 +47,28 @@ pub fn render_code_fence(lang: &str, code: &str, skip_doctest: bool) -> String {
     fence.push_str(&format!("\n{delimiter}\n"));
     fence
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_escape_pipe_in_file() {
+        assert_eq!(escape_pipe("a|b\nc"), "a\\|b c");
+    }
+
+    #[test]
+    fn test_render_markdown_table_in_file() {
+        let headers = ["H1", "H2"];
+        let rows = vec![vec!["A".to_string(), "B".to_string()]];
+        let res = render_markdown_table(&headers, &rows);
+        assert!(res.contains("| H1 | H2 |"));
+    }
+
+    #[test]
+    fn test_render_code_fence_in_file() {
+        let fence = render_code_fence("vox", "fn main() {}", true);
+        assert!(fence.contains("// vox:skip"));
+    }
+}
+
