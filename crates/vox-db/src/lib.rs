@@ -179,6 +179,7 @@ pub mod preferences;
 pub mod project_store;
 mod questioning_telemetry;
 mod research;
+pub mod research_doc_io;
 pub mod research_pipeline;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
 /// Moved to `vox-db-types`; re-exported here for back-compat.
