@@ -46,7 +46,7 @@
       "supports_json": false,
       "supports_vision": false,
       "supports_native_tools": false,
-      "max_context": 0
+      "max_context": 32000
     },
     "supported_parameters": []
   },
@@ -69,7 +69,7 @@
       "supports_json": false,
       "supports_vision": false,
       "supports_native_tools": false,
-      "max_context": 0
+      "max_context": 128000
     },
     "supported_parameters": []
   },
@@ -92,7 +92,7 @@
       "supports_json": false,
       "supports_vision": false,
       "supports_native_tools": true,
-      "max_context": 0
+      "max_context": 1048576
     },
     "supported_parameters": []
   },
@@ -115,7 +115,7 @@
       "supports_json": false,
       "supports_vision": false,
       "supports_native_tools": true,
-      "max_context": 0
+      "max_context": 128000
     },
     "supported_parameters": []
   },
@@ -125,9 +125,9 @@
     "provider": "openrouter",
     "provider_type": "open_router",
     "max_tokens": 128000,
-    "cost_per_1k": 0.2,
-    "cost_per_1k_input": 0.014,
-    "cost_per_1k_output": 0.28,
+    "cost_per_1k": 0.00137,
+    "cost_per_1k_input": 0.00055,
+    "cost_per_1k_output": 0.00219,
     "is_free": false,
     "strengths": [
       "logic",
@@ -138,30 +138,8 @@
       "supports_json": false,
       "supports_vision": false,
       "supports_native_tools": true,
-      "max_context": 0
-    },
-    "supported_parameters": []
-  },
-  {
-    "id": "google/gemini-2.5-pro-preview",
-    "canonical_slug": "google/gemini-pro",
-    "provider": "openrouter",
-    "provider_type": "open_router",
-    "max_tokens": 2000000,
-    "cost_per_1k": 5.0,
-    "cost_per_1k_input": 1.25,
-    "cost_per_1k_output": 5.0,
-    "is_free": false,
-    "strengths": [
-      "planning",
-      "research"
-    ],
-    "capabilities": {
-      "tier": "pro",
-      "supports_json": false,
-      "supports_vision": true,
-      "supports_native_tools": true,
-      "max_context": 0
+      "supports_reasoning": true,
+      "max_context": 128000
     },
     "supported_parameters": []
   },
@@ -186,7 +164,7 @@
       "supports_json": false,
       "supports_vision": true,
       "supports_native_tools": true,
-      "max_context": 0
+      "max_context": 200000
     },
     "supported_parameters": []
   },
@@ -209,7 +187,7 @@
       "supports_json": false,
       "supports_vision": true,
       "supports_native_tools": true,
-      "max_context": 0
+      "max_context": 128000
     },
     "supported_parameters": []
   },
@@ -649,5 +627,127 @@
       "response_format"
     ],
     "_note": "OpenRouter-hosted Qwen 3.6 27B for users without local Ollama. Cloud paid tier; the free local copy at id `qwen/qwen-3.6-27b` is the recommended path when Ollama is available."
+  },
+  {
+    "id": "anthropic/claude-3-7-sonnet",
+    "canonical_slug": "anthropic/claude-3-7-sonnet",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 200000,
+    "cost_per_1k": 0.009,
+    "cost_per_1k_input": 0.003,
+    "cost_per_1k_output": 0.015,
+    "is_free": false,
+    "strengths": ["codegen", "logic", "debugging", "planning", "review", "ui_codegen"],
+    "capabilities": {
+      "tier": "elite",
+      "supports_json": true,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "supports_reasoning": true,
+      "max_context": 200000
+    },
+    "supported_parameters": ["tools", "tool_choice", "response_format", "thinking", "reasoning"]
+  },
+  {
+    "id": "openai/o3-mini",
+    "canonical_slug": "openai/o3-mini",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 200000,
+    "cost_per_1k": 0.00275,
+    "cost_per_1k_input": 0.0011,
+    "cost_per_1k_output": 0.0044,
+    "is_free": false,
+    "strengths": ["logic", "debugging", "planning", "codegen"],
+    "capabilities": {
+      "tier": "elite",
+      "supports_json": true,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "supports_reasoning": true,
+      "max_context": 200000
+    },
+    "supported_parameters": ["tools", "tool_choice", "response_format", "reasoning"]
+  },
+  {
+    "id": "deepseek/deepseek-chat",
+    "canonical_slug": "deepseek/deepseek-v3",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 128000,
+    "cost_per_1k": 0.00021,
+    "cost_per_1k_input": 0.00014,
+    "cost_per_1k_output": 0.00028,
+    "is_free": false,
+    "strengths": ["codegen", "review", "generalist"],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": true,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 128000
+    },
+    "supported_parameters": ["tools", "tool_choice", "response_format"]
+  },
+  {
+    "id": "google/gemini-2.0-flash",
+    "canonical_slug": "google/gemini-2.0-flash",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 1048576,
+    "cost_per_1k": 0.00025,
+    "cost_per_1k_input": 0.0001,
+    "cost_per_1k_output": 0.0004,
+    "is_free": false,
+    "strengths": ["research", "inter_agent", "long_context", "vision", "codegen", "visus"],
+    "capabilities": {
+      "tier": "light",
+      "supports_json": true,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 1048576
+    },
+    "supported_parameters": ["tools", "tool_choice", "response_format"]
+  },
+  {
+    "id": "openai/gpt-4o-mini",
+    "canonical_slug": "openai/gpt-4o-mini",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 128000,
+    "cost_per_1k": 0.000375,
+    "cost_per_1k_input": 0.00015,
+    "cost_per_1k_output": 0.0006,
+    "is_free": false,
+    "strengths": ["parsing", "inter_agent", "generalist"],
+    "capabilities": {
+      "tier": "light",
+      "supports_json": true,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 128000
+    },
+    "supported_parameters": ["tools", "tool_choice", "response_format"]
+  },
+  {
+    "id": "qwen/qwen-3-8b",
+    "canonical_slug": "qwen/qwen-3-8b",
+    "provider": "voxlocal",
+    "provider_type": "vox_local",
+    "max_tokens": 128000,
+    "cost_per_1k": 0.0,
+    "cost_per_1k_input": 0.0,
+    "cost_per_1k_output": 0.0,
+    "is_free": true,
+    "strengths": ["codegen", "parsing", "logic"],
+    "capabilities": {
+      "tier": "local",
+      "supports_json": true,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 128000
+    },
+    "supported_parameters": ["tools", "tool_choice", "response_format"]
   }
 ]

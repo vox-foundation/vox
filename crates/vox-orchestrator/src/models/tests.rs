@@ -186,6 +186,48 @@ mod premium_alias_tests {
             );
         }
     }
+
+    #[test]
+    fn test_bootstrap_catalog_valid_and_non_zero_context() {
+        let raw_json =
+            include_str!("../../../../contracts/orchestration/model-catalog.bootstrap.v1.json");
+        let raw_models: Vec<crate::models::ModelSpec> =
+            serde_json::from_str(raw_json).expect("Invalid raw bootstrap catalog");
+        assert!(
+            !raw_models.is_empty(),
+            "raw bootstrap catalog must not be empty"
+        );
+        for m in &raw_models {
+            assert!(
+                m.capabilities.max_context > 0,
+                "model {} has zero max_context",
+                m.id
+            );
+            assert!(
+                m.cost_per_1k >= 0.0,
+                "model {} has negative cost_per_1k",
+                m.id
+            );
+        }
+
+        let cfg = ModelConfig::default();
+        assert!(
+            !cfg.models.is_empty(),
+            "bootstrap catalog must not be empty"
+        );
+        for m in &cfg.models {
+            assert!(
+                m.capabilities.max_context > 0,
+                "model {} has zero max_context",
+                m.id
+            );
+            assert!(
+                m.cost_per_1k >= 0.0,
+                "model {} has negative cost_per_1k",
+                m.id
+            );
+        }
+    }
 }
 
 #[cfg(test)]
