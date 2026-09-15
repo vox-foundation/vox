@@ -109,6 +109,95 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    /// Find reachable knowledge nodes starting from `root_id` using a recursive CTE.
+    ///
+    /// Cycle-safe traversal tracks visited node paths using `visited_path` and verifies
+    /// `instr(p.visited_path, '/' || next_id || '/') = 0` before expanding adjacent edges.
+    /// Supports directions: `"forward"`, `"reverse"`, and `"undirected"`.
+    pub async fn find_reachable_knowledge_nodes_cte(
+        &self,
+        root_id: &str,
+        max_depth: usize,
+        direction: &str,
+    ) -> Result<Vec<String>, StoreError> {
+        let dir = match direction.trim().to_ascii_lowercase().as_str() {
+            "forward" => "forward",
+            "reverse" => "reverse",
+            "undirected" => "undirected",
+            other => {
+                return Err(StoreError::Db(format!(
+                    "invalid graph traversal direction '{other}': expected 'forward', 'reverse', or 'undirected'"
+                )));
+            }
+        };
+
+        let conn = self.conn.clone();
+        let breaker = self.breaker.clone();
+        let r = root_id.to_string();
+        let dir_str = dir.to_string();
+
+        breaker
+            .call(|| async move {
+                let sql = "
+                WITH RECURSIVE graph_path(node_id, depth, visited_path) AS (
+                    SELECT ?1 AS node_id, 0 AS depth, '/' || ?1 || '/' AS visited_path
+                    UNION ALL
+                    SELECT 
+                        CASE WHEN ?3 = 'reverse' THEN e.src_id 
+                             WHEN ?3 = 'forward' THEN e.dst_id 
+                             ELSE (CASE WHEN e.src_id = p.node_id THEN e.dst_id ELSE e.src_id END)
+                        END,
+                        p.depth + 1,
+                        p.visited_path || (CASE WHEN ?3 = 'reverse' THEN e.src_id 
+                                                WHEN ?3 = 'forward' THEN e.dst_id 
+                                                ELSE (CASE WHEN e.src_id = p.node_id THEN e.dst_id ELSE e.src_id END)
+                                           END) || '/'
+                    FROM knowledge_edges e
+                    JOIN graph_path p ON (
+                        (?3 = 'forward' AND e.src_id = p.node_id) OR
+                        (?3 = 'reverse' AND e.dst_id = p.node_id) OR
+                        (?3 = 'undirected' AND (e.src_id = p.node_id OR e.dst_id = p.node_id))
+                    )
+                    WHERE p.depth < ?2
+                      AND instr(p.visited_path, '/' || (
+                          CASE WHEN ?3 = 'reverse' THEN e.src_id 
+                               WHEN ?3 = 'forward' THEN e.dst_id 
+                               ELSE (CASE WHEN e.src_id = p.node_id THEN e.dst_id ELSE e.src_id END)
+                          END
+                      ) || '/') = 0
+                )
+                SELECT DISTINCT node_id FROM graph_path;
+                ";
+                match conn
+                    .query(sql, params![r.as_str(), max_depth as i64, dir_str.as_str()])
+                    .await
+                {
+                    Ok(mut rows) => {
+                        let mut out = Vec::new();
+                        while let Some(row) = rows.next().await? {
+                            let id: String =
+                                row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                            out.push(id);
+                        }
+                        Ok(out)
+                    }
+                    Err(e) if e.to_string().contains("Recursive CTE") => {
+                        // Fallback when the local in-memory engine (e.g. Limbo / turso_core)
+                        // lacks parser support for recursive CTEs. Preserves exact semantics.
+                        find_reachable_knowledge_nodes_fallback(
+                            &conn,
+                            &r,
+                            max_depth,
+                            dir_str.as_str(),
+                        )
+                        .await
+                    }
+                    Err(e) => Err(StoreError::from(e)),
+                }
+            })
+            .await
+    }
+
     /// Full-text LIKE search over `knowledge_nodes` (label + content).
     ///
     /// Returns `(id, label, snippet)` — snippet is the first 200 chars of `content`.
@@ -198,4 +287,54 @@ async fn collect_knowledge_node_rows(
         out.push((id, label, snippet));
     }
     Ok(out)
+}
+
+async fn find_reachable_knowledge_nodes_fallback(
+    conn: &crate::GuardedConnection,
+    root_id: &str,
+    max_depth: usize,
+    direction: &str,
+) -> Result<Vec<String>, StoreError> {
+    use std::collections::VecDeque;
+
+    let mut queue = VecDeque::new();
+    let initial_path = format!("/{root_id}/");
+    queue.push_back((root_id.to_string(), 0usize, initial_path));
+
+    let mut distinct_nodes = Vec::new();
+    let mut seen_in_result = std::collections::HashSet::new();
+    distinct_nodes.push(root_id.to_string());
+    seen_in_result.insert(root_id.to_string());
+
+    while let Some((node_id, depth, visited_path)) = queue.pop_front() {
+        if depth >= max_depth {
+            continue;
+        }
+
+        let query_sql = match direction {
+            "forward" => "SELECT dst_id FROM knowledge_edges WHERE src_id = ?1",
+            "reverse" => "SELECT src_id FROM knowledge_edges WHERE dst_id = ?1",
+            "undirected" => {
+                "SELECT CASE WHEN src_id = ?1 THEN dst_id ELSE src_id END \
+                 FROM knowledge_edges \
+                 WHERE src_id = ?1 OR dst_id = ?1"
+            }
+            _ => continue,
+        };
+
+        let mut rows = conn.query(query_sql, params![node_id.as_str()]).await?;
+        while let Some(row) = rows.next().await? {
+            let next_id: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let needle = format!("/{next_id}/");
+            if !visited_path.contains(&needle) {
+                let next_path = format!("{visited_path}{next_id}/");
+                if seen_in_result.insert(next_id.clone()) {
+                    distinct_nodes.push(next_id.clone());
+                }
+                queue.push_back((next_id, depth + 1, next_path));
+            }
+        }
+    }
+
+    Ok(distinct_nodes)
 }

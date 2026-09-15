@@ -29,7 +29,8 @@ use std::sync::OnceLock;
 //     dedup rule at the database level (PR review: check-then-insert race between
 //     concurrently-spawned judge tasks)
 // 91: feat(db): add web_cache table and indexes to knowledge domain
-pub const BASELINE_VERSION: i64 = 91;
+// 92: feat(db): add covering indexes idx_knowledge_edges_src_rel and idx_knowledge_edges_dst_rel for recursive CTE
+pub const BASELINE_VERSION: i64 = 92;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
