@@ -15,6 +15,7 @@ tavily = ["dep:tavily"]
 
 [dependencies]
 anyhow = { workspace = true }
+url = { workspace = true }
 urlencoding = { workspace = true }
 vox-db = { workspace = true, features = ["local"] }
 vox-actor-runtime = { workspace = true }
@@ -48,3 +49,7 @@ deadpool = { workspace = true }
 
 [lints]
 workspace = true
+
+[[test]]
+name = "crawler_test"
+required-features = ["web-scrape"]

@@ -11,6 +11,8 @@ pub mod bundle;
 pub mod context;
 pub mod corroboration;
 pub mod crag;
+#[cfg(feature = "web-scrape")]
+pub mod crawler;
 pub mod duckduckgo;
 pub mod embedding_env;
 pub mod embeddings;
