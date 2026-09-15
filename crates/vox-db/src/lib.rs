@@ -213,6 +213,8 @@ pub use store::ops_convergence::ConvergenceOpRow;
 
 pub mod oratio_eval;
 pub mod plugin_state_backend;
+/// Content-addressed local web cache with HTTP 304 support.
+pub mod web_cache;
 
 pub use auto_migrate::AutoMigrator;
 #[cfg(feature = "host-integration")]
@@ -397,6 +399,20 @@ impl VoxDb {
             breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
             sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         }
+    }
+
+    /// Connect to an ephemeral in-memory database for testing.
+    #[cfg(feature = "local")]
+    pub async fn in_memory() -> Result<Self, StoreError> {
+        Self::connect(DbConfig::Memory).await
+    }
+
+    /// Connect to an ephemeral in-memory database for testing.
+    #[cfg(not(feature = "local"))]
+    pub async fn in_memory() -> Result<Self, StoreError> {
+        Err(StoreError::NotFound(
+            "in_memory requires the 'local' feature".into(),
+        ))
     }
 }
 

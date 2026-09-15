@@ -112,4 +112,20 @@ CREATE INDEX IF NOT EXISTS idx_kb_entries_source_signal ON kb_entries(source_sig
 CREATE INDEX IF NOT EXISTS idx_kb_entries_accepted ON kb_entries(accepted);
 CREATE INDEX IF NOT EXISTS idx_kb_entries_mens_queued ON kb_entries(mens_queued, accepted);
 CREATE INDEX IF NOT EXISTS idx_kb_routing_rules_kb_id ON kb_routing_rules(kb_id);
+
+-- Web Cache ----------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS web_cache (
+    url_hash TEXT PRIMARY KEY,
+    url TEXT NOT NULL,
+    etag TEXT,
+    last_modified TEXT,
+    status_code INTEGER NOT NULL,
+    content_type TEXT NOT NULL,
+    raw_body BLOB NOT NULL,
+    extracted_markdown TEXT NOT NULL,
+    fetched_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_web_cache_url ON web_cache(url);
+CREATE INDEX IF NOT EXISTS idx_web_cache_fetched ON web_cache(fetched_at_ms);
 ";
