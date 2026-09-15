@@ -22,6 +22,7 @@ pub mod ingest;
 pub mod llm_query_expansion;
 mod memory_cache;
 pub mod memory_hybrid;
+pub mod mens_research_subagent;
 pub mod novelty;
 pub mod policy;
 pub mod research;
