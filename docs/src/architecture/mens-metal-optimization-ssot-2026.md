@@ -161,7 +161,7 @@ fn verify_hardware_headroom(total_ram_mb: int) -> bool {
 
 ## 7. Phased Implementation Roadmap & Verification Gates
 
-```
+```text
 Phase 1: KV-Cache Integration
   ├── Step 1.1: Add KV-cache state structures to `InferenceModel::Qwen35`
   ├── Step 1.2: Wire `forward_step` with cached attention
