@@ -2,7 +2,7 @@ use crate::VoxDb;
 use crate::store::StoreError;
 use turso::params;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CachedWebArtifact {
     pub url_hash: String,
     pub url: String,
@@ -64,11 +64,7 @@ impl VoxDb {
         &self,
         artifact: &CachedWebArtifact,
     ) -> Result<(), StoreError> {
-        let hash = if artifact.url_hash.is_empty() {
-            hash_url(&artifact.url)
-        } else {
-            artifact.url_hash.clone()
-        };
+        let hash = hash_url(&artifact.url);
         let conn = self.conn.clone();
         let breaker = self.breaker.clone();
         let art = artifact.clone();
