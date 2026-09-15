@@ -11,6 +11,7 @@ import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { ResearchClaimAccordion, type ResearchClaimRow } from './ResearchClaimAccordion';
 import { HeadlineVerdictBanner } from './HeadlineVerdictBanner';
 import { ResearchReportMarkdown } from './ResearchReportMarkdown';
+import { DocPublishModal } from './DocPublishModal';
 
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
 
@@ -78,6 +79,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
   const [sessions, setSessions] = useState<ResearchSession[]>([]);
   const [detail, setDetail] = useState<ResearchDetail | null>(null);
   const [highlightedClaimId, setHighlightedClaimId] = useState<string | null>(null);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
 
   const handleCitationClick = useCallback(
     (num: number) => {
@@ -218,7 +220,16 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
         <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[12px] text-text-secondary">Session {detail.session.id}</span>
-            <button type="button" onClick={() => setDetail(null)} className="text-[11px] text-text-muted hover:text-text-secondary">Close</button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsPublishModalOpen(true)}
+                className="rounded border border-brass/40 bg-brass/10 px-2.5 py-1 text-[11px] text-brass hover:bg-brass/20"
+              >
+                Publish Architecture SSOT
+              </button>
+              <button type="button" onClick={() => setDetail(null)} className="text-[11px] text-text-muted hover:text-text-secondary">Close</button>
+            </div>
           </div>
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages(detail.session.status)} />
           {(() => {
@@ -262,6 +273,25 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
               </>
             );
           })()}
+          <DocPublishModal
+            sessionId={detail.session.id}
+            isOpen={isPublishModalOpen}
+            onClose={() => setIsPublishModalOpen(false)}
+            onPublished={(path) => {
+              if (typeof pushToast === 'function') {
+                try {
+                  (pushToast as any)({
+                    tone: 'info',
+                    title: 'Published Architecture SSOT',
+                    body: `Published ${path}`,
+                    cause: 'action',
+                  });
+                } catch {
+                  (pushToast as any)('info', `Published ${path}`);
+                }
+              }
+            }}
+          />
         </div>
       )}
     </section>
