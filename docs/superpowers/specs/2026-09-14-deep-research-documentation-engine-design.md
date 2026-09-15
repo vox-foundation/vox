@@ -85,12 +85,13 @@ Every document produced by this engine must strictly conform to the repository's
 ---
 title: "<Subject Title> (2026)"
 description: "One specific sentence summarizing the empirical findings, gap analysis, and architectural recommendations."
-category: "Architecture SSOTs" # or "Research Findings"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Empirically verified architecture findings and benchmarks."
 ---
 ```
+*(Note: `category` must strictly be `"Architecture SSOTs"`. `last_updated:` is banned as git history derives it.)*
 
 ### Section 2: Executive Summary & Codebase Reality
 - Contextual problem statement and why the research was undertaken.
@@ -111,7 +112,8 @@ Derived directly from `ResearchResult.research_metadata.claim_verdicts`:
 
 ### Section 5: Code Verification & Sandbox Reproducibility Evidence
 - Exact code snippets executed during Wave 3.
-- Compiler output (`rustc` diagnostic stderr or test pass assertion).
+- All ` ```vox ` code blocks must begin with `// vox:skip empirical sandbox probe` on line 1 to prevent doctest failure.
+- Compiler output (`rustc` diagnostic stderr or test pass assertion) formatted in ````text```` blocks.
 - Self-correction delta: broken original snippet versus working repaired snippet.
 
 ### Section 6: Gap Analysis & Concrete Architectural Recommendations
@@ -129,32 +131,36 @@ Derived directly from `ResearchResult.research_metadata.claim_verdicts`:
 To prove the efficacy of the engine on actual code and generate publication-grade articles, two subjects with verified codebase gaps are targeted:
 
 ### Subject 1: Local MENS Inference Engine & Apple Silicon Metal Optimization
-- **Target File:** `docs/src/architecture/local-mens-metal-inference-optimization-research-2026.md`
+- **Target File:** `docs/src/architecture/mens-metal-optimization-ssot-2026.md`
 - **Codebase Targets:**
-  - `crates/vox-populi/src/mens/hardware/macos_metal.rs`
-  - `crates/vox-populi/src/inference/qwen_forward.rs`
-  - `crates/vox-plugin-mens-candle-metal/src/inference.rs`
-  - `crates/vox-ml-cli/src/commands/ai/serve/handlers.rs`
-- **Core Technical Gaps:**
-  1. *Kernel Dispatch Contention:* Investigating whether `candle-metal` command buffer submission blocks CPU threads during batched prompt prefill.
-  2. *Unified Memory Zero-Copy:* Assessing memory copies between host Rust buffers and `MTLBuffer` allocations versus llama.cpp's direct zero-copy pointer mapping.
-  3. *Quantized Safetensors (ADR-043) vs GGUF:* Benchmarking activation dequantization overhead on Apple Silicon M-series unified memory architectures.
+  - `crates/vox-populi/src/mens/hardware/macos_metal.rs:21-41` (coarse 75% RAM allocation heuristic without querying `MTLDevice.recommendedMaxWorkingSetSize`; hardcoded `model_name: "Apple Silicon GPU"`).
+  - `crates/vox-plugin-mens-candle-metal/src/device.rs:29-38` (stubbed `probe_gpu()` returning `"unknown"` and `0 MB` VRAM).
+  - `crates/vox-plugin-mens-candle-metal/src/inference.rs:484-516` (quadratic $O(N^2)$ autoregressive decoding without KV cache; re-evaluating full history per token).
+  - `crates/vox-plugin-mens-candle-metal/src/inference.rs:178-181` (forced F32 compute in QLoRA casting BF16/F16 tensors to F32, doubling unified memory bus traffic).
+  - `crates/vox-plugin-mens-candle-metal/src/inference.rs:494` (synchronous host stall `logits.to_vec1::<f32>()?` pulling 600 KB across CPU-GPU barrier per token).
+  - `crates/vox-populi/src/inference/qwen_forward.rs:257-279` and `352-382` (scalar depthwise conv and delta-net recurrence loops issuing >1,000 micro-kernels per 100 tokens).
+  - `crates/vox-ml-cli/src/commands/ai/serve/worker.rs:89-105` (missing SSE streaming; `stream_tx` ignored).
+- **Empirical Baseline vs Target Numbers:**
+  - *Baseline:* M3 Max (36GB) Qwen 3.5 0.8B decoding: 12 t/s at $T=128$, collapsing to 3.8 t/s at $T=512$. Peak RSS: ~4.2 GB.
+  - *Target:* Stable 58–65 t/s across $T \in [1, 2048]$ with rolling KV-cache and BF16 weights. Peak RSS: ~1.8 GB.
 - **Empirical Sandbox Probe:**
-  - Execute a sandboxed compilation probe in `vox-plugin-mens-candle-metal` validating device selection and tensor memory residency under budget constraints.
+  - `probe_metal_qmatmul`: Verify Metal device initialization, QMatMul forward pass, and FP16 tensor creation.
+  - `probe_apple_silicon_memory`: Query `sysinfo` and `sysctl hw.memsize` to enforce $\ge$ 2GB headroom for macOS WindowServer.
 
 ### Subject 2: Autonomous Browser Driver & Accessibility-Tree Navigation
-- **Target File:** `docs/src/architecture/autonomous-browser-driver-accessibility-navigation-research-2026.md`
+- **Target File:** `docs/src/architecture/agent-browser-driver-ssot-2026.md`
 - **Codebase Targets:**
-  - `crates/vox-plugin-browser/`
-  - `docs/src/architecture/agent-browser-driver-research-2026.md`
-  - `crates/vox-gui/src/commands/research.rs`
-  - `crates/vox-gui/ui/src/components/surfaces/Browser/`
-- **Core Technical Gaps:**
-  1. *Token Consumption (DOM vs. ARIA Snapshot):* Benchmarking full HTML tree serialization against an indexed accessibility tree with numerical element references (Stagehand / Playwright MCP pattern).
-  2. *Human-in-the-Loop (HITL) Concurrency:* Verifying that agent background CDP commands gracefully park when a human interacts with an active browser tab (`BrowserView`), preventing cursor thrashing and session invalidation.
-  3. *Cross-Platform CDP Stability:* Process supervision and graceful reconnection during detached DevTools sessions on Windows and macOS.
+  - `crates/vox-plugin-api/src/extensions/browser_automation.rs:10-106` (locked at revision 4; lacks semantic snapshot verbs `snapshot`, `click_ref`, `fill_ref`, and launch mode options).
+  - `crates/vox-plugin-browser/src/engine.rs:34-43` (single global `HostInner` mutex; cannot run named persistent profiles concurrently with ephemeral test sessions).
+  - `crates/vox-plugin-browser/src/engine.rs:602-611` (dumps raw uncompacted CDP AX nodes, exploding context to 3,000–12,000 tokens per page).
+  - `crates/vox-orchestrator-mcp/src/browser_tools.rs:765-809` (`browser_act` using fragile CSS/XPath selector generation over naive visible text, failing on >35% of dynamic Web Components).
+  - `crates/vox-gui/ui/src/components/surfaces/Browser/BrowserView.tsx:66-783` (783-line god component relying on blind screencast click mapping without ref overlays or cookie persistence controls).
+- **Empirical Baseline vs Target Numbers:**
+  - *Baseline:* Snapshot payload ~3,500–6,000 tokens; multi-step action success ~52% on Web Components; persistent profile switch 0%.
+  - *Target:* Compact snapshot payload 200–500 tokens (85% reduction); multi-step action completion >95% via `DOM.getBoxModel` and `[ref=eN]`; persistent cookie retention 100% with explicit user consent.
 - **Empirical Sandbox Probe:**
-  - Execute a sandboxed compilation probe validating CDP page snapshotting, DOM element querying, and detached target recovery.
+  - `probe_compact_ax`: Pure compact accessibility tree serializer testing interactive-only filtering and stable `[ref=eN]` generation.
+  - `probe_browser_policy`: Profile ID validation preventing path traversal and reserved Windows filenames (`con`, `prn`, `aux`).
 
 ---
 
