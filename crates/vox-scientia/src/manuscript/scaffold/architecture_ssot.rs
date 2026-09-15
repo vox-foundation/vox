@@ -99,6 +99,14 @@ pub struct ArchitectureSsotInput {
     pub roadmap_phases: Vec<RoadmapPhase>,
 }
 
+fn sanitize_yaml_string(s: &str) -> String {
+    s.replace("\r\n", " ")
+        .replace('\r', " ")
+        .replace('\n', " ")
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+}
+
 pub fn render_architecture_ssot(input: &ArchitectureSsotInput) -> Result<String, ScaffoldError> {
     let mut doc = String::with_capacity(8192);
 
@@ -106,20 +114,26 @@ pub fn render_architecture_ssot(input: &ArchitectureSsotInput) -> Result<String,
     doc.push_str("---\n");
     doc.push_str(&format!(
         "title: \"{}\"\n",
-        input.title.replace('"', "\\\"")
+        sanitize_yaml_string(&input.title)
     ));
     doc.push_str(&format!(
         "description: \"{}\"\n",
-        input.description.replace('"', "\\\"")
+        sanitize_yaml_string(&input.description)
     ));
-    doc.push_str(&format!("category: \"{}\"\n", input.category));
-    doc.push_str(&format!("status: \"{}\"\n", input.status));
+    doc.push_str(&format!(
+        "category: \"{}\"\n",
+        sanitize_yaml_string(&input.category)
+    ));
+    doc.push_str(&format!(
+        "status: \"{}\"\n",
+        sanitize_yaml_string(&input.status)
+    ));
     if input.training_eligible {
         doc.push_str("training_eligible: true\n");
         if let Some(ref rationale) = input.training_rationale {
             doc.push_str(&format!(
                 "training_rationale: \"{}\"\n",
-                rationale.replace('"', "\\\"")
+                sanitize_yaml_string(rationale)
             ));
         } else {
             doc.push_str("training_rationale: \"Empirically verified architecture findings and benchmarks.\"\n");

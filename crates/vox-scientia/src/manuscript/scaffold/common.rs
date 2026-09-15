@@ -1,11 +1,15 @@
 pub fn escape_pipe(s: &str) -> String {
-    s.replace('|', "\\|").replace('\n', " ")
+    s.replace("\r\n", " ")
+        .replace('\r', " ")
+        .replace('\n', " ")
+        .replace('|', "\\|")
 }
 
 pub fn render_markdown_table(headers: &[&str], rows: &[Vec<String>]) -> String {
     let mut table = String::new();
     table.push_str("| ");
-    table.push_str(&headers.join(" | "));
+    let escaped_headers: Vec<String> = headers.iter().map(|h| escape_pipe(h)).collect();
+    table.push_str(&escaped_headers.join(" | "));
     table.push_str(" |\n| ");
     table.push_str(
         &headers
@@ -28,11 +32,18 @@ pub fn render_markdown_table(headers: &[&str], rows: &[Vec<String>]) -> String {
 pub fn render_code_fence(lang: &str, code: &str, skip_doctest: bool) -> String {
     let mut fence = String::new();
     let clean_lang = lang.to_lowercase();
-    fence.push_str(&format!("```{clean_lang}\n"));
+
+    let mut backtick_count = 3;
+    while code.contains(&"`".repeat(backtick_count)) {
+        backtick_count += 1;
+    }
+    let delimiter = "`".repeat(backtick_count);
+
+    fence.push_str(&format!("{delimiter}{clean_lang}\n"));
     if clean_lang == "vox" && skip_doctest {
         fence.push_str("// vox:skip empirical sandbox probe\n");
     }
     fence.push_str(code.trim());
-    fence.push_str("\n```\n");
+    fence.push_str(&format!("\n{delimiter}\n"));
     fence
 }

@@ -80,3 +80,100 @@ fn test_render_architecture_ssot_generates_all_seven_sections() {
     assert!(markdown.contains("crates/vox-test/src/lib.rs"));
     assert!(markdown.contains("// vox:skip empirical sandbox probe"));
 }
+
+#[test]
+fn test_escape_pipe_handles_pipes_newlines_and_crlf() {
+    use vox_scientia::manuscript::scaffold::common::escape_pipe;
+
+    assert_eq!(escape_pipe("a|b"), "a\\|b");
+    assert_eq!(escape_pipe("line1\nline2"), "line1 line2");
+    assert_eq!(escape_pipe("line1\r\nline2"), "line1 line2");
+    assert_eq!(escape_pipe("line1\rline2"), "line1 line2");
+    assert_eq!(escape_pipe("a|b\r\nc|d"), "a\\|b c\\|d");
+}
+
+#[test]
+fn test_render_markdown_table_escapes_headers_and_rows() {
+    use vox_scientia::manuscript::scaffold::common::render_markdown_table;
+
+    let headers = vec!["Col|A", "Col\nB"];
+    let rows = vec![
+        vec!["Val|1".into(), "Val\r\n2".into()],
+        vec!["Plain".into(), "Data".into()],
+    ];
+
+    let rendered = render_markdown_table(&headers, &rows);
+    assert!(rendered.contains("| Col\\|A | Col B |"));
+    assert!(rendered.contains("| :--- | :--- |"));
+    assert!(rendered.contains("| Val\\|1 | Val 2 |"));
+    assert!(rendered.contains("| Plain | Data |"));
+}
+
+#[test]
+fn test_render_code_fence_handles_vox_skip_and_backtick_collisions() {
+    use vox_scientia::manuscript::scaffold::common::render_code_fence;
+
+    // Vox with skip_doctest
+    let vox_code = render_code_fence("vox", "fn probe() -> bool { true }", true);
+    assert!(vox_code.starts_with("```vox\n// vox:skip empirical sandbox probe\n"));
+    assert!(vox_code.ends_with("```\n"));
+
+    // Vox without skip_doctest
+    let vox_no_skip = render_code_fence("vox", "fn probe() -> bool { true }", false);
+    assert!(vox_no_skip.starts_with("```vox\nfn probe()"));
+    assert!(!vox_no_skip.contains("vox:skip"));
+
+    // Rust code
+    let rust_code = render_code_fence("rust", "fn main() {}", true);
+    assert!(rust_code.starts_with("```rust\n"));
+    assert!(!rust_code.contains("vox:skip"));
+
+    // Collision with triple backticks in code snippet
+    let nested_code = "Here is a code block:\n```rust\nlet x = 1;\n```";
+    let fenced_nested = render_code_fence("markdown", nested_code, false);
+    assert!(fenced_nested.starts_with("````markdown\n"));
+    assert!(fenced_nested.ends_with("````\n"));
+}
+
+#[test]
+fn test_render_architecture_ssot_empty_collections_and_repaired_snippets() {
+    let input = ArchitectureSsotInput {
+        title: "Minimal Architecture (2026)".into(),
+        description: "Minimal test description.\nWith newline.".into(),
+        category: "Architecture SSOTs".into(),
+        status: "draft".into(),
+        training_eligible: false,
+        training_rationale: None,
+        sort_order: Some(99),
+        session_id: 101,
+        stability_score: 0.95,
+        slug: "minimal-arch".into(),
+        executive_summary: "Minimal exec summary.".into(),
+        hypothesis: "Hypothesis.".into(),
+        empirical_outcome_summary: "Outcome.".into(),
+        codebase_refs: vec![],
+        competitive_matrix: vec![],
+        verified_claims: vec![],
+        sandbox_probes: vec![SandboxExecutionRecord {
+            title: "Repair probe".into(),
+            language: "rust".into(),
+            original_snippet: "broken code".into(),
+            repaired_snippet: Some("repaired code".into()),
+            compiler_output: "compiler error E0308".into(),
+            success: false,
+        }],
+        gaps_and_recommendations: vec![],
+        roadmap_phases: vec![],
+    };
+
+    let md = render_architecture_ssot(&input).expect("renders markdown");
+    assert!(md.contains("title: \"Minimal Architecture (2026)\""));
+    assert!(md.contains("description: \"Minimal test description. With newline.\""));
+    assert!(md.contains("status: \"draft\""));
+    assert!(!md.contains("training_eligible: true"));
+    assert!(md.contains("sort_order: 99"));
+    assert!(md.contains("Session #101, Stability $S = 0.95$"));
+    assert!(md.contains("**Self-Corrected Repair:**"));
+    assert!(md.contains("repaired code"));
+    assert!(md.contains("compiler error E0308"));
+}

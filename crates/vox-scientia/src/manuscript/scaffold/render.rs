@@ -1,5 +1,6 @@
 //! IMRaD markdown rendering.
 
+use super::common::escape_pipe;
 use super::safe_slots::ForbiddenSection;
 use super::section_tree::{AuthorEntry, CitedFact, FigureEntry, ResultsRow, ScaffoldInput};
 
@@ -166,10 +167,6 @@ fn write_results(out: &mut String, rows: &[ResultsRow]) {
         out.push_str(") |\n");
     }
     out.push('\n');
-}
-
-fn escape_pipe(s: &str) -> String {
-    s.replace('|', "\\|").replace('\n', " ")
 }
 
 fn write_figures(out: &mut String, figures: &[FigureEntry]) {
