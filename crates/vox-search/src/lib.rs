@@ -28,6 +28,7 @@ pub mod research;
 mod rrf;
 #[cfg(feature = "web-scrape")]
 pub mod scraper;
+pub mod search_circuit_breaker;
 pub mod searxng;
 mod searxng_defaults;
 /// Intent-oriented repo path discovery (AgentOS semantic filesystem bridge).
@@ -68,6 +69,9 @@ pub use execution::{
 pub use ingest::ingest_markdown_tree;
 pub use memory_hybrid::{HybridSearchHit, MemorySearchEngine};
 pub use policy::{SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy, SearchPolicyFeedback};
+pub use search_circuit_breaker::{
+    ProviderCircuitBreaker, SearchProviderCircuitRegistry, SearchProviderId,
+};
 pub use tavily_budget::TavilySessionBudget;
 pub use unified::UnifiedHit;
 pub use vox_actor_runtime::llm::LlmConfig;

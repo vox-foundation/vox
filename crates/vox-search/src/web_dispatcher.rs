@@ -11,74 +11,125 @@ impl WebSearchDispatcher {
         query: &str,
         policy: &SearchPolicy,
     ) -> anyhow::Result<Vec<crate::memory_hybrid::HybridSearchHit>> {
+        Self::search_with_registry(
+            query,
+            policy,
+            crate::search_circuit_breaker::SearchProviderCircuitRegistry::global(),
+        )
+        .await
+    }
+
+    pub async fn search_with_registry(
+        query: &str,
+        policy: &SearchPolicy,
+        registry: &crate::search_circuit_breaker::SearchProviderCircuitRegistry,
+    ) -> anyhow::Result<Vec<crate::memory_hybrid::HybridSearchHit>> {
         let mut results = Vec::new();
 
         // Tier 1: SearXNG
         if let Some(base_url) = &policy.searxng_url {
-            let client = crate::searxng::SearxngSearchClient::new(base_url.clone());
-            match client
-                .search(
-                    query,
-                    policy.searxng_max_results,
-                    policy.searxng_engines_csv(),
-                    policy.searxng_language_tag(),
-                )
-                .await
-            {
-                Ok(hits) => {
-                    info!(count = hits.len(), "SearXNG search succeeded");
-                    results = hits;
-                }
-                Err(e) => {
-                    warn!(error = %e, "SearXNG search failed, falling back");
+            if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::Searxng) {
+                warn!("SearXNG is in circuit breaker cooldown, skipping");
+            } else {
+                let client = crate::searxng::SearxngSearchClient::new(base_url.clone());
+                match client
+                    .search(
+                        query,
+                        policy.searxng_max_results,
+                        policy.searxng_engines_csv(),
+                        policy.searxng_language_tag(),
+                    )
+                    .await
+                {
+                    Ok(hits) => {
+                        info!(count = hits.len(), "SearXNG search succeeded");
+                        registry.record_success(
+                            crate::search_circuit_breaker::SearchProviderId::Searxng,
+                        );
+                        results = hits;
+                    }
+                    Err(e) => {
+                        let err_str = e.to_string();
+                        let is_rate_limit = err_str.contains("429")
+                            || err_str.to_ascii_lowercase().contains("rate limit");
+                        registry.record_failure(
+                            crate::search_circuit_breaker::SearchProviderId::Searxng,
+                            is_rate_limit,
+                        );
+                        warn!(error = %e, is_rate_limit, "SearXNG search failed, falling back");
+                    }
                 }
             }
         }
 
         // Tier 2: Tavily (when SearXNG produced nothing and policy allows it)
         #[cfg(feature = "tavily")]
-        if results.is_empty()
-            && policy.tavily_enabled
-            && let Some(client) = crate::tavily::TavilySearchClient::from_env()
-        {
-            match client
-                .search(
-                    query,
-                    policy.tavily_max_results,
-                    policy.tavily_search_depth.as_str(),
-                )
-                .await
-            {
-                Ok(hits) => {
-                    info!(count = hits.len(), "Tavily web search succeeded");
-                    results = hits
-                        .into_iter()
-                        .map(|h| crate::searxng::SearxngResult {
-                            url: h.url,
-                            title: h.title.clone(),
-                            content: h.content,
-                            engine: Some("tavily".to_string()),
-                            score: Some(f64::from(h.score)),
-                        })
-                        .collect();
-                }
-                Err(e) => {
-                    warn!(error = %e, "Tavily web search failed");
+        if results.is_empty() && policy.tavily_enabled {
+            if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::Tavily) {
+                warn!("Tavily is in circuit breaker cooldown, skipping");
+            } else if let Some(client) = crate::tavily::TavilySearchClient::from_env() {
+                match client
+                    .search(
+                        query,
+                        policy.tavily_max_results,
+                        policy.tavily_search_depth.as_str(),
+                    )
+                    .await
+                {
+                    Ok(hits) => {
+                        info!(count = hits.len(), "Tavily web search succeeded");
+                        registry.record_success(
+                            crate::search_circuit_breaker::SearchProviderId::Tavily,
+                        );
+                        results = hits
+                            .into_iter()
+                            .map(|h| crate::searxng::SearxngResult {
+                                url: h.url,
+                                title: h.title.clone(),
+                                content: h.content,
+                                engine: Some("tavily".to_string()),
+                                score: Some(f64::from(h.score)),
+                            })
+                            .collect();
+                    }
+                    Err(e) => {
+                        let is_rate_limit =
+                            e.contains("429") || e.to_ascii_lowercase().contains("rate limit");
+                        registry.record_failure(
+                            crate::search_circuit_breaker::SearchProviderId::Tavily,
+                            is_rate_limit,
+                        );
+                        warn!(error = %e, is_rate_limit, "Tavily web search failed");
+                    }
                 }
             }
         }
 
         // Tier 3: DuckDuckGo Fallback (when SearXNG + Tavily produced nothing)
         if results.is_empty() && policy.duckduckgo_fallback_enabled {
-            match crate::duckduckgo::DuckDuckGoClient::search(query, policy.searxng_max_results)
-                .await
-            {
-                Ok(hits) => {
-                    info!(count = hits.len(), "DuckDuckGo fallback succeeded");
-                    results = hits;
-                }
-                Err(e) => {
-                    warn!(error = %e, "DuckDuckGo fallback failed");
+            if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::DuckDuckGo) {
+                warn!("DuckDuckGo is in circuit breaker cooldown, skipping");
+            } else {
+                match crate::duckduckgo::DuckDuckGoClient::search(query, policy.searxng_max_results)
+                    .await
+                {
+                    Ok(hits) => {
+                        info!(count = hits.len(), "DuckDuckGo fallback succeeded");
+                        registry.record_success(
+                            crate::search_circuit_breaker::SearchProviderId::DuckDuckGo,
+                        );
+                        results = hits;
+                    }
+                    Err(e) => {
+                        let err_str = e.to_string();
+                        let is_rate_limit = err_str.contains("429")
+                            || err_str.to_ascii_lowercase().contains("rate limit");
+                        registry.record_failure(
+                            crate::search_circuit_breaker::SearchProviderId::DuckDuckGo,
+                            is_rate_limit,
+                        );
+                        warn!(error = %e, is_rate_limit, "DuckDuckGo fallback failed");
+                    }
                 }
             }
         }
@@ -89,7 +140,9 @@ impl WebSearchDispatcher {
         rank_and_dedupe_results(&mut results);
 
         #[cfg(feature = "tavily")]
-        if policy.tavily_enabled {
+        if policy.tavily_enabled
+            && registry.is_available(crate::search_circuit_breaker::SearchProviderId::Tavily)
+        {
             crate::tavily_extract::uplift_low_quality_snippets(
                 &mut results,
                 query,
