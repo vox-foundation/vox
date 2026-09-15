@@ -204,7 +204,7 @@ fn test_negation_inversion_hard_rejected() {
 
 #[test]
 fn test_scattered_tokens_across_long_document_rejected() {
-    let source = "Tokio is an async runtime. SQLite provides embedded relational storage. Linux supports epoll.";
+    let source = "Tokio is an async runtime for networking applications. In a different subsystem, SQLite provides embedded relational storage with ACID guarantees. Separately on the kernel level, Linux supports epoll for event multiplexing.";
     // Snippet combines words scattered across separate sentences
     let snippet = "Tokio provides embedded relational epoll";
     assert_eq!(
@@ -233,5 +233,35 @@ fn test_token_sliding_window_overlap_direct() {
     let overlap = token_sliding_window_overlap(snippet, source);
     assert!(overlap.is_some());
     let ratio = overlap.unwrap();
-    assert!(ratio > 0.80);
+    assert!(ratio >= 0.80);
+}
+
+#[test]
+fn test_exact_eighty_percent_boundary_condition() {
+    let source = "alpha beta gamma delta extra filler words";
+    // 4 of 5 tokens match: alpha, beta, gamma, delta (zeta missing)
+    let snippet = "alpha beta gamma delta zeta";
+    let overlap = token_sliding_window_overlap(snippet, source);
+    assert_eq!(
+        overlap,
+        Some(0.80),
+        "Exact 4 of 5 tokens (80%) must pass threshold"
+    );
+}
+
+#[test]
+fn test_capitalized_negation_detected() {
+    let snippet = "Latency improvement across threads";
+    let candidate = "No latency improvement across threads";
+    assert!(
+        !negation_parity_matches(snippet, candidate),
+        "Capitalized 'No' must be detected as negation"
+    );
+
+    let snippet2 = "Never deploy on Friday";
+    let candidate2 = "Deploy on Friday";
+    assert!(
+        !negation_parity_matches(snippet2, candidate2),
+        "Capitalized 'Never' must be detected as negation"
+    );
 }

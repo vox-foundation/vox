@@ -143,7 +143,12 @@ pub fn normalize_for_matching(text: &str) -> String {
 pub fn negation_parity_matches(snippet: &str, candidate_window: &str) -> bool {
     let count_neg = |text: &str| {
         text.split_whitespace()
-            .filter(|w| NEGATION_WORDS.contains(&w.trim_matches(|c: char| !c.is_alphanumeric())))
+            .filter(|w| {
+                let clean = w.trim_matches(|c: char| !c.is_alphanumeric());
+                NEGATION_WORDS
+                    .iter()
+                    .any(|nw| nw.eq_ignore_ascii_case(clean))
+            })
             .count()
     };
     (count_neg(snippet) % 2) == (count_neg(candidate_window) % 2)
@@ -162,22 +167,23 @@ pub fn token_sliding_window_overlap(snippet: &str, source: &str) -> Option<f64> 
     let snip_set: std::collections::HashSet<&str> = snip_tokens.iter().copied().collect();
     let window_size = snip_tokens.len() + 4; // Bounded window: N + 4 tokens
     let mut best_ratio = 0.0;
-    let mut best_window_str = String::new();
 
     for window in src_tokens.windows(window_size.min(src_tokens.len())) {
-        let win_set: std::collections::HashSet<&str> = window.iter().copied().collect();
-        let common = snip_set.intersection(&win_set).count();
+        let win_str = window.join(" ");
+        if !negation_parity_matches(snippet, &win_str) {
+            continue;
+        }
+        let common = snip_set.iter().filter(|t| window.contains(t)).count();
         let ratio = common as f64 / snip_set.len() as f64;
         if ratio > best_ratio {
             best_ratio = ratio;
-            best_window_str = window.join(" ");
             if (best_ratio - 1.0).abs() < f64::EPSILON {
                 break;
             }
         }
     }
 
-    if best_ratio > TOKEN_OVERLAP_THRESHOLD && negation_parity_matches(snippet, &best_window_str) {
+    if best_ratio >= TOKEN_OVERLAP_THRESHOLD {
         Some(best_ratio)
     } else {
         None
