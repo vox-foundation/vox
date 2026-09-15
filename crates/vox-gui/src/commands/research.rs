@@ -107,7 +107,6 @@ pub async fn save_research_doc(
         doc_category.replace('"', "\\\"")
     );
 
-
     let filename = if slug.ends_with("research") || slug.ends_with("findings") {
         format!("{slug}-2026.md")
     } else {
@@ -272,6 +271,39 @@ pub async fn publish_research_doc(
     })
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SandboxProbeOutcome {
+    pub passed: bool,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+#[tauri::command]
+pub async fn execute_sandbox_probe(
+    code: String,
+    language: String,
+) -> Result<SandboxProbeOutcome, String> {
+    let lang = match language.trim().to_lowercase().as_str() {
+        "python" => vox_research_shim::research::domain::polyglot_sandbox::PolyglotLanguage::Python,
+        "typescript" | "ts" => {
+            vox_research_shim::research::domain::polyglot_sandbox::PolyglotLanguage::TypeScript
+        }
+        "sql" => vox_research_shim::research::domain::polyglot_sandbox::PolyglotLanguage::Sql,
+        "vox" => vox_research_shim::research::domain::polyglot_sandbox::PolyglotLanguage::Vox,
+        _ => vox_research_shim::research::domain::polyglot_sandbox::PolyglotLanguage::Rust,
+    };
+    let res = vox_research_shim::research::domain::polyglot_sandbox::verify_in_polyglot_sandbox(
+        &code, lang,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(SandboxProbeOutcome {
+        passed: res.passed,
+        stdout: res.stdout,
+        stderr: res.stderr,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -300,5 +332,18 @@ mod tests {
         };
         let val = serde_json::to_value(&res).unwrap();
         assert_eq!(val["indexed"], true);
+    }
+
+    #[test]
+    fn test_sandbox_probe_outcome_dto_serialization() {
+        let outcome = SandboxProbeOutcome {
+            passed: true,
+            stdout: "hello".into(),
+            stderr: "".into(),
+        };
+        let val = serde_json::to_value(&outcome).unwrap();
+        assert_eq!(val["passed"], true);
+        assert_eq!(val["stdout"], "hello");
+        assert_eq!(val["stderr"], "");
     }
 }

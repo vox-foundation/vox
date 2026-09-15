@@ -270,6 +270,7 @@ async fn main() {
             commands::research::persist_research_claims,
             commands::research::generate_research_doc_draft,
             commands::research::publish_research_doc,
+            commands::research::execute_sandbox_probe,
             commands::scientia::list_research_sessions,
             commands::scientia::get_research_session_detail,
             commands::scientia::list_publication_manifests,

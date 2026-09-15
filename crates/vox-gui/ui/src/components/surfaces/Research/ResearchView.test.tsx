@@ -177,4 +177,24 @@ describe('ResearchView', () => {
       expect(claimEl?.className).toContain('ring-2 ring-brass');
     });
   });
+
+  it('renders epistemic DAG canvas and opens Sandbox REPL modal from detail view', async () => {
+    detailResponse = DETAIL_WITH_CLAIMS;
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: /epistemic research dag/i })).toBeTruthy();
+    });
+
+    const replButton = screen.getByRole('button', { name: /sandbox repl/i });
+    expect(replButton).toBeTruthy();
+    replButton.click();
+
+    await waitFor(() => {
+      expect(screen.getByText('Sandbox REPL Probe')).toBeTruthy();
+      expect(screen.getByRole('button', { name: /run compiler probe/i })).toBeTruthy();
+    });
+  });
 });

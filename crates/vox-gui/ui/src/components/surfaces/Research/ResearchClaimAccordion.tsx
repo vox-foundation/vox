@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { TrustChip, type TrustSignal } from './TrustChip';
 import { VerdictBadge } from '../Scientia/ClaimsView';
+import { SafeExternalLink } from './SafeExternalLink';
 
 export interface ResearchClaimRow {
   claimId: string;
@@ -47,7 +48,11 @@ export function ResearchClaimAccordion({
     }
   }, [highlightedClaimId, isExpanded]);
 
-  const contestedCount = claims.filter((c) => c.verdict === 'Contested').length;
+  const contestedCount = claims.filter((c) => c.verdict?.toLowerCase() === 'contested').length;
+  const contradictedCount = claims.filter(
+    (c) => c.verdict?.toLowerCase() === 'contradicted' || c.verdict?.toLowerCase() === 'refuted',
+  ).length;
+  const supportedCount = claims.filter((c) => c.verdict?.toLowerCase() === 'supported').length;
 
   return (
     <div className="research-claim-accordion rounded-xl border border-border-subtle bg-overlay-subtle">
@@ -58,7 +63,8 @@ export function ResearchClaimAccordion({
         className="flex w-full items-center justify-between gap-2 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-text-secondary hover:bg-overlay-subtle"
       >
         <span>
-          {claims.length} claim{claims.length === 1 ? '' : 's'} verified · {contestedCount} contested · {sourceCount}{' '}
+          {claims.length} claim{claims.length === 1 ? '' : 's'} verified · {contestedCount} contested
+          {contradictedCount > 0 ? ` · ${contradictedCount} contradicted` : ''} · {sourceCount}{' '}
           source{sourceCount === 1 ? '' : 's'}
         </span>
         <span className="font-mono text-xs text-text-muted" aria-hidden="true">
@@ -92,14 +98,10 @@ export function ResearchClaimAccordion({
                 <ul className="mt-2 space-y-1" role="list">
                   {claim.citations.map((cite) => (
                     <li key={cite.url} role="listitem" className="flex flex-wrap items-center gap-2">
-                      <a
-                        href={cite.url}
-                        target="_blank"
-                        rel="noreferrer"
+                      <SafeExternalLink
+                        url={cite.url}
                         className="truncate text-[11px] text-brass underline decoration-dotted hover:text-brass/80"
-                      >
-                        {cite.url}
-                      </a>
+                      />
                       <TrustChip signal={cite.trust} />
                     </li>
                   ))}

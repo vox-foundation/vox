@@ -19,7 +19,7 @@ function renderInline(
   keyPrefix = 'inline'
 ): ReactNode[] {
   const tokenRegex =
-    /(`[^`]+`|\*\*[^*]+\*\*|\[\d+(?:\s*,\s*\d+)*\](?!\()|\[[^\]]+\]\((?:[^()\s]+|\([^()\s]*\))+\))/g;
+    /(`[^`]+`|\*\*[^*]+\*\*|\[\d{1,3}(?:\s*,\s*\d{1,3})*\](?!\()|\[[^\]]+\]\([^)\s]+\))/g;
 
   const elements: ReactNode[] = [];
   let lastIndex = 0;

@@ -28,18 +28,25 @@ export function HeadlineVerdictBanner({
   let tone: 'contested' | 'high' | 'mixed' | 'refuted';
   let message: string;
 
+  const contestRate = totalClaims > 0 ? contestedClaims / totalClaims : 0;
   if (contradictedClaims > 0) {
     tone = 'refuted';
     message = `Refuted by Evidence — ${contradictedClaims} of ${totalClaims} claims contradicted by sources`;
-  } else if (corroboratingSources === 0) {
-    tone = 'mixed';
-    message = 'Preliminary — Awaiting evidence corroboration';
+  } else if (contestRate > 0.3) {
+    tone = 'contested';
+    message = `Contested Evidence — ${contestedClaims} of ${totalClaims} claims contested (>30%)`;
   } else if (contestedClaims === 0 && corroboratingSources >= 2) {
     tone = 'high';
     message = `High confidence — ${corroboratingSources} corroborating sources, no contested claims`;
+  } else if (corroboratingSources === 0) {
+    tone = 'mixed';
+    message = 'Preliminary — Awaiting evidence corroboration';
   } else {
     tone = 'mixed';
-    message = `Mixed evidence — ${contestedClaims} of ${totalClaims} claims contested, treat with care`;
+    message =
+      contestedClaims > 0
+        ? `Mixed evidence — ${contestedClaims} of ${totalClaims} claims contested, treat with care`
+        : `Preliminary — 1 corroborating source, awaiting additional evidence`;
   }
 
   return (

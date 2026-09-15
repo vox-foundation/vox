@@ -58,3 +58,17 @@ export async function publishResearchDoc(
   return invoke<PublishDocResult>('publish_research_doc', { sessionId, slug, content });
 }
 
+export interface SandboxProbeOutcome {
+  passed: boolean;
+  stdout: string;
+  stderr: string;
+}
+
+export async function executeSandboxProbe(
+  code: string,
+  language: string,
+): Promise<SandboxProbeOutcome> {
+  return invoke<SandboxProbeOutcome>('execute_sandbox_probe', { code, language });
+}
+
+

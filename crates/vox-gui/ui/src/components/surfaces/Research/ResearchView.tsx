@@ -12,6 +12,8 @@ import { ResearchClaimAccordion, type ResearchClaimRow } from './ResearchClaimAc
 import { HeadlineVerdictBanner } from './HeadlineVerdictBanner';
 import { ResearchReportMarkdown } from './ResearchReportMarkdown';
 import { DocPublishModal } from './DocPublishModal';
+import { ResearchDagCanvas, type DagNode, type DagEdge } from './ResearchDagCanvas';
+import { SandboxReplModal } from './SandboxReplModal';
 
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
 
@@ -80,6 +82,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
   const [detail, setDetail] = useState<ResearchDetail | null>(null);
   const [highlightedClaimId, setHighlightedClaimId] = useState<string | null>(null);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [isReplModalOpen, setIsReplModalOpen] = useState(false);
 
   const handleCitationClick = useCallback(
     (num: number) => {
@@ -223,6 +226,13 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                onClick={() => setIsReplModalOpen(true)}
+                className="rounded border border-border-subtle bg-black/40 px-2.5 py-1 text-[11px] text-text-secondary hover:text-text-primary hover:bg-black/60"
+              >
+                Sandbox REPL
+              </button>
+              <button
+                type="button"
                 onClick={() => setIsPublishModalOpen(true)}
                 className="rounded border border-brass/40 bg-brass/10 px-2.5 py-1 text-[11px] text-brass hover:bg-brass/20"
               >
@@ -243,6 +253,24 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
               (c) => c.verdict.toLowerCase() === 'refuted' || c.verdict.toLowerCase() === 'contradicted'
             ).length;
             const contestedClaims = claimRows.filter((c) => c.verdict === 'Contested').length;
+
+            const dagNodes: DagNode[] = claimRows.map((c, i) => {
+              const isContradicted =
+                c.verdict.toLowerCase() === 'refuted' || c.verdict.toLowerCase() === 'contradicted';
+              const isVerified =
+                c.verdict.toLowerCase() === 'verified' || c.verdict.toLowerCase() === 'supported';
+              return {
+                id: c.claimId,
+                label: `${c.claimId}: ${c.text}`,
+                wave: Math.floor(i / 2),
+                status: isContradicted ? 'contradicted' : isVerified ? 'verified' : 'pending',
+              };
+            });
+            const dagEdges: DagEdge[] = dagNodes.slice(1).map((node, i) => ({
+              srcId: dagNodes[i].id,
+              dstId: node.id,
+              relation: node.status === 'contradicted' ? 'contradicts' : 'supports',
+            }));
 
             return (
               <>
@@ -270,6 +298,14 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
                     />
                   </div>
                 )}
+                {dagNodes.length > 0 && (
+                  <div className="mt-3">
+                    <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-text-muted">
+                      Epistemic Research DAG
+                    </div>
+                    <ResearchDagCanvas nodes={dagNodes} edges={dagEdges} />
+                  </div>
+                )}
               </>
             );
           })()}
@@ -285,6 +321,10 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
                 cause: 'backend-ok',
               });
             }}
+          />
+          <SandboxReplModal
+            isOpen={isReplModalOpen}
+            onClose={() => setIsReplModalOpen(false)}
           />
         </div>
       )}

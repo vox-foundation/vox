@@ -6,7 +6,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
 }));
 
-import { startResearchAsync } from './researchActions';
+import { startResearchAsync, executeSandboxProbe } from './researchActions';
 
 describe('startResearchAsync (A2)', () => {
   beforeEach(() => {
@@ -36,5 +36,17 @@ describe('startResearchAsync (A2)', () => {
 
     const [, payload] = invokeMock.mock.calls[0];
     expect(payload).toEqual({ query: 'q', scope: 'web', maxSources: 5, verifyClaims: true });
+  });
+
+  it('executeSandboxProbe invokes execute_sandbox_probe with code and language', async () => {
+    invokeMock.mockResolvedValue({ passed: true, stdout: 'ok', stderr: '' });
+
+    const res = await executeSandboxProbe('fn main() {}', 'rust');
+
+    expect(invokeMock).toHaveBeenCalledWith('execute_sandbox_probe', {
+      code: 'fn main() {}',
+      language: 'rust',
+    });
+    expect(res).toEqual({ passed: true, stdout: 'ok', stderr: '' });
   });
 });
