@@ -39,6 +39,13 @@ interface ValidationCheck {
   valid: boolean;
 }
 
+export function sanitizeSlug(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-');
+}
+
 function validateFrontmatter(md: string): ValidationCheck[] {
   const trimmed = md.trimStart();
   const fenceMatch = trimmed.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
@@ -46,10 +53,12 @@ function validateFrontmatter(md: string): ValidationCheck[] {
   const frontmatter = fenceMatch ? fenceMatch[1] : '';
 
   const titleMatch = frontmatter.match(/^title:\s*(.+)$/m);
-  const hasTitle = Boolean(titleMatch && titleMatch[1].trim());
+  const rawTitle = titleMatch ? titleMatch[1].trim().replace(/^["']|["']$/g, '').trim() : '';
+  const hasTitle = Boolean(rawTitle);
 
   const descMatch = frontmatter.match(/^description:\s*(.+)$/m);
-  const hasDesc = Boolean(descMatch && descMatch[1].trim());
+  const rawDesc = descMatch ? descMatch[1].trim().replace(/^["']|["']$/g, '').trim() : '';
+  const hasDesc = Boolean(rawDesc);
 
   const catMatch = frontmatter.match(/^category:\s*["']?([^"'\r\n]+)["']?/m);
   const hasCategory = Boolean(catMatch && catMatch[1].trim() === 'Architecture SSOTs');
@@ -72,8 +81,6 @@ export function DocPublishModal({
   onClose,
   onPublished,
 }: DocPublishModalProps) {
-  if (!isOpen) return null;
-
   const [activeTab, setActiveTab] = useState<TabType>('preview');
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -89,9 +96,10 @@ export function DocPublishModal({
     setLoadError(null);
     try {
       const draft = await invoke<DocDraftPreview>('generate_research_doc_draft', { sessionId });
-      setSlug(draft.slug);
+      const initialSlug = sanitizeSlug(draft.slug);
+      setSlug(initialSlug);
       setContent(draft.markdown_content);
-      setOriginalDraft({ slug: draft.slug, content: draft.markdown_content });
+      setOriginalDraft({ slug: initialSlug, content: draft.markdown_content });
     } catch (err) {
       setLoadError(sanitizeErrorForToast(err) || String(err));
     } finally {
@@ -101,6 +109,8 @@ export function DocPublishModal({
 
   useEffect(() => {
     if (isOpen) {
+      setPublishError(null);
+      setActiveTab('preview');
       void loadDraft();
     }
   }, [isOpen, loadDraft]);
@@ -115,14 +125,16 @@ export function DocPublishModal({
     }
   };
 
+  const cleanSlug = slug.trim().replace(/^-+|-+$/g, '');
+
   const handlePublish = async () => {
-    if (!slug.trim()) return;
+    const finalSlug = cleanSlug || 'unnamed';
     setPublishing(true);
     setPublishError(null);
     try {
       const res = await invoke<PublishDocResult>('publish_research_doc', {
         sessionId,
-        slug: slug.trim(),
+        slug: finalSlug,
         content,
       });
       onPublished(res.relative_path);
@@ -134,9 +146,11 @@ export function DocPublishModal({
     }
   };
 
-  const targetFilename = slug.trim().endsWith('.md')
-    ? slug.trim()
-    : `${slug.trim() || 'unnamed'}-2026.md`;
+  const targetFilename = cleanSlug.endsWith('.md')
+    ? cleanSlug
+    : `${cleanSlug || 'unnamed'}-2026.md`;
+
+  if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -188,7 +202,7 @@ export function DocPublishModal({
                   id="doc-slug-input"
                   type="text"
                   value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
+                  onChange={(e) => setSlug(sanitizeSlug(e.target.value))}
                   placeholder="document-slug"
                   className="flex-1 rounded border border-border-subtle bg-black/40 px-2.5 py-1.5 text-xs text-text-secondary outline-none focus:border-brass/50 font-mono"
                 />

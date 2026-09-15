@@ -204,4 +204,92 @@ describe('DocPublishModal', () => {
       expect(b.getAttribute('type')).toBe('button');
     }
   });
+
+  it('safely toggles isOpen from false to true to false without hook violation', async () => {
+    const { rerender, container } = render(
+      <DocPublishModal
+        sessionId={42}
+        isOpen={false}
+        onClose={vi.fn()}
+        onPublished={vi.fn()}
+      />
+    );
+    expect(container.firstChild).toBeNull();
+
+    rerender(
+      <DocPublishModal
+        sessionId={42}
+        isOpen={true}
+        onClose={vi.fn()}
+        onPublished={vi.fn()}
+      />
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Publish Architecture SSOT')).toBeTruthy();
+    });
+
+    rerender(
+      <DocPublishModal
+        sessionId={42}
+        isOpen={false}
+        onClose={vi.fn()}
+        onPublished={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('Publish Architecture SSOT')).toBeNull();
+  });
+
+  it('sanitizes slug input to lowercase alphanumeric and hyphens', async () => {
+    render(
+      <DocPublishModal
+        sessionId={42}
+        isOpen={true}
+        onClose={vi.fn()}
+        onPublished={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('session-42-research')).toBeTruthy();
+    });
+
+    const slugInput = screen.getByLabelText(/Slug:/i) as HTMLInputElement;
+    fireEvent.change(slugInput, { target: { value: 'My_New Slug & Feature!' } });
+
+    expect(slugInput.value).toBe('my-new-slug-feature-');
+    expect(screen.getByText(/my-new-slug-feature-2026\.md/)).toBeTruthy();
+  });
+
+  it('marks empty quotes in title as failing validation', async () => {
+    render(
+      <DocPublishModal
+        sessionId={42}
+        isOpen={true}
+        onClose={vi.fn()}
+        onPublished={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('session-42-research')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Raw Markdown/i }));
+    const textarea = screen.getByLabelText('Raw Markdown Content') as HTMLTextAreaElement;
+    fireEvent.change(textarea, {
+      target: {
+        value: `---
+title: ""
+description: "Some valid description"
+category: "Architecture SSOTs"
+status: "current"
+---
+# Content
+`,
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Validation/i }));
+    expect(screen.getByText('Checks Failing')).toBeTruthy();
+  });
 });

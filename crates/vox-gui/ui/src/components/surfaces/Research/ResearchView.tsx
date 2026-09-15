@@ -278,18 +278,12 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
             isOpen={isPublishModalOpen}
             onClose={() => setIsPublishModalOpen(false)}
             onPublished={(path) => {
-              if (typeof pushToast === 'function') {
-                try {
-                  (pushToast as any)({
-                    tone: 'info',
-                    title: 'Published Architecture SSOT',
-                    body: `Published ${path}`,
-                    cause: 'action',
-                  });
-                } catch {
-                  (pushToast as any)('info', `Published ${path}`);
-                }
-              }
+              pushToast?.({
+                tone: 'ok',
+                title: 'Published Architecture SSOT',
+                body: `Published ${path}`,
+                cause: 'backend-ok',
+              });
             }}
           />
         </div>
