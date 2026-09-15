@@ -1,4 +1,4 @@
-use crate::scraper::{ScrapedDocument, fetch_and_extract};
+use crate::scraper::{ScrapedDocument, fetch_and_extract_with_client};
 use scraper::{Html, Selector};
 use std::collections::{HashSet, VecDeque};
 use url::Url;
@@ -96,12 +96,17 @@ pub async fn crawl_domain_depth(
     queue.push_back((start_url.clone(), 0usize));
     visited.insert(start_url);
 
+    let client = vox_http_client::client_builder()
+        .timeout(std::time::Duration::from_millis(timeout_ms))
+        .user_agent("VoxResearchBot/1.0 (+https://vox.dev/research-bot)")
+        .build()?;
+
     while let Some((current_url, depth)) = queue.pop_front() {
         if results.len() >= max_pages {
             break;
         }
 
-        match fetch_and_extract(&current_url, timeout_ms).await {
+        match fetch_and_extract_with_client(&client, &current_url).await {
             Ok(doc) => {
                 if depth < max_depth {
                     if let Some(html) = doc.raw_html.as_deref() {

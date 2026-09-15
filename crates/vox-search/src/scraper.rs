@@ -71,12 +71,10 @@ pub fn extract_document_from_html(url: &str, html_content: &str) -> ScrapedDocum
     }
 }
 
-pub async fn fetch_and_extract(url: &str, timeout_ms: u64) -> anyhow::Result<ScrapedDocument> {
-    let client = vox_http_client::client_builder()
-        .timeout(Duration::from_millis(timeout_ms))
-        .user_agent("VoxResearchBot/1.0 (+https://vox.dev/research-bot)")
-        .build()?;
-
+pub async fn fetch_and_extract_with_client(
+    client: &reqwest::Client,
+    url: &str,
+) -> anyhow::Result<ScrapedDocument> {
     let resp = client.get(url).send().await?;
     let status = resp.status();
     if !status.is_success() {
@@ -85,4 +83,13 @@ pub async fn fetch_and_extract(url: &str, timeout_ms: u64) -> anyhow::Result<Scr
 
     let html_content = resp.text().await?;
     Ok(extract_document_from_html(url, &html_content))
+}
+
+pub async fn fetch_and_extract(url: &str, timeout_ms: u64) -> anyhow::Result<ScrapedDocument> {
+    let client = vox_http_client::client_builder()
+        .timeout(Duration::from_millis(timeout_ms))
+        .user_agent("VoxResearchBot/1.0 (+https://vox.dev/research-bot)")
+        .build()?;
+
+    fetch_and_extract_with_client(&client, url).await
 }
