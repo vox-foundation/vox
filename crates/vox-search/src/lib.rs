@@ -32,6 +32,7 @@ pub mod searxng;
 mod searxng_defaults;
 /// Intent-oriented repo path discovery (AgentOS semantic filesystem bridge).
 pub mod semantic_fs;
+pub mod spa_fallback;
 pub mod symbol_proximity;
 mod tavily_budget;
 #[cfg(feature = "tavily")]

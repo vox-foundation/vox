@@ -1,3 +1,4 @@
+use crate::spa_fallback::is_bot_challenge_page;
 use ::html2text::from_read;
 use ::scraper::{Html, Selector};
 use std::time::Duration;
@@ -82,7 +83,15 @@ pub async fn fetch_and_extract_with_client(
     }
 
     let html_content = resp.text().await?;
-    Ok(extract_document_from_html(url, &html_content))
+    let doc = extract_document_from_html(url, &html_content);
+    if is_bot_challenge_page(&doc.title, &html_content) {
+        return Err(anyhow::anyhow!(
+            "Bot challenge detected on URL {}: {}",
+            url,
+            doc.title
+        ));
+    }
+    Ok(doc)
 }
 
 pub async fn fetch_and_extract(url: &str, timeout_ms: u64) -> anyhow::Result<ScrapedDocument> {
@@ -92,4 +101,52 @@ pub async fn fetch_and_extract(url: &str, timeout_ms: u64) -> anyhow::Result<Scr
         .build()?;
 
     fetch_and_extract_with_client(&client, url).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[tokio::test]
+    async fn test_fetch_and_extract_bot_challenge() {
+        let mock_server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/blocked"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                "<html><head><title>Just a moment...</title></head><body>Cloudflare Ray ID: 89f4</body></html>",
+            ))
+            .mount(&mock_server)
+            .await;
+
+        let client = vox_http_client::client_builder().build().unwrap();
+        let result =
+            fetch_and_extract_with_client(&client, &format!("{}/blocked", mock_server.uri())).await;
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("Bot challenge detected on URL"));
+        assert!(err_msg.contains("Just a moment..."));
+    }
+
+    #[tokio::test]
+    async fn test_fetch_and_extract_clean_page() {
+        let mock_server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/ok"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                "<html><head><title>Valid Page</title></head><body><article><p>Clean content</p></article></body></html>",
+            ))
+            .mount(&mock_server)
+            .await;
+
+        let client = vox_http_client::client_builder().build().unwrap();
+        let doc = fetch_and_extract_with_client(&client, &format!("{}/ok", mock_server.uri()))
+            .await
+            .unwrap();
+
+        assert_eq!(doc.title, "Valid Page");
+        assert!(doc.markdown.contains("Clean content"));
+    }
 }
