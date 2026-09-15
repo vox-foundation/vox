@@ -30,3 +30,31 @@ export async function startResearchAsync(args: {
     verifyClaims: args.verifyClaims,
   });
 }
+
+export interface DocDraftPreview {
+  slug: string;
+  title: string;
+  filename: string;
+  markdown_content: string;
+  is_valid: boolean;
+  validation_errors: string[];
+}
+
+export interface PublishDocResult {
+  file_path: string;
+  relative_path: string;
+  indexed: boolean;
+}
+
+export async function generateResearchDocDraft(sessionId: number): Promise<DocDraftPreview> {
+  return invoke<DocDraftPreview>('generate_research_doc_draft', { sessionId });
+}
+
+export async function publishResearchDoc(
+  sessionId: number,
+  slug: string,
+  content: string,
+): Promise<PublishDocResult> {
+  return invoke<PublishDocResult>('publish_research_doc', { sessionId, slug, content });
+}
+

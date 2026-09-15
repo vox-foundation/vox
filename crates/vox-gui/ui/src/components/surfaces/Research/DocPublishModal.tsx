@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import {
   Dialog,
   DialogContent,
@@ -8,21 +7,15 @@ import {
 } from '../../ui/Dialog';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { ResearchReportMarkdown } from './ResearchReportMarkdown';
+import {
+  generateResearchDocDraft,
+  publishResearchDoc,
+  type DocDraftPreview,
+  type PublishDocResult,
+} from './researchActions';
 
-export interface DocDraftPreview {
-  slug: string;
-  title: string;
-  filename: string;
-  markdown_content: string;
-  is_valid: boolean;
-  validation_errors: string[];
-}
+export type { DocDraftPreview, PublishDocResult };
 
-export interface PublishDocResult {
-  file_path: string;
-  relative_path: string;
-  indexed: boolean;
-}
 
 export interface DocPublishModalProps {
   sessionId: number;
@@ -95,13 +88,13 @@ export function DocPublishModal({
     setLoading(true);
     setLoadError(null);
     try {
-      const draft = await invoke<DocDraftPreview>('generate_research_doc_draft', { sessionId });
+      const draft = await generateResearchDocDraft(sessionId);
       const initialSlug = sanitizeSlug(draft.slug);
       setSlug(initialSlug);
       setContent(draft.markdown_content);
       setOriginalDraft({ slug: initialSlug, content: draft.markdown_content });
     } catch (err) {
-      setLoadError(sanitizeErrorForToast(err) || String(err));
+      setLoadError(sanitizeErrorForToast(err));
     } finally {
       setLoading(false);
     }
@@ -132,19 +125,16 @@ export function DocPublishModal({
     setPublishing(true);
     setPublishError(null);
     try {
-      const res = await invoke<PublishDocResult>('publish_research_doc', {
-        sessionId,
-        slug: finalSlug,
-        content,
-      });
+      const res = await publishResearchDoc(sessionId, finalSlug, content);
       onPublished(res.relative_path);
       onClose();
     } catch (err) {
-      setPublishError(sanitizeErrorForToast(err) || String(err));
+      setPublishError(sanitizeErrorForToast(err));
     } finally {
       setPublishing(false);
     }
   };
+
 
   const targetFilename = cleanSlug.endsWith('.md')
     ? cleanSlug
