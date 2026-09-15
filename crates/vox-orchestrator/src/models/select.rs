@@ -1189,15 +1189,19 @@ mod tests {
     #[file_serial]
     #[allow(unsafe_code)]
     fn select_with_premium_alias_honors_alias_when_intelligence_high() {
-        // The premium alias for codegen (anthropic/claude-opus-4.7) is gated by
+        // The premium alias for codegen (anthropic/claude-3-7-sonnet) is gated by
         // the key-present check added in the B3 key-gated candidate filter
         // (`select_via_premium_alias` -> `ModelRegistry::key_is_present_for`).
-        // A hosted CI runner with no ANTHROPIC_API_KEY configured must still be
+        // A hosted CI runner with no OPENROUTER_API_KEY configured must still be
         // able to exercise the premium-alias *routing* logic in isolation, so
         // set a test key here (mirrors `key_gate_admits_provider_when_key_present`).
-        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
-        // SAFETY: #[file_serial]; prior value restored below.
-        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
+        let prior_anthropic = std::env::var("ANTHROPIC_API_KEY").ok();
+        let prior_openrouter = std::env::var("OPENROUTER_API_KEY").ok();
+        // SAFETY: #[file_serial]; prior values restored below.
+        unsafe {
+            std::env::set_var("ANTHROPIC_API_KEY", "test-key");
+            std::env::set_var("OPENROUTER_API_KEY", "test-or-key");
+        };
         let registry = ModelRegistry::new();
         let intent = SelectionIntent {
             axes: SelectionAxes::QUALITY_FIRST,
@@ -1205,9 +1209,13 @@ mod tests {
         };
         let outcome = select(&intent, &registry);
         unsafe {
-            match prior {
+            match prior_anthropic {
                 Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
                 None => std::env::remove_var("ANTHROPIC_API_KEY"),
+            }
+            match prior_openrouter {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
             }
         }
         let outcome = outcome.expect("a model exists");

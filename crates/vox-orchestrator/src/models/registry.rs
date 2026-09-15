@@ -366,34 +366,7 @@ impl ModelRegistry {
     /// Credential gate used by the canonical selector: true iff the provider's
     /// primary key is resolvable right now (local providers always pass).
     pub(crate) fn key_is_present_for(m: &ModelSpec) -> bool {
-        if provider_secret_is_available(&m.provider_type) {
-            return true;
-        }
-        if m.id.starts_with("anthropic/") || m.provider == "anthropic" {
-            if vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicApiKey)
-                .expose()
-                .is_some()
-            {
-                return true;
-            }
-        }
-        if m.id.starts_with("openai/") || m.provider == "openai" {
-            if vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiApiKey)
-                .expose()
-                .is_some()
-            {
-                return true;
-            }
-        }
-        if m.id.starts_with("google/") || m.provider == "google" {
-            if vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey)
-                .expose()
-                .is_some()
-            {
-                return true;
-            }
-        }
-        false
+        provider_secret_is_available(&m.provider_type)
     }
 
     fn min_refresh_interval() -> Duration {
@@ -1199,22 +1172,17 @@ impl ModelRegistry {
         if let Some(m) = self.models.get(key) {
             return Some(m.clone());
         }
+        let stripped_key = key.split_once('/').map_or(key, |(_, suffix)| suffix);
+        let slug_suffix = format!("/{stripped_key}");
         self.models
             .values()
             .find(|m| {
-                m.canonical_slug == key
-                    || m.canonical_slug
-                        .strip_prefix("anthropic/")
-                        .unwrap_or(&m.canonical_slug)
-                        == key
-                    || m.canonical_slug
-                        .strip_prefix("google/")
-                        .unwrap_or(&m.canonical_slug)
-                        == key
-                    || m.id == key.strip_prefix("anthropic/").unwrap_or(key)
-                    || m.id == key.strip_prefix("google/").unwrap_or(key)
-                    || m.canonical_slug.starts_with(key)
-                    || m.id.starts_with(key)
+                m.id == key
+                    || m.canonical_slug == key
+                    || m.id == stripped_key
+                    || m.canonical_slug == stripped_key
+                    || m.id.ends_with(&slug_suffix)
+                    || m.canonical_slug.ends_with(&slug_suffix)
             })
             .cloned()
     }

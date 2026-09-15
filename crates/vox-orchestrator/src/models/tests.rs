@@ -228,6 +228,26 @@ mod premium_alias_tests {
             );
         }
     }
+
+    #[test]
+    fn test_registry_get() {
+        let registry = crate::models::ModelRegistry::new();
+        assert!(registry.get("anthropic/claude-3-7-sonnet").is_some());
+        assert!(registry.get("claude-3-7-sonnet").is_some());
+        assert_eq!(
+            registry.get("anthropic/claude-3-7-sonnet").map(|m| m.id),
+            registry.get("claude-3-7-sonnet").map(|m| m.id)
+        );
+
+        assert!(registry.get("openai/o3-mini").is_some());
+        assert!(registry.get("o3-mini").is_some());
+        assert_eq!(
+            registry.get("openai/o3-mini").map(|m| m.id),
+            registry.get("o3-mini").map(|m| m.id)
+        );
+
+        assert!(registry.get("nonexistent-model").is_none());
+    }
 }
 
 #[cfg(test)]
