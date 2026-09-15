@@ -24,6 +24,7 @@ mod memory_cache;
 pub mod memory_hybrid;
 pub mod mens_research_subagent;
 pub mod novelty;
+pub mod parallel_exploration;
 pub mod policy;
 pub mod research;
 mod rrf;
@@ -70,6 +71,9 @@ pub use execution::{
 };
 pub use ingest::ingest_markdown_tree;
 pub use memory_hybrid::{HybridSearchHit, MemorySearchEngine};
+pub use parallel_exploration::{
+    BranchResult, CancellationToken, ParallelExplorationCoordinator, ResearchBranch,
+};
 pub use policy::{SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy, SearchPolicyFeedback};
 pub use search_circuit_breaker::{
     ProviderCircuitBreaker, SearchProviderCircuitRegistry, SearchProviderId,
