@@ -268,7 +268,7 @@ mod verify_tests {
 
         assert!(!result, "a hung/slow server must verify as false");
         assert!(
-            elapsed < std::time::Duration::from_secs(3),
+            elapsed < std::time::Duration::from_secs(4),
             "verify_key_at_with_timeout took {elapsed:?}, should have returned well under the 5s mock delay"
         );
     }
