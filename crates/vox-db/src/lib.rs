@@ -192,6 +192,7 @@ pub mod secrets;
 mod socrates_telemetry;
 mod sync_invocables;
 pub mod syntax_k_telemetry;
+pub mod temporal_claims;
 pub mod toestub_store;
 /// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
 pub mod training_run;
