@@ -280,9 +280,11 @@ mod tests {
 mod semcov_wave2_tests {
     #![allow(unused_imports)]
     use super::*;
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn from_env_returns_mock_when_env_var_absent() {
+        let _guard = ENV_LOCK.lock().unwrap();
         // Ensure the env var is unset for this test.
         unsafe { std::env::remove_var("VOX_MINICHECK_ENDPOINT") };
         let verifier = MiniCheckVerifier::from_env();
@@ -294,6 +296,7 @@ mod semcov_wave2_tests {
 
     #[test]
     fn from_env_returns_http_when_env_var_set() {
+        let _guard = ENV_LOCK.lock().unwrap();
         unsafe { std::env::set_var("VOX_MINICHECK_ENDPOINT", "http://localhost:9090/verify") };
         let verifier = MiniCheckVerifier::from_env();
         // Clean up immediately so other tests are not affected.
