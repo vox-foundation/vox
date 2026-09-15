@@ -79,6 +79,14 @@ pub async fn fetch_and_extract_with_client(
     let resp = client.get(url).send().await?;
     let status = resp.status();
     if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        if is_bot_challenge_page("", &body) {
+            return Err(anyhow::anyhow!(
+                "Bot challenge detected on URL {}: HTTP {}",
+                url,
+                status
+            ));
+        }
         return Err(anyhow::anyhow!("Failed to fetch URL {}: {}", url, status));
     }
 
@@ -128,6 +136,49 @@ mod tests {
         let err_msg = result.unwrap_err().to_string();
         assert!(err_msg.contains("Bot challenge detected on URL"));
         assert!(err_msg.contains("Just a moment..."));
+    }
+
+    #[tokio::test]
+    async fn test_fetch_and_extract_403_bot_challenge() {
+        let mock_server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/cf-block"))
+            .respond_with(
+                ResponseTemplate::new(403)
+                    .set_body_string("<html><body><p>Cloudflare Ray ID: 89f4abc</p></body></html>"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = vox_http_client::client_builder().build().unwrap();
+        let result =
+            fetch_and_extract_with_client(&client, &format!("{}/cf-block", mock_server.uri()))
+                .await;
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("Bot challenge detected on URL"));
+        assert!(err_msg.contains("HTTP 403"));
+    }
+
+    #[tokio::test]
+    async fn test_fetch_and_extract_404_normal_error() {
+        let mock_server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/missing"))
+            .respond_with(ResponseTemplate::new(404).set_body_string("Not Found"))
+            .mount(&mock_server)
+            .await;
+
+        let client = vox_http_client::client_builder().build().unwrap();
+        let result =
+            fetch_and_extract_with_client(&client, &format!("{}/missing", mock_server.uri())).await;
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("Failed to fetch URL"));
+        assert!(err_msg.contains("404"));
+        assert!(!err_msg.contains("Bot challenge detected"));
     }
 
     #[tokio::test]
