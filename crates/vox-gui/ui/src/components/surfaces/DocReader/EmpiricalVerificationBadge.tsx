@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '../../ui/Icons';
 import { Glass } from '../../ui/Glass';
 
@@ -14,6 +14,17 @@ export function EmpiricalVerificationBadge({
   onNavigateToResearch,
 }: EmpiricalVerificationBadgeProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDrawerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [drawerOpen]);
 
   const isHighStability = stabilityScore >= 0.85;
   const badgeColor = isHighStability
@@ -36,14 +47,18 @@ export function EmpiricalVerificationBadge({
 
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+          <button
+            type="button"
+            aria-label="Close backdrop"
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs cursor-default w-full h-full border-0 p-0"
             onClick={() => setDrawerOpen(false)}
+            tabIndex={-1}
           />
           <Glass
             role="dialog"
+            aria-modal="true"
             aria-label="Empirical Verification Evidence"
-            className="relative z-10 flex h-full w-full max-w-md flex-col bg-bg-base/95 border-l border-border-subtle shadow-2xl p-6 overflow-y-auto"
+            className="relative z-10 flex h-full w-full max-w-md flex-col rounded-none bg-bg-base/95 border-l border-border-subtle shadow-2xl p-6 overflow-y-auto"
             inset={false}
           >
             <div className="flex items-center justify-between border-b border-border-subtle pb-3">

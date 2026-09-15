@@ -19,7 +19,7 @@ describe('EmpiricalVerificationBadge', () => {
     expect(screen.getByText(/Empirical Verification Ledger/i)).toBeDefined();
     expect(screen.getByText(/Research Session #42 · Stability S = 0.92/i)).toBeDefined();
 
-    const closeBtn = screen.getByRole('button', { name: /Close/i });
+    const closeBtn = screen.getByRole('button', { name: /^close$/i });
     fireEvent.click(closeBtn);
     expect(screen.queryByText(/Empirical Verification Ledger/i)).toBeNull();
   });
@@ -60,4 +60,30 @@ describe('EmpiricalVerificationBadge', () => {
       expect(b.getAttribute('type')).toBe('button');
     }
   });
+
+  it('closes drawer on backdrop click', () => {
+    render(<EmpiricalVerificationBadge sessionId={42} stabilityScore={0.92} />);
+    fireEvent.click(screen.getByRole('button', { name: /Verified by Deep Research/i }));
+    expect(screen.getByText(/Empirical Verification Ledger/i)).toBeDefined();
+
+    const backdrop = screen.getByRole('button', { name: /Close backdrop/i });
+    fireEvent.click(backdrop);
+    expect(screen.queryByText(/Empirical Verification Ledger/i)).toBeNull();
+  });
+
+  it('closes drawer on Escape key press', () => {
+    render(<EmpiricalVerificationBadge sessionId={42} stabilityScore={0.92} />);
+    fireEvent.click(screen.getByRole('button', { name: /Verified by Deep Research/i }));
+    expect(screen.getByText(/Empirical Verification Ledger/i)).toBeDefined();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByText(/Empirical Verification Ledger/i)).toBeNull();
+  });
+
+  it('applies amber styling when stability score is below 0.85', () => {
+    render(<EmpiricalVerificationBadge sessionId={12} stabilityScore={0.74} />);
+    const pill = screen.getByRole('button', { name: /Verified by Deep Research/i });
+    expect(pill.className).toContain('text-amber-300');
+  });
 });
+
