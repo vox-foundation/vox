@@ -5,6 +5,15 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Grounding status of an extracted epistemic claim.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GroundingQuality {
+    /// Exact verbatim substring found in source text.
+    VerbatimExact,
+    /// High token-overlap in normalized sliding window (handles punctuation, whitespace, pronoun resolution).
+    NormalizedSpan { overlap_ratio: f64 },
+}
+
 /// Epistemic claim triplet extracted from evidence text.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ClaimTriplet {
@@ -18,6 +27,8 @@ pub struct ClaimTriplet {
     pub confidence: f64,
     /// Verbatim substring from the source document supporting this claim.
     pub evidence_snippet: String,
+    pub source_url: Option<String>,
+    pub grounding: GroundingQuality,
 }
 
 #[derive(Deserialize)]
@@ -95,15 +106,116 @@ fn parse_envelope(raw_json: &str) -> Option<Vec<RawTriplet>> {
     None
 }
 
+pub const TOKEN_OVERLAP_THRESHOLD: f64 = 0.80;
+const NEGATION_WORDS: &[&str] = &[
+    "not", "no", "never", "none", "neither", "nor", "cannot", "can't", "won't", "didn't",
+    "doesn't", "isn't", "aren't", "without",
+];
+
+pub fn normalize_for_matching(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut prev_space = false;
+    for c in text.chars() {
+        let mapped = match c {
+            '—' | '–' => '-',
+            '“' | '”' | '"' => '"',
+            '‘' | '’' | '\'' => '\'',
+            c if c.is_whitespace() => ' ',
+            c if c.is_alphanumeric() || c == '-' || c == '\'' || c == '"' => c.to_ascii_lowercase(),
+            _ => ' ',
+        };
+        if mapped == ' ' {
+            if !prev_space && !out.is_empty() {
+                out.push(' ');
+                prev_space = true;
+            }
+        } else {
+            out.push(mapped);
+            prev_space = false;
+        }
+    }
+    if out.ends_with(' ') {
+        out.pop();
+    }
+    out
+}
+
+pub fn negation_parity_matches(snippet: &str, candidate_window: &str) -> bool {
+    let count_neg = |text: &str| {
+        text.split_whitespace()
+            .filter(|w| NEGATION_WORDS.contains(&w.trim_matches(|c: char| !c.is_alphanumeric())))
+            .count()
+    };
+    (count_neg(snippet) % 2) == (count_neg(candidate_window) % 2)
+}
+
+pub fn token_sliding_window_overlap(snippet: &str, source: &str) -> Option<f64> {
+    let snip_tokens: Vec<&str> = snippet.split_whitespace().collect();
+    if snip_tokens.is_empty() {
+        return None;
+    }
+    let src_tokens: Vec<&str> = source.split_whitespace().collect();
+    if src_tokens.is_empty() {
+        return None;
+    }
+
+    let snip_set: std::collections::HashSet<&str> = snip_tokens.iter().copied().collect();
+    let window_size = snip_tokens.len() + 4; // Bounded window: N + 4 tokens
+    let mut best_ratio = 0.0;
+    let mut best_window_str = String::new();
+
+    for window in src_tokens.windows(window_size.min(src_tokens.len())) {
+        let win_set: std::collections::HashSet<&str> = window.iter().copied().collect();
+        let common = snip_set.intersection(&win_set).count();
+        let ratio = common as f64 / snip_set.len() as f64;
+        if ratio > best_ratio {
+            best_ratio = ratio;
+            best_window_str = window.join(" ");
+            if (best_ratio - 1.0).abs() < f64::EPSILON {
+                break;
+            }
+        }
+    }
+
+    if best_ratio > TOKEN_OVERLAP_THRESHOLD && negation_parity_matches(snippet, &best_window_str) {
+        Some(best_ratio)
+    } else {
+        None
+    }
+}
+
+pub fn evaluate_span_grounding(snippet: &str, source_text: &str) -> Option<GroundingQuality> {
+    let raw_snippet = snippet.trim();
+    if raw_snippet.is_empty() {
+        return None;
+    }
+
+    if source_text
+        .to_lowercase()
+        .contains(&raw_snippet.to_lowercase())
+    {
+        return Some(GroundingQuality::VerbatimExact);
+    }
+
+    let norm_source = normalize_for_matching(source_text);
+    let norm_snippet = normalize_for_matching(raw_snippet);
+
+    if norm_source.contains(&norm_snippet) {
+        return Some(GroundingQuality::NormalizedSpan { overlap_ratio: 1.0 });
+    }
+
+    token_sliding_window_overlap(&norm_snippet, &norm_source)
+        .map(|overlap_ratio| GroundingQuality::NormalizedSpan { overlap_ratio })
+}
+
 /// Parses claim triplets from raw LLM output and filters out any triplets
-/// whose `evidence_snippet` is empty or not found as a verbatim substring in `source_text` (case-insensitive).
+/// whose `evidence_snippet` cannot be grounded against `source_text`.
 pub fn parse_and_ground_claim_triplets(raw_json: &str, source_text: &str) -> Vec<ClaimTriplet> {
     let raw_list = match parse_envelope(raw_json) {
         Some(list) => list,
         None => return Vec::new(),
     };
 
-    let lower_source = source_text.to_lowercase();
     raw_list
         .into_iter()
         .filter_map(|raw| {
@@ -117,18 +229,17 @@ pub fn parse_and_ground_claim_triplets(raw_json: &str, source_text: &str) -> Vec
                 return None;
             }
 
-            // Verbatim grounding verification (case-insensitive substring)
-            if !lower_source.contains(&snippet.to_lowercase()) {
-                return None; // Discard ungrounded hallucination
-            }
-
+            let grounding = evaluate_span_grounding(&snippet, source_text)?;
             let confidence = raw.confidence.unwrap_or(0.90).clamp(0.0, 1.0);
+
             Some(ClaimTriplet {
                 subject,
                 predicate,
                 object,
                 confidence,
                 evidence_snippet: snippet,
+                source_url: None,
+                grounding,
             })
         })
         .collect()

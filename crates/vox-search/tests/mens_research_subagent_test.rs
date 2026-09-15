@@ -1,5 +1,6 @@
 use vox_search::mens_research_subagent::{
-    build_local_claim_extraction_prompt, parse_and_ground_claim_triplets,
+    GroundingQuality, build_local_claim_extraction_prompt, evaluate_span_grounding,
+    negation_parity_matches, parse_and_ground_claim_triplets, token_sliding_window_overlap,
 };
 
 #[test]
@@ -145,4 +146,92 @@ fn test_build_local_claim_extraction_prompt() {
     assert!(prompt.contains("Some sample evidence text"));
     assert!(prompt.contains("evidence_snippet"));
     assert!(prompt.contains("epistemic triplets"));
+}
+
+#[test]
+fn test_graduated_grounding_normalized_whitespace_and_punctuation() {
+    let source = "In benchmarks, connection pooling reduced p99 latency by 35%—an unprecedented improvement.";
+    let raw_json = r#"{"claims": [{"subject": "connection pooling", "predicate": "reduced", "object": "p99 latency by 35%", "confidence": 0.95, "evidence_snippet": "connection pooling reduced p99 latency by 35% - an unprecedented improvement"}]}"#;
+
+    let claims = parse_and_ground_claim_triplets(raw_json, source);
+    assert_eq!(
+        claims.len(),
+        1,
+        "Normalized punctuation/dashes must not be discarded"
+    );
+    assert!(matches!(
+        claims[0].grounding,
+        GroundingQuality::NormalizedSpan { .. } | GroundingQuality::VerbatimExact
+    ));
+}
+
+#[test]
+fn test_graduated_grounding_coreference_high_token_overlap() {
+    let source = "SQLite added JSONB in version 3.45. It provides 3x faster reads.";
+    let raw_json = r#"{"claims": [{"subject": "SQLite JSONB", "predicate": "provides", "object": "3x faster reads", "confidence": 0.90, "evidence_snippet": "SQLite JSONB provides 3x faster reads"}]}"#;
+
+    let claims = parse_and_ground_claim_triplets(raw_json, source);
+    assert_eq!(
+        claims.len(),
+        1,
+        "Coreference-expanded snippet must be preserved"
+    );
+    if let GroundingQuality::NormalizedSpan { overlap_ratio } = claims[0].grounding {
+        assert!(
+            overlap_ratio >= 0.80,
+            "Overlap ratio must meet or exceed 0.80"
+        );
+    } else {
+        panic!("Expected NormalizedSpan grounding");
+    }
+}
+
+#[test]
+fn test_negation_inversion_hard_rejected() {
+    let source = "The microbenchmark did not reduce latency across threads.";
+    // Snippet inverts claim by omitting "not"
+    let snippet = "The microbenchmark did reduce latency across threads.";
+    assert!(
+        !negation_parity_matches(snippet, source),
+        "Negation parity must detect flipped polarity"
+    );
+    assert_eq!(
+        evaluate_span_grounding(snippet, source),
+        None,
+        "Inverted negation must be rejected"
+    );
+}
+
+#[test]
+fn test_scattered_tokens_across_long_document_rejected() {
+    let source = "Tokio is an async runtime. SQLite provides embedded relational storage. Linux supports epoll.";
+    // Snippet combines words scattered across separate sentences
+    let snippet = "Tokio provides embedded relational epoll";
+    assert_eq!(
+        evaluate_span_grounding(snippet, source),
+        None,
+        "Scattered unwindowed words must not match"
+    );
+}
+
+#[test]
+fn test_ungrounded_hallucination_discarded() {
+    let source = "Rust compiler version 1.85 stabilized async closures.";
+    let raw_json = r#"{"claims": [{"subject": "Go runtime", "predicate": "introduced", "object": "generics", "confidence": 0.90, "evidence_snippet": "Go 1.18 added full generics support"}]}"#;
+
+    let claims = parse_and_ground_claim_triplets(raw_json, source);
+    assert!(
+        claims.is_empty(),
+        "Completely hallucinated claim must be discarded"
+    );
+}
+
+#[test]
+fn test_token_sliding_window_overlap_direct() {
+    let source = "sqlite added jsonb in version 3 45 it provides 3x faster reads";
+    let snippet = "sqlite jsonb provides 3x faster reads";
+    let overlap = token_sliding_window_overlap(snippet, source);
+    assert!(overlap.is_some());
+    let ratio = overlap.unwrap();
+    assert!(ratio > 0.80);
 }
