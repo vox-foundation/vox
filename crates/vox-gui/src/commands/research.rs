@@ -213,6 +213,10 @@ pub async fn publish_research_doc(
 ) -> Result<PublishDocResult, String> {
     let db = pool_db(&pool)?;
 
+    if slug.contains('/') || slug.contains('\\') || slug.contains("..") || slug.starts_with('.') {
+        return Err("Invalid slug: path traversal characters are not permitted".to_string());
+    }
+
     let repo_root = std::env::var("VOX_REPOSITORY_ROOT")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
@@ -225,19 +229,34 @@ pub async fn publish_research_doc(
     let target_path = target_dir.join(&filename);
     let index_path = target_dir.join("research-index.md");
 
-    // 1. Atomic write
-    atomic_write_secure(&target_path, content.as_bytes()).map_err(|e| e.to_string())?;
+    // Offload blocking atomic write and index update
+    let target_path_clone = target_path.clone();
+    let index_path_clone = index_path.clone();
+    let filename_clone = filename.clone();
+    let content_clone = content.clone();
 
-    // 2. Idempotent research-index update
-    let title = format!("Research Session #{session_id} Architecture SSOT (2026)");
-    let desc = "Empirically verified architecture findings and benchmarks.";
-    let _ = update_research_index_md(
-        &index_path,
-        "Strategic & Value Proposition",
-        &filename,
-        &title,
-        desc,
-    );
+    tokio::task::spawn_blocking(move || {
+        atomic_write_secure(&target_path_clone, content_clone.as_bytes())
+            .map_err(|e| e.to_string())?;
+
+        let title = format!("Research Session #{session_id} Architecture SSOT (2026)");
+        let desc = "Empirically verified architecture findings and benchmarks.";
+        if let Err(e) = update_research_index_md(
+            &index_path_clone,
+            "Strategic & Value Proposition",
+            &filename_clone,
+            &title,
+            desc,
+        ) {
+            tracing::warn!(
+                "Failed to update research index at {}: {e}",
+                index_path_clone.display()
+            );
+        }
+        Ok::<(), String>(())
+    })
+    .await
+    .map_err(|e| e.to_string())??;
 
     // 3. Store in VoxDB FTS5 knowledgebase
     let indexed = db

@@ -95,3 +95,30 @@ async fn test_research_doc_draft_and_publish_flow() {
         "docs/src/architecture/session-42-research-2026.md"
     );
 }
+
+#[tokio::test]
+async fn test_publish_research_doc_rejects_path_traversal() {
+    let app = tauri::test::mock_app();
+    app.manage(GuiDbPool::connect_memory().await.expect("memory pool"));
+    let pool = app.state::<GuiDbPool>();
+
+    let malicious_slugs = vec![
+        "../../etc/passwd",
+        "..\\..\\windows\\system32",
+        "nested/path",
+        ".hidden",
+    ];
+
+    for bad_slug in malicious_slugs {
+        let res = publish_research_doc(
+            pool.clone(),
+            1,
+            bad_slug.to_string(),
+            "# Malicious".to_string(),
+        )
+        .await;
+
+        assert!(res.is_err(), "Slug {bad_slug} should have been rejected");
+        assert!(res.unwrap_err().contains("Invalid slug"));
+    }
+}
