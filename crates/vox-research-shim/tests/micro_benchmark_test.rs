@@ -28,3 +28,23 @@ async fn test_run_rust_micro_benchmark_compile_failure() {
     assert_eq!(report.iterations, 0);
     assert!(!report.stderr.is_empty());
 }
+
+#[tokio::test]
+async fn test_run_rust_micro_benchmark_runtime_panic() {
+    let report = run_rust_micro_benchmark("panic!(\"explicit benchmark failure\");", 20, 5000)
+        .await
+        .expect("benchmark execution");
+    assert!(!report.passed);
+    assert_eq!(report.iterations, 0);
+    assert!(report.stderr.contains("explicit benchmark failure"));
+}
+
+#[tokio::test]
+async fn test_run_rust_micro_benchmark_zero_iterations() {
+    let report = run_rust_micro_benchmark("let x = 1;", 0, 5000)
+        .await
+        .expect("benchmark execution");
+    assert!(!report.passed);
+    assert_eq!(report.iterations, 0);
+    assert!(report.stderr.contains("greater than zero"));
+}

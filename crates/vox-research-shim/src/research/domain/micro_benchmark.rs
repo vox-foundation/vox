@@ -33,7 +33,7 @@ fn main() {{
         timings.push(elapsed);
     }}
     timings.sort_unstable();
-    let median = timings[timings.len() / 2];
+    let median = timings.get(timings.len() / 2).copied().unwrap_or(0);
     let sum: u64 = timings.iter().sum();
     let mean = sum / (timings.len() as u64).max(1);
     println!("BENCHMARK_RESULT:{{}}:{{}}", median, mean);
@@ -47,6 +47,16 @@ pub async fn run_rust_micro_benchmark(
     iterations: usize,
     timeout_ms: u64,
 ) -> anyhow::Result<MicroBenchmarkReport> {
+    if iterations == 0 {
+        return Ok(MicroBenchmarkReport {
+            passed: false,
+            iterations: 0,
+            median_ns: 0,
+            mean_ns: 0,
+            stderr: "Iteration count must be greater than zero".to_string(),
+        });
+    }
+
     let temp_dir_guard = tempfile::Builder::new().prefix("vox-bench-").tempdir()?;
     let temp_dir = temp_dir_guard.path();
     let bin_name = if cfg!(windows) {
@@ -61,6 +71,7 @@ pub async fn run_rust_micro_benchmark(
     let mut compile_cmd = Command::new("rustc");
     compile_cmd
         .kill_on_drop(true)
+        .arg("--edition=2021")
         .arg("-O")
         .arg("-o")
         .arg(&bin_path)
@@ -127,6 +138,16 @@ pub async fn run_rust_micro_benchmark(
             });
         }
     };
+
+    if !run_output.status.success() {
+        return Ok(MicroBenchmarkReport {
+            passed: false,
+            iterations: 0,
+            median_ns: 0,
+            mean_ns: 0,
+            stderr: String::from_utf8_lossy(&run_output.stderr).to_string(),
+        });
+    }
 
     let stdout_str = String::from_utf8_lossy(&run_output.stdout);
     for line in stdout_str.lines() {
