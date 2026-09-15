@@ -69,6 +69,11 @@ mens-candle-qlora-cuda = [
     "candle-core/cuda",
     "candle-nn/cuda",
 ]
+mens-candle-qlora-metal = [
+    "mens-candle-qlora",
+    "candle-core/metal",
+    "candle-nn/metal",
+]
 mens-train = ["mens", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-compiler", "dep:vox-plugin-host"]
 mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
@@ -224,5 +229,10 @@ required-features = ["transport"]
 name = "pairing_e2e"
 required-features = ["transport"]
 
+[[test]]
+name = "metal_optimization_probe_test"
+required-features = ["mens"]
+
 [lints]
 workspace = true
+
