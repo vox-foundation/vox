@@ -10,12 +10,12 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::model::QuantizedLinear;
 use anyhow::{Context, Result};
 use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
 use peft_rs::training::{AdapterTrainingConfig, LrSchedule};
 use qlora_rs::QLoraConfig;
-use qlora_rs::qlora::QuantizedLinear;
 use qlora_rs::training::{QLoraTrainer, QLoraTrainingConfig};
 use rand::SeedableRng;
 use rand::seq::SliceRandom;
@@ -134,7 +134,7 @@ fn synthesize_rope_inv_freq(
     if half == 0 {
         anyhow::bail!("invalid head_dim={} for RoPE synthesis", head_dim);
     }
-    let theta = rope_theta.unwrap_or(10_000.0) as f32;
+    let theta = rope_theta.unwrap_or(1_000_000.0) as f32;
     let hd = head_dim as f32;
     let mut vals = Vec::with_capacity(half);
     for i in 0..half {
@@ -392,6 +392,14 @@ pub fn run_candle_qlora_train(
     #[allow(unsafe_code)]
     let vb_mmap =
         unsafe { VarBuilder::from_mmaped_safetensors(&bundle.weight_paths, DType::F32, &device)? };
+    #[allow(unsafe_code)]
+    let vb_mmap_cpu = unsafe {
+        VarBuilder::from_mmaped_safetensors(
+            &bundle.weight_paths,
+            DType::F32,
+            &candle_core::Device::Cpu,
+        )?
+    };
     train_log::info(&format!(
         "Loading embeddings ('{}') to device...",
         bundle.embed_key
@@ -402,7 +410,8 @@ pub fn run_candle_qlora_train(
     // ── qlora-rs config ───────────────────────────────────────────────────────
     let rank = config.rank.max(1);
     let alpha_u = config.alpha.round() as usize;
-    let qlora_cfg = QLoraConfig::preset_all_bf16(rank, alpha_u);
+    let mut qlora_cfg = QLoraConfig::preset_all_bf16(rank, alpha_u);
+    qlora_cfg.cache_dequantized = std::env::var_os("VOX_MENS_NO_WEIGHT_CACHE").is_none();
 
     let total_steps_planned = (pairs.len() * config.epochs) as u32;
     let grad_accum = config.grad_accum.max(1) as u32;
@@ -496,19 +505,19 @@ pub fn run_candle_qlora_train(
                 let k_dim = linear_key_heads * linear_key_dim;
                 let v_dim = linear_value_heads * linear_value_dim;
                 let qkv_rows = q_dim + k_dim + v_dim;
-                let w_qkv = vb_mmap
+                let w_qkv = vb_mmap_cpu
                     .get((qkv_rows, bundle.d_model), &qkv_key)?
                     .to_dtype(DType::F32)?;
-                let w_z = vb_mmap
+                let w_z = vb_mmap_cpu
                     .get((v_dim, bundle.d_model), &z_key)?
                     .to_dtype(DType::F32)?;
-                let w_b = vb_mmap
+                let w_b = vb_mmap_cpu
                     .get((linear_value_heads, bundle.d_model), &b_key)?
                     .to_dtype(DType::F32)?;
-                let w_a = vb_mmap
+                let w_a = vb_mmap_cpu
                     .get((linear_value_heads, bundle.d_model), &a_key)?
                     .to_dtype(DType::F32)?;
-                let w_o = vb_mmap
+                let w_o = vb_mmap_cpu
                     .get((bundle.d_model, v_dim), &o_key)?
                     .to_dtype(DType::F32)?;
                 let w_conv = vb_mmap
@@ -615,20 +624,20 @@ pub fn run_candle_qlora_train(
 
                 let q_rows = n_heads * head_dim;
                 let q_fallback_rows = q_rows.saturating_mul(2);
-                let mut w_q = vb_mmap
+                let mut w_q = vb_mmap_cpu
                     .get((q_rows, bundle.d_model), &q_key)
-                    .or_else(|_| vb_mmap.get((q_fallback_rows, bundle.d_model), &q_key))?
+                    .or_else(|_| vb_mmap_cpu.get((q_fallback_rows, bundle.d_model), &q_key))?
                     .to_dtype(DType::F32)?;
                 if w_q.dim(0)? > q_rows {
                     w_q = w_q.narrow(0, 0, q_rows)?;
                 }
-                let w_k = vb_mmap
+                let w_k = vb_mmap_cpu
                     .get((kv_dim, bundle.d_model), &k_key)?
                     .to_dtype(DType::F32)?;
-                let w_v = vb_mmap
+                let w_v = vb_mmap_cpu
                     .get((kv_dim, bundle.d_model), &v_key)?
                     .to_dtype(DType::F32)?;
-                let w_o = vb_mmap
+                let w_o = vb_mmap_cpu
                     .get((bundle.d_model, q_rows), &o_key)?
                     .to_dtype(DType::F32)?;
 
@@ -671,11 +680,21 @@ pub fn run_candle_qlora_train(
                     adapter_layer_order.push(lbl.clone());
                     base_key_map.insert(lbl.clone(), bk.clone());
                 }
+                let q_norm = vb_mmap
+                    .get(head_dim, &format!("{layer_prefix}.self_attn.q_norm.weight"))
+                    .ok()
+                    .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
+                let k_norm = vb_mmap
+                    .get(head_dim, &format!("{layer_prefix}.self_attn.k_norm.weight"))
+                    .ok()
+                    .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
                 let attn = crate::model::Qwen2Attention {
                     q_proj,
                     k_proj,
                     v_proj,
                     o_proj,
+                    q_norm,
+                    k_norm,
                     n_heads,
                     n_kv_heads,
                     head_dim,
@@ -697,13 +716,13 @@ pub fn run_candle_qlora_train(
             let up_key = format!("{layer_prefix}.mlp.up_proj.weight");
             let down_key = format!("{layer_prefix}.mlp.down_proj.weight");
 
-            let w_gate = vb_mmap
+            let w_gate = vb_mmap_cpu
                 .get((inter_sz, bundle.d_model), &gate_key)?
                 .to_dtype(DType::F32)?;
-            let w_up = vb_mmap
+            let w_up = vb_mmap_cpu
                 .get((inter_sz, bundle.d_model), &up_key)?
                 .to_dtype(DType::F32)?;
-            let w_down = vb_mmap
+            let w_down = vb_mmap_cpu
                 .get((bundle.d_model, inter_sz), &down_key)?
                 .to_dtype(DType::F32)?;
 
@@ -803,9 +822,21 @@ pub fn run_candle_qlora_train(
                 .to_dtype(DType::F32)?
         };
         let final_norm = candle_nn::RmsNorm::new(fnorm_w, 1e-6);
-        let w_lm = wte.to_dtype(DType::F32)?;
+        let (w_lm, lm_base) =
+            if let Ok(lm_w) = vb_mmap_cpu.get((bundle.vocab, bundle.d_model), "lm_head.weight") {
+                (lm_w.to_dtype(DType::F32)?, "lm_head.weight".to_string())
+            } else if let Ok(lm_w) = vb_mmap_cpu.get(
+                (bundle.vocab, bundle.d_model),
+                "model.language_model.lm_head.weight",
+            ) {
+                (
+                    lm_w.to_dtype(DType::F32)?,
+                    "model.language_model.lm_head.weight".to_string(),
+                )
+            } else {
+                (wte.to_dtype(DType::F32)?, bundle.embed_key.clone())
+            };
         let lm_label = "lm_head".to_string();
-        let lm_base = bundle.embed_key.clone();
         let lm_head = QuantizedLinear::from_weight_with_varbuilder(
             &w_lm,
             None,
@@ -818,9 +849,19 @@ pub fn run_candle_qlora_train(
         (final_norm, lm_head)
     };
 
+    // Drop mmap handles to release virtual memory before training step loop
+    drop(vb_mmap);
+    drop(vb_mmap_cpu);
+
     trainer
         .init_optimizer(&[])
         .context("init qlora optimizer")?;
+
+    // Standard LoRA init requires B=0 (delta starts at 0 → training begins AT the base
+    // model). peft-rs builds lora_b with kaiming (nonzero), so without this the untrained
+    // adapter is a ~2.6x-base random perturbation. Checkpoint resume overwrites
+    // these with loaded trained weights, so unconditional zeroing here is safe.
+    trainer.zero_lora_b().context("zero-init lora_b")?;
 
     let model = TrainGraphModel::Qwen35(crate::model::Qwen35Model {
         embed_tokens: wte,

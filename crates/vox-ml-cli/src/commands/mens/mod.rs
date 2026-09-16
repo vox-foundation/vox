@@ -25,6 +25,7 @@ pub(crate) mod eval_gate;
 #[cfg(feature = "gpu")]
 mod eval_local;
 mod eval_local_prompt;
+pub mod metrics;
 #[cfg(feature = "gpu")]
 pub mod models;
 #[cfg(feature = "mens-base")]
@@ -36,6 +37,7 @@ pub mod plugin_heal;
 #[cfg(feature = "mens-base")]
 pub(crate) mod training_selection;
 
+pub mod hub;
 pub mod parity_report;
 pub mod preflight;
 

@@ -3,11 +3,11 @@
 use super::eval_local_prompt::{
     PreparedBench, prepare_bench_item, sort_prepared_benches_lexicographic,
 };
+use super::metrics::verify_completion;
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 use vox_bounded_fs::read_utf8_path_capped;
-const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.20;
 
 pub fn run_eval_local(
     model: PathBuf,
@@ -187,8 +187,14 @@ pub fn run_eval_local(
                         let sample = serde_json::json!({
                             "sample_index": 0,
                             "pass": v.pass,
+                            "pass_compile": v.pass_compile,
+                            "pass_ast": v.pass_ast,
+                            "pass_exec": v.pass_exec,
                             "semantic_pass": v.semantic_pass,
                             "anti_stub_pass": v.anti_stub_pass,
+                            "distinct_4_ratio": v.distinct_4_ratio,
+                            "constraint_adherence": v.constraint_adherence,
+                            "symbol_binding_accuracy": v.symbol_binding_accuracy,
                             "checks": v.checks,
                             "completion_preview": completion.chars().take(240).collect::<String>(),
                         });
@@ -433,111 +439,4 @@ pub fn run_eval_local(
     );
 
     Ok(())
-}
-
-struct CompletionVerification {
-    pass: bool,
-    semantic_pass: bool,
-    anti_stub_pass: bool,
-    checks: serde_json::Value,
-}
-
-fn placeholder_marker_hits(source: &str) -> usize {
-    let lower = source.to_ascii_lowercase();
-    [
-        "todo",
-        "tbd",
-        "placeholder",
-        "stub",
-        "not implemented",
-        "coming soon",
-    ]
-    .iter()
-    .filter(|m| lower.contains(**m))
-    .count()
-}
-
-fn is_trivial_placeholder_output(source: &str) -> bool {
-    let trimmed = source.trim();
-    if trimmed.is_empty() {
-        return true;
-    }
-    let code_lines = trimmed
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with("//"))
-        .count();
-    code_lines <= 1 || trimmed.eq_ignore_ascii_case("return")
-}
-
-fn verify_completion(
-    completion: &str,
-    bench_root: &std::path::Path,
-    file_hint: &str,
-    sample_id: &str,
-    manifest_index: usize,
-    semantic_expected_contains: &[String],
-) -> CompletionVerification {
-    let non_empty = !completion.trim().is_empty();
-    let mut parse_ok = false;
-    let mut typecheck_ok = false;
-    let parse_error: Option<String>;
-    let mut diag_errors = 0usize;
-
-    let candidate_path = if !file_hint.is_empty() {
-        bench_root.join(file_hint)
-    } else {
-        bench_root.join(format!("eval_local_{manifest_index}_{sample_id}.vox"))
-    };
-    tracing::debug!(
-        target: "vox_eval::mens_local",
-        sample_id,
-        manifest_index,
-        file_hint = file_hint,
-        payload_len = completion.len(),
-        payload_preview = %completion.chars().take(200).collect::<String>(),
-        "eval-local verifier payload"
-    );
-    let frontend = crate::pipeline::run_frontend_str(completion, &candidate_path, false);
-    match frontend {
-        Ok(res) => {
-            parse_ok = true;
-            diag_errors = res.error_count();
-            typecheck_ok = !res.has_errors();
-            parse_error = None;
-        }
-        Err(err) => {
-            parse_error = Some(err.to_string());
-        }
-    }
-
-    let pass = non_empty && parse_ok && typecheck_ok;
-    let placeholder_hits = placeholder_marker_hits(completion);
-    let trivial_placeholder = is_trivial_placeholder_output(completion);
-    let construct_richness = vox_compiler::ast_eval(completion).coverage_score();
-    let anti_stub_pass = placeholder_hits == 0
-        && !trivial_placeholder
-        && construct_richness >= ANTI_STUB_MIN_CONSTRUCT_RICHNESS;
-    let semantic_pass = pass
-        && semantic_expected_contains
-            .iter()
-            .all(|needle| completion.contains(needle));
-    CompletionVerification {
-        pass: pass && anti_stub_pass,
-        semantic_pass,
-        anti_stub_pass,
-        checks: serde_json::json!({
-            "non_empty": non_empty,
-            "parse_ok": parse_ok,
-            "typecheck_ok": typecheck_ok,
-            "diag_errors": diag_errors,
-            "parse_error": parse_error,
-            "placeholder_marker_hits": placeholder_hits,
-            "trivial_placeholder_output": trivial_placeholder,
-            "construct_richness_score": construct_richness,
-            "anti_stub_pass": anti_stub_pass,
-            "semantic_expected_contains": semantic_expected_contains,
-            "semantic_pass": semantic_pass
-        }),
-    }
 }

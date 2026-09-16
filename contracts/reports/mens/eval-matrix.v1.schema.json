@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/schemas/mens-eval-matrix.v1.json",
+  "title": "Vox Mens Evaluation Matrix Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "model_family",
+    "checkpoint_step",
+    "eval_timestamp",
+    "benchmark_suite",
+    "tiers"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "model_family": {
+      "type": "string"
+    },
+    "checkpoint_step": {
+      "type": "integer"
+    },
+    "eval_timestamp": {
+      "type": "string"
+    },
+    "benchmark_suite": {
+      "type": "string"
+    },
+    "tiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tier",
+          "format",
+          "disk_gb",
+          "disk_gib",
+          "compression_ratio",
+          "ppl_heldout",
+          "ppl_delta_vs_bf16",
+          "pass_at_1_compile",
+          "pass_at_1_ast",
+          "symbol_binding_accuracy",
+          "distinct_4_ratio",
+          "constraint_adherence_rate",
+          "prefill_tok_per_sec",
+          "decode_tok_per_sec",
+          "peak_vram_gb_2k_ctx",
+          "suggested_gpus"
+        ],
+        "properties": {
+          "tier": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "disk_gb": {
+            "type": "number"
+          },
+          "disk_gib": {
+            "type": "number"
+          },
+          "compression_ratio": {
+            "type": "number"
+          },
+          "ppl_heldout": {
+            "type": "number"
+          },
+          "ppl_delta_vs_bf16": {
+            "type": "number"
+          },
+          "pass_at_1_compile": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "pass_at_1_ast": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "pass_at_1_exec": {
+            "type": ["number", "null"]
+          },
+          "symbol_binding_accuracy": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "distinct_4_ratio": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "constraint_adherence_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "prefill_tok_per_sec": {
+            "type": "number"
+          },
+          "decode_tok_per_sec": {
+            "type": "number"
+          },
+          "peak_vram_gb_2k_ctx": {
+            "type": "number"
+          },
+          "suggested_gpus": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

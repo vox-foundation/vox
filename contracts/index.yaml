@@ -665,6 +665,14 @@ contracts:
     enforced_by:
       - vox ci eval-matrix
 
+  - id: reports-mens-eval-matrix-schema
+    path: contracts/reports/mens/eval-matrix.v1.schema.json
+    owner: mens
+    kind: json-schema
+    description: JSON Schema for Mens empirical quantization evaluation matrix reports.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: mens-training-presets-v1
     path: contracts/mens/training-presets.v1.yaml
     owner: mens

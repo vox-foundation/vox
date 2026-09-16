@@ -28,6 +28,7 @@ pub mod parallel_exploration;
 pub mod policy;
 pub mod research;
 mod rrf;
+pub mod safety_governor;
 #[cfg(feature = "web-scrape")]
 pub mod scraper;
 pub mod search_circuit_breaker;
