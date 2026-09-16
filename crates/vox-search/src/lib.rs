@@ -46,6 +46,7 @@ pub mod term_density_reranker;
 pub mod trust;
 pub mod unified;
 pub mod web_dispatcher;
+pub mod wikipedia;
 
 #[cfg(feature = "tantivy-lexical")]
 pub mod lexical_tantivy;

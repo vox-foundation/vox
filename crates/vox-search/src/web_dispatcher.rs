@@ -134,6 +134,24 @@ impl WebSearchDispatcher {
             }
         }
 
+        // Tier 4: Wikipedia Encyclopedic Fallback (when SearXNG + Tavily + DDG returned nothing)
+        if results.is_empty() {
+            match crate::wikipedia::WikipediaClient::search(query, policy.searxng_max_results).await
+            {
+                Ok(hits) if !hits.is_empty() => {
+                    info!(
+                        count = hits.len(),
+                        "Wikipedia encyclopedic fallback succeeded"
+                    );
+                    results = hits;
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    warn!(error = %e, "Wikipedia encyclopedic fallback failed");
+                }
+            }
+        }
+
         if results.is_empty() {
             return Ok(Vec::new());
         }
