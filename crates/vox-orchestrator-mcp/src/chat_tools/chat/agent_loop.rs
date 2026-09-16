@@ -75,7 +75,11 @@ pub(crate) fn model_spec_to_llm_config(spec: &ModelSpec) -> Option<LlmConfig> {
             } else if !spec.canonical_slug.is_empty() && spec.canonical_slug.contains('/') {
                 spec.canonical_slug.clone()
             } else {
-                spec.id.clone()
+                match spec.provider_type {
+                    ProviderType::GoogleDirect => format!("google/{}", spec.id),
+                    ProviderType::Anthropic => format!("anthropic/{}", spec.id),
+                    _ => spec.id.clone(),
+                }
             };
             Some(LlmConfig::openrouter(model))
         }
@@ -1452,6 +1456,16 @@ mod tests {
         let cfg_a = model_spec_to_llm_config(&spec_a).expect("anthropic must map");
         assert_eq!(cfg_a.provider, "openrouter");
         assert_eq!(cfg_a.model, "anthropic/claude-3-5-sonnet");
+
+        let spec_g_unslugged = model_spec(ProviderType::GoogleDirect, "gemini-2.0-flash");
+        let cfg_g_unslugged =
+            model_spec_to_llm_config(&spec_g_unslugged).expect("google direct unslugged must map");
+        assert_eq!(cfg_g_unslugged.model, "google/gemini-2.0-flash");
+
+        let spec_a_unslugged = model_spec(ProviderType::Anthropic, "claude-3-5-sonnet");
+        let cfg_a_unslugged =
+            model_spec_to_llm_config(&spec_a_unslugged).expect("anthropic unslugged must map");
+        assert_eq!(cfg_a_unslugged.model, "anthropic/claude-3-5-sonnet");
 
         let spec_unhandled = model_spec(ProviderType::Mistral, "mistral/mistral-large");
         assert!(model_spec_to_llm_config(&spec_unhandled).is_none());

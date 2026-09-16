@@ -341,7 +341,7 @@ pub async fn maybe_refine_plan(
         let routing = McpInferRouting {
             user_prompt: &user_prompt,
             sticky_model_pref: pref.as_deref(),
-            resolution_template: resolution_template.clone(),
+            resolution_template: res_template.clone(),
             free_only,
             allow_cloud_ollama_fallback: true,
             selection_rationale: None,
@@ -404,7 +404,7 @@ Broken output (may be truncated):
                 let routing_fix = McpInferRouting {
                     user_prompt: &fix_prompt,
                     sticky_model_pref: pref.as_deref(),
-                    resolution_template: resolution_template.clone(),
+                    resolution_template: res_template.clone(),
                     free_only,
                     allow_cloud_ollama_fallback: true,
                     selection_rationale: None,

@@ -1,6 +1,7 @@
 use vox_search::mens_research_subagent::{
     GroundingQuality, build_local_claim_extraction_prompt, evaluate_span_grounding,
-    negation_parity_matches, parse_and_ground_claim_triplets, token_sliding_window_overlap,
+    negation_parity_matches, parse_and_ground_claim_triplets,
+    parse_and_ground_claim_triplets_with_source, token_sliding_window_overlap,
 };
 
 #[test]
@@ -264,4 +265,36 @@ fn test_capitalized_negation_detected() {
         !negation_parity_matches(snippet2, candidate2),
         "Capitalized 'Never' must be detected as negation"
     );
+}
+
+#[test]
+fn test_parse_and_ground_claim_triplets_with_source_propagates_url() {
+    let source = "In Tokio 1.0, delay_for was renamed to sleep for naming consistency.";
+    let json_text = r#"
+    {
+        "claims": [
+            {
+                "subject": "tokio::time::sleep",
+                "predicate": "replaces",
+                "object": "tokio::time::delay_for",
+                "confidence": 0.95,
+                "evidence_snippet": "delay_for was renamed to sleep"
+            }
+        ]
+    }
+    "#;
+
+    let url = "https://example.com/doc";
+    let claims = parse_and_ground_claim_triplets_with_source(json_text, source, Some(url));
+    assert_eq!(claims.len(), 1);
+    assert_eq!(claims[0].source_url, Some(url.to_string()));
+    assert_eq!(claims[0].subject, "tokio::time::sleep");
+    assert_eq!(claims[0].predicate, "replaces");
+    assert_eq!(claims[0].object, "tokio::time::delay_for");
+    assert!((claims[0].confidence - 0.95).abs() < f64::EPSILON);
+    assert_eq!(claims[0].evidence_snippet, "delay_for was renamed to sleep");
+
+    let claims_none = parse_and_ground_claim_triplets_with_source(json_text, source, None);
+    assert_eq!(claims_none.len(), 1);
+    assert_eq!(claims_none[0].source_url, None);
 }

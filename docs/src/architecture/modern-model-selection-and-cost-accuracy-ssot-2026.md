@@ -134,7 +134,7 @@ Vox categorizes models into four distinct operational tiers based on intelligenc
 |---|---|---|---:|---:|---:|---:|---:|---|
 | `anthropic/claude-3-7-sonnet` | `open_router` | Elite | \$3.00 | \$15.00 | \$0.00900 | 200,000 | 950ms | `codegen`, `debugging`, `logic`, `planning`, `review`, `ui_codegen` |
 | `openai/o3-mini` | `open_router` | Elite | \$1.10 | \$4.40 | \$0.00275 | 200,000 | 1,100ms | `logic`, `debugging`, `planning`, `codegen` |
-| `deepseek/deepseek-r1` | `open_router` | Elite | \$0.55 | \$2.19 | \$0.00137 | 128,000 | 2,200ms | `logic`, `codegen`, `debugging` |
+| `deepseek/deepseek-r1` | `open_router` | Elite (Reasoning) / Pro (Cost) | \$0.55 | \$2.19 | \$0.00137 | 128,000 | 2,200ms | `logic`, `codegen`, `debugging` |
 | `openai/o1` | `open_router` | Elite | \$15.00 | \$60.00 | \$0.03750 | 200,000 | 3,500ms | `logic`, `planning` |
 | `deepseek/deepseek-chat` | `open_router` | Pro | \$0.14 | \$0.28 | \$0.00021 | 128,000 | 650ms | `codegen`, `review`, `generalist` |
 | `google/gemini-2.0-flash` | `open_router` | Light | \$0.10 | \$0.40 | \$0.00025 | 1,048,576 | 320ms | `research`, `inter_agent`, `long_context`, `vision`, `codegen`, `visus` |

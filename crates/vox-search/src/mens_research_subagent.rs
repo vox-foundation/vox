@@ -217,6 +217,17 @@ pub fn evaluate_span_grounding(snippet: &str, source_text: &str) -> Option<Groun
 /// Parses claim triplets from raw LLM output and filters out any triplets
 /// whose `evidence_snippet` cannot be grounded against `source_text`.
 pub fn parse_and_ground_claim_triplets(raw_json: &str, source_text: &str) -> Vec<ClaimTriplet> {
+    parse_and_ground_claim_triplets_with_source(raw_json, source_text, None)
+}
+
+/// Parses claim triplets from raw LLM output and filters out any triplets
+/// whose `evidence_snippet` cannot be grounded against `source_text`, propagating
+/// the optional `source_url`.
+pub fn parse_and_ground_claim_triplets_with_source(
+    raw_json: &str,
+    source_text: &str,
+    source_url: Option<&str>,
+) -> Vec<ClaimTriplet> {
     let raw_list = match parse_envelope(raw_json) {
         Some(list) => list,
         None => return Vec::new(),
@@ -244,7 +255,7 @@ pub fn parse_and_ground_claim_triplets(raw_json: &str, source_text: &str) -> Vec
                 object,
                 confidence,
                 evidence_snippet: snippet,
-                source_url: None,
+                source_url: source_url.map(ToString::to_string),
                 grounding,
             })
         })
