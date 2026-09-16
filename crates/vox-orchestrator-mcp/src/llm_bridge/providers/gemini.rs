@@ -18,7 +18,7 @@ pub(crate) async fn http_gemini_with_metadata(
     top_p: Option<f32>,
     json_mode: bool,
 ) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
-    let clean_model = model_id.strip_prefix("google/").unwrap_or(model_id);
+    let clean_model = sanitize_gemini_model_id(model_id);
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{clean_model}:generateContent?key={api_key}"
     );
@@ -168,16 +168,23 @@ pub(crate) async fn http_gemini_with_metadata(
     ))
 }
 
+pub(crate) fn sanitize_gemini_model_id(model_id: &str) -> &str {
+    model_id.strip_prefix("google/").unwrap_or(model_id)
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn test_gemini_url_strips_google_prefix() {
-        let model_id = "google/gemini-2.5-flash";
-        let clean_model = model_id.strip_prefix("google/").unwrap_or(model_id);
-        assert_eq!(clean_model, "gemini-2.5-flash");
-
-        let plain_model = "gemini-2.5-flash";
-        let clean_plain = plain_model.strip_prefix("google/").unwrap_or(plain_model);
-        assert_eq!(clean_plain, "gemini-2.5-flash");
+        assert_eq!(
+            sanitize_gemini_model_id("google/gemini-2.5-flash"),
+            "gemini-2.5-flash"
+        );
+        assert_eq!(
+            sanitize_gemini_model_id("gemini-2.5-flash"),
+            "gemini-2.5-flash"
+        );
     }
 }

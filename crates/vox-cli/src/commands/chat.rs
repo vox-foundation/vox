@@ -103,7 +103,7 @@ pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
     } else if model.starts_with("ollama")
         || (model.contains("qwen3") && !model.contains('/'))
         // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="qwen3"
-        || model.contains("qwen2.5-coder")
+        || (model.contains("qwen2.5-coder") && !model.contains('/'))
         || model.starts_with("local")
     {
         LlmConfig::ollama(model)
@@ -150,6 +150,12 @@ mod tests {
 
         let openrouter_qwen = resolve_chat_config("qwen/qwen3-32b-instruct");
         assert_eq!(openrouter_qwen.provider, "openrouter");
+
+        let local_qwen25 = resolve_chat_config("qwen2.5-coder:7b");
+        assert_eq!(local_qwen25.provider, "ollama");
+
+        let openrouter_qwen25 = resolve_chat_config("qwen/qwen2.5-coder-32b-instruct");
+        assert_eq!(openrouter_qwen25.provider, "openrouter");
     }
 
     #[test]

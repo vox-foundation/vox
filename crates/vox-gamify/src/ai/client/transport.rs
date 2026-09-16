@@ -103,7 +103,7 @@ impl FreeAiClient {
         prompt: &str,
     ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
         let resolved_key = resolve_gemini_key(api_key);
-        let clean_model = model.strip_prefix("google/").unwrap_or(model);
+        let clean_model = sanitize_google_model_id(model);
 
         // Direct Gemini (generativelanguage) is NOT OpenAI-compatible — the egress core can't
         // carry it; documented local egress per the egress design spec.
@@ -422,8 +422,9 @@ impl FreeAiClient {
         prompt: &str,
     ) -> Result<String, AiError> {
         let resolved_key = resolve_gemini_key(api_key);
+        let clean_model = sanitize_google_model_id(model);
         let url = GEMINI_ENDPOINT_TEMPLATE
-            .replace("{MODEL}", model)
+            .replace("{MODEL}", clean_model)
             .replace("{KEY}", &resolved_key);
         let body = serde_json::json!({ "contents": [{ "parts": [{ "text": prompt }] }] });
         let resp = http.post(&url).json(&body).send().await?;
@@ -496,6 +497,10 @@ mod ollama_ndjson_line_tests {
         ]);
         assert_eq!(out, vec!["hello", ""]);
     }
+}
+
+pub(crate) fn sanitize_google_model_id(model: &str) -> &str {
+    model.strip_prefix("google/").unwrap_or(model)
 }
 
 #[cfg(test)]
@@ -595,12 +600,13 @@ mod openrouter_stream_consolidation_tests {
 
     #[test]
     fn test_stream_gemini_url_strips_google_prefix() {
-        let model = "google/gemini-2.5-flash";
-        let clean_model = model.strip_prefix("google/").unwrap_or(model);
-        assert_eq!(clean_model, "gemini-2.5-flash");
-
-        let plain = "gemini-2.5-flash";
-        let clean_plain = plain.strip_prefix("google/").unwrap_or(plain);
-        assert_eq!(clean_plain, "gemini-2.5-flash");
+        assert_eq!(
+            super::sanitize_google_model_id("google/gemini-2.5-flash"),
+            "gemini-2.5-flash"
+        );
+        assert_eq!(
+            super::sanitize_google_model_id("gemini-2.5-flash"),
+            "gemini-2.5-flash"
+        );
     }
 }
