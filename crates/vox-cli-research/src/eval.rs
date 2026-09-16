@@ -51,6 +51,7 @@ pub async fn evaluate_single_query_pipeline(
         verify_claims: true,
         site_scope: None,
         domain_mode,
+        waves: 1,
     };
 
     let result =

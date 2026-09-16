@@ -15,7 +15,7 @@ pub enum ResearchCmd {
     /// Run the orchestrator deep-research pipeline (`run_research`).
     Run {
         /// Topic / question tokens (join with spaces).
-        #[arg(trailing_var_arg = true, required = true)]
+        #[arg(required = true, num_args = 1..)]
         query: Vec<String>,
         /// Emit JSON [`vox_research_shim::research::ResearchResult`] to stdout.
         #[arg(long, default_value_t = false)]
@@ -37,7 +37,7 @@ pub enum ResearchCmd {
     /// Preview an editable research plan without executing retrieval.
     Preview {
         /// Topic / question tokens (join with spaces).
-        #[arg(trailing_var_arg = true, required = true)]
+        #[arg(required = true, num_args = 1..)]
         query: Vec<String>,
         /// Emit JSON instead of Markdown.
         #[arg(long, default_value_t = false)]
@@ -81,7 +81,7 @@ pub enum ResearchCmd {
     /// Search past research artifacts via full-text search.
     Search {
         /// Topic / question tokens (join with spaces).
-        #[arg(trailing_var_arg = true, required = true)]
+        #[arg(required = true, num_args = 1..)]
         query: Vec<String>,
         /// Maximum results to show.
         #[arg(long, default_value_t = 10)]
@@ -327,6 +327,7 @@ pub async fn run_research_query(
         verify_claims,
         site_scope,
         domain_mode: Default::default(),
+        waves: 1,
     };
 
     if async_run {
