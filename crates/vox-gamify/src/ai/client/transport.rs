@@ -500,7 +500,16 @@ mod ollama_ndjson_line_tests {
 }
 
 pub(crate) fn sanitize_google_model_id(model: &str) -> &str {
-    model.strip_prefix("google/").unwrap_or(model)
+    let clean = model.strip_prefix("google/").unwrap_or(model);
+    if !clean.is_empty()
+        && clean
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+    {
+        clean
+    } else {
+        "gemini-2.0-flash"
+    }
 }
 
 #[cfg(test)]
@@ -607,6 +616,10 @@ mod openrouter_stream_consolidation_tests {
         assert_eq!(
             super::sanitize_google_model_id("gemini-2.5-flash"),
             "gemini-2.5-flash"
+        );
+        assert_eq!(
+            super::sanitize_google_model_id("google/gemini-2.0-flash?attack=true"),
+            "gemini-2.0-flash"
         );
     }
 }

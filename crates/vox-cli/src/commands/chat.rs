@@ -75,6 +75,7 @@ pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
     if model.starts_with("mens/")
         || model.starts_with("voxlocal")
         || model.starts_with("populi_local")
+        || model == "qwen/qwen-3-8b"
     {
         let base_url = std::env::var("VOX_LOCAL_ENDPOINT")
             .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
@@ -150,6 +151,9 @@ mod tests {
 
         let openrouter_qwen = resolve_chat_config("qwen/qwen3-32b-instruct");
         assert_eq!(openrouter_qwen.provider, "openrouter");
+
+        let catalog_local_qwen = resolve_chat_config("qwen/qwen-3-8b");
+        assert_eq!(catalog_local_qwen.provider, "voxlocal");
 
         let local_qwen25 = resolve_chat_config("qwen2.5-coder:7b");
         assert_eq!(local_qwen25.provider, "ollama");

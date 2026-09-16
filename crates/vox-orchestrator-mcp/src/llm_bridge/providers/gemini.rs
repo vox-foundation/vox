@@ -169,7 +169,16 @@ pub(crate) async fn http_gemini_with_metadata(
 }
 
 pub(crate) fn sanitize_gemini_model_id(model_id: &str) -> &str {
-    model_id.strip_prefix("google/").unwrap_or(model_id)
+    let clean = model_id.strip_prefix("google/").unwrap_or(model_id);
+    if !clean.is_empty()
+        && clean
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+    {
+        clean
+    } else {
+        "gemini-2.0-flash"
+    }
 }
 
 #[cfg(test)]
@@ -185,6 +194,10 @@ mod tests {
         assert_eq!(
             sanitize_gemini_model_id("gemini-2.5-flash"),
             "gemini-2.5-flash"
+        );
+        assert_eq!(
+            sanitize_gemini_model_id("google/gemini-2.0-flash?attack=true"),
+            "gemini-2.0-flash"
         );
     }
 }

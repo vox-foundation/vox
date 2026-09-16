@@ -108,30 +108,66 @@ fn parse_envelope(raw_json: &str) -> Option<Vec<RawTriplet>> {
 
 pub const TOKEN_OVERLAP_THRESHOLD: f64 = 0.80;
 const NEGATION_WORDS: &[&str] = &[
-    "not", "no", "never", "none", "neither", "nor", "cannot", "can't", "won't", "didn't",
-    "doesn't", "isn't", "aren't", "without",
+    "not",
+    "no",
+    "never",
+    "none",
+    "neither",
+    "nor",
+    "cannot",
+    "can't",
+    "don't",
+    "won't",
+    "didn't",
+    "doesn't",
+    "isn't",
+    "aren't",
+    "without",
+    "couldn't",
+    "wouldn't",
+    "shouldn't",
+    "hasn't",
+    "haven't",
+    "hadn't",
+    "wasn't",
+    "weren't",
 ];
 
 pub fn normalize_for_matching(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut prev_space = false;
     for c in text.chars() {
-        let mapped = match c {
-            '—' | '–' => '-',
-            '“' | '”' | '"' => '"',
-            '‘' | '’' | '\'' => '\'',
-            c if c.is_whitespace() => ' ',
-            c if c.is_alphanumeric() || c == '-' || c == '\'' || c == '"' => c.to_ascii_lowercase(),
-            _ => ' ',
-        };
-        if mapped == ' ' {
-            if !prev_space && !out.is_empty() {
-                out.push(' ');
-                prev_space = true;
+        match c {
+            '—' | '–' => {
+                out.push('-');
+                prev_space = false;
             }
-        } else {
-            out.push(mapped);
-            prev_space = false;
+            '“' | '”' | '"' => {
+                out.push('"');
+                prev_space = false;
+            }
+            '‘' | '’' | '\'' => {
+                out.push('\'');
+                prev_space = false;
+            }
+            c if c.is_whitespace() => {
+                if !prev_space && !out.is_empty() {
+                    out.push(' ');
+                    prev_space = true;
+                }
+            }
+            c if c.is_alphanumeric() || c == '-' || c == '\'' || c == '"' => {
+                for lc in c.to_lowercase() {
+                    out.push(lc);
+                }
+                prev_space = false;
+            }
+            _ => {
+                if !prev_space && !out.is_empty() {
+                    out.push(' ');
+                    prev_space = true;
+                }
+            }
         }
     }
     if out.ends_with(' ') {
@@ -140,18 +176,27 @@ pub fn normalize_for_matching(text: &str) -> String {
     out
 }
 
+pub fn count_negations_in_tokens<'a, I>(tokens: I) -> usize
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    tokens
+        .into_iter()
+        .filter(|w| {
+            let clean = w.trim_matches(|c: char| !c.is_alphanumeric());
+            NEGATION_WORDS
+                .iter()
+                .any(|nw| nw.eq_ignore_ascii_case(clean))
+        })
+        .count()
+}
+
+pub fn count_negations_in_str(text: &str) -> usize {
+    count_negations_in_tokens(text.split_whitespace())
+}
+
 pub fn negation_parity_matches(snippet: &str, candidate_window: &str) -> bool {
-    let count_neg = |text: &str| {
-        text.split_whitespace()
-            .filter(|w| {
-                let clean = w.trim_matches(|c: char| !c.is_alphanumeric());
-                NEGATION_WORDS
-                    .iter()
-                    .any(|nw| nw.eq_ignore_ascii_case(clean))
-            })
-            .count()
-    };
-    (count_neg(snippet) % 2) == (count_neg(candidate_window) % 2)
+    (count_negations_in_str(snippet) % 2) == (count_negations_in_str(candidate_window) % 2)
 }
 
 pub fn token_sliding_window_overlap(snippet: &str, source: &str) -> Option<f64> {
@@ -164,13 +209,14 @@ pub fn token_sliding_window_overlap(snippet: &str, source: &str) -> Option<f64> 
         return None;
     }
 
+    let snip_neg_parity = count_negations_in_tokens(snip_tokens.iter().copied()) % 2;
     let snip_set: std::collections::HashSet<&str> = snip_tokens.iter().copied().collect();
     let window_size = snip_tokens.len() + 4; // Bounded window: N + 4 tokens
     let mut best_ratio = 0.0;
 
     for window in src_tokens.windows(window_size.min(src_tokens.len())) {
-        let win_str = window.join(" ");
-        if !negation_parity_matches(snippet, &win_str) {
+        let win_neg_parity = count_negations_in_tokens(window.iter().copied()) % 2;
+        if win_neg_parity != snip_neg_parity {
             continue;
         }
         let common = snip_set.iter().filter(|t| window.contains(t)).count();

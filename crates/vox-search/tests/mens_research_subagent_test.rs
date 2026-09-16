@@ -1,6 +1,6 @@
 use vox_search::mens_research_subagent::{
     GroundingQuality, build_local_claim_extraction_prompt, evaluate_span_grounding,
-    negation_parity_matches, parse_and_ground_claim_triplets,
+    negation_parity_matches, normalize_for_matching, parse_and_ground_claim_triplets,
     parse_and_ground_claim_triplets_with_source, token_sliding_window_overlap,
 };
 
@@ -297,4 +297,45 @@ fn test_parse_and_ground_claim_triplets_with_source_propagates_url() {
     let claims_none = parse_and_ground_claim_triplets_with_source(json_text, source, None);
     assert_eq!(claims_none.len(), 1);
     assert_eq!(claims_none[0].source_url, None);
+}
+
+#[test]
+fn test_negation_contractions_detected() {
+    let source =
+        "Developers don't need manual memory management in garbage collected environments.";
+    let inverted_snippet =
+        "Developers need manual memory management in garbage collected environments.";
+    assert!(
+        !negation_parity_matches(inverted_snippet, source),
+        "Contraction 'don't' must be detected to catch polarity flip"
+    );
+    assert_eq!(
+        evaluate_span_grounding(inverted_snippet, source),
+        None,
+        "Inverted snippet with contraction must be rejected"
+    );
+
+    let valid_snippet = "Developers don't need manual memory management";
+    let grounding = evaluate_span_grounding(valid_snippet, source);
+    assert!(
+        grounding.is_some(),
+        "Valid snippet with 'don't' must ground against source"
+    );
+
+    let source_couldnt = "The benchmark couldn't reach 100k requests per second.";
+    let inverted_couldnt = "The benchmark could reach 100k requests per second.";
+    assert!(
+        !negation_parity_matches(inverted_couldnt, source_couldnt),
+        "Contraction 'couldn't' must be detected as negation"
+    );
+}
+
+#[test]
+fn test_unicode_normalization_case_folding() {
+    let text = "Über-Cool “Quotes” and ‘Apostrophes’ — Em-Dash";
+    let normalized = normalize_for_matching(text);
+    assert_eq!(
+        normalized,
+        "über-cool \"quotes\" and 'apostrophes' - em-dash"
+    );
 }
