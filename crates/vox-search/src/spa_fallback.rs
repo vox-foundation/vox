@@ -18,6 +18,9 @@ const BOT_CHALLENGE_BODY_SUBSTRINGS: &[&str] = &[
     "ddos-guard",
     "cf-browser-verification",
     "cf_chl_opt",
+    "unfortunately, bots use duckduckgo too",
+    "anomaly-modal",
+    "select all squares containing",
 ];
 
 const SPA_SHELL_PATTERNS: &[&str] = &[
@@ -128,4 +131,18 @@ pub fn sanitize_extracted_accessibility_text(ax_text: &str) -> String {
         }
     }
     out.join("\n\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_duckduckgo_anomaly_modal_bot_challenge() {
+        let title = "DuckDuckGo";
+        let body = r#"<div class="anomaly-modal__title">Unfortunately, bots use DuckDuckGo too.</div>
+        <div class="anomaly-modal__description">Please complete the following challenge to confirm this search was made by a human.</div>
+        <div class="anomaly-modal__instructions">Select all squares containing a duck:</div>"#;
+        assert!(is_bot_challenge_page(title, body));
+    }
 }
