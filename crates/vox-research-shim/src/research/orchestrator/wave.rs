@@ -214,7 +214,23 @@ impl WaveExecutionPlan {
                         && v_b.claim.is_numeric
                         && v_a.claim.text != v_b.claim.text;
 
-                    if is_opposite || is_numeric_mismatch {
+                    const NEGATION_WORDS: &[&str] = &["not", "never", "cannot", "no", "without"];
+                    let has_neg = |text: &str| {
+                        text.split_whitespace().any(|w| {
+                            let cleaned = w
+                                .trim_matches(|c: char| !c.is_alphabetic())
+                                .to_ascii_lowercase();
+                            NEGATION_WORDS.contains(&cleaned.as_str())
+                                || cleaned.ends_with("n't")
+                                || cleaned == "cant"
+                                || cleaned == "wont"
+                        })
+                    };
+                    let is_semantic_negation = v_a.verdict == Verdict::Supported
+                        && v_b.verdict == Verdict::Supported
+                        && has_neg(&v_a.claim.text) != has_neg(&v_b.claim.text);
+
+                    if is_opposite || is_numeric_mismatch || is_semantic_negation {
                         let category = if is_numeric_mismatch {
                             ContradictionCategory::NumericDiscrepancy
                         } else if v_a.claim.is_recent || v_b.claim.is_recent {
@@ -578,5 +594,53 @@ mod tests {
                 .any(|s| s.text.contains("mismatched types")),
             "Compiler stderr must be recorded in evidence spans"
         );
+    }
+
+    #[test]
+    fn test_detect_contradictions_semantic_negation_on_supported_claims() {
+        let mut plan = WaveExecutionPlan::new("test-negation", 2);
+        let verdicts = vec![
+            ClaimVerdict {
+                claim: Claim {
+                    claim_id: 101,
+                    text: "PostgreSQL supports parallel query execution".into(),
+                    is_numeric: false,
+                    is_recent: false,
+                    is_named_event: false,
+                },
+                verdict: Verdict::Supported,
+                confidence: 0.90,
+                supporting_count: 2,
+                contradicting_count: 0,
+                evidence_spans: vec![],
+                resample_stability: 1.0,
+            },
+            ClaimVerdict {
+                claim: Claim {
+                    claim_id: 102,
+                    text: "PostgreSQL cannot support parallel query execution".into(),
+                    is_numeric: false,
+                    is_recent: false,
+                    is_named_event: false,
+                },
+                verdict: Verdict::Supported,
+                confidence: 0.85,
+                supporting_count: 2,
+                contradicting_count: 0,
+                evidence_spans: vec![],
+                resample_stability: 1.0,
+            },
+        ];
+
+        plan.detect_contradictions(&verdicts);
+        assert_eq!(
+            plan.unresolved_contradictions.len(),
+            1,
+            "Semantic negation between supported claims must produce an unresolved contradiction"
+        );
+        let c = &plan.unresolved_contradictions[0];
+        assert_eq!(c.claim_id_a, 101);
+        assert_eq!(c.claim_id_b, 102);
+        assert_eq!(c.category, ContradictionCategory::DirectFactualOpposition);
     }
 }

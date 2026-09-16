@@ -613,6 +613,86 @@ impl VoxDb {
             .await
     }
 
+    /// Look up a previously verified claim verdict from historical research sessions with optional minimum confidence filtering.
+    ///
+    /// If `max_age_ms > 0`, only verdicts recorded within the last `max_age_ms` are returned.
+    /// If `min_confidence` is `Some(min_conf)`, only verdicts with `confidence >= min_conf` are returned.
+    /// Spans stored as 'Unverified' are filtered out.
+    /// If `min_confidence` is provided, results are ordered by `confidence DESC, created_at_ms DESC` so the highest confidence verdict wins.
+    pub async fn get_cached_claim_verdict_filtered(
+        &self,
+        claim_id: u64,
+        max_age_ms: i64,
+        min_confidence: Option<f64>,
+    ) -> Result<Option<CachedClaimVerdict>, StoreError> {
+        let cid = claim_id as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = match (max_age_ms > 0, min_confidence) {
+                    (true, Some(min_c)) => {
+                        let cutoff = now_ms().saturating_sub(max_age_ms);
+                        conn.query(
+                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
+                             FROM scientia_claim_verdicts \
+                             WHERE claim_id = ?1 AND verdict <> 'Unverified' AND created_at_ms >= ?2 AND confidence >= ?3 \
+                             ORDER BY confidence DESC, created_at_ms DESC, id DESC LIMIT 1",
+                            params![cid, cutoff, min_c],
+                        )
+                        .await?
+                    }
+                    (true, None) => {
+                        let cutoff = now_ms().saturating_sub(max_age_ms);
+                        conn.query(
+                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
+                             FROM scientia_claim_verdicts \
+                             WHERE claim_id = ?1 AND verdict <> 'Unverified' AND created_at_ms >= ?2 \
+                             ORDER BY created_at_ms DESC, id DESC LIMIT 1",
+                            params![cid, cutoff],
+                        )
+                        .await?
+                    }
+                    (false, Some(min_c)) => {
+                        conn.query(
+                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
+                             FROM scientia_claim_verdicts \
+                             WHERE claim_id = ?1 AND verdict <> 'Unverified' AND confidence >= ?2 \
+                             ORDER BY confidence DESC, created_at_ms DESC, id DESC LIMIT 1",
+                            params![cid, min_c],
+                        )
+                        .await?
+                    }
+                    (false, None) => {
+                        conn.query(
+                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
+                             FROM scientia_claim_verdicts \
+                             WHERE claim_id = ?1 AND verdict <> 'Unverified' \
+                             ORDER BY created_at_ms DESC, id DESC LIMIT 1",
+                            params![cid],
+                        )
+                        .await?
+                    }
+                };
+                let Some(row) = rows.next().await? else {
+                    return Ok::<Option<CachedClaimVerdict>, StoreError>(None);
+                };
+                let cid_val: i64 = row.get(0)?;
+                let verdict: String = row.get(1)?;
+                let confidence: f64 = row.get(2)?;
+                let verifier_model: Option<String> = row.get(3)?;
+                let created_at_ms: i64 = row.get(4)?;
+                Ok(Some(CachedClaimVerdict {
+                    claim_id: cid_val as u64,
+                    verdict,
+                    confidence,
+                    verifier_model,
+                    created_at_ms,
+                }))
+            })
+            .await
+    }
+
     /// Look up a previously verified claim verdict from historical research sessions.
     ///
     /// If `max_age_ms > 0`, only verdicts recorded within the last `max_age_ms` are returned.
@@ -622,64 +702,7 @@ impl VoxDb {
         claim_id: u64,
         max_age_ms: i64,
     ) -> Result<Option<CachedClaimVerdict>, StoreError> {
-        let cid = claim_id as i64;
-        let breaker = self.breaker.clone();
-        let conn = self.conn.clone();
-        breaker
-            .call(|| async move {
-                if max_age_ms > 0 {
-                    let cutoff = now_ms().saturating_sub(max_age_ms);
-                    let mut rows = conn
-                        .query(
-                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
-                             FROM scientia_claim_verdicts \
-                             WHERE claim_id = ?1 AND verdict <> 'Unverified' AND created_at_ms >= ?2 \
-                             ORDER BY created_at_ms DESC, id DESC LIMIT 1",
-                            params![cid, cutoff],
-                        )
-                        .await?;
-                    let Some(row) = rows.next().await? else {
-                        return Ok::<Option<CachedClaimVerdict>, StoreError>(None);
-                    };
-                    let cid_val: i64 = row.get(0)?;
-                    let verdict: String = row.get(1)?;
-                    let confidence: f64 = row.get(2)?;
-                    let verifier_model: Option<String> = row.get(3)?;
-                    let created_at_ms: i64 = row.get(4)?;
-                    Ok(Some(CachedClaimVerdict {
-                        claim_id: cid_val as u64,
-                        verdict,
-                        confidence,
-                        verifier_model,
-                        created_at_ms,
-                    }))
-                } else {
-                    let mut rows = conn
-                        .query(
-                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
-                             FROM scientia_claim_verdicts \
-                             WHERE claim_id = ?1 AND verdict <> 'Unverified' \
-                             ORDER BY created_at_ms DESC, id DESC LIMIT 1",
-                            params![cid],
-                        )
-                        .await?;
-                    let Some(row) = rows.next().await? else {
-                        return Ok::<Option<CachedClaimVerdict>, StoreError>(None);
-                    };
-                    let cid_val: i64 = row.get(0)?;
-                    let verdict: String = row.get(1)?;
-                    let confidence: f64 = row.get(2)?;
-                    let verifier_model: Option<String> = row.get(3)?;
-                    let created_at_ms: i64 = row.get(4)?;
-                    Ok(Some(CachedClaimVerdict {
-                        claim_id: cid_val as u64,
-                        verdict,
-                        confidence,
-                        verifier_model,
-                        created_at_ms,
-                    }))
-                }
-            })
+        self.get_cached_claim_verdict_filtered(claim_id, max_age_ms, None)
             .await
     }
 

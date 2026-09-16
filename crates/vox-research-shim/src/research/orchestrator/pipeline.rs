@@ -245,12 +245,13 @@ pub async fn run_research_with_context_and_session(
 
     if query.domain_mode == ResearchDomainMode::Shopping {
         super::super::domain::shopping::deboost_affiliate_spam(&mut all_hits);
-        all_hits.sort_by(|a, b| {
-            b.score
-                .partial_cmp(&a.score)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
     }
+
+    all_hits.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     // ── (d) Retrieval diagnostics ─────────────────────────────────────────────
     let query_terms: Vec<&str> = query.query.split_whitespace().collect();

@@ -227,3 +227,38 @@ async fn rollup_model_scoreboard_updates_running_average() {
     .await
     .expect("different provider rollup");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_get_cached_claim_verdict_ignores_low_confidence_shadowing() {
+    let db = test_db().await;
+    let claim_id = 99887766u64;
+
+    // First store high-confidence verdict
+    db.store_claim_verdict(claim_id, "Supported", 0.95, "model_high")
+        .await
+        .expect("store high confidence verdict");
+
+    // Later store low-confidence verdict (which would shadow the high-confidence verdict if sorted only by created_at)
+    db.store_claim_verdict(claim_id, "Refuted", 0.40, "model_low")
+        .await
+        .expect("store low confidence verdict");
+
+    // Querying with min_confidence = Some(0.80) should ignore the 0.40 verdict and return the 0.95 "Supported" verdict
+    let cached = db
+        .get_cached_claim_verdict_filtered(claim_id, 0, Some(0.80))
+        .await
+        .expect("query cached verdict")
+        .expect("found high confidence verdict");
+
+    assert_eq!(cached.claim_id, claim_id);
+    assert_eq!(cached.verdict, "Supported");
+    assert_eq!(cached.confidence, 0.95);
+    assert_eq!(cached.verifier_model.as_deref(), Some("model_high"));
+
+    // Querying with min_confidence = Some(0.99) should find nothing
+    let none = db
+        .get_cached_claim_verdict_filtered(claim_id, 0, Some(0.99))
+        .await
+        .expect("query with high threshold");
+    assert!(none.is_none());
+}
