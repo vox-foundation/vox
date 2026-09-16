@@ -397,7 +397,7 @@ It launches `vox mens train --resume mens/runs/latest` and, on any **non-zero ex
 | 1 | *(auto-scaler chooses)* | *(auto-scaler chooses)* | First, just relaunch — most crashes are transient. |
 | 2 | *(same)* | `256` | Shrink the sequence window to cut activation memory. |
 | 3 | `Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218` | `384` | Drop to the standard 8B model. |
-| 4 | `Qwen/Qwen3-0.6B` | `384` | Last resort — smallest model. |
+| 4 | `Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca` | `384` | Last resort — smallest model. |
 
 Every rung passes `--resume mens/runs/latest`, so each relaunch continues from the last saved checkpoint rather than restarting from scratch. On the first successful run the script prints a completion message and stops; if all rungs fail it prints an `exhausted all attempts` message and exits (it never loops forever).
 
