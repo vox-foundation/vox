@@ -255,6 +255,14 @@ async fn test_get_cached_claim_verdict_ignores_low_confidence_shadowing() {
     assert_eq!(cached.confidence, 0.95);
     assert_eq!(cached.verifier_model.as_deref(), Some("model_high"));
 
+    // Also test with max_age_ms > 0 (production pattern, e.g. 14 days)
+    let cached_timed = db
+        .get_cached_claim_verdict_filtered(claim_id, 86_400_000, Some(0.80))
+        .await
+        .expect("query cached verdict with max_age")
+        .expect("found high confidence verdict with max_age");
+    assert_eq!(cached_timed.confidence, 0.95);
+
     // Querying with min_confidence = Some(0.99) should find nothing
     let none = db
         .get_cached_claim_verdict_filtered(claim_id, 0, Some(0.99))

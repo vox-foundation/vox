@@ -375,7 +375,7 @@ pub async fn run_research_with_context_and_session(
         if let Some(db) = db {
             for claim in &draft_claims {
                 if let Ok(Some(cached)) = db
-                    .get_cached_claim_verdict(claim.claim_id, max_age_ms)
+                    .get_cached_claim_verdict_filtered(claim.claim_id, max_age_ms, Some(0.80))
                     .await
                 {
                     if cached.confidence >= 0.80 {

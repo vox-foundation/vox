@@ -182,28 +182,58 @@ impl WaveExecutionPlan {
         self.resolved_verdicts = verdicts.to_vec();
         let mut new_records = Vec::new();
 
+        const NEGATION_WORDS: &[&str] = &["not", "never", "cannot", "no", "without"];
+        let parsed: Vec<_> = verdicts
+            .iter()
+            .map(|v| {
+                let normalized = v.claim.text.replace(['\u{2019}', '\u{2018}'], "'");
+                let has_neg = normalized.split_whitespace().any(|w| {
+                    let cleaned = w
+                        .trim_matches(|c: char| !c.is_alphabetic() && c != '\'')
+                        .to_ascii_lowercase();
+                    NEGATION_WORDS.contains(&cleaned.as_str())
+                        || cleaned.ends_with("n't")
+                        || cleaned.contains("n't")
+                        || matches!(
+                            cleaned.as_str(),
+                            "cant"
+                                | "wont"
+                                | "dont"
+                                | "doesnt"
+                                | "didnt"
+                                | "isnt"
+                                | "arent"
+                                | "wasnt"
+                                | "werent"
+                                | "havent"
+                                | "hasnt"
+                        )
+                });
+                let words: std::collections::HashSet<String> = normalized
+                    .split_whitespace()
+                    .map(|w| {
+                        w.trim_matches(|c: char| !c.is_alphabetic())
+                            .to_ascii_lowercase()
+                    })
+                    .filter(|w| w.len() > 3)
+                    .collect();
+                let non_neg_words: std::collections::HashSet<String> = words
+                    .iter()
+                    .filter(|w| !NEGATION_WORDS.contains(&w.as_str()) && !w.ends_with("n't"))
+                    .cloned()
+                    .collect();
+                (has_neg, words, non_neg_words)
+            })
+            .collect();
+
         for i in 0..verdicts.len() {
             for j in (i + 1)..verdicts.len() {
                 let v_a = &verdicts[i];
                 let v_b = &verdicts[j];
+                let (has_neg_a, words_a, non_neg_a) = &parsed[i];
+                let (has_neg_b, words_b, non_neg_b) = &parsed[j];
 
-                // Direct opposition: one supported, one contradicted on overlapping topic
-                let words_a: std::collections::HashSet<_> = v_a
-                    .claim
-                    .text
-                    .split_whitespace()
-                    .map(|w| w.to_ascii_lowercase())
-                    .filter(|w| w.len() > 3)
-                    .collect();
-                let words_b: std::collections::HashSet<_> = v_b
-                    .claim
-                    .text
-                    .split_whitespace()
-                    .map(|w| w.to_ascii_lowercase())
-                    .filter(|w| w.len() > 3)
-                    .collect();
-
-                let common = words_a.intersection(&words_b).count();
+                let common = words_a.intersection(words_b).count();
                 if common >= 2 {
                     let is_opposite = (v_a.verdict == Verdict::Supported
                         && v_b.verdict == Verdict::Contradicted)
@@ -214,21 +244,17 @@ impl WaveExecutionPlan {
                         && v_b.claim.is_numeric
                         && v_a.claim.text != v_b.claim.text;
 
-                    const NEGATION_WORDS: &[&str] = &["not", "never", "cannot", "no", "without"];
-                    let has_neg = |text: &str| {
-                        text.split_whitespace().any(|w| {
-                            let cleaned = w
-                                .trim_matches(|c: char| !c.is_alphabetic())
-                                .to_ascii_lowercase();
-                            NEGATION_WORDS.contains(&cleaned.as_str())
-                                || cleaned.ends_with("n't")
-                                || cleaned == "cant"
-                                || cleaned == "wont"
-                        })
-                    };
-                    let is_semantic_negation = v_a.verdict == Verdict::Supported
+                    let min_non_neg = non_neg_a.len().min(non_neg_b.len());
+                    let is_semantic_negation = if v_a.verdict == Verdict::Supported
                         && v_b.verdict == Verdict::Supported
-                        && has_neg(&v_a.claim.text) != has_neg(&v_b.claim.text);
+                        && *has_neg_a != *has_neg_b
+                        && min_non_neg >= 2
+                    {
+                        let non_neg_common = non_neg_a.intersection(non_neg_b).count();
+                        (non_neg_common as f64 / min_non_neg as f64) >= 0.70
+                    } else {
+                        false
+                    };
 
                     if is_opposite || is_numeric_mismatch || is_semantic_negation {
                         let category = if is_numeric_mismatch {
@@ -239,7 +265,7 @@ impl WaveExecutionPlan {
                             ContradictionCategory::DirectFactualOpposition
                         };
 
-                        let id = ((v_a.claim.claim_id as u64) << 32) | (v_b.claim.claim_id as u64);
+                        let id = v_a.claim.claim_id.rotate_left(32) ^ v_b.claim.claim_id;
                         let disambiguation_query = Some(format!(
                             "{} vs {} difference verification truth",
                             v_a.claim.text, v_b.claim.text
