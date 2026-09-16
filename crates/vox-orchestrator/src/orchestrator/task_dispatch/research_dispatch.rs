@@ -437,7 +437,7 @@ fn snippet_has_negated_claim(snippet: &str, subject: &str, predicate: &str, obje
 
     let obj_tokens: std::collections::HashSet<String> = object
         .split(|c: char| !c.is_alphanumeric())
-        .filter(|w| !w.is_empty() && (w.len() > 2 || !is_stop_word(w)))
+        .filter(|w| !w.is_empty() && !is_stop_word(w))
         .map(|w| w.to_ascii_lowercase())
         .collect();
 
@@ -505,8 +505,7 @@ fn snippet_has_negated_claim(snippet: &str, subject: &str, predicate: &str, obje
         };
 
         // Proposition scoping: sentence must mention the object AND either the subject or predicate stem
-        let pertains_to_claim =
-            (mentions_obj && (mentions_sub || mentions_pred)) || (mentions_sub && mentions_pred);
+        let pertains_to_claim = mentions_obj && (mentions_sub || mentions_pred);
 
         if !pertains_to_claim {
             continue;
@@ -1220,5 +1219,70 @@ mod tests {
         let formatted = format_grounded_research_evidence(&triplets, &contradictions);
         assert_eq!(formatted.matches("SQLite, supports, JSONB").count(), 1);
         assert_eq!(formatted.matches("Contradiction A").count(), 1);
+    }
+
+    #[test]
+    fn test_detect_triplet_contradictions_does_not_flag_different_object_negation() {
+        let triplets = vec![
+            ClaimTriplet {
+                subject: "SQLite".to_string(),
+                predicate: "supports".to_string(),
+                object: "JSONB".to_string(),
+                confidence: 0.95,
+                evidence_snippet: "SQLite supports JSONB natively.".to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+            ClaimTriplet {
+                subject: "SQLite".to_string(),
+                predicate: "supports".to_string(),
+                object: "JSONB".to_string(),
+                confidence: 0.90,
+                evidence_snippet: "SQLite does not support XML. SQLite supports JSONB natively."
+                    .to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+        ];
+
+        let mut contradictions = Vec::new();
+        detect_triplet_contradictions(&triplets, &mut contradictions);
+        assert!(
+            contradictions.is_empty(),
+            "A sentence stating 'SQLite does not support XML' must not negate 'SQLite supports JSONB'"
+        );
+    }
+
+    #[test]
+    fn test_detect_triplet_contradictions_does_not_flag_multi_char_stop_words() {
+        let triplets = vec![
+            ClaimTriplet {
+                subject: "SQLite".to_string(),
+                predicate: "supports".to_string(),
+                object: "the JSON extension".to_string(),
+                confidence: 0.95,
+                evidence_snippet: "SQLite supports the JSON extension.".to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+            ClaimTriplet {
+                subject: "SQLite".to_string(),
+                predicate: "supports".to_string(),
+                object: "the JSON extension".to_string(),
+                confidence: 0.90,
+                evidence_snippet:
+                    "PostgreSQL does not support plugins for the legacy engine. SQLite supports the JSON extension."
+                        .to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+        ];
+
+        let mut contradictions = Vec::new();
+        detect_triplet_contradictions(&triplets, &mut contradictions);
+        assert!(
+            contradictions.is_empty(),
+            "Stop words like 'the', 'for' in unrelated sentences must not trigger false positive polarity contradiction"
+        );
     }
 }

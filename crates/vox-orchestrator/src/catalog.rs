@@ -390,6 +390,36 @@ mod tests {
         assert_eq!(models[0].id, "mens/test-model");
         assert_eq!(models[0].max_tokens, 40960);
     }
+
+    #[test]
+    fn test_mens_catalog_resolves_hf_hub_cache_pinned_revision() {
+        let tmp = tempfile::tempdir().expect("create tempdir");
+        let hf_root = tmp.path().join("hf_hub");
+        let snap_dir = hf_root
+            .join("models--Qwen--Qwen3-8B")
+            .join("snapshots")
+            .join("b968826d9c46dd6066d109eabc6255188de91218");
+        std::fs::create_dir_all(&snap_dir).unwrap();
+        std::fs::write(
+            snap_dir.join("config.json"),
+            r#"{"max_position_embeddings": 32768}"#,
+        )
+        .unwrap();
+
+        let run_dir = tmp.path().join("run_pinned");
+        std::fs::create_dir_all(&run_dir).unwrap();
+        let base_model_val =
+            serde_json::json!("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218");
+
+        let ctx_len =
+            resolve_base_model_context_length_internal(&run_dir, &base_model_val, Some(&hf_root));
+
+        assert_eq!(
+            ctx_len,
+            Some(32768),
+            "must resolve context length from HF hub cache pinned revision"
+        );
+    }
 }
 /// Parses Ollama's `details.parameter_size` field (e.g. `"8.2B"`, `"70M"`,
 /// `"1.5B"`) into billions of parameters. Returns `None` for anything that
@@ -728,6 +758,14 @@ fn resolve_base_model_context_length(
     dir: &std::path::Path,
     base_model_val: &serde_json::Value,
 ) -> Option<u32> {
+    resolve_base_model_context_length_internal(dir, base_model_val, None)
+}
+
+fn resolve_base_model_context_length_internal(
+    dir: &std::path::Path,
+    base_model_val: &serde_json::Value,
+    custom_hub_base: Option<&std::path::Path>,
+) -> Option<u32> {
     if let Some(base_str) = base_model_val.as_str() {
         // First check if base_str resolves relative to the run directory
         let rel = dir.join(base_str);
@@ -759,9 +797,13 @@ fn resolve_base_model_context_length(
         let repo_id = base_str.split('@').next().unwrap_or(base_str);
         let revision_sha = base_str.split('@').nth(1);
 
-        let hub_base = std::env::var("HF_HUB_CACHE")
-            .ok()
-            .map(std::path::PathBuf::from)
+        let hub_base = custom_hub_base
+            .map(|p| p.to_path_buf())
+            .or_else(|| {
+                std::env::var("HF_HUB_CACHE")
+                    .ok()
+                    .map(std::path::PathBuf::from)
+            })
             .or_else(|| {
                 std::env::var("HF_HOME")
                     .ok()
