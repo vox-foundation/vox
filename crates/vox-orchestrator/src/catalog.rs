@@ -693,16 +693,24 @@ fn parse_context_length_from_config(path: &std::path::Path) -> Option<u32> {
     if let Some(n) = val
         .get("max_position_embeddings")
         .or_else(|| val.get("context_length"))
+        .or_else(|| val.get("seq_length"))
+        .or_else(|| val.get("model_max_length"))
+        .or_else(|| val.get("n_positions"))
         .or_else(|| {
             val.get("model_config").and_then(|m| {
                 m.get("max_position_embeddings")
                     .or_else(|| m.get("context_length"))
+                    .or_else(|| m.get("seq_length"))
+                    .or_else(|| m.get("model_max_length"))
+                    .or_else(|| m.get("n_positions"))
             })
         })
     {
         if let Some(v) = n.as_u64() {
             if v > 0 {
-                return Some(v as u32);
+                if let Ok(val) = u32::try_from(v) {
+                    return Some(val);
+                }
             }
         }
         if let Some(s) = n.as_str() {
@@ -774,12 +782,23 @@ fn resolve_base_model_context_length(
         if let Some(n) = base_obj
             .get("max_position_embeddings")
             .or_else(|| base_obj.get("context_length"))
+            .or_else(|| base_obj.get("seq_length"))
+            .or_else(|| base_obj.get("model_max_length"))
+            .or_else(|| base_obj.get("n_positions"))
         {
             if let Some(v) = n.as_u64() {
-                return Some(v as u32);
+                if v > 0 {
+                    if let Ok(val) = u32::try_from(v) {
+                        return Some(val);
+                    }
+                }
             }
-            if let Some(s) = n.as_str().and_then(|s| s.parse::<u32>().ok()) {
-                return Some(s);
+            if let Some(s) = n.as_str() {
+                if let Ok(v) = s.parse::<u32>() {
+                    if v > 0 {
+                        return Some(v);
+                    }
+                }
             }
         }
     }
@@ -795,42 +814,49 @@ impl MensCatalog {
     /// Checks `config.json` and `final/config.json`, then `adapter_manifest.json` for base model
     /// config, falling back to 32768.
     pub fn read_context_length_from_dir(dir: &std::path::Path) -> u32 {
-        if let Some(len) = parse_context_length_from_config(&dir.join("config.json")) {
-            return len;
-        }
-        if let Some(len) = parse_context_length_from_config(&dir.join("final").join("config.json"))
-        {
-            return len;
-        }
+        let discovered = (|| {
+            if let Some(len) = parse_context_length_from_config(&dir.join("config.json")) {
+                return len;
+            }
+            if let Some(len) =
+                parse_context_length_from_config(&dir.join("final").join("config.json"))
+            {
+                return len;
+            }
 
-        let manifest_candidates = [
-            dir.join("adapter_manifest.json"),
-            dir.join("final").join("adapter_manifest.json"),
-        ];
-        for manifest_path in &manifest_candidates {
-            if manifest_path.is_file() {
-                if let Ok(content) = std::fs::read_to_string(manifest_path) {
-                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
-                        if let Some(base_val) = val.get("base_model") {
-                            if let Some(len) = resolve_base_model_context_length(dir, base_val) {
-                                return len;
+            let manifest_candidates = [
+                dir.join("adapter_manifest.json"),
+                dir.join("final").join("adapter_manifest.json"),
+            ];
+            for manifest_path in &manifest_candidates {
+                if manifest_path.is_file() {
+                    if let Ok(content) = std::fs::read_to_string(manifest_path) {
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let Some(base_val) = val.get("base_model") {
+                                if let Some(len) = resolve_base_model_context_length(dir, base_val)
+                                {
+                                    return len;
+                                }
                             }
-                        }
-                        if let Some(upstream_val) = val
-                            .get("provenance")
-                            .and_then(|p| p.get("upstream_model_id"))
-                        {
-                            if let Some(len) = resolve_base_model_context_length(dir, upstream_val)
+                            if let Some(upstream_val) = val
+                                .get("provenance")
+                                .and_then(|p| p.get("upstream_model_id"))
                             {
-                                return len;
+                                if let Some(len) =
+                                    resolve_base_model_context_length(dir, upstream_val)
+                                {
+                                    return len;
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        32768
+            32768
+        })();
+
+        if discovered == 0 { 32768 } else { discovered }
     }
 }
 

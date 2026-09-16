@@ -54,11 +54,21 @@ pub fn extract_claim_triplets(text: &str, source_url: Option<&str>) -> Vec<Claim
         "used",
         "deprecates",
         "deprecated",
+        "removes",
+        "removed",
+        "lacks",
+        "lacked",
+        "disables",
+        "disabled",
+        "drops",
+        "dropped",
         "includes",
         "included",
+        "enables",
+        "enabled",
     ];
 
-    for sentence in text.split(|c| c == '.' || c == ';' || c == '\n') {
+    for sentence in split_into_sentences(text) {
         let trimmed = sentence.trim();
         if trimmed.len() < 10 {
             continue;
@@ -93,21 +103,188 @@ pub fn extract_claim_triplets(text: &str, source_url: Option<&str>) -> Vec<Claim
     triplets
 }
 
+pub(crate) fn split_into_sentences(text: &str) -> Vec<&str> {
+    let mut sentences = Vec::new();
+    let mut start = 0;
+    let chars: Vec<(usize, char)> = text.char_indices().collect();
+    let len = chars.len();
+
+    for i in 0..len {
+        let (byte_idx, ch) = chars[i];
+        if ch == ';' || ch == '\n' {
+            let chunk = text[start..byte_idx].trim();
+            if !chunk.is_empty() {
+                sentences.push(chunk);
+            }
+            start = byte_idx + ch.len_utf8();
+        } else if ch == '.' {
+            let is_sentence_end = if i + 1 < len {
+                let next_ch = chars[i + 1].1;
+                next_ch.is_whitespace()
+            } else {
+                true
+            };
+
+            if is_sentence_end {
+                let chunk = text[start..byte_idx].trim();
+                if !chunk.is_empty() {
+                    sentences.push(chunk);
+                }
+                start = byte_idx + ch.len_utf8();
+            }
+        }
+    }
+
+    let remaining = text[start..].trim();
+    if !remaining.is_empty() {
+        sentences.push(remaining);
+    }
+
+    sentences
+}
+
+fn are_opposing_predicates(p1: &str, p2: &str) -> bool {
+    const AFFIRMATIVE: &[&str] = &[
+        "supports",
+        "supported",
+        "provides",
+        "provided",
+        "features",
+        "featured",
+        "includes",
+        "included",
+        "uses",
+        "used",
+        "contains",
+        "contained",
+        "implements",
+        "implemented",
+        "enables",
+        "enabled",
+        "introduces",
+        "introduced",
+    ];
+    const OPPOSING: &[&str] = &[
+        "deprecates",
+        "deprecated",
+        "removes",
+        "removed",
+        "lacks",
+        "lacked",
+        "disables",
+        "disabled",
+        "drops",
+        "dropped",
+        "forbids",
+        "forbade",
+        "rejects",
+        "rejected",
+    ];
+
+    let p1_clean = p1.trim().to_lowercase();
+    let p2_clean = p2.trim().to_lowercase();
+
+    (AFFIRMATIVE.contains(&p1_clean.as_str()) && OPPOSING.contains(&p2_clean.as_str()))
+        || (OPPOSING.contains(&p1_clean.as_str()) && AFFIRMATIVE.contains(&p2_clean.as_str()))
+}
+
+fn are_opposing_objects(o1: &str, o2: &str) -> bool {
+    let o1_low = o1.trim().to_lowercase();
+    let o2_low = o2.trim().to_lowercase();
+
+    if (o1_low == "true" && o2_low == "false")
+        || (o1_low == "false" && o2_low == "true")
+        || (o1_low == "yes" && o2_low == "no")
+        || (o1_low == "no" && o2_low == "yes")
+        || (o1_low == "enabled" && o2_low == "disabled")
+        || (o1_low == "disabled" && o2_low == "enabled")
+    {
+        return true;
+    }
+
+    let negations = ["no ", "not ", "non-", "without "];
+    for neg in negations {
+        if let Some(stripped) = o1_low.strip_prefix(neg) {
+            if stripped.trim() == o2_low {
+                return true;
+            }
+        }
+        if let Some(stripped) = o2_low.strip_prefix(neg) {
+            if stripped.trim() == o1_low {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 fn detect_triplet_contradictions(triplets: &[ClaimTriplet], contradictions: &mut Vec<String>) {
+    let mut seen: std::collections::HashSet<String> = contradictions.iter().cloned().collect();
+
     for i in 0..triplets.len() {
         for j in (i + 1)..triplets.len() {
             let t1 = &triplets[i];
             let t2 = &triplets[j];
-            if t1.subject.eq_ignore_ascii_case(&t2.subject)
-                && t1.predicate.eq_ignore_ascii_case(&t2.predicate)
-                && !t1.object.eq_ignore_ascii_case(&t2.object)
+
+            if !t1.subject.eq_ignore_ascii_case(&t2.subject) {
+                continue;
+            }
+
+            let objects_overlap = t1.object.eq_ignore_ascii_case(&t2.object)
+                || t1.object.to_lowercase().contains(&t2.object.to_lowercase())
+                || t2.object.to_lowercase().contains(&t1.object.to_lowercase());
+
+            // Case 1: Opposing predicates regarding the same or overlapping object
+            // e.g. "SQLite supports JSONB" vs "SQLite deprecates JSONB"
+            if are_opposing_predicates(&t1.predicate, &t2.predicate) && objects_overlap {
+                let desc = format!(
+                    "Contradiction on '{}': '{} {}' vs '{} {}'",
+                    t1.subject, t1.predicate, t1.object, t2.predicate, t2.object
+                );
+                if seen.insert(desc.clone()) {
+                    contradictions.push(desc);
+                }
+                continue;
+            }
+
+            // Case 2: Matching predicate with opposite polar objects
+            // e.g. "Feature is enabled" vs "Feature is disabled", or "supports JSONB" vs "supports no JSONB"
+            if t1.predicate.eq_ignore_ascii_case(&t2.predicate)
+                && are_opposing_objects(&t1.object, &t2.object)
             {
                 let desc = format!(
                     "Contradiction on '{} {}': '{}' vs '{}'",
                     t1.subject, t1.predicate, t1.object, t2.object
                 );
-                if !contradictions.contains(&desc) {
+                if seen.insert(desc.clone()) {
                     contradictions.push(desc);
+                }
+                continue;
+            }
+
+            // Case 3: Matching predicate and object, but one evidence snippet asserts negation
+            if t1.predicate.eq_ignore_ascii_case(&t2.predicate) && objects_overlap {
+                let s1_low = t1.evidence_snippet.to_lowercase();
+                let s2_low = t2.evidence_snippet.to_lowercase();
+                let neg_markers = [
+                    " not ",
+                    " never ",
+                    " cannot ",
+                    " doesn't ",
+                    " does not ",
+                    " unsupported ",
+                ];
+                let s1_neg = neg_markers.iter().any(|m| s1_low.contains(m));
+                let s2_neg = neg_markers.iter().any(|m| s2_low.contains(m));
+                if s1_neg != s2_neg {
+                    let desc = format!(
+                        "Contradiction on '{} {} {}': conflicting evidence polarity in snippets",
+                        t1.subject, t1.predicate, t1.object
+                    );
+                    if seen.insert(desc.clone()) {
+                        contradictions.push(desc);
+                    }
                 }
             }
         }
@@ -272,12 +449,24 @@ impl Orchestrator {
                 }
             }
 
+            let anchor_prefix = if anchor.trim().is_empty() {
+                "research topic".to_string()
+            } else {
+                anchor.trim().to_string()
+            };
+
             let mut wave2_queries = Vec::new();
             if !contradictions.is_empty() {
-                wave2_queries.push(format!("{} conflicting evidence source comparison", anchor));
+                wave2_queries.push(format!(
+                    "{} conflicting evidence source comparison",
+                    anchor_prefix
+                ));
             } else {
-                wave2_queries.push(format!("{} primary source evidence", anchor));
-                wave2_queries.push(format!("{} independent corroborating sources", anchor));
+                wave2_queries.push(format!("{} primary source evidence", anchor_prefix));
+                wave2_queries.push(format!(
+                    "{} independent corroborating sources",
+                    anchor_prefix
+                ));
             }
 
             info!(
@@ -507,10 +696,10 @@ mod tests {
             },
             ClaimTriplet {
                 subject: "sqlite".to_string(), // case-insensitive matching
-                predicate: "supports".to_string(),
-                object: "JSON text only".to_string(),
+                predicate: "deprecates".to_string(),
+                object: "JSONB".to_string(),
                 confidence: 0.80,
-                evidence_snippet: "sqlite supports JSON text only".to_string(),
+                evidence_snippet: "sqlite deprecates JSONB".to_string(),
                 source_url: None,
                 grounding: GroundingQuality::VerbatimExact,
             },
@@ -519,8 +708,50 @@ mod tests {
         let mut contradictions = Vec::new();
         detect_triplet_contradictions(&triplets, &mut contradictions);
         assert_eq!(contradictions.len(), 1);
-        assert!(contradictions[0].contains("Contradiction on 'SQLite supports'"));
-        assert!(contradictions[0].contains("'JSONB' vs 'JSON text only'"));
+        assert!(contradictions[0].contains("Contradiction on 'SQLite'"));
+        assert!(contradictions[0].contains("supports JSONB"));
+        assert!(contradictions[0].contains("deprecates JSONB"));
+    }
+
+    #[test]
+    fn test_detect_triplet_contradictions_does_not_flag_additive_features() {
+        let triplets = vec![
+            ClaimTriplet {
+                subject: "SQLite".to_string(),
+                predicate: "supports".to_string(),
+                object: "JSONB".to_string(),
+                confidence: 0.95,
+                evidence_snippet: "SQLite supports JSONB".to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+            ClaimTriplet {
+                subject: "SQLite".to_string(),
+                predicate: "supports".to_string(),
+                object: "WAL mode".to_string(),
+                confidence: 0.90,
+                evidence_snippet: "SQLite supports WAL mode".to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+        ];
+
+        let mut contradictions = Vec::new();
+        detect_triplet_contradictions(&triplets, &mut contradictions);
+        assert!(
+            contradictions.is_empty(),
+            "Additive features must not be flagged as contradictions"
+        );
+    }
+
+    #[test]
+    fn test_split_into_sentences_preserves_version_numbers() {
+        let text = "SQLite 3.45 introduced JSONB natively. Node.js supports modern ES modules; it is fast.";
+        let sentences = split_into_sentences(text);
+        assert_eq!(sentences.len(), 3);
+        assert_eq!(sentences[0], "SQLite 3.45 introduced JSONB natively");
+        assert_eq!(sentences[1], "Node.js supports modern ES modules");
+        assert_eq!(sentences[2], "it is fast");
     }
 
     #[test]
