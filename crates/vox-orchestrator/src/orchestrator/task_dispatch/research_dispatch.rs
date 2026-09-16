@@ -9,14 +9,88 @@ fn extract_source_and_snippet(hit: &str) -> (Option<&str>, &str) {
     if let Some(stripped) = hit.strip_prefix("[autonomous_research:") {
         if let Some(bracket_end) = stripped.find(']') {
             let url = &stripped[..bracket_end];
-            let rest = stripped[bracket_end + 1..].trim();
-            (Some(url), rest)
+            let after_bracket = stripped[bracket_end + 1..].trim();
+            // Hits from run_multi_hop_web_research format as: `<Title> (score: ...; engine: ...; novelty: ...) - <content>`
+            // Strip the search ranking metadata prefix so only the clean content snippet is analyzed
+            let snippet = if let Some(dash_pos) = after_bracket.find(") - ") {
+                after_bracket[dash_pos + 4..].trim()
+            } else {
+                after_bracket
+            };
+            (Some(url), snippet)
         } else {
             (None, hit)
         }
     } else {
         (None, hit)
     }
+}
+
+pub fn extract_claim_triplets(text: &str, source_url: Option<&str>) -> Vec<ClaimTriplet> {
+    // 1. If text is JSON, try parsing via parse_and_ground_claim_triplets_with_source
+    let from_json = parse_and_ground_claim_triplets_with_source(text, text, source_url);
+    if !from_json.is_empty() {
+        return from_json;
+    }
+
+    // 2. Fallback heuristic: extract basic relational subject-verb-object claims from clean text sentences
+    let mut triplets = Vec::new();
+    const VERBS: &[&str] = &[
+        "supports",
+        "supported",
+        "provides",
+        "provided",
+        "requires",
+        "required",
+        "contains",
+        "contained",
+        "introduces",
+        "introduced",
+        "implements",
+        "implemented",
+        "features",
+        "featured",
+        "uses",
+        "used",
+        "deprecates",
+        "deprecated",
+        "includes",
+        "included",
+    ];
+
+    for sentence in text.split(|c| c == '.' || c == ';' || c == '\n') {
+        let trimmed = sentence.trim();
+        if trimmed.len() < 10 {
+            continue;
+        }
+        let words: Vec<&str> = trimmed.split_whitespace().collect();
+        if words.len() < 3 || words.len() > 30 {
+            continue;
+        }
+        for (idx, &word) in words.iter().enumerate() {
+            let clean_word = word
+                .trim_matches(|c: char| !c.is_alphanumeric())
+                .to_lowercase();
+            if VERBS.contains(&clean_word.as_str()) && idx > 0 && idx < words.len() - 1 {
+                let subject = words[..idx].join(" ");
+                let predicate = clean_word;
+                let object = words[idx + 1..].join(" ");
+                if subject.len() <= 60 && object.len() <= 60 {
+                    triplets.push(ClaimTriplet {
+                        subject,
+                        predicate,
+                        object,
+                        confidence: 0.90,
+                        evidence_snippet: trimmed.to_string(),
+                        source_url: source_url.map(ToString::to_string),
+                        grounding: GroundingQuality::VerbatimExact,
+                    });
+                    break;
+                }
+            }
+        }
+    }
+    triplets
 }
 
 fn detect_triplet_contradictions(triplets: &[ClaimTriplet], contradictions: &mut Vec<String>) {
@@ -174,13 +248,15 @@ impl Orchestrator {
 
         for hit in &research_results {
             let (url, snippet) = extract_source_and_snippet(hit);
-            let triplets = parse_and_ground_claim_triplets_with_source(snippet, snippet, url);
+            let triplets = extract_claim_triplets(snippet, url);
             grounded_triplets.extend(triplets);
         }
 
-        if waves > 1 {
-            detect_triplet_contradictions(&grounded_triplets, &mut contradictions);
+        detect_triplet_contradictions(&grounded_triplets, &mut contradictions);
 
+        let mut executed_waves = 1;
+
+        if waves > 1 {
             for hit in &research_results {
                 let lower = hit.to_lowercase();
                 if lower.contains("conflicting")
@@ -219,10 +295,11 @@ impl Orchestrator {
 
             for hit in &wave2_results {
                 let (url, snippet) = extract_source_and_snippet(hit);
-                let triplets = parse_and_ground_claim_triplets_with_source(snippet, snippet, url);
+                let triplets = extract_claim_triplets(snippet, url);
                 grounded_triplets.extend(triplets);
             }
             research_results.extend(wave2_results);
+            executed_waves = 2;
 
             detect_triplet_contradictions(&grounded_triplets, &mut contradictions);
         }
@@ -257,30 +334,23 @@ impl Orchestrator {
                     tracing::debug!("Using specific Lane G auth");
                 }
 
-                let prompt = if waves > 1 {
-                    if !grounded_evidence.is_empty() {
-                        format!(
-                            "Synthesize the following multi-wave ({} waves) research evidence into a high-fidelity summary with comparative analysis, noting any resolved contradictions:\n\n{}\n\n{}",
-                            waves, combined_evidence, grounded_evidence
-                        )
-                    } else {
-                        format!(
-                            "Synthesize the following multi-wave ({} waves) research evidence into a high-fidelity summary with comparative analysis, noting any resolved contradictions:\n\n{}",
-                            waves, combined_evidence
-                        )
-                    }
+                let preamble = if executed_waves > 1 {
+                    format!(
+                        "Synthesize the following multi-wave ({} waves) research evidence into a high-fidelity summary with comparative analysis, noting any resolved contradictions:",
+                        executed_waves
+                    )
                 } else {
-                    if !grounded_evidence.is_empty() {
-                        format!(
-                            "Synthesize the following recent web evidence into a high-fidelity summary:\n\n{}\n\n{}",
-                            combined_evidence, grounded_evidence
-                        )
-                    } else {
-                        format!(
-                            "Synthesize the following recent web evidence into a high-fidelity summary:\n\n{}",
-                            combined_evidence
-                        )
-                    }
+                    "Synthesize the following recent web evidence into a high-fidelity summary:"
+                        .to_string()
+                };
+
+                let prompt = if !grounded_evidence.is_empty() {
+                    format!(
+                        "{}\n\n{}\n\n{}",
+                        preamble, combined_evidence, grounded_evidence
+                    )
+                } else {
+                    format!("{}\n\n{}", preamble, combined_evidence)
                 };
 
                 let messages = vec![
@@ -408,5 +478,64 @@ mod tests {
     fn test_format_grounded_research_evidence_empty() {
         let formatted = format_grounded_research_evidence(&[], &[]);
         assert_eq!(formatted, "");
+    }
+
+    #[test]
+    fn test_extract_source_and_snippet_strips_metadata() {
+        let hit = "[autonomous_research:https://sqlite.org/jsonb.html] SQLite JSONB (score: 0.850; engine: searxng; novelty: 0.90) - SQLite introduced JSONB in version 3.45.";
+        let (url, snippet) = extract_source_and_snippet(hit);
+        assert_eq!(url, Some("https://sqlite.org/jsonb.html"));
+        assert_eq!(snippet, "SQLite introduced JSONB in version 3.45.");
+
+        let raw_hit = "Plain text hit without prefix";
+        let (raw_url, raw_snippet) = extract_source_and_snippet(raw_hit);
+        assert_eq!(raw_url, None);
+        assert_eq!(raw_snippet, "Plain text hit without prefix");
+    }
+
+    #[test]
+    fn test_detect_triplet_contradictions() {
+        let triplets = vec![
+            ClaimTriplet {
+                subject: "SQLite".to_string(),
+                predicate: "supports".to_string(),
+                object: "JSONB".to_string(),
+                confidence: 0.95,
+                evidence_snippet: "SQLite supports JSONB".to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+            ClaimTriplet {
+                subject: "sqlite".to_string(), // case-insensitive matching
+                predicate: "supports".to_string(),
+                object: "JSON text only".to_string(),
+                confidence: 0.80,
+                evidence_snippet: "sqlite supports JSON text only".to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+        ];
+
+        let mut contradictions = Vec::new();
+        detect_triplet_contradictions(&triplets, &mut contradictions);
+        assert_eq!(contradictions.len(), 1);
+        assert!(contradictions[0].contains("Contradiction on 'SQLite supports'"));
+        assert!(contradictions[0].contains("'JSONB' vs 'JSON text only'"));
+    }
+
+    #[test]
+    fn test_extract_claim_triplets_fallback() {
+        let text = "PostgreSQL provides JSONB indexing support. SQLite introduced JSONB in 2024.";
+        let triplets = extract_claim_triplets(text, Some("https://example.com/db"));
+        assert!(!triplets.is_empty());
+        assert!(
+            triplets
+                .iter()
+                .any(|t| t.predicate == "provides" || t.predicate == "introduced")
+        );
+        assert_eq!(
+            triplets[0].source_url.as_deref(),
+            Some("https://example.com/db")
+        );
     }
 }
