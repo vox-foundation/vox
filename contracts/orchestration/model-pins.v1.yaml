@@ -1,6 +1,7 @@
 # Vox Model Pins — Council-Reviewed SSOT
 #
-# Council-ratified 2026-05-15. Companion to model-routing.v1.yaml + model-catalog.bootstrap.v1.json.
+# Council-ratified 2026-09-15 (rotation_id: 2026-Q3-modern-frontiers).
+# Companion to model-routing.v1.yaml + model-catalog.bootstrap.v1.json.
 #
 # Role:
 #   - This file is the SSOT for *pinned* model decisions: premium aliases, version locks for
@@ -11,9 +12,9 @@
 # Lifecycle:
 #   - Reviewed quarterly by the model council (rotation_id below).
 #   - Changes require council signoff and a corresponding entry in
-#     docs/src/architecture/model-selection-2026-q2.md.
+#     docs/src/architecture/modern-model-selection-and-cost-accuracy-ssot-2026.md.
 #
-# See docs/src/architecture/model-autonomic-system-2026.md §3.1 for design rationale.
+# See docs/src/architecture/modern-model-selection-and-cost-accuracy-ssot-2026.md for design rationale.
 
 # CR-A4 lifecycle metadata (added 2026-05-21 per honest-completion plan §5.8).
 # v1 schemas are considered stable. Bump to a v2 file (with explicit

@@ -184,9 +184,16 @@ where
         .into_iter()
         .filter(|w| {
             let clean = w.trim_matches(|c: char| !c.is_alphanumeric());
-            NEGATION_WORDS
-                .iter()
-                .any(|nw| nw.eq_ignore_ascii_case(clean))
+            if clean.contains('’') || clean.contains('‘') {
+                let norm = clean.replace(['’', '‘'], "'");
+                NEGATION_WORDS
+                    .iter()
+                    .any(|nw| nw.eq_ignore_ascii_case(&norm))
+            } else {
+                NEGATION_WORDS
+                    .iter()
+                    .any(|nw| nw.eq_ignore_ascii_case(clean))
+            }
         })
         .count()
 }
@@ -199,6 +206,9 @@ pub fn negation_parity_matches(snippet: &str, candidate_window: &str) -> bool {
     (count_negations_in_str(snippet) % 2) == (count_negations_in_str(candidate_window) % 2)
 }
 
+/// Computes the sliding window unique vocabulary overlap ratio between the snippet and source text.
+/// Uses a bounded window ($W = N + 4$ tokens) and enforces negation parity before calculating
+/// vocabulary intersection against the unique snippet tokens.
 pub fn token_sliding_window_overlap(snippet: &str, source: &str) -> Option<f64> {
     let snip_tokens: Vec<&str> = snippet.split_whitespace().collect();
     if snip_tokens.is_empty() {

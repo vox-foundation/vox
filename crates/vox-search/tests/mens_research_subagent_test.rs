@@ -328,6 +328,13 @@ fn test_negation_contractions_detected() {
         !negation_parity_matches(inverted_couldnt, source_couldnt),
         "Contraction 'couldn't' must be detected as negation"
     );
+
+    let source_curly = "Developers don’t need manual memory management.";
+    let inverted_curly = "Developers need manual memory management.";
+    assert!(
+        !negation_parity_matches(inverted_curly, source_curly),
+        "Curly contraction 'don’t' must be detected in un-normalized text"
+    );
 }
 
 #[test]
