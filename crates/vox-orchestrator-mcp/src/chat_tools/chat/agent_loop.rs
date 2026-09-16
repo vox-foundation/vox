@@ -55,12 +55,13 @@ pub(crate) static CHAT_MESSAGE_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex
 ///   (`$OLLAMA_URL/v1/chat/completions`), mirroring the existing
 ///   `ModelRegistry::get_llm_config` conversion for the same provider type
 ///   (`crates/vox-orchestrator/src/models/registry.rs`).
+/// - [`ProviderType::GoogleDirect`] and [`ProviderType::Anthropic`]: mapped to
+///   [`LlmConfig::openrouter`], preserving agent loop native tool execution.
 ///
-/// Returns `None` for every other [`ProviderType`] (`GoogleDirect`,
-/// `HuggingFaceRouter`, `VoxLocal`, `PopuliMesh`, `Anthropic`, `Mistral`,
-/// `DeepSeek`, `SambaNova`, `Groq`, `Cerebras`, `Custom`) — those require the
-/// provider-specific fallback chains, dedicated-endpoint resolution, or
-/// unreachable-provider handling that only
+/// Returns `None` for every other [`ProviderType`] (`HuggingFaceRouter`,
+/// `PopuliMesh`, `Mistral`, `DeepSeek`, `SambaNova`, `Groq`, `Cerebras`,
+/// `Custom`) — those require the provider-specific fallback chains,
+/// dedicated-endpoint resolution, or unreachable-provider handling that only
 /// `crate::llm_bridge::infer::mcp_infer_completion` implements, and this mapper
 /// deliberately does not attempt to replicate that pipeline. Callers must fall
 /// back to `mcp_infer_completion` when this returns `None`.
@@ -68,6 +69,16 @@ pub(crate) static CHAT_MESSAGE_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex
 pub(crate) fn model_spec_to_llm_config(spec: &ModelSpec) -> Option<LlmConfig> {
     match spec.provider_type {
         ProviderType::OpenRouter => Some(LlmConfig::openrouter(spec.id.clone())),
+        ProviderType::GoogleDirect | ProviderType::Anthropic => {
+            let model = if spec.id.contains('/') {
+                spec.id.clone()
+            } else if !spec.canonical_slug.is_empty() && spec.canonical_slug.contains('/') {
+                spec.canonical_slug.clone()
+            } else {
+                spec.id.clone()
+            };
+            Some(LlmConfig::openrouter(model))
+        }
         ProviderType::Ollama => {
             let base_url = vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaUrl)
                 .expose()
@@ -95,11 +106,34 @@ pub(crate) fn model_spec_to_llm_config(spec: &ModelSpec) -> Option<LlmConfig> {
                 telemetry_skip_interaction: true,
             })
         }
-        ProviderType::GoogleDirect
-        | ProviderType::HuggingFaceRouter
-        | ProviderType::VoxLocal
+        ProviderType::VoxLocal => {
+            let base_url = std::env::var("VOX_LOCAL_ENDPOINT")
+                .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
+            let chat_url = format!("{}/v1/chat/completions", base_url.trim_end_matches('/'));
+            Some(LlmConfig {
+                provider: "voxlocal".to_string(),
+                model: spec.id.clone(),
+                cost_per_1k: None,
+                base_url: Some(chat_url),
+                api_key: None,
+                temperature: None,
+                top_p: None,
+                max_tokens: Some(spec.max_tokens),
+                response_format: None,
+                tools: None,
+                tool_choice: None,
+                timeout_ms: None,
+                telemetry_session_id: None,
+                telemetry_user_id: None,
+                telemetry_task_category: None,
+                telemetry_strength_tag: None,
+                telemetry_trace_id: None,
+                telemetry_attempt_number: None,
+                telemetry_skip_interaction: true,
+            })
+        }
+        ProviderType::HuggingFaceRouter
         | ProviderType::PopuliMesh
-        | ProviderType::Anthropic
         | ProviderType::Mistral
         | ProviderType::DeepSeek
         | ProviderType::SambaNova
@@ -1405,14 +1439,22 @@ mod tests {
         assert_eq!(cfg.model, "openrouter/some-model");
     }
 
-    /// Deliberately-unhandled case: `ProviderType::GoogleDirect` requires the
-    /// `apply_gemini_policy`/direct-Gemini-endpoint handling that lives in
-    /// `mcp_infer_completion`'s provider-adapter dispatch, not a narrow mapper —
-    /// so this must return `None` and let the caller fall back to that pipeline.
+    /// Task 5: GoogleDirect and Anthropic map to OpenRouter LlmConfig, preserving
+    /// agent loop tool execution.
     #[test]
-    fn model_spec_to_llm_config_returns_none_for_google_direct() {
-        let spec = model_spec(ProviderType::GoogleDirect, "gemini-2.0-flash");
-        assert!(model_spec_to_llm_config(&spec).is_none());
+    fn model_spec_to_llm_config_maps_google_direct_and_anthropic() {
+        let spec_g = model_spec(ProviderType::GoogleDirect, "google/gemini-2.0-flash");
+        let cfg_g = model_spec_to_llm_config(&spec_g).expect("google direct must map");
+        assert_eq!(cfg_g.provider, "openrouter");
+        assert_eq!(cfg_g.model, "google/gemini-2.0-flash");
+
+        let spec_a = model_spec(ProviderType::Anthropic, "anthropic/claude-3-5-sonnet");
+        let cfg_a = model_spec_to_llm_config(&spec_a).expect("anthropic must map");
+        assert_eq!(cfg_a.provider, "openrouter");
+        assert_eq!(cfg_a.model, "anthropic/claude-3-5-sonnet");
+
+        let spec_unhandled = model_spec(ProviderType::Mistral, "mistral/mistral-large");
+        assert!(model_spec_to_llm_config(&spec_unhandled).is_none());
     }
 
     /// Task 1.3d end-to-end proof that F24 is fixed for the mapped-provider case:

@@ -376,11 +376,15 @@ async fn run_background(
 /// other two execution branches) is a hard reject, not a silently-ignored
 /// extra.
 pub fn plan_tool_args(input: &ChatTurnInput) -> serde_json::Value {
-    serde_json::json!({
+    let mut args = serde_json::json!({
         "goal": input.content,
         "session_id": input.session_id,
         "require_approval": true,
-    })
+    });
+    if let Some(ref mo) = input.model_override {
+        args["model_override"] = serde_json::Value::String(mo.clone());
+    }
+    args
 }
 
 /// `vox_plan`'s `ToolResult<PlanResult>` envelope has a flat `data` object
@@ -675,5 +679,34 @@ mod tests {
         assert_eq!(args["research_scope"], "web");
         assert_eq!(args["domain_mode"], "codegen");
         assert_eq!(args["site_scope"], "docs.rs");
+    }
+
+    #[test]
+    fn plan_tool_args_includes_model_override_when_present() {
+        let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "s-plan-1",
+            "content": "create an architecture plan",
+            "model_override": "google/gemini-2.5-flash"
+        }))
+        .expect("deserialize");
+        let args = plan_tool_args(&input);
+        assert_eq!(args["goal"], "create an architecture plan");
+        assert_eq!(args["session_id"], "s-plan-1");
+        assert_eq!(args["require_approval"], true);
+        assert_eq!(args["model_override"], "google/gemini-2.5-flash");
+    }
+
+    #[test]
+    fn plan_tool_args_omits_model_override_when_none() {
+        let input: ChatTurnInput = serde_json::from_value(serde_json::json!({
+            "session_id": "s-plan-2",
+            "content": "create another plan"
+        }))
+        .expect("deserialize");
+        let args = plan_tool_args(&input);
+        assert_eq!(args["goal"], "create another plan");
+        assert_eq!(args["session_id"], "s-plan-2");
+        assert_eq!(args["require_approval"], true);
+        assert!(args.get("model_override").is_none());
     }
 }

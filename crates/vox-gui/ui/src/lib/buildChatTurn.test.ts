@@ -72,5 +72,16 @@ describe('buildChatTurn', () => {
     expect(res2.execution).toBe('background');
     expect(res2.force_research).toBe(true);
     expect(res2.content).toBe('compare Rust async runtimes');
+    expect(res2.research_scope).toBe('deep');
+
+    const res3 = buildChatTurn(
+      { description: '/research --domain=codegen --site=docs.rs tokio select' },
+      { sessionId: 's1' }
+    );
+    expect(res3.execution).toBe('background');
+    expect(res3.force_research).toBe(true);
+    expect(res3.content).toBe('tokio select');
+    expect(res3.domain_mode).toBe('codegen');
+    expect(res3.site_scope).toBe('docs.rs');
   });
 });

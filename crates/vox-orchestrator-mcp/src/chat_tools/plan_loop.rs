@@ -8,7 +8,6 @@ use serde::Deserialize;
 use super::build_system_prompt;
 use super::params::{PlanDepth, PlanLoopMode, PlanParams, PlanTask};
 use super::plan_gap;
-use crate::chat_model_resolve::resolve_chat_llm_model;
 use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_completion};
 use crate::server_state::ServerState;
 
@@ -271,10 +270,55 @@ pub async fn maybe_refine_plan(
             ..Default::default()
         };
 
-        let (model, free_only) = match resolve_chat_llm_model(
+        let global_pref = match crate::sync_poison::poison_rw_read(
+            state.mcp_chat_model_override.read(),
+            "mcp_chat_model_override",
+        ) {
+            Ok(g) => g.clone(),
+            Err(_) => {
+                return (
+                    tasks,
+                    summary,
+                    PlanRefinementState {
+                        refinement_rounds: rounds,
+                        loop_status: "stopped_model_error".to_string(),
+                        stop_reason: Some("model_lock".to_string()),
+                        last_gap_report: last_gap,
+                    },
+                );
+            }
+        };
+        let pref = crate::chat_tools::chat::message::effective_model_pref(
+            params.model_override.as_deref(),
+            global_pref.as_deref(),
+        );
+
+        if crate::chat_model_resolve::enforce_budget_guard(state, params.session_id.as_deref())
+            .await
+            .is_err()
+        {
+            return (
+                tasks,
+                summary,
+                PlanRefinementState {
+                    refinement_rounds: rounds,
+                    loop_status: "stopped_model_error".to_string(),
+                    stop_reason: Some("model_resolve_failed".to_string()),
+                    last_gap_report: last_gap,
+                },
+            );
+        }
+        let mut res_template = resolution_template.clone();
+        if res_template.context_fill_ratio.is_none() {
+            res_template.context_fill_ratio =
+                crate::llm_bridge::mcp_global_llm_context_fill_ratio(&state.orchestrator);
+        }
+
+        let (model, free_only) = match crate::llm_bridge::resolve_mcp_chat_model(
             state,
             &user_prompt,
-            resolution_template.clone(),
+            pref.as_deref(),
+            res_template.clone(),
             params.session_id.as_deref(),
         )
         .await
@@ -288,25 +332,6 @@ pub async fn maybe_refine_plan(
                         refinement_rounds: rounds,
                         loop_status: "stopped_model_error".to_string(),
                         stop_reason: Some("model_resolve_failed".to_string()),
-                        last_gap_report: last_gap,
-                    },
-                );
-            }
-        };
-
-        let pref = match crate::sync_poison::poison_rw_read(
-            state.mcp_chat_model_override.read(),
-            "mcp_chat_model_override",
-        ) {
-            Ok(g) => g.clone(),
-            Err(_) => {
-                return (
-                    tasks,
-                    summary,
-                    PlanRefinementState {
-                        refinement_rounds: rounds,
-                        loop_status: "stopped_model_error".to_string(),
-                        stop_reason: Some("model_lock".to_string()),
                         last_gap_report: last_gap,
                     },
                 );

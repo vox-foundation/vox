@@ -257,6 +257,9 @@ mod verify_tests {
             .mount(&server)
             .await;
 
+        // Warm up client/TLS initialization so cold rustls init time is not attributed to the timeout measurement.
+        let _ = vox_http_client::client_builder().build();
+
         let start = std::time::Instant::now();
         let result = verify_key_at_with_timeout(
             &server.uri(),

@@ -6,6 +6,8 @@
 import { contextRefsFromPayload } from './loquelaContext';
 import type { ChatTurnInput } from '../transport';
 
+import { parseResearchSlashCommand } from './slashRouter';
+
 export const CHAT_TURN_KEYS = [
   'session_id', 'content', 'execution', 'model_override', 'tier',
   'clutch', 'risk', 'context_files', 'active_skill', 'skill_exclusions',
@@ -55,9 +57,10 @@ export interface ChatTurnSource {
 }
 
 export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): ChatTurnInput {
-  const isResearchSlash = /^\/(?:research|deepresearch)(?:\s+|$)/i.test(payload.description);
+  const researchSlash = parseResearchSlashCommand(payload.description);
+  const isResearchSlash = researchSlash !== null;
   const content = isResearchSlash
-    ? payload.description.replace(/^\/(?:research|deepresearch)(?:\s+|$)/i, '').trim()
+    ? (researchSlash.query || payload.description)
     : payload.description;
 
   return {
@@ -83,8 +86,8 @@ export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): C
     mode: payload.mode ?? null,
     chat_session_id: ctx.chatSessionId ?? ctx.sessionId ?? null,
     force_research: payload.force_research ?? (isResearchSlash ? true : null),
-    research_scope: payload.research_scope ?? null,
-    domain_mode: payload.domain_mode ?? null,
-    site_scope: payload.site_scope ?? null,
+    research_scope: payload.research_scope ?? (researchSlash?.isDeep ? 'deep' : null),
+    domain_mode: payload.domain_mode ?? researchSlash?.domainMode ?? null,
+    site_scope: payload.site_scope ?? researchSlash?.siteScope ?? null,
   };
 }

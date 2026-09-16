@@ -299,6 +299,9 @@ pub struct PlanParams {
     /// Optional top_p override (0.0–1.0).
     #[serde(default)]
     pub top_p: Option<f32>,
+    /// Optional model override for planning.
+    #[serde(default)]
+    pub model_override: Option<String>,
 }
 
 /// Arguments for `vox_replan` — forwards to DeI `ai.plan.replan` when `vox-orchestrator-d` is available.
@@ -530,5 +533,20 @@ mod chat_params_tests {
         assert_eq!(p.mode, None);
         assert_eq!(p.priority, None);
         assert_eq!(p.dry_run, None);
+    }
+
+    #[test]
+    fn plan_params_parses_model_override() {
+        let json = r#"{
+            "goal": "refactor parser",
+            "model_override": "google/gemini-2.5-flash"
+        }"#;
+        let p: PlanParams = serde_json::from_str(json).unwrap();
+        assert_eq!(p.goal, "refactor parser");
+        assert_eq!(p.model_override.as_deref(), Some("google/gemini-2.5-flash"));
+
+        let json_default = r#"{"goal": "refactor parser"}"#;
+        let p_default: PlanParams = serde_json::from_str(json_default).unwrap();
+        assert_eq!(p_default.model_override, None);
     }
 }

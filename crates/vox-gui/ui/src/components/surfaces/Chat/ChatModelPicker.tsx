@@ -15,14 +15,25 @@ interface ProviderStatus {
   local_reachable: boolean | null;
 }
 
+export interface ModelCard {
+  id: string;
+  provider?: string;
+  provider_type?: string;
+}
+
 /** True when the picker should refuse this provider — no key for a cloud
  *  provider, or the cached local-server probe reports it unreachable. This
  *  is what keeps the picker's list in sync with the BackendAvailability
  *  strip; without it a user could pick a model the strip is simultaneously
  *  showing as unavailable, and the request would fail 100% of the time. */
-function isProviderUnavailable(provider: string | undefined, statuses: ProviderStatus[]): boolean {
-  if (!provider) return false;
-  const s = statuses.find(x => x.provider.toLowerCase() === provider.toLowerCase());
+export function isProviderUnavailable(model: ModelCard, statuses: ProviderStatus[]): boolean {
+  const targetProvider = model.provider_type ?? model.provider;
+  if (!targetProvider) return false;
+  const pNorm = targetProvider.toLowerCase().replace(/_/g, '');
+  const s = statuses.find(x => {
+    const xNorm = x.provider.toLowerCase().replace(/_/g, '');
+    return xNorm === pNorm || (pNorm === 'populilocal' && xNorm === 'voxlocal');
+  });
   if (!s) return false;
   if (s.is_local) return s.local_reachable === false;
   return !s.key_present;
@@ -36,7 +47,7 @@ export function ChatModelPicker({
   onApplied?: (modelId: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [models, setModels] = useState<Array<{ id: string; provider?: string }>>([]);
+  const [models, setModels] = useState<ModelCard[]>([]);
   const [statuses, setStatuses] = useState<ProviderStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -66,7 +77,7 @@ export function ChatModelPicker({
     if (next && models.length === 0) {
       try {
         const [cards, providerStatuses] = await Promise.all([
-          invoke<Array<{ id: string; provider?: string }>>('list_model_cards', { limit: 120 }),
+          invoke<ModelCard[]>('list_model_cards', { limit: 120 }),
           invoke<ProviderStatus[]>('inference_provider_status'),
         ]);
         setModels(Array.isArray(cards) ? cards : []);
@@ -111,7 +122,7 @@ export function ChatModelPicker({
             </button>
           </li>
           {models.map(m => {
-            const unavailable = isProviderUnavailable(m.provider, statuses);
+            const unavailable = isProviderUnavailable(m, statuses);
             return (
               <li key={m.id}>
                 <button
@@ -120,7 +131,7 @@ export function ChatModelPicker({
                   aria-selected={m.id === activeModel}
                   aria-disabled={unavailable}
                   disabled={unavailable}
-                  title={unavailable ? `${m.provider} is currently unavailable (no key or unreachable)` : undefined}
+                  title={unavailable ? `${m.provider_type ?? m.provider} is currently unavailable (no key or unreachable)` : undefined}
                   onClick={() => apply(m.id, unavailable)}
                   className={`w-full truncate rounded px-2 py-1 text-left font-mono text-[10px] ${
                     unavailable

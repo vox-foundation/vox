@@ -440,7 +440,7 @@ impl FreeAiClient {
                     }
 
                     let gem_key = Self::gemini_key_from_providers(&providers);
-                    if !gem_key.is_empty() {
+                    if !gem_key.is_empty() && !is_claude_model(&model) {
                         let mut stream =
                             Self::stream_gemini(&http, &gem_key, &model, &prompt_owned).await;
                         while let Some(chunk) = stream.next().await {
@@ -468,5 +468,29 @@ impl FreeAiClient {
                 })
             }
         }
+    }
+}
+
+/// Check whether a model ID refers to an Anthropic / Claude model.
+/// Used to prevent UserModelOverride from forwarding Claude models to Gemini direct endpoints.
+pub(crate) fn is_claude_model(model: &str) -> bool {
+    let lower = model.to_ascii_lowercase();
+    lower.contains("claude") || lower.contains("anthropic")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_claude_models() {
+        assert!(is_claude_model("claude-3-5-sonnet-20241022"));
+        assert!(is_claude_model("anthropic/claude-opus-4.7"));
+        assert!(is_claude_model("Anthropic/Claude-3-Haiku"));
+        assert!(is_claude_model("claude"));
+        assert!(!is_claude_model("gemini-2.0-flash"));
+        assert!(!is_claude_model("google/gemini-2.5-flash"));
+        assert!(!is_claude_model("openai/gpt-4o"));
+        assert!(!is_claude_model("ollama/llama3"));
     }
 }

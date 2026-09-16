@@ -5,7 +5,7 @@ mod harness_issue_scorer;
 mod history;
 mod hydrate;
 pub(crate) mod mentions;
-mod message;
+pub(crate) mod message;
 
 pub use history::chat_history;
-pub use message::chat_message;
+pub use message::{chat_message, effective_model_pref};

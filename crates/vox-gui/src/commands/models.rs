@@ -17,6 +17,7 @@ use crate::commands::daemon::PersistentDaemon;
 pub struct ModelCardDto {
     pub id: String,
     pub provider: String,
+    pub provider_type: String,
     pub tier: String,
     pub cost_per_1k: f64,
     pub max_tokens: u32,
@@ -169,6 +170,7 @@ pub async fn list_model_cards(limit: Option<usize>) -> Result<Vec<ModelCardDto>,
             ModelCardDto {
                 id: m.id.clone(),
                 provider: m.provider.clone(),
+                provider_type: format!("{:?}", m.provider_type),
                 tier: format!("{:?}", m.capabilities.tier),
                 cost_per_1k: m.cost_per_1k,
                 max_tokens: u32::try_from(m.max_tokens).unwrap_or(u32::MAX),
@@ -691,5 +693,25 @@ mod tests {
         );
         assert_eq!(back.efficiency, p.efficiency);
         assert_eq!(back.mobile, p.mobile);
+    }
+
+    #[test]
+    fn model_card_dto_serializes_provider_type() {
+        let card = ModelCardDto {
+            id: "openai/gpt-4o".to_string(),
+            provider: "openai".to_string(),
+            provider_type: "OpenAi".to_string(),
+            tier: "Pro".to_string(),
+            cost_per_1k: 0.005,
+            max_tokens: 128_000,
+            is_free: false,
+            latency_p50_ms: Some(450),
+            success_rate: Some(0.99),
+            quality_score: None,
+        };
+        let val = serde_json::to_value(&card).expect("serialize");
+        assert_eq!(val["provider_type"], "OpenAi");
+        assert_eq!(val["id"], "openai/gpt-4o");
+        assert_eq!(val["provider"], "openai");
     }
 }

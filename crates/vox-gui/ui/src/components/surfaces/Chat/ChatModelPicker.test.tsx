@@ -122,6 +122,31 @@ describe('ChatModelPicker', () => {
     await user.click(option);
     expect(onApplied).not.toHaveBeenCalled();
   });
+
+  it('checks provider_type to match transport credentials when provider differs', async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'list_model_cards') {
+        return [
+          { id: 'google/gemini-2.5-flash', provider: 'google', provider_type: 'OpenRouter' },
+        ];
+      }
+      if (cmd === 'inference_provider_status') {
+        return [
+          { provider: 'OpenRouter', key_present: true, is_local: false, local_reachable: null },
+          { provider: 'Google', key_present: false, is_local: false, local_reachable: null },
+        ];
+      }
+      return null;
+    });
+    const user = userEvent.setup();
+    const onApplied = vi.fn();
+    render(<ChatModelPicker activeModel={null} onApplied={onApplied} />);
+    await user.click(screen.getByRole('button', { name: /model: auto-route/i }));
+    const option = await screen.findByRole('option', { name: /google\/gemini-2\.5-flash/i });
+    expect(option).not.toBeDisabled();
+    await user.click(option);
+    expect(onApplied).toHaveBeenCalledWith('google/gemini-2.5-flash');
+  });
 });
 
 // Wiring guard: the picker renders inside the composer's own toolbar row
