@@ -304,6 +304,92 @@ mod tests {
             "Qwen 3 should be in default HF catalog"
         );
     }
+
+    #[tokio::test]
+    async fn test_mens_catalog_extracts_context_length_from_config() {
+        let tmp = tempfile::tempdir().expect("create tempdir");
+        let root = tmp.path();
+
+        // 1. Direct config.json with max_position_embeddings
+        let run_1 = root.join("run_direct");
+        std::fs::create_dir_all(&run_1).unwrap();
+        std::fs::write(
+            run_1.join("config.json"),
+            r#"{"max_position_embeddings": 40960}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            MensCatalog::read_context_length_from_dir(&run_1),
+            40960,
+            "should extract max_position_embeddings from root config.json"
+        );
+
+        // 2. final/config.json with context_length
+        let run_2 = root.join("run_final");
+        let final_dir = run_2.join("final");
+        std::fs::create_dir_all(&final_dir).unwrap();
+        std::fs::write(
+            final_dir.join("config.json"),
+            r#"{"context_length": 128000}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            MensCatalog::read_context_length_from_dir(&run_2),
+            128000,
+            "should extract context_length from final/config.json"
+        );
+
+        // 3. adapter_manifest.json referencing base_model dir
+        let base_model_dir = root.join("base_model");
+        std::fs::create_dir_all(&base_model_dir).unwrap();
+        std::fs::write(
+            base_model_dir.join("config.json"),
+            r#"{"max_position_embeddings": 65536}"#,
+        )
+        .unwrap();
+
+        let run_3 = root.join("run_adapter");
+        std::fs::create_dir_all(&run_3).unwrap();
+        std::fs::write(
+            run_3.join("adapter_manifest.json"),
+            format!(
+                r#"{{"format":"vox_mens_adapter","version":3,"base_model":{}}}"#,
+                serde_json::to_string(&base_model_dir.to_string_lossy()).unwrap()
+            ),
+        )
+        .unwrap();
+        assert_eq!(
+            MensCatalog::read_context_length_from_dir(&run_3),
+            65536,
+            "should extract context length from base_model config via adapter_manifest.json"
+        );
+
+        // 4. Fallback default when no config exists
+        let run_4 = root.join("run_empty");
+        std::fs::create_dir_all(&run_4).unwrap();
+        assert_eq!(
+            MensCatalog::read_context_length_from_dir(&run_4),
+            32768,
+            "should fallback to 32768 when no config exists"
+        );
+
+        // 5. MensCatalog::refresh discovers run and sets max_tokens dynamically
+        let mens_root = root.join("workspace_mens");
+        let runs_dir = mens_root.join("mens").join("runs");
+        let run_refresh = runs_dir.join("test-model");
+        std::fs::create_dir_all(run_refresh.join("final")).unwrap();
+        std::fs::write(
+            run_refresh.join("final").join("config.json"),
+            r#"{"max_position_embeddings": 40960}"#,
+        )
+        .unwrap();
+
+        let catalog = MensCatalog::new(&mens_root);
+        let models = catalog.refresh().await.expect("refresh succeeds");
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0].id, "mens/test-model");
+        assert_eq!(models[0].max_tokens, 40960);
+    }
 }
 /// Parses Ollama's `details.parameter_size` field (e.g. `"8.2B"`, `"70M"`,
 /// `"1.5B"`) into billions of parameters. Returns `None` for anything that
@@ -598,9 +684,145 @@ pub struct MensCatalog {
     root: std::path::PathBuf,
 }
 
+fn parse_context_length_from_config(path: &std::path::Path) -> Option<u32> {
+    if !path.is_file() {
+        return None;
+    }
+    let content = std::fs::read_to_string(path).ok()?;
+    let val: serde_json::Value = serde_json::from_str(&content).ok()?;
+    if let Some(n) = val
+        .get("max_position_embeddings")
+        .or_else(|| val.get("context_length"))
+        .or_else(|| {
+            val.get("model_config").and_then(|m| {
+                m.get("max_position_embeddings")
+                    .or_else(|| m.get("context_length"))
+            })
+        })
+    {
+        if let Some(v) = n.as_u64() {
+            return Some(v as u32);
+        }
+        if let Some(s) = n.as_str() {
+            if let Ok(v) = s.parse::<u32>() {
+                return Some(v);
+            }
+        }
+    }
+    None
+}
+
+fn resolve_base_model_context_length(
+    dir: &std::path::Path,
+    base_model_val: &serde_json::Value,
+) -> Option<u32> {
+    if let Some(base_str) = base_model_val.as_str() {
+        let p = std::path::Path::new(base_str);
+        if p.is_file() {
+            if let Some(len) = parse_context_length_from_config(p) {
+                return Some(len);
+            }
+        } else if p.is_dir() {
+            if let Some(len) = parse_context_length_from_config(&p.join("config.json")) {
+                return Some(len);
+            }
+        }
+
+        let rel = dir.join(base_str);
+        if rel.is_file() {
+            if let Some(len) = parse_context_length_from_config(&rel) {
+                return Some(len);
+            }
+        } else if rel.is_dir() {
+            if let Some(len) = parse_context_length_from_config(&rel.join("config.json")) {
+                return Some(len);
+            }
+        }
+
+        // Check local Hugging Face hub cache if base is a repo id like "Qwen/Qwen3-0.6B"
+        if let Some(home) = dirs::home_dir() {
+            let hub_dir = home
+                .join(".cache")
+                .join("huggingface")
+                .join("hub")
+                .join(format!("models--{}", base_str.replace('/', "--")))
+                .join("snapshots");
+            if hub_dir.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(&hub_dir) {
+                    for entry in entries.flatten() {
+                        let ep = entry.path();
+                        if ep.is_dir() {
+                            if let Some(len) =
+                                parse_context_length_from_config(&ep.join("config.json"))
+                            {
+                                return Some(len);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else if let Some(base_obj) = base_model_val.as_object() {
+        if let Some(n) = base_obj
+            .get("max_position_embeddings")
+            .or_else(|| base_obj.get("context_length"))
+        {
+            if let Some(v) = n.as_u64() {
+                return Some(v as u32);
+            }
+            if let Some(s) = n.as_str().and_then(|s| s.parse::<u32>().ok()) {
+                return Some(s);
+            }
+        }
+    }
+    None
+}
+
 impl MensCatalog {
     pub fn new(root: impl Into<std::path::PathBuf>) -> Self {
         Self { root: root.into() }
+    }
+
+    /// Discovers and returns the context length (in tokens) for a MENS checkpoint run directory.
+    /// Checks `config.json` and `final/config.json`, then `adapter_manifest.json` for base model
+    /// config, falling back to 32768.
+    pub fn read_context_length_from_dir(dir: &std::path::Path) -> u32 {
+        if let Some(len) = parse_context_length_from_config(&dir.join("config.json")) {
+            return len;
+        }
+        if let Some(len) = parse_context_length_from_config(&dir.join("final").join("config.json"))
+        {
+            return len;
+        }
+
+        let manifest_candidates = [
+            dir.join("adapter_manifest.json"),
+            dir.join("final").join("adapter_manifest.json"),
+        ];
+        for manifest_path in &manifest_candidates {
+            if manifest_path.is_file() {
+                if let Ok(content) = std::fs::read_to_string(manifest_path) {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(base_val) = val.get("base_model") {
+                            if let Some(len) = resolve_base_model_context_length(dir, base_val) {
+                                return len;
+                            }
+                        }
+                        if let Some(upstream_val) = val
+                            .get("provenance")
+                            .and_then(|p| p.get("upstream_model_id"))
+                        {
+                            if let Some(len) = resolve_base_model_context_length(dir, upstream_val)
+                            {
+                                return len;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        32768
     }
 }
 
@@ -642,7 +864,7 @@ impl ModelCatalog for MensCatalog {
                         canonical_slug: format!("mens/{}", name),
                         provider: "voxlocal".to_string(),
                         provider_type: ProviderType::VoxLocal,
-                        max_tokens: 8192,
+                        max_tokens: Self::read_context_length_from_dir(&path) as u64,
                         cost_per_1k: 0.0,
                         cost_per_1k_input: 0.0,
                         cost_per_1k_output: 0.0,
