@@ -405,7 +405,12 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           const taskId = kind.task_id != null ? String(kind.task_id) : undefined;
           const runId = taskId ? state.taskToRun[taskId] : undefined;
           const target = runId
-            ? state.messages.find((m) => m.role === 'assistant' && m.runId === runId)
+            ? state.messages.find(
+                (m) =>
+                  m.role === 'assistant' &&
+                  m.runId === runId &&
+                  (m.status === 'pending' || m.status === 'streaming'),
+              )
             : [...state.messages]
                 .reverse()
                 .find(
