@@ -117,10 +117,13 @@ pub(crate) fn split_into_sentences(text: &str) -> Vec<&str> {
                 sentences.push(chunk);
             }
             start = byte_idx + ch.len_utf8();
-        } else if ch == '.' {
+        } else if ch == '.' || ch == '?' || ch == '!' {
             let is_sentence_end = if i + 1 < len {
                 let next_ch = chars[i + 1].1;
                 next_ch.is_whitespace()
+                    || next_ch == '"'
+                    || next_ch == '\''
+                    || next_ch == '\u{2019}'
             } else {
                 true
             };
@@ -219,6 +222,31 @@ fn are_opposing_objects(o1: &str, o2: &str) -> bool {
     false
 }
 
+fn snippet_has_negated_claim(snippet: &str, subject: &str, predicate: &str) -> bool {
+    let s_low = snippet.to_lowercase();
+    let sub_low = subject.to_lowercase();
+    let pred_low = predicate.to_lowercase();
+    let neg_markers = [
+        " not ",
+        " never ",
+        " cannot ",
+        " doesn't ",
+        " doesn’t ",
+        " does not ",
+        " unsupported ",
+        " unable to ",
+        " no longer ",
+    ];
+    for sentence in split_into_sentences(&s_low) {
+        if sentence.contains(&sub_low) || sentence.contains(&pred_low) {
+            if neg_markers.iter().any(|m| sentence.contains(m)) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn detect_triplet_contradictions(triplets: &[ClaimTriplet], contradictions: &mut Vec<String>) {
     let mut seen: std::collections::HashSet<String> = contradictions.iter().cloned().collect();
 
@@ -232,8 +260,10 @@ fn detect_triplet_contradictions(triplets: &[ClaimTriplet], contradictions: &mut
             }
 
             let objects_overlap = t1.object.eq_ignore_ascii_case(&t2.object)
-                || t1.object.to_lowercase().contains(&t2.object.to_lowercase())
-                || t2.object.to_lowercase().contains(&t1.object.to_lowercase());
+                || (t1.object.len() >= 4
+                    && t2.object.len() >= 4
+                    && (t1.object.to_lowercase().contains(&t2.object.to_lowercase())
+                        || t2.object.to_lowercase().contains(&t1.object.to_lowercase())));
 
             // Case 1: Opposing predicates regarding the same or overlapping object
             // e.g. "SQLite supports JSONB" vs "SQLite deprecates JSONB"
@@ -263,20 +293,12 @@ fn detect_triplet_contradictions(triplets: &[ClaimTriplet], contradictions: &mut
                 continue;
             }
 
-            // Case 3: Matching predicate and object, but one evidence snippet asserts negation
+            // Case 3: Matching predicate and object, but one evidence snippet asserts negation on the claim
             if t1.predicate.eq_ignore_ascii_case(&t2.predicate) && objects_overlap {
-                let s1_low = t1.evidence_snippet.to_lowercase();
-                let s2_low = t2.evidence_snippet.to_lowercase();
-                let neg_markers = [
-                    " not ",
-                    " never ",
-                    " cannot ",
-                    " doesn't ",
-                    " does not ",
-                    " unsupported ",
-                ];
-                let s1_neg = neg_markers.iter().any(|m| s1_low.contains(m));
-                let s2_neg = neg_markers.iter().any(|m| s2_low.contains(m));
+                let s1_neg =
+                    snippet_has_negated_claim(&t1.evidence_snippet, &t1.subject, &t1.predicate);
+                let s2_neg =
+                    snippet_has_negated_claim(&t2.evidence_snippet, &t2.subject, &t2.predicate);
                 if s1_neg != s2_neg {
                     let desc = format!(
                         "Contradiction on '{} {} {}': conflicting evidence polarity in snippets",
@@ -746,12 +768,77 @@ mod tests {
 
     #[test]
     fn test_split_into_sentences_preserves_version_numbers() {
-        let text = "SQLite 3.45 introduced JSONB natively. Node.js supports modern ES modules; it is fast.";
+        let text = "Does PostgreSQL support JSONB? Yes! SQLite 3.45 introduced JSONB natively. Node.js supports modern ES modules; it is fast.";
         let sentences = split_into_sentences(text);
-        assert_eq!(sentences.len(), 3);
-        assert_eq!(sentences[0], "SQLite 3.45 introduced JSONB natively");
-        assert_eq!(sentences[1], "Node.js supports modern ES modules");
-        assert_eq!(sentences[2], "it is fast");
+        assert_eq!(sentences.len(), 5);
+        assert_eq!(sentences[0], "Does PostgreSQL support JSONB");
+        assert_eq!(sentences[1], "Yes");
+        assert_eq!(sentences[2], "SQLite 3.45 introduced JSONB natively");
+        assert_eq!(sentences[3], "Node.js supports modern ES modules");
+        assert_eq!(sentences[4], "it is fast");
+    }
+
+    #[test]
+    fn test_detect_triplet_contradictions_snippet_polarity() {
+        let triplets = vec![
+            ClaimTriplet {
+                subject: "PostgreSQL".to_string(),
+                predicate: "supports".to_string(),
+                object: "JSONB indexing".to_string(),
+                confidence: 0.95,
+                evidence_snippet: "PostgreSQL supports JSONB indexing natively.".to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+            ClaimTriplet {
+                subject: "PostgreSQL".to_string(),
+                predicate: "supports".to_string(),
+                object: "JSONB indexing".to_string(),
+                confidence: 0.85,
+                evidence_snippet: "PostgreSQL does not support JSONB indexing in legacy versions."
+                    .to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+        ];
+
+        let mut contradictions = Vec::new();
+        detect_triplet_contradictions(&triplets, &mut contradictions);
+        assert_eq!(contradictions.len(), 1);
+        assert!(contradictions[0].contains("conflicting evidence polarity"));
+    }
+
+    #[test]
+    fn test_detect_triplet_contradictions_does_not_flag_incidental_negation() {
+        let triplets = vec![
+            ClaimTriplet {
+                subject: "PostgreSQL".to_string(),
+                predicate: "supports".to_string(),
+                object: "JSONB indexing".to_string(),
+                confidence: 0.95,
+                evidence_snippet: "PostgreSQL supports JSONB indexing natively.".to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+            ClaimTriplet {
+                subject: "PostgreSQL".to_string(),
+                predicate: "supports".to_string(),
+                object: "JSONB indexing".to_string(),
+                confidence: 0.90,
+                evidence_snippet:
+                    "PostgreSQL supports JSONB indexing. External plugins are not required."
+                        .to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+        ];
+
+        let mut contradictions = Vec::new();
+        detect_triplet_contradictions(&triplets, &mut contradictions);
+        assert!(
+            contradictions.is_empty(),
+            "Incidental negation in an unrelated sentence must not flag a contradiction"
+        );
     }
 
     #[test]
