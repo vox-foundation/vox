@@ -103,13 +103,14 @@ impl FreeAiClient {
         prompt: &str,
     ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
         let resolved_key = resolve_gemini_key(api_key);
+        let clean_model = model.strip_prefix("google/").unwrap_or(model);
 
         // Direct Gemini (generativelanguage) is NOT OpenAI-compatible — the egress core can't
         // carry it; documented local egress per the egress design spec.
         // vox-arch-check: allow llm-egress
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:streamGenerateContent?key={}",
-            model, resolved_key
+            clean_model, resolved_key
         );
 
         let body = serde_json::json!({
@@ -590,5 +591,16 @@ mod openrouter_stream_consolidation_tests {
             body["messages"].is_array(),
             "request body must carry a `messages` array (egress core's ChatMessage wire shape)"
         );
+    }
+
+    #[test]
+    fn test_stream_gemini_url_strips_google_prefix() {
+        let model = "google/gemini-2.5-flash";
+        let clean_model = model.strip_prefix("google/").unwrap_or(model);
+        assert_eq!(clean_model, "gemini-2.5-flash");
+
+        let plain = "gemini-2.5-flash";
+        let clean_plain = plain.strip_prefix("google/").unwrap_or(plain);
+        assert_eq!(clean_plain, "gemini-2.5-flash");
     }
 }

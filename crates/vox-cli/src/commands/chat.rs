@@ -48,7 +48,7 @@ pub async fn run(args: ChatArgs) -> Result<()> {
         ..Default::default()
     });
 
-    let mut config = LlmConfig::openrouter(&args.model);
+    let mut config = resolve_chat_config(&args.model);
     config.telemetry_task_category = Some("cli-chat".to_string());
 
     let opts = ActivityOptions::new();
@@ -69,6 +69,47 @@ pub async fn run(args: ChatArgs) -> Result<()> {
         .context("vox chat: llm_chat failed")?;
     println!("{}", response.content);
     Ok(())
+}
+
+pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
+    if model.starts_with("mens/")
+        || model.starts_with("voxlocal")
+        || model.starts_with("populi_local")
+    {
+        let base_url = std::env::var("VOX_LOCAL_ENDPOINT")
+            .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
+        let chat_url = format!("{}/v1/chat/completions", base_url.trim_end_matches('/'));
+        LlmConfig {
+            provider: "voxlocal".to_string(),
+            model: model.to_string(),
+            cost_per_1k: None,
+            base_url: Some(chat_url),
+            api_key: None,
+            temperature: None,
+            top_p: None,
+            max_tokens: Some(2048),
+            response_format: None,
+            tools: None,
+            tool_choice: None,
+            timeout_ms: None,
+            telemetry_session_id: None,
+            telemetry_user_id: None,
+            telemetry_task_category: None,
+            telemetry_strength_tag: None,
+            telemetry_trace_id: None,
+            telemetry_attempt_number: None,
+            telemetry_skip_interaction: true,
+        }
+    } else if model.starts_with("ollama")
+        || (model.contains("qwen3") && !model.contains('/'))
+        // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="qwen3"
+        || model.contains("qwen2.5-coder")
+        || model.starts_with("local")
+    {
+        LlmConfig::ollama(model)
+    } else {
+        LlmConfig::openrouter(model)
+    }
 }
 
 #[cfg(test)]
@@ -92,14 +133,23 @@ mod tests {
             "chat",
             "hi",
             "--model",
-            "anthropic/claude-3.5-sonnet",
+            "anthropic/claude-3-7-sonnet",
             "--system",
             "be terse",
         ])
         .expect("explicit parse should succeed");
         assert_eq!(explicit_args.message, "hi");
-        assert_eq!(explicit_args.model, "anthropic/claude-3.5-sonnet");
+        assert_eq!(explicit_args.model, "anthropic/claude-3-7-sonnet");
         assert_eq!(explicit_args.system.as_deref(), Some("be terse"));
+    }
+
+    #[test]
+    fn chat_routing_ollama_vs_openrouter() {
+        let local_qwen = resolve_chat_config("qwen3:8b");
+        assert_eq!(local_qwen.provider, "ollama");
+
+        let openrouter_qwen = resolve_chat_config("qwen/qwen3-32b-instruct");
+        assert_eq!(openrouter_qwen.provider, "openrouter");
     }
 
     #[test]

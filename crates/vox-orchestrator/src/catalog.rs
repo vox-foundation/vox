@@ -290,6 +290,20 @@ mod tests {
         assert!(strengths.contains(&StrengthTag::Logic));
         assert!(strengths.contains(&StrengthTag::Debugging));
     }
+
+    #[tokio::test]
+    async fn test_huggingface_catalog_known_models_modern() {
+        let cat = HuggingFaceCatalog::new();
+        let specs = cat.refresh().await.expect("refresh should succeed");
+        assert!(
+            !specs.iter().any(|s| s.id.contains("Qwen2.5")),
+            "Qwen 2.5 must not be in default HF catalog"
+        );
+        assert!(
+            specs.iter().any(|s| s.id.contains("Qwen3")),
+            "Qwen 3 should be in default HF catalog"
+        );
+    }
 }
 /// Parses Ollama's `details.parameter_size` field (e.g. `"8.2B"`, `"70M"`,
 /// `"1.5B"`) into billions of parameters. Returns `None` for anything that
@@ -449,9 +463,9 @@ impl ModelCatalog for HuggingFaceCatalog {
         // This is a placeholder for the actual HF Inference Providers discovery.
         // For now, we return a few high-quality known defaults if no dedicated discovery endpoint is used.
         let known_models = vec![
-            "Qwen/Qwen2.5-72B-Instruct",
-            "meta-llama/Llama-3.1-70B-Instruct",
-            "mistralai/Mixtral-8x7B-Instruct-v0.1",
+            "Qwen/Qwen3-32B-Instruct",
+            "deepseek-ai/DeepSeek-R1",
+            "meta-llama/Llama-3.3-70B-Instruct",
         ];
 
         let mut specs = Vec::new();
@@ -609,11 +623,16 @@ impl ModelCatalog for MensCatalog {
                     .unwrap_or("unknown")
                     .to_string();
 
-                // Look for 'final' or 'checkpoint-*' subdirs to confirm it's a valid run
+                // Look for 'final', 'checkpoint-*' subdirs, or direct 'candle_qlora_adapter.safetensors' or 'adapter_manifest.json'
                 let has_checkpoint = std::fs::read_dir(&path)?.flatten().any(|e| {
                     e.file_name()
                         .to_str()
-                        .map(|s| s == "final" || s.starts_with("checkpoint-"))
+                        .map(|s| {
+                            s == "final"
+                                || s.starts_with("checkpoint-")
+                                || s == "candle_qlora_adapter.safetensors"
+                                || s == "adapter_manifest.json"
+                        })
                         .unwrap_or(false)
                 });
 
@@ -621,7 +640,7 @@ impl ModelCatalog for MensCatalog {
                     specs.push(ModelSpec {
                         id: format!("mens/{}", name),
                         canonical_slug: format!("mens/{}", name),
-                        provider: "populi_local".to_string(),
+                        provider: "voxlocal".to_string(),
                         provider_type: ProviderType::VoxLocal,
                         max_tokens: 8192,
                         cost_per_1k: 0.0,
