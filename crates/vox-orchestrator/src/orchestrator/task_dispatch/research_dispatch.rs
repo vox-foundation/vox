@@ -109,36 +109,119 @@ pub(crate) fn split_into_sentences(text: &str) -> Vec<&str> {
     let chars: Vec<(usize, char)> = text.char_indices().collect();
     let len = chars.len();
 
-    for i in 0..len {
+    let mut i = 0;
+    while i < len {
         let (byte_idx, ch) = chars[i];
+        if byte_idx < start {
+            i += 1;
+            continue;
+        }
+
         if ch == ';' || ch == '\n' {
-            let chunk = text[start..byte_idx].trim();
+            let chunk = text[start..byte_idx]
+                .trim()
+                .trim_matches(|c: char| {
+                    matches!(
+                        c,
+                        '"' | '\''
+                            | '\u{2019}'
+                            | '\u{2018}'
+                            | '\u{201D}'
+                            | '\u{201C}'
+                            | ')'
+                            | ']'
+                            | '«'
+                            | '»'
+                    )
+                })
+                .trim();
             if !chunk.is_empty() {
                 sentences.push(chunk);
             }
             start = byte_idx + ch.len_utf8();
+            i += 1;
         } else if ch == '.' || ch == '?' || ch == '!' {
-            let is_sentence_end = if i + 1 < len {
-                let next_ch = chars[i + 1].1;
+            let mut j = i + 1;
+            let mut end_idx = byte_idx;
+            let mut next_start = byte_idx + ch.len_utf8();
+
+            while j < len {
+                let (c_byte, c_char) = chars[j];
+                if matches!(
+                    c_char,
+                    '"' | '\''
+                        | '\u{2019}'
+                        | '\u{2018}'
+                        | '\u{201D}'
+                        | '\u{201C}'
+                        | ')'
+                        | ']'
+                        | '«'
+                        | '»'
+                ) {
+                    end_idx = c_byte + c_char.len_utf8();
+                    next_start = end_idx;
+                    j += 1;
+                } else {
+                    break;
+                }
+            }
+
+            let is_sentence_end = if j < len {
+                let next_ch = chars[j].1;
                 next_ch.is_whitespace()
-                    || next_ch == '"'
-                    || next_ch == '\''
-                    || next_ch == '\u{2019}'
             } else {
                 true
             };
 
             if is_sentence_end {
-                let chunk = text[start..byte_idx].trim();
+                let chunk = text[start..end_idx]
+                    .trim()
+                    .trim_matches(|c: char| {
+                        matches!(
+                            c,
+                            '"' | '\''
+                                | '\u{2019}'
+                                | '\u{2018}'
+                                | '\u{201D}'
+                                | '\u{201C}'
+                                | ')'
+                                | ']'
+                                | '«'
+                                | '»'
+                        )
+                    })
+                    .trim();
                 if !chunk.is_empty() {
                     sentences.push(chunk);
                 }
-                start = byte_idx + ch.len_utf8();
+                start = next_start;
+                i = j;
+            } else {
+                i += 1;
             }
+        } else {
+            i += 1;
         }
     }
 
-    let remaining = text[start..].trim();
+    let remaining = text[start..]
+        .trim()
+        .trim_matches(|c: char| {
+            matches!(
+                c,
+                '"' | '\''
+                    | '\u{2019}'
+                    | '\u{2018}'
+                    | '\u{201D}'
+                    | '\u{201C}'
+                    | ')'
+                    | ']'
+                    | '«'
+                    | '»'
+            )
+        })
+        .trim();
     if !remaining.is_empty() {
         sentences.push(remaining);
     }
@@ -222,26 +305,127 @@ fn are_opposing_objects(o1: &str, o2: &str) -> bool {
     false
 }
 
-fn snippet_has_negated_claim(snippet: &str, subject: &str, predicate: &str) -> bool {
-    let s_low = snippet.to_lowercase();
+fn objects_overlap(o1: &str, o2: &str) -> bool {
+    if o1.eq_ignore_ascii_case(o2) {
+        return true;
+    }
+    let tokens1: std::collections::HashSet<String> = o1
+        .split(|c: char| !c.is_alphanumeric())
+        .map(|w| w.to_ascii_lowercase())
+        .filter(|w| !w.is_empty())
+        .collect();
+    let tokens2: std::collections::HashSet<String> = o2
+        .split(|c: char| !c.is_alphanumeric())
+        .map(|w| w.to_ascii_lowercase())
+        .filter(|w| !w.is_empty())
+        .collect();
+
+    if tokens1.is_empty() || tokens2.is_empty() {
+        return false;
+    }
+
+    let common = tokens1.intersection(&tokens2).count();
+    if common > 0 {
+        let min_tokens = tokens1.len().min(tokens2.len());
+        if min_tokens == 1 && common >= 1 {
+            return true;
+        }
+        if (common as f64 / min_tokens as f64) >= 0.50 {
+            return true;
+        }
+    }
+    false
+}
+
+fn snippet_has_negated_claim(snippet: &str, subject: &str, predicate: &str, object: &str) -> bool {
+    let s_low = snippet
+        .replace(['\u{2019}', '\u{2018}'], "'")
+        .to_lowercase();
     let sub_low = subject.to_lowercase();
-    let pred_low = predicate.to_lowercase();
-    let neg_markers = [
-        " not ",
-        " never ",
-        " cannot ",
-        " doesn't ",
-        " doesn’t ",
-        " does not ",
-        " unsupported ",
-        " unable to ",
-        " no longer ",
+    let pred_stem = predicate
+        .to_lowercase()
+        .strip_suffix('s')
+        .unwrap_or(&predicate.to_lowercase())
+        .to_string();
+    let obj_tokens: Vec<String> = object
+        .split(|c: char| !c.is_alphanumeric())
+        .map(|w| w.to_ascii_lowercase())
+        .filter(|w| !w.is_empty())
+        .collect();
+
+    const NEGATION_TOKENS: &[&str] = &[
+        "not",
+        "never",
+        "cannot",
+        "unsupported",
+        "unable",
+        "no",
+        "without",
+        "cant",
+        "can't",
+        "wont",
+        "won't",
+        "dont",
+        "don't",
+        "doesnt",
+        "doesn't",
+        "didnt",
+        "didn't",
+        "isnt",
+        "isn't",
+        "arent",
+        "aren't",
+        "wasnt",
+        "wasn't",
+        "werent",
+        "weren't",
+        "havent",
+        "haven't",
+        "hasnt",
+        "hasn't",
+        "lacks",
+        "lacking",
     ];
+
     for sentence in split_into_sentences(&s_low) {
-        if sentence.contains(&sub_low) || sentence.contains(&pred_low) {
-            if neg_markers.iter().any(|m| sentence.contains(m)) {
-                return true;
-            }
+        let sent_norm = sentence.trim();
+        if sent_norm.is_empty() {
+            continue;
+        }
+
+        let mentions_sub = sent_norm.contains(&sub_low);
+        let mentions_pred = sent_norm.contains(&pred_stem);
+        let mentions_obj = if obj_tokens.is_empty() {
+            sent_norm.contains(&object.to_lowercase())
+        } else {
+            obj_tokens.iter().any(|t| sent_norm.contains(t))
+        };
+
+        // Proposition scoping: sentence must mention the object AND either the subject or predicate stem
+        let pertains_to_claim =
+            (mentions_obj && (mentions_sub || mentions_pred)) || (mentions_sub && mentions_pred);
+
+        if !pertains_to_claim {
+            continue;
+        }
+
+        let has_neg = sent_norm
+            .split(|c: char| {
+                c.is_whitespace()
+                    || c == ','
+                    || c == ';'
+                    || c == '('
+                    || c == ')'
+                    || c == '['
+                    || c == ']'
+            })
+            .any(|w| {
+                let cleaned = w.trim_matches(|c: char| !c.is_alphabetic() && c != '\'');
+                NEGATION_TOKENS.contains(&cleaned) || cleaned.ends_with("n't")
+            });
+
+        if has_neg {
+            return true;
         }
     }
     false
@@ -259,11 +443,7 @@ fn detect_triplet_contradictions(triplets: &[ClaimTriplet], contradictions: &mut
                 continue;
             }
 
-            let objects_overlap = t1.object.eq_ignore_ascii_case(&t2.object)
-                || (t1.object.len() >= 4
-                    && t2.object.len() >= 4
-                    && (t1.object.to_lowercase().contains(&t2.object.to_lowercase())
-                        || t2.object.to_lowercase().contains(&t1.object.to_lowercase())));
+            let objects_overlap = objects_overlap(&t1.object, &t2.object);
 
             // Case 1: Opposing predicates regarding the same or overlapping object
             // e.g. "SQLite supports JSONB" vs "SQLite deprecates JSONB"
@@ -295,10 +475,18 @@ fn detect_triplet_contradictions(triplets: &[ClaimTriplet], contradictions: &mut
 
             // Case 3: Matching predicate and object, but one evidence snippet asserts negation on the claim
             if t1.predicate.eq_ignore_ascii_case(&t2.predicate) && objects_overlap {
-                let s1_neg =
-                    snippet_has_negated_claim(&t1.evidence_snippet, &t1.subject, &t1.predicate);
-                let s2_neg =
-                    snippet_has_negated_claim(&t2.evidence_snippet, &t2.subject, &t2.predicate);
+                let s1_neg = snippet_has_negated_claim(
+                    &t1.evidence_snippet,
+                    &t1.subject,
+                    &t1.predicate,
+                    &t1.object,
+                );
+                let s2_neg = snippet_has_negated_claim(
+                    &t2.evidence_snippet,
+                    &t2.subject,
+                    &t2.predicate,
+                    &t2.object,
+                );
                 if s1_neg != s2_neg {
                     let desc = format!(
                         "Contradiction on '{} {} {}': conflicting evidence polarity in snippets",
