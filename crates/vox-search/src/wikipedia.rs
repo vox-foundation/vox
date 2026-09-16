@@ -29,15 +29,28 @@ impl WikipediaClient {
             .into_iter()
             .take(limit)
             .map(|item| {
-                // Strip HTML tags like <span class="searchmatch"> from snippet
+                // Strip HTML tags like <span class="searchmatch"> and decode common entities
                 let clean_snippet = item
                     .snippet
                     .replace("<span class=\"searchmatch\">", "")
                     .replace("</span>", "")
                     .replace("&quot;", "\"")
+                    .replace("&#039;", "'")
+                    .replace("&apos;", "'")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .replace("&nbsp;", " ")
                     .replace("&amp;", "&");
+                let url = if !item.title.trim().is_empty() {
+                    format!(
+                        "https://en.wikipedia.org/wiki/{}",
+                        urlencoding::encode(&item.title.replace(' ', "_"))
+                    )
+                } else {
+                    format!("https://en.wikipedia.org/?curid={}", item.pageid)
+                };
                 SearxngResult {
-                    url: format!("https://en.wikipedia.org/?curid={}", item.pageid),
+                    url,
                     title: item.title,
                     content: clean_snippet,
                     engine: Some("wikipedia".to_string()),
@@ -49,10 +62,15 @@ impl WikipediaClient {
     }
 
     pub async fn search(query: &str, limit: usize) -> anyhow::Result<Vec<SearxngResult>> {
+        if query.trim().is_empty() || limit == 0 {
+            return Ok(Vec::new());
+        }
         let client = vox_http_client::client();
+        let srlimit = limit.clamp(1, 50);
         let url = format!(
-            "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={}&utf8=&format=json",
-            urlencoding::encode(query)
+            "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={}&utf8=&format=json&srlimit={}",
+            urlencoding::encode(query.trim()),
+            srlimit
         );
         debug!(url = %url, query = query, "Firing Wikipedia encyclopedic fallback");
         let resp = client.get(&url).send().await?;
@@ -91,10 +109,28 @@ mod tests {
         let hits = WikipediaClient::parse_search_json(sample_json, 5).expect("parse json");
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].title, "Accessibility");
-        assert_eq!(hits[0].url, "https://en.wikipedia.org/?curid=1475");
+        assert_eq!(hits[0].url, "https://en.wikipedia.org/wiki/Accessibility");
         assert!(hits[0].content.contains("Accessibility is the design"));
         assert_eq!(hits[0].engine.as_deref(), Some("wikipedia"));
         assert_eq!(hits[0].score, Some(0.85));
+    }
+
+    #[test]
+    fn falls_back_to_curid_url_when_title_is_empty() {
+        let sample_json = r#"{
+            "query": {
+                "search": [
+                    {
+                        "title": "",
+                        "pageid": 1475,
+                        "snippet": "No title"
+                    }
+                ]
+            }
+        }"#;
+        let hits = WikipediaClient::parse_search_json(sample_json, 5).expect("parse json");
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].url, "https://en.wikipedia.org/?curid=1475");
     }
 
     #[test]
@@ -105,14 +141,17 @@ mod tests {
                     {
                         "title": "Rust",
                         "pageid": 42,
-                        "snippet": "<span class=\"searchmatch\">Rust</span> is &quot;fast&quot; &amp; safe."
+                        "snippet": "<span class=\"searchmatch\">Rust</span> is &quot;fast&quot; &amp; safe. It&#039;s &lt;great&gt; &amp; &apos;cool&apos;&nbsp;!"
                     }
                 ]
             }
         }"#;
         let hits = WikipediaClient::parse_search_json(sample_json, 5).expect("parse json");
         assert_eq!(hits.len(), 1);
-        assert_eq!(hits[0].content, "Rust is \"fast\" & safe.");
+        assert_eq!(
+            hits[0].content,
+            "Rust is \"fast\" & safe. It's <great> & 'cool' !"
+        );
     }
 
     #[test]
@@ -129,7 +168,9 @@ mod tests {
         let hits = WikipediaClient::parse_search_json(sample_json, 2).expect("parse json");
         assert_eq!(hits.len(), 2);
         assert_eq!(hits[0].title, "Page 1");
+        assert_eq!(hits[0].url, "https://en.wikipedia.org/wiki/Page_1");
         assert_eq!(hits[1].title, "Page 2");
+        assert_eq!(hits[1].url, "https://en.wikipedia.org/wiki/Page_2");
 
         let empty_json = r#"{"query": {"search": []}}"#;
         let hits_empty = WikipediaClient::parse_search_json(empty_json, 5).expect("parse json");
@@ -138,5 +179,18 @@ mod tests {
         let null_query = r#"{}"#;
         let hits_null = WikipediaClient::parse_search_json(null_query, 5).expect("parse json");
         assert!(hits_null.is_empty());
+    }
+
+    #[tokio::test]
+    async fn search_returns_empty_immediately_on_blank_query_or_zero_limit() {
+        let hits_blank = WikipediaClient::search("   ", 5)
+            .await
+            .expect("search blank");
+        assert!(hits_blank.is_empty());
+
+        let hits_zero = WikipediaClient::search("valid query", 0)
+            .await
+            .expect("search zero");
+        assert!(hits_zero.is_empty());
     }
 }

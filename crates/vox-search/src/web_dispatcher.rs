@@ -280,8 +280,13 @@ pub(crate) fn canonical_url_key(url: &str) -> String {
     if let Some((base, _)) = key.split_once('#') {
         key = base.to_string();
     }
-    if let Some((base, _)) = key.split_once('?') {
-        key = base.to_string();
+    if let Some((base, query)) = key.split_once('?') {
+        let curid = query.split('&').find(|param| param.starts_with("curid="));
+        if let Some(c) = curid {
+            key = format!("{}?{}", base.trim_end_matches('/'), c);
+        } else {
+            key = base.to_string();
+        }
     }
     key.trim_end_matches('/').to_string()
 }
@@ -292,7 +297,7 @@ fn source_authority_score(url: &str) -> f64 {
         || key.ends_with(".gov")
         || key.contains(".edu/")
         || key.ends_with(".edu")
-        || key.contains("wikipedia.org/")
+        || key.contains("wikipedia.org")
         || key.contains("reuters.com/")
         || key.contains("apnews.com/")
         || key.contains("bbc.co")
@@ -390,5 +395,46 @@ mod tests {
             reuters_pos < blog_pos,
             "reuters.com should outrank an unboosted blog"
         );
+    }
+
+    #[test]
+    fn rank_and_dedupe_preserves_distinct_wikipedia_articles_and_boosts() {
+        let mut results = vec![
+            result("https://en.wikipedia.org/wiki/Accessibility", 0.8),
+            result(
+                "https://en.wikipedia.org/wiki/Rust_(programming_language)",
+                0.8,
+            ),
+            result("https://en.wikipedia.org/?curid=1475", 0.8),
+            result("https://en.wikipedia.org/?curid=42", 0.8),
+            result("https://blog.example/post", 0.95),
+        ];
+
+        rank_and_dedupe_results(&mut results);
+
+        // All 4 distinct Wikipedia articles should survive deduplication alongside the blog post
+        assert_eq!(results.len(), 5);
+
+        // With 1.25 authority boost, 0.8 * 1.25 = 1.00, outranking 0.95 * 1.0 = 0.95 blog
+        let blog_pos = results
+            .iter()
+            .position(|r| r.url.contains("blog.example"))
+            .expect("blog result present");
+        assert_eq!(
+            blog_pos, 4,
+            "all boosted Wikipedia results should outrank blog"
+        );
+
+        // Verify source_authority_score returns 1.25 for all forms
+        assert_eq!(
+            source_authority_score("https://en.wikipedia.org/wiki/Accessibility"),
+            1.25
+        );
+        assert_eq!(
+            source_authority_score("https://en.wikipedia.org/?curid=1475"),
+            1.25
+        );
+        assert_eq!(source_authority_score("https://en.wikipedia.org/"), 1.25);
+        assert_eq!(source_authority_score("https://en.wikipedia.org"), 1.25);
     }
 }
