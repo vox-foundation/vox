@@ -2,99 +2,116 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Benchmark and quantify the efficacy, intelligence, responsiveness, and efficiency of all 5 Qwen 3.5 27B model tiers (`merged_bf16`, `quant_q8_0`, `quant_q6_k`, `quant_q5_k_m`, `quant_q4_k_m`), implement the hardware-aware Auto model selector with 20% headroom in `vox-orchestrator` and `vox-gui`, and generate the comprehensive Hugging Face hosting repository suite (`vox-foundation/vox-mens-27b`).
+**Goal:** Benchmark and quantify the efficacy, intelligence, responsiveness, and efficiency of all 5 Qwen 3.5 27B model tiers (`merged_bf16`, `quant_q8_0`, `quant_q6_k`, `quant_q5_k_m`, `quant_q4_k_m`), implement the hardware-aware Auto model selector in `vox-orchestrator` and `vox-gui`, and generate the comprehensive Hugging Face hosting repository suite (`vox-foundation/vox-mens-27b`).
 
-**Architecture:** A release-profile benchmarking harness (`vox-ml-cli mens eval-local`) measuring both standard metrics (PPL, Pass@1) and quantization-specific degradation modes (symbol binding, repetition, constraint violations); a VRAM-aware selection engine in `vox-orchestrator`; and an automated Hugging Face staging and upload pipeline (`scripts/hf_model_pipeline.vox`).
+**Architecture:** A release-profile benchmarking harness (`vox-ml-cli mens eval-local`) measuring both standard metrics (PPL, Pass@1) and quantization degradation modes (symbol binding, repetition, constraint violations); a VRAM-aware selection engine in `vox-orchestrator`; native `QMatMul` quantized inference in `vox-plugin-mens-candle-metal`; and an automated Hugging Face staging and upload pipeline (`scripts/hf_model_pipeline.vox`).
 
 **Tech Stack:** Rust (Candle, Metal, Axum), VoxScript (`vox run`), React/TypeScript (Tauri GUI), Hugging Face Hub API (`hf-hub 1.0.0`).
 
 **Spec:** [`docs/superpowers/specs/2026-09-16-mens-27b-quant-benchmark-and-huggingface-spec.md`](../specs/2026-09-16-mens-27b-quant-benchmark-and-huggingface-spec.md)
 
-## Global Constraints
-- Single unchained terminal commands only (no `&&`, `|`, `;` in tool calls).
-- Never run `cargo fmt --all` (format dirty files only via `vox run scripts/fmt.vox`).
-- Preserve the model-agnostic LLM boundary (`vox_actor_runtime::llm`) and Clavis secrets SSOT.
-- 20% default safety headroom buffer for VRAM calculation.
-- All benchmark metrics stored in the SSOT report `contracts/reports/mens-27b-matrix.v1.json`.
+## Global Constraints & Circuit Breakers
+- **Single unchained terminal commands only** (never combine commands with `&&`, `|`, or `;`).
+- **Never run `cargo fmt --all`** (format dirty files only via `vox run scripts/fmt.vox`).
+- **Preserve model-agnostic LLM boundary** (`vox_actor_runtime::llm`) and Clavis secrets SSOT.
+- **Strict Two-Strike Circuit Breaker:** If a verification command fails twice, the subagent MUST halt immediately, revert uncommitted edits, and write `contracts/reports/handoff-notes/<task-id>-strike2.md`.
+- **Fast-Path Verification:** Subagents in interactive turns MUST verify code using `--smoke` (<5 seconds). The 1.5-hour full 27B evaluation is run exclusively via background daemons (`scripts/quant_benchmark_matrix.vox --background`).
+- **Contracts Index SSOT:** All new contract files must be registered in `contracts/index.yaml` and verified with `vox ci contracts-index`.
+- **God Object Protection:** `eval_local.rs` must not exceed 500 lines; new metric algorithms belong in `crates/vox-ml-cli/src/commands/mens/metrics.rs`.
 
 ---
 
-### Task 1: High-Performance Release Harness & Metric Extraction Engine
+### Task 1: Native Quantized Tensor Inference & Metric Extraction Engine [SEQUENTIAL]
 
 **Files:**
-- Modify: `crates/vox-ml-cli/src/commands/mens/eval_local.rs:170-260`
-- Modify: `crates/vox-ml-cli/src/commands/mens/eval_local_prompt.rs:110-140`
-- Create: `scripts/quant_benchmark_matrix.vox`
+- Modify: `crates/vox-plugin-mens-candle-metal/src/inference.rs:290-320, 375-410`
+- Create: `crates/vox-ml-cli/src/commands/mens/metrics.rs`
+- Modify: `crates/vox-ml-cli/src/commands/mens/eval_local.rs:165-225, 480-580`
+- Modify: `crates/vox-ml-cli/src/commands/mens/mod.rs`
+- Create: `contracts/reports/mens/eval-matrix.v1.schema.json`
+- Modify: `contracts/index.yaml`
 
 **Interfaces:**
-- Consumes: `vox-plugin-mens-candle-metal` via C-ABI `run_inference`.
-- Produces: `contracts/reports/mens-27b-matrix.v1.json` containing `ppl`, `pass_at_1_compile`, `pass_at_1_exec`, `symbol_binding_accuracy`, `distinct_4_ratio`, `constraint_adherence_rate`, `prefill_tok_per_sec`, `decode_tok_per_sec`, and `peak_vram_gb_2k_ctx`.
+- Consumes: Candle native `candle_core::quantized::QMatMul` for GGML inference; `run_frontend_str` for syntax checks.
+- Produces: `crates/vox-ml-cli/src/commands/mens/metrics.rs` with `calculate_distinct_4`, `verify_symbol_binding`, `check_negative_constraints`, and `run_test_assertions`.
 
-- [ ] **Step 1: Build `vox-ml-cli` with `--release` for high-throughput evaluation**
+- [ ] **Step 1: Write failing unit tests for degradation metrics in `metrics.rs` (TDD Red)**
 
-Run: `cargo build --release -p vox-ml-cli`  
-Expected: Succeeded, producing `target/release/vox-ml-cli`.
-
-- [ ] **Step 2: Add quantization degradation metrics to `eval_local.rs`**
-
-In `crates/vox-ml-cli/src/commands/mens/eval_local.rs`:
-1. Add Distinct-4 n-gram calculation ($D_4 = \frac{\text{unique 4-grams}}{\text{total 4-grams}}$) to detect repetition traps.
-2. Add Unresolved Symbol Rate detection (flagging `E020` / undefined identifiers in multi-file context prompts).
-3. Add Negative Constraint Violation check (flagging deprecated `@endpoint` or unwanted commentary).
-4. Add execution pass verification (`pass_at_1_exec`) by running `vox_interp` or `vox test` on runnable `@test` functions.
-
-- [ ] **Step 3: Write unit tests for degradation metrics**
-
-Add test in `eval_local.rs`:
+Create `crates/vox-ml-cli/src/commands/mens/metrics.rs` with tests:
 ```rust
-#[test]
-fn test_distinct_4_ratio_catches_repetition() {
-    let loop_text = " - - - - - - - - - - - - - - - -";
-    assert!(calculate_distinct_4(loop_text) < 0.2);
-    let healthy = "fn add(a: int, b: int) to int { return a + b; }";
-    assert!(calculate_distinct_4(healthy) > 0.8);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_distinct_4_ratio_catches_repetition() {
+        let loop_text = " - - - - - - - - - - - - - - - - - - - -";
+        assert!(calculate_distinct_4(loop_text) < 0.25);
+        let healthy = "fn add(a: int, b: int) to int { return a + b; }";
+        assert!(calculate_distinct_4(healthy) >= 0.65);
+    }
+
+    #[test]
+    fn test_negative_constraint_checking() {
+        let bad_code = "@endpoint fn old_api() {}";
+        assert!(!check_negative_constraints(bad_code));
+        let good_code = "fn new_api() {}";
+        assert!(check_negative_constraints(good_code));
+    }
 }
 ```
 
-- [ ] **Step 4: Run unit tests**
+- [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p vox-ml-cli --lib -- test_distinct_4`  
-Expected: PASS.
+Run: `cargo test -p vox-ml-cli --lib -- test_distinct_4_ratio`  
+Expected: FAIL with compilation error (functions undefined).
 
-- [ ] **Step 5: Create multi-tier benchmark runner `scripts/quant_benchmark_matrix.vox`**
+- [ ] **Step 3: Implement metric calculations in `metrics.rs` (TDD Green)**
 
-Create `scripts/quant_benchmark_matrix.vox` to iterate across:
-- `mens/runs/qwen3_27b_metal_check` (`merged_bf16`)
-- `mens/runs/qwen3_27b_metal_check/quant_q8_0`
-- `mens/runs/qwen3_27b_metal_check/quant_q6_k`
-- `mens/runs/qwen3_27b_metal_check/quant_q5_k_m`
-- `mens/runs/qwen3_27b_metal_check/quant_q4_k_m`
+Implement:
+1. `calculate_distinct_4(code: &str) -> f64`: Tokenizes into lexemes, computes unique 4-grams over total 4-grams (length-guarded: returns 1.0 for $N < 4$).
+2. `check_negative_constraints(code: &str) -> bool`: Flags deprecated decorators (`@endpoint`, `@mutation`) and chatty commentary.
+3. `verify_symbol_binding(result: &FrontendResult) -> f64`: Counts undefined symbol diagnostics matching `codes::TYPES_UNDEFINED_VARIABLE` and `codes::TYPES_UNRESOLVED_TYPE`.
 
-And aggregate results into `contracts/reports/mens-27b-matrix.v1.json`.
+- [ ] **Step 4: Run unit tests to verify they pass**
 
-- [ ] **Step 6: Commit Task 1**
+Run: `cargo test -p vox-ml-cli --lib -- test_distinct_4_ratio`  
+Expected: PASS (`ok. 1 passed`).
 
-```bash
-git add crates/vox-ml-cli/src/commands/mens/eval_local.rs scripts/quant_benchmark_matrix.vox
-git commit -m "feat(mens): add degradation stress metrics and multi-tier benchmark runner"
-```
+- [ ] **Step 5: Fix double-quantization memory hazard in `vox-plugin-mens-candle-metal`**
+
+In `crates/vox-plugin-mens-candle-metal/src/inference.rs`:
+1. Stop calling `qt.dequantize(&_device)?` and `QuantizedLinear::from_weight`.
+2. Load quantized weights directly into Candle's native `candle_core::quantized::QMatMul`, avoiding 108 GB F32 buffer allocations.
+3. Add support in `InferenceEngine::load` for unquantized sharded safetensors when `model.safetensors.index.json` is present (for `merged_bf16`).
+
+- [ ] **Step 6: Register `contracts/reports/mens/eval-matrix.v1.schema.json` in `contracts/index.yaml`**
+
+Add contract entry to `contracts/index.yaml` and verify schema.
+
+- [ ] **Step 7: Commit Task 1**
+
+Run: `git add crates/vox-ml-cli/src/commands/mens/metrics.rs crates/vox-ml-cli/src/commands/mens/eval_local.rs crates/vox-plugin-mens-candle-metal/src/inference.rs contracts/reports/mens/eval-matrix.v1.schema.json contracts/index.yaml`  
+Run: `git commit -m "feat(mens): add degradation stress metrics and native QMatMul quantized inference"`
 
 ---
 
-### Task 2: Hardware Sizing & Dynamic Auto Model Selector (`vox-orchestrator`)
+### Task 2: Hardware Sizing & Dynamic Auto Model Selector (`vox-orchestrator`) [SEQUENTIAL]
 
 **Files:**
 - Create: `crates/vox-orchestrator/src/models/auto_select.rs`
 - Modify: `crates/vox-orchestrator/src/models/mod.rs`
 - Modify: `crates/vox-orchestrator/src/models/select.rs`
+- Modify: `crates/vox-orchestrator/src/models/registry.rs`
+- Modify: `crates/vox-cli/src/commands/chat.rs`
 
 **Interfaces:**
-- Consumes: `vox_populi::mens::hardware::get_available_gpu_memory() -> u64`.
-- Produces: `pub fn select_optimal_local_model(headroom_ratio: f64) -> AutoModelSelection`.
+- Consumes: `vox_orchestrator::models::vram::free_vram_mb_hint()` and `macos_metal::probe_metal()`.
+- Produces: `pub fn select_optimal_local_model(is_apple_silicon: bool) -> AutoModelSelection`.
 
-- [ ] **Step 1: Write failing unit test for `auto_select.rs`**
+- [ ] **Step 1: Write failing unit test for `auto_select.rs` (TDD Red)**
 
-Create `crates/vox-orchestrator/src/models/auto_select.rs` with tests:
+Create `crates/vox-orchestrator/src/models/auto_select.rs` with test:
 ```rust
 #[cfg(test)]
 mod tests {
@@ -102,11 +119,17 @@ mod tests {
 
     #[test]
     fn test_auto_selection_tiers() {
-        assert_eq!(select_tier_for_vram(128.0, 0.20), "vox-mens-27b/merged_bf16");
-        assert_eq!(select_tier_for_vram(48.0, 0.20), "vox-mens-27b/quant_q8_0");
-        assert_eq!(select_tier_for_vram(24.0, 0.20), "vox-mens-27b/quant_q5_k_m");
-        assert_eq!(select_tier_for_vram(16.0, 0.20), "vox-mens-27b/quant_q4_k_m");
-        assert_eq!(select_tier_for_vram(12.0, 0.20), "vox-mens-8b-v0.6");
+        // Apple Silicon tests (probe already reduces RAM to 75%, 2.0GB execution reserve deducted)
+        assert_eq!(select_tier_for_vram(96.0, true).0, "mens/runs/qwen3_27b_metal_check/merged_bf16");
+        assert_eq!(select_tier_for_vram(36.0, true).0, "mens/runs/qwen3_27b_metal_check/quant_q8_0");
+        assert_eq!(select_tier_for_vram(27.0, true).0, "mens/runs/qwen3_27b_metal_check/quant_q6_k");
+        assert_eq!(select_tier_for_vram(18.0, true).0, "vox-mens-8b-v0.6");
+
+        // CUDA / Discrete tests (10% clamped reserve between 2.5GB and 6.0GB)
+        assert_eq!(select_tier_for_vram(80.0, false).0, "mens/runs/qwen3_27b_metal_check/merged_bf16");
+        assert_eq!(select_tier_for_vram(24.0, false).0, "mens/runs/qwen3_27b_metal_check/quant_q4_k_m");
+        assert_eq!(select_tier_for_vram(16.0, false).0, "vox-mens-8b-v0.6");
+        assert_eq!(select_tier_for_vram(12.0, false).0, "vox-mens-8b-v0.6");
     }
 }
 ```
@@ -114,163 +137,165 @@ mod tests {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cargo test -p vox-orchestrator --lib -- test_auto_selection_tiers`  
-Expected: FAIL (module or function missing).
+Expected: FAIL with compilation error (module or function missing).
 
-- [ ] **Step 3: Implement `auto_select.rs` logic**
+- [ ] **Step 3: Implement `auto_select.rs` logic (TDD Green)**
 
-Implement `select_tier_for_vram(total_vram_gb: f64, headroom: f64) -> &'static str`:
-- Calculate `usable_gb = total_vram_gb * (1.0 - headroom)`.
-- Apply hierarchy:
-  - $\ge 55.0$ GB $\to$ `vox-mens-27b/merged_bf16`
-  - $\ge 30.0$ GB $\to$ `vox-mens-27b/quant_q8_0`
-  - $\ge 22.0$ GB $\to$ `vox-mens-27b/quant_q6_k`
-  - $\ge 18.0$ GB $\to$ `vox-mens-27b/quant_q5_k_m`
-  - $\ge 15.0$ GB $\to$ `vox-mens-27b/quant_q4_k_m`
-  - $< 15.0$ GB $\to$ `vox-mens-8b-v0.6`
+Implement `select_tier_for_vram(total_vram_gb: f64, is_apple_silicon: bool) -> (&'static str, &'static str)` matching the audited specification thresholds.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 4: Register `vox-mens-27b` variants in `ModelRegistry`**
+
+In `crates/vox-orchestrator/src/models/registry.rs`:
+Register candidate entries for `merged_bf16`, `quant_q8_0`, `quant_q6_k`, `quant_q5_k_m`, `quant_q4_k_m` under `ProviderType::VoxLocal`.
+
+- [ ] **Step 5: Intercept `--model auto` and `vox-mens-*` in `vox chat`**
+
+In `crates/vox-cli/src/commands/chat.rs`:
+Update `resolve_chat_config` so `model == "auto"` resolves via `select_optimal_local_model` and routes to local inference server (`http://127.0.0.1:11434`), preventing OpenRouter cloud egress.
+
+- [ ] **Step 6: Run tests to verify they pass**
 
 Run: `cargo test -p vox-orchestrator --lib -- test_auto_selection_tiers`  
 Expected: PASS.
 
-- [ ] **Step 5: Wire into `vox-orchestrator::models::select`**
+- [ ] **Step 7: Commit Task 2**
 
-Allow model string `"auto"` to resolve via `select_optimal_local_model(0.20)`.
-
-- [ ] **Step 6: Commit Task 2**
-
-```bash
-git add crates/vox-orchestrator/src/models/auto_select.rs crates/vox-orchestrator/src/models/mod.rs crates/vox-orchestrator/src/models/select.rs
-git commit -m "feat(orchestrator): add hardware-aware auto model selector with 20% headroom"
-```
+Run: `git add crates/vox-orchestrator/src/models/auto_select.rs crates/vox-orchestrator/src/models/mod.rs crates/vox-orchestrator/src/models/select.rs crates/vox-orchestrator/src/models/registry.rs crates/vox-cli/src/commands/chat.rs`  
+Run: `git commit -m "feat(orchestrator): add hardware-aware auto model selector and local chat routing"`
 
 ---
 
-### Task 3: GUI Model Picker & LLM Settings Integration (`vox-gui`)
+### Task 3: GUI Model Picker & Tauri IPC Integration (`vox-gui`) [SEQUENTIAL]
 
 **Files:**
-- Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatModelPicker.tsx`
 - Modify: `crates/vox-gui/src/commands/models.rs`
+- Modify: `crates/vox-gui/src/main.rs:195-240`
+- Modify: `crates/vox-gui/ui/src/transport.ts`
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Chat/ChatModelPicker.tsx`
+- Modify: `crates/vox-gui/ui/e2e/lib/tauriMock.ts`
 
 **Interfaces:**
-- Consumes: Tauri IPC `get_auto_model_recommendation()`.
-- Produces: UI option "Auto (Recommended: `quant_qX`)" with live hardware badge.
+- Consumes: Tauri command `get_auto_model_recommendation`.
+- Produces: UI component `ChatModelPicker.tsx` rendering "Auto (Recommended: `quant_qX`)" badge.
 
-- [ ] **Step 1: Add Tauri IPC endpoint for auto selection recommendation**
+- [ ] **Step 1: Implement `get_auto_model_recommendation` in `commands/models.rs`**
 
-In `crates/vox-gui/src/commands/models.rs`:
-Add `get_auto_model_recommendation()` returning `{ selected_model_id, detected_vram_gb, tier_reason }`.
+Add Tauri command returning `{ selected_model_id: String, detected_vram_gb: f64, tier_reason: String }`.
 
-- [ ] **Step 2: Update `ChatModelPicker.tsx` to render the Auto recommendation**
+- [ ] **Step 2: Register command in `crates/vox-gui/src/main.rs`**
 
-In `crates/vox-gui/ui/src/components/surfaces/Chat/ChatModelPicker.tsx`:
-Add "Auto" entry with recommended quant tag and detected VRAM tooltip.
+Add `commands::models::get_auto_model_recommendation` into `tauri::generate_handler![]`.
 
-- [ ] **Step 3: Verify TypeScript builds**
+- [ ] **Step 3: Update `transport.ts` and `tauriMock.ts`**
 
-Run: `pnpm --filter @vox/gui build` (or `pnpm check`)  
-Expected: Clean build with zero TypeScript errors.
+Expose `getAutoModelRecommendation` and add mock return value in testing mocks.
 
-- [ ] **Step 4: Commit Task 3**
+- [ ] **Step 4: Update `ChatModelPicker.tsx` to render the Auto badge**
 
-```bash
-git add crates/vox-gui/ui/src/components/surfaces/Chat/ChatModelPicker.tsx crates/vox-gui/src/commands/models.rs
-git commit -m "feat(gui): integrate auto model recommendation and VRAM badge in model picker"
-```
+Render Auto option with live VRAM indicator and tooltip.
+
+- [ ] **Step 5: Verify TypeScript build**
+
+Run: `pnpm --filter vox-gui-ui build`  
+Expected: Clean build with exit code 0.
+
+- [ ] **Step 6: Commit Task 3**
+
+Run: `git add crates/vox-gui/src/commands/models.rs crates/vox-gui/src/main.rs crates/vox-gui/ui/src/transport.ts crates/vox-gui/ui/src/components/surfaces/Chat/ChatModelPicker.tsx crates/vox-gui/ui/e2e/lib/tauriMock.ts`  
+Run: `git commit -m "feat(gui): integrate auto model recommendation and VRAM indicator in model picker"`
 
 ---
 
-### Task 4: Hugging Face Model Card & Documentation Generator
-
-**Files:**
-- Create: `scripts/generate_hf_card.vox`
-- Create: `crates/vox-ml-cli/tests/fixtures/hf_readme_template.md`
-
-**Interfaces:**
-- Consumes: `contracts/reports/mens-27b-matrix.v1.json`.
-- Produces: Formatted `README.md` for Hugging Face repository.
-
-- [ ] **Step 1: Create template with YAML frontmatter & markdown sections**
-
-Include:
-- YAML tags (`language: [en, vox]`, `license: apache-2.0`, `base_model: Qwen/Qwen3.5-27B`, `tags: [code, rust, candle, ggml, metal]`).
-- Comparative benchmark table generated dynamically from JSON metrics.
-- GPU recommendation matrix matching real hardware.
-- Getting Started code snippets (`vox chat`, `vox mens serve`, Python Candle, llama.cpp / GGUF).
-
-- [ ] **Step 2: Implement generator script `scripts/generate_hf_card.vox`**
-
-Reads `contracts/reports/mens-27b-matrix.v1.json`, populates template variables, and writes `mens/staging/vox-mens-27b/README.md`.
-
-- [ ] **Step 3: Test generation with sample matrix data**
-
-Run: `vox run scripts/generate_hf_card.vox`  
-Expected: Emits complete, valid Markdown `README.md`.
-
-- [ ] **Step 4: Commit Task 4**
-
-```bash
-git add scripts/generate_hf_card.vox crates/vox-ml-cli/tests/fixtures/hf_readme_template.md
-git commit -m "feat(mens): add dynamic Hugging Face model card and documentation generator"
-```
-
----
-
-### Task 5: Staging, Verification & Hugging Face Upload Pipeline
+### Task 4: Unified Staging, Hugging Face Documentation & Upload Pipeline [PARALLEL-SAFE]
 
 **Files:**
 - Modify: `scripts/hf_model_pipeline.vox`
-- Modify: `crates/vox-populi/src/mens/hub.rs`
+- Create: `mens/config/hf_readme_template.md`
 
 **Interfaces:**
-- Consumes: `mens/runs/qwen3_27b_metal_check/` quants & merged weights.
-- Produces: Staged repository in `mens/staging/vox-mens-27b/` and verified uploads to `vox-foundation/vox-mens-27b`.
+- Consumes: `contracts/reports/mens/eval-matrix/mens-27b-matrix.v1.json`.
+- Produces: Staged repository in `mens/staging/vox-mens-27b/` with generated `README.md`.
 
-- [ ] **Step 1: Update `scripts/hf_model_pipeline.vox` staging command**
+- [ ] **Step 1: Create `mens/config/hf_readme_template.md`**
 
-Stage files:
-- `config.json`, `tokenizer.json`, `tokenizer_config.json`, `generation_config.json`
-- `README.md` (generated from Task 4)
-- Subdirectories `merged_bf16/`, `quant_q8_0/`, `quant_q6_k/`, `quant_q5_k_m/`, `quant_q4_k_m/`
-- Hard-link or copy files into `mens/staging/vox-mens-27b/`
+Template with YAML frontmatter, badges, interactive benchmark comparison table, real-world GPU sizing guide, and copy-paste code snippets.
 
-- [ ] **Step 2: Add verify command**
+- [ ] **Step 2: Enhance `scripts/hf_model_pipeline.vox`**
 
-Verify each staged tier loads successfully and generates at least 1 token.
+Implement subcommands:
+- `stage`: Reads benchmark report, renders `README.md`, stages configs, tokenizer, and hard-links model directories into `mens/staging/vox-mens-27b/`.
+- `verify`: Checks that each staged tier directory contains valid metadata and loadable weights.
+- `upload`: Calls `vox mens hub upload --repo vox-foundation/vox-mens-27b --model-dir mens/staging/vox-mens-27b`.
 
-- [ ] **Step 3: Add upload command**
+- [ ] **Step 3: Test template rendering with dry run**
 
-Call `vox mens hub upload --repo vox-foundation/vox-mens-27b --dir mens/staging/vox-mens-27b`.
+Run: `vox run scripts/hf_model_pipeline.vox -- stage --dry-run`  
+Expected: Stage plan validated with exit code 0.
 
-- [ ] **Step 4: Commit Task 5**
+- [ ] **Step 4: Commit Task 4**
 
-```bash
-git add scripts/hf_model_pipeline.vox crates/vox-populi/src/mens/hub.rs
-git commit -m "feat(mens): add staging, verification, and chunked upload pipeline for 27B model suite"
-```
+Run: `git add scripts/hf_model_pipeline.vox mens/config/hf_readme_template.md`  
+Run: `git commit -m "feat(mens): add unified staging, model card generator, and upload pipeline"`
 
 ---
 
-### Task 6: Execution Gate & Full Matrix Evaluation
+### Task 5: Fast-Path Benchmark Runner & Detached Background Daemon [PARALLEL-SAFE]
 
-- [ ] **Step 1: Run release benchmark matrix across all 5 tiers**
+**Files:**
+- Create: `scripts/quant_benchmark_matrix.vox`
 
-Run: `vox run scripts/quant_benchmark_matrix.vox`  
-Expected: All 5 tiers evaluated, `contracts/reports/mens-27b-matrix.v1.json` written with complete metrics.
+**Interfaces:**
+- Consumes: `target/release/vox-ml-cli mens eval-local`.
+- Produces: `contracts/reports/mens/eval-matrix/mens-27b-matrix.v1.json`.
 
-- [ ] **Step 2: Generate the final Hugging Face Model Card**
+- [ ] **Step 1: Implement `scripts/quant_benchmark_matrix.vox`**
 
-Run: `vox run scripts/generate_hf_card.vox`  
-Expected: `mens/staging/vox-mens-27b/README.md` created with verified numbers.
+Features:
+- `--smoke`: Fast synthetic check on 1 sample completing in < 5 seconds for subagent verification.
+- `--background`: Launches detached background evaluation with logging to `mens/logs/benchmark_27b.log` and status tracking in `contracts/reports/mens/eval-matrix/status.json`.
+- `--tier <name>`: Evaluates a single tier and saves incremental progress.
+- Calculates PPL via sliding window ($W=1024, S=512$).
 
-- [ ] **Step 3: Validate code snippets**
+- [ ] **Step 2: Verify `--smoke` execution**
 
-Run `vox check` on code snippets extracted from the README.  
-Expected: All Vox snippets compile with 0 errors.
+Run: `vox run scripts/quant_benchmark_matrix.vox -- --smoke`  
+Expected: Passes in < 5 seconds, validating harness invocation.
 
-- [ ] **Step 4: Commit benchmark report and staged artifacts**
+- [ ] **Step 3: Commit Task 5**
 
-```bash
-git add contracts/reports/mens-27b-matrix.v1.json
-git commit -m "chore(mens): record empirical 27B 5-tier evaluation matrix report"
-```
+Run: `git add scripts/quant_benchmark_matrix.vox`  
+Run: `git commit -m "feat(mens): add multi-tier benchmark runner with smoke verification and background daemon"`
+
+---
+
+### Task 6: Release Build, Background Evaluation & Verification Gate [SEQUENTIAL]
+
+- [ ] **Step 1: Build release binary for high-speed evaluation**
+
+Run: `cargo build --release -p vox-ml-cli`  
+Expected: Produces `target/release/vox-ml-cli` in release profile.
+
+- [ ] **Step 2: Launch production benchmark run in background daemon**
+
+Run: `vox run scripts/quant_benchmark_matrix.vox -- --background`  
+Expected: Daemon spawned; logs available at `mens/logs/benchmark_27b.log`.
+
+- [ ] **Step 3: Verify contracts index compliance**
+
+Run: `cargo run -p vox-cli -- ci contracts-index`  
+Expected: PASS (all contracts and schemas registered).
+
+- [ ] **Step 4: Stage Hugging Face artifacts upon benchmark completion**
+
+Run: `vox run scripts/hf_model_pipeline.vox -- stage`  
+Expected: `mens/staging/vox-mens-27b/README.md` populated with live metrics.
+
+- [ ] **Step 5: Verify all code snippets in README**
+
+Run: `vox check mens/staging/vox-mens-27b/README.md` (or extract fenced Vox snippets and run `vox check`)  
+Expected: All Vox code snippets compile with 0 errors.
+
+- [ ] **Step 6: Commit final benchmark report and staging metadata**
+
+Run: `git add contracts/reports/mens/eval-matrix/mens-27b-matrix.v1.json contracts/index.yaml`  
+Run: `git commit -m "chore(mens): record empirical 27B 5-tier evaluation matrix report"`
