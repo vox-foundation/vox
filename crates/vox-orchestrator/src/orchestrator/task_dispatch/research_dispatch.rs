@@ -82,10 +82,20 @@ pub fn extract_claim_triplets(text: &str, source_url: Option<&str>) -> Vec<Claim
                 .trim_matches(|c: char| !c.is_alphanumeric())
                 .to_lowercase();
             if VERBS.contains(&clean_word.as_str()) && idx > 0 && idx < words.len() - 1 {
-                let subject = words[..idx].join(" ");
+                let subject = words[..idx]
+                    .join(" ")
+                    .trim_matches(|c: char| !c.is_alphanumeric())
+                    .to_string();
                 let predicate = clean_word;
-                let object = words[idx + 1..].join(" ");
-                if subject.len() <= 60 && object.len() <= 60 {
+                let object = words[idx + 1..]
+                    .join(" ")
+                    .trim_matches(|c: char| !c.is_alphanumeric())
+                    .to_string();
+                if !subject.is_empty()
+                    && !object.is_empty()
+                    && subject.len() <= 60
+                    && object.len() <= 60
+                {
                     triplets.push(ClaimTriplet {
                         subject,
                         predicate,
@@ -327,14 +337,85 @@ fn objects_overlap(o1: &str, o2: &str) -> bool {
     let common = tokens1.intersection(&tokens2).count();
     if common > 0 {
         let min_tokens = tokens1.len().min(tokens2.len());
-        if min_tokens == 1 && common >= 1 {
-            return true;
-        }
         if (common as f64 / min_tokens as f64) >= 0.50 {
             return true;
         }
     }
     false
+}
+
+fn is_stop_word(w: &str) -> bool {
+    matches!(
+        w,
+        "a" | "an"
+            | "the"
+            | "in"
+            | "on"
+            | "at"
+            | "by"
+            | "for"
+            | "with"
+            | "about"
+            | "against"
+            | "between"
+            | "into"
+            | "through"
+            | "during"
+            | "before"
+            | "after"
+            | "above"
+            | "below"
+            | "to"
+            | "from"
+            | "up"
+            | "down"
+            | "of"
+            | "off"
+            | "over"
+            | "under"
+            | "again"
+            | "further"
+            | "then"
+            | "once"
+            | "here"
+            | "there"
+            | "all"
+            | "any"
+            | "both"
+            | "each"
+            | "few"
+            | "more"
+            | "most"
+            | "other"
+            | "some"
+            | "such"
+            | "no"
+            | "nor"
+            | "not"
+            | "only"
+            | "own"
+            | "same"
+            | "so"
+            | "than"
+            | "too"
+            | "very"
+            | "s"
+            | "t"
+            | "can"
+            | "will"
+            | "just"
+            | "don"
+            | "should"
+            | "now"
+            | "and"
+            | "but"
+            | "if"
+            | "or"
+            | "because"
+            | "as"
+            | "until"
+            | "while"
+    )
 }
 
 fn snippet_has_negated_claim(snippet: &str, subject: &str, predicate: &str, object: &str) -> bool {
@@ -347,10 +428,17 @@ fn snippet_has_negated_claim(snippet: &str, subject: &str, predicate: &str, obje
         .strip_suffix('s')
         .unwrap_or(&predicate.to_lowercase())
         .to_string();
-    let obj_tokens: Vec<String> = object
+
+    let sub_tokens: std::collections::HashSet<String> = sub_low
         .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty() && !is_stop_word(w))
+        .map(|w| w.to_string())
+        .collect();
+
+    let obj_tokens: std::collections::HashSet<String> = object
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty() && (w.len() > 2 || !is_stop_word(w)))
         .map(|w| w.to_ascii_lowercase())
-        .filter(|w| !w.is_empty())
         .collect();
 
     const NEGATION_TOKENS: &[&str] = &[
@@ -393,12 +481,27 @@ fn snippet_has_negated_claim(snippet: &str, subject: &str, predicate: &str, obje
             continue;
         }
 
-        let mentions_sub = sent_norm.contains(&sub_low);
-        let mentions_pred = sent_norm.contains(&pred_stem);
-        let mentions_obj = if obj_tokens.is_empty() {
-            sent_norm.contains(&object.to_lowercase())
+        let sent_words: Vec<&str> = sent_norm
+            .split(|c: char| !c.is_alphanumeric() && c != '\'')
+            .filter(|w| !w.is_empty())
+            .collect();
+        let sent_tokens: std::collections::HashSet<String> =
+            sent_words.iter().map(|w| w.to_string()).collect();
+
+        let mentions_sub = if sub_tokens.is_empty() {
+            sent_norm.contains(&sub_low)
         } else {
-            obj_tokens.iter().any(|t| sent_norm.contains(t))
+            sub_tokens.iter().any(|t| sent_tokens.contains(t))
+        };
+
+        let mentions_pred = sent_tokens.contains(&pred_stem)
+            || sent_tokens.contains(&predicate.to_lowercase())
+            || sent_words.iter().any(|w| w.starts_with(&pred_stem));
+
+        let mentions_obj = if obj_tokens.is_empty() {
+            sent_tokens.contains(&object.to_lowercase())
+        } else {
+            obj_tokens.iter().any(|t| sent_tokens.contains(t))
         };
 
         // Proposition scoping: sentence must mention the object AND either the subject or predicate stem
@@ -409,20 +512,10 @@ fn snippet_has_negated_claim(snippet: &str, subject: &str, predicate: &str, obje
             continue;
         }
 
-        let has_neg = sent_norm
-            .split(|c: char| {
-                c.is_whitespace()
-                    || c == ','
-                    || c == ';'
-                    || c == '('
-                    || c == ')'
-                    || c == '['
-                    || c == ']'
-            })
-            .any(|w| {
-                let cleaned = w.trim_matches(|c: char| !c.is_alphabetic() && c != '\'');
-                NEGATION_TOKENS.contains(&cleaned) || cleaned.ends_with("n't")
-            });
+        let has_neg = sent_words.iter().any(|w| {
+            let cleaned = w.trim_matches(|c: char| !c.is_alphabetic() && c != '\'');
+            NEGATION_TOKENS.contains(&cleaned) || cleaned.ends_with("n't")
+        });
 
         if has_neg {
             return true;
@@ -509,7 +602,17 @@ pub fn format_grounded_research_evidence(
     let mut out = String::new();
     if !triplets.is_empty() {
         out.push_str("### Verified Factual Triplets (Graduated Grounding):\n");
+        let mut seen = std::collections::HashSet::new();
         for t in triplets {
+            let key = (
+                t.subject.to_lowercase(),
+                t.predicate.to_lowercase(),
+                t.object.to_lowercase(),
+                t.source_url.clone(),
+            );
+            if !seen.insert(key) {
+                continue;
+            }
             let quality_tag = match t.grounding {
                 GroundingQuality::VerbatimExact => "VerbatimExact".to_string(),
                 GroundingQuality::NormalizedSpan { overlap_ratio } => {
@@ -528,8 +631,11 @@ pub fn format_grounded_research_evidence(
             out.push('\n');
         }
         out.push_str("### Detected Epistemic Contradictions:\n");
+        let mut seen_c = std::collections::HashSet::new();
         for c in contradictions {
-            out.push_str(&format!("- {}\n", c));
+            if seen_c.insert(c.clone()) {
+                out.push_str(&format!("- {}\n", c));
+            }
         }
     }
     out
@@ -1043,5 +1149,76 @@ mod tests {
             triplets[0].source_url.as_deref(),
             Some("https://example.com/db")
         );
+    }
+
+    #[test]
+    fn test_extract_claim_triplets_trims_punctuation() {
+        let text = "SQLite supports true. SQLite deprecates false.";
+        let triplets = extract_claim_triplets(text, None);
+        assert_eq!(triplets.len(), 2);
+        assert_eq!(triplets[0].object, "true");
+        assert_eq!(triplets[1].object, "false");
+    }
+
+    #[test]
+    fn test_detect_triplet_contradictions_does_not_flag_unrelated_negation_with_common_words() {
+        let triplets = vec![
+            ClaimTriplet {
+                subject: "SQLite".to_string(),
+                predicate: "supports".to_string(),
+                object: "a new json feature".to_string(),
+                confidence: 0.95,
+                evidence_snippet: "SQLite supports a new json feature.".to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+            ClaimTriplet {
+                subject: "SQLite".to_string(),
+                predicate: "supports".to_string(),
+                object: "a new json feature".to_string(),
+                confidence: 0.90,
+                evidence_snippet:
+                    "PostgreSQL does not require plugins. SQLite supports a new json feature."
+                        .to_string(),
+                source_url: None,
+                grounding: GroundingQuality::VerbatimExact,
+            },
+        ];
+
+        let mut contradictions = Vec::new();
+        detect_triplet_contradictions(&triplets, &mut contradictions);
+        assert!(
+            contradictions.is_empty(),
+            "Sentences mentioning stop words or other databases with negation must not flag false positive"
+        );
+    }
+
+    #[test]
+    fn test_format_grounded_research_evidence_deduplication() {
+        let triplets = vec![
+            ClaimTriplet {
+                subject: "SQLite".to_string(),
+                predicate: "supports".to_string(),
+                object: "JSONB".to_string(),
+                confidence: 0.90,
+                evidence_snippet: "SQLite supports JSONB".to_string(),
+                source_url: Some("https://sqlite.org".to_string()),
+                grounding: GroundingQuality::VerbatimExact,
+            },
+            ClaimTriplet {
+                subject: "SQLite".to_string(),
+                predicate: "supports".to_string(),
+                object: "JSONB".to_string(),
+                confidence: 0.90,
+                evidence_snippet: "SQLite supports JSONB natively".to_string(),
+                source_url: Some("https://sqlite.org".to_string()),
+                grounding: GroundingQuality::VerbatimExact,
+            },
+        ];
+        let contradictions = vec!["Contradiction A".to_string(), "Contradiction A".to_string()];
+
+        let formatted = format_grounded_research_evidence(&triplets, &contradictions);
+        assert_eq!(formatted.matches("SQLite, supports, JSONB").count(), 1);
+        assert_eq!(formatted.matches("Contradiction A").count(), 1);
     }
 }

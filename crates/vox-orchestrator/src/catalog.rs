@@ -755,16 +755,39 @@ fn resolve_base_model_context_length(
             }
         }
 
-        // Check local Hugging Face hub cache if base is a repo id like "Qwen/Qwen3-0.6B"
-        if let Some(home) = dirs::home_dir() {
-            let hub_dir = home
-                .join(".cache")
-                .join("huggingface")
-                .join("hub")
-                .join(format!("models--{}", base_str.replace('/', "--")))
+        // Check local Hugging Face hub cache if base is a repo id like "Qwen/Qwen3-0.6B" or pinned "Qwen/Qwen3-8B@<sha>"
+        let repo_id = base_str.split('@').next().unwrap_or(base_str);
+        let revision_sha = base_str.split('@').nth(1);
+
+        let hub_base = std::env::var("HF_HUB_CACHE")
+            .ok()
+            .map(std::path::PathBuf::from)
+            .or_else(|| {
+                std::env::var("HF_HOME")
+                    .ok()
+                    .map(|h| std::path::PathBuf::from(h).join("hub"))
+            })
+            .or_else(|| {
+                dirs::home_dir().map(|home| home.join(".cache").join("huggingface").join("hub"))
+            });
+
+        if let Some(hub_root) = hub_base {
+            let snapshots_dir = hub_root
+                .join(format!("models--{}", repo_id.replace('/', "--")))
                 .join("snapshots");
-            if hub_dir.is_dir() {
-                if let Ok(entries) = std::fs::read_dir(&hub_dir) {
+            if snapshots_dir.is_dir() {
+                // If a specific revision SHA was provided, check snapshots/<revision_sha>/config.json first
+                if let Some(sha) = revision_sha {
+                    let rev_dir = snapshots_dir.join(sha);
+                    if rev_dir.is_dir() {
+                        if let Some(len) =
+                            parse_context_length_from_config(&rev_dir.join("config.json"))
+                        {
+                            return Some(len);
+                        }
+                    }
+                }
+                if let Ok(entries) = std::fs::read_dir(&snapshots_dir) {
                     for entry in entries.flatten() {
                         let ep = entry.path();
                         if ep.is_dir() {
@@ -879,6 +902,10 @@ impl ModelCatalog for MensCatalog {
                     .unwrap_or("unknown")
                     .to_string();
 
+                if name.starts_with('.') {
+                    continue;
+                }
+
                 // Look for 'final', 'checkpoint-*' subdirs, or direct 'candle_qlora_adapter.safetensors' or 'adapter_manifest.json'
                 let has_checkpoint = std::fs::read_dir(&path)?.flatten().any(|e| {
                     e.file_name()
@@ -893,12 +920,13 @@ impl ModelCatalog for MensCatalog {
                 });
 
                 if has_checkpoint {
+                    let ctx_len = Self::read_context_length_from_dir(&path) as u64;
                     specs.push(ModelSpec {
                         id: format!("mens/{}", name),
                         canonical_slug: format!("mens/{}", name),
                         provider: "voxlocal".to_string(),
                         provider_type: ProviderType::VoxLocal,
-                        max_tokens: Self::read_context_length_from_dir(&path) as u64,
+                        max_tokens: ctx_len,
                         cost_per_1k: 0.0,
                         cost_per_1k_input: 0.0,
                         cost_per_1k_output: 0.0,

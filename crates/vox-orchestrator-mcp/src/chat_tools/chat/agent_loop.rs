@@ -280,7 +280,7 @@ pub(crate) fn turn_event_for_result(
                 "task_id": data.get("task_id").and_then(serde_json::Value::as_u64),
             }))
         }
-        "vox_deep_research" | "vox_research" => {
+        "vox_deep_research" | "vox_research" | "vox_research_run" => {
             let envelope: serde_json::Value = serde_json::from_str(result_content).ok()?;
             let data = envelope.get("data").unwrap_or(&envelope);
             Some(serde_json::json!({
@@ -377,6 +377,11 @@ mod turn_event_tests {
         assert_eq!(event["waves_executed"], 3);
         assert_eq!(event["claims_verified"], 12);
         assert_eq!(event["contradictions_resolved"], 2);
+
+        let event_run =
+            turn_event_for_result("vox_research_run", &args, &result_content, true).unwrap();
+        assert_eq!(event_run["kind"], "research_milestone");
+        assert_eq!(event_run["tool"], "vox_research_run");
     }
 }
 

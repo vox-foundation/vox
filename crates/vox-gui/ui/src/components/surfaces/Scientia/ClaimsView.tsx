@@ -128,7 +128,7 @@ export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
           value={publicationId}
           onChange={(e) => setPublicationId(e.target.value)}
           placeholder="publication id"
-          className="bg-bg-base min-w-[16rem] flex-1 rounded-lg border border-border-subtle bg-black/30 px-3 py-1.5 font-mono text-sm text-text-secondary focus:border-cyan focus:outline-none"
+          className="min-w-[16rem] flex-1 rounded-lg border border-border-subtle bg-black/30 px-3 py-1.5 font-mono text-sm text-text-secondary focus:border-cyan focus:outline-none"
         />
         <button
           type="button"
