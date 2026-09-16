@@ -226,6 +226,43 @@ describe('pendingTimeout watchdog', () => {
     const after = chatReducer(s, { type: 'pendingTimeout', nowMs: Number.MAX_SAFE_INTEGER });
     expect(after.messages[0].status).toBe('pending');
   });
+
+  it('resets watchdog timer when research_milestone event arrives before timeout', () => {
+    const t0 = 1_000_000;
+    let s = chatReducer(initialChatState, { type: 'submit', runId: 'R1', prompt: 'deep research', nowMs: t0 });
+    // T = 80s: research_milestone arrives with new timestamp
+    const tMilestone = t0 + 80_000;
+    s = chatReducer(s, {
+      type: 'agentEvent',
+      event: {
+        id: 10,
+        timestamp_ms: tMilestone,
+        kind: {
+          type: 'research_milestone',
+          waves_executed: 2,
+          claims_verified: 8,
+        },
+      },
+    });
+
+    // T = 95s (95s after initial prompt, but only 15s after milestone):
+    // Watchdog check at t0 + 95_000 must NOT abort the assistant bubble
+    s = chatReducer(s, { type: 'pendingTimeout', nowMs: t0 + 95_000 });
+    expect(assistant(s, 'R1')?.status).toBe('pending');
+    expect(assistant(s, 'R1')?.createdAtMs).toBe(tMilestone);
+    expect(assistant(s, 'R1')?.events?.[0]).toMatchObject({
+      kind: 'research_milestone',
+      waves_executed: 2,
+    });
+
+    // T = 80s + 90s + 1ms = tMilestone + PENDING_TIMEOUT_MS + 1ms:
+    // Without any further milestone, it should honestly timeout
+    s = chatReducer(s, { type: 'pendingTimeout', nowMs: tMilestone + PENDING_TIMEOUT_MS + 1 });
+    expect(assistant(s, 'R1')).toMatchObject({
+      status: 'failed',
+      error: PENDING_TIMEOUT_MESSAGE,
+    });
+  });
 });
 
 describe('assistant persistence helpers', () => {

@@ -392,6 +392,40 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
             ],
           };
         }
+        case 'research_milestone':
+        case 'research_progress': {
+          const nowMs =
+            action.event.timestamp_ms > 0
+              ? action.event.timestamp_ms
+              : typeof kind.timestamp_ms === 'number' && kind.timestamp_ms > 0
+                ? kind.timestamp_ms
+                : typeof kind.nowMs === 'number'
+                  ? kind.nowMs
+                  : Date.now();
+          const taskId = kind.task_id != null ? String(kind.task_id) : undefined;
+          const runId = taskId ? state.taskToRun[taskId] : undefined;
+          const target = runId
+            ? state.messages.find((m) => m.role === 'assistant' && m.runId === runId)
+            : [...state.messages]
+                .reverse()
+                .find(
+                  (m) =>
+                    m.role === 'assistant' && (m.status === 'pending' || m.status === 'streaming'),
+                );
+          if (!target) return state;
+          return mapAssistant(state, target.runId, (m) => {
+            const eventDto: TurnEventDto = {
+              kind: typeof kind.type === 'string' ? kind.type : 'research_milestone',
+              ...kind,
+            };
+            const existingEvents = m.events ?? [];
+            return {
+              ...m,
+              createdAtMs: nowMs,
+              events: [...existingEvents, eventDto],
+            };
+          });
+        }
         default:
           return state;
       }

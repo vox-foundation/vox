@@ -280,6 +280,18 @@ pub(crate) fn turn_event_for_result(
                 "task_id": data.get("task_id").and_then(serde_json::Value::as_u64),
             }))
         }
+        "vox_deep_research" | "vox_research" => {
+            let envelope: serde_json::Value = serde_json::from_str(result_content).ok()?;
+            let data = envelope.get("data").unwrap_or(&envelope);
+            Some(serde_json::json!({
+                "kind": "research_milestone",
+                "tool": tool_name,
+                "query": args.get("query").and_then(|v| v.as_str()).unwrap_or(""),
+                "waves_executed": data.get("waves_executed").and_then(serde_json::Value::as_u64).unwrap_or(1),
+                "claims_verified": data.get("claims_verified").and_then(serde_json::Value::as_u64).unwrap_or(0),
+                "contradictions_resolved": data.get("contradictions_resolved").and_then(serde_json::Value::as_u64).unwrap_or(0),
+            }))
+        }
         _ => None,
     }
 }
@@ -345,6 +357,26 @@ mod turn_event_tests {
     #[test]
     fn malformed_result_body_yields_no_event_rather_than_panicking() {
         assert!(turn_event_for_result("vox_spawn_agent", &json!({}), "not json", true).is_none());
+    }
+
+    #[test]
+    fn test_turn_event_for_research_result() {
+        let args = json!({ "query": "SQLite JSONB performance" });
+        let result_content = json!({
+            "success": true,
+            "data": {
+                "waves_executed": 3,
+                "claims_verified": 12,
+                "contradictions_resolved": 2
+            }
+        })
+        .to_string();
+        let event =
+            turn_event_for_result("vox_deep_research", &args, &result_content, true).unwrap();
+        assert_eq!(event["kind"], "research_milestone");
+        assert_eq!(event["waves_executed"], 3);
+        assert_eq!(event["claims_verified"], 12);
+        assert_eq!(event["contradictions_resolved"], 2);
     }
 }
 
