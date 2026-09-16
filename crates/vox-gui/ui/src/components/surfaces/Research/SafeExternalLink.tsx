@@ -44,7 +44,11 @@ export function SafeExternalLink({ url, className, children }: SafeExternalLinkP
 
   if (!normalizedUrl) {
     return (
-      <span className={`text-text-muted select-text ${className ?? ''}`} title={`Unsafe or invalid link: ${url}`}>
+      <span
+        className={`text-text-muted select-text ${className ?? ''}`}
+        title={`Unsafe or invalid link: ${url}`}
+        data-testid="unsafe-url"
+      >
         {children ?? url}
       </span>
     );
@@ -56,6 +60,7 @@ export function SafeExternalLink({ url, className, children }: SafeExternalLinkP
       target="_blank"
       rel="noopener noreferrer"
       className={className ?? 'text-brass hover:text-brass/80 underline decoration-dotted truncate'}
+      data-testid="safe-url"
     >
       {children ?? url}
     </a>

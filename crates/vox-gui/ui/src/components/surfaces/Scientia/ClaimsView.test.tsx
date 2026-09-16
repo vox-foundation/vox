@@ -119,4 +119,32 @@ describe('ClaimsView', () => {
     expect(screen.queryByRole('link', { name: /javascript/i })).toBeNull();
     expect(screen.queryByRole('link', { name: /data:text/i })).toBeNull();
   });
+
+  it('renders loaded claims from backend inside an aria-live list', async () => {
+    render(
+      <LanguageProvider>
+        <ClaimsView pushToast={vi.fn()} />
+      </LanguageProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText('publication id'), { target: { value: 'pub-1' } });
+    fireEvent.click(screen.getByText('Load'));
+    const claim = await screen.findByText('The widget improves throughput by 12%.');
+    expect(claim).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByRole('list')).toBeTruthy();
+    });
+  });
+
+  it('displays empty filter fallback when no claims match', () => {
+    const claims = [
+      { ...CLAIM, claim_id: 1, text: 'Only supported fact', verdict: 'Supported' },
+    ];
+    render(
+      <LanguageProvider>
+        <ClaimsView initialClaims={claims} />
+      </LanguageProvider>,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Contradicted' }));
+    expect(screen.getByText('No claims matching verdict filter "Contradicted".')).toBeTruthy();
+  });
 });
