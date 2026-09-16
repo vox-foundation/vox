@@ -701,11 +701,15 @@ fn parse_context_length_from_config(path: &std::path::Path) -> Option<u32> {
         })
     {
         if let Some(v) = n.as_u64() {
-            return Some(v as u32);
+            if v > 0 {
+                return Some(v as u32);
+            }
         }
         if let Some(s) = n.as_str() {
             if let Ok(v) = s.parse::<u32>() {
-                return Some(v);
+                if v > 0 {
+                    return Some(v);
+                }
             }
         }
     }
@@ -717,17 +721,7 @@ fn resolve_base_model_context_length(
     base_model_val: &serde_json::Value,
 ) -> Option<u32> {
     if let Some(base_str) = base_model_val.as_str() {
-        let p = std::path::Path::new(base_str);
-        if p.is_file() {
-            if let Some(len) = parse_context_length_from_config(p) {
-                return Some(len);
-            }
-        } else if p.is_dir() {
-            if let Some(len) = parse_context_length_from_config(&p.join("config.json")) {
-                return Some(len);
-            }
-        }
-
+        // First check if base_str resolves relative to the run directory
         let rel = dir.join(base_str);
         if rel.is_file() {
             if let Some(len) = parse_context_length_from_config(&rel) {
@@ -736,6 +730,20 @@ fn resolve_base_model_context_length(
         } else if rel.is_dir() {
             if let Some(len) = parse_context_length_from_config(&rel.join("config.json")) {
                 return Some(len);
+            }
+        }
+
+        // Then check if base_str is an absolute path
+        let p = std::path::Path::new(base_str);
+        if p.is_absolute() {
+            if p.is_file() {
+                if let Some(len) = parse_context_length_from_config(p) {
+                    return Some(len);
+                }
+            } else if p.is_dir() {
+                if let Some(len) = parse_context_length_from_config(&p.join("config.json")) {
+                    return Some(len);
+                }
             }
         }
 
