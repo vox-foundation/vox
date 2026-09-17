@@ -626,7 +626,13 @@ fn handle_verify(staged_dir: str) {
 
         let cfg_ok = std.fs.exists(cfg)
         let tok_ok = std.fs.exists(tok)
-        let weights_ok = std.fs.exists(weights)
+        let mut weights_ok = false
+        if std.fs.exists(weights) {
+            let st = std.fs.stat(weights)
+            if st.is_ok() and st.unwrap().size > 1000000 {
+                weights_ok = true
+            }
+        }
 
         let mut meta_ok = true
         if not (t is "merged_bf16") {
@@ -638,7 +644,13 @@ fn handle_verify(staged_dir: str) {
             print("  [PASS] Tier " + t + " (weights, configs, metadata valid)")
         } else {
             print("  [FAIL] Tier " + t + " incomplete:")
-            if not weights_ok { print("    - Missing model weights: " + weights) }
+            if not weights_ok {
+                if not std.fs.exists(weights) {
+                    print("    - Missing model weights: " + weights)
+                } else {
+                    print("    - Empty or corrupt model weights (< 1MB): " + weights)
+                }
+            }
             if not cfg_ok { print("    - Missing config: " + cfg) }
             if not tok_ok { print("    - Missing tokenizer: " + tok) }
             if not meta_ok { print("    - Missing quant-metadata: " + t_dir + "/quant-metadata.json") }
@@ -730,13 +742,39 @@ fn handle_clean_runs() {
 }
 
 fn main() {
-    let argv = std.env.args()
-    if argv.len() < 2 {
+    let raw_argv = std.env.args()
+    let mut argv: list[str] = []
+    let mut past_sep = false
+    let mut i_arg = 0
+    while i_arg < raw_argv.len() {
+        let a = raw_argv[i_arg].unwrap_or("")
+        if past_sep {
+            argv = argv.push(a)
+        } else if a is "--" {
+            past_sep = true
+        }
+        i_arg = i_arg + 1
+    }
+    if not past_sep {
+        let mut past_script = false
+        i_arg = 0
+        while i_arg < raw_argv.len() {
+            let a = raw_argv[i_arg].unwrap_or("")
+            if past_script {
+                argv = argv.push(a)
+            } else if a.ends_with(".vox") {
+                past_script = true
+            }
+            i_arg = i_arg + 1
+        }
+    }
+
+    if argv.len() < 1 {
         print_usage()
         return
     }
 
-    let cmd = argv[1].unwrap_or("")
+    let cmd = argv[0].unwrap_or("")
     if cmd is "help" or cmd is "--help" or cmd is "-h" {
         print_usage()
     } else if cmd is "clean-runs" {
@@ -744,7 +782,7 @@ fn main() {
     } else if cmd is "stage" {
         let mut dry_run = false
         let mut positional: list[str] = []
-        let mut i = 2
+        let mut i = 1
         while i < argv.len() {
             let a = argv[i].unwrap_or("")
             if a is "--dry-run" {
@@ -760,10 +798,10 @@ fn main() {
         handle_stage(run_dir, out_dir, dry_run)
     } else if cmd is "verify" {
         let mut staged_dir = "mens/staging/vox-mens-27b"
-        if argv.len() >= 3 {
-            let arg2 = argv[2].unwrap_or("")
-            if arg2.len() > 0 and not arg2.starts_with("-") {
-                staged_dir = arg2
+        if argv.len() >= 2 {
+            let arg1 = argv[1].unwrap_or("")
+            if arg1.len() > 0 and not arg1.starts_with("-") {
+                staged_dir = arg1
             }
         }
         handle_verify(staged_dir)
@@ -772,7 +810,7 @@ fn main() {
         let mut staged_dir = "mens/staging/vox-mens-27b"
         let mut private_flag = false
         let mut positional: list[str] = []
-        let mut i = 2
+        let mut i = 1
         while i < argv.len() {
             let a = argv[i].unwrap_or("")
             if a is "--private" or a is "--priv" {
@@ -790,23 +828,24 @@ fn main() {
         }
         handle_upload(repo_id, staged_dir, private_flag)
     } else if cmd is "download" {
-        if argv.len() < 4 {
+        if argv.len() < 3 {
             print("Usage: vox run scripts/hf_model_pipeline.vox -- download <repo_id> <target_dir>")
             return
         }
-        let repo_id = argv[2].unwrap_or("")
-        let target_dir = argv[3].unwrap_or("")
+        let repo_id = argv[1].unwrap_or("")
+        let target_dir = argv[2].unwrap_or("")
         handle_download(repo_id, target_dir)
     } else if cmd is "serve" {
-        if argv.len() < 3 {
+        if argv.len() < 2 {
             print("Usage: vox run scripts/hf_model_pipeline.vox -- serve <model_dir> [--port P]")
             return
         }
-        let model_dir = argv[2].unwrap_or("")
-        let port = if argv.len() >= 5 and argv[3].unwrap_or("") is "--port" { argv[4].unwrap_or("7863") } else { "7863" }
+        let model_dir = argv[1].unwrap_or("")
+        let port = if argv.len() >= 4 and argv[2].unwrap_or("") is "--port" { argv[3].unwrap_or("7863") } else { "7863" }
         handle_serve(model_dir, port)
     } else {
         print("Unknown command: " + cmd)
         print_usage()
     }
 }
+

@@ -3,7 +3,7 @@ language:
 - en
 - vox
 license: apache-2.0
-base_model: Qwen/Qwen3-27B
+base_model: Qwen/Qwen3.5-27B
 tags:
 - vox
 - code
@@ -33,13 +33,6 @@ Based on `Qwen/Qwen3.5-27B` (16 full-attention layers + 48 linear-attention laye
 - **Model Family:** {{MODEL_FAMILY}}
 - **Base Architecture:** Qwen 3.5 27B (Hybrid Full/Linear Attention)
 - **Checkpoint Step:** {{CHECKPOINT_STEP}}
-- **Evaluation Date:** {{EVAL_TIMESTAMP}}
-- **Supported Quantizations:** `merged_bf16`, `quant_q8_0`, `quant_q6_k`, `quant_q5_k_m`, `quant_q4_k_m`
-- **Context Length:** 32,768 tokens (up to 8K-32K safe context depending on hardware and quant tier)
-- **Primary Languages:** Vox, English
-
----
-
 ## Evaluation & Benchmark Degradation Matrix
 
 Quantization degrades LLM capabilities non-linearly. To verify code generation reliability, all tiers are evaluated across a 4-axis framework:
@@ -104,24 +97,24 @@ vox ai serve --model-dir mens/staging/vox-mens-27b/quant_q6_k --port 11434
 
 ### 3. Programmatic Usage in Vox
 
-Invoke local completions using native `std.http` and `std.json`:
+Invoke local completions using native `std.http`:
 
 ```vox
-import std.http;
-import std.json;
+import std.http
 
+@uses(net)
 fn generate_vox_code(prompt: str) to str {
-    let payload = "{\"model\": \"vox-mens-27b\", \"prompt\": \"" + prompt + "\", \"max_tokens\": 512}";
-    let resp = std.http.post("http://127.0.0.1:11434/v1/completions", payload);
+    let payload = "{\"model\": \"vox-mens-27b\", \"prompt\": \"" + prompt + "\", \"max_tokens\": 512}"
+    let resp = std.http.post_json("http://127.0.0.1:11434/v1/completions", payload)
     if resp.is_err() {
-        return "// Error contacting local model server";
+        return "// Error contacting local model server"
     }
-    return resp.unwrap().body;
+    return resp.unwrap()
 }
 
 fn main() {
-    let code = generate_vox_code("fn fibonacci(n: int) to int");
-    print(code);
+    let code = generate_vox_code("fn fibonacci(n: int) to int")
+    print(code)
 }
 ```
 
