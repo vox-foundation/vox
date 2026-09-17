@@ -127,6 +127,12 @@ export function installTauriMock(viewKey: string): void {
       switch (cmd) {
         case 'list_model_cards': return models;
         case 'get_active_model': return 'opus-4-8';
+        case 'get_auto_model_recommendation':
+          return {
+            selected_model_id: 'mens/runs/qwen3_27b_metal_check/quant_q6_k',
+            detected_vram_gb: 27.0,
+            tier_reason: 'High-fidelity 6-bit quantized 27B',
+          };
         case 'get_routing_summary_live':
           return {
             active_model: 'opus-4-8', exploration_spent_usd: 2.4, exploration_budget_usd: 50,

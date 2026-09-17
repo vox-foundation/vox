@@ -52,6 +52,31 @@ describe('ChatModelPicker', () => {
     expect(onApplied).toHaveBeenCalledWith(null);
   });
 
+  it('renders Auto option with live recommendation badge and VRAM tooltip', async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_auto_model_recommendation') {
+        return {
+          selected_model_id: 'mens/runs/qwen3_27b_metal_check/quant_q6_k',
+          detected_vram_gb: 27.0,
+          tier_reason: 'High-fidelity 6-bit quantized 27B',
+        };
+      }
+      if (cmd === 'list_model_cards') return [];
+      if (cmd === 'inference_provider_status') return [];
+      return null;
+    });
+    const user = userEvent.setup();
+    const onApplied = vi.fn();
+    render(<ChatModelPicker activeModel="anthropic/claude-opus-4.7" onApplied={onApplied} />);
+    await user.click(screen.getByRole('button', { name: /model: anthropic/i }));
+    const autoOption = await screen.findByRole('option', { name: /Auto \(Recommended: quant_q6_k\)/i });
+    expect(autoOption).toBeInTheDocument();
+    expect(autoOption.getAttribute('title')).toContain('Detected VRAM: 27.0 GB — High-fidelity 6-bit quantized 27B');
+    expect(screen.getByText('27.0 GB')).toBeInTheDocument();
+    await user.click(autoOption);
+    expect(onApplied).toHaveBeenCalledWith(null);
+  });
+
   it('opens the listbox upward (bottom-full) so it clears the bottom-docked composer', async () => {
     const user = userEvent.setup();
     render(<ChatModelPicker activeModel={null} />);

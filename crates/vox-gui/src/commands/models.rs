@@ -226,6 +226,12 @@ pub async fn get_active_model() -> Result<Option<String>, String> {
         .map(str::to_string))
 }
 
+#[tauri::command]
+pub async fn get_auto_model_recommendation()
+-> Result<vox_orchestrator::models::auto_select::AutoModelSelection, String> {
+    Ok(vox_orchestrator::models::auto_select::select_optimal_local_model_for_host())
+}
+
 pub async fn get_routing_summary(daemon: &PersistentDaemon) -> Result<RoutingSummaryDto, String> {
     let reg = registry_from_cache();
     let cfg = vox_config::load_model_routing_config();
@@ -713,5 +719,14 @@ mod tests {
         assert_eq!(val["provider_type"], "OpenAi");
         assert_eq!(val["id"], "openai/gpt-4o");
         assert_eq!(val["provider"], "openai");
+    }
+
+    #[tokio::test]
+    async fn auto_model_recommendation_returns_valid_selection() {
+        let res = get_auto_model_recommendation().await;
+        assert!(res.is_ok());
+        let sel = res.unwrap();
+        assert!(!sel.selected_model_id.is_empty());
+        assert!(!sel.tier_reason.is_empty());
     }
 }

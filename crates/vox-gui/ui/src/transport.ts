@@ -422,6 +422,10 @@ class VoxTransport {
     return safeInvoke<RoutingSummary>('get_routing_summary_live');
   }
 
+  async getAutoModelRecommendation(): Promise<AutoModelRecommendation> {
+    return safeInvoke<AutoModelRecommendation>('get_auto_model_recommendation');
+  }
+
   async listOrchestratorTasks(): Promise<TaskRow[]> {
     return safeInvoke<TaskRow[]>('list_orchestrator_tasks');
   }
@@ -761,6 +765,16 @@ export function ptyWrite(tabId: string, data: string): Promise<void> {
 
 export function ptyClose(tabId: string): Promise<void> {
   return safeInvoke('pty_close', { tabId });
+}
+
+export interface AutoModelRecommendation {
+  selected_model_id: string;
+  detected_vram_gb: number;
+  tier_reason: string;
+}
+
+export function getAutoModelRecommendation(): Promise<AutoModelRecommendation> {
+  return safeInvoke<AutoModelRecommendation>('get_auto_model_recommendation');
 }
 
 export const PTY_OUTPUT_EVENT = 'vox://pty-output';

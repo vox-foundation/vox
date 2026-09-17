@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
+import { getAutoModelRecommendation, type AutoModelRecommendation } from '../../../transport';
 
 /** Chat-surface model pick. The pick is lifted to App state and threaded into
  *  the chat submit payload as the `model_override` enqueue hint — the one
@@ -39,6 +40,10 @@ export function isProviderUnavailable(model: ModelCard, statuses: ProviderStatus
   return !s.key_present;
 }
 
+function shortModelId(id: string): string {
+  return id.split('/').pop() ?? id;
+}
+
 export function ChatModelPicker({
   activeModel,
   onApplied,
@@ -49,8 +54,25 @@ export function ChatModelPicker({
   const [open, setOpen] = useState(false);
   const [models, setModels] = useState<ModelCard[]>([]);
   const [statuses, setStatuses] = useState<ProviderStatus[]>([]);
+  const [recommendation, setRecommendation] = useState<AutoModelRecommendation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    getAutoModelRecommendation()
+      .then(rec => {
+        if (mounted && rec) {
+          setRecommendation(rec);
+        }
+      })
+      .catch(() => {
+        // Recommendation is best-effort
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Escape + outside-click close (Escape pattern mirrors ChatSurface's routing
   // drawer; outside-click mirrors ChatSessionRail's menu dismiss). Without
@@ -115,10 +137,32 @@ export function ChatModelPicker({
               type="button"
               role="option"
               aria-selected={activeModel == null}
+              aria-label={
+                recommendation
+                  ? `Auto (Recommended: ${shortModelId(recommendation.selected_model_id)}) auto-route`
+                  : 'auto-route (clear override)'
+              }
+              title={
+                recommendation
+                  ? `Detected VRAM: ${recommendation.detected_vram_gb.toFixed(1)} GB — ${recommendation.tier_reason}`
+                  : undefined
+              }
               onClick={() => apply(null, false)}
-              className="w-full truncate rounded px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
+              className="flex w-full items-center justify-between truncate rounded px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
             >
-              auto-route (clear override)
+              <span className="truncate">
+                {recommendation
+                  ? `Auto (Recommended: ${shortModelId(recommendation.selected_model_id)})`
+                  : 'auto-route (clear override)'}
+              </span>
+              {recommendation && (
+                <span
+                  title={`${recommendation.detected_vram_gb.toFixed(1)} GB detected VRAM`}
+                  className="ml-2 shrink-0 rounded border border-border-subtle bg-overlay-subtle px-1 py-0.5 text-[9px] text-text-muted"
+                >
+                  {recommendation.detected_vram_gb.toFixed(1)} GB
+                </span>
+              )}
             </button>
           </li>
           {models.map(m => {
