@@ -66,6 +66,8 @@ fn is_script_like(source: &str) -> bool {
         "actor ",
         "tool ",
         "resource ",
+        "state_machine ",
+        "partial ",
     ];
     let has_decl_keyword = source.lines().any(|line| {
         decl_keywords

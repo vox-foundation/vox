@@ -31,40 +31,47 @@
 use anyhow::{Context, Result};
 use std::process::Command;
 
-const PLUGIN_ID: &str = "mens-candle-cuda";
+const CUDA_PLUGIN_ID: &str = "mens-candle-cuda";
+const METAL_PLUGIN_ID: &str = "mens-candle-metal";
 
 /// Ensure the CUDA training plugin is installed and loadable.
-///
-/// Returns `Ok(())` when the plugin is already healthy or was successfully
-/// healed. When `auto_heal` is false and the plugin is unusable, returns an
-/// actionable error instead of fetching a replacement.
 pub fn ensure_cuda_plugin(auto_heal: bool) -> Result<()> {
+    ensure_plugin(CUDA_PLUGIN_ID, auto_heal)
+}
+
+/// Ensure the Metal training plugin is installed and loadable.
+pub fn ensure_metal_plugin(auto_heal: bool) -> Result<()> {
+    ensure_plugin(METAL_PLUGIN_ID, auto_heal)
+}
+
+/// Ensure the specified training plugin is installed and loadable.
+pub fn ensure_plugin(plugin_id: &str, auto_heal: bool) -> Result<()> {
     // Env override always wins so operators can disable healing in CI.
     let auto_heal = auto_heal && std::env::var_os("VOX_MENS_NO_AUTO_HEAL").is_none();
 
-    match probe_reason() {
+    match probe_reason(plugin_id) {
         None => Ok(()),
         Some(reason) => {
             if !auto_heal {
                 anyhow::bail!(
-                    "The '{PLUGIN_ID}' plugin is not usable: {reason}\n\n\
+                    "The '{plugin_id}' plugin is not usable: {reason}\n\n\
                      Auto-heal is disabled. Fix it manually with:\n\n{}",
-                    vox_plugin_host::format_install_hint(PLUGIN_ID, None)
+                    vox_plugin_host::format_install_hint(plugin_id, None)
                 );
             }
             eprintln!(
-                "⚠  '{PLUGIN_ID}' plugin unusable ({reason}); auto-healing (fetching verified artifact)…"
+                "⚠  '{plugin_id}' plugin unusable ({reason}); auto-healing (fetching verified artifact)…"
             );
-            reinstall_via_vox_plugin_install(PLUGIN_ID)
-                .with_context(|| format!("auto-healing the '{PLUGIN_ID}' plugin"))?;
+            reinstall_via_vox_plugin_install(plugin_id)
+                .with_context(|| format!("auto-healing the '{plugin_id}' plugin"))?;
             // Confirm the heal actually fixed it rather than silently proceeding.
-            match probe_reason() {
+            match probe_reason(plugin_id) {
                 None => {
-                    eprintln!("✓  '{PLUGIN_ID}' plugin healed and loads cleanly.");
+                    eprintln!("✓  '{plugin_id}' plugin healed and loads cleanly.");
                     Ok(())
                 }
                 Some(still) => {
-                    anyhow::bail!("Reinstalled '{PLUGIN_ID}' but it is still unusable: {still}")
+                    anyhow::bail!("Reinstalled '{plugin_id}' but it is still unusable: {still}")
                 }
             }
         }
@@ -73,8 +80,8 @@ pub fn ensure_cuda_plugin(auto_heal: bool) -> Result<()> {
 
 /// Try to load the plugin. Returns `None` when healthy, or `Some(reason)` when
 /// the load fails (missing, ABI/version mismatch, init failure).
-fn probe_reason() -> Option<String> {
-    match vox_plugin_host::load_code_plugin_by_id(PLUGIN_ID) {
+fn probe_reason(plugin_id: &str) -> Option<String> {
+    match vox_plugin_host::load_code_plugin_by_id(plugin_id) {
         Ok(_loaded) => None, // dropped immediately; the real dispatch reloads it.
         Err(e) => Some(e.to_string()),
     }
@@ -99,19 +106,6 @@ fn probe_reason() -> Option<String> {
 /// [`vox_plugin_host::format_install_hint`] already prints to the user into a
 /// programmatic auto-heal call.
 ///
-/// # Why a PATH lookup, not `std::env::current_exe()`
-/// `vox-ml-cli` ships as a SEPARATE binary from `vox` (see
-/// `contracts/distribution/profiles.v1.yaml`'s `full` tier: `[vox,
-/// vox-ml-cli, voxup]`), so `std::env::current_exe()` here would resolve to
-/// `vox-ml-cli`'s own path, never `vox`'s — there is no reliable on-disk
-/// relationship between the two binaries to exploit. A plain `"vox"` PATH
-/// lookup matches `format_install_hint`'s own assumption that `vox` is on
-/// PATH, and needs no packaging-layout knowledge.
-///
-/// Does not fall back to compiling anything: if `vox` is not on `PATH`, this
-/// fails with an actionable message rather than silently rebuilding from
-/// source — that fallback is exactly the runtime-cargo dependency this
-/// module removes.
 /// Resolve the `vox` binary, preferring the one sitting beside THIS binary
 /// over whatever `vox` a PATH lookup happens to find first.
 ///

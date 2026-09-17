@@ -11379,6 +11379,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03251193000f4bd3b042892be858ee50e8b3719f2b08e5833ac4353724632430"
 
 [[package]]
+name = "recursive"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0786a43debb760f491b1bc0269fe5e84155353c67482b9e60d0cfb596054b43e"
+dependencies = [
+ "recursive-proc-macro-impl",
+ "stacker",
+]
+
+[[package]]
+name = "recursive-proc-macro-impl"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76009fbe0614077fc1a2ce255e3a1881a2e3a3527097d5dc6d8212c585e7e38b"
+dependencies = [
+ "quote",
+ "syn 2.0.118",
+]
+
+[[package]]
 name = "redb"
 version = "3.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13245,6 +13265,16 @@ name = "sponge-cursor"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a0219bd7d979d58245a4f41f695e1ac9f8befdffadd7f61f1bae9e39abc6620"
+
+[[package]]
+name = "sqlparser"
+version = "0.54.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c66e3b7374ad4a6af849b08b3e7a6eda0edbd82f0fd59b57e22671bf16979899"
+dependencies = [
+ "log",
+ "recursive",
+]
 
 [[package]]
 name = "sqlx"
@@ -17246,6 +17276,7 @@ dependencies = [
  "hex",
  "keyring",
  "regex",
+ "semver",
  "serde",
  "serde_json",
  "sha3",
@@ -17587,6 +17618,7 @@ dependencies = [
  "vox-plugin-host",
  "vox-publisher",
  "vox-repository",
+ "vox-research-shim",
  "vox-scientia",
  "vox-search",
  "vox-secrets",
@@ -18369,6 +18401,7 @@ dependencies = [
  "candle-nn",
  "chrono",
  "ctrlc",
+ "dirs",
  "memmap2",
  "owo-colors 4.3.0",
  "peft-rs",
@@ -18732,6 +18765,8 @@ name = "vox-quantize"
 version = "0.6.0"
 dependencies = [
  "candle-core",
+ "dirs",
+ "memmap2",
  "safetensors 0.7.0",
  "serde",
  "serde_json",
@@ -18799,10 +18834,13 @@ dependencies = [
  "jsonschema",
  "serde",
  "serde_json",
+ "sqlparser",
  "tempfile",
  "tokio",
  "tracing",
+ "turso",
  "vox-actor-runtime",
+ "vox-compiler",
  "vox-config",
  "vox-db",
  "vox-gamify",
@@ -18946,6 +18984,7 @@ dependencies = [
  "anyhow",
  "blake3",
  "deadpool",
+ "futures",
  "html2text",
  "regex",
  "reqwest 0.12.28",
@@ -18959,6 +18998,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "url",
  "urlencoding",
  "vox-actor-runtime",
  "vox-bounded-fs",

@@ -638,6 +638,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             output,
         ),
 
+        PopuliAction::Hub(hub_action) => crate::commands::mens::hub::run_hub(hub_action).await,
+
         PopuliAction::MensTail(tail) => match tail {
             super::mens_tail_subcommands::PopuliMensTail::EvalGate { run_dir, policy } => {
                 let code = eval_gate::run_eval_gate(run_dir, policy)?;

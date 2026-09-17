@@ -9,7 +9,7 @@
 
 use std::path::PathBuf;
 
-use hf_hub::{HFClient, split_id};
+use hf_hub::{HFClient, RepoTypeModel, split_id};
 
 /// Env var name: when set to a truthy value, [`download_model`] refuses to
 /// download and returns an error instead, so a user or CI job can guarantee
@@ -128,17 +128,66 @@ impl DownloadedModelFiles {
 }
 
 /// Download `config.json`, tokenizer files (if listed), and all `*.safetensors` shards.
+/// If `repo_id` points to a local directory, discovers model files directly from disk without downloading.
 pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFiles> {
+    let local_path = if let Some(stripped) = repo_id.strip_prefix("~/") {
+        dirs::home_dir()
+            .map(|h| h.join(stripped))
+            .unwrap_or_else(|| PathBuf::from(repo_id))
+    } else {
+        PathBuf::from(repo_id)
+    };
+
+    if local_path.is_dir() {
+        let config = local_path.join("config.json");
+        if !config.exists() {
+            anyhow::bail!("Local model directory {local_path:?} does not contain config.json");
+        }
+        let mut tokenizer = None;
+        for t in ["tokenizer.json", "tokenizer.model"] {
+            let tp = local_path.join(t);
+            if tp.exists() {
+                tokenizer = Some(tp);
+                break;
+            }
+        }
+        let mut weights = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(&local_path) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .is_some_and(|e| e.eq_ignore_ascii_case("safetensors"))
+                {
+                    weights.push(path);
+                }
+            }
+        }
+        weights.sort();
+        if weights.is_empty() {
+            anyhow::bail!("Local model directory {local_path:?} contains no *.safetensors files");
+        }
+        return Ok(DownloadedModelFiles {
+            cache_dir: local_path,
+            config,
+            weights,
+            tokenizer,
+        });
+    }
+
     ensure_download_allowed(repo_id)?;
     normalize_hf_token_env();
     let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
-    let (owner, name) = split_id(repo_id);
+    let clean_id = repo_name_without_revision(repo_id);
+    let revision = repo_id.split('@').nth(1);
+    let (owner, name) = split_id(clean_id);
     let repo = client.model(owner, name);
-    let info = repo
-        .info()
-        .send()
-        .await
-        .map_err(|e| anyhow::anyhow!("hf-hub repo info for {repo_id}: {e}"))?;
+    let info = match revision {
+        Some(rev) => repo.info().revision(rev).send().await,
+        None => repo.info().send().await,
+    }
+    .map_err(|e| anyhow::anyhow!("hf-hub repo info for {repo_id}: {e}"))?;
     // 1.0 makes `siblings` optional; an absent listing is indistinguishable from
     // an empty one at the type level, so name the difference here rather than
     // silently reporting "no safetensors" for a repo we simply failed to list.
@@ -159,12 +208,17 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         download_size_notice(repo_id, is_default_model_repo(repo_id), safetensors_count)
     );
 
-    let config = repo
-        .download_file()
-        .filename("config.json")
-        .send()
-        .await
-        .map_err(|e| anyhow::anyhow!("download config.json: {e}"))?;
+    let config = match revision {
+        Some(rev) => {
+            repo.download_file()
+                .filename("config.json")
+                .revision(rev)
+                .send()
+                .await
+        }
+        None => repo.download_file().filename("config.json").send().await,
+    }
+    .map_err(|e| anyhow::anyhow!("download config.json: {e}"))?;
 
     let cache_dir = config
         .parent()
@@ -174,15 +228,43 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
     let mut tokenizer = None::<PathBuf>;
     for name in ["tokenizer.json", "tokenizer.model"] {
         if siblings.iter().any(|s| s.rfilename == name) {
-            tokenizer = Some(
-                repo.download_file()
-                    .filename(name)
-                    .send()
-                    .await
-                    .map_err(|e| anyhow::anyhow!("download {name}: {e}"))?,
-            );
+            let res = match revision {
+                Some(rev) => {
+                    repo.download_file()
+                        .filename(name)
+                        .revision(rev)
+                        .send()
+                        .await
+                }
+                None => repo.download_file().filename(name).send().await,
+            };
+            tokenizer = Some(res.map_err(|e| anyhow::anyhow!("download {name}: {e}"))?);
             break;
         }
+    }
+
+    if siblings
+        .iter()
+        .any(|s| s.rfilename == "model.safetensors.index.json")
+    {
+        let res = match revision {
+            Some(rev) => {
+                repo.download_file()
+                    .filename("model.safetensors.index.json")
+                    .revision(rev)
+                    .send()
+                    .await
+            }
+            None => {
+                repo.download_file()
+                    .filename("model.safetensors.index.json")
+                    .send()
+                    .await
+            }
+        };
+        let _ = res.map_err(|e| {
+            tracing::warn!("Failed to download optional model.safetensors.index.json: {e}")
+        });
     }
 
     let mut weight_names: Vec<&str> = siblings
@@ -199,12 +281,11 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
 
     let mut weights = Vec::with_capacity(weight_names.len());
     for w in weight_names {
-        let p = repo
-            .download_file()
-            .filename(w)
-            .send()
-            .await
-            .map_err(|e| anyhow::anyhow!("download {w}: {e}"))?;
+        let res = match revision {
+            Some(rev) => repo.download_file().filename(w).revision(rev).send().await,
+            None => repo.download_file().filename(w).send().await,
+        };
+        let p = res.map_err(|e| anyhow::anyhow!("download {w}: {e}"))?;
         weights.push(p);
     }
 
@@ -230,6 +311,89 @@ pub fn download_model_blocking(repo_id: &str) -> anyhow::Result<DownloadedModelF
         .map_err(|_| anyhow::anyhow!("HF download thread exited without sending result"))?
 }
 
+/// Upload a local model directory (safetensors weights/adapter, config.json, tokenizer, README) to Hugging Face Hub.
+///
+/// Automatically creates or verifies the repository on the Hub using the credentials resolved from
+/// `vox_secrets::SecretId::HuggingFaceToken` (or `HF_TOKEN`).
+pub async fn upload_model_folder(
+    repo_id: &str,
+    folder_path: &std::path::Path,
+    private: bool,
+    commit_message: Option<&str>,
+) -> anyhow::Result<String> {
+    if !folder_path.is_dir() {
+        anyhow::bail!("Model folder path {folder_path:?} does not exist or is not a directory");
+    }
+
+    normalize_hf_token_env();
+
+    let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
+    let clean_id = repo_name_without_revision(repo_id);
+    let (owner, name) = split_id(clean_id);
+
+    tracing::info!(
+        repo_id = clean_id,
+        "Checking or creating Hugging Face repository"
+    );
+    let _ = client
+        .create_repository()
+        .repo_id(clean_id)
+        .repo_type(RepoTypeModel)
+        .private(private)
+        .exist_ok(true)
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("create or check HF repository {clean_id}: {e}"))?;
+
+    let repo = client.model(owner, name);
+    let message = commit_message.unwrap_or("Upload VoxMens model artifacts");
+
+    tracing::info!(
+        repo_id = clean_id,
+        folder = ?folder_path,
+        "Uploading model directory to Hugging Face Hub"
+    );
+    let commit_info = repo
+        .upload_folder()
+        .folder_path(folder_path)
+        .commit_message(message)
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("upload folder {folder_path:?} to {clean_id}: {e}"))?;
+
+    Ok(commit_info
+        .commit_oid
+        .unwrap_or_else(|| "unknown".to_string()))
+}
+
+/// Synchronously block on [`upload_model_folder`] using a dedicated thread runtime.
+pub fn upload_model_folder_blocking(
+    repo_id: &str,
+    folder_path: &std::path::Path,
+    private: bool,
+    commit_message: Option<&str>,
+) -> anyhow::Result<String> {
+    let repo_id = repo_id.to_string();
+    let folder_path = folder_path.to_path_buf();
+    let commit_message = commit_message.map(ToString::to_string);
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let result = tokio::runtime::Runtime::new()
+            .map_err(|e| anyhow::anyhow!("tokio runtime init failed: {e}"))
+            .and_then(|rt| {
+                rt.block_on(upload_model_folder(
+                    &repo_id,
+                    &folder_path,
+                    private,
+                    commit_message.as_deref(),
+                ))
+            });
+        let _ = tx.send(result);
+    });
+    rx.recv()
+        .map_err(|_| anyhow::anyhow!("HF upload thread exited without sending result"))?
+}
+
 #[cfg(all(test, feature = "mens-hf-hub"))]
 #[allow(unsafe_code)] // Serialized env mutation for token sync tests (Rust 2024 `set_var` safety).
 mod tests {
@@ -247,10 +411,8 @@ mod tests {
         }
         super::normalize_hf_token_env();
         assert_eq!(
-            vox_secrets::resolve_secret(vox_secrets::SecretId::HuggingFaceToken)
-                .expose()
-                .expect("hub token"),
-            "from-hf-only"
+            std::env::var("HUGGING_FACE_HUB_TOKEN").as_deref(),
+            Ok("from-hf-only")
         );
         unsafe {
             std::env::remove_var("HF_TOKEN");
@@ -267,12 +429,7 @@ mod tests {
             std::env::set_var("HUGGING_FACE_HUB_TOKEN", "from-hub-only");
         }
         super::normalize_hf_token_env();
-        assert_eq!(
-            vox_secrets::resolve_secret(vox_secrets::SecretId::HuggingFaceToken)
-                .expose()
-                .expect("hf token"),
-            "from-hub-only"
-        );
+        assert_eq!(std::env::var("HF_TOKEN").as_deref(), Ok("from-hub-only"));
         unsafe {
             std::env::remove_var("HF_TOKEN");
             std::env::remove_var("HUGGING_FACE_HUB_TOKEN");
@@ -370,5 +527,22 @@ mod tests {
         unsafe {
             std::env::remove_var(super::NO_DOWNLOAD_ENV);
         }
+    }
+
+    #[test]
+    fn test_repo_name_without_revision_and_pinned_revision() {
+        assert_eq!(
+            super::repo_name_without_revision("Qwen/Qwen3-8B"),
+            "Qwen/Qwen3-8B"
+        );
+        assert_eq!(
+            super::repo_name_without_revision(
+                "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+            ),
+            "Qwen/Qwen3-8B"
+        );
+        let id_with_rev = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
+        let rev = id_with_rev.split('@').nth(1);
+        assert_eq!(rev, Some("b968826d9c46dd6066d109eabc6255188de91218"));
     }
 }

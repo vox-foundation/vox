@@ -203,6 +203,8 @@ mens/data/*.mix_report.json
 # benchmark_passatk.json, review_metrics.json, benchmark_gate_eval.json,
 # training-preflight.json, checkpoint_state.json, etc.) are covered by this rule.
 mens/runs/
+mens/staging/
+*.dylib
 # Quarantined mens scratch (e.g. renamed temp_stabilization trees)
 /mens/.stale/
 

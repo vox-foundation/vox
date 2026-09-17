@@ -14,6 +14,7 @@
 //! the persistent impl through `Arc<dyn HopperIntake>` — the dashboard adapter
 //! and HTTP handlers need no changes.
 
+pub mod batch;
 pub mod capability;
 /// P6-T9: mesh-replicated hopper adapter (Hp-T1+T5+T8 over the federation envelope).
 pub mod mesh_adapter;
@@ -22,6 +23,10 @@ pub mod store;
 pub mod types;
 
 pub use crate::types::PrioritySource;
+pub use batch::{
+    ResearchBatchItem, ResearchBatchItemResult, ResearchBatchRequest, ResearchBatchResult,
+    execute_batch_items, generate_comparative_matrix,
+};
 pub use capability::{DeveloperOverride, DeveloperOverrideMint};
 pub use mesh_adapter::{HopperOpSync, MIN_INTAKE_TRUST_TIER, ReplicationError, apply_op_fragment};
 pub use sqlite_store::{SqliteHopper, VoxDbHopper};

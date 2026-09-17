@@ -14,7 +14,8 @@ pub(super) fn spawn_training_db_writer(
     let spawn_result = std::thread::Builder::new()
         .name("vox-ml-cli-voxdb".into())
         .spawn(move || {
-            let rt = match tokio::runtime::Builder::new_current_thread()
+            let rt = match tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(1)
                 .enable_all()
                 .build()
             {

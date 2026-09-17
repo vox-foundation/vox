@@ -57,6 +57,7 @@ const SEQ_LADDER: &[usize] = &[2048, 1536, 1024, 768, 512, 384, 320, 256, 192, 1
 /// Hugging Face repo id). Used to auto-retreat to the largest variant that fits the
 /// available VRAM. Mirrors the ids referenced across the codebase + `DEFAULT_MODEL_ID`.
 pub const QWEN35_LADDER: &[(f64, &str)] = &[
+    (27.0, "Qwen/Qwen3.8-27B"),
     (9.0, "Qwen/Qwen3.5-9B"),
     (4.0, "Qwen/Qwen3.5-4B"),
     (2.0, "Qwen/Qwen3.5-2B"),
@@ -208,7 +209,11 @@ pub struct ModelPlan {
 #[must_use]
 pub fn is_qwen35(model_id: &str) -> bool {
     let l = model_id.to_ascii_lowercase();
-    l.contains("qwen3.5") || l.contains("qwen3-5") || l.contains("qwen35")
+    l.contains("qwen3.5")
+        || l.contains("qwen3_5")
+        || l.contains("qwen35")
+        || l.contains("qwen3.8")
+        || l.contains("qwen3_8")
 }
 
 /// Pick the largest Qwen3.5 variant (no larger than `max_params_b`) that fits
@@ -230,8 +235,9 @@ pub fn plan_qwen35(vram_gib: f64, max_params_b: f64) -> ModelPlan {
 }
 
 /// Qwen2.5-Coder ladder (largest → smallest): (parameter count in billions, HF repo id).
-/// Plain dense `qwen2` coders — the path the candle plugin reliably trains (no MoE,
-/// no MTP, no vision tower, no mRoPE). Verified available on the Qwen HF org.
+/// Plain dense `qwen2` coders — RETIRED in favor of Qwen 3 (Qwen/Qwen3-8B).
+// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="QWEN3_LADDER"
+#[deprecated(since = "0.6.0", note = "Retired in favor of Qwen 3 (Qwen/Qwen3-8B)")]
 pub const QWEN25CODER_LADDER: &[(f64, &str)] = &[
     (32.0, "Qwen/Qwen2.5-Coder-32B-Instruct"),
     (14.0, "Qwen/Qwen2.5-Coder-14B-Instruct"),
@@ -242,17 +248,20 @@ pub const QWEN25CODER_LADDER: &[(f64, &str)] = &[
 ];
 
 /// True when a model id is a Qwen2.5-Coder (the coding-focused dense family).
+// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="is_qwen3"
+#[deprecated(since = "0.6.0", note = "Retired in favor of Qwen 3 (Qwen/Qwen3-8B)")]
 #[must_use]
 pub fn is_qwen25coder(model_id: &str) -> bool {
     let l = model_id.to_ascii_lowercase();
     l.contains("qwen2.5-coder") || l.contains("qwen2_5-coder") || l.contains("qwen25-coder")
 }
 
-/// Pick the largest Qwen2.5-Coder variant (≤ `max_params_b`) that fits `vram_gib`,
-/// sized with the lighter dense-Qwen2 resident footprint. Same retreat/scale
-/// semantics as [`plan_qwen35`] but for the coding family.
+/// Pick the largest Qwen2.5-Coder variant (≤ `max_params_b`) that fits `vram_gib`.
+// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="plan_qwen3"
+#[deprecated(since = "0.6.0", note = "Retired in favor of Qwen 3 (Qwen/Qwen3-8B)")]
 #[must_use]
 pub fn plan_qwen25coder(vram_gib: f64, max_params_b: f64) -> ModelPlan {
+    #[allow(deprecated)]
     plan_qwen25coder_with_options(
         vram_gib,
         max_params_b,
@@ -295,7 +304,7 @@ pub const QWEN3_LADDER: &[(f64, &str)] = &[
 #[must_use]
 pub fn is_qwen3(model_id: &str) -> bool {
     let l = model_id.to_ascii_lowercase();
-    l.contains("qwen3") && !l.contains("qwen3.5") && !l.contains("qwen3_5") && !l.contains("qwen35")
+    l.contains("qwen3") && !is_qwen35(model_id)
 }
 
 /// Calculate resident VRAM per billion parameters dynamically.
@@ -438,6 +447,9 @@ pub fn plan_qwen35_with_options(
 }
 
 /// Pick the largest Qwen2.5-Coder variant (no larger than `max_params_b`) with explicit options.
+// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="plan_qwen3_with_options"
+#[deprecated(since = "0.6.0", note = "Retired in favor of Qwen 3 (Qwen/Qwen3-8B)")]
+#[allow(deprecated)]
 #[must_use]
 pub fn plan_qwen25coder_with_options(
     vram_gib: f64,
@@ -628,6 +640,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn qwen25coder_ladder_fits_a_coder_on_16gb() {
         // Dense Qwen2 is lighter than Qwen3.5; a real coder should fit 16 GiB.
         let p = plan_qwen25coder(16.0, 7.0);
@@ -637,6 +650,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn qwen25coder_retreats_3b_to_1_5b_on_16gb() {
         // Full-graph backprop retains the BF16 base weights, so 3B does NOT fit 16 GiB
         // (measured: OOM). The ladder must retreat to the 1.5B coder, which trains stably.
@@ -650,6 +664,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn qwen25coder_scales_up() {
         let small = plan_qwen25coder(16.0, 32.0);
         let big = plan_qwen25coder(80.0, 32.0);
@@ -657,6 +672,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn qwen25coder_detection() {
         assert!(is_qwen25coder("Qwen/Qwen2.5-Coder-7B-Instruct"));
         assert!(!is_qwen25coder("Qwen/Qwen3.5-4B"));

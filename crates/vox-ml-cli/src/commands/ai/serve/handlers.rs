@@ -3,7 +3,10 @@
 #[cfg(feature = "execution-api")]
 use super::prompt::{prompt_for_output_mode, validate_structured_output_with_reason};
 #[cfg(feature = "execution-api")]
-use super::schema::{Choice, GenerateRequest, GenerateResponse};
+use super::schema::{
+    ChatCompletionChoice, ChatCompletionRequest, ChatCompletionResponse, ChatMessageInput,
+    ChatMessageOutput, ChatUsage, Choice, GenerateRequest, GenerateResponse,
+};
 #[cfg(feature = "execution-api")]
 use super::worker::InferenceRequest;
 #[cfg(feature = "execution-api")]
@@ -70,6 +73,45 @@ pub async fn list_models(State(state): State<AppState>) -> impl IntoResponse {
             "owned_by": "vox-ml-cli"
         }]
     }))
+}
+
+/// Ollama-compatible `/api/tags` endpoint so GUI, Actor Runtime, and Orchestrator
+/// recognize the local inference server as reachable and populate the model list.
+#[cfg(feature = "execution-api")]
+pub async fn tags(State(state): State<AppState>) -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "models": [
+                {
+                    "name": state.model_name.as_ref(),
+                    "model": state.model_name.as_ref(),
+                    "modified_at": chrono::Utc::now().to_rfc3339(),
+                    "size": 0,
+                    "digest": "",
+                    "details": {
+                        "parent_model": "",
+                        "format": "safetensors",
+                        "family": "qwen",
+                        "families": ["qwen"],
+                        "parameter_size": "8.2B",
+                        "quantization_level": "none"
+                    }
+                }
+            ]
+        })),
+    )
+}
+
+/// Ollama-compatible `/api/version` endpoint returning GPU capability hint.
+#[cfg(feature = "execution-api")]
+pub async fn version() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "version": "0.6.0-metal"
+        })),
+    )
 }
 
 #[cfg(feature = "execution-api")]
@@ -220,25 +262,206 @@ pub async fn do_completions_stream(
         let _ = tx.send(ir);
     });
 
-    let stream = ReceiverStream::new(stream_rx).map(move |chunk_result| match chunk_result {
-        Ok(chunk) => {
-            let json = serde_json::json!({
-                "id": "compl-stream",
-                "object": "text_completion",
-                "model": model_name,
-                "choices": [{
-                    "text": chunk,
-                    "index": 0,
-                    "finish_reason": null
-                }]
-            });
-            Ok(Event::default()
-                .data(serde_json::to_string(&json).unwrap_or_else(|_| "{}".to_string())))
-        }
-        Err(e) => Ok(Event::default().data(format!("{{\"error\": \"{}\"}}", e))),
-    });
+    let stream =
+        ReceiverStream::new(stream_rx).map(move |chunk_result| -> Result<Event, Infallible> {
+            match chunk_result {
+                Ok(chunk) => {
+                    let json = serde_json::json!({
+                        "id": "compl-stream",
+                        "object": "text_completion",
+                        "model": model_name,
+                        "choices": [{
+                            "text": chunk,
+                            "index": 0,
+                            "finish_reason": null
+                        }]
+                    });
+                    Ok(Event::default()
+                        .data(serde_json::to_string(&json).unwrap_or_else(|_| "{}".to_string())))
+                }
+                Err(e) => Ok(Event::default().data(format!("{{\"error\": \"{}\"}}", e))),
+            }
+        });
+
+    let end_model = state.model_name.to_string();
+    let terminal = tokio_stream::iter(vec![
+        Ok::<Event, Infallible>(
+            Event::default().data(
+                serde_json::json!({
+                    "id": "compl-stream",
+                    "object": "text_completion",
+                    "model": end_model,
+                    "choices": [{
+                        "text": "",
+                        "index": 0,
+                        "finish_reason": "stop"
+                    }]
+                })
+                .to_string(),
+            ),
+        ),
+        Ok(Event::default().data("[DONE]")),
+    ]);
+    let stream = tokio_stream::StreamExt::chain(stream, terminal);
 
     Sse::new(stream).keep_alive(axum::response::sse::KeepAlive::new())
+}
+
+#[cfg(feature = "execution-api")]
+pub fn format_chatml(messages: &[ChatMessageInput]) -> String {
+    let mut prompt = String::new();
+    let mut has_system = false;
+    for m in messages {
+        let role = m.role.trim().to_lowercase();
+        let content = m.content.trim();
+        if role == "system" {
+            has_system = true;
+            prompt.push_str(&format!("<|im_start|>system\n{content}<|im_end|>\n"));
+        } else if role == "user" {
+            if !has_system && prompt.is_empty() {
+                prompt.push_str("<|im_start|>system\nYou are an expert Vox programmer. Write clean, idiomatic, correct Vox code satisfying the request.<|im_end|>\n");
+            }
+            prompt.push_str(&format!("<|im_start|>user\n{content}<|im_end|>\n"));
+        } else if role == "assistant" {
+            prompt.push_str(&format!("<|im_start|>assistant\n{content}<|im_end|>\n"));
+        }
+    }
+    if !has_system && prompt.is_empty() {
+        prompt.push_str("<|im_start|>system\nYou are an expert Vox programmer. Write clean, idiomatic, correct Vox code satisfying the request.<|im_end|>\n");
+    }
+    prompt.push_str("<|im_start|>assistant\n<think>\n</think>\n");
+    prompt
+}
+
+#[cfg(feature = "execution-api")]
+pub async fn do_chat_completions(
+    State(state): State<AppState>,
+    Json(req): Json<ChatCompletionRequest>,
+) -> impl IntoResponse {
+    let prompt = format_chatml(&req.messages);
+    let max_tokens = req.max_tokens;
+    let temperature = req.temperature;
+
+    if req.stream {
+        let (stream_tx, stream_rx) = tokio::sync::mpsc::channel(32);
+        let (reply_tx, _) = tokio::sync::oneshot::channel();
+        let ir = InferenceRequest {
+            prompt,
+            max_tokens,
+            temperature,
+            top_k: 40,
+            output_mode: None,
+            reply: reply_tx,
+            stream_tx: Some(stream_tx),
+        };
+        let tx = state.tx.clone();
+        let model_name = state.model_name.to_string();
+        tokio::task::spawn_blocking(move || {
+            let _ = tx.send(ir);
+        });
+
+        let stream =
+            ReceiverStream::new(stream_rx).map(move |chunk_result| -> Result<Event, Infallible> {
+                match chunk_result {
+                    Ok(chunk) => {
+                        let json = serde_json::json!({
+                            "id": "chatcmpl-stream",
+                            "object": "chat.completion.chunk",
+                            "model": model_name,
+                            "choices": [{
+                                "index": 0,
+                                "delta": {
+                                    "content": chunk
+                                },
+                                "finish_reason": null
+                            }]
+                        });
+                        Ok(Event::default().data(serde_json::to_string(&json).unwrap_or_default()))
+                    }
+                    Err(e) => Ok(Event::default().data(format!("{{\"error\": \"{}\"}}", e))),
+                }
+            });
+
+        let end_model = state.model_name.to_string();
+        let terminal = tokio_stream::iter(vec![
+            Ok::<Event, Infallible>(
+                Event::default().data(
+                    serde_json::json!({
+                        "id": "chatcmpl-stream",
+                        "object": "chat.completion.chunk",
+                        "model": end_model,
+                        "choices": [{
+                            "index": 0,
+                            "delta": {},
+                            "finish_reason": "stop"
+                        }]
+                    })
+                    .to_string(),
+                ),
+            ),
+            Ok(Event::default().data("[DONE]")),
+        ]);
+        let stream = tokio_stream::StreamExt::chain(stream, terminal);
+
+        Sse::new(stream)
+            .keep_alive(axum::response::sse::KeepAlive::new())
+            .into_response()
+    } else {
+        let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+        let ir = InferenceRequest {
+            prompt: prompt.clone(),
+            max_tokens,
+            temperature,
+            top_k: 40,
+            output_mode: None,
+            reply: reply_tx,
+            stream_tx: None,
+        };
+        let tx = state.tx.clone();
+        let send_ok = tokio::task::spawn_blocking(move || tx.send(ir))
+            .await
+            .map(|r| r.is_ok())
+            .unwrap_or(false);
+        if !send_ok {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(serde_json::json!({"error": "Inference worker unavailable"})),
+            )
+                .into_response();
+        }
+        let text = reply_rx
+            .await
+            .unwrap_or_else(|_| Err("Worker dropped".into()))
+            .unwrap_or_else(|e| format!("[error: {e}]"));
+
+        let prompt_tokens = prompt.split_whitespace().count();
+        let completion_tokens = text.split_whitespace().count();
+        let created = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        let resp = ChatCompletionResponse {
+            id: format!("chatcmpl-{}", created),
+            object: "chat.completion",
+            created,
+            model: state.model_name.to_string(),
+            choices: vec![ChatCompletionChoice {
+                index: 0,
+                message: ChatMessageOutput {
+                    role: "assistant",
+                    content: text,
+                },
+                finish_reason: "stop",
+            }],
+            usage: ChatUsage {
+                prompt_tokens,
+                completion_tokens,
+                total_tokens: prompt_tokens + completion_tokens,
+            },
+        };
+        (StatusCode::OK, Json(resp)).into_response()
+    }
 }
 
 #[cfg(feature = "execution-api")]
@@ -308,5 +531,35 @@ mod semcov_wave2_tests {
         assert_eq!(parse_output_mode_label("unknown"), None);
         assert_eq!(parse_output_mode_label(""), None);
         assert_eq!(parse_output_mode_label("json"), None);
+    }
+
+    #[test]
+    fn format_chatml_multi_turn_with_system() {
+        let msgs = vec![
+            ChatMessageInput {
+                role: "system".to_string(),
+                content: "You are a Vox compiler.".to_string(),
+            },
+            ChatMessageInput {
+                role: "user".to_string(),
+                content: "Generate a function.".to_string(),
+            },
+        ];
+        let formatted = format_chatml(&msgs);
+        assert!(formatted.starts_with("<|im_start|>system\nYou are a Vox compiler.<|im_end|>\n"));
+        assert!(formatted.contains("<|im_start|>user\nGenerate a function.<|im_end|>\n"));
+        assert!(formatted.ends_with("<|im_start|>assistant\n<think>\n</think>\n"));
+    }
+
+    #[test]
+    fn format_chatml_default_system_when_omitted() {
+        let msgs = vec![ChatMessageInput {
+            role: "user".to_string(),
+            content: "Hello".to_string(),
+        }];
+        let formatted = format_chatml(&msgs);
+        assert!(formatted.starts_with("<|im_start|>system\nYou are an expert Vox programmer. Write clean, idiomatic, correct Vox code satisfying the request.<|im_end|>\n"));
+        assert!(formatted.contains("<|im_start|>user\nHello<|im_end|>\n"));
+        assert!(formatted.ends_with("<|im_start|>assistant\n<think>\n</think>\n"));
     }
 }

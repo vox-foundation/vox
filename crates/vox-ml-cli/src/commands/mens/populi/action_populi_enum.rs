@@ -160,8 +160,8 @@ pub enum PopuliAction {
         /// Candle QLoRA: next-token CE on the last **K** positions per JSONL row (default 64). Capped by effective `--seq-len` and 64.
         #[arg(long, default_value_t = 64)]
         qlora_ce_last_k: usize,
-        /// Steps between mid-epoch checkpoints. Saves adapter and resume state to `--output-dir/checkpoint_state.json`.
-        #[arg(long)]
+        /// Steps between mid-epoch checkpoints. Saves adapter and resume state to `--output-dir/checkpoint_state.json`. Default: 500.
+        #[arg(long, default_value = "500")]
         checkpoint_every: Option<usize>,
         /// Fraction (0.0–1.0) of training pairs held out for mid-epoch validation. Default 0.05.
         #[arg(long, default_value_t = 0.05)]
@@ -559,6 +559,10 @@ pub enum PopuliAction {
         #[arg(short = 'o', long)]
         output: Option<PathBuf>,
     },
+
+    /// Hugging Face Hub operations (upload / download model artifacts)
+    #[command(subcommand)]
+    Hub(crate::commands::mens::hub::HubAction),
 
     #[command(flatten)]
     MensTail(super::mens_tail_subcommands::PopuliMensTail),

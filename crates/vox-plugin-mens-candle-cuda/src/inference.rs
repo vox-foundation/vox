@@ -53,7 +53,7 @@ fn synthesize_rope_inv_freq(
     if half == 0 {
         anyhow::bail!("invalid head_dim={head_dim} for RoPE synthesis");
     }
-    let theta = rope_theta.unwrap_or(10_000.0) as f32;
+    let theta = rope_theta.unwrap_or(1_000_000.0) as f32;
     let hd = head_dim as f32;
     let mut vals = Vec::with_capacity(half);
     for i in 0..half {
@@ -122,20 +122,28 @@ impl InferenceEngine {
         };
 
         let merged_file = model_dir.join("merged.safetensors");
-        let mut all_buffers = Vec::new();
-        let mut weight_maps = Vec::new();
-
+        let mut mmaps = Vec::new();
         if merged_file.is_file() {
-            let b = std::fs::read(&merged_file)?;
-            all_buffers.push(b);
+            let f = std::fs::File::open(&merged_file)?;
+            #[allow(unsafe_code)]
+            unsafe {
+                mmaps.push(memmap2::MmapOptions::new().map(&f)?);
+            }
         }
         for p in &base_shards {
-            all_buffers.push(std::fs::read(p)?);
+            let f = std::fs::File::open(p)?;
+            #[allow(unsafe_code)]
+            unsafe {
+                mmaps.push(memmap2::MmapOptions::new().map(&f)?);
+            }
         }
-        for b in &all_buffers {
-            weight_maps.push(SafeTensors::deserialize(b)?);
+        let mut weight_maps = Vec::new();
+        for m in &mmaps {
+            weight_maps.push(SafeTensors::deserialize(m)?);
         }
-        let qlora_cfg = qlora_rs::qlora::QLoraConfig::default();
+        let mut qlora_cfg = qlora_rs::QLoraConfig::default();
+        qlora_cfg.cache_dequantized = true;
+        qlora_cfg.quantization.compute_dtype = qlora_rs::ComputeDType::F32;
 
         // Helper to find a tensor in any map
         let get_tensor = |key: &str| -> Result<Tensor> {
@@ -296,6 +304,12 @@ impl InferenceEngine {
                     let q_bias = get_tensor(&format!("{p}.self_attn.q_proj.bias")).ok();
                     let k_bias = get_tensor(&format!("{p}.self_attn.k_proj.bias")).ok();
                     let v_bias = get_tensor(&format!("{p}.self_attn.v_proj.bias")).ok();
+                    let q_norm = get_tensor(&format!("{p}.self_attn.q_norm.weight"))
+                        .ok()
+                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
+                    let k_norm = get_tensor(&format!("{p}.self_attn.k_norm.weight"))
+                        .ok()
+                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
                     Qwen35AttentionBlock::Full(Qwen2Attention {
                         q_proj,
                         k_proj,
@@ -304,6 +318,8 @@ impl InferenceEngine {
                         q_bias,
                         k_bias,
                         v_bias,
+                        q_norm,
+                        k_norm,
                         n_heads,
                         n_kv_heads,
                         head_dim,
@@ -456,15 +472,15 @@ impl InferenceEngine {
                 }
             }
 
+            // EOS tokens for Qwen family: 151645 (<|im_end|>), 151643 (<|endoftext|>)
+            if next_token == 151645 || next_token == 151643 {
+                break;
+            }
+
             if let Ok(char_str) = self.tokenizer.decode(&[next_token], false) {
                 generated.push_str(&char_str);
             }
             tokens.push(next_token);
-
-            // EOS token for Qwen2 family
-            if next_token == 151643 {
-                break;
-            }
         }
 
         Ok(generated)
@@ -496,5 +512,16 @@ mod tests {
             resolve_adapter_manifest_path(d.path()).as_deref(),
             Some(manifest.as_path())
         );
+    }
+
+    #[test]
+    fn test_rope_inv_freq_synthesis_qwen_default() {
+        let dev = candle_core::Device::Cpu;
+        let t = super::synthesize_rope_inv_freq(128, None, &dev).expect("synthesize");
+        assert_eq!(t.dims(), &[64]);
+        let vals = t.to_vec1::<f32>().expect("vec");
+        assert!((vals[0] - 1.0).abs() < 1e-6);
+        let expected_last = 1.0 / 1_000_000.0_f32.powf(126.0 / 128.0);
+        assert!((vals[63] - expected_last).abs() < 1e-6);
     }
 }

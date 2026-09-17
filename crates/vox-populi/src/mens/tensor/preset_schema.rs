@@ -458,7 +458,9 @@ pub fn resolve_effective_profile(
 
         let quant = crate::mens::tensor::finetune_contract::BaseQuantMode::Nf4;
 
+        #[allow(deprecated)]
         let mp = if crate::mens::tensor::memory_budget::is_qwen25coder(hint) {
+            // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="plan_qwen3_with_options"
             crate::mens::tensor::memory_budget::plan_qwen25coder_with_options(
                 vram_gib,
                 params_b,
@@ -662,7 +664,10 @@ mod preset_tests {
     fn test_prosumer_16g_preset_resolves() {
         #[allow(unsafe_code)]
         unsafe {
-            std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-1.5B-Instruct");
+            std::env::set_var(
+                "VOX_BASE_MODEL",
+                "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+            );
         }
         let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
         let profile =
@@ -680,7 +685,10 @@ mod preset_tests {
     fn presets_are_bounded_by_vram() {
         #[allow(unsafe_code)]
         unsafe {
-            std::env::set_var("VOX_BASE_MODEL", "Qwen/Qwen2.5-Coder-7B-Instruct");
+            std::env::set_var(
+                "VOX_BASE_MODEL",
+                "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+            );
         }
         let dev = DeviceProfile::from_gpu_info("rtx 4080 super", 16384);
         let profile = resolve_effective_profile(Some("a100"), dev, None, CliOverrides::default());

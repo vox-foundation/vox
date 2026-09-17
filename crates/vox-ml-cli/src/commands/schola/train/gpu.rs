@@ -302,7 +302,7 @@ pub(super) async fn run_gpu_training(
         qlora_lm_head_only,
         qlora_proxy_max_layers,
         qlora_ce_last_k,
-        checkpoint_every,
+        checkpoint_every: checkpoint_every.or(Some(500)),
         force_restart,
         deployment_target,
         curriculum,

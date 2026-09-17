@@ -26,6 +26,7 @@ qlora-rs = { workspace = true }
 peft-rs = { workspace = true }
 safetensors = { workspace = true }
 tokenizers = { workspace = true }
+dirs = { workspace = true }
 memmap2 = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

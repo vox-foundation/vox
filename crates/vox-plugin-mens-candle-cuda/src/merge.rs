@@ -10,7 +10,6 @@ use std::path::Path;
 use anyhow::Context;
 use candle_core::{DType, Device, Tensor};
 use safetensors::SafeTensors;
-use safetensors::serialize;
 use safetensors::tensor::{Dtype, TensorView};
 
 use crate::adapter_schema_v3::PopuliAdapterManifestV3;
@@ -49,9 +48,10 @@ pub fn lora_delta_f32(
 }
 
 /// Load a base shard tensor on CPU and normalize to f32.
-fn tensor_from_safetensors_view_f32(view: TensorView<'_>) -> anyhow::Result<Tensor> {
+fn tensor_from_safetensors_view_f32(view: TensorView<'_>) -> anyhow::Result<(Tensor, Dtype)> {
+    let orig_dt = view.dtype();
     let shape: Vec<usize> = view.shape().to_vec();
-    let candle_dt = match view.dtype() {
+    let candle_dt = match orig_dt {
         Dtype::F32 => DType::F32,
         Dtype::BF16 => DType::BF16,
         Dtype::F16 => DType::F16,
@@ -59,12 +59,13 @@ fn tensor_from_safetensors_view_f32(view: TensorView<'_>) -> anyhow::Result<Tens
     };
     let t = Tensor::from_raw_buffer(view.data(), candle_dt, &shape, &Device::Cpu)
         .map_err(|e| anyhow::anyhow!("from_raw_buffer: {e}"))?;
-    if t.dtype() == DType::F32 {
-        Ok(t)
+    let t_f32 = if t.dtype() == DType::F32 {
+        t
     } else {
         t.to_dtype(DType::F32)
-            .map_err(|e| anyhow::anyhow!("cast base tensor to f32: {e}"))
-    }
+            .map_err(|e| anyhow::anyhow!("cast base tensor to f32: {e}"))?
+    };
+    Ok((t_f32, orig_dt))
 }
 
 fn tensor_from_f32_view(view: TensorView<'_>) -> anyhow::Result<Tensor> {
@@ -83,22 +84,73 @@ fn tensor_from_f32_view(view: TensorView<'_>) -> anyhow::Result<Tensor> {
     Ok(Tensor::from_vec(v, shape, &dev)?)
 }
 
-fn load_f32_tensor_from_shards(
-    base_paths: &[std::path::PathBuf],
-    key: &str,
-) -> anyhow::Result<Tensor> {
-    for p in base_paths {
-        let bytes = std::fs::read(p).with_context(|| format!("read {}", p.display()))?;
-        let st =
-            SafeTensors::deserialize(&bytes).with_context(|| format!("parse {}", p.display()))?;
-        if let Ok(tv) = st.tensor(key) {
-            return tensor_from_safetensors_view_f32(tv);
-        }
-    }
-    anyhow::bail!("tensor {key} not found in base safetensors shards")
+struct ShardResolver {
+    key_to_file: HashMap<String, std::path::PathBuf>,
+    cached_mmap: Option<(std::path::PathBuf, memmap2::Mmap)>,
 }
 
-/// Merge adapter LoRA tensors into base weights; write only merged keys (f32).
+impl ShardResolver {
+    fn new(base_paths: &[std::path::PathBuf]) -> anyhow::Result<Self> {
+        let base_dir = base_paths[0].parent().unwrap_or(Path::new("."));
+        let index_file = base_dir.join("model.safetensors.index.json");
+        let mut key_to_file = HashMap::new();
+        if index_file.is_file() {
+            if let Ok(raw) = std::fs::read_to_string(&index_file) {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    if let Some(wm) = v.get("weight_map").and_then(|w| w.as_object()) {
+                        for (k, val) in wm {
+                            if let Some(f) = val.as_str() {
+                                key_to_file.insert(k.clone(), base_dir.join(f));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if key_to_file.is_empty() {
+            for p in base_paths {
+                let f = std::fs::File::open(p)?;
+                #[allow(unsafe_code)]
+                let m = unsafe { memmap2::MmapOptions::new().map(&f)? };
+                let st = SafeTensors::deserialize(&m)?;
+                for k in st.names() {
+                    key_to_file.insert(k.to_string(), p.clone());
+                }
+            }
+        }
+        Ok(Self {
+            key_to_file,
+            cached_mmap: None,
+        })
+    }
+
+    fn get_tensor(&mut self, key: &str) -> anyhow::Result<(Tensor, Dtype)> {
+        let path = self.key_to_file.get(key).ok_or_else(|| {
+            anyhow::anyhow!("tensor `{key}` not found in base safetensors shards")
+        })?;
+        let need_reload = match &self.cached_mmap {
+            Some((cached_p, _)) => cached_p != path,
+            None => true,
+        };
+        if need_reload {
+            let f =
+                std::fs::File::open(path).with_context(|| format!("open {}", path.display()))?;
+            #[allow(unsafe_code)]
+            let m = unsafe {
+                memmap2::MmapOptions::new()
+                    .map(&f)
+                    .with_context(|| format!("mmap {}", path.display()))?
+            };
+            self.cached_mmap = Some((path.clone(), m));
+        }
+        let (_, mmap) = self.cached_mmap.as_ref().unwrap();
+        let st = SafeTensors::deserialize(mmap)?;
+        let tv = st.tensor(key)?;
+        tensor_from_safetensors_view_f32(tv)
+    }
+}
+
+/// Merge adapter LoRA tensors into base weights; write only merged keys.
 pub fn merge_qlora_into_base_subset(
     base_paths: &[std::path::PathBuf],
     adapter_path: &Path,
@@ -112,6 +164,8 @@ pub fn merge_qlora_into_base_subset(
             PopuliAdapterManifestV3::FORMAT
         );
     }
+
+    let mut resolver = ShardResolver::new(base_paths)?;
 
     let adapter_bytes = std::fs::read(adapter_path)
         .with_context(|| format!("read adapter {}", adapter_path.display()))?;
@@ -147,7 +201,7 @@ pub fn merge_qlora_into_base_subset(
         }
     }
 
-    let mut buffers: Vec<(String, Vec<u8>, Vec<usize>)> = Vec::new();
+    let mut merged_tensors: HashMap<String, Tensor> = HashMap::new();
 
     for logical in &meta.layer_order {
         let Some(base_key) = meta.base_key_map.get(logical) else {
@@ -157,36 +211,52 @@ pub fn merge_qlora_into_base_subset(
         let b_key = format!("{logical}.lora_b");
         let tv_a = adapter_st
             .tensor(&a_key)
-            .with_context(|| format!("adapter missing {a_key}"))?;
+            .or_else(|_| adapter_st.tensor(&format!("{a_key}.weight")))
+            .with_context(|| format!("adapter missing {a_key} or {a_key}.weight"))?;
         let tv_b = adapter_st
             .tensor(&b_key)
-            .with_context(|| format!("adapter missing {b_key}"))?;
+            .or_else(|_| adapter_st.tensor(&format!("{b_key}.weight")))
+            .with_context(|| format!("adapter missing {b_key} or {b_key}.weight"))?;
         let t_a = tensor_from_f32_view(tv_a)?;
         let t_b = tensor_from_f32_view(tv_b)?;
         let delta = lora_delta_f32(&t_a, &t_b, alpha, rank).context("lora delta")?;
 
-        let w = load_f32_tensor_from_shards(base_paths, base_key.as_str())?;
-        let merged = w.broadcast_add(&delta)?;
+        let (w, orig_dt) = resolver.get_tensor(base_key.as_str())?;
+        let merged = if w.dims() == delta.dims() {
+            w.broadcast_add(&delta)?
+        } else if w.dim(1)? == delta.dim(1)? && w.dim(0)? > delta.dim(0)? {
+            // Packed projections (e.g. Qwen 3.5/3.8 with attn_output_gate packed into q_proj):
+            // The LoRA delta applies to the first `delta_rows`, while remaining rows (attention gates)
+            // are preserved unperturbed from the base model.
+            let delta_rows = delta.dim(0)?;
+            let w_top = w.narrow(0, 0, delta_rows)?;
+            let w_bottom = w.narrow(0, delta_rows, w.dim(0)? - delta_rows)?;
+            let merged_top = w_top.broadcast_add(&delta)?;
+            Tensor::cat(&[&merged_top, &w_bottom], 0)?
+        } else {
+            w.broadcast_add(&delta)?
+        };
 
-        let shape: Vec<usize> = merged.dims().to_vec();
-        let flat = merged.flatten_all()?.to_vec1::<f32>()?;
-        let mut bytes = Vec::with_capacity(flat.len() * 4);
-        for x in flat {
-            bytes.extend_from_slice(&x.to_le_bytes());
-        }
-        buffers.push((base_key.clone(), bytes, shape));
+        // If base tensor was BF16, cast merged back to BF16 (halving memory footprint to ~8GB)
+        let final_tensor = if orig_dt == Dtype::BF16 {
+            merged.to_dtype(DType::BF16)?
+        } else {
+            merged
+        };
+
+        let out_key = if logical == "lm_head" {
+            // For tied embeddings or separate heads, output projection is always "lm_head.weight".
+            // If base was shared with input embeddings (e.g. model.embed_tokens.weight or wte.weight),
+            // writing to "lm_head.weight" unties them so input embeddings remain clean.
+            "lm_head.weight".to_string()
+        } else {
+            base_key.clone()
+        };
+        merged_tensors.insert(out_key, final_tensor);
     }
 
-    let mut map: HashMap<String, TensorView<'_>> = HashMap::new();
-    for (name, bytes, shape) in &buffers {
-        let view = TensorView::new(Dtype::F32, shape.clone(), bytes.as_slice())
-            .with_context(|| format!("TensorView for {name}"))?;
-        map.insert(name.clone(), view);
-    }
-
-    let payload =
-        serialize(&map, None).map_err(|e| anyhow::anyhow!("safetensors serialize: {e}"))?;
-    std::fs::write(out_path, payload).with_context(|| format!("write {}", out_path.display()))?;
+    safetensors::tensor::serialize_to_file(merged_tensors, None, out_path)
+        .map_err(|e| anyhow::anyhow!("safetensors serialize_to_file: {e}"))?;
     Ok(())
 }
 
@@ -323,7 +393,7 @@ mod tests {
 
         let bytes = std::fs::read(&out_path).unwrap();
         let st = SafeTensors::deserialize(&bytes).unwrap();
-        let tv = st.tensor("wte.weight").unwrap();
+        let tv = st.tensor("lm_head.weight").unwrap();
         let got = tensor_from_f32_view(tv).unwrap();
         let exp_flat = expected.flatten_all().unwrap().to_vec1::<f32>().unwrap();
         let got_flat = got.flatten_all().unwrap().to_vec1::<f32>().unwrap();

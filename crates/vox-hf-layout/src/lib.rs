@@ -81,11 +81,12 @@ impl HfTransformerLayout {
             .to_string();
         let model_l = model_type.to_lowercase();
 
+        // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="Qwen/Qwen3-8B"
         if (model_l.contains("qwen2") || model_l.contains("qwen2.5")) && !model_l.contains("qwen3")
         {
             tracing::warn!(
                 "Qwen 2.5 / Qwen2 detected: This architecture is DEPRECATED in Vox. \
-                 Qwen 3.5 is the new production default. Please migrate your base weights."
+                 Qwen 3 (active fine-tuning on Qwen3-8B) and Qwen 3.5 are the production defaults. Please migrate your base weights."
             );
         }
         let architectures: Vec<String> = v
@@ -98,23 +99,21 @@ impl HfTransformerLayout {
             })
             .unwrap_or_default();
 
-        // Fail fast on vision-language / multimodal checkpoints. The candle text
-        // trainer has no vision tower, no mRoPE, and no MTP head, so it would spend
-        // ~10 minutes force-loading a huge multimodal embedding into RAM and then
-        // train a malformed graph. Reject up front with an actionable message.
-        // (e.g. Qwen3.5-2B/4B ship as `Qwen3_5ForConditionalGeneration` with a
-        // `vision_config` + image/video token ids.)
+        // Fail fast on vision-language / multimodal checkpoints that lack a dedicated
+        // text transformer configuration (`text_config`). When `text_config` is present,
+        // the text QLoRA trainer can safely extract and train the text backbone.
         let is_conditional_generation = architectures
             .iter()
             .any(|a| a.contains("ForConditionalGeneration"));
         let has_vision = v.get("vision_config").is_some()
             || v.get("image_token_id").is_some()
             || v.get("video_token_id").is_some();
-        if is_conditional_generation || has_vision {
+        let has_text_config = v.get("text_config").is_some();
+        if (is_conditional_generation || has_vision) && !has_text_config {
             anyhow::bail!(
                 "This checkpoint is a vision-language / multimodal model (architectures={architectures:?}\
-                {}), which the text QLoRA trainer cannot train. Use a text-only causal LM \
-                 (e.g. a Qwen2.5-Coder-*-Instruct or a text-only dense Qwen checkpoint).",
+                {}), which has no text_config for the text QLoRA trainer. Use a text-only causal LM \
+                 (e.g. a Qwen3-8B or a text-only dense Qwen checkpoint).",
                 if has_vision {
                     ", has vision_config/image_token"
                 } else {
@@ -143,7 +142,7 @@ impl HfTransformerLayout {
             if layer_types.is_empty() {
                 layer_types = vec!["full_attention".to_string(); nl];
             }
-            let namespace_prefix = if model_l.contains("qwen3") {
+            let namespace_prefix = if has_text_config {
                 "model.language_model.layers".to_string()
             } else {
                 "model.layers".to_string()
@@ -162,7 +161,8 @@ impl HfTransformerLayout {
                 max_position_embeddings: json_usize(cfg_source, "max_position_embeddings"),
                 rope_theta: qwen35_rope_theta(cfg_source)
                     .or_else(|| json_f64(cfg_source, "rope_theta")),
-                rope_partial_rotary_factor: qwen35_partial_rotary_factor(cfg_source),
+                rope_partial_rotary_factor: qwen35_partial_rotary_factor(cfg_source)
+                    .or_else(|| json_f64(cfg_source, "partial_rotary_factor")),
                 layer_types,
                 linear_attention_heads: json_usize(cfg_source, "num_linear_heads"),
                 full_attention_heads: json_usize(cfg_source, "num_full_heads"),
@@ -441,6 +441,54 @@ mod tests {
         }"#;
         let layout = HfTransformerLayout::from_config_json_str(raw).expect("qwen3_5 parse");
         assert_eq!(layout.layer_types, vec!["full_attention", "full_attention"]);
+    }
+
+    #[test]
+    fn parses_qwen35_conditional_generation_with_text_config() {
+        let raw = r#"{
+            "model_type":"qwen3_5",
+            "architectures":["Qwen3_5ForConditionalGeneration"],
+            "image_token_id": 248056,
+            "vision_config": {
+                "hidden_size": 1152
+            },
+            "text_config":{
+                "hidden_size":5120,
+                "num_attention_heads":24,
+                "num_key_value_heads":4,
+                "num_hidden_layers":64,
+                "vocab_size":248320,
+                "intermediate_size":17408,
+                "max_position_embeddings":262144,
+                "layer_types":["linear_attention","linear_attention","linear_attention","full_attention"]
+            }
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw)
+            .expect("qwen3_5 conditional with text_config");
+        assert_eq!(layout.architecture, HfArchitecture::Qwen35);
+        assert_eq!(layout.namespace_prefix, "model.language_model.layers");
+        assert_eq!(layout.num_hidden_layers, 64);
+        assert_eq!(layout.hidden_size, 5120);
+    }
+
+    #[test]
+    fn parses_qwen3_8b_causal_lm_without_text_config() {
+        let raw = r#"{
+            "architectures": ["Qwen3ForCausalLM"],
+            "model_type": "qwen3",
+            "hidden_size": 4096,
+            "num_attention_heads": 32,
+            "num_key_value_heads": 8,
+            "num_hidden_layers": 36,
+            "vocab_size": 151936,
+            "intermediate_size": 12288,
+            "max_position_embeddings": 40960
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("qwen3 8b parse");
+        assert_eq!(layout.architecture, HfArchitecture::Qwen35);
+        assert_eq!(layout.namespace_prefix, "model.layers");
+        assert_eq!(layout.num_hidden_layers, 36);
+        assert_eq!(layout.layer_types[0], "full_attention");
     }
 }
 

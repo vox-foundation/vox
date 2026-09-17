@@ -22,6 +22,7 @@ impl SafeTensorsSource {
     pub fn open(dir: &Path) -> Result<Self, QuantizeError> {
         let index = dir.join("model.safetensors.index.json");
         let single = dir.join("model.safetensors");
+        let merged = dir.join("merged.safetensors");
         let mut map = HashMap::new();
         if index.exists() {
             let raw = std::fs::read_to_string(&index)?;
@@ -31,18 +32,100 @@ impl SafeTensorsSource {
                 map.insert(name, dir.join(file));
             }
         } else if single.exists() {
-            let st = candle_core::safetensors::load(&single, &Device::Cpu)?;
-            for name in st.keys() {
-                map.insert(name.clone(), single.clone());
+            let file = std::fs::File::open(&single)?;
+            #[allow(unsafe_code)]
+            let mmap = unsafe { memmap2::MmapOptions::new().map(&file)? };
+            let st = safetensors::SafeTensors::deserialize(&mmap).map_err(|e| {
+                QuantizeError::ReadModel(format!("parse safetensors {}: {e}", single.display()))
+            })?;
+            for name in st.names() {
+                map.insert(name.to_string(), single.clone());
+            }
+        } else if merged.exists() {
+            // Overlay mode: dir has merged.safetensors and points to base model shards
+            let base_dir = Self::resolve_base_dir(dir)?;
+            let base_index = base_dir.join("model.safetensors.index.json");
+            if base_index.exists() {
+                let raw = std::fs::read_to_string(&base_index)?;
+                let idx: ShardIndex = serde_json::from_str(&raw)
+                    .map_err(|e| QuantizeError::ShardIndex(e.to_string()))?;
+                for (name, file) in idx.weight_map {
+                    map.insert(name, base_dir.join(file));
+                }
+            } else {
+                return Err(QuantizeError::ReadModel(format!(
+                    "base model index not found at {}",
+                    base_index.display()
+                )));
+            }
+
+            // Overlay the merged adapted keys from merged.safetensors
+            let f = std::fs::File::open(&merged)?;
+            #[allow(unsafe_code)]
+            let mmap = unsafe { memmap2::MmapOptions::new().map(&f)? };
+            let st = safetensors::SafeTensors::deserialize(&mmap)
+                .map_err(|e| QuantizeError::ReadModel(format!("parse merged.safetensors: {e}")))?;
+            for name in st.names() {
+                map.insert(name.to_string(), merged.clone());
             }
         } else {
             return Err(QuantizeError::ReadModel(format!(
-                "no model.safetensors or model.safetensors.index.json in {}",
+                "no model.safetensors, model.safetensors.index.json, or merged.safetensors in {}",
                 dir.display()
             )));
         }
         let names: Vec<String> = map.keys().cloned().collect();
         Ok(Self { map, names })
+    }
+
+    fn resolve_base_dir(dir: &Path) -> Result<PathBuf, QuantizeError> {
+        let tm_path = dir.join("training_manifest.json");
+        if tm_path.is_file() {
+            if let Ok(raw) = std::fs::read_to_string(&tm_path) {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    if let Some(tok_path) = v.get("tokenizer_path").and_then(|p| p.as_str()) {
+                        let p = PathBuf::from(tok_path);
+                        if let Some(parent) = p.parent() {
+                            if parent.join("model.safetensors.index.json").is_file() {
+                                return Ok(parent.to_path_buf());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Try adapter_manifest.json base_model
+        let am_path = dir.join("adapter_manifest.json");
+        if am_path.is_file() {
+            if let Ok(raw) = std::fs::read_to_string(&am_path) {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    if let Some(base) = v.get("base_model").and_then(|p| p.as_str()) {
+                        if let Some(home) = dirs::home_dir() {
+                            let hub = home
+                                .join(".cache/huggingface/hub")
+                                .join(format!("models--{}", base.replace('/', "--")))
+                                .join("snapshots");
+                            if let Ok(entries) = std::fs::read_dir(&hub) {
+                                for entry in entries.flatten() {
+                                    let ep = entry.path();
+                                    if ep.is_dir()
+                                        && ep.join("model.safetensors.index.json").is_file()
+                                    {
+                                        return Ok(ep);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Err(QuantizeError::ReadModel(format!(
+            "could not resolve base model directory for overlay in {}",
+            dir.display()
+        )))
     }
 
     pub fn tensor_names(&self) -> &[String] {
@@ -55,11 +138,32 @@ impl SafeTensorsSource {
             .map
             .get(name)
             .ok_or_else(|| QuantizeError::ReadModel(format!("tensor `{name}` not found")))?;
-        let st = candle_core::safetensors::load(path, &Device::Cpu)?;
-        let t = st.get(name).ok_or_else(|| {
-            QuantizeError::ReadModel(format!("tensor `{name}` missing from shard"))
+        let file = std::fs::File::open(path)?;
+        #[allow(unsafe_code)]
+        let mmap = unsafe { memmap2::MmapOptions::new().map(&file)? };
+        let st = safetensors::SafeTensors::deserialize(&mmap).map_err(|e| {
+            QuantizeError::ReadModel(format!("parse safetensors {}: {e}", path.display()))
         })?;
-        Ok(t.to_dtype(candle_core::DType::F32)?)
+        let view = st.tensor(name).map_err(|e| {
+            QuantizeError::ReadModel(format!("tensor `{name}` missing from shard: {e}"))
+        })?;
+        let shape: Vec<usize> = view.shape().to_vec();
+        let candle_dt = match view.dtype() {
+            safetensors::tensor::Dtype::F32 => candle_core::DType::F32,
+            safetensors::tensor::Dtype::BF16 => candle_core::DType::BF16,
+            safetensors::tensor::Dtype::F16 => candle_core::DType::F16,
+            d => {
+                return Err(QuantizeError::ReadModel(format!(
+                    "unsupported dtype {d:?} for {name}"
+                )));
+            }
+        };
+        let t = Tensor::from_raw_buffer(view.data(), candle_dt, &shape, &Device::Cpu)?;
+        if t.dtype() == candle_core::DType::F32 {
+            Ok(t)
+        } else {
+            Ok(t.to_dtype(candle_core::DType::F32)?)
+        }
     }
 }
 

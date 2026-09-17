@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [features]
 default = ["mens-base"]
-mens-base = ["dep:vox-populi", "vox-populi/mens-train", "vox-bounded-fs/async", "database"]
+mens-base = ["dep:vox-populi", "vox-populi/mens-train", "vox-bounded-fs/async", "database", "execution-api"]
 oratio = ["mens-base", "dep:vox-speech", "vox-speech/serve", "dep:vox-plugin-host"]
 oratio-mic = ["oratio", "dep:cpal", "dep:hound"]
 gpu = [
@@ -29,6 +29,8 @@ gpu = [
 ]
 mens-qlora = ["gpu"]
 mens-candle-cuda = ["gpu", "vox-populi/mens-candle-qlora-cuda"]
+mens-candle-metal = ["gpu", "vox-populi/mens-candle-qlora-metal"]
+mens-hf-hub = ["mens-base", "vox-populi/mens-hf-hub"]
 cloud = ["gpu", "vox-populi/mens-cloud"]
 mens-dei = ["dep:vox-tensor", "dep:vox-orchestrator", "dep:vox-cli"]
 workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime", "vox-workflow-runtime/mens"]

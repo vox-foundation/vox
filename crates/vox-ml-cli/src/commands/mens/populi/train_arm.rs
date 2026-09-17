@@ -65,7 +65,7 @@ pub async fn run_train(
     optimizer_experiment_mode: vox_populi::mens::OptimizerExperimentMode,
     data_mode: TrainDataModeCli,
     fast_corpus: bool,
-    persistent: bool,
+    _persistent: bool,
 ) -> anyhow::Result<()> {
     if cloud != "local" {
         #[cfg(feature = "cloud")]
@@ -358,8 +358,8 @@ pub async fn run_train(
     // VRAM-aware budget > preset fallback (applied in gpu.rs). `None` means
     // "not yet set"; each stage fills only what an earlier stage left unset.
     let mut effective_seq_len: Option<usize> = seq_len;
-    let mut effective_batch_size: Option<usize> = batch_size;
-    let mut effective_grad_accum: Option<usize> = grad_accum;
+    let effective_batch_size: Option<usize> = batch_size;
+    let effective_grad_accum: Option<usize> = grad_accum;
     // May be retreated to a smaller Qwen3.5 variant by the VRAM budget below.
     let mut effective_model = model;
     let mut effective_validation_split_ratio = validation_split_ratio;
@@ -432,10 +432,15 @@ pub async fn run_train(
     let mut budget_grad_accum = None;
     {
         use owo_colors::OwoColorize;
-        let device_is_cuda = vox_populi::mens::normalize_device(&device)
-            .map(|d| matches!(d, vox_populi::mens::DeviceKind::Cuda))
+        let device_is_accel = vox_populi::mens::normalize_device(&device)
+            .map(|d| {
+                matches!(
+                    d,
+                    vox_populi::mens::DeviceKind::Cuda | vox_populi::mens::DeviceKind::Metal
+                )
+            })
             .unwrap_or(false);
-        if device_is_cuda {
+        if device_is_accel {
             use vox_populi::mens::tensor::finetune_contract::BaseQuantMode;
             use vox_populi::mens::tensor::memory_budget;
             let default_model = vox_populi::mens::default_model_id();
@@ -473,7 +478,9 @@ pub async fn run_train(
             let gc_enabled = gc_explicit || gc_auto_large;
 
             // Run planning options-aware
+            #[allow(deprecated)]
             let mp = if memory_budget::is_qwen25coder(model_hint) {
+                // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="plan_qwen3_with_options"
                 memory_budget::plan_qwen25coder_with_options(
                     vram,
                     requested_b,
@@ -798,6 +805,7 @@ fn run_cloud_eval_gate(
 /// the budget.
 ///
 /// Pure and side-effect-free so it can be unit-tested in isolation.
+#[allow(dead_code)]
 fn resolve_training_sizing(
     cli: Option<usize>,
     domain: Option<usize>,

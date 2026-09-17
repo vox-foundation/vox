@@ -143,6 +143,34 @@ impl LlmConfig {
         }
     }
 
+    pub fn ollama(model: impl Into<String>) -> Self {
+        let m = model.into();
+        let model_name = m.strip_prefix("ollama/").unwrap_or(&m).to_string();
+        let base = vox_config::inference::local_ollama_populi_base_url();
+        let base_url = format!("{}/v1/chat/completions", base.trim_end_matches('/'));
+        Self {
+            provider: "ollama".into(),
+            model: model_name,
+            cost_per_1k: None,
+            base_url: Some(base_url),
+            api_key: None,
+            temperature: None,
+            top_p: None,
+            max_tokens: None,
+            response_format: None,
+            tools: None,
+            tool_choice: None,
+            timeout_ms: None,
+            telemetry_session_id: None,
+            telemetry_user_id: None,
+            telemetry_task_category: None,
+            telemetry_strength_tag: None,
+            telemetry_trace_id: None,
+            telemetry_attempt_number: None,
+            telemetry_skip_interaction: false,
+        }
+    }
+
     pub fn huggingface_router(model: impl Into<String>) -> Self {
         Self {
             provider: "hf_router".into(),

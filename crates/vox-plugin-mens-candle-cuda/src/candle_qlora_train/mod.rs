@@ -190,7 +190,7 @@ fn synthesize_rope_inv_freq(
     if half == 0 {
         anyhow::bail!("invalid head_dim={} for RoPE synthesis", head_dim);
     }
-    let theta = rope_theta.unwrap_or(10_000.0) as f32;
+    let theta = rope_theta.unwrap_or(1_000_000.0) as f32;
     let hd = head_dim as f32;
     let mut vals = Vec::with_capacity(half);
     for i in 0..half {
@@ -840,6 +840,14 @@ pub fn run_candle_qlora_train(
                     adapter_layer_order.push(lbl.clone());
                     base_key_map.insert(lbl.clone(), bk.clone());
                 }
+                let q_norm = vb_mmap
+                    .get(head_dim, &format!("{layer_prefix}.self_attn.q_norm.weight"))
+                    .ok()
+                    .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
+                let k_norm = vb_mmap
+                    .get(head_dim, &format!("{layer_prefix}.self_attn.k_norm.weight"))
+                    .ok()
+                    .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
                 let attn = crate::model::Qwen2Attention {
                     q_proj,
                     k_proj,
@@ -848,6 +856,8 @@ pub fn run_candle_qlora_train(
                     q_bias,
                     k_bias,
                     v_bias,
+                    q_norm,
+                    k_norm,
                     n_heads,
                     n_kv_heads,
                     head_dim,
@@ -980,9 +990,21 @@ pub fn run_candle_qlora_train(
         // QuantizedLinear builder can quantize it. It is cached internally in
         // the compute_dtype (BF16). `Qwen35Model::forward` casts the resulting
         // logits back to F32 before the cross-entropy loss.
-        let w_lm = wte.to_dtype(DType::F32)?;
+        let (w_lm, lm_base) =
+            if let Ok(lm_w) = vb_mmap_cpu.get((bundle.vocab, bundle.d_model), "lm_head.weight") {
+                (lm_w.to_dtype(DType::F32)?, "lm_head.weight".to_string())
+            } else if let Ok(lm_w) = vb_mmap_cpu.get(
+                (bundle.vocab, bundle.d_model),
+                "model.language_model.lm_head.weight",
+            ) {
+                (
+                    lm_w.to_dtype(DType::F32)?,
+                    "model.language_model.lm_head.weight".to_string(),
+                )
+            } else {
+                (wte.to_dtype(DType::F32)?, bundle.embed_key.clone())
+            };
         let lm_label = "lm_head".to_string();
-        let lm_base = bundle.embed_key.clone();
         let lm_head = QuantizedLinear::from_weight_with_varbuilder(
             &w_lm,
             None,
@@ -995,6 +1017,10 @@ pub fn run_candle_qlora_train(
         (final_norm, lm_head)
     };
     log_stage("graph_build (NF4→F32 dequant of all layers)", t_graph);
+
+    // Drop mmap handles to release virtual memory before training step loop
+    drop(vb_mmap);
+    drop(vb_mmap_cpu);
 
     trainer
         .init_optimizer(&[])

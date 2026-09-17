@@ -92,6 +92,87 @@ impl ExtraDispatch for McpExtraDispatch {
                     .unwrap_or(envelope);
                 Some(result(&req.id, value))
             }
+            dei_method::RESEARCH_PERSIST_CLAIMS => {
+                let Some(db) = self.state.db.clone() else {
+                    return Some(error(&req.id, "VoxDb not attached to daemon"));
+                };
+                let session_id = req
+                    .params
+                    .get("session_id")
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
+                let mut stored_count = 0;
+
+                if let Some(claims_array) = req.params.get("claims").and_then(|v| v.as_array()) {
+                    for item in claims_array {
+                        let text = item.get("text").and_then(|v| v.as_str()).unwrap_or("");
+                        if text.is_empty() {
+                            continue;
+                        }
+                        let mut hash: u64 = 0xcbf29ce484222325;
+                        for byte in text.bytes() {
+                            hash ^= byte as u64;
+                            hash = hash.wrapping_mul(0x100000001b3);
+                        }
+                        let claim_id = item
+                            .get("claim_id")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(hash);
+                        let verdict = item
+                            .get("verdict")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("supported");
+                        let confidence = item
+                            .get("confidence")
+                            .and_then(|v| v.as_f64())
+                            .unwrap_or(0.9);
+                        let is_numeric = item
+                            .get("is_numeric")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        let is_recent = item
+                            .get("is_recent")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        let is_named_event = item
+                            .get("is_named_event")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+
+                        let _ = db
+                            .store_claim(
+                                session_id,
+                                claim_id,
+                                text,
+                                is_numeric,
+                                is_recent,
+                                is_named_event,
+                            )
+                            .await;
+                        let _ = db
+                            .store_claim_verdict(
+                                claim_id,
+                                verdict,
+                                confidence,
+                                "orchestrator-daemon",
+                            )
+                            .await;
+                        stored_count += 1;
+                    }
+                } else if session_id > 0 {
+                    if let Ok(existing) = db.list_publication_claims(session_id).await {
+                        stored_count = existing.len();
+                    }
+                }
+
+                Some(result(
+                    &req.id,
+                    serde_json::json!({
+                        "session_id": session_id,
+                        "persisted_claims": stored_count
+                    }),
+                ))
+            }
             orch_daemon_method::TOOL_CALL => {
                 let Some(name) = req.params.get("name").and_then(|v| v.as_str()) else {
                     return Some(error(&req.id, "params.name (string) required"));

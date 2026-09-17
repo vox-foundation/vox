@@ -107,10 +107,18 @@ pub(crate) fn prepare_bench_item(
         String::new()
     };
 
-    let prompt = if context_blob.is_empty() {
+    let raw_prompt = if context_blob.is_empty() {
         body
     } else {
         format!("{context_blob}{body}")
+    };
+    let prompt = if raw_prompt.trim().is_empty() {
+        raw_prompt
+    } else {
+        let sys_prompt = vox_corpus::training::generate_training_system_prompt();
+        format!(
+            "<|im_start|>system\n{sys_prompt}\n## Code Generation Directive\nRespond with only valid, compiling Vox code. Do not output reasoning or explanation.<|im_end|>\n<|im_start|>user\n{raw_prompt}<|im_end|>\n<|im_start|>assistant\n<think>\n</think>\n"
+        )
     };
     let semantic_expected_contains: Vec<String> = bench_item["semantic_expected_contains"]
         .as_array()

@@ -86,29 +86,24 @@ impl ArtifactWriter {
 
     pub fn finish(self, out_dir: &Path, mixture: &str) -> Result<(), QuantizeError> {
         std::fs::create_dir_all(out_dir)?;
-        use candle_core::{Device, Tensor};
-        let mut tensors: HashMap<String, Tensor> = HashMap::new();
-        for (name, (bytes, dtype, shape)) in self.raw {
-            let t = match dtype {
-                candle_core::DType::U8 => Tensor::from_vec(bytes, shape.clone(), &Device::Cpu)?,
-                candle_core::DType::F32 => {
-                    let floats: Vec<f32> = bytes
-                        .as_chunks::<4>()
-                        .0
-                        .iter()
-                        .map(|c| f32::from_le_bytes(*c))
-                        .collect();
-                    Tensor::from_vec(floats, shape.clone(), &Device::Cpu)?
-                }
+        let mut views = std::collections::BTreeMap::new();
+        for (name, (bytes, dtype, shape)) in &self.raw {
+            let st_dtype = match dtype {
+                candle_core::DType::U8 => safetensors::Dtype::U8,
+                candle_core::DType::F32 => safetensors::Dtype::F32,
                 _ => {
                     return Err(QuantizeError::Write(format!(
                         "unexpected dtype for `{name}`"
                     )));
                 }
             };
-            tensors.insert(name, t);
+            let view = safetensors::tensor::TensorView::new(st_dtype, shape.clone(), bytes)
+                .map_err(|e| QuantizeError::Write(e.to_string()))?;
+            views.insert(name.clone(), view);
         }
-        candle_core::safetensors::save(&tensors, out_dir.join("model.safetensors"))?;
+        let out_file = out_dir.join("model.safetensors");
+        safetensors::tensor::serialize_to_file(&views, None, &out_file)
+            .map_err(|e| QuantizeError::Write(e.to_string()))?;
 
         let meta = QuantMetadata {
             mixture: mixture.to_string(),

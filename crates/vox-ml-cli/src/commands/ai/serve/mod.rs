@@ -116,6 +116,8 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
     let app = Router::new()
         .route("/health", get(handlers::health))
         .route("/ready", get(handlers::ready))
+        .route("/api/tags", get(handlers::tags))
+        .route("/api/version", get(handlers::version))
         .route("/v1/models", get(handlers::list_models))
         .route("/v1/generate", post(handlers::do_generate))
         .route("/generate", post(handlers::do_generate))
@@ -124,6 +126,7 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
             "/v1/completions/stream",
             post(handlers::do_completions_stream),
         )
+        .route("/v1/chat/completions", post(handlers::do_chat_completions))
         .with_state(state);
 
     let addr = format!("{}:{}", config.host, config.port);
@@ -242,7 +245,7 @@ mod tests {
     #[test]
     fn serve_config_defaults() {
         let cfg = ServeConfig::default();
-        assert_eq!(cfg.port, 8080);
+        assert_eq!(cfg.port, config::DEFAULT_SERVE_PORT);
         assert_eq!(cfg.max_tokens, 256);
         assert!((cfg.temperature - 0.7).abs() < 1e-6);
         assert_eq!(cfg.host, "127.0.0.1");

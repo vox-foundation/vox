@@ -166,6 +166,15 @@ pub fn resolve_egress(input: &EgressResolveInput) -> Result<EgressRequest, Strin
                 "openrouter" => crate::inference::openrouter_chat_completions_url(),
                 "openai" => crate::inference::openai_chat_completions_url(),
                 "hf_router" | "huggingface" => crate::inference::hf_router_chat_completions_url(),
+                "ollama" => format!(
+                    "{}/v1/chat/completions",
+                    crate::inference::local_ollama_populi_base_url().trim_end_matches('/')
+                ),
+                "voxlocal" | "populi_local" => {
+                    let base = std::env::var("VOX_LOCAL_ENDPOINT")
+                        .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
+                    format!("{}/v1/chat/completions", base.trim_end_matches('/'))
+                }
                 _ => crate::inference::openrouter_chat_completions_url(),
             });
     Ok(EgressRequest {

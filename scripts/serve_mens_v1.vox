@@ -1,5 +1,5 @@
 // Starts the Vox MENS v1 inference server.
-// This serves the fine-tuned Qwen2.5-Coder-1.5B model on port 7863
+// This serves the fine-tuned Qwen 3 (Qwen3-8B) model on port 7863
 // for the orchestrator's VoxLocal path (POST /generate) and
 // port 11434 via Ollama for general model routing.
 //

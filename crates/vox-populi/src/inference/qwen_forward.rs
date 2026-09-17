@@ -57,8 +57,10 @@ fn repeat_kv(x: &Tensor, n_rep: usize) -> Result<Tensor, ForwardError> {
 
 fn rotate_half(x: &Tensor) -> Result<Tensor, ForwardError> {
     let last_dim = x.dim(D::Minus1)?;
-    let x1 = x.narrow(D::Minus1, 0, last_dim / 2)?;
-    let x2 = x.narrow(D::Minus1, last_dim / 2, last_dim / 2)?;
+    let x1 = x.narrow(D::Minus1, 0, last_dim / 2)?.contiguous()?;
+    let x2 = x
+        .narrow(D::Minus1, last_dim / 2, last_dim / 2)?
+        .contiguous()?;
     Ok(Tensor::cat(&[&x2.neg()?, &x1], D::Minus1)?)
 }
 
@@ -158,8 +160,6 @@ impl FullAttention {
         att = att.clamp(-120f64, 120f64)?;
 
         let y = if seq_len > 1 {
-            let att_max = att.max_keepdim(D::Minus1)?;
-            att = att.broadcast_sub(&att_max)?;
             let mask = causal_mask(seq_len, device)?;
             let att = att.broadcast_add(&mask)?;
             let att = candle_nn::ops::softmax(&att, D::Minus1)?;

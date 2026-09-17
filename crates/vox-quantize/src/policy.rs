@@ -19,11 +19,16 @@ impl TensorRole {
         let k = key.to_ascii_lowercase();
         if k.ends_with("layernorm.weight")
             || k.ends_with(".norm.weight")
+            || k.ends_with("_norm.weight")
+            || k.ends_with(".conv1d.weight")
+            || k.ends_with(".in_proj_a.weight")
+            || k.ends_with(".in_proj_b.weight")
             || k == "model.language_model.norm.weight"
             || k.ends_with(".a_log")
             || k.ends_with(".dt_bias")
             || k.ends_with(".bias")
             || k.contains("inv_freq")
+            || k.contains("rotary_emb")
         {
             return TensorRole::KeepF32;
         }
@@ -208,5 +213,33 @@ mod semcov_wave5_tests {
         assert_eq!(m.target_for(TensorRole::DownProj), None);
         // KeepF32 is short-circuited before the BTreeMap lookup
         assert_eq!(m.target_for(TensorRole::KeepF32), None);
+    }
+
+    #[test]
+    fn test_qwen38_q_k_norm_retains_f32() {
+        assert_eq!(
+            TensorRole::from_key("model.layers.0.self_attn.q_norm.weight"),
+            TensorRole::KeepF32
+        );
+        assert_eq!(
+            TensorRole::from_key("model.layers.0.self_attn.k_norm.weight"),
+            TensorRole::KeepF32
+        );
+        assert_eq!(
+            TensorRole::from_key("model.layers.0.linear_attn.conv1d.weight"),
+            TensorRole::KeepF32
+        );
+        assert_eq!(
+            TensorRole::from_key("model.layers.0.linear_attn.in_proj_a.weight"),
+            TensorRole::KeepF32
+        );
+        assert_eq!(
+            TensorRole::from_key("model.layers.0.linear_attn.in_proj_b.weight"),
+            TensorRole::KeepF32
+        );
+        assert_eq!(
+            TensorRole::from_key("model.layers.0.post_attention_layernorm.weight"),
+            TensorRole::KeepF32
+        );
     }
 }

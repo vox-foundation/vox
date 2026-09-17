@@ -69,3 +69,58 @@ pub struct Choice {
     pub index: usize,
     pub finish_reason: &'static str,
 }
+
+#[cfg(feature = "execution-api")]
+#[derive(Debug, Deserialize, Clone)]
+pub struct ChatMessageInput {
+    pub role: String,
+    pub content: String,
+}
+
+#[cfg(feature = "execution-api")]
+#[derive(Debug, Deserialize, Clone)]
+pub struct ChatCompletionRequest {
+    pub messages: Vec<ChatMessageInput>,
+    #[serde(default = "default_max_tokens")]
+    pub max_tokens: usize,
+    #[serde(default = "default_temperature")]
+    pub temperature: f32,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub stream: bool,
+}
+
+#[cfg(feature = "execution-api")]
+#[derive(Debug, Serialize)]
+pub struct ChatCompletionResponse {
+    pub id: String,
+    pub object: &'static str,
+    pub created: u64,
+    pub model: String,
+    pub choices: Vec<ChatCompletionChoice>,
+    pub usage: ChatUsage,
+}
+
+#[cfg(feature = "execution-api")]
+#[derive(Debug, Serialize)]
+pub struct ChatCompletionChoice {
+    pub index: usize,
+    pub message: ChatMessageOutput,
+    pub finish_reason: &'static str,
+}
+
+#[cfg(feature = "execution-api")]
+#[derive(Debug, Serialize)]
+pub struct ChatMessageOutput {
+    pub role: &'static str,
+    pub content: String,
+}
+
+#[cfg(feature = "execution-api")]
+#[derive(Debug, Serialize)]
+pub struct ChatUsage {
+    pub prompt_tokens: usize,
+    pub completion_tokens: usize,
+    pub total_tokens: usize,
+}

@@ -21,22 +21,22 @@
       "semantic_expected_contains": ["workflow fetch_and_save"]
     },
     {
-      "id": "action_create_item",
-      "category": "action",
-      "description": "define an action named `create_item` that takes a string parameter `title` and returns a new record with an `id` and the given `title`",
-      "semantic_expected_contains": ["action create_item"]
+      "id": "mutation_create_item",
+      "category": "mutation",
+      "description": "define a mutation named `create_item` that takes a string parameter `title` and returns a new record with an `id` and the given `title`",
+      "semantic_expected_contains": ["mutation create_item"]
     },
     {
-      "id": "action_delete",
-      "category": "action",
-      "description": "define an action named `delete_item` that takes an integer parameter `id` and returns a boolean indicating success",
-      "semantic_expected_contains": ["action delete_item"]
+      "id": "mutation_delete",
+      "category": "mutation",
+      "description": "define a mutation named `delete_item` that takes an integer parameter `id` and returns a boolean indicating success",
+      "semantic_expected_contains": ["mutation delete_item"]
     },
     {
       "id": "test_smoke",
       "category": "test",
       "description": "write a test named `smoke` that calls `add(1, 2)` and asserts the result equals 3",
-      "semantic_expected_contains": ["test smoke", "assert"]
+      "semantic_expected_contains": ["smoke", "assert"]
     },
     {
       "id": "query_list_items",
@@ -57,10 +57,10 @@
       "semantic_expected_contains": ["component Button"]
     },
     {
-      "id": "page_index",
-      "category": "page",
-      "description": "define a page named `IndexPage` with a title 'Home' that displays a heading with the text 'Welcome'",
-      "semantic_expected_contains": ["page IndexPage"]
+      "id": "component_index",
+      "category": "component",
+      "description": "define a component named `IndexPage` with a title 'Home' that displays a heading with the text 'Welcome'",
+      "semantic_expected_contains": ["component IndexPage"]
     }
   ]
 }

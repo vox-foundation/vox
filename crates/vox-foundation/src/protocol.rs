@@ -151,6 +151,10 @@ pub mod dei_method {
     /// immediately while the daemon advances the session to a terminal
     /// `completed`/`failed` status in the background.
     pub const RESEARCH_RUN: &str = "research.run";
+    /// `research.persist_claims` — persist verified claims directly into VoxDB
+    /// `scientia_claims` / `scientia_research_fts`.
+    /// Params: `{"session_id": i64?, "claims": [...]}`.
+    pub const RESEARCH_PERSIST_CLAIMS: &str = "research.persist_claims";
 }
 
 /// Outgoing request from thin clients to Dei-style JSON-line daemons.

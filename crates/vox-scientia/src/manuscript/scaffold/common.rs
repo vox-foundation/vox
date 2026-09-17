@@ -71,4 +71,3 @@ mod tests {
         assert!(fence.contains("// vox:skip"));
     }
 }
-

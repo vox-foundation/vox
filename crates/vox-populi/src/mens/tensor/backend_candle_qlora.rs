@@ -70,17 +70,24 @@ impl TrainingBackend for CandleQloraBackend {
         let registry = vox_plugin_host::discover(&plugins_dir)
             .map_err(|e| anyhow::anyhow!("plugin discovery failed at {plugins_dir:?}: {e}"))?;
 
-        let loaded =
-            vox_plugin_host::load_code_plugin(&registry, "mens-candle-cuda").map_err(|e| {
-                anyhow::anyhow!(
-                    "Could not load 'mens-candle-cuda' plugin from {plugins_dir:?}: {e}\n\
-                 Install it with: vox plugin install mens-candle-cuda"
-                )
-            })?;
+        let plugin_name = if device_kind == DeviceKind::Metal
+            || (cfg!(target_os = "macos") && device_kind != DeviceKind::Cuda)
+        {
+            "mens-candle-metal"
+        } else {
+            "mens-candle-cuda"
+        };
+
+        let loaded = vox_plugin_host::load_code_plugin(&registry, plugin_name).map_err(|e| {
+            anyhow::anyhow!(
+                "Could not load '{plugin_name}' plugin from {plugins_dir:?}: {e}\n\
+                 Install it with: vox plugin install {plugin_name}"
+            )
+        })?;
 
         let ml_backend = loaded.plugin.as_ml_backend().into_option().ok_or_else(|| {
             anyhow::anyhow!(
-                "'mens-candle-cuda' plugin loaded but does not expose an MlBackend extension point"
+                "'{plugin_name}' plugin loaded but does not expose an MlBackend extension point"
             )
         })?;
 
@@ -100,7 +107,7 @@ impl TrainingBackend for CandleQloraBackend {
         let summary_json = ml_backend
             .run_full_training(config_json.as_str().into())
             .into_result()
-            .map_err(|e| anyhow::anyhow!("mens-candle-cuda training failed: {e}"))?;
+            .map_err(|e| anyhow::anyhow!("{plugin_name} training failed: {e}"))?;
 
         // ── Parse summary ─────────────────────────────────────────────────────
         let wire: TrainingSummaryWire = serde_json::from_str(summary_json.as_str())

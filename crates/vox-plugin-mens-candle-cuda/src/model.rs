@@ -23,7 +23,7 @@
 //! `CandleModel` and avoid the current memory leak on plugin unload.
 
 use candle_core::{DType, Device, Result, Tensor};
-use candle_nn::RmsNorm;
+use candle_nn::{Module, RmsNorm};
 use qlora_rs::qlora::QuantizedLinear;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -65,8 +65,12 @@ fn repeat_kv(x: &Tensor, n_rep: usize) -> Result<Tensor> {
 
 fn rotate_half(x: &Tensor) -> Result<Tensor> {
     let last_dim = x.dim(candle_core::D::Minus1)?;
-    let x1 = x.narrow(candle_core::D::Minus1, 0, last_dim / 2)?;
-    let x2 = x.narrow(candle_core::D::Minus1, last_dim / 2, last_dim / 2)?;
+    let x1 = x
+        .narrow(candle_core::D::Minus1, 0, last_dim / 2)?
+        .contiguous()?;
+    let x2 = x
+        .narrow(candle_core::D::Minus1, last_dim / 2, last_dim / 2)?
+        .contiguous()?;
     Tensor::cat(&[&x2.neg()?, &x1], candle_core::D::Minus1)
 }
 
@@ -84,6 +88,8 @@ pub struct Qwen2Attention {
     pub q_bias: Option<Tensor>,
     pub k_bias: Option<Tensor>,
     pub v_bias: Option<Tensor>,
+    pub q_norm: Option<RmsNorm>,
+    pub k_norm: Option<RmsNorm>,
     pub n_heads: usize,
     pub n_kv_heads: usize,
     pub head_dim: usize,
@@ -141,6 +147,17 @@ impl Qwen2Attention {
             .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
             .transpose(1, 2)?;
 
+        let q = if let Some(q_norm) = &self.q_norm {
+            q_norm.forward(&q)?
+        } else {
+            q
+        };
+        let k = if let Some(k_norm) = &self.k_norm {
+            k_norm.forward(&k)?
+        } else {
+            k
+        };
+
         let (q, k) = if let Some(inv_freq) = inv_freq {
             self.apply_rotary_emb(&q, &k, inv_freq, pos)?
         } else {
@@ -173,8 +190,6 @@ impl Qwen2Attention {
         let act_dtype = q.dtype();
         if seq_len > 1 {
             let att = att.to_dtype(DType::F32)?;
-            let att_max = att.max_keepdim(candle_core::D::Minus1)?;
-            let att = att.broadcast_sub(&att_max)?;
             let mask = causal_mask(seq_len, device)?;
             let att = att.broadcast_add(&mask)?;
             let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1)?;
@@ -745,47 +760,22 @@ pub enum Qwen35LayerCache {
 /// vox-populi's preflight logic. Batch 3 wires vox-populi to construct the model and
 /// pass it to the plugin via an alternative init path.
 pub struct CandleModel {
-    /// Eagerly-built model graph. Unused on the inference path — `run_inference`
-    /// reloads a fresh `InferenceEngine` from `model_path` on every call — so it is
-    /// left `None` for handles produced by [`Self::load_from_path`].
-    pub _inner: Option<Qwen35Model>,
-    /// Path to the model directory, stored so `run_inference` can reload the engine.
+    pub engine: std::sync::Mutex<crate::inference::InferenceEngine>,
+    #[allow(dead_code)]
     pub model_path: String,
+    #[allow(dead_code)]
+    pub trainer: Option<qlora_rs::training::QLoraTrainer>,
 }
 
 impl CandleModel {
-    /// Open an inference-ready model directory.
-    ///
-    /// The handle only carries `model_path`; the actual model graph is rebuilt by
-    /// [`crate::inference::run`] (via `InferenceEngine::load`) on each `run_inference`
-    /// call, so no `QloraEmbedBundle` construction is needed here. We validate that the
-    /// directory contains the artifacts `InferenceEngine::load` requires, failing early
-    /// with an actionable message rather than deep inside the load path.
     pub fn load_from_path(model_path: &str) -> anyhow::Result<Self> {
-        let dir = std::path::Path::new(model_path);
-        if !dir.is_dir() {
-            anyhow::bail!(
-                "model path {model_path} is not a directory — pass the training run dir \
-                 (containing candle_qlora_adapter.safetensors, adapter_manifest.json, \
-                 tokenizer.json, config.json)"
-            );
-        }
-        for required in [
-            "candle_qlora_adapter.safetensors",
-            "adapter_manifest.json",
-            "tokenizer.json",
-            "config.json",
-        ] {
-            if !dir.join(required).is_file() {
-                anyhow::bail!(
-                    "model dir {model_path} is missing {required} — run \
-                     `vox mens merge-qlora` / finalize the run before inference"
-                );
-            }
-        }
+        let path = std::path::Path::new(model_path);
+        let engine =
+            crate::inference::InferenceEngine::load(path, &crate::device::DeviceKind::Best)?;
         Ok(Self {
-            _inner: None,
+            engine: std::sync::Mutex::new(engine),
             model_path: model_path.to_string(),
+            trainer: None,
         })
     }
 }
@@ -825,6 +815,8 @@ mod gradient_checkpoint_tests {
             q_bias: None,
             k_bias: None,
             v_bias: None,
+            q_norm: None,
+            k_norm: None,
             n_heads,
             n_kv_heads: n_heads,
             head_dim,
@@ -996,6 +988,8 @@ mod bf16_activation_tests {
             q_bias: Some(Tensor::zeros(d, DType::F32, device).unwrap()),
             k_bias: Some(Tensor::zeros(d, DType::F32, device).unwrap()),
             v_bias: Some(Tensor::zeros(d, DType::F32, device).unwrap()),
+            q_norm: None,
+            k_norm: None,
             n_heads: 2,
             n_kv_heads: 2,
             head_dim: 4,

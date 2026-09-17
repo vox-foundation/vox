@@ -1,37 +1,50 @@
 // vox:caps fs process env
 // Local Qwen Fine-Tuning Automation Script
 // Run via:
-//   vox run scripts/train_local_qwen.vox             (Full training)
+//   vox run scripts/train_local_qwen.vox             (Full training on Metal/CUDA)
 //   vox run scripts/train_local_qwen.vox --dry-run   (Preflight check & dry run)
+//   vox run scripts/train_local_qwen.vox --model <path>
 
-import process;
-import env;
+import process
+import env
 
 fn main() {
-    let output_dir = "mens/runs/qwen_local_latest"
+    let output_dir = "mens/runs/qwen_local_metal"
     let data_dir = "target/dogfood"
-    let model = "Qwen/Qwen2.5-Coder-3B-Instruct"
+    let default_model = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+    let mut model = default_model
+    let mut device = "metal"
     
     // Parse command line arguments
     let argv = env.args()
     let mut dry_run = false
-    for arg in argv {
-        if arg == "--dry-run" or arg == "--check-only" {
+    let mut i = 0
+    while i < argv.len() {
+        let arg = argv[i]
+        if arg is "--dry-run" or arg is "--check-only" {
             dry_run = true
+        } else if arg is "--model" and i + 1 < argv.len() {
+            i = i + 1
+            model = argv[i]
+        } else if arg is "--device" and i + 1 < argv.len() {
+            i = i + 1
+            device = argv[i]
         }
+        i = i + 1
     }
     
     if dry_run {
-        print("--- Local Qwen Training Sizing Preflight Check & Dry Run ---")
+        print("--- Local Qwen Training Preflight Check & Dry Run ---")
         print("Target Model:  " + model)
+        print("Device:        " + device)
         print("Data Dir:      " + data_dir)
         print("Output Dir:    " + output_dir)
-        print("Running in dry-run mode (max 45 seconds to verify CUDA and load model)...")
+        print("Running in dry-run mode (max 45 seconds to verify accelerator and model preflight)...")
         
         let args = [
             "mens", "train",
             "--model", model,
-            "--device", "cuda",
+            "--device", device,
             "--backend", "qlora",
             "--data-dir", data_dir,
             "--output-dir", output_dir,
@@ -45,14 +58,12 @@ fn main() {
         ]
         
         print("Invoking preflight training check...")
-        let mut proc = process.run("vox", args)
+        let mut proc = process.run("./target/debug/vox-ml-cli", args)
         if proc is null {
-            print("  'vox' not found on PATH, falling back to 'cargo run'...")
-            let mut cargo_args = ["run", "-p", "vox-cli", "--"]
-            for a in args {
-                cargo_args.push(a)
-            }
-            proc = process.run("cargo", cargo_args)
+            proc = process.run("vox-ml-cli", args)
+        }
+        if proc is null {
+            proc = process.run("vox", args)
         }
         
         match proc {
@@ -63,7 +74,7 @@ fn main() {
                 print("Stderr:")
                 print(res.stderr)
                 
-                if res.code == 0 or res.code == 137 or res.code == 124 {
+                if res.code is 0 or res.code is 137 or res.code is 124 {
                     print("Preflight check completed successfully.")
                 } else {
                     print("Preflight check finished (non-zero code might indicate termination/timeout or error).")
@@ -77,35 +88,33 @@ fn main() {
     } else {
         print("--- Launching Full Local Qwen Fine-Tuning ---")
         print("Target Model:  " + model)
+        print("Device:        " + device)
         print("Data Dir:      " + data_dir)
         print("Output Dir:    " + output_dir)
-        print("Epochs:        3")
+        print("Epochs:        1")
         
         let args = [
             "mens", "train",
             "--model", model,
-            "--device", "cuda",
+            "--device", device,
             "--backend", "qlora",
             "--data-dir", data_dir,
             "--output-dir", output_dir,
-            "--epochs", "3",
+            "--epochs", "1",
             "--lr", "0.0002",
             "--preset", "auto",
             "--tokenizer", "hf",
-            "--process-priority", "normal",
-            "--vram-limit-fraction", "0.9",
-            "--checkpoint-every", "5"
+            "--fast-corpus",
+            "--checkpoint-every", "25"
         ]
         
         print("Invoking full training process...")
-        let mut proc = process.run("vox", args)
+        let mut proc = process.run("./target/debug/vox-ml-cli", args)
         if proc is null {
-            print("  'vox' not found on PATH, falling back to 'cargo run'...")
-            let mut cargo_args = ["run", "-p", "vox-cli", "--"]
-            for a in args {
-                cargo_args.push(a)
-            }
-            proc = process.run("cargo", cargo_args)
+            proc = process.run("vox-ml-cli", args)
+        }
+        if proc is null {
+            proc = process.run("vox", args)
         }
         
         match proc {
@@ -116,7 +125,7 @@ fn main() {
                 print("Stderr:")
                 print(res.stderr)
                 
-                if res.code == 0 {
+                if res.code is 0 {
                     print("Training run completed successfully.")
                 } else {
                     print("Training run failed.")

@@ -252,7 +252,11 @@ mod tests {
     fn excludes_subthreshold_and_estimates_gain() {
         // 16 + 16 GiB fit a ~2B coder; a 2 GiB node cannot.
         let nodes = vec![node("a", 16.0), node("b", 16.0), node("c", 2.0)];
-        let plan = plan_cohort(&nodes, "Qwen/Qwen2.5-Coder-3B-Instruct", 2.0);
+        let plan = plan_cohort(
+            &nodes,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+            2.0,
+        );
 
         assert_eq!(
             plan.included.len(),
@@ -274,7 +278,11 @@ mod tests {
     fn recommends_single_machine_when_no_gain() {
         // Only one node can host the model → no pooling benefit.
         let nodes = vec![node("a", 16.0), node("b", 2.0)];
-        let plan = plan_cohort(&nodes, "Qwen/Qwen2.5-Coder-3B-Instruct", 2.0);
+        let plan = plan_cohort(
+            &nodes,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+            2.0,
+        );
 
         assert_eq!(plan.included.len(), 1);
         assert!(plan.recommend_single_machine);
@@ -292,7 +300,11 @@ mod tests {
         let healthy = node("h", 24.0);
 
         let nodes = vec![quarantined, maint, opt_out, healthy];
-        let plan = plan_cohort(&nodes, "Qwen/Qwen2.5-Coder-3B-Instruct", 3.0);
+        let plan = plan_cohort(
+            &nodes,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+            3.0,
+        );
 
         assert_eq!(plan.included.len(), 1);
         assert_eq!(plan.included[0].id, "h");
@@ -306,7 +318,11 @@ mod tests {
     #[test]
     fn empty_when_nothing_fits() {
         let nodes = vec![node("a", 2.0), node("b", 4.0)];
-        let plan = plan_cohort(&nodes, "Qwen/Qwen2.5-Coder-3B-Instruct", 3.0);
+        let plan = plan_cohort(
+            &nodes,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+            3.0,
+        );
         assert!(plan.included.is_empty());
         assert_eq!(plan.excluded.len(), 2);
         assert!(plan.recommend_single_machine);
@@ -316,7 +332,11 @@ mod tests {
     #[test]
     fn three_usable_nodes_scale() {
         let nodes = vec![node("a", 24.0), node("b", 24.0), node("c", 24.0)];
-        let plan = plan_cohort(&nodes, "Qwen/Qwen2.5-Coder-3B-Instruct", 3.0);
+        let plan = plan_cohort(
+            &nodes,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+            3.0,
+        );
         assert_eq!(plan.included.len(), 3);
         // Uniform weights → speedup == node count.
         assert!((plan.estimated_speedup - 3.0).abs() < 1e-9);

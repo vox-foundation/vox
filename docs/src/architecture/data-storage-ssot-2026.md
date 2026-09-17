@@ -90,11 +90,12 @@ Anything under `$VOX_CACHE_DIR` is deleteable without data loss. Includes: downl
 
 ### 4.5 What does NOT fit any tier
 
-Three things sit outside the tiers and are tracked separately:
+Four things sit outside the tiers and are tracked separately:
 
 - **Secret plane** (`vox-secrets`, Infisical / Vault / cloudless vault). Not a Vox-owned persistence tier; vox-secrets mediates access.
 - **VCS state** (`.git/`, `.jj/`). Off-limits to every Vox crate. Ignored by the guard.
 - **Vendored patches** (`patches/`). Cargo patch inputs; not Vox data.
+- **Chromium named browser profiles** — `$VOX_DATA_DIR/browser-profiles` (override `VOX_BROWSER_PROFILES_DIR`). These hold cookies and site data after explicit consent. They are **user data, not Tier D cache**: deleting them loses sessions. Cookie export JSON is secrets-adjacent (profile dir only; never MCP values; never `vox-spool` / checksum-manifest / `vox-secrets`). Contract: [`docs/superpowers/specs/2026-09-07-agent-browser-driver-design.md`](../../superpowers/specs/2026-09-07-agent-browser-driver-design.md).
 
 ## 5. Crate choices (explicit, with alternatives)
 

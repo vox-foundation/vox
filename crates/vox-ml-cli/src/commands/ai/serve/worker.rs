@@ -40,16 +40,19 @@ pub fn spawn_inference_worker(
 
     let (tx, rx) = std::sync::mpsc::sync_channel::<InferenceRequest>(8);
     std::thread::spawn(move || {
-        // Load the plugin once; keep it alive for the worker's lifetime.
-        let plugin_result = vox_plugin_host::cached_code_plugin("mens-candle-cuda");
+        // Load the plugin once; prefer metal on macos, falling back to cuda.
+        let plugin_result = vox_plugin_host::cached_code_plugin("mens-candle-metal")
+            .or_else(|_| vox_plugin_host::cached_code_plugin("mens-candle-cuda"));
         let plugin = match plugin_result {
             Ok(p) => p,
             Err(e) => {
-                tracing::error!("mens-candle-cuda plugin not found: {e}");
+                let err_msg = format!("mens-candle plugin unavailable: {e}");
+                tracing::error!("{err_msg}");
                 while let Ok(req) = rx.recv() {
-                    let _ = req
-                        .reply
-                        .send(Err(format!("mens-candle-cuda plugin unavailable: {e}")));
+                    if let Some(ref stx) = req.stream_tx {
+                        let _ = stx.blocking_send(Err(err_msg.clone()));
+                    }
+                    let _ = req.reply.send(Err(err_msg.clone()));
                 }
                 return;
             }
@@ -57,11 +60,13 @@ pub fn spawn_inference_worker(
         let backend = match plugin.plugin.as_ml_backend().into_option() {
             Some(b) => b,
             None => {
-                tracing::error!("mens-candle-cuda plugin has no MlBackend");
+                let err_msg = "mens-candle plugin has no MlBackend".to_string();
+                tracing::error!("{err_msg}");
                 while let Ok(req) = rx.recv() {
-                    let _ = req
-                        .reply
-                        .send(Err("mens-candle-cuda has no MlBackend".into()));
+                    if let Some(ref stx) = req.stream_tx {
+                        let _ = stx.blocking_send(Err(err_msg.clone()));
+                    }
+                    let _ = req.reply.send(Err(err_msg.clone()));
                 }
                 return;
             }
@@ -69,9 +74,13 @@ pub fn spawn_inference_worker(
         let handle = match backend.load_model(model_path.as_str().into()).into_result() {
             Ok(h) => h,
             Err(e) => {
+                let err_msg = format!("load_model failed: {e}");
                 tracing::error!("load_model({model_path}): {e}");
                 while let Ok(req) = rx.recv() {
-                    let _ = req.reply.send(Err(format!("load_model failed: {e}")));
+                    if let Some(ref stx) = req.stream_tx {
+                        let _ = stx.blocking_send(Err(err_msg.clone()));
+                    }
+                    let _ = req.reply.send(Err(err_msg.clone()));
                 }
                 return;
             }
@@ -99,10 +108,44 @@ pub fn spawn_inference_worker(
                                 .to_string()
                         })
                 });
+            if let Some(ref stx) = req.stream_tx {
+                match &result {
+                    Ok(text) => {
+                        let _ = stx.blocking_send(Ok(text.clone()));
+                    }
+                    Err(err) => {
+                        let _ = stx.blocking_send(Err(err.clone()));
+                    }
+                }
+            }
             let _ = req.reply.send(result);
         }
 
         drop(handle);
     });
     tx
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inference_request_channel_contract() {
+        let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+        let req = InferenceRequest {
+            prompt: "fn main() {}".to_string(),
+            max_tokens: 128,
+            temperature: 0.2,
+            top_k: 40,
+            output_mode: None,
+            reply: reply_tx,
+            stream_tx: None,
+        };
+        assert_eq!(req.max_tokens, 128);
+        assert_eq!(req.prompt, "fn main() {}");
+        let _ = req.reply.send(Ok("fn main() {}".to_string()));
+        let res = reply_rx.blocking_recv().unwrap();
+        assert_eq!(res.unwrap(), "fn main() {}");
+    }
 }
