@@ -5,14 +5,13 @@ use std::collections::HashSet;
 use std::path::Path;
 use vox_compiler::pipeline::FrontendResult;
 
+static TOKEN_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"[\w]+|[^\w\s]").expect("valid token regex"));
+
 /// Computes the Distinct-4 repetition index: unique 4-grams divided by total 4-grams.
 /// Returns 1.0 for inputs with fewer than 4 lexemes (length-guarded).
 pub fn calculate_distinct_4(code: &str) -> f64 {
-    let re = match Regex::new(r"[\w]+|[^\w\s]") {
-        Ok(r) => r,
-        Err(_) => return 1.0,
-    };
-    let tokens: Vec<&str> = re.find_iter(code).map(|m| m.as_str()).collect();
+    let tokens: Vec<&str> = TOKEN_RE.find_iter(code).map(|m| m.as_str()).collect();
     if tokens.len() < 4 {
         return 1.0;
     }
@@ -282,7 +281,7 @@ pub fn verify_completion(
     let semantic_pass = pass
         && semantic_expected_contains
             .iter()
-            .all(|needle| code.contains(needle) || completion.contains(needle));
+            .all(|needle| code.contains(needle));
 
     CompletionVerification {
         pass,
@@ -350,6 +349,16 @@ mod tests {
     }
 
     #[test]
+    fn test_symbol_binding_accuracy_unresolved_variable() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("test_sba_unresolved.vox");
+        let code = "fn bad(a: int) to int { return a + undeclared_var_xyz; }";
+        let res = crate::pipeline::run_frontend_str(code, &path, false).unwrap();
+        let score = verify_symbol_binding(&res);
+        assert!(score < 1.0, "Expected score < 1.0, got {score}");
+    }
+
+    #[test]
     fn test_run_test_assertions_pass_and_fail() {
         let temp_dir = tempfile::tempdir().unwrap();
         let path = temp_dir.path().join("test_assertions.vox");
@@ -360,5 +369,9 @@ mod tests {
         let code_no_test = "fn add(a: int, b: int) to int { return a + b; }";
         let res_no_test = crate::pipeline::run_frontend_str(code_no_test, &path, false).unwrap();
         assert_eq!(run_test_assertions(&res_no_test.hir), None);
+
+        let code_fail = "fn add(a: int, b: int) to int { return a + b; }\n@test fn check_fail() to Unit { assert(1 == 2); }";
+        let res_fail = crate::pipeline::run_frontend_str(code_fail, &path, false).unwrap();
+        assert_eq!(run_test_assertions(&res_fail.hir), Some(false));
     }
 }
