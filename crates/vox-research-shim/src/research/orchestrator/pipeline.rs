@@ -1174,8 +1174,10 @@ fn compute_corroboration_counts(
                 &hits,
             )
             .count();
+            // Preserve honest domain corroboration count: if zero distinct web domains were verified,
+            // report 0 or the citation hit count without forging multi-domain corroboration.
             if count == 0 && verdict.verdict == super::super::verifier::Verdict::Supported {
-                count = verdict.supporting_count.max(2);
+                count = verdict.supporting_count.min(1);
             }
             (verdict.claim.claim_id, count)
         })
@@ -1435,6 +1437,36 @@ mod tests {
         let counts = compute_corroboration_counts(&citations, &verdicts);
 
         assert_eq!(counts, vec![(1, 2), (2, 1)]);
+    }
+
+    #[test]
+    fn uncorroborated_supported_claim_does_not_inflate_to_two() {
+        use super::super::super::claims::Claim;
+        use super::super::super::verifier::ClaimVerdict;
+
+        let citations = vec![];
+        let verdict = ClaimVerdict {
+            claim: Claim {
+                claim_id: 42,
+                text: "Uncorroborated supported claim".to_string(),
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+            },
+            verdict: Verdict::Supported,
+            confidence: 0.9,
+            supporting_count: 1,
+            contradicting_count: 0,
+            evidence_spans: vec![],
+            resample_stability: 1.0,
+        };
+
+        let counts = compute_corroboration_counts(&citations, &[verdict]);
+        assert_eq!(
+            counts,
+            vec![(42, 1)],
+            "must not inflate to 2 when zero distinct domains match"
+        );
     }
 
     #[test]
