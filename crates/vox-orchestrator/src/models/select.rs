@@ -26,6 +26,11 @@ use crate::models::{ModelRegistry, ModelSpec, ProviderType, TaskCategory};
 use vox_config::AutoRoutingPriority;
 use vox_telemetry::{SelectionDecisionEvent, TelemetryEvent};
 
+pub use super::auto_select::{
+    AutoModelSelection, detect_hardware_vram_gb, is_host_apple_silicon, select_optimal_local_model,
+    select_optimal_local_model_for_host, select_tier_for_vram,
+};
+
 // ─── Canonical request/response (SSOT API) ─────────────────────────────────
 
 /// Rich model-selection request consumed by the canonical selector.

@@ -7,7 +7,9 @@ use crate::config::CostPreference;
 use crate::types::{AgentTask, TaskCategory};
 
 use super::key_guard::provider_secret_is_available;
-use super::spec::{ModelConfig, ModelSpec, ProviderType, task_category_strength};
+use super::spec::{
+    ModelCapabilities, ModelConfig, ModelSpec, PricingSource, ProviderType, task_category_strength,
+};
 
 const MODEL_CATALOG_LAST_REFRESH_KEY: &str = "model_catalog_last_refresh";
 
@@ -639,6 +641,7 @@ impl ModelRegistry {
             }
         }
 
+        registry.register_mens_local_candidates();
         registry
     }
 
@@ -711,7 +714,56 @@ impl ModelRegistry {
         #[cfg(not(test))]
         registry.maybe_refresh_catalogs();
 
+        registry.register_mens_local_candidates();
         registry
+    }
+
+    /// Register candidate entries for Mens 27B quantization tiers and 8B fallback under [`ProviderType::VoxLocal`].
+    pub fn register_mens_local_candidates(&mut self) {
+        let tiers = [
+            ("mens/runs/qwen3_27b_metal_check/merged_bf16", 27.0),
+            ("mens/runs/qwen3_27b_metal_check/quant_q8_0", 27.0),
+            ("mens/runs/qwen3_27b_metal_check/quant_q6_k", 27.0),
+            ("mens/runs/qwen3_27b_metal_check/quant_q5_k_m", 27.0),
+            ("mens/runs/qwen3_27b_metal_check/quant_q4_k_m", 27.0),
+            ("vox-mens-8b-v0.6", 8.0),
+        ];
+        for (id, param_count) in tiers {
+            if !self.models.contains_key(id) {
+                let spec = ModelSpec {
+                    id: id.to_string(),
+                    canonical_slug: format!("voxlocal/{}", id),
+                    provider: "voxlocal".to_string(),
+                    provider_type: ProviderType::VoxLocal,
+                    max_tokens: 8192,
+                    cost_per_1k: 0.0,
+                    cost_per_1k_input: 0.0,
+                    cost_per_1k_output: 0.0,
+                    is_free: true,
+                    observed_cost_per_1k: None,
+                    strengths: vec![
+                        crate::models::generated::StrengthTag::Generalist,
+                        crate::models::generated::StrengthTag::Codegen,
+                    ],
+                    capabilities: ModelCapabilities {
+                        supports_json: true,
+                        supports_tool_use: true,
+                        supports_native_tools: true,
+                        writes_vox: true,
+                        max_context: 32768,
+                        tier: crate::models::generated::ModelTier::Local,
+                        param_count_b: Some(param_count),
+                        ..Default::default()
+                    },
+                    cache_creation_cost_per_1k: 0.0,
+                    cache_read_cost_per_1k: 0.0,
+                    supports_prompt_caching: false,
+                    pricing_source: PricingSource::Bootstrap,
+                    supported_parameters: vec![],
+                };
+                self.register(spec);
+            }
+        }
     }
 
     /// Register a new model specification.
@@ -1174,17 +1226,49 @@ impl ModelRegistry {
         }
         let stripped_key = key.split_once('/').map_or(key, |(_, suffix)| suffix);
         let slug_suffix = format!("/{stripped_key}");
-        self.models
+        if let Some(m) = self.models.values().find(|m| {
+            m.id == key
+                || m.canonical_slug == key
+                || m.id == stripped_key
+                || m.canonical_slug == stripped_key
+                || m.id.ends_with(&slug_suffix)
+                || m.canonical_slug.ends_with(&slug_suffix)
+        }) {
+            return Some(m.clone());
+        }
+
+        // Support hierarchical run keys e.g. "mens/runs/foo" -> "mens/foo" or "vox-local/mens/runs/foo"
+        let norm_key = key.strip_prefix("vox-local/").unwrap_or(key);
+        let norm_key = if let Some(rest) = norm_key.strip_prefix("mens/runs/") {
+            format!("mens/{rest}")
+        } else if let Some(rest) = norm_key.strip_prefix("runs/") {
+            format!("mens/{rest}")
+        } else {
+            norm_key.to_string()
+        };
+
+        if let Some(m) = self.models.get(&norm_key) {
+            return Some(m.clone());
+        }
+        if let Some(m) = self
+            .models
             .values()
-            .find(|m| {
-                m.id == key
-                    || m.canonical_slug == key
-                    || m.id == stripped_key
-                    || m.canonical_slug == stripped_key
-                    || m.id.ends_with(&slug_suffix)
-                    || m.canonical_slug.ends_with(&slug_suffix)
-            })
-            .cloned()
+            .find(|m| m.id == norm_key || m.canonical_slug == norm_key)
+        {
+            return Some(m.clone());
+        }
+
+        // If key points to a sub-checkpoint or subpath (e.g. "mens/foo/checkpoint-500"),
+        // check if parent run "mens/foo" exists in registry and synthesize sub-checkpoint spec
+        if let Some((parent, _sub)) = norm_key.rsplit_once('/') {
+            if let Some(parent_spec) = self.get(parent) {
+                let mut sub_spec = parent_spec;
+                sub_spec.id = norm_key.clone();
+                sub_spec.canonical_slug = norm_key;
+                return Some(sub_spec);
+            }
+        }
+        None
     }
 
     /// Lookup the premium-alias model id for a routing key
@@ -1386,5 +1470,27 @@ mod tests {
         let cfg = llm_config_for_spec(&s, TaskCategory::Research);
         assert_eq!(cfg.telemetry_task_category.as_deref(), Some("Research"));
         assert!(cfg.telemetry_strength_tag.is_some());
+    }
+
+    #[test]
+    fn mens_local_variants_registered_under_vox_local() {
+        let reg = ModelRegistry::new();
+        let expected_models = [
+            "mens/runs/qwen3_27b_metal_check/merged_bf16",
+            "mens/runs/qwen3_27b_metal_check/quant_q8_0",
+            "mens/runs/qwen3_27b_metal_check/quant_q6_k",
+            "mens/runs/qwen3_27b_metal_check/quant_q5_k_m",
+            "mens/runs/qwen3_27b_metal_check/quant_q4_k_m",
+            "vox-mens-8b-v0.6",
+        ];
+        for id in expected_models {
+            let m = reg
+                .get(id)
+                .unwrap_or_else(|| panic!("model {id} should be registered in ModelRegistry"));
+            assert_eq!(m.provider_type, ProviderType::VoxLocal);
+            assert_eq!(m.provider, "voxlocal");
+            assert!(m.is_free);
+            assert!(m.capabilities.writes_vox);
+        }
     }
 }

@@ -51,6 +51,10 @@ pub async fn run(args: ChatArgs) -> Result<()> {
     let mut config = resolve_chat_config(&args.model);
     config.telemetry_task_category = Some("cli-chat".to_string());
 
+    let is_local = config.provider == "voxlocal";
+    let base_url = std::env::var("VOX_LOCAL_ENDPOINT")
+        .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
+
     let opts = ActivityOptions::new();
     // `llm_chat` returns a durable-activity `ActivityResult<Result<LlmResponse, String>>`;
     // flatten the activity-level outcome (Ok/Failed/Cancelled) and the chat-level
@@ -64,25 +68,59 @@ pub async fn run(args: ChatArgs) -> Result<()> {
             vox_actor_runtime::ActivityResult::Cancelled => Err("activity cancelled".to_string()),
         };
 
-    let response = chat_result
-        .map_err(|e| anyhow::anyhow!(e))
-        .context("vox chat: llm_chat failed")?;
+    let response = match chat_result {
+        Ok(resp) => resp,
+        Err(e) => {
+            if is_local && is_connection_error(&e) {
+                bail!(
+                    "Error: Local inference server is not running on {}. Start it with 'vox ai serve --model-dir <checkpoint>' or specify a cloud model.",
+                    base_url.trim_end_matches('/')
+                );
+            }
+            return Err(anyhow::anyhow!(e)).context("vox chat: llm_chat failed");
+        }
+    };
     println!("{}", response.content);
     Ok(())
 }
 
+fn is_connection_error(err: &str) -> bool {
+    let lower = err.to_ascii_lowercase();
+    lower.contains("connection refused")
+        || lower.contains("connect")
+        || lower.contains("error sending request")
+        || lower.contains("connection error")
+        || lower.contains("connect error")
+        || lower.contains("os error")
+        || lower.contains("tcp")
+        || lower.contains("network")
+        || lower.contains("11434")
+        || lower.contains("timed out")
+        || lower.contains("timeout")
+}
+
 pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
-    if model.starts_with("mens/")
+    if model == "auto"
+        || model.starts_with("vox-mens-")
+        || model.starts_with("mens/")
         || model.starts_with("voxlocal")
         || model.starts_with("populi_local")
         || model == "qwen/qwen-3-8b"
     {
+        let effective_model = if model == "auto" {
+            let is_apple_silicon = vox_orchestrator::models::auto_select::is_host_apple_silicon();
+            vox_orchestrator::models::auto_select::select_optimal_local_model(is_apple_silicon)
+                .selected_model_id
+        } else {
+            model.to_string()
+        };
+
         let base_url = std::env::var("VOX_LOCAL_ENDPOINT")
             .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
         let chat_url = format!("{}/v1/chat/completions", base_url.trim_end_matches('/'));
         LlmConfig {
             provider: "voxlocal".to_string(),
-            model: model.to_string(),
+            model: effective_model,
             cost_per_1k: None,
             base_url: Some(chat_url),
             api_key: None,
@@ -165,5 +203,31 @@ mod tests {
     #[test]
     fn chat_args_require_message() {
         assert!(ChatArgs::try_parse_from(["chat"]).is_err());
+    }
+
+    #[test]
+    fn chat_routing_auto_and_mens() {
+        let auto_cfg = resolve_chat_config("auto");
+        assert_eq!(auto_cfg.provider, "voxlocal");
+        assert!(auto_cfg.base_url.unwrap().contains("11434"));
+        assert!(!auto_cfg.model.is_empty());
+
+        let mens_cfg = resolve_chat_config("mens/runs/qwen3_27b_metal_check/quant_q8_0");
+        assert_eq!(mens_cfg.provider, "voxlocal");
+        assert_eq!(mens_cfg.model, "mens/runs/qwen3_27b_metal_check/quant_q8_0");
+
+        let vox_mens_cfg = resolve_chat_config("vox-mens-8b-v0.6");
+        assert_eq!(vox_mens_cfg.provider, "voxlocal");
+        assert_eq!(vox_mens_cfg.model, "vox-mens-8b-v0.6");
+    }
+
+    #[test]
+    fn test_is_connection_error_detection() {
+        assert!(is_connection_error("tcp connect error: Connection refused"));
+        assert!(is_connection_error(
+            "error sending request for url (http://127.0.0.1:11434)"
+        ));
+        assert!(is_connection_error("os error 61"));
+        assert!(!is_connection_error("status code: 400 Bad Request"));
     }
 }
