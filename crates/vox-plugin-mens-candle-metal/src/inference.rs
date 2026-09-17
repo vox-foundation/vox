@@ -321,7 +321,7 @@ impl InferenceEngine {
                                 &tm.orig_shape,
                                 &_device,
                             )?;
-                            return Ok(QuantizedLinear::from_tensor(t));
+                            return Ok(QuantizedLinear::from_tensor(t)?);
                         }
                         let dtype = parse_ggml_dtype(&tm.ggml_dtype).ok_or_else(|| {
                             anyhow::anyhow!("unsupported GGML dtype `{}`", tm.ggml_dtype)
@@ -348,7 +348,7 @@ impl InferenceEngine {
                             _ => continue,
                         };
                         let t = Tensor::from_raw_buffer(view.data(), dtype, &shape, &_device)?;
-                        return Ok(QuantizedLinear::from_tensor(t));
+                        return Ok(QuantizedLinear::from_tensor(t)?);
                     }
                 }
                 anyhow::bail!("Weight not found: {key}");

@@ -60,8 +60,15 @@ impl QuantizedLinear {
         Self::QMatMul(qmm)
     }
 
-    pub fn from_tensor(t: Tensor) -> Self {
-        Self::Unquantized(t)
+    pub fn from_tensor(t: Tensor) -> Result<Self> {
+        let t_f32 = if t.dtype() == DType::F32 {
+            t
+        } else {
+            t.to_dtype(DType::F32)?
+        };
+        // Pre-transpose and make contiguous to avoid repeated .t() operations in forward
+        let wt = t_f32.t()?.contiguous()?;
+        Ok(Self::Unquantized(wt))
     }
 
     pub fn forward(&self, x: &Tensor) -> Result<Tensor> {
@@ -70,7 +77,14 @@ impl QuantizedLinear {
                 .forward(x)
                 .map_err(|e| candle_core::Error::Msg(e.to_string())),
             Self::QMatMul(qmm) => candle_nn::Module::forward(qmm, x),
-            Self::Unquantized(w) => x.broadcast_matmul(&w.t()?),
+            Self::Unquantized(wt) => {
+                if x.dtype() != wt.dtype() {
+                    let x_cast = x.to_dtype(wt.dtype())?;
+                    x_cast.broadcast_matmul(wt)
+                } else {
+                    x.broadcast_matmul(wt)
+                }
+            }
         }
     }
 }
@@ -789,5 +803,26 @@ mod tests {
             max_diff < 1e-5,
             "Cached conv output must match full-sequence conv: max_diff = {max_diff}"
         );
+    }
+
+    #[test]
+    fn test_quantized_linear_unquantized_f32_and_bf16_forward() {
+        let device = Device::Cpu;
+        // Weight: (out_features=4, in_features=8)
+        let w_f32 = Tensor::randn(0f32, 1f32, (4, 8), &device).unwrap();
+        let ql_f32 = QuantizedLinear::from_tensor(w_f32).unwrap();
+        let x = Tensor::randn(0f32, 1f32, (1, 3, 8), &device).unwrap();
+        let out_f32 = ql_f32.forward(&x).unwrap();
+        assert_eq!(out_f32.dims(), &[1, 3, 4]);
+
+        // Weight in BF16:
+        let w_bf16 = Tensor::randn(0f32, 1f32, (4, 8), &device)
+            .unwrap()
+            .to_dtype(DType::BF16)
+            .unwrap();
+        let ql_bf16 = QuantizedLinear::from_tensor(w_bf16).unwrap();
+        let out_bf16 = ql_bf16.forward(&x).unwrap();
+        assert_eq!(out_bf16.dims(), &[1, 3, 4]);
+        assert_eq!(out_bf16.dtype(), DType::F32);
     }
 }
