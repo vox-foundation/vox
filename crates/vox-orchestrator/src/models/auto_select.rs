@@ -40,6 +40,15 @@ pub struct AutoModelSelection {
 ///
 /// - **Zero/NaN**:
 ///   Returns `("vox-mens-8b-v0.6", "Default fallback (insufficient or undetected VRAM)")`.
+/// Minimum execution reserve in GB on discrete GPUs.
+pub const DISCRETE_RESERVE_MIN_GB: f64 = 2.8;
+
+/// Maximum execution reserve in GB on discrete GPUs.
+pub const DISCRETE_RESERVE_MAX_GB: f64 = 6.0;
+
+/// Execution headroom in GB on Apple Silicon unified memory (above dynamic wired limit).
+pub const APPLE_SILICON_EXECUTION_HEADROOM_GB: f64 = 2.0;
+
 #[must_use]
 pub fn select_tier_for_vram(
     total_vram_gb: f64,
@@ -53,9 +62,10 @@ pub fn select_tier_for_vram(
     }
 
     let usable_gb = if is_apple_silicon {
-        total_vram_gb - 2.0
+        total_vram_gb - APPLE_SILICON_EXECUTION_HEADROOM_GB
     } else {
-        let reserve = (total_vram_gb * 0.10).clamp(2.8, 6.0);
+        let reserve =
+            (total_vram_gb * 0.10).clamp(DISCRETE_RESERVE_MIN_GB, DISCRETE_RESERVE_MAX_GB);
         total_vram_gb - reserve
     };
 
@@ -216,7 +226,7 @@ mod tests {
         );
         assert_eq!(select_tier_for_vram(18.0, true).0, "vox-mens-8b-v0.6");
 
-        // CUDA / Discrete tests (10% clamped reserve between 2.5GB and 6.0GB)
+        // CUDA / Discrete tests (10% clamped reserve between 2.8GB and 6.0GB)
         assert_eq!(
             select_tier_for_vram(80.0, false).0,
             "mens/runs/qwen3_27b_metal_check/merged_bf16"

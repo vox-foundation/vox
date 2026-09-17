@@ -86,17 +86,28 @@ pub async fn run(args: ChatArgs) -> Result<()> {
 
 fn is_connection_error(err: &str) -> bool {
     let lower = err.to_ascii_lowercase();
+    // HTTP status errors indicate the server IS running and replied; do not treat as connection failures.
+    if lower.contains("status code")
+        || lower.contains("status client error")
+        || lower.contains("status server error")
+        || lower.contains("404 not found")
+        || lower.contains("500 internal server error")
+        || lower.contains("400 bad request")
+    {
+        return false;
+    }
+
     lower.contains("connection refused")
-        || lower.contains("connect")
+        || lower.contains("failed to connect")
         || lower.contains("error sending request")
+        || lower.contains("tcp connect error")
         || lower.contains("connection error")
         || lower.contains("connect error")
-        || lower.contains("os error")
-        || lower.contains("tcp")
-        || lower.contains("network")
-        || lower.contains("11434")
-        || lower.contains("timed out")
-        || lower.contains("timeout")
+        || lower.contains("network unreachable")
+        || lower.contains("host unreachable")
+        || lower.contains("os error 61")
+        || lower.contains("os error 111")
+        || lower.contains("os error 10061")
 }
 
 pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
@@ -225,9 +236,19 @@ mod tests {
     fn test_is_connection_error_detection() {
         assert!(is_connection_error("tcp connect error: Connection refused"));
         assert!(is_connection_error(
-            "error sending request for url (http://127.0.0.1:11434)"
+            "error sending request for url (http://127.0.0.1:11434/v1/chat/completions): connection refused"
         ));
         assert!(is_connection_error("os error 61"));
+        assert!(is_connection_error("failed to connect to host"));
+
+        // HTTP status errors from running local server must NOT be classified as connection errors:
+        assert!(!is_connection_error(
+            "HTTP status client error (404 Not Found) for url (http://127.0.0.1:11434/v1/chat/completions)"
+        ));
         assert!(!is_connection_error("status code: 400 Bad Request"));
+        assert!(!is_connection_error(
+            "status code: 500 Internal Server Error"
+        ));
+        assert!(!is_connection_error("status code: 404 Not Found"));
     }
 }
