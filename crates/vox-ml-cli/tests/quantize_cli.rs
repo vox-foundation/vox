@@ -29,6 +29,7 @@ fn quantize_cli_produces_artifact() {
         no_verify: false,
         device: "cpu".into(),
         json: true,
+        target_vram_gib: None,
     };
     vox_ml_cli::commands::quantize::run(args).unwrap();
     assert!(outdir.path().join("quant-metadata.json").exists());

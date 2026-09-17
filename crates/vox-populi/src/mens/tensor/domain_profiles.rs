@@ -3,13 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-/// Hub configuration: pinned Qwen3 dense base + small embedder.
-/// `base` is the default hub base model (16 GB tier, optional).
+/// Hub configuration: small embedder for tool retrieval.
 /// `embedder` is required, non-empty, and must be revision-pinned (org/model@revision).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HubConfig {
-    #[serde(default)]
-    pub base: Option<String>,
     pub embedder: String,
 }
 

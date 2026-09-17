@@ -253,11 +253,12 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
                             VoxValue::Str(key) => {
                                 if let Some(VoxValue::Object(fields)) = interp.scope.get_mut(name) {
                                     let fields = std::rc::Rc::make_mut(fields);
-                                    if let Some(entry) = fields.iter_mut().find(|(k, _)| k == &key)
+                                    if let Some(entry) =
+                                        fields.iter_mut().find(|(k, _)| k.as_str() == key.as_ref())
                                     {
                                         entry.1 = v;
                                     } else {
-                                        fields.push((key, v));
+                                        fields.push((key.to_string(), v));
                                     }
                                 }
                             }

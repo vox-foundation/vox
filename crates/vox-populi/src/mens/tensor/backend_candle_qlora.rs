@@ -1,6 +1,6 @@
-//! Candle **QLoRA** training dispatch via the `mens-candle-cuda` plugin.
+//! Candle **QLoRA** training dispatch via the host-matched Candle plugin.
 //!
-//! SP3-D: the training loop was extracted to `vox-plugin-mens-candle-cuda` in sub-batches A–C.
+//! SP3-D: the training loop was extracted to runtime plugins in sub-batches A–C.
 //! This module retains the [`TrainingBackend`] impl so that `lora_train::run_mens_training`
 //! can dispatch `--backend qlora` without knowing about the plugin host directly.
 //! At runtime the plugin must be installed; if not, a clear error is returned.
@@ -70,24 +70,17 @@ impl TrainingBackend for CandleQloraBackend {
         let registry = vox_plugin_host::discover(&plugins_dir)
             .map_err(|e| anyhow::anyhow!("plugin discovery failed at {plugins_dir:?}: {e}"))?;
 
-        let plugin_name = if device_kind == DeviceKind::Metal
-            || (cfg!(target_os = "macos") && device_kind != DeviceKind::Cuda)
-        {
-            "mens-candle-metal"
-        } else {
-            "mens-candle-cuda"
-        };
-
-        let loaded = vox_plugin_host::load_code_plugin(&registry, plugin_name).map_err(|e| {
+        let plugin_id = plugin_id_for_device(device_kind);
+        let loaded = vox_plugin_host::load_code_plugin(&registry, plugin_id).map_err(|e| {
             anyhow::anyhow!(
-                "Could not load '{plugin_name}' plugin from {plugins_dir:?}: {e}\n\
-                 Install it with: vox plugin install {plugin_name}"
+                "Could not load '{plugin_id}' plugin from {plugins_dir:?}: {e}\n\
+                 Install it with: vox plugin install {plugin_id}"
             )
         })?;
 
         let ml_backend = loaded.plugin.as_ml_backend().into_option().ok_or_else(|| {
             anyhow::anyhow!(
-                "'{plugin_name}' plugin loaded but does not expose an MlBackend extension point"
+                "'{plugin_id}' plugin loaded but does not expose an MlBackend extension point"
             )
         })?;
 
@@ -107,7 +100,7 @@ impl TrainingBackend for CandleQloraBackend {
         let summary_json = ml_backend
             .run_full_training(config_json.as_str().into())
             .into_result()
-            .map_err(|e| anyhow::anyhow!("{plugin_name} training failed: {e}"))?;
+            .map_err(|e| anyhow::anyhow!("{plugin_id} training failed: {e}"))?;
 
         // ── Parse summary ─────────────────────────────────────────────────────
         let wire: TrainingSummaryWire = serde_json::from_str(summary_json.as_str())
@@ -131,6 +124,16 @@ fn device_kind_to_str(d: DeviceKind) -> &'static str {
     }
 }
 
+fn plugin_id_for_device(device_kind: DeviceKind) -> &'static str {
+    if device_kind == DeviceKind::Metal
+        || (cfg!(target_os = "macos") && device_kind != DeviceKind::Cuda)
+    {
+        "mens-candle-metal"
+    } else {
+        "mens-candle-cuda"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -139,7 +142,13 @@ mod tests {
     use crate::mens::tensor::device::DeviceKind;
     use crate::mens::tensor::training_config::{LoraTrainingConfig, OptimizerExperimentMode};
 
-    use super::CandleQloraBackend;
+    use super::{CandleQloraBackend, plugin_id_for_device};
+
+    #[test]
+    fn candle_qlora_plugin_id_for_metal_is_mens_candle_metal() {
+        assert_eq!(plugin_id_for_device(DeviceKind::Metal), "mens-candle-metal");
+        assert_eq!(plugin_id_for_device(DeviceKind::Cuda), "mens-candle-cuda");
+    }
 
     #[test]
     fn experimental_optimizer_requires_env_guard() {

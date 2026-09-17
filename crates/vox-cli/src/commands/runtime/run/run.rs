@@ -22,6 +22,26 @@ pub fn is_script_file_by_page_heuristic(file: &Path) -> bool {
     !head.contains("@page")
 }
 
+/// Script-shaped: declares `fn main()` and none of the surfaces the native lane boots.
+/// Scans the first 8 KiB like the `@page` heuristic; false positives route to the native
+/// lane, which is the safe direction.
+pub fn is_script_shaped(head: &str) -> bool {
+    let has_main = head.contains("fn main(");
+    let service = [
+        "@page",
+        "\nroutes",
+        "\ntable ",
+        "\nserver ",
+        "\nquery ",
+        "\nmutation ",
+        "\nactor ",
+        "\nworkflow ",
+        "\nactivity ",
+    ];
+    let h = format!("\n{head}");
+    has_main && !service.iter().any(|s| h.contains(s))
+}
+
 /// Run a web-app Vox source file in dev-server mode (non-script path).
 ///
 /// Delegates to `vox-compilerd` daemon's `run` method.
@@ -40,4 +60,16 @@ pub async fn run(
     )
     .await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod is_script_shaped_tests {
+    use super::is_script_shaped;
+
+    #[test]
+    fn script_shaped_requires_main_and_rejects_service_surfaces() {
+        assert!(is_script_shaped("pub fn main() { print(1) }"));
+        assert!(!is_script_shaped("table T { id: Id[T] }\npub fn main() {}"));
+        assert!(!is_script_shaped("@page fn home() {}"));
+    }
 }

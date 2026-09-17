@@ -8,7 +8,9 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::Duration;
 
 use crate::model::QuantizedLinear;
 use anyhow::{Context, Result};
@@ -27,12 +29,129 @@ use crate::hf_layout::HfArchitecture;
 use crate::qlora_preflight::preflight_native_qlora;
 use crate::train_jsonl_preflight::preflight_train_jsonl;
 use crate::train_log;
+// `load_adapter_into_trainer` itself is only called from
+// `training_loop::checkpoint`, which is now a pure re-export of
+// vox-plugin-mens-candle-core's copy — that copy calls the core crate's own
+// `load_adapter_into_trainer` directly, so this crate's `mod.rs` no longer
+// needs its own binding.
 
 /// EMA alpha for ETA calculation.
 pub(super) const QLORA_ETA_EMA_ALPHA: f64 = 0.2;
 
 /// Global flag for graceful interruption (Ctrl+C).
 pub(super) static PAUSE_FLAG: AtomicBool = AtomicBool::new(false);
+
+/// Samples a training device's currently-allocated bytes on a background
+/// thread, retaining the maximum observed value. This is what turns a
+/// `CalibrationRecord::peak_bytes` (see `vox_populi::mens::tensor::calibration`)
+/// into a real measurement of an actual `candle-metal` run instead of a
+/// predicted estimate — no external tooling, no Python probe.
+pub struct PeakSampler {
+    peak_bytes: Arc<AtomicU64>,
+    stop: Arc<AtomicBool>,
+    handle: Option<std::thread::JoinHandle<()>>,
+}
+
+impl PeakSampler {
+    /// Starts sampling `device` every `interval`, from before the first
+    /// training step. A non-Metal device (CPU, CUDA, or a build without the
+    /// `metal` feature) reports a constant 0 for the life of the sampler —
+    /// an honest "unmeasured", not a fabricated number (same convention as
+    /// `vox_populi::mens::tensor::accel_budget::query_accel_budget` on
+    /// non-macOS).
+    pub fn start(device: &Device, interval: Duration) -> Self {
+        let peak_bytes = Arc::new(AtomicU64::new(0));
+        let stop = Arc::new(AtomicBool::new(false));
+        let handle =
+            spawn_peak_sampler_thread(device, interval, Arc::clone(&peak_bytes), Arc::clone(&stop));
+        Self {
+            peak_bytes,
+            stop,
+            handle,
+        }
+    }
+
+    /// The largest allocated-bytes value observed since `start`. Read this
+    /// after the last training step.
+    pub fn observed_peak_bytes(&self) -> u64 {
+        self.peak_bytes.load(Ordering::Relaxed)
+    }
+}
+
+impl Drop for PeakSampler {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+#[cfg(feature = "metal")]
+fn spawn_peak_sampler_thread(
+    device: &Device,
+    interval: Duration,
+    peak_bytes: Arc<AtomicU64>,
+    stop: Arc<AtomicBool>,
+) -> Option<std::thread::JoinHandle<()>> {
+    let Device::Metal(metal_device) = device else {
+        return None;
+    };
+    // Verified against objc2-metal's precedent in `accel_budget.rs`: this
+    // crate reaches the same `MTLDevice` through the `metal` crate that
+    // candle-core's Metal backend is built on (`MetalDevice::metal_device`,
+    // candle-core 0.10.2 `src/metal_backend/device.rs:126`), and
+    // `currentAllocatedSize` is `metal::Device::current_allocated_size`
+    // (`metal` 0.29.0 `src/device.rs:2096`).
+    let metal_device = metal_device.metal_device().clone();
+    Some(std::thread::spawn(move || {
+        while !stop.load(Ordering::Relaxed) {
+            let current = metal_device.current_allocated_size() as u64;
+            peak_bytes.fetch_max(current, Ordering::Relaxed);
+            std::thread::sleep(interval);
+        }
+    }))
+}
+
+#[cfg(not(feature = "metal"))]
+#[rustfmt::skip] // keeps the toestub-ignore comment pinned to the fn signature line
+fn spawn_peak_sampler_thread( // toestub-ignore(skeleton/hollow-fn): honest "unmeasured" stub for builds without the `metal` feature, matching accel_budget::query_accel_budget's non-macOS `None` — there is no allocated-bytes reading to take.
+    _device: &Device,
+    _interval: Duration,
+    _peak_bytes: Arc<AtomicU64>,
+    _stop: Arc<AtomicBool>,
+) -> Option<std::thread::JoinHandle<()>> {
+    None
+}
+
+/// Resolve which tensor backs `lm_head.weight`: the real untied head when the
+/// checkpoint has one, otherwise the tied-embeddings fallback.
+///
+/// This matches serve's preference for a real `lm_head.weight` when present:
+/// without it, a model with an untied head (e.g. Qwen3.8-27B) computes logits
+/// against the wrong matrix during training while serve uses the right one.
+/// (Serve's own check in `inference.rs` is pure tensor presence — it never
+/// consults `tie_word_embeddings` — so the two agree for every real
+/// checkpoint, but they are not the same predicate.)
+///
+/// - `tie_word_embeddings == false` and `lm_head_tensor` is `Some` → use it.
+/// - Otherwise (tied, or the key is genuinely absent from the checkpoint) →
+///   fall back to deriving the head from `wte`, matching the historical
+///   behavior small tied models depend on.
+///
+/// Returns the resolved weight tensor and the base-weight key name used to
+/// load it (for `base_key_map` bookkeeping).
+pub(super) fn resolve_lm_head_source(
+    wte: &Tensor,
+    lm_head_tensor: Option<&Tensor>,
+    tie_word_embeddings: bool,
+    embed_key: &str,
+) -> Result<(Tensor, String)> {
+    if !tie_word_embeddings && let Some(t) = lm_head_tensor {
+        return Ok((t.clone(), "lm_head.weight".to_string()));
+    }
+    Ok((wte.clone(), embed_key.to_string()))
+}
 
 pub(super) enum TrainGraphModel {
     Qwen35(crate::model::Qwen35Model),
@@ -48,48 +167,11 @@ impl TrainGraphModel {
 
 // ── DB message bus ────────────────────────────────────────────────────────────
 
-pub(super) enum TrainingDbEvent {
-    Start {
-        run_id: String,
-        adapter_tag: Option<String>,
-        model_name: Option<String>,
-        output_dir: String,
-        data_dir: String,
-        planned_steps: Option<u32>,
-    },
-    Checkpoint {
-        run_id: String,
-        epoch: u32,
-        global_step: u32,
-        last_loss: Option<f32>,
-        adapter_path: String,
-    },
-    EpochSummary {
-        run_id: String,
-        epoch: u32,
-        global_step: u32,
-        avg_loss: f64,
-        avg_val_loss: f64,
-        val_steps: u32,
-    },
-    Complete {
-        run_id: String,
-        global_step: u32,
-        adapter_path: String,
-    },
-    Failed {
-        run_id: String,
-        global_step: u32,
-    },
-    GrpoStep {
-        run_id: String,
-        step: u32,
-        mean_reward: f32,
-        policy_loss: f32,
-        clip_fraction: f32,
-        parse_rate: f32,
-    },
-}
+// `TrainingDbEvent` moved to `vox-plugin-mens-candle-core` — byte-for-byte
+// identical to the CUDA plugin's copy. `pub(super)` re-export (not `pub`)
+// preserves the original visibility: only this crate's `candle_qlora_train`
+// tree uses it.
+pub(super) use vox_plugin_mens_candle_core::candle_qlora_train::db_event::TrainingDbEvent;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(super) struct TrainingLoopStats {
@@ -97,21 +179,6 @@ pub(super) struct TrainingLoopStats {
     pub skip_short_seq: u64,
     pub skip_curriculum: u64,
     pub skip_token_id_oob: u64,
-}
-
-/// Load LoRA adapter weights into a trainer's varmap (warm-start).
-fn load_adapter_into_trainer(trainer: &mut QLoraTrainer, path: &Path) -> Result<()> {
-    if !path.exists() {
-        anyhow::bail!("checkpoint adapter not found: {}", path.display());
-    }
-    trainer
-        .load_lora_weights(path)
-        .context("warm-start LoRA weights")?;
-    train_log::info(&format!(
-        "Warm-started LoRA weights from {}",
-        path.display()
-    ));
-    Ok(())
 }
 
 /// Calculate cosine learning rate with linear warmup.
@@ -125,24 +192,13 @@ fn compute_cosine_lr(step: u32, warmup: usize, total: u32, base_lr: f64) -> f64 
     }
 }
 
-fn synthesize_rope_inv_freq(
-    head_dim: usize,
-    rope_theta: Option<f64>,
-    device: &Device,
-) -> Result<Tensor> {
-    let half = head_dim / 2;
-    if half == 0 {
-        anyhow::bail!("invalid head_dim={} for RoPE synthesis", head_dim);
-    }
-    let theta = rope_theta.unwrap_or(1_000_000.0) as f32;
-    let hd = head_dim as f32;
-    let mut vals = Vec::with_capacity(half);
-    for i in 0..half {
-        let exponent = (2.0_f32 * i as f32) / hd;
-        vals.push(1.0_f32 / theta.powf(exponent));
-    }
-    Ok(Tensor::from_vec(vals, (half,), device)?)
-}
+// Moved to `vox-plugin-mens-candle-core::rope` — see that module's docs for
+// why (it used to be forked four ways: here, `inference.rs`, and both again
+// in the CUDA plugin). `pub(crate)` re-export preserves the original
+// visibility: `crate::candle_qlora_train::synthesize_rope_inv_freq` is used
+// by `inference.rs`'s regression test that inference and training synthesize
+// the same RoPE table.
+pub(crate) use vox_plugin_mens_candle_core::rope::synthesize_rope_inv_freq;
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
@@ -163,6 +219,35 @@ pub struct TrainRequest {
 
 fn default_device_kind() -> DeviceKind {
     DeviceKind::Best
+}
+
+/// Build the `qlora-rs` training config from the resolved `LoraTrainingConfig`
+/// and the already-computed warmup step count.
+///
+/// `use_paged_optimizer: false` is required, not cosmetic:
+/// `patches/qlora-rs-1.0.5/src/training.rs`'s paged-optimizer branch
+/// (`self.paged_optimizer`) has no call to `clip_grad_norm` at all, so
+/// `max_grad_norm` below is silently ignored whenever the paged path is
+/// active — which, absent this override, is always (the crate's default is
+/// `true`). `false` selects the `self.optimizer` branch instead, which does
+/// clip. (The paged optimizer's updates do land — it calls `var.set(&param)`
+/// — so this is a gradient-clipping bug, not a frozen-weights one.)
+pub(super) fn build_train_cfg(
+    config: &LoraTrainingConfig,
+    warmup_steps: usize,
+) -> QLoraTrainingConfig {
+    QLoraTrainingConfig {
+        adapter_config: AdapterTrainingConfig {
+            learning_rate: config.learning_rate,
+            lr_schedule: LrSchedule::LinearWarmup { warmup_steps },
+            weight_decay: 0.01,
+            gradient_accumulation_steps: config.grad_accum.max(1),
+            max_grad_norm: Some(1.0),
+        },
+        num_epochs: config.epochs,
+        use_paged_optimizer: false,
+        ..Default::default()
+    }
 }
 
 /// Main entry point — called from `crate::training::run_full_training`.
@@ -243,6 +328,22 @@ pub fn run_candle_qlora_train(
         .clone()
         .unwrap_or_else(|| data_dir.join("train.jsonl"));
     let _ = preflight_train_jsonl(&train_path, 1_000_000)?;
+    // The budget planner (`memory_budget::get_resident_per_b`) discounts the
+    // resident estimate whenever gradient checkpointing is requested — heavily so
+    // for the Qwen3.5 family (at 27B it more than halves the estimate), which in
+    // turn inflates the activation budget and the seq_len/batch_size it plans. The
+    // Metal backend does not implement checkpointing (only the CUDA backend reads
+    // this flag), so honoring the discount without saying so would silently plan a
+    // run that cannot fit. Say so loudly instead of OOMing mid-training.
+    if config.gradient_checkpointing {
+        train_log::warn(
+            "gradient_checkpointing was requested but the Metal backend does not \
+             implement it (only the CUDA backend does) — the forward runs unsegmented. \
+             The VRAM budget was planned assuming checkpointing, so the planned \
+             seq_len/batch_size may exceed real memory; reduce --seq-len/--batch-size \
+             if this run OOMs.",
+        );
+    }
     let jsonl_strict_resolved =
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMensTrainJsonlStrict);
     let jsonl_policy = if jsonl_strict_resolved.expose().is_some_and(|s| s == "1") {
@@ -392,6 +493,18 @@ pub fn run_candle_qlora_train(
     #[allow(unsafe_code)]
     let vb_mmap =
         unsafe { VarBuilder::from_mmaped_safetensors(&bundle.weight_paths, DType::F32, &device)? };
+    // CPU-resident view of the SAME base weights. Apple Silicon is unified memory, so
+    // there's no discrete VRAM pool to spare here the way there is on CUDA — but a
+    // tensor placed on `Device::Metal(_)` still occupies a real, budgeted Metal-buffer
+    // allocation tracked by the driver (the same "usable unified memory" resource
+    // `vram_autodetect.rs` reasons about), separate from the bytes just sitting in
+    // mmap'd host RAM. Loading the big per-layer projection weights (q/k/v/o) F32 on
+    // the CPU and quantizing them there means the full-precision weight never occupies
+    // a Metal buffer during construction — only the small NF4 result is uploaded to
+    // build the BF16 cache, avoiding a Metal-buffer-residency peak at build time.
+    // Embeddings, norms, biases stay on `vb_mmap` (device) since they're used directly
+    // there without an intervening quantization step; the LM head does not — it
+    // is quantized like the projections, so it loads from `vb_mmap_cpu` too.
     #[allow(unsafe_code)]
     let vb_mmap_cpu = unsafe {
         VarBuilder::from_mmaped_safetensors(
@@ -420,17 +533,7 @@ pub fn run_candle_qlora_train(
         .warmup_steps
         .min((total_optimizer_steps_planned / 10).max(1) as usize);
 
-    let train_cfg = QLoraTrainingConfig {
-        adapter_config: AdapterTrainingConfig {
-            learning_rate: config.learning_rate,
-            lr_schedule: LrSchedule::LinearWarmup { warmup_steps },
-            weight_decay: 0.01,
-            gradient_accumulation_steps: config.grad_accum.max(1),
-            max_grad_norm: Some(1.0),
-        },
-        num_epochs: config.epochs,
-        ..Default::default()
-    };
+    let train_cfg = build_train_cfg(config, warmup_steps);
 
     let mut trainer = QLoraTrainer::new(train_cfg, device.clone());
 
@@ -624,6 +727,8 @@ pub fn run_candle_qlora_train(
 
                 let q_rows = n_heads * head_dim;
                 let q_fallback_rows = q_rows.saturating_mul(2);
+                // Load projection weights on the CPU (vb_mmap_cpu) — they are quantized on
+                // the CPU so the F32 base never occupies a Metal buffer during build.
                 let mut w_q = vb_mmap_cpu
                     .get((q_rows, bundle.d_model), &q_key)
                     .or_else(|_| vb_mmap_cpu.get((q_fallback_rows, bundle.d_model), &q_key))?
@@ -640,6 +745,44 @@ pub fn run_candle_qlora_train(
                 let w_o = vb_mmap_cpu
                     .get((bundle.d_model, q_rows), &o_key)?
                     .to_dtype(DType::F32)?;
+
+                // Qwen2/Qwen2.5 q/k/v projection biases (frozen, not LoRA-adapted).
+                // Optional: pure Qwen3.5 checkpoints may omit them.
+                let load_bias =
+                    |key_w: &str, rows: usize, fallback: Option<usize>| -> Option<Tensor> {
+                        let bias_key = key_w.replace(".weight", ".bias");
+                        let mut t = vb_mmap.get((rows,), &bias_key).ok();
+                        if let (true, Some(fb)) = (t.is_none(), fallback) {
+                            t = vb_mmap
+                                .get((fb,), &bias_key)
+                                .ok()
+                                .and_then(|t| t.narrow(0, 0, rows).ok());
+                        }
+                        t.and_then(|t| t.to_dtype(DType::F32).ok())
+                    };
+                let q_bias = load_bias(&q_key, q_rows, Some(q_fallback_rows));
+                let k_bias = load_bias(&k_key, kv_dim, None);
+                let v_bias = load_bias(&v_key, kv_dim, None);
+
+                // Dense Qwen3's per-head q_norm/k_norm (frozen, not LoRA-adapted;
+                // optional — pure Qwen2/Qwen2.5 checkpoints omit them). Must match
+                // inference.rs's loader or a served model drifts from what it
+                // trained against — confirmed load-bearing: a real Qwen/Qwen3-0.6B
+                // checkpoint produced fluent-looking garbage at inference without
+                // this being applied consistently on both sides.
+                let load_norm = |key_w: &str| -> Option<candle_nn::RmsNorm> {
+                    // "...self_attn.q_proj.weight" -> "...self_attn.q_norm.weight"
+                    // (and same for k) — NOT a plain ".weight" suffix replace,
+                    // which would wrongly produce "q_proj_norm.weight".
+                    let norm_key = key_w.replace("_proj.weight", "_norm.weight");
+                    vb_mmap
+                        .get((head_dim,), &norm_key)
+                        .ok()
+                        .and_then(|t| t.to_dtype(DType::F32).ok())
+                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6))
+                };
+                let q_norm = load_norm(&q_key);
+                let k_norm = load_norm(&k_key);
 
                 let q_label = format!("l{i}.q");
                 let k_label = format!("l{i}.k");
@@ -693,11 +836,14 @@ pub fn run_candle_qlora_train(
                     k_proj,
                     v_proj,
                     o_proj,
-                    q_norm,
-                    k_norm,
+                    q_bias,
+                    k_bias,
+                    v_bias,
                     n_heads,
                     n_kv_heads,
                     head_dim,
+                    q_norm,
+                    k_norm,
                 };
                 Some(crate::model::Qwen35AttentionBlock::Full(attn))
             } else {
@@ -822,20 +968,40 @@ pub fn run_candle_qlora_train(
                 .to_dtype(DType::F32)?
         };
         let final_norm = candle_nn::RmsNorm::new(fnorm_w, 1e-6);
-        let (w_lm, lm_base) =
-            if let Ok(lm_w) = vb_mmap_cpu.get((bundle.vocab, bundle.d_model), "lm_head.weight") {
-                (lm_w.to_dtype(DType::F32)?, "lm_head.weight".to_string())
-            } else if let Ok(lm_w) = vb_mmap_cpu.get(
-                (bundle.vocab, bundle.d_model),
-                "model.language_model.lm_head.weight",
-            ) {
-                (
-                    lm_w.to_dtype(DType::F32)?,
-                    "model.language_model.lm_head.weight".to_string(),
-                )
-            } else {
-                (wte.to_dtype(DType::F32)?, bundle.embed_key.clone())
-            };
+        // Load the untied head on the CPU (vb_mmap_cpu), like the projection
+        // weights above: it is quantized during construction, and for
+        // Qwen3.8-27B it is 248320x5120 F32 (~4.7 GiB) — a second multi-GiB
+        // device allocation on top of the already-resident F32 embeddings if
+        // taken from `vb_mmap`. `QuantizedLinear::from_weight_with_varbuilder`
+        // quantizes on the base weight's own device and uploads only the BF16
+        // cache, so the result is identical wherever the base lives.
+        let lm_head_tensor = match vb_mmap_cpu
+            .get((bundle.vocab, bundle.d_model), "lm_head.weight")
+            .and_then(|t| t.to_dtype(DType::F32))
+        {
+            Ok(t) => Some(t),
+            Err(e) => {
+                // A genuinely tied checkpoint has no `lm_head.weight`, so an
+                // error is expected and silent there. When the layout says the
+                // head is untied, a failed load means a real head was expected
+                // and we are about to silently train the derived one instead.
+                if !bundle.layout.tie_word_embeddings {
+                    train_log::warn(&format!(
+                        "lm_head.weight load failed for an untied checkpoint ({e}); \
+                         falling back to deriving the LM head from the embedding \
+                         matrix — training and serving will disagree on the head."
+                    ));
+                }
+                None
+            }
+        };
+        let (w_lm, lm_base) = resolve_lm_head_source(
+            &wte,
+            lm_head_tensor.as_ref(),
+            bundle.layout.tie_word_embeddings,
+            &bundle.embed_key,
+        )?;
+        let w_lm = w_lm.to_dtype(DType::F32)?;
         let lm_label = "lm_head".to_string();
         let lm_head = QuantizedLinear::from_weight_with_varbuilder(
             &w_lm,
@@ -941,11 +1107,151 @@ pub fn run_candle_qlora_train(
     result
 }
 
-mod ce_mask_align;
+// ce_mask_align / db_thread / epoch_boundary / oom moved to
+// vox-plugin-mens-candle-core — byte-for-byte identical to the CUDA plugin's
+// copies. `validation` (the 3-line doc-only top-level placeholder, distinct
+// from `training_loop::validation`) moved too but nothing in this crate
+// names it by path, so it is not re-imported here.
+use vox_plugin_mens_candle_core::candle_qlora_train::{
+    ce_mask_align, db_thread, epoch_boundary, oom,
+};
+
 mod checkpoint_mid;
-mod db_thread;
 mod device_select;
-mod epoch_boundary;
 mod finalize;
 mod training_loop;
-mod validation;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Serve prefers a real `lm_head.weight` over the embedding matrix when the
+    /// checkpoint is untied (`tie_word_embeddings == false`); train must resolve
+    /// to the same tensor, not silently derive from `wte`. `wte` and `lm_head`
+    /// are built from different RNG seeds so their data provably differs —
+    /// asserting against `wte` here would fail if the fix regressed.
+    #[test]
+    fn untied_lm_head_is_loaded_not_derived_from_embeddings() {
+        let device = Device::Cpu;
+        let wte = Tensor::randn(0f32, 1f32, (8, 4), &device).unwrap();
+        let lm_head = Tensor::randn(5f32, 1f32, (8, 4), &device).unwrap();
+
+        let (resolved, base_key) =
+            resolve_lm_head_source(&wte, Some(&lm_head), false, "model.embed_tokens.weight")
+                .unwrap();
+
+        let resolved_data = resolved.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        let lm_head_data = lm_head.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        let wte_data = wte.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+
+        assert_eq!(
+            resolved_data, lm_head_data,
+            "must resolve to lm_head.weight"
+        );
+        assert_ne!(
+            resolved_data, wte_data,
+            "must NOT derive from wte when the checkpoint ships an untied head"
+        );
+        assert_eq!(base_key, "lm_head.weight");
+    }
+
+    /// The tied-embeddings fallback (small Qwen3 dense models, and checkpoints
+    /// where `lm_head.weight` is genuinely absent) must keep working.
+    #[test]
+    fn tied_lm_head_falls_back_to_embeddings() {
+        let device = Device::Cpu;
+        let wte = Tensor::randn(0f32, 1f32, (8, 4), &device).unwrap();
+        let lm_head = Tensor::randn(5f32, 1f32, (8, 4), &device).unwrap();
+
+        // tie_word_embeddings == true: ignore a present lm_head.weight.
+        let (resolved, base_key) =
+            resolve_lm_head_source(&wte, Some(&lm_head), true, "model.embed_tokens.weight")
+                .unwrap();
+        let resolved_data = resolved.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        let wte_data = wte.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        assert_eq!(resolved_data, wte_data);
+        assert_eq!(base_key, "model.embed_tokens.weight");
+
+        // lm_head.weight genuinely absent: fall back regardless of the flag.
+        let (resolved, base_key) =
+            resolve_lm_head_source(&wte, None, false, "model.embed_tokens.weight").unwrap();
+        let resolved_data = resolved.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+        assert_eq!(resolved_data, wte_data);
+        assert_eq!(base_key, "model.embed_tokens.weight");
+    }
+
+    /// `qlora-rs`'s paged-optimizer branch never calls `clip_grad_norm`
+    /// (`patches/qlora-rs-1.0.5/src/training.rs`, `self.paged_optimizer` arm),
+    /// so `max_grad_norm` is silently ignored whenever the paged optimizer is
+    /// active — which is always, absent an explicit override, since that's
+    /// the crate's default. `build_train_cfg` must disable it so the
+    /// `self.optimizer` branch (which does clip) runs instead, matching CUDA.
+    #[test]
+    fn metal_train_cfg_disables_paged_optimizer_so_grad_clipping_applies() {
+        let config = LoraTrainingConfig::default();
+        let cfg = build_train_cfg(&config, 10);
+        assert!(
+            !cfg.use_paged_optimizer,
+            "paged optimizer skips clip_grad_norm entirely; must be disabled"
+        );
+    }
+
+    /// The big frozen projection weights must load through a CPU-resident
+    /// `VarBuilder` (`vb_mmap_cpu`), not the training-device one (`vb_mmap`),
+    /// so quantization happens before anything is uploaded to the Metal
+    /// device. This proves the underlying property: a `VarBuilder` built on
+    /// `Device::Cpu` yields tensors whose `.device()` really is `Device::Cpu`
+    /// — distinct from the same weight loaded through a `VarBuilder` on the
+    /// real training device — using a real on-disk `.safetensors` fixture,
+    /// the same mechanism `vb_mmap_cpu` uses in production.
+    #[test]
+    fn metal_projection_weights_load_on_cpu_varbuilder() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("fixture.safetensors");
+
+        // Write one small tensor standing in for a q_proj weight.
+        let src = Tensor::randn(0f32, 1f32, (4, 4), &Device::Cpu).unwrap();
+        src.save_safetensors("q_proj.weight", &path).unwrap();
+        let paths = vec![path];
+
+        // Real training device: Metal when available, Cpu fallback in a
+        // sandboxed/no-GPU test environment (mirrors device_select.rs).
+        let train_device = Device::new_metal(0).unwrap_or(Device::Cpu);
+
+        #[allow(unsafe_code)]
+        let vb_mmap_cpu = unsafe {
+            VarBuilder::from_mmaped_safetensors(&paths, DType::F32, &Device::Cpu).unwrap()
+        };
+        #[allow(unsafe_code)]
+        let vb_mmap = unsafe {
+            VarBuilder::from_mmaped_safetensors(&paths, DType::F32, &train_device).unwrap()
+        };
+
+        let w_cpu = vb_mmap_cpu.get((4, 4), "q_proj.weight").unwrap();
+        let w_device = vb_mmap.get((4, 4), "q_proj.weight").unwrap();
+
+        assert!(
+            matches!(w_cpu.device(), Device::Cpu),
+            "vb_mmap_cpu must yield CPU-resident tensors, got {:?}",
+            w_cpu.device()
+        );
+        if !matches!(train_device, Device::Cpu) {
+            assert!(
+                !matches!(w_device.device(), Device::Cpu),
+                "training-device VarBuilder should not yield a CPU tensor when a real \
+                 Metal device is present, proving the two builders are distinct"
+            );
+        }
+    }
+
+    /// A non-Metal device (CPU here; also true for CUDA and for a build
+    /// without the `metal` feature) must report 0, not a fabricated number —
+    /// the same "honest unmeasured" convention `accel_budget::query_accel_budget`
+    /// uses on non-macOS.
+    #[test]
+    fn peak_sampler_on_a_non_metal_device_reports_zero() {
+        let sampler = PeakSampler::start(&Device::Cpu, std::time::Duration::from_millis(1));
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        assert_eq!(sampler.observed_peak_bytes(), 0);
+    }
+}

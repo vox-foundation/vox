@@ -51,6 +51,7 @@ mens = [
     "dep:vox-db",
     "dep:vox-bounded-fs",
     "dep:vox-hf-layout",
+    "dep:objc2-metal",
 ]
 mens-candle-qlora = [
     "mens",
@@ -78,8 +79,10 @@ mens-train = ["mens", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:v
 mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
+    "mens-hf-hub",
     "dep:reqwest",
     "dep:vox-http-client",
+    "vox-db/host-integration",
 ]
 # Opt-in grand-network discovery publishing via the Provider Atlas (P6-T6).
 mesh-discovery-publish = [
@@ -163,6 +166,15 @@ vox-package.workspace = true
 # mens-candle-qlora. Gated under that same feature so the dep tracks its consumer.
 vox-quantize = { workspace = true, optional = true }
 vox-orchestrator-queue.workspace = true
+
+# macOS-only: live GPU memory telemetry for HardwareRegistry::monitor(). Already
+# pinned in Cargo.lock via candle-core (mens-candle-qlora), so this adds no new
+# crate version, only a direct dependency edge for `mens/hardware/macos_metal.rs`.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-metal = { version = "0.3.2", optional = true, default-features = false, features = [
+    "std",
+    "MTLDevice",
+] }
 
 [dev-dependencies]
 jsonschema = { workspace = true, default-features = false }

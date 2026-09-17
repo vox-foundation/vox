@@ -78,6 +78,7 @@ beforeEach(() => {
   invokeMock.mockResolvedValue(null);
   listHarnessIssuesMock.mockReset();
   listHarnessIssuesMock.mockResolvedValue([]);
+  window.localStorage.removeItem('vox_chat_discarded_plans.v1');
 });
 
 afterEach(() => {
@@ -428,6 +429,316 @@ describe('App shell', () => {
     const ev = new KeyboardEvent('keydown', { key: '.', metaKey: true, cancelable: true, bubbles: true });
     window.dispatchEvent(ev);
     expect(ev.defaultPrevented).toBe(true);
+  });
+
+  it('re-resolves plan and session spend when the active chat session changes', async () => {
+    const sessions = [
+      {
+        session_id: 'chat-a',
+        title: 'Alpha chat',
+        updated_at: '2026-01-01T00:00:00Z',
+        message_count: 1,
+        conversation_id: 1,
+        repository_id: null,
+      },
+      {
+        session_id: 'chat-b',
+        title: 'Beta chat',
+        updated_at: '2026-01-02T00:00:00Z',
+        message_count: 1,
+        conversation_id: 2,
+        repository_id: null,
+      },
+    ];
+    invokeMock.mockImplementation((cmd: string, args?: { sessionId?: string }) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve(sessions);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'list_plan_nodes') return Promise.resolve([]);
+      if (cmd === 'latest_plan_session_for_chat') {
+        if (args?.sessionId === 'chat-a') {
+          return Promise.resolve({ plan_session_id: 'plan-a', plan_version: 3 });
+        }
+        return Promise.resolve(null);
+      }
+      if (cmd === 'get_llm_spend') {
+        const sessionUsd =
+          args?.sessionId === 'chat-a' ? 1.25 : args?.sessionId === 'chat-b' ? 0.05 : 0;
+        return Promise.resolve({
+          sessionUsd,
+          dayUsd: 1.25,
+          totalUsd: 9,
+          dailyBudgetUsd: 50,
+          perSessionBudgetUsd: 10,
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.localStorage.setItem('vox_sidebar_mode', JSON.stringify('wide'));
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-a' }),
+    );
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('get_llm_spend', { sessionId: 'chat-a' }),
+    );
+
+    const beta = await screen.findByText('Beta chat');
+    await userEvent.click(beta);
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-b' }),
+    );
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('get_llm_spend', { sessionId: 'chat-b' }),
+    );
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
+  });
+
+  it('ignores a late plan fetch from the previous chat session', async () => {
+    const sessions = [
+      {
+        session_id: 'chat-a',
+        title: 'Alpha chat',
+        updated_at: '2026-01-01T00:00:00Z',
+        message_count: 1,
+        conversation_id: 1,
+        repository_id: null,
+      },
+      {
+        session_id: 'chat-b',
+        title: 'Beta chat',
+        updated_at: '2026-01-02T00:00:00Z',
+        message_count: 1,
+        conversation_id: 2,
+        repository_id: null,
+      },
+    ];
+    let resolveA!: (value: { plan_session_id: string; plan_version: number }) => void;
+    const delayedA = new Promise<{ plan_session_id: string; plan_version: number }>((resolve) => {
+      resolveA = resolve;
+    });
+    invokeMock.mockImplementation((cmd: string, args?: { sessionId?: string }) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve(sessions);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'list_plan_nodes') return Promise.resolve([]);
+      if (cmd === 'latest_plan_session_for_chat') {
+        if (args?.sessionId === 'chat-a') return delayedA;
+        return Promise.resolve(null);
+      }
+      if (cmd === 'get_llm_spend') {
+        return Promise.resolve({
+          sessionUsd: 0,
+          dayUsd: 0,
+          totalUsd: 0,
+          dailyBudgetUsd: 50,
+          perSessionBudgetUsd: 10,
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.localStorage.setItem('vox_sidebar_mode', JSON.stringify('wide'));
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-a' }),
+    );
+    const beta = await screen.findByText('Beta chat');
+    await userEvent.click(beta);
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-b' }),
+    );
+    resolveA({ plan_session_id: 'plan-a', plan_version: 3 });
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
+  });
+
+  it('keeps a discarded plan closed after switching away and back', async () => {
+    const sessions = [
+      {
+        session_id: 'chat-a',
+        title: 'Alpha chat',
+        updated_at: '2026-01-01T00:00:00Z',
+        message_count: 1,
+        conversation_id: 1,
+        repository_id: null,
+      },
+      {
+        session_id: 'chat-b',
+        title: 'Beta chat',
+        updated_at: '2026-01-02T00:00:00Z',
+        message_count: 1,
+        conversation_id: 2,
+        repository_id: null,
+      },
+    ];
+    invokeMock.mockImplementation((cmd: string, args?: { sessionId?: string }) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve(sessions);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'list_plan_nodes') {
+        return Promise.resolve([
+          { node_id: 'n1', description: 'Add health endpoint', status: 'blocked_on_approval' },
+        ]);
+      }
+      if (cmd === 'latest_plan_session_for_chat') {
+        if (args?.sessionId === 'chat-a') {
+          return Promise.resolve({ plan_session_id: 'plan-a', plan_version: 3 });
+        }
+        return Promise.resolve(null);
+      }
+      if (cmd === 'get_llm_spend') {
+        return Promise.resolve({
+          sessionUsd: 0,
+          dayUsd: 0,
+          totalUsd: 0,
+          dailyBudgetUsd: 50,
+          perSessionBudgetUsd: 10,
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.localStorage.setItem('vox_sidebar_mode', JSON.stringify('wide'));
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-a' }),
+    );
+    const discard = await screen.findByRole('button', { name: 'Discard' });
+    await userEvent.click(discard);
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
+
+    await userEvent.click(await screen.findByText('Beta chat'));
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-b' }),
+    );
+    await userEvent.click(await screen.findByText('Alpha chat'));
+    await waitFor(() =>
+      expect(
+        invokeMock.mock.calls.filter(
+          (c) => c[0] === 'latest_plan_session_for_chat' && c[1]?.sessionId === 'chat-a',
+        ).length,
+      ).toBeGreaterThanOrEqual(2),
+    );
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
+    expect(screen.queryByRole('button', { name: 'Discard' })).toBeNull();
+  });
+
+  it('keeps a discarded plan closed after remount', async () => {
+    const sessions = [
+      {
+        session_id: 'chat-persist',
+        title: 'Persist chat',
+        updated_at: '2026-01-01T00:00:00Z',
+        message_count: 1,
+        conversation_id: 1,
+        repository_id: null,
+      },
+    ];
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve(sessions);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'list_plan_nodes') {
+        return Promise.resolve([
+          { node_id: 'n1', description: 'Add health endpoint', status: 'blocked_on_approval' },
+        ]);
+      }
+      if (cmd === 'latest_plan_session_for_chat') {
+        return Promise.resolve({ plan_session_id: 'plan-persist', plan_version: 3 });
+      }
+      if (cmd === 'get_llm_spend') {
+        return Promise.resolve({
+          sessionUsd: 0,
+          dayUsd: 0,
+          totalUsd: 0,
+          dailyBudgetUsd: 50,
+          perSessionBudgetUsd: 10,
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.localStorage.setItem('vox_sidebar_mode', JSON.stringify('wide'));
+    window.location.hash = '#view=chat';
+    const first = renderApp();
+
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-persist' }),
+    );
+    const discard = await screen.findByRole('button', { name: 'Discard' });
+    await userEvent.click(discard);
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
+    first.unmount();
+
+    renderApp();
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-persist' }),
+    );
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
+    expect(screen.queryByRole('button', { name: 'Discard' })).toBeNull();
+    window.localStorage.removeItem('vox_chat_discarded_plans.v1');
+  });
+
+  it('binds /plan and ignores a stale latest_plan_session_for_chat', async () => {
+    const sessions = [
+      {
+        session_id: 'chat-a',
+        title: 'Alpha chat',
+        updated_at: '2026-01-01T00:00:00Z',
+        message_count: 1,
+        conversation_id: 1,
+        repository_id: null,
+      },
+    ];
+    let resolveLatest!: (value: { plan_session_id: string; plan_version: number } | null) => void;
+    const delayedLatest = new Promise<{ plan_session_id: string; plan_version: number } | null>((resolve) => {
+      resolveLatest = resolve;
+    });
+    invokeMock.mockImplementation((cmd: string, args?: { sessionId?: string; input?: { execution?: string } }) => {
+      if (cmd === 'chat_list_sessions') return Promise.resolve(sessions);
+      if (cmd === 'get_memory_status') return Promise.resolve({ corpus_counts: {} });
+      if (cmd === 'list_plan_nodes') {
+        return Promise.resolve([
+          { node_id: 'n1', description: 'Add health endpoint', status: 'blocked_on_approval' },
+        ]);
+      }
+      if (cmd === 'latest_plan_session_for_chat') return delayedLatest;
+      if (cmd === 'chat_turn') {
+        return Promise.resolve({
+          id: 1,
+          role: 'assistant',
+          content: '',
+          created_at: '2026-01-01T00:00:00Z',
+          task_id: null,
+          plan_session_id: 'plan-new',
+          plan_version: 1,
+        });
+      }
+      if (cmd === 'get_llm_spend') {
+        return Promise.resolve({
+          sessionUsd: 0,
+          dayUsd: 0,
+          totalUsd: 0,
+          dailyBudgetUsd: 50,
+          perSessionBudgetUsd: 10,
+        });
+      }
+      return Promise.resolve(null);
+    });
+    window.localStorage.setItem('vox_sidebar_mode', JSON.stringify('wide'));
+    window.location.hash = '#view=chat';
+    renderApp();
+
+    const composer = await screen.findByPlaceholderText(/describe a task/i);
+    const user = userEvent.setup();
+    await user.click(composer);
+    await user.type(composer, '/plan add a health endpoint');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()));
+    resolveLatest({ plan_session_id: 'plan-old', plan_version: 9 });
+    expect(await screen.findByRole('button', { name: 'Discard' })).toBeInTheDocument();
+    expect(screen.queryByText('plan-old')).toBeNull();
   });
 
   // F-02: a null `chat_create_session` result used to throw inside the .then

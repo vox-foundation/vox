@@ -24,6 +24,7 @@ fn base_params(description: &str) -> SubmitTaskParams {
         campaign_id: None,
         benchmark_tier: None,
         trace_id: None,
+        turn_id: None,
         correlation_id: None,
         tool_hints: vec![],
         research_hints: vec![],

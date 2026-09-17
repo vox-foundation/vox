@@ -15,8 +15,5 @@ pub use backend::{
     BackendCapabilities, BackendId, InferenceBackend, InferenceError, LoadedModel, PromptInput,
     Quantization, SamplingParams, Verdict,
 };
-pub use backends::{
-    CandleCpuBackend, CandleCudaBackend, CandleMetalBackend, LlamaCppRpcBackend,
-    OllamaSubprocessBackend,
-};
+pub use backends::{CandleCpuBackend, CandleCudaBackend, CandleMetalBackend, LlamaCppRpcBackend};
 pub use dispatcher::InferenceDispatcher;

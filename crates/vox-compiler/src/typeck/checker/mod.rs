@@ -157,6 +157,23 @@ impl<'a> Checker<'a> {
             }
         }
 
+        // Task 2 Step 10: native codegen for `async fn main()` always emits
+        // `#[tokio::main]\nasync fn main() { ... }` (`pipeline.rs`), which is
+        // hard-wired to Rust's unit-returning `main`; a non-Unit async main's
+        // declared return value was previously silently discarded by codegen
+        // (see `non_unit_ret` forced to `None` when `is_async` there). Both
+        // tiers must refuse this at typecheck instead of one tier lying.
+        if f.name == "main" && f.is_async {
+            let resolved = self.uf.resolve(&ret_ty);
+            if !matches!(resolved, Ty::Unit | Ty::TypeVar(_)) {
+                self.diags.push(Diagnostic::error(
+                    "async main cannot return a value".to_string(),
+                    f.span,
+                    self.source,
+                ));
+            }
+        }
+
         self.env.pop_return_type();
         self.env.pop_scope();
     }

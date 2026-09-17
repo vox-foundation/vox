@@ -1,12 +1,11 @@
-//! Shared Cargo `target/` directories for script-mode builds (native vs WASI lanes).
+//! Shared Cargo `target/` directories for script-mode builds.
 
 use std::path::PathBuf;
 
-/// Build lane for script compilation — native host binary vs `wasm32-wasip1`.
+/// Build lane for script compilation (native host binary).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BuildLane {
     ScriptNative,
-    ScriptWasi,
 }
 
 /// Process-local tag used when coordinating lock files (diagnostics / future file locks).
@@ -21,7 +20,6 @@ pub fn resolve_target_dir(lane: BuildLane, _workspace_label: &str, _isolation: u
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
     let subdir = match lane {
         BuildLane::ScriptNative => "script-target",
-        BuildLane::ScriptWasi => "script-target-wasi",
     };
     home.join(".vox").join(subdir)
 }

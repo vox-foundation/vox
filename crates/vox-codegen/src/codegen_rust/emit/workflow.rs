@@ -10,6 +10,23 @@ use super::types::emit_type;
 pub fn emit_script_lib(module: &HirModule) -> String {
     script_db::refresh_script_async_metadata(module);
     let mut out = String::new();
+    // Task 2 Step 10 corollary: a Vox script may deliberately contain an
+    // expression whose fault is knowable at compile time — e.g. the literal
+    // `1 / 0` in `division_by_zero.vox`, which exercises the native fault
+    // path (`std::panic::catch_unwind` in the generated `main`,
+    // `pipeline.rs`). `#[deny(unconditional_panic)]` /
+    // `#[deny(arithmetic_overflow)]` are on by default and would otherwise
+    // fail the *build* before the fault ever gets a chance to run — and this
+    // fires even though the crate-root copy of `main` in `lib.rs` (kept
+    // `pub` so `merge_lib_and_main`'s glob-import shape works, see
+    // `golden_differential_gate.rs`) is never itself called: rustc still
+    // MIR-lints every `pub` item's body. Script mode is the one target where
+    // the crate root is Vox-authored, dynamically-typed *script* content
+    // rather than a human-reviewed Rust crate, so the static lints are
+    // scoped off here — not in `emit_lib`, whose other callers (full
+    // multi-file app codegen, `emit/mod.rs`) emit human-authored-shaped
+    // handler bodies where the lint still earns its keep.
+    out.push_str("#![allow(unconditional_panic, arithmetic_overflow)]\n");
     if script_db::module_uses_db(module) {
         out.push_str(&script_db::emit_script_db_prelude(module));
     }

@@ -28,6 +28,11 @@ pub fn eval_line(src: &str) -> Result<String> {
     }
 
     let mut interp = Interpreter::new(100_000);
+    // Explicit, not the constructor's default: single-expression terminal snippets
+    // get the restrictive (PURE-namespaces-only) set, not the interpreter's
+    // permissive default — this adapter has no notion of a workspace root or a
+    // trust boundary to scope a wider grant to.
+    interp.caps = vox_compiler::eval::caps::CapabilitySet::parse("").unwrap();
     interp.run_module(&res.hir).map_err(|e| anyhow!("{e:?}"))?;
     let val = interp.call("main", vec![]).map_err(|e| anyhow!("{e:?}"))?;
     Ok(format!("{val:?}"))

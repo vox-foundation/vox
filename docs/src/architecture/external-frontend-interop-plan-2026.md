@@ -117,7 +117,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
 **Scope:**
 
 1. **JWT verification primitive** in `vox-stdlib`, with key resolution through Clavis ([AGENTS.md §Secret Management](../../../AGENTS.md)). RS256/ES256/HS256 supported; JWKS fetch with caching.
-2. **Session store abstraction** over `@table`. Default schema, `verify_token() -> Result[Session]`, `revoke()`, idle and absolute timeouts.
+2. **Session store abstraction** over `@table`. Default schema, `verify_token() to Result[Session]`, `revoke()`, idle and absolute timeouts.
 3. **Health and observability endpoints**:
    - `/healthz`, `/readyz` — auto-mounted, opt-out via flag.
    - `/metrics` — Prometheus text format, opt-in.
@@ -159,7 +159,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
    - The `routes` block stays — it remains the way Vox authors a route tree.
    - `component` keyword stays — it remains the Vox UI authoring primitive.
 4. **Optional WASM-from-Node bridge** (lower priority; can defer to 5b):
-   - npm package `@vox/wasi-runtime` that loads a Vox-compiled `.wasm` (the existing `--isolation wasm` artifact, see [`wasi.rs`](../../../crates/vox-cli/src/commands/runtime/run/backend/wasi.rs)) and exposes typed exported functions to Node.
+   - npm package `@vox/wasi-runtime` that loads a Vox-compiled `.wasm` (the WASI script lane was deleted; the remaining cargo backend is [`native.rs`](../../../crates/vox-cli/src/commands/runtime/run/backend/native.rs)) and exposes typed exported functions to Node.
    - Use case: Node worker calling pure Vox computations in-process. Not for HTTP request handling — that path stays Axum.
    - Defer N-API/cdylib indefinitely unless concrete pull emerges.
 5. **Tutorials in `docs/src/tutorials/`:**

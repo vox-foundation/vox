@@ -232,6 +232,9 @@ pub struct TaskEnqueueHints {
     /// Optional trace identifier for cross-system correlation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<String>,
+    /// Optional ChatHop / Drive turn id for cross-system correlation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_id: Option<String>,
     /// Optional budget constraints for the task.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub budget: Option<Budget>,
@@ -587,6 +590,9 @@ pub struct AgentTask {
     /// Optional trace identifier for cross-system correlation (FIX-14).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<String>,
+    /// Optional ChatHop / Drive turn id for cross-system correlation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_id: Option<String>,
     /// Optional budget constraints for the task (FIX-18).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub budget: Option<Budget>,
@@ -760,6 +766,7 @@ impl AgentTask {
             mode: None,
             test_decision: None,
             trace_id: None,
+            turn_id: None,
             budget: None,
             task_category,
             debug_iterations: 0,
@@ -959,6 +966,9 @@ impl AgentTask {
         if let Some(ref trace_id) = h.trace_id {
             self.trace_id = Some(trace_id.clone());
         }
+        if let Some(ref turn_id) = h.turn_id {
+            self.turn_id = Some(turn_id.clone());
+        }
         if let Some(ref budget) = h.budget {
             self.budget = Some(budget.clone());
         }
@@ -1144,6 +1154,7 @@ mod tests {
         ] {
             let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
             let hints = TaskEnqueueHints {
+                turn_id: None,
                 clutch: Some(label.to_string()),
                 ..Default::default()
             };
@@ -1161,6 +1172,7 @@ mod tests {
         ] {
             let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
             let hints = TaskEnqueueHints {
+                turn_id: None,
                 risk: Some(label.to_string()),
                 ..Default::default()
             };
@@ -1173,6 +1185,7 @@ mod tests {
     fn apply_hints_unknown_clutch_risk_leaves_none() {
         let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
         let hints = TaskEnqueueHints {
+            turn_id: None,
             clutch: Some("turbo".to_string()),
             risk: Some("reckless".to_string()),
             ..Default::default()
@@ -1192,6 +1205,7 @@ mod tests {
         ] {
             let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
             let hints = TaskEnqueueHints {
+                turn_id: None,
                 trigger_source: Some(label.to_string()),
                 ..Default::default()
             };
@@ -1204,6 +1218,7 @@ mod tests {
     fn apply_hints_unknown_trigger_source_leaves_none() {
         let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
         let hints = TaskEnqueueHints {
+            turn_id: None,
             trigger_source: Some("turbo".to_string()),
             ..Default::default()
         };
@@ -1394,6 +1409,7 @@ mod tests {
             socrates_context: None,
             attachment_manifest: None,
             trace_id: None,
+            turn_id: None,
             budget: None,
             active_skill: None,
             tenant_id: None,

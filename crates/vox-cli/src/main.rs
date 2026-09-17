@@ -79,13 +79,13 @@ async fn main() -> anyhow::Result<()> {
         let cmd = args[idx].as_str();
         let is_ml = matches!(
             cmd,
-            "mens" | "oratio" | "speech" | "populi" | "mesh" | "train"
+            "mens" | "oratio" | "speech" | "populi" | "mesh" | "train" | "quantize"
         );
         let is_ext_ml = cmd == "ext"
             && args.len() > idx + 1
             && matches!(
                 args[idx + 1].as_str(),
-                "mens" | "oratio" | "speech" | "populi" | "mesh" | "train"
+                "mens" | "oratio" | "speech" | "populi" | "mesh" | "train" | "quantize"
             );
 
         if is_ml || is_ext_ml {
@@ -95,7 +95,20 @@ async fn main() -> anyhow::Result<()> {
             // top-level command + its phantom `vox-schola` binary were removed;
             // training lives under `vox mens train`, which uses the internal
             // `vox-ml-cli` `commands::schola` module.)
-            let mut command = Command::new("vox-ml-cli");
+            //
+            // Resolve the sibling binary next to this executable first (a
+            // packaged GUI bundles `vox-ml-cli` as a second Tauri `externalBin`
+            // right next to `vox`, but a packaged app's inherited PATH never
+            // includes its own `Contents/MacOS/`, so a bare `Command::new`
+            // lookup would never find it there) before falling back to
+            // `~/.vox/bin` and finally a bare PATH lookup — the same resolution
+            // order `resolve_managed_binary_path` already uses for the
+            // `vox-orchestrator-d` sidecar (see `vox-gui/src/commands/daemon.rs`).
+            let ml_cli_binary =
+                vox_cli_core::daemon_ipc::process_supervision::resolve_managed_binary_path(
+                    "vox-ml-cli",
+                );
+            let mut command = Command::new(ml_cli_binary);
             if primary_cmd == "train" {
                 // `vox train` -> `vox-ml-cli mens train`
                 command.arg("mens");
@@ -116,12 +129,19 @@ async fn main() -> anyhow::Result<()> {
                         primary_cmd
                     );
                     if vox_cli::contributor_mode::is_contributor_mode() {
-                        // `populi` is not in vox-ml-cli's default features, so a bare
-                        // install produces a binary whose `populi` subcommand is
-                        // cfg'd out — and the user retries the same failing command.
-                        eprintln!(
-                            "Please run: cargo install --path crates/vox-ml-cli --features populi"
-                        );
+                        if primary_cmd != "quantize" {
+                            // `populi` is not in vox-ml-cli's default features, so a bare
+                            // install produces a binary whose `populi` subcommand is
+                            // cfg'd out — and the user retries the same failing command.
+                            eprintln!(
+                                "Please run: cargo install --path crates/vox-ml-cli --features populi"
+                            );
+                        } else {
+                            // `quantize` is likewise not in vox-ml-cli's default features.
+                            eprintln!(
+                                "Please run: cargo install --path crates/vox-ml-cli --features quantize"
+                            );
+                        }
                     } else {
                         // Installed-user remedy: no cargo, no repo-relative path. The
                         // ML subsystem ships as the `vox-ml-cli` binary in the `full`

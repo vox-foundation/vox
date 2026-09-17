@@ -37,12 +37,23 @@ pub(super) fn select_candle_device(
                 );
             }
         }
-        DeviceKind::Metal => (Device::new_metal(0)?, "metal:0".into()),
+        DeviceKind::Metal => {
+            #[cfg(feature = "metal")]
+            {
+                (Device::new_metal(0)?, "metal:0".into())
+            }
+            #[cfg(not(feature = "metal"))]
+            {
+                anyhow::bail!(
+                    "Plugin built without the `metal` feature — rebuild with `--features metal`"
+                );
+            }
+        }
         DeviceKind::Best => {
             let g = crate::device::probe_gpu();
-            #[cfg(feature = "cuda")]
+            #[cfg(feature = "metal")]
             {
-                if g.vendor.as_str() == "apple" {
+                if g.vendor.eq_ignore_ascii_case("apple") || cfg!(target_os = "macos") {
                     let d = match Device::new_metal(0) {
                         Ok(device) => device,
                         Err(err) => {
@@ -58,24 +69,26 @@ pub(super) fn select_candle_device(
                     } else {
                         "metal:0"
                     };
-                    (d, lbl.into())
-                } else {
-                    match Device::new_cuda(0) {
-                        Ok(device) => (device, "cuda:0".into()),
-                        Err(err) => {
-                            if !allow_cpu_fallback {
-                                anyhow::bail!("CUDA unavailable and CPU fallback disabled: {err}");
-                            }
-                            train_log::warn(&format!(
-                                "CUDA unavailable ({err}) — falling back to CPU (GPU vendor probe='{}')",
-                                g.vendor
-                            ));
-                            (Device::Cpu, "cpu(fallback)".into())
+                    return Ok((d, lbl.into()));
+                }
+            }
+            #[cfg(feature = "cuda")]
+            {
+                match Device::new_cuda(0) {
+                    Ok(device) => (device, "cuda:0".into()),
+                    Err(err) => {
+                        if !allow_cpu_fallback {
+                            anyhow::bail!("CUDA unavailable and CPU fallback disabled: {err}");
                         }
+                        train_log::warn(&format!(
+                            "CUDA unavailable ({err}) — falling back to CPU (GPU vendor probe='{}')",
+                            g.vendor
+                        ));
+                        (Device::Cpu, "cpu(fallback)".into())
                     }
                 }
             }
-            #[cfg(not(feature = "cuda"))]
+            #[cfg(not(any(feature = "cuda", feature = "metal")))]
             {
                 let _ = g;
                 if !allow_cpu_fallback {
@@ -83,6 +96,14 @@ pub(super) fn select_candle_device(
                 }
                 train_log::warn("No GPU feature compiled — using CPU");
                 (Device::Cpu, "cpu(no-gpu-build)".into())
+            }
+            #[cfg(all(feature = "metal", not(feature = "cuda")))]
+            {
+                let _ = g;
+                if !allow_cpu_fallback {
+                    anyhow::bail!("Metal did not match this host and CPU fallback disabled");
+                }
+                (Device::Cpu, "cpu(fallback)".into())
             }
         }
     };

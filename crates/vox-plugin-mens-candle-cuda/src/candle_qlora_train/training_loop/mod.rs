@@ -24,12 +24,18 @@ use crate::{
     telemetry_schema, train_log, training_summary::TrainingSummary,
 };
 
-pub mod checkpoint;
-pub mod curriculum;
-pub mod encoding;
+// checkpoint / curriculum / encoding / telem_helpers moved to
+// vox-plugin-mens-candle-core — byte-for-byte identical to the Metal plugin's
+// copies.
+pub use vox_plugin_mens_candle_core::candle_qlora_train::training_loop::{
+    checkpoint, curriculum, encoding, telem_helpers,
+};
+
 pub mod forward;
+// `logic` stays local: `checkpointed_backward_step` (gradient-checkpointing
+// support) is CUDA-only. It re-exports `trajectory_weight_for_pair` from
+// vox-plugin-mens-candle-core, which was the only thing in Metal's `logic.rs`.
 pub mod logic;
-pub mod telem_helpers;
 pub mod types;
 pub mod validation;
 
@@ -37,6 +43,91 @@ pub use self::checkpoint::apply_checkpoint_resume;
 pub use self::validation::preflight_masked_ce_finite;
 
 use self::types::*;
+
+/// On a real OOM: flush the adapter checkpoint so the run resumes, append an
+/// observed-peak calibration record, and return an actionable error.
+///
+/// Refuse-and-resume, not auto-retry with a smaller batch: halving the batch
+/// mid-run silently changes the effective batch size and the LR schedule for
+/// the remainder of the run — a silent substitution. See Task 7 brief.
+// ponytail: refuse + checkpoint, not mid-run batch retreat. Add
+// --on-oom=shrink as an explicit flag only if the OOM rate justifies it.
+#[allow(clippy::too_many_arguments)]
+fn checkpoint_and_bail_on_oom(
+    err: anyhow::Error,
+    trainer: &mut QLoraTrainer,
+    out: &Path,
+    config: &LoraTrainingConfig,
+    db_tx: &tokio::sync::mpsc::UnboundedSender<TrainingDbEvent>,
+    run_id: &str,
+    epoch: usize,
+    global_step: u32,
+    pair_loop_idx: usize,
+    shuffled_indices: &[usize],
+    last_loss_val: f32,
+    run_start_inst: Instant,
+) -> anyhow::Error {
+    if !super::oom::is_oom(&err) {
+        return err;
+    }
+
+    let ckpt_path = out.join(format!("oom_step_{global_step}.safetensors"));
+    let checkpoint_error = trainer.save_adapter(&ckpt_path).err().map(|e| {
+        train_log::warn(&format!("OOM adapter checkpoint save failed: {e}"));
+        e.to_string()
+    });
+    let state = crate::checkpoint_state::CheckpointState {
+        schema: crate::checkpoint_state::CHECKPOINT_SCHEMA.to_string(),
+        run_id: run_id.to_string(),
+        epoch: epoch as u32,
+        global_step,
+        pair_offset: pair_loop_idx + 1,
+        shuffled_indices: shuffled_indices.to_vec(),
+        rng_seed: config.seed,
+        adapter_path: ckpt_path.display().to_string(),
+        last_loss: last_loss_val,
+        wall_seconds_elapsed: run_start_inst.elapsed().as_secs_f64(),
+        saved_at_utc: crate::checkpoint_state::CheckpointState::now_utc(),
+    };
+    if let Err(e) = state.save(out) {
+        train_log::warn(&format!("OOM CheckpointState save failed: {e}"));
+    }
+    let _ = db_tx.send(TrainingDbEvent::Checkpoint {
+        run_id: run_id.to_string(),
+        epoch: epoch as u32,
+        global_step,
+        last_loss: Some(last_loss_val),
+        adapter_path: ckpt_path.display().to_string(),
+    });
+
+    // ponytail: this plugin crate has no live VRAM telemetry hookup yet
+    // (see training_loop/telem_helpers.rs — HardwareRegistry::monitor() is
+    // vox-populi-internal); 0 records "unknown observed peak", not a real
+    // reading. Wire a real reading when the host-capability reconnect lands.
+    let ev = super::oom::OomEvent {
+        step: global_step,
+        observed_bytes: 0,
+        batch_size: config.batch_size.max(1),
+        seq_len: config.seq_len,
+        predicted_bytes: 0,
+        checkpoint_error,
+    };
+    let msg = super::oom::render_oom(&ev);
+    if let Err(e) = telemetry::append(
+        out,
+        telemetry_schema::events::OOM,
+        serde_json::json!({
+            "step": ev.step,
+            "batch_size": ev.batch_size,
+            "seq_len": ev.seq_len,
+            "observed_bytes": ev.observed_bytes,
+            "predicted_bytes": ev.predicted_bytes,
+        }),
+    ) {
+        train_log::warn(&format!("OOM telemetry record failed: {e}"));
+    }
+    anyhow::anyhow!(msg)
+}
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_training_loop(
@@ -269,7 +360,7 @@ pub fn run_training_loop(
             }
 
             let mut lr_applied_this_step = 0.0_f64;
-            let loss_result = forward::forward_masked_ce(
+            let loss_result = match forward::forward_masked_ce(
                 &model,
                 &enc.ids,
                 enc.prefix_len,
@@ -278,7 +369,25 @@ pub fn run_training_loop(
                 enc.token_weights.as_deref(),
                 config,
                 device,
-            )?;
+            ) {
+                Ok(r) => r,
+                Err(e) => {
+                    return Err(checkpoint_and_bail_on_oom(
+                        e,
+                        trainer,
+                        out,
+                        config,
+                        db_tx,
+                        run_id,
+                        epoch,
+                        global_step,
+                        pair_loop_idx,
+                        &shuffled_indices,
+                        last_loss_val,
+                        run_start_inst,
+                    ));
+                }
+            };
 
             let loss_val_micro = match loss_result {
                 MaskedCeForward::NoSupervision => {
@@ -299,19 +408,33 @@ pub fn run_training_loop(
                     syntax_weight_sum,
                     segments,
                 } => {
-                    match segments {
+                    let backward_result = match segments {
                         Some(segs) => {
                             // Gradient-checkpointed backward: thread the boundary
                             // cotangent through each segment in reverse, summing the
                             // per-segment grads, then one optimizer step.
                             logic::checkpointed_backward_step(trainer, &model, &loss, segs)
-                                .map_err(|e| anyhow::anyhow!("{e}"))?;
+                                .map_err(|e| anyhow::anyhow!("{e}"))
                         }
-                        None => {
-                            trainer
-                                .backward_step(&loss)
-                                .map_err(|e| anyhow::anyhow!("{e}"))?;
-                        }
+                        None => trainer
+                            .backward_step(&loss)
+                            .map_err(|e| anyhow::anyhow!("{e}")),
+                    };
+                    if let Err(e) = backward_result {
+                        return Err(checkpoint_and_bail_on_oom(
+                            e,
+                            trainer,
+                            out,
+                            config,
+                            db_tx,
+                            run_id,
+                            epoch,
+                            global_step,
+                            pair_loop_idx,
+                            &shuffled_indices,
+                            last_loss_val,
+                            run_start_inst,
+                        ));
                     }
                     total_valid_tokens = total_valid_tokens.saturating_add(supervised_tokens);
                     total_theoretical_tokens =

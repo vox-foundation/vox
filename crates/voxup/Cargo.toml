@@ -33,6 +33,7 @@ workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [target.'cfg(windows)'.dependencies]
 zip = { workspace = true }
+windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
@@ -40,3 +41,4 @@ libc = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+vox-plugin-catalog = { path = "../vox-plugin-catalog" }

@@ -234,6 +234,33 @@ struct VoxLocalGenerateRequest {
     prompt: String,
     validate: bool,
     max_retries: u32,
+    max_tokens: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    system_prompt: Option<String>,
+}
+
+/// Builds the outgoing `/generate` request body for the VoxLocal adapter.
+/// Threads the caller's requested `max_t` through, rather than relying on
+/// the server's own default (`GenerateRequest::max_tokens` defaults to 256
+/// in `vox-ml-cli`'s serve schema).
+///
+/// Also threads `req.system_prompt` through to the server's per-request
+/// `system_prompt` override (`GenerateRequest::system_prompt` in
+/// `vox-ml-cli`'s serve schema): a non-empty caller-supplied system prompt
+/// REPLACES the server's startup default; an empty one (`InferRequest`
+/// carries `&str`, not `Option<&str>`, so "no system prompt" is spelled `""`)
+/// omits the field so the server falls back to its own default unchanged.
+fn build_vox_local_request(req: &InferRequest<'_>, model: &str) -> VoxLocalGenerateRequest {
+    VoxLocalGenerateRequest {
+        prompt: extract_prompt_text(&req.user_prompt),
+        validate: true,
+        max_retries: 3,
+        max_tokens: req.max_t,
+        model: Some(model.to_string()),
+        system_prompt: (!req.system_prompt.is_empty()).then(|| req.system_prompt.to_string()),
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -273,12 +300,7 @@ impl ProviderAdapter for VoxLocalAdapter {
         Box::pin(async move {
             probe_vox_local_health(client).await?;
             let endpoint = endpoint_for(model)?;
-            let prompt = extract_prompt_text(&req.user_prompt);
-            let body = VoxLocalGenerateRequest {
-                prompt,
-                validate: true,
-                max_retries: 3,
-            };
+            let body = build_vox_local_request(&req, &model.id);
             let resp = client
                 .post(&endpoint)
                 .json(&body)
@@ -315,7 +337,7 @@ impl ProviderAdapter for VoxLocalAdapter {
                 );
             }
 
-            // Token counts are not reported by the 7863 server; estimate from byte length.
+            // Token counts are not reported by the local serve; estimate from byte length.
             let approx_tokens = (parsed.code.len() / 4) as u32;
             Ok(ProviderInferResult {
                 text: parsed.code,
@@ -433,5 +455,68 @@ mod tests {
     fn anthropic_tools_guard_passes_without_tools() {
         let req = make_infer_request(None, None);
         assert!(anthropic_tools_guard(&req).is_ok());
+    }
+
+    #[test]
+    fn vox_local_generate_request_posts_the_catalog_id() {
+        let body = VoxLocalGenerateRequest {
+            prompt: "fn main() {}".into(),
+            validate: true,
+            max_retries: 3,
+            max_tokens: 256,
+            model: Some("mens/e2e-smoke-metal".into()),
+            system_prompt: None,
+        };
+        let v = serde_json::to_value(&body).expect("serialize");
+        assert_eq!(v["model"], "mens/e2e-smoke-metal");
+        assert_eq!(v["prompt"], "fn main() {}");
+    }
+
+    /// max_t = 4096 is deliberately non-default: the server's
+    /// `GenerateRequest::max_tokens` defaults to 256, so this value could
+    /// never accidentally match a wrong-code path that ignores req.max_t.
+    #[test]
+    fn vox_local_request_threads_caller_max_tokens() {
+        let mut req = make_infer_request(None, None);
+        req.max_t = 4096;
+        let body = build_vox_local_request(&req, "mens/e2e-smoke-metal");
+        assert_eq!(body.max_tokens, 4096);
+
+        let v = serde_json::to_value(&body).expect("serialize");
+        assert_eq!(v["max_tokens"], 4096);
+    }
+
+    /// (d) A non-empty `InferRequest.system_prompt` is threaded through to
+    /// the wire body's `system_prompt` field, replacing (not appending to)
+    /// the server's own startup default.
+    #[test]
+    fn vox_local_request_threads_caller_system_prompt_when_non_empty() {
+        let mut req = make_infer_request(None, None);
+        req.system_prompt = "You are a terse Vox assistant.";
+        let body = build_vox_local_request(&req, "mens/e2e-smoke-metal");
+        assert_eq!(
+            body.system_prompt.as_deref(),
+            Some("You are a terse Vox assistant.")
+        );
+
+        let v = serde_json::to_value(&body).expect("serialize");
+        assert_eq!(v["system_prompt"], "You are a terse Vox assistant.");
+    }
+
+    /// (d) An empty `InferRequest.system_prompt` (the "no override" spelling
+    /// for this `&str`-typed field) omits `system_prompt` from the wire body
+    /// entirely, so the server falls back to its own startup default.
+    #[test]
+    fn vox_local_request_omits_system_prompt_when_empty() {
+        let req = make_infer_request(None, None);
+        assert_eq!(req.system_prompt, "");
+        let body = build_vox_local_request(&req, "mens/e2e-smoke-metal");
+        assert_eq!(body.system_prompt, None);
+
+        let v = serde_json::to_value(&body).expect("serialize");
+        assert!(
+            v.get("system_prompt").is_none(),
+            "empty override must be omitted, not sent as an empty string"
+        );
     }
 }

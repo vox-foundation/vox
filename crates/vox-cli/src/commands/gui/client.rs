@@ -1,0 +1,337 @@
+use super::session::{load_session, read_token};
+use anyhow::{Context, Result, bail};
+use std::io::{Read, Write};
+use std::net::TcpStream;
+
+pub fn post(verb: &str, body: &str) -> Result<(u16, String)> {
+    let session = load_session().map_err(|e| anyhow::anyhow!(e.message))?;
+    let token = read_token().map_err(|e| anyhow::anyhow!(e.message))?;
+    let addr = format!("127.0.0.1:{}", session.port);
+    let mut stream = TcpStream::connect(&addr).context("connect drive listener")?;
+    let req = format!(
+        "POST /v1/{verb} HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    stream.write_all(req.as_bytes())?;
+    let mut out = String::new();
+    stream.read_to_string(&mut out)?;
+    let status = out
+        .split_whitespace()
+        .nth(1)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+    let resp_body = out.split("\r\n\r\n").nth(1).unwrap_or("").to_string();
+    Ok((status, resp_body))
+}
+
+pub fn wait_until(until: &str, timeout: &str) -> Result<()> {
+    let budget = parse_timeout(timeout)?;
+    let start = std::time::Instant::now();
+    loop {
+        let (status, body) = post("state", "{}")?;
+        // Soft/broken listener (empty TCP, non-JSON, non-200) must fail fast —
+        // spinning until timeout hides Drive bind failures.
+        if let Err(e) = require_ok_json_body(status, &body) {
+            bail!("wait aborted: {e}");
+        }
+        if matches_until(until, &body) {
+            println!("{body}");
+            return Ok(());
+        }
+        if start.elapsed() > budget {
+            bail!("wait timed out ({timeout})");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+}
+
+fn parse_timeout(s: &str) -> Result<std::time::Duration> {
+    let s = s.trim();
+    if let Some(num) = s.strip_suffix('s') {
+        let n: u64 = num.parse().context("timeout seconds")?;
+        return Ok(std::time::Duration::from_secs(n));
+    }
+    if let Some(num) = s.strip_suffix("ms") {
+        let n: u64 = num.parse().context("timeout ms")?;
+        return Ok(std::time::Duration::from_millis(n));
+    }
+    let n: u64 = s.parse().context("timeout")?;
+    Ok(std::time::Duration::from_secs(n))
+}
+
+fn drive_view(v: &serde_json::Value) -> &serde_json::Value {
+    v.get("state").unwrap_or(v)
+}
+
+fn last_error_present(v: &serde_json::Value) -> bool {
+    match v.get("last_error") {
+        Some(serde_json::Value::Null) | None => false,
+        Some(serde_json::Value::String(s)) => !s.trim().is_empty(),
+        Some(_) => true,
+    }
+}
+
+/// True when the Drive JSON body reports a non-null `last_error` (nested or flat).
+pub fn response_has_last_error(body: &str) -> bool {
+    let v: serde_json::Value = serde_json::from_str(body).unwrap_or(serde_json::Value::Null);
+    if last_error_present(drive_view(&v)) {
+        return true;
+    }
+    // Root may carry last_error even when `state` exists with null.
+    last_error_present(&v)
+}
+
+fn truncate_body_for_err(body: &str) -> String {
+    const MAX: usize = 512;
+    let t = body.trim();
+    if t.len() <= MAX {
+        return t.to_string();
+    }
+    format!("{}…", &t[..MAX])
+}
+
+/// Drive verbs must return HTTP 200 with a non-empty JSON body.
+/// Soft failures (empty TCP frame → status 0, truncated responses) previously
+/// exited 0 because callers only bailed on `status >= 400`.
+pub fn require_ok_json_body(status: u16, body: &str) -> Result<()> {
+    if status != 200 {
+        bail!(
+            "drive HTTP {status} (expected 200); body={}",
+            truncate_body_for_err(body)
+        );
+    }
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        bail!("drive response body empty (HTTP 200)");
+    }
+    serde_json::from_str::<serde_json::Value>(trimmed).map_err(|e| {
+        anyhow::anyhow!(
+            "drive response is not JSON: {e}; body={}",
+            truncate_body_for_err(body)
+        )
+    })?;
+    Ok(())
+}
+
+/// Headless stdout honesty: fail on envelope `status >= 400`, top-level `error`,
+/// or live-shaped `last_error` (when headless eventually mirrors live).
+pub fn headless_response_failed(stdout: &str) -> bool {
+    let v: serde_json::Value =
+        serde_json::from_str(stdout.trim()).unwrap_or(serde_json::Value::Null);
+    if let Some(s) = v.get("status").and_then(|x| x.as_u64()) {
+        if s >= 400 {
+            return true;
+        }
+    }
+    if v.get("error").map(|e| !e.is_null()).unwrap_or(false) {
+        return true;
+    }
+    response_has_last_error(stdout)
+}
+
+fn has_submit_ok_for_turn(view: &serde_json::Value, turn_id: &str) -> bool {
+    view.get("events")
+        .and_then(|e| e.as_array())
+        .into_iter()
+        .flatten()
+        .any(|row| {
+            row.get("kind").and_then(|k| k.as_str()) == Some("submit_ok")
+                && row.get("turn_id").and_then(|t| t.as_str()) == Some(turn_id)
+        })
+}
+
+fn matches_until(until: &str, body: &str) -> bool {
+    let v: serde_json::Value = serde_json::from_str(body).unwrap_or(serde_json::Value::Null);
+    let view = drive_view(&v);
+    if until == "error" {
+        return view
+            .get("last_error")
+            .map(|x| !x.is_null())
+            .unwrap_or(false);
+    }
+    if until == "reply" {
+        if view
+            .get("last_error")
+            .map(|x| !x.is_null())
+            .unwrap_or(false)
+        {
+            return true;
+        }
+        return view
+            .get("bubbles")
+            .and_then(|b| b.as_array())
+            .and_then(|a| a.last())
+            .and_then(|b| b.get("role"))
+            .and_then(|r| r.as_str())
+            == Some("assistant");
+    }
+    if let Some(id) = until.strip_prefix("selectable=") {
+        return view
+            .get("catalog")
+            .and_then(|c| c.as_array())
+            .into_iter()
+            .flatten()
+            .any(|row| {
+                row.get("id").and_then(|i| i.as_str()) == Some(id)
+                    && row.get("selectable") == Some(&serde_json::Value::Bool(true))
+            });
+    }
+    if until == "reply_ok" {
+        if view
+            .get("last_error")
+            .map(|x| !x.is_null())
+            .unwrap_or(false)
+        {
+            return false;
+        }
+        let last = view
+            .get("bubbles")
+            .and_then(|b| b.as_array())
+            .and_then(|a| a.last());
+        let Some(bubble) = last else {
+            return false;
+        };
+        if bubble.get("role").and_then(|r| r.as_str()) != Some("assistant") {
+            return false;
+        }
+        if bubble.get("error") == Some(&serde_json::Value::Bool(true)) {
+            return false;
+        }
+        let content_ok = bubble
+            .get("content")
+            .and_then(|c| c.as_str())
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+        if !content_ok {
+            return false;
+        }
+        // Turn-scoped honesty: require submit_ok for last_turn_id so a stale
+        // assistant bubble cannot green-light wait without a matching submit.
+        let Some(turn_id) = view.get("last_turn_id").and_then(|t| t.as_str()) else {
+            return false;
+        };
+        if turn_id.is_empty() {
+            return false;
+        }
+        return has_submit_ok_for_turn(view, turn_id);
+    }
+    if let Some(kind) = until.strip_prefix("event=") {
+        if kind.is_empty() {
+            return false;
+        }
+        return view
+            .get("events")
+            .and_then(|e| e.as_array())
+            .into_iter()
+            .flatten()
+            .any(|row| row.get("kind").and_then(|k| k.as_str()) == Some(kind));
+    }
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_timeout_seconds() {
+        assert_eq!(
+            parse_timeout("90s").unwrap(),
+            std::time::Duration::from_secs(90)
+        );
+    }
+
+    #[test]
+    fn matches_selectable_row() {
+        let body = r#"{"catalog":[{"id":"mens/e2e-smoke","selectable":true}]}"#;
+        assert!(matches_until("selectable=mens/e2e-smoke", body));
+        assert!(!matches_until("selectable=other", body));
+    }
+
+    #[test]
+    fn matches_error_and_reply_nested_under_state() {
+        let body = r#"{"status":200,"plane":"live","state":{"last_error":"load tokenizer","bubbles":[{"role":"user"},{"role":"assistant","error":true}],"catalog":[{"id":"mens/e2e-smoke","selectable":true}]}}"#;
+        assert!(matches_until("error", body));
+        assert!(matches_until("reply", body));
+        assert!(matches_until("selectable=mens/e2e-smoke", body));
+        let quiet = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"user"}]}}"#;
+        assert!(!matches_until("error", quiet));
+        assert!(!matches_until("reply", quiet));
+    }
+
+    #[test]
+    fn matches_event_kind_nested_under_state() {
+        let body = r#"{"status":200,"state":{"events":[{"kind":"token_streamed"},{"kind":"submit_ok"}],"last_error":null}}"#;
+        assert!(matches_until("event=submit_ok", body));
+        assert!(matches_until("event=token_streamed", body));
+        assert!(!matches_until("event=missing", body));
+        let empty = r#"{"status":200,"state":{"events":[],"last_error":null}}"#;
+        assert!(!matches_until("event=submit_ok", empty));
+        let flat = r#"{"catalog":[],"last_error":null}"#;
+        assert!(!matches_until("event=submit_ok", flat));
+    }
+
+    #[test]
+    fn matches_reply_ok_rejects_error_settlement() {
+        let err = r#"{"status":200,"state":{"last_error":"load tokenizer","bubbles":[{"role":"assistant","error":true,"content":"load tokenizer"}],"last_turn_id":"t1","events":[{"kind":"submit_err","turn_id":"t1"}]}}"#;
+        assert!(matches_until("reply", err)); // legacy: settled
+        assert!(!matches_until("reply_ok", err));
+        let ok = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"user","content":"hi"},{"role":"assistant","content":"hello"}],"last_turn_id":"t1","events":[{"kind":"submit_ok","turn_id":"t1"}]}}"#;
+        assert!(matches_until("reply_ok", ok));
+        let empty_asst = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"assistant","content":""}],"last_turn_id":"t1","events":[{"kind":"submit_ok","turn_id":"t1"}]}}"#;
+        assert!(!matches_until("reply_ok", empty_asst));
+    }
+
+    #[test]
+    fn matches_reply_ok_requires_submit_ok_for_last_turn_id() {
+        let bubble_only = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"assistant","content":"hello"}],"last_turn_id":"t1","events":[]}}"#;
+        assert!(!matches_until("reply_ok", bubble_only));
+        let wrong_turn = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"assistant","content":"hello"}],"last_turn_id":"t1","events":[{"kind":"submit_ok","turn_id":"other"}]}}"#;
+        assert!(!matches_until("reply_ok", wrong_turn));
+        let matched = r#"{"status":200,"state":{"last_error":null,"bubbles":[{"role":"assistant","content":"hello"}],"last_turn_id":"t1","events":[{"kind":"submit_ok","turn_id":"t1"}]}}"#;
+        assert!(matches_until("reply_ok", matched));
+    }
+
+    #[test]
+    fn response_has_last_error_nested_and_flat() {
+        assert!(response_has_last_error(
+            r#"{"status":200,"state":{"last_error":"boom"}}"#
+        ));
+        assert!(response_has_last_error(r#"{"last_error":"boom"}"#));
+        assert!(!response_has_last_error(
+            r#"{"status":200,"state":{"last_error":null}}"#
+        ));
+        assert!(!response_has_last_error(r#"{"status":200,"state":{}}"#));
+        // Root last_error wins when nested is null.
+        assert!(response_has_last_error(
+            r#"{"state":{"last_error":null},"last_error":"root-boom"}"#
+        ));
+        // Empty string is not a real error.
+        assert!(!response_has_last_error(r#"{"state":{"last_error":""}}"#));
+    }
+
+    #[test]
+    fn response_has_last_error_live_send_envelope() {
+        let body = r#"{"status":200,"plane":"live","state":{"last_error":"tokenizer missing"}}"#;
+        assert!(response_has_last_error(body));
+    }
+
+    #[test]
+    fn headless_response_failed_on_error_status() {
+        assert!(headless_response_failed(
+            r#"{"error":"unknown_verb","status":404}"#
+        ));
+        assert!(!headless_response_failed(
+            r#"{"plane":"headless","accepted":true,"text":"hi"}"#
+        ));
+    }
+
+    #[test]
+    fn require_ok_json_body_rejects_soft_failures() {
+        assert!(require_ok_json_body(0, "").is_err());
+        assert!(require_ok_json_body(200, "").is_err());
+        assert!(require_ok_json_body(200, "not-json").is_err());
+        assert!(require_ok_json_body(409, r#"{"error":"x"}"#).is_err());
+        assert!(require_ok_json_body(200, r#"{"status":200,"state":{}}"#).is_ok());
+    }
+}

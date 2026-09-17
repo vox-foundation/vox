@@ -1,0 +1,1 @@
+middle fixture — see examples/golden/glob_and_listdir_order.vox

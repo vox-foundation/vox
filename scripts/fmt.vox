@@ -19,9 +19,12 @@
 //   vox run scripts/fmt.vox                         # write: dirty .rs only
 //   vox run scripts/fmt.vox -- --all                # write: full workspace
 //   vox run scripts/fmt.vox -- vox-cli              # write: one workspace package
-//   VOX_FMT_CHECK=1 vox run scripts/fmt.vox         # check dirty only
+//   VOX_FMT_CHECK=1 vox run scripts/fmt.vox         # check dirty only (local)
 //   VOX_FMT_CHECK=1 vox run scripts/fmt.vox -- --all
 //   VOX_FMT_ALL=1 vox run scripts/fmt.vox           # same as --all
+//
+// Pre-push / CI `check_fmt` is always full-workspace rustfmt --check (not this
+// dirty default). After a failed gate: `vox run scripts/fmt.vox -- --all`.
 //
 // See AGENTS.md "Formatting Rust (Windows-safe)".
 
@@ -40,7 +43,10 @@ fn norm(p: str) to str {
 }
 
 fn is_rs(p: str) to bool {
-    return norm(p).ends_with(".rs");
+    if norm(p).ends_with(".rs") {
+        return true;
+    }
+    return false;
 }
 
 fn is_root_rustfmt_toml(p: str) to bool {
@@ -49,7 +55,10 @@ fn is_root_rustfmt_toml(p: str) to bool {
 }
 
 fn skip_tombstone(p: str) to bool {
-    return norm(p).contains("/vox-plugin-cloud/");
+    if norm(p).contains("/vox-plugin-cloud/") {
+        return true;
+    }
+    return false;
 }
 
 fn jstr(j: Json, k: str) to str {
@@ -105,16 +114,14 @@ fn collect_dirty_paths() to list[str] {
 fn dirty_rs_existing(dirty: list[str]) to list[str] {
     let mut files = [];
     for p in dirty {
-        if not is_rs(p) {
-            continue;
+        if is_rs(p) {
+            if skip_tombstone(p) {
+                continue;
+            }
+            if std.fs.exists(p) {
+                files = push_unique(files, p);
+            }
         }
-        if skip_tombstone(p) {
-            continue;
-        }
-        if not std.fs.exists(p) {
-            continue;
-        }
-        files = push_unique(files, p);
     }
     return files;
 }
@@ -153,7 +160,9 @@ fn target_roots(crate_filter: list[str]) to list[str] {
                     found = true;
                 }
             }
-            if not found {
+            if found {
+                // ok
+            } else {
                 print("fmt: unknown workspace crate: " + c)
                 process.exit(1)
             }
@@ -163,7 +172,9 @@ fn target_roots(crate_filter: list[str]) to list[str] {
     for p in pkgs {
         let name = jstr(p, "name");
         if crate_filter.len() > 0 {
-            if not crate_filter.contains(name) {
+            if crate_filter.contains(name) {
+                // keep
+            } else {
                 continue;
             }
         }
@@ -172,10 +183,9 @@ fn target_roots(crate_filter: list[str]) to list[str] {
             if src == "" {
                 continue;
             }
-            if not std.fs.exists(src) {
-                continue;
+            if std.fs.exists(src) {
+                roots = push_unique(roots, src);
             }
-            roots = push_unique(roots, src);
         }
     }
     if roots.is_empty() {
@@ -248,13 +258,18 @@ fn main() {
     let mut rustfmt_toml = false;
     let mut paths = [];
 
+    // `--all` / crate args must not require a dirty git tree (or git at all for
+    // path selection). Only the dirty default calls collect_dirty_paths().
     if crates.len() > 0 {
         scope = "crates";
         paths = target_roots(crates);
+    } else if want_all {
+        scope = "workspace";
+        paths = target_roots([]);
     } else {
         let dirty = collect_dirty_paths();
         rustfmt_toml = rustfmt_toml_dirty(dirty);
-        if want_all or rustfmt_toml {
+        if rustfmt_toml {
             scope = "workspace";
             paths = target_roots([]);
         } else {
@@ -263,7 +278,11 @@ fn main() {
     }
 
     if paths.is_empty() {
-        print("fmt: nothing dirty.");
+        if check {
+            print("fmt: nothing dirty to check. Pre-push/CI uses full workspace — run `VOX_FMT_CHECK=1 vox run scripts/fmt.vox -- --all`.");
+        } else {
+            print("fmt: nothing dirty. For a failed `check_fmt` / pre-push gate run `vox run scripts/fmt.vox -- --all`.");
+        }
         return;
     }
 
@@ -279,7 +298,22 @@ fn main() {
         }
     } else {
         if check {
-            print("fmt: " + str(failed) + " chunk(s) need formatting. Run `vox run scripts/fmt.vox` to fix.")
+            if scope == "workspace" {
+                print("fmt: " + str(failed) + " chunk(s) need formatting. Fix with `vox run scripts/fmt.vox -- --all`.")
+            } else if scope == "crates" {
+                let mut crate_args = "";
+                let mut ci = 0;
+                while ci < crates.len() {
+                    if ci > 0 {
+                        crate_args = crate_args + " ";
+                    }
+                    crate_args = crate_args + crates.get(ci).unwrap();
+                    ci = ci + 1;
+                }
+                print("fmt: " + str(failed) + " chunk(s) need formatting. Fix with `vox run scripts/fmt.vox -- " + crate_args + "`.")
+            } else {
+                print("fmt: " + str(failed) + " chunk(s) need formatting. Dirty-default fix: `vox run scripts/fmt.vox`. Pre-push/CI needs full workspace: `vox run scripts/fmt.vox -- --all`.")
+            }
         } else {
             print("fmt: " + str(failed) + " rustfmt chunk(s) failed.")
         }

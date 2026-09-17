@@ -107,8 +107,27 @@ impl Parser {
                 }
             }
             Token::LParen => {
+                // Count a run of grouping parens iteratively so a 200k-deep
+                // `((((1))))` cannot blow the Rust stack before the 4096 bound.
+                let mut run = 0usize;
+                while matches!(self.peek_nth(run), Token::LParen) {
+                    run += 1;
+                    if self.expr_depth + run > super::super::MAX_EXPR_NESTING {
+                        self.errors.push(ParseError::classified(
+                            start,
+                            "expression nesting exceeds the parser limit",
+                            vec![],
+                            Some("(".to_string()),
+                            ParseErrorClass::Expression,
+                        ));
+                        return Err(());
+                    }
+                }
                 self.advance();
-                let e = self.parse_expr()?;
+                self.expr_depth += 1;
+                let parsed = self.parse_expr();
+                self.expr_depth -= 1;
+                let e = parsed?;
                 let paren_expr = if self.eat(&Token::Comma) {
                     let mut elems = vec![e];
                     loop {

@@ -7,6 +7,17 @@
 
 mod browser;
 mod engine;
+mod host;
+mod hosts;
+mod input;
+mod policy;
+mod ref_actions;
+mod resolve;
+mod snapshot;
+
+pub use snapshot::{
+    AxBox, AxRef, AxSnapshot, SnapshotOptions, compact_ax_snapshot, wrap_snapshot_tree,
+};
 
 use abi_stable::{
     erased_types::TD_Opaque, export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn,

@@ -141,7 +141,7 @@ Top-level **`vox generate`** (`crates/vox-cli/src/commands/generate.rs`) posts t
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--port` | _(from `VOX_PORT` or 3000)_ | Sets `VOX_PORT` for the generated Axum server and Vite `/api` proxy |
-| `--mode` | `auto` | `app` = always generated server; `script` = `fn main()` script lane (**needs** `cargo build -p vox-cli --features script-execution`); `auto` = script lane when the file has no `@page` and the binary was built with `script-execution`. |
+| `--mode` | `auto` | `app` = always generated server; `script` = native `fn main()` lane (**needs** `cargo build -p vox-cli --features script-execution`); `auto` = HIR interpreter for script-shaped files (`fn main()`, no service surfaces — no cargo on PATH); service-shaped files stay on the native/app lane. Native escape hatches: `--mode script`, `Vox.toml [web] run_mode = "script"`, `VOX_WEB_RUN_MODE=script`. |
 
 Backend listens on the port from **`VOX_PORT`** (or **3000**) — same variable the generated `main.rs` reads.
 
@@ -149,7 +149,7 @@ Backend listens on the port from **`VOX_PORT`** (or **3000**) — same variable 
 
 ### `vox script <file> [-- <args>…]` (feature `script-execution`)
 
-**Not in default builds.** Same script runner as `vox run --mode script`, with explicit flags: `--sandbox`, `--no-cache`, `--isolation`, `--trust-class`. Build: `cargo build -p vox-cli --features script-execution`.
+**Not in default builds.** Same script runner as `vox run --mode script`, with explicit flags: `--sandbox`, `--no-cache`, `--trust-class`. Build: `cargo build -p vox-cli --features script-execution`.
 
 When **`VOX_MESH_ENABLED=1`** and the binary is built with **`--features populi`** (pulls in `vox-populi`; optionally combine with **`script-execution`**), `vox script` / script-mode `vox run` **best-effort** publishes a node record to the local registry file (see [mens SSOT](populi.md)).
 
@@ -171,6 +171,26 @@ When **`VOX_MESH_ENABLED=1`** and the binary is built with **`--features populi`
 | `vox populi admin exec-lease-revoke --lease-id <id>` | Operator removes a remote exec lease row (`POST /v1/populi/admin/exec-lease/revoke`); no holder `release` required. Same control URL and mesh/admin bearer as other admin commands. |
 
 Interpreted **`vox mens workflow run`** (journal + `mesh_*` activity hooks; there is no top-level `vox workflow`) requires **`--features workflow-runtime`** (implies `mens-dei` + `vox-workflow-runtime`). The runtime emits versioned journal events (`journal_version: 1`) and durable rows keyed by a **run id** plus **`activity_id`**. Use `--run-id <id>` to resume the same interpreted workflow run; omit it to start a fresh run id. The interpreted runner can replay stored step results for linear workflows. Mens steps use **env-derived** `VOX_MESH_CONTROL_ADDR` / `Vox.toml` `[mens]` only — use `with { timeout: …, retries: …, initial_backoff: …, activity_id: …, id: …, mens: "noop" | "join" | "snapshot" | "heartbeat" }` on `mesh_*` calls (`id` is an alias for `activity_id`). Retry/backoff support currently applies to interpreted `mesh_*` activity execution; other interpreted activities remain journal-only no-ops. Codex append is enabled by default when DB config resolves and can be disabled with **`VOX_WORKFLOW_JOURNAL_CODEX_OFF=1`** ([orchestration SSOT](orchestration-unified.md), [durable execution](../explanation/expl-durable-execution.md)).
+
+### `vox gui …`
+
+Launch Axis, or drive a dedicated hidden debug Axis. Feature-gated (`--features gui`). `vox gui --command chat` still opens a view in the user's window; Drive never attaches there.
+
+| Subcommand | Role |
+|------------|------|
+| `vox gui` | Launch Axis (optional `--command <view>`). |
+| `vox gui drive` | Drive a dedicated debug Axis (hidden unless `--show`). |
+| `vox gui drive start` | Detached start; `--show` to watch; `--profile <id>` isolates store. |
+| `vox gui drive stop` | Tear down the Drive session. |
+| `vox gui drive show` | Reveal the hidden Drive Axis. |
+| `vox gui drive set` | Set knobs (`--knob key=value`, repeatable). Unselectable pin is Drive-only 409. |
+| `vox gui drive send` | Submit text through the live composer (`--text`). |
+| `vox gui drive state` | Snapshot Drive state (pin, catalog, knobs). |
+| `vox gui drive wait` | Block until a catalog/state predicate (`--until reply|reply_ok|error|event=<kind>|selectable=<id>`, `--timeout`). `reply` accepts settled errors; `reply_ok` requires a non-empty, non-error assistant bubble. |
+| `vox gui drive headless` | Stdin/stdout JSON plane (`picker_ui`/`composer_knobs`/`bubbles` all false). |
+| `vox gui drive headless state` | Headless state snapshot. |
+| `vox gui drive headless set` | Headless knob set. |
+| `vox gui drive headless send` | Headless send. |
 
 ### `vox graph …`
 
@@ -650,7 +670,9 @@ Spawns the **`vox-lsp`** binary (from the `vox-lsp` crate) with stdio inherited.
 
 **Normative semantics** (defaults, train / merge / serve matrix, data-prep SSOT, deferred trainer flags): **[`reference/mens-training.md`](mens-training.md)**. This section lists **CLI surfaces and build features** only; do not treat it as a second SSOT for training behavior.
 
-**Doc parity (`vox ci command-compliance`):** **`vox mens corpus`**, **`vox mens pipeline`**, **`vox mens status`**, **`vox mens watch-telemetry`** (alias **`vox mens watch`**; tails stderr + training JSONL ~3s), **`vox mens plan`**, **`vox mens eval-gate`**, **`vox mens bench-completion`**, **`vox mens system-prompt-template`**, **`vox mens train`** (GPU / Candle QLoRA; same intent as **`vox-ml-cli` shim** (`vox mens …`)), **`vox oratio`**, **`vox mens serve`**, **`vox mens probe`**, **`vox mens merge-weights`**, **`vox mens merge-qlora`**, **`vox mens eval-local`**, **`vox mens generate`**, **`vox mens review`**, **`vox mens check`**, **`vox mens fix`**, **`vox mens workflow list`**, **`vox mens workflow inspect`**, **`vox mens workflow check`**, **`vox mens workflow run`**.
+**Doc parity (`vox ci command-compliance`):** **`vox mens corpus`**, **`vox mens pipeline`**, **`vox mens status`**, **`vox mens watch-telemetry`** (alias **`vox mens watch`**; tails stderr + training JSONL ~3s), **`vox mens plan`**, **`vox mens eval-gate`**, **`vox mens bench-completion`**, **`vox mens system-prompt-template`**, **`vox mens train`** (GPU / Candle QLoRA; same intent as **`vox-ml-cli` shim** (`vox mens …`)), **`vox oratio`**, **`vox mens serve`**, **`vox mens probe`**, **`vox mens merge-weights`**, **`vox mens merge-qlora`**, **`vox mens eval-local`**, **`vox mens generate`**, **`vox mens review`**, **`vox mens check`**, **`vox mens fix`**, **`vox mens workflow list`**, **`vox mens workflow inspect`**, **`vox mens workflow check`**, **`vox mens workflow run`**, **`vox mens cloud-estimate`**.
+
+**`vox mens cloud-estimate`** (feature `cloud`) — read-only: resolves and ranks live cloud GPU offers (Vast.ai / RunPod) plus the free local row, printing the estimated bill without provisioning anything. It is the dry-run companion to **`vox mens train --cloud`**, which resolves, ranks, **and dispatches** in one step. Prints the local row first, then surviving rented offers (`format_row`), then each rejected offer's `UnsuitableReason`. Fails closed when sizing a lane the memory model has no measured constant for (`Verdict::Refused` with no `predicted_bytes`), rather than borrowing another lane's constant.
 
 With default features (**`mens-base` only** — corpus + `vox-actor-runtime`, **no** Oratio / `vox-oratio` and **no** native training deps), **`vox mens`** covers corpus / pipeline / status / plan / eval-gate / bench-completion / system templates / etc. **`vox oratio`** (alias **`vox speech`**) requires **`--features oratio`** (STT stack; separate from the **`mens`** command tree). **Native train** / **serve** / **probe** / **merge-weights** / **merge-qlora** / **eval-local** (Burn + Candle) require **`cargo build -p vox-cli --features gpu`** (alias **`mens-qlora`**). For **Candle QLoRA on NVIDIA** with linked CUDA kernels, use **`cargo vox-cuda-release`** (workspace alias → `gpu,mens-candle-cuda`; see `.cargo/config.toml`). Optional: **`vox-ml-cli`** shim binary inserts the **`mens`** subcommand for argv ergonomics — use **`vox oratio`** for speech. `cargo build -p vox-cli --features mens-base`; add **`oratio`** on the same build for Oratio. See [vox-cli build feature inventory](../archive/research-2026-q1/vox-cli-build-feature-inventory.md). **`vox mens pipeline`** runs the dogfood corpus → eval → optional native train stages (replaces heavy orchestration in `scripts/run_mens_pipeline.ps1`). **`vox mens serve`** (HTTP/OpenAI-compatible API) requires **`gpu`** (Axum/control-plane pieces may additionally need **`execution-api`** for other REST surfaces — see `crates/vox-cli/Cargo.toml`). **`serve`** loads **Burn** LoRA `*.bin` or merged **`model_merged.bin`** (`merge-weights`); it does **not** load Candle **`merge-qlora`** f32 safetensor outputs. Corpus lives under **`vox mens corpus`** (e.g. `extract`, `validate`, `pairs`, **`mix`**, `eval`).
 
@@ -852,7 +874,6 @@ The sections above document 50 of the 76 top-level `vox` commands. The remaining
 | `vox snapshot` | Insta snapshot helpers: detect and clean up orphaned `.snap` files (`vox snapshot orphans [--clean]`) |
 | `vox stop` | Emergency stop the orchestrator (MCP/daemon local stop request) |
 | `vox term` | Headless-capable ratatui terminal UI — block-model shell + AI agent strip |
-| `vox wasm` | Raw precompiled WASI module execution (needs `--features script-wasi`) |
 
 ## CLI command reachability
 
@@ -873,6 +894,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `compile` | default | `commands::compile` — **`vox compile`** packaging umbrella (also **`vox fabrica compile`**) |
 | `fmt` | default | `commands::fmt` (`vox_compiler::fmt::try_format`; `--check` supported) |
 | `graph` | default | `commands::graphify` (aliases: `graphify`, `search`) |
+| `gui` | `gui` | `commands::gui` — launch Axis; `vox gui drive` is `commands::gui::drive` |
 | `add` | default | `commands::add` |
 | `audit` | default | `commands::audit` |
 | `auth` | default | `commands::auth` |
@@ -931,7 +953,6 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `repair` | default | `commands::repair` |
 | `rollback` | default | `commands::rollback` |
 | `term` | default | `vox_term::app::run` |
-| `wasm` | `script-wasi` | `commands::wasm` |
 
 ### `vox-compilerd` RPC (not CLI variants)
 

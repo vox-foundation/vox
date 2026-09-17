@@ -81,6 +81,24 @@ pub struct ChatMessage {
     /// expect the tool's name alongside `tool_call_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Optional structured content appended to the text body on providers that
+    /// support multimodal OpenAI-compatible message arrays.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_parts: Option<Vec<LlmContentPart>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type")]
+pub enum LlmContentPart {
+    #[serde(rename = "text")]
+    Text { text: String },
+    #[serde(rename = "image_url")]
+    ImageUrl { image_url: LlmImageUrl },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LlmImageUrl {
+    pub url: String,
 }
 
 /// Tool definition passed through to the provider.
@@ -337,6 +355,7 @@ mod tests {
             tool_calls: None,
             tool_call_id: None,
             name: None,
+            content_parts: None,
         };
         let json = serde_json::to_value(&msg).expect("serialize");
         let obj = json.as_object().expect("object");
@@ -346,6 +365,56 @@ mod tests {
         assert!(!obj.contains_key("tool_calls"));
         assert!(!obj.contains_key("tool_call_id"));
         assert!(!obj.contains_key("name"));
+    }
+
+    #[test]
+    fn content_parts_none_omits_key() {
+        let msg = ChatMessage {
+            role: "user".into(),
+            content: "hello".into(),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+            content_parts: None,
+        };
+        let json = serde_json::to_value(&msg).unwrap();
+        assert!(!json.as_object().unwrap().contains_key("content_parts"));
+    }
+
+    #[test]
+    fn wire_content_stays_string_without_parts() {
+        let msg = ChatMessage {
+            role: "tool".into(),
+            content: "{\"success\":true}".into(),
+            tool_calls: None,
+            tool_call_id: Some("c1".into()),
+            name: Some("vox_browser_snapshot".into()),
+            content_parts: None,
+        };
+        let c = crate::wire::wire_content_json(&msg);
+        assert_eq!(c, serde_json::json!("{\"success\":true}"));
+    }
+
+    #[test]
+    fn wire_content_array_with_image_url() {
+        let msg = ChatMessage {
+            role: "user".into(),
+            content: "{\"success\":true,\"data\":{\"path\":\"/x\"}}".into(),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+            content_parts: Some(vec![LlmContentPart::ImageUrl {
+                image_url: LlmImageUrl {
+                    url: "data:image/png;base64,aaa".into(),
+                },
+            }]),
+        };
+        let c = crate::wire::wire_content_json(&msg);
+        let arr = c.as_array().expect("array");
+        assert_eq!(arr[0]["type"], "text");
+        assert_eq!(arr[1]["type"], "image_url");
+        assert_eq!(arr[1]["image_url"]["url"], "data:image/png;base64,aaa");
+        assert!(!c.to_string().contains("image_base64"));
     }
 
     #[test]
@@ -368,6 +437,7 @@ mod tests {
             }]),
             tool_call_id: None,
             name: None,
+            content_parts: None,
         };
         let json = serde_json::to_value(&msg).expect("serialize");
         let calls = json["tool_calls"].as_array().expect("tool_calls array");
@@ -385,6 +455,7 @@ mod tests {
             tool_calls: None,
             tool_call_id: Some("call_1".into()),
             name: Some("get_weather".into()),
+            content_parts: None,
         };
         let json = serde_json::to_value(&msg).expect("serialize");
         assert_eq!(json["role"], "tool");

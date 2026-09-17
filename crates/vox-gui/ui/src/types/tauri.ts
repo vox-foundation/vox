@@ -68,14 +68,23 @@ export interface ChatPayload {
    * synchronous request/response path; `'task'` enqueues an orchestrator task
    * with a correlated event stream.
    */
-  execution_mode?: 'chat' | 'task';
+  execution_mode?: 'chat' | 'task' | 'plan';
   /**
    * Opt-in, per-session grounding/hallucination-check toggle from the chat
    * composer (see `hooks/useGroundingCheck.ts`). `undefined`/`null` leaves
    * the daemon's default (off) in place.
    */
   grounding_check_enabled?: boolean | null;
+  /** Drive-minted turn id; when set, App must not re-mint. */
+  turn_id?: string | null;
+  /** Drive-minted trace id; when set, App must not re-mint. */
+  trace_id?: string | null;
 }
+
+/** What `handleLoquelaSubmit` returns so Drive send can parse last_error. */
+export type ChatSubmitResult =
+  | { ok: true; text?: string; modelId?: string }
+  | { ok: false; error: string };
 
 export interface RoutingPriority {
   efficiency: number;

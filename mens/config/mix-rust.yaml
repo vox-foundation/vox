@@ -1,5 +1,17 @@
 # Mix configuration for rust-expert domain
-# rust_source.jsonl is 464MB — sample at 2% to keep run manageable on RTX 4080 SUPER.
+# Raw mens/data/mix_sources/rust_source.jsonl (19,664 lines) is tagged
+# `lane: rust_context`, which was never in include_lanes below — every row
+# was silently filtered (skipped_reason: no_lines_passed_filters). Rather
+# than widening include_lanes to admit that raw lane name directly, `vox run
+# scripts/mens-corpus/build_rust_authoring_corpus.vox` derives the required
+# rust_authoring.validated.jsonl below by relabeling every row's lane to
+# `vox_rust_authoring` (already in include_lanes). 65 of those rows also
+# match `@query`/`@mutation`/`@component` (retired Vox decorator spellings,
+# hard parse errors since 2026-06-30) — reviewed row-by-row and kept: this
+# file is Rust source (mix-rust.yaml is a Rust-authoring corpus) and every
+# match is Rust code *about* the Vox compiler (lexer token defs, retirement
+# rejection logic, grammar-export strings, lint-fixture literals), never Vox
+# source treating the decorators as valid. See task-D2 report.
 output: mens/data/train_mixed_rust.jsonl
 include_lanes: [vox_rust_expert_cross, vox_rust_authoring, vox_rust_review]
 sources:
@@ -11,10 +23,6 @@ sources:
     optional: true
   - path: target/dogfood/vox_corpus_extract_pkg.jsonl
     weight: 2.0                   # Human-mined workspace code (breadth)
-    optional: true
-  - path: mens/data/mix_sources/rust_source.jsonl
-    weight: 1.5
-    sample_rate: 0.02             # 464MB × 2% ≈ 9.3MB — fits in VRAM budget
     optional: true
   - path: target/dogfood/rust_authoring.validated.jsonl
     weight: 3.0

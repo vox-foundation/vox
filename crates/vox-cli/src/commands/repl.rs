@@ -12,6 +12,9 @@ pub async fn run() -> Result<()> {
     println!("Enter expressions or declarations. Type `exit` or press Ctrl+D to quit.");
 
     let mut interp = Interpreter::new(100_000);
+    // Explicit, not the constructor's default: an interactive REPL is a trusted,
+    // local session — grant every gated namespace.
+    interp.caps = vox_compiler::eval::caps::CapabilitySet::developer_default();
     let stdin = io::stdin();
     let mut stdout = io::stdout();
     let mut input = String::new();

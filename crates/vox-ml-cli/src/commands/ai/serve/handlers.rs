@@ -4,27 +4,18 @@
 use super::prompt::{prompt_for_output_mode, validate_structured_output_with_reason};
 #[cfg(feature = "execution-api")]
 use super::schema::{
-    ChatCompletionChoice, ChatCompletionRequest, ChatCompletionResponse, ChatMessageInput,
-    ChatMessageOutput, ChatUsage, Choice, GenerateRequest, GenerateResponse,
+    ChatCompletionChoice, ChatCompletionMessage, ChatCompletionRequest, ChatCompletionResponse,
+    ChatCompletionResponseMessage, ChatCompletionToolCall, ChatCompletionToolCallFunction, Choice,
+    GenerateRequest, GenerateResponse,
 };
 #[cfg(feature = "execution-api")]
 use super::worker::InferenceRequest;
 #[cfg(feature = "execution-api")]
-use axum::{
-    Json,
-    extract::State,
-    http::StatusCode,
-    response::{
-        IntoResponse,
-        sse::{Event, Sse},
-    },
-};
+use crate::commands::ai::model_id::mismatched_model_error;
 #[cfg(feature = "execution-api")]
-use std::convert::Infallible;
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 #[cfg(feature = "execution-api")]
 use std::sync::Arc;
-#[cfg(feature = "execution-api")]
-use tokio_stream::{Stream, StreamExt, wrappers::ReceiverStream};
 #[cfg(feature = "execution-api")]
 use vox_corpus::corpus::structured_eval::StructuredFailReason;
 
@@ -43,6 +34,7 @@ fn parse_output_mode_label(raw: &str) -> Option<&'static str> {
 pub struct AppState {
     pub tx: std::sync::mpsc::SyncSender<InferenceRequest>,
     pub model_name: Arc<str>,
+    pub ready: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[cfg(feature = "execution-api")]
@@ -53,13 +45,25 @@ pub async fn health() -> impl IntoResponse {
     )
 }
 
-/// Readiness probe — server is up and accepting requests.
-/// Model loading happens in worker thread; first inference may block until ready.
+/// True once the worker thread has finished loading the model.
 #[cfg(feature = "execution-api")]
-pub async fn ready() -> impl IntoResponse {
+fn readiness(ready: &Arc<std::sync::atomic::AtomicBool>) -> bool {
+    ready.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+/// Readiness probe — true only once the model has finished loading in the worker
+/// thread. `/health` above answers "the process is up"; this answers "the model
+/// is loaded and the server can actually serve requests".
+#[cfg(feature = "execution-api")]
+pub async fn ready(State(state): State<AppState>) -> impl IntoResponse {
+    let is_ready = readiness(&state.ready);
     (
-        StatusCode::OK,
-        Json(serde_json::json!({"ready": true, "service": "vox-ml-cli"})),
+        if is_ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        },
+        Json(serde_json::json!({"ready": is_ready, "service": "vox-ml-cli"})),
     )
 }
 
@@ -75,58 +79,26 @@ pub async fn list_models(State(state): State<AppState>) -> impl IntoResponse {
     }))
 }
 
-/// Ollama-compatible `/api/tags` endpoint so GUI, Actor Runtime, and Orchestrator
-/// recognize the local inference server as reachable and populate the model list.
-#[cfg(feature = "execution-api")]
-pub async fn tags(State(state): State<AppState>) -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({
-            "models": [
-                {
-                    "name": state.model_name.as_ref(),
-                    "model": state.model_name.as_ref(),
-                    "modified_at": chrono::Utc::now().to_rfc3339(),
-                    "size": 0,
-                    "digest": "",
-                    "details": {
-                        "parent_model": "",
-                        "format": "safetensors",
-                        "family": "qwen",
-                        "families": ["qwen"],
-                        "parameter_size": "8.2B",
-                        "quantization_level": "none"
-                    }
-                }
-            ]
-        })),
-    )
-}
-
-/// Ollama-compatible `/api/version` endpoint returning GPU capability hint.
-#[cfg(feature = "execution-api")]
-pub async fn version() -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({
-            "version": "0.6.0-metal"
-        })),
-    )
-}
-
 #[cfg(feature = "execution-api")]
 pub async fn do_generate(
     State(state): State<AppState>,
     Json(req): Json<GenerateRequest>,
 ) -> (StatusCode, Json<GenerateResponse>) {
-    if let Some(ref requested) = req.model {
-        if requested.as_str() != state.model_name.as_ref() {
-            tracing::debug!(
-                requested = %requested,
-                actual = %*state.model_name,
-                "Client requested different model; serving loaded model"
-            );
-        }
+    if let Some(msg) = mismatched_model_error(req.model.as_deref(), state.model_name.as_ref()) {
+        return (
+            StatusCode::CONFLICT,
+            Json(GenerateResponse {
+                text: msg.clone(),
+                code: msg.clone(),
+                tokens_generated: 0,
+                model: state.model_name.to_string(),
+                object: "text_completion",
+                choices: vec![],
+                repair_attempts: None,
+                valid: false,
+                errors: vec![msg],
+            }),
+        );
     }
     let output_mode = req.output_mode.as_deref().and_then(parse_output_mode_label);
     let max_retries = req.max_retries.max(1);
@@ -164,8 +136,8 @@ pub async fn do_generate(
             temperature: req.temperature,
             top_k: 40,
             output_mode: output_mode.map(String::from),
+            system_prompt: req.system_prompt.clone(),
             reply: reply_tx,
-            stream_tx: None,
         };
         let tx = state.tx.clone();
         let send_ok = tokio::task::spawn_blocking(move || tx.send(ir))
@@ -233,235 +205,158 @@ pub async fn do_generate(
     }
 }
 
-/// SSE Streaming variant of the completions endpoint.
+/// Task B2: extract a requested tool's name from either OpenAI's
+/// `{"type":"function","function":{"name":...}}` shape or the flatter
+/// `{"name":...}` shape, so both are accepted from a `tools[]` entry.
 #[cfg(feature = "execution-api")]
-pub async fn do_completions_stream(
-    State(state): State<AppState>,
-    Json(req): Json<GenerateRequest>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let output_mode = req.output_mode.as_deref().and_then(parse_output_mode_label);
-
-    let (stream_tx, stream_rx) = tokio::sync::mpsc::channel(32);
-    let (reply_tx, _) = tokio::sync::oneshot::channel();
-    let prompt = prompt_for_output_mode(&req.prompt, output_mode);
-
-    let ir = InferenceRequest {
-        prompt,
-        max_tokens: req.max_tokens,
-        temperature: req.temperature,
-        top_k: 40,
-        output_mode: output_mode.map(String::from),
-        reply: reply_tx,
-        stream_tx: Some(stream_tx),
-    };
-
-    let tx = state.tx.clone();
-    let model_name = state.model_name.to_string();
-
-    tokio::task::spawn_blocking(move || {
-        let _ = tx.send(ir);
-    });
-
-    let stream =
-        ReceiverStream::new(stream_rx).map(move |chunk_result| -> Result<Event, Infallible> {
-            match chunk_result {
-                Ok(chunk) => {
-                    let json = serde_json::json!({
-                        "id": "compl-stream",
-                        "object": "text_completion",
-                        "model": model_name,
-                        "choices": [{
-                            "text": chunk,
-                            "index": 0,
-                            "finish_reason": null
-                        }]
-                    });
-                    Ok(Event::default()
-                        .data(serde_json::to_string(&json).unwrap_or_else(|_| "{}".to_string())))
-                }
-                Err(e) => Ok(Event::default().data(format!("{{\"error\": \"{}\"}}", e))),
-            }
-        });
-
-    let end_model = state.model_name.to_string();
-    let terminal = tokio_stream::iter(vec![
-        Ok::<Event, Infallible>(
-            Event::default().data(
-                serde_json::json!({
-                    "id": "compl-stream",
-                    "object": "text_completion",
-                    "model": end_model,
-                    "choices": [{
-                        "text": "",
-                        "index": 0,
-                        "finish_reason": "stop"
-                    }]
-                })
-                .to_string(),
-            ),
-        ),
-        Ok(Event::default().data("[DONE]")),
-    ]);
-    let stream = tokio_stream::StreamExt::chain(stream, terminal);
-
-    Sse::new(stream).keep_alive(axum::response::sse::KeepAlive::new())
+fn tool_def_name(tool: &serde_json::Value) -> Option<&str> {
+    tool.get("function")
+        .and_then(|f| f.get("name"))
+        .or_else(|| tool.get("name"))
+        .and_then(|v| v.as_str())
 }
 
+/// Task B2: extract a requested tool's description the same way `tool_def_name`
+/// extracts its name — used only to enrich the flattened prompt.
 #[cfg(feature = "execution-api")]
-pub fn format_chatml(messages: &[ChatMessageInput]) -> String {
-    let mut prompt = String::new();
-    let mut has_system = false;
-    for m in messages {
-        let role = m.role.trim().to_lowercase();
-        let content = m.content.trim();
-        if role == "system" {
-            has_system = true;
-            prompt.push_str(&format!("<|im_start|>system\n{content}<|im_end|>\n"));
-        } else if role == "user" {
-            if !has_system && prompt.is_empty() {
-                prompt.push_str("<|im_start|>system\nYou are an expert Vox programmer. Write clean, idiomatic, correct Vox code satisfying the request.<|im_end|>\n");
-            }
-            prompt.push_str(&format!("<|im_start|>user\n{content}<|im_end|>\n"));
-        } else if role == "assistant" {
-            prompt.push_str(&format!("<|im_start|>assistant\n{content}<|im_end|>\n"));
+fn tool_def_description(tool: &serde_json::Value) -> Option<&str> {
+    tool.get("function")
+        .and_then(|f| f.get("description"))
+        .or_else(|| tool.get("description"))
+        .and_then(|v| v.as_str())
+}
+
+/// Task B2: flatten `messages[]` (+ an optional tool catalog) into the single
+/// prompt string `do_generate` already knows how to handle. Deliberately a
+/// plain textual rendering, not a chat template — this server has no
+/// model-specific chat template registry, and the flattened form only needs
+/// to be good enough for the model to (a) see the conversation so far and
+/// (b) know which tool names/descriptions it may respond with as JSON when
+/// `tools` is non-empty.
+#[cfg(feature = "execution-api")]
+fn flatten_chat_messages(
+    messages: &[ChatCompletionMessage],
+    tools: Option<&[serde_json::Value]>,
+) -> String {
+    let mut out = String::new();
+    if let Some(tools) = tools.filter(|t| !t.is_empty()) {
+        out.push_str(
+            "Available tools (to call one, respond with ONLY a single JSON object \
+             shaped like {\"name\": \"<tool>\", \"arguments\": {...}}):\n",
+        );
+        for tool in tools {
+            let name = tool_def_name(tool).unwrap_or("unknown");
+            let description = tool_def_description(tool).unwrap_or("");
+            out.push_str(&format!("- {name}: {description}\n"));
         }
+        out.push('\n');
     }
-    if !has_system && prompt.is_empty() {
-        prompt.push_str("<|im_start|>system\nYou are an expert Vox programmer. Write clean, idiomatic, correct Vox code satisfying the request.<|im_end|>\n");
+    for message in messages {
+        let content = message.content.as_deref().unwrap_or("");
+        out.push_str(&message.role);
+        out.push_str(": ");
+        out.push_str(content);
+        out.push('\n');
     }
-    prompt.push_str("<|im_start|>assistant\n<think>\n</think>\n");
-    prompt
+    out.push_str("assistant:");
+    out
 }
 
+/// `POST /v1/chat/completions` (Task B2, MENS end-to-end completion, Route A).
+///
+/// Thin adapter: flattens the request onto [`GenerateRequest`] and delegates
+/// to [`do_generate`] — the SAME worker channel and sampling/validation/retry
+/// pipeline every other route already uses (non-goal: a second one). When
+/// `tools` is present, reuses the existing `tool_args_json` output_mode (see
+/// `prompt.rs`) so `do_generate` itself retries toward a `{"name",
+/// "arguments"}`-shaped reply; this route only re-wraps the result into
+/// `choices[].message`, populating `tool_calls` when that reply is
+/// schema-valid AND names a tool this request actually offered. Otherwise the
+/// raw text comes back as `content` — the well-known small-model failure mode
+/// the salvage policy in `vox-orchestrator-mcp`'s `agent_loop.rs` handles as a
+/// client-side fallback (regex-scanning `content` for the same shape), not
+/// something this route hard-fails on.
 #[cfg(feature = "execution-api")]
 pub async fn do_chat_completions(
     State(state): State<AppState>,
     Json(req): Json<ChatCompletionRequest>,
-) -> impl IntoResponse {
-    let prompt = format_chatml(&req.messages);
-    let max_tokens = req.max_tokens;
-    let temperature = req.temperature;
+) -> (StatusCode, Json<ChatCompletionResponse>) {
+    let has_tools = req.tools.as_ref().is_some_and(|t| !t.is_empty());
+    let prompt = flatten_chat_messages(&req.messages, req.tools.as_deref());
 
-    if req.stream {
-        let (stream_tx, stream_rx) = tokio::sync::mpsc::channel(32);
-        let (reply_tx, _) = tokio::sync::oneshot::channel();
-        let ir = InferenceRequest {
-            prompt,
-            max_tokens,
-            temperature,
-            top_k: 40,
-            output_mode: None,
-            reply: reply_tx,
-            stream_tx: Some(stream_tx),
-        };
-        let tx = state.tx.clone();
-        let model_name = state.model_name.to_string();
-        tokio::task::spawn_blocking(move || {
-            let _ = tx.send(ir);
+    let generate_req = GenerateRequest {
+        prompt,
+        max_tokens: req.max_tokens.unwrap_or(256),
+        temperature: req.temperature.unwrap_or(0.7),
+        model: req.model.clone(),
+        output_mode: has_tools.then(|| "tool_args_json".to_string()),
+        max_retries: 3,
+        schema: has_tools.then(|| serde_json::json!({"name": "string", "arguments": "object"})),
+        stream: false,
+        // `/v1/chat/completions` has no system-role-carrying wire field of its
+        // own yet (messages[] already carries a "system" role entry, flattened
+        // into the prompt above) — no per-request override to thread here.
+        system_prompt: None,
+    };
+
+    let (status, Json(gen_resp)) = do_generate(State(state), Json(generate_req)).await;
+
+    // Only trust a tool-call candidate when do_generate's own schema check
+    // passed (guaranteeing `{"name": <string>, "arguments": <object>}`) AND
+    // the name matches a tool this request actually offered — an arbitrary
+    // string the model happened to emit is never surfaced as a call.
+    let tool_call = (has_tools && gen_resp.valid)
+        .then(|| serde_json::from_str::<serde_json::Value>(gen_resp.text.trim()).ok())
+        .flatten()
+        .filter(|v| {
+            v.get("name").and_then(|n| n.as_str()).is_some_and(|name| {
+                req.tools
+                    .as_deref()
+                    .unwrap_or(&[])
+                    .iter()
+                    .any(|t| tool_def_name(t) == Some(name))
+            })
         });
 
-        let stream =
-            ReceiverStream::new(stream_rx).map(move |chunk_result| -> Result<Event, Infallible> {
-                match chunk_result {
-                    Ok(chunk) => {
-                        let json = serde_json::json!({
-                            "id": "chatcmpl-stream",
-                            "object": "chat.completion.chunk",
-                            "model": model_name,
-                            "choices": [{
-                                "index": 0,
-                                "delta": {
-                                    "content": chunk
-                                },
-                                "finish_reason": null
-                            }]
-                        });
-                        Ok(Event::default().data(serde_json::to_string(&json).unwrap_or_default()))
-                    }
-                    Err(e) => Ok(Event::default().data(format!("{{\"error\": \"{}\"}}", e))),
-                }
-            });
-
-        let end_model = state.model_name.to_string();
-        let terminal = tokio_stream::iter(vec![
-            Ok::<Event, Infallible>(
-                Event::default().data(
-                    serde_json::json!({
-                        "id": "chatcmpl-stream",
-                        "object": "chat.completion.chunk",
-                        "model": end_model,
-                        "choices": [{
-                            "index": 0,
-                            "delta": {},
-                            "finish_reason": "stop"
-                        }]
-                    })
-                    .to_string(),
-                ),
-            ),
-            Ok(Event::default().data("[DONE]")),
-        ]);
-        let stream = tokio_stream::StreamExt::chain(stream, terminal);
-
-        Sse::new(stream)
-            .keep_alive(axum::response::sse::KeepAlive::new())
-            .into_response()
-    } else {
-        let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
-        let ir = InferenceRequest {
-            prompt: prompt.clone(),
-            max_tokens,
-            temperature,
-            top_k: 40,
-            output_mode: None,
-            reply: reply_tx,
-            stream_tx: None,
-        };
-        let tx = state.tx.clone();
-        let send_ok = tokio::task::spawn_blocking(move || tx.send(ir))
-            .await
-            .map(|r| r.is_ok())
-            .unwrap_or(false);
-        if !send_ok {
-            return (
-                StatusCode::SERVICE_UNAVAILABLE,
-                Json(serde_json::json!({"error": "Inference worker unavailable"})),
-            )
-                .into_response();
+    let message = match tool_call {
+        Some(v) => {
+            let name = v["name"].as_str().unwrap_or_default().to_string();
+            let arguments =
+                serde_json::to_string(v.get("arguments").unwrap_or(&serde_json::Value::Null))
+                    .unwrap_or_else(|_| "{}".to_string());
+            ChatCompletionResponseMessage {
+                role: "assistant",
+                content: None,
+                tool_calls: Some(vec![ChatCompletionToolCall {
+                    id: format!("call_{}", uuid::Uuid::new_v4()),
+                    kind: "function",
+                    function: ChatCompletionToolCallFunction { name, arguments },
+                }]),
+            }
         }
-        let text = reply_rx
-            .await
-            .unwrap_or_else(|_| Err("Worker dropped".into()))
-            .unwrap_or_else(|e| format!("[error: {e}]"));
+        None => ChatCompletionResponseMessage {
+            role: "assistant",
+            content: Some(gen_resp.text.clone()),
+            tool_calls: None,
+        },
+    };
 
-        let prompt_tokens = prompt.split_whitespace().count();
-        let completion_tokens = text.split_whitespace().count();
-        let created = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-
-        let resp = ChatCompletionResponse {
-            id: format!("chatcmpl-{}", created),
-            object: "chat.completion",
-            created,
-            model: state.model_name.to_string(),
-            choices: vec![ChatCompletionChoice {
-                index: 0,
-                message: ChatMessageOutput {
-                    role: "assistant",
-                    content: text,
-                },
-                finish_reason: "stop",
-            }],
-            usage: ChatUsage {
-                prompt_tokens,
-                completion_tokens,
-                total_tokens: prompt_tokens + completion_tokens,
-            },
-        };
-        (StatusCode::OK, Json(resp)).into_response()
-    }
+    let finish_reason = if message.tool_calls.is_some() {
+        "tool_calls"
+    } else {
+        "stop"
+    };
+    let resp = ChatCompletionResponse {
+        id: format!("chatcmpl-{}", uuid::Uuid::new_v4()),
+        object: "chat.completion",
+        model: gen_resp.model,
+        choices: vec![ChatCompletionChoice {
+            index: 0,
+            message,
+            finish_reason,
+        }],
+    };
+    (status, Json(resp))
 }
 
 #[cfg(feature = "execution-api")]
@@ -534,32 +429,175 @@ mod semcov_wave2_tests {
     }
 
     #[test]
-    fn format_chatml_multi_turn_with_system() {
-        let msgs = vec![
-            ChatMessageInput {
-                role: "system".to_string(),
-                content: "You are a Vox compiler.".to_string(),
-            },
-            ChatMessageInput {
-                role: "user".to_string(),
-                content: "Generate a function.".to_string(),
-            },
-        ];
-        let formatted = format_chatml(&msgs);
-        assert!(formatted.starts_with("<|im_start|>system\nYou are a Vox compiler.<|im_end|>\n"));
-        assert!(formatted.contains("<|im_start|>user\nGenerate a function.<|im_end|>\n"));
-        assert!(formatted.ends_with("<|im_start|>assistant\n<think>\n</think>\n"));
+    fn ready_is_false_until_the_model_loads_and_false_again_if_it_fails() {
+        let ready = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        assert!(
+            !readiness(&ready),
+            "a server whose model has not loaded is not ready"
+        );
+        ready.store(true, std::sync::atomic::Ordering::SeqCst);
+        assert!(
+            readiness(&ready),
+            "once the model is loaded the server is ready"
+        );
+    }
+}
+
+/// Task B2 (MENS end-to-end completion): `/v1/chat/completions` adapter tests.
+#[cfg(feature = "execution-api")]
+#[cfg(test)]
+mod chat_completions_tests {
+    use super::*;
+    use crate::commands::ai::serve::worker::InferenceRequest;
+
+    #[test]
+    fn tool_def_name_accepts_openai_and_flat_shapes() {
+        let openai = serde_json::json!({"type": "function", "function": {"name": "read_file"}});
+        let flat = serde_json::json!({"name": "read_file"});
+        assert_eq!(tool_def_name(&openai), Some("read_file"));
+        assert_eq!(tool_def_name(&flat), Some("read_file"));
+        assert_eq!(tool_def_name(&serde_json::json!({})), None);
     }
 
     #[test]
-    fn format_chatml_default_system_when_omitted() {
-        let msgs = vec![ChatMessageInput {
+    fn tool_def_description_accepts_openai_and_flat_shapes() {
+        let openai = serde_json::json!({"type": "function", "function": {"name": "x", "description": "reads a file"}});
+        let flat = serde_json::json!({"name": "x", "description": "reads a file"});
+        assert_eq!(tool_def_description(&openai), Some("reads a file"));
+        assert_eq!(tool_def_description(&flat), Some("reads a file"));
+    }
+
+    #[test]
+    fn flatten_chat_messages_includes_tool_catalog_and_role_prefixed_turns() {
+        let messages = vec![
+            ChatCompletionMessage {
+                role: "system".to_string(),
+                content: Some("be helpful".to_string()),
+            },
+            ChatCompletionMessage {
+                role: "user".to_string(),
+                content: Some("what's the weather?".to_string()),
+            },
+        ];
+        let tools = vec![serde_json::json!({
+            "type": "function",
+            "function": {"name": "get_weather", "description": "looks up the weather"}
+        })];
+        let flattened = flatten_chat_messages(&messages, Some(&tools));
+        assert!(flattened.contains("get_weather"));
+        assert!(flattened.contains("looks up the weather"));
+        assert!(flattened.contains("system: be helpful"));
+        assert!(flattened.contains("user: what's the weather?"));
+        assert!(flattened.ends_with("assistant:"));
+    }
+
+    #[test]
+    fn flatten_chat_messages_omits_tool_catalog_when_no_tools_offered() {
+        let messages = vec![ChatCompletionMessage {
             role: "user".to_string(),
-            content: "Hello".to_string(),
+            content: Some("hi".to_string()),
         }];
-        let formatted = format_chatml(&msgs);
-        assert!(formatted.starts_with("<|im_start|>system\nYou are an expert Vox programmer. Write clean, idiomatic, correct Vox code satisfying the request.<|im_end|>\n"));
-        assert!(formatted.contains("<|im_start|>user\nHello<|im_end|>\n"));
-        assert!(formatted.ends_with("<|im_start|>assistant\n<think>\n</think>\n"));
+        let flattened = flatten_chat_messages(&messages, None);
+        assert!(!flattened.contains("Available tools"));
+        assert!(flattened.contains("user: hi"));
+    }
+
+    /// Spawn a fake worker thread that replies with a fixed string to every
+    /// request, mirroring the real worker's channel shape closely enough for
+    /// `do_chat_completions` (a thin wrapper over `do_generate`) to be
+    /// exercised end-to-end without a real model checkpoint.
+    fn fake_app_state(reply: &'static str) -> AppState {
+        let (tx, rx) = std::sync::mpsc::sync_channel::<InferenceRequest>(8);
+        std::thread::spawn(move || {
+            while let Ok(req) = rx.recv() {
+                let _ = req.reply.send(Ok(reply.to_string()));
+            }
+        });
+        AppState {
+            tx,
+            model_name: std::sync::Arc::from("test-model"),
+            ready: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        }
+    }
+
+    #[tokio::test]
+    async fn do_chat_completions_emits_tool_calls_for_a_schema_valid_offered_tool() {
+        let state = fake_app_state(r#"{"name":"get_weather","arguments":{"city":"nyc"}}"#);
+        let req = ChatCompletionRequest {
+            messages: vec![ChatCompletionMessage {
+                role: "user".to_string(),
+                content: Some("what's the weather in nyc?".to_string()),
+            }],
+            model: None,
+            max_tokens: None,
+            temperature: None,
+            tools: Some(vec![serde_json::json!({
+                "type": "function",
+                "function": {"name": "get_weather", "description": "looks up the weather"}
+            })]),
+        };
+        let (status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        let message = &resp.choices[0].message;
+        let tool_calls = message
+            .tool_calls
+            .as_ref()
+            .expect("a schema-valid, offered tool name must produce tool_calls");
+        assert_eq!(tool_calls[0].function.name, "get_weather");
+        assert_eq!(tool_calls[0].function.arguments, r#"{"city":"nyc"}"#);
+        assert!(
+            message.content.is_none(),
+            "a tool-call reply carries no plain-text content"
+        );
+        assert_eq!(resp.choices[0].finish_reason, "tool_calls");
+    }
+
+    #[tokio::test]
+    async fn do_chat_completions_falls_back_to_plain_text_for_an_unoffered_tool_name() {
+        // Schema-valid JSON, but `send_email` was never offered — must not be
+        // surfaced as a dispatchable tool call.
+        let state = fake_app_state(r#"{"name":"send_email","arguments":{}}"#);
+        let req = ChatCompletionRequest {
+            messages: vec![ChatCompletionMessage {
+                role: "user".to_string(),
+                content: Some("what's the weather?".to_string()),
+            }],
+            model: None,
+            max_tokens: None,
+            temperature: None,
+            tools: Some(vec![serde_json::json!({
+                "type": "function",
+                "function": {"name": "get_weather"}
+            })]),
+        };
+        let (_status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
+        let message = &resp.choices[0].message;
+        assert!(
+            message.tool_calls.is_none(),
+            "a tool name that was never offered must never be dispatched"
+        );
+        assert!(message.content.is_some());
+        assert_eq!(resp.choices[0].finish_reason, "stop");
+    }
+
+    #[tokio::test]
+    async fn do_chat_completions_with_no_tools_returns_plain_content() {
+        let state = fake_app_state("just a plain answer");
+        let req = ChatCompletionRequest {
+            messages: vec![ChatCompletionMessage {
+                role: "user".to_string(),
+                content: Some("hi".to_string()),
+            }],
+            model: None,
+            max_tokens: None,
+            temperature: None,
+            tools: None,
+        };
+        let (status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        let message = &resp.choices[0].message;
+        assert_eq!(message.content.as_deref(), Some("just a plain answer"));
+        assert!(message.tool_calls.is_none());
+        assert_eq!(resp.choices[0].finish_reason, "stop");
     }
 }

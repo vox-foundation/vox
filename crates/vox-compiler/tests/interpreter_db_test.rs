@@ -176,7 +176,7 @@ fn fused_where_order_by_limit_compose() {
     // age >= 18 → {old:90, mid:40}; asc → mid first; limit 1 → [mid].
     assert_eq!(
         res,
-        VoxValue::Str("mid".to_string()),
+        VoxValue::Str("mid".to_string().into()),
         "fused where+order_by(asc)+limit(1) must yield the youngest adult"
     );
 }

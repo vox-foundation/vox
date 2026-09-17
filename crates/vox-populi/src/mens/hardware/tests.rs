@@ -1,10 +1,22 @@
 #[cfg(test)]
 #[allow(clippy::module_inception)] // File is `tests.rs`; inner `mod tests` keeps `cfg(test)` items grouped.
 mod tests {
+    use crate::mens::hardware::HardwareRegistry;
     use crate::mens::hardware::mock::MockProbe;
     use crate::mens::hardware::pipeline::ProbePipeline;
     use crate::mens::hardware::probe::{HardwareProbe, ProbeError, ProbeOutcome};
     use crate::mens::hardware::types::{ComputeBackend, GpuVendor, HardwareSummary};
+
+    #[test]
+    fn monitor_reports_live_memory_on_a_device_that_has_one() {
+        let Some(t) = HardwareRegistry::monitor() else {
+            return; // CI has no GPU; this test is a no-op there by design.
+        };
+        assert!(
+            t.memory_used_mb > 0,
+            "a stub returning a zeroed struct is the same bug wearing a different shape"
+        );
+    }
 
     fn dummy_summary() -> HardwareSummary {
         HardwareSummary {

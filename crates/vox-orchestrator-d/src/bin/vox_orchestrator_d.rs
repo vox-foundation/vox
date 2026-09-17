@@ -113,8 +113,27 @@ fn load_config() -> OrchestratorConfig {
     config
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+/// Default worker stack for deep `vox_chat_message` / MCP ExtraDispatch futures.
+/// The std/tokio default (~2 MiB) aborts with stack overflow on sync chat turns,
+/// which the TCP client sees as an empty `orch.tool_call` frame. Override with
+/// `RUST_MIN_STACK` (bytes) when spawning if a larger value is required.
+const DEFAULT_ORCH_WORKER_STACK: usize = 32 * 1024 * 1024;
+
+fn main() -> anyhow::Result<()> {
+    let stack = std::env::var("RUST_MIN_STACK")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .filter(|&n| n >= 2 * 1024 * 1024)
+        .unwrap_or(DEFAULT_ORCH_WORKER_STACK);
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_stack_size(stack)
+        .build()
+        .context("building tokio runtime for vox-orchestrator-d")?;
+    rt.block_on(async_main())
+}
+
+async fn async_main() -> anyhow::Result<()> {
     vox_foundation::tracing::try_init_from_default_env();
 
     let bind_raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)

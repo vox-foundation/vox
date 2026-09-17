@@ -1,12 +1,13 @@
 //! Tauri commands for model registry, routing preferences, and scoreboard surfaces.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::Serialize;
 use vox_config::AutoRoutingPriority;
+use vox_orchestrator::catalog::{MensCatalog, ModelCatalog};
 use vox_orchestrator::config::CostPreference;
 use vox_orchestrator::models::{
-    ModelRegistry, ModelSelectionRequest, SelectionIntent, TaskCategory, decide,
+    ModelRegistry, ModelSelectionRequest, ModelSpec, SelectionIntent, TaskCategory, decide,
     select_with_default_registry,
 };
 use vox_orchestrator::orch_daemon::OrchDaemonClient;
@@ -17,6 +18,9 @@ use crate::commands::daemon::PersistentDaemon;
 pub struct ModelCardDto {
     pub id: String,
     pub provider: String,
+    /// Debug-format `ProviderType` (`OpenRouter`, `VoxLocal`) so the picker
+    /// can match `inference_provider_status`. `provider` is often the org
+    /// prefix (`aion-labs`, `anthropic`), not the backend.
     pub provider_type: String,
     pub tier: String,
     pub cost_per_1k: f64,
@@ -155,10 +159,48 @@ async fn registry_with_scoreboard() -> ModelRegistry {
     reg
 }
 
+/// Union live Mens runs into `reg` (local FS scan only — no OpenRouter fetch).
+/// Live rows overwrite cache/bootstrap entries for the same id via [`ModelRegistry::register`].
+fn merge_live_mens_specs(reg: &mut ModelRegistry, live: impl IntoIterator<Item = ModelSpec>) {
+    for spec in live {
+        reg.register(spec);
+    }
+}
+
+/// Cheap local catalog refresh: scan `mens/runs/` under the workspace root.
+async fn refresh_live_mens_catalog(reg: &mut ModelRegistry) {
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    if let Ok(models) = MensCatalog::new(&repo_root).refresh().await {
+        merge_live_mens_specs(reg, models);
+    }
+}
+
+fn model_spec_to_card(m: &ModelSpec, success_rate: Option<f64>) -> ModelCardDto {
+    ModelCardDto {
+        id: m.id.clone(),
+        provider: m.provider.clone(),
+        provider_type: format!("{:?}", m.provider_type),
+        tier: format!("{:?}", m.capabilities.tier),
+        cost_per_1k: m.cost_per_1k,
+        max_tokens: u32::try_from(m.max_tokens).unwrap_or(u32::MAX),
+        is_free: m.is_free,
+        latency_p50_ms: m.capabilities.latency_p50_ms,
+        success_rate,
+        // Deliberately not surfaced (Task M0/M2): scoreboard quality is a constant
+        // until feedback rows exist — UI renders `—` for null.
+        quality_score: None,
+    }
+}
+
 #[tauri::command]
 pub async fn list_model_cards(limit: Option<usize>) -> Result<Vec<ModelCardDto>, String> {
-    let reg = registry_with_scoreboard().await;
-    let limit = limit.unwrap_or(200);
+    let mut reg = registry_with_scoreboard().await;
+    refresh_live_mens_catalog(&mut reg).await;
+    // Warm OpenRouter live TTL cache in the background so autocomplete is hot.
+    tokio::spawn(async {
+        vox_orchestrator::catalog_live::warm_openrouter_live_cache_if_keyed().await;
+    });
+    let limit = limit.unwrap_or(2000);
     let mut models = reg.list_models();
     models.sort_by(|a, b| a.id.cmp(&b.id));
 
@@ -167,25 +209,41 @@ pub async fn list_model_cards(limit: Option<usize>) -> Result<Vec<ModelCardDto>,
         .take(limit)
         .map(|m| {
             let sb = reg.scoreboard_snapshot().get(&m.id);
-            ModelCardDto {
-                id: m.id.clone(),
-                provider: m.provider.clone(),
-                provider_type: format!("{:?}", m.provider_type),
-                tier: format!("{:?}", m.capabilities.tier),
-                cost_per_1k: m.cost_per_1k,
-                max_tokens: u32::try_from(m.max_tokens).unwrap_or(u32::MAX),
-                is_free: m.is_free,
-                latency_p50_ms: m.capabilities.latency_p50_ms,
-                success_rate: sb.map(|s| s.success_rate),
-                // Deliberately not surfaced (Task M0/M2): `model_scoreboard.quality_score`
-                // is `COALESCE(AVG(llm_feedback.rating)/5.0, 1.0)` over a table with zero
-                // rows, i.e. a constant 1.0 for every model. Rendering it would put a
-                // confident-looking number on a value that carries no information. The
-                // UI already renders `—` for null. Restore once M2 defines the gate.
-                quality_score: None,
-            }
+            model_spec_to_card(&m, sb.map(|s| s.success_rate))
         })
         .collect())
+}
+
+/// Live keyed-provider model search for Loquela autocomplete.
+///
+/// Fetches OpenRouter / Anthropic / Google when those keys are present (OpenRouter
+/// list is TTL-cached in-process), always merges Mens FS runs, then filters/ranks
+/// by `query`. Does **not** read `model-catalog.v1.json`.
+#[tauri::command]
+pub async fn search_model_cards(
+    query: Option<String>,
+    limit: Option<usize>,
+) -> Result<Vec<ModelCardDto>, String> {
+    let q = query.unwrap_or_default();
+    let limit = limit.unwrap_or(80).clamp(1, 500);
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let specs =
+        vox_orchestrator::catalog_live::search_live_keyed_models(&repo_root, &q, limit).await;
+    Ok(specs.iter().map(|m| model_spec_to_card(m, None)).collect())
+}
+
+/// In-process fallback for the active-model round trip, used only when the
+/// workspace DB is unreachable (or the row hasn't landed yet). Replaces a
+/// prior `unsafe { std::env::set_var("VOX_MODEL", ...) }`: mutating the
+/// process environment from an async fn in a multi-threaded Tauri process is
+/// a data-race hazard, and it also collided with `VOX_MODEL` as a genuine
+/// user-set launch-time default (`docs/agents/config-hierarchy.md`) — writing
+/// here would have silently overridden that for the rest of the process's
+/// life. This static is local to the GUI's own display of the active model;
+/// it does not affect daemon-side routing (see `mcp_chat_model_override`).
+fn active_model_override() -> &'static Mutex<Option<String>> {
+    static OVERRIDE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+    OVERRIDE.get_or_init(|| Mutex::new(None))
 }
 
 #[tauri::command]
@@ -197,17 +255,32 @@ pub async fn set_active_model(model_id: String) -> Result<(), String> {
     if reg.get(&model_id).is_none() {
         return Err(format!("model {model_id} not found in registry"));
     }
-    unsafe {
-        std::env::set_var("VOX_MODEL", model_id.trim());
-    }
+    let trimmed = model_id.trim().to_string();
+    *active_model_override().lock().unwrap() = Some(trimmed.clone());
     if let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
     {
         let _ = db
-            .set_user_preference("local_user", "active_model", model_id.trim())
+            .set_user_preference("local_user", "active_model", &trimmed)
             .await;
     }
     Ok(())
+}
+
+/// What [`get_active_model`] returns when the DB preference is absent or
+/// unreadable: the in-process override set by [`set_active_model`] (same
+/// GUI-process display fallback the old env round trip provided), else the
+/// genuine user-set `VOX_MODEL` launch-time env var. Pure / no I/O beyond
+/// the mutex and `resolve_secret`, so it's testable without a DB.
+fn active_model_fallback() -> Option<String> {
+    if let Some(v) = active_model_override().lock().unwrap().clone() {
+        return Some(v);
+    }
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxModel)
+        .expose()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
 }
 
 #[tauri::command]
@@ -219,11 +292,7 @@ pub async fn get_active_model() -> Result<Option<String>, String> {
     {
         return Ok(Some(v));
     }
-    Ok(vox_secrets::resolve_secret(vox_secrets::SecretId::VoxModel)
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string))
+    Ok(active_model_fallback())
 }
 
 #[tauri::command]
@@ -614,6 +683,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn active_model_fallback_returns_in_process_override_when_set() {
+        // Simulates get_active_model's post-DB-miss path: the DB row is
+        // absent/unreadable, so it falls through to active_model_fallback().
+        // This proves set_active_model's in-process write (which replaced the
+        // unsafe VOX_MODEL env round trip) is actually observed by
+        // get_active_model when the DB is unavailable.
+        *active_model_override().lock().unwrap() = None;
+        assert_eq!(active_model_fallback(), None);
+
+        *active_model_override().lock().unwrap() = Some("mens/just-set-model".to_string());
+        assert_eq!(
+            active_model_fallback(),
+            Some("mens/just-set-model".to_string())
+        );
+
+        // Clean up so this test doesn't leak state into others in the binary.
+        *active_model_override().lock().unwrap() = None;
+    }
+
+    #[test]
     fn routing_priority_csv_shape() {
         let csv = "efficiency=40,precision=30,latency=10,availability=10,balance=5,mobile=5";
         assert!(csv.contains("efficiency=40"));
@@ -683,6 +772,26 @@ mod tests {
     }
 
     #[test]
+    fn list_model_card_dto_serializes_provider_type() {
+        let card = ModelCardDto {
+            id: "mens/e2e-smoke-metal".into(),
+            provider: "populi_local".into(),
+            provider_type: "VoxLocal".into(),
+            tier: "Local".into(),
+            cost_per_1k: 0.0,
+            max_tokens: 512,
+            is_free: true,
+            latency_p50_ms: None,
+            success_rate: None,
+            quality_score: None,
+        };
+        let json = serde_json::to_value(&card).expect("serialize ModelCardDto");
+        assert_eq!(json["provider_type"], "VoxLocal");
+        assert_eq!(json["id"], "mens/e2e-smoke-metal");
+        assert_eq!(json["provider"], "populi_local");
+    }
+
+    #[test]
     fn priority_to_csv_round_trips_through_apply() {
         let p = sample_priority();
         let csv = priority_to_csv(&p);
@@ -728,5 +837,55 @@ mod tests {
         let sel = res.unwrap();
         assert!(!sel.selected_model_id.is_empty());
         assert!(!sel.tier_reason.is_empty());
+    }
+
+    fn sample_mens_spec(id: &str, max_tokens: u64) -> ModelSpec {
+        use vox_orchestrator::models::spec::{ModelCapabilities, PricingSource, ProviderType};
+        use vox_orchestrator::models::{ModelTier, StrengthTag};
+        ModelSpec {
+            id: id.to_string(),
+            canonical_slug: id.to_string(),
+            provider: "populi_local".to_string(),
+            provider_type: ProviderType::VoxLocal,
+            max_tokens,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            strengths: vec![StrengthTag::Generalist],
+            capabilities: ModelCapabilities {
+                tier: ModelTier::Local,
+                writes_vox: true,
+                ..Default::default()
+            },
+            supported_parameters: vec![],
+            observed_cost_per_1k: None,
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Bootstrap,
+        }
+    }
+
+    #[test]
+    fn merge_live_mens_specs_adds_new_runs_and_prefers_live_for_same_id() {
+        let mut reg = ModelRegistry::new();
+        reg.clear();
+        reg.register(sample_mens_spec("mens/stale-run", 4096));
+
+        merge_live_mens_specs(
+            &mut reg,
+            [
+                sample_mens_spec("mens/stale-run", 8192),
+                sample_mens_spec("mens/fresh-run", 8192),
+            ],
+        );
+
+        let ids: Vec<_> = reg.list_models().into_iter().map(|m| m.id).collect();
+        assert!(ids.contains(&"mens/fresh-run".to_string()));
+        assert_eq!(
+            reg.get("mens/stale-run").expect("stale-run").max_tokens,
+            8192
+        );
     }
 }

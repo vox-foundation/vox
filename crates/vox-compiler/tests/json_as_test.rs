@@ -44,7 +44,7 @@ fn run_bool(src: &str) -> bool {
 
 fn run_str(src: &str) -> String {
     match run(src).expect("run_str") {
-        VoxValue::Str(s) => s,
+        VoxValue::Str(s) => s.to_string(),
         other => panic!("expected Str, got {other:?}"),
     }
 }

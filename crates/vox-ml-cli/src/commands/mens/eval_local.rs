@@ -8,9 +8,24 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 use vox_bounded_fs::read_utf8_path_capped;
+// `AstEvalReport::coverage_score()` is distinct-construct-*kind*-count / 8, not
+// a body-substance metric: every task in `mens/data/heldout_bench/manifest.json`
+// asks for exactly one top-level declaration, so a correct answer and an
+// empty-body stub of it both declare the same single kind and score exactly
+// 1/8 = 0.125 — the metric cannot tell them apart at any threshold. The old
+// 0.20 floor didn't add stub protection, it just made this dimension reject
+// every single-declaration answer, correct or not (verified empirically: the
+// manifest's own hand-authored `answer` for `workflow_fetch_save` scores
+// 0.125 and failed the gate). Floor it at the maximum a single declaration
+// can reach instead; `placeholder_marker_hits` and `is_trivial_placeholder_output`
+// (checked alongside this in `verify_completion`) are what actually catch a
+// stubbed body — this dimension only rejects the *degenerate* case of zero
+// declared constructs (parse failure or a fully empty module).
+pub use super::metrics::ANTI_STUB_MIN_CONSTRUCT_RICHNESS;
 
 pub fn run_eval_local(
-    model: PathBuf,
+    model: Option<PathBuf>,
+    base: Option<PathBuf>,
     bench: PathBuf,
     max_tokens: usize,
     temperature: f32,
@@ -19,6 +34,19 @@ pub fn run_eval_local(
     output: Option<PathBuf>,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
+
+    // `--base <dir>` points at a base-model snapshot with no adapter present
+    // (the `InferenceEngine::load` base-only path) — the baseline side of a
+    // pass@k/BFCL candidate-vs-base comparison. `--model` is the historical
+    // (adapter or merged run directory) entry point. Exactly one is required;
+    // both being set would silently prefer one over the other.
+    let is_base_only = base.is_some();
+    let model = match (model, base) {
+        (Some(m), None) => m,
+        (None, Some(b)) => b,
+        (None, None) => anyhow::bail!("either --model or --base is required"),
+        (Some(_), Some(_)) => anyhow::bail!("--model and --base are mutually exclusive"),
+    };
 
     if !model.exists() {
         anyhow::bail!(
@@ -195,6 +223,9 @@ pub fn run_eval_local(
                             "distinct_4_ratio": v.distinct_4_ratio,
                             "constraint_adherence": v.constraint_adherence,
                             "symbol_binding_accuracy": v.symbol_binding_accuracy,
+                            "tool_call_json_valid": looks_like_json_tool_call(&completion),
+                            "tool_name_exists": tool_call_names_a_tool(&completion),
+                            "tool_call_salvaged": tool_call_was_salvaged(&completion),
                             "checks": v.checks,
                             "completion_preview": completion.chars().take(240).collect::<String>(),
                         });
@@ -375,6 +406,7 @@ pub fn run_eval_local(
 
     let report = serde_json::json!({
         "model": model.to_string_lossy(),
+        "base_only": is_base_only,
         "bench": bench.to_string_lossy(),
         "max_tokens": max_tokens,
         "temperature": temperature,
@@ -420,6 +452,25 @@ pub fn run_eval_local(
                 }))?,
             )?;
             eprintln!("  pass@k summary saved: {}", passk_path.display());
+
+            // Give eval-gates-agents.yaml's tool_call_salvage_rate a producer:
+            // merge (not clobber) it into eval_results.json. rust_compile_rate /
+            // clippy_clean_rate / tool_call_valid_json_rate / tool_name_exists_rate
+            // are deliberately NOT touched here — see aggregate_gate_producer_keys's
+            // doc comment for why (they already have real producers via
+            // `vox corpus eval`, and this path used to silently overwrite them
+            // with a weaker proxy).
+            let eval_results_path = parent.join("eval_results.json");
+            let mut eval_results_obj = read_json_object_or_empty(&eval_results_path);
+            eval_results_obj.extend(aggregate_gate_producer_keys(&results));
+            std::fs::write(
+                &eval_results_path,
+                serde_json::to_string_pretty(&serde_json::Value::Object(eval_results_obj))?,
+            )?;
+            eprintln!(
+                "  eval_results.json updated: {}",
+                eval_results_path.display()
+            );
         }
     } else {
         println!("{}", serde_json::to_string_pretty(&report)?);
@@ -439,4 +490,621 @@ pub fn run_eval_local(
     );
 
     Ok(())
+}
+
+/// Lightweight shape check — not a second verifier, just "does this completion
+/// parse as JSON" — mirroring `placeholder_marker_hits`'s role as a cheap
+/// format signal alongside the real `verify_completion` pass/fail.
+fn looks_like_json_tool_call(source: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(source.trim()).is_ok()
+}
+
+/// Cheap shape check mirroring `agent_loop.rs`'s `is_tool_call_shape`: an
+/// object with a `"name"` key whose value is a string. Deliberately does
+/// *not* require `"arguments"` — the live route's `fenced_json_candidate`
+/// doesn't either (see `extract_tool_call_json`'s doc comment).
+fn is_tool_call_shape(v: &serde_json::Value) -> bool {
+    v.as_object()
+        .is_some_and(|o| o.get("name").is_some_and(serde_json::Value::is_string))
+}
+
+/// Task B2 (MENS end-to-end completion): extract a tool-call-shaped JSON
+/// object (`{"name": ...}`) from `source`, via the same fenced-block /
+/// bare-text brace-matching extraction `vox-orchestrator-mcp`'s
+/// `agent_loop.rs` salvage policy (`salvage_tool_call_from_text`) performs on
+/// a live turn — duplicated here (not a shared crate edge: see the
+/// dependency-discipline defactor policy) because this benchmark harness
+/// calls the raw inference engine directly (`run_inference`), never the
+/// `/v1/chat/completions` HTTP route, so there is no live turn to observe the
+/// salvage from.
+///
+/// Mirrors the live route's two-tier strictness *exactly*, because a looser
+/// match here made `tool_call_salvage_rate` read more optimistic than what a
+/// real turn would recover (found in review after this duplicate first
+/// diverged from `agent_loop.rs`):
+///   - a fenced ` ```json {...} ``` ` block only needs `"name"` to be a
+///     string (`is_tool_call_shape`, no `"arguments"` requirement) — same as
+///     `fenced_json_candidate`.
+///   - bare (non-fenced) text — including a whole completion that happens to
+///     be top-level JSON — requires `"name"` and `"arguments"` to appear as
+///     an *adjacent* literal key pair before brace-matching is even
+///     attempted, same as `bare_json_candidate`. A model emitting an extra
+///     key between them, or `"arguments"` before `"name"`, is a shape the
+///     live salvage step does NOT recover, so this harness must not credit
+///     it either.
+fn extract_tool_call_json(source: &str) -> Option<serde_json::Value> {
+    static FENCE_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let fence_re = FENCE_RE
+        .get_or_init(|| regex::Regex::new(r"(?s)```json\s*(\{.*?\})\s*```").expect("static regex"));
+    for caps in fence_re.captures_iter(source) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&caps[1])
+            && is_tool_call_shape(&v)
+        {
+            return Some(v);
+        }
+    }
+    static NAME_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let name_re = NAME_RE.get_or_init(|| {
+        regex::Regex::new(r#""name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:"#).expect("static regex")
+    });
+    for m in name_re.find_iter(source) {
+        let bytes = source.as_bytes();
+        let mut depth = 0i32;
+        let mut start = None;
+        let mut i = m.start();
+        loop {
+            match bytes.get(i) {
+                Some(b'}') => depth += 1,
+                Some(b'{') => {
+                    if depth == 0 {
+                        start = Some(i);
+                        break;
+                    }
+                    depth -= 1;
+                }
+                _ => {}
+            }
+            if i == 0 {
+                break;
+            }
+            i -= 1;
+        }
+        let Some(start) = start else { continue };
+        let mut depth = 0i32;
+        for (j, b) in bytes.iter().enumerate().skip(start) {
+            match b {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        if let Some(slice) = source.get(start..=j)
+                            && let Ok(v) = serde_json::from_str::<serde_json::Value>(slice)
+                            && is_tool_call_shape(&v)
+                        {
+                            return Some(v);
+                        }
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    None
+}
+
+/// Task B2: cheap format signal — does `source` contain a tool-call-shaped
+/// JSON object naming a (non-empty-string) tool at all, structured or
+/// salvaged. Like `looks_like_json_tool_call`, this is not a verifier that
+/// the name is a real registered tool: this harness has no tool catalog to
+/// check names against (unlike the live `/v1/chat/completions` route, which
+/// does — see `vox-ml-cli`'s `serve/handlers.rs`).
+fn tool_call_names_a_tool(source: &str) -> bool {
+    extract_tool_call_json(source)
+        .and_then(|v| {
+            v.get("name")
+                .and_then(|n| n.as_str())
+                .map(|s| !s.is_empty())
+        })
+        .unwrap_or(false)
+}
+
+/// Task B2: true when a tool-call-shaped JSON object was only recoverable
+/// via prose/fenced-block extraction (`source.trim()` alone does not parse
+/// as JSON) — the same "step 2" condition `agent_loop.rs`'s salvage policy
+/// uses to tag `tool_call_salvaged: true` on a live turn.
+fn tool_call_was_salvaged(source: &str) -> bool {
+    if serde_json::from_str::<serde_json::Value>(source.trim()).is_ok() {
+        return false;
+    }
+    extract_tool_call_json(source).is_some()
+}
+
+/// Aggregate the `eval_results.json` keys eval-local can *honestly* produce
+/// from its own already-computed per-item results — the same
+/// `verify_completion` pass / json-shape signal, not a second verifier.
+///
+/// Only `tool_call_salvage_rate` is emitted here. `rust_compile_rate` /
+/// `clippy_clean_rate` / `tool_call_valid_json_rate` / `tool_name_exists_rate`
+/// are deliberately **not** computed by this function: each already has a
+/// real, corpus-derived producer wired into `vox corpus eval`
+/// (`crates/vox-ml-cli/src/commands/corpus/stats.rs::run_eval`), which writes
+/// into the same `run_dir/eval_results.json` this function's caller also
+/// targets, as part of the mens pipeline's `Eval` stage — i.e. *before*
+/// eval-local runs, per the natural pipeline order (train -> corpus-eval ->
+/// eval-local).
+///
+/// - `rust_compile_rate`/`clippy_clean_rate`: `compute_rust_spoke_metrics`
+///   (`vox-corpus/src/corpus/eval_rust_metrics.rs`) spawns actual `cargo
+///   build`/`cargo clippy`.
+/// - `tool_call_valid_json_rate`/`tool_name_exists_rate`:
+///   `compute_agentic_spoke_metrics`
+///   (`vox-corpus/src/corpus/eval_agentic_metrics.rs`) checks the training
+///   corpus's own agent_trace/tool_trace rows against the real tool
+///   registry (`vox_mcp_registry`), the same "written by the eval step"
+///   producer `eval-gates-agents.yaml`'s header comment documents.
+///
+/// eval-local's own verifier never runs a Rust compiler, clippy, or the real
+/// tool registry — its `pass_at_k`/`anti_stub_pass`/`tool_call_json_valid`/
+/// `tool_name_exists` sample flags are all downstream of the same
+/// benchmark-completion heuristics, not the ground-truth checks the real
+/// producers use. A prior version of this function computed
+/// `rust_compile_rate`/`clippy_clean_rate` from that proxy and — because it
+/// ran *after* the real producer in the natural pipeline order — silently
+/// overwrote the real compiler/linter signal with it (see Task A3 report,
+/// "Part (a) fix"). Emitting `tool_call_valid_json_rate`/
+/// `tool_name_exists_rate` here would reintroduce the identical collision
+/// against `compute_agentic_spoke_metrics`'s output now that it is wired
+/// into `run_eval`, so those two keys were removed from this function's
+/// output (a mens-end-to-end-completion fast-follow) the same way the rust
+/// keys never appear here.
+///
+/// `tool_call_salvage_rate` has no other producer, so it stays here.
+///
+/// A category with zero rows omits `tool_call_salvage_rate` entirely
+/// (matches the existing "not applicable" semantics elsewhere in
+/// `check_run.rs`).
+fn aggregate_gate_producer_keys(
+    results: &[serde_json::Value],
+) -> serde_json::Map<String, serde_json::Value> {
+    fn category_of(entry: &serde_json::Value) -> &str {
+        entry.get("category").and_then(|c| c.as_str()).unwrap_or("")
+    }
+    fn any_sample_flag(entry: &serde_json::Value, flag: &str) -> bool {
+        entry
+            .get("samples")
+            .and_then(|s| s.as_array())
+            .is_some_and(|samples| {
+                samples
+                    .iter()
+                    .any(|s| s.get(flag).and_then(|v| v.as_bool()).unwrap_or(false))
+            })
+    }
+
+    let mut out = serde_json::Map::new();
+
+    let agent_rows: Vec<&serde_json::Value> = results
+        .iter()
+        .filter(|e| matches!(category_of(e), "agent_trace" | "tool_trace"))
+        .collect();
+    if !agent_rows.is_empty() {
+        let n = agent_rows.len() as f64;
+        let salvaged = agent_rows
+            .iter()
+            .filter(|e| any_sample_flag(e, "tool_call_salvaged"))
+            .count() as f64;
+        out.insert(
+            "tool_call_salvage_rate".to_string(),
+            serde_json::json!(salvaged / n),
+        );
+    }
+
+    out
+}
+
+/// Read `path` as a JSON object, or an empty object if absent/unparseable.
+/// Used to merge eval-local's producer keys into `eval_results.json` without
+/// clobbering keys another producer (e.g. `vox corpus eval`) already wrote
+/// there — `vox_parse_rate`, `construct_coverage_pct`, `context_breakdown`.
+fn read_json_object_or_empty(path: &std::path::Path) -> serde_json::Map<String, serde_json::Value> {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| v.as_object().cloned())
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `--base <base-model-dir>` is the new base-only load path (Task
+    /// followup: base-only inference); `--model` is unchanged. Neither or
+    /// both being set is a usage error caught before any inference backend
+    /// is touched, not a guess at which one the caller meant.
+    #[test]
+    fn run_eval_local_requires_exactly_one_of_model_or_base() {
+        let bench = PathBuf::from("mens/data/heldout_bench");
+
+        let neither = run_eval_local(None, None, bench.clone(), 8, 0.0, 1, 0, None);
+        let err = neither.expect_err("neither --model nor --base must be a usage error");
+        assert!(
+            err.to_string().contains("either --model or --base"),
+            "{err}"
+        );
+
+        let both = run_eval_local(
+            Some(PathBuf::from("/a")),
+            Some(PathBuf::from("/b")),
+            bench,
+            8,
+            0.0,
+            1,
+            0,
+            None,
+        );
+        let err = both.expect_err("--model and --base together must be a usage error");
+        assert!(err.to_string().contains("mutually exclusive"), "{err}");
+    }
+
+    fn entry(category: &str, pass_at_k: bool, anti_stub_pass: bool) -> serde_json::Value {
+        serde_json::json!({
+            "category": category,
+            "pass_at_k": pass_at_k,
+            "samples": [
+                {"anti_stub_pass": anti_stub_pass, "tool_call_json_valid": false}
+            ],
+        })
+    }
+
+    #[test]
+    fn aggregate_gate_producer_keys_never_emits_rust_keys() {
+        // Fix for review finding #1 (Task A3 follow-up): eval-local's own
+        // verifier never runs cargo build/clippy — its old rust_compile_rate
+        // and clippy_clean_rate were both downstream of the same
+        // anti_stub_pass heuristic (rust_compile_rate <= clippy_clean_rate by
+        // construction, since `pass = pass && anti_stub_pass`), so it was a
+        // proxy pretending to be a compiler signal. Even feeding it a
+        // rust_authoring row that would previously have produced
+        // rust_compile_rate=1.0 must emit neither key now.
+        let results = vec![entry("rust_authoring", true, true)];
+        let keys = aggregate_gate_producer_keys(&results);
+        assert!(
+            !keys.contains_key("rust_compile_rate"),
+            "eval-local must never compute rust_compile_rate (no compiler runs here): {keys:?}"
+        );
+        assert!(
+            !keys.contains_key("clippy_clean_rate"),
+            "eval-local must never compute clippy_clean_rate (no clippy runs here): {keys:?}"
+        );
+    }
+
+    #[test]
+    fn aggregate_gate_producer_keys_never_emits_tool_call_valid_json_rate() {
+        // mens-end-to-end-completion fast-follow: `compute_agentic_spoke_metrics`
+        // (wired into `vox corpus eval`'s `run_eval`) is now the real,
+        // corpus-derived producer for `tool_call_valid_json_rate`. eval-local
+        // must never emit it, or it clobbers that real signal on merge (the
+        // exact collision class already fixed for the rust keys below).
+        let mut passing = entry("agent_trace", true, true);
+        passing["samples"][0]["tool_call_json_valid"] = serde_json::json!(true);
+        let failing = entry("tool_trace", false, false);
+        let results = vec![passing, failing];
+        let keys = aggregate_gate_producer_keys(&results);
+        assert!(
+            !keys.contains_key("tool_call_valid_json_rate"),
+            "eval-local must defer to compute_agentic_spoke_metrics for tool_call_valid_json_rate: {keys:?}"
+        );
+    }
+
+    #[test]
+    fn looks_like_json_tool_call_accepts_json_rejects_prose() {
+        assert!(looks_like_json_tool_call(
+            r#"{"tool_name":"x","arguments":{}}"#
+        ));
+        assert!(!looks_like_json_tool_call("not json at all"));
+    }
+
+    #[test]
+    fn tool_call_names_a_tool_accepts_clean_and_salvaged_shapes() {
+        assert!(tool_call_names_a_tool(
+            r#"{"name":"read_file","arguments":{}}"#
+        ));
+        assert!(tool_call_names_a_tool(
+            "I'll use it. ```json\n{\"name\":\"read_file\",\"arguments\":{}}\n```"
+        ));
+        assert!(!tool_call_names_a_tool("just prose, no tool call here"));
+        assert!(!tool_call_names_a_tool(r#"{"arguments":{}}"#));
+    }
+
+    #[test]
+    fn extract_tool_call_json_rejects_extra_key_between_name_and_arguments() {
+        // Fix for the salvage-regex divergence (Task followup): the live
+        // `/v1/chat/completions` route's `bare_json_candidate`
+        // (crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs)
+        // requires `"name"` and `"arguments"` to appear as an adjacent
+        // literal key pair before it will brace-match and salvage a bare
+        // (non-fenced) tool call. A model emitting an extra key wedged in
+        // between is a shape the live route does NOT recover — this harness
+        // must not credit it as a salvage/tool-name-exists hit either, or
+        // `tool_call_salvage_rate` reads more optimistic than what users
+        // actually experience.
+        let text = r#"{"name": "read_file", "notes": "some extra context", "arguments": {}}"#;
+        assert!(
+            extract_tool_call_json(text).is_none(),
+            "extra key between name and arguments must not be salvaged"
+        );
+        assert!(!tool_call_names_a_tool(text));
+    }
+
+    #[test]
+    fn extract_tool_call_json_rejects_arguments_before_name() {
+        // Same divergence, other direction: agent_loop.rs's regex anchors on
+        // `"name"` occurring before `"arguments"` — arguments-first ordering
+        // does not match it, so the live route completes the turn as plain
+        // text rather than salvaging.
+        let text = r#"{"arguments": {}, "name": "read_file"}"#;
+        assert!(
+            extract_tool_call_json(text).is_none(),
+            "arguments-before-name ordering must not be salvaged"
+        );
+        assert!(!tool_call_names_a_tool(text));
+    }
+
+    #[test]
+    fn tool_call_was_salvaged_only_when_extraction_was_needed() {
+        assert!(
+            !tool_call_was_salvaged(r#"{"name":"read_file","arguments":{}}"#),
+            "clean top-level JSON is not a salvage"
+        );
+        assert!(tool_call_was_salvaged(
+            "I'll use it. ```json\n{\"name\":\"read_file\",\"arguments\":{}}\n```"
+        ));
+        assert!(!tool_call_was_salvaged("no tool call in this text at all"));
+    }
+
+    #[test]
+    fn tool_name_exists_rate_never_emitted_but_salvage_rate_is() {
+        // mens-end-to-end-completion fast-follow: same deferral as
+        // tool_call_valid_json_rate above, for `tool_name_exists_rate` —
+        // `compute_agentic_spoke_metrics` is now its real producer.
+        // `tool_call_salvage_rate` has no other producer, so it still comes
+        // from here.
+        fn entry_with_flags(
+            category: &str,
+            name_exists: bool,
+            salvaged: bool,
+        ) -> serde_json::Value {
+            serde_json::json!({
+                "category": category,
+                "pass_at_k": true,
+                "samples": [
+                    {"tool_call_json_valid": false, "tool_name_exists": name_exists, "tool_call_salvaged": salvaged}
+                ],
+            })
+        }
+        let results = vec![
+            entry_with_flags("agent_trace", true, false),
+            entry_with_flags("agent_trace", true, true),
+            entry_with_flags("tool_trace", false, false),
+            entry_with_flags("tool_trace", false, false),
+        ];
+        let keys = aggregate_gate_producer_keys(&results);
+        assert!(
+            !keys.contains_key("tool_name_exists_rate"),
+            "eval-local must defer to compute_agentic_spoke_metrics for tool_name_exists_rate: {keys:?}"
+        );
+        assert_eq!(
+            keys.get("tool_call_salvage_rate").and_then(|v| v.as_f64()),
+            Some(0.25)
+        );
+    }
+
+    #[test]
+    fn eval_results_json_merges_without_clobbering_other_producers() {
+        // Another producer (`vox corpus eval`) may have already written
+        // vox_parse_rate / construct_coverage_pct into eval_results.json — our
+        // write must not destroy those keys.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("eval_results.json");
+        std::fs::write(
+            &path,
+            r#"{"vox_parse_rate": 0.99, "construct_coverage_pct": 42.0}"#,
+        )
+        .unwrap();
+
+        let mut merged = read_json_object_or_empty(&path);
+        merged.extend(aggregate_gate_producer_keys(&[entry(
+            "agent_trace",
+            true,
+            true,
+        )]));
+        std::fs::write(
+            &path,
+            serde_json::to_string_pretty(&serde_json::Value::Object(merged)).unwrap(),
+        )
+        .unwrap();
+
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(v["vox_parse_rate"], 0.99);
+        assert_eq!(v["construct_coverage_pct"], 42.0);
+    }
+
+    #[test]
+    fn eval_results_json_merge_leaves_real_rust_producer_values_untouched() {
+        // Fix for review finding #2 (Task A3 follow-up): `vox corpus eval`
+        // (compute_rust_spoke_metrics — real cargo build/clippy) may already
+        // have written rust_compile_rate/clippy_clean_rate into
+        // eval_results.json before eval-local runs (the natural pipeline
+        // order is train -> corpus-eval -> eval-local). eval-local's merge
+        // must never touch those two keys, no matter what its own results
+        // contain — proven here by feeding it a rust_authoring row that
+        // would previously (before the fix) have produced
+        // rust_compile_rate=0.0, and confirming the real producer's 0.87/0.91
+        // survive exactly.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("eval_results.json");
+        std::fs::write(
+            &path,
+            r#"{"rust_compile_rate": 0.87, "clippy_clean_rate": 0.91}"#,
+        )
+        .unwrap();
+
+        let mut merged = read_json_object_or_empty(&path);
+        merged.extend(aggregate_gate_producer_keys(&[entry(
+            "rust_authoring",
+            false,
+            false,
+        )]));
+        std::fs::write(
+            &path,
+            serde_json::to_string_pretty(&serde_json::Value::Object(merged)).unwrap(),
+        )
+        .unwrap();
+
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(
+            v["rust_compile_rate"], 0.87,
+            "real compiler-backed rust_compile_rate must survive eval-local's merge untouched"
+        );
+        assert_eq!(
+            v["clippy_clean_rate"], 0.91,
+            "real clippy-backed clippy_clean_rate must survive eval-local's merge untouched"
+        );
+    }
+
+    #[test]
+    fn eval_results_json_merge_leaves_real_agentic_producer_values_untouched() {
+        // mens-end-to-end-completion fast-follow, agentic-key analogue of the
+        // rust test above: `vox corpus eval` (compute_agentic_spoke_metrics —
+        // real tool-registry-backed check) may already have written
+        // tool_call_valid_json_rate/tool_name_exists_rate into
+        // eval_results.json before eval-local runs. eval-local's merge must
+        // never touch those two keys, no matter what its own results
+        // contain — proven here by feeding it an agent_trace row that would
+        // previously (before this fix) have produced
+        // tool_call_valid_json_rate=0.0/tool_name_exists_rate=0.0, and
+        // confirming the real producer's 0.93/0.88 survive exactly.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("eval_results.json");
+        std::fs::write(
+            &path,
+            r#"{"tool_call_valid_json_rate": 0.93, "tool_name_exists_rate": 0.88}"#,
+        )
+        .unwrap();
+
+        let mut merged = read_json_object_or_empty(&path);
+        merged.extend(aggregate_gate_producer_keys(&[entry(
+            "agent_trace",
+            false,
+            false,
+        )]));
+        std::fs::write(
+            &path,
+            serde_json::to_string_pretty(&serde_json::Value::Object(merged)).unwrap(),
+        )
+        .unwrap();
+
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(
+            v["tool_call_valid_json_rate"], 0.93,
+            "real corpus-backed tool_call_valid_json_rate must survive eval-local's merge untouched"
+        );
+        assert_eq!(
+            v["tool_name_exists_rate"], 0.88,
+            "real corpus-backed tool_name_exists_rate must survive eval-local's merge untouched"
+        );
+    }
+
+    /// Fast-follow (Task -1A corpus-ceiling kill test): every task in
+    /// `mens/data/heldout_bench/manifest.json` asks for exactly one
+    /// top-level declaration, so `AstEvalReport::coverage_score()`
+    /// (distinct construct kinds / 8) tops out at 1/8 = 0.125 for *any*
+    /// correct single-declaration answer — below the old 0.20 anti-stub
+    /// floor. This reproduces that with the manifest's own hand-authored,
+    /// verified-correct answer for `workflow_fetch_save`.
+    #[test]
+    fn anti_stub_gate_accepts_correct_single_declaration_answer() {
+        let answer = "workflow fetch_and_save(url: str) to str {\n    let data = http.get(url)\n    fs.write_file(\"output.txt\", data)\n    return data\n}";
+        let dir = tempfile::tempdir().unwrap();
+        let v = verify_completion(answer, dir.path(), "", "workflow_fetch_save", 0, &[]);
+
+        let richness = v.checks["construct_richness_score"].as_f64().unwrap();
+        assert!(
+            (richness - 0.125).abs() < 1e-9,
+            "a single top-level declaration can only reach 1/8 distinct \
+             construct kinds; got {richness}"
+        );
+        assert!(
+            v.anti_stub_pass,
+            "a verified-correct single-declaration answer must pass the \
+             anti-stub gate: {:?}",
+            v.checks
+        );
+    }
+
+    /// The per-answer fix above (`ANTI_STUB_MIN_CONSTRUCT_RICHNESS = 0.125`) is necessary but
+    /// not sufficient: `construct_richness_mean` (the MEAN of this same score across a whole
+    /// eval run) feeds a *separate* blocking gate read from `mens/config/eval-gates.yaml` by
+    /// `check_run.rs`, which was never updated in the same fix and stayed at the old 0.20 floor
+    /// — still structurally unpassable by a perfect single-declaration-per-task bench, by the
+    /// identical argument. This asserts both real YAML policy files carry the corrected
+    /// threshold, so the "fixed one, forgot the other" bug class can't silently recur.
+    #[test]
+    fn eval_gate_yaml_thresholds_match_anti_stub_min_construct_richness() {
+        let config_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../mens/config");
+        for name in ["eval-gates.yaml", "eval-gates-post-train.yaml"] {
+            let path = config_dir.join(name);
+            let policy = crate::commands::mens::eval_gate::load_policy(&path)
+                .unwrap_or_else(|e| panic!("failed to load {}: {e}", path.display()));
+            assert_eq!(
+                policy.anti_stub.min_construct_richness_mean, ANTI_STUB_MIN_CONSTRUCT_RICHNESS,
+                "{name}'s anti_stub.min_construct_richness_mean must match \
+                 ANTI_STUB_MIN_CONSTRUCT_RICHNESS in eval_local.rs — they gate the same \
+                 per-answer construct-richness score (per-answer floor vs. run-mean floor) \
+                 and must move together"
+            );
+        }
+    }
+
+    /// Acceptance test for the blocking-gate fix itself: a perfect run whose every answer is a
+    /// correct single-declaration bench solution has `construct_richness_mean == 0.125` (the
+    /// mean of identical per-answer scores). Confirm that value now clears the real
+    /// `eval-gates.yaml` blocking threshold — reproducing the exact comparison
+    /// `check_run.rs::check_run` performs, without needing a full training run directory.
+    #[test]
+    fn perfect_run_construct_richness_mean_clears_fixed_blocking_gate() {
+        let construct_richness_mean = ANTI_STUB_MIN_CONSTRUCT_RICHNESS; // perfect single-decl run
+        let config_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../mens/config");
+        let policy =
+            crate::commands::mens::eval_gate::load_policy(&config_dir.join("eval-gates.yaml"))
+                .expect("load eval-gates.yaml");
+        assert!(
+            construct_richness_mean >= policy.anti_stub.min_construct_richness_mean,
+            "a perfect single-declaration bench run (mean={construct_richness_mean}) must clear \
+             the blocking construct-richness-mean gate ({}), or every correct model is rejected",
+            policy.anti_stub.min_construct_richness_mean
+        );
+    }
+
+    /// Companion to the test above: a genuinely stubbed body for the same
+    /// task must still fail the anti-stub gate after the fix — the
+    /// construct-richness floor was never what caught this class of stub
+    /// (a stub's `fn`/`workflow` kind scores identically to a correct
+    /// answer's); `placeholder_marker_hits` is, and must keep working.
+    #[test]
+    fn anti_stub_gate_still_rejects_placeholder_stub_for_same_task() {
+        let stub = "workflow fetch_and_save(url: str) to str {\n    // TODO: implement\n}";
+        let dir = tempfile::tempdir().unwrap();
+        let v = verify_completion(stub, dir.path(), "", "workflow_fetch_save", 0, &[]);
+
+        assert!(
+            !v.anti_stub_pass,
+            "a TODO-stubbed body must still fail the anti-stub gate: {:?}",
+            v.checks
+        );
+    }
 }

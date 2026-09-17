@@ -5,6 +5,7 @@
 
 /// Defaults for Mens inference bind/port/temperature (shared with `vox mens serve`).
 pub mod inference_defaults;
+pub mod model_id;
 
 #[cfg(feature = "mens-dei")]
 /// Natural language code generation.

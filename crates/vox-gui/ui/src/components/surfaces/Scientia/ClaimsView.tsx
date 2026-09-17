@@ -41,7 +41,7 @@ export function VerdictBadge({ verdict }: { verdict: string | null }) {
   const key = verdict ? verdict.toLowerCase() : '';
   const cls = key ? VERDICT_STYLE[key] ?? VERDICT_STYLE.abstain : 'bg-overlay-subtle text-text-muted ring-1 ring-white/10';
   return (
-    <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>{label}</span>
+    <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>{label}</span>
   );
 }
 
@@ -128,7 +128,7 @@ export function ClaimsView({ pushToast, initialClaims }: ClaimsViewProps) {
           value={publicationId}
           onChange={(e) => setPublicationId(e.target.value)}
           placeholder="publication id"
-          className="min-w-[16rem] flex-1 rounded-lg border border-border-subtle bg-black/30 px-3 py-1.5 font-mono text-sm text-text-secondary focus:border-cyan focus:outline-none"
+          className="min-w-[16rem] flex-1 rounded-lg border border-border-subtle bg-black/30 px-3 py-1.5 font-mono text-sm text-text-secondary focus:border-cyan focus:outline-hidden"
         />
         <button
           type="button"

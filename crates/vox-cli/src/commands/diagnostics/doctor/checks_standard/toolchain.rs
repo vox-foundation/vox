@@ -196,46 +196,19 @@ pub async fn run(auto_heal: bool, tier: &str, checks: &mut Vec<Check>) {
         },
     });
 
-    let wasi_target = Command::new("rustup")
-        .args(["target", "list", "--installed"])
-        .output()
-        .await;
-    let wasi_installed = wasi_target
-        .as_ref()
-        .map(|o| {
-            o.status.success()
-                && String::from_utf8_lossy(&o.stdout)
-                    .lines()
-                    .any(|l| l.trim() == "wasm32-wasip1")
-        })
-        .unwrap_or(false);
-
-    let mut wasi_detail = if wasi_installed {
-        "installed — `vox run --isolation wasm` is fast (warm cache)".to_string()
-    } else {
-        "not installed — first WASI run will take ~10s to install".to_string()
-    };
-
-    if !wasi_installed && auto_heal {
-        println!("  [auto-heal] Installing wasm32-wasip1 target...");
-        let ok = Command::new("rustup")
-            .args(["target", "add", "wasm32-wasip1"])
-            .status()
-            .await
-            .is_ok_and(|s| s.success());
-        if ok {
-            wasi_detail =
-                "installed via auto-heal — `vox run --isolation wasm` is now fast".to_string();
-        } else {
-            wasi_detail = "auto-heal failed — run: rustup target add wasm32-wasip1".to_string();
-        }
-    }
-
-    checks.push(Check {
-        name: "WASI target (wasm32-wasip1)".to_string(),
-        pass: wasi_installed || auto_heal,
-        detail: wasi_detail,
-    });
+    checks.push(interpreter_default_for_script_shaped());
+    checks.push(optional_binary_check(
+        "Cargo (optional for scripts)",
+        probe_version("cargo").await,
+    ));
+    checks.push(optional_binary_check(
+        "rustc (optional for scripts)",
+        probe_version("rustc").await,
+    ));
+    checks.push(wasm32_wasip1_not_required(
+        probe_wasm32_wasip1_installed().await,
+    ));
+    checks.push(executor_accepts_caps(probe_run_help().await.as_deref()));
 
     let zig = Command::new("zig").arg("version").output().await;
     checks.push(match zig {
@@ -286,6 +259,103 @@ pub async fn run(auto_heal: bool, tier: &str, checks: &mut Vec<Check>) {
     }
 }
 
+/// Same predicate `vox run --mode auto` uses for script-shaped files.
+fn interpreter_default_for_script_shaped() -> Check {
+    let sample = "pub fn main() { print(1) }";
+    let shaped = crate::commands::runtime::run::run::is_script_shaped(sample);
+    Check::new(
+        "Interpreter default (script-shaped)",
+        shaped,
+        if shaped {
+            "script-shaped files (`fn main()`, no service surfaces) default to the interpreter; no cargo"
+                .to_string()
+        } else {
+            "is_script_shaped rejected a canonical script-shaped sample — routing is broken"
+                .to_string()
+        },
+    )
+}
+
+fn optional_binary_check(name: &str, version: Option<String>) -> Check {
+    Check::pass(
+        name,
+        match version.as_deref() {
+            Some(v) => format!("on PATH: {v} (not required for scripts)"),
+            None => "not on PATH — not required for scripts".to_string(),
+        },
+    )
+}
+
+fn wasm32_wasip1_not_required(installed: Option<bool>) -> Check {
+    Check::pass(
+        "wasm32-wasip1 (not required)",
+        match installed {
+            Some(true) => "installed; unused — scripts run under the interpreter",
+            Some(false) => "not installed — not required",
+            None => "rustup not on PATH — target not required",
+        },
+    )
+}
+
+fn run_help_lists_caps(help: &str) -> bool {
+    help.contains("--caps")
+}
+
+fn executor_accepts_caps(help: Option<&str>) -> Check {
+    match help {
+        Some(h) if run_help_lists_caps(h) => {
+            Check::pass("Executor accepts --caps", "vox run --help lists --caps")
+        }
+        Some(_) => Check::fail(
+            "Executor accepts --caps",
+            "vox run --help does not list --caps",
+        ),
+        None => Check::fail("Executor accepts --caps", "could not run `vox run --help`"),
+    }
+}
+
+async fn probe_version(bin: &str) -> Option<String> {
+    let out = Command::new(bin).arg("--version").output().await.ok()?;
+    out.status
+        .success()
+        .then(|| {
+            String::from_utf8_lossy(&out.stdout)
+                .lines()
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string()
+        })
+        .filter(|s| !s.is_empty())
+}
+
+async fn probe_wasm32_wasip1_installed() -> Option<bool> {
+    let out = Command::new("rustup")
+        .args(["target", "list", "--installed"])
+        .output()
+        .await
+        .ok()?;
+    out.status
+        .success()
+        .then(|| String::from_utf8_lossy(&out.stdout).contains("wasm32-wasip1"))
+}
+
+async fn probe_run_help() -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    let out = Command::new(&exe)
+        .args(["run", "--help"])
+        .output()
+        .await
+        .ok()?;
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    // clap prints help before enforcing the required `file` arg.
+    (!text.is_empty()).then_some(text)
+}
+
 #[cfg(test)]
 mod tier_severity_tests {
     use super::node_is_optional_for;
@@ -305,5 +375,54 @@ mod tier_severity_tests {
     fn unknown_tier_is_treated_as_default_never_crashes_never_passes_everything() {
         assert!(!node_is_optional_for(""));
         assert!(!node_is_optional_for("not-a-real-tier"));
+    }
+}
+
+#[cfg(test)]
+mod interpreter_isolation_probes {
+    use super::{
+        executor_accepts_caps, interpreter_default_for_script_shaped, optional_binary_check,
+        run_help_lists_caps, wasm32_wasip1_not_required,
+    };
+
+    #[test]
+    fn interpreter_default_probes_the_script_shaped_predicate() {
+        let c = interpreter_default_for_script_shaped();
+        assert!(c.pass, "{}", c.detail);
+        assert_eq!(c.name, "Interpreter default (script-shaped)");
+        assert!(c.detail.contains("interpreter"));
+    }
+
+    #[test]
+    fn cargo_and_rustc_rows_pass_whether_or_not_the_binary_is_on_path() {
+        let found =
+            optional_binary_check("Cargo (optional for scripts)", Some("cargo 1.96.0".into()));
+        let missing = optional_binary_check("Cargo (optional for scripts)", None);
+        assert!(found.pass && missing.pass);
+        assert!(found.detail.contains("on PATH"));
+        assert!(missing.detail.contains("not on PATH"));
+    }
+
+    #[test]
+    fn wasm32_wasip1_row_always_passes_and_reports_the_probe() {
+        let yes = wasm32_wasip1_not_required(Some(true));
+        let no = wasm32_wasip1_not_required(Some(false));
+        let no_rustup = wasm32_wasip1_not_required(None);
+        assert!(yes.pass && no.pass && no_rustup.pass);
+        assert!(yes.detail.contains("installed"));
+        assert!(no.detail.contains("not installed"));
+        assert!(no_rustup.detail.contains("rustup not on PATH"));
+    }
+
+    #[test]
+    fn executor_caps_row_fails_when_help_omits_the_flag() {
+        assert!(run_help_lists_caps("    --caps <CAPS>\n"));
+        assert!(!run_help_lists_caps("    --mode <MODE>\n"));
+        let ok = executor_accepts_caps(Some("Usage: vox run --caps <CAPS>\n"));
+        let missing = executor_accepts_caps(Some("Usage: vox run --mode <MODE>\n"));
+        let no_help = executor_accepts_caps(None);
+        assert!(ok.pass);
+        assert!(!missing.pass);
+        assert!(!no_help.pass);
     }
 }

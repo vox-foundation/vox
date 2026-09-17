@@ -7,7 +7,7 @@
 mod client;
 mod dei_dispatch;
 
-pub use client::OrchDaemonClient;
+pub use client::{ORCH_CLIENT_READ_DEADLINE, OrchClientError, OrchDaemonClient};
 
 use std::sync::Arc;
 
@@ -20,6 +20,18 @@ use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchRespons
 use crate::Orchestrator;
 use crate::types::TaskId;
 use crate::{CompletionAttestation, FileAffinity, TaskEnqueueHints, TaskPriority};
+
+fn ping_caller_role() -> &'static str {
+    match std::env::var("VOX_MCP_CALLER_ROLE")
+        .ok()
+        .as_deref()
+        .map(|s| s.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("human") => "human",
+        _ => "agent",
+    }
+}
 
 /// Strip optional `tcp://` prefix and whitespace.
 #[must_use]
@@ -380,6 +392,7 @@ pub async fn dispatch_request(
                 "repository_id": repository_id,
                 "protocol": "vox.orchestrator_daemon/v1",
                 "version": env!("CARGO_PKG_VERSION"),
+                "caller_role": ping_caller_role(),
             }),
         ),
         orch_daemon_method::WORKSPACE_JOURNEY => {
@@ -1370,6 +1383,13 @@ mod isolation_dispatch_tests {
             Some(env!("CARGO_PKG_VERSION")),
             "ping response must report the running daemon's own workspace version"
         );
+        assert!(
+            matches!(
+                value.get("caller_role").and_then(|v| v.as_str()),
+                Some("human") | Some("agent")
+            ),
+            "ping must report caller_role so the GUI can refuse a non-human adopt"
+        );
     }
 }
 
@@ -1655,6 +1675,37 @@ pub trait ExtraDispatch: Send + Sync {
     async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse>;
 }
 
+/// Run one non-subscribe request to a [`DispatchResponse`], catching panics
+/// from ExtraDispatch / built-in handlers so the TCP peer always gets a frame.
+async fn dispatch_one_framed(
+    repository_id: String,
+    orch: Arc<Orchestrator>,
+    extra: Option<Arc<dyn ExtraDispatch>>,
+    req: DispatchRequest,
+) -> DispatchResponse {
+    let id = req.id.clone();
+    let join = tokio::spawn(async move {
+        if let Some(ex) = extra.as_ref() {
+            if let Some(resp) = ex.try_handle(&req).await {
+                return resp;
+            }
+        }
+        dispatch_request(&repository_id, orch, &req).await
+    });
+    match join.await {
+        Ok(resp) => resp,
+        Err(join_err) => {
+            let msg = if join_err.is_panic() {
+                "orchestrator handler panicked; see daemon stderr"
+            } else {
+                "orchestrator handler task cancelled"
+            };
+            tracing::error!(error = %join_err, %id, "{msg}");
+            response_err(id, msg)
+        }
+    }
+}
+
 async fn handle_connection(
     mut socket: TcpStream,
     repository_id: String,
@@ -1713,13 +1764,8 @@ async fn handle_connection(
             stream_agent_events_from(&req.id, &orch, &mut write_half, from_offset).await?;
             break;
         }
-        if let Some(ex) = extra.as_ref() {
-            if let Some(resp) = ex.try_handle(&req).await {
-                write_frame(&mut write_half, &resp).await?;
-                continue;
-            }
-        }
-        let resp = dispatch_request(&repository_id, orch.clone(), &req).await;
+        let resp =
+            dispatch_one_framed(repository_id.clone(), orch.clone(), extra.clone(), req).await;
         write_frame(&mut write_half, &resp).await?;
     }
     Ok(())
@@ -1848,14 +1894,69 @@ pub async fn run_stdio_server_with_extra(
             stream_agent_events_from(&req.id, &orch, &mut stdout, from_offset).await?;
             break;
         }
-        if let Some(ex) = extra.as_ref() {
-            if let Some(resp) = ex.try_handle(&req).await {
-                write_frame(&mut stdout, &resp).await?;
-                continue;
-            }
-        }
-        let resp = dispatch_request(&repository_id, orch.clone(), &req).await;
+        let resp =
+            dispatch_one_framed(repository_id.clone(), orch.clone(), extra.clone(), req).await;
         write_frame(&mut stdout, &resp).await?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod panic_frame_tests {
+    use super::*;
+    use crate::OrchestratorConfig;
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+    struct PanicExtra;
+
+    #[async_trait::async_trait]
+    impl ExtraDispatch for PanicExtra {
+        async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse> {
+            if req.method == "test.panic" {
+                panic!("intentional ExtraDispatch panic for framing test");
+            }
+            None
+        }
+    }
+
+    #[tokio::test]
+    async fn panicking_extra_dispatch_writes_error_frame_not_eof() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+        let extra: Arc<dyn ExtraDispatch> = Arc::new(PanicExtra);
+        tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.expect("accept");
+            let _ = handle_connection(socket, "repo".into(), orch, Some(extra), None).await;
+        });
+
+        let mut stream = TcpStream::connect(addr).await.expect("connect");
+        let (read_half, mut write_half) = stream.split();
+        let req = DispatchRequest {
+            id: "panic-1".into(),
+            method: "test.panic".into(),
+            params: serde_json::json!({}),
+            auth_token: None,
+            permission_mode: None,
+        };
+        let mut line = serde_json::to_string(&req).unwrap();
+        line.push('\n');
+        write_half.write_all(line.as_bytes()).await.unwrap();
+        write_half.flush().await.unwrap();
+
+        let mut reader = BufReader::new(read_half);
+        let mut resp_line = String::new();
+        let n = reader.read_line(&mut resp_line).await.expect("read");
+        assert!(n > 0, "expected Error frame, got EOF");
+        let resp: DispatchResponse = serde_json::from_str(resp_line.trim()).expect("json");
+        match resp.payload {
+            DispatchPayload::Error { message, .. } => {
+                assert!(
+                    message.contains("panicked"),
+                    "unexpected message: {message}"
+                );
+            }
+            other => panic!("expected Error payload, got {other:?}"),
+        }
+    }
 }

@@ -16,6 +16,9 @@ use crate::parser::error::{ParseError, ParseErrorClass, ParseSeverity};
 /// input (e.g. a long run of one unknown byte) can generate. Once hit, one
 /// summary sentinel replaces further per-token errors.
 const MAX_UNKNOWN_TOKEN_ERRORS: usize = 20;
+/// Expression nesting bound (parens / grouping). Task 5: 4 096 stays here;
+/// eval depth is a separate 1 024 bound in `apply_closure`.
+pub(crate) const MAX_EXPR_NESTING: usize = 4096;
 
 /// Strict parse: returns [`crate::Module`] or **all** accumulated [`ParseError`] values.
 ///
@@ -130,6 +133,8 @@ struct Parser {
     /// diagnostics or retained-error memory. Not used for any other error
     /// class.
     unknown_token_error_count: usize,
+    /// Current parenthesized-expression nesting; bounded by [`MAX_EXPR_NESTING`].
+    pub(crate) expr_depth: usize,
 }
 
 impl Parser {
@@ -140,6 +145,7 @@ impl Parser {
             errors: vec![],
             file_kind: crate::module::FileKind::Source,
             unknown_token_error_count: 0,
+            expr_depth: 0,
         }
     }
 

@@ -39,6 +39,9 @@ pub struct LlmChatMessage {
     /// Optionally set on a `role: "tool"` result message alongside `tool_call_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Optional structured multimodal content appended to the text body.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_parts: Option<Vec<vox_llm_egress::LlmContentPart>>,
 }
 
 /// Deprecated alias kept for callers within this crate during the rename.

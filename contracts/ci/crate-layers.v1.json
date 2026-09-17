@@ -73,6 +73,7 @@
     "vox-plugin-browser": 4,
     "vox-plugin-catalog": 0,
     "vox-plugin-host": 3,
+    "vox-plugin-mens-candle-core": 4,
     "vox-plugin-mens-candle-cuda": 4,
     "vox-plugin-mens-candle-metal": 4,
     "vox-plugin-nvml-probe": 3,

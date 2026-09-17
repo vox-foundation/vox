@@ -1,6 +1,6 @@
 //! Workflow planning types: mens control ops and planned activity descriptors.
 
-/// Control-plane sub-step for a [`PopuliActivity`] (URL always comes from env / `Vox.toml`, not source).
+/// Mesh-plane sub-step for a [`PopuliActivity`] (no user-supplied URL in source).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PopuliHttpOp {
     /// `POST` heartbeat with the current node record.
@@ -11,9 +11,9 @@ pub enum PopuliHttpOp {
     Join,
     /// `GET /v1/populi/nodes` (counts in journal only; no arbitrary URLs).
     Snapshot,
-    /// `POST /v1/populi/dispatch` for remote task execution.
+    /// `JobRequest::Run` on a first-fit mesh peer that offers `VoxScript`.
     Dispatch,
-    /// `GET /v1/populi/dispatch/result/{dispatch_id}` for remote task polling.
+    /// Inline completion of a prior dispatch; no HTTP poll.
     Wait,
 }
 
@@ -22,7 +22,7 @@ pub enum PopuliHttpOp {
 pub struct PlannedActivity {
     /// Activity name as referenced in the workflow body.
     pub name: String,
-    /// When true, run the mens / Populi HTTP step (`execute_populi_step` when feature `mens` is on).
+    /// When true, run the mens / Populi mesh step (`execute_populi_step` when feature `mens` is on).
     pub mens: bool,
     /// Idempotency / journal key from `with { activity_id: "…" }` when set.
     pub activity_id: Option<String>,
@@ -32,7 +32,7 @@ pub struct PlannedActivity {
     pub retries: u32,
     /// Delay before the first retry after a failed interpreted mesh activity attempt.
     pub initial_backoff_ms: Option<u64>,
-    /// Populi control-plane operation when [`Self::mens`] is true.
+    /// Populi mesh operation when [`Self::mens`] is true.
     pub populi_op: PopuliHttpOp,
     /// Optional labels for mesh routing (e.g. `gpu`, `region=us-east-1`).
     pub required_labels: Option<Vec<String>>,
@@ -152,9 +152,9 @@ mod semcov_wave7_tests {
 pub struct PopuliActivity {
     /// Activity name from source.
     pub name: String,
-    /// Resolved mens HTTP operation.
+    /// Resolved mens mesh operation.
     pub populi_op: PopuliHttpOp,
-    /// Timeout for populi HTTP client (defaults inside `execute_populi_step` when unset).
+    /// Timeout for the mesh step (defaults inside `execute_populi_step` when unset).
     pub timeout_ms: Option<u64>,
     /// Stable id for journal / idempotency (`with { activity_id }` or generated).
     pub activity_id: String,

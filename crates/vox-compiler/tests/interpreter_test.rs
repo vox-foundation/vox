@@ -268,7 +268,7 @@ fn compiled_regex_find_group_in_interp() {
     assert_eq!(
         res,
         vox_compiler::eval::value::VoxValue::Option(Some(Box::new(
-            vox_compiler::eval::value::VoxValue::Str("7".to_string())
+            vox_compiler::eval::value::VoxValue::Str("7".to_string().into())
         ))),
         "compiled regex re.find(...).group(1) should extract \"7\" under --mode interp"
     );

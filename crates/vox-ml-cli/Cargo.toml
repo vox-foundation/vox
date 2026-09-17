@@ -73,7 +73,6 @@ clap = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "macros", "rt-multi-thread"] }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-tokio-stream = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
@@ -113,6 +112,11 @@ windows-sys = { workspace = true, features = ["Win32_System_Threading", "Win32_F
 [dev-dependencies]
 tempfile = { workspace = true }
 candle-core = { workspace = true }
+# Serializes cwd-mutating eval_gate tests (find_upward reads process-global
+# cwd) against each other so they don't race with the cwd-reading test in the
+# same file. Already a workspace dep used the same way by vox-cli, vox-compiler,
+# vox-orchestrator, etc.
+serial_test = { workspace = true }
 # Used by populi/gpu_tests_body.rs (gated `#[cfg(all(test, feature = "gpu"))]`)
 # to synthesize base/adapter shards for the merge-qlora tests.
 safetensors = { workspace = true }

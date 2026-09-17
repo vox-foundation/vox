@@ -165,6 +165,38 @@ mod tests {
         crate::inference::backends::candle_test_helpers::candle_model_build_dir()
     }
 
+    /// Manual verification against a real downloaded+quantized checkpoint —
+    /// not run in CI (no such directory exists there). Run explicitly with:
+    /// `VOX_REAL_MODEL_DIR=/tmp/qwen3-0.6b-q4 cargo test -p vox-populi --lib \
+    ///   --features mens-train real_qwen3_checkpoint_produces_real_text -- --ignored --nocapture`
+    #[tokio::test]
+    #[ignore]
+    async fn real_qwen3_checkpoint_produces_real_text() {
+        let dir = std::env::var("VOX_REAL_MODEL_DIR")
+            .expect("set VOX_REAL_MODEL_DIR to a real quantized Qwen3 checkpoint directory");
+        let backend = CandleCpuBackend::new();
+        let loaded = backend
+            .load_from_dir(std::path::Path::new(&dir))
+            .expect("load_from_dir on real checkpoint");
+        let out = backend
+            .predict(
+                &loaded,
+                PromptInput {
+                    text: "What is the capital of France?".into(),
+                    system: None,
+                },
+                SamplingParams {
+                    temperature: 0.0,
+                    top_p: 1.0,
+                    max_tokens: Some(32),
+                },
+            )
+            .await
+            .expect("predict on real checkpoint");
+        println!("=== REAL MODEL OUTPUT ===\n{out}\n=========================");
+        assert!(!out.is_empty(), "real checkpoint produced empty output");
+    }
+
     #[tokio::test]
     async fn load_from_dir_then_predict_returns_nonstub_text() {
         let backend = CandleCpuBackend::new();

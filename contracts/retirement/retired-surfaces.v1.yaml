@@ -242,6 +242,95 @@ surfaces:
       `vox_sherpa_transcribe::...` paths in Rust and `vox-sherpa-transcribe`
       Cargo dependencies.
 
+  # =========================================================================
+  # ADR-048 — interpreter is the isolation tier (2026-09-08)
+  # =========================================================================
+
+  - id: isolation-wasm-container-gvisor-microvm
+    retired_pattern: "--isolation wasm|container|gvisor|microvm"
+    canonical: "interpreter (`vox run` / `--interp`); repeatable `--caps`"
+    agents_md_row: "--isolation wasm|container|gvisor|microvm"
+    enforcement:
+      kind: cli-check
+      command: "vox ci retired-symbol-check"
+      backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
+      contract_symbol_id: "isolation-wasm-container-gvisor-microvm"
+    rationale: >
+      ADR-048. The HIR interpreter is the isolation tier for VoxScripts.
+      wasm/container/gvisor/microvm lanes on vox run are retired.
+
+  - id: vox-wasm-run
+    retired_pattern: "vox wasm run"
+    canonical: "vox run (interpreter)"
+    agents_md_row: "vox wasm run"
+    enforcement:
+      kind: cli-check
+      command: "vox ci retired-symbol-check"
+      backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
+      contract_symbol_id: "vox-wasm-run"
+    rationale: "ADR-048. The vox wasm subcommand and script-wasi feature are deleted."
+
+  - id: script-wasi-feature
+    retired_pattern: "script-wasi"
+    canonical: "interpreter (`vox run`)"
+    agents_md_row: "script-wasi"
+    enforcement:
+      kind: cli-check
+      command: "vox ci retired-symbol-check"
+      backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
+      contract_symbol_id: "script-wasi-feature"
+    rationale: "ADR-048. script-wasi cargo feature and WASI script backend are retired."
+
+  - id: probe-only-executor
+    retired_pattern: "ProbeOnlyExecutor"
+    canonical: "InterpExecutor"
+    agents_md_row: "ProbeOnlyExecutor"
+    enforcement:
+      kind: cli-check
+      command: "vox ci retired-symbol-check"
+      backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
+      contract_symbol_id: "probe-only-executor"
+    rationale: "ADR-048 Task 10. Mesh-received Vox runs under InterpExecutor."
+
+  - id: microvm-runtime
+    retired_pattern: "MicroVmRuntime"
+    canonical: "interpreter isolation (ADR-048)"
+    agents_md_row: "MicroVmRuntime / Tier::MicroVm"
+    enforcement:
+      kind: cli-check
+      command: "vox ci retired-symbol-check"
+      backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
+      contract_symbol_ids:
+        - "microvm-runtime"
+        - "tier-microvm"
+    rationale: >
+      ADR-048 Task 13. The MicroVM stub is deleted. The enum variant stays
+      for the planner error-path (retirement story only).
+
+  - id: vox-mesh-exec-policy-secret
+    retired_pattern: "VoxMeshExecPolicy"
+    canonical: "receiver-imposed `--caps`"
+    agents_md_row: "VoxMeshExecPolicy (SecretId)"
+    enforcement:
+      kind: cli-check
+      command: "vox ci retired-symbol-check"
+      backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
+      contract_symbol_id: "vox-mesh-exec-policy-secret"
+    rationale: >
+      ADR-048 Task 10. SecretId deleted. The VOX_MESH_EXEC_POLICY config key
+      for task placement survives.
+
+  - id: exec-bundle-b64
+    retired_pattern: "exec_bundle_b64"
+    canonical: "VoxScript source on the mesh stream"
+    agents_md_row: "exec_bundle_b64"
+    enforcement:
+      kind: cli-check
+      command: "vox ci retired-symbol-check"
+      backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
+      contract_symbol_id: "exec-bundle-b64"
+    rationale: "ADR-048 Task 10. Native-bundle lane deleted; the mesh ships source only."
+
 # ---------------------------------------------------------------------------
 # Parity invariants (enforced by `vox-code-audit::retirement_parity`).
 # ---------------------------------------------------------------------------
@@ -268,15 +357,16 @@ parity_invariants:
 # Status summary (machine-readable; humans should cross-reference rows above).
 # ---------------------------------------------------------------------------
 status_summary:
-  total_rows: 16
+  total_rows: 23
   by_enforcement_kind:
     detector: 11        # +6 from P1.4 (turso-env-vars, recall-fn-api, vox-ludus-crate,
                         # capacitor-imports, cap-sync-cli, vox-sherpa-transcribe-plugin)
-    cli-check: 1
+    cli-check: 8        # +7 from ADR-048 (isolation flags, vox wasm, script-wasi,
+                        # ProbeOnlyExecutor, MicroVmRuntime, VoxMeshExecPolicy, exec_bundle_b64)
     documentation-only: 2  # only vox-ars-crate + merged-compiler-crates remain doc-only
     deferred: 2         # axum-serve-in-generated-apps, rust-embed-in-generated-apps
                         # (both context-sensitive; out of scope for v1.0)
-  coverage_pct_active: 0.875        # (detector + cli-check + documentation-only) / total
+  coverage_pct_active: 0.913        # (detector + cli-check + documentation-only) / total
   council_ratification: >
     2026-05-15. CR-L6 first slice (P1.2) + retirement-parity contract (P1.3) +
     P1.4 detector slate all landed same day. Remaining deferred rows are the

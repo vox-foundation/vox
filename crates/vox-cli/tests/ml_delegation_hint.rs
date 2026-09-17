@@ -6,6 +6,46 @@
 //! binary whose `populi` subcommand is `#[cfg]`-ed out — the user follows the
 //! advice, gets the identical error, and has no way to tell why.
 
+/// `vox-ml-cli quantize` (wired via `dep:vox-quantize` behind the `quantize`
+/// feature, `crates/vox-ml-cli/src/main.rs`) is fully built but was never
+/// reachable from the main `vox` binary: the delegation match only listed
+/// `mens | oratio | speech | populi | mesh | train`, so `vox quantize ...`
+/// fell through to vox-cli's own internal dispatch instead of forwarding to
+/// vox-ml-cli. `quantize` must be delegated the same way every other ML
+/// subcommand is.
+#[test]
+fn quantize_is_delegated_to_vox_ml_cli() {
+    let src = include_str!("../src/main.rs");
+    let is_ml_line = src
+        .lines()
+        .find(|l| l.trim_start().starts_with("let is_ml = matches!("))
+        .expect("the is_ml match construction must exist");
+    // matches! spans multiple lines; scan from is_ml_line through the next few
+    // lines for the closing `);` rather than assuming it's single-line.
+    let start = src.find(is_ml_line).unwrap();
+    let window = &src[start..(start + 400).min(src.len())];
+    assert!(
+        window.contains("\"quantize\""),
+        "the is_ml delegation match must include \"quantize\", got window: {window}"
+    );
+}
+
+/// The install-remedy hint must name the feature that actually gates the
+/// failing subcommand — `--features populi` is wrong advice for a missing
+/// `quantize` subcommand, since `quantize` is its own opt-in feature.
+#[test]
+fn quantize_install_hint_enables_the_quantize_feature_not_populi() {
+    let src = include_str!("../src/main.rs");
+    assert!(
+        src.contains("cargo install --path crates/vox-ml-cli --features quantize"),
+        "a quantize-specific install hint must exist alongside the populi one"
+    );
+    assert!(
+        src.contains("primary_cmd != \"quantize\""),
+        "the populi hint must be gated so it is not shown for a missing quantize subcommand"
+    );
+}
+
 #[test]
 fn ml_cli_install_hint_enables_the_populi_feature() {
     let src = include_str!("../src/main.rs");

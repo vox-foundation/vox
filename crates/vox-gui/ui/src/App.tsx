@@ -17,7 +17,7 @@ import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
 import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
-import { ChatModelPicker } from './components/surfaces/Chat/ChatModelPicker';
+import { AxisDriveHost } from './components/drive/AxisDriveHost';
 import { GroundingCheckToggle } from './components/surfaces/Chat/GroundingCheckToggle';
 import { useGroundingCheck } from './hooks/useGroundingCheck';
 import { Toasts, ToastItem } from './components/ui/Toasts';
@@ -59,6 +59,11 @@ import { parseBindings, DEFAULT_BINDINGS, type Bindings } from './lib/keybinds';
 import { type UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { SHELL_PREFERENCE_KEYS } from './lib/shellPersistence';
+import {
+  forgetDiscardedPlan,
+  isPlanDiscarded,
+  rememberDiscardedPlan,
+} from './lib/discardedPlans';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
 import { useOrchestratorStatus, meshKpiFromStatus, useOrchestratorFirstConnectGamify } from './hooks/useOrchestratorStatus';
 import { useInstalledSkills } from './hooks/useInstalledSkills';
@@ -76,6 +81,7 @@ import { DashboardData, Agent, StreamItem, LudusAlert } from './types/dashboard'
 import type {
   ActiveSkill,
   ChatPayload,
+  ChatSubmitResult,
   CommandCatalog,
   CommandPaletteAction,
   ContextChip,
@@ -91,6 +97,7 @@ import {
   POLICY_BADGE_POLL_MS,
   STREAM_CAP,
   LIVE_EVENT_FRESH_MS,
+  MODEL_LIST_LIMIT,
 } from './config/constants';
 import { budgetStateFromStatus, DEFAULT_BUDGET_CAP_USD } from './config/budget';
 import { nextId, nextGuiRunId, newBackgroundSessionId } from './lib/ids';
@@ -99,6 +106,11 @@ import { viewKeyForLocator } from './lib/locatorNavigation';
 import { AchievementsDrawer } from './components/gamify/AchievementsDrawer';
 import type { LudusProfile } from './lib/ludus';
 import { useChatSessions, type ChatSession } from './lib/useChatSessions';
+import {
+  isModelSelectable,
+  normalizeModelCard,
+  type ProviderStatus,
+} from './lib/modelPicker';
 
 type View =
   | 'dashboard'
@@ -394,10 +406,23 @@ export default function App() {
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [openPlanSessionId, setOpenPlanSessionId] = useState<string | null>(null);
   const [openPlanVersion, setOpenPlanVersion] = useState<number | null>(null);
+  const [sessionSpentUsd, setSessionSpentUsd] = useState<number | null>(null);
+  const skipDrivePinRead =
+    typeof window !== 'undefined' &&
+    (window as Window & { __VOX_DRIVE_LIVE__?: boolean }).__VOX_DRIVE_LIVE__ === true;
   const [chatModelOverride, setChatModelOverride] = useLocalStorage<string | null>(
     SHELL_PREFERENCE_KEYS.chatModelOverride,
     null,
+    { skipRead: skipDrivePinRead },
   );
+  const [discardedPlansByChat, setDiscardedPlansByChat] = useLocalStorage<
+    Record<string, string[]>
+  >(SHELL_PREFERENCE_KEYS.chatDiscardedPlans, {});
+  const activeSessionIdRef = useRef(activeSessionId);
+  const planBindGenRef = useRef(0);
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
   // Phase B / Task B2: a pin persisted from a previous session may name a model
   // that has since left the registry — validate once on mount and clear it
   // rather than letting `SelectionSource::classify` silently read `Fallback`
@@ -406,12 +431,22 @@ export default function App() {
   useEffect(() => {
     if (!chatModelOverride) return;
     let cancelled = false;
-    voxTransport
-      .listModels(120)
-      .then((models: any) => {
+    Promise.all([
+      voxTransport.listModels(MODEL_LIST_LIMIT),
+      invoke<ProviderStatus[]>('inference_provider_status').catch(() => [] as ProviderStatus[]),
+    ])
+      .then(([models, statuses]) => {
         if (cancelled || !Array.isArray(models)) return;
-        const stillPresent = models.some((m: any) => m.id === chatModelOverride || m.model_id === chatModelOverride);
-        if (!stillPresent) setChatModelOverride(null);
+        const card = (models as unknown[])
+          .map((m) => normalizeModelCard(m as { id?: string; model_id?: string; provider?: string; provider_type?: string; display_name?: string }))
+          .find((m) => m?.id === chatModelOverride);
+        if (!card) {
+          setChatModelOverride(null);
+          return;
+        }
+        if (Array.isArray(statuses) && statuses.length > 0 && !isModelSelectable(card, statuses)) {
+          setChatModelOverride(null);
+        }
       })
       .catch(() => {
         // Transport failure here is not this effect's problem to report — leave
@@ -597,6 +632,71 @@ export default function App() {
   // shouldn't inherit a previous session's "already warned" state.
   const budgetWarnedRef = useRef(false);
   useEffect(() => { budgetWarnedRef.current = false; }, [activeSessionId]);
+
+  useEffect(() => {
+    planBindGenRef.current += 1;
+    const bindGen = planBindGenRef.current;
+    if (!activeSessionId) {
+      setOpenPlanSessionId(null);
+      setOpenPlanVersion(null);
+      return;
+    }
+    let cancelled = false;
+    invoke<{ plan_session_id: string; plan_version: number } | null>(
+      'latest_plan_session_for_chat',
+      { sessionId: activeSessionId },
+    )
+      .then((latest) => {
+        if (cancelled || bindGen !== planBindGenRef.current) return;
+        if (
+          latest
+          && !isPlanDiscarded(discardedPlansByChat, activeSessionId, latest.plan_session_id)
+        ) {
+          setOpenPlanSessionId(latest.plan_session_id);
+          setOpenPlanVersion(latest.plan_version);
+        } else {
+          setOpenPlanSessionId(null);
+          setOpenPlanVersion(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled && bindGen === planBindGenRef.current) {
+          setOpenPlanSessionId(null);
+          setOpenPlanVersion(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId, discardedPlansByChat]);
+
+  useEffect(() => {
+    if (!activeSessionId) {
+      setSessionSpentUsd(null);
+      return;
+    }
+    let cancelled = false;
+    const refresh = () => {
+      invoke<{ sessionUsd: number }>('get_llm_spend', { sessionId: activeSessionId })
+        .then((spend) => {
+          if (cancelled) return;
+          if (spend && Number.isFinite(spend.sessionUsd)) {
+            setSessionSpentUsd(spend.sessionUsd);
+          } else {
+            setSessionSpentUsd(null);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setSessionSpentUsd(null);
+        });
+    };
+    refresh();
+    const id = window.setInterval(refresh, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [activeSessionId]);
 
   const checkBudgetWarn = useCallback((sessionId: string) => {
     if (budgetWarnedRef.current) return;
@@ -1034,11 +1134,11 @@ export default function App() {
     }
   }, [pushToast]);
 
-  const handleLoquelaSubmit = useCallback(async (payload: ChatPayload, skillExclusionsOverride?: string[]) => {
+  const handleLoquelaSubmit = useCallback(async (payload: ChatPayload, skillExclusionsOverride?: string[]): Promise<ChatSubmitResult> => {
     const sessionId = payload.session_id ?? activeSessionId;
     if (!sessionId) {
       pushToast({ tone: 'warn', title: 'No chat session', body: 'Create or select a chat session first.', cause: 'validation' });
-      return;
+      return { ok: false, error: 'No chat session' };
     }
     lastChatPayloadRef.current = payload;
     // ONE payload, ONE command (`chat_turn`) — the dispatch fork now lives in
@@ -1046,6 +1146,18 @@ export default function App() {
     // `submitResolved` is the sole writer of `taskToSession`, the map that
     // routes every task_*/token_streamed frame to a bubble and replays the
     // 30s pending buffer. See spec §6.
+    // Prefer Drive-minted ids so ChatHop JSONL matches Drive `last_turn_id`.
+    // Composer / non-Drive paths still mint here when payload omits them.
+    const traceId =
+      (payload.trace_id && payload.trace_id.trim())
+      || (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `trace-${Date.now()}`);
+    const turnId =
+      (payload.turn_id && payload.turn_id.trim())
+      || (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `turn-${Date.now()}`);
     const turn = buildChatTurn(payload, {
       sessionId,
       modelOverride: chatModelOverride,
@@ -1062,6 +1174,8 @@ export default function App() {
       // `newBackgroundSessionId` call sites). Carries delegation lineage to
       // the backend even when the dispatch session itself is disposable.
       chatSessionId: activeSessionId,
+      traceId,
+      turnId,
     });
 
     // Checked BEFORE chat_append_message persists anything: a second send
@@ -1075,7 +1189,12 @@ export default function App() {
         body: 'A reply is still in progress for this chat.',
         cause: 'validation',
       });
-      return;
+      return { ok: false, error: 'A reply is still in progress for this chat.' };
+    }
+    // Claim the in-flight slot immediately after the check (before any
+    // await) so a duplicate Drive listener cannot start a second sync turn.
+    if (turn.execution === 'sync') {
+      chatSendInFlightRef.current.add(sessionId);
     }
 
     invoke('chat_append_message', {
@@ -1128,7 +1247,7 @@ export default function App() {
           );
           if (!proceed) {
             pushToast({ tone: 'info', title: 'Duplicate skipped', body: `Kept existing task #${result.duplicate_of}.`, cause: 'backend-ok' });
-            return;
+            return { ok: false, error: 'duplicate_skipped' };
           }
           result = await dispatchAttempt(true);
         }
@@ -1162,12 +1281,12 @@ export default function App() {
           });
         }
         pushToast(dispatchErrorToast(err, 'Dispatch Failed'));
+        return { ok: false, error: chatTurnErrorMessage(err) };
       }
-      return;
+      return { ok: true };
     }
 
     // Sync: terminal request/response, no task to correlate against.
-    chatSendInFlightRef.current.add(sessionId);
     const tempId = nextGuiRunId();
     dispatchSessionChat({
       type: 'chatPending',
@@ -1210,6 +1329,7 @@ export default function App() {
         },
       });
       checkBudgetWarn(sessionId);
+      return { ok: true, text: reply.text, modelId: reply.modelId };
     } catch (err) {
       const errorText = chatTurnErrorMessage(err);
       dispatchSessionChat({
@@ -1219,6 +1339,7 @@ export default function App() {
         result: { ok: false, error: errorText },
       });
       pushToast(dispatchErrorToast(err, 'Chat reply failed'));
+      return { ok: false, error: errorText };
     } finally {
       chatSendInFlightRef.current.delete(sessionId);
     }
@@ -1237,7 +1358,12 @@ export default function App() {
     skillExclusionsRef.current = next;
     setSkillExclusions(next);
     const last = lastChatPayloadRef.current;
-    if (last) handleLoquelaSubmit(last, next);
+    if (last) {
+      // Fresh correlation ids for the retry — reusing Drive-minted turn/trace
+      // would merge two logical turns in ChatHop JSONL.
+      const { turn_id: _turn, trace_id: _trace, ...rest } = last;
+      handleLoquelaSubmit(rest, next);
+    }
   }, [handleLoquelaSubmit]);
 
   const handleLoquelaSlash = useCallback(async (
@@ -1283,7 +1409,8 @@ export default function App() {
         pushToast({ tone: 'warn', title: '/plan needs a goal', body: 'Try: /plan add a health endpoint', cause: 'validation' });
         return true;
       }
-      const sessionId = activeSessionId ?? newBackgroundSessionId();
+      const sessionId = activeSessionId || newBackgroundSessionId();
+      const bindGen = ++planBindGenRef.current;
       ctx.setText('');
       void (async () => {
         try {
@@ -1292,17 +1419,30 @@ export default function App() {
           // neither of which applies here — `execution: 'plan'` returns no
           // assistant row (see chat_turn.rs's run_plan), just the plan DAG's
           // session id/version to point PlanPanel at.
+          const traceId =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `trace-${Date.now()}`;
+          const turnId =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `turn-${Date.now()}`;
           const dto = await sendChatTurnRaw({
             session_id: sessionId,
             content: goal,
             execution: 'plan',
             context_files: [],
             skill_exclusions: [],
+            trace_id: traceId,
+            turn_id: turnId,
           });
-          if (dto.plan_session_id) {
-            setOpenPlanSessionId(dto.plan_session_id);
-            setOpenPlanVersion(dto.plan_version ?? null);
-          }
+          if (bindGen !== planBindGenRef.current || !dto.plan_session_id) return;
+          const current = activeSessionIdRef.current;
+          if (current && current !== sessionId) return;
+          setDiscardedPlansByChat((prev) => forgetDiscardedPlan(prev, sessionId, dto.plan_session_id));
+          setOpenPlanSessionId(dto.plan_session_id);
+          setOpenPlanVersion(dto.plan_version ?? null);
+          if (!current) setActiveSessionId(sessionId);
         } catch (err) {
           pushToast({ tone: 'warn', title: '/plan failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
         }
@@ -1600,23 +1740,32 @@ export default function App() {
     [pushToast],
   );
 
+  const submitFromComposer = useCallback((p: Parameters<typeof handleLoquelaSubmit>[0]) => handleLoquelaSubmit({
+    ...p,
+    session_id: p.execution_mode === 'task' ? newBackgroundSessionId() : activeSessionId,
+    model_override: p.model_override ?? chatModelOverride,
+    grounding_check_enabled: groundingCheckEnabled,
+  }), [handleLoquelaSubmit, activeSessionId, chatModelOverride, groundingCheckEnabled]);
+
+  // Stable setters object so AxisDriveHost's drive://request effect does not
+  // re-subscribe on every App render (double-listen → "reply still in progress").
+  const driveSetters = useMemo(
+    () => ({
+      setChatModelOverride,
+      setGroundingCheckEnabled,
+      setActiveSkill: (id: string | null) => setActiveSkill(id ? { id, name: id } : null),
+      setSkillExclusions,
+    }),
+    [setChatModelOverride, setGroundingCheckEnabled, setSkillExclusions],
+  );
+
   const loquelaComposer = (
     <Loquela
       chips={chips}
       setChips={setChips}
-      onSubmit={(p) => handleLoquelaSubmit({
-        ...p,
-        // 'chat' mode (the composer's default) stays part of the active
-        // chat session, same as before. The "Background task" toggle
-        // position (execution_mode: 'task') must NOT reuse activeSessionId --
-        // same fix as /spawn and Deploy-skill below, for the same reason (the
-        // background path never writes to the orchestrator's
-        // chat_history:{session_id} context store, so folding it into the
-        // active session desyncs it).
-        session_id: p.execution_mode === 'task' ? newBackgroundSessionId() : activeSessionId,
-        model_override: chatModelOverride,
-        grounding_check_enabled: groundingCheckEnabled,
-      })}
+      onSubmit={submitFromComposer}
+      onModelPick={setChatModelOverride}
+      selectedModelId={chatModelOverride}
       onSlashCommand={handleLoquelaSlash}
       taskInProgress={taskInProgress}
       currentTaskId={taskInProgress ? inFlightTaskId : undefined}
@@ -1635,16 +1784,10 @@ export default function App() {
       toast={pushToast}
       agents={data.agents}
       trailingSlot={
-        <>
-          <ChatModelPicker
-            activeModel={chatModelOverride ?? activeModel}
-            onApplied={setChatModelOverride}
-          />
-          <GroundingCheckToggle
-            enabled={groundingCheckEnabled}
-            onToggle={setGroundingCheckEnabled}
-          />
-        </>
+        <GroundingCheckToggle
+          enabled={groundingCheckEnabled}
+          onToggle={setGroundingCheckEnabled}
+        />
       }
     />
   );
@@ -1685,18 +1828,24 @@ export default function App() {
     chatExecutionKpis,
     chatActiveModel: activeModel,
     groundingCheckEnabled,
-    // Set by the sidebar's task-badge click (onTaskBadgeClick below), resolved via
-    // `latest_plan_session_for_chat` against the real origin_session_id link. Null renders
-    // PlanPanel's honest empty state until a badge has been clicked.
+    // Re-resolved on every `activeSessionId` change via `latest_plan_session_for_chat`.
+    // Null is the honest empty state for a chat with no live plan — never a leftover
+    // from the previous session.
     chatPlanSessionId: openPlanSessionId,
     chatPlanVersion: openPlanVersion,
     onDiscardPlan: () => {
+      if (activeSessionId && openPlanSessionId) {
+        setDiscardedPlansByChat((prev) =>
+          rememberDiscardedPlan(prev, activeSessionId, openPlanSessionId),
+        );
+      }
       setOpenPlanSessionId(null);
       setOpenPlanVersion(null);
     },
     chatActiveSkillId: activeSkill?.id ?? null,
     onExcludeSkill: excludeSkillAndRetry,
     chatOpenrouterSpendUsd: openrouterSpendUsd,
+    chatSessionSpentUsd: sessionSpentUsd,
     chatAgentStreamItems: activeChatAgentItems,
     onOpenAgentInFlow: (agentId: string) => {
       setSelectedAgentId(agentId);
@@ -1813,13 +1962,19 @@ export default function App() {
           }
         }}
         onTaskBadgeClick={(sessionId: string) => {
-          invoke<string | null>('latest_plan_session_for_chat', { sessionId })
-            .then(planSessionId => {
+          const bindGen = ++planBindGenRef.current;
+          invoke<{ plan_session_id: string; plan_version: number } | null>('latest_plan_session_for_chat', { sessionId })
+            .then(latest => {
               // A null result (badge showed a stale nonzero count, or the session's plan
               // was archived/retracted between render and click) is a silent no-op by
               // design -- there is nothing to open, and it isn't an error worth a toast.
-              if (planSessionId) {
-                setOpenPlanSessionId(planSessionId);
+              if (bindGen !== planBindGenRef.current) return;
+              if (
+                latest
+                && !isPlanDiscarded(discardedPlansByChat, sessionId, latest.plan_session_id)
+              ) {
+                setOpenPlanSessionId(latest.plan_session_id);
+                setOpenPlanVersion(latest.plan_version);
                 setActiveSessionId(sessionId);
               }
             })
@@ -1877,6 +2032,13 @@ export default function App() {
         gamifyEnabled={gamifySettings.enabled}
       />
 
+      <AxisDriveHost
+        sessionReady={Boolean(activeSessionId)}
+        sessionId={activeSessionId}
+        setters={driveSetters}
+        onSubmit={submitFromComposer}
+      />
+
       <DocViewerDrawer doc={activeDoc} onClose={closeDocViewer} />
 
       <Toasts
@@ -1886,12 +2048,12 @@ export default function App() {
 
       {achievementToasts.toasts.length > 0 && (
         <div
-          // z-[80]: must render above every modal/overlay in the app, including
-          // OnboardingWizard's z-[70] backdrop — otherwise an error toast fired
+          // z-80: must render above every modal/overlay in the app, including
+          // OnboardingWizard's z-70 backdrop — otherwise an error toast fired
           // while the wizard is open (e.g. BudgetSetupScreen.save() failing)
           // renders invisibly underneath it. Toasts are terminal user feedback
           // and should never be hidden behind any overlay.
-          className="pointer-events-none fixed bottom-4 right-4 z-[80] flex max-w-sm flex-col gap-2"
+          className="pointer-events-none fixed bottom-4 right-4 z-80 flex max-w-sm flex-col gap-2"
           aria-live="polite"
           aria-label="Achievement notifications"
         >

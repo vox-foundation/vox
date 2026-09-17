@@ -46,25 +46,14 @@ pub(crate) fn run_spoke_check(root: &Path) -> Result<()> {
     let file = DomainProfilesFile::load(Some(root))?;
     let violations = spoke_validate::validate(&file, root);
 
-    let mut hard_violations = Vec::new();
-    for v in &violations {
-        let is_pending =
-            v.0.contains("eval-gates-rust.yaml") || v.0.contains("eval-gates-agents.yaml");
-        if is_pending {
-            eprintln!(
-                "  [WARNING] Spoke validation warning (known-pending): {}",
-                v.0
-            );
-        } else {
-            hard_violations.push(v.clone());
-        }
-    }
-
-    if !hard_violations.is_empty() {
-        for v in &hard_violations {
+    // `eval-gates-rust.yaml` / `eval-gates-agents.yaml` (Lane D) now exist under
+    // `mens/config/` — the old "known-pending" downgrade that treated violations
+    // mentioning them as warnings was hiding real errors. All violations are hard now.
+    if !violations.is_empty() {
+        for v in &violations {
             eprintln!("  [ERROR] Spoke validation error: {}", v.0);
         }
-        anyhow::bail!("spoke-check failed with {} error(s)", hard_violations.len());
+        anyhow::bail!("spoke-check failed with {} error(s)", violations.len());
     }
 
     println!("spoke-check OK");

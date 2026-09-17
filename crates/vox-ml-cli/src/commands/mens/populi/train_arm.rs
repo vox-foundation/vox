@@ -65,7 +65,7 @@ pub async fn run_train(
     optimizer_experiment_mode: vox_populi::mens::OptimizerExperimentMode,
     data_mode: TrainDataModeCli,
     fast_corpus: bool,
-    _persistent: bool,
+    persistent: bool,
 ) -> anyhow::Result<()> {
     if cloud != "local" {
         #[cfg(feature = "cloud")]
@@ -167,10 +167,23 @@ pub async fn run_train(
                 );
                 None
             } else {
-                let ranked = resolver
+                // Same threshold logic `vox mens cloud-estimate` uses (Task 3) and
+                // `CloudResolver::dispatch` uses for Train jobs, so the read-only
+                // estimate and every real dispatch path agree on whether an offer
+                // is big enough. No local model directory exists yet on a
+                // from-scratch cloud run, so this sizes from Hub API metadata
+                // (one small request, no weight bytes) rather than
+                // `ModelShape::from_model_dir`.
+                let min_vram_mb = vox_populi::mens::cloud::min_vram_mb_for_training(
+                    &spec.model_id,
+                    spec.batch_size,
+                    spec.seq_len,
+                )
+                .await?;
+                let (ranked, rejected) = resolver
                     .resolve(&vox_populi::mens::cloud::ResolveRequest {
                         target: std::str::FromStr::from_str(&cloud)?,
-                        min_vram_mb: 24000,
+                        min_vram_mb,
                         max_acceptable_cost: spec
                             .max_budget_usd
                             .unwrap_or(resolver.config.max_budget_usd),
@@ -180,6 +193,16 @@ pub async fn run_train(
                         epochs: spec.epochs,
                     })
                     .await?;
+                if ranked.is_empty() && !rejected.is_empty() {
+                    // Every real dispatch path used to lose these reasons in
+                    // a `tracing::debug!` the operator never sees — surface
+                    // them here, at the one point they're about to be told
+                    // only "no offers to dispatch" while spending money.
+                    eprintln!("  ⚠ No suitable cloud offers — every candidate was rejected:");
+                    for (offer_id, reason) in &rejected {
+                        eprintln!("      {offer_id}: {reason}");
+                    }
+                }
                 let (handle, watchdog, provider) = resolver.dispatch_top(&ranked, &spec).await?;
                 // Record the idempotency key so a concurrent / retried invocation
                 // detects the in-flight job and reuses it.
@@ -358,10 +381,15 @@ pub async fn run_train(
     // VRAM-aware budget > preset fallback (applied in gpu.rs). `None` means
     // "not yet set"; each stage fills only what an earlier stage left unset.
     let mut effective_seq_len: Option<usize> = seq_len;
-    let effective_batch_size: Option<usize> = batch_size;
-    let effective_grad_accum: Option<usize> = grad_accum;
-    // May be retreated to a smaller Qwen3.5 variant by the VRAM budget below.
+    let mut effective_batch_size: Option<usize> = batch_size;
+    let mut effective_grad_accum: Option<usize> = grad_accum;
+    // Never silently swapped for a smaller model by the VRAM budget below —
+    // see `never_retreat_the_named_model`.
     let mut effective_model = model;
+    // Resolved alongside `effective_model` below when `--domain` is given, via
+    // the same `resolve_training_selection` the cloud path already uses (see
+    // `resolve_cloud_spoke_base`) — otherwise stays the raw CLI `--preset`.
+    let mut effective_preset = preset.clone();
     let mut effective_validation_split_ratio = validation_split_ratio;
     let mut _effective_max_grad_norm = None; // pass down if needed
     let mut effective_curriculum = curriculum;
@@ -420,6 +448,22 @@ pub async fn run_train(
                     // Actually simply inform.
                     eprintln!("    Mix config: {}", mix_path.display());
                 }
+
+                // BLOCKER (D1): resolve the domain spoke's base model + preset via
+                // the same real resolver the cloud path already uses
+                // (`resolve_cloud_spoke_base` → `resolve_training_selection`).
+                // Previously `--domain rust --cloud local` left `effective_model`
+                // as the raw (often `None`) `--model` and `preset` as the raw
+                // (often `None`) `--preset`, silently ignoring the domain's
+                // pinned base — CLI-supplied values still win.
+                let (resolved_model, resolved_preset) = resolve_local_spoke_base(
+                    workspace_root.as_deref(),
+                    domain_name,
+                    effective_model.as_deref(),
+                    effective_preset.as_deref(),
+                )?;
+                effective_model = resolved_model;
+                effective_preset = Some(resolved_preset);
             }
             Err(e) => {
                 anyhow::bail!("Failed to load domain profile '{}': {}", domain_name, e);
@@ -427,138 +471,18 @@ pub async fn run_train(
         }
     }
 
-    let mut budget_seq_len = None;
-    let mut budget_batch_size = None;
-    let mut budget_grad_accum = None;
-    {
-        use owo_colors::OwoColorize;
-        let device_is_accel = vox_populi::mens::normalize_device(&device)
-            .map(|d| {
-                matches!(
-                    d,
-                    vox_populi::mens::DeviceKind::Cuda | vox_populi::mens::DeviceKind::Metal
-                )
-            })
-            .unwrap_or(false);
-        if device_is_accel {
-            use vox_populi::mens::tensor::finetune_contract::BaseQuantMode;
-            use vox_populi::mens::tensor::memory_budget;
-            let default_model = vox_populi::mens::default_model_id();
-            let model_hint = effective_model.as_deref().unwrap_or(&default_model);
-            let requested_b = memory_budget::params_b_from_model_hint(model_hint).unwrap_or(7.0);
-
-            // Dynamic VRAM Auditing (free VRAM takes priority)
-            let vram_info = vox_populi::mens::tensor::vram_autodetect::get_system_vram_info();
-            let mut vram = if let Some(info) = vram_info {
-                eprintln!(
-                    "  {} VRAM Audit: {:.1} GiB total, {:.1} GiB used, {:.1} GiB free",
-                    "📊".cyan(),
-                    info.total_gb,
-                    info.used_gb,
-                    info.free_gb
-                );
-                info.free_gb as f64
-            } else {
-                16.0
-            };
-            if let Some(frac) = vram_limit_fraction {
-                vram *= frac as f64;
-            }
-
-            // Early options resolution
-            let base_quant = match backend {
-                PopuliTrainBackendCli::Lora => BaseQuantMode::None,
-                PopuliTrainBackendCli::Qlora => BaseQuantMode::Nf4,
-            };
-            let gc_explicit = std::env::var("VOX_MENS_GRADIENT_CHECKPOINTING")
-                .ok()
-                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                .unwrap_or(false);
-            let gc_auto_large = requested_b >= 2.9;
-            let gc_enabled = gc_explicit || gc_auto_large;
-
-            // Run planning options-aware
-            #[allow(deprecated)]
-            let mp = if memory_budget::is_qwen25coder(model_hint) {
-                // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="plan_qwen3_with_options"
-                memory_budget::plan_qwen25coder_with_options(
-                    vram,
-                    requested_b,
-                    base_quant,
-                    gc_enabled,
-                )
-            } else if memory_budget::is_qwen35(model_hint) {
-                memory_budget::plan_qwen35_with_options(vram, requested_b, base_quant, gc_enabled)
-            } else if memory_budget::is_qwen3(model_hint) {
-                memory_budget::plan_qwen3_with_options(vram, requested_b, base_quant, gc_enabled)
-            } else {
-                let resident_per_b =
-                    memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
-                let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
-                memory_budget::ModelPlan {
-                    model_id: model_hint.to_string(),
-                    params_b: requested_b,
-                    seq_len: p.seq_len,
-                    batch_size: p.batch_size,
-                    grad_accum: p.grad_accum,
-                    retreated_from_b: None,
-                    over_budget: p.over_budget,
-                    rationale: p.rationale,
-                }
-            };
-
-            // Dual-sizing fix: if the model was pinned (effective_model is Some),
-            // we must not use the retreated model's generous constraints (it would cause OOM).
-            // Instead, re-solve the budget specifically for the pinned model parameters.
-            let final_plan = if effective_model.is_some() && mp.retreated_from_b.is_some() {
-                let resident_per_b =
-                    memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
-                let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
-                memory_budget::ModelPlan {
-                    model_id: model_hint.to_string(),
-                    params_b: requested_b,
-                    seq_len: p.seq_len,
-                    batch_size: p.batch_size,
-                    grad_accum: p.grad_accum,
-                    retreated_from_b: None,
-                    over_budget: p.over_budget,
-                    rationale: format!(
-                        "pinned model ≈{requested_b:.1}B solved specifically — {}",
-                        p.rationale
-                    ),
-                }
-            } else {
-                mp
-            };
-
-            eprintln!("  {} VRAM budget: {}", "⚙".cyan(), final_plan.rationale);
-
-            if let Some(from_b) = final_plan.retreated_from_b {
-                if effective_model.is_none() {
-                    eprintln!(
-                        "  {} Auto-selected {} for {:.0} GiB VRAM (requested ≈{:.1}B would not fit).",
-                        "↓".yellow(),
-                        final_plan.model_id,
-                        vram,
-                        from_b
-                    );
-                    effective_model = Some(final_plan.model_id.clone());
-                } else {
-                    eprintln!(
-                        "  {} {} is pinned but may not fit {:.0} GiB — omit --model to auto-retreat to {}.",
-                        "⚠".yellow(),
-                        model_hint,
-                        vram,
-                        final_plan.model_id
-                    );
-                }
-            }
-
-            budget_seq_len = Some(final_plan.seq_len);
-            budget_batch_size = Some(final_plan.batch_size);
-            budget_grad_accum = Some(final_plan.grad_accum);
-        }
-    }
+    // The old CUDA pre-download budget estimate (params_b-only ladder: Qwen
+    // family classifiers + `get_resident_per_b` + `plan_with_resident*`) was
+    // deleted — no `ModelShape` (real on-disk layer/hidden/artifact-bytes
+    // facts) exists this early, so it was never more than a guess. The real
+    // per-host fit now happens post-download via the measured
+    // `memory_model::sweep`/`plan_for` entry point once the model is on disk
+    // (see `crate::commands::schola::train::gpu::run_gpu_training`); until
+    // then these stay unset and `resolve_effective_profile` uses the plain
+    // preset defaults.
+    let budget_seq_len = None;
+    let budget_batch_size = None;
+    let budget_grad_accum = None;
 
     let parsed_filter = if let Some(cf) = effective_context_filter {
         Some(cf)
@@ -586,7 +510,7 @@ pub async fn run_train(
     if let Some(ref log_dir) = spawn_log_dir {
         return crate::commands::schola::train::spawn_train_with_log(log_dir.clone());
     }
-    let deployment_target = if preset.as_deref() == Some("mobile_edge") {
+    let deployment_target = if effective_preset.as_deref() == Some("mobile_edge") {
         vox_populi::mens::TrainingDeploymentTarget::MobileEdge
     } else {
         deployment_target.into()
@@ -611,7 +535,7 @@ pub async fn run_train(
         warmup,
         seed,
         effective_min_rating,
-        preset,
+        effective_preset,
         deployment_target,
         process_priority,
         vram_limit_fraction,
@@ -674,6 +598,42 @@ pub async fn run_train(
     }
 
     train_res
+}
+
+/// Resolve the local spoke base for `--domain <name> --cloud local`: returns
+/// `(model, preset)`.
+///
+/// Mirrors `resolve_cloud_spoke_base` below — same real resolver
+/// (`resolve_training_selection`), same "CLI wins" precedence — but sizes
+/// with VRAM autodetect (`None`) rather than a fixed cloud tier, matching how
+/// `pipeline.rs`'s `PipelineStage::Train` already calls this resolver for a
+/// local run. Not `cfg(feature = "cloud")`: the local path must resolve
+/// regardless of whether the cloud feature is compiled in.
+fn resolve_local_spoke_base(
+    workspace_root: Option<&Path>,
+    domain: &str,
+    cli_model: Option<&str>,
+    cli_preset: Option<&str>,
+) -> anyhow::Result<(Option<String>, String)> {
+    use crate::commands::mens::training_selection::{
+        TrainingSelection, resolve_training_selection,
+    };
+
+    let root = workspace_root
+        .map(Path::to_path_buf)
+        .or_else(vox_corpus::training::contract::find_workspace_root)
+        .ok_or_else(|| {
+            anyhow::anyhow!("could not find workspace root for spoke base resolution")
+        })?;
+
+    let selection = resolve_training_selection(&root, Some(domain), cli_model, cli_preset, None)?;
+
+    match selection {
+        TrainingSelection::Train { model, preset, .. } => Ok((model, preset)),
+        TrainingSelection::Skip { reason } => {
+            anyhow::bail!("spoke '{domain}' is {reason} — nothing to train locally")
+        }
+    }
 }
 
 /// Resolve the cloud spoke base: returns `(hf_id@revision, rung, quantization)`.
@@ -783,36 +743,6 @@ fn run_cloud_eval_gate(
         Ok(_) => EvalGateOutcome::BelowBase,
         Err(e) => EvalGateOutcome::EvalError(format!("eval gate could not run: {e}")),
     }
-}
-
-/// Resolve a single training-sizing knob (`seq_len` / `batch_size` / `grad_accum`)
-/// from its candidate sources, applying the canonical precedence:
-///
-/// ```text
-/// explicit CLI flag  >  deliberate domain profile  >  per-model VRAM budget  >  generic preset default
-/// ```
-///
-/// Each argument is `Some` only when that tier actually supplied a value:
-/// - `cli`: the user passed `--seq-len` / `--batch-size` / `--grad-accum`.
-/// - `domain`: a deliberately-chosen domain profile pinned the knob.
-/// - `budget`: the per-model VRAM budget (`memory_budget::plan*`) sized the knob to fit the card.
-/// - `preset_default`: a generic preset's fallback value.
-///
-/// The key correctness property (the "dual-sizing" bug fix): a **generic preset
-/// default must NOT override the VRAM budget** — `budget` is consulted strictly
-/// before `preset_default`, so the budget can shrink an over-large preset and
-/// avoid OOM. Explicit CLI flags and deliberate domain profiles still win over
-/// the budget.
-///
-/// Pure and side-effect-free so it can be unit-tested in isolation.
-#[allow(dead_code)]
-fn resolve_training_sizing(
-    cli: Option<usize>,
-    domain: Option<usize>,
-    budget: Option<usize>,
-    preset_default: Option<usize>,
-) -> Option<usize> {
-    cli.or(domain).or(budget).or(preset_default)
 }
 
 /// The version this build stamps into freshly generated corpora.
@@ -970,74 +900,6 @@ async fn refresh_stale_training_corpus(
     Ok(())
 }
 
-#[cfg(test)]
-mod sizing_precedence_tests {
-    use super::resolve_training_sizing;
-
-    /// The headline "dual-sizing" bug: a generic preset must NOT beat the VRAM
-    /// budget. Preset seq=512 + budget seq=256, no explicit CLI / domain → 256.
-    #[test]
-    fn budget_overrides_generic_preset_seq_len() {
-        let resolved = resolve_training_sizing(
-            None,      // no explicit --seq-len
-            None,      // no domain profile
-            Some(256), // VRAM budget
-            Some(512), // generic preset default
-        );
-        assert_eq!(resolved, Some(256));
-    }
-
-    /// Explicit CLI always wins, even over the budget: CLI seq=512 + budget seq=256 → 512.
-    #[test]
-    fn explicit_cli_beats_budget() {
-        let resolved = resolve_training_sizing(Some(512), None, Some(256), Some(512));
-        assert_eq!(resolved, Some(512));
-    }
-
-    /// A deliberate domain profile beats the budget but loses to explicit CLI.
-    #[test]
-    fn domain_beats_budget_but_loses_to_cli() {
-        assert_eq!(
-            resolve_training_sizing(None, Some(1024), Some(256), Some(512)),
-            Some(1024)
-        );
-        assert_eq!(
-            resolve_training_sizing(Some(2048), Some(1024), Some(256), Some(512)),
-            Some(2048)
-        );
-    }
-
-    /// No preset at all: the budget value is used as-is.
-    #[test]
-    fn budget_only_is_used() {
-        assert_eq!(
-            resolve_training_sizing(None, None, Some(256), None),
-            Some(256)
-        );
-    }
-
-    /// batch_size / grad_accum follow the same precedence (one representative case each).
-    #[test]
-    fn budget_overrides_preset_for_batch_and_grad() {
-        // batch_size: preset would set 8, budget shrinks to 1.
-        assert_eq!(
-            resolve_training_sizing(None, None, Some(1), Some(8)),
-            Some(1)
-        );
-        // grad_accum: explicit CLI of 4 wins over budget's 16.
-        assert_eq!(
-            resolve_training_sizing(Some(4), None, Some(16), Some(2)),
-            Some(4)
-        );
-    }
-
-    /// Nothing supplied anywhere → None (caller keeps its own fallback).
-    #[test]
-    fn all_none_yields_none() {
-        assert_eq!(resolve_training_sizing(None, None, None, None), None);
-    }
-}
-
 #[cfg(all(test, feature = "cloud"))]
 mod cloud_eval_gate_tests {
     use super::run_cloud_eval_gate;
@@ -1104,5 +966,47 @@ mod cloud_eval_gate_tests {
                 );
             }
         }
+    }
+}
+
+/// D1: `--domain rust --cloud local` wiring. Proves `resolve_local_spoke_base`
+/// (the function `run_train`'s local branch now calls) actually resolves the
+/// spoke's real base + preset — not the bug this replaces, where the local
+/// branch was `let effective_model = model;` and silently kept the raw
+/// (`None`) CLI `--model`/`--preset` regardless of `--domain`.
+///
+/// This is NOT a re-test of `training_selection.rs::rust_resolves_qwen_qlora`
+/// (which already covers the resolver itself) — it exercises the train_arm.rs
+/// wiring on top of it: that the local path's own helper, called with no CLI
+/// overrides, still surfaces the "rust" spoke's Qwen base instead of leaving
+/// `model` as `None` / `preset` unset.
+#[cfg(test)]
+mod local_spoke_base_wiring_tests {
+    use super::resolve_local_spoke_base;
+
+    fn root() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf()
+    }
+
+    #[test]
+    fn domain_rust_resolves_spoke_base_and_preset_not_defaults() {
+        let (model, preset) = resolve_local_spoke_base(Some(&root()), "rust", None, None).unwrap();
+        let model = model.expect("rust spoke must resolve a base model, not None");
+        assert!(
+            model.contains("Qwen"),
+            "expected the rust spoke's Qwen base, got {model:?}"
+        );
+        assert!(!preset.is_empty(), "resolved preset must not be empty");
+    }
+
+    #[test]
+    fn cli_model_still_wins_over_domain_resolution() {
+        let (model, _preset) =
+            resolve_local_spoke_base(Some(&root()), "rust", Some("org/Manual"), None).unwrap();
+        assert_eq!(model.as_deref(), Some("org/Manual"));
     }
 }

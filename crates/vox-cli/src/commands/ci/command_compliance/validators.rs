@@ -25,7 +25,7 @@ use crate::utils::install_policy::{
 
 /// Known `latin_ns` values in [`contracts/cli/command-registry.yaml`] for `surface: vox-cli`.
 const KNOWN_LATIN_NS: &[&str] = &[
-    "fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei", "pm",
+    "fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei", "pm", "gui",
 ];
 const KNOWN_PRODUCT_LANES: &[&str] = &["app", "workflow", "ai", "interop", "data", "platform"];
 const CLI_REGISTRY_SCHEMA_REL: &str = "contracts/cli/command-registry.schema.json";

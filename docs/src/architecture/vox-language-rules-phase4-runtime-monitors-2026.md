@@ -218,6 +218,8 @@ impl RuntimeBudget {
 
 ## Task 10: Per-call sandbox under `vox-bounded-fs` (CI mode)
 
+> **Superseded:** `VOX_SANDBOX=true` is not isolation, and "deploy a Docker" is not the interpreter isolation story. See [`docs/src/reference/isolation.md`](../reference/isolation.md). The historical Task 10 text below is left in place.
+
 **Files:**
 - Modify: `crates/vox-cli/src/run.rs` — when `--sandbox` is set (default-on in CI), wrap fs operations in `vox-bounded-fs` with a fresh tmpdir as root
 - Modify: `crates/vox-bounded-fs/src/lib.rs` — gain `BoundedFsBuilder::with_call_root(path)` for per-call scoping

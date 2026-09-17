@@ -26,6 +26,8 @@ pub mod identity;
 pub mod llm_settings;
 pub mod mcp;
 pub mod memory;
+pub mod mens_run_reports;
+pub mod mens_serve;
 pub mod mercatus;
 pub mod mesh;
 pub mod mic;

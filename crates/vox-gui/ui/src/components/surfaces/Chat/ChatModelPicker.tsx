@@ -1,7 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { getAutoModelRecommendation, type AutoModelRecommendation } from '../../../transport';
+import {
+  filterPickerModels,
+  isLocalProviderName,
+  modelMatchesQuery,
+  normalizeModelCard,
+  unselectableReason,
+  type PickerModel,
+  type ProviderStatus,
+} from '../../../lib/modelPicker';
+import { MODEL_LIST_LIMIT } from '../../../config/constants';
+import { ModelPickerSearch } from './ModelPickerSearch';
 
 /** Chat-surface model pick. The pick is lifted to App state and threaded into
  *  the chat submit payload as the `model_override` enqueue hint — the one
@@ -9,36 +20,6 @@ import { getAutoModelRecommendation, type AutoModelRecommendation } from '../../
  *  AgentTask.model_override → StreamRoute::UserModelOverride). Deliberately
  *  NOT `set_active_model`, which only touches the GUI process (Resolved
  *  decision "Item 4"). `null` pick = auto-route (clear the override). */
-interface ProviderStatus {
-  provider: string;
-  key_present: boolean;
-  is_local: boolean;
-  local_reachable: boolean | null;
-}
-
-export interface ModelCard {
-  id: string;
-  provider?: string;
-  provider_type?: string;
-}
-
-/** True when the picker should refuse this provider — no key for a cloud
- *  provider, or the cached local-server probe reports it unreachable. This
- *  is what keeps the picker's list in sync with the BackendAvailability
- *  strip; without it a user could pick a model the strip is simultaneously
- *  showing as unavailable, and the request would fail 100% of the time. */
-export function isProviderUnavailable(model: ModelCard, statuses: ProviderStatus[]): boolean {
-  const targetProvider = model.provider_type ?? model.provider;
-  if (!targetProvider) return false;
-  const pNorm = targetProvider.toLowerCase().replace(/_/g, '');
-  const s = statuses.find(x => {
-    const xNorm = x.provider.toLowerCase().replace(/_/g, '');
-    return xNorm === pNorm || (pNorm === 'populilocal' && xNorm === 'voxlocal');
-  });
-  if (!s) return false;
-  if (s.is_local) return s.local_reachable === false;
-  return !s.key_present;
-}
 
 function shortModelId(id: string): string {
   return id.split('/').pop() ?? id;
@@ -52,9 +33,10 @@ export function ChatModelPicker({
   onApplied?: (modelId: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [models, setModels] = useState<ModelCard[]>([]);
+  const [models, setModels] = useState<PickerModel[]>([]);
   const [statuses, setStatuses] = useState<ProviderStatus[]>([]);
   const [recommendation, setRecommendation] = useState<AutoModelRecommendation | null>(null);
+  const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -93,26 +75,58 @@ export function ChatModelPicker({
     };
   }, [open]);
 
-  const toggle = async () => {
-    const next = !open;
-    setOpen(next);
-    if (next && models.length === 0) {
-      try {
-        const [cards, providerStatuses] = await Promise.all([
-          invoke<ModelCard[]>('list_model_cards', { limit: 120 }),
-          invoke<ProviderStatus[]>('inference_provider_status'),
-        ]);
-        setModels(Array.isArray(cards) ? cards : []);
-        setStatuses(Array.isArray(providerStatuses) ? providerStatuses : []);
-      } catch (e) {
-        setError(sanitizeErrorForToast(e));
-      }
+  const load = async () => {
+    try {
+      const [cards, providerStatuses] = await Promise.all([
+        invoke<Array<Record<string, unknown>>>('list_model_cards', { limit: MODEL_LIST_LIMIT }),
+        invoke<ProviderStatus[]>('inference_provider_status'),
+      ]);
+      setModels(
+        (Array.isArray(cards) ? cards : [])
+          .map(c => normalizeModelCard(c))
+          .filter((m): m is PickerModel => m != null),
+      );
+      setStatuses(Array.isArray(providerStatuses) ? providerStatuses : []);
+      setError(null);
+    } catch (e) {
+      setError(sanitizeErrorForToast(e));
     }
   };
 
-  const apply = (id: string | null, unavailable: boolean) => {
-    if (unavailable) return;
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      setQuery('');
+      await load();
+    }
+  };
+
+  const visible = useMemo(
+    () => filterPickerModels(models, statuses, query),
+    [models, statuses, query],
+  );
+
+  // Local models (e.g. a freshly-trained `mens/foo`) that filterPickerModels
+  // drops for cause — server not running, or not yet in local_models — get
+  // shown dimmed with their reason instead of silently vanishing.
+  const unreachableLocal = useMemo(
+    () =>
+      models
+        .filter(m => isLocalProviderName(m.provider) || isLocalProviderName(m.providerType))
+        .filter(m => modelMatchesQuery(m, query))
+        .map(m => ({ model: m, reason: unselectableReason(m, statuses) }))
+        .filter((r): r is { model: PickerModel; reason: string } => r.reason != null),
+    [models, statuses, query],
+  );
+
+  const apply = (id: string | null) => {
     onApplied?.(id);
+    setOpen(false);
+  };
+
+  const goStartMensServer = () => {
+    window.dispatchEvent(new CustomEvent('vox://navigate-surface', { detail: { view: 'mens' } }));
     setOpen(false);
   };
 
@@ -127,12 +141,15 @@ export function ChatModelPicker({
         model: {activeModel ?? 'auto-route'}
       </button>
       {open && (
-        <ul
+        <div
           role="listbox"
           aria-label="Pick model for this chat"
-          className="absolute bottom-full left-0 z-50 mb-1 max-h-64 w-72 overflow-y-auto rounded-lg border border-border-subtle bg-bg-base p-1 custom-scrollbar"
+          className="absolute bottom-full left-0 z-50 mb-1 w-80 rounded-lg border border-border-subtle bg-bg-base p-1"
         >
-          <li key="auto-route">
+          <div className="sticky top-0 z-10 bg-bg-base">
+            <ModelPickerSearch value={query} onChange={setQuery} />
+          </div>
+          <div className="max-h-72 overflow-y-auto overscroll-contain custom-scrollbar">
             <button
               type="button"
               role="option"
@@ -147,8 +164,8 @@ export function ChatModelPicker({
                   ? `Detected VRAM: ${recommendation.detected_vram_gb.toFixed(1)} GB — ${recommendation.tier_reason}`
                   : undefined
               }
-              onClick={() => apply(null, false)}
-              className="flex w-full items-center justify-between truncate rounded px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
+              onClick={() => apply(null)}
+              className="flex w-full items-center justify-between truncate rounded-sm px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
             >
               <span className="truncate">
                 {recommendation
@@ -164,32 +181,42 @@ export function ChatModelPicker({
                 </span>
               )}
             </button>
-          </li>
-          {models.map(m => {
-            const unavailable = isProviderUnavailable(m, statuses);
-            return (
-              <li key={m.id}>
+            {visible.map(m => (
+              <button
+                key={m.id}
+                type="button"
+                role="option"
+                aria-selected={m.id === activeModel}
+                onClick={() => apply(m.id)}
+                className="w-full truncate rounded px-2 py-1 text-left font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle"
+              >
+                {m.id}
+              </button>
+            ))}
+            {unreachableLocal.map(({ model: m, reason }) => (
+              <div
+                key={m.id}
+                className="flex items-center justify-between gap-2 truncate rounded px-2 py-1 font-mono text-[10px] text-text-muted opacity-60"
+              >
+                <span className="min-w-0 flex-1 truncate" title={`${m.id} — ${reason}`}>
+                  <span>{m.id}</span>{' — '}<span>{reason}</span>
+                </span>
                 <button
                   type="button"
-                  role="option"
-                  aria-selected={m.id === activeModel}
-                  aria-disabled={unavailable}
-                  disabled={unavailable}
-                  title={unavailable ? `${m.provider_type ?? m.provider} is currently unavailable (no key or unreachable)` : undefined}
-                  onClick={() => apply(m.id, unavailable)}
-                  className={`w-full truncate rounded px-2 py-1 text-left font-mono text-[10px] ${
-                    unavailable
-                      ? 'cursor-not-allowed text-text-muted/50'
-                      : 'text-text-secondary hover:bg-overlay-subtle'
-                  }`}
+                  onClick={goStartMensServer}
+                  className="shrink-0 text-brass underline opacity-100 hover:text-brass/80"
                 >
-                  {m.id}
-                  {unavailable ? ' (unavailable)' : ''}
+                  Start server
                 </button>
-              </li>
-            );
-          })}
-        </ul>
+              </div>
+            ))}
+            {visible.length === 0 && unreachableLocal.length === 0 && (
+              <div className="px-2 py-1.5 font-mono text-[10px] text-text-muted">
+                No keyed models match
+              </div>
+            )}
+          </div>
+        </div>
       )}
       {error && <div role="alert" className="mt-1 text-[10px] text-rose-400">{error}</div>}
     </div>

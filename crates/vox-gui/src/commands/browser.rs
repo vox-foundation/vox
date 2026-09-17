@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use base64::Engine;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
@@ -42,6 +43,7 @@ pub struct BrowserFramePayload {
     pub image_base64: Option<String>,
     pub viewport_width: Option<u32>,
     pub viewport_height: Option<u32>,
+    pub mime: Option<String>,
     pub action_log: Vec<String>,
     pub error: Option<String>,
 }
@@ -208,10 +210,142 @@ fn extract_page_id_from_mcp(result: &serde_json::Value) -> Option<String> {
         .map(ToString::to_string)
 }
 
+/// Host of a preview URL, parsed by hand (no `url` crate). Used to keep the
+/// iframe on loopback so named/attach work cannot widen it to arbitrary sites.
+fn preview_url_host(url: &str) -> String {
+    let trimmed = url.trim();
+    let authority = trimmed
+        .split_once("://")
+        .map_or(trimmed, |(_, rest)| rest)
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or_default();
+    if authority.contains('\\') {
+        return String::new();
+    }
+    let authority = authority.rsplit('@').next().unwrap_or_default();
+    if authority.starts_with('[') {
+        authority
+            .find(']')
+            .map_or(authority, |end| &authority[..=end])
+            .to_ascii_lowercase()
+    } else {
+        authority
+            .split(':')
+            .next()
+            .unwrap_or_default()
+            .trim_end_matches('.')
+            .to_ascii_lowercase()
+    }
+}
+
+fn is_loopback_preview_url(url: &str) -> bool {
+    matches!(
+        preview_url_host(url).as_str(),
+        "localhost" | "127.0.0.1" | "[::1]"
+    )
+}
+
+fn require_loopback_preview_url(url: &str) -> Result<(), String> {
+    if is_loopback_preview_url(url) {
+        Ok(())
+    } else {
+        Err(
+            "preview URL must be loopback (localhost, 127.0.0.1, or [::1]); \
+named/Connect Chrome sessions use the agent live view, not the iframe"
+                .to_string(),
+        )
+    }
+}
+
+/// `needs_human` from MCP is surfaced as toast + `action_log`, not NeedsYou.
+fn needs_human_reason(result: &serde_json::Value) -> Option<String> {
+    let data = mcp_data(result).ok()?;
+    if data.get("needs_human").and_then(|v| v.as_bool()) != Some(true) {
+        return None;
+    }
+    Some(
+        data.get("reason")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or("needs_human")
+            .to_string(),
+    )
+}
+
+fn log_needs_human(session: &mut BrowserSession, result: &serde_json::Value) {
+    if let Some(reason) = needs_human_reason(result) {
+        push_action_log(session, format!("needs_human: {reason}"));
+    }
+}
+
+fn frame_bytes_from_mcp_data(
+    data: &serde_json::Value,
+    cache_root: &std::path::Path,
+) -> Result<(String, Option<u32>, Option<u32>, String), String> {
+    let width = data
+        .get("width")
+        .or_else(|| data.get("viewport_width"))
+        .and_then(|v| v.as_u64())
+        .map(|v| u32::try_from(v).map_err(|_| "screenshot width exceeds u32".to_string()))
+        .transpose()?;
+    let height = data
+        .get("height")
+        .or_else(|| data.get("viewport_height"))
+        .and_then(|v| v.as_u64())
+        .map(|v| u32::try_from(v).map_err(|_| "screenshot height exceeds u32".to_string()))
+        .transpose()?;
+    if let Some(path) = data.get("path").and_then(|v| v.as_str()) {
+        let p = std::path::Path::new(path);
+        if !p.is_absolute() {
+            return Err("screenshot path must be absolute".into());
+        }
+        if !vox_config::paths::path_is_under(cache_root, p) {
+            return Err("screenshot path escaped cache jail".into());
+        }
+        let metadata = std::fs::metadata(p).map_err(|e| e.to_string())?;
+        if metadata.len() > 400_000 {
+            return Err("screenshot frame exceeds image part cap".into());
+        }
+        let bytes = std::fs::read(p).map_err(|e| e.to_string())?;
+        if bytes.len() > 400_000 {
+            return Err("screenshot frame exceeds image part cap".into());
+        }
+        let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
+            "image/png".to_string()
+        } else if bytes.len() >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff {
+            "image/jpeg".to_string()
+        } else {
+            return Err("screenshot path is not PNG or JPEG".into());
+        };
+        let image_base64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+        return Ok((image_base64, width, height, mime));
+    }
+    if let Some(image_base64) = data.get("image_base64").and_then(|v| v.as_str()) {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(image_base64.trim())
+            .map_err(|_| "screenshot image_base64 is invalid".to_string())?;
+        if bytes.len() > 400_000 {
+            return Err("screenshot frame exceeds image part cap".into());
+        }
+        let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
+            "image/png"
+        } else if bytes.len() >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff {
+            "image/jpeg"
+        } else {
+            return Err("screenshot image_base64 is not PNG or JPEG".into());
+        };
+        let image_base64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+        return Ok((image_base64, width, height, mime.to_string()));
+    }
+    Err("screenshot_viewport returned no path or image_base64".into())
+}
+
 async fn capture_frame_png_base64(
     daemon: &PersistentDaemon,
     page_id: &str,
-) -> Result<(String, Option<u32>, Option<u32>), String> {
+) -> Result<(String, Option<u32>, Option<u32>, String), String> {
+    let cache_root = vox_config::paths::browser_frames_cache_dir();
     let screencast = mcp_tool_call(
         daemon,
         "vox_browser_screencast_frame",
@@ -220,16 +354,8 @@ async fn capture_frame_png_base64(
     .await;
     if let Ok(result) = screencast {
         let data = mcp_data(&result)?;
-        if let Some(image_base64) = data.get("image_base64").and_then(|v| v.as_str()) {
-            let viewport_width = data
-                .get("viewport_width")
-                .and_then(|v| v.as_u64())
-                .map(|v| v as u32);
-            let viewport_height = data
-                .get("viewport_height")
-                .and_then(|v| v.as_u64())
-                .map(|v| v as u32);
-            return Ok((image_base64.to_string(), viewport_width, viewport_height));
+        if data.get("path").is_some() || data.get("image_base64").is_some() {
+            return frame_bytes_from_mcp_data(&data, &cache_root);
         }
     }
     let result = mcp_tool_call(
@@ -239,20 +365,7 @@ async fn capture_frame_png_base64(
     )
     .await?;
     let data = mcp_data(&result)?;
-    let image_base64 = data
-        .get("image_base64")
-        .and_then(|v| v.as_str())
-        .map(ToString::to_string)
-        .ok_or_else(|| "screenshot_viewport returned no image_base64".to_string())?;
-    let viewport_width = data
-        .get("viewport_width")
-        .and_then(|v| v.as_u64())
-        .map(|v| v as u32);
-    let viewport_height = data
-        .get("viewport_height")
-        .and_then(|v| v.as_u64())
-        .map(|v| v as u32);
-    Ok((image_base64, viewport_width, viewport_height))
+    frame_bytes_from_mcp_data(&data, &cache_root)
 }
 
 /// Spawn a background task that polls the active CDP page and emits
@@ -280,6 +393,7 @@ pub fn spawn_browser_frame_stream(
                 image_base64: capture.as_ref().ok().map(|c| c.0.clone()),
                 viewport_width: capture.as_ref().ok().and_then(|c| c.1),
                 viewport_height: capture.as_ref().ok().and_then(|c| c.2),
+                mime: capture.as_ref().ok().map(|c| c.3.clone()),
                 action_log,
                 error: capture.err().map(|e| e.to_string()),
             };
@@ -290,11 +404,19 @@ pub fn spawn_browser_frame_stream(
 
 /// Bootstrap preview discovery from environment for CodeGen/dev flows that
 /// already expose `VOX_SSR_DEV_URL`.
+fn approved_loopback_preview_url(raw: &str) -> Option<String> {
+    let url = raw.trim();
+    if url.is_empty() || !is_loopback_preview_url(url) {
+        None
+    } else {
+        Some(url.to_string())
+    }
+}
+
 pub fn emit_preview_available_from_env(app_handle: AppHandle, browser_state: Arc<BrowserState>) {
-    if let Ok(url) = std::env::var("VOX_SSR_DEV_URL")
-        && !url.trim().is_empty()
+    if let Ok(raw) = std::env::var("VOX_SSR_DEV_URL")
+        && let Some(url) = approved_loopback_preview_url(&raw)
     {
-        let url = url.trim().to_string();
         tokio::spawn(async move {
             {
                 let mut preview = browser_state.preview.lock().await;
@@ -348,6 +470,7 @@ pub async fn preview_start(
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
     {
+        require_loopback_preview_url(url)?;
         preview.url = Some(url.to_string());
         preview.app_dir = input.app_dir.clone();
         preview.source = "url".to_string();
@@ -400,6 +523,7 @@ Use a `vox build` web app output, or start the dev server yourself and pass its 
         .filter(|s| !s.trim().is_empty())
         .or_else(|| inject.as_ref().map(|(_, v)| v.clone()))
         .unwrap_or_else(|| "http://127.0.0.1:3000".to_string());
+    require_loopback_preview_url(&url)?;
     preview.guard = Some(guard);
     preview.url = Some(url.clone());
     preview.app_dir = Some(app_dir.to_string_lossy().to_string());
@@ -442,6 +566,54 @@ pub async fn preview_stop(
 pub struct BrowserOpenInput {
     pub url: String,
     pub headless: Option<bool>,
+    pub mode: Option<String>,
+    pub profile_id: Option<String>,
+    pub save_profile: Option<bool>,
+    pub cdp_url: Option<String>,
+}
+
+/// `None` / `"ephemeral"` → `vox_browser_open`. Named / Connect Chrome → `vox_browser_open_ex`.
+fn open_session_mcp_call(
+    input: &BrowserOpenInput,
+) -> Result<(&'static str, serde_json::Value), String> {
+    let headless = input.headless.unwrap_or(true);
+    let mode = input
+        .mode
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_ascii_lowercase);
+    match mode.as_deref() {
+        None | Some("ephemeral") => Ok((
+            "vox_browser_open",
+            serde_json::json!({ "url": input.url, "headless": headless }),
+        )),
+        Some("named") => Ok((
+            "vox_browser_open_ex",
+            serde_json::json!({
+                "url": input.url,
+                "headless": headless,
+                "mode": "named",
+                "profile_id": input.profile_id,
+                "save_profile": input.save_profile.unwrap_or(false),
+                "cdp_url": serde_json::Value::Null,
+            }),
+        )),
+        Some("connect-chrome") => Ok((
+            "vox_browser_open_ex",
+            serde_json::json!({
+                "url": input.url,
+                "headless": headless,
+                "mode": "attach",
+                "profile_id": serde_json::Value::Null,
+                "save_profile": input.save_profile.unwrap_or(false),
+                "cdp_url": input.cdp_url,
+            }),
+        )),
+        Some(other) => Err(format!(
+            "unknown launch mode {other:?}; use ephemeral, named, or connect-chrome"
+        )),
+    }
 }
 
 #[tauri::command]
@@ -451,12 +623,8 @@ pub async fn browser_open_session(
     input: BrowserOpenInput,
 ) -> Result<serde_json::Value, String> {
     let headless = input.headless.unwrap_or(true);
-    let result = mcp_tool_call(
-        &daemon,
-        "vox_browser_open",
-        serde_json::json!({ "url": input.url, "headless": headless }),
-    )
-    .await?;
+    let (tool, args) = open_session_mcp_call(&input)?;
+    let result = mcp_tool_call(&daemon, tool, args).await?;
     let page_id = extract_page_id_from_mcp(&result);
     if let Some(ref page_id) = page_id {
         mcp_tool_call(
@@ -474,6 +642,7 @@ pub async fn browser_open_session(
         .await
         .and_then(|v| mcp_data(&v).map(|_| ()))?;
     }
+    let needs_human = needs_human_reason(&result);
     let mut session = browser_state.session.lock().await;
     session.selected_page_id = page_id.clone();
     session.headless = headless;
@@ -484,9 +653,14 @@ pub async fn browser_open_session(
             input.url, page_id
         ),
     );
+    if let Some(ref reason) = needs_human {
+        push_action_log(&mut session, format!("needs_human: {reason}"));
+    }
     Ok(serde_json::json!({
         "page_id": page_id,
         "headless": headless,
+        "needs_human": needs_human.is_some(),
+        "reason": needs_human,
         "raw": result,
     }))
 }
@@ -556,6 +730,31 @@ pub async fn browser_close_page(
     Ok(())
 }
 
+fn snapshot_mcp_args(page_id: &str) -> serde_json::Value {
+    serde_json::json!({
+        "page_id": page_id,
+        "include_boxes": true,
+    })
+}
+
+/// Overlay enable path: MCP `vox_browser_snapshot` with boxes for `[eN]` labels.
+#[tauri::command]
+pub async fn browser_snapshot(
+    browser_state: tauri::State<'_, Arc<BrowserState>>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+) -> Result<serde_json::Value, String> {
+    let page_id = {
+        let session = browser_state.session.lock().await;
+        session
+            .selected_page_id
+            .clone()
+            .ok_or_else(|| "no selected page; open or attach first".to_string())?
+    };
+    let result =
+        mcp_tool_call(&daemon, "vox_browser_snapshot", snapshot_mcp_args(&page_id)).await?;
+    mcp_data(&result)
+}
+
 #[tauri::command]
 pub async fn browser_screenshot_frame(
     browser_state: tauri::State<'_, Arc<BrowserState>>,
@@ -572,17 +771,19 @@ pub async fn browser_screenshot_frame(
             image_base64: None,
             viewport_width: None,
             viewport_height: None,
+            mime: None,
             action_log,
             error: Some("no active browser session; call browser_open_session first".to_string()),
         });
     };
     match capture_frame_png_base64(&daemon, &page_id).await {
-        Ok((image_base64, viewport_width, viewport_height)) => Ok(BrowserFramePayload {
+        Ok((image_base64, viewport_width, viewport_height, mime)) => Ok(BrowserFramePayload {
             timestamp_ms: now_ms(),
             page_id: Some(page_id),
             image_base64: Some(image_base64),
             viewport_width,
             viewport_height,
+            mime: Some(mime),
             action_log,
             error: None,
         }),
@@ -592,6 +793,7 @@ pub async fn browser_screenshot_frame(
             image_base64: None,
             viewport_width: None,
             viewport_height: None,
+            mime: None,
             action_log,
             error: Some(e),
         }),
@@ -758,15 +960,16 @@ pub async fn browser_goto_url(
     if url.is_empty() {
         return Err("url is required".to_string());
     }
-    mcp_tool_call(
+    let result = mcp_tool_call(
         &daemon,
         "vox_browser_goto",
         serde_json::json!({ "page_id": page_id, "url": url, "actor": "human" }),
     )
-    .await
-    .and_then(|v| mcp_data(&v).map(|_| ()))?;
+    .await?;
+    mcp_data(&result)?;
     let mut session = browser_state.session.lock().await;
     push_action_log(&mut session, format!("goto {url}"));
+    log_needs_human(&mut session, &result);
     Ok(())
 }
 
@@ -818,18 +1021,19 @@ pub async fn browser_click_xy(
             .clone()
             .ok_or_else(|| "no selected page; open or attach first".to_string())?
     };
-    mcp_tool_call(
+    let result = mcp_tool_call(
         &daemon,
         "vox_browser_click_xy",
         serde_json::json!({ "page_id": page_id, "x": input.x, "y": input.y, "actor": "human" }),
     )
-    .await
-    .and_then(|v| mcp_data(&v).map(|_| ()))?;
+    .await?;
+    mcp_data(&result)?;
     let mut session = browser_state.session.lock().await;
     push_action_log(
         &mut session,
         format!("click_xy ({:.1}, {:.1})", input.x, input.y),
     );
+    log_needs_human(&mut session, &result);
     Ok(())
 }
 
@@ -851,13 +1055,15 @@ pub async fn browser_type_text(
             .clone()
             .ok_or_else(|| "no selected page; open or attach first".to_string())?
     };
-    mcp_tool_call(
+    let result = mcp_tool_call(
         &daemon,
         "vox_browser_type",
         serde_json::json!({ "page_id": page_id, "text": input.text, "actor": "human" }),
     )
-    .await
-    .and_then(|v| mcp_data(&v).map(|_| ()))?;
+    .await?;
+    mcp_data(&result)?;
+    let mut session = browser_state.session.lock().await;
+    log_needs_human(&mut session, &result);
     Ok(())
 }
 
@@ -879,13 +1085,15 @@ pub async fn browser_input_key(
             .clone()
             .ok_or_else(|| "no selected page; open or attach first".to_string())?
     };
-    mcp_tool_call(
+    let result = mcp_tool_call(
         &daemon,
         "vox_browser_press",
         serde_json::json!({ "page_id": page_id, "key": input.key, "actor": "human" }),
     )
-    .await
-    .and_then(|v| mcp_data(&v).map(|_| ()))?;
+    .await?;
+    mcp_data(&result)?;
+    let mut session = browser_state.session.lock().await;
+    log_needs_human(&mut session, &result);
     Ok(())
 }
 
@@ -1063,6 +1271,160 @@ mod tests {
         assert!(err.contains("no such page"));
         assert!(err.contains("vox_browser_open"));
         assert!(extract_page_id_from_mcp(&bad).is_none());
+    }
+
+    #[test]
+    fn frame_bytes_from_mcp_data_reads_path() {
+        let dir = std::env::temp_dir().join(format!("vox-gui-frame-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("f.png");
+        let png = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        )
+        .unwrap();
+        std::fs::write(&path, &png).unwrap();
+        let data = serde_json::json!({
+            "path": path.to_string_lossy(),
+            "width": 1,
+            "height": 1
+        });
+        let (b64, w, h, mime) = frame_bytes_from_mcp_data(&data, &dir).expect("read");
+        assert_eq!(mime, "image/png");
+        assert_eq!(w, Some(1));
+        assert_eq!(h, Some(1));
+        assert!(!b64.is_empty());
+    }
+
+    #[test]
+    fn frame_bytes_from_mcp_data_rejects_escape() {
+        let jail = std::env::temp_dir().join(format!("vox-gui-jail-{}", std::process::id()));
+        std::fs::create_dir_all(&jail).unwrap();
+        let data = serde_json::json!({ "path": "/etc/hosts" });
+        assert!(frame_bytes_from_mcp_data(&data, &jail).is_err());
+    }
+
+    #[test]
+    fn frame_bytes_from_mcp_data_rejects_spoofed_inline_image() {
+        let data = serde_json::json!({
+            "image_base64": base64::engine::general_purpose::STANDARD.encode(b"<svg/>"),
+            "mime": "image/png"
+        });
+        assert!(frame_bytes_from_mcp_data(&data, std::env::temp_dir().as_path()).is_err());
+    }
+
+    #[test]
+    fn frame_bytes_from_mcp_data_rejects_dimensions_over_u32() {
+        let data = serde_json::json!({
+            "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+            "width": u64::MAX
+        });
+        assert!(frame_bytes_from_mcp_data(&data, std::env::temp_dir().as_path()).is_err());
+    }
+
+    #[test]
+    fn preview_url_must_be_loopback() {
+        assert!(is_loopback_preview_url("http://127.0.0.1:3000"));
+        assert!(is_loopback_preview_url("http://localhost:5173/app"));
+        assert!(is_loopback_preview_url("http://[::1]:3000"));
+        assert!(require_loopback_preview_url("https://example.com").is_err());
+        assert!(!is_loopback_preview_url("https://example.com"));
+        assert_eq!(
+            approved_loopback_preview_url("http://127.0.0.1:3000"),
+            Some("http://127.0.0.1:3000".into())
+        );
+        assert_eq!(approved_loopback_preview_url("https://evil.example"), None);
+        assert_eq!(approved_loopback_preview_url("  "), None);
+    }
+
+    #[test]
+    fn open_session_none_and_ephemeral_use_vox_browser_open() {
+        let none = BrowserOpenInput {
+            url: "https://example.com".into(),
+            headless: Some(true),
+            mode: None,
+            profile_id: None,
+            save_profile: None,
+            cdp_url: None,
+        };
+        let (tool, args) = open_session_mcp_call(&none).unwrap();
+        assert_eq!(tool, "vox_browser_open");
+        assert_eq!(
+            args,
+            serde_json::json!({ "url": "https://example.com", "headless": true })
+        );
+
+        let ephemeral = BrowserOpenInput {
+            mode: Some("ephemeral".into()),
+            ..none
+        };
+        let (tool, args) = open_session_mcp_call(&ephemeral).unwrap();
+        assert_eq!(tool, "vox_browser_open");
+        assert_eq!(
+            args.get("url").and_then(|v| v.as_str()),
+            Some("https://example.com")
+        );
+    }
+
+    #[test]
+    fn open_session_named_and_connect_chrome_use_open_ex() {
+        let named = BrowserOpenInput {
+            url: "https://example.com".into(),
+            headless: Some(false),
+            mode: Some("named".into()),
+            profile_id: Some("staging-1".into()),
+            save_profile: Some(false),
+            cdp_url: None,
+        };
+        let (tool, args) = open_session_mcp_call(&named).unwrap();
+        assert_eq!(tool, "vox_browser_open_ex");
+        assert_eq!(args.get("mode").and_then(|v| v.as_str()), Some("named"));
+        assert_eq!(
+            args.get("save_profile").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            args.get("profile_id").and_then(|v| v.as_str()),
+            Some("staging-1")
+        );
+
+        let chrome = BrowserOpenInput {
+            mode: Some("connect-chrome".into()),
+            cdp_url: Some("http://127.0.0.1:9222".into()),
+            profile_id: None,
+            ..named
+        };
+        let (tool, args) = open_session_mcp_call(&chrome).unwrap();
+        assert_eq!(tool, "vox_browser_open_ex");
+        assert_eq!(args.get("mode").and_then(|v| v.as_str()), Some("attach"));
+        assert_eq!(
+            args.get("cdp_url").and_then(|v| v.as_str()),
+            Some("http://127.0.0.1:9222")
+        );
+    }
+
+    #[test]
+    fn snapshot_mcp_args_include_boxes() {
+        let args = snapshot_mcp_args("page-1");
+        assert_eq!(args.get("page_id").and_then(|v| v.as_str()), Some("page-1"));
+        assert_eq!(
+            args.get("include_boxes").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn needs_human_reason_reads_mcp_data() {
+        let result = serde_json::json!({
+            "success": true,
+            "data": { "ok": false, "needs_human": true, "reason": "password_field" }
+        });
+        assert_eq!(
+            needs_human_reason(&result).as_deref(),
+            Some("password_field")
+        );
+        let ok = serde_json::json!({ "success": true, "data": { "page_id": "p1" } });
+        assert!(needs_human_reason(&ok).is_none());
     }
 
     #[test]

@@ -39,22 +39,20 @@ use candle_core::backprop::GradStore;
 /// against loss-spike gradient blowups.
 ///
 /// No-op when `total_norm <= max_norm`. Returns the pre-clip `total_norm`.
-pub(crate) fn clip_grad_norm(
-    grads: &mut GradStore,
-    vars: &[Var],
-    max_norm: f64,
-) -> Result<f64> {
+pub(crate) fn clip_grad_norm(grads: &mut GradStore, vars: &[Var], max_norm: f64) -> Result<f64> {
     // Accumulate the sum of squares across all gradients as an f64 scalar.
     let mut sum_sq = 0.0f64;
     for var in vars {
         if let Some(grad) = grads.get(var.as_tensor()) {
             let sq = grad.sqr().map_err(QLoraError::Candle)?;
             let s = sq.sum_all().map_err(QLoraError::Candle)?;
+            // Metal has no F32→F64 contiguous kernel. Read the scalar as F32
+            // and widen on the host (CPU path still works).
             let s = s
-                .to_dtype(DType::F64)
+                .to_dtype(DType::F32)
                 .map_err(QLoraError::Candle)?
-                .to_scalar::<f64>()
-                .map_err(QLoraError::Candle)?;
+                .to_scalar::<f32>()
+                .map_err(QLoraError::Candle)? as f64;
             sum_sq += s;
         }
     }
@@ -117,11 +115,7 @@ pub fn backward_from_cotangent(y: &Tensor, upstream_grad: &Tensor) -> Result<Gra
 ///
 /// # Errors
 /// Returns an error if a tensor add fails.
-pub fn accumulate_grads_for_vars(
-    dst: &mut GradStore,
-    src: &GradStore,
-    vars: &[Var],
-) -> Result<()> {
+pub fn accumulate_grads_for_vars(dst: &mut GradStore, src: &GradStore, vars: &[Var]) -> Result<()> {
     for var in vars {
         if let Some(g) = src.get(var.as_tensor()) {
             let merged = match dst.get(var.as_tensor()) {
@@ -711,10 +705,9 @@ impl QLoraTrainer {
             .iter()
             .map(|(k, v)| (k.clone(), v.as_tensor().clone()))
             .collect();
-        
-        candle_core::safetensors::save(&map, path)
-            .map_err(QLoraError::Candle)?;
-            
+
+        candle_core::safetensors::save(&map, path).map_err(QLoraError::Candle)?;
+
         Ok(())
     }
 
@@ -734,7 +727,11 @@ impl QLoraTrainer {
 
     /// Exposes backward step logic for manual loops
     pub fn backward_step(&mut self, loss: &Tensor) -> Result<()> {
-        let accum_steps = self.config.adapter_config.gradient_accumulation_steps.max(1);
+        let accum_steps = self
+            .config
+            .adapter_config
+            .gradient_accumulation_steps
+            .max(1);
         let scaled_loss = if accum_steps > 1 {
             let scale = Tensor::new(1.0f32 / accum_steps as f32, loss.device())?;
             loss.broadcast_mul(&scale)?
@@ -779,9 +776,9 @@ impl QLoraTrainer {
                 let _ = scaled_loss.backward();
             }
         }
-        
+
         let _should_log = self.state.step();
-        
+
         Ok(())
     }
 
@@ -817,7 +814,11 @@ impl QLoraTrainer {
     /// # Panics
     /// Panics if the `VarMap` mutex is poisoned.
     pub fn optimizer_step_with_grads(&mut self, mut grads: GradStore) -> Result<()> {
-        let accum_steps = self.config.adapter_config.gradient_accumulation_steps.max(1);
+        let accum_steps = self
+            .config
+            .adapter_config
+            .gradient_accumulation_steps
+            .max(1);
         self.accumulation_step += 1;
         let do_step = self.accumulation_step >= accum_steps;
 
@@ -1043,7 +1044,11 @@ impl QLoraTrainer {
         let loss = cross_entropy_loss(&logits, target_ids)?;
         let loss_value = f64::from(loss.to_scalar::<f32>()?);
 
-        let accum_steps = self.config.adapter_config.gradient_accumulation_steps.max(1);
+        let accum_steps = self
+            .config
+            .adapter_config
+            .gradient_accumulation_steps
+            .max(1);
         let scaled_loss = if accum_steps > 1 {
             let scale = Tensor::new(1.0f32 / accum_steps as f32, loss.device())?;
             loss.broadcast_mul(&scale)?
@@ -1304,7 +1309,10 @@ mod tests {
         let vars = vec![v1.clone(), v2.clone()];
         let max_norm = 1.0;
         let pre = clip_grad_norm(&mut grads, &vars, max_norm).unwrap();
-        assert!((pre - 5.0).abs() < 1e-5, "pre-clip norm should be 5, got {pre}");
+        assert!(
+            (pre - 5.0).abs() < 1e-5,
+            "pre-clip norm should be 5, got {pre}"
+        );
 
         // Post-clip global norm must be <= max_norm (+ tiny epsilon).
         let c1 = grads.get(v1.as_tensor()).unwrap();
@@ -1327,7 +1335,10 @@ mod tests {
             "scale factor must be uniform: {factor1} vs {factor2}"
         );
         // Expected uniform factor ~= max_norm / (5 + eps) ~= 0.2.
-        assert!((factor1 - 0.2).abs() < 1e-4, "factor should be ~0.2, got {factor1}");
+        assert!(
+            (factor1 - 0.2).abs() < 1e-4,
+            "factor should be ~0.2, got {factor1}"
+        );
     }
 
     #[test]
@@ -1373,8 +1384,20 @@ mod tests {
         let y1 = y0.matmul(w1.as_tensor()).unwrap();
         let loss = y1.sum_all().unwrap();
         let full = loss.backward().unwrap();
-        let g_w0_full: Vec<f32> = full.get(w0.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
-        let g_w1_full: Vec<f32> = full.get(w1.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let g_w0_full: Vec<f32> = full
+            .get(w0.as_tensor())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        let g_w1_full: Vec<f32> = full
+            .get(w1.as_tensor())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
 
         // ── Checkpointed: forward with detached segment boundary, then recompute ──
         // Segment 0 forward, detach its output (the checkpoint boundary).
@@ -1398,8 +1421,20 @@ mod tests {
         let mut combined = grads_seg1;
         accumulate_grads_for_vars(&mut combined, &grads_seg0, &[w0.clone()]).unwrap();
 
-        let g_w0_ck: Vec<f32> = combined.get(w0.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
-        let g_w1_ck: Vec<f32> = combined.get(w1.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let g_w0_ck: Vec<f32> = combined
+            .get(w0.as_tensor())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        let g_w1_ck: Vec<f32> = combined
+            .get(w1.as_tensor())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
 
         for (a, b) in g_w0_full.iter().zip(g_w0_ck.iter()) {
             assert!((a - b).abs() < 1e-4, "w0 grad mismatch: full={a} ck={b}");
@@ -1414,7 +1449,8 @@ mod tests {
     #[test]
     fn cotangent_backward_seeds_exact_upstream_grad() {
         let device = Device::Cpu;
-        let w = Var::from_tensor(&Tensor::new(&[[1.0f32, 2.0], [3.0, 4.0]], &device).unwrap()).unwrap();
+        let w =
+            Var::from_tensor(&Tensor::new(&[[1.0f32, 2.0], [3.0, 4.0]], &device).unwrap()).unwrap();
         let x = Tensor::new(&[[1.0f32, 1.0], [1.0, 1.0]], &device).unwrap();
         let y = x.matmul(w.as_tensor()).unwrap();
         // arbitrary upstream cotangent
@@ -1422,10 +1458,19 @@ mod tests {
         let grads = backward_from_cotangent(&y, &g).unwrap();
         // dL/dw = x^T @ g
         let expected = x.t().unwrap().matmul(&g).unwrap();
-        let got: Vec<f32> = grads.get(w.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let got: Vec<f32> = grads
+            .get(w.as_tensor())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
         let exp: Vec<f32> = expected.flatten_all().unwrap().to_vec1().unwrap();
         for (a, b) in got.iter().zip(exp.iter()) {
-            assert!((a - b).abs() < 1e-5, "cotangent grad mismatch: got={a} exp={b}");
+            assert!(
+                (a - b).abs() < 1e-5,
+                "cotangent grad mismatch: got={a} exp={b}"
+            );
         }
     }
 

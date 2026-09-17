@@ -1,0 +1,72 @@
+import fs
+import process
+
+// Failure-honesty: missing OpenRouter key must not false-green Drive chat.
+// Fast path: empty vault + empty cloud keys → model pin must 409 (key_missing)
+// or send must exit non-zero. Never treat a green reply_ok as success here.
+
+fn vox_binary_path() to str {
+    if fs.exists("./target/debug/vox") {
+        return "./target/debug/vox"
+    }
+    if fs.exists("./target/debug/vox.exe") {
+        return "./target/debug/vox.exe"
+    }
+    if fs.exists("./target/release/vox") {
+        return "./target/release/vox"
+    }
+    return "./target/debug/vox"
+}
+
+fn fail(bin: str, message: str) {
+    print("OpenRouter failure-honesty failed: " + message)
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+    process.exit(1)
+}
+
+fn main() {
+    let bin = vox_binary_path()
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+
+    // Strip cloud keys from this process so Drive child inherits empty keys.
+    let empty_vault = "/tmp/vox-drive-honesty-empty-vault.db"
+    let _ = fs.remove(empty_vault)
+    std.env.set("VOX_SECRETS_VAULT_PATH", empty_vault)
+    std.env.set("OPENROUTER_API_KEY", "")
+    std.env.set("ANTHROPIC_API_KEY", "")
+    std.env.set("OPENAI_API_KEY", "")
+    std.env.set("GEMINI_API_KEY", "")
+
+    let start = process.run(bin, ["gui", "drive", "start"])
+    if start is null {
+        fail(bin, "could not execute drive start")
+    }
+    if start.unwrap().code is not 0 {
+        print("{\"status\":\"pass\",\"reason\":\"drive_start_refused_without_keys\"}")
+        process.exit(0)
+    }
+
+    // OpenRouter slug requiring a cloud key — must not be selectable without vault/key.
+    let set = process.run(bin, [
+        "gui", "drive", "set",
+        "--knob", "execution=sync",
+        "--knob", "model_override=anthropic/claude-3-haiku"
+    ])
+    if set is null {
+        fail(bin, "could not execute drive set")
+    }
+    let set_code = set.unwrap().code
+    let set_out = set.unwrap().stdout + set.unwrap().stderr
+
+    let _ = process.run(bin, ["gui", "drive", "stop"])
+
+    if set_code is not 0 {
+        print("{\"status\":\"pass\",\"reason\":\"set_refused_without_keys\",\"set_code\":" + str(set_code) + "}")
+        process.exit(0)
+    }
+    if set_out.contains("model_not_selectable") or set_out.contains("key_missing") {
+        print("{\"status\":\"pass\",\"reason\":\"model_not_selectable_or_key_missing\"}")
+        process.exit(0)
+    }
+    fail(bin, "false green: model_override set succeeded without OpenRouter key")
+}

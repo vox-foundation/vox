@@ -353,6 +353,62 @@ fn sticky_ollama_rejected_when_inference_profile_disallows() {
 }
 
 #[test]
+fn sticky_mens_synthesizes_vox_local_when_absent_from_registry() {
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    // Empty of mens/ — OpenRouter-only registry would previously steal sticky pins.
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_paid_plus_ollama_free();
+
+    let (spec, is_free) = resolve_mcp_chat_model_sync(
+        &orch,
+        "Reply with one short line containing metal-ok",
+        Some("mens/qwen35-08b-metal-e2e"),
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            ..Default::default()
+        },
+    )
+    .expect("sticky mens must resolve");
+    assert_eq!(spec.id, "mens/qwen35-08b-metal-e2e");
+    assert_eq!(spec.provider_type, ProviderType::VoxLocal);
+    assert!(is_free);
+}
+
+#[test]
+fn sticky_mens_allowed_under_cloud_openai_compatible_profile() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    unsafe { std::env::set_var("vox_populi::inference_PROFILE", "cloud_openai_compatible") };
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_paid_plus_ollama_free();
+
+    let (spec, _) = resolve_mcp_chat_model_sync(
+        &orch,
+        "",
+        Some("mens/qwen35-08b-metal-e2e"),
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            ..Default::default()
+        },
+    )
+    .expect("VoxLocal sticky must not be gated on Ollama inference profile");
+    assert_eq!(spec.provider_type, ProviderType::VoxLocal);
+    unsafe {
+        std::env::remove_var("vox_populi::inference_PROFILE");
+    }
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
+}
+
+#[test]
 fn mcp_openrouter_label_matches_runtime_route_telemetry() {
     use vox_actor_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
     let route = ChatProviderRouteKind::OpenRouter {

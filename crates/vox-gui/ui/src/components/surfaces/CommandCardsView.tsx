@@ -20,6 +20,12 @@ export interface SurfaceCard {
   description: string;
   /** CLI path passed verbatim to `execute_command` (e.g. ['research', 'status']). */
   path: string[];
+  /**
+   * Extra CLI args forwarded verbatim as `__argv` (e.g. `['--detailed']`).
+   * Defaults to `[]` — most cards are arg-free reads; a card that needs a
+   * flag (e.g. the GPU Probe card's `--detailed` fit check) sets this.
+   */
+  argv?: string[];
 }
 
 interface CommandCardsViewProps {
@@ -34,6 +40,10 @@ interface CommandCardsViewProps {
  * the shared `execute_command` Tauri path (the runAction seam) on mount and on
  * Refresh, rendering each result in a card. Used by every surface decorator so
  * Scientia / Mens / Populi / Research share one implementation.
+ *
+ * Not for `vox mens serve`: `execute_command` awaits process exit, and
+ * `serve` never exits — see `Models/MensServePanel.tsx` for the supervised
+ * child-process pattern that one needs instead.
  */
 export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandCardsViewProps) {
   const [results, setResults] = useState<Record<string, CardResult>>({});
@@ -47,7 +57,7 @@ export function CommandCardsView({ title, subtitle, cards, pushToast }: CommandC
         try {
           const out = await invoke<ExecuteOutput>('execute_command', {
             path: card.path,
-            args: { __argv: [] },
+            args: { __argv: card.argv ?? [] },
           });
           next[card.key] = { kind: 'ok', out };
         } catch (err) {

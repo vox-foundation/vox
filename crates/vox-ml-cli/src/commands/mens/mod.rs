@@ -8,7 +8,7 @@
 //!
 //! ```text
 //! vox mens train       — Fine-tune: Candle QLoRA (default) or Burn LoRA (`--backend lora` deprecated)
-//! vox mens serve      — Local: delegates to `vox-schola serve` (QLoRA run dir). Burn HTTP needs `execution-api`.
+//! vox mens serve      — Local: in-process server for a QLoRA run dir (requires `execution-api`); no standalone `vox-schola` binary exists.
 //! vox mens corpus     — Training data pipeline (extract, validate, mix, eval…)
 //! vox mens probe      — Detect GPU capabilities and print recommended LoRA training config
 //! vox mens status     — Show training run status from the latest telemetry log
@@ -19,6 +19,8 @@
 
 /// Latency and throughput benchmarking for completions.
 pub mod bench_completion;
+#[cfg(feature = "cloud")]
+pub mod cloud_estimate;
 #[cfg(feature = "gpu")]
 pub mod eval_collateral;
 pub(crate) mod eval_gate;

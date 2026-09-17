@@ -1,4 +1,4 @@
-//! Self-healing for the `mens-candle-cuda` runtime plugin.
+//! Self-healing for the Candle runtime plugins.
 //!
 //! `vox mens train --device cuda` dispatches QLoRA training to a runtime-loaded
 //! cdylib plugin (`mens-candle-cuda`). Two failure modes make a plain train
@@ -9,8 +9,9 @@
 //!    workspace version (`plugin.load_failed error_kind="root_module"`).
 //!
 //! When auto-heal is enabled (default; opt out with `--no-auto-heal` or
-//! `VOX_MENS_NO_AUTO_HEAL=1`), [`ensure_cuda_plugin`] re-fetches a verified
-//! release artifact for the plugin and reinstalls it before training proceeds.
+//! `VOX_MENS_NO_AUTO_HEAL=1`), the device-specific ensure function re-fetches a
+//! verified release artifact for the plugin and reinstalls it before training
+//! proceeds.
 //!
 //! This does **not** compile anything at runtime. An earlier revision of this
 //! module rebuilt the cdylib from in-tree source with `cargo build` — on
@@ -35,11 +36,18 @@ const CUDA_PLUGIN_ID: &str = "mens-candle-cuda";
 const METAL_PLUGIN_ID: &str = "mens-candle-metal";
 
 /// Ensure the CUDA training plugin is installed and loadable.
+///
+/// Returns `Ok(())` when the plugin is already healthy or was successfully
+/// healed. When `auto_heal` is false and the plugin is unusable, returns an
+/// actionable error instead of fetching a replacement.
 pub fn ensure_cuda_plugin(auto_heal: bool) -> Result<()> {
     ensure_plugin(CUDA_PLUGIN_ID, auto_heal)
 }
 
 /// Ensure the Metal training plugin is installed and loadable.
+///
+/// This mirrors [`ensure_cuda_plugin`] while targeting the runtime plugin
+/// selected by Apple Silicon QLoRA dispatch.
 pub fn ensure_metal_plugin(auto_heal: bool) -> Result<()> {
     ensure_plugin(METAL_PLUGIN_ID, auto_heal)
 }
@@ -148,4 +156,20 @@ fn reinstall_via_vox_plugin_install(plugin_id: &str) -> Result<()> {
         status.code()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ensure_cuda_plugin, ensure_metal_plugin};
+    use anyhow::Result;
+
+    #[test]
+    fn ensure_cuda_plugin_has_expected_api() {
+        let _ensure: fn(bool) -> Result<()> = ensure_cuda_plugin;
+    }
+
+    #[test]
+    fn ensure_metal_plugin_has_expected_api() {
+        let _ensure: fn(bool) -> Result<()> = ensure_metal_plugin;
+    }
 }

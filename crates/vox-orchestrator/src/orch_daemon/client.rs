@@ -2,11 +2,31 @@
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
+use tokio::time::timeout;
 
+use vox_config::timeouts::D_195S;
 use vox_foundation::protocol::orch_daemon_method;
 use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 use super::normalize_tcp_bind_addr;
+
+/// Client-side read deadline for one-shot `call` (chat ceiling + margin).
+pub const ORCH_CLIENT_READ_DEADLINE: std::time::Duration = D_195S;
+
+/// Classified client failures for empty vs Error vs timeout frames.
+#[derive(Debug, thiserror::Error)]
+pub enum OrchClientError {
+    #[error(
+        "orchestrator daemon returned an empty response for method `{method}` (connection closed or handler wrote no frame)"
+    )]
+    EmptyResponse { method: String },
+    #[error("orchestrator daemon error ({code}): {message}")]
+    DaemonError { code: i32, message: String },
+    #[error("orchestrator daemon read timed out after {secs}s for method `{method}`")]
+    ReadTimeout { method: String, secs: u64 },
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
 
 /// Well-known file the daemon writes its auth token to at startup, and that
 /// [`OrchDaemonClient::new`] best-effort reads to auto-resolve a token (T0.2).
@@ -91,7 +111,20 @@ impl OrchDaemonClient {
         method: &str,
         params: serde_json::Value,
     ) -> anyhow::Result<serde_json::Value> {
-        let mut stream = TcpStream::connect(&self.addr).await?;
+        self.call_classified(method, params)
+            .await
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Same as [`Self::call`] but returns a classified [`OrchClientError`].
+    pub async fn call_classified(
+        &self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> Result<serde_json::Value, OrchClientError> {
+        let mut stream = TcpStream::connect(&self.addr)
+            .await
+            .map_err(|e| OrchClientError::Other(e.into()))?;
         let (read_half, mut write_half) = stream.split();
         let id = uuid::Uuid::new_v4().to_string();
         let req = DispatchRequest {
@@ -101,21 +134,45 @@ impl OrchDaemonClient {
             auth_token: self.token.clone(),
             permission_mode: self.permission_mode.clone(),
         };
-        let mut line = serde_json::to_string(&req)?;
+        let mut line = serde_json::to_string(&req).map_err(|e| OrchClientError::Other(e.into()))?;
         line.push('\n');
-        write_half.write_all(line.as_bytes()).await?;
-        write_half.flush().await?;
+        write_half
+            .write_all(line.as_bytes())
+            .await
+            .map_err(|e| OrchClientError::Other(e.into()))?;
+        write_half
+            .flush()
+            .await
+            .map_err(|e| OrchClientError::Other(e.into()))?;
 
         let mut reader = BufReader::new(read_half);
         let mut resp_line = String::new();
-        reader.read_line(&mut resp_line).await?;
-        let resp: DispatchResponse = serde_json::from_str(resp_line.trim())?;
+        match timeout(ORCH_CLIENT_READ_DEADLINE, reader.read_line(&mut resp_line)).await {
+            Ok(Ok(_)) => {}
+            Ok(Err(e)) => return Err(OrchClientError::Other(e.into())),
+            Err(_elapsed) => {
+                return Err(OrchClientError::ReadTimeout {
+                    method: method.to_string(),
+                    secs: ORCH_CLIENT_READ_DEADLINE.as_secs(),
+                });
+            }
+        }
+        let trimmed = resp_line.trim();
+        if trimmed.is_empty() {
+            return Err(OrchClientError::EmptyResponse {
+                method: method.to_string(),
+            });
+        }
+        let resp: DispatchResponse =
+            serde_json::from_str(trimmed).map_err(|e| OrchClientError::Other(e.into()))?;
         match resp.payload {
             DispatchPayload::Result { value } => Ok(value),
             DispatchPayload::Error { message, code } => {
-                anyhow::bail!("orchestrator daemon error ({code}): {message}")
+                Err(OrchClientError::DaemonError { code, message })
             }
-            _ => anyhow::bail!("unexpected orchestrator daemon payload (not a Result)"),
+            _ => Err(OrchClientError::Other(anyhow::anyhow!(
+                "unexpected orchestrator daemon payload (not a Result)"
+            ))),
         }
     }
 
@@ -403,5 +460,36 @@ impl OrchDaemonClient {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_response_error_message_names_method() {
+        let err = OrchClientError::EmptyResponse {
+            method: "orch.tool_call".into(),
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("empty response"));
+        assert!(msg.contains("orch.tool_call"));
+    }
+
+    #[test]
+    fn read_timeout_includes_deadline_secs() {
+        let err = OrchClientError::ReadTimeout {
+            method: "orch.ping".into(),
+            secs: ORCH_CLIENT_READ_DEADLINE.as_secs(),
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("timed out"));
+        assert!(msg.contains(&ORCH_CLIENT_READ_DEADLINE.as_secs().to_string()));
+    }
+
+    #[test]
+    fn client_read_deadline_exceeds_chat_ceiling() {
+        assert!(ORCH_CLIENT_READ_DEADLINE > std::time::Duration::from_secs(180));
     }
 }

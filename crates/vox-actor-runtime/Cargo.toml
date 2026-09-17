@@ -61,3 +61,9 @@ workspace = true
 serial_test = { workspace = true }
 tempfile = { workspace = true }
 wiremock = { workspace = true }
+# Dev-only: proves `vox_hash_fast` stays byte-for-byte identical to
+# `vox_crypto::hash_fast_hex` (see `builtins/tests.rs`). A *normal* dependency
+# on `vox-crypto` would need a `crate-edges` ledger entry (USER-AUTHORIZED-ONLY,
+# AGENTS.md "Dependency Discipline"); `vox ci crate-edges` only checks
+# `Normal`/`Build` dependency kinds, so this dev-only edge is exempt.
+vox-crypto = { workspace = true }

@@ -263,6 +263,8 @@ pub fn verify_completion(
         }
     }
 
+pub const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.125;
+
     let pass_compile = non_empty && parse_ok && typecheck_ok;
     let placeholder_hits = placeholder_marker_hits(code);
     let trivial_placeholder = is_trivial_placeholder_output(code);
@@ -270,7 +272,7 @@ pub fn verify_completion(
     let construct_richness = ast_report.coverage_score();
     let anti_stub_pass = placeholder_hits == 0
         && !trivial_placeholder
-        && (ast_report.node_count >= 1 || construct_richness >= 0.12);
+        && (ast_report.node_count >= 1 || construct_richness >= ANTI_STUB_MIN_CONSTRUCT_RICHNESS);
 
     let pass_ast = pass_compile && anti_stub_pass;
     let pass = pass_ast && exec_pass.unwrap_or(true);

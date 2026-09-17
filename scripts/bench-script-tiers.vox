@@ -1,0 +1,114 @@
+// vox:caps fs process
+// Time every scripts/**/*.vox under `vox check` AND execute under `--mode interp`.
+// Native timings are taken by hand (see docs/src/architecture/script-tier-timings-2026-09.md
+// Step 3): a cold native compile is ~275s each, too slow to loop here.
+//
+// This measures execution, not merely type-checking: `vox check` only proves the
+// file parses and typechecks; `vox run --mode interp <f> -- --help` actually starts
+// the interpreter and runs the script's `main()` with a trailing `--help` so scripts
+// that dispatch on argv exit fast instead of performing their real (often
+// destructive) side effects. Note: `-- --help` short-circuits most scripts' own
+// collection loops, so this table cannot see O(n^2) `list.push` cost in scripts whose
+// slow path is gated behind argument parsing that isn't reached by `--help`.
+//
+// A handful of scripts do NOT short-circuit on `--help` and instead launch real,
+// unbounded work (full `cargo build`, GPU model training, background daemons).
+// Running those under this benchmark would not "measure execution", it would
+// fork off a multi-minute-to-unbounded job — discovered by reading each script's
+// argv-dispatch logic, not by running it blind. Skip `run --mode interp` for
+// these (still `vox check` them — that's always safe and fast):
+//   - scripts/mens/*.vox        — `vox mens train`/`corpus mix` pipelines (GPU, hours)
+//   - scripts/train_local_qwen.vox — `--help` doesn't match `--dry-run`, so it falls
+//     into the full (unbounded, no --max-runtime-secs) `vox mens train` path
+//   - scripts/start-marquee.vox — runs a full `cargo build --release` then spawns
+//     background HTTP/WS servers that never exit on their own
+//   - scripts/frontend-review.vox / scripts/ci/gui-e2e-check.vox — Playwright
+//   - scripts/scientia/acceptance-matrix.vox — cargo tests
+//   - scripts/ci/corpus_prep.vox — `cargo run` corpus extract + writes mens/data
+//   - scripts/docs-reality-audit-cycle.vox — `cargo run` + `--write` metrics
+//   - scripts/quality/audit-telemetry.vox / scripts/pre-claim.vox — `cargo run`
+//   - scripts/gui-build.vox — full Tauri/pnpm production build
+//   - scripts/render-durable-animation.vox — installs/runs puppeteer
+//   - scripts/migrate-arrows.vox / migrations/2026-phase1-contract-headers.vox
+//     — rewrite tracked files (Task 0 left 213 dirty)
+fn skip_run(f: str) to bool {
+    if f.starts_with("scripts/mens/") { return true }
+    if f is "scripts/train_local_qwen.vox" { return true }
+    if f is "scripts/start-marquee.vox" { return true }
+    if f is "scripts/frontend-review.vox" { return true }
+    if f is "scripts/ci/gui-e2e-check.vox" { return true }
+    if f is "scripts/scientia/acceptance-matrix.vox" { return true }
+    if f is "scripts/ci/corpus_prep.vox" { return true }
+    if f is "scripts/docs-reality-audit-cycle.vox" { return true }
+    if f is "scripts/quality/audit-telemetry.vox" { return true }
+    if f is "scripts/pre-claim.vox" { return true }
+    if f is "scripts/gui-build.vox" { return true }
+    if f is "scripts/render-durable-animation.vox" { return true }
+    if f is "scripts/migrate-arrows.vox" { return true }
+    if f is "scripts/migrations/2026-phase1-contract-headers.vox" { return true }
+    return false
+}
+
+pub fn main() {
+    let vox = if fs.exists("target/debug/vox") {
+        "target/debug/vox"
+    } else {
+        match process.which("vox") {
+            Some(p) => p
+            None => "target/debug/vox"
+        }
+    }
+
+    let files = match fs.glob("scripts/**/*.vox") {
+        Ok(found) => found.sorted()
+        Error(e) => {
+            print("glob failed: " + e)
+            []
+        }
+    }
+
+    let mut rows = []
+    for f in files {
+        // Skip this script itself: `vox run --mode interp` on
+        // scripts/bench-script-tiers.vox would recursively re-run the entire
+        // benchmark inside itself (each recursive copy spawns another copy),
+        // which is a runaway-process hazard, not a measurement. Discovered by
+        // actually executing this script, not by reading it.
+        if f is "scripts/bench-script-tiers.vox" {
+            continue
+        }
+        let t0 = std.time.now_ms()
+        let check = match std.process.run_capture(vox, ["check", f]) {
+            Ok(r) => if r.exit is 0 { "ok" } else { "FAIL" }
+            Error(e) => "SPAWN-FAIL"
+        }
+        let dt = std.time.now_ms() - t0
+
+        let mut run = ""
+        let mut dr = 0
+        if skip_run(f) {
+            run = "SKIPPED (unbounded side effects, see header)"
+        } else {
+            let t1 = std.time.now_ms()
+            run = match std.process.run_capture(vox, ["run", "--mode", "interp", f, "--", "--help"]) {
+                Ok(r) => if r.exit is 0 { "ok" } else { "FAIL(" + str(r.exit) + ")" }
+                Error(e) => "SPAWN-FAIL"
+            }
+            dr = std.time.now_ms() - t1
+        }
+
+        let dr_str = if skip_run(f) { "-" } else { str(dr) + " ms" }
+        rows = rows.push("| " + f + " | " + str(dt) + " ms | " + check + " | " + dr_str + " | " + run + " |")
+    }
+
+    print("| script | `vox check` | status | `run --mode interp` | status |")
+    print("|---|---|---|---|---|")
+    for r in rows {
+        print(r)
+    }
+    // Explicit `return` so main()'s value is Null: a bare trailing `for` is
+    // itself an expression (a list of one Null per iteration), and the
+    // interp-tier runner prints main()'s return value when it is not Null,
+    // which would otherwise dump a stray `[null, null, ...]` after the table.
+    return
+}

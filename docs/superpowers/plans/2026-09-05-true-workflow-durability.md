@@ -1,9 +1,5 @@
 # True Workflow Durability Implementation Plan
 
-> **SUPERSEDED (2026-09-06).** Do not implement this file. Use
-> [`2026-09-06-true-workflow-durability.md`](2026-09-06-true-workflow-durability.md).
-> Tree audit found unimplementable tasks and tests that would pass for the wrong reason.
-
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make Vox workflow replay real — execute the workflow body, run actual activity code, persist actual results, and survive crashes, timers, and signals.
@@ -259,9 +255,12 @@ cargo run -p vox-doc-pipeline -- --lint-only --paths docs/src/explanation/expl-d
 
 Expected: PASS (frontmatter present on all four).
 
-- [ ] **Step 6: Update the research index and commit**
+- [ ] **Step 6: Frontmatter and commit**
 
-Add a row for `true-workflow-durability-design-2026.md` to `docs/src/architecture/research-index.md` following the format of the surrounding rows, then:
+Set valid frontmatter on the new page (`title`, `description`, `category`, `status`).
+Starlight lists it. Do **not** create or edit `docs/src/architecture/research-index.md` (retired 2026-09).
+
+Then:
 
 ```bash
 git add docs/

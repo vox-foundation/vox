@@ -13,7 +13,7 @@ export const CHAT_TURN_KEYS = [
   'clutch', 'risk', 'context_files', 'active_skill', 'skill_exclusions',
   'grounding_check_enabled', 'priority', 'dry_run', 'allow_duplicate',
   'mode', 'chat_session_id', 'force_research', 'research_scope',
-  'domain_mode', 'site_scope',
+  'domain_mode', 'site_scope', 'trace_id', 'turn_id',
 ] as const;
 
 export interface BuildChatTurnCtx {
@@ -30,6 +30,16 @@ export interface BuildChatTurnCtx {
    *  callers that don't set it (the sync path, where the two are the same)
    *  still get a correct value. */
   chatSessionId?: string | null;
+  /** Optional pre-minted correlation ids (App mints once per send). */
+  traceId?: string | null;
+  turnId?: string | null;
+}
+
+function mintId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 /** The composer-payload subset the builder reads. Structural rather than
@@ -54,6 +64,9 @@ export interface ChatTurnSource {
   research_scope?: string | null;
   domain_mode?: string | null;
   site_scope?: string | null;
+  /** Pre-minted correlation ids (Drive send); App must prefer these. */
+  turn_id?: string | null;
+  trace_id?: string | null;
 }
 
 export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): ChatTurnInput {
@@ -63,6 +76,14 @@ export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): C
     ? (researchSlash.query || payload.description)
     : payload.description;
 
+  const fromPayloadTrace = payload.trace_id?.trim();
+  const fromPayloadTurn = payload.turn_id?.trim();
+  const traceId = (ctx.traceId && ctx.traceId.trim())
+    || fromPayloadTrace
+    || mintId();
+  const turnId = (ctx.turnId && ctx.turnId.trim())
+    || fromPayloadTurn
+    || mintId();
   return {
     session_id: ctx.sessionId,
     content,
@@ -89,5 +110,7 @@ export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): C
     research_scope: payload.research_scope ?? (researchSlash?.isDeep ? 'deep' : null),
     domain_mode: payload.domain_mode ?? researchSlash?.domainMode ?? null,
     site_scope: payload.site_scope ?? researchSlash?.siteScope ?? null,
+    trace_id: traceId,
+    turn_id: turnId,
   };
 }

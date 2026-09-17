@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
@@ -44,6 +44,16 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 const noopToast = () => {};
 
+/** Live plan identity — required for To-dos to auto-create. */
+const LIVE_PLAN = { planSessionId: 'sess-1', planVersion: 1 as const };
+
+async function openTodosFromPanels() {
+  fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+  fireEvent.click(screen.getByRole('checkbox', { name: /^to-dos$/i }));
+  await screen.findByTestId('chat-dock-todos');
+  fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+}
+
 import { ChatSurface, ApprovalsDockPanel, MercatusDockPanel, RepositoryDockPanel, NeedsYouDockPanel, VoxGraphDockPanel, ActivityDockPanel } from './ChatSurface';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../../lib/domIds';
@@ -60,8 +70,15 @@ describe('ChatSurface', () => {
           { session_id: 's2', title: 'Second', message_count: 0 },
         ]);
       }
+      if (cmd === 'list_plan_nodes') {
+        return Promise.resolve([]);
+      }
       return Promise.resolve(null);
     });
+  });
+
+  afterEach(() => {
+    localStorage.removeItem('vox.metric.series.v1.chat.session-spend');
   });
 
   it('has exactly one accessible h1 for the surface root (axe page-has-heading-one)', async () => {
@@ -296,14 +313,40 @@ describe('ChatSurface', () => {
     expect(screen.queryByTestId('chat-dock-sessions')).toBeNull();
   });
 
-  it('keeps overflow-y-auto on the transcript dock panel wrapper as a scroll fallback (regression guard for a93331b3ee)', async () => {
+  it('shows a session-spend spark after sessionSpentUsd changes', async () => {
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          messages={[]}
+          composer={<div>composer</div>}
+          sessionSpentUsd={0.1}
+        />
+      </LanguageProvider>,
+    );
+    rerender(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          onNavigate={vi.fn()}
+          messages={[]}
+          composer={<div>composer</div>}
+          sessionSpentUsd={0.4}
+        />
+      </LanguageProvider>,
+    );
+    expect(await screen.findByTestId('execution-rail-spend-spark')).toBeInTheDocument();
+  });
+
+  it('transcript dock does not use overflow-y-auto on the panel that hosts the composer', async () => {
     render(
       <LanguageProvider>
         <ChatSurface pushToast={noopToast} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
       </LanguageProvider>,
     );
-    const transcriptPanel = await screen.findByTestId('chat-dock-transcript');
-    expect(transcriptPanel.className).toContain('overflow-y-auto');
+    const panel = await screen.findByTestId('chat-dock-transcript');
+    expect(panel.className).not.toMatch(/overflow-y-auto/);
   });
 
   it('the transcript panel has no visible tab strip (pinned, not a normal closable/draggable panel)', async () => {
@@ -357,16 +400,16 @@ describe('ChatSurface', () => {
         />
       </LanguageProvider>,
     );
-    await screen.findByTestId('chat-dock-flow');
-    const flowTab = screen.getByText('Flow').closest('.dv-tab') as HTMLElement;
-    expect(flowTab).not.toBeNull();
+    await openTodosFromPanels();
+    const todosTab = screen.getByText('To-dos').closest('.dv-tab') as HTMLElement;
+    expect(todosTab).not.toBeNull();
 
     const event = new Event('dragstart', { bubbles: true, cancelable: true }) as DragEvent;
     Object.defineProperty(event, 'dataTransfer', {
       value: { setDragImage: vi.fn(), setData: vi.fn(), getData: vi.fn(), types: [], items: [], effectAllowed: '' },
     });
     act(() => {
-      flowTab.dispatchEvent(event);
+      todosTab.dispatchEvent(event);
     });
     // Task 1: with `dndStrategy="pointer"`, dockview-core's Html5DragSource
     // is constructed with `disabled: true` for every tab (caps.html5 is
@@ -379,7 +422,7 @@ describe('ChatSurface', () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
-  it('does not suppress pointermove for a real, unrelated panel tab (Flow) — the pointer-drag suppression is scoped to the transcript panel only', async () => {
+  it('does not suppress pointermove for a real, unrelated panel tab (To-dos) — the pointer-drag suppression is scoped to the transcript panel only', async () => {
     render(
       <LanguageProvider>
         <ChatSurface
@@ -392,14 +435,14 @@ describe('ChatSurface', () => {
         />
       </LanguageProvider>,
     );
-    await screen.findByTestId('chat-dock-flow');
-    const flowTab = screen.getByText('Flow').closest('.dv-tab') as HTMLElement;
-    expect(flowTab).not.toBeNull();
+    await openTodosFromPanels();
+    const todosTab = screen.getByText('To-dos').closest('.dv-tab') as HTMLElement;
+    expect(todosTab).not.toBeNull();
 
     const pointerDown = new Event('pointerdown', { bubbles: true, cancelable: true }) as PointerEvent;
     Object.defineProperty(pointerDown, 'pointerId', { value: 99 });
     act(() => {
-      flowTab.dispatchEvent(pointerDown);
+      todosTab.dispatchEvent(pointerDown);
     });
 
     const pointerMove = new Event('pointermove', { bubbles: true, cancelable: true }) as PointerEvent;
@@ -618,7 +661,7 @@ describe('ChatSurface', () => {
     expect(marker).not.toHaveStyle({ display: 'none' });
   });
 
-  it('mounts a Flow panel dockable alongside chat, using the same agent data as the top-level Flow tab', async () => {
+  it('does not mount a Flow dock panel — topology lives on Execution and Agents → Flow', async () => {
     render(
       <LanguageProvider>
         <ChatSurface
@@ -631,13 +674,35 @@ describe('ChatSurface', () => {
         />
       </LanguageProvider>,
     );
-    await waitFor(() => {
-      expect(screen.getByTestId('chat-dock-flow')).toBeInTheDocument();
-    });
+    await screen.findByTestId('chat-dock-execution-rail');
+    expect(screen.queryByTestId('chat-dock-flow')).toBeNull();
+    expect(screen.queryByText('Flow')).toBeNull();
   });
 
-  it('does not resurrect the Flow panel on the next render after the user closes it', async () => {
+  it('does not auto-create the To-dos panel on default mount (no plan session)', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-transcript');
+    expect(screen.queryByTestId('chat-dock-todos')).toBeNull();
+  });
+
+  it('closes auto To-dos when the live plan is cleared (A-with-plan → B-without-plan)', async () => {
     const { rerender } = render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={vi.fn()}
+          onNavigate={vi.fn()}
+          messages={[]}
+          composer={<div>composer</div>}
+          {...LIVE_PLAN}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-todos');
+    rerender(
       <LanguageProvider>
         <ChatSurface
           pushToast={vi.fn()}
@@ -647,7 +712,22 @@ describe('ChatSurface', () => {
         />
       </LanguageProvider>,
     );
-    await screen.findByTestId('chat-dock-flow');
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
+  });
+
+  it('does not resurrect the To-dos panel on the next render after the user closes it', async () => {
+    const { rerender } = render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={vi.fn()}
+          onNavigate={vi.fn()}
+          messages={[]}
+          composer={<div>composer</div>}
+          {...LIVE_PLAN}
+        />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-todos');
 
     // Close the way a user would: find the real dockview tab close action.
     // NOTE: this app's ChatDockShell does not register a custom React tab
@@ -659,10 +739,10 @@ describe('ChatSurface', () => {
     // structure the plan documented is otherwise accurate: `.dv-default-tab`
     // contains a `.dv-default-tab-content` and a sibling `.dv-default-tab-action`
     // close target.
-    const flowTab = screen.getByText('Flow').closest('.dv-default-tab') as HTMLElement;
-    const closeBtn = flowTab.querySelector('.dv-default-tab-action') as HTMLElement;
+    const todosTab = screen.getByText('To-dos').closest('.dv-default-tab') as HTMLElement;
+    const closeBtn = todosTab.querySelector('.dv-default-tab-action') as HTMLElement;
     fireEvent.click(closeBtn);
-    await waitFor(() => expect(screen.queryByTestId('chat-dock-flow')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
 
     // Force an unrelated re-render — the exact trigger a real close-fighting
     // bug would react to (a streamed token, a session poll, anything that
@@ -674,13 +754,14 @@ describe('ChatSurface', () => {
           onNavigate={vi.fn()}
           messages={[{ id: 'm1', role: 'user', text: 'hello', status: 'done' } as any]}
           composer={<div>composer</div>}
+          {...LIVE_PLAN}
         />
       </LanguageProvider>,
     );
 
-    // The bug: without a fix, the refresh effect sees getPanel('flow') is
+    // The bug: without a fix, the refresh effect sees getPanel('todos') is
     // undefined and immediately re-adds it, fighting the user's own close.
-    expect(screen.queryByTestId('chat-dock-flow')).toBeNull();
+    expect(screen.queryByTestId('chat-dock-todos')).toBeNull();
   });
 
   it('mounts the To-dos panel as a dockview panel, not a hand-rolled collapsible aside', () => {
@@ -688,7 +769,7 @@ describe('ChatSurface', () => {
       <LanguageProvider>
         <ChatSurface
           pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>}
-          planSessionId="sess-1" planVersion={1}
+          {...LIVE_PLAN}
         />
       </LanguageProvider>,
     );
@@ -741,28 +822,30 @@ describe('ChatSurface', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('Panels popover lists a closed core panel and reopens it on click; clicking outside closes it', async () => {
+  it('Panels popover lists To-dos and reopens it on click; clicking outside closes it', async () => {
     render(
       <LanguageProvider>
         <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
       </LanguageProvider>,
     );
-    await screen.findByTestId('chat-dock-flow');
+    await screen.findByTestId('chat-dock-transcript');
+    expect(screen.queryByTestId('chat-dock-todos')).toBeNull();
 
-    const flowTab = screen.getByText('Flow').closest('.dv-default-tab') as HTMLElement;
-    fireEvent.click(flowTab.querySelector('.dv-default-tab-action') as HTMLElement);
-    await waitFor(() => expect(screen.queryByTestId('chat-dock-flow')).toBeNull());
+    await openTodosFromPanels();
+    const todosTab = screen.getByText('To-dos').closest('.dv-default-tab') as HTMLElement;
+    fireEvent.click(todosTab.querySelector('.dv-default-tab-action') as HTMLElement);
+    await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
 
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /^flow$/i }));
-    await waitFor(() => expect(screen.getByTestId('chat-dock-flow')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('checkbox', { name: /^to-dos$/i }));
+    await waitFor(() => expect(screen.getByTestId('chat-dock-todos')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
     fireEvent.mouseDown(document.body);
     expect(screen.queryByText('All panels open')).toBeNull();
   });
 
-  it('Reset layout clears the persisted layout and closedPanelIds, and recreates only the 4 core panels', async () => {
+  it('Reset layout clears the persisted layout and closedPanelIds, and recreates only transcript + execution', async () => {
     const { layoutStorageKeyFor } = await import('../../dock/DockWorkspaceShell');
     window.localStorage.setItem(layoutStorageKeyFor('gui.chat'), JSON.stringify({ grid: {} }));
     render(
@@ -770,7 +853,7 @@ describe('ChatSurface', () => {
         <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} />
       </LanguageProvider>,
     );
-    await screen.findByTestId('chat-dock-flow');
+    await screen.findByTestId('chat-dock-transcript');
 
     fireEvent.click(screen.getByRole('button', { name: /panels/i }));
     fireEvent.click(screen.getByRole('button', { name: /reset layout/i }));
@@ -778,10 +861,31 @@ describe('ChatSurface', () => {
     expect(window.localStorage.getItem(layoutStorageKeyFor('gui.chat'))).toBeNull();
     await waitFor(() => {
       expect(screen.getByTestId('chat-dock-transcript')).toBeInTheDocument();
-      expect(screen.getByTestId('chat-dock-flow')).toBeInTheDocument();
+      expect(screen.getByTestId('chat-dock-execution-rail')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('chat-dock-todos')).toBeNull();
+    expect(screen.queryByTestId('chat-dock-flow')).toBeNull();
+    expect(screen.queryByTestId('chat-dock-sessions')).toBeNull();
+  });
+
+  it('Reset layout recreates To-dos when a live plan is attached', async () => {
+    const { layoutStorageKeyFor } = await import('../../dock/DockWorkspaceShell');
+    window.localStorage.setItem(layoutStorageKeyFor('gui.chat'), JSON.stringify({ grid: {} }));
+    render(
+      <LanguageProvider>
+        <ChatSurface pushToast={vi.fn()} onNavigate={vi.fn()} messages={[]} composer={<div>composer</div>} {...LIVE_PLAN} />
+      </LanguageProvider>,
+    );
+    await screen.findByTestId('chat-dock-todos');
+
+    fireEvent.click(screen.getByRole('button', { name: /panels/i }));
+    fireEvent.click(screen.getByRole('button', { name: /reset layout/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-dock-transcript')).toBeInTheDocument();
+      expect(screen.getByTestId('chat-dock-execution-rail')).toBeInTheDocument();
       expect(screen.getByTestId('chat-dock-todos')).toBeInTheDocument();
     });
-    expect(screen.queryByTestId('chat-dock-sessions')).toBeNull();
   });
 
   it('Reset layout does not throw when no layout was ever persisted', () => {
@@ -1088,11 +1192,8 @@ describe('ChatSurface', () => {
     // real dockview library runs in this jsdom suite — nothing about it is
     // mocked) and inspect the `position.referencePanel` dockview actually
     // received for Harness's addPanel call. The old fixed referenceChain for
-    // every opt-in panel was `['todos', 'flow', 'executionRail',
-    // 'transcript']`, and `todos` is always present in this test's default
-    // render — so a fixed-chain implementation would call addPanel with
-    // `referencePanel: 'todos'` for Harness regardless of what was opened
-    // before it. Activation-order positioning must instead reference
+    // every opt-in panel was `['todos', 'executionRail',
+    // 'transcript']`. Activation-order positioning must instead reference
     // 'mercatus', the panel activated immediately before Harness. Asserting
     // "both panels exist" alone (as the plan's own Step 1 sketch left
     // unresolved) would pass under either implementation and prove nothing

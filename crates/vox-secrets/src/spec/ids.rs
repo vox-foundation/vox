@@ -302,7 +302,6 @@ pub enum SecretId {
     VoxGenericApiKey,
     VoxMeshHttpJoin,
     VoxMeshHttpHeartbeatSecs,
-    VoxMeshExecPolicy,
     VoxMeshA2aStorePath,
     VoxMeshExecLeaseStorePath,
     VoxMeshDispatchStorePath,
@@ -720,5 +719,22 @@ impl SecretId {
             i += 1;
         }
         panic!("SecretId must exist in SPECS")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SecretId;
+
+    #[test]
+    fn metadata_and_spec_resolve_for_known_id() {
+        let id = SecretId::AnthropicApiKey;
+        let meta = id.metadata();
+        assert_eq!(
+            meta.material_kind,
+            crate::spec::types::SecretMaterialKind::ApiKey
+        );
+        let spec = id.spec();
+        assert_eq!(spec.id as u32, id as u32);
     }
 }

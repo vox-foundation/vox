@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MessageBubble, ChatTranscript } from './ChatTranscript';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 import { listHarnessIssuesForSession } from '../Scientia/harnessIssuesApi';
@@ -20,6 +20,13 @@ function msg(overrides: Partial<ChatMessage>): ChatMessage {
   };
 }
 
+describe('MessageBubble role labels', () => {
+  it('exposes user role as sr-only, not a visible You label', () => {
+    render(<MessageBubble message={msg({ role: 'user', text: 'hi', id: 'u1' })} />);
+    expect(screen.getByText('You').className).toMatch(/sr-only/);
+  });
+});
+
 describe('MessageBubble grounding-check badge', () => {
   it('shows a low-confidence badge on an assistant message flagged by the grounding check', () => {
     render(<MessageBubble message={msg({ groundingFlagged: true })} />);
@@ -34,6 +41,18 @@ describe('MessageBubble grounding-check badge', () => {
   it('does not show the badge on user messages even if somehow flagged', () => {
     render(<MessageBubble message={msg({ role: 'user', groundingFlagged: true })} />);
     expect(screen.queryByText(/low confidence/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('MessageBubble local-model badge', () => {
+  // Task C4: a `mens/`-prefixed model id ran locally and cost the user
+  // nothing. Surface that as a real ModelBadge affordance (provider + $0.00),
+  // not just an unlabeled prefix in the model id string.
+  it('marks a mens/ model as local with zero cost', () => {
+    render(<MessageBubble message={msg({ modelId: 'mens/e2e-smoke-metal' })} />);
+    fireEvent.click(screen.getByRole('button', { name: /e2e-smoke-metal/i }));
+    expect(screen.getByText(/provider: local/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$0\.00/)).toBeInTheDocument();
   });
 });
 

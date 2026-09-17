@@ -146,12 +146,26 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Browser (CDP / chromiumoxide) ───────────────────────────────────
         "vox_browser_open" => derived_tool_schema!(crate::params::BrowserOpenParams),
+        "vox_browser_open_ex" => derived_tool_schema!(crate::params::BrowserOpenExParams),
         "vox_browser_close" => derived_tool_schema!(crate::params::BrowserPageParams),
         "vox_browser_goto" => derived_tool_schema!(crate::params::BrowserGotoParams),
         "vox_browser_click" | "vox_browser_text" => {
             derived_tool_schema!(crate::params::BrowserTargetParams)
         }
         "vox_browser_fill" => derived_tool_schema!(crate::params::BrowserFillParams),
+        "vox_browser_snapshot" => {
+            derived_tool_schema!(crate::params::BrowserSnapshotParams)
+        }
+        "vox_browser_click_ref" => derived_tool_schema!(crate::params::BrowserRefParams),
+        "vox_browser_fill_ref" => {
+            derived_tool_schema!(crate::params::BrowserFillRefParams)
+        }
+        "vox_browser_cookies_export" => {
+            derived_tool_schema!(crate::params::BrowserPageParams)
+        }
+        "vox_browser_cookies_import" => {
+            derived_tool_schema!(crate::params::BrowserCookiesImportParams)
+        }
         "vox_browser_wait_for" => derived_tool_schema!(crate::params::BrowserWaitParams),
         "vox_browser_html" => derived_tool_schema!(crate::params::BrowserHtmlParams),
         "vox_browser_screenshot" => {
@@ -648,7 +662,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"file_path":{"type":"string"},"start_line":{"type":"integer","minimum":1},"end_line":{"type":"integer","minimum":1},"target_content":{"type":"string"},"replacement_code":{"type":"string"}},"required":["file_path","target_content","replacement_code"],"additionalProperties":false}"#,
         ),
         "vox_plan" => parse_obj(
-            r#"{"type":"object","properties":{"goal":{"type":"string","minLength":1,"maxLength":65536},"scope_files":{"type":"array","items":{"type":"string","maxLength":4096}},"write_to_disk":{"type":"boolean"},"max_tasks":{"type":"integer","minimum":1,"maximum":2000},"session_id":{"type":"string","maxLength":2048},"plan_depth":{"type":"string","enum":["minimal","standard","deep"]},"auto_expand_thin_plan":{"type":"boolean"},"loop_mode":{"type":"string","enum":["off","auto","force"]},"max_refine_rounds":{"type":"integer","minimum":0,"maximum":8},"refine_budget_tokens":{"type":"integer","minimum":0,"maximum":200000},"gap_risk_threshold":{"type":"number","minimum":0.05,"maximum":0.95},"plan_page_offset":{"type":"integer","minimum":0,"maximum":500000},"plan_page_limit":{"type":"integer","minimum":1,"maximum":2000},"plan_telemetry_session_id":{"type":"string","maxLength":2048},"require_approval":{"type":"boolean"},"question_link_session_id":{"type":"string","maxLength":2048},"questioning_hints_enabled":{"type":"boolean"},"answerer_profile":{"type":"string","enum":["local_first","cloud_first","balanced"]},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0},"model_override":{"type":"string","maxLength":256}},"required":["goal"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"goal":{"type":"string","minLength":1,"maxLength":65536},"scope_files":{"type":"array","items":{"type":"string","maxLength":4096}},"write_to_disk":{"type":"boolean"},"max_tasks":{"type":"integer","minimum":1,"maximum":2000},"session_id":{"type":"string","maxLength":2048},"plan_depth":{"type":"string","enum":["minimal","standard","deep"]},"auto_expand_thin_plan":{"type":"boolean"},"loop_mode":{"type":"string","enum":["off","auto","force"]},"max_refine_rounds":{"type":"integer","minimum":0,"maximum":8},"refine_budget_tokens":{"type":"integer","minimum":0,"maximum":200000},"gap_risk_threshold":{"type":"number","minimum":0.05,"maximum":0.95},"plan_page_offset":{"type":"integer","minimum":0,"maximum":500000},"plan_page_limit":{"type":"integer","minimum":1,"maximum":2000},"plan_telemetry_session_id":{"type":"string","maxLength":2048},"require_approval":{"type":"boolean"},"question_link_session_id":{"type":"string","maxLength":2048},"questioning_hints_enabled":{"type":"boolean"},"answerer_profile":{"type":"string","enum":["local_first","cloud_first","balanced"]},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0},"model_override":{"type":"string","maxLength":256},"trace_id":{"type":"string","maxLength":256,"description":"End-to-end ChatHop correlation id"},"turn_id":{"type":"string","maxLength":256,"description":"Per-submit turn id for Drive / ChatHop JSONL"}},"required":["goal"],"additionalProperties":false}"#,
         ),
         "vox_ghost_text" => parse_obj(
             r#"{"type":"object","properties":{"prefix":{"type":"string"},"suffix":{"type":"string"},"language":{"type":"string"},"file_path":{"type":"string"},"max_tokens":{"type":"integer"},"session_id":{"type":"string"},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0}},"required":["prefix","suffix"],"additionalProperties":true}"#,

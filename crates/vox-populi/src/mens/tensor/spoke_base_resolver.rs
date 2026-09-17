@@ -4,12 +4,56 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
+/// Preset names accepted by `--preset` / planner normalization.
+///
+/// **Contract SSOT:** mirror every entry in `contracts/mens/training-presets.v1.yaml` (enforced by
+/// `vox-populi` integration test `training_presets_yaml_contract`).
+///
+/// Lives here (under the plain `mens` feature) rather than in `preset_schema`
+/// (gated behind `mens-train`/`mens-cloud`) so `spoke_validate` — and the
+/// lightweight `vox ci spoke-check` gate that runs it — can validate a spoke's
+/// `base.preset` without pulling in the full Candle/QLoRA stack.
+/// `preset_schema` re-exports this constant so existing callers are unaffected.
+pub const KNOWN_PRESETS: &[&str] = &[
+    "tiny",
+    "safe",
+    "4080",
+    "4080_safe",
+    "qwen_4080_16g",
+    "qwen_small_8g",
+    "qwen_rtx3090_24g",
+    "qwen_a100_80g",
+    "a100",
+    "default",
+    "distributed",
+    "mobile_edge",
+    // Code-generation fine-tune preset (Vox .box target language).
+    "vox-gen",
+    // Qwen3 dense ladder presets — additive alongside legacy qwen_* presets.
+    "qwen3_dev_cpu", // Qwen3-0.6B r8, CPU smoke — no quality gate
+    "qwen3_16g",     // Qwen3-8B QLoRA r16 (RTX 4080 Super 16GB)
+    "qwen3_24g",     // Qwen3-14B QLoRA r32 (3090/4090 24GB)
+    "qwen3_48g",     // Qwen3-14B LoRA r32 un-quantized (48GB)
+    "qwen3_96g",     // Qwen3-32B QLoRA r64 (96GB)
+];
+
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct TrainBase {
     pub hf_id: String,
     pub floor_mb: u32,
     #[serde(default)]
     pub methods: Vec<String>,
+    /// SPDX-ish license identifier for this exact base checkpoint (e.g.
+    /// `apache-2.0`, `qwen-research`). `None` when this rung has no known
+    /// license mapping yet — `resolve_license_class` treats that as a hard
+    /// error unless the caller passes an explicit override, rather than
+    /// silently defaulting to any particular license.
+    #[serde(default)]
+    pub license: Option<String>,
+    /// Whether downstream publication of an artifact trained from this base
+    /// must carry an attribution notice per the base's license terms.
+    #[serde(default)]
+    pub attribution_required: bool,
 }
 
 /// Largest candidate for `tag` whose `floor_mb <= vram_mb`. Errors if the tag is
@@ -35,13 +79,102 @@ struct GpuSpecsTrainBases {
     train_bases: HashMap<String, Vec<TrainBase>>,
 }
 
-pub fn load_overlay(root: &std::path::Path) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
-    let p = root.join("mens/config/gpu-specs.yaml");
-    let s =
-        std::fs::read_to_string(&p).map_err(|e| anyhow::anyhow!("read {}: {e}", p.display()))?;
-    let parsed: GpuSpecsTrainBases = serde_yaml::from_str(&s)
+fn parse_overlay(raw: &str) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
+    let parsed: GpuSpecsTrainBases = serde_yaml::from_str(raw)
         .map_err(|e| anyhow::anyhow!("parse train_bases in gpu-specs.yaml: {e}"))?;
     Ok(parsed.train_bases)
+}
+
+/// Compile-time copy so an installed `vox` can resolve `agentic_default`
+/// without a Vox Cargo workspace checkout.
+fn load_embedded_overlay() -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
+    const EMBEDDED: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../mens/config/gpu-specs.yaml"
+    ));
+    parse_overlay(EMBEDDED)
+}
+
+pub fn load_overlay(root: &std::path::Path) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
+    let p = root.join("mens/config/gpu-specs.yaml");
+    match std::fs::read_to_string(&p) {
+        Ok(s) => parse_overlay(&s),
+        Err(_) => load_embedded_overlay(),
+    }
+}
+
+/// License metadata for a concrete `hf_id` (exact match, including any pinned
+/// `@sha` suffix), looked up across every `train_bases` rung regardless of tag.
+/// `None` when `hf_id` doesn't appear in any known rung (e.g. an ad hoc
+/// `--model` that isn't in `gpu-specs.yaml`).
+fn license_for_hf_id(
+    workspace_root: Option<&std::path::Path>,
+    hf_id: &str,
+) -> Option<(Option<String>, bool)> {
+    let overlay = match workspace_root {
+        Some(root) => load_overlay(root).ok()?,
+        None => load_embedded_overlay().ok()?,
+    };
+    overlay
+        .values()
+        .flatten()
+        .find(|b| b.hf_id == hf_id)
+        .map(|b| (b.license.clone(), b.attribution_required))
+}
+
+/// Conservative attribution-requirement default for a `--license-class` override whose
+/// base has no `gpu-specs.yaml` entry to confirm it against. Only a small explicit
+/// allowlist of licenses with no attribution obligation is treated as permissive;
+/// everything else (including anything unrecognized) defaults to `true`. Wrongly
+/// requiring attribution is a labeling nuisance; wrongly suppressing it for a
+/// license that needs it is a compliance violation — this defaults to the safer
+/// direction instead of assuming permissive like the bug this replaces did.
+fn default_attribution_required(license_class: &str) -> bool {
+    const NO_ATTRIBUTION_REQUIRED: &[&str] = &[
+        "apache-2.0",
+        "mit",
+        "bsd-2-clause",
+        "bsd-3-clause",
+        "unlicense",
+        "cc0-1.0",
+    ];
+    !NO_ATTRIBUTION_REQUIRED.contains(&license_class.trim().to_ascii_lowercase().as_str())
+}
+
+/// Resolve the effective `(license_class, attribution_required)` for a training
+/// or merge run: an explicit `cli_override` always wins; otherwise the license
+/// comes from the resolved base's `license:` entry in `gpu-specs.yaml`
+/// (matched by exact `hf_id`). Returns a hard `Err` — never a silent default
+/// like `apache-2.0` — when neither source provides a license class, so a
+/// missing mapping surfaces immediately instead of mislabeling every trained
+/// model's contract identity as license-free.
+pub fn resolve_license_class(
+    workspace_root: Option<&std::path::Path>,
+    hf_id: Option<&str>,
+    cli_override: Option<String>,
+) -> anyhow::Result<(String, bool)> {
+    let resolved = hf_id.and_then(|id| license_for_hf_id(workspace_root, id));
+    if let Some(explicit) = cli_override {
+        // If the base IS in gpu-specs.yaml, trust its recorded attribution_required — it was
+        // reviewed when the entry was added. If the base is unmapped (`resolved` is `None`:
+        // no hf_id, or an hf_id not in `train_bases`), there is nothing to trust, so fall back
+        // to `default_attribution_required` rather than silently assuming `false` — the same
+        // "never silently default toward permissive" rule this function already enforces for
+        // the missing-license-class case below.
+        let attribution_required = resolved
+            .map(|(_, attr)| attr)
+            .unwrap_or_else(|| default_attribution_required(&explicit));
+        return Ok((explicit, attribution_required));
+    }
+    match resolved {
+        Some((Some(license), attribution_required)) => Ok((license, attribution_required)),
+        _ => anyhow::bail!(
+            "no license_class resolved for base model {hf_id:?}: it has no `license:` entry in \
+             mens/config/gpu-specs.yaml train_bases (or isn't a known train_bases rung at all), \
+             and no --license-class override was given. Pass --license-class explicitly, or add \
+             a `license:` entry for this base in gpu-specs.yaml — never assume a default license."
+        ),
+    }
 }
 
 /// Fail-closed placeholder guard for the real train / dispatch path.
@@ -96,6 +229,61 @@ pub fn resolve_base_model(
     Ok(pick_base(&overlay, base_model, vram_mb)?.hf_id.clone())
 }
 
+/// Fail-closed Metal default: pick the largest `agentic_default` rung that
+/// fits `vram_mb`. Used by `vox mens train` **before** the CandleQlora
+/// `DEFAULT_MODEL_ID` fill so a Mac does not silently land on Qwen3-8B.
+///
+/// `workspace_root` may be `None` (installed binary); the overlay then comes
+/// from the compile-time `gpu-specs.yaml` embed.
+pub fn resolve_metal_default_base(
+    workspace_root: Option<&std::path::Path>,
+    vram_mb: u64,
+) -> anyhow::Result<String> {
+    let overlay = match workspace_root {
+        Some(root) => load_overlay(root)?,
+        None => load_embedded_overlay()?,
+    };
+    let base = pick_base(&overlay, "agentic_default", vram_mb as u32).map_err(|e| {
+        anyhow::anyhow!(
+            "{e} (live-available unified memory: {vram_mb} MB; agentic_default floor is 11000 MB). \
+             Pass --model, set VOX_MENS_DEFAULT_MODEL, or free memory. (This `vram_mb` comes from \
+             `hardware::macos_metal::probe_metal`'s `recommendedMaxWorkingSetSize` accessor, not \
+             live `vm_stat` pressure — that's a separate, additional constraint applied to the \
+             training working-set budget in `tensor::accel_budget::query_accel_budget`. \
+             `VOX_MENS_DISABLE_LIVE_MEM` is not a recognized toggle for either path.)"
+        )
+    })?;
+    ensure_not_placeholder(&base.hf_id)?;
+    Ok(base.hf_id.clone())
+}
+
+/// CLI precedence for the Metal default base: `--model` and
+/// `VOX_MENS_DEFAULT_MODEL` win; explicit `--device cpu`/`cuda` skip; nvidia
+/// never resolves. Fail-closed when the pick itself fails.
+pub fn maybe_resolve_metal_default_base(
+    model: Option<&str>,
+    env_default_model: Option<&str>,
+    vendor: &str,
+    device_best_or_metal: bool,
+    workspace_root: Option<&std::path::Path>,
+    vram_mb: u64,
+) -> anyhow::Result<Option<String>> {
+    let model_set = model.map(str::trim).filter(|s| !s.is_empty()).is_some();
+    let env_set = env_default_model
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .is_some();
+    if model_set || env_set || !device_best_or_metal {
+        return Ok(None);
+    }
+    if crate::mens::tensor::vram_autodetect::AcceleratorKind::from_vendor(vendor)
+        != crate::mens::tensor::vram_autodetect::AcceleratorKind::Metal
+    {
+        return Ok(None);
+    }
+    Ok(Some(resolve_metal_default_base(workspace_root, vram_mb)?))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,11 +297,15 @@ mod tests {
                     hf_id: "small".into(),
                     floor_mb: 6000,
                     methods: vec!["qlora".into()],
+                    license: Some("apache-2.0".into()),
+                    attribution_required: false,
                 },
                 TrainBase {
                     hf_id: "big".into(),
                     floor_mb: 11000,
                     methods: vec!["qlora".into()],
+                    license: None,
+                    attribution_required: false,
                 },
             ],
         );
@@ -300,6 +492,273 @@ mod tests {
             base.hf_id.contains("Qwen3-14B"),
             "should be 14B, got: {}",
             base.hf_id
+        );
+    }
+
+    fn workspace_root() -> &'static std::path::Path {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+    }
+
+    #[test]
+    fn resolve_metal_default_base_116g_is_qwen3_32b() {
+        let id = resolve_metal_default_base(Some(workspace_root()), 116_000).expect("116k MB fits");
+        assert!(
+            id.contains("Qwen3-32B"),
+            "116_000 MB agentic_default must resolve Qwen3-32B, got {id}"
+        );
+    }
+
+    #[test]
+    fn resolve_metal_default_base_13926_is_qwen3_8b() {
+        let id = resolve_metal_default_base(Some(workspace_root()), 13926).expect("13926 MB fits");
+        assert!(
+            id.contains("Qwen3-8B"),
+            "13926 MB agentic_default must resolve Qwen3-8B, got {id}"
+        );
+    }
+
+    #[test]
+    fn resolve_metal_default_base_6144_is_fail_closed() {
+        let err = resolve_metal_default_base(Some(workspace_root()), 6144)
+            .expect_err("8 GB is below floor");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("agentic_default"),
+            "fail-closed error must name the tag, got {msg}"
+        );
+        assert!(
+            msg.contains("6144"),
+            "fail-closed error must name the live budget, got {msg}"
+        );
+        assert!(
+            msg.contains("11000") && msg.contains("--model"),
+            "fail-closed error must name the floor and a recovery flag, got {msg}"
+        );
+    }
+
+    #[test]
+    fn maybe_resolve_metal_default_base_honors_precedence() {
+        let root = Some(workspace_root());
+        assert_eq!(
+            maybe_resolve_metal_default_base(
+                Some("org/Explicit"),
+                None,
+                "apple",
+                true,
+                root,
+                116_000
+            )
+            .expect("skip"),
+            None
+        );
+        assert_eq!(
+            maybe_resolve_metal_default_base(None, Some("org/Env"), "apple", true, root, 116_000)
+                .expect("skip"),
+            None
+        );
+        assert_eq!(
+            maybe_resolve_metal_default_base(None, None, "nvidia", true, root, 116_000)
+                .expect("skip"),
+            None
+        );
+        assert_eq!(
+            maybe_resolve_metal_default_base(None, None, "apple", false, root, 116_000)
+                .expect("cpu skip"),
+            None
+        );
+        let got = maybe_resolve_metal_default_base(None, None, "apple", true, root, 116_000)
+            .expect("resolve")
+            .expect("some");
+        assert!(got.contains("Qwen3-32B"), "got {got}");
+        assert!(
+            maybe_resolve_metal_default_base(None, None, "apple", true, root, 6144).is_err(),
+            "6144 must fail-closed before any default id"
+        );
+        let embedded = resolve_metal_default_base(None, 116_000).expect("embedded overlay");
+        assert!(
+            embedded.contains("Qwen3-32B"),
+            "installed-binary fallback must still resolve 32B, got {embedded}"
+        );
+    }
+
+    #[test]
+    fn agentic_default_rungs_pin_live_available_mb() {
+        // Injected values are live-available MB (vm_stat reclaimable after
+        // margin), not nameplate×0.85. 8 GB / 6144 must fail-closed — do not
+        // weaken that assertion if a rung appears.
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let cases: &[(u32, Option<(&str, &str)>)] = &[
+            (6144, None),
+            // 11–12 GiB window: Qwen2.5-Coder-7B still outranks nothing Qwen3.
+            (11500, Some(("Qwen2.5-Coder-7B", "qlora"))),
+            (13926, Some(("Qwen3-8B", "qlora"))),
+            (20890, Some(("Qwen3-14B", "qlora"))),
+            (27853, Some(("Qwen3-14B", "qlora"))),
+            (31334, Some(("Qwen3-14B", "qlora"))),
+            // Task 15 (plan ID P1.5): the new Qwen3.8-27B QLoRA rung
+            // (floor_mb 34000) correctly displaces Qwen3-14B-LoRA at this
+            // real, hardware-measured Mac memory tier — QLoRA's genuinely
+            // lower memory need legitimately wins here. This is the
+            // disclosed, intended consequence of adding a more capable,
+            // cheaper-to-run rung, not a regression; see the scope ruling
+            // in .superpowers/sdd/2026-09-10-qwen38-27b-hub/task-15-brief.md.
+            (41779, Some(("Qwen3.8-27B", "qlora"))),
+            (55706, Some(("Qwen3-14B", "lora"))),
+            (83558, Some(("Qwen3-32B", "qlora"))),
+            (111411, Some(("Qwen3-32B", "lora"))),
+        ];
+        for &(live_mb, expected) in cases {
+            let got = pick_base(&overlay, "agentic_default", live_mb);
+            match expected {
+                None => {
+                    assert!(
+                        got.is_err(),
+                        "8 GB / {live_mb} MB must fail-closed on agentic_default, got {:?}",
+                        got.ok().map(|b| (&b.hf_id, &b.methods))
+                    );
+                }
+                Some((hf_sub, method)) => {
+                    let base = got.unwrap_or_else(|e| {
+                        panic!("{live_mb} MB should resolve {hf_sub} {method}, got Err: {e}")
+                    });
+                    assert!(
+                        base.hf_id.contains(hf_sub),
+                        "{live_mb} MB: expected hf_id containing {hf_sub}, got {}",
+                        base.hf_id
+                    );
+                    assert!(
+                        base.methods.iter().any(|m| m == method),
+                        "{live_mb} MB: expected methods to contain {method}, got {:?}",
+                        base.methods
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn mac_128g_prefers_unquantized_32b_lora() {
+        // 128 GiB physical - 12 GiB GUI reserve = 116 GiB usable = 118_784 MB.
+        // At that budget the un-quantized 32B rung must outrank the QLoRA one.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap();
+        let overlay = load_overlay(root).expect("load overlay");
+        let base = pick_base(&overlay, "strong_code_default", 118_784).expect("a base fits");
+        assert!(
+            base.hf_id.contains("Qwen3-32B"),
+            "116 GiB should resolve Qwen3-32B, got: {}",
+            base.hf_id
+        );
+        assert!(
+            base.methods.iter().any(|m| m == "lora"),
+            "at 116 GiB the un-quantized LoRA rung should win, got methods: {:?}",
+            base.methods
+        );
+    }
+
+    #[test]
+    fn resolve_base_model_picks_27b_at_measured_big_box_memory() {
+        // Task 15 (plan ID P1.5): the new Qwen3.8-27B QLoRA rung (floor_mb
+        // 34000) must be resolvable at a real, hardware-measured Mac memory
+        // tier, AND must NOT displace Qwen3-32B as the real 128 GB
+        // (~118_784 MB) default — that pin flip is Phase 3's job, not this
+        // task's. See the scope ruling in
+        // .superpowers/sdd/2026-09-10-qwen38-27b-hub/task-15-brief.md.
+        let root = workspace_root();
+
+        // Positive case: the real, hardware-measured 41779 MB tier (also
+        // pinned in agentic_default_rungs_pin_live_available_mb) — above the
+        // new rung's floor (34000) and below the next rung up (Qwen3-14B
+        // LoRA at 44000), so only the 27B rung fits. This proves
+        // reachability on hardware this file already models, not merely in
+        // the abstract.
+        let mid = resolve_base_model(root, "agentic_default", Some(41_779))
+            .expect("41_779 MB should resolve the Qwen3.8-27B QLoRA rung");
+        assert_eq!(
+            mid, "Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+            "41_779 MB agentic_default must resolve Qwen3.8-27B, got {mid}"
+        );
+
+        // Negative case (the non-goal): a real 128 GB Mac (116 GiB usable =
+        // 118_784 MB) must still resolve Qwen3-32B, not Qwen3.8-27B — no pin
+        // flip at the top end.
+        let big_box = resolve_base_model(root, "agentic_default", Some(118_784))
+            .expect("118_784 MB should resolve a base");
+        assert_eq!(
+            big_box, "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
+            "118_784 MB agentic_default must still resolve Qwen3-32B (no pin flip yet), got {big_box}"
+        );
+    }
+
+    #[test]
+    fn resolve_license_class_uses_gpu_specs_license_when_present() {
+        let (license, attribution_required) = resolve_license_class(
+            Some(workspace_root()),
+            Some("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
+            None,
+        )
+        .expect("Qwen3-8B has a license: entry in gpu-specs.yaml");
+        assert_eq!(license, "apache-2.0");
+        assert!(!attribution_required);
+    }
+
+    /// Qwen3.8-27B has no `license:` entry in gpu-specs.yaml today — its real
+    /// license could not be confirmed with confidence, so it is deliberately
+    /// left unmapped rather than guessed. Resolving it with no override must
+    /// be a hard error, never a silent fallback (e.g. to `apache-2.0`).
+    #[test]
+    fn resolve_license_class_hard_errors_when_base_has_no_license_entry() {
+        let err = resolve_license_class(
+            Some(workspace_root()),
+            Some("Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"),
+            None,
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("no license_class resolved"),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn resolve_license_class_cli_override_wins_even_for_unknown_base() {
+        let (license, attribution_required) = resolve_license_class(
+            Some(workspace_root()),
+            Some("some/unmapped-model"),
+            Some("mit".into()),
+        )
+        .expect("explicit override must always resolve");
+        assert_eq!(license, "mit");
+        assert!(
+            !attribution_required,
+            "mit is a known no-attribution-required permissive license"
+        );
+    }
+
+    /// Regression test: an unmapped base with a `--license-class` override that names a
+    /// license NOT on the known-permissive allowlist must default `attribution_required`
+    /// to `true`, never silently to `false`. Before the fix, any unmapped base silently got
+    /// `attribution_required = false` regardless of which license was passed — wrongly
+    /// suppressing attribution for exactly the license family that needs it.
+    #[test]
+    fn resolve_license_class_defaults_attribution_required_true_for_unknown_license_on_unmapped_base()
+     {
+        let (license, attribution_required) = resolve_license_class(
+            Some(workspace_root()),
+            Some("some/unmapped-model"),
+            Some("cc-by-nc-4.0".into()),
+        )
+        .expect("explicit override must always resolve");
+        assert_eq!(license, "cc-by-nc-4.0");
+        assert!(
+            attribution_required,
+            "an unrecognized, non-permissive license override on an unmapped base must \
+             default to attribution_required = true, not silently false"
         );
     }
 }

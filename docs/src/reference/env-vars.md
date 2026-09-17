@@ -45,13 +45,13 @@ See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 | **App SQL plane** (`vox-sql`) | Backend-only app data-plane connectivity for generated/runtime SQL backends. | `VOX_APP_DB_URL` (falls back to `VOX_DB_URL` when unset). |
 | **Secrets vault** (`vox-secrets` cloudless backend) | Encrypted secret material at rest in a **separate** SQLite / libSQL database. | See vault vars below. |
 
-**Vault URL / file (precedence):** `VOX_SECRETS_VAULT_PATH` (local path → `file:` URL) → `VOX_SECRETS_VAULT_URL` → `VOX_SECRETS_AUTO_VAULT` / `VOX_SECRETS_AUTO_PREFER_VAULT` → when compat aliases allowed (`VOX_SECRETS_HARD_CUT` off and cutover phase not `enforce`/`decommission`): `VOX_TURSO_URL` → `TURSO_URL` → default `file:.vox/secrets_vault.db`.
+**Vault URL / file (precedence):** `VOX_SECRETS_VAULT_PATH` (local path → `file:` URL) → `VOX_SECRETS_VAULT_URL` → `VOX_SECRETS_AUTO_VAULT` / `VOX_SECRETS_AUTO_PREFER_VAULT` → when compat aliases allowed (`VOX_SECRETS_HARD_CUT` off and cutover phase not `enforce`/`decommission`): `VOX_TURSO_URL` → `TURSO_URL` → default absolute `$HOME/.vox/clavis_vault.db`.
 
 **Vault remote token (precedence):** `VOX_SECRETS_VAULT_TOKEN` → compat `VOX_TURSO_TOKEN` → `TURSO_AUTH_TOKEN` (same gating as URL aliases).
 
 | Variable | Role |
 |----------|------|
-| `VOX_SECRETS_VAULT_PATH` | Local vault SQLite path; opened as `file:` (preferred for repo-local vaults). |
+| `VOX_SECRETS_VAULT_PATH` | Local vault SQLite path; opened as `file:` (preferred for repo-local vaults). Default when unset: absolute `$HOME/.vox/clavis_vault.db` (not cwd-relative). |
 | `VOX_SECRETS_VAULT_URL` | Explicit vault URL (`file:…` or `libsql://…`). |
 | `VOX_SECRETS_VAULT_TOKEN` | Auth token when `VOX_SECRETS_VAULT_URL` is remote. |
 | `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | > [!WARNING] DEPRECATED for vault<br>Read only when compat aliases allowed; migrate to `VOX_SECRETS_VAULT_*`. |
@@ -310,10 +310,12 @@ See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-sso
 | `VOX_MENS_EXPERIMENTAL_OPTIMIZER` | Guard flag required when `optimizer_experiment_mode` is set to a non-`off` value. |
 | `VOX_MENS_SKIP_EVAL` | `1` / `true` — skip Step 2 pre-flight eval gate in `full-pipeline.vox` (use when `eval_results.json` is stale or absent on first run). |
 | `VOX_MENS_SKIP_MIX` | `1` / `true` — skip Step 1 corpus mix in `full-pipeline.vox` (use when corpus is already fresh). |
-| `VOX_MENS_FORCE_TRAIN` | `1` / `true` — proceed past a failing pre-flight or post-train gate in `full-pipeline.vox`; marks receipt as degraded. Dev iteration only. |
+| `VOX_MENS_FORCE_TRAIN` | `1` / `true` — proceed past a failing pre-flight or post-train gate in `full-pipeline.vox`, and past `vox mens train`'s VRAM-fit refusal (`gpu.rs`'s auto-sizing call site: a calibrated lane whose measured `memory_model::sweep`/`plan_for` verdict refuses the config, real per-host measured data, not the deleted params_b-only `budget_gate` in `train_arm.rs`); marks receipt as degraded. Dev iteration only. |
 | `VOX_MENS_BACKGROUND` | `1` / `true` — spawn training as a background process in `full-pipeline.vox`. |
 | `VOX_MENS_DOMAIN` | Domain adapter target for `full-pipeline.vox` (default: `vox-lang`). Selects the domain-specific mix config (`mix-{domain}.yaml`). |
 | `VOX_MENS_EPOCHS` | Override training epoch count for `full-pipeline.vox` (default: `3`). |
+| `VOX_MENS_DEVICE` | Override training device for `full-pipeline.vox` (default: `cuda`; e.g. `metal` for a Mac run). |
+| `VOX_MENS_PRESET` | Override training preset for `full-pipeline.vox` (default: `qwen_4080_16g`). |
 | `VOX_INFERENCE_PROFILE` | `desktop_ollama` (default), `cloud_openai_compatible`, `mobile_litert`, `mobile_coreml`, `lan_gateway`; gates **vox-mcp** local Ollama + Ollama fallback to `desktop_ollama` / `lan_gateway` only; see [`vox_config::inference`](../../../crates/vox-config/src/inference.rs) and [mobile-edge-ai.md](mobile-edge-ai.md). |
 | `VOX_AUTO_MODEL_STRATEGY` | OpenRouter strategy for auto model ids: `provider_auto` or `preferred_model`; see [`vox_config::routing_policy`](../../../crates/vox-config/src/routing_policy.rs). |
 | `VOX_AUTO_ROUTING_PRIORITY` | Weighted MCP auto-routing priorities (`efficiency,precision,latency,availability,balance,mobile`) as `k=v` CSV. |

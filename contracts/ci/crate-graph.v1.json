@@ -4,6 +4,7 @@
     "vox-actor-runtime": [
       "vox-bounded-fs",
       "vox-config",
+      "vox-crypto",
       "vox-foundation",
       "vox-http-client",
       "vox-llm-egress",
@@ -235,6 +236,7 @@
       "vox-codegen",
       "vox-codegen-ts",
       "vox-config",
+      "vox-crypto",
       "vox-eval",
       "vox-foundation",
       "vox-grammar-export",
@@ -647,6 +649,13 @@
       "vox-telemetry",
       "workspace-hack"
     ],
+    "vox-plugin-mens-candle-core": [
+      "vox-config",
+      "vox-db",
+      "vox-hf-layout",
+      "vox-tensor",
+      "workspace-hack"
+    ],
     "vox-plugin-mens-candle-cuda": [
       "vox-compiler",
       "vox-config",
@@ -654,6 +663,7 @@
       "vox-eval",
       "vox-hf-layout",
       "vox-plugin-api",
+      "vox-plugin-mens-candle-core",
       "vox-secrets",
       "vox-tensor",
       "workspace-hack"
@@ -665,6 +675,7 @@
       "vox-eval",
       "vox-hf-layout",
       "vox-plugin-api",
+      "vox-plugin-mens-candle-core",
       "vox-secrets",
       "vox-tensor",
       "workspace-hack"
@@ -941,11 +952,13 @@
       "vox-config",
       "vox-db",
       "vox-journal",
+      "vox-mesh-transport",
       "vox-populi",
       "vox-runtime",
       "workspace-hack"
     ],
     "voxup": [
+      "vox-plugin-catalog",
       "workspace-hack"
     ],
     "workspace-hack": []

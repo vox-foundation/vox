@@ -239,13 +239,15 @@ pub fn store_secret(
     profile: Option<&str>,
 ) -> Result<(), SecretError> {
     let backend = backend::vox_vault::VoxCloudBackend::new()?;
+    // Vault `clavis_secret_versions.created_by` CHECK allows only
+    // cli|mcp|api|agent:% — never the resolve-side fallback "process".
     backend.write_secret_v2(
         id.spec().canonical_env,
         plaintext,
         profile,
         "create",
         Some("programmatic-store"),
-        "process",
+        "cli",
         backend::vox_vault::DEFAULT_HISTORY_DEPTH,
     )
 }

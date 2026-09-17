@@ -1,6 +1,13 @@
 //! The cohort planner: VRAM exclusion gate + throughput-gain estimate.
-
-use crate::mens::tensor::memory_budget;
+//!
+//! Not yet wired to a real production caller (exercised only by this module's
+//! own tests) — a coarse *inclusion* pre-filter for cohort assembly, not the
+//! precise per-host fit check. That precise check is
+//! `memory_model::plan_for`/`sweep`, which needs a real on-disk
+//! [`crate::mens::tensor::memory_model::ModelShape`] this planner does not
+//! have (`target_params_b` is a bare number, no model is downloaded yet at
+//! cohort-assembly time) — see the module doc on `memory_budget.rs` for why a
+//! params_b-only estimate does not survive as the canonical budget API.
 
 /// A candidate mesh node, distilled to just what the cohort decision needs.
 ///
@@ -40,7 +47,7 @@ impl CohortNode {
 /// Why a node was excluded from the cohort.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExclusionReason {
-    /// The target model does not fit this node's VRAM (`memory_budget::plan` over budget).
+    /// The target model does not fit this node's VRAM (see `COHORT_MIN_GIB_PER_B_PARAMS`).
     OverVramBudget,
     /// The node has not opted in to training workloads.
     NotAcceptingTraining,
@@ -216,6 +223,14 @@ where
     }
 }
 
+/// Deliberately generous resident-only floor (GiB per billion params) for the
+/// coarse cohort pre-filter: comfortably above any real quantized/LoRA
+/// resident footprint, so this excludes only nodes that obviously cannot hold
+/// the model at all — not a claim about activations or achievable batch
+/// size, which the real per-host `memory_model::plan_for`/`sweep` decide once
+/// a node is selected and the model is actually on disk.
+const COHORT_MIN_GIB_PER_B_PARAMS: f64 = 2.0;
+
 /// Decide whether a node must be excluded, and why. `None` means it can participate.
 fn exclusion_reason(node: &CohortNode, target_params_b: f64) -> Option<ExclusionReason> {
     if node.quarantined {
@@ -227,7 +242,7 @@ fn exclusion_reason(node: &CohortNode, target_params_b: f64) -> Option<Exclusion
     if !node.accepts_training {
         return Some(ExclusionReason::NotAcceptingTraining);
     }
-    if memory_budget::plan(node.vram_gib, target_params_b).over_budget {
+    if node.vram_gib < target_params_b * COHORT_MIN_GIB_PER_B_PARAMS {
         return Some(ExclusionReason::OverVramBudget);
     }
     None
@@ -241,12 +256,10 @@ mod tests {
         CohortNode::new(id, vram, None)
     }
 
-    // NOTE on `target_params_b` choices: under the current `memory_budget::plan`
-    // calibration (3.5 GiB/B resident), a 16 GiB card fits a ~2B target but NOT 3B
-    // (3B leaves only ~2.0 GiB for activations, below the seq-128 floor → over_budget).
-    // The plan's illustrative "3B fits 16 GiB" predates that recalibration, so these
-    // tests use 2.0B as the target — the exclusion-vs-inclusion intent is unchanged:
-    // the 16 GiB nodes are usable and the 2 GiB node is not.
+    // NOTE on `target_params_b` choices: under `COHORT_MIN_GIB_PER_B_PARAMS` (2.0
+    // GiB/B), a 16 GiB card fits a ~2B target (needs 4.0 GiB) but a 2 GiB node does
+    // not. These tests use 2.0B as the target — the exclusion-vs-inclusion intent
+    // is unchanged: the 16 GiB nodes are usable and the 2 GiB node is not.
 
     #[test]
     fn excludes_subthreshold_and_estimates_gain() {

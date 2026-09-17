@@ -2,11 +2,16 @@
 
 #![allow(clippy::module_inception)]
 
+pub mod accel_budget;
+#[cfg(feature = "mens")]
+pub mod calibration;
 pub mod data;
 pub mod device;
 pub mod hf_keymap;
 pub mod hf_load;
 pub mod manifest;
+#[cfg(feature = "mens")]
+pub mod memory_model;
 pub mod model_card;
 pub mod telemetry;
 pub mod telemetry_schema;
@@ -57,7 +62,7 @@ pub mod domain_router;
 pub mod execution_planner;
 #[cfg(feature = "mens-train")]
 pub mod external_serving_handoff;
-#[cfg(feature = "mens-train")]
+#[cfg(any(feature = "mens-train", feature = "mens-cloud"))]
 pub mod finetune_contract;
 #[cfg(feature = "mens-train")]
 pub mod finetune_registry;
@@ -79,7 +84,7 @@ pub mod spoke_base_resolver;
 // on `domain_profiles` above. Consumed by `vox ci spoke-check`.
 #[cfg(feature = "mens")]
 pub mod spoke_validate;
-#[cfg(feature = "mens-train")]
+#[cfg(any(feature = "mens-train", feature = "mens-cloud"))]
 pub mod train_backend;
 #[cfg(feature = "mens-train")]
 pub mod train_jsonl_preflight;

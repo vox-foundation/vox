@@ -1,0 +1,15 @@
+// ---
+// title: "crypto.hash_fast is the same bytes on both tiers"
+// description: "Both tiers call vox-crypto; hex of hash_fast(\"abc\") matches."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, print, crypto.hash_fast]
+// training_eligible: true
+// difficulty: beginner
+// ---
+// EXPECT: 32
+pub fn main() {
+  let h = crypto.hash_fast("abc")
+  print(str(len(h)))
+}

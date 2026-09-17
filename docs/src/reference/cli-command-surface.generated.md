@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 305
+**schema_version:** `1` · **vox-cli operations:** 318
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -178,6 +178,19 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox grammar` | active | — | — | ai | — |
 | `vox graph` | active | — | pm | platform | — |
 | `vox graph ingest` | active | — | pm | platform | — |
+| `vox gui` | active | gui | gui | platform | — |
+| `vox gui drive` | active | gui | gui | platform | — |
+| `vox gui drive headless` | active | gui | gui | platform | — |
+| `vox gui drive headless send` | active | gui | gui | platform | — |
+| `vox gui drive headless set` | active | gui | gui | platform | — |
+| `vox gui drive headless state` | active | gui | gui | platform | — |
+| `vox gui drive send` | active | gui | gui | platform | — |
+| `vox gui drive set` | active | gui | gui | platform | — |
+| `vox gui drive show` | active | gui | gui | platform | — |
+| `vox gui drive start` | active | gui | gui | platform | — |
+| `vox gui drive state` | active | gui | gui | platform | — |
+| `vox gui drive stop` | active | gui | gui | platform | — |
+| `vox gui drive wait` | active | gui | gui | platform | — |
 | `vox harness` | active | — | — | ai | — |
 | `vox init` | active | — | pm | platform | — |
 | `vox live` | active | live | — | ai | — |
@@ -190,6 +203,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox mens` | active | mens-base|gpu | mens | ai | — |
 | `vox mens bench-completion` | active | mens-base | mens | ai | — |
 | `vox mens check` | active | mens-dei | mens | ai | — |
+| `vox mens cloud-estimate` | active | cloud | mens | ai | — |
 | `vox mens corpus` | active | mens-base | mens | ai | — |
 | `vox mens eval-gate` | active | mens-base | mens | ai | — |
 | `vox mens eval-local` | active | gpu | mens | ai | — |
@@ -329,4 +343,3 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox upgrade` | active | — | pm | platform | — |
 | `vox visus audit` | active | dei | dei | ai | — |
 | `vox visus baseline` | active | dei | dei | ai | — |
-| `vox wasm` | active | script-wasi | — | app | — |

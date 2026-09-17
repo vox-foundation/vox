@@ -67,6 +67,10 @@ pub const AGY_TIMEOUT: Duration = Duration::from_secs(20 * 60);
 /// well below the 20-minute agy exception.
 pub const COMPILER_WORKSPACE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
+/// Sync chat / Drive ceiling — aligned with Axis Drive bridge recv (180s).
+/// Must stay ≤ client read deadline (`vox_config::timeouts::D_195S`).
+pub const CHAT_MESSAGE_TIMEOUT: Duration = Duration::from_secs(180);
+
 /// Tool names given an explicit non-default execution timeout. Everything
 /// else falls back to [`DEFAULT_TIMEOUT`] via [`timeout_for`].
 const EXPLICIT_TIMEOUTS: &[(&str, Duration)] = &[
@@ -77,6 +81,7 @@ const EXPLICIT_TIMEOUTS: &[(&str, Duration)] = &[
     ("vox_build_crate", COMPILER_WORKSPACE_TIMEOUT),
     ("vox_lint_crate", COMPILER_WORKSPACE_TIMEOUT),
     ("vox_coverage_report", COMPILER_WORKSPACE_TIMEOUT),
+    ("vox_chat_message", CHAT_MESSAGE_TIMEOUT),
     // T4.3 RED-test doubles (see dispatch.rs's `#[cfg(test)]` match arms).
     // `vox_test_hang_forever` gets a short timeout so the RED test proving
     // the outer guard actually fires doesn't need to wait out the real
@@ -136,6 +141,12 @@ mod tests {
     #[test]
     fn default_timeout_is_smaller_than_agy_exception() {
         assert!(DEFAULT_TIMEOUT < AGY_TIMEOUT);
+    }
+
+    #[test]
+    fn chat_message_uses_drive_aligned_ceiling() {
+        assert_eq!(timeout_for("vox_chat_message"), CHAT_MESSAGE_TIMEOUT);
+        assert_eq!(CHAT_MESSAGE_TIMEOUT, Duration::from_secs(180));
     }
 
     #[test]

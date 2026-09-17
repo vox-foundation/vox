@@ -47,6 +47,13 @@ pub struct SubmitTaskInput {
     /// non-chat callers (Tasks surface, hopper).
     #[serde(default)]
     pub chat_session_id: Option<String>,
+    /// End-to-end ChatHop correlation (UUID). Forwarded as `enqueue_hints.trace_id`.
+    #[serde(default)]
+    pub trace_id: Option<String>,
+    /// Per-submit turn id (UUID). Forwarded as `enqueue_hints.turn_id` onto
+    /// [`vox_orchestrator::TaskEnqueueHints`] / [`vox_orchestrator::AgentTask`].
+    #[serde(default)]
+    pub turn_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -117,6 +124,12 @@ fn submit_task_params(input: SubmitTaskInput) -> serde_json::Value {
     }
     if let Some(risk) = input.risk.as_deref().filter(|r| !r.trim().is_empty()) {
         enqueue_hints.insert("risk".into(), serde_json::json!(risk));
+    }
+    if let Some(trace_id) = input.trace_id.as_deref().filter(|t| !t.trim().is_empty()) {
+        enqueue_hints.insert("trace_id".into(), serde_json::json!(trace_id));
+    }
+    if let Some(turn_id) = input.turn_id.as_deref().filter(|t| !t.trim().is_empty()) {
+        enqueue_hints.insert("turn_id".into(), serde_json::json!(turn_id));
     }
     if !enqueue_hints.is_empty()
         && let Some(obj) = params.as_object_mut()
@@ -535,6 +548,8 @@ mod submit_params_tests {
             task_category: None,
             grounding_check_enabled: None,
             chat_session_id: None,
+            trace_id: None,
+            turn_id: None,
         }
     }
 
@@ -581,5 +596,24 @@ mod submit_params_tests {
     fn grounding_check_enabled_is_null_when_omitted() {
         let params = submit_task_params(input(None));
         assert!(params["grounding_check_enabled"].is_null());
+    }
+
+    #[test]
+    fn submit_params_carry_trace_id_and_turn_id_enqueue_hints() {
+        let mut i = input(None);
+        i.trace_id = Some("trace-bg-42".into());
+        i.turn_id = Some("turn-bg-42".into());
+        let params = submit_task_params(i);
+        assert_eq!(params["enqueue_hints"]["trace_id"], "trace-bg-42");
+        assert_eq!(params["enqueue_hints"]["turn_id"], "turn-bg-42");
+    }
+
+    #[test]
+    fn submit_params_omit_blank_correlation_ids() {
+        let mut i = input(None);
+        i.trace_id = Some("   ".into());
+        i.turn_id = Some("".into());
+        let params = submit_task_params(i);
+        assert!(params.get("enqueue_hints").is_none());
     }
 }

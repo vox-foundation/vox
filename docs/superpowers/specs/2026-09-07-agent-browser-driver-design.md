@@ -12,6 +12,8 @@ training_rationale: "Contract for implementing snapshot+ref, named profiles, and
 **Date:** 2026-09-07
 **Research:** [`docs/src/architecture/agent-browser-driver-research-2026.md`](../../src/architecture/agent-browser-driver-research-2026.md)
 **Plan:** [`docs/superpowers/plans/2026-09-07-agent-browser-driver.md`](../plans/2026-09-07-agent-browser-driver.md)
+**Follow-on (chat sees the page):** [`2026-09-08-chat-harness-research-loop-design.md`](./2026-09-08-chat-harness-research-loop-design.md)
+**Follow-on (HITL, after that plan):** [`2026-09-08-browser-hitl-design.md`](./2026-09-08-browser-hitl-design.md)
 **Supersedes (this program only):** the 2026-08-31 GUI-axis line “never `vox_browser_snapshot`” and the deferred `vox_browser_snapshot` / `vox_browser_click_ref` bullets in [`vox-gui-browser-support-2026.md`](../../src/architecture/vox-gui-browser-support-2026.md). Those were “not in that plan,” not a product ban.
 
 This spec is the contract. Executors do not invent types, env vars, crate edges, or tool names that are not named here.
@@ -170,7 +172,7 @@ fn default_true() -> bool { true }
 
 `open(url, headless)` stays **ephemeral** (revision-4 compatible). New work goes through `open_ex(options_json)`.
 
-**Host map (required):** replace the singleton `Mutex<Option<HostInner>>` with `HashMap<HostKey, HostInner>`. Each `page_id` records its `HostKey`. `close` of the last page on a key drops **that** host only. The same `Named(profile_id)` cannot launch twice (Chromium locks `user_data_dir`) — return `host_mode_conflict`. Attach `drop` disconnects; it must **not** kill the user’s Chrome.
+**Host map (required):** replace the singleton `Mutex<Option<HostInner>>` with `HashMap<HostKey, HostInner>`. Each `page_id` records its `HostKey`. `close` of the last page on a key drops **that** host only. A live `Named(profile_id)` host is reused for another tab (same as Attach/Ephemeral). Chromium locks `user_data_dir` on a **second process**, not a second tab — reserve `host_mode_conflict` for a launch that would contend outside this map. Attach `drop` disconnects; it must **not** kill the user’s Chrome.
 
 **Named profile path:** `vox_config::paths::browser_profiles_dir()` / `{profile_id}/`. This is **user data** under `VOX_DATA_DIR` (or `VOX_BROWSER_PROFILES_DIR`), **not** Tier D cache. Reject `profile_id` that fail kebab validation, contain `/` `\` `.` `..`, or match Windows reserved names (`con`, `prn`, `aux`, `nul`, `com1`–`com9`, `lpt1`–`lpt9`) case-insensitively. Implement with char checks — no `regex` crate.
 

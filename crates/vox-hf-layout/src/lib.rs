@@ -54,8 +54,24 @@ pub struct HfTransformerLayout {
     pub linear_key_head_dim: Option<usize>,
     pub linear_value_head_dim: Option<usize>,
     pub linear_conv_kernel_dim: Option<usize>,
+    /// Whether the checkpoint ties `lm_head.weight` to the input embedding matrix.
+    /// Read from `text_config.tie_word_embeddings` when the checkpoint is
+    /// VLM-shaped (the text tower's own block is authoritative, matching how every
+    /// other dim here is read), falling back to the root-level key. Defaults to
+    /// `true` (the legacy tied-embeddings behavior) when the key is absent from
+    /// both, since small Qwen3 dense checkpoints rely on that default.
+    pub tie_word_embeddings: bool,
     /// Same numbers as the HF fields above, in [`ConfigDims`] shape (legacy / graph code).
     pub dims: ConfigDims,
+}
+
+/// True for tensor keys belonging to Qwen3.8-27B's vision tower
+/// (`model.visual.*`) or its multi-token-prediction head (`mtp.*`) — neither
+/// is part of the text tower this crate extracts a layout for, and neither
+/// should be requested, downloaded, or validated against by a text-only
+/// QLoRA loader.
+pub fn is_vision_or_mtp_key(key: &str) -> bool {
+    key.starts_with("model.visual.") || key.starts_with("mtp.")
 }
 
 impl HfTransformerLayout {
@@ -99,21 +115,35 @@ impl HfTransformerLayout {
             })
             .unwrap_or_default();
 
-        // Fail fast on vision-language / multimodal checkpoints that lack a dedicated
-        // text transformer configuration (`text_config`). When `text_config` is present,
-        // the text QLoRA trainer can safely extract and train the text backbone.
+        // Vision-language / multimodal checkpoints (e.g. Qwen3.5-2B/4B and
+        // Qwen3.8-27B ship as `Qwen3_5ForConditionalGeneration` with a
+        // `vision_config` + image/video token ids) are loadable TEXT-ONLY when
+        // they carry a separate `text_config` block: `qwen35_text_config` below
+        // reads dims exclusively from that block, never from `vision_config`, so
+        // there is nothing vision-specific for the text QLoRA trainer to choke
+        // on. The weight loader never *requests* `model.visual.*` / `mtp.*`
+        // tensors in the first place, because every lookup here is by exact key
+        // name built from `namespace_prefix` (`model.language_model.layers.*`
+        // for this text_config-wrapped shape) — nothing enumerates shard keys,
+        // so vision/MTP tensors are skipped as an emergent side effect, not an
+        // explicit filter. [`is_vision_or_mtp_key`] is that explicit check,
+        // for callers (validation passes, diagnostics, shard selection)
+        // that do enumerate keys and need to exclude these towers on purpose.
+        // What genuinely cannot be trained is a VLM with NO text_config at all
+        // — there would be nothing to extract dims from.
         let is_conditional_generation = architectures
             .iter()
             .any(|a| a.contains("ForConditionalGeneration"));
         let has_vision = v.get("vision_config").is_some()
             || v.get("image_token_id").is_some()
             || v.get("video_token_id").is_some();
-        let has_text_config = v.get("text_config").is_some();
+        let has_text_config = qwen35_text_config(v, architecture).is_some();
         if (is_conditional_generation || has_vision) && !has_text_config {
             anyhow::bail!(
                 "This checkpoint is a vision-language / multimodal model (architectures={architectures:?}\
-                {}), which has no text_config for the text QLoRA trainer. Use a text-only causal LM \
-                 (e.g. a Qwen3-8B or a text-only dense Qwen checkpoint).",
+                {}) with no text_config block to load a text tower from. Use a text-only causal LM \
+                 (e.g. a Qwen2.5-Coder-*-Instruct or a text-only dense Qwen checkpoint), or a VLM \
+                 checkpoint that ships a text_config (e.g. Qwen3.8-27B).",
                 if has_vision {
                     ", has vision_config/image_token"
                 } else {
@@ -123,6 +153,17 @@ impl HfTransformerLayout {
         }
 
         let cfg_source = qwen35_text_config(v, architecture).unwrap_or(v);
+        // Read from `cfg_source` first, falling back to the root, for the same
+        // reason every other field above reads `cfg_source`: on a VLM-shaped
+        // checkpoint the text tower's own `text_config` block is authoritative,
+        // and a wrapper-level root value can describe the multimodal model rather
+        // than the text tower we are extracting. Identical either way for the
+        // common case where `cfg_source == v`. Defaults to `true` (legacy tied
+        // behavior) when absent from both, since small Qwen3 dense checkpoints
+        // rely on that default.
+        let tie_word_embeddings = json_bool(cfg_source, "tie_word_embeddings")
+            .or_else(|| json_bool(v, "tie_word_embeddings"))
+            .unwrap_or(true);
 
         // Llama / Mistral / Qwen2 / Qwen3.5 and many causal LMs.
         if let (Some(h), Some(nh), Some(nl), Some(vs)) = (
@@ -142,7 +183,15 @@ impl HfTransformerLayout {
             if layer_types.is_empty() {
                 layer_types = vec!["full_attention".to_string(); nl];
             }
-            let namespace_prefix = if has_text_config {
+            // The `language_model.` weight-key infix is a property of the
+            // checkpoint's actual on-disk shape (text_config-wrapped, as
+            // Qwen3.5's hybrid stack ships), not of the model family name —
+            // "qwen3" and "qwen3_5" both `.contains("qwen3")`, but only
+            // text_config-wrapped checkpoints use the wrapped prefix. A dense
+            // Qwen3 checkpoint (e.g. Qwen/Qwen3-0.6B) has no `text_config`
+            // block and uses the flat `model.layers` prefix, same as Qwen2/
+            // Llama/Mistral.
+            let namespace_prefix = if qwen35_text_config(v, architecture).is_some() {
                 "model.language_model.layers".to_string()
             } else {
                 "model.layers".to_string()
@@ -172,6 +221,7 @@ impl HfTransformerLayout {
                 linear_key_head_dim: json_usize(cfg_source, "linear_key_head_dim"),
                 linear_value_head_dim: json_usize(cfg_source, "linear_value_head_dim"),
                 linear_conv_kernel_dim: json_usize(cfg_source, "linear_conv_kernel_dim"),
+                tie_word_embeddings,
                 dims,
             });
         }
@@ -212,6 +262,7 @@ impl HfTransformerLayout {
                 linear_key_head_dim: None,
                 linear_value_head_dim: None,
                 linear_conv_kernel_dim: None,
+                tie_word_embeddings,
                 dims,
             });
         }
@@ -252,6 +303,10 @@ fn json_usize(v: &Value, key: &str) -> Option<usize> {
 
 fn json_f64(v: &Value, key: &str) -> Option<f64> {
     v.get(key).and_then(|x| x.as_f64())
+}
+
+fn json_bool(v: &Value, key: &str) -> Option<bool> {
+    v.get(key).and_then(|x| x.as_bool())
 }
 
 fn json_string_vec(v: &Value, key: &str) -> Option<Vec<String>> {
@@ -402,7 +457,197 @@ impl From<StackedCausalCfg> for ConfigDims {
 
 #[cfg(test)]
 mod tests {
-    use super::{HfArchitecture, HfTransformerLayout};
+    use super::{HfArchitecture, HfTransformerLayout, is_vision_or_mtp_key};
+
+    #[test]
+    fn vision_and_mtp_keys_are_excluded_from_required_key_set() {
+        // Real key shapes from the Qwen3.8-27B checkpoint (verified this session).
+        assert!(is_vision_or_mtp_key(
+            "model.visual.blocks.0.attn.qkv.weight"
+        ));
+        assert!(is_vision_or_mtp_key("mtp.fc.weight"));
+        assert!(!is_vision_or_mtp_key(
+            "model.language_model.layers.0.self_attn.q_proj.weight"
+        ));
+    }
+
+    #[test]
+    fn vlm_checkpoint_with_text_config_loads_the_text_tower_only() {
+        // Real shape (fetched from Qwen/Qwen3.8-27B's config.json this session):
+        // model_type "qwen3_5", architectures ["Qwen3_5ForConditionalGeneration"],
+        // a text_config block with the same hybrid-attention shape Qwen3.5 already
+        // parses, PLUS a vision_config block and image/video token ids. The old
+        // blanket bail on `ForConditionalGeneration` / vision_config rejected this
+        // outright — but qwen35_text_config already extracts only the text_config
+        // block, ignoring vision_config entirely, so there is no reason a VLM
+        // checkpoint that HAS a text_config can't be loaded text-only.
+        let raw = r#"{
+            "model_type":"qwen3_5",
+            "architectures":["Qwen3_5ForConditionalGeneration"],
+            "text_config":{
+                "hidden_size":5120,
+                "num_attention_heads":24,
+                "num_key_value_heads":4,
+                "num_hidden_layers":8,
+                "vocab_size":248320,
+                "intermediate_size":17408,
+                "max_position_embeddings":262144,
+                "linear_num_key_heads":16,
+                "linear_num_value_heads":48,
+                "layer_types":["linear_attention","linear_attention","linear_attention","full_attention",
+                               "linear_attention","linear_attention","linear_attention","full_attention"]
+            },
+            "vision_config":{
+                "depth":27,
+                "hidden_size":1152
+            },
+            "image_token_id":248056,
+            "video_token_id":248057
+        }"#;
+        let layout =
+            HfTransformerLayout::from_config_json_str(raw).expect("VLM-with-text-config must load");
+        assert_eq!(layout.architecture, HfArchitecture::Qwen35);
+        assert_eq!(
+            layout.hidden_size, 5120,
+            "must read dims from text_config, not top-level (which has none)"
+        );
+        assert_eq!(layout.num_hidden_layers, 8);
+        assert_eq!(layout.vocab_size, 248320);
+        assert_eq!(layout.namespace_prefix, "model.language_model.layers");
+    }
+
+    #[test]
+    fn qwen38_27b_config_yields_expected_layout_dims() {
+        // Regression guard, not a bug-fix test: the underlying parse already
+        // works (see `vlm_checkpoint_with_text_config_loads_the_text_tower_only`
+        // above). This pins the REAL, full-scale Qwen/Qwen3.8-27B config.json
+        // values (verified this session) so a future change to
+        // `qwen35_text_config` or the layer_types parser that silently breaks
+        // this specific checkpoint gets caught.
+        //
+        // full_attention_interval:4 -> every 4th layer (0-indexed 3, 7, 11...)
+        // is full_attention, the rest linear_attention: 16 full / 48 linear
+        // across the real 64-layer stack.
+        let layer_types_json = (0..64)
+            .map(|i| {
+                if i % 4 == 3 {
+                    "\"full_attention\""
+                } else {
+                    "\"linear_attention\""
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let raw = format!(
+            r#"{{
+                "model_type":"qwen3_5",
+                "architectures":["Qwen3_5ForConditionalGeneration"],
+                "text_config":{{
+                    "hidden_size":5120,
+                    "num_attention_heads":24,
+                    "num_key_value_heads":4,
+                    "num_hidden_layers":64,
+                    "vocab_size":248320,
+                    "intermediate_size":17408,
+                    "max_position_embeddings":262144,
+                    "head_dim":256,
+                    "layer_types":[{layer_types_json}]
+                }},
+                "vision_config":{{
+                    "depth":27,
+                    "hidden_size":1152
+                }},
+                "image_token_id":248056,
+                "video_token_id":248057
+            }}"#
+        );
+        let layout = HfTransformerLayout::from_config_json_str(&raw)
+            .expect("real Qwen3.8-27B config must load");
+        assert_eq!(layout.architecture, HfArchitecture::Qwen35);
+        assert_eq!(layout.hidden_size, 5120);
+        assert_eq!(layout.num_hidden_layers, 64);
+        assert_eq!(layout.num_attention_heads, 24);
+        assert_eq!(
+            layout.num_key_value_heads, 4,
+            "real model uses GQA, not MHA"
+        );
+        assert_eq!(layout.vocab_size, 248320);
+        assert_eq!(layout.intermediate_size, Some(17408));
+        assert_eq!(layout.max_position_embeddings, Some(262144));
+        assert_eq!(
+            layout.head_dim,
+            Some(256),
+            "explicit head_dim field, not hidden_size/num_attention_heads division"
+        );
+        assert_eq!(layout.namespace_prefix, "model.language_model.layers");
+        assert_eq!(layout.layer_types.len(), 64);
+        let full_count = layout
+            .layer_types
+            .iter()
+            .filter(|t| t.as_str() == "full_attention")
+            .count();
+        let linear_count = layout
+            .layer_types
+            .iter()
+            .filter(|t| t.as_str() == "linear_attention")
+            .count();
+        assert_eq!(full_count, 16);
+        assert_eq!(linear_count, 48);
+        assert_eq!(
+            layout.layer_types[3], "full_attention",
+            "4th layer (0-indexed 3) must be full_attention per full_attention_interval:4"
+        );
+        assert_eq!(
+            &layout.layer_types[0..3],
+            &["linear_attention", "linear_attention", "linear_attention"]
+        );
+    }
+
+    #[test]
+    fn vlm_checkpoint_without_text_config_still_rejected() {
+        // A vision-language checkpoint with genuinely no separable text
+        // path (no text_config at all) must still be refused — the fix is
+        // "load the text tower when one exists", not "accept any VLM".
+        let raw = r#"{
+            "model_type":"qwen3_5",
+            "architectures":["Qwen3_5ForConditionalGeneration"],
+            "vision_config":{"depth":27,"hidden_size":1152},
+            "image_token_id":248056
+        }"#;
+        let err = HfTransformerLayout::from_config_json_str(raw)
+            .expect_err("a VLM with no text_config must still be rejected");
+        assert!(
+            err.to_string().contains("vision"),
+            "error must explain why, got: {err}"
+        );
+    }
+
+    #[test]
+    fn dense_qwen3_without_text_config_uses_flat_namespace_prefix() {
+        // A real dense Qwen3 checkpoint (e.g. Qwen/Qwen3-0.6B) has model_type
+        // "qwen3" (which `.contains("qwen3")`) but is NOT wrapped in a
+        // `text_config` block the way Qwen3.5's hybrid stack is — its weight
+        // tensors are named `model.layers.N....`, not
+        // `model.language_model.layers.N....`. Deciding the namespace prefix
+        // from a substring match on the model name (rather than from whether
+        // `text_config` is actually present) misnames every weight key and
+        // makes the checkpoint fail to load with "missing weight".
+        let raw = r#"{
+            "model_type":"qwen3",
+            "architectures":["Qwen3ForCausalLM"],
+            "hidden_size":1024,
+            "num_attention_heads":16,
+            "num_key_value_heads":8,
+            "num_hidden_layers":28,
+            "vocab_size":151936,
+            "intermediate_size":3072
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("dense qwen3 parse");
+        assert_eq!(
+            layout.namespace_prefix, "model.layers",
+            "a checkpoint with no text_config block must use the flat weight-key prefix"
+        );
+    }
 
     #[test]
     fn parses_qwen35_nested_text_config_layout() {
@@ -426,6 +671,111 @@ mod tests {
         assert_eq!(layout.num_hidden_layers, 4);
         assert_eq!(layout.layer_types.len(), 4);
         assert_eq!(layout.layer_types[0], "linear_attention");
+    }
+
+    #[test]
+    fn parses_tie_word_embeddings_false_at_root() {
+        // Qwen3.8-27B ships an untied lm_head.weight: tie_word_embeddings=false
+        // at root level, alongside a nested text_config block.
+        let raw = r#"{
+            "model_type":"qwen3_5",
+            "architectures":["Qwen3_5ForCausalLM"],
+            "tie_word_embeddings":false,
+            "text_config":{
+                "hidden_size":1024,
+                "num_attention_heads":16,
+                "num_hidden_layers":4,
+                "vocab_size":151936
+            }
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("qwen3_5 parse");
+        assert!(
+            !layout.tie_word_embeddings,
+            "untied checkpoint must not report tie_word_embeddings=true"
+        );
+    }
+
+    #[test]
+    fn parses_tie_word_embeddings_false_nested_under_text_config() {
+        // This model's config shape nests text fields under text_config; the
+        // key must also be honored from there, not just the root.
+        let raw = r#"{
+            "model_type":"qwen3_5",
+            "architectures":["Qwen3_5ForCausalLM"],
+            "text_config":{
+                "hidden_size":1024,
+                "num_attention_heads":16,
+                "num_hidden_layers":4,
+                "vocab_size":151936,
+                "tie_word_embeddings":false
+            }
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("qwen3_5 parse");
+        assert!(
+            !layout.tie_word_embeddings,
+            "nested tie_word_embeddings=false under text_config must be honored"
+        );
+    }
+
+    #[test]
+    fn nested_tie_word_embeddings_wins_over_a_conflicting_root() {
+        // When a VLM-shaped config declares the key in BOTH places and they
+        // disagree, the text tower's own `text_config` value is authoritative —
+        // the root can describe the wrapper multimodal model, not the text tower
+        // this layout represents. Reading the root here would make an untied text
+        // tower look tied, and the QLoRA trainer would then derive the LM head
+        // from the embedding matrix instead of loading the real `lm_head.weight`.
+        let raw = r#"{
+            "model_type":"qwen3_5",
+            "architectures":["Qwen3_5ForConditionalGeneration"],
+            "tie_word_embeddings":true,
+            "text_config":{
+                "hidden_size":1024,
+                "num_attention_heads":16,
+                "num_hidden_layers":4,
+                "vocab_size":151936,
+                "tie_word_embeddings":false
+            }
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("qwen3_5 parse");
+        assert!(
+            !layout.tie_word_embeddings,
+            "text_config.tie_word_embeddings must win over a conflicting root value"
+        );
+    }
+
+    #[test]
+    fn tie_word_embeddings_true_is_parsed() {
+        let raw = r#"{
+            "model_type":"qwen3",
+            "architectures":["Qwen3ForCausalLM"],
+            "tie_word_embeddings":true,
+            "hidden_size":1024,
+            "num_attention_heads":16,
+            "num_hidden_layers":28,
+            "vocab_size":151936
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("dense qwen3 parse");
+        assert!(layout.tie_word_embeddings);
+    }
+
+    #[test]
+    fn tie_word_embeddings_defaults_to_true_when_absent() {
+        // Small Qwen3 dense checkpoints below tying scale rely on the
+        // derive-from-wte fallback continuing to work when the key is missing.
+        let raw = r#"{
+            "model_type":"qwen3",
+            "architectures":["Qwen3ForCausalLM"],
+            "hidden_size":1024,
+            "num_attention_heads":16,
+            "num_hidden_layers":28,
+            "vocab_size":151936
+        }"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("dense qwen3 parse");
+        assert!(
+            layout.tie_word_embeddings,
+            "missing tie_word_embeddings must default to true (tied) for legacy checkpoints"
+        );
     }
 
     #[test]

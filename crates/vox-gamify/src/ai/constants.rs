@@ -3,7 +3,12 @@
 // ─── Constants ───────────────────────────────────────────
 
 pub(crate) const POLLINATIONS_BASE: &str = "https://text.pollinations.ai/";
-pub(crate) const OLLAMA_DEFAULT_URL: &str = vox_config::LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT;
+/// Ollama base URL, resolved through the config SSOT at call time. Was a
+/// `const` aliasing `vox_config::LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT`, which
+/// by construction could not observe `POPULI_URL` / `OLLAMA_URL`.
+pub(crate) fn ollama_default_url() -> String {
+    vox_config::inference::local_ollama_populi_base_url()
+}
 pub(crate) const OLLAMA_DEFAULT_MODEL: &str = "codellama";
 pub(crate) const GEMINI_DEFAULT_MODEL: &str = "gemini-2.5-flash";
 pub(crate) const GEMINI_ENDPOINT_TEMPLATE: &str =

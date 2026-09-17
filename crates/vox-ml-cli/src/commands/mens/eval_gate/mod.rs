@@ -24,7 +24,10 @@ pub use baseline::{
 };
 pub use bfcl::{BfclGate, check_bfcl};
 pub use check_run::{GateResult, check_run};
-pub use leakage::{SplitManifest, assert_no_leakage, load_split_manifest};
+pub use leakage::{
+    BenchTask, SplitManifest, assert_no_leakage, assert_no_text_leakage, load_bench_answers,
+    load_split_manifest,
+};
 #[cfg(all(feature = "mens-dei", feature = "gpu"))]
 pub(crate) use legacy::{
     LEGACY_TRAIN_POST_EVAL_DEFAULT_MIN_COVERAGE, LEGACY_TRAIN_POST_EVAL_DEFAULT_MIN_PARSE_RATE,

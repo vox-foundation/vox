@@ -16555,6 +16555,7 @@ dependencies = [
  "uuid",
  "vox-bounded-fs",
  "vox-config",
+ "vox-crypto",
  "vox-db",
  "vox-foundation",
  "vox-http-client",
@@ -16799,11 +16800,8 @@ dependencies = [
  "vox-telemetry",
  "vox-telemetry-otlp",
  "vox-term",
- "vox-wasm-engine",
  "vox-workflow-runtime",
  "walkdir",
- "wasmtime",
- "wasmtime-wasi",
  "which 8.0.4",
  "win32job",
  "windows-sys 0.59.0",
@@ -17111,6 +17109,7 @@ dependencies = [
  "logos 0.16.1",
  "miette",
  "proptest",
+ "rand 0.8.6",
  "rayon",
  "regex",
  "reqwest 0.12.28",
@@ -17133,6 +17132,7 @@ dependencies = [
  "vox-codegen",
  "vox-codegen-ts",
  "vox-config",
+ "vox-crypto",
  "vox-eval",
  "vox-foundation",
  "vox-grammar-export",
@@ -17580,6 +17580,7 @@ dependencies = [
  "dirs",
  "hound",
  "ignore",
+ "libc",
  "portable-pty",
  "rmp-serde",
  "serde",
@@ -17708,6 +17709,7 @@ dependencies = [
  "vox-test-harness",
  "vox-workflow-runtime",
  "walkdir",
+ "which 8.0.4",
  "wiremock",
  "workspace-hack",
 ]
@@ -17838,9 +17840,12 @@ name = "vox-mesh-transport"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "fs2",
+ "futures",
  "iroh",
  "iroh-mdns-address-lookup",
  "iroh-tickets",
+ "libc",
  "postcard",
  "serde",
  "serde_json",
@@ -17849,6 +17854,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vox-mesh-types",
+ "win32job",
  "workspace-hack",
 ]
 
@@ -17892,10 +17898,10 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "serial_test",
  "sysinfo 0.39.3",
  "tempfile",
  "tokio",
- "tokio-stream",
  "tracing",
  "uuid",
  "vox-actor-runtime",
@@ -18015,6 +18021,7 @@ dependencies = [
  "hex",
  "hmac 0.13.0",
  "ignore",
+ "iroh",
  "jsonschema",
  "parking_lot 0.12.5",
  "proptest",
@@ -18053,6 +18060,7 @@ dependencies = [
  "vox-http-client",
  "vox-lsp",
  "vox-mesh-policy",
+ "vox-mesh-transport",
  "vox-mesh-types",
  "vox-orchestrator-queue",
  "vox-orchestrator-types",
@@ -18071,7 +18079,6 @@ dependencies = [
  "vox-test-harness",
  "vox-vcs",
  "walkdir",
- "wat",
  "wiremock",
  "workspace-hack",
  "xxhash-rust",
@@ -18357,6 +18364,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-plugin-mens-candle-core"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "candle-core",
+ "candle-nn",
+ "chrono",
+ "memmap2",
+ "qlora-rs",
+ "rand 0.8.6",
+ "safetensors 0.7.0",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokenizers 0.21.4",
+ "tokio",
+ "tracing",
+ "vox-config",
+ "vox-db",
+ "vox-hf-layout",
+ "vox-tensor",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-plugin-mens-candle-cuda"
 version = "0.6.0"
 dependencies = [
@@ -18386,6 +18418,7 @@ dependencies = [
  "vox-eval",
  "vox-hf-layout",
  "vox-plugin-api",
+ "vox-plugin-mens-candle-core",
  "vox-secrets",
  "vox-tensor",
  "workspace-hack",
@@ -18422,6 +18455,7 @@ dependencies = [
  "vox-eval",
  "vox-hf-layout",
  "vox-plugin-api",
+ "vox-plugin-mens-candle-core",
  "vox-secrets",
  "vox-tensor",
  "workspace-hack",
@@ -18635,6 +18669,7 @@ dependencies = [
  "hf-hub",
  "jsonschema",
  "jsonwebtoken",
+ "objc2-metal",
  "openapiv3",
  "owo-colors 4.3.0",
  "qlora-rs",
@@ -19305,8 +19340,8 @@ name = "vox-workflow-runtime"
 version = "0.6.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
  "blake3",
+ "iroh",
  "jsonschema",
  "serde",
  "serde_json",
@@ -19318,6 +19353,7 @@ dependencies = [
  "vox-config",
  "vox-db",
  "vox-journal",
+ "vox-mesh-transport",
  "vox-populi",
  "vox-runtime",
  "workspace-hack",
@@ -19346,6 +19382,8 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "vox-plugin-catalog",
+ "windows-sys 0.59.0",
  "workspace-hack",
  "zip 2.4.2",
 ]

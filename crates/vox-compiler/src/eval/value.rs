@@ -16,7 +16,11 @@ pub enum VoxValue {
     /// A regex match: capture groups by index (group 0 = whole match). A `None`
     /// slot means that group did not participate. `m.group(i)` → `Option[str]`.
     Match(Vec<core::option::Option<String>>),
-    Str(String),
+    /// `Rc<str>` (not `String`) so cloning a string value — every scope lookup,
+    /// every list/object element copy, every function-call argument pass — is
+    /// an O(1) refcount bump rather than an O(n) byte copy. Construct via
+    /// `.into()` (accepts `String` or `&str`); read via `.as_ref()` (`&str`).
+    Str(Rc<str>),
     Bool(bool),
     /// Copy-on-write list payload. `Rc` makes `VoxValue::clone()` O(1) (a refcount
     /// bump) so pass-by-value is cheap; in-place mutation uses [`Rc::make_mut`],
@@ -80,6 +84,9 @@ pub enum VoxValue {
     /// See `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10.4
     /// for the design discussion.
     _Panic(String),
+    /// Capability denial sentinel. Like `_Panic`, converted to an `EvalError`
+    /// at the call boundary; unlike `_Panic` it is never user-catchable.
+    _Denied(String),
 }
 
 impl VoxValue {
@@ -120,6 +127,13 @@ impl PartialEq for VoxValue {
             (Self::Tuple(a), Self::Tuple(b)) => a == b,
             (Self::Null, Self::Null) => true,
             (Self::Option(a), Self::Option(b)) => a == b,
+            // `Option::None` and the `null` literal are the same absence of
+            // a value at runtime (both print as "None"/"null" and both fail
+            // `is_some()`), so they must compare equal — otherwise the
+            // idiomatic `x is null` / `x == null` guard on an `Option[T]`
+            // (e.g. `env.get()`, `process.run()`) is silently dead code and
+            // `x isnt null` is always true. `Some(_)` never matches `Null`.
+            (Self::Null, Self::Option(None)) | (Self::Option(None), Self::Null) => true,
             (Self::Result(a), Self::Result(b)) => a == b,
             (Self::Constructor(a), Self::Constructor(b)) => a == b,
             (
@@ -141,7 +155,7 @@ impl PartialEq for VoxValue {
 /// slot. Used by stdlib builtins that produce string-valued errors, so they keep
 /// their historical behavior under the widened `Result(_, Box<VoxValue>)` shape.
 pub(crate) fn err_str(s: String) -> Box<VoxValue> {
-    Box::new(VoxValue::Str(s))
+    Box::new(VoxValue::Str(s.into()))
 }
 
 #[cfg(test)]

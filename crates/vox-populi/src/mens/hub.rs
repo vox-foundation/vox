@@ -45,6 +45,11 @@ fn repo_name_without_revision(repo_id: &str) -> &str {
     repo_id.split('@').next().unwrap_or(repo_id)
 }
 
+/// The `<sha>` in `owner/name@<sha>`, if present.
+fn repo_revision(repo_id: &str) -> Option<&str> {
+    repo_id.rsplit_once('@').map(|(_, rev)| rev)
+}
+
 /// True iff `repo_id` names the same repo as [`super::DEFAULT_MODEL_ID`],
 /// ignoring any `@<revision>` suffix on either side.
 ///
@@ -89,6 +94,29 @@ fn download_size_notice(repo_id: &str, is_default: bool, safetensors_count: usiz
     }
 }
 
+/// Shape of `model.safetensors.index.json` we care about — only
+/// `weight_map` (tensor key -> shard filename) is used; `metadata` is
+/// ignored.
+#[derive(serde::Deserialize)]
+struct SafetensorsIndex {
+    weight_map: std::collections::HashMap<String, String>,
+}
+
+/// Given the parsed `weight_map` from `model.safetensors.index.json`
+/// (tensor key -> shard filename), return the set of shard filenames that
+/// carry at least one text-tower tensor. Vision/MTP-only shards are
+/// excluded. Pure, no I/O — classification is delegated to
+/// [`vox_hf_layout::is_vision_or_mtp_key`] rather than reimplemented here.
+fn required_shard_filenames(
+    weight_map: &std::collections::HashMap<String, String>,
+) -> std::collections::HashSet<String> {
+    weight_map
+        .iter()
+        .filter(|(key, _)| !vox_hf_layout::is_vision_or_mtp_key(key))
+        .map(|(_, shard)| shard.clone())
+        .collect()
+}
+
 fn normalize_hf_token_env() {
     let token_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::HuggingFaceToken);
     let token = token_resolved.expose();
@@ -113,6 +141,8 @@ pub struct DownloadedModelFiles {
     pub config: PathBuf,
     pub weights: Vec<PathBuf>,
     pub tokenizer: Option<PathBuf>,
+    pub tokenizer_config: Option<PathBuf>,
+    pub chat_template: Option<PathBuf>,
 }
 
 impl DownloadedModelFiles {
@@ -179,15 +209,15 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
     ensure_download_allowed(repo_id)?;
     normalize_hf_token_env();
     let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
-    let clean_id = repo_name_without_revision(repo_id);
-    let revision = repo_id.split('@').nth(1);
-    let (owner, name) = split_id(clean_id);
+    let revision = repo_revision(repo_id);
+    let (owner, name) = split_id(repo_name_without_revision(repo_id));
     let repo = client.model(owner, name);
-    let info = match revision {
-        Some(rev) => repo.info().revision(rev).send().await,
-        None => repo.info().send().await,
-    }
-    .map_err(|e| anyhow::anyhow!("hf-hub repo info for {repo_id}: {e}"))?;
+    let info = repo
+        .info()
+        .maybe_revision(revision)
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("hf-hub repo info for {repo_id}: {e}"))?;
     // 1.0 makes `siblings` optional; an absent listing is indistinguishable from
     // an empty one at the type level, so name the difference here rather than
     // silently reporting "no safetensors" for a repo we simply failed to list.
@@ -208,17 +238,13 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         download_size_notice(repo_id, is_default_model_repo(repo_id), safetensors_count)
     );
 
-    let config = match revision {
-        Some(rev) => {
-            repo.download_file()
-                .filename("config.json")
-                .revision(rev)
-                .send()
-                .await
-        }
-        None => repo.download_file().filename("config.json").send().await,
-    }
-    .map_err(|e| anyhow::anyhow!("download config.json: {e}"))?;
+    let config = repo
+        .download_file()
+        .filename("config.json")
+        .maybe_revision(revision)
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("download config.json: {e}"))?;
 
     let cache_dir = config
         .parent()
@@ -228,43 +254,46 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
     let mut tokenizer = None::<PathBuf>;
     for name in ["tokenizer.json", "tokenizer.model"] {
         if siblings.iter().any(|s| s.rfilename == name) {
-            let res = match revision {
-                Some(rev) => {
-                    repo.download_file()
-                        .filename(name)
-                        .revision(rev)
-                        .send()
-                        .await
-                }
-                None => repo.download_file().filename(name).send().await,
-            };
-            tokenizer = Some(res.map_err(|e| anyhow::anyhow!("download {name}: {e}"))?);
+            tokenizer = Some(
+                repo.download_file()
+                    .filename(name)
+                    .maybe_revision(revision)
+                    .send()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("download {name}: {e}"))?,
+            );
             break;
         }
     }
 
+    let mut tokenizer_config = None::<PathBuf>;
     if siblings
         .iter()
-        .any(|s| s.rfilename == "model.safetensors.index.json")
+        .any(|s| s.rfilename == "tokenizer_config.json")
     {
-        let res = match revision {
-            Some(rev) => {
-                repo.download_file()
-                    .filename("model.safetensors.index.json")
-                    .revision(rev)
-                    .send()
-                    .await
-            }
-            None => {
-                repo.download_file()
-                    .filename("model.safetensors.index.json")
-                    .send()
-                    .await
-            }
-        };
-        let _ = res.map_err(|e| {
-            tracing::warn!("Failed to download optional model.safetensors.index.json: {e}")
-        });
+        tokenizer_config = Some(
+            repo.download_file()
+                .filename("tokenizer_config.json")
+                .maybe_revision(revision)
+                .send()
+                .await
+                .map_err(|e| anyhow::anyhow!("download tokenizer_config.json: {e}"))?,
+        );
+    }
+
+    let mut chat_template = None::<PathBuf>;
+    if siblings
+        .iter()
+        .any(|s| s.rfilename == "chat_template.jinja")
+    {
+        chat_template = Some(
+            repo.download_file()
+                .filename("chat_template.jinja")
+                .maybe_revision(revision)
+                .send()
+                .await
+                .map_err(|e| anyhow::anyhow!("download chat_template.jinja: {e}"))?,
+        );
     }
 
     let mut weight_names: Vec<&str> = siblings
@@ -279,13 +308,50 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         );
     }
 
+    // If the shard index is present, use it to select only the shards
+    // carrying text-tower tensors (see `required_shard_filenames`), rather
+    // than downloading every `*.safetensors` sibling (which also pulls
+    // vision-tower and MTP-head shards a text-only trainer never needs).
+    // Intersected with the extension-based `weight_names` above as a safety
+    // net: a filename the index names is never downloaded unless it is also
+    // a confirmed real `*.safetensors` sibling. Repos without an index
+    // (e.g. unsharded single-file models) fall back to the existing,
+    // unchanged extension-based enumeration.
+    const SAFETENSORS_INDEX_FILENAME: &str = "model.safetensors.index.json";
+    if siblings
+        .iter()
+        .any(|s| s.rfilename == SAFETENSORS_INDEX_FILENAME)
+    {
+        let index_path = repo
+            .download_file()
+            .filename(SAFETENSORS_INDEX_FILENAME)
+            .maybe_revision(revision)
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("download {SAFETENSORS_INDEX_FILENAME}: {e}"))?;
+        let index_json = std::fs::read_to_string(&index_path)
+            .map_err(|e| anyhow::anyhow!("read {SAFETENSORS_INDEX_FILENAME}: {e}"))?;
+        let index: SafetensorsIndex = serde_json::from_str(&index_json)
+            .map_err(|e| anyhow::anyhow!("parse {SAFETENSORS_INDEX_FILENAME}: {e}"))?;
+        let required = required_shard_filenames(&index.weight_map);
+        weight_names.retain(|n| required.contains(*n));
+        if weight_names.is_empty() {
+            anyhow::bail!(
+                "repo {repo_id} index {SAFETENSORS_INDEX_FILENAME} names no shard that is \
+                 also a *.safetensors sibling"
+            );
+        }
+    }
+
     let mut weights = Vec::with_capacity(weight_names.len());
     for w in weight_names {
-        let res = match revision {
-            Some(rev) => repo.download_file().filename(w).revision(rev).send().await,
-            None => repo.download_file().filename(w).send().await,
-        };
-        let p = res.map_err(|e| anyhow::anyhow!("download {w}: {e}"))?;
+        let p = repo
+            .download_file()
+            .filename(w)
+            .maybe_revision(revision)
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("download {w}: {e}"))?;
         weights.push(p);
     }
 
@@ -294,6 +360,8 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         config,
         weights,
         tokenizer,
+        tokenizer_config,
+        chat_template,
     })
 }
 
@@ -394,6 +462,77 @@ pub fn upload_model_folder_blocking(
         .map_err(|_| anyhow::anyhow!("HF upload thread exited without sending result"))?
 }
 
+/// True iff `repo_id` (its pin-stripped name; see [`repo_name_without_revision`])
+/// already has at least one cached revision on disk — a purely local
+/// filesystem scan (`HFClient::scan_cache`), no network call. Lets a caller
+/// (e.g. `vox mens probe --detailed --model <repo>`) decide whether checking
+/// this model's fit would trigger a fresh multi-GB download before doing so.
+pub fn is_model_cached(repo_id: &str) -> anyhow::Result<bool> {
+    let repo_id = repo_name_without_revision(repo_id).to_string();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let result = tokio::runtime::Runtime::new()
+            .map_err(|e| anyhow::anyhow!("tokio runtime init failed: {e}"))
+            .and_then(|rt| {
+                rt.block_on(async {
+                    let client = HFClient::new()
+                        .map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
+                    let info = client
+                        .scan_cache()
+                        .send()
+                        .await
+                        .map_err(|e| anyhow::anyhow!("hf-hub scan_cache: {e}"))?;
+                    Ok(info.repos.iter().any(|r| r.repo_id == repo_id))
+                })
+            });
+        let _ = tx.send(result);
+    });
+    rx.recv()
+        .map_err(|_| anyhow::anyhow!("cache scan thread exited without sending result"))?
+}
+
+/// Fetch [`super::tensor::memory_model::ModelShape`] for `repo_id` via the Hub's
+/// `expand=["config","safetensors"]` metadata endpoint — a single small JSON
+/// response, no weight bytes downloaded.
+///
+/// Exists so cloud dispatch (`mens::cloud::resolver::CloudResolver::dispatch`,
+/// and `vox-ml-cli`'s `train_arm.rs` cloud path) can size the VRAM requirement
+/// the same way `vox mens cloud-estimate` does even when nothing has been
+/// downloaded locally yet — a from-scratch cloud-only run has no local model
+/// directory for [`super::tensor::memory_model::ModelShape::from_model_dir`] to
+/// read. Both `config` and `safetensors` must be present in the response, or
+/// this fails closed rather than guessing.
+pub async fn model_shape_from_hub(
+    repo_id: &str,
+) -> anyhow::Result<super::tensor::memory_model::ModelShape> {
+    normalize_hf_token_env();
+    let client = HFClient::new().map_err(|e| anyhow::anyhow!("hf-hub HFClient::new: {e}"))?;
+    let revision = repo_revision(repo_id);
+    let (owner, name) = split_id(repo_name_without_revision(repo_id));
+    let repo = client.model(owner, name);
+    let info = repo
+        .info()
+        .maybe_revision(revision)
+        .expand(vec!["config".to_string(), "safetensors".to_string()])
+        .send()
+        .await
+        .map_err(|e| anyhow::anyhow!("hf-hub repo info (config+safetensors) for {repo_id}: {e}"))?;
+
+    let config = info.config.ok_or_else(|| {
+        anyhow::anyhow!(
+            "repo {repo_id} info returned no `config` metadata; cannot size for cloud dispatch"
+        )
+    })?;
+    let safetensors = info.safetensors.ok_or_else(|| {
+        anyhow::anyhow!(
+            "repo {repo_id} info returned no `safetensors` metadata; cannot size for cloud dispatch"
+        )
+    })?;
+
+    super::tensor::memory_model::ModelShape::from_hub_metadata(&config, &safetensors.parameters)
+>>>>>>> main
+}
+
 #[cfg(all(test, feature = "mens-hf-hub"))]
 #[allow(unsafe_code)] // Serialized env mutation for token sync tests (Rust 2024 `set_var` safety).
 mod tests {
@@ -469,6 +608,29 @@ mod tests {
     }
 
     #[test]
+    fn the_pin_is_stripped_from_the_name_and_sent_as_a_revision() {
+        assert_eq!(
+            super::repo_name_without_revision("Qwen/Qwen3-8B@1d4bf0"),
+            "Qwen/Qwen3-8B"
+        );
+        assert_eq!(super::repo_revision("Qwen/Qwen3-8B@1d4bf0"), Some("1d4bf0"));
+        assert_eq!(super::repo_revision("Qwen/Qwen3-8B"), None);
+
+        // The bug: split_id splits on '/' only, so the pin lands in the repo NAME.
+        let (_, raw) = hf_hub::split_id("Qwen/Qwen3-8B@1d4bf0");
+        assert!(
+            raw.contains('@'),
+            "precondition: hf-hub does not strip revisions"
+        );
+        let (_, fixed) =
+            hf_hub::split_id(super::repo_name_without_revision("Qwen/Qwen3-8B@1d4bf0"));
+        assert_eq!(
+            fixed, "Qwen3-8B",
+            "the name sent to the Hub must carry no pin"
+        );
+    }
+
+    #[test]
     fn download_size_notice_states_documented_size_for_default_model() {
         let msg = super::download_size_notice("Qwen/Qwen3-8B", true, 0);
         assert!(
@@ -495,6 +657,37 @@ mod tests {
         assert!(
             msg.contains('3') && msg.contains("safetensors"),
             "must state the checkable safetensors file count: {msg}"
+        );
+    }
+
+    #[test]
+    fn download_selects_only_shards_named_in_index() {
+        let weight_map: std::collections::HashMap<String, String> = [
+            (
+                "model.language_model.layers.0.self_attn.q_proj.weight".to_string(),
+                "model-00001-of-00002.safetensors".to_string(),
+            ),
+            (
+                "model.visual.blocks.0.attn.qkv.weight".to_string(),
+                "model-00002-of-00002.safetensors".to_string(),
+            ),
+            (
+                "mtp.fc.weight".to_string(),
+                "model-00002-of-00002.safetensors".to_string(),
+            ),
+        ]
+        .into_iter()
+        .collect();
+
+        let required = super::required_shard_filenames(&weight_map);
+
+        assert!(
+            required.contains("model-00001-of-00002.safetensors"),
+            "must include the shard carrying a text-tower tensor: {required:?}"
+        );
+        assert!(
+            !required.contains("model-00002-of-00002.safetensors"),
+            "must exclude the vision/mtp-only shard: {required:?}"
         );
     }
 
@@ -544,5 +737,28 @@ mod tests {
         let id_with_rev = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
         let rev = id_with_rev.split('@').nth(1);
         assert_eq!(rev, Some("b968826d9c46dd6066d109eabc6255188de91218"));
+    }
+
+    #[test]
+    fn is_model_cached_is_false_for_a_repo_id_that_cannot_be_in_the_local_cache() {
+        // Purely local scan (no network): a repo id that has never been
+        // downloaded — and, with the `/never-real-vox-mens-` marker, cannot
+        // plausibly collide with anything actually cached on this host —
+        // must report `false`, never fabricate `true`.
+        let cached = super::is_model_cached("vox-test-org/never-real-vox-mens-fixture-repo")
+            .expect("a local cache scan must not fail just because the repo was never fetched");
+        assert!(!cached);
+    }
+
+    #[test]
+    fn is_model_cached_strips_the_revision_pin_before_matching() {
+        // `repo_name_without_revision` is the exact helper `download_model`
+        // itself uses to resolve a `owner/name:rev` pin — reuse it here so a
+        // pinned repo id is checked against the same cache-folder identity
+        // `download_model` would actually populate, not a distinct string
+        // that could never match.
+        let cached = super::is_model_cached("vox-test-org/never-real-vox-mens-fixture-repo:main")
+            .expect("a local cache scan must not fail for a pinned, never-downloaded repo");
+        assert!(!cached);
     }
 }

@@ -52,6 +52,7 @@ const KNOWN_VIOLATORS: &[&str] = &[
     "vox-plugin-populi-mesh", // vox-db, vox-populi
     "vox-plugin-mens-candle-cuda", // vox-db, vox-compiler
     "vox-plugin-mens-candle-metal", // vox-db, vox-compiler
+    "vox-plugin-mens-candle-core", // vox-db (shared training telemetry for cuda/metal siblings)
 ];
 
 /// Scan `crates/vox-plugin-*` for spine crate linkage in `[dependencies]`.

@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
-          cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
+          cargo run -p vox-cli --features script-execution -- run --mode script scripts/setup.vox
 
       - name: Run setup.vox (Second run - Idempotency)
         # The second run re-runs the full script (including `cargo check
@@ -79,9 +79,9 @@ jobs:
         run: |
           source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            timeout 600s cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
+            timeout 600s cargo run -p vox-cli --features script-execution -- run --mode script scripts/setup.vox
           else
-            cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
+            cargo run -p vox-cli --features script-execution -- run --mode script scripts/setup.vox
           fi
 
       # `populi` is a NON-DEFAULT feature of vox-ml-cli, so a bare

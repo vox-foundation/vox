@@ -16,20 +16,25 @@ extension_points:
   - stop_capture
 - name: BrowserAutomation
   module: browser_automation
-  revision: 4
+  revision: 5
   accessor: as_browser_automation
   methods:
   - ax_tree
   - back
   - click
+  - click_ref
   - click_xy
   - close
+  - cookies_export
+  - cookies_import
   - fill
+  - fill_ref
   - forward
   - goto
   - html
   - list_pages
   - open
+  - open_ex
   - page_info
   - press
   - reload
@@ -40,6 +45,7 @@ extension_points:
   - screenshot_viewport_bytes
   - scroll
   - set_viewport
+  - snapshot
   - stop
   - text
   - type_text

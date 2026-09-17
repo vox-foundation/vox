@@ -64,6 +64,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: null, cliGroup: 'generate', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'grammar', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'graph', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
+  { viewKey: null, cliGroup: 'gui', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'harness', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'init', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'llm', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
@@ -74,7 +75,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'gamify', cliGroup: 'ludus', tier: 'curated_decorator', navLabel: 'Gamify', navIcon: 'spark', navGroup: 'system', parentSurface: 'settings' },
   { viewKey: null, cliGroup: 'mcp', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: 'memory', cliGroup: 'memory', tier: 'live_backend', navLabel: 'Memory', navIcon: 'memory', navGroup: 'knowledge', parentSurface: 'knowledge' },
-  { viewKey: 'mens', cliGroup: 'mens', tier: 'curated_decorator', navLabel: 'Training', navIcon: 'brain', navGroup: 'compute', parentSurface: 'compute' },
+  { viewKey: 'mens', cliGroup: 'mens', tier: 'live_backend', navLabel: 'Training', navIcon: 'brain', navGroup: 'compute', parentSurface: 'compute' },
   { viewKey: null, cliGroup: 'migrate', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: 'models', cliGroup: 'model', tier: 'live_backend', navLabel: 'Models', navIcon: 'cpu', navGroup: 'compute', parentSurface: 'compute' },
   { viewKey: null, cliGroup: 'new', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
@@ -117,6 +118,5 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: null, cliGroup: 'update', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'upgrade', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'visus', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
-  { viewKey: null, cliGroup: 'wasm', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'workflow', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
 ];

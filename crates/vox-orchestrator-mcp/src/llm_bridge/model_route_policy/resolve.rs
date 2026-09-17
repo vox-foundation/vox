@@ -10,7 +10,10 @@ use vox_orchestrator::route_policy::route_policy_allows_model;
 use vox_orchestrator::types::TaskCategory;
 
 use super::super::MCP_GLOBAL_LLM_AGENT;
-use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_local_model_allowed};
+use super::policy::{
+    apply_gemini_policy, enforce_free_tier_if_needed, mcp_local_model_allowed,
+    sticky_mens_vox_local_spec,
+};
 use super::types::McpChatModelResolution;
 use crate::server_state::ServerState;
 
@@ -347,6 +350,23 @@ fn resolve_mcp_chat_model_sync_inner(
                     );
                 }
                 let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
+                return Ok((m.clone(), m.is_free));
+            }
+            // Drive / Loquela can pin `mens/<run>` from the GUI MensCatalog while
+            // the orch registry has not yet merged that run (OpenRouter TTL can
+            // skip supplemental catalog refresh). Synthesize VoxLocal so sticky
+            // pins do not silently fall through to openrouter/auto.
+            if let Some(m) = sticky_mens_vox_local_spec(id) {
+                if !caps_ok(&m) {
+                    return Err(
+                        "Sticky MCP model does not satisfy inferred capability requirements for this prompt."
+                            .into(),
+                    );
+                }
+                let m = enforce_free_tier_if_needed(&registry, &res, m)?;
+                *rationale_out = Some(format!(
+                    "Sticky VoxLocal: `{id}` synthesized (not yet in orch registry)"
+                ));
                 return Ok((m.clone(), m.is_free));
             }
             // Requested-but-unresolved: the pref names a model id that isn't in the

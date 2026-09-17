@@ -6,9 +6,12 @@
 use std::sync::Arc;
 
 use abi_stable::std_types::*;
+use serde::Deserialize;
 use vox_plugin_api::extensions::browser_automation::BrowserAutomation;
 
 use crate::engine::{BrowserEngine, global_engine};
+use crate::policy::{BrowserLaunchMode, BrowserLaunchOptions};
+use crate::snapshot::SnapshotOptions;
 
 /// The Tokio runtime used by the plugin for all async operations.
 fn rt() -> &'static tokio::runtime::Runtime {
@@ -41,6 +44,87 @@ fn to_rresult<T>(r: Result<T, String>) -> RResult<T, RBoxError> {
     match r {
         Ok(v) => RResult::ROk(v),
         Err(e) => RResult::RErr(RBoxError::new(std::io::Error::other(e))),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct SnapshotOptionsJson {
+    interactive_only: bool,
+    max_depth: u32,
+    max_nodes: u32,
+    include_boxes: bool,
+}
+
+impl Default for SnapshotOptionsJson {
+    fn default() -> Self {
+        let defaults = SnapshotOptions::default();
+        Self {
+            interactive_only: defaults.interactive_only,
+            max_depth: defaults.max_depth,
+            max_nodes: defaults.max_nodes,
+            include_boxes: defaults.include_boxes,
+        }
+    }
+}
+
+impl From<SnapshotOptionsJson> for SnapshotOptions {
+    fn from(value: SnapshotOptionsJson) -> Self {
+        Self {
+            interactive_only: value.interactive_only,
+            max_depth: value.max_depth,
+            max_nodes: value.max_nodes,
+            include_boxes: value.include_boxes,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct OpenExJson {
+    url: String,
+    headless: bool,
+    mode: BrowserLaunchMode,
+    profile_id: Option<String>,
+    cdp_url: Option<String>,
+    save_profile: bool,
+}
+
+impl Default for OpenExJson {
+    fn default() -> Self {
+        Self {
+            url: String::new(),
+            headless: true,
+            mode: BrowserLaunchMode::Ephemeral,
+            profile_id: None,
+            cdp_url: None,
+            save_profile: false,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct RefActionOptions {
+    respect_sensitive: bool,
+}
+
+impl Default for RefActionOptions {
+    fn default() -> Self {
+        Self {
+            respect_sensitive: true,
+        }
+    }
+}
+
+fn parse_options<T>(raw: &str) -> Result<T, String>
+where
+    T: Default + serde::de::DeserializeOwned,
+{
+    if raw.trim().is_empty() {
+        Ok(T::default())
+    } else {
+        serde_json::from_str(raw).map_err(|e| format!("invalid options_json: {e}"))
     }
 }
 
@@ -257,6 +341,114 @@ impl BrowserAutomation for BrowserPlugin {
         let engine = self.engine.clone();
         let page_id = page_id.to_string();
         let result = rt().block_on(async move { engine.close(&page_id).await });
+        to_rresult(result)
+    }
+
+    fn snapshot(&self, page_id: RStr<'_>, options_json: RStr<'_>) -> RResult<RString, RBoxError> {
+        let options = match parse_options::<SnapshotOptionsJson>(options_json.as_str()) {
+            Ok(options) => SnapshotOptions::from(options),
+            Err(error) => return to_rresult(Err(error)),
+        };
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let result = rt().block_on(async move { engine.snapshot(&page_id, options).await });
+        to_rresult(
+            result
+                .and_then(|snapshot| serde_json::to_string(&snapshot).map_err(|e| e.to_string()))
+                .map(RString::from),
+        )
+    }
+
+    fn click_ref(
+        &self,
+        page_id: RStr<'_>,
+        ref_id: RStr<'_>,
+        options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        let options = match parse_options::<RefActionOptions>(options_json.as_str()) {
+            Ok(options) => options,
+            Err(error) => return to_rresult(Err(error)),
+        };
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let ref_id = ref_id.to_string();
+        let result = rt().block_on(async move {
+            engine
+                .click_ref(&page_id, &ref_id, options.respect_sensitive)
+                .await
+        });
+        to_rresult(
+            result
+                .and_then(|value| serde_json::to_string(&value).map_err(|e| e.to_string()))
+                .map(RString::from),
+        )
+    }
+
+    fn fill_ref(
+        &self,
+        page_id: RStr<'_>,
+        ref_id: RStr<'_>,
+        value: RStr<'_>,
+        options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        let options = match parse_options::<RefActionOptions>(options_json.as_str()) {
+            Ok(options) => options,
+            Err(error) => return to_rresult(Err(error)),
+        };
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let ref_id = ref_id.to_string();
+        let value = value.to_string();
+        let result = rt().block_on(async move {
+            engine
+                .fill_ref(&page_id, &ref_id, &value, options.respect_sensitive)
+                .await
+        });
+        to_rresult(
+            result
+                .and_then(|value| serde_json::to_string(&value).map_err(|e| e.to_string()))
+                .map(RString::from),
+        )
+    }
+
+    fn open_ex(&self, options_json: RStr<'_>) -> RResult<RString, RBoxError> {
+        let parsed = match parse_options::<OpenExJson>(options_json.as_str()) {
+            Ok(parsed) => parsed,
+            Err(error) => return to_rresult(Err(error)),
+        };
+        if parsed.url.trim().is_empty() {
+            return to_rresult(Err("url is required".to_string()));
+        }
+        let save_profile = parsed.save_profile;
+        let opts = BrowserLaunchOptions {
+            url: parsed.url,
+            headless: parsed.headless,
+            mode: parsed.mode,
+            profile_id: parsed.profile_id,
+            cdp_url: parsed.cdp_url,
+        };
+        let engine = self.engine.clone();
+        let result = rt().block_on(async move { engine.open_ex(opts, save_profile).await });
+        to_rresult(result.map(RString::from))
+    }
+
+    fn cookies_export(&self, page_id: RStr<'_>) -> RResult<RString, RBoxError> {
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let result = rt().block_on(async move { engine.cookies_export(&page_id).await });
+        to_rresult(
+            result
+                .and_then(|v| serde_json::to_string(&v).map_err(|e| e.to_string()))
+                .map(RString::from),
+        )
+    }
+
+    fn cookies_import(&self, page_id: RStr<'_>, cookies_json: RStr<'_>) -> RResult<(), RBoxError> {
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let cookies_json = cookies_json.to_string();
+        let result =
+            rt().block_on(async move { engine.cookies_import(&page_id, &cookies_json).await });
         to_rresult(result)
     }
 }

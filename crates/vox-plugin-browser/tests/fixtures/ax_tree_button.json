@@ -1,0 +1,5 @@
+[
+  {"nodeId":"1","ignored":false,"role":{"type":"role","value":"RootWebArea"},"name":{"type":"computedString","value":""},"childIds":["2","3"]},
+  {"nodeId":"2","ignored":false,"role":{"type":"role","value":"button"},"name":{"type":"computedString","value":"Submit"},"backendDOMNodeId":11},
+  {"nodeId":"3","ignored":false,"role":{"type":"role","value":"heading"},"name":{"type":"computedString","value":"Hello"}}
+]

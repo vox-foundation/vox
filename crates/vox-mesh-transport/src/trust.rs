@@ -16,6 +16,8 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, PoisonError};
 
 use anyhow::{Context as _, Result};
@@ -40,13 +42,34 @@ pub struct TrustedEndpoint {
     #[serde(default)]
     pub label: Option<String>,
     pub level: TrustLevel,
+    /// Last-known socket addresses, captured from the ticket at pairing time.
+    ///
+    /// Required, not an optimisation: mDNS discovery does not work (see the
+    /// spike findings, Q4), so an `EndpointId` alone is not dialable. Without
+    /// these the peer directory can never reach anybody.
+    #[serde(default)]
+    pub addrs: Vec<String>,
 }
 
 /// The allowlist plus the live connections it can revoke.
 #[derive(Debug)]
 pub struct MeshTrust {
     path: PathBuf,
-    live: Mutex<HashMap<EndpointId, Vec<Connection>>>,
+    mutation: Mutex<()>,
+    live: Mutex<HashMap<EndpointId, Vec<(u64, Connection)>>>,
+    next_registration: AtomicU64,
+}
+
+pub struct LiveRegistration {
+    trust: Arc<MeshTrust>,
+    id: EndpointId,
+    token: u64,
+}
+
+impl Drop for LiveRegistration {
+    fn drop(&mut self) {
+        self.trust.unregister(self.id, self.token);
+    }
 }
 
 impl MeshTrust {
@@ -55,7 +78,9 @@ impl MeshTrust {
     pub fn at(path: &Path) -> Self {
         Self {
             path: path.to_path_buf(),
+            mutation: Mutex::new(()),
             live: Mutex::new(HashMap::new()),
+            next_registration: AtomicU64::new(1),
         }
     }
 
@@ -136,15 +161,40 @@ impl MeshTrust {
     /// There is deliberately no `level` parameter: a caller that could pass
     /// `Native` here is one refactor away from pairing granting it.
     pub fn trust(&self, id: &EndpointId, label: Option<&str>) -> Result<()> {
-        self.upsert(id, label, TrustLevel::Sandboxed)
+        self.upsert(id, label, TrustLevel::Sandboxed, &[])
+    }
+
+    /// Trust `id`, recording the addresses it can be reached on.
+    ///
+    /// Pairing is the only moment these are known — the ticket carries them —
+    /// so this is what `vox mesh join <ticket>` calls.
+    pub fn trust_with_addrs(
+        &self,
+        id: &EndpointId,
+        label: Option<&str>,
+        addrs: &[std::net::SocketAddr],
+    ) -> Result<()> {
+        self.upsert(id, label, TrustLevel::Sandboxed, addrs)
     }
 
     /// Promote `id` to native execution. Never reachable from pairing.
     pub fn grant_native(&self, id: &EndpointId, label: Option<&str>) -> Result<()> {
-        self.upsert(id, label, TrustLevel::Native)
+        self.upsert(id, label, TrustLevel::Native, &[])
     }
 
-    fn upsert(&self, id: &EndpointId, label: Option<&str>, level: TrustLevel) -> Result<()> {
+    /// Trust `id` at an explicit level. Pairing still goes through [`Self::trust`].
+    pub fn trust_with(&self, id: &EndpointId, level: TrustLevel) -> Result<()> {
+        self.upsert(id, None, level, &[])
+    }
+
+    fn upsert(
+        &self,
+        id: &EndpointId,
+        label: Option<&str>,
+        level: TrustLevel,
+        addrs: &[std::net::SocketAddr],
+    ) -> Result<()> {
+        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
         let key = id.to_string();
         let mut rows = self.read();
         match rows.iter_mut().find(|r| r.endpoint_id == key) {
@@ -153,11 +203,15 @@ impl MeshTrust {
                 if label.is_some() {
                     r.label = label.map(str::to_owned);
                 }
+                if !addrs.is_empty() {
+                    r.addrs = addrs.iter().map(ToString::to_string).collect();
+                }
             }
             None => rows.push(TrustedEndpoint {
                 endpoint_id: key,
                 label: label.map(str::to_owned),
                 level,
+                addrs: addrs.iter().map(ToString::to_string).collect(),
             }),
         }
         self.write(&rows)
@@ -165,6 +219,7 @@ impl MeshTrust {
 
     /// Remove `id` from the allowlist **and close every live connection to it**.
     pub fn untrust(&self, id: &EndpointId) -> Result<()> {
+        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
         let key = id.to_string();
         let mut rows = self.read();
         rows.retain(|r| r.endpoint_id != key);
@@ -176,13 +231,47 @@ impl MeshTrust {
     }
 
     /// Record a live connection so [`MeshTrust::untrust`] can close it.
-    pub fn register(&self, id: EndpointId, conn: Connection) {
+    pub fn try_register(
+        self: &Arc<Self>,
+        id: EndpointId,
+        conn: Connection,
+        max_per_peer: usize,
+    ) -> Option<LiveRegistration> {
+        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
+        if !self.is_trusted(&id) {
+            return None;
+        }
+        let token = self.next_registration.fetch_add(1, Ordering::Relaxed);
+        let mut live = self.live.lock().unwrap_or_else(PoisonError::into_inner);
+        let connections = live.entry(id).or_default();
+        if connections.len() >= max_per_peer {
+            return None;
+        }
+        connections.push((token, conn));
+        drop(live);
+        Some(LiveRegistration {
+            trust: Arc::clone(self),
+            id,
+            token,
+        })
+    }
+
+    fn unregister(&self, id: EndpointId, token: u64) {
+        let mut live = self.live.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(connections) = live.get_mut(&id) {
+            connections.retain(|(candidate, _)| *candidate != token);
+            if connections.is_empty() {
+                live.remove(&id);
+            }
+        }
+    }
+
+    pub fn registered_connections(&self, id: &EndpointId) -> usize {
         self.live
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .entry(id)
-            .or_default()
-            .push(conn);
+            .get(id)
+            .map_or(0, Vec::len)
     }
 
     fn take_live(&self, id: &EndpointId) -> Vec<Connection> {
@@ -191,6 +280,9 @@ impl MeshTrust {
             .unwrap_or_else(PoisonError::into_inner)
             .remove(id)
             .unwrap_or_default()
+            .into_iter()
+            .map(|(_, conn)| conn)
+            .collect()
     }
 }
 
@@ -288,5 +380,14 @@ mod tests {
         let (_d, t) = temp_trust();
         t.grant_native(&id(), None).unwrap();
         assert_eq!(t.level(&id()), Some(TrustLevel::Native));
+    }
+
+    #[test]
+    fn trust_with_can_set_native_without_going_through_pairing() {
+        let (_d, t) = temp_trust();
+        t.trust_with(&id(), TrustLevel::Native).unwrap();
+        assert_eq!(t.level(&id()), Some(TrustLevel::Native));
+        t.trust_with(&id(), TrustLevel::Sandboxed).unwrap();
+        assert_eq!(t.level(&id()), Some(TrustLevel::Sandboxed));
     }
 }

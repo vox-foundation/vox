@@ -831,6 +831,12 @@ jobs:
       - name: Toolchain Workflow Lint (all Rust installs via setup-rust)
         run: ./target/debug/vox --quiet ci toolchain-workflow-lint
 
+      # Same contract as toolchain-ssot, for the two JS pins the SSOT already
+      # declares. Without this, `versions.node` / `versions.pnpm` can lie
+      # indefinitely while every workflow installs something else.
+      - name: Node/pnpm SSoT Guard (workflows match workspace-toolchain.v1.yaml)
+        run: ./target/debug/vox --quiet ci node-pnpm-ssot-guard
+
       - name: Cache Key Lint
         run: ./target/debug/vox --quiet ci cache-key-lint
 
@@ -1166,13 +1172,23 @@ jobs:
       # under 30 min.  Uses an exact filter so none of the other 250+ intentionally-
       # ignored tests are swept in.  max-threads=1 is enforced by [test-groups.slow] in
       # .config/nextest.toml; the CI profile slow-timeout terminates after 3×180s.
+      #
+      # `golden_differential_gate` (interp vs. one generated native crate per
+      # `examples/golden/**/*.vox` EXPECT) is deliberately NOT in this filter, nor in
+      # `--include-slow` (crates/vox-cli/src/commands/ci/pre_push.rs) — its one-crate
+      # native bundle build is a ~6-8 min cold build, too slow for a merge-blocking PR
+      # check. It runs on a schedule instead: `.github/workflows/differential-gate-nightly.yml`.
       - name: Run slow test partition (arch-check, scientia timeout, codegen bundle)
         if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         run: |
           cargo nextest run \
-            -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check)' \
+            -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check) or (package(vox-mesh-transport) + binary(interp_executor))' \
             --run-ignored ignored-only \
             --profile ci
+
+      - name: Serving path unit tests
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        run: cargo test -p vox-ml-cli --features execution-api,gpu --lib
 
       # Phase 5 — Test-tier budget check (warn-only until budgets file is updated post Phase 2+3).
       # Reads the nextest JUnit elapsed time and compares against contracts/budgets/test-tier-budgets.v1.yaml.
@@ -1563,6 +1579,13 @@ jobs:
         with:
           components: rustfmt, clippy
           cache: "false"
+      # Workflow-level `RUSTC_WRAPPER: sccache` is for the self-hosted image,
+      # which ships the binary. The hosted macOS runner does not, and this
+      # job never installs mozilla-actions/sccache-action — rustc then fails
+      # with "could not execute process `sccache` (os error 2)".
+      - name: Clear sccache wrapper on hosted macOS
+        if: runner.os == 'macOS'
+        run: echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - uses: actions/cache@v5
         with:
           path: |

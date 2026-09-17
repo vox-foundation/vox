@@ -1,0 +1,47 @@
+[package]
+name = "vox-plugin-mens-candle-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Shared Candle QLoRA training/inference code for the Metal and CUDA mens plugins (device-agnostic; no cdylib entry point of its own)."
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+vox-config = { workspace = true }
+vox-db = { workspace = true, features = ["host-integration"] }
+vox-hf-layout = { workspace = true }
+vox-tensor = { workspace = true }
+qlora-rs = { workspace = true }
+safetensors = { workspace = true }
+tokenizers = { workspace = true }
+anyhow = { workspace = true }
+candle-core = { workspace = true }
+candle-nn = { workspace = true }
+memmap2 = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+rand = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt"] }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
+
+[features]
+default = []
+# Mirrors the identically-named feature on both consuming plugins so
+# `resolve_inference_device` can call `Device::new_cuda` when the CUDA
+# plugin turns this feature on for its `vox-plugin-mens-candle-core` dep.
+cuda = ["candle-core/cuda", "candle-nn/cuda"]
+# Mirrors the identically-named feature on the Metal plugin so
+# `resolve_inference_device` can call `Device::new_metal` when the Metal
+# plugin turns this feature on for its `vox-plugin-mens-candle-core` dep.
+metal = ["candle-core/metal", "candle-nn/metal"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

@@ -25,6 +25,16 @@ profiles:
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --test, qwen35_native_parity] }
       # Substring filter: `tool_trace_*` tests in `crates/vox-corpus/src/corpus/mix/tests.rs`.
       - { command: cargo, args: [test, -p, vox-corpus, --lib, tool_trace_] }
+      # Lane A (A1, collateral-damage eval): eval_collateral.rs's injected-scorer tests are
+      # CPU-only (the scorer closure is a test double, no model load) but the module is
+      # `#[cfg(feature = "gpu")]`-gated, so default-feature workspace CI never compiles or
+      # runs them. Substring filter: `crates/vox-ml-cli/src/commands/mens/eval_collateral.rs`.
+      - { command: cargo, args: [test, -p, vox-ml-cli, --features, "gpu,execution-api", --lib, eval_collateral] }
+      # Lane 0 (Z2, throughput floor) + Lane A (A2, refuse-to-serve-on-skipped-gates): both
+      # land in dispatch.rs's `serve_preconditions_tests` module -- fixture-driven
+      # (`gate_receipt.json` / `telemetry.jsonl` on disk), no GPU required, but
+      # `assert_serve_preconditions` is `#[cfg(feature = "gpu")]`-gated same as above.
+      - { command: cargo, args: [test, -p, vox-ml-cli, --features, "gpu,execution-api", --lib, serve_preconditions_tests] }
   m1m4:
     steps:
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, execution_planner] }

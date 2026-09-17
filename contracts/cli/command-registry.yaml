@@ -1825,6 +1825,175 @@ operations:
   handler_rust: commands::graphify
 - surface: vox-cli
   path:
+  - gui
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::gui
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::gui::drive
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  - headless
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  - headless
+  - send
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  - headless
+  - set
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  - headless
+  - state
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  - send
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  - set
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  - show
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  - start
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  - state
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  - stop
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - gui
+  - drive
+  - wait
+  status: active
+  latin_ns: gui
+  product_lane: platform
+  feature_gate: gui
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
   - harness
   status: active
   latin_ns: null
@@ -1954,6 +2123,18 @@ operations:
   latin_ns: mens
   product_lane: ai
   feature_gate: mens-dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - cloud-estimate
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: cloud
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
@@ -3617,17 +3798,6 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::visus::dispatch
-- surface: vox-cli
-  path:
-  - wasm
-  status: active
-  latin_ns: null
-  product_lane: app
-  feature_gate: script-wasi
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: commands::wasm
 - surface: compilerd
   path:
   - build

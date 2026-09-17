@@ -1,10 +1,11 @@
 //! Gate evaluation against run artifacts.
 
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::bfcl::check_bfcl;
 use super::io::{read_jsonl_nonempty_lines, read_utf8_path_capped};
+use super::leakage::assert_no_text_leakage;
 use super::policy::{load_policy, mcp_tool_schema_metrics_path};
 
 /// Gate check result.
@@ -16,10 +17,84 @@ pub struct GateResult {
     pub block: bool,
 }
 
+/// Walk upward from the current working directory looking for `rel`. Used to
+/// locate the repo-relative `mens/data/heldout_bench/manifest.json` (and
+/// sibling corpus directories) regardless of which directory within the
+/// workspace `check_run` happens to be invoked from — `vox mens eval-gate`
+/// is documented to run from the repo root, but tests run from the crate
+/// directory, and this still finds the real file there.
+fn find_upward(rel: &str) -> Option<PathBuf> {
+    let mut dir = std::env::current_dir().ok()?;
+    loop {
+        let candidate = dir.join(rel);
+        if candidate.exists() {
+            return Some(candidate);
+        }
+        if !dir.pop() {
+            return None;
+        }
+    }
+}
+
+/// Task D3 (2026-09-12-mens-end-to-end-completion), part 3: `assert_no_leakage`
+/// (tool-name Jaccard) had zero non-test callers and can't see code-body
+/// leakage anyway. This wires its text-n-gram sibling, `assert_no_text_leakage`,
+/// in as a hard precondition — bench-answer/corpus-completion leakage always
+/// blocks (`block: true`, not policy-gated) regardless of every other gate's
+/// configuration, because a leaked bench invalidates every other gate result
+/// that depends on pass@k. When the bench file can't be found relative to the
+/// current working directory at all (e.g. a packaged binary run outside the
+/// workspace), the precondition can't be evaluated and is reported as
+/// not-applicable rather than failing closed on an environment difference.
+fn check_leakage_precondition(results: &mut Vec<GateResult>) {
+    const BENCH_REL: &str = "mens/data/heldout_bench/manifest.json";
+    let Some(bench_path) = find_upward(BENCH_REL) else {
+        results.push(GateResult {
+            name: "leakage".to_string(),
+            passed: true,
+            message: format!(
+                "{BENCH_REL} not found relative to cwd — leakage precondition not applicable"
+            ),
+            block: false,
+        });
+        return;
+    };
+    // bench_path = <repo_root>/mens/data/heldout_bench/manifest.json
+    let repo_root = bench_path
+        .parent() // heldout_bench
+        .and_then(Path::parent) // mens/data
+        .and_then(Path::parent) // mens
+        .and_then(Path::parent); // repo_root
+    let corpus_dirs: Vec<PathBuf> = match repo_root {
+        Some(root) => vec![root.join("mens/data"), root.join("target/dogfood")],
+        None => vec![],
+    };
+    let corpus_dir_refs: Vec<&Path> = corpus_dirs.iter().map(PathBuf::as_path).collect();
+
+    match assert_no_text_leakage(&bench_path, &corpus_dir_refs) {
+        Ok(()) => results.push(GateResult {
+            name: "leakage".to_string(),
+            passed: true,
+            message: "no bench-answer / corpus-completion n-gram overlap detected".to_string(),
+            block: true,
+        }),
+        Err(e) => results.push(GateResult {
+            name: "leakage".to_string(),
+            passed: false,
+            message: e.to_string(),
+            block: true,
+        }),
+    }
+}
+
 /// Run gate checks against a run directory.
 pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> {
     let policy = load_policy(policy_path)?;
     let mut results = Vec::new();
+
+    // Hard precondition (Task D3): must run before any other gate result is
+    // trusted. Always evaluated, never policy-gated.
+    check_leakage_precondition(&mut results);
 
     // Trainer writes `training_manifest.json`; `manifest.json` is legacy/hand-written.
     // Prefer the canonical trainer output; fall back to the legacy name for older runs.
@@ -702,7 +777,16 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                         ));
                     }
                 } else {
-                    msg.push_str(" baseline file missing (skipped regression check)");
+                    // A3 (c): a *configured* baseline_file that is absent must hard-fail
+                    // the gate, not silently skip the regression check — the same defect
+                    // class Task A1/A2 fixed elsewhere (a policy reading a file nobody
+                    // produced yet reading as "pass"/"not applicable" instead of "broken").
+                    pass = false;
+                    msg.push_str(&format!(
+                        " baseline file missing: {} — beat-base comparison required but not \
+                         found (run `vox mens eval-local --base ...` to produce it)",
+                        baseline_path.display()
+                    ));
                 }
             }
             results.push(GateResult {

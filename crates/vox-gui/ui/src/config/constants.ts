@@ -48,14 +48,22 @@ export const RUNS_LIST_LIMIT = 40;
 /** Model scoreboard window (days). */
 export const SCOREBOARD_WINDOW_DAYS = 7;
 
-/** Model list fetch limit (composer + harness). */
-export const MODEL_LIST_LIMIT = 80;
+/** Model list fetch limit (composer + harness + pickers).
+ *  Must cover the full OpenRouter catalog plus locals — a low cap plus
+ *  alphabetical sort used to return only the first `aion-labs/*` rows. */
+export const MODEL_LIST_LIMIT = 2000;
 
-/** Loquela tier picker shows first N models from registry. */
-export const LOQUELA_TIER_MODEL_COUNT = 24;
+/** Loquela "Run on" picker fetch cap (same as MODEL_LIST_LIMIT). */
+export const LOQUELA_TIER_MODEL_COUNT = MODEL_LIST_LIMIT;
 
 /** Loquela @file picker debounce (ms). */
 export const LOQUELA_FILE_PICKER_DEBOUNCE_MS = 200;
+
+/** Loquela "Run on" live model-search debounce (ms). */
+export const LOQUELA_MODEL_SEARCH_DEBOUNCE_MS = 200;
+
+/** Loquela live model-search result cap. */
+export const LOQUELA_MODEL_SEARCH_LIMIT = 80;
 
 /** Loquela @file picker suggestion cap. */
 export const LOQUELA_FILE_PICKER_LIMIT = 20;

@@ -355,7 +355,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 let report_path = model.join("collateral_damage_report.json");
                 if !report_path.exists() {
                     anyhow::bail!(
-                        "eval_collateral_damage check not found! Run `vox mens eval collateral-damage --pre-score <baseline.json> --post <adapter>` before serving this adapter."
+                        "eval_collateral_damage check not found! Run `vox mens eval-collateral-damage --pre-score <baseline.json> --post-adapter <adapter>` before serving this adapter."
                     );
                 }
 
@@ -367,10 +367,13 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                         "eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served."
                     );
                 }
+
+                assert_serve_preconditions(&model)?;
             }
 
-            // Serve via the built-in Axum server (execution-api feature) when available.
-            // Falls back to the external vox-schola binary only when execution-api is off.
+            // Serve via the built-in Axum server, gated behind the execution-api feature.
+            // There is no standalone "vox-schola" binary in this workspace to fall back
+            // to, so a binary built without execution-api can't serve locally at all.
             #[cfg(feature = "execution-api")]
             {
                 let cfg = crate::commands::ai::serve::ServeConfig {
@@ -388,22 +391,14 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
 
             #[cfg(not(feature = "execution-api"))]
             {
-                println!("Delegating to vox-schola serve...");
-                let mut cmd = std::process::Command::new("vox-schola");
-                cmd.arg("serve");
-                cmd.arg("--model").arg(model);
-                cmd.arg("--port").arg(port.to_string());
-                cmd.arg("--host").arg(host);
-                cmd.arg("--max-tokens").arg(max_tokens.to_string());
-                cmd.arg("--temperature").arg(temperature.to_string());
-
-                let status = cmd
-                    .status()
-                    .map_err(|e| anyhow::anyhow!("Failed to spawn vox-schola: {}", e))?;
-                if !status.success() {
-                    anyhow::bail!("vox-schola serve exited with status: {}", status);
-                }
-                Ok(())
+                let _ = (model, port, host, max_tokens, temperature);
+                anyhow::bail!(
+                    "vox mens serve requires the `execution-api` cargo feature, which was \
+                     not enabled when this binary was built.\n\n\
+                     To enable, rebuild from the workspace root with:\n\n  \
+                     cargo build -p vox-ml-cli --release --features gpu,execution-api,mens-candle-cuda\n\n\
+                     (swap `mens-candle-cuda` for the ML backend plugin matching this host)."
+                );
             }
         }
 
@@ -412,9 +407,23 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         #[cfg(feature = "gpu")]
         PopuliAction::Models => crate::commands::mens::models::run_models(_global_verbose),
 
-        PopuliAction::Probe { detailed } => {
+        PopuliAction::Probe {
+            detailed,
+            measure,
+            sweep,
+            model_dir,
+            seq_len,
+            gradient_checkpointing,
+            model,
+        } => {
             let v = detailed || _global_verbose;
-            probe::run_probe(v).await
+            if measure {
+                probe::run_measure()
+            } else if sweep {
+                probe::run_sweep(model_dir, seq_len, gradient_checkpointing)
+            } else {
+                probe::run_probe(v, model, seq_len, gradient_checkpointing).await
+            }
         }
 
         PopuliAction::WatchTelemetry {
@@ -465,19 +474,24 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             meta,
             output,
             quantize,
-        } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output, quantize),
+            keep_merged,
+            gguf_out,
+            llama_cpp,
+            license_class,
+        } => merge_qlora::run_merge_qlora(
+            base_shard,
+            adapter,
+            meta,
+            output,
+            quantize,
+            keep_merged,
+            gguf_out,
+            llama_cpp,
+            license_class,
+        ),
 
         PopuliAction::ExportGguf { input, output } => {
-            anyhow::bail!(
-                "NOT_IMPLEMENTED: `vox mens export-gguf` is not wired yet.\n\
-                 Merge adapter weights first:\n\
-                   vox mens merge-qlora --base-shard <base> --adapter <adapter> \\\n\
-                     --meta <meta.json> --output <merged.safetensors>\n\
-                 Then track GGUF export in docs/superpowers/specs/2026-05-31-vox-quantize-engine-design.md.\n\
-                 Requested: input={} output={}",
-                input.display(),
-                output.display()
-            );
+            anyhow::bail!(export_gguf_not_implemented_message(&input, &output));
         }
 
         #[cfg(feature = "mens-dei")]
@@ -622,6 +636,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         #[cfg(feature = "gpu")]
         PopuliAction::EvalLocal {
             model,
+            base,
             bench,
             max_tokens,
             temperature,
@@ -630,6 +645,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             output,
         } => eval_local::run_eval_local(
             model,
+            base,
             bench,
             max_tokens,
             temperature,
@@ -694,6 +710,252 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 output,
                 format,
             } => crate::commands::mens::system_prompt_template::run(output, &format).await,
+
+            #[cfg(feature = "cloud")]
+            super::mens_tail_subcommands::PopuliMensTail::CloudEstimate {
+                model_dir,
+                target,
+                max_budget,
+                batch_size,
+                seq_len,
+                num_samples,
+                epochs,
+            } => {
+                crate::commands::mens::cloud_estimate::run(
+                    model_dir,
+                    target,
+                    max_budget,
+                    batch_size,
+                    seq_len,
+                    num_samples,
+                    epochs,
+                )
+                .await
+            }
         },
+    }
+}
+
+/// `export-gguf` is not a separate step; this message tells the caller which
+/// of the two `merge-qlora` routes to use instead. Extracted from the
+/// `ExportGguf` dispatch arm so `the_export_gguf_error_only_names_flags_that_exist`
+/// below can check it against `merge-qlora`'s real clap definition without
+/// invoking the CLI.
+fn export_gguf_not_implemented_message(
+    input: &std::path::Path,
+    output: &std::path::Path,
+) -> String {
+    format!(
+        "`vox mens export-gguf` is not a separate step. Two routes, by base architecture:\n  \
+         llama / gemma2 base — let Ollama convert:\n    \
+         vox mens merge-qlora --base-shard <base> --adapter <adapter> \\\n      \
+           --meta <meta.json> --output <merged.safetensors> \\\n      \
+           --quantize q4_k_m --keep-merged\n    \
+         cd <merged-parent>/recombined_full && ollama create -q q4_K_M <name> -f Modelfile\n  \
+         Qwen3 base (MENS default) — ollama create rejects the architecture; use llama.cpp:\n    \
+         vox mens merge-qlora --base-shard <base> --adapter <adapter> \\\n      \
+           --meta <meta.json> --output <merged.safetensors> \\\n      \
+           --keep-merged --gguf-out <out.gguf> --llama-cpp <llama.cpp checkout>\n\
+         Requested: input={} output={}",
+        input.display(),
+        output.display()
+    )
+}
+
+/// Refuse to serve a model whose `gate_receipt.json` says `overall_passed: true`
+/// while every individual gate inside it actually verified nothing (all
+/// "not applicable" / "skipped" / "missing" messages). `eval_gate` has
+/// branches that turn a missing artifact into a passing gate; this is the
+/// serve-boundary backstop that catches every present and future silent-skip
+/// without having to touch each of those branches individually.
+#[cfg(feature = "gpu")]
+fn assert_serve_preconditions(run_dir: &std::path::Path) -> Result<()> {
+    use anyhow::Context;
+
+    let receipt_path = run_dir.join("gate_receipt.json");
+    let receipt: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(
+        &receipt_path,
+    )
+    .with_context(|| {
+        format!(
+            "no gate_receipt.json in {} — run `vox mens eval-gate --run-dir {} --policy <p>` first",
+            run_dir.display(),
+            run_dir.display()
+        )
+    })?)?;
+    anyhow::ensure!(
+        receipt.get("overall_passed") == Some(&serde_json::Value::Bool(true)),
+        "eval-gate did not pass for this run; refusing to serve"
+    );
+    // A receipt whose gates all said "not applicable"/"skipped"/"missing" is not evidence.
+    let substantive = receipt["gates"].as_array().map_or(0, |g| {
+        g.iter()
+            .filter(|r| {
+                let m = r["message"].as_str().unwrap_or("");
+                !m.contains("not applicable") && !m.contains("skipped") && !m.contains("missing")
+            })
+            .count()
+    });
+    anyhow::ensure!(
+        substantive >= 2,
+        "gate_receipt.json has {substantive} substantive gates — every check was skipped for a \
+         missing artifact. Produce eval_results.json and baseline_report.json, then re-gate."
+    );
+    Ok(())
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod serve_preconditions_tests {
+    use super::*;
+
+    #[test]
+    fn a_receipt_whose_every_gate_skipped_is_not_evidence() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("gate_receipt.json"),
+            r#"{
+          "overall_passed": true,
+          "gates": [
+            {"name":"rust_compile_rate","passed":true,"message":"not applicable (no rust_authoring rows)"},
+            {"name":"pass_at_k","passed":true,"message":"baseline file missing (skipped regression check)"}
+          ]}"#,
+        )
+        .unwrap();
+        let err = assert_serve_preconditions(dir.path())
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("0 substantive gates"), "got: {err}");
+    }
+
+    #[test]
+    fn a_receipt_with_two_real_gates_is_accepted() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("gate_receipt.json"),
+            r#"{
+          "overall_passed": true,
+          "gates": [
+            {"name":"throughput","passed":true,"message":"142 tok/s >= 100"},
+            {"name":"supervised_ratio","passed":true,"message":"0.71 >= 0.60"}
+          ]}"#,
+        )
+        .unwrap();
+        assert!(assert_serve_preconditions(dir.path()).is_ok());
+    }
+
+    /// Z1 fixed a ~100x throughput regression (proven floor ~22-25 tok/s on Metal);
+    /// this locks in that a run which measured below the real, shipped throughput
+    /// floor (`mens/config/eval-gates.yaml`) is refused at the serve boundary —
+    /// not just theoretically possible to refuse, but actually refused by the
+    /// policy this repo ships. Runs the real `eval-gate` pipeline (not a
+    /// hand-authored receipt) so a future change that silently makes the
+    /// throughput gate non-blocking again is caught here.
+    ///
+    /// Every other blocking gate in that policy (pass_at_k, anti_stub,
+    /// review_recurrence) is given a fixture that satisfies it, so the only
+    /// gate deciding the outcome is throughput.
+    #[test]
+    fn a_below_floor_throughput_run_is_refused_by_the_real_policy() {
+        let dir = tempfile::tempdir().unwrap();
+
+        // Far below the `cpu` floor (1.0 tok/s) in mens/config/eval-gates.yaml —
+        // no manifest is written, so device_profile defaults to "cpu".
+        std::fs::write(
+            dir.path().join("telemetry.jsonl"),
+            "{\"tokens_per_sec\": 0.2}\n",
+        )
+        .unwrap();
+
+        // Satisfy pass_at_k (block: true, needs metrics + baseline file).
+        std::fs::write(
+            dir.path().join("benchmark_passatk.json"),
+            r#"{"pass_rate_at_1":0.30,"pass_rate_at_k":0.60}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("baseline_passatk.json"),
+            r#"{"pass_rate_at_1":0.30,"pass_rate_at_k":0.60}"#,
+        )
+        .unwrap();
+
+        // Satisfy anti_stub (block: true).
+        std::fs::write(
+            dir.path().join("eval_local_report.json"),
+            r#"{"anti_stub_task_success":0.95,"placeholder_event_rate":0.05,
+                "trivial_placeholder_event_rate":0.05,"construct_richness_mean":0.25}"#,
+        )
+        .unwrap();
+
+        // Satisfy review_recurrence (block: true).
+        std::fs::write(
+            dir.path().join("review_metrics.json"),
+            r#"{"repeated_finding_rate":0.10,"post_training_regression_rate":0.05,
+                "recurrence_delta":0.02}"#,
+        )
+        .unwrap();
+
+        let workspace_root = vox_corpus::training::contract::find_workspace_root()
+            .expect("test runs inside the vox cargo workspace");
+        let policy_path = workspace_root.join("mens/config/eval-gates.yaml");
+        assert!(
+            policy_path.exists(),
+            "expected the shipped policy at {}",
+            policy_path.display()
+        );
+
+        let exit_code = crate::commands::mens::eval_gate::run_eval_gate(
+            dir.path().to_path_buf(),
+            Some(policy_path),
+        )
+        .unwrap();
+        assert_eq!(
+            exit_code, 1,
+            "eval-gate must report failure for a below-floor throughput run"
+        );
+
+        let err = assert_serve_preconditions(dir.path())
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("eval-gate did not pass"), "got: {err}");
+    }
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod export_gguf_message_tests {
+    use super::*;
+    use clap::Subcommand;
+
+    /// Guards against the exact drift class Task 2 of this plan already
+    /// fixed elsewhere: Task 6's `export-gguf` error message names
+    /// `--gguf-out` and `--llama-cpp` as the way forward, and Task 12 added
+    /// those flags to `merge-qlora`. If a later change deletes or renames
+    /// those flags while leaving this message untouched, the message starts
+    /// lying about what `merge-qlora` actually accepts. This test fails the
+    /// moment that happens, and passes today.
+    #[test]
+    fn the_export_gguf_error_only_names_flags_that_exist() {
+        let msg = export_gguf_not_implemented_message(
+            std::path::Path::new("/tmp/in.safetensors"),
+            std::path::Path::new("/tmp/out.gguf"),
+        );
+
+        let merge_qlora_cmd = PopuliAction::augment_subcommands(clap::Command::new("populi"))
+            .find_subcommand("merge-qlora")
+            .expect("merge-qlora subcommand must exist behind the gpu feature")
+            .clone();
+
+        for flag in ["--gguf-out", "--llama-cpp"] {
+            if msg.contains(flag) {
+                let long = &flag[2..];
+                assert!(
+                    merge_qlora_cmd
+                        .get_arguments()
+                        .any(|a| a.get_long() == Some(long)),
+                    "the error message advertises {flag}, which no longer exists on \
+                     `merge-qlora` — Task 12 was cut or renamed its flags, and this \
+                     message is now the same kind of lie Task 2 fixed"
+                );
+            }
+        }
     }
 }

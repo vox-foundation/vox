@@ -303,7 +303,7 @@ _id INTEGER PRIMARY KEY AUTOINCREMENT,
 async fn handle_m_m_save(Extension(vox_rid): Extension<Option<String>>, Extension(db): Extension<Arc<Codex>>, Json(request): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let db = (*db).clone();
     match db.transaction(async move {
-        return Ok(Json(serde_json::to_value(1).map_err(|e| vox_db::StoreError::Serialization(format!("{}", e)))?));
+        return Ok(Json(serde_json::to_value(1i64).map_err(|e| vox_db::StoreError::Serialization(format!("{}", e)))?));
     }).await {
         Ok(resp) => Ok(resp),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(vox_http_client::envelope::error_json("INTERNAL_ERROR", e.to_string(), vox_rid.clone(), None)))),

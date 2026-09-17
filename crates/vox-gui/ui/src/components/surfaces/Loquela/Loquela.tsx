@@ -11,8 +11,19 @@ import {
   COMPOSER_HISTORY_CAP,
   LOQUELA_FILE_PICKER_DEBOUNCE_MS,
   LOQUELA_FILE_PICKER_LIMIT,
+  LOQUELA_MODEL_SEARCH_DEBOUNCE_MS,
+  LOQUELA_MODEL_SEARCH_LIMIT,
   LOQUELA_TIER_MODEL_COUNT,
 } from '../../../config/constants';
+import {
+  filterPickerModels,
+  isRoutingTierId,
+  normalizeModelCard,
+  shortModelLabel,
+  type PickerModel,
+  type ProviderStatus,
+} from '../../../lib/modelPicker';
+import { ModelPickerSearch } from '../Chat/ModelPickerSearch';
 import type { ActiveSkill, CatalogEntry, ChatPayload, Toast } from '../../../types/tauri';
 import {
   formatSessionBudget,
@@ -21,6 +32,8 @@ import {
 } from '../../../lib/slashRouter';
 import { DriveConsole } from './DriveConsole';
 import { defaultControl, type ClutchId, type ControlState, type RiskId } from '../../../lib/driveConsole';
+import { registerLoquelaDriveApi } from '../../../lib/useDriveBus';
+import type { DriveExecution } from '../../../lib/axisDrive';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { IntentPanel } from './IntentPanel';
 import {
@@ -44,10 +57,17 @@ const LQ_MODES = [
 // Cost is `null` (unknown) — real per-1k pricing is injected from listModels()
 // once available. We never display a fabricated price.
 const LQ_TIERS = [
+  { id: "auto", label: "Auto · Router", detail: "tier-router decides", cost: null, lat: null },
   { id: "local", label: "Local · Mens", detail: "loading models…", cost: null, lat: null },
   { id: "mesh", label: "Mesh · Peers", detail: "peers", cost: null, lat: null },
   { id: "cloud", label: "Cloud · Cascade", detail: "cloud tier", cost: null, lat: null },
-  { id: "auto", label: "Auto · Router", detail: "tier-router decides", cost: null, lat: null },
+];
+
+const ROUTING_TIERS = [
+  { id: "auto", label: "Auto · Router", detail: "live routing summary", cost: null, lat: null },
+  { id: "local", label: "Local · Mens", detail: "on-device / VOX_LOCAL", cost: null, lat: null },
+  { id: "mesh", label: "Mesh · Peers", detail: "peers", cost: null, lat: null },
+  { id: "cloud", label: "Cloud · Cascade", detail: "cloud tier", cost: null, lat: null },
 ];
 
 interface ChipData {
@@ -66,10 +86,10 @@ function Chip({ chip, onRemove }: { chip: ChipData; onRemove: (c: ChipData) => v
   // chip visually distinct from the brass "skill" chip while staying inside
   // the app's existing warm accent family (amber is already used elsewhere
   // for Doubted/low-confidence states) instead of reusing brass outright.
-  const tone = chip.kind === "file"   ? "border-amber-400/25 text-amber-300 bg-amber-400/[0.05]"
-            : chip.kind === "skill"  ? "border-brass/30 text-brass bg-brass/[0.05]"
-            : chip.kind === "agent"  ? "border-violet-400/25 text-violet-300 bg-violet-400/[0.05]"
-            : chip.kind === "branch" ? "border-emerald-400/25 text-emerald-300 bg-emerald-400/[0.05]"
+  const tone = chip.kind === "file"   ? "border-amber-400/25 text-amber-300 bg-amber-400/5"
+            : chip.kind === "skill"  ? "border-brass/30 text-brass bg-brass/5"
+            : chip.kind === "agent"  ? "border-violet-400/25 text-violet-300 bg-violet-400/5"
+            : chip.kind === "branch" ? "border-emerald-400/25 text-emerald-300 bg-emerald-400/5"
             :                          "border-border-subtle text-text-secondary bg-overlay-subtle";
   return (
     <span className={`group inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] ${tone}`}>
@@ -139,6 +159,10 @@ interface LoquelaProps {
    * model state.
    */
   trailingSlot?: React.ReactNode;
+  /** Lift a concrete model pick into App `chatModelOverride`. */
+  onModelPick?: (modelId: string | null) => void;
+  /** Current App-level override so "Run on" stays in sync with ChatModelPicker. */
+  selectedModelId?: string | null;
 }
 
 export function Loquela({
@@ -161,12 +185,14 @@ export function Loquela({
   currentAgent,
   onResume,
   trailingSlot,
+  onModelPick,
+  selectedModelId = null,
 }: LoquelaProps) {
   const embedded = useIsEmbeddedSurface();
   const [text, setText] = useState("");
   const [mode, setMode] = useState("act");
   const [tier, setTier] = useState("auto");
-  const [dryRun, setDryRun] = useState(false);
+  const [tierQuery, setTierQuery] = useState('');
   const [control, setControl] = useState<ControlState>(defaultControl);
   // True once the user has manually changed clutch/risk via DriveConsole —
   // guards the mount-time fetch below from clobbering that choice if it
@@ -201,7 +227,30 @@ export function Loquela({
   // Explicit, user-visible choice between the synchronous "quick chat" reply
   // path and dispatching this as a background orchestrator task. Both go to
   // the same `chat_turn` command; this only picks `execution`.
-  const [executionMode, setExecutionMode] = useState<'chat' | 'task'>('chat');
+  const [executionMode, setExecutionMode] = useState<'chat' | 'task' | 'plan'>('chat');
+  useEffect(() => {
+    registerLoquelaDriveApi({
+      setChatModelOverride: (id) => onModelPick?.(id),
+      setTier,
+      setClutch: (clutch) => {
+        userTouchedControlRef.current = true;
+        setControl(c => ({ ...c, clutch: clutch as ClutchId }));
+      },
+      setRisk: (risk) => {
+        userTouchedControlRef.current = true;
+        setControl(c => ({ ...c, risk: risk as RiskId }));
+      },
+      setMode,
+      setDryRun: () => undefined,
+      setExecution: (execution: DriveExecution) => {
+        setExecutionMode(execution === 'background' ? 'task' : execution === 'plan' ? 'plan' : 'chat');
+      },
+      setContextFiles: (files) => {
+        setChips(files.map((label, i) => ({ id: `drive-${i}`, kind: 'file' as const, label })));
+      },
+    });
+    return () => registerLoquelaDriveApi(null);
+  }, [onModelPick, setChips]);
   const [modeOpen, setModeOpen] = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
   const [atOpen,    setAtOpen]    = useState(false);
@@ -214,10 +263,31 @@ export function Loquela({
   const [histIdx,   setHistIdx]   = useState(-1);
   const [expanded,  setExpanded]  = useState(false);
   const [runtimeTiers, setRuntimeTiers] = useState(LQ_TIERS);
+  const [modelLoadStatus, setModelLoadStatus] = useState<'idle' | 'loading' | 'ok' | 'empty' | 'error'>('idle');
+  const [liveSearchTiers, setLiveSearchTiers] = useState<typeof LQ_TIERS | null>(null);
+  const [liveSearchStatus, setLiveSearchStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const modelSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [intent, setIntent] = useState<IntentFields>(EMPTY_INTENT);
   const [intentOpen, setIntentOpen] = useState(false);
 
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const tierRootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!tierOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTierOpen(false);
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (!tierRootRef.current?.contains(e.target as Node)) setTierOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [tierOpen]);
 
   useEffect(() => {
     const ta = taRef.current; if (!ta) return;
@@ -271,31 +341,46 @@ export function Loquela({
   // Refresh the model/tier list on focus + every 60s so it never goes stale (C2).
   useEffect(() => {
     let cancelled = false;
-    let firstLoad = true;
     const loadTiers = () => {
-      voxTransport.listModels(LOQUELA_TIER_MODEL_COUNT).then((models: any) => {
-        if (cancelled || !Array.isArray(models) || models.length === 0) return;
-        const dynamic = models.slice(0, 4).map((m: any, idx: number) => {
-          const perK = typeof m.cost_per_1k === 'number' ? m.cost_per_1k : null;
-          return {
-            id: m.model_id ?? `model-${idx}`,
-            label: m.display_name ?? m.model_id ?? `Model ${idx + 1}`,
-            detail: m.provider ?? 'runtime',
-            cost: perK,
-            lat: null,
-          };
-        });
-        setRuntimeTiers([
-          ...dynamic,
-          { id: 'auto', label: 'Auto · Router', detail: 'live routing summary', cost: null, lat: null },
-        ]);
-        if (firstLoad) {
-          firstLoad = false;
-          if (!dynamic.some((d: any) => d.id === tier) && tier !== 'auto') {
-            setTier(dynamic[0]?.id ?? 'auto');
-          }
+      setModelLoadStatus('loading');
+      Promise.all([
+        voxTransport.listModels(LOQUELA_TIER_MODEL_COUNT),
+        invoke<ProviderStatus[]>('inference_provider_status').catch(() => []),
+      ]).then(([models, statuses]) => {
+        if (cancelled) return;
+        if (!Array.isArray(models)) {
+          setModelLoadStatus('error');
+          return;
         }
-      }).catch(() => {});
+        if (models.length === 0) {
+          setRuntimeTiers(ROUTING_TIERS);
+          setModelLoadStatus('empty');
+          return;
+        }
+        const statusRows = Array.isArray(statuses) ? statuses : [];
+        const available = filterPickerModels(
+          models
+            .map((m: { id?: string; model_id?: string; display_name?: string; provider?: string; provider_type?: string }) =>
+              normalizeModelCard(m),
+            )
+            .filter((m): m is PickerModel => m != null),
+          statusRows,
+        );
+        const dynamic = available.map(m => ({
+          id: m.id,
+          label: m.label,
+          detail: m.providerType || m.provider || 'runtime',
+          cost: null as number | null,
+          lat: null as number | null,
+        }));
+        setRuntimeTiers([...ROUTING_TIERS, ...dynamic]);
+        setModelLoadStatus('ok');
+        if (!isRoutingTierId(tier) && !dynamic.some(d => d.id === tier)) {
+          setTier('auto');
+        }
+      }).catch(() => {
+        if (!cancelled) setModelLoadStatus('error');
+      });
     };
     loadTiers();
     // Embedded mini-render: one initial load only — no 60s poll, no focus refresh.
@@ -310,6 +395,60 @@ export function Loquela({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [embedded]);
+
+  // Live keyed-provider autocomplete (OpenRouter TTL + Anthropic/Google/Mens) —
+  // does not rely on the disk model-catalog cache.
+  useEffect(() => {
+    if (!tierOpen) {
+      setLiveSearchTiers(null);
+      setLiveSearchStatus('idle');
+      if (modelSearchDebounceRef.current) clearTimeout(modelSearchDebounceRef.current);
+      return;
+    }
+    const q = tierQuery.trim();
+    if (!q) {
+      setLiveSearchTiers(null);
+      setLiveSearchStatus('idle');
+      return;
+    }
+    if (modelSearchDebounceRef.current) clearTimeout(modelSearchDebounceRef.current);
+    modelSearchDebounceRef.current = setTimeout(() => {
+      setLiveSearchStatus('loading');
+      voxTransport
+        .searchModels(q, LOQUELA_MODEL_SEARCH_LIMIT)
+        .then((models: unknown) => {
+          if (!Array.isArray(models)) {
+            setLiveSearchStatus('error');
+            return;
+          }
+          const rows = (models as Array<{
+            id?: string;
+            model_id?: string;
+            display_name?: string;
+            provider?: string;
+            provider_type?: string;
+          }>)
+            .map(m => normalizeModelCard(m))
+            .filter((m): m is PickerModel => m != null)
+            .map(m => ({
+              id: m.id,
+              label: m.label,
+              detail: m.providerType || m.provider || 'live',
+              cost: null as number | null,
+              lat: null as number | null,
+            }));
+          setLiveSearchTiers(rows);
+          setLiveSearchStatus('ok');
+        })
+        .catch(() => {
+          setLiveSearchTiers(null);
+          setLiveSearchStatus('error');
+        });
+    }, LOQUELA_MODEL_SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (modelSearchDebounceRef.current) clearTimeout(modelSearchDebounceRef.current);
+    };
+  }, [tierOpen, tierQuery]);
 
   const allSlash = useMemo(() => buildSlashEntries(skills), [skills]);
   const filteredSlash = useMemo(() => {
@@ -326,7 +465,35 @@ export function Loquela({
   const showAtPopover = atOpen && (filteredAt.length > 0 || showFileSuggestions || fileSuggestionsLoading);
 
   const tokens = Math.ceil(text.length / 4) + chips.length * 80;
-  const tierObj = runtimeTiers.find(t => t.id === tier) || runtimeTiers[runtimeTiers.length - 1];
+  const effectiveTierId =
+    selectedModelId && !isRoutingTierId(selectedModelId) ? selectedModelId : tier;
+  const tierObj =
+    runtimeTiers.find(t => t.id === effectiveTierId) ||
+    runtimeTiers.find(t => t.id === 'auto') ||
+    runtimeTiers[runtimeTiers.length - 1];
+  const visibleTiers = useMemo(() => {
+    const q = tierQuery.trim().toLowerCase();
+    if (q && liveSearchTiers !== null) {
+      const routingHits = ROUTING_TIERS.filter(
+        t =>
+          t.id.toLowerCase().includes(q) ||
+          t.label.toLowerCase().includes(q) ||
+          (t.detail ?? '').toLowerCase().includes(q),
+      );
+      return [...routingHits, ...liveSearchTiers];
+    }
+    return runtimeTiers.filter(t => {
+      if (!q) return true;
+      return (
+        t.id.toLowerCase().includes(q) ||
+        t.label.toLowerCase().includes(q) ||
+        (t.detail ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [tierQuery, liveSearchTiers, runtimeTiers]);
+  const triggerLabel = isRoutingTierId(tierObj.id)
+    ? tierObj.label.split(' · ')[0]
+    : shortModelLabel(tierObj.id);
   const estCost =
     tierObj?.cost == null ? null : (tokens / 1000) * tierObj.cost;
 
@@ -488,13 +655,15 @@ export function Loquela({
         return;
       }
     }
+    const pickedModel = isRoutingTierId(effectiveTierId) ? null : effectiveTierId;
     const payload = {
       description: composeDescription(text, intent),
       priority: effortToPriority(intent.effort),
       active_skill: activeSkill?.id,
       mode,
-      tier,
-      dry_run: dryRun,
+      tier: isRoutingTierId(effectiveTierId) ? effectiveTierId : 'auto',
+      model_override: pickedModel,
+      dry_run: false,
       clutch: control.clutch,
       risk: control.risk,
       context: chips.map(c => ({ kind: c.kind, ref: c.label })),
@@ -539,7 +708,7 @@ export function Loquela({
 
   return (
     <div className="pointer-events-auto" data-testid="loquela-composer">
-      <Glass className={`relative px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-[0_0_60px_-20px_rgb(var(--brass)_/_0.45)]" : ""}`}>
+      <Glass className={`relative px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-[0_0_60px_-20px_rgb(var(--brass)/0.45)]" : ""}`}>
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 pb-1.5">
             <span className="font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Context</span>
@@ -560,7 +729,7 @@ export function Loquela({
               onBlur={() => setTimeout(() => setFocused(false), 120)}
               rows={1}
               placeholder="Describe a task — e.g. ‘harden cryptographic invariants’. / for commands, @ for agents or files"
-              className={`min-h-[36px] ${expanded ? "max-h-[360px]" : "max-h-[160px]"} w-full resize-none bg-transparent py-1.5 text-[14px] leading-relaxed text-text-primary placeholder:text-text-muted outline-none`}
+              className={`min-h-[36px] ${expanded ? "max-h-[360px]" : "max-h-[160px]"} w-full resize-none bg-transparent py-1.5 text-[14px] leading-relaxed text-text-primary placeholder:text-text-muted outline-hidden`}
             />
 
             {slashOpen && filteredSlash.length > 0 && (
@@ -570,7 +739,7 @@ export function Loquela({
                   const IcoCmp = (Icon as any)[s.icon] || Icon.bolt;
                   return (
                     <button type="button" key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => void runSlash(s)}
-                            className={`flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left ${i === slashIdx ? "bg-overlay-subtle" : ""}`}>
+                            className={`flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left ${i === slashIdx ? "bg-overlay-subtle" : ""}`}>
                       <IcoCmp className="size-3.5 text-brass" />
                       <span className="font-mono text-[11px] text-text-primary">{s.cmd}</span>
                       <span className="ml-auto text-[10px] text-text-muted">{s.desc}</span>
@@ -587,7 +756,7 @@ export function Loquela({
                     <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Agents</div>
                     {filteredAt.map(a => (
                       <button type="button" key={a.id} onClick={() => insertAt(a)}
-                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle">
+                              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle">
                         <span className="font-mono text-[10px] text-violet-300">{a.id}</span>
                         <span className="text-[11px] text-text-secondary">{a.codename}</span>
                         <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-text-muted">{a.phase}</span>
@@ -605,7 +774,7 @@ export function Loquela({
                     )}
                     {fileSuggestions.map(p => (
                       <button type="button" key={p} onClick={() => insertAtFile(p)}
-                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle">
+                              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle">
                         {/* Matches the file chip's new amber tone above, not the old cyan. */}
                         <Icon.file className="size-3 shrink-0 text-amber-300" />
                         <span className="truncate font-mono text-[10px] text-text-secondary">{p}</span>
@@ -625,18 +794,18 @@ export function Loquela({
               type="button"
               onClick={() => onInterrupt?.(currentTaskId)}
               aria-label="Stop (Enter)"
-              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/[0.12] px-3 text-rose-300 transition hover:bg-rose-400/[0.18]"
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/12 px-3 text-rose-300 transition hover:bg-rose-400/18"
             >
               <Icon.stop className="size-3.5" />
               <span className="font-display text-[11px] uppercase tracking-[0.18em]">Stop</span>
-              <kbd className="rounded border border-current px-1 text-[9px] opacity-75">↵</kbd>
+              <kbd className="rounded-sm border border-current px-1 text-[9px] opacity-75">↵</kbd>
             </button>
           ) : agentPaused && currentAgent ? (
             <button
               type="button"
               onClick={() => onResume?.(currentAgent)}
               aria-label="Resume"
-              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/[0.12] px-3 text-rose-300 transition hover:bg-rose-400/[0.18]"
+              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-rose-400/45 bg-rose-400/12 px-3 text-rose-300 transition hover:bg-rose-400/18"
             >
               <Icon.play className="size-3.5" />
               <span className="font-display text-[11px] uppercase tracking-[0.18em]">Resume</span>
@@ -647,20 +816,20 @@ export function Loquela({
               onClick={() => void send()}
               disabled={!canSend}
               aria-label="Run (Enter)"
-              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}
+              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)/0.6)]" : "border-white/5 bg-white/2 text-zinc-600 cursor-not-allowed"}`}
             >
               <Icon.send className="size-3.5" />
-              {dryRun ? "Dry-run" : "Run"}
-              <kbd className="rounded border border-current px-1 text-[9px] opacity-75">⌘↵</kbd>
+              Run
+              <kbd className="rounded-sm border border-current px-1 text-[9px] opacity-75">⌘↵</kbd>
             </button>
           )}
         </div>
 
         {intentOpen && (
-          <IntentPanel intent={intent} onChange={(p) => setIntent((i) => ({ ...i, ...p }))} />
+          <IntentPanel intent={intent} onChange={(p) => setIntent((i) => ({ ...i, ...p }))} showEffort={executionMode === 'task'} />
         )}
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-[10px]">
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/5 pt-1.5 text-[10px]">
           <div className="flex items-center gap-1.5">
             <button type="button" aria-label="Attach local file(s) to context" onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
               <Icon.plus className="size-3.5" aria-hidden="true" />
@@ -704,7 +873,7 @@ export function Loquela({
               type="button"
               onClick={onOpenTasks}
               title="Open task list"
-              className="flex items-center gap-1 rounded-full border border-brass/25 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20 focus:outline-none focus:ring-1 focus:ring-brass/40"
+              className="flex items-center gap-1 rounded-full border border-brass/25 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20 focus:outline-hidden focus:ring-1 focus:ring-brass/40"
             >
               {queueDepth} queued
             </button>
@@ -720,37 +889,70 @@ export function Loquela({
             <Icon.list className="size-3" aria-hidden="true" /> Intent{hasIntent(intent) ? ' ·' : ''}
           </button>
 
-          <div className="relative">
-            <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); setModeOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
-              <Icon.cpu className="size-3 text-cyan-300" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{tierObj.label.split(" · ")[0]}</span>
+          <div className="relative flex items-center gap-1.5" ref={tierRootRef}>
+            <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); setModeOpen(false); if (!tierOpen) setTierQuery(''); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
+              <Icon.cpu className="size-3 text-cyan-300" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{triggerLabel}</span>
               <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
             </button>
+            {modelLoadStatus === 'error' && (
+              <span className="font-mono text-[9px] text-amber-300" data-testid="model-load-status">Models unavailable</span>
+            )}
+            {modelLoadStatus === 'empty' && (
+              <span className="font-mono text-[9px] text-text-muted" data-testid="model-load-status">No models loaded</span>
+            )}
             <Popover open={tierOpen}>
-              {runtimeTiers.map(t => (
-                <button type="button" key={t.id} onClick={() => { setTier(t.id); setTierOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle ${tier === t.id ? "bg-overlay-subtle" : ""}`}>
-                  <div className="flex-1">
-                    <div className="text-[11px] text-text-primary">{t.label}</div>
-                    <div className="font-mono text-[9px] text-text-muted">{t.detail}</div>
-                  </div>
-                </button>
-              ))}
+              <div className="w-[min(22rem,80vw)]">
+                <div className="sticky top-0 z-10 bg-bg-base">
+                  <ModelPickerSearch value={tierQuery} onChange={setTierQuery} />
+                </div>
+                <div data-testid="model-picker-scroll" className="max-h-72 overflow-y-auto overscroll-contain custom-scrollbar">
+                  {liveSearchStatus === 'loading' && tierQuery.trim() && (
+                    <div className="px-2 py-1.5 font-mono text-[10px] text-text-muted" data-testid="model-search-status">
+                      Searching live catalogs…
+                    </div>
+                  )}
+                  {liveSearchStatus === 'error' && tierQuery.trim() && (
+                    <div className="px-2 py-1.5 font-mono text-[10px] text-amber-300" data-testid="model-search-status">
+                      Live search failed — showing cached list
+                    </div>
+                  )}
+                  {visibleTiers.map(t => (
+                    <button type="button" key={t.id} onClick={() => {
+                      setTier(t.id);
+                      setTierOpen(false);
+                      setTierQuery('');
+                      onModelPick?.(isRoutingTierId(t.id) ? null : t.id);
+                    }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${effectiveTierId === t.id ? "bg-overlay-subtle" : ""}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] text-text-primary truncate">{isRoutingTierId(t.id) ? t.label : t.id}</div>
+                        <div className="font-mono text-[9px] text-text-muted truncate">{t.detail}</div>
+                      </div>
+                    </button>
+                  ))}
+                  {visibleTiers.length === 0 && liveSearchStatus !== 'loading' && (
+                    <div className="px-2 py-1.5 font-mono text-[10px] text-text-muted">No keyed models match</div>
+                  )}
+                </div>
+              </div>
             </Popover>
           </div>
 
           <div className="relative">
-            <button type="button" aria-expanded={skillOpen} aria-label="Choose skill" onClick={() => { setSkillOpen(o => !o); setTierOpen(false); setModeOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/[0.06] px-2 py-1 text-brass hover:bg-brass/[0.12]">
+            <button type="button" aria-expanded={skillOpen} aria-label="Choose skill" onClick={() => { setSkillOpen(o => !o); setTierOpen(false); setModeOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/6 px-2 py-1 text-brass hover:bg-brass/12">
               <Icon.bolt className="size-3" /><span className="text-brass/70">Skill</span> <span>{activeSkill ? (activeSkill.name ?? activeSkill.command ?? activeSkill.id) : "auto"}</span>
               <Icon.chevR className="size-2.5 text-brass/60 rotate-90" />
             </button>
             <Popover open={skillOpen}>
-              <button type="button" onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded px-2 py-1.5 text-left text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-primary">auto</button>
-              {skills.map(s => {
-                const skillId = s.capability_id ?? s.command;
-                return (
-                <button type="button" key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[11px] hover:bg-overlay-subtle ${activeSkill?.id === skillId ? "bg-overlay-subtle text-brass" : "text-text-secondary"}`}>
-                  <span>{s.command}</span>
-                </button>
-              );})}
+              <div className="max-h-64 overflow-y-auto overscroll-contain">
+                <button type="button" onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded-sm px-2 py-1.5 text-left text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-primary">auto</button>
+                {skills.map(s => {
+                  const skillId = s.capability_id ?? s.command;
+                  return (
+                  <button type="button" key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-[11px] hover:bg-overlay-subtle ${activeSkill?.id === skillId ? "bg-overlay-subtle text-brass" : "text-text-secondary"}`}>
+                    <span>{s.command}</span>
+                  </button>
+                );})}
+              </div>
             </Popover>
           </div>
 
@@ -760,13 +962,13 @@ export function Loquela({
               <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
             </button>
             <Popover open={modeOpen}>
-              <button type="button" aria-label="Set send mode: Quick chat" onClick={() => { setExecutionMode('chat'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'chat' ? "bg-overlay-subtle" : ""}`}>
+              <button type="button" aria-label="Set send mode: Quick chat" onClick={() => { setExecutionMode('chat'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'chat' ? "bg-overlay-subtle" : ""}`}>
                 <div className="flex-1">
                   <div className="text-[11px] text-text-primary">Quick chat</div>
                   <div className="font-mono text-[9px] text-text-muted">Synchronous reply, no background task</div>
                 </div>
               </button>
-              <button type="button" aria-label="Set send mode: Background task" onClick={() => { setExecutionMode('task'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'task' ? "bg-overlay-subtle" : ""}`}>
+              <button type="button" aria-label="Set send mode: Background task" onClick={() => { setExecutionMode('task'); setModeOpen(false); }} className={`flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-overlay-subtle ${executionMode === 'task' ? "bg-overlay-subtle" : ""}`}>
                 <div className="flex-1">
                   <div className="text-[11px] text-text-primary">Background task</div>
                   <div className="font-mono text-[9px] text-text-muted">Dispatch as an autonomous task, not blocking</div>
@@ -775,6 +977,14 @@ export function Loquela({
             </Popover>
           </div>
 
+          {executionMode === 'task' && (
+            <span
+              aria-label="Interaction mode"
+              className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary"
+            >
+              {mode === 'verify' ? 'Verify' : 'Act'}
+            </span>
+          )}
 
           {(estCost != null || sessionBudget || trailingSlot != null) && (
             <div className="ml-auto flex items-center gap-2">

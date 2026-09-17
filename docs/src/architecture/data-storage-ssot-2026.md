@@ -83,7 +83,7 @@ Large immutable blobs: model weights, corpus shards, compiled module artifacts, 
 
 ### 4.4 Tier D — Ephemeral cache
 
-Anything under `$VOX_CACHE_DIR` is deleteable without data loss. Includes: download caches, parse caches, generated fixture data, and `target/dogfood/` training dumps from `vox-corpus` (hardcoded today as `CANONICAL_TRAIN_DATA_DIR` in `crates/vox-corpus/src/training/mod.rs:13`).
+Anything under `$VOX_CACHE_DIR` is deleteable without data loss. Includes: download caches, parse caches, generated fixture data, `browser-frames` viewport/screencast PNGs and JPEGs, and `target/dogfood/` training dumps from `vox-corpus` (hardcoded today as `CANONICAL_TRAIN_DATA_DIR` in `crates/vox-corpus/src/training/mod.rs:13`).
 
 - **Policy**: no Tier D path may appear as a string literal outside `vox-config`, `vox-cli` init, or explicit tests.
 - **TTL**: documented default 30 days; `vox db doctor --gc` expires contents older than that.

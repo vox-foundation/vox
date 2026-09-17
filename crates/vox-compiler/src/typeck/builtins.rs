@@ -209,6 +209,11 @@ impl BuiltinTypes {
         );
 
         // abs(n: int) → int   (global convenience — also available as n.abs())
+        // A Float receiver (`abs(-2.0)`, exercised by the golden
+        // `float_formatting.vox`) is handled as a special case in
+        // `typeck/checker/expr.rs`'s `HirExpr::Call` arm rather than a second
+        // binding here — `Environment::define` has no overloading, so a
+        // same-name Float binding would just shadow this one.
         env.define(
             "abs".into(),
             Binding {
@@ -218,6 +223,23 @@ impl BuiltinTypes {
                 is_deprecated: false,
             },
         );
+
+        // floor/ceil/round/sqrt(x: float) → float   (global convenience,
+        // matching the interpreter's Float-method dispatch in
+        // `eval/builtins.rs`'s `call_global_builtin`, which already accepts
+        // these as free functions). Task 2 corollary: `float_formatting.vox`
+        // (one of Task 1b's eight goldens) calls all four this way.
+        for name in ["floor", "ceil", "round", "sqrt"] {
+            env.define(
+                name.into(),
+                Binding {
+                    ty: Ty::Fn(vec![Ty::Float], Box::new(Ty::Float)),
+                    mutable: false,
+                    kind: BindingKind::Function,
+                    is_deprecated: false,
+                },
+            );
+        }
 
         // max(a: int, b: int) → int   (two-arg global)
         env.define(
@@ -451,6 +473,25 @@ impl BuiltinTypes {
             "log".into(),
             Binding {
                 ty: Ty::Named("LogModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // crypto module — bare `crypto.hash_fast(...)` (Task 2 Step 4/7:
+        // `crypto_hash_parity.vox` calls this, not `std.crypto`). Reuses the
+        // same `Ty::Named("StdCryptoNs")` that `std.crypto` resolves to
+        // (`builtin_registry::std_root_field_ty`), so method calls fall
+        // through the existing `"StdCryptoNs" => Some("crypto")` branch in
+        // `typeck/checker/expr.rs` and `std_namespace_method_ty("crypto", ..)`
+        // — no separate `*Module` methods-map entry needed (unlike
+        // `fs`/`json`/`process`/`env`/`secrets`/`regex`/`log` above, which
+        // predate the `std.*` namespace types and have their own method maps).
+        env.define(
+            "crypto".into(),
+            Binding {
+                ty: Ty::Named("StdCryptoNs".into()),
                 mutable: false,
                 kind: BindingKind::Import,
                 is_deprecated: false,
@@ -1074,6 +1115,15 @@ impl BuiltinTypes {
             "stringify".into(),
             Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
         );
+        // `json.encode` is `stringify`'s alias (Task 2 controller resolution):
+        // both emit `vox_actor_runtime::builtins::vox_json_render(...).unwrap_or_default()`
+        // in native codegen (`builtin_registry.rs`) and share the interp's
+        // `Some("json") => "render" | "stringify" | "encode"` arm
+        // (`eval/builtins.rs`) — bare `str`, empty string on serialize error.
+        json_methods.insert(
+            "encode".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
+        );
         // RFC json-ergonomics-rfc-2026-05-23 §4.1: parse returns a typed
         // `Result[Json]` so the chainable Json method surface (`get`, `at`,
         // `pointer`, `as_str`, ...) actually dispatches at typecheck.
@@ -1219,14 +1269,11 @@ impl BuiltinTypes {
                 )),
             ),
         );
-        // `process.cwd` — same as `fs.cwd`, aliased under process namespace.
-        process_methods.insert(
-            "cwd".into(),
-            Ty::Fn(
-                vec![],
-                Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))),
-            ),
-        );
+        // `process.cwd` — bare `str`, empty on error (Task 2 controller
+        // resolution: unlike `fs.cwd`, this is infallible at the Vox
+        // surface, matching native codegen's `vox_process_cwd() -> String`
+        // and the interp's `Some("process") => "cwd"` arm in eval/builtins.rs).
+        process_methods.insert("cwd".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         // `process.which(cmd)` — locate binary on PATH; cross-platform.
         process_methods.insert(
             "which".into(),

@@ -6,7 +6,14 @@
 
 fn main() {
   let result_opt = process.run("lefthook", ["install"]);
-  if result_opt is null {
+  // `process.run` returns `Option[Record]` (typecheck contract; see the
+  // interpreter's `"spawn" | "run"` arm in `eval/builtins.rs`), not `Null` —
+  // a spawn failure is `Option(None)`, a distinct VoxValue variant from
+  // `Null`. `result_opt is null` was therefore always false (Task 2 Step 11 —
+  // Task 0 found this `Option.unwrap()` panic): the check silently fell
+  // through to `result_opt.unwrap()` on `None`, panicking, instead of
+  // printing the "install lefthook" guidance below and exiting 1.
+  if result_opt is None {
     log.error("Failed to spawn lefthook. Install it first:");
     log.error("  Windows:  winget install evilmartians.lefthook");
     log.error("  macOS:    brew install lefthook");

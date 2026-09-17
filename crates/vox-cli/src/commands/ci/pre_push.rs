@@ -2,9 +2,10 @@
 //!
 //! ## Profiles
 //!
-//! - **Fast (default):** `cargo fmt`, line-endings, ssot-drift, **scoped** doc lint +
-//!   doctest on changed `docs/src/**/*.md` (excludes `docs/src/archive/`), and workspace
-//!   drift-check. Tuned so hooks finish quickly; CI still runs full docs-quality.
+//! - **Fast (default):** chunked `rustfmt --check` (`scripts/fmt.vox` / `check_fmt`),
+//!   line-endings, ssot-drift, **scoped** doc lint + doctest on changed
+//!   `docs/src/**/*.md` (excludes `docs/src/archive/`), and workspace drift-check.
+//!   Tuned so hooks finish quickly; CI still runs full docs-quality.
 //! - **`--complete`:** historical full static gate — whole-tree doc lint + doctest under
 //!   `docs/src/`, doc-inventory, workspace clippy (`-D warnings`), scoped TOESTUB.
 //! - **`--full`:** `--complete` plus **`cargo nextest run --workspace --profile ci`**
@@ -13,7 +14,12 @@
 //! ## Extended flags for `--full`
 //!
 //! - **`--include-slow`:** also run the slow `#[ignore]` partition (arch-check live
-//!   scientia timeout, codegen bundle; ~3–5 min extra).
+//!   scientia timeout, codegen bundle; ~3–5 min extra). `golden_differential_gate`
+//!   (interp vs. one generated native crate per `examples/golden/**/*.vox` EXPECT) is
+//!   deliberately **not** in this partition — its one-crate native bundle build is a
+//!   ~6-8 min cold build. It runs on a schedule instead:
+//!   `.github/workflows/differential-gate-nightly.yml` (commented pointer next to the
+//!   hand-maintained duplicate of `step_nextest_slow` in `ci.yml`).
 //! - **`--with-coverage`:** substitute `cargo llvm-cov nextest` for the plain nextest
 //!   step and append `cargo llvm-cov report` (lcov + HTML under `target/llvm-cov/`).
 //!   Requires `cargo-llvm-cov` on PATH; adds ~60s.
@@ -494,7 +500,7 @@ fn append_prepush_audit_log(root: &Path, opts: &PrePushOpts, total_ms: u64) -> R
 fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
     let mut v: Vec<OwnedStep> = vec![
         OwnedStep {
-            label: "cargo fmt --all -- --check".into(),
+            label: "rustfmt --check (workspace, chunked)".into(),
             scope: None,
             run: Box::new(step_fmt),
         },
@@ -1068,7 +1074,7 @@ pub(crate) fn check_fmt(root: &Path) -> Result<()> {
     if unformatted {
         bail!(
             "rustfmt --check found unformatted files (diffs above). \
-             Run `vox run scripts/fmt.vox` to fix (Windows-safe; plain \
+             Run `vox run scripts/fmt.vox -- --all` to fix (Windows-safe; plain \
              `cargo fmt --all` overflows the Windows command-line limit / \
              os error 206 on this workspace). Single crate: `cargo fmt -p <crate>`."
         );
@@ -1548,6 +1554,9 @@ fn step_llvm_cov_report(root: &Path) -> Result<()> {
 /// Run only the three slow `#[ignore]` tests that are annotated with `"slow; …"`.
 /// Uses an explicit `-E` filter + `--run-ignored ignored-only` so none of the other
 /// 250+ ignored tests (intentionally excluded) are swept in.
+///
+/// `golden_differential_gate` is intentionally NOT added to this filter — see the
+/// module doc above and `.github/workflows/differential-gate-nightly.yml`.
 fn step_nextest_slow(root: &Path) -> Result<()> {
     nextest_cargo_status(
         root,
@@ -1559,6 +1568,7 @@ fn step_nextest_slow(root: &Path) -> Result<()> {
                 "test(arch_check_live_workspace_smoke_and_description_rule)",
                 " or test(timeout_kills_long_running_child)",
                 " or test(generated_ai_fixture_bundle_passes_cargo_check)",
+                " or (package(vox-mesh-transport) + binary(interp_executor))",
             ),
             "--run-ignored",
             "ignored-only",

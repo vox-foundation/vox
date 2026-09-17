@@ -63,6 +63,7 @@ export interface SurfaceProps {
   chatExecutionKpis?: ChatExecutionRailKpis;
   chatActiveModel?: string | null;
   chatOpenrouterSpendUsd?: number | null;
+  chatSessionSpentUsd?: number | null;
   chatAgentStreamItems?: StreamItem[];
   onOpenAgentInFlow?: (agentId: string) => void;
   chatComposer?: React.ReactNode;
@@ -198,6 +199,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           executionKpis={props.chatExecutionKpis}
           activeModel={props.chatActiveModel}
           openrouterSpendUsd={props.chatOpenrouterSpendUsd}
+          sessionSpentUsd={props.chatSessionSpentUsd}
           agentStreamItems={props.chatAgentStreamItems}
           onOpenAgentInFlow={props.onOpenAgentInFlow}
           flowAgents={props.data.agents}
@@ -209,6 +211,9 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           attention_budget={props.attention_budget}
           waitingQuestions={props.attention?.needsYou.length}
           blockedTasks={props.attention?.blockedTasksCount}
+          attention={props.attention}
+          onOpenFeedbackContext={props.onOpenFeedbackContext}
+          pendingApprovals={props.attention?.approvals.length ?? 0}
           planSessionId={props.chatPlanSessionId}
           planVersion={props.chatPlanVersion}
           onDiscardPlan={props.onDiscardPlan}

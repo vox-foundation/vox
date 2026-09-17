@@ -2,10 +2,11 @@
 
 mod commands;
 mod config;
+mod drive;
 
 use commands::app_state::GuiState;
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Manager, RunEvent};
 
 #[tokio::main]
 async fn main() {
@@ -20,6 +21,13 @@ async fn main() {
         .try_init();
 
     let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|arg| arg == "--drive-headless") {
+        if let Err(err) = drive::headless::run_stdio() {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.iter().any(|arg| arg == "--print-action-manifest-json") {
         match commands::action_manifest::build_action_manifest()
             .map_err(|e| e.to_string())
@@ -36,6 +44,7 @@ async fn main() {
         }
     }
     let mut initial_view = None;
+    let drive_flags = drive::flags::parse_drive_flags(&args);
 
     // Simple CLI arg parser for the Tauri process
     for i in 0..args.len() {
@@ -47,8 +56,18 @@ async fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .append_invoke_initialization_script(if drive_flags.drive {
+            drive::bridge::DRIVE_ISOLATION_SCRIPT
+        } else {
+            ""
+        })
         .manage(GuiState {
             initial_view: Mutex::new(initial_view),
+        })
+        .manage(if drive_flags.drive {
+            drive::bridge::DriveRuntime::pending_live()
+        } else {
+            drive::bridge::DriveRuntime::off()
         })
         .manage(commands::mic::MicCaptureState::default())
         .manage(commands::pty::PtyManager::default())
@@ -59,7 +78,22 @@ async fn main() {
         .manage(std::sync::Arc::new(
             commands::browser::BrowserState::default(),
         ))
-        .setup(|app| {
+        .manage(std::sync::Arc::new(
+            commands::mens_serve::MensServeState::default(),
+        ))
+        .setup(move |app| {
+            if drive_flags.drive {
+                let runtime = app.state::<drive::bridge::DriveRuntime>();
+                if let Err(err) =
+                    drive::bridge::start_live(&app.handle().clone(), drive_flags, &runtime)
+                {
+                    eprintln!("axis drive listener failed to start: {err}");
+                    tracing::error!(error = %err, "axis drive listener failed to start");
+                }
+            }
+            if drive_flags.drive && !drive_flags.show {
+                drive::bridge::hide_drive_window_early(&app.handle().clone());
+            }
             // `.setup()` runs synchronously on a worker thread already inside
             // the #[tokio::main] runtime (needed below so scientia's
             // tokio::spawn calls have an ambient reactor) — block_on alone
@@ -78,11 +112,20 @@ async fn main() {
             app.manage(pool);
 
             // Single persistent orchestrator daemon shared by tool calls,
-            // approvals, and the status/event streams.
+            // approvals, and the status/event streams. Warm it synchronously
+            // so the first chat send is not racing a cold spawn (up to ~15s).
             let daemon = app
                 .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
                 .inner()
                 .clone();
+            if let Err(err) = tokio::task::block_in_place(|| {
+                tauri::async_runtime::block_on(daemon.ensure())
+            }) {
+                tracing::warn!(
+                    error = %err,
+                    "orchestrator daemon not ready at Axis launch; streams will retry"
+                );
+            }
             // B1: start the live orchestrator status stream, re-emitting each
             // snapshot as the "vox://orch-status" Tauri event.
             commands::orchestrator::spawn_orchestrator_status_stream(
@@ -146,6 +189,9 @@ async fn main() {
             commands::coderabbit::coderabbit_token_present,
             commands::devlog::log_frontend,
             commands::app_state::get_initial_view,
+            drive::bridge::get_drive_mode,
+            drive::bridge::drive_set_ready,
+            drive::bridge::drive_respond,
             commands::build_info::get_build_info,
             commands::chat::chat_create_session,
             commands::chat::chat_list_sessions,
@@ -193,6 +239,10 @@ async fn main() {
             commands::llm_settings::set_llm_config,
             commands::llm_settings::openrouter_key_status,
             commands::llm_settings::inference_provider_status,
+            commands::mens_serve::mens_serve_status,
+            commands::mens_serve::mens_serve_start,
+            commands::mens_serve::mens_serve_stop,
+            commands::mens_run_reports::mens_run_reports,
             commands::docs_index::vox_docs_index,
             commands::docs_index::read_doc_markdown,
             commands::orchestrator::get_orchestrator_status,
@@ -208,6 +258,7 @@ async fn main() {
             commands::dynamic_mapping::get_command_metadata,
             commands::dynamic_mapping::get_full_registry,
             commands::models::list_model_cards,
+            commands::models::search_model_cards,
             commands::models::get_active_model,
             commands::models::set_active_model,
             commands::models::get_auto_model_recommendation,
@@ -314,6 +365,7 @@ async fn main() {
             commands::browser::browser_type_text,
             commands::browser::browser_input_key,
             commands::browser::browser_set_control_mode,
+            commands::browser::browser_snapshot,
             commands::browser::browser_screenshot_frame,
             commands::browser::browser_session_status,
             commands::browser::browser_validate_playwright,
@@ -327,8 +379,25 @@ async fn main() {
             commands::mission_control::list_subagent_tree,
             commands::mission_control::list_mc_approvals,
             commands::mission_control::set_task_mesh_policy,
+            commands::daemon::orchestrator_daemon_ready,
             commands::daemon::orchestrator_version_mismatch,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let RunEvent::Exit = event {
+                // Policy: kill orchestrator only if this Axis spawned it.
+                // Adopted shared daemons stay up for CLI / MCP.
+                if let Some(daemon) = app_handle.try_state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
+                {
+                    daemon.inner().shutdown_if_spawned();
+                }
+                // Same policy for `vox mens serve`: don't orphan a spawned
+                // child (with a loaded model + bound port) past GUI exit.
+                if let Some(mens_serve) = app_handle.try_state::<std::sync::Arc<commands::mens_serve::MensServeState>>()
+                {
+                    mens_serve.inner().shutdown_if_spawned();
+                }
+            }
+        });
 }

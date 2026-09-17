@@ -19,6 +19,7 @@ async fn test_forced_autonomous_chat_research_triggers() {
         cognitive_profile: None,
         json_mode: false,
         trace_id: None,
+        turn_id: None,
         correlation_id: None,
         attachment_manifest: None,
         temperature: None,

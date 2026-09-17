@@ -74,7 +74,7 @@ function PlanNodeRow({
       {editable ? (
         <input
           aria-label={`Edit step: ${node.description}`}
-          className="flex-1 rounded border border-transparent bg-transparent px-1 text-text-secondary hover:border-border-subtle focus:border-brass/40 focus:outline-none"
+          className="flex-1 rounded-sm border border-transparent bg-transparent px-1 text-text-secondary hover:border-border-subtle focus:border-brass/40 focus:outline-hidden"
           value={value}
           onChange={e => setValue(e.target.value)}
           onBlur={commit}
@@ -98,7 +98,7 @@ export function PlanPanel({ planSessionId, planVersion, nodes, onDiscard }: Plan
 
   if (!planSessionId || planVersion == null) {
     return (
-      <div data-testid="plan-panel" className="p-2">
+      <div data-testid="plan-panel" className="[&_.py-16]:py-6 p-2">
         <EmptyState
           title="No to-dos yet"
           description="Start a task to see its to-do list here."
@@ -139,7 +139,7 @@ export function PlanPanel({ planSessionId, planVersion, nodes, onDiscard }: Plan
       {blockedCount > 0 && (
         <div
           data-testid="plan-approval-footer"
-          className="mt-1 flex items-center justify-between gap-2 rounded border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[11px]"
+          className="mt-1 flex items-center justify-between gap-2 rounded-sm border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[11px]"
         >
           <span className="text-amber-400">
             {blockedCount} {blockedCount === 1 ? 'step' : 'steps'} awaiting approval
@@ -166,7 +166,7 @@ export function PlanPanel({ planSessionId, planVersion, nodes, onDiscard }: Plan
       {adding ? (
         <input
           autoFocus
-          className="mt-1 rounded border border-border-subtle bg-transparent px-1 text-[12px] text-text-secondary"
+          className="mt-1 rounded-sm border border-border-subtle bg-transparent px-1 text-[12px] text-text-secondary"
           placeholder="new step…"
           value={newDescription}
           onChange={e => setNewDescription(e.target.value)}

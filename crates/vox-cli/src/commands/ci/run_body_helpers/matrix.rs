@@ -466,6 +466,20 @@ fn run_mens_gate_unix_isolated(root: &Path, profile: &str, opts: &MensGateOpts) 
     Ok(())
 }
 
+/// Rewrite a `cargo test ...` arg list into `cargo nextest run ... --no-tests=fail` so a
+/// filter that matches zero tests (typo, renamed/deleted test) hard-fails instead of the
+/// plain-`cargo test` silent-pass (exit 0 on "0 tests run"). Non-`test`-subcommand arg lists
+/// (there are none in `gates.yaml` today, but the check is defensive) pass through unchanged.
+fn rewrite_test_to_nextest(arg_strs: Vec<String>) -> Vec<String> {
+    if arg_strs.first().map(String::as_str) != Some("test") {
+        return arg_strs;
+    }
+    let mut out = vec!["nextest".to_string(), "run".to_string()];
+    out.extend(arg_strs.into_iter().skip(1));
+    out.push("--no-tests=fail".to_string());
+    out
+}
+
 fn run_mens_gate_steps(root: &Path, profile: &str) -> Result<()> {
     let manifest_path = resolve_mens_gate_manifest_path(root);
     let raw = read_utf8_path_capped(&manifest_path)
@@ -498,6 +512,10 @@ fn run_mens_gate_steps(root: &Path, profile: &str) -> Result<()> {
             .iter()
             .filter_map(|v| v.as_str().map(str::to_string))
             .collect();
+        // `cargo test <filter>` exits 0 when the filter matches zero tests (a typo'd or
+        // deleted test name silently "passes"). Route through `nextest run --no-tests=fail`
+        // instead, which hard-fails when a step's filter matches nothing.
+        let arg_strs = rewrite_test_to_nextest(arg_strs);
         eprintln!(">> {cmd} {}", arg_strs.join(" "));
         let st = if cmd == "cargo" {
             let mut child = Command::new(&cargo);

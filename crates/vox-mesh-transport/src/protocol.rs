@@ -13,10 +13,13 @@ use vox_mesh_types::TaskKind;
 pub const ALPN: &[u8] = b"vox/job/1";
 
 /// Wire protocol version, carried in [`Hello`].
-pub const PROTO: u16 = 1;
+pub const PROTO: u16 = 2;
 
-/// Opaque job identifier assigned by the sender.
-pub type JobId = u64;
+/// Opaque job identifier assigned by the sender. Newtype so two peers' ids
+/// cannot be confused with a bare counter, and so `(EndpointId, JobId)` can
+/// key the running map.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct JobId(pub u64);
 
 /// First frame on every stream. **This layout is frozen forever**; every other
 /// message may change. Without it, version skew is a hang or a postcard
@@ -45,14 +48,44 @@ pub enum JobRequest {
     Probe,
     /// `payload_bytes` is the sender's *claim*. It is checked before the
     /// transfer starts and enforced during it, so a liar cannot spend our disk
-    /// by understating the size.
+    /// by understating the size. `job_id` is sender-assigned; the receiver
+    /// keys the running map by `(peer, job_id)`.
     Run {
+        job_id: JobId,
         kind: TaskKind,
         payload_bytes: u64,
     },
     Cancel {
         job_id: JobId,
     },
+    /// How much work is this peer sitting on? Replaces the control plane's
+    /// `GET /v1/populi/queue/stats`. A read, so unlike `Run` it needs no
+    /// sandbox — but it is still capacity intelligence, so it is behind the
+    /// same trust gate as everything else here.
+    QueueStats,
+}
+
+/// One peer's answer to [`JobRequest::QueueStats`].
+///
+/// The breakdowns are `Vec`s of pairs rather than maps: postcard does not care
+/// about the key type, and a `Vec` has a defined order, so the aggregate the
+/// caller builds can be sorted into something stable between refreshes.
+/// `TaskKind` implements neither `Hash` nor `Ord`, so a map would have needed
+/// one of them added for the wire's convenience.
+///
+/// Every number here is **self-reported**. Trust-weighting it is Phase 4's job;
+/// this type's contract is only that it carries what the peer said, unedited.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueueStats {
+    pub pending_count: u64,
+    #[serde(default)]
+    pub pending_by_kind: Vec<(TaskKind, u64)>,
+    #[serde(default)]
+    pub pending_by_priority: Vec<(u8, u64)>,
+    /// This node's concurrency cap. Reported so placement is not reading a
+    /// metric whose range is `0..=N` regardless of load.
+    #[serde(default)]
+    pub max_concurrent: u64,
 }
 
 /// The tier a *received* job runs at.
@@ -62,25 +95,38 @@ pub enum JobRequest {
 /// sets to `Native`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Isolation {
-    Wasm,
-    Container,
+    Interpreter,
     Native,
 }
 
 impl Isolation {
     /// What mesh-received work runs at unless an operator says otherwise.
-    pub const DEFAULT_FOR_MESH: Self = Self::Wasm;
+    pub const DEFAULT_FOR_MESH: Self = Self::Interpreter;
 }
 
 /// What comes back on the same bi-stream.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum JobResponse {
     /// Capability answer to [`JobRequest::Probe`].
-    Probed { host_triple: String, vox: String },
+    Probed {
+        host_triple: String,
+        vox: String,
+        /// What this peer will accept. Empty means "reachable but offering
+        /// nothing", which is a different fact from "unreachable" and the model
+        /// selector needs to tell them apart.
+        #[serde(default)]
+        task_kinds: Vec<TaskKind>,
+        /// Trailing field: postcard is positional, so an old sender's frame
+        /// cannot be read. `PROTO` is the compatibility switch, not
+        /// `#[serde(default)]`.
+        engines: Vec<String>,
+    },
     /// Job output, already bounded by [`JobLimits::max_output_bytes`].
     Output(Vec<u8>),
     /// A refusal or a failure, phrased for a human.
     Failed(String),
+    /// Answer to [`JobRequest::QueueStats`].
+    QueueStats(QueueStats),
 }
 
 /// Bounds applied to every received job.
@@ -91,6 +137,12 @@ pub struct JobLimits {
     /// Carried from the HTTP plane's `dispatch.rs:388`.
     pub max_output_bytes: usize,
     pub max_payload_bytes: u64,
+    pub max_memory_bytes: usize,
+    pub max_steps: u64,
+    pub max_depth: usize,
+    pub max_disk_bytes: u64,
+    pub max_files: u32,
+    pub max_concurrent: u32,
     pub isolation: Isolation,
 }
 
@@ -99,8 +151,28 @@ impl Default for JobLimits {
         Self {
             wall_clock: Duration::from_secs(300),
             max_output_bytes: 10 * 1024 * 1024,
-            max_payload_bytes: 1024 * 1024 * 1024,
+            max_payload_bytes: 16 * 1024 * 1024,
+            max_memory_bytes: 512 * 1024 * 1024,
+            max_steps: 50_000_000,
+            max_depth: 1_024,
+            max_disk_bytes: 32 * 1024 * 1024,
+            max_files: 4_096,
+            max_concurrent: std::thread::available_parallelism()
+                .map(|n| n.get() as u32)
+                .unwrap_or(2)
+                .max(2),
             isolation: Isolation::DEFAULT_FOR_MESH,
+        }
+    }
+}
+
+impl JobLimits {
+    /// Per-kind payload cap. VoxScript is source text; 4 MiB is enough, and
+    /// the old 1 GiB figure was sized for the bundle lane this program deletes.
+    pub fn max_payload_for(&self, kind: TaskKind) -> u64 {
+        match kind {
+            TaskKind::VoxScript => 4 * 1024 * 1024,
+            _ => self.max_payload_bytes,
         }
     }
 }
@@ -192,15 +264,32 @@ mod tests {
         for req in [
             JobRequest::Probe,
             JobRequest::Run {
+                job_id: JobId(1),
                 kind: TaskKind::VoxScript,
                 payload_bytes: 4096,
             },
-            JobRequest::Cancel { job_id: 42 },
+            JobRequest::Cancel { job_id: JobId(42) },
+            JobRequest::QueueStats,
         ] {
             let bytes = encode(&req).unwrap();
             let back: JobRequest = decode(&bytes).unwrap();
             assert_eq!(req, back);
         }
+    }
+
+    #[test]
+    fn queue_stats_round_trip_carries_the_breakdowns() {
+        // The breakdowns are what the MCP tool's Axis-visible JSON is built
+        // from; a response that only round-tripped `pending_count` would pass a
+        // laxer test and still lose them.
+        let resp = JobResponse::QueueStats(QueueStats {
+            pending_count: 7,
+            pending_by_kind: vec![(TaskKind::VoxScript, 5), (TaskKind::Embed, 2)],
+            pending_by_priority: vec![(0, 3), (9, 4)],
+            max_concurrent: 4,
+        });
+        let back: JobResponse = decode(&encode(&resp).unwrap()).unwrap();
+        assert_eq!(resp, back);
     }
 
     #[test]
@@ -213,7 +302,7 @@ mod tests {
     #[test]
     fn a_version_mismatch_names_both_versions() {
         let r = check_hello(&Hello {
-            proto: 2,
+            proto: 1,
             vox: "0.8.1".into(),
         });
         let msg = r.unwrap_err().to_string();
@@ -231,8 +320,8 @@ mod tests {
 
     #[test]
     fn the_default_isolation_is_a_sandbox() {
-        assert_eq!(Isolation::DEFAULT_FOR_MESH, Isolation::Wasm);
-        assert_eq!(JobLimits::default().isolation, Isolation::Wasm);
+        assert_eq!(Isolation::DEFAULT_FOR_MESH, Isolation::Interpreter);
+        assert_eq!(JobLimits::default().isolation, Isolation::Interpreter);
     }
 
     #[test]
@@ -240,7 +329,18 @@ mod tests {
         let l = JobLimits::default();
         assert_eq!(l.wall_clock, Duration::from_secs(300));
         assert_eq!(l.max_output_bytes, 10 * 1024 * 1024);
-        assert_eq!(l.max_payload_bytes, 1024 * 1024 * 1024);
+        assert_eq!(l.max_payload_bytes, 16 * 1024 * 1024);
+    }
+
+    #[test]
+    fn voxscript_payload_cap_is_four_mib() {
+        let l = JobLimits::default();
+        assert_eq!(l.max_payload_for(TaskKind::VoxScript), 4 * 1024 * 1024);
+        assert_eq!(
+            l.max_payload_for(TaskKind::Embed),
+            l.max_payload_bytes,
+            "non-script kinds use the global cap"
+        );
     }
 
     #[test]
@@ -248,6 +348,7 @@ mod tests {
         // A compile-time reminder: JobRequest::Run carries `kind`, never
         // `isolation`. If someone adds one, this test is where they explain why.
         let req = JobRequest::Run {
+            job_id: JobId(1),
             kind: TaskKind::TextInfer,
             payload_bytes: 1,
         };

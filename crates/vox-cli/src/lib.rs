@@ -46,8 +46,6 @@ pub mod fs_utils;
 /// Fuzzy ranking for command catalog, MCP tool picker, and dashboard palette.
 /// Gated behind the `fuzzy-search` feature; falls back to identity ordering when disabled.
 pub mod fuzzy;
-#[cfg(feature = "script-execution")]
-mod isolation;
 mod latin_cmd;
 /// Lock-wait JSONL metrics (`vox lock-report`, recursive script guard).
 #[cfg(any(
@@ -56,6 +54,8 @@ mod latin_cmd;
     feature = "script-execution"
 ))]
 mod lock_telemetry;
+/// Counting `#[global_allocator]` for `vox run --max-memory`.
+mod mem_limit;
 pub mod pipeline;
 pub mod process_supervision {
     pub use vox_cli_core::daemon_ipc::process_supervision::*;
@@ -237,19 +237,6 @@ pub enum Cli {
         /// Arguments.
         #[command(flatten)]
         args: cli_args::RunArgs,
-    },
-    /// Raw WASI module execution (`vox wasm run <file>`) via the in-process wasmtime SSOT.
-    #[cfg(feature = "script-wasi")]
-    Wasm {
-        #[command(subcommand)]
-        cmd: commands::wasm::WasmCmd,
-    },
-    #[cfg(not(feature = "script-wasi"))]
-    /// Raw precompiled WASI module execution (needs `--features script-wasi`)
-    #[command(name = "wasm")]
-    WasmStub {
-        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        _args: Vec<String>,
     },
     /// Run a `.vox` script (`fn main()`) via the native script cache (needs `--features script-execution`).
     #[cfg(feature = "script-execution")]
@@ -770,3 +757,11 @@ pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
 }
 
 pub mod utils;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn mem_limit_module_is_linked() {
+        crate::mem_limit::arm(usize::MAX);
+    }
+}

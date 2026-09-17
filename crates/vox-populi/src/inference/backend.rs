@@ -35,7 +35,6 @@ pub enum BackendId {
     CandleMetal,
     CandleCpu,
     LlamaCppRpc,
-    OllamaSubprocess,
     External,
 }
 

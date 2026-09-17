@@ -29,7 +29,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
     match expr {
         HirExpr::IntLit(value, _) => Ok(VoxValue::Int(*value)),
         HirExpr::FloatLit(value, _) => Ok(VoxValue::Float(*value)),
-        HirExpr::StringLit(value, _) => Ok(VoxValue::Str(value.clone())),
+        HirExpr::StringLit(value, _) => Ok(VoxValue::Str(value.clone().into())),
         HirExpr::BoolLit(value, _) => Ok(VoxValue::Bool(*value)),
         HirExpr::Ident(name, _) => {
             if let Some(val) = interp.scope.get(name) {
@@ -53,6 +53,18 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     | "sum"
                     | "bool"
                     | "type_of"
+                    // floor/ceil/round/sqrt as free functions (Task 2
+                    // corollary — `float_formatting.vox`, one of Task 1b's
+                    // eight goldens, calls `floor(1.9)` etc. rather than
+                    // `(1.9).floor()`). This match only recognizes the bare
+                    // *identifier* as a builtin-function placeholder;
+                    // `eval/builtins.rs`'s `call_global_builtin` (which this
+                    // placeholder's `Call` site dispatches to) already has
+                    // the dispatch arms.
+                    | "floor"
+                    | "ceil"
+                    | "round"
+                    | "sqrt"
             ) {
                 // Return a placeholder function for builtins
                 Ok(VoxValue::Fn {
@@ -200,16 +212,12 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirBinOp::Gt, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a > b)),
                 (HirBinOp::Lte, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a <= b)),
                 (HirBinOp::Gte, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a >= b)),
-                (HirBinOp::Add, VoxValue::Str(a), other) => Ok(VoxValue::Str(format!(
-                    "{}{}",
-                    a,
-                    super::builtins::vox_value_display(&other)
-                ))),
-                (HirBinOp::Add, other, VoxValue::Str(b)) => Ok(VoxValue::Str(format!(
-                    "{}{}",
-                    super::builtins::vox_value_display(&other),
-                    b
-                ))),
+                (HirBinOp::Add, VoxValue::Str(a), other) => Ok(VoxValue::Str(
+                    format!("{}{}", a, super::builtins::vox_value_display(&other)).into(),
+                )),
+                (HirBinOp::Add, other, VoxValue::Str(b)) => Ok(VoxValue::Str(
+                    format!("{}{}", super::builtins::vox_value_display(&other), b).into(),
+                )),
                 (HirBinOp::Add, VoxValue::Float(a), VoxValue::Float(b)) => {
                     Ok(VoxValue::Float(a + b))
                 }
@@ -416,51 +424,22 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             let c = eval_expr(interp, callee)?;
             match c {
                 VoxValue::Fn {
-                    params,
-                    body,
-                    mut env,
-                    name: fn_name,
+                    ref name,
                     is_versioned,
-                    is_traced: _,
+                    ..
                 } => {
-                    env.push_frame();
-                    for (p, arg) in params.iter().zip(eval_args) {
-                        env.set(p.clone(), arg);
-                    }
-
-                    let old_scope = interp.scope.clone();
-                    interp.scope = env;
-
-                    // Run the body in a closure so the scope is restored on BOTH
-                    // success and the `?` error path (a leaked scope would corrupt
-                    // later evaluation when the interpreter is reused, e.g. the
-                    // `@test` runner).
-                    let result: Result<VoxValue, EvalError> = (|| {
-                        let mut val = VoxValue::Null;
-                        for stmt in body.iter() {
-                            val = super::stmt::eval_stmt(interp, stmt)?;
-                            if let VoxValue::_Return(v) = val {
-                                val = *v;
-                                break;
-                            }
-                            if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
-                                break;
-                            }
-                        }
-                        Ok(val)
-                    })();
-
-                    interp.scope = old_scope;
-                    let val = result?;
-
-                    // P5: auto-checkpoint on successful return of a @versioned
-                    // function. `result?` above already restored the scope (on
-                    // BOTH success and error) and short-circuits on error, so a
-                    // checkpoint is recorded only for a successful call — never
-                    // for a failed one. The snapshot is an ungated `Vcs` effect,
-                    // matching explicit `repo.*` semantics (`eval/repo.rs` does
-                    // not consult `interp.caps`).
+                    // Named calls share `apply_closure` so the depth bound
+                    // (rev 3: increment only around closure application, not
+                    // every `eval_expr`) covers recursive `fn` as well as lambdas.
+                    let fn_name = name.clone();
+                    let val = apply_closure(interp, &c, eval_args)?;
                     if is_versioned {
+                        if !interp.caps.allows_versioned_snapshot() {
+                            return Err(EvalError::CapabilityDenied {
+                                ns: "repo".into(),
+                                method: "snapshot".into(),
+                            });
+                        }
                         interp.repo.snapshot(Some(&format!("@versioned {fn_name}")));
                     }
                     Ok(val)
@@ -574,6 +553,31 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 return super::repo::execute_repo_op(interp, method, eval_args);
             }
 
+            // `list.push(x)` in-place fast path (see `eval/env.rs` `get_mut`
+            // doc comment). The generic dispatch below goes through
+            // `call_builtin_method`, whose "push" arm clones the whole
+            // receiver Vec (`v.to_vec()`) on every call — turning `xs =
+            // xs.push(i)` / bare `xs.push(i)` in a loop into O(n^2) total
+            // work. When the receiver is a bare identifier already bound to
+            // a `List`, grow it via `Scope::get_mut` + `Rc::make_mut`:
+            // amortized O(1), like `Vec::push`, and still copy-on-write
+            // correct — if the `Rc` is shared with another binding (`let b =
+            // a`), `make_mut` clones once for `a` only, leaving `b`'s list
+            // untouched (see `eval_cow_semantics_test.rs`). Evaluate the
+            // argument *before* touching the receiver so side effects (e.g.
+            // `xs.push(len(xs))`) observe the pre-push list.
+            if method == "push"
+                && args.len() == 1
+                && let HirExpr::Ident(name, _) = obj.as_ref()
+                && matches!(interp.scope.get(name), Some(VoxValue::List(_)))
+            {
+                let val = eval_expr(interp, &args[0].value)?;
+                if let Some(VoxValue::List(list_rc)) = interp.scope.get_mut(name) {
+                    std::rc::Rc::make_mut(list_rc).push(val);
+                    return Ok(VoxValue::List(list_rc.clone()));
+                }
+            }
+
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {
@@ -616,18 +620,126 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 }
             }
 
-            if let Some(r) =
-                super::builtins::call_builtin_method(&o, method, eval_args, interp.caps.as_ref())
+            // `env.args()` needs `Interpreter.source_path`/`script_args`
+            // (Task 2 Step 9), which `call_builtin_method` doesn't have
+            // access to (it takes no `&Interpreter`). Handled here instead
+            // of falling through to the generic `"env"` dispatch in
+            // `builtins.rs`, which only sees the OS process argv. Shape
+            // matches native argv (`[bin-or-script] ++ args`,
+            // `backend/native.rs`): `[source_path] ++ script_args`.
+            if method == "register_exit_command"
+                && let VoxValue::Object(fields) = &o
+                && fields.iter().any(|(k, v)| {
+                    k == "__namespace__" && matches!(v, VoxValue::Str(s) if s.as_ref() == "process")
+                })
             {
+                if !interp.caps.allows_namespace("process") {
+                    return Err(EvalError::CapabilityDenied {
+                        ns: "process".into(),
+                        method: "register_exit_command".into(),
+                    });
+                }
+                let cmd_name = match eval_args.first() {
+                    Some(VoxValue::Str(s)) => s.to_string(),
+                    _ => {
+                        return Ok(VoxValue::Null);
+                    }
+                };
+                let cmd_args = match eval_args.get(1) {
+                    Some(VoxValue::List(ls)) => ls
+                        .iter()
+                        .filter_map(|v| {
+                            if let VoxValue::Str(s) = v {
+                                Some(s.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect(),
+                    _ => vec![],
+                };
+                interp
+                    .exit_commands
+                    .push((cmd_name.clone(), cmd_args.clone()));
+                crate::eval::record_signal_exit_command(cmd_name, cmd_args);
+                return Ok(VoxValue::Result(Ok(Box::new(VoxValue::Null))));
+            }
+
+            if method == "exit"
+                && let VoxValue::Object(fields) = &o
+                && fields.iter().any(|(k, v)| {
+                    k == "__namespace__" && matches!(v, VoxValue::Str(s) if s.as_ref() == "process")
+                })
+            {
+                if !interp.caps.allows_namespace("process") {
+                    return Err(EvalError::CapabilityDenied {
+                        ns: "process".into(),
+                        method: "exit".into(),
+                    });
+                }
+                let code = match eval_args.first() {
+                    Some(VoxValue::Int(c)) => *c as i32,
+                    _ => 0,
+                };
+                interp.flush_exit_commands();
+                std::process::exit(code);
+            }
+
+            #[cfg(not(unix))]
+            if method == "exec"
+                && let VoxValue::Object(fields) = &o
+                && fields.iter().any(|(k, v)| {
+                    k == "__namespace__" && matches!(v, VoxValue::Str(s) if s.as_ref() == "process")
+                })
+                && interp.caps.allows_namespace("process")
+            {
+                interp.flush_exit_commands();
+            }
+
+            if method == "args"
+                && eval_args.is_empty()
+                && let VoxValue::Object(fields) = &o
+                && fields.iter().any(|(k, v)| {
+                    k == "__namespace__" && matches!(v, VoxValue::Str(s) if s.as_ref() == "env")
+                })
+            {
+                let mut items: Vec<VoxValue> = Vec::new();
+                if let Some(p) = &interp.source_path {
+                    items.push(VoxValue::Str(p.display().to_string().into()));
+                }
+                items.extend(
+                    interp
+                        .script_args
+                        .iter()
+                        .map(|s| VoxValue::Str(s.clone().into())),
+                );
+                return Ok(VoxValue::list(items));
+            }
+
+            if let Some(r) = super::builtins::call_builtin_method(
+                &o,
+                method,
+                eval_args,
+                &interp.caps,
+                Some(&mut interp.fs_quota),
+            ) {
                 // Catch the _Panic sentinel produced by `unwrap()`/`expect()`
                 // and friends and turn it into a proper EvalError. This
                 // replaces the prior silent-Null behavior with a halt that
                 // carries the offender's message. See eval/value.rs
                 // `_Panic` variant docstring for rationale.
-                if let crate::eval::value::VoxValue::_Panic(msg) = r {
-                    Err(EvalError::AssertionFailed(msg))
-                } else {
-                    Ok(r)
+                match r {
+                    crate::eval::value::VoxValue::_Panic(msg) => {
+                        Err(EvalError::AssertionFailed(msg))
+                    }
+                    crate::eval::value::VoxValue::_Denied(what) => {
+                        let (ns, method) = what.split_once('.').unwrap_or((what.as_str(), ""));
+                        Err(EvalError::CapabilityDenied {
+                            ns: ns.to_string(),
+                            method: method.to_string(),
+                        })
+                    }
+                    r => Ok(r),
                 }
             } else {
                 Err(EvalError::AssertionFailed(format!(
@@ -668,9 +780,12 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 VoxValue::Object(pairs) => pairs
                     .iter()
                     .cloned()
-                    .map(|(k, v)| VoxValue::tuple(vec![VoxValue::Str(k), v]))
+                    .map(|(k, v)| VoxValue::tuple(vec![VoxValue::Str(k.into()), v]))
                     .collect(),
-                VoxValue::Str(s) => s.chars().map(|ch| VoxValue::Str(ch.to_string())).collect(),
+                VoxValue::Str(s) => s
+                    .chars()
+                    .map(|ch| VoxValue::Str(ch.to_string().into()))
+                    .collect(),
                 other => {
                     return Err(EvalError::TypeError {
                         expected: "List",
@@ -678,7 +793,6 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     });
                 }
             };
-            let mut results = Vec::new();
             interp.scope.push_frame();
             for (i, l) in items.into_iter().enumerate() {
                 interp.scope.set(binding.clone(), l);
@@ -688,16 +802,34 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 let val = eval_expr(interp, body)?;
                 match val {
                     // Propagate early-exit signals out of the for loop.
-                    VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Panic(_) => {
+                    VoxValue::_Return(_)
+                    | VoxValue::_Break
+                    | VoxValue::_Panic(_)
+                    | VoxValue::_Denied(_) => {
                         interp.scope.pop_frame();
                         return Ok(val);
                     }
-                    VoxValue::_Continue => {}
-                    other => results.push(other),
+                    // Every other body value (including `_Continue`) is
+                    // discarded (Task 2 corollary — `object_field_order.vox`,
+                    // one of Task 1b's eight goldens): `typeck/checker/expr.rs`'s
+                    // `HirExpr::For` arm always types a `for` loop as `Ty::Unit`
+                    // — there is no list-comprehension form — so collecting
+                    // each iteration's body value into a list here (as this
+                    // used to do) produced a runtime value the type system
+                    // never promised. That extra list was invisible everywhere
+                    // a `for` loop's value is itself discarded (the overwhelmingly
+                    // common case), but surfaced when a `for` loop was `main`'s
+                    // last statement: `vox run --mode interp`'s driver
+                    // (`vox-cli/src/commands/run.rs`) auto-prints `main`'s
+                    // return value whenever it isn't `Null`, so a body of
+                    // `print`-per-iteration produced a spurious trailing
+                    // `[null, null, null]` line the native tier (whose `main`
+                    // truly returns `()`) never emits.
+                    _ => {}
                 }
             }
             interp.scope.pop_frame();
-            Ok(VoxValue::list(results))
+            Ok(VoxValue::Null)
         }
         HirExpr::FieldAccess(obj, field, _) => {
             let o = eval_expr(interp, obj)?;
@@ -739,14 +871,14 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     Ok(VoxValue::Option(
                         s.chars()
                             .nth(i as usize)
-                            .map(|c| Box::new(VoxValue::Str(c.to_string()))),
+                            .map(|c| Box::new(VoxValue::Str(c.to_string().into()))),
                     ))
                 }
                 // dict / Object subscript: dict["key"] → Option[V]
                 (VoxValue::Object(fields), VoxValue::Str(key)) => Ok(VoxValue::Option(
                     fields
                         .iter()
-                        .find(|(k, _)| k == &key)
+                        .find(|(k, _)| k.as_str() == key.as_ref())
                         .map(|(_, v)| Box::new(v.clone())),
                 )),
                 _ => Ok(VoxValue::Option(None)),
@@ -878,6 +1010,11 @@ fn apply_closure(
         }
     };
 
+    if interp.eval_depth >= interp.max_eval_depth {
+        return Err(EvalError::RecursionLimitExceeded);
+    }
+    interp.eval_depth += 1;
+
     let mut new_env = env;
     new_env.push_frame();
     for (p, arg) in params.iter().zip(args) {
@@ -901,10 +1038,18 @@ fn apply_closure(
         Ok(val)
     })();
     interp.scope = old_scope;
+    interp.eval_depth -= 1;
     let val = result?;
 
     if let VoxValue::_Panic(msg) = val {
         return Err(EvalError::AssertionFailed(msg));
+    }
+    if let VoxValue::_Denied(what) = val {
+        let (ns, method) = what.split_once('.').unwrap_or((what.as_str(), ""));
+        return Err(EvalError::CapabilityDenied {
+            ns: ns.to_string(),
+            method: method.to_string(),
+        });
     }
     Ok(val)
 }

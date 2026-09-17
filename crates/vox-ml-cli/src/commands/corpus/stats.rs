@@ -259,6 +259,16 @@ pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -
         None => None,
     };
 
+    // None = no agent_trace/tool_trace rows (metric not applicable → omit).
+    let agentic_metrics: Option<(f64, f64)> =
+        match vox_corpus::corpus::eval_agentic_metrics::compute_agentic_spoke_metrics(input) {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::warn!("agentic spoke metrics computation failed; omitting from eval: {e}");
+                None
+            }
+        };
+
     let taxonomy: HashSet<&str> = crate::training::TAXONOMY.iter().copied().collect();
     let mut hit_vec: Vec<_> = s
         .construct_hits
@@ -295,6 +305,16 @@ pub(super) async fn run_eval(input: &Path, output: &Path, print_summary: bool) -
     if let Some((compile_rate, clippy_rate)) = rust_metrics {
         results["rust_compile_rate"] = serde_json::json!(compile_rate);
         results["clippy_clean_rate"] = serde_json::json!(clippy_rate);
+    }
+    // Only emit agentic metrics when the corpus actually has agent_trace/
+    // tool_trace rows. This is the real (corpus-derived) producer for
+    // eval-gates-agents.yaml's tool_call_valid_json_rate/tool_name_exists_rate
+    // — eval_local.rs's aggregate_gate_producer_keys deliberately defers to
+    // it (see that function's doc comment) the same way it already defers to
+    // compute_rust_spoke_metrics for the rust keys above.
+    if let Some((json_rate, name_rate)) = agentic_metrics {
+        results["tool_call_valid_json_rate"] = serde_json::json!(json_rate);
+        results["tool_name_exists_rate"] = serde_json::json!(name_rate);
     }
 
     if let Some(parent) = output.parent() {
@@ -444,4 +464,52 @@ pub(super) async fn run_review_stats(input: &Path) -> Result<()> {
         println!("    - {k}: {v}");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `run_eval` must wire `compute_agentic_spoke_metrics` in, mirroring how
+    /// `compute_rust_spoke_metrics` is already wired above — a corpus
+    /// containing agent_trace/tool_trace rows must produce
+    /// `tool_call_valid_json_rate`/`tool_name_exists_rate` in
+    /// `eval_results.json` via the same `vox corpus eval` path that already
+    /// produces `rust_compile_rate`/`clippy_clean_rate`.
+    #[tokio::test]
+    async fn run_eval_emits_agentic_metrics_when_agent_rows_present() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("train.jsonl");
+        let output = dir.path().join("eval_results.json");
+        let row = serde_json::json!({
+            "category": "agent_trace",
+            "response": {"tool_name": "vox_skill_list", "arguments": {}, "result": "[]", "success": true}
+        });
+        tokio::fs::write(&input, row.to_string()).await.unwrap();
+
+        run_eval(&input, &output, true).await.unwrap();
+
+        let written: serde_json::Value =
+            serde_json::from_str(&tokio::fs::read_to_string(&output).await.unwrap()).unwrap();
+        assert_eq!(written["tool_call_valid_json_rate"], 1.0);
+        assert_eq!(written["tool_name_exists_rate"], 1.0);
+    }
+
+    /// A corpus with no agent_trace/tool_trace rows must omit the keys
+    /// entirely (not applicable), not report a fake 0.0.
+    #[tokio::test]
+    async fn run_eval_omits_agentic_metrics_when_no_agent_rows() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("train.jsonl");
+        let output = dir.path().join("eval_results.json");
+        let row = serde_json::json!({"category": "generic", "response": "hello"});
+        tokio::fs::write(&input, row.to_string()).await.unwrap();
+
+        run_eval(&input, &output, true).await.unwrap();
+
+        let written: serde_json::Value =
+            serde_json::from_str(&tokio::fs::read_to_string(&output).await.unwrap()).unwrap();
+        assert!(written.get("tool_call_valid_json_rate").is_none());
+        assert!(written.get("tool_name_exists_rate").is_none());
+    }
 }

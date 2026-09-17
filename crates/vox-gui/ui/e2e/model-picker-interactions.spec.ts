@@ -1,21 +1,11 @@
 /**
  * Chat model picker apply flow against the stateful tauriMock.
  *
- * Ground truth (re-verified in Step 0 against the landed
- * ChatModelPicker.tsx/App.tsx — NOT the Phase 2 plan's literal sample):
- * the pick is lifted to App state via `onApplied` and threaded into the
- * NEXT chat submit as `submit_orchestrator_task`'s `model_override` input
- * field (TaskEnqueueHints.model_override). The picker itself never calls
- * `set_active_model` — that command only touches the GUI process and is
- * deliberately unused here (see ChatModelPicker.tsx's file-level comment
- * and ChatModelPicker.test.tsx's "never set_active_model" assertion).
- * The dropdown's accessible name is "Pick model for this chat", not
- * "Pick active model". The trigger's initial label is "model: auto-route" —
- * the picker's `activeModel` prop is fed from `App.tsx`'s orchestrator-status
- * query (`get_orchestrator_status_bin`, msgpack), which the tauriMock does not
- * populate, so `active_model` reads null here regardless of the JSON
- * `get_active_model`/`get_routing_summary_live` mock cases (out of this
- * task's scope to wire up).
+ * Ground truth: Loquela's "Choose model tier" (Run on) trigger is the
+ * single picker. The pick is lifted via onModelPick and threaded into
+ * the NEXT chat submit as `submit_orchestrator_task`'s `model_override`
+ * (TaskEnqueueHints.model_override). ChatModelPicker is not mounted in
+ * App trailingSlot. The picker itself never calls `set_active_model`.
  */
 import { test, expect } from '@playwright/test';
 import { installTauriMock } from './lib/tauriMock';
@@ -26,17 +16,13 @@ test('picking a model updates the trigger label and threads model_override into 
   await page.goto('/');
   await page.waitForSelector('nav', { timeout: 15_000 });
 
-  // Trigger renders the active model from orchestrator status; the tauriMock
-  // never populates it (see file header), so it starts as 'auto-route'.
-  await page.getByRole('button', { name: 'model: auto-route' }).click();
-  await expect(page.getByRole('listbox', { name: 'Pick model for this chat' })).toBeVisible();
-  await page.getByRole('option', { name: 'sonnet-4-6' }).click();
+  await page.getByRole('button', { name: /choose model tier/i }).click();
+  const lastMens = page.getByText(/^mens\//).last();
+  await expect(lastMens).toBeAttached();
+  await lastMens.scrollIntoViewIfNeeded();
+  const pickedId = (await lastMens.innerText()).trim();
+  await lastMens.click();
 
-  // Product-rendered result: onApplied updates the trigger label immediately,
-  // with no invoke required for the pick itself.
-  await expect(page.getByRole('button', { name: /model: sonnet-4-6/i })).toBeVisible();
-
-  // The override is only observable on the wire once a chat message is sent.
   const composer = page.getByLabel('Task composer');
   await composer.fill('Use the picked model for this');
   await composer.press('Enter');
@@ -53,9 +39,8 @@ test('picking a model updates the trigger label and threads model_override into 
   const call = await page.evaluate(() =>
     (window as any).__TAURI_CALLS__.find((c: any) => c.cmd === 'submit_orchestrator_task'),
   );
-  expect(call.args.input).toMatchObject({ model_override: 'sonnet-4-6' });
+  expect(call.args.input).toMatchObject({ model_override: pickedId });
 
-  // The picker itself never calls set_active_model (Resolved decision "Item 4").
   const setActiveModelCalls = await page.evaluate(() =>
     (window as any).__TAURI_CALLS__.filter((c: any) => c.cmd === 'set_active_model').length,
   );
