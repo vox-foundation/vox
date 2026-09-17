@@ -51,6 +51,11 @@ fn default_persist_web_hits() -> bool {
 }
 
 #[inline]
+fn default_true() -> bool {
+    true
+}
+
+#[inline]
 fn default_novelty_min_score() -> f64 {
     0.15
 }
@@ -109,6 +114,9 @@ pub struct SearchPolicy {
     pub searxng_language: String,
     /// Enable Tier 3 DuckDuckGo fallback when SearXNG is unavailable.
     pub duckduckgo_fallback_enabled: bool,
+    /// Enable Tier 4 Wikipedia encyclopedic fallback when all prior tiers return empty.
+    #[serde(default = "default_true")]
+    pub wikipedia_fallback_enabled: bool,
     /// Scraper fetch timeout.
     pub scraper_timeout_ms: u64,
     /// Honor robots.txt (experimental).
@@ -254,6 +262,7 @@ impl Default for SearchPolicy {
             duckduckgo_fallback_enabled: !parse_falsy_env(
                 vox_secrets::SecretId::VoxSearchDdgFallbackDisabled,
             ),
+            wikipedia_fallback_enabled: true,
             scraper_timeout_ms: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchScraperTimeout,
             )

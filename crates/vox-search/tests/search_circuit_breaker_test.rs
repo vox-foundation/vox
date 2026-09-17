@@ -96,6 +96,7 @@ async fn test_dispatcher_skips_cooldown_provider() {
         searxng_url: Some("http://invalid.searxng.test".to_string()),
         duckduckgo_fallback_enabled: false,
         tavily_enabled: false,
+        wikipedia_fallback_enabled: false,
         ..SearchPolicy::default()
     };
 

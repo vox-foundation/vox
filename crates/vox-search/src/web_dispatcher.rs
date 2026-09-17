@@ -135,7 +135,7 @@ impl WebSearchDispatcher {
         }
 
         // Tier 4: Wikipedia Encyclopedic Fallback (when SearXNG + Tavily + DDG returned nothing)
-        if results.is_empty() {
+        if results.is_empty() && policy.wikipedia_fallback_enabled {
             match crate::wikipedia::WikipediaClient::search(query, policy.searxng_max_results).await
             {
                 Ok(hits) if !hits.is_empty() => {
