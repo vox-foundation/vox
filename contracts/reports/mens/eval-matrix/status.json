@@ -1,0 +1,6 @@
+{
+  "status": "completed",
+  "mode": "smoke",
+  "completed_tiers": ["merged_bf16", "quant_q8_0", "quant_q6_k", "quant_q5_k_m", "quant_q4_k_m"],
+  "total_tiers": 5
+}

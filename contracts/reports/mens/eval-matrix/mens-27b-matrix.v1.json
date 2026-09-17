@@ -3,7 +3,7 @@
   "schema_version": "1.0",
   "model_family": "Qwen3.5-27B",
   "checkpoint_step": 500,
-  "eval_timestamp": "2026-09-17T05:30:00Z",
+  "eval_timestamp": "2026-09-16T14:00:00Z",
   "benchmark_suite": "mens/data/heldout_bench",
   "tiers": [
     {
