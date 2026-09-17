@@ -1238,7 +1238,10 @@ impl ModelRegistry {
         }
 
         // Support hierarchical run keys e.g. "mens/runs/foo" -> "mens/foo" or "vox-local/mens/runs/foo"
-        let norm_key = key.strip_prefix("vox-local/").unwrap_or(key);
+        let norm_key = key
+            .strip_prefix("vox-local/")
+            .or_else(|| key.strip_prefix("voxlocal/"))
+            .unwrap_or(key);
         let norm_key = if let Some(rest) = norm_key.strip_prefix("mens/runs/") {
             format!("mens/{rest}")
         } else if let Some(rest) = norm_key.strip_prefix("runs/") {
@@ -1492,5 +1495,27 @@ mod tests {
             assert!(m.is_free);
             assert!(m.capabilities.writes_vox);
         }
+    }
+
+    #[test]
+    fn hierarchical_run_key_normalization_resolves_voxlocal_prefixes() {
+        let mut reg = ModelRegistry::new();
+        let quant_slug = reg
+            .get("voxlocal/mens/runs/qwen3_27b_metal_check/quant_q6_k")
+            .expect("canonical slug lookup should resolve");
+        assert_eq!(quant_slug.id, "mens/runs/qwen3_27b_metal_check/quant_q6_k");
+
+        let quant_run = reg
+            .get("voxlocal/runs/qwen3_27b_metal_check/quant_q6_k")
+            .expect("voxlocal/runs/... lookup should resolve");
+        assert_eq!(quant_run.id, "mens/runs/qwen3_27b_metal_check/quant_q6_k");
+
+        let test_spec = spec("mens/test_run_1", ProviderType::VoxLocal);
+        reg.register(test_spec);
+
+        assert!(reg.get("voxlocal/mens/runs/test_run_1").is_some());
+        assert!(reg.get("vox-local/mens/runs/test_run_1").is_some());
+        assert!(reg.get("voxlocal/runs/test_run_1").is_some());
+        assert!(reg.get("vox-local/runs/test_run_1").is_some());
     }
 }
