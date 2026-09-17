@@ -32,6 +32,9 @@ impl WebSearchDispatcher {
                 warn!("SearXNG is in circuit breaker cooldown, skipping");
             } else {
                 let client = crate::searxng::SearxngSearchClient::new(base_url.clone());
+                let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
+                    .acquire_searxng()
+                    .await;
                 match client
                     .search(
                         query,
@@ -68,6 +71,9 @@ impl WebSearchDispatcher {
             if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::Tavily) {
                 warn!("Tavily is in circuit breaker cooldown, skipping");
             } else if let Some(client) = crate::tavily::TavilySearchClient::from_env() {
+                let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
+                    .acquire_tavily()
+                    .await;
                 match client
                     .search(
                         query,
@@ -110,6 +116,9 @@ impl WebSearchDispatcher {
             if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::DuckDuckGo) {
                 warn!("DuckDuckGo is in circuit breaker cooldown, skipping");
             } else {
+                let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
+                    .acquire_ddg()
+                    .await;
                 match crate::duckduckgo::DuckDuckGoClient::search(query, policy.searxng_max_results)
                     .await
                 {
@@ -291,13 +300,22 @@ pub(crate) fn canonical_url_key(url: &str) -> String {
     key.trim_end_matches('/').to_string()
 }
 
+fn is_wikipedia_host(key: &str) -> bool {
+    key == "wikipedia.org"
+        || key.starts_with("wikipedia.org/")
+        || key.starts_with("wikipedia.org?")
+        || key.contains(".wikipedia.org/")
+        || key.contains(".wikipedia.org?")
+        || key.ends_with(".wikipedia.org")
+}
+
 fn source_authority_score(url: &str) -> f64 {
     let key = canonical_url_key(url);
     if key.contains(".gov/")
         || key.ends_with(".gov")
         || key.contains(".edu/")
         || key.ends_with(".edu")
-        || key.contains("wikipedia.org")
+        || is_wikipedia_host(&key)
         || key.contains("reuters.com/")
         || key.contains("apnews.com/")
         || key.contains("bbc.co")
@@ -436,5 +454,15 @@ mod tests {
         );
         assert_eq!(source_authority_score("https://en.wikipedia.org/"), 1.25);
         assert_eq!(source_authority_score("https://en.wikipedia.org"), 1.25);
+
+        // Verify spoofed/subdomain attack URLs do not receive the Wikipedia authority boost
+        assert_eq!(
+            source_authority_score("https://evil-wikipedia.org/wiki/Phishing"),
+            1.0
+        );
+        assert_eq!(
+            source_authority_score("https://wikipedia.org.attacker.com/malware"),
+            1.0
+        );
     }
 }

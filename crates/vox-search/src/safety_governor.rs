@@ -28,6 +28,23 @@ impl Default for ProviderSafetyGovernor {
     }
 }
 
+/// RAII permit guard for DuckDuckGo requests.
+///
+/// On drop, updates `last_ddg_request` with completion timestamp,
+/// ensuring robust end-to-start inter-request spacing even for slow responses.
+pub struct DdgPermit {
+    _permit: OwnedSemaphorePermit,
+    last_ddg_request: Arc<Mutex<Option<Instant>>>,
+}
+
+impl Drop for DdgPermit {
+    fn drop(&mut self) {
+        if let Ok(mut last) = self.last_ddg_request.try_lock() {
+            *last = Some(Instant::now());
+        }
+    }
+}
+
 impl ProviderSafetyGovernor {
     /// Creates a new governor with default production safety thresholds.
     pub fn new() -> Self {
@@ -64,8 +81,8 @@ impl ProviderSafetyGovernor {
             .expect("tavily semaphore closed")
     }
 
-    /// Acquire permit for DuckDuckGo call (max 1 concurrent + min 1200ms delay).
-    pub async fn acquire_ddg(&self) -> OwnedSemaphorePermit {
+    /// Acquire permit for DuckDuckGo call (max 1 concurrent + min 1200ms delay between calls).
+    pub async fn acquire_ddg(&self) -> DdgPermit {
         let permit = self
             .ddg_sem
             .clone()
@@ -73,16 +90,21 @@ impl ProviderSafetyGovernor {
             .await
             .expect("ddg semaphore closed");
 
-        let mut last = self.last_ddg_request.lock().await;
-        if let Some(prev) = *last {
+        let last_time = {
+            let last = self.last_ddg_request.lock().await;
+            *last
+        };
+        if let Some(prev) = last_time {
             let elapsed = prev.elapsed();
             if elapsed < Duration::from_millis(1200) {
                 tokio::time::sleep(Duration::from_millis(1200) - elapsed).await;
             }
         }
-        *last = Some(Instant::now());
 
-        permit
+        DdgPermit {
+            _permit: permit,
+            last_ddg_request: Arc::clone(&self.last_ddg_request),
+        }
     }
 
     /// Acquire permit for heavy LLM synthesis (max 4 concurrent).

@@ -101,9 +101,9 @@ Scoring rubric:
 1. Factual accuracy: Does the answer align with the cited sources?
 2. Citation density: Are key claims backed by at least one citation?
 3. Coverage: Does the answer address all major aspects of the query?",
-        sanitize_chatml(params.query),
-        sanitize_chatml(params.answer),
-        sanitize_chatml(&citation_snippets)
+        sanitize_evidence(params.query),
+        sanitize_evidence(params.answer),
+        sanitize_evidence(&citation_snippets)
     );
 
     if let Ok(content) = chat_stage(
