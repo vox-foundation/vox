@@ -13,24 +13,9 @@ pub(super) fn sanitize_chatml(input: &str) -> String {
 pub(super) fn sanitize_evidence(text: &str) -> String {
     let mut out = text.to_string();
 
-    // 1. Strip ChatML control tokens
-    out = out
-        .replace("<|im_start|>", "[im_start]")
-        .replace("<|im_end|>", "[im_end]");
-
-    // 2. Strip Llama / Mistral instruction wrappers
-    out = out
-        .replace("[INST]", "[inst_neutralized]")
-        .replace("[/INST]", "[/inst_neutralized]")
-        .replace("<<SYS>>", "[sys_neutralized]")
-        .replace("<</SYS>>", "[/sys_neutralized]");
-
-    // 3. Strip Anthropic / Claude system tags
-    out = out
-        .replace("<antThinking>", "[ant_thinking]")
-        .replace("</antThinking>", "[/ant_thinking]");
-
-    // 4. Strip zero-width and bidirectional unicode steganography / visual spoofing characters
+    // 1. Strip zero-width and bidirectional unicode steganography / visual spoofing characters
+    // first, so interleaved evasion characters (e.g. `<|\u{200B}im_start|>`) cannot bypass
+    // downstream control token neutralization rules.
     out.retain(|c| {
         !matches!(
             c,
@@ -40,6 +25,23 @@ pub(super) fn sanitize_evidence(text: &str) -> String {
                 | '\u{FEFF}'
         )
     });
+
+    // 2. Strip ChatML control tokens
+    out = out
+        .replace("<|im_start|>", "[im_start]")
+        .replace("<|im_end|>", "[im_end]");
+
+    // 3. Strip Llama / Mistral instruction wrappers
+    out = out
+        .replace("[INST]", "[inst_neutralized]")
+        .replace("[/INST]", "[/inst_neutralized]")
+        .replace("<<SYS>>", "[sys_neutralized]")
+        .replace("<</SYS>>", "[/sys_neutralized]");
+
+    // 4. Strip Anthropic / Claude system tags
+    out = out
+        .replace("<antThinking>", "[ant_thinking]")
+        .replace("</antThinking>", "[/ant_thinking]");
 
     out
 }
@@ -105,5 +107,17 @@ mod tests {
         ] {
             assert!(!cleaned.contains(c));
         }
+    }
+
+    #[test]
+    fn test_sanitize_evidence_neutralizes_interleaved_steganographic_tokens() {
+        let payload = "<|\u{200B}im_start|> [I\u{200C}NST] <ant\u{200D}Thinking>";
+        let cleaned = sanitize_evidence(payload);
+        assert!(!cleaned.contains("<|im_start|>"));
+        assert!(!cleaned.contains("[INST]"));
+        assert!(!cleaned.contains("<antThinking>"));
+        assert!(cleaned.contains("[im_start]"));
+        assert!(cleaned.contains("[inst_neutralized]"));
+        assert!(cleaned.contains("[ant_thinking]"));
     }
 }
