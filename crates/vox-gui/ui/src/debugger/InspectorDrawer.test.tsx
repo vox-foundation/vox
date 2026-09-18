@@ -46,13 +46,14 @@ describe('InspectorDrawer', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('controls invoke stepper stepNext, play/pause, and reset', () => {
+  it('controls render correctly based on isPlaying and invoke actions', () => {
     const stepNext = vi.fn();
     const pause = vi.fn();
     const resume = vi.fn();
     const reset = vi.fn();
 
-    const mockStepper: UsePipelineStepperReturn = {
+    // Case 1: isPlaying = false (autoPlay: false, isPaused: true)
+    const mockStepperPaused: UsePipelineStepperReturn = {
       steps: RESEARCH_STAGES.map((s, i) => ({ id: s, label: s, status: i === 0 ? 'active' : 'pending' })),
       currentStageIndex: 0,
       currentStep: { id: 'queued', label: 'queued', status: 'active' },
@@ -69,22 +70,75 @@ describe('InspectorDrawer', () => {
       auditInvariants: vi.fn().mockReturnValue([]),
     };
 
-    render(<InspectorDrawer open={true} onClose={vi.fn()} stepper={mockStepper} />);
+    const { rerender } = render(
+      <InspectorDrawer open={true} onClose={vi.fn()} stepper={mockStepperPaused} />
+    );
+
+    // Play button should be shown when not playing
+    const playBtn = screen.getByRole('button', { name: /^play$/i });
+    expect(playBtn).toBeInTheDocument();
+    fireEvent.click(playBtn);
+    expect(resume).toHaveBeenCalledTimes(1);
 
     // Step Next button
     const stepNextBtn = screen.getByRole('button', { name: /step next/i });
     fireEvent.click(stepNextBtn);
     expect(stepNext).toHaveBeenCalledTimes(1);
 
-    // Play button (since isPaused is true)
-    const playBtn = screen.getByRole('button', { name: /play/i });
-    fireEvent.click(playBtn);
-    expect(resume).toHaveBeenCalledTimes(1);
-
     // Reset button
     const resetBtn = screen.getByRole('button', { name: /reset/i });
     fireEvent.click(resetBtn);
     expect(reset).toHaveBeenCalledTimes(1);
+
+    // Case 2: isPlaying = true (autoPlay: true, isPaused: false)
+    const mockStepperPlaying: UsePipelineStepperReturn = {
+      ...mockStepperPaused,
+      isPaused: false,
+      autoPlay: true,
+    };
+
+    rerender(<InspectorDrawer open={true} onClose={vi.fn()} stepper={mockStepperPlaying} />);
+
+    // Pause button should be shown when playing
+    const pauseBtn = screen.getByRole('button', { name: /^pause$/i });
+    expect(pauseBtn).toBeInTheDocument();
+    fireEvent.click(pauseBtn);
+    expect(pause).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears stage selection when reset is clicked', () => {
+    const reset = vi.fn();
+    const mockStepper: UsePipelineStepperReturn = {
+      steps: RESEARCH_STAGES.map((s, i) => ({ id: s, label: s, status: i === 0 ? 'active' : 'pending' })),
+      currentStageIndex: 0,
+      currentStep: { id: 'queued', label: 'queued', status: 'active' },
+      isPaused: true,
+      autoPlay: false,
+      violations: [],
+      stepNext: vi.fn(),
+      stepPrev: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      reset,
+      overridePayload: vi.fn(),
+      setStepStatus: vi.fn(),
+      auditInvariants: vi.fn().mockReturnValue([]),
+    };
+
+    render(<InspectorDrawer open={true} onClose={vi.fn()} stepper={mockStepper} />);
+
+    // Select planning stage
+    const planningBtn = screen.getByRole('button', { name: /planning/i });
+    fireEvent.click(planningBtn);
+    expect(screen.getByText('Stage: planning')).toBeInTheDocument();
+
+    // Click Reset
+    const resetBtn = screen.getByRole('button', { name: /reset/i });
+    fireEvent.click(resetBtn);
+    expect(reset).toHaveBeenCalledTimes(1);
+
+    // Selection should be cleared back to active stage (queued)
+    expect(screen.getByText('Stage: queued')).toBeInTheDocument();
   });
 
   it('renders formatted payloads for inspected step', () => {

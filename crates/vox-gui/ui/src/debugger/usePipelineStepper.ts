@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useReducer, useCallback, useEffect } from 'react';
 import { RESEARCH_STAGES } from '../lib/pipeline';
 import type { DebugStep, StepStatus, InvariantViolation } from './types';
 import { checkHonestyInvariant } from './sentries/sentryHonesty';
@@ -42,107 +42,174 @@ export interface UsePipelineStepperReturn {
   }) => InvariantViolation[];
 }
 
-export function usePipelineStepper(options?: UsePipelineStepperOptions): UsePipelineStepperReturn {
-  const [steps, setSteps] = useState<DebugStep[]>(() =>
-    options?.initialSteps ? [...options.initialSteps] : createInitialSteps()
-  );
-  const [currentStageIndex, setCurrentStageIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(options?.initialPaused ?? false);
-  const [autoPlay, setAutoPlay] = useState(options?.autoPlay ?? false);
-  const [violations, setViolations] = useState<InvariantViolation[]>([]);
+interface StepperState {
+  steps: DebugStep[];
+  currentStageIndex: number;
+  isPaused: boolean;
+  autoPlay: boolean;
+  violations: InvariantViolation[];
+}
 
-  const stepsLengthRef = useRef(steps.length);
-  useEffect(() => {
-    stepsLengthRef.current = steps.length;
-  }, [steps.length]);
+type StepperAction =
+  | { type: 'STEP_NEXT' }
+  | { type: 'STEP_PREV' }
+  | { type: 'PAUSE' }
+  | { type: 'RESUME' }
+  | { type: 'RESET'; initialSteps?: DebugStep[]; initialPaused: boolean }
+  | { type: 'OVERRIDE_PAYLOAD'; stageId: string; payload: unknown; target?: 'input' | 'output' }
+  | { type: 'SET_STEP_STATUS'; stageId: string; status: StepStatus; error?: string }
+  | { type: 'SET_VIOLATIONS'; violations: InvariantViolation[] };
 
-  const stepNext = useCallback(() => {
-    setCurrentStageIndex(curr => {
-      const maxIdx = stepsLengthRef.current - 1;
-      if (curr >= maxIdx) {
-        setSteps(prev => prev.map((s, idx) => (idx === curr ? { ...s, status: 'completed' } : s)));
-        setAutoPlay(false);
-        return curr;
+function stepperReducer(state: StepperState, action: StepperAction): StepperState {
+  switch (action.type) {
+    case 'STEP_NEXT': {
+      const maxIdx = state.steps.length - 1;
+      if (state.currentStageIndex >= maxIdx) {
+        return {
+          ...state,
+          steps: state.steps.map((s, idx) =>
+            idx === state.currentStageIndex ? { ...s, status: 'completed' } : s
+          ),
+          autoPlay: false,
+          isPaused: true,
+        };
       }
-      const next = curr + 1;
-      setSteps(prev =>
-        prev.map((s, idx) => {
-          if (idx === curr) return { ...s, status: 'completed' };
-          if (idx === next) return { ...s, status: 'active' };
+      const nextIdx = state.currentStageIndex + 1;
+      return {
+        ...state,
+        currentStageIndex: nextIdx,
+        steps: state.steps.map((s, idx) => {
+          if (idx === state.currentStageIndex) return { ...s, status: 'completed' };
+          if (idx === nextIdx) return { ...s, status: 'active' };
           return s;
-        })
-      );
-      return next;
-    });
-  }, []);
-
-  const stepPrev = useCallback(() => {
-    setCurrentStageIndex(curr => {
-      if (curr <= 0) return 0;
-      const prevIdx = curr - 1;
-      setSteps(prev =>
-        prev.map((s, idx) => {
-          if (idx === curr) return { ...s, status: 'pending' };
+        }),
+      };
+    }
+    case 'STEP_PREV': {
+      if (state.currentStageIndex <= 0) return state;
+      const prevIdx = state.currentStageIndex - 1;
+      return {
+        ...state,
+        currentStageIndex: prevIdx,
+        steps: state.steps.map((s, idx) => {
+          if (idx === state.currentStageIndex) return { ...s, status: 'pending' };
           if (idx === prevIdx) return { ...s, status: 'active' };
           return s;
-        })
-      );
-      return prevIdx;
-    });
-  }, []);
-
-  const pause = useCallback(() => {
-    setIsPaused(true);
-    setAutoPlay(false);
-  }, []);
-
-  const resume = useCallback(() => {
-    setIsPaused(false);
-    setAutoPlay(true);
-  }, []);
-
-  const reset = useCallback(() => {
-    setSteps(options?.initialSteps ? [...options.initialSteps] : createInitialSteps());
-    setCurrentStageIndex(0);
-    setIsPaused(options?.initialPaused ?? false);
-    setAutoPlay(false);
-    setViolations([]);
-  }, [options?.initialSteps, options?.initialPaused]);
-
-  const overridePayload = useCallback(
-    (stageId: string, payload: unknown, target: 'input' | 'output' = 'output') => {
-      setSteps(prev =>
-        prev.map(step => {
-          if (step.id !== stageId) return step;
-          if (payload && typeof payload === 'object' && ('input' in payload || 'output' in payload)) {
-            const p = payload as { input?: unknown; output?: unknown };
+        }),
+      };
+    }
+    case 'PAUSE':
+      return {
+        ...state,
+        isPaused: true,
+        autoPlay: false,
+      };
+    case 'RESUME':
+      return {
+        ...state,
+        isPaused: false,
+        autoPlay: true,
+      };
+    case 'RESET':
+      return {
+        steps: action.initialSteps ? [...action.initialSteps] : createInitialSteps(),
+        currentStageIndex: 0,
+        isPaused: action.initialPaused,
+        autoPlay: false,
+        violations: [],
+      };
+    case 'OVERRIDE_PAYLOAD':
+      return {
+        ...state,
+        steps: state.steps.map(step => {
+          if (step.id !== action.stageId) return step;
+          if (action.target === 'input') {
+            return { ...step, inputPayload: action.payload };
+          }
+          if (action.target === 'output') {
+            return { ...step, outputPayload: action.payload };
+          }
+          if (
+            action.payload &&
+            typeof action.payload === 'object' &&
+            ('input' in action.payload || 'output' in action.payload)
+          ) {
+            const p = action.payload as { input?: unknown; output?: unknown };
             return {
               ...step,
               inputPayload: p.input !== undefined ? p.input : step.inputPayload,
               outputPayload: p.output !== undefined ? p.output : step.outputPayload,
             };
           }
-          if (target === 'input') {
-            return { ...step, inputPayload: payload };
-          }
-          return { ...step, outputPayload: payload };
-        })
-      );
+          return { ...step, outputPayload: action.payload };
+        }),
+      };
+    case 'SET_STEP_STATUS':
+      return {
+        ...state,
+        steps: state.steps.map(step => {
+          if (step.id !== action.stageId) return step;
+          return {
+            ...step,
+            status: action.status,
+            error: action.status === 'failed' ? (action.error ?? step.error ?? 'Step failed') : undefined,
+          };
+        }),
+      };
+    case 'SET_VIOLATIONS':
+      return {
+        ...state,
+        violations: action.violations,
+      };
+    default:
+      return state;
+  }
+}
+
+export function usePipelineStepper(options?: UsePipelineStepperOptions): UsePipelineStepperReturn {
+  const initialPaused = options?.initialPaused ?? !options?.autoPlay;
+
+  const [state, dispatch] = useReducer(stepperReducer, undefined, () => ({
+    steps: options?.initialSteps ? [...options.initialSteps] : createInitialSteps(),
+    currentStageIndex: 0,
+    isPaused: initialPaused,
+    autoPlay: options?.autoPlay ?? false,
+    violations: [],
+  }));
+
+  const stepNext = useCallback(() => {
+    dispatch({ type: 'STEP_NEXT' });
+  }, []);
+
+  const stepPrev = useCallback(() => {
+    dispatch({ type: 'STEP_PREV' });
+  }, []);
+
+  const pause = useCallback(() => {
+    dispatch({ type: 'PAUSE' });
+  }, []);
+
+  const resume = useCallback(() => {
+    dispatch({ type: 'RESUME' });
+  }, []);
+
+  const reset = useCallback(() => {
+    dispatch({
+      type: 'RESET',
+      initialSteps: options?.initialSteps,
+      initialPaused: options?.initialPaused ?? !options?.autoPlay,
+    });
+  }, [options?.initialSteps, options?.initialPaused, options?.autoPlay]);
+
+  const overridePayload = useCallback(
+    (stageId: string, payload: unknown, target?: 'input' | 'output') => {
+      dispatch({ type: 'OVERRIDE_PAYLOAD', stageId, payload, target });
     },
     []
   );
 
   const setStepStatus = useCallback((stageId: string, status: StepStatus, error?: string) => {
-    setSteps(prev =>
-      prev.map(step => {
-        if (step.id !== stageId) return step;
-        return {
-          ...step,
-          status,
-          ...(error !== undefined ? { error } : {}),
-        };
-      })
-    );
+    dispatch({ type: 'SET_STEP_STATUS', stageId, status, error });
   }, []);
 
   const auditInvariants = useCallback(
@@ -159,9 +226,11 @@ export function usePipelineStepper(options?: UsePipelineStepperOptions): UsePipe
       foundViolations.push(...leaks);
 
       // 2. Check for fake success honesty invariants across completed steps
-      const providerStatuses = auditOpts?.providerProbeStatuses ?? options?.providerProbeStatuses;
-      for (const step of steps) {
+      const allProviderStatuses = auditOpts?.providerProbeStatuses ?? options?.providerProbeStatuses;
+      for (const step of state.steps) {
         if (step.status === 'completed') {
+          // Scope providerProbeStatuses strictly to retrieval stages
+          const providerStatuses = step.id === 'retrieving' ? allProviderStatuses : undefined;
           const requiredFields =
             auditOpts?.requiredFieldsMap?.[step.id] ?? (step.id === 'retrieving' ? ['sources'] : []);
           const violation = checkHonestyInvariant({
@@ -178,29 +247,29 @@ export function usePipelineStepper(options?: UsePipelineStepperOptions): UsePipe
         }
       }
 
-      setViolations(foundViolations);
+      dispatch({ type: 'SET_VIOLATIONS', violations: foundViolations });
       return foundViolations;
     },
-    [steps, options?.providerProbeStatuses]
+    [state.steps, options?.providerProbeStatuses]
   );
 
   useEffect(() => {
-    if (!autoPlay || isPaused) return;
+    if (!state.autoPlay || state.isPaused) return;
     const interval = setInterval(() => {
-      stepNext();
+      dispatch({ type: 'STEP_NEXT' });
     }, options?.stepIntervalMs ?? 1000);
     return () => clearInterval(interval);
-  }, [autoPlay, isPaused, stepNext, options?.stepIntervalMs]);
+  }, [state.autoPlay, state.isPaused, options?.stepIntervalMs]);
 
-  const currentStep = steps[currentStageIndex];
+  const currentStep = state.steps[state.currentStageIndex];
 
   return {
-    steps,
-    currentStageIndex,
+    steps: state.steps,
+    currentStageIndex: state.currentStageIndex,
     currentStep,
-    isPaused,
-    autoPlay,
-    violations,
+    isPaused: state.isPaused,
+    autoPlay: state.autoPlay,
+    violations: state.violations,
     stepNext,
     stepPrev,
     pause,

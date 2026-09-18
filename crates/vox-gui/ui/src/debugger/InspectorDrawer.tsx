@@ -7,12 +7,11 @@ import {
   RotateCcw,
   CheckCircle2,
   AlertCircle,
-  AlertTriangle,
   Clock,
   ShieldAlert,
 } from 'lucide-react';
 import { usePipelineStepper, type UsePipelineStepperReturn } from './usePipelineStepper';
-import type { StepStatus, InvariantViolation } from './types';
+import type { StepStatus } from './types';
 
 export interface InspectorDrawerProps {
   open: boolean;
@@ -60,6 +59,13 @@ export function InspectorDrawer({ open, onClose, stepper: externalStepper }: Ins
     return stepper.steps.find(s => s.id === currentInspectId) ?? stepper.currentStep;
   }, [stepper.steps, currentInspectId, stepper.currentStep]);
 
+  const isPlaying = stepper.autoPlay && !stepper.isPaused;
+
+  const handleReset = () => {
+    setSelectedStageId(null);
+    stepper.reset();
+  };
+
   if (!open) return null;
 
   return (
@@ -93,12 +99,12 @@ export function InspectorDrawer({ open, onClose, stepper: externalStepper }: Ins
       <div className="flex items-center gap-1.5 border-b border-border-subtle px-4 py-2 bg-surface-primary/80">
         <button
           type="button"
-          aria-label={stepper.isPaused ? 'Play' : 'Pause'}
-          onClick={stepper.isPaused ? stepper.resume : stepper.pause}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+          onClick={isPlaying ? stepper.pause : stepper.resume}
           className="flex items-center gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-xs text-text-secondary hover:bg-overlay-hover hover:text-text-primary transition-colors"
         >
-          {stepper.isPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
-          <span>{stepper.isPaused ? 'Play' : 'Pause'}</span>
+          {isPlaying ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+          <span>{isPlaying ? 'Pause' : 'Play'}</span>
         </button>
 
         <button
@@ -114,7 +120,7 @@ export function InspectorDrawer({ open, onClose, stepper: externalStepper }: Ins
         <button
           type="button"
           aria-label="Reset"
-          onClick={stepper.reset}
+          onClick={handleReset}
           className="flex items-center gap-1.5 rounded border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-xs text-text-secondary hover:bg-overlay-hover hover:text-text-primary transition-colors"
         >
           <RotateCcw className="size-3.5" />
@@ -139,7 +145,7 @@ export function InspectorDrawer({ open, onClose, stepper: externalStepper }: Ins
             Execution Stages
           </span>
           <span className="font-mono text-[10px] text-text-muted">
-            {stepper.isPaused ? 'PAUSED' : stepper.autoPlay ? 'RUNNING' : 'STEPPER'}
+            {isPlaying ? 'RUNNING' : stepper.isPaused ? 'PAUSED' : 'STEPPER'}
           </span>
         </div>
         <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
