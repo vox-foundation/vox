@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a generalized GUI visual debugger and diagnostic invariant sentry system in Axis, wire it into a dedicated Deep Research Lab surface with in-flight breakpoints, a live search provider prober, epistemic judge breakdown, and zero-hits halting, backed by an automated Playwright multi-step screenshot harness and codebase-wide visual verification policy.
+**Goal:** Build a generalized GUI visual debugger and diagnostic invariant sentry system in Axis, wire it into Deep Research with in-flight breakpoints, a live search provider prober, epistemic judge breakdown, and zero-hits halting, backed by an automated Playwright multi-step screenshot harness and codebase-wide visual verification policy.
 
-**Architecture:** A reusable React 19 + TypeScript debugger engine in `crates/vox-gui/ui/src/debugger/` (FSM stepper, global inspector drawer, DOM invariant sentries) communicates via Tauri IPC (`pipeline_step_*`, `gui_capture_snapshot`, `probe_search_provider`) with the Rust backend. The Deep Research Lab registers its 5 pipeline stages into the stepper and enforces a zero-hits hard gate against hallucination. Automated Playwright specs capture full-resolution screenshots at every breakpoint to verify end-to-end evidence.
+**Architecture:** A reusable React 19 + TypeScript debugger engine in `crates/vox-gui/ui/src/debugger/` (canonical 8-stage FSM stepper, global inspector drawer, DOM invariant sentries) communicates via Tauri IPC (`probe_search_provider`) with the Rust backend. Deep Research embeds the prober and judge breakdown into `ResearchView.tsx` and enforces a zero-hits hard gate against hallucination. Automated Playwright specs with deterministic IPC sentinels capture full-resolution screenshots at every breakpoint to verify end-to-end evidence.
 
 **Tech Stack:** TypeScript, React 19, Tailwind CSS, Playwright, Vitest, Rust (Tauri 2, tokio, serde), `vox-search`, `vox-research-shim`.
 
@@ -12,15 +12,306 @@
 
 ## Global Constraints
 
-- Never use `cargo fmt --all` on this workspace (Windows argument limit overflow); format dirty files with `cargo fmt -p vox-gui` / `cargo fmt -p vox-research-shim`.
+- Never run `cargo fmt --all` on this workspace (Windows command-line length overflow); format specific crates with `cargo fmt -p vox-gui` / `cargo fmt -p vox-research-shim`.
 - All automation scripts must be `.vox` or native commands, never new `.ps1`, `.sh`, or `.py`.
 - No raw `__TAURI_INTERNALS__` or unhandled promise rejections may leak to DOM nodes or toasts.
-- All errors displayed to the user must be sanitized with actionable remediation advice.
-- No pipeline stage may claim `completed` if primary output collections are empty without explicit user warning.
+- Never edit `surfaceRegistry.generated.ts` manually; it is derived automatically.
+- Every task MUST be atomic, end green, and be committed before proceeding.
+- Verify-before-use: execute inlined `rg` commands before editing any file to verify existing symbol presence.
+- Two-strike circuit breaker: if any test or compilation step fails twice consecutively, STOP and produce a detailed handoff note.
 
 ---
 
-### Task 1: Diagnostic Invariant Sentries (`Honesty`, `ErrorLeak`, `Occlusion`, `Watchdog`)
+### Task 1: `[SEQUENTIAL]` Zero-Hits Hard Gate & Search Integrity in `vox-research-shim`
+
+**Files:**
+- Modify: `crates/vox-research-shim/src/research/orchestrator/pipeline.rs:320-335`
+- Modify: `crates/vox-research-shim/src/research/orchestrator/web_gather.rs:140-155`
+- Test: `crates/vox-research-shim/tests/research_zero_hits_gate_test.rs`
+
+**Interfaces:**
+- Produces: `ResearchPipelineError::ZeroRetrievalHits`, site scope pushdown in `search_one_subquery`.
+
+- [ ] **Step 1: Verify existing code structure via Preflight Grep**
+```bash
+rg -n "let mut all_hits" crates/vox-research-shim/src/research/orchestrator/pipeline.rs
+rg -n "extract_claims_with_model" crates/vox-research-shim/src/research/orchestrator/pipeline.rs
+rg -n "fn search_one_subquery" crates/vox-research-shim/src/research/orchestrator/web_gather.rs
+```
+Expected: `all_hits` at line 212, `extract_claims_with_model` at line 341, `search_one_subquery` at line 142.
+
+- [ ] **Step 2: Write failing unit test for Zero-Hits Hard Gate**
+Create `crates/vox-research-shim/tests/research_zero_hits_gate_test.rs`:
+```rust
+use vox_research_shim::research::{ResearchConfig, ResearchQuery, ResearchScope, run_research};
+
+#[tokio::test]
+async fn test_empty_web_retrieval_halts_without_synthesis() {
+    let mut config = ResearchConfig::default();
+    config.claim_detection_enabled = true;
+    
+    // An obscure query with web scope that yields zero hits
+    let query = ResearchQuery {
+        query: "x89q_gibberish_term_guaranteed_zero_hits_2026".to_string(),
+        scope: ResearchScope::Web,
+        max_sources: 5,
+        verify_claims: true,
+        site_scope: None,
+        waves: 1,
+        domain_mode: vox_research_shim::research::ResearchDomainMode::General,
+    };
+
+    let result = run_research(query, &config).await;
+    assert!(result.is_err(), "Pipeline must halt with Err on zero retrieval hits");
+    let err_str = result.err().unwrap().to_string();
+    assert!(err_str.contains("Zero evidence sources retrieved"), "Error must clearly cite zero retrieval hits: {err_str}");
+}
+```
+
+- [ ] **Step 3: Run test to verify it fails**
+Run: `cargo test -p vox-research-shim --test research_zero_hits_gate_test`
+Expected: FAIL (currently succeeds and synthesizes empty placeholder).
+
+- [ ] **Step 4: Implement Zero-Hits Hard Gate and Site Scope Pushdown**
+1. In `crates/vox-research-shim/src/research/orchestrator/pipeline.rs`, right before step `(e) Confidence gate` (around line 324):
+```rust
+    if do_web && all_hits.is_empty() {
+        let err_msg = "Deep Research halted: Zero evidence sources retrieved across search providers. Halting to prevent hallucinated synthesis.";
+        tracing::error!(query = %query.query, "{err_msg}");
+        set_session_stage(db, session_id, ResearchStage::Failed).await;
+        return Err(anyhow::anyhow!(err_msg));
+    }
+```
+2. In `crates/vox-research-shim/src/research/orchestrator/web_gather.rs` (lines 142–155), push `site:<domain>` into the search query:
+```rust
+async fn search_one_subquery(
+    subquery: &str,
+    policy: &SearchPolicy,
+    registry: &ProviderRegistry,
+    site_scope: Option<&str>,
+    seen_urls: &mut HashSet<String>,
+    all_hits: &mut Vec<ResearchHit>,
+    novelty_scorer: &mut vox_search::novelty::NoveltyScorer,
+) -> (usize, usize) {
+    let query_string = match site_scope {
+        Some(scope) if !scope.trim().is_empty() => format!("{subquery} site:{scope}"),
+        _ => subquery.to_string(),
+    };
+    let (mut hits, _) = registry.search(&query_string, policy).await;
+```
+
+- [ ] **Step 5: Run test to verify it passes**
+Run: `cargo test -p vox-research-shim --test research_zero_hits_gate_test`
+Expected: PASS
+Run: `cargo check -p vox-research-shim`
+Run: `cargo fmt -p vox-research-shim`
+
+- [ ] **Step 6: Commit Task 1**
+```bash
+git add crates/vox-research-shim/src/research/orchestrator/pipeline.rs crates/vox-research-shim/src/research/orchestrator/web_gather.rs crates/vox-research-shim/tests/research_zero_hits_gate_test.rs
+git commit -m "feat(research): enforce zero-hits hard gate and pushdown site scope in retrieval"
+```
+
+---
+
+### Task 2: `[SEQUENTIAL]` Direct Search Provider Prober Tauri Command
+
+**Files:**
+- Create: `crates/vox-gui/src/commands/search_probe.rs`
+- Modify: `crates/vox-gui/src/commands/mod.rs`
+- Modify: `crates/vox-gui/src/main.rs`
+- Test: `crates/vox-gui/tests/search_probe_test.rs`
+
+**Interfaces:**
+- Produces: `probe_search_provider`, `probe_all_search_providers`.
+
+- [ ] **Step 1: Verify existing command registration via Preflight Grep**
+```bash
+rg -n "pub mod research;" crates/vox-gui/src/commands/mod.rs
+rg -n "start_research_async" crates/vox-gui/src/main.rs
+```
+
+- [ ] **Step 2: Implement search_probe.rs command**
+Create `crates/vox-gui/src/commands/search_probe.rs`:
+```rust
+use serde::{Deserialize, Serialize};
+use vox_search::policy::SearchPolicy;
+use vox_search::searxng::SearxngSearchClient;
+use vox_search::tavily::TavilySearchClient;
+use vox_search::duckduckgo::DuckDuckGoClient;
+use vox_search::wikipedia::WikipediaClient;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderProbeResult {
+    pub provider: String,
+    pub http_status: u16,
+    pub latency_ms: u64,
+    pub success: bool,
+    pub hit_count: usize,
+    pub sample_titles: Vec<String>,
+    pub error_message: Option<String>,
+    pub remediation_tip: Option<String>,
+}
+
+#[tauri::command]
+pub async fn probe_search_provider(
+    provider: String,
+    query: String,
+) -> Result<ProviderProbeResult, String> {
+    let start = std::time::Instant::now();
+    let q = query.trim();
+    if q.is_empty() {
+        return Err("Query cannot be empty".into());
+    }
+
+    match provider.to_lowercase().as_str() {
+        "searxng" => {
+            let policy = SearchPolicy::default();
+            let base_url = match &policy.searxng_url {
+                Some(url) if !url.trim().is_empty() => url.clone(),
+                _ => return Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 0,
+                    latency_ms: 0,
+                    success: false,
+                    hit_count: 0,
+                    sample_titles: vec![],
+                    error_message: Some("SearXNG URL is not configured".into()),
+                    remediation_tip: Some("Set VOX_SEARCH_SEARXNG_URL in environment or settings".into()),
+                }),
+            };
+            let client = SearxngSearchClient::new(base_url);
+            match client.search(q, 3, None, None).await {
+                Ok(hits) => Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 200,
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    success: true,
+                    hit_count: hits.len(),
+                    sample_titles: hits.iter().map(|h| h.title.clone()).collect(),
+                    error_message: None,
+                    remediation_tip: None,
+                }),
+                Err(e) => Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 502,
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    success: false,
+                    hit_count: 0,
+                    sample_titles: vec![],
+                    error_message: Some(e.to_string()),
+                    remediation_tip: Some("Check if the SearXNG instance is running and reachable".into()),
+                }),
+            }
+        },
+        "tavily" => {
+            let client = match TavilySearchClient::from_env() {
+                Some(c) => c,
+                None => return Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 0,
+                    latency_ms: 0,
+                    success: false,
+                    hit_count: 0,
+                    sample_titles: vec![],
+                    error_message: Some("TAVILY_API_KEY is unset".into()),
+                    remediation_tip: Some("Configure Tavily API key in settings or secrets".into()),
+                }),
+            };
+            match client.search(q, 3, "basic").await {
+                Ok(hits) => Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 200,
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    success: true,
+                    hit_count: hits.len(),
+                    sample_titles: hits.iter().map(|h| h.title.clone()).collect(),
+                    error_message: None,
+                    remediation_tip: None,
+                }),
+                Err(e) => Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 500,
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    success: false,
+                    hit_count: 0,
+                    sample_titles: vec![],
+                    error_message: Some(e),
+                    remediation_tip: Some("Verify your Tavily API quota and key validity".into()),
+                }),
+            }
+        },
+        "duckduckgo" => {
+            match DuckDuckGoClient::search(q, 3).await {
+                Ok(hits) => Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 200,
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    success: true,
+                    hit_count: hits.len(),
+                    sample_titles: hits.iter().map(|h| h.title.clone()).collect(),
+                    error_message: if hits.is_empty() { Some("Instant Answer returned 0 topics".into()) } else { None },
+                    remediation_tip: if hits.is_empty() { Some("DDG Instant Answer only matches entity terms; general web requires SearXNG or Tavily".into()) } else { None },
+                }),
+                Err(e) => Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 500,
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    success: false,
+                    hit_count: 0,
+                    sample_titles: vec![],
+                    error_message: Some(e.to_string()),
+                    remediation_tip: None,
+                }),
+            }
+        },
+        "wikipedia" => {
+            match WikipediaClient::search(q, 3).await {
+                Ok(hits) => Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 200,
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    success: true,
+                    hit_count: hits.len(),
+                    sample_titles: hits.iter().map(|h| h.title.clone()).collect(),
+                    error_message: None,
+                    remediation_tip: None,
+                }),
+                Err(e) => Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 500,
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    success: false,
+                    hit_count: 0,
+                    sample_titles: vec![],
+                    error_message: Some(e.to_string()),
+                    remediation_tip: None,
+                }),
+            }
+        },
+        other => Err(format!("Unknown provider: {other}")),
+    }
+}
+```
+
+- [ ] **Step 3: Register command in mod.rs and main.rs**
+In `crates/vox-gui/src/commands/mod.rs`, add `pub mod search_probe;`.
+In `crates/vox-gui/src/main.rs`, add `commands::search_probe::probe_search_provider` to `tauri::generate_handler![...]`.
+
+- [ ] **Step 4: Verify compilation and formatting**
+Run: `cargo check -p vox-gui`
+Run: `cargo fmt -p vox-gui`
+Expected: Clean compile.
+
+- [ ] **Step 5: Commit Task 2**
+```bash
+git add crates/vox-gui/src/commands/search_probe.rs crates/vox-gui/src/commands/mod.rs crates/vox-gui/src/main.rs
+git commit -m "feat(gui): implement isolated search provider prober command"
+```
+
+---
+
+### Task 3: `[SEQUENTIAL]` Core Invariant Sentries (`Honesty` & `ErrorLeak`) Reusing `backendGuard`
 
 **Files:**
 - Create: `crates/vox-gui/ui/src/debugger/types.ts`
@@ -28,15 +319,18 @@
 - Create: `crates/vox-gui/ui/src/debugger/sentries/sentryHonesty.test.ts`
 - Create: `crates/vox-gui/ui/src/debugger/sentries/sentryErrorLeak.ts`
 - Create: `crates/vox-gui/ui/src/debugger/sentries/sentryErrorLeak.test.ts`
-- Create: `crates/vox-gui/ui/src/debugger/sentries/sentryOcclusion.ts`
-- Create: `crates/vox-gui/ui/src/debugger/sentries/sentryOcclusion.test.ts`
-- Create: `crates/vox-gui/ui/src/debugger/sentries/sentryWatchdog.ts`
-- Create: `crates/vox-gui/ui/src/debugger/sentries/sentryWatchdog.test.ts`
 
 **Interfaces:**
-- Produces: `InvariantViolation`, `checkHonestyInvariant()`, `checkErrorLeakInvariant()`, `checkOcclusionInvariant()`, `createWatchdogTracker()`.
+- Consumes: `LEAK_PATTERN` from `crates/vox-gui/ui/src/lib/backendGuard.ts`.
+- Produces: `checkHonestyInvariant`, `checkErrorLeakInvariant`.
 
-- [ ] **Step 1: Define Debugger Types**
+- [ ] **Step 1: Verify existing error patterns via Preflight Grep**
+```bash
+rg -n "LEAK_PATTERN" crates/vox-gui/ui/src/lib/backendGuard.ts
+```
+Expected: line 52.
+
+- [ ] **Step 2: Create types.ts**
 Create `crates/vox-gui/ui/src/debugger/types.ts`:
 ```typescript
 export type StepStatus = 'pending' | 'active' | 'paused' | 'completed' | 'failed' | 'skipped';
@@ -44,7 +338,6 @@ export type StepStatus = 'pending' | 'active' | 'paused' | 'completed' | 'failed
 export interface DebugStep<TInput = unknown, TOutput = unknown> {
   id: string;
   label: string;
-  description?: string;
   status: StepStatus;
   inputPayload?: TInput;
   outputPayload?: TOutput;
@@ -52,16 +345,11 @@ export interface DebugStep<TInput = unknown, TOutput = unknown> {
   timingMs?: number;
 }
 
-export interface BreakpointConfig {
-  pauseBeforeStepIds: Set<string>;
-  pauseAfterStepIds: Set<string>;
-  pauseOnError: boolean;
-  pauseOnZeroData: boolean;
-}
+export type InvariantSeverity = 'critical' | 'major' | 'minor' | 'info';
 
 export interface InvariantViolation {
-  kind: 'fake_success' | 'raw_error_leak' | 'occlusion' | 'watchdog_stalled' | 'a11y_contrast';
-  severity: 'critical' | 'major' | 'minor';
+  kind: 'fake_success' | 'raw_error_leak' | 'occlusion' | 'watchdog_stalled';
+  severity: InvariantSeverity;
   message: string;
   elementSelector?: string;
   location?: string;
@@ -69,408 +357,249 @@ export interface InvariantViolation {
 }
 ```
 
-- [ ] **Step 2: Write failing test for Honesty Sentry**
-Create `crates/vox-gui/ui/src/debugger/sentries/sentryHonesty.test.ts`:
-```typescript
-import { describe, it, expect } from 'vitest';
-import { checkHonestyInvariant } from './sentryHonesty';
-
-describe('sentryHonesty', () => {
-  it('flags fake success when status is completed but required collections are empty', () => {
-    const violation = checkHonestyInvariant({
-      status: 'completed',
-      payload: { sources: [], claims: [] },
-      requiredFields: ['sources'],
-      stageName: 'MultiSourceRetrieval',
-    });
-    expect(violation).not.toBeNull();
-    expect(violation?.kind).toBe('fake_success');
-    expect(violation?.severity).toBe('critical');
-    expect(violation?.message).toContain('MultiSourceRetrieval completed with zero sources');
-  });
-
-  it('passes when required collections have items', () => {
-    const violation = checkHonestyInvariant({
-      status: 'completed',
-      payload: { sources: [{ url: 'https://example.com' }] },
-      requiredFields: ['sources'],
-      stageName: 'MultiSourceRetrieval',
-    });
-    expect(violation).toBeNull();
-  });
-});
-```
-
-- [ ] **Step 3: Run Honesty Sentry test to verify failure**
-Run: `pnpm --dir crates/vox-gui/ui test sentryHonesty.test.ts`
-Expected: FAIL with "checkHonestyInvariant is not defined"
-
-- [ ] **Step 4: Implement Honesty Sentry**
+- [ ] **Step 3: Write test and implement sentryHonesty.ts**
 Create `crates/vox-gui/ui/src/debugger/sentries/sentryHonesty.ts`:
 ```typescript
 import type { InvariantViolation, StepStatus } from '../types';
 
-export interface HonestyCheckParams {
+export interface HonestyAuditContext {
   status: StepStatus;
   payload: Record<string, unknown> | null | undefined;
-  requiredFields?: string[];
+  requiredFields: string[];
   stageName: string;
+  providerProbeStatuses?: Array<{ provider: string; ok: boolean; httpStatus: number; hitCount: number }>;
+  domContainer?: HTMLElement | null;
 }
 
-export function checkHonestyInvariant({
-  status,
-  payload,
-  requiredFields = [],
-  stageName,
-}: HonestyCheckParams): InvariantViolation | null {
-  if (status !== 'completed') return null;
-  if (!payload) {
+export function checkHonestyInvariant(ctx: HonestyAuditContext): InvariantViolation | null {
+  if (ctx.status !== 'completed') return null;
+
+  const emptyField = ctx.requiredFields.find((f) => {
+    const val = ctx.payload?.[f];
+    return !val || (Array.isArray(val) && val.length === 0);
+  });
+
+  if (!emptyField) return null;
+
+  // 1. If providers all failed, this is an infrastructure failure
+  const allProvidersFailed =
+    ctx.providerProbeStatuses &&
+    ctx.providerProbeStatuses.length > 0 &&
+    ctx.providerProbeStatuses.every((p) => !p.ok || p.httpStatus >= 400);
+
+  if (allProvidersFailed) {
     return {
       kind: 'fake_success',
       severity: 'critical',
-      message: `${stageName} completed with null/empty payload`,
-      location: stageName,
+      message: `${ctx.stageName} claimed completion, but all search providers failed. Expected error state.`,
+      location: ctx.stageName,
     };
   }
-  for (const field of requiredFields) {
-    const val = payload[field];
-    if (Array.isArray(val) && val.length === 0) {
-      return {
-        kind: 'fake_success',
-        severity: 'critical',
-        message: `${stageName} completed with zero ${field}`,
-        location: `${stageName}.${field}`,
-      };
-    }
+
+  // 2. Check if the UI honestly rendered an acknowledged empty state
+  const hasEmptyNotice = ctx.domContainer?.querySelector('[data-testid="empty-results-notice"]') !== null;
+  const isAcknowledged = ctx.payload?.emptyStateAcknowledged === true;
+
+  if (hasEmptyNotice || isAcknowledged) {
+    return null; // Valid honest empty search
   }
-  return null;
+
+  // 3. Groundless fake success
+  return {
+    kind: 'fake_success',
+    severity: 'critical',
+    message: `${ctx.stageName} completed with zero ${emptyField} without rendering an honest empty-state notice.`,
+    location: `${ctx.stageName}.${emptyField}`,
+  };
 }
 ```
 
-- [ ] **Step 5: Write failing test for Error Leak Sentry**
-Create `crates/vox-gui/ui/src/debugger/sentries/sentryErrorLeak.test.ts`:
-```typescript
-import { describe, it, expect } from 'vitest';
-import { checkErrorLeakInvariant } from './sentryErrorLeak';
-
-describe('sentryErrorLeak', () => {
-  it('detects raw TypeError and __TAURI_INTERNALS__ leak', () => {
-    const el = document.createElement('div');
-    el.innerHTML = '<span>TypeError: cannot read property of null at window.__TAURI_INTERNALS__</span>';
-    const violations = checkErrorLeakInvariant(el);
-    expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].kind).toBe('raw_error_leak');
-    expect(violations[0].severity).toBe('critical');
-  });
-
-  it('passes on clean DOM tree', () => {
-    const el = document.createElement('div');
-    el.innerHTML = '<p>Operation completed successfully. No results found.</p>';
-    const violations = checkErrorLeakInvariant(el);
-    expect(violations.length).toBe(0);
-  });
-});
-```
-
-- [ ] **Step 6: Implement Error Leak Sentry**
+- [ ] **Step 4: Write test and implement sentryErrorLeak.ts**
 Create `crates/vox-gui/ui/src/debugger/sentries/sentryErrorLeak.ts`:
 ```typescript
+import { LEAK_PATTERN } from '../../lib/backendGuard';
 import type { InvariantViolation } from '../types';
 
-const FORBIDDEN_PATTERNS = [
-  /TypeError:/i,
-  /__TAURI_INTERNALS__/i,
-  /undefined is not/i,
-  /null is not/i,
-  /\[object Object\]/i,
-  /uncaught (in promise)/i,
-];
+const SYSTEM_CHROME_SELECTOR = '[data-testid="toast-item"], [role="alert"], [role="status"], header, [data-testid="error-boundary"]';
+const EXCLUDE_CONTENT_SELECTOR = '.prose, .markdown-body, pre, code, [data-testid="chat-transcript"], [data-testid="terminal-stream"], [data-testid="inspector-drawer"]';
 
 export function checkErrorLeakInvariant(root: Element = document.body): InvariantViolation[] {
   const violations: InvariantViolation[] = [];
-  const textNodes: Node[] = [];
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let node: Node | null;
-  while ((node = walker.nextNode())) {
-    textNodes.push(node);
-  }
+  const systemElements = Array.from(root.querySelectorAll<HTMLElement>(SYSTEM_CHROME_SELECTOR));
 
-  for (const textNode of textNodes) {
-    const content = textNode.textContent ?? '';
-    for (const pattern of FORBIDDEN_PATTERNS) {
-      if (pattern.test(content)) {
-        violations.push({
-          kind: 'raw_error_leak',
-          severity: 'critical',
-          message: `Raw error string leaked to DOM: "${content.trim().slice(0, 100)}"`,
-          elementSelector: textNode.parentElement?.tagName.toLowerCase(),
-          rawDetails: content,
-        });
-        break;
-      }
+  for (const el of systemElements) {
+    if (el.closest(EXCLUDE_CONTENT_SELECTOR)) continue;
+    const text = el.textContent ?? '';
+
+    if (LEAK_PATTERN.test(text) || /\[object Object\]/.test(text) || /undefined is not a/.test(text) || /TypeError:/.test(text)) {
+      violations.push({
+        kind: 'raw_error_leak',
+        severity: 'critical',
+        message: `Raw runtime exception leaked into system chrome: "${text.trim().slice(0, 80)}"`,
+        elementSelector: el.tagName.toLowerCase(),
+      });
     }
   }
   return violations;
 }
 ```
 
-- [ ] **Step 7: Implement Occlusion and Watchdog Sentries & Tests**
-Create `crates/vox-gui/ui/src/debugger/sentries/sentryOcclusion.ts` and `crates/vox-gui/ui/src/debugger/sentries/sentryWatchdog.ts` with matching test files.
-Run: `pnpm --dir crates/vox-gui/ui test sentry`
-Expected: All sentry tests PASS.
-
-- [ ] **Step 8: Commit Task 1**
-```bash
-git add crates/vox-gui/ui/src/debugger/
-git commit -m "feat(gui): implement diagnostic invariant sentries for honesty, leaks, and occlusion"
-```
-
----
-
-### Task 2: Universal Stepper Finite State Machine & Hook (`usePipelineStepper`)
-
-**Files:**
-- Create: `crates/vox-gui/ui/src/debugger/usePipelineStepper.ts`
-- Create: `crates/vox-gui/ui/src/debugger/usePipelineStepper.test.ts`
-- Create: `crates/vox-gui/ui/src/debugger/snapshotService.ts`
-- Create: `crates/vox-gui/ui/src/debugger/snapshotService.test.ts`
-
-**Interfaces:**
-- Consumes: `DebugStep`, `BreakpointConfig`, `InvariantViolation` from Task 1.
-- Produces: `usePipelineStepper({ steps, onStepExecute })` returning `{ currentStepIndex, isPaused, activeStep, stepNext, pause, resume, overridePayload }`.
-
-- [ ] **Step 1: Write failing test for usePipelineStepper**
-Create `crates/vox-gui/ui/src/debugger/usePipelineStepper.test.ts`:
-```typescript
-import { describe, it, expect, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { usePipelineStepper } from './usePipelineStepper';
-import type { DebugStep } from './types';
-
-describe('usePipelineStepper', () => {
-  const initialSteps: DebugStep[] = [
-    { id: 's1', label: 'Step 1', status: 'pending' },
-    { id: 's2', label: 'Step 2', status: 'pending' },
-  ];
-
-  it('pauses at step when breakpoint is set', async () => {
-    const onExecute = vi.fn().mockResolvedValue({ result: 'data1' });
-    const { result } = renderHook(() =>
-      usePipelineStepper({
-        steps: initialSteps,
-        initialBreakpoints: {
-          pauseBeforeStepIds: new Set(['s2']),
-          pauseAfterStepIds: new Set(),
-          pauseOnError: true,
-          pauseOnZeroData: true,
-        },
-        onExecuteStep: onExecute,
-      })
-    );
-
-    await act(async () => {
-      await result.current.start();
-    });
-
-    // s1 executed, stopped before s2
-    expect(result.current.currentStepId).toBe('s2');
-    expect(result.current.isPaused).toBe(true);
-    expect(onExecute).toHaveBeenCalledTimes(1);
-  });
-});
-```
-
-- [ ] **Step 2: Run hook test to verify failure**
-Run: `pnpm --dir crates/vox-gui/ui test usePipelineStepper.test.ts`
-Expected: FAIL with "usePipelineStepper is not defined"
-
-- [ ] **Step 3: Implement usePipelineStepper**
-Create `crates/vox-gui/ui/src/debugger/usePipelineStepper.ts`:
-Implement the state machine supporting `start()`, `pause()`, `stepNext()`, `resume()`, `overridePayload(stepId, data)`, and registering active invariant violations.
-
-- [ ] **Step 4: Implement snapshotService**
-Create `crates/vox-gui/ui/src/debugger/snapshotService.ts` to capture DOM bounding client rects, active sentry violations, and invoke Tauri `gui_capture_snapshot` when available, falling back to local canvas serialization.
-
 - [ ] **Step 5: Run tests and verify passing**
-Run: `pnpm --dir crates/vox-gui/ui test usePipelineStepper.test.ts`
-Run: `pnpm --dir crates/vox-gui/ui test snapshotService.test.ts`
-Expected: PASS
-
-- [ ] **Step 6: Commit Task 2**
-```bash
-git add crates/vox-gui/ui/src/debugger/usePipelineStepper.* crates/vox-gui/ui/src/debugger/snapshotService.*
-git commit -m "feat(gui): implement universal pipeline stepper FSM and snapshot service"
-```
-
----
-
-### Task 3: Backend Search Prober & Stepper Tauri Commands
-
-**Files:**
-- Create: `crates/vox-gui/src/commands/search_probe.rs`
-- Create: `crates/vox-gui/src/commands/debugger.rs`
-- Modify: `crates/vox-gui/src/commands/mod.rs`
-- Modify: `crates/vox-gui/src/main.rs`
-- Modify: `crates/vox-research-shim/src/research/orchestrator/pipeline.rs` (Zero-hits hard gate)
-- Test: `crates/vox-gui/tests/search_probe_test.rs`
-
-**Interfaces:**
-- Produces: `probe_search_provider`, `probe_all_search_providers`, `gui_capture_snapshot`, `pipeline_step_pause`, `pipeline_step_resume`.
-
-- [ ] **Step 1: Implement Zero-Hits Hard Gate in Research Pipeline**
-In `crates/vox-research-shim/src/research/orchestrator/pipeline.rs`:
-Add explicit check right after web/local gather:
-```rust
-if all_hits.is_empty() {
-    let msg = "Deep Research failed: zero evidence sources retrieved across providers. Synthesis halted.";
-    tracing::error!(query = %query.query, "{msg}");
-    set_session_stage(db, session_id, ResearchStage::Failed).await;
-    return Err(anyhow::anyhow!("{msg}"));
-}
-```
-
-- [ ] **Step 2: Implement search_probe.rs in vox-gui**
-Create `crates/vox-gui/src/commands/search_probe.rs` with `probe_search_provider(provider_name: String, query: String)` calling `WebSearchDispatcher` and measuring status code, latency, and hit count.
-
-- [ ] **Step 3: Implement debugger.rs in vox-gui**
-Create `crates/vox-gui/src/commands/debugger.rs` handling `gui_capture_snapshot` writing PNG bytes + JSON metadata to `review-bundle/latest/` or `target/gui-snapshots/`.
-
-- [ ] **Step 4: Wire commands into main.rs**
-Register in `tauri::generate_handler![..., commands::search_probe::probe_search_provider, commands::search_probe::probe_all_search_providers, commands::debugger::gui_capture_snapshot]`.
-
-- [ ] **Step 5: Run Rust tests**
-Run: `cargo test -p vox-gui search_probe`
+Run: `pnpm --dir crates/vox-gui/ui test sentryHonesty.test.ts sentryErrorLeak.test.ts`
 Expected: PASS
 
 - [ ] **Step 6: Commit Task 3**
 ```bash
-git add crates/vox-gui/src/commands/search_probe.rs crates/vox-gui/src/commands/debugger.rs crates/vox-gui/src/main.rs crates/vox-gui/src/commands/mod.rs crates/vox-research-shim/src/research/orchestrator/pipeline.rs
-git commit -m "feat(backend): add direct search provider prober, snapshot command, and zero-hits hard gate"
+git add crates/vox-gui/ui/src/debugger/
+git commit -m "feat(debugger): implement honesty and scoped error leak sentries"
 ```
 
 ---
 
-### Task 4: Global Inspector Drawer Component (`InspectorDrawer.tsx`)
+### Task 4: `[SEQUENTIAL]` Canonical Pipeline Stepper Hook & Global Inspector Drawer
 
 **Files:**
+- Create: `crates/vox-gui/ui/src/debugger/usePipelineStepper.ts`
+- Create: `crates/vox-gui/ui/src/debugger/usePipelineStepper.test.ts`
 - Create: `crates/vox-gui/ui/src/debugger/InspectorDrawer.tsx`
 - Create: `crates/vox-gui/ui/src/debugger/InspectorDrawer.test.tsx`
-- Modify: `crates/vox-gui/ui/src/App.tsx` (Mount global drawer + keybinding)
+- Modify: `crates/vox-gui/ui/src/lib/keybinds.ts`
+- Modify: `crates/vox-gui/ui/src/App.tsx`
 
 **Interfaces:**
-- Consumes: `usePipelineStepper`, `snapshotService`, `sentry*`.
-- Produces: Collapsible bottom/side dock with tabs: *Timeline/DAG*, *Payload Inspector/Editor*, *Sentry Violations*, *Viewport Matrix*.
+- Consumes: `RESEARCH_STAGES` from `crates/vox-gui/ui/src/lib/pipeline.ts`.
+- Produces: `usePipelineStepper`, `InspectorDrawer`, keybind `'toggle-inspector'`.
 
-- [ ] **Step 1: Write failing test for InspectorDrawer**
-Create `crates/vox-gui/ui/src/debugger/InspectorDrawer.test.tsx`:
-Verify that pressing `Cmd+Shift+D` opens the drawer and renders the Step timeline, JSON editor, and Sentry Violations badge.
+- [ ] **Step 1: Verify RESEARCH_STAGES via Preflight Grep**
+```bash
+rg -n "RESEARCH_STAGES" crates/vox-gui/ui/src/lib/pipeline.ts
+```
+Expected: line 4: `export const RESEARCH_STAGES = ['queued', 'planning', 'retrieving', 'verifying_claims', 'synthesizing', 'auditing_citations', 'persisting_artifact', 'completed'] as const;`
 
-- [ ] **Step 2: Implement InspectorDrawer**
+- [ ] **Step 2: Implement usePipelineStepper.ts matching 8 stages**
+Create `crates/vox-gui/ui/src/debugger/usePipelineStepper.ts` providing step transitions, active index tracking, `stepNext()`, `pause()`, `resume()`, and `overridePayload()`.
+
+- [ ] **Step 3: Implement InspectorDrawer.tsx as fixed overlay at z-45**
 Create `crates/vox-gui/ui/src/debugger/InspectorDrawer.tsx`:
-Include:
-- Two-pane JSON editor for step inputs/outputs.
-- Live Sentry warnings counter with alert popups.
-- Viewport size switcher (`Compact 900px`, `Laptop 1100px`, `Wide 1440px`).
-- "Capture Visual Evidence" snapshot button.
+Slide-out drawer mounted fixed on the right (`fixed inset-y-0 right-0 z-45 w-[420px] bg-surface-primary border-l border-border-subtle shadow-2xl`), rendering the 8-stage timeline, two-column JSON payload viewer, and sentry warnings badge.
 
-- [ ] **Step 3: Mount InspectorDrawer in App.tsx**
-Add keyboard listener for `(e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'D'` to toggle drawer.
+- [ ] **Step 4: Register keybind in keybinds.ts and mount in App.tsx**
+1. In `keybinds.ts`, add `'toggle-inspector': 'Mod+Shift+D'` to `DEFAULT_BINDINGS`.
+2. In `App.tsx`, wire `actionHandlers['toggle-inspector'] = () => setIsInspectorOpen(p => !p)`.
+3. Render `<InspectorDrawer open={isInspectorOpen} onClose={() => setIsInspectorOpen(false)} />` alongside `DocViewerDrawer` at line 2042.
 
-- [ ] **Step 4: Run tests**
-Run: `pnpm --dir crates/vox-gui/ui test InspectorDrawer.test.tsx`
+- [ ] **Step 5: Run tests**
+Run: `pnpm --dir crates/vox-gui/ui test usePipelineStepper.test.ts InspectorDrawer.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Commit Task 4**
+- [ ] **Step 6: Commit Task 4**
 ```bash
-git add crates/vox-gui/ui/src/debugger/InspectorDrawer.* crates/vox-gui/ui/src/App.tsx
-git commit -m "feat(gui): mount global Inspector Drawer with payload editor, sentry alerts, and viewport switcher"
+git add crates/vox-gui/ui/src/debugger/usePipelineStepper.* crates/vox-gui/ui/src/debugger/InspectorDrawer.* crates/vox-gui/ui/src/lib/keybinds.ts crates/vox-gui/ui/src/App.tsx
+git commit -m "feat(gui): implement 8-stage pipeline stepper hook and mount Inspector Drawer overlay"
 ```
 
 ---
 
-### Task 5: Deep Research Lab Surface (`ResearchLabView`, `LiveSourceProber`, `JudgeInspector`)
+### Task 5: `[SEQUENTIAL]` Embed Live Source Prober and Diagnostic Mode in `ResearchView.tsx`
 
 **Files:**
-- Create: `crates/vox-gui/ui/src/components/surfaces/ResearchLab/LiveSourceProber.tsx`
-- Create: `crates/vox-gui/ui/src/components/surfaces/ResearchLab/LiveSourceProber.test.tsx`
-- Create: `crates/vox-gui/ui/src/components/surfaces/ResearchLab/JudgeInspector.tsx`
-- Create: `crates/vox-gui/ui/src/components/surfaces/ResearchLab/JudgeInspector.test.tsx`
-- Create: `crates/vox-gui/ui/src/components/surfaces/ResearchLab/ResearchLabView.tsx`
-- Create: `crates/vox-gui/ui/src/components/surfaces/ResearchLab/ResearchLabView.test.tsx`
-- Modify: `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts` (Register `research-lab`)
+- Create: `crates/vox-gui/ui/src/components/surfaces/Research/LiveSourceProber.tsx`
+- Create: `crates/vox-gui/ui/src/components/surfaces/Research/LiveSourceProber.test.tsx`
+- Create: `crates/vox-gui/ui/src/components/surfaces/Research/JudgeInspector.tsx`
+- Create: `crates/vox-gui/ui/src/components/surfaces/Research/JudgeInspector.test.tsx`
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Research/ResearchView.tsx`
 
 **Interfaces:**
-- Consumes: `usePipelineStepper`, `probe_search_provider`, `JudgeParams`.
-- Produces: Complete step-by-step Research Lab workbench surface.
+- Consumes: `probe_search_provider` Tauri command.
+- Produces: Inline diagnostic toolbar and prober inside `ResearchView.tsx`.
 
-- [ ] **Step 1: Write test and implement LiveSourceProber**
-Create `LiveSourceProber.tsx`: A diagnostic card where users can type a query and click "Probe Sources". Renders a table with provider name (SearXNG, Tavily, DDG, Wikipedia, Local), HTTP status badge, round-trip latency, returned snippet count, and error remediation tips.
+- [ ] **Step 1: Preflight Grep on ResearchView.tsx**
+```bash
+rg -n "export function ResearchView" crates/vox-gui/ui/src/components/surfaces/Research/ResearchView.tsx
+```
+Expected: line 76.
 
-- [ ] **Step 2: Write test and implement JudgeInspector**
-Create `JudgeInspector.tsx`: An epistemic breakdown component displaying the judge LLM system prompt, atomic claims mapped against evidence citations, verifiability confidence score, and the judge's full written chain-of-thought rationale.
+- [ ] **Step 2: Implement LiveSourceProber.tsx**
+Create `LiveSourceProber.tsx`: Input query text, selector for SearXNG, Tavily, DDG, Wikipedia, and "Probe" button invoking `probe_search_provider`. Renders latency badge, HTTP code, hit count, and remediation tips.
 
-- [ ] **Step 3: Implement ResearchLabView**
-Create `ResearchLabView.tsx`: Connects the 5 research stages (Decomposition, Multi-Source Retrieval, Evidence Extraction, Claim Extraction & Epistemic Judge, Synthesis) to `usePipelineStepper`.
-Provides per-stage breakpoint checkboxes (`Pause Before Stage`). When paused at MultiSourceRetrieval, renders the `LiveSourceProber`. When paused at EpistemicJudge, renders the `JudgeInspector`.
+- [ ] **Step 3: Implement JudgeInspector.tsx**
+Create `JudgeInspector.tsx`: Displays the judge rubric sub-scores (Factual Accuracy, Citation Density, Coverage) and the full chain-of-thought rationale.
 
-- [ ] **Step 4: Register Surface in surfaceRegistry**
-Add `'research-lab'` to `SURFACE_REGISTRY` with title `"Research Lab"`.
+- [ ] **Step 4: Embed Diagnostic Controls in ResearchView.tsx**
+In `ResearchView.tsx`: Add a `"Diagnostic Prober"` toggle button in the header (adjacent to `Publish Architecture SSOT` and `Sandbox REPL`) that expands `LiveSourceProber` and `JudgeInspector`.
 
 - [ ] **Step 5: Run tests**
-Run: `pnpm --dir crates/vox-gui/ui test ResearchLab`
+Run: `pnpm --dir crates/vox-gui/ui test LiveSourceProber.test.tsx JudgeInspector.test.tsx ResearchView.test.tsx`
 Expected: PASS
 
 - [ ] **Step 6: Commit Task 5**
 ```bash
-git add crates/vox-gui/ui/src/components/surfaces/ResearchLab/
-git commit -m "feat(gui): create Deep Research Lab surface with live prober and epistemic judge inspector"
+git add crates/vox-gui/ui/src/components/surfaces/Research/LiveSourceProber.* crates/vox-gui/ui/src/components/surfaces/Research/JudgeInspector.* crates/vox-gui/ui/src/components/surfaces/Research/ResearchView.tsx
+git commit -m "feat(gui): embed live source prober and judge inspector into ResearchView"
 ```
 
 ---
 
-### Task 6: Playwright Automated Stepper & Screenshot Verification Suite
+### Task 6: `[SEQUENTIAL]` Deterministic Playwright Stepper Suite & Policy Enforcement
 
 **Files:**
+- Modify: `crates/vox-gui/ui/e2e/lib/tauriMockRich.ts`
+- Modify: `crates/vox-gui/ui/e2e/lib/tauriMockShared.ts`
+- Modify: `crates/vox-gui/ui/e2e/review/states.ts`
 - Create: `crates/vox-gui/ui/e2e/review/stepper.spec.ts`
-- Modify: `crates/vox-gui/ui/e2e/review/states.ts` (Add `research-lab` state entries)
-- Modify: `AGENTS.md` (Add normative GUI Visual Verification Invariant policy)
+- Modify: `.gitattributes`
+- Modify: `AGENTS.md`
 
 **Interfaces:**
-- Consumes: Research Lab surface, Playwright test runner.
-- Produces: Captured full-resolution viewport PNGs at each pipeline breakpoint saved to `crates/vox-gui/ui/review-bundle/latest/`.
+- Produces: Deterministic IPC sentinel, multi-step Playwright test, git diff hygiene, normative policy.
 
-- [ ] **Step 1: Update AGENTS.md with Normative Policy**
-Add the `GUI Visual Verification Invariant (Normative)` section to `AGENTS.md`.
+- [ ] **Step 1: Add mock in tauriMockRich.ts and IPC counter in tauriMockShared.ts**
+1. In `tauriMockRich.ts`, add:
+```typescript
+case 'probe_search_provider':
+  return {
+    provider: (args as any)?.provider ?? 'searxng',
+    http_status: 200,
+    latency_ms: 85,
+    success: true,
+    hit_count: 3,
+    sample_titles: ['Title 1', 'Title 2', 'Title 3'],
+    error_message: null,
+    remediation_tip: null,
+  };
+```
+2. In `tauriMockShared.ts`, track `window.__VOX_IPC_ACTIVE_COUNT__` on each invoke start/end.
 
-- [ ] **Step 2: Add States in states.ts**
-Add `research-lab` to `SURFACE_STATES` with default, paused-at-retrieval, and zero-hits error states.
+- [ ] **Step 2: Add prober state to states.ts**
+In `SURFACE_STATES['research']`, add:
+```typescript
+{
+  name: 'prober-open',
+  setup: async (p) => {
+    const btn = p.getByRole('button', { name: /diagnostic prober/i });
+    if (await btn.isVisible()) await btn.click();
+  },
+}
+```
 
 - [ ] **Step 3: Create stepper.spec.ts**
 Create `crates/vox-gui/ui/e2e/review/stepper.spec.ts`:
-- Loads `research-lab`.
-- Inputs a query with breakpoints set.
-- Advances step-by-step, taking screenshots at Decomposition, Retrieval, Claim Extraction, Judge, and Synthesis.
-- Injects a zero-hits scenario and asserts the Honesty Sentry halts with `ZeroSourcesError`.
+Loads `/`, navigates to Research view, toggles Diagnostic Prober, executes a probe, asserts 200 OK badge and hit counts, and takes a full-resolution viewport capture saved into `review-bundle/latest/`.
 
-- [ ] **Step 4: Run Playwright test**
-Run: `pnpm --dir crates/vox-gui/ui exec playwright test e2e/review/stepper.spec.ts --project=chromium`
-Expected: PASS, screenshots generated in `review-bundle/latest/`.
-
-- [ ] **Step 5: Commit Task 6**
-```bash
-git add AGENTS.md crates/vox-gui/ui/e2e/review/
-git commit -m "test(e2e): add automated Playwright stepper test suite and normative visual verification policy"
+- [ ] **Step 4: Update .gitattributes and AGENTS.md**
+1. In `.gitattributes`, add:
+```gitattributes
+contracts/reports/gui-visual-review/bundle-cache.v1.json linguist-generated=true -diff
+contracts/reports/gui-visual-review/bundle-digest.md     linguist-generated=true -diff
 ```
+2. In `AGENTS.md`, add the normative `GUI Visual Verification Invariant` policy.
 
----
+- [ ] **Step 5: Run Playwright test**
+Run: `pnpm --dir crates/vox-gui/ui exec playwright test e2e/review/stepper.spec.ts --project=chromium`
+Expected: PASS, screenshot saved in `review-bundle/latest/`.
 
-## Execution Handoff
-
-Plan complete and saved to `docs/superpowers/plans/2026-09-17-axis-gui-visual-debugger-deep-research.md`.
-
-Two execution options:
-
-1. **Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
-2. **Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
-
-Which approach?
+- [ ] **Step 6: Commit Task 6**
+```bash
+git add crates/vox-gui/ui/e2e/ .gitattributes AGENTS.md
+git commit -m "test(e2e): implement deterministic playwright stepper spec and register normative visual policy"
+```
