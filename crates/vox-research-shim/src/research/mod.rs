@@ -19,6 +19,7 @@ pub mod emitter;
 pub mod gate;
 pub(super) mod json_parse;
 mod mesh_subscriber;
+pub mod misguidance;
 pub mod model_select;
 pub mod orchestrator;
 pub mod persistence;
@@ -33,6 +34,7 @@ pub use emitter::BroadcastEmitter;
 pub use mesh_subscriber::{
     ScientiaMeshSubscriberOptions, spawn_scientia_mesh_research_event_subscriber,
 };
+pub use misguidance::correlate_diagnostic_to_citations;
 pub use orchestrator::{
     ResearchConfig, run_research, run_research_with_context, run_research_with_context_and_session,
 };
