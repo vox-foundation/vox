@@ -109,8 +109,7 @@ async fn main() {
                 commands::scientia::spawn_scientia_queue_stream(app.handle().clone(), db.clone());
                 commands::scientia::spawn_discovery_surfaced_stream(app.handle().clone(), db);
             }
-            app.manage(pool.clone());
-            app.manage(std::sync::Arc::new(pool));
+            app.manage(pool);
 
             // Single persistent orchestrator daemon shared by tool calls,
             // approvals, and the status/event streams. Warm it synchronously

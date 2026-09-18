@@ -46,6 +46,7 @@ interface ResearchDetail {
   claims?: ResearchDetailClaim[];
   source_count?: number;
   citation_precision?: number;
+  citations?: Array<{ url: string }>;
 }
 
 /**
@@ -469,7 +470,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
             const allCitations = Array.from(
               new Set([
                 ...(detail.claims?.flatMap((c) => c.citation_urls) ?? []),
-                ...(((detail as unknown as { citations?: Array<{ url: string }> }).citations)?.map((c) => c.url) ?? []),
+                ...(detail.citations?.map((c) => c.url) ?? []),
               ])
             ).filter(Boolean);
 

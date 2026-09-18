@@ -79,7 +79,7 @@ pub async fn start_research_async(
 /// Flag a citation or claim as misleading research and update domain reputation penalty in VoxDb.
 #[tauri::command]
 pub async fn flag_research_misleading(
-    pool: tauri::State<'_, Arc<GuiDbPool>>,
+    pool: tauri::State<'_, GuiDbPool>,
     params: vox_db_types::RecordMisguidanceParams,
 ) -> Result<i64, String> {
     pool_db(&pool)?
