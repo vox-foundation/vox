@@ -43,6 +43,7 @@ describe('IPC boundaries (Phase 0B)', () => {
     const ALLOW_DIRECT_INVOKE = new Set([
       'transport.ts',
       'App.tsx',
+      'components/drive/AxisDriveHost.tsx',
       'components/layout/Sidebar.tsx',
       'components/surfaces/Approvals/ApprovalsView.tsx',
       'components/surfaces/Browser/BrowserView.tsx',
@@ -57,6 +58,8 @@ describe('IPC boundaries (Phase 0B)', () => {
       'components/surfaces/Matrix/Matrix.tsx',
       'components/surfaces/Memory/MemoryView.tsx',
       'components/surfaces/Mesh/MeshView.tsx',
+      'components/surfaces/Models/MensServePanel.tsx',
+      'components/surfaces/Models/MensTrainingView.tsx',
       'components/surfaces/Models/ModelsView.tsx',
       'components/surfaces/Onboarding/OnboardingWizard.tsx',
       'components/surfaces/Policies/PoliciesView.tsx',

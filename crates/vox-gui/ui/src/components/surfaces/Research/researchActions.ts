@@ -71,4 +71,28 @@ export async function executeSandboxProbe(
   return invoke<SandboxProbeOutcome>('execute_sandbox_probe', { code, language });
 }
 
+export interface ProviderProbeResult {
+  provider: string;
+  http_status: number;
+  latency_ms: number;
+  success: boolean;
+  hit_count: number;
+  sample_titles: string[];
+  error_message?: string | null;
+  remediation_tip?: string | null;
+}
+
+export async function probeSearchProvider(
+  provider: string,
+  query: string,
+): Promise<ProviderProbeResult> {
+  return invoke<ProviderProbeResult>('probe_search_provider', { provider, query });
+}
+
+export async function probeAllSearchProviders(
+  query: string,
+): Promise<ProviderProbeResult[]> {
+  return invoke<ProviderProbeResult[]>('probe_all_search_providers', { query });
+}
+
 

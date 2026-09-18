@@ -32,17 +32,17 @@ export function JudgeInspector({
   const claimList = (claims ?? []) as JudgeClaim[];
 
   const supportedCount = claimList.filter((c) => {
-    const v = (c.verdict ?? '').toLowerCase();
+    const v = (c?.verdict ?? '').toLowerCase();
     return v === 'supported' || v === 'verified';
   }).length;
 
   const contestedCount = claimList.filter((c) => {
-    const v = (c.verdict ?? '').toLowerCase();
+    const v = (c?.verdict ?? '').toLowerCase();
     return v === 'contested';
   }).length;
 
   const refutedCount = claimList.filter((c) => {
-    const v = (c.verdict ?? '').toLowerCase();
+    const v = (c?.verdict ?? '').toLowerCase();
     return v === 'refuted' || v === 'contradicted';
   }).length;
 
@@ -51,13 +51,15 @@ export function JudgeInspector({
 
   const computedRationale =
     rationale ??
-    `Epistemic Judge evaluated ${claimList.length} claim(s) across ${sourceCount} independent source domain(s) with ${precisionPct} citation precision. ${
-      refutedCount > 0
-        ? `Identified ${refutedCount} refuted claim(s) contradicted by ground evidence.`
-        : contestedCount > 0
-        ? `Flagged ${contestedCount} contested claim(s) requiring multi-perspective verification.`
-        : 'All verified claims are well-grounded in primary source evidence.'
-    } Routing confidence classified as ${confidenceTier}.`;
+    (claimList.length === 0
+      ? `Epistemic Judge evaluated 0 claim(s) across ${sourceCount} independent source domain(s). No discrete claims were extracted for epistemic evaluation.`
+      : `Epistemic Judge evaluated ${claimList.length} claim(s) across ${sourceCount} independent source domain(s) with ${precisionPct} citation precision. ${
+          refutedCount > 0
+            ? `Identified ${refutedCount} refuted claim(s) contradicted by ground evidence.`
+            : contestedCount > 0
+            ? `Flagged ${contestedCount} contested claim(s) requiring multi-perspective verification.`
+            : 'All verified claims are well-grounded in primary source evidence.'
+        } Routing confidence classified as ${confidenceTier}.`);
 
   return (
     <div
@@ -158,12 +160,12 @@ export function JudgeInspector({
             </div>
             <div className="space-y-1 max-h-[220px] overflow-auto">
               {claimList.map((claim, idx) => {
-                const id = claim.claim_id ?? claim.claimId ?? `c${idx + 1}`;
-                const verdict = claim.verdict ?? 'Unverified';
+                const id = claim?.claim_id ?? claim?.claimId ?? `c${idx + 1}`;
+                const verdict = claim?.verdict ?? 'Unverified';
                 const conf =
-                  claim.confidence != null ? `${Math.round(claim.confidence * 100)}%` : null;
+                  claim?.confidence != null ? `${Math.round(claim.confidence * 100)}%` : null;
                 const stab =
-                  (claim.resample_stability ?? claim.resampleStability) != null
+                  (claim?.resample_stability ?? claim?.resampleStability) != null
                     ? `${Math.round((claim.resample_stability ?? claim.resampleStability) * 100)}%`
                     : null;
                 return (
@@ -179,7 +181,7 @@ export function JudgeInspector({
                         {stab ? ` · stability: ${stab}` : ''}
                       </span>
                     </div>
-                    <p className="text-text-secondary text-[12px]">{claim.text}</p>
+                    <p className="text-text-secondary text-[12px]">{claim?.text}</p>
                   </div>
                 );
               })}

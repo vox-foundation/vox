@@ -84,4 +84,17 @@ describe('JudgeInspector', () => {
       'Custom judge chain-of-thought rationale verifying single-pass source.'
     );
   });
+
+  it('outputs appropriate rationale when claims array is empty', () => {
+    render(
+      <JudgeInspector
+        confidenceTier="Direct"
+        sourceCount={0}
+        claims={[]}
+      />
+    );
+
+    const rationale = screen.getByTestId('judge-rationale');
+    expect(rationale.textContent).toContain('No discrete claims were extracted for epistemic evaluation.');
+  });
 });

@@ -140,4 +140,16 @@ describe('LiveSourceProber', () => {
       expect(screen.getByText('Failed to connect to backend probe')).toBeTruthy();
     });
   });
+
+  it('sanitizes internal IPC leak errors using sanitizeErrorForToast', async () => {
+    invokeMock.mockRejectedValueOnce(new Error('TypeError: __TAURI_INTERNALS__ is undefined'));
+
+    render(<LiveSourceProber initialQuery="Query leak" />);
+    const probeBtn = screen.getByRole('button', { name: /probe provider/i });
+    fireEvent.click(probeBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('An unexpected error occurred.')).toBeTruthy();
+    });
+  });
 });

@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { sanitizeErrorForToast } from '../../../lib/backendGuard';
+import {
+  probeSearchProvider,
+  probeAllSearchProviders,
+  type ProviderProbeResult,
+} from './researchActions';
 
-export interface ProviderProbeResult {
-  provider: string;
-  http_status: number;
-  latency_ms: number;
-  success: boolean;
-  hit_count: number;
-  sample_titles: string[];
-  error_message?: string | null;
-  remediation_tip?: string | null;
-}
+export type { ProviderProbeResult };
 
 export interface LiveSourceProberProps {
   initialQuery?: string;
@@ -40,19 +36,14 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
 
     try {
       if (provider === 'all') {
-        const res = await invoke<ProviderProbeResult[]>('probe_all_search_providers', {
-          query: trimmed,
-        });
+        const res = await probeAllSearchProviders(trimmed);
         setResults(res);
       } else {
-        const res = await invoke<ProviderProbeResult>('probe_search_provider', {
-          provider,
-          query: trimmed,
-        });
+        const res = await probeSearchProvider(provider, trimmed);
         setResults([res]);
       }
     } catch (err) {
-      setErrorMessage(typeof err === 'string' ? err : String(err));
+      setErrorMessage(sanitizeErrorForToast(err));
     } finally {
       setLoading(false);
     }
