@@ -160,9 +160,10 @@ async fn search_one_subquery(
     all_hits: &mut Vec<ResearchHit>,
     novelty_scorer: &mut vox_search::novelty::NoveltyScorer,
 ) -> (usize, usize) {
+    let site_scope = site_scope.map(str::trim).filter(|s| !s.is_empty());
     let query_string = match site_scope {
-        Some(scope) if !scope.trim().is_empty() => format!("{subquery} site:{scope}"),
-        _ => subquery.to_string(),
+        Some(scope) => format!("{subquery} site:{scope}"),
+        None => subquery.to_string(),
     };
     let (mut hits, _) = registry.search(&query_string, policy).await;
     if let Some(scope) = site_scope {

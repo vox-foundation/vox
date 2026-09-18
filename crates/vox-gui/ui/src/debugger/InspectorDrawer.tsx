@@ -73,10 +73,10 @@ export function InspectorDrawer({ open, onClose, stepper: externalStepper }: Ins
       data-testid="inspector-drawer"
       role="dialog"
       aria-label="Pipeline Inspector & Debugger"
-      className="fixed inset-y-0 right-0 z-45 w-[420px] bg-surface-primary border-l border-border-subtle shadow-2xl flex flex-col"
+      className="fixed inset-y-0 right-0 z-45 w-[420px] bg-bg-surface border-l border-border-subtle shadow-2xl flex flex-col"
     >
       {/* Drawer Header */}
-      <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3 bg-surface-secondary/40">
+      <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3 bg-overlay-subtle">
         <div>
           <h2 className="font-display text-sm font-semibold tracking-tight text-text-primary">
             Pipeline Inspector &amp; Debugger
@@ -96,7 +96,7 @@ export function InspectorDrawer({ open, onClose, stepper: externalStepper }: Ins
       </div>
 
       {/* Stepper Toolbar */}
-      <div className="flex items-center gap-1.5 border-b border-border-subtle px-4 py-2 bg-surface-primary/80">
+      <div className="flex items-center gap-1.5 border-b border-border-subtle px-4 py-2 bg-bg-surface">
         <button
           type="button"
           aria-label={isPlaying ? 'Pause' : 'Play'}
@@ -139,7 +139,7 @@ export function InspectorDrawer({ open, onClose, stepper: externalStepper }: Ins
       </div>
 
       {/* 8-Stage Timeline */}
-      <div className="border-b border-border-subtle p-3 bg-surface-secondary/20">
+      <div className="border-b border-border-subtle p-3 bg-overlay-subtle/50">
         <div className="mb-2 flex items-center justify-between">
           <span className="font-display text-[11px] uppercase tracking-wider text-text-muted font-medium">
             Execution Stages
@@ -187,7 +187,7 @@ export function InspectorDrawer({ open, onClose, stepper: externalStepper }: Ins
       </div>
 
       {/* Tabs Header */}
-      <div className="flex items-center border-b border-border-subtle bg-surface-secondary/30 px-3">
+      <div className="flex items-center border-b border-border-subtle bg-overlay-subtle/30 px-3">
         <button
           type="button"
           onClick={() => setActiveTab('payloads')}
@@ -298,7 +298,7 @@ export function InspectorDrawer({ open, onClose, stepper: externalStepper }: Ins
               stepper.violations.map((v, i) => (
                 <div
                   key={i}
-                  className="rounded border border-border-subtle bg-surface-secondary/40 p-2.5 flex flex-col gap-1"
+                  className="rounded border border-border-subtle bg-bg-elevated/40 p-2.5 flex flex-col gap-1"
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs font-semibold text-text-primary">
