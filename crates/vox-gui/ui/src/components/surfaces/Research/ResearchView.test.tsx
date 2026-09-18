@@ -197,4 +197,52 @@ describe('ResearchView', () => {
       expect(screen.getByRole('button', { name: /run compiler probe/i })).toBeTruthy();
     });
   });
+
+  it('toggles Diagnostic Prober when clicking toggle-diagnostics-btn', async () => {
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+
+    expect(screen.queryByTestId('live-source-prober')).toBeNull();
+
+    const toggleBtn = screen.getByTestId('toggle-diagnostics-btn');
+    expect(toggleBtn.getAttribute('type')).toBe('button');
+    toggleBtn.click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('live-source-prober')).toBeTruthy();
+    });
+
+    toggleBtn.click();
+    await waitFor(() => {
+      expect(screen.queryByTestId('live-source-prober')).toBeNull();
+    });
+  });
+
+  it('toggles Judge Inspector when clicking toggle-judge-btn in session detail', async () => {
+    detailResponse = DETAIL_WITH_CLAIMS;
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('toggle-judge-btn')).toBeTruthy();
+    });
+
+    expect(screen.queryByTestId('judge-inspector')).toBeNull();
+
+    const judgeBtn = screen.getByTestId('toggle-judge-btn');
+    expect(judgeBtn.getAttribute('type')).toBe('button');
+    judgeBtn.click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('judge-inspector')).toBeTruthy();
+      expect(screen.getByTestId('metric-confidence-tier').textContent).toBe('DeepResearch');
+      expect(screen.getByTestId('metric-source-count').textContent).toBe('3');
+      expect(screen.getByTestId('count-supported').textContent).toBe('1');
+    });
+
+    judgeBtn.click();
+    await waitFor(() => {
+      expect(screen.queryByTestId('judge-inspector')).toBeNull();
+    });
+  });
 });

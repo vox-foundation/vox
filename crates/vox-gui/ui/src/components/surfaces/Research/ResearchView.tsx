@@ -14,6 +14,8 @@ import { ResearchReportMarkdown } from './ResearchReportMarkdown';
 import { DocPublishModal } from './DocPublishModal';
 import { ResearchDagCanvas, type DagNode, type DagEdge } from './ResearchDagCanvas';
 import { SandboxReplModal } from './SandboxReplModal';
+import { LiveSourceProber } from './LiveSourceProber';
+import { JudgeInspector } from './JudgeInspector';
 
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
 
@@ -83,6 +85,8 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
   const [highlightedClaimId, setHighlightedClaimId] = useState<string | null>(null);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [isReplModalOpen, setIsReplModalOpen] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showJudgeInspector, setShowJudgeInspector] = useState(false);
 
   const handleCitationClick = useCallback(
     (num: number) => {
@@ -181,11 +185,26 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
           aria-label="Research question"
           onKeyDown={e => { if (e.key === 'Enter') void run(); }}
           className="flex-1 rounded-lg border border-border-subtle bg-black/40 px-3 py-2 text-sm text-text-secondary outline-hidden focus:border-brass/40" />
+        <button
+          type="button"
+          data-testid="toggle-diagnostics-btn"
+          onClick={() => setShowDiagnostics(prev => !prev)}
+          className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+            showDiagnostics
+              ? 'border-brass bg-brass/20 text-brass'
+              : 'border-border-subtle bg-black/40 text-text-secondary hover:text-text-primary'
+          }`}
+        >
+          Diagnostic Prober
+        </button>
         <button type="button" onClick={run} disabled={running}
           className="rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass hover:bg-brass/20 disabled:opacity-50">
           {running ? 'Running…' : 'Run'}
         </button>
       </div>
+      {showDiagnostics && (
+        <LiveSourceProber initialQuery={query} />
+      )}
       {running && (
         <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3" aria-live="polite">
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages('active')} />
@@ -226,6 +245,18 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                data-testid="toggle-judge-btn"
+                onClick={() => setShowJudgeInspector(prev => !prev)}
+                className={`rounded border px-2.5 py-1 text-[11px] transition-colors ${
+                  showJudgeInspector
+                    ? 'border-brass bg-brass/20 text-brass'
+                    : 'border-border-subtle bg-black/40 text-text-secondary hover:text-text-primary hover:bg-black/60'
+                }`}
+              >
+                Judge Inspector
+              </button>
+              <button
+                type="button"
                 onClick={() => setIsReplModalOpen(true)}
                 className="rounded border border-border-subtle bg-black/40 px-2.5 py-1 text-[11px] text-text-secondary hover:text-text-primary hover:bg-black/60"
               >
@@ -242,6 +273,16 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
             </div>
           </div>
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages(detail.session.status)} />
+          {showJudgeInspector && (
+            <div className="mt-2">
+              <JudgeInspector
+                confidenceTier={detail.confidence_tier}
+                sourceCount={detail.source_count}
+                citationPrecision={detail.citation_precision}
+                claims={detail.claims}
+              />
+            </div>
+          )}
           {(() => {
             const claimRows = toClaimRows(detail.claims);
             const distinctCorroboratingSources = new Set(
