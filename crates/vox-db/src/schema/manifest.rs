@@ -30,7 +30,8 @@ use std::sync::OnceLock;
 //     concurrently-spawned judge tasks)
 // 91: feat(db): add web_cache table and indexes to knowledge domain
 // 92: feat(db): add covering indexes idx_knowledge_edges_src_rel and idx_knowledge_edges_dst_rel for recursive CTE
-pub const BASELINE_VERSION: i64 = 92;
+// 93: feat(vox-db): add research_misguidance_events and research_domain_reputation tables (Task 1)
+pub const BASELINE_VERSION: i64 = 93;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

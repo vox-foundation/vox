@@ -434,4 +434,33 @@ CREATE TABLE IF NOT EXISTS scientia_harness_fix_proposals (
     proposed_at_ms   INTEGER NOT NULL,
     resolved_at_ms   INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS research_misguidance_events (
+    id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id             INTEGER REFERENCES scientia_research_sessions(id) ON DELETE SET NULL,
+    defect_class           TEXT    NOT NULL,
+    culprit_url            TEXT,
+    culprit_domain         TEXT    NOT NULL,
+    claim_id               INTEGER,
+    research_query         TEXT    NOT NULL,
+    misleading_excerpt     TEXT,
+    generated_code_snippet TEXT,
+    failure_diagnostic     TEXT,
+    correction_diff        TEXT,
+    reporter               TEXT    NOT NULL,
+    domain_penalty         REAL    NOT NULL DEFAULT 0.1,
+    created_at_ms          INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_misguidance_domain ON research_misguidance_events(culprit_domain);
+CREATE INDEX IF NOT EXISTS idx_misguidance_session ON research_misguidance_events(session_id);
+
+CREATE TABLE IF NOT EXISTS research_domain_reputation (
+    domain                 TEXT    PRIMARY KEY,
+    incident_count         INTEGER NOT NULL DEFAULT 0,
+    penalty_score          REAL    NOT NULL DEFAULT 0.0,
+    last_incident_at_ms    INTEGER NOT NULL,
+    is_blacklisted         INTEGER NOT NULL DEFAULT 0,
+    updated_at_ms          INTEGER NOT NULL
+);
 "#;

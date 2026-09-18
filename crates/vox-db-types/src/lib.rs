@@ -34,8 +34,10 @@ pub use store_types::*;
 /// SCIENTIA / research-session row DTOs.
 pub mod research;
 pub use research::{
-    CachedClaimVerdict, ClaimsPendingCounts, ResearchArtifactRecord, ResearchSearchResult,
-    ResearchSessionRecord, ResearchSessionSummary, ScientiaClaimWithVerdict,
+    CachedClaimVerdict, ClaimsPendingCounts, DomainReputationRecord, MisguidanceReporter,
+    RecordMisguidanceParams, ResearchArtifactRecord, ResearchDefectClass,
+    ResearchMisguidanceRecord, ResearchSearchResult, ResearchSessionRecord, ResearchSessionSummary,
+    ScientiaClaimWithVerdict,
 };
 
 /// Alias kept for back-compat (`vox_db::MemoryParams`).
