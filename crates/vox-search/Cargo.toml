@@ -39,6 +39,7 @@ scraper = { workspace = true, optional = true }
 html2text = { workspace = true, optional = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 tavily = { workspace = true, optional = true }
+quick-xml = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }

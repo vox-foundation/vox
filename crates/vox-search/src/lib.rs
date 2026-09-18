@@ -7,6 +7,7 @@
 //! - Optional **Tantivy** (`tantivy-lexical`) and **Qdrant** (`qdrant-vector`) backends.
 
 pub mod a2a_contract;
+pub mod arxiv;
 pub mod bundle;
 pub mod context;
 pub mod corroboration;
@@ -24,6 +25,7 @@ mod memory_cache;
 pub mod memory_hybrid;
 pub mod mens_research_subagent;
 pub mod novelty;
+pub mod openalex;
 pub mod parallel_exploration;
 pub mod policy;
 pub mod research;
