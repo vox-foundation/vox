@@ -541,6 +541,55 @@ impl SearchPolicy {
                 );
             }
         }
+        if let Ok(u) = std::env::var("VOX_SEARCH_WIKIPEDIA_URL") {
+            if !u.trim().is_empty() {
+                p.wikipedia_api_url = Some(u);
+            }
+        }
+        if let Ok(u) = std::env::var("VOX_SEARCH_OPENALEX_URL") {
+            if !u.trim().is_empty() {
+                p.openalex_api_url = Some(u);
+            }
+        }
+        if let Ok(u) = std::env::var("VOX_SEARCH_ARXIV_URL") {
+            if !u.trim().is_empty() {
+                p.arxiv_api_url = Some(u);
+            }
+        }
+        if let Ok(u) = std::env::var("VOX_SEARCH_TAVILY_URL") {
+            if !u.trim().is_empty() {
+                p.tavily_api_url = Some(u);
+            }
+        }
+        if let Ok(lane) = std::env::var("VOX_SEARCH_DEFAULT_LANE") {
+            if lane.eq_ignore_ascii_case("deep") {
+                p.default_lane = ResearchLane::Deep;
+            } else if lane.eq_ignore_ascii_case("fast") {
+                p.default_lane = ResearchLane::Fast;
+            }
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_FAST_TIMEOUT_MS") {
+            if let Ok(n) = v.parse::<u64>() {
+                p.fast_timeout_ms = n;
+            }
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_DEEP_TIMEOUT_MS") {
+            if let Ok(n) = v.parse::<u64>() {
+                p.deep_timeout_ms = n;
+            }
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_ENABLE_WIKIPEDIA") {
+            p.enable_wikipedia =
+                v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes");
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_ENABLE_OPENALEX") {
+            p.enable_openalex =
+                v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes");
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_ENABLE_ARXIV") {
+            p.enable_arxiv =
+                v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes");
+        }
         p
     }
 

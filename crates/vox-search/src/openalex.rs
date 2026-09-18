@@ -118,9 +118,10 @@ impl OpenAlexClient {
         }
 
         let base = base_url.unwrap_or(DEFAULT_OPENALEX_BASE_URL);
+        let base_clean = base.trim_end_matches('/');
+        let base_clean = base_clean.strip_suffix("/works").unwrap_or(base_clean);
         let url = format!(
-            "{}/works?search={}&per-page={}&mailto=research@vox.computer",
-            base.trim_end_matches('/'),
+            "{base_clean}/works?search={}&per-page={}&mailto=research@vox.computer",
             urlencoding::encode(query.trim()),
             limit
         );

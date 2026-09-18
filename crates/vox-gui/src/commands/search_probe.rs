@@ -75,7 +75,110 @@ pub struct ResearchEngineConfigDto {
 
 #[tauri::command]
 pub async fn get_research_engine_status() -> Result<ResearchEngineStatusDto, String> {
-    let policy = SearchPolicy::from_env();
+    let mut policy = SearchPolicy::from_env();
+
+    // Check Vox.toml first for search overrides
+    let mut configured_providers: Option<Vec<String>> = None;
+    let current_dir = std::env::current_dir().unwrap_or_default();
+    if let Ok((manifest, _)) = vox_package_types::VoxManifest::discover(&current_dir) {
+        if let Some(search_table) = manifest.search {
+            if let Some(lane) = search_table
+                .get("active_lane")
+                .or_else(|| search_table.get("default_lane"))
+                .and_then(|v| v.as_str())
+            {
+                if lane.eq_ignore_ascii_case("deep") {
+                    policy.default_lane = ResearchLane::Deep;
+                } else if lane.eq_ignore_ascii_case("fast") {
+                    policy.default_lane = ResearchLane::Fast;
+                }
+            }
+            if let Some(ft) = search_table
+                .get("fast_timeout_ms")
+                .and_then(|v| v.as_integer())
+            {
+                if ft > 0 {
+                    policy.fast_timeout_ms = ft as u64;
+                }
+            }
+            if let Some(dt) = search_table
+                .get("deep_timeout_ms")
+                .and_then(|v| v.as_integer())
+            {
+                if dt > 0 {
+                    policy.deep_timeout_ms = dt as u64;
+                }
+            }
+            if let Some(arr) = search_table
+                .get("enabled_providers")
+                .and_then(|v| v.as_array())
+            {
+                let list: Vec<String> = arr
+                    .iter()
+                    .filter_map(|v| v.as_str().map(ToString::to_string))
+                    .collect();
+                if !list.is_empty() {
+                    configured_providers = Some(list);
+                }
+            }
+        }
+    }
+
+    // If not in Vox.toml, check vox_db user preferences
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        if let Ok(Some(lane)) = db
+            .get_user_preference("local_user", "research.active_lane")
+            .await
+        {
+            if lane.eq_ignore_ascii_case("deep") {
+                policy.default_lane = ResearchLane::Deep;
+            } else if lane.eq_ignore_ascii_case("fast") {
+                policy.default_lane = ResearchLane::Fast;
+            }
+        }
+        if let Ok(Some(ft_str)) = db
+            .get_user_preference("local_user", "research.fast_timeout_ms")
+            .await
+        {
+            if let Ok(ft) = ft_str.parse::<u64>() {
+                if ft > 0 {
+                    policy.fast_timeout_ms = ft;
+                }
+            }
+        }
+        if let Ok(Some(dt_str)) = db
+            .get_user_preference("local_user", "research.deep_timeout_ms")
+            .await
+        {
+            if let Ok(dt) = dt_str.parse::<u64>() {
+                if dt > 0 {
+                    policy.deep_timeout_ms = dt;
+                }
+            }
+        }
+        if configured_providers.is_none() {
+            if let Ok(Some(prov_json)) = db
+                .get_user_preference("local_user", "research.enabled_providers")
+                .await
+            {
+                if let Ok(list) = serde_json::from_str::<Vec<String>>(&prov_json) {
+                    if !list.is_empty() {
+                        configured_providers = Some(list);
+                    }
+                }
+            }
+        }
+    }
+
+    let is_provider_enabled = |id: &str, default_val: bool| -> bool {
+        if let Some(list) = &configured_providers {
+            list.iter().any(|item| item.eq_ignore_ascii_case(id))
+        } else {
+            default_val
+        }
+    };
 
     // Check Tavily quota if db handle is available
     let tavily_quota = if let Some(db) = vox_search::tavily_budget::get_budget_db() {
@@ -105,7 +208,7 @@ pub async fn get_research_engine_status() -> Result<ResearchEngineStatusDto, Str
             id: "wikipedia".to_string(),
             name: "Wikipedia".to_string(),
             is_keyless: true,
-            is_enabled: policy.enable_wikipedia,
+            is_enabled: is_provider_enabled("wikipedia", policy.enable_wikipedia),
             has_key: false,
             quota_usage: None,
         },
@@ -113,7 +216,7 @@ pub async fn get_research_engine_status() -> Result<ResearchEngineStatusDto, Str
             id: "openalex".to_string(),
             name: "OpenAlex".to_string(),
             is_keyless: true,
-            is_enabled: policy.enable_openalex,
+            is_enabled: is_provider_enabled("openalex", policy.enable_openalex),
             has_key: openalex_has_key,
             quota_usage: None,
         },
@@ -121,7 +224,7 @@ pub async fn get_research_engine_status() -> Result<ResearchEngineStatusDto, Str
             id: "arxiv".to_string(),
             name: "arXiv".to_string(),
             is_keyless: true,
-            is_enabled: policy.enable_arxiv,
+            is_enabled: is_provider_enabled("arxiv", policy.enable_arxiv),
             has_key: arxiv_has_key,
             quota_usage: None,
         },
@@ -129,7 +232,7 @@ pub async fn get_research_engine_status() -> Result<ResearchEngineStatusDto, Str
             id: "tavily".to_string(),
             name: "Tavily Search".to_string(),
             is_keyless: false,
-            is_enabled: policy.tavily_enabled,
+            is_enabled: is_provider_enabled("tavily", policy.tavily_enabled),
             has_key: tavily_has_key,
             quota_usage: tavily_quota,
         },
@@ -137,7 +240,7 @@ pub async fn get_research_engine_status() -> Result<ResearchEngineStatusDto, Str
             id: "searxng".to_string(),
             name: "SearXNG".to_string(),
             is_keyless: true,
-            is_enabled: policy.searxng_url.is_some(),
+            is_enabled: is_provider_enabled("searxng", policy.searxng_url.is_some()),
             has_key: false,
             quota_usage: None,
         },
@@ -159,7 +262,7 @@ pub async fn get_research_engine_status() -> Result<ResearchEngineStatusDto, Str
 
 #[tauri::command]
 pub async fn save_research_engine_config(config: ResearchEngineConfigDto) -> Result<(), String> {
-    if let Some(keys) = config.provider_api_keys {
+    if let Some(keys) = &config.provider_api_keys {
         for (provider, key_value) in keys {
             let trimmed = key_value.trim();
             if trimmed.is_empty() {
@@ -180,6 +283,79 @@ pub async fn save_research_engine_config(config: ResearchEngineConfigDto) -> Res
             }
         }
     }
+
+    // Persist active_lane, timeouts, and enabled_providers to Vox.toml
+    let current_dir = std::env::current_dir().unwrap_or_default();
+    if let Ok((_manifest, path)) = vox_package_types::VoxManifest::discover(&current_dir) {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(mut doc) = content.parse::<toml::Table>() {
+                let mut search_table = doc
+                    .remove("search")
+                    .and_then(|v| match v {
+                        toml::Value::Table(t) => Some(t),
+                        _ => None,
+                    })
+                    .unwrap_or_default();
+
+                if let Some(lane) = &config.active_lane {
+                    search_table
+                        .insert("active_lane".to_string(), toml::Value::String(lane.clone()));
+                }
+                if let Some(ft) = config.fast_timeout_ms {
+                    search_table.insert(
+                        "fast_timeout_ms".to_string(),
+                        toml::Value::Integer(ft as i64),
+                    );
+                }
+                if let Some(dt) = config.deep_timeout_ms {
+                    search_table.insert(
+                        "deep_timeout_ms".to_string(),
+                        toml::Value::Integer(dt as i64),
+                    );
+                }
+                if let Some(providers) = &config.enabled_providers {
+                    let arr = providers
+                        .iter()
+                        .map(|p| toml::Value::String(p.clone()))
+                        .collect();
+                    search_table.insert("enabled_providers".to_string(), toml::Value::Array(arr));
+                }
+                doc.insert("search".to_string(), toml::Value::Table(search_table));
+                if let Ok(toml_str) = toml::to_string_pretty(&doc) {
+                    let _ = std::fs::write(&path, toml_str);
+                }
+            }
+        }
+    }
+
+    // Also persist into user preferences in vox_db for runtime resilience
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        if let Some(lane) = &config.active_lane {
+            let _ = db
+                .set_user_preference("local_user", "research.active_lane", lane)
+                .await;
+        }
+        if let Some(ft) = config.fast_timeout_ms {
+            let _ = db
+                .set_user_preference("local_user", "research.fast_timeout_ms", &ft.to_string())
+                .await;
+        }
+        if let Some(dt) = config.deep_timeout_ms {
+            let _ = db
+                .set_user_preference("local_user", "research.deep_timeout_ms", &dt.to_string())
+                .await;
+        }
+        if let Some(providers) = &config.enabled_providers {
+            if let Ok(prov_json) = serde_json::to_string(providers) {
+                let _ = db
+                    .set_user_preference("local_user", "research.enabled_providers", &prov_json)
+                    .await;
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -188,15 +364,6 @@ pub async fn probe_search_provider(
     provider: String,
     query: String,
 ) -> Result<ProviderProbeResult, String> {
-    let start = std::time::Instant::now();
-    let q = query.trim();
-    if q.is_empty() {
-        return Err("Query cannot be empty".into());
-    }
-    if q.len() > 1000 {
-        return Err("Query exceeds maximum allowed length of 1000 characters".into());
-    }
-
     let mut policy = SearchPolicy::from_env();
     if let Ok(u) = std::env::var("VOX_SEARCH_WIKIPEDIA_URL") {
         if !u.trim().is_empty() {
@@ -217,6 +384,22 @@ pub async fn probe_search_provider(
         if !u.trim().is_empty() {
             policy.tavily_api_url = Some(u);
         }
+    }
+    probe_search_provider_with_policy(provider, query, policy).await
+}
+
+pub async fn probe_search_provider_with_policy(
+    provider: String,
+    query: String,
+    policy: SearchPolicy,
+) -> Result<ProviderProbeResult, String> {
+    let start = std::time::Instant::now();
+    let q = query.trim();
+    if q.is_empty() {
+        return Err("Query cannot be empty".into());
+    }
+    if q.len() > 1000 {
+        return Err("Query exceeds maximum allowed length of 1000 characters".into());
     }
 
     match provider.trim().to_lowercase().as_str() {
@@ -495,12 +678,40 @@ pub async fn probe_search_provider(
 
 #[tauri::command]
 pub async fn probe_all_search_providers(query: String) -> Result<Vec<ProviderProbeResult>, String> {
+    let mut policy = SearchPolicy::from_env();
+    if let Ok(u) = std::env::var("VOX_SEARCH_WIKIPEDIA_URL") {
+        if !u.trim().is_empty() {
+            policy.wikipedia_api_url = Some(u);
+        }
+    }
+    if let Ok(u) = std::env::var("VOX_SEARCH_OPENALEX_URL") {
+        if !u.trim().is_empty() {
+            policy.openalex_api_url = Some(u);
+        }
+    }
+    if let Ok(u) = std::env::var("VOX_SEARCH_ARXIV_URL") {
+        if !u.trim().is_empty() {
+            policy.arxiv_api_url = Some(u);
+        }
+    }
+    if let Ok(u) = std::env::var("VOX_SEARCH_TAVILY_URL") {
+        if !u.trim().is_empty() {
+            policy.tavily_api_url = Some(u);
+        }
+    }
+    probe_all_search_providers_with_policy(query, policy).await
+}
+
+pub async fn probe_all_search_providers_with_policy(
+    query: String,
+    policy: SearchPolicy,
+) -> Result<Vec<ProviderProbeResult>, String> {
     let (searxng, tavily, openalex, arxiv, wikipedia) = tokio::join!(
-        probe_search_provider("searxng".to_string(), query.clone()),
-        probe_search_provider("tavily".to_string(), query.clone()),
-        probe_search_provider("openalex".to_string(), query.clone()),
-        probe_search_provider("arxiv".to_string(), query.clone()),
-        probe_search_provider("wikipedia".to_string(), query),
+        probe_search_provider_with_policy("searxng".to_string(), query.clone(), policy.clone()),
+        probe_search_provider_with_policy("tavily".to_string(), query.clone(), policy.clone()),
+        probe_search_provider_with_policy("openalex".to_string(), query.clone(), policy.clone()),
+        probe_search_provider_with_policy("arxiv".to_string(), query.clone(), policy.clone()),
+        probe_search_provider_with_policy("wikipedia".to_string(), query, policy),
     );
     Ok(vec![searxng?, tavily?, openalex?, arxiv?, wikipedia?])
 }

@@ -28,7 +28,7 @@ const DEFAULT_STAGE_PAYLOADS: Record<string, { input: Record<string, unknown>; o
         'Reciprocal Rank Fusion k=60',
         'cross-encoder reranking latency',
       ],
-      providers: ['searxng', 'tavily', 'duckduckgo', 'wikipedia'],
+      providers: ['searxng', 'tavily', 'openalex', 'arxiv', 'wikipedia'],
     },
     output: {
       sources: ['https://example.com/hybrid-search', 'https://example.com/rrf-fusion-benchmark', 'https://example.com/vector-db-ann'],

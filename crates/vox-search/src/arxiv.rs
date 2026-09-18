@@ -244,9 +244,10 @@ impl ArXivClient {
         }
 
         let base = base_url.unwrap_or(DEFAULT_ARXIV_BASE_URL);
+        let base_clean = base.trim_end_matches('/');
+        let base_clean = base_clean.strip_suffix("/api/query").unwrap_or(base_clean);
         let url = format!(
-            "{}/api/query?search_query=all:{}&max_results={}",
-            base.trim_end_matches('/'),
+            "{base_clean}/api/query?search_query=all:{}&max_results={}",
             urlencoding::encode(query.trim()),
             limit
         );
