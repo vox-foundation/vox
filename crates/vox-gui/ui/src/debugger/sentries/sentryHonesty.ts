@@ -12,14 +12,7 @@ export interface HonestyAuditContext {
 export function checkHonestyInvariant(ctx: HonestyAuditContext): InvariantViolation | null {
   if (ctx.status !== 'completed') return null;
 
-  const emptyField = ctx.requiredFields.find((f) => {
-    const val = ctx.payload?.[f];
-    return !val || (Array.isArray(val) && val.length === 0);
-  });
-
-  if (!emptyField) return null;
-
-  // 1. If providers all failed, this is an infrastructure failure
+  // 1. If providers all failed, this is an infrastructure failure (checked first)
   const allProvidersFailed =
     ctx.providerProbeStatuses &&
     ctx.providerProbeStatuses.length > 0 &&
@@ -34,8 +27,18 @@ export function checkHonestyInvariant(ctx: HonestyAuditContext): InvariantViolat
     };
   }
 
+  const emptyField = ctx.requiredFields.find((f) => {
+    const val = ctx.payload?.[f];
+    return val === null || val === undefined || (Array.isArray(val) && val.length === 0) || val === '';
+  });
+
+  if (!emptyField) return null;
+
   // 2. Check if the UI honestly rendered an acknowledged empty state
-  const hasEmptyNotice = Boolean(ctx.domContainer?.querySelector('[data-testid="empty-results-notice"]'));
+  const hasEmptyNotice = Boolean(
+    ctx.domContainer?.matches?.('[data-testid="empty-results-notice"]') ||
+    ctx.domContainer?.querySelector?.('[data-testid="empty-results-notice"]')
+  );
   const isAcknowledged = ctx.payload?.emptyStateAcknowledged === true;
 
   if (hasEmptyNotice || isAcknowledged) {
