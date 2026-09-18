@@ -8,6 +8,13 @@ async fn test_empty_web_retrieval_halts_without_synthesis() {
 
     let mut config = ResearchConfig::default();
     config.claim_detection_enabled = true;
+    config.search_policy.wikipedia_fallback_enabled = false;
+    config.search_policy.duckduckgo_fallback_enabled = false;
+    config.search_policy.tavily_enabled = false;
+    config.search_policy.searxng_url = None;
+    config.search_policy.enable_wikipedia = false;
+    config.search_policy.enable_openalex = false;
+    config.search_policy.enable_arxiv = false;
 
     // An obscure query with web scope that yields zero hits
     let query = ResearchQuery {

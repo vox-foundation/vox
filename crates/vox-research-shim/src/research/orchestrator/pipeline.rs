@@ -226,7 +226,25 @@ pub async fn run_research_with_context_and_session(
     let do_local = matches!(query.scope, ResearchScope::Local | ResearchScope::Both);
     let do_web = matches!(query.scope, ResearchScope::Web | ResearchScope::Both);
 
-    if do_local && let Some(ctx) = search_ctx {
+    let synthesized_ctx;
+    let effective_search_ctx = match search_ctx {
+        Some(ctx) => Some(ctx),
+        None => {
+            if let Some(db) = db {
+                synthesized_ctx = Some(SearchRuntimeContext::new(
+                    std::env::current_dir().unwrap_or_default(),
+                    Some(std::sync::Arc::new(db.clone())),
+                    std::env::temp_dir(),
+                    std::env::temp_dir().join("MEMORY.md"),
+                ));
+                synthesized_ctx.as_ref()
+            } else {
+                None
+            }
+        }
+    };
+
+    if do_local && let Some(ctx) = effective_search_ctx {
         let (h, s, d, t) = gather_local_hits_for_plan(ctx, &query, &plan, &search_policy).await;
         subqueries_with_hits += s;
         total_dropped_count += d;

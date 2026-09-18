@@ -3,8 +3,24 @@
 use vox_research_shim::research::types::{ResearchQuery, ResearchScope};
 use vox_research_shim::research::{BroadcastEmitter, ResearchConfig, run_research};
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_research_returns_coherent_metadata() {
+    let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+        .await
+        .expect("memory db");
+    db.save_snippet(vox_db::SaveSnippetParams {
+        language: "rust",
+        title: "smoke test orchestrator research pipeline",
+        code: "fn pipeline_smoke() {}",
+        description: Some("smoke test orchestrator research pipeline evidence"),
+        tags: Some("smoke"),
+        author_id: None,
+        source_ref: None,
+        embedding_ref: None,
+    })
+    .await
+    .expect("save snippet");
+
     let query = ResearchQuery {
         query: "smoke test orchestrator research pipeline".into(),
         scope: ResearchScope::Both,
@@ -18,7 +34,9 @@ async fn run_research_returns_coherent_metadata() {
     };
     let config = ResearchConfig::default();
 
-    let result = run_research(query, None, &config).await.expect("succeeds");
+    let result = run_research(query, Some(&db), &config)
+        .await
+        .expect("succeeds");
 
     assert!(
         result.research_metadata.subquery_count >= 1,
@@ -35,11 +53,24 @@ async fn run_research_returns_coherent_metadata() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_research_with_codex_persists_session_row() {
     let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
         .await
         .expect("memory db");
+    db.save_snippet(vox_db::SaveSnippetParams {
+        language: "rust",
+        title: "session persistence smoke",
+        code: "fn session_persistence_smoke() {}",
+        description: Some("session persistence smoke snippet"),
+        tags: Some("smoke"),
+        author_id: None,
+        source_ref: None,
+        embedding_ref: None,
+    })
+    .await
+    .expect("save snippet");
+
     let query = ResearchQuery {
         query: "session persistence smoke".into(),
         scope: ResearchScope::Local,
@@ -67,11 +98,24 @@ async fn run_research_with_codex_persists_session_row() {
     assert_eq!(session.status, "completed");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_research_with_codex_persists_durable_artifact() {
     let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
         .await
         .expect("memory db");
+    db.save_snippet(vox_db::SaveSnippetParams {
+        language: "rust",
+        title: "artifact persistence smoke",
+        code: "fn artifact_persistence_smoke() {}",
+        description: Some("artifact persistence smoke snippet"),
+        tags: Some("smoke"),
+        author_id: None,
+        source_ref: None,
+        embedding_ref: None,
+    })
+    .await
+    .expect("save snippet");
+
     let query = ResearchQuery {
         query: "artifact persistence smoke".into(),
         scope: ResearchScope::Local,
@@ -104,8 +148,24 @@ async fn run_research_with_codex_persists_durable_artifact() {
     assert!(artifact.report_markdown.contains("## Sources"));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_research_emits_scientia_events() {
+    let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+        .await
+        .expect("memory db");
+    db.save_snippet(vox_db::SaveSnippetParams {
+        language: "rust",
+        title: "event emission smoke",
+        code: "fn event_emission_smoke() {}",
+        description: Some("event emission smoke snippet"),
+        tags: Some("smoke"),
+        author_id: None,
+        source_ref: None,
+        embedding_ref: None,
+    })
+    .await
+    .expect("save snippet");
+
     let (sender, mut receiver) = tokio::sync::broadcast::channel(16);
     let config = ResearchConfig {
         event_emitter: Some(std::sync::Arc::new(BroadcastEmitter::new(sender))),
@@ -123,7 +183,9 @@ async fn run_research_emits_scientia_events() {
         lane: vox_search::policy::ResearchLane::Fast,
     };
 
-    let _ = run_research(query, None, &config).await.expect("succeeds");
+    let _ = run_research(query, Some(&db), &config)
+        .await
+        .expect("succeeds");
 
     let first = receiver.try_recv().expect("at least one research event");
     assert!(matches!(

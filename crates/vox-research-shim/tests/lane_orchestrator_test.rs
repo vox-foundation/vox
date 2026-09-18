@@ -45,7 +45,7 @@ fn test_query_lane_defaults_and_metadata_serialization() {
     assert!(back.low_grounding_evidence);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_epistemic_zero_hit_halt_fails_cleanly() {
     // AMENDED: A-3 — ResearchConfig is re-exported at `vox_research_shim::research` root,
     // NOT under the non-existent `vox_research_shim::research::config` path.
@@ -77,5 +77,10 @@ async fn test_epistemic_zero_hit_halt_fails_cleanly() {
     assert!(
         res.is_err(),
         "Zero hits must trigger hard failure instead of internal knowledge fallback"
+    );
+    let err_str = res.err().unwrap().to_string();
+    assert!(
+        err_str.contains("Zero research hits retrieved"),
+        "Error message must cite zero research hits: {err_str}"
     );
 }
