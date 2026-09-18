@@ -16,6 +16,15 @@ fn test_openalex_abstract_reconstruction_bounds() {
 
     let truncated = reconstruct_abstract(&inverted, 6);
     assert!(truncated.ends_with("..."));
+
+    let empty = reconstruct_abstract(&inverted, 0);
+    assert_eq!(empty, "");
+
+    let two_chars = reconstruct_abstract(&inverted, 2);
+    assert_eq!(two_chars, "Ru");
+
+    let three_chars = reconstruct_abstract(&inverted, 3);
+    assert_eq!(three_chars, "...");
 }
 
 #[test]
@@ -171,7 +180,7 @@ async fn test_openalex_client_search_with_mock() {
         .and(path("/works"))
         .and(query_param("search", "quantum computing"))
         .and(query_param("per-page", "3"))
-        .and(query_param("api_key", "sec_123"))
+        .and(query_param("mailto", "research@vox.computer"))
         .and(header("api-key", "sec_123"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "results": [

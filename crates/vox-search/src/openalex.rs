@@ -51,6 +51,8 @@ pub fn reconstruct_abstract(inverted: &HashMap<String, Vec<usize>>, max_chars: u
         .join(" ");
     if full.chars().count() <= max_chars {
         full
+    } else if max_chars < 3 {
+        full.chars().take(max_chars).collect()
     } else {
         let keep = max_chars.saturating_sub(3);
         let prefix: String = full.chars().take(keep).collect();
@@ -116,19 +118,12 @@ impl OpenAlexClient {
         }
 
         let base = base_url.unwrap_or(DEFAULT_OPENALEX_BASE_URL);
-        let mut url = format!(
-            "{}/works?search={}&per-page={}",
+        let url = format!(
+            "{}/works?search={}&per-page={}&mailto=research@vox.computer",
             base.trim_end_matches('/'),
             urlencoding::encode(query.trim()),
             limit
         );
-
-        if let Some(key) = api_key {
-            let trimmed_key = key.trim();
-            if !trimmed_key.is_empty() {
-                url.push_str(&format!("&api_key={}", urlencoding::encode(trimmed_key)));
-            }
-        }
 
         debug!(url = %url, query = query, "Firing OpenAlex search");
 
