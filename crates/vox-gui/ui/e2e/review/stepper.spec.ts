@@ -50,13 +50,11 @@ test.describe('Research visual debugger stepper', () => {
 
     // Toggles Inspector Drawer via shortcut
     await page.keyboard.press('Control+Shift+D');
-
-    // Asserts getByTestId('inspector-drawer') is visible
     const inspectorDrawer = page.getByTestId('inspector-drawer');
-    if (!(await inspectorDrawer.isVisible().catch(() => false))) {
-      await page.keyboard.press('Meta+Shift+D');
-    }
     await expect(inspectorDrawer).toBeVisible({ timeout: 5_000 });
+
+    // Wait for IPC idle before capturing screenshot
+    await page.waitForFunction(() => (window as any).__VOX_IPC_ACTIVE_COUNT__ === 0);
 
     // Captures viewport screenshot and saves to review-bundle/latest/research-debugger-stepper.png
     mkdirSync(OUT_DIR, { recursive: true });
