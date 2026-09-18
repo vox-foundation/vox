@@ -124,7 +124,7 @@ export function LiveSourceProber({ initialQuery = '' }: LiveSourceProberProps) {
 
         <button
           type="button"
-          data-testid="probe-btn"
+          data-testid="probe-submit-btn"
           onClick={handleProbe}
           disabled={loading || !query.trim()}
           className="rounded-lg border border-brass/30 bg-brass/10 px-4 py-1.5 text-sm text-brass hover:bg-brass/20 disabled:opacity-50"

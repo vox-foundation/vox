@@ -26,6 +26,7 @@ export function seedMockEnvironment(viewKey: string): void {
     // sandboxed contexts may deny localStorage
   }
   (window as any).__TAURI_CALLS__ = [];
+  (window as any).__VOX_IPC_ACTIVE_COUNT__ = 0;
   (window as any).__TAURI_EVENT_PLUGIN_INTERNALS__ = {
     unregisterListener: (_event: string, _eventId: number) => {},
   };

@@ -136,8 +136,10 @@ export function installTauriMock(viewKey: string): void {
   (window as any).__TAURI_INTERNALS__ = {
     ...((window as any).__TAURI_INTERNALS__ || {}),
     invoke: async (cmd: string, args?: any) => {
+      (window as any).__VOX_IPC_ACTIVE_COUNT__ = ((window as any).__VOX_IPC_ACTIVE_COUNT__ || 0) + 1;
       (window as any).__TAURI_CALLS__.push({ cmd, args: args ?? null });
-      switch (cmd) {
+      try {
+        switch (cmd) {
         case 'list_model_cards': return models;
         case 'get_active_model': return 'opus-4-8';
         case 'get_auto_model_recommendation':
@@ -224,6 +226,28 @@ export function installTauriMock(viewKey: string): void {
           status: ['active', 'active', 'completed'][i], expires_at: 1717999999999,
         }));
         case 'vox_search_query': return searchResponse;
+        case 'probe_search_provider':
+          return {
+            provider: args?.provider ?? 'searxng',
+            http_status: 200,
+            latency_ms: 85,
+            success: true,
+            hit_count: 3,
+            sample_titles: ['Title 1', 'Title 2', 'Title 3'],
+            error_message: null,
+            remediation_tip: null,
+          };
+        case 'probe_all_search_providers':
+          return ['searxng', 'tavily', 'duckduckgo', 'wikipedia'].map(p => ({
+            provider: p,
+            http_status: 200,
+            latency_ms: 85,
+            success: true,
+            hit_count: 3,
+            sample_titles: [`${p} hit 1`, `${p} hit 2`],
+            error_message: null,
+            remediation_tip: null,
+          }));
         case 'open_locator': return { action: 'opened' };
         case 'list_research_sessions': return sessions;
         case 'get_research_session_detail': return { session: sessions[0], report_markdown: '# Findings\n\nVector DBs trade recall for latency...\n\n- qdrant: fast ANN\n- tantivy: lexical', artifact_json: '{}' };
@@ -371,6 +395,12 @@ export function installTauriMock(viewKey: string): void {
           return shared.bootstrapResponse(cmd, viewKey);
         }
       }
-    },
-  };
+    } finally {
+      (window as any).__VOX_IPC_ACTIVE_COUNT__ = Math.max(
+        0,
+        ((window as any).__VOX_IPC_ACTIVE_COUNT__ || 1) - 1,
+      );
+    }
+  },
+};
 }

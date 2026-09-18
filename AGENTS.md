@@ -494,6 +494,14 @@ The local runner fleet is the CI plane. For agents:
 
 Details: `docs/src/ci/local-first-ci.md`.
 
+## GUI Visual Verification Invariant (Normative Policy)
+
+All GUI components, panels, and surfaces MUST have automated visual inspection verification in Playwright before merge.
+
+- **Automated visual stepper suite:** Any new or substantially modified GUI surface, panel, or interactive debugger must be backed by a deterministic Playwright spec (`crates/vox-gui/ui/e2e/`) executing stateful interaction sequences against mock IPC harnesses (`installTauriMock` / `installTauriMockRich`).
+- **Visual evidence capture:** Visual stepper tests must capture viewport screenshots into `review-bundle/latest/` to provide evidence of layout stability, occlusion avoidance, and diagnostic rendering across themes and viewports.
+- **Pre-merge verification:** UI changes must pass `pnpm --dir crates/vox-gui/ui test:e2e` and `pnpm --dir crates/vox-gui/ui typecheck` before merging to prevent regressions in user-facing surfaces.
+
 ## Perennial Bug Patterns (catch early)
 
 > Derived from scanning 528 `fix()` commits — these classes recur. Each line is the cheapest place to catch the class before it lands again.

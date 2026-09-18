@@ -77,6 +77,9 @@ docs/src/**/*.generated.md                                       linguist-genera
 # Generated GUI-surface SSOT reports (the "regenerate after merge" churn; regen: `vox ci gui-surface-*`):
 contracts/reports/gui-surface-coverage.v1.json                   linguist-generated=true -diff
 contracts/reports/gui-surface-registry.v1.json                   linguist-generated=true -diff
+contracts/reports/gui-visual-review/bundle-cache.v1.json         linguist-generated=true -diff
+contracts/reports/gui-visual-review/bundle-digest.md             linguist-generated=true -diff
+review-bundle/**                                                 linguist-generated=true -diff
 # Regenerated CLI-catalog golden (regen: `UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli`):
 crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt linguist-generated=true -diff
 # Lockfile: collapse on GitHub but keep LOCALLY diffable (supply-chain review needs the text):

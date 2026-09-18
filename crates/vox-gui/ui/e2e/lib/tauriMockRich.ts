@@ -145,6 +145,28 @@ export function installTauriMockRich(viewKey: string): void {
         return { enabled: true, mode: 'balanced' };
       case 'get_orchestrator_status_bin':
         return statusBin;
+      case 'probe_search_provider':
+        return {
+          provider: args?.provider ?? 'searxng',
+          http_status: 200,
+          latency_ms: 85,
+          success: true,
+          hit_count: 3,
+          sample_titles: ['Title 1', 'Title 2', 'Title 3'],
+          error_message: null,
+          remediation_tip: null,
+        };
+      case 'probe_all_search_providers':
+        return ['searxng', 'tavily', 'duckduckgo', 'wikipedia'].map(p => ({
+          provider: p,
+          http_status: 200,
+          latency_ms: 85,
+          success: true,
+          hit_count: 3,
+          sample_titles: [`${p} hit 1`, `${p} hit 2`],
+          error_message: null,
+          remediation_tip: null,
+        }));
       default:
         return base(cmd, args);
     }

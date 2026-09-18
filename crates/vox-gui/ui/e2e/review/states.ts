@@ -127,6 +127,17 @@ SURFACE_STATES['dashboard'] = [
   ...VARIANT,
 ];
 
+SURFACE_STATES['research'] = [
+  DEFAULT,
+  {
+    name: 'prober-open',
+    setup: async (p) => {
+      const btn = p.getByTestId('toggle-diagnostics-btn');
+      if (await btn.isVisible()) await btn.click();
+    },
+  },
+];
+
 for (const k of VARIANT_SURFACES) {
   if (!SURFACE_STATES[k].some((s) => s.name === 'empty')) SURFACE_STATES[k].push(...VARIANT);
 }
