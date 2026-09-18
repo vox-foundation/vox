@@ -4,9 +4,12 @@
 
 use crate::VoxDb;
 use crate::store::StoreError;
+use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 use turso::params;
 use vox_db_types::{
-    CachedClaimVerdict, ClaimsPendingCounts, ResearchArtifactRecord, ResearchSearchResult,
+    CachedClaimVerdict, ClaimsPendingCounts, MisguidanceReporter, RecordMisguidanceParams,
+    ResearchArtifactRecord, ResearchDefectClass, ResearchMisguidanceRecord, ResearchSearchResult,
     ResearchSessionRecord, ResearchSessionSummary, ScientiaClaimWithVerdict,
 };
 
@@ -893,6 +896,241 @@ impl VoxDb {
                 )
                 .await?;
                 Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Record a research misguidance event and update the culprit domain's reputation with exponential decay.
+    pub async fn record_research_misguidance(
+        &self,
+        params: &RecordMisguidanceParams,
+    ) -> Result<i64, StoreError> {
+        let now = now_ms();
+        let params = params.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let culprit_url = params
+                    .culprit_url
+                    .as_deref()
+                    .map(|s| turso::Value::Text(s.to_string()))
+                    .unwrap_or(turso::Value::Null);
+                let excerpt = params
+                    .misleading_excerpt
+                    .as_deref()
+                    .map(|s| turso::Value::Text(s.to_string()))
+                    .unwrap_or(turso::Value::Null);
+                let code = params
+                    .generated_code_snippet
+                    .as_deref()
+                    .map(|s| turso::Value::Text(s.to_string()))
+                    .unwrap_or(turso::Value::Null);
+                let diag = params
+                    .failure_diagnostic
+                    .as_deref()
+                    .map(|s| turso::Value::Text(s.to_string()))
+                    .unwrap_or(turso::Value::Null);
+                let diff = params
+                    .correction_diff
+                    .as_deref()
+                    .map(|s| turso::Value::Text(s.to_string()))
+                    .unwrap_or(turso::Value::Null);
+                let session_id_val = params
+                    .session_id
+                    .map(turso::Value::Integer)
+                    .unwrap_or(turso::Value::Null);
+                let claim_id_val = params
+                    .claim_id
+                    .map(turso::Value::Integer)
+                    .unwrap_or(turso::Value::Null);
+
+                let insert_params = vec![
+                    session_id_val,
+                    turso::Value::Text(params.defect_class.as_str().to_string()),
+                    culprit_url,
+                    turso::Value::Text(params.culprit_domain.clone()),
+                    claim_id_val,
+                    turso::Value::Text(params.research_query.clone()),
+                    excerpt,
+                    code,
+                    diag,
+                    diff,
+                    turso::Value::Text(params.reporter.as_str().to_string()),
+                    turso::Value::Real(params.domain_penalty),
+                    turso::Value::Integer(now),
+                ];
+
+                conn.execute(
+                    "INSERT INTO research_misguidance_events \
+                     (session_id, defect_class, culprit_url, culprit_domain, \
+                      claim_id, research_query, misleading_excerpt, generated_code_snippet, \
+                      failure_diagnostic, correction_diff, reporter, domain_penalty, created_at_ms) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                    insert_params,
+                )
+                .await?;
+
+                let event_id = conn.last_insert_rowid();
+
+                let mut rep_rows = conn
+                    .query(
+                        "SELECT incident_count, penalty_score, last_incident_at_ms \
+                         FROM research_domain_reputation WHERE domain = ?1",
+                        params![params.culprit_domain.as_str()],
+                    )
+                    .await?;
+
+                let (new_count, new_penalty) = if let Some(row) = rep_rows.next().await? {
+                    let current_count: i64 = row.get(0)?;
+                    let current_penalty: f64 = row.get(1)?;
+                    let last_incident_at_ms: i64 = row.get(2)?;
+
+                    let elapsed_days = ((now - last_incident_at_ms) as f64 / 86_400_000.0).max(0.0);
+                    let decayed = current_penalty * (-elapsed_days / 30.0).exp();
+                    let new_pen = (decayed + params.domain_penalty).max(0.0).min(2.0);
+                    (current_count + 1, new_pen)
+                } else {
+                    (1i64, params.domain_penalty.max(0.0).min(2.0))
+                };
+
+                let is_blacklisted: i64 = if new_count >= 5 && new_penalty >= 1.0 { 1 } else { 0 };
+
+                conn.execute(
+                    "INSERT INTO research_domain_reputation \
+                     (domain, incident_count, penalty_score, last_incident_at_ms, is_blacklisted, updated_at_ms) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
+                     ON CONFLICT(domain) DO UPDATE SET \
+                       incident_count = excluded.incident_count, \
+                       penalty_score = excluded.penalty_score, \
+                       last_incident_at_ms = excluded.last_incident_at_ms, \
+                       is_blacklisted = excluded.is_blacklisted, \
+                       updated_at_ms = excluded.updated_at_ms",
+                    params![
+                        params.culprit_domain.as_str(),
+                        new_count,
+                        new_penalty,
+                        now,
+                        is_blacklisted,
+                        now,
+                    ],
+                )
+                .await?;
+
+                Ok::<i64, StoreError>(event_id)
+            })
+            .await
+    }
+
+    /// List recorded research misguidance events, optionally filtered by session id.
+    pub async fn list_research_misguidance(
+        &self,
+        session_id: Option<i64>,
+        limit: u32,
+    ) -> Result<Vec<ResearchMisguidanceRecord>, StoreError> {
+        let lim = limit.clamp(1, 1000) as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = match session_id {
+                    Some(sid) => {
+                        conn.query(
+                            "SELECT id, session_id, defect_class, culprit_url, culprit_domain, \
+                             claim_id, research_query, misleading_excerpt, generated_code_snippet, \
+                             failure_diagnostic, correction_diff, reporter, domain_penalty, created_at_ms \
+                             FROM research_misguidance_events \
+                             WHERE session_id = ?1 \
+                             ORDER BY created_at_ms DESC, id DESC LIMIT ?2",
+                            params![sid, lim],
+                        )
+                        .await?
+                    }
+                    None => {
+                        conn.query(
+                            "SELECT id, session_id, defect_class, culprit_url, culprit_domain, \
+                             claim_id, research_query, misleading_excerpt, generated_code_snippet, \
+                             failure_diagnostic, correction_diff, reporter, domain_penalty, created_at_ms \
+                             FROM research_misguidance_events \
+                             ORDER BY created_at_ms DESC, id DESC LIMIT ?1",
+                            params![lim],
+                        )
+                        .await?
+                    }
+                };
+
+                let mut out = Vec::new();
+                while let Some(row) = rows.next().await? {
+                    let defect_class_str: String = row.get(2)?;
+                    let reporter_str: String = row.get(11)?;
+                    let defect_class = ResearchDefectClass::from_str(&defect_class_str)
+                        .map_err(StoreError::Db)?;
+                    let reporter = MisguidanceReporter::from_str(&reporter_str)
+                        .map_err(StoreError::Db)?;
+
+                    out.push(ResearchMisguidanceRecord {
+                        id: row.get(0)?,
+                        session_id: row.get(1)?,
+                        defect_class,
+                        culprit_url: row.get(3)?,
+                        culprit_domain: row.get(4)?,
+                        claim_id: row.get(5)?,
+                        research_query: row.get(6)?,
+                        misleading_excerpt: row.get(7)?,
+                        generated_code_snippet: row.get(8)?,
+                        failure_diagnostic: row.get(9)?,
+                        correction_diff: row.get(10)?,
+                        reporter,
+                        domain_penalty: row.get(12)?,
+                        created_at_ms: row.get(13)?,
+                    });
+                }
+                Ok::<Vec<ResearchMisguidanceRecord>, StoreError>(out)
+            })
+            .await
+    }
+
+    /// Retrieve all domain penalty scores where penalty > 0.0.
+    pub async fn get_domain_penalties(&self) -> Result<HashMap<String, f64>, StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT domain, penalty_score FROM research_domain_reputation WHERE penalty_score > 0.0",
+                        params![],
+                    )
+                    .await?;
+                let mut map = HashMap::new();
+                while let Some(row) = rows.next().await? {
+                    let domain: String = row.get(0)?;
+                    let penalty: f64 = row.get(1)?;
+                    map.insert(domain, penalty);
+                }
+                Ok::<HashMap<String, f64>, StoreError>(map)
+            })
+            .await
+    }
+
+    /// Retrieve the set of all blacklisted domains.
+    pub async fn get_blacklisted_domains(&self) -> Result<HashSet<String>, StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT domain FROM research_domain_reputation WHERE is_blacklisted = 1",
+                        params![],
+                    )
+                    .await?;
+                let mut set = HashSet::new();
+                while let Some(row) = rows.next().await? {
+                    let domain: String = row.get(0)?;
+                    set.insert(domain);
+                }
+                Ok::<HashSet<String>, StoreError>(set)
             })
             .await
     }
