@@ -3,6 +3,8 @@
 //! SearXNG `engines` / `language` defaults are embedded from
 //! [`contracts/scientia/searxng-query.defaults.v1.yaml`](../../../contracts/scientia/searxng-query.defaults.v1.yaml).
 
+use std::collections::{HashMap, HashSet};
+
 use serde::{Deserialize, Serialize};
 
 use crate::searxng_defaults::embedded_searxng_query_defaults;
@@ -141,6 +143,12 @@ pub struct SearchPolicy {
     /// Env: `VOX_SEARCH_NOVELTY_MIN_SCORE`. Default: 0.15.
     #[serde(default = "default_novelty_min_score")]
     pub novelty_min_score: f64,
+    /// Penalties applied to search results by domain (0.0 to 1.0).
+    #[serde(default)]
+    pub domain_penalties: HashMap<String, f64>,
+    /// Domains completely excluded from search results.
+    #[serde(default)]
+    pub blacklisted_domains: HashSet<String>,
 }
 
 /// Aggregated SCIENTIA observations that can tune retrieval policy for a run.
@@ -309,6 +317,8 @@ impl Default for SearchPolicy {
             .and_then(|v| v.parse::<f64>().ok())
             .filter(|x| x.is_finite() && *x >= 0.0 && *x <= 1.0)
             .unwrap_or_else(default_novelty_min_score),
+            domain_penalties: HashMap::new(),
+            blacklisted_domains: HashSet::new(),
         }
     }
 }

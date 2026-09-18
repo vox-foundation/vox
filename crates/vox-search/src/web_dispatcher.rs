@@ -6,7 +6,42 @@ use crate::policy::SearchPolicy;
 
 pub struct WebSearchDispatcher;
 
+pub fn extract_registrable_domain(url_str: &str) -> Option<String> {
+    let parsed = url::Url::parse(url_str)
+        .or_else(|_| url::Url::parse(&format!("https://{url_str}")))
+        .ok()?;
+    let host = parsed.host_str()?;
+    Some(host.trim_start_matches("www.").to_ascii_lowercase())
+}
+
 impl WebSearchDispatcher {
+    pub fn extract_registrable_domain(url_str: &str) -> Option<String> {
+        extract_registrable_domain(url_str)
+    }
+
+    pub fn filter_and_penalize_results(
+        results: &mut Vec<crate::searxng::SearxngResult>,
+        policy: &SearchPolicy,
+    ) {
+        results.retain(|r| {
+            if let Some(domain) = extract_registrable_domain(&r.url) {
+                !policy.blacklisted_domains.contains(&domain)
+            } else {
+                true
+            }
+        });
+
+        for r in results.iter_mut() {
+            let domain = extract_registrable_domain(&r.url);
+            let penalty = domain
+                .and_then(|d| policy.domain_penalties.get(&d))
+                .copied()
+                .unwrap_or(0.0);
+            let base = r.score.unwrap_or(0.5);
+            let multiplier = (1.0 - penalty).clamp(0.05, 1.0);
+            r.score = Some(base * multiplier);
+        }
+    }
     pub async fn search(
         query: &str,
         policy: &SearchPolicy,
@@ -161,6 +196,10 @@ impl WebSearchDispatcher {
             }
         }
 
+        if results.is_empty() {
+            return Ok(Vec::new());
+        }
+        Self::filter_and_penalize_results(&mut results, policy);
         if results.is_empty() {
             return Ok(Vec::new());
         }
