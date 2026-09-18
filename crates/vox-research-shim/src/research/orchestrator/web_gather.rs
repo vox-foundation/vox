@@ -119,9 +119,18 @@ fn local_line_ref(
 
 /// Returns true when `url`'s host matches `site_scope` (domain only, no scheme).
 fn host_matches_site_scope(url: &str, site_scope: &str) -> bool {
-    let scope = site_scope
-        .trim()
+    let raw_scope = site_scope.trim();
+    let rest_scope = raw_scope
+        .strip_prefix("https://")
+        .or_else(|| raw_scope.strip_prefix("http://"))
+        .unwrap_or(raw_scope);
+    let scope_host = rest_scope.split('/').next().unwrap_or(rest_scope);
+    let scope = scope_host
+        .split(':')
+        .next()
+        .unwrap_or(scope_host)
         .trim_start_matches("www.")
+        .trim_end_matches('/')
         .to_ascii_lowercase();
     if scope.is_empty() {
         return true;
@@ -136,7 +145,10 @@ fn host_matches_site_scope(url: &str, site_scope: &str) -> bool {
         .next()
         .unwrap_or(rest)
         .trim_start_matches("www.");
-    host == scope.as_str() || host.ends_with(&format!(".{}", scope))
+    host == scope
+        || host
+            .strip_suffix(&scope)
+            .is_some_and(|prefix| prefix.ends_with('.'))
 }
 
 async fn search_one_subquery(
@@ -232,6 +244,11 @@ pub(super) async fn gather_web_hits_for_plan(
             .await
     };
     for rh in tavily_hits {
+        if let Some(scope) = site_scope {
+            if !host_matches_site_scope(&rh.url, scope) {
+                continue;
+            }
+        }
         if !seen_urls.insert(rh.url.clone()) {
             continue;
         }
@@ -543,5 +560,42 @@ mod tests {
         }
         let parsed: Expansion = serde_json::from_str(json_str).unwrap();
         assert_eq!(parsed.followup_queries, vec!["q1"]);
+    }
+
+    #[test]
+    fn test_host_matches_site_scope() {
+        use super::host_matches_site_scope;
+
+        assert!(host_matches_site_scope(
+            "https://example.com/foo",
+            "example.com"
+        ));
+        assert!(host_matches_site_scope(
+            "https://sub.example.com/foo",
+            "example.com"
+        ));
+        assert!(host_matches_site_scope(
+            "https://www.example.com",
+            "example.com"
+        ));
+        assert!(!host_matches_site_scope(
+            "https://notexample.com",
+            "example.com"
+        ));
+        assert!(!host_matches_site_scope(
+            "https://example.org",
+            "example.com"
+        ));
+
+        // Normalization of site_scope with schemes, www, and trailing slashes
+        assert!(host_matches_site_scope(
+            "https://example.com",
+            "https://example.com/"
+        ));
+        assert!(host_matches_site_scope(
+            "http://sub.example.com/api",
+            "http://www.example.com/"
+        ));
+        assert!(host_matches_site_scope("https://example.com", ""));
     }
 }
