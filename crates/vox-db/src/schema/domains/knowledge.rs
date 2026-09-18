@@ -130,4 +130,14 @@ CREATE TABLE IF NOT EXISTS web_cache (
 
 CREATE INDEX IF NOT EXISTS idx_web_cache_url ON web_cache(url);
 CREATE INDEX IF NOT EXISTS idx_web_cache_fetched ON web_cache(fetched_at_ms);
+
+-- Provider Quota Usage -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS provider_quota_usage (
+    provider TEXT NOT NULL,
+    period_key TEXT NOT NULL,
+    units_spent INTEGER NOT NULL DEFAULT 0,
+    units_limit INTEGER NOT NULL DEFAULT 1000,
+    last_synced_at TEXT NOT NULL,
+    PRIMARY KEY (provider, period_key)
+);
 ";

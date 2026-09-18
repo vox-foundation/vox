@@ -20,6 +20,7 @@ pub struct ProviderSafetyGovernor {
     ddg_sem: Arc<Semaphore>,
     llm_sem: Arc<Semaphore>,
     last_ddg_request: Arc<Mutex<Option<Instant>>>,
+    db: Arc<OnceLock<Arc<vox_db::Codex>>>,
 }
 
 impl Default for ProviderSafetyGovernor {
@@ -54,6 +55,7 @@ impl ProviderSafetyGovernor {
             ddg_sem: Arc::new(Semaphore::new(1)),
             llm_sem: Arc::new(Semaphore::new(4)),
             last_ddg_request: Arc::new(Mutex::new(None)),
+            db: Arc::new(OnceLock::new()),
         }
     }
 
@@ -61,6 +63,16 @@ impl ProviderSafetyGovernor {
     pub fn global() -> &'static Self {
         static INSTANCE: OnceLock<ProviderSafetyGovernor> = OnceLock::new();
         INSTANCE.get_or_init(Self::new)
+    }
+
+    /// Returns the database handle if configured.
+    pub fn db(&self) -> Option<Arc<vox_db::Codex>> {
+        self.db.get().cloned()
+    }
+
+    /// Sets the database handle for quota recording.
+    pub fn set_db(&self, db: Arc<vox_db::Codex>) {
+        let _ = self.db.set(db);
     }
 
     /// Acquire permit for SearXNG call (max 2 concurrent).
