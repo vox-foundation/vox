@@ -9,7 +9,7 @@ describe('useLocalStorage error reporting', () => {
   it('warns (not console.log) and falls back when reading throws', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
       throw new Error('storage disabled');
     });
     const { result } = renderHook(() => useLocalStorage('lk-read', 'fallback'));
@@ -21,7 +21,7 @@ describe('useLocalStorage error reporting', () => {
   it('warns (not console.log) when writing throws', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
       throw new Error('quota exceeded');
     });
     const { result } = renderHook(() => useLocalStorage('lk-write', 'v'));

@@ -13,6 +13,7 @@ import {
 import { INITIAL_KPIS } from '../../data/initialState';
 import { WORKBENCH_TABBAR_TRAILING_SLOT_ID } from '../../lib/domIds';
 import type { MeshNode } from '../surfaces/Mesh/MeshView';
+import { StatusBarCluster } from '../common/StatusBarCluster';
 
 type KpiState = typeof INITIAL_KPIS;
 
@@ -30,6 +31,7 @@ export interface BottomStatusBarProps {
   meshNodes?: MeshNode[];
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
+  onOpenResearchDrawer?: () => void;
 }
 
 function freshnessClasses(tone: 'live' | 'poll' | 'stale') {
@@ -92,6 +94,7 @@ export function BottomStatusBar({
   meshNodes,
   gamifyEnabled = false,
   onOpenAchievements,
+  onOpenResearchDrawer,
 }: BottomStatusBarProps) {
   const tone = useFreshness(lastOrchEventAt, {
     freshMs: liveFreshMs,
@@ -242,6 +245,7 @@ export function BottomStatusBar({
           <Icon.trophy className="size-3.5" aria-hidden="true" />
         </button>
       )}
+      <StatusBarCluster onOpenDrawer={onOpenResearchDrawer} />
       <div className="relative shrink-0">
         <button
           ref={triggerRef}

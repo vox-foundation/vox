@@ -21,7 +21,7 @@ export function seedMockEnvironment(viewKey: string): void {
         activeTab: viewKey,
       }),
     );
-    window.localStorage.setItem('vox_sidebar_mode', 'default');
+    window.localStorage.setItem('vox_sidebar_mode', JSON.stringify('default'));
   } catch {
     // sandboxed contexts may deny localStorage
   }

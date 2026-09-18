@@ -238,7 +238,7 @@ export function installTauriMock(viewKey: string): void {
             remediation_tip: null,
           };
         case 'probe_all_search_providers':
-          return ['searxng', 'tavily', 'duckduckgo', 'wikipedia'].map(p => ({
+          return ['searxng', 'tavily', 'openalex', 'arxiv', 'wikipedia'].map(p => ({
             provider: p,
             http_status: 200,
             latency_ms: 85,
@@ -248,9 +248,71 @@ export function installTauriMock(viewKey: string): void {
             error_message: null,
             remediation_tip: null,
           }));
+        case 'get_research_engine_status':
+          return {
+            active_lane: 'fast',
+            fast_timeout_ms: 2500,
+            deep_timeout_ms: 15000,
+            providers: [
+              { id: 'wikipedia', name: 'Wikipedia', is_keyless: true, is_enabled: true, has_key: false },
+              { id: 'openalex', name: 'OpenAlex', is_keyless: true, is_enabled: true, has_key: false },
+              { id: 'arxiv', name: 'arXiv', is_keyless: true, is_enabled: true, has_key: false },
+              { id: 'searxng', name: 'SearXNG', is_keyless: true, is_enabled: true, has_key: false },
+              { id: 'tavily', name: 'Tavily', is_keyless: false, is_enabled: true, has_key: true, quota_usage: { units_spent: 160, units_limit: 1000, last_synced_at: '2026-09-18' } },
+            ],
+            free_key_offers: [
+              {
+                provider_id: 'tavily',
+                name: 'Tavily Search',
+                signup_url: 'https://app.tavily.com/sign-up',
+                free_tier_description: '1,000 queries/month free web search for AI agents and LLMs.',
+                quota_summary: '1,000 searches/mo',
+                requires_credit_card: false,
+                secret_id: 'tavily_api_key',
+              },
+            ],
+          };
+        case 'save_research_engine_config':
+          return null;
         case 'open_locator': return { action: 'opened' };
         case 'list_research_sessions': return sessions;
-        case 'get_research_session_detail': return { session: sessions[0], report_markdown: '# Findings\n\nVector DBs trade recall for latency...\n\n- qdrant: fast ANN\n- tantivy: lexical', artifact_json: '{}' };
+        case 'get_research_session_detail': return {
+          session: sessions[0],
+          report_markdown: '# Findings: Hybrid Retrieval & Vector DB Tradeoffs\n\nVector DBs trade exact recall for sub-millisecond retrieval latency at scale.\n\n- Qdrant: fast HNSW indexing with scalar quantization\n- Tantivy: inverted BM25 index with block-WAND dynamic pruning',
+          artifact_json: '{}',
+          confidence_tier: 'DeepResearch',
+          source_count: 3,
+          citation_precision: 1.0,
+          claims: [
+            {
+              claim_id: 'c1',
+              text: 'Vector DBs trade exact recall for sub-millisecond retrieval latency at scale.',
+              verdict: 'Supported',
+              confidence: 0.95,
+              resample_stability: 0.92,
+              citation_urls: ['https://example.com/vector-db-ann', 'https://example.com/latency-tradeoffs'],
+              corroboration_count: 2,
+            },
+            {
+              claim_id: 'c2',
+              text: 'Reciprocal Rank Fusion (RRF) with k=60 outperforms naive linear combination of BM25 and dense scores.',
+              verdict: 'Supported',
+              confidence: 0.92,
+              resample_stability: 0.88,
+              citation_urls: ['https://example.com/rrf-fusion-benchmark'],
+              corroboration_count: 2,
+            },
+            {
+              claim_id: 'c3',
+              text: 'Single-source retrieval without corroboration exhibits higher epistemic variance.',
+              verdict: 'Contested',
+              confidence: 0.65,
+              resample_stability: 0.54,
+              citation_urls: ['https://example.com/variance-analysis'],
+              corroboration_count: 1,
+            },
+          ],
+        };
         case 'list_publication_manifests': return manifests;
         case 'get_memory_status': return {
           corpus_counts: { proj: 1280, docs: 540, chats: 96, rules: 210, web: 60 },

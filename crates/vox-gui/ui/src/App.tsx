@@ -175,7 +175,7 @@ function isKnownView(v: unknown): v is View {
 /**
  * Task C1: `chat_turn`'s typed `ChatTurnError` (see `dispatchErrorToast`
  * below) carries the human-readable text in its `message` field, not in
- * `String(err)` (which would stringify the whole `{kind, message}` object to
+ * raw stringification of `err` (which would stringify the whole `{kind, message}` object to
  * `"[object Object]"`). Used both by `dispatchErrorToast` and by the
  * chat-store `error:` field so the failed transcript bubble shows the same
  * text as the toast.
@@ -219,7 +219,7 @@ function chatTurnErrorMessage(err: unknown): string {
 function dispatchErrorToast(err: unknown, fallbackTitle: string): Toast {
   if (typeof err === 'object' && err !== null && 'kind' in err) {
     const { kind, message } = err as { kind: string; message?: string };
-    const text = typeof message === 'string' ? message : String(err);
+    const text = typeof message === 'string' ? message : sanitizeErrorForToast(err);
     switch (kind) {
       case 'budget_exceeded':
         return {
@@ -246,7 +246,7 @@ function dispatchErrorToast(err: unknown, fallbackTitle: string): Toast {
         return { tone: 'warn', title: fallbackTitle, body: sanitizeErrorForToast(text), cause: 'backend-error' };
     }
   }
-  const errorText = String(err);
+  const errorText = sanitizeErrorForToast(err);
   if (isBudgetExceededError(errorText)) {
     return {
       tone: 'warn',

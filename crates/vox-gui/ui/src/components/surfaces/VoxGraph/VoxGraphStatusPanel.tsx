@@ -103,7 +103,7 @@ function TtlEditor({
   const [lastTtlDays, setLastTtlDays] = useState(ttlDays);
   if (ttlDays !== lastTtlDays) {
     setLastTtlDays(ttlDays);
-    setValue(String(ttlDays));
+    setValue(String(ttlDays)); // gui-safe: numeric input state conversion
   }
 
   const handleSave = useCallback(async () => {

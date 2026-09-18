@@ -413,5 +413,20 @@ describe('ResearchView', () => {
         expect(screen.queryByTestId('empty-results-notice')).toBeNull();
       });
     });
+
+    it('opens ResearchEngineDrawer when configure-engines-btn is clicked', async () => {
+      render(<ResearchView />);
+      await waitFor(() => {
+        expect(screen.getByTestId('configure-engines-btn')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('research-engine-drawer')).toBeNull();
+      fireEvent.click(screen.getByTestId('configure-engines-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('research-engine-drawer')).toBeInTheDocument();
+        expect(screen.getByText(/Zero-Key Guarantee/i)).toBeInTheDocument();
+      });
+    });
   });
 });

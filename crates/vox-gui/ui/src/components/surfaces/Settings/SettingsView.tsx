@@ -46,6 +46,7 @@ const SECTIONS = [
 interface SettingsState {
   doubt: boolean;
   autobudget: boolean;
+  chatResearchEnabled: boolean;
   theme: string;
   concurrency: number;
   capUsd: number;
@@ -1112,7 +1113,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
     mobile: 0,
   });
   const [vals, setVals] = useState<SettingsState>({
-    doubt: true, autobudget: true, theme: 'arcane', concurrency: 7,
+    doubt: true, autobudget: true, chatResearchEnabled: true, theme: 'arcane', concurrency: 7,
     capUsd: DEFAULT_BUDGET_CAP_USD, doubtThresh: 0.6, sign: false, telemetry: 'local',
     isolation: 'wasm', checkpointMins: 5,
     scalingEnabled: false, minAgents: 1, scalingThreshold: 5,
@@ -1235,6 +1236,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           ...(typeof cfg.isolation === 'string' ? { isolation: cfg.isolation } : {}),
           ...(bool('autobudget') != null ? { autobudget: bool('autobudget')! } : {}),
           ...(bool('doubt') != null ? { doubt: bool('doubt')! } : {}),
+          ...(bool('chatResearchEnabled') != null ? { chatResearchEnabled: bool('chatResearchEnabled')! } : {}),
           ...(bool('scalingEnabled') != null ? { scalingEnabled: bool('scalingEnabled')! } : {}),
           ...(bool('harnessIssueDetectionEnabled') != null ? { harnessIssueDetectionEnabled: bool('harnessIssueDetectionEnabled')! } : {}),
           ...(num('minAgents') != null ? { minAgents: num('minAgents')! } : {}),
@@ -1414,6 +1416,13 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
               </Row>
               <Row label="Auto-budget per agent" hint="Derived from skill + recent burn">
                 <Toggle on={vals.autobudget} onClick={() => update({ autobudget: !vals.autobudget })} />
+              </Row>
+              <Row label="Autonomous chat research" hint="Allow orchestrator to trigger live deep research during chat turns">
+                <Toggle
+                  data-testid="toggle-chat-research"
+                  on={vals.chatResearchEnabled}
+                  onClick={() => update({ chatResearchEnabled: !vals.chatResearchEnabled })}
+                />
               </Row>
             </div>
           </>

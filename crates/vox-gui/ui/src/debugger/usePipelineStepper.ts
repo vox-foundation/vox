@@ -4,11 +4,76 @@ import type { DebugStep, StepStatus, InvariantViolation } from './types';
 import { checkHonestyInvariant } from './sentries/sentryHonesty';
 import { checkErrorLeakInvariant } from './sentries/sentryErrorLeak';
 
+const DEFAULT_STAGE_PAYLOADS: Record<string, { input: Record<string, unknown>; output: Record<string, unknown> }> = {
+  queued: {
+    input: { query: 'hybrid search architecture', scope: 'web', max_sources: 5 },
+    output: { session_id: 1, status: 'queued', enqueued_at_ms: 1717000000000 },
+  },
+  planning: {
+    input: { query: 'hybrid search architecture', entropy: 3.42, max_depth: 2 },
+    output: {
+      subqueries: [
+        'BM25 vs dense retrieval tradeoffs',
+        'Reciprocal Rank Fusion k=60',
+        'cross-encoder reranking latency',
+      ],
+      target_sources: 5,
+      domain_filter: ['arxiv.org', 'github.com', 'semanticscholar.org'],
+    },
+  },
+  retrieving: {
+    input: {
+      subqueries: [
+        'BM25 vs dense retrieval tradeoffs',
+        'Reciprocal Rank Fusion k=60',
+        'cross-encoder reranking latency',
+      ],
+      providers: ['searxng', 'tavily', 'duckduckgo', 'wikipedia'],
+    },
+    output: {
+      sources: ['https://example.com/hybrid-search', 'https://example.com/rrf-fusion-benchmark', 'https://example.com/vector-db-ann'],
+      hits_retrieved: 8,
+      unique_domains: 5,
+      rrf_top_score: 0.0328,
+    },
+  },
+  verifying_claims: {
+    input: { candidate_snippets: 8, nli_model: 'mens-judge-v1', threshold: 0.75 },
+    output: {
+      extracted_claims: 3,
+      verdicts: { supported: 2, contested: 1, refuted: 0 },
+      claims: [
+        { claim_id: 'c1', text: 'Vector DBs trade exact recall for sub-millisecond retrieval latency at scale.', verdict: 'Supported', confidence: 0.95 },
+        { claim_id: 'c2', text: 'Reciprocal Rank Fusion (RRF) with k=60 outperforms naive linear combination.', verdict: 'Supported', confidence: 0.92 },
+        { claim_id: 'c3', text: 'Single-source retrieval without corroboration exhibits higher epistemic variance.', verdict: 'Contested', confidence: 0.65 },
+      ],
+    },
+  },
+  synthesizing: {
+    input: { supported_claims: 2, contested_claims: 1, style: 'technical_deep_dive' },
+    output: { markdown_length_chars: 4218, citation_density: 0.42, section_count: 4, synthesis_token_count: 850 },
+  },
+  auditing_citations: {
+    input: { total_citations: 5, distinct_domains: 3, raw_claims_count: 3 },
+    output: { citation_precision: 1.0, orphan_citations: 0, corroboration_ratio: 0.67, status: 'passed' },
+  },
+  persisting: {
+    input: { session_id: 1, format: 'vox_db_and_markdown', doc_path: 'docs/research/hybrid-search.md' },
+    output: { db_record_id: 1, file_bytes: 4218, persisted_at_ms: 1717000001250 },
+  },
+  completed: {
+    input: { session_id: 1, duration_ms: 1250 },
+    output: { status: 'success', total_claims: 3, verified_sources: 3, honesty_invariant_passed: true },
+  },
+};
+
 export function createInitialSteps(): DebugStep[] {
   return RESEARCH_STAGES.map((stage, idx) => ({
     id: stage,
     label: stage.replace(/_/g, ' '),
     status: idx === 0 ? 'active' : 'pending',
+    inputPayload: DEFAULT_STAGE_PAYLOADS[stage]?.input,
+    outputPayload: DEFAULT_STAGE_PAYLOADS[stage]?.output,
   }));
 }
 

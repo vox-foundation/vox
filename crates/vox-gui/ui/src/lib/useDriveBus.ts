@@ -13,6 +13,7 @@ import {
   clearDriveEvents,
   type DriveEventState,
 } from './driveEvents';
+import { sanitizeErrorForToast } from './backendGuard';
 
 function mintCorrelationId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -165,7 +166,7 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
     try {
       state = applySet(state, body);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : sanitizeErrorForToast(err);
       return {
         status: 400,
         plane: 'live',
@@ -217,7 +218,7 @@ export async function handleDriveRequest(args: HandleDriveRequestArgs): Promise<
       lastError = interpreted.lastError;
       assistantText = interpreted.assistantText;
     } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
+      lastError = err instanceof Error ? err.message : sanitizeErrorForToast(err);
     }
     const activeEventState = args.getActiveEventState?.();
     if (activeEventState?.last_turn_id === turnId) {

@@ -22,6 +22,7 @@ import { LiveSourceProber } from './LiveSourceProber';
 import { JudgeInspector } from './JudgeInspector';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../../ui/Dialog';
 import { SafeExternalLink } from './SafeExternalLink';
+import { ResearchEngineDrawer } from './ResearchEngineDrawer';
 
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
 
@@ -281,6 +282,15 @@ export function ResearchView({
   const [lane, setLane] = useState<'fast' | 'deep'>(initialLane);
   const [engineStatus, setEngineStatus] = useState<ResearchEngineStatusDto | null>(null);
   const [lowEvidence, setLowEvidence] = useState(initialLowEvidence);
+  const [isEngineDrawerOpen, setIsEngineDrawerOpen] = useState(false);
+
+  const openEngineDrawer = () => {
+    if (onOpenEngineDrawer) {
+      onOpenEngineDrawer();
+    } else {
+      setIsEngineDrawerOpen(true);
+    }
+  };
 
   const handleCitationClick = useCallback(
     (num: number) => {
@@ -477,7 +487,7 @@ export function ResearchView({
               <button
                 key={p.id}
                 type="button"
-                onClick={() => onOpenEngineDrawer?.()}
+                onClick={openEngineDrawer}
                 className="inline-flex items-center gap-1 rounded border border-border-subtle bg-black/40 px-2 py-0.5 text-[11px] font-mono text-text-muted hover:text-text-secondary hover:border-brass/40 transition-colors"
               >
                 {label}
@@ -488,7 +498,7 @@ export function ResearchView({
             type="button"
             data-testid="configure-engines-btn"
             aria-label="Configure search sources and API keys"
-            onClick={() => onOpenEngineDrawer?.()}
+            onClick={openEngineDrawer}
             className="inline-flex items-center gap-1 rounded border border-border-subtle bg-black/40 px-2 py-0.5 text-[11px] text-text-secondary hover:text-text-primary hover:border-brass/40 transition-colors ml-auto"
           >
             ⚙ Sources & Keys
@@ -759,6 +769,12 @@ export function ResearchView({
           />
         </div>
       )}
+      <ResearchEngineDrawer
+        isOpen={isEngineDrawerOpen}
+        onClose={() => setIsEngineDrawerOpen(false)}
+        onConfigSaved={loadEngineStatus}
+        pushToast={pushToast}
+      />
     </section>
   );
 }
