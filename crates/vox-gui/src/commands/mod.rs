@@ -46,6 +46,7 @@ pub mod runs;
 pub mod scientia;
 pub mod scientia_review;
 pub mod search;
+pub mod search_probe;
 pub mod secrets;
 pub mod signing;
 pub mod stt_config;
