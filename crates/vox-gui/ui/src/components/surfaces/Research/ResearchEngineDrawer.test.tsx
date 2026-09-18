@@ -48,4 +48,54 @@ describe('ResearchEngineDrawer', () => {
     expect(stopSpy).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('traps focus circularly: Tab on last element cycles to first, Shift+Tab on first cycles to last', async () => {
+    const { container } = render(<ResearchEngineDrawer isOpen={true} onClose={vi.fn()} />);
+    const focusable = Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+    );
+    expect(focusable.length).toBeGreaterThan(1);
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    // Case 1: Shift+Tab on first element wraps to last
+    first.focus();
+    expect(document.activeElement).toBe(first);
+    const shiftTabEvent = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true });
+    const shiftPreventSpy = vi.spyOn(shiftTabEvent, 'preventDefault');
+    document.dispatchEvent(shiftTabEvent);
+    expect(shiftPreventSpy).toHaveBeenCalled();
+    expect(document.activeElement).toBe(last);
+
+    // Case 2: Tab on last element wraps to first
+    last.focus();
+    expect(document.activeElement).toBe(last);
+    const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: false, bubbles: true });
+    const tabPreventSpy = vi.spyOn(tabEvent, 'preventDefault');
+    document.dispatchEvent(tabEvent);
+    expect(tabPreventSpy).toHaveBeenCalled();
+    expect(document.activeElement).toBe(first);
+
+    // Case 3: Tab when activeElement is outside drawer pulls focus to first
+    const outsideBtn = document.createElement('button');
+    document.body.appendChild(outsideBtn);
+    outsideBtn.focus();
+    expect(document.activeElement).toBe(outsideBtn);
+    const outsideTabEvent = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
+    const outsidePreventSpy = vi.spyOn(outsideTabEvent, 'preventDefault');
+    document.dispatchEvent(outsideTabEvent);
+    expect(outsidePreventSpy).toHaveBeenCalled();
+    expect(document.activeElement).toBe(first);
+    outsideBtn.remove();
+  });
+
+  it('provides accessible labels for all interactive inputs', async () => {
+    render(<ResearchEngineDrawer isOpen={true} onClose={vi.fn()} />);
+    expect(screen.getByLabelText(/Fast Lane Timeout/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Deep Lane Timeout/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/API key for Tavily/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/Enable Wikipedia/i)).toBeInTheDocument();
+  });
 });

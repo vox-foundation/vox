@@ -42,6 +42,7 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
 
   const activeLane = status?.active_lane ?? 'fast';
   const tavily = status?.providers.find((p) => p.id === 'tavily');
+  const tavilyLimit = tavily?.quota_usage?.units_limit ?? 1000;
   const tavilyRemaining = tavily?.quota_usage
     ? Math.max(0, tavily.quota_usage.units_limit - tavily.quota_usage.units_spent)
     : null;
@@ -60,7 +61,7 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
         <span className="uppercase tracking-[0.14em] text-text-muted">Research</span>
         <span className="font-mono tabular-nums text-text-secondary">
           {activeLane === 'deep' ? '🔬 Deep' : '⚡ Fast'}
-          {tavilyRemaining !== null ? ` · ${tavilyRemaining}/1000` : ''}
+          {tavilyRemaining !== null ? ` · ${tavilyRemaining}/${tavilyLimit}` : ''}
         </span>
       </button>
 
@@ -103,7 +104,7 @@ export function StatusBarCluster({ onOpenDrawer, className = '' }: StatusBarClus
               <div className="font-mono text-[10px]">
                 {tavily ? (
                   <div>
-                    Tavily: <span className="text-brass">{tavilyRemaining ?? '0'}/1000</span>
+                    Tavily: <span className="text-brass">{tavilyRemaining ?? '0'}/{tavilyLimit}</span>
                   </div>
                 ) : (
                   <div className="text-text-muted">Tavily: Free tier</div>

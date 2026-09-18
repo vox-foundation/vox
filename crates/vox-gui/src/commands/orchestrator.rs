@@ -503,6 +503,14 @@ pub async fn set_orchestrator_config(
             toml::Value::Integer(v as i64),
         );
     }
+    if let Some(v) = config.get("chatResearchEnabled").and_then(|v| v.as_bool()) {
+        orch_table.insert("chat_research_enabled".to_string(), toml::Value::Boolean(v));
+        let _ = vox_secrets::store_secret(
+            vox_secrets::SecretId::VoxChatResearchEnabled,
+            if v { "true" } else { "false" },
+            None,
+        );
+    }
 
     // 3. Save it back
     manifest.orchestrator = Some(orch_table);
@@ -524,6 +532,7 @@ pub async fn set_orchestrator_config(
         "scale_cpu_ceiling_pct",
         "scale_mem_floor_mb",
         "harness_issue_detection_enabled",
+        "chat_research_enabled",
     ]);
     // Also emit the event directly so the GUI updates immediately even if the
     // snapshot listener fires before the Tauri event loop processes the callback.
@@ -975,6 +984,7 @@ pub async fn get_orchestrator_config() -> Result<serde_json::Value, String> {
         "scalingThreshold": cfg.scaling_threshold,
         "scaleCpuCeilingPct": cfg.scale_cpu_ceiling_pct,
         "scaleMemFloorMb": cfg.scale_mem_floor_mb,
+        "chatResearchEnabled": vox_orchestrator::is_chat_research_enabled(),
     }))
 }
 

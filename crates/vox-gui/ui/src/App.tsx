@@ -15,6 +15,7 @@ import { useActiveView } from './hooks/useActiveView';
 import { useDocViewer } from './hooks/useDocViewer';
 import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
 import { InspectorDrawer } from './debugger/InspectorDrawer';
+import { ResearchEngineDrawer } from './components/surfaces/Research/ResearchEngineDrawer';
 import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
@@ -360,6 +361,9 @@ export default function App() {
   );
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [isResearchDrawerOpen, setIsResearchDrawerOpen] = useState(false);
+  const openResearchDrawer = useCallback(() => setIsResearchDrawerOpen(true), []);
+  const closeResearchDrawer = useCallback(() => setIsResearchDrawerOpen(false), []);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [filterKind, setFilterKind] = useState('all');
   const [chips, setChips] = useState<ContextChip[]>([]);
@@ -1911,6 +1915,7 @@ export default function App() {
         openrouterSpendUsd={openrouterSpendUsd}
         gamifyEnabled={gamifySettings.enabled}
         onOpenAchievements={openAchievements}
+        onOpenResearchDrawer={openResearchDrawer}
         hudTilesConfig={hudTilesConfig}
         onHudTilesChange={setHudTilesConfig}
         meshNodes={meshNodes}
@@ -2044,6 +2049,11 @@ export default function App() {
 
       <DocViewerDrawer doc={activeDoc} onClose={closeDocViewer} />
       <InspectorDrawer open={isInspectorOpen} onClose={() => setIsInspectorOpen(false)} />
+      <ResearchEngineDrawer
+        isOpen={isResearchDrawerOpen}
+        onClose={closeResearchDrawer}
+        pushToast={pushToast}
+      />
 
       <Toasts
         items={toasts}

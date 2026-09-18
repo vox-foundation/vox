@@ -79,6 +79,29 @@ export function ResearchEngineDrawer({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Initial focus and restore on close
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevActiveElement = document.activeElement as HTMLElement | null;
+    const timer = setTimeout(() => {
+      if (drawerRef.current) {
+        const focusable = drawerRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length > 0) {
+          focusable[0].focus();
+        }
+      }
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      if (prevActiveElement && typeof prevActiveElement.focus === 'function') {
+        prevActiveElement.focus();
+      }
+    };
+  }, [isOpen]);
+
   // Circular focus trap
   useEffect(() => {
     if (!isOpen) return;
@@ -90,6 +113,13 @@ export function ResearchEngineDrawer({
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
+
+      if (!drawerRef.current.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+        return;
+      }
+
       if (e.shiftKey) {
         if (document.activeElement === first) {
           e.preventDefault();
@@ -297,6 +327,7 @@ export function ResearchEngineDrawer({
                   <div className="flex gap-2 pt-1">
                     <input
                       type="password"
+                      aria-label={`API key for ${offer.name}`}
                       placeholder={hasKey ? '•••••••••••••••• (Key Configured)' : 'Paste API key here…'}
                       value={keyInputs[offer.provider_id] ?? ''}
                       onChange={(e) =>
@@ -344,6 +375,7 @@ export function ResearchEngineDrawer({
                 </div>
                 <input
                   type="checkbox"
+                  aria-label={`Enable ${p.name}`}
                   checked={enabledMap[p.id] ?? p.is_enabled}
                   onChange={(e) =>
                     setEnabledMap((prev) => ({ ...prev, [p.id]: e.target.checked }))
@@ -356,10 +388,11 @@ export function ResearchEngineDrawer({
 
           <div className="grid grid-cols-2 gap-3 pt-2">
             <div>
-              <label className="block text-[11px] font-medium text-text-secondary mb-1">
+              <label htmlFor="drawer-fast-timeout" className="block text-[11px] font-medium text-text-secondary mb-1">
                 Fast Lane Timeout (ms)
               </label>
               <input
+                id="drawer-fast-timeout"
                 type="number"
                 value={fastTimeout}
                 onChange={(e) => setFastTimeout(Number(e.target.value))}
@@ -370,10 +403,11 @@ export function ResearchEngineDrawer({
               />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-text-secondary mb-1">
+              <label htmlFor="drawer-deep-timeout" className="block text-[11px] font-medium text-text-secondary mb-1">
                 Deep Lane Timeout (ms)
               </label>
               <input
+                id="drawer-deep-timeout"
                 type="number"
                 value={deepTimeout}
                 onChange={(e) => setDeepTimeout(Number(e.target.value))}

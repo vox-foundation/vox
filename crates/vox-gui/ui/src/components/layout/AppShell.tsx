@@ -44,6 +44,7 @@ export interface AppShellProps {
   openrouterSpendUsd?: number | null;
   gamifyEnabled?: boolean;
   onOpenAchievements?: () => void;
+  onOpenResearchDrawer?: () => void;
   hudTilesConfig: HudTilesConfig;
   onHudTilesChange: (config: HudTilesConfig) => void;
   meshNodes: MeshNode[] | undefined;
@@ -91,6 +92,7 @@ export function AppShell({
   openrouterSpendUsd,
   gamifyEnabled,
   onOpenAchievements,
+  onOpenResearchDrawer,
   hudTilesConfig,
   onHudTilesChange,
   meshNodes,
@@ -179,6 +181,7 @@ export function AppShell({
         meshNodes={meshNodes}
         gamifyEnabled={gamifyEnabled}
         onOpenAchievements={onOpenAchievements}
+        onOpenResearchDrawer={onOpenResearchDrawer}
       />
     </div>
   );
