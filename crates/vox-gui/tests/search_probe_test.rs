@@ -124,7 +124,40 @@ async fn test_probe_all_search_providers_returns_batch_results() {
         "Probe all should succeed with Ok results vector"
     );
     let probes = result.unwrap();
-    assert_eq!(probes.len(), 4);
+    assert_eq!(probes.len(), 5);
     let names: Vec<_> = probes.iter().map(|p| p.provider.as_str()).collect();
-    assert_eq!(names, vec!["searxng", "tavily", "duckduckgo", "wikipedia"]);
+    assert_eq!(
+        names,
+        vec!["searxng", "tavily", "openalex", "arxiv", "wikipedia"]
+    );
+}
+
+#[tokio::test]
+async fn test_get_research_engine_status_payload() {
+    let status = vox_gui::commands::search_probe::get_research_engine_status()
+        .await
+        .unwrap();
+    assert!(
+        status
+            .providers
+            .iter()
+            .any(|p| p.id == "openalex" && p.is_keyless)
+    );
+    assert!(
+        status
+            .free_key_offers
+            .iter()
+            .any(|o| o.provider_id == "tavily" && o.signup_url.contains("tavily.com"))
+    );
+}
+
+#[tokio::test]
+async fn test_probe_openalex_and_arxiv_accepted() {
+    let res_oa =
+        vox_gui::commands::search_probe::probe_search_provider("openalex".into(), "rust".into())
+            .await;
+    assert!(res_oa.is_ok());
+    let res_ax =
+        vox_gui::commands::search_probe::probe_search_provider("arxiv".into(), "rust".into()).await;
+    assert!(res_ax.is_ok());
 }

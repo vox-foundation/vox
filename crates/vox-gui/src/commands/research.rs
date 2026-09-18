@@ -54,6 +54,7 @@ pub async fn start_research_async(
     verify_claims: Option<bool>,
     waves: Option<u32>,
     domain_mode: Option<String>,
+    lane: Option<String>,
 ) -> Result<Value, String> {
     let addr = daemon.ensure().await.map_err(|e| e.to_string())?;
     let client = match daemon.token().await {
@@ -70,6 +71,7 @@ pub async fn start_research_async(
                 "verify_claims": verify_claims,
                 "waves": waves,
                 "domain_mode": domain_mode,
+                "lane": lane,
             }),
         )
         .await
