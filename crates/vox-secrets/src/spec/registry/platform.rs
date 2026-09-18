@@ -200,7 +200,7 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
-        remediation: "Tavily web search API key (https://tavily.com)",
+        remediation: "Tavily web search API key. Free 1,000 requests/mo at https://app.tavily.com/sign-up",
         scope_description: "",
     },
     SecretSpec {

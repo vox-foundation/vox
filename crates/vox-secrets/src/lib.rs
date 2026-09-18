@@ -19,11 +19,11 @@ pub use policy::{MissingBehavior, SecretPolicy};
 pub use resolver::ResolveProfile;
 use resolver::{ResolveOptions, SecretResolver};
 pub use spec::{
-    Capability, Profile, RequirementMode, RequirementSet, RotationPolicy, SecretBundle,
-    SecretClass, SecretId, SecretMaterialKind, SecretMetadata, SecretSpec, Workflow,
+    Capability, FreeTierOffer, Profile, RequirementMode, RequirementSet, RotationPolicy,
+    SecretBundle, SecretClass, SecretId, SecretMaterialKind, SecretMetadata, SecretSpec, Workflow,
     WorkflowRequirements, all_bundle_doc_names, all_specs, capabilities_for_secret,
-    managed_secret_env_names, required_for, required_for_profile, requirements_for_bundle,
-    requirements_for_profile, requirements_for_profile_mode,
+    list_free_tier_offers, managed_secret_env_names, required_for, required_for_profile,
+    requirements_for_bundle, requirements_for_profile, requirements_for_profile_mode,
 };
 pub use types::{ResolutionStatus, ResolvedSecret, SecretSource};
 
@@ -821,5 +821,30 @@ mod import_env_tests {
     fn missing_file_is_an_error() {
         let path = std::path::Path::new("definitely-does-not-exist-xyz.env");
         assert!(import_env_from_path(path, false).is_err());
+    }
+}
+
+#[cfg(test)]
+mod free_tier_catalog_tests {
+    use super::*;
+
+    #[test]
+    fn test_free_tier_catalog_contains_verified_providers() {
+        let offers = spec::free_tier::list_free_tier_offers();
+        assert!(offers.iter().any(|o| o.provider_id == "tavily"
+            && o.signup_url == "https://app.tavily.com/sign-up"
+            && !o.requires_credit_card));
+        assert!(offers.iter().any(|o| o.provider_id == "gemini"
+            && o.signup_url == "https://aistudio.google.com/app/apikey"));
+        assert!(
+            offers
+                .iter()
+                .any(|o| o.provider_id == "openrouter"
+                    && o.signup_url == "https://openrouter.ai/keys")
+        );
+        assert!(
+            offers.iter().any(|o| o.provider_id == "semantic_scholar"
+                && o.signup_url.contains("semanticscholar.org"))
+        );
     }
 }

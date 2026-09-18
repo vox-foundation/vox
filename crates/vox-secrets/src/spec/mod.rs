@@ -2,6 +2,8 @@ mod types;
 pub use types::*;
 mod ids;
 pub use ids::*;
+pub mod free_tier;
+pub use free_tier::{FreeTierOffer, list_free_tier_offers};
 pub mod registry;
 
 use std::collections::BTreeSet;

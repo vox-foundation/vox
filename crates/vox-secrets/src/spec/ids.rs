@@ -1,6 +1,9 @@
 use crate::spec::types::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, strum::Display)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, strum::Display, Serialize, Deserialize,
+)]
 pub enum SecretId {
     GeminiApiKey,
     OpenRouterApiKey,
@@ -517,6 +520,7 @@ pub enum SecretId {
     OpenaiTuningTopP,
     AnthropicTuningTemperature,
     AnthropicTuningTopP,
+    VoxChatResearchEnabled,
 }
 
 pub const ALL_CHAT_OPTIONALS: &[SecretId] = &[
