@@ -14,6 +14,7 @@ import { resolveNavigation, parseViewFromLocation, syncViewToLocation, seedDisco
 import { useActiveView } from './hooks/useActiveView';
 import { useDocViewer } from './hooks/useDocViewer';
 import { DocViewerDrawer } from './components/layout/DocViewerDrawer';
+import { InspectorDrawer } from './debugger/InspectorDrawer';
 import { Omnibar } from './components/layout/Omnibar';
 import { redirectSearchViewToOmnibar } from './components/layout/omnibarRedirect';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
@@ -358,6 +359,7 @@ export default function App() {
     'default',
   );
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [filterKind, setFilterKind] = useState('all');
   const [chips, setChips] = useState<ContextChip[]>([]);
@@ -1617,6 +1619,7 @@ export default function App() {
     'open-palette': () => setIsCommandOpen(true),
     'toggle-sidebar': () => setSidebarMode(m => m === 'rail' ? 'default' : m === 'default' ? 'wide' : 'rail'),
     'pause-resume-agent': () => togglePauseSelectedRef.current(),
+    'toggle-inspector': () => setIsInspectorOpen(p => !p),
   }), []);
   useKeybinds(actionHandlers, bindings);
 
@@ -2040,6 +2043,7 @@ export default function App() {
       />
 
       <DocViewerDrawer doc={activeDoc} onClose={closeDocViewer} />
+      <InspectorDrawer open={isInspectorOpen} onClose={() => setIsInspectorOpen(false)} />
 
       <Toasts
         items={toasts}

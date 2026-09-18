@@ -1,12 +1,13 @@
 export type ActionId =
   | 'open-palette' | 'toggle-sidebar' | 'dispatch-intent'
-  | 'pause-resume-agent';
+  | 'pause-resume-agent' | 'toggle-inspector';
 export interface ActionDef { id: ActionId; label: string }
 export const ACTION_REGISTRY: ActionDef[] = [
   { id: 'open-palette',  label: 'Open command palette' },
   { id: 'toggle-sidebar', label: 'Toggle sidebar width' },
   { id: 'dispatch-intent', label: 'Dispatch intent (in composer)' },
   { id: 'pause-resume-agent', label: 'Pause/resume selected agent' },
+  { id: 'toggle-inspector', label: 'Toggle pipeline inspector drawer' },
 ];
 export type Bindings = Record<string, string>;
 export const DEFAULT_BINDINGS: Bindings = {
@@ -14,6 +15,7 @@ export const DEFAULT_BINDINGS: Bindings = {
   'toggle-sidebar': 'Mod+B',
   'dispatch-intent': 'Mod+Enter',
   'pause-resume-agent': 'Mod+.',
+  'toggle-inspector': 'Mod+Shift+D',
 };
 export function chordFromEvent(e: Pick<KeyboardEvent,'key'|'metaKey'|'ctrlKey'|'shiftKey'|'altKey'>): string {
   const parts: string[] = [];
