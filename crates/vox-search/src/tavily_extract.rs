@@ -98,7 +98,11 @@ pub async fn uplift_low_quality_snippets(
     query: &str,
     max_urls: usize,
 ) {
-    let Some(client) = TavilyExtractClient::from_env() else {
+    let Some(client) = tokio::task::spawn_blocking(TavilyExtractClient::from_env)
+        .await
+        .ok()
+        .flatten()
+    else {
         return;
     };
     let urls: Vec<String> = results

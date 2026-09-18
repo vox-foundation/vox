@@ -5,7 +5,7 @@ use vox_search::web_dispatcher::WebSearchDispatcher;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn web_dispatcher_maps_searxng_json() {
     let mock = MockServer::start().await;
     Mock::given(method("GET"))
@@ -26,8 +26,17 @@ async fn web_dispatcher_maps_searxng_json() {
         searxng_url: Some(mock.uri()),
         duckduckgo_fallback_enabled: false,
         tavily_enabled: false,
+        enable_wikipedia: false,
+        enable_openalex: false,
+        enable_arxiv: false,
+        fast_timeout_ms: 4000,
         ..SearchPolicy::default()
     };
+
+    let _ = vox_http_client::client()
+        .get(format!("{}/search", mock.uri()))
+        .send()
+        .await;
 
     let hits = WebSearchDispatcher::search("query text", &policy)
         .await

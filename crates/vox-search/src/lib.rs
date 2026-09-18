@@ -85,6 +85,7 @@ pub use search_circuit_breaker::{
 pub use tavily_budget::TavilySessionBudget;
 pub use unified::UnifiedHit;
 pub use vox_actor_runtime::llm::LlmConfig;
+pub use web_dispatcher::{WebSearchDispatcher, WebSearchDispatcherExt};
 
 #[cfg(test)]
 mod semcov_wave21_tests;

@@ -1,7 +1,7 @@
 // crates/vox-search/tests/deterministic_lanes_ci_test.rs
 use vox_search::policy::{ResearchLane, SearchPolicy};
 use vox_search::searxng::SearxngResult;
-use vox_search::web_dispatcher::{WebSearchDispatcher, true_rrf_fuse};
+use vox_search::web_dispatcher::{WebSearchDispatcher, WebSearchDispatcherExt, true_rrf_fuse};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -220,4 +220,45 @@ fn test_true_rrf_deduplication_score_summing() {
     assert_eq!(fused.len(), 1);
     let expected = (1.0 / 61.0) * 1.20 + (1.0 / 61.0) * 1.10;
     assert!((fused[0].score.unwrap() - expected).abs() < 1e-6);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_associated_function_parity() {
+    let fast_server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/w/api.php"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "query": {
+                "search": [
+                    {
+                        "title": "Fast result",
+                        "pageid": 1,
+                        "snippet": "Wikipedia returned fast"
+                    }
+                ]
+            }
+        })))
+        .mount(&fast_server)
+        .await;
+
+    let mut policy = SearchPolicy::default();
+    policy.fast_timeout_ms = 4000;
+    policy.tavily_enabled = false;
+    policy.searxng_url = None;
+    policy.enable_arxiv = false;
+    policy.enable_openalex = false;
+    policy.wikipedia_api_url = Some(format!("{}/w/api.php", fast_server.uri()));
+
+    // Warm up OS networking/proxy stack to ensure deterministic timing on macOS
+    let _ = vox_http_client::client()
+        .get(format!("{}/w/api.php", fast_server.uri()))
+        .send()
+        .await;
+
+    // Verify associated function call WebSearchDispatcher::search_with_lane(...) without instantiation
+    let hits = WebSearchDispatcher::search_with_lane("test query", ResearchLane::Fast, &policy)
+        .await
+        .expect("search");
+    assert!(!hits.is_empty());
 }

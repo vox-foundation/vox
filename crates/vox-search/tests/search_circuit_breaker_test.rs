@@ -73,16 +73,25 @@ fn test_registry_thread_safety() {
             reg.record_failure(provider, false);
             let _ = reg.is_available(provider);
             reg.record_success(provider);
-            assert!(reg.is_available(provider));
+            let _ = reg.is_available(provider);
         }));
     }
 
     for handle in handles {
         handle.join().expect("thread joined successfully");
     }
+
+    for provider in [
+        SearchProviderId::Searxng,
+        SearchProviderId::Tavily,
+        SearchProviderId::DuckDuckGo,
+    ] {
+        registry.record_success(provider);
+        assert!(registry.is_available(provider));
+    }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_dispatcher_skips_cooldown_provider() {
     use vox_search::policy::SearchPolicy;
     use vox_search::web_dispatcher::WebSearchDispatcher;
@@ -97,6 +106,10 @@ async fn test_dispatcher_skips_cooldown_provider() {
         duckduckgo_fallback_enabled: false,
         tavily_enabled: false,
         wikipedia_fallback_enabled: false,
+        enable_wikipedia: false,
+        enable_openalex: false,
+        enable_arxiv: false,
+        fast_timeout_ms: 100,
         ..SearchPolicy::default()
     };
 
@@ -107,7 +120,7 @@ async fn test_dispatcher_skips_cooldown_provider() {
     assert!(hits.is_empty());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_dispatcher_records_failure_on_error() {
     use vox_search::policy::SearchPolicy;
     use vox_search::web_dispatcher::WebSearchDispatcher;
@@ -119,6 +132,11 @@ async fn test_dispatcher_records_failure_on_error() {
         searxng_url: Some("http://127.0.0.1:9".to_string()),
         duckduckgo_fallback_enabled: false,
         tavily_enabled: false,
+        wikipedia_fallback_enabled: false,
+        enable_wikipedia: false,
+        enable_openalex: false,
+        enable_arxiv: false,
+        fast_timeout_ms: 100,
         ..SearchPolicy::default()
     };
 

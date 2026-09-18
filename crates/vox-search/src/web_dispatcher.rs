@@ -70,7 +70,6 @@ impl WebSearchDispatcher {
     }
 
     pub async fn search_with_lane(
-        &self,
         query: &str,
         lane: ResearchLane,
         policy: &SearchPolicy,
@@ -223,51 +222,57 @@ impl WebSearchDispatcher {
         };
 
         // 5. Tavily
+        #[cfg(feature = "tavily")]
+        let tavily_client = if policy.tavily_enabled
+            && registry.is_available(crate::search_circuit_breaker::SearchProviderId::Tavily)
+        {
+            tokio::task::spawn_blocking(crate::tavily::TavilySearchClient::from_env)
+                .await
+                .ok()
+                .flatten()
+        } else {
+            None
+        };
+
         let tavily_task = async {
             #[cfg(feature = "tavily")]
-            if policy.tavily_enabled {
-                if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::Tavily) {
-                    warn!("Tavily is in circuit breaker cooldown, skipping");
-                    return Vec::new();
-                }
-                if let Some(client) = crate::tavily::TavilySearchClient::from_env() {
-                    let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
-                        .acquire_tavily()
-                        .await;
-                    match client
-                        .search(
-                            query,
-                            policy.tavily_max_results,
-                            policy.tavily_search_depth.as_str(),
-                        )
-                        .await
-                    {
-                        Ok(hits) => {
-                            info!(count = hits.len(), "Tavily web search succeeded");
-                            registry.record_success(
-                                crate::search_circuit_breaker::SearchProviderId::Tavily,
-                            );
-                            return hits
-                                .into_iter()
-                                .map(|h| crate::searxng::SearxngResult {
-                                    url: h.url,
-                                    title: h.title.clone(),
-                                    content: h.content,
-                                    engine: Some("tavily".to_string()),
-                                    score: Some(f64::from(h.score)),
-                                })
-                                .collect();
-                        }
-                        Err(e) => {
-                            let is_rate_limit =
-                                e.contains("429") || e.to_ascii_lowercase().contains("rate limit");
-                            registry.record_failure(
-                                crate::search_circuit_breaker::SearchProviderId::Tavily,
-                                is_rate_limit,
-                            );
-                            warn!(error = %e, is_rate_limit, "Tavily web search failed");
-                            return Vec::new();
-                        }
+            if let Some(client) = &tavily_client {
+                let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
+                    .acquire_tavily()
+                    .await;
+                match client
+                    .search(
+                        query,
+                        policy.tavily_max_results,
+                        policy.tavily_search_depth.as_str(),
+                    )
+                    .await
+                {
+                    Ok(hits) => {
+                        info!(count = hits.len(), "Tavily web search succeeded");
+                        registry.record_success(
+                            crate::search_circuit_breaker::SearchProviderId::Tavily,
+                        );
+                        return hits
+                            .into_iter()
+                            .map(|h| crate::searxng::SearxngResult {
+                                url: h.url,
+                                title: h.title.clone(),
+                                content: h.content,
+                                engine: Some("tavily".to_string()),
+                                score: Some(f64::from(h.score)),
+                            })
+                            .collect();
+                    }
+                    Err(e) => {
+                        let is_rate_limit =
+                            e.contains("429") || e.to_ascii_lowercase().contains("rate limit");
+                        registry.record_failure(
+                            crate::search_circuit_breaker::SearchProviderId::Tavily,
+                            is_rate_limit,
+                        );
+                        warn!(error = %e, is_rate_limit, "Tavily web search failed");
+                        return Vec::new();
                     }
                 }
             }
@@ -291,6 +296,17 @@ impl WebSearchDispatcher {
                     Ok(hits) => hits,
                     Err(_) => {
                         warn!(provider, "Search provider timed out");
+                        match provider {
+                            "searxng" => registry.record_failure(
+                                crate::search_circuit_breaker::SearchProviderId::Searxng,
+                                false,
+                            ),
+                            "tavily" => registry.record_failure(
+                                crate::search_circuit_breaker::SearchProviderId::Tavily,
+                                false,
+                            ),
+                            _ => {}
+                        }
                         Vec::new()
                     }
                 }
@@ -427,6 +443,32 @@ impl WebSearchDispatcher {
             }
             Ok(final_hits)
         }
+    }
+}
+
+pub trait WebSearchDispatcherExt {
+    fn search_with_lane<'a>(
+        &'a self,
+        query: &'a str,
+        lane: ResearchLane,
+        policy: &'a SearchPolicy,
+    ) -> impl std::future::Future<
+        Output = anyhow::Result<Vec<crate::memory_hybrid::HybridSearchHit>>,
+    > + Send
+    + 'a;
+}
+
+impl WebSearchDispatcherExt for WebSearchDispatcher {
+    fn search_with_lane<'a>(
+        &'a self,
+        query: &'a str,
+        lane: ResearchLane,
+        policy: &'a SearchPolicy,
+    ) -> impl std::future::Future<
+        Output = anyhow::Result<Vec<crate::memory_hybrid::HybridSearchHit>>,
+    > + Send
+    + 'a {
+        WebSearchDispatcher::search_with_lane(query, lane, policy)
     }
 }
 
