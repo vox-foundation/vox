@@ -449,6 +449,8 @@ CREATE TABLE IF NOT EXISTS research_misguidance_events (
     correction_diff        TEXT,
     reporter               TEXT    NOT NULL,
     domain_penalty         REAL    NOT NULL DEFAULT 0.1,
+    status                 TEXT    NOT NULL DEFAULT 'open',
+    resolved_at_ms         INTEGER,
     created_at_ms          INTEGER NOT NULL
 );
 

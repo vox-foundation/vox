@@ -161,6 +161,29 @@ impl crate::VoxDb {
             )
             .await?;
 
+            let has_misguidance_status = {
+                let mut cols = conn
+                    .query("PRAGMA table_info(research_misguidance_events)", ())
+                    .await?;
+                let mut found = false;
+                while let Some(row) = cols.next().await? {
+                    let name: String = row.get(1)?;
+                    if name == "status" {
+                        found = true;
+                        break;
+                    }
+                }
+                found
+            };
+            if !has_misguidance_status {
+                let _ = conn
+                    .execute_batch(
+                        "ALTER TABLE research_misguidance_events ADD COLUMN status TEXT NOT NULL DEFAULT 'open'; \
+                         ALTER TABLE research_misguidance_events ADD COLUMN resolved_at_ms INTEGER;",
+                    )
+                    .await;
+            }
+
             crate::schema_extensions::apply_schema_extensions(conn).await?;
 
             conn.execute(

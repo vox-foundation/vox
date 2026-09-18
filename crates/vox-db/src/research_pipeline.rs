@@ -4,8 +4,10 @@
 
 use crate::VoxDb;
 use crate::store::StoreError;
+use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
+use std::sync::OnceLock;
 use turso::params;
 use vox_db_types::{
     CachedClaimVerdict, ClaimsPendingCounts, MisguidanceReporter, RecordMisguidanceParams,
@@ -919,7 +921,7 @@ impl VoxDb {
                 let excerpt = params
                     .misleading_excerpt
                     .as_deref()
-                    .map(|s| turso::Value::Text(s.to_string()))
+                    .map(|s| turso::Value::Text(sanitize_telemetry_string(s)))
                     .unwrap_or(turso::Value::Null);
                 let code = params
                     .generated_code_snippet
@@ -929,7 +931,7 @@ impl VoxDb {
                 let diag = params
                     .failure_diagnostic
                     .as_deref()
-                    .map(|s| turso::Value::Text(s.to_string()))
+                    .map(|s| turso::Value::Text(sanitize_telemetry_string(s)))
                     .unwrap_or(turso::Value::Null);
                 let diff = params
                     .correction_diff
@@ -987,7 +989,7 @@ impl VoxDb {
                     let last_incident_at_ms: i64 = row.get(2)?;
 
                     let elapsed_days = ((now - last_incident_at_ms) as f64 / 86_400_000.0).max(0.0);
-                    let decayed = current_penalty * (-elapsed_days / 30.0).exp();
+                    let decayed = current_penalty * (-elapsed_days * std::f64::consts::LN_2 / 30.0).exp();
                     let new_pen = (decayed + params.domain_penalty).max(0.0).min(2.0);
                     (current_count + 1, new_pen)
                 } else {
@@ -1022,6 +1024,30 @@ impl VoxDb {
             .await
     }
 
+    /// Mark a research misguidance event as resolved, saving the correction diff.
+    pub async fn resolve_research_misguidance(
+        &self,
+        id: i64,
+        correction_diff: &str,
+    ) -> Result<(), StoreError> {
+        let now = now_ms();
+        let diff = correction_diff.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE research_misguidance_events \
+                     SET resolved_at_ms = ?1, correction_diff = ?2, status = 'resolved' \
+                     WHERE id = ?3",
+                    params![now, diff.as_str(), id],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
     /// List recorded research misguidance events, optionally filtered by session id.
     pub async fn list_research_misguidance(
         &self,
@@ -1038,7 +1064,8 @@ impl VoxDb {
                         conn.query(
                             "SELECT id, session_id, defect_class, culprit_url, culprit_domain, \
                              claim_id, research_query, misleading_excerpt, generated_code_snippet, \
-                             failure_diagnostic, correction_diff, reporter, domain_penalty, created_at_ms \
+                             failure_diagnostic, correction_diff, reporter, domain_penalty, \
+                             status, resolved_at_ms, created_at_ms \
                              FROM research_misguidance_events \
                              WHERE session_id = ?1 \
                              ORDER BY created_at_ms DESC, id DESC LIMIT ?2",
@@ -1050,7 +1077,8 @@ impl VoxDb {
                         conn.query(
                             "SELECT id, session_id, defect_class, culprit_url, culprit_domain, \
                              claim_id, research_query, misleading_excerpt, generated_code_snippet, \
-                             failure_diagnostic, correction_diff, reporter, domain_penalty, created_at_ms \
+                             failure_diagnostic, correction_diff, reporter, domain_penalty, \
+                             status, resolved_at_ms, created_at_ms \
                              FROM research_misguidance_events \
                              ORDER BY created_at_ms DESC, id DESC LIMIT ?1",
                             params![lim],
@@ -1063,10 +1091,10 @@ impl VoxDb {
                 while let Some(row) = rows.next().await? {
                     let defect_class_str: String = row.get(2)?;
                     let reporter_str: String = row.get(11)?;
-                    let defect_class = ResearchDefectClass::from_str(&defect_class_str)
-                        .map_err(StoreError::Db)?;
-                    let reporter = MisguidanceReporter::from_str(&reporter_str)
-                        .map_err(StoreError::Db)?;
+                    let defect_class =
+                        ResearchDefectClass::from_str(&defect_class_str).map_err(StoreError::Db)?;
+                    let reporter =
+                        MisguidanceReporter::from_str(&reporter_str).map_err(StoreError::Db)?;
 
                     out.push(ResearchMisguidanceRecord {
                         id: row.get(0)?,
@@ -1082,7 +1110,9 @@ impl VoxDb {
                         correction_diff: row.get(10)?,
                         reporter,
                         domain_penalty: row.get(12)?,
-                        created_at_ms: row.get(13)?,
+                        status: row.get(13)?,
+                        resolved_at_ms: row.get(14)?,
+                        created_at_ms: row.get(15)?,
                     });
                 }
                 Ok::<Vec<ResearchMisguidanceRecord>, StoreError>(out)
@@ -1156,6 +1186,46 @@ fn sanitize_fts_query(input: &str) -> String {
         .map(|t| format!("\"{t}\""))
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Sanitize sensitive tokens, credentials, and env variable values from telemetry and diagnostic strings.
+pub fn sanitize_telemetry_string(s: &str) -> String {
+    if s.is_empty() {
+        return String::new();
+    }
+    let mut result = s.to_string();
+
+    // 1. Sensitive environment variables: KEY=val, TOKEN=val, SECRET=val, PASSWORD=val, etc.
+    static ENV_VAR_RE: OnceLock<Regex> = OnceLock::new();
+    let env_var_re = ENV_VAR_RE.get_or_init(|| {
+        Regex::new(
+            r#"(?i)\b([A-Za-z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIAL)[A-Za-z0-9_]*\s*=\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'\r\n]+)"#,
+        )
+        .unwrap()
+    });
+    result = env_var_re
+        .replace_all(&result, "${1}[REDACTED]")
+        .to_string();
+
+    // 2. Bearer tokens: Bearer [a-zA-Z0-9_\-\.]+
+    static BEARER_RE: OnceLock<Regex> = OnceLock::new();
+    let bearer_re =
+        BEARER_RE.get_or_init(|| Regex::new(r"(?i)\bBearer\s+[a-zA-Z0-9_\-\.]+").unwrap());
+    result = bearer_re
+        .replace_all(&result, "Bearer [REDACTED]")
+        .to_string();
+
+    // 3. API key patterns: (sk|tvly|ghp)[-_][a-zA-Z0-9_\-\.]+
+    static API_KEY_PAT_RE: OnceLock<Regex> = OnceLock::new();
+    let api_key_pat_re = API_KEY_PAT_RE
+        .get_or_init(|| Regex::new(r"(?i)\b(?:sk|tvly|ghp)[-_][a-zA-Z0-9_\-\.]+").unwrap());
+    result = api_key_pat_re
+        .replace_all(&result, "[REDACTED]")
+        .to_string();
+
+    // 4. Pass through standard pattern redact (covers AWS keys AKIA..., generic sk-..., ghp_..., etc.)
+    let (redacted, _) = crate::redact::redact(&result);
+    redacted
 }
 
 #[cfg(test)]

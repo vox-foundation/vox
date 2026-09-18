@@ -202,6 +202,8 @@ pub struct ResearchMisguidanceRecord {
     pub correction_diff: Option<String>,
     pub reporter: MisguidanceReporter,
     pub domain_penalty: f64,
+    pub status: String,
+    pub resolved_at_ms: Option<i64>,
     pub created_at_ms: i64,
 }
 

@@ -170,11 +170,11 @@ async fn test_exponential_decay_30_day_calculation() {
     let thirty_days_ms = 30 * 86_400_000;
     let seeded_time = now - thirty_days_ms;
 
-    // Seed domain reputation with penalty = 1.0, 30 days ago
+    // Seed domain reputation with penalty = 0.4, 30 days ago
     db.connection()
         .execute(
             "INSERT INTO research_domain_reputation (domain, incident_count, penalty_score, last_incident_at_ms, is_blacklisted, updated_at_ms) \
-             VALUES ('decay.example.com', 1, 1.0, ?1, 0, ?1)",
+             VALUES ('decay.example.com', 1, 0.4, ?1, 0, ?1)",
             turso::params![seeded_time],
         )
         .await
@@ -203,10 +203,118 @@ async fn test_exponential_decay_30_day_calculation() {
     let penalties = db.get_domain_penalties().await.expect("penalties");
     let penalty = penalties.get("decay.example.com").copied().unwrap();
 
-    // Expected: 1.0 * exp(-30/30) + 0.1 = e^(-1) + 0.1 ≈ 0.367879 + 0.1 = 0.467879
-    let expected = (-1.0f64).exp() + 0.1;
+    // At 30 days (1 half-life), penalty decays by exactly 50%: 0.4 * 0.5 = 0.2.
+    // With new penalty of 0.1, expected is 0.2 + 0.1 = 0.3.
+    let expected = 0.4 * 0.5 + 0.1;
     assert!(
-        (penalty - expected).abs() < 0.01,
+        (penalty - expected).abs() < 0.001,
         "penalty {penalty} should be close to expected {expected}"
     );
+}
+
+#[test]
+fn test_sanitize_telemetry_string_redactions() {
+    use vox_db::research_pipeline::sanitize_telemetry_string;
+
+    // Bearer token
+    let s = sanitize_telemetry_string("Authorization: Bearer my-secret-token.123_456-jwt");
+    assert_eq!(s, "Authorization: Bearer [REDACTED]");
+
+    // API keys
+    let s = sanitize_telemetry_string(
+        "Errors with tvly-12345abcdef and sk_live_987654321 and ghp_0123456789abcdefghijklmnopqrstuv",
+    );
+    assert!(!s.contains("tvly-12345abcdef"));
+    assert!(!s.contains("sk_live_987654321"));
+    assert!(!s.contains("ghp_0123456789abcdefghijklmnopqrstuv"));
+    assert!(s.contains("[REDACTED]"));
+
+    // Sensitive env vars
+    let s = sanitize_telemetry_string(
+        "Failed with TAVILY_API_KEY=tvly_secret and OPENAI_API_KEY=\"sk-proj-xyz\" and APP_SECRET=supersecret123",
+    );
+    assert!(!s.contains("tvly_secret"));
+    assert!(!s.contains("sk-proj-xyz"));
+    assert!(!s.contains("supersecret123"));
+    assert!(s.contains("TAVILY_API_KEY=[REDACTED]"));
+    assert!(s.contains("OPENAI_API_KEY=[REDACTED]"));
+    assert!(s.contains("APP_SECRET=[REDACTED]"));
+}
+
+#[tokio::test]
+async fn test_record_misguidance_sanitizes_excerpt_and_diagnostic() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+    let params = RecordMisguidanceParams {
+        session_id: None,
+        defect_class: ResearchDefectClass::FailsToRun,
+        culprit_url: Some("https://example.com/api".into()),
+        culprit_domain: "example.com".into(),
+        claim_id: None,
+        research_query: "Query".into(),
+        misleading_excerpt: Some("header: Bearer secret-token-xyz".into()),
+        generated_code_snippet: Some("api.call();".into()),
+        failure_diagnostic: Some(
+            "Runtime error: TAVILY_API_KEY=tvly_secret_key_123 failed with sk_live_abc123".into(),
+        ),
+        correction_diff: None,
+        reporter: MisguidanceReporter::Compiler,
+        domain_penalty: 0.1,
+    };
+
+    let id = db
+        .record_research_misguidance(&params)
+        .await
+        .expect("record");
+    let records = db.list_research_misguidance(None, 10).await.expect("list");
+    let rec = records.iter().find(|r| r.id == id).expect("found");
+
+    assert_eq!(
+        rec.misleading_excerpt.as_deref(),
+        Some("header: Bearer [REDACTED]")
+    );
+    let diag = rec.failure_diagnostic.as_deref().unwrap();
+    assert!(!diag.contains("tvly_secret_key_123"));
+    assert!(!diag.contains("sk_live_abc123"));
+    assert!(diag.contains("[REDACTED]"));
+}
+
+#[tokio::test]
+async fn test_resolve_research_misguidance() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("memory db");
+    let params = RecordMisguidanceParams {
+        session_id: None,
+        defect_class: ResearchDefectClass::HallucinatedApi,
+        culprit_url: Some("https://example.com/docs".into()),
+        culprit_domain: "example.com".into(),
+        claim_id: None,
+        research_query: "Query".into(),
+        misleading_excerpt: Some("Old method".into()),
+        generated_code_snippet: None,
+        failure_diagnostic: None,
+        correction_diff: None,
+        reporter: MisguidanceReporter::User,
+        domain_penalty: 0.1,
+    };
+
+    let id = db
+        .record_research_misguidance(&params)
+        .await
+        .expect("record");
+
+    let records = db.list_research_misguidance(None, 10).await.expect("list");
+    let rec = records.iter().find(|r| r.id == id).expect("found");
+    assert_eq!(rec.status, "open");
+    assert_eq!(rec.resolved_at_ms, None);
+    assert_eq!(rec.correction_diff, None);
+
+    let diff = "--- old\n+++ new";
+    db.resolve_research_misguidance(id, diff)
+        .await
+        .expect("resolve");
+
+    let updated_records = db.list_research_misguidance(None, 10).await.expect("list");
+    let updated = updated_records.iter().find(|r| r.id == id).expect("found");
+    assert_eq!(updated.status, "resolved");
+    assert!(updated.resolved_at_ms.is_some());
+    assert_eq!(updated.correction_diff.as_deref(), Some(diff));
 }
