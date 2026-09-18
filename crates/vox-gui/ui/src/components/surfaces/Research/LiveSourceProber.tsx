@@ -16,7 +16,8 @@ export const SEARCH_PROVIDERS = [
   { id: 'all', label: 'All Providers' },
   { id: 'searxng', label: 'SearXNG' },
   { id: 'tavily', label: 'Tavily' },
-  { id: 'duckduckgo', label: 'DuckDuckGo' },
+  { id: 'openalex', label: 'OpenAlex' },
+  { id: 'arxiv', label: 'arXiv' },
   { id: 'wikipedia', label: 'Wikipedia' },
 ] as const;
 

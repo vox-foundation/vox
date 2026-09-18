@@ -38,6 +38,30 @@ let detailResponse: unknown = DETAIL_NO_CLAIMS;
 const invokeMock = vi.fn((cmd: string) => {
   if (cmd === 'list_research_sessions') return Promise.resolve(SESSIONS);
   if (cmd === 'get_research_session_detail') return Promise.resolve(detailResponse);
+  if (cmd === 'get_research_engine_status') {
+    return Promise.resolve({
+      active_lane: 'fast',
+      fast_timeout_ms: 2500,
+      deep_timeout_ms: 15000,
+      providers: [
+        { id: 'wikipedia', name: 'Wikipedia', is_keyless: true, is_enabled: true, has_key: false },
+        { id: 'openalex', name: 'OpenAlex', is_keyless: true, is_enabled: true, has_key: false },
+        { id: 'arxiv', name: 'arXiv', is_keyless: true, is_enabled: true, has_key: false },
+        { id: 'searxng', name: 'SearXNG', is_keyless: true, is_enabled: true, has_key: false },
+        { id: 'tavily', name: 'Tavily', is_keyless: false, is_enabled: true, has_key: true, quota_usage: { units_spent: 160, units_limit: 1000, last_synced_at: '2026-09-18' } },
+      ],
+      free_key_offers: [
+        {
+          provider_id: 'tavily',
+          provider_name: 'Tavily',
+          signup_url: 'https://app.tavily.com/sign-in',
+          monthly_free_units: 1000,
+          headline_benefit: '1,000 free searches/mo with instant API key',
+          docs_remediation: 'Get a free Tavily API key to enable AI-tailored web search',
+        }
+      ],
+    });
+  }
   return Promise.resolve(null);
 });
 vi.mock('@tauri-apps/api/core', () => ({
@@ -278,6 +302,36 @@ describe('ResearchView', () => {
           }),
         })
       );
+    });
+  });
+
+  describe('ResearchView Lane Switch & Honesty Guard', () => {
+    it('renders Fast Lane by default and switches to Deep Lane on click', () => {
+      render(<ResearchView />);
+      const fastBtn = screen.getByTestId('lane-switch-fast');
+      const deepBtn = screen.getByTestId('lane-switch-deep');
+      expect(fastBtn).toHaveAttribute('aria-selected', 'true');
+
+      fireEvent.click(deepBtn);
+      expect(deepBtn).toHaveAttribute('aria-selected', 'true');
+      expect(fastBtn).toHaveAttribute('aria-selected', 'false');
+    });
+
+    it('renders empty-results-notice when research has low evidence', () => {
+      render(<ResearchView initialLowEvidence={true} />);
+      expect(screen.getByTestId('empty-results-notice')).toBeInTheDocument();
+    });
+
+    it('renders active provider quota badges and keyless indicators', async () => {
+      render(<ResearchView />);
+      await waitFor(() => {
+        expect(screen.getByTestId('provider-badge-strip')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Wikipedia/i)).toBeInTheDocument();
+      expect(screen.getByText(/OpenAlex/i)).toBeInTheDocument();
+      expect(screen.getByText(/arXiv/i)).toBeInTheDocument();
+      expect(screen.getByText(/Tavily/i)).toBeInTheDocument();
+      expect(screen.getByText(/840\/1000/i)).toBeInTheDocument();
     });
   });
 });

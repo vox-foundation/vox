@@ -6,7 +6,11 @@ import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { useLabel } from '../../../hooks/useLanguage';
 import { PipelineTimeline } from '../../PipelineTimeline';
 import { RESEARCH_STAGES, deriveStages } from '../../../lib/pipeline';
-import { startResearchAsync } from './researchActions';
+import {
+  startResearchAsync,
+  getResearchEngineStatus,
+  type ResearchEngineStatusDto,
+} from './researchActions';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { ResearchClaimAccordion, type ResearchClaimRow } from './ResearchClaimAccordion';
 import { HeadlineVerdictBanner } from './HeadlineVerdictBanner';
@@ -246,7 +250,20 @@ export function MisguidanceFlagModal({
   );
 }
 
-export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
+export interface ResearchViewProps {
+  pushToast?: SurfaceDecoratorProps['pushToast'];
+  gamifyEnabled?: boolean;
+  initialLowEvidence?: boolean;
+  initialLane?: 'fast' | 'deep';
+  onOpenEngineDrawer?: () => void;
+}
+
+export function ResearchView({
+  pushToast,
+  initialLowEvidence = false,
+  initialLane = 'fast',
+  onOpenEngineDrawer,
+}: ResearchViewProps = {}) {
   const embedded = useIsEmbeddedSurface();
   const [query, setQuery] = useState('');
   const [running, setRunning] = useState(false);
@@ -260,6 +277,10 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
   const [showJudgeInspector, setShowJudgeInspector] = useState(false);
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
   const [flagTargetUrl, setFlagTargetUrl] = useState<string | null>(null);
+
+  const [lane, setLane] = useState<'fast' | 'deep'>(initialLane);
+  const [engineStatus, setEngineStatus] = useState<ResearchEngineStatusDto | null>(null);
+  const [lowEvidence, setLowEvidence] = useState(initialLowEvidence);
 
   const handleCitationClick = useCallback(
     (num: number) => {
@@ -286,23 +307,43 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
     [detail?.claims]
   );
 
+  const loadEngineStatus = useCallback(async () => {
+    try {
+      const status = await getResearchEngineStatus();
+      setEngineStatus(status);
+    } catch {
+      // offline or testing fallback
+    }
+  }, []);
+
   const loadHistory = useCallback(async () => {
     try {
       setSessions(await invoke<ResearchSession[]>('list_research_sessions', { limit: 25 }));
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'History load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      pushToast?.({ tone: 'warn', title: 'History load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   }, [pushToast]);
 
   const openDetail = useCallback(async (id: number) => {
     try {
-      setDetail(await invoke<ResearchDetail>('get_research_session_detail', { sessionId: id }));
+      const res = await invoke<ResearchDetail>('get_research_session_detail', { sessionId: id });
+      setDetail(res);
+      if (
+        res.session.status === 'failed' ||
+        (res.claims && res.claims.length === 0) ||
+        (res.source_count !== undefined && res.source_count === 0)
+      ) {
+        setLowEvidence(true);
+      }
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Session load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      pushToast?.({ tone: 'warn', title: 'Session load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   }, [pushToast]);
 
-  useEffect(() => { loadHistory(); }, [loadHistory]);
+  useEffect(() => {
+    loadEngineStatus();
+    loadHistory();
+  }, [loadEngineStatus, loadHistory]);
 
   // A2: refetch history whenever the persistent daemon's Scientia-queue watcher
   // signals a research-session transition; a 10 s interval is the fallback
@@ -327,31 +368,155 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
     if (s && (s.status === 'completed' || s.status === 'failed')) {
       setRunning(false);
       void openDetail(activeSessionId);
+      if (s.status === 'failed') {
+        setLowEvidence(true);
+      }
       setActiveSessionId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, activeSessionId]);
 
-  const run = async () => {
+  const run = async (overrideLane?: 'fast' | 'deep') => {
     if (!query.trim()) return;
+    const activeLane = overrideLane ?? lane;
     setRunning(true);
+    setLowEvidence(false);
     setActiveSessionId(null);
     try {
       // A2: fire-and-forget via the persistent daemon's async executor. Returns
       // {session_id, task_id, status: "running"} immediately — does NOT block on
       // the pipeline. Status transitions arrive through the queue watcher below.
-      const handle = await startResearchAsync({ query, verifyClaims: true });
+      const handle = await startResearchAsync({ query, verifyClaims: true, lane: activeLane });
       setActiveSessionId(handle.session_id);
       await loadHistory();
     } catch (err) {
       setRunning(false);
-      pushToast({ tone: 'warn', title: 'Research run failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+      pushToast?.({ tone: 'warn', title: 'Research run failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     }
   };
 
   return (
     <section className="space-y-4">
-      <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('research')}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('research')}</h2>
+        <div role="tablist" aria-label="Research Lane" className="flex items-center rounded-lg border border-border-subtle bg-black/40 p-0.5 text-xs">
+          <button
+            type="button"
+            role="tab"
+            data-testid="lane-switch-fast"
+            aria-selected={lane === 'fast'}
+            onClick={() => setLane('fast')}
+            className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+              lane === 'fast'
+                ? 'bg-brass/20 text-brass shadow-xs'
+                : 'text-text-muted hover:text-text-secondary'
+            }`}
+          >
+            ⚡ Fast
+          </button>
+          <button
+            type="button"
+            role="tab"
+            data-testid="lane-switch-deep"
+            aria-selected={lane === 'deep'}
+            onClick={() => setLane('deep')}
+            className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+              lane === 'deep'
+                ? 'bg-brass/20 text-brass shadow-xs'
+                : 'text-text-muted hover:text-text-secondary'
+            }`}
+          >
+            🔬 Deep Research
+          </button>
+        </div>
+      </div>
+
+      {engineStatus && (
+        <div data-testid="provider-badge-strip" className="flex flex-wrap items-center gap-1.5 text-xs">
+          {engineStatus.providers.map((p) => {
+            if (p.is_keyless) {
+              return (
+                <span
+                  key={p.id}
+                  className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-mono text-emerald-400"
+                >
+                  ✓ {p.name}
+                </span>
+              );
+            }
+            if (p.quota_usage) {
+              const remaining = Math.max(0, p.quota_usage.units_limit - p.quota_usage.units_spent);
+              return (
+                <span
+                  key={p.id}
+                  className="inline-flex items-center gap-1 rounded border border-brass/40 bg-brass/10 px-2 py-0.5 text-[11px] font-mono text-brass"
+                >
+                  ✨ {p.name} ({remaining}/{p.quota_usage.units_limit} left)
+                </span>
+              );
+            }
+            if (p.has_key) {
+              return (
+                <span
+                  key={p.id}
+                  className="inline-flex items-center gap-1 rounded border border-brass/30 bg-brass/5 px-2 py-0.5 text-[11px] font-mono text-brass/80"
+                >
+                  ✨ {p.name}
+                </span>
+              );
+            }
+            const offer = engineStatus.free_key_offers.find((o) => o.provider_id === p.id);
+            const label = offer ? `+ ${p.name} (Free ${offer.monthly_free_units.toLocaleString()}/mo available)` : `+ ${p.name}`;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onOpenEngineDrawer?.()}
+                className="inline-flex items-center gap-1 rounded border border-border-subtle bg-black/40 px-2 py-0.5 text-[11px] font-mono text-text-muted hover:text-text-secondary hover:border-brass/40 transition-colors"
+              >
+                {label}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            data-testid="configure-engines-btn"
+            onClick={() => onOpenEngineDrawer?.()}
+            className="inline-flex items-center gap-1 rounded border border-border-subtle bg-black/40 px-2 py-0.5 text-[11px] text-text-secondary hover:text-text-primary hover:border-brass/40 transition-colors ml-auto"
+          >
+            ⚙ Sources & Keys
+          </button>
+        </div>
+      )}
+
+      {(lowEvidence || initialLowEvidence) && (
+        <div
+          data-testid="empty-results-notice"
+          className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 space-y-2"
+          role="alert"
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-semibold flex items-center gap-1.5">
+              ⚠️ Insufficient Evidence Grounding
+            </span>
+            <button
+              type="button"
+              data-testid="rerun-deep-lane-btn"
+              onClick={() => {
+                setLane('deep');
+                void run('deep');
+              }}
+              className="rounded border border-amber-500/40 bg-amber-500/20 px-2.5 py-1 text-[11px] font-medium text-amber-200 hover:bg-amber-500/30 transition-colors"
+            >
+              Re-run in Deep Lane
+            </button>
+          </div>
+          <p className="text-amber-300/80 leading-relaxed">
+            No verifiable claims could be corroborated across the active search providers with high confidence.
+            Try switching to 🔬 Deep Research lane for multi-hop retrieval or configuring additional search keys.
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Ask a research question…"
@@ -370,7 +535,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
         >
           Diagnostic Prober
         </button>
-        <button type="button" onClick={run} disabled={running}
+        <button type="button" onClick={() => run()} disabled={running}
           className="rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass hover:bg-brass/20 disabled:opacity-50">
           {running ? 'Running…' : 'Run'}
         </button>

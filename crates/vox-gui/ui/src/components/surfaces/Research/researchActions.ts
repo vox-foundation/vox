@@ -22,12 +22,18 @@ export async function startResearchAsync(args: {
   scope?: string;
   maxSources?: number;
   verifyClaims?: boolean;
+  waves?: number;
+  domainMode?: string;
+  lane?: 'fast' | 'deep';
 }): Promise<ResearchRunHandle> {
   return invoke<ResearchRunHandle>('start_research_async', {
     query: args.query,
     scope: args.scope,
     maxSources: args.maxSources,
     verifyClaims: args.verifyClaims,
+    waves: args.waves,
+    domainMode: args.domainMode,
+    lane: args.lane,
   });
 }
 
@@ -94,5 +100,56 @@ export async function probeAllSearchProviders(
 ): Promise<ProviderProbeResult[]> {
   return invoke<ProviderProbeResult[]>('probe_all_search_providers', { query });
 }
+
+export interface QuotaUsageDto {
+  units_spent: number;
+  units_limit: number;
+  last_synced_at: string;
+}
+
+export interface ProviderStatusDto {
+  id: string;
+  name: string;
+  is_keyless: boolean;
+  is_enabled: boolean;
+  has_key: boolean;
+  quota_usage?: QuotaUsageDto | null;
+}
+
+export interface FreeTierOffer {
+  provider_id: string;
+  provider_name: string;
+  signup_url: string;
+  monthly_free_units: number;
+  headline_benefit: string;
+  docs_remediation: string;
+}
+
+export interface ResearchEngineStatusDto {
+  active_lane: 'fast' | 'deep' | string;
+  fast_timeout_ms: number;
+  deep_timeout_ms: number;
+  providers: ProviderStatusDto[];
+  free_key_offers: FreeTierOffer[];
+}
+
+export interface ResearchEngineConfigDto {
+  active_lane?: 'fast' | 'deep' | string;
+  fast_timeout_ms?: number;
+  deep_timeout_ms?: number;
+  enabled_providers?: string[];
+  provider_api_keys?: Record<string, string>;
+}
+
+export async function getResearchEngineStatus(): Promise<ResearchEngineStatusDto> {
+  return invoke<ResearchEngineStatusDto>('get_research_engine_status');
+}
+
+export async function saveResearchEngineConfig(
+  config: ResearchEngineConfigDto,
+): Promise<ResearchEngineStatusDto> {
+  return invoke<ResearchEngineStatusDto>('save_research_engine_config', { config });
+}
+
 
 

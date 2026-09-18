@@ -20,5 +20,6 @@ export function useLang(): LangCtx {
 }
 
 export function useLabel(id: string): string {
-  return labelFor(id, useLang().lang);
+  const ctx = useContext(Ctx);
+  return labelFor(id, ctx?.lang ?? currentLang());
 }
