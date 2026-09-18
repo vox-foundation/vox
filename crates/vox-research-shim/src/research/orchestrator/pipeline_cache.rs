@@ -96,6 +96,7 @@ mod tests {
             site_scope: None,
             domain_mode: Default::default(),
             waves: 1,
+            lane: vox_search::policy::ResearchLane::Fast,
         }
     }
 
@@ -122,6 +123,7 @@ mod tests {
                 corroboration_counts: vec![],
                 wave_count: 1,
                 wave_stability: None,
+                low_grounding_evidence: false,
             },
         }
     }

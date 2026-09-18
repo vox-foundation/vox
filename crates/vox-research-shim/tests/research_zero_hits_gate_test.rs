@@ -1,6 +1,6 @@
 use vox_research_shim::research::{ResearchConfig, ResearchQuery, ResearchScope, run_research};
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_empty_web_retrieval_halts_without_synthesis() {
     let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
         .await
@@ -19,6 +19,7 @@ async fn test_empty_web_retrieval_halts_without_synthesis() {
         site_scope: None,
         waves: 1,
         domain_mode: vox_research_shim::research::ResearchDomainMode::General,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
 
     let result = run_research(query, Some(&db), &config).await;
@@ -28,7 +29,8 @@ async fn test_empty_web_retrieval_halts_without_synthesis() {
     );
     let err_str = result.err().unwrap().to_string();
     assert!(
-        err_str.contains("Zero evidence sources retrieved"),
+        err_str.contains("Zero research hits retrieved")
+            || err_str.contains("Zero evidence sources retrieved"),
         "Error must clearly cite zero retrieval hits: {err_str}"
     );
 

@@ -751,13 +751,14 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 let is_research_slash = expanded_prompt.trim_start().starts_with("/research")
                     || expanded_prompt.trim_start().starts_with("/deepresearch");
                 let is_forced_research = params.force_research == Some(true);
-                if is_research_slash
-                    || is_forced_research
-                    || should_trigger_autonomous_research(
-                        &expanded_prompt,
-                        &bundle,
-                        params.force_research,
-                    )
+                if vox_orchestrator::is_chat_research_enabled()
+                    && (is_research_slash
+                        || is_forced_research
+                        || should_trigger_autonomous_research(
+                            &expanded_prompt,
+                            &bundle,
+                            params.force_research,
+                        ))
                 {
                     tracing::info!("Triggering autonomous research for additional context");
                     let scope = params.research_scope.as_deref().unwrap_or("both");

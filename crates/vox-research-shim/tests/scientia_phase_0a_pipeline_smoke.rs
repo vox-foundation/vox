@@ -14,6 +14,7 @@ async fn run_research_returns_coherent_metadata() {
         site_scope: None,
         domain_mode: Default::default(),
         waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
     let config = ResearchConfig::default();
 
@@ -48,6 +49,7 @@ async fn run_research_with_codex_persists_session_row() {
         site_scope: None,
         domain_mode: Default::default(),
         waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
     let config = ResearchConfig::default();
 
@@ -79,6 +81,7 @@ async fn run_research_with_codex_persists_durable_artifact() {
         site_scope: None,
         domain_mode: Default::default(),
         waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
     let config = ResearchConfig::default();
 
@@ -117,6 +120,7 @@ async fn run_research_emits_scientia_events() {
         site_scope: None,
         domain_mode: Default::default(),
         waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
 
     let _ = run_research(query, None, &config).await.expect("succeeds");
@@ -140,6 +144,7 @@ async fn run_research_live_web_may_return_sources() {
         site_scope: None,
         domain_mode: Default::default(),
         waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
     let config = ResearchConfig::default();
 

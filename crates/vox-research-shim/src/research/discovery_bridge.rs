@@ -297,6 +297,7 @@ mod tests {
                 corroboration_counts: vec![],
                 wave_count: 1,
                 wave_stability: None,
+                low_grounding_evidence: false,
             },
         }
     }

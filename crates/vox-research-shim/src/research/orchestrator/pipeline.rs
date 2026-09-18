@@ -135,22 +135,32 @@ pub async fn run_research_with_context_and_session(
     );
 
     // ── (b) Query decomposition ──────────────────────────────────────────────
-    let mut plan: ResearchPlan = decompose_query_with_config(
-        &query,
-        config.llm_endpoint.as_deref(),
-        config.api_key.as_deref(),
-        Some(resolved_llm.planner_model.as_str()),
-        Some(config.planner_temperature),
-        Some(config.planner_max_subqueries),
-    )
-    .await
-    .unwrap_or_else(|_| ResearchPlan {
-        original_query: query.query.clone(),
-        subqueries: vec![query.query.clone()],
-        scope: query.scope.clone(),
-        max_sources_per_subquery: query.max_sources,
-        planner_degraded: true,
-    });
+    let mut plan: ResearchPlan = if query.lane == vox_search::policy::ResearchLane::Fast {
+        ResearchPlan {
+            original_query: query.query.clone(),
+            subqueries: vec![query.query.clone()],
+            scope: query.scope.clone(),
+            max_sources_per_subquery: query.max_sources,
+            planner_degraded: false,
+        }
+    } else {
+        decompose_query_with_config(
+            &query,
+            config.llm_endpoint.as_deref(),
+            config.api_key.as_deref(),
+            Some(resolved_llm.planner_model.as_str()),
+            Some(config.planner_temperature),
+            Some(config.planner_max_subqueries),
+        )
+        .await
+        .unwrap_or_else(|_| ResearchPlan {
+            original_query: query.query.clone(),
+            subqueries: vec![query.query.clone()],
+            scope: query.scope.clone(),
+            max_sources_per_subquery: query.max_sources,
+            planner_degraded: true,
+        })
+    };
 
     match query.domain_mode {
         ResearchDomainMode::Shopping => {
@@ -253,6 +263,13 @@ pub async fn run_research_with_context_and_session(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
+    if all_hits.is_empty() {
+        set_session_stage(db, session_id, ResearchStage::Failed).await;
+        return Err(anyhow::anyhow!(
+            "Zero research hits retrieved. Halting to prevent hallucinated synthesis."
+        ));
+    }
+
     // ── (d) Retrieval diagnostics ─────────────────────────────────────────────
     let query_terms: Vec<&str> = query.query.split_whitespace().collect();
     let matched_terms = query_terms
@@ -320,13 +337,6 @@ pub async fn run_research_with_context_and_session(
             recorded_at_ms: now_ms_i64(),
         },
     );
-
-    if do_web && all_hits.is_empty() {
-        let err_msg = "Deep Research halted: Zero evidence sources retrieved across search providers. Halting to prevent hallucinated synthesis.";
-        tracing::error!(query = %query.query, "{err_msg}");
-        set_session_stage(db, session_id, ResearchStage::Failed).await;
-        return Err(anyhow::anyhow!(err_msg));
-    }
 
     // ── (e) Confidence gate → routing decision ────────────────────────────────
     let draft_claims = {
@@ -959,12 +969,15 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
 
     let corroboration_counts = compute_corroboration_counts(&citations, &claim_verdicts);
 
+    let confidence = confidence_signal.score as f64;
+    let low_grounding_evidence = confidence < 0.35;
+
     let metadata = ResearchMetadata {
         session_id,
         duration_ms,
         provider: registry.primary_name().to_string(),
         routing_tier,
-        confidence: confidence_signal.score as f64,
+        confidence,
         subquery_count: plan.subqueries.len(),
         source_count: all_hits.len(),
         claim_verdicts: claim_verdicts.clone(),
@@ -977,6 +990,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         corroboration_counts,
         wave_count: wave_plan.as_ref().map(|w| w.current_wave).unwrap_or(1),
         wave_stability: wave_plan.as_ref().map(|w| w.compute_stability()),
+        low_grounding_evidence,
     };
 
     let result = ResearchResult {
@@ -1093,7 +1107,7 @@ async fn resolved_search_policy_for_research_run(
     db: Option<&Codex>,
     config: &ResearchConfig,
 ) -> SearchPolicy {
-    let mut policy = SearchPolicy::from_env();
+    let mut policy = config.search_policy.clone();
     let feedback = if let Some(fb) = config.search_policy_feedback {
         Some(fb)
     } else if let Some(db) = db {
@@ -1296,6 +1310,7 @@ mod tests {
             site_scope: None,
             domain_mode: ResearchDomainMode::default(),
             waves: 1,
+            lane: vox_search::policy::ResearchLane::Fast,
         };
         let plan = ResearchPlan {
             original_query: query.query.clone(),
@@ -1326,6 +1341,7 @@ mod tests {
                 corroboration_counts: vec![],
                 wave_count: 1,
                 wave_stability: None,
+                low_grounding_evidence: false,
             },
         };
         let report_markdown = render_research_report_markdown(&query, &plan, &result);

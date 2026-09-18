@@ -328,6 +328,7 @@ pub async fn run_research_query(
         site_scope,
         domain_mode: Default::default(),
         waves: 1,
+        lane: vox_search::policy::ResearchLane::default(),
     };
 
     if async_run {

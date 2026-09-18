@@ -47,6 +47,8 @@ pub struct ResearchQuery {
     pub domain_mode: ResearchDomainMode,
     #[serde(default = "default_waves")]
     pub waves: usize,
+    #[serde(default)]
+    pub lane: vox_search::policy::ResearchLane,
 }
 
 impl Default for ResearchQuery {
@@ -60,6 +62,7 @@ impl Default for ResearchQuery {
             site_scope: None,
             domain_mode: ResearchDomainMode::General,
             waves: 1,
+            lane: vox_search::policy::ResearchLane::Fast,
         }
     }
 }
@@ -231,6 +234,8 @@ pub struct ResearchMetadata {
     pub wave_count: usize,
     #[serde(default)]
     pub wave_stability: Option<f64>,
+    #[serde(default)]
+    pub low_grounding_evidence: bool,
 }
 
 /// Final research result.

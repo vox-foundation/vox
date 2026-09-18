@@ -156,6 +156,7 @@ mod tests {
             site_scope: None,
             domain_mode: Default::default(),
             waves: 1,
+            lane: vox_search::policy::ResearchLane::Fast,
         }
     }
 

@@ -1,6 +1,6 @@
 use super::super::types::{Citation, ResearchHit, SelfVerificationResult};
 use super::config::RESEARCH_COMPLETENESS_RIDER;
-use super::helpers::{sanitize_chatml, sanitize_evidence};
+use super::helpers::sanitize_evidence;
 
 /// Count distinct registrable domains in research hits and flag diversity shortfall.
 #[must_use]
@@ -168,14 +168,6 @@ pub(super) struct SynthesisParams<'a> {
 
 /// LLM-backed synthesis. Falls back to template when no endpoint is configured.
 pub(super) async fn synthesize_answer_with_llm(params: SynthesisParams<'_>) -> String {
-    if params.hits.is_empty() {
-        return format!(
-            "No external sources were found for: **{}**. \
-             Answering from internal knowledge only.",
-            params.query
-        );
-    }
-
     // Try LLM synthesis first.
     match call_synthesis_llm(&params).await {
         Ok(answer) => return answer,
@@ -298,8 +290,14 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
 
     let system = format!(
         "You are a precise research synthesizer. Using ONLY the provided evidence \
-         snippets, write a thorough, well-structured answer to the user's question. \
-         Cite sources inline as [1], [2], etc. matching the evidence numbers. \
+         snippets, write a thorough, well-structured answer to the user's question.\n\n\
+         You MUST structure your synthesis with the following comprehensive markdown sections:\n\
+         # Executive Summary\n\
+         ## Architectural Tradeoffs\n\
+         ## Grounded Claims\n\
+         ## Contested Findings\n\
+         ## Implementation Implications\n\n\
+         Cite sources inline as [1], [2], etc. matching the evidence numbers.\n\
          If evidence is insufficient, say so clearly.\n{}",
         RESEARCH_COMPLETENESS_RIDER
     );
@@ -335,10 +333,17 @@ fn synthesize_answer_template(
     verdicts: &[super::super::types::ClaimVerdict],
 ) -> String {
     let mut parts: Vec<String> = Vec::new();
-    parts.push(format!("# Research Findings: {query}\n"));
+    parts.push(format!(
+        "# Executive Summary\n\nResearch findings for: {query}\n"
+    ));
 
+    parts.push(
+        "## Architectural Tradeoffs\n\nKey architectural considerations based on gathered evidence.\n"
+            .to_string(),
+    );
+
+    parts.push("## Grounded Claims\n".to_string());
     if !verdicts.is_empty() {
-        parts.push("## Verification Status\n".to_string());
         for verdict in verdicts {
             let icon = match verdict.verdict {
                 super::super::types::Verdict::Supported => "✅",
@@ -354,9 +359,30 @@ fn synthesize_answer_template(
             ));
         }
         parts.push(String::new());
+    } else {
+        parts.push("No explicit claims evaluated.\n".to_string());
     }
 
-    parts.push("## Evidence Summary\n".to_string());
+    parts.push("## Contested Findings\n".to_string());
+    let contested: Vec<_> = verdicts
+        .iter()
+        .filter(|v| {
+            matches!(
+                v.verdict,
+                super::super::types::Verdict::Contradicted
+                    | super::super::types::Verdict::Contested
+            )
+        })
+        .collect();
+    if !contested.is_empty() {
+        for v in contested {
+            parts.push(format!("- ⚠️ **{}**: {}\n", v.claim.text, v.verdict));
+        }
+    } else {
+        parts.push("No contested findings identified.\n".to_string());
+    }
+
+    parts.push("## Implementation Implications\n".to_string());
     for (i, hit) in hits.iter().take(5).enumerate() {
         let snippet = hit.snippet.chars().take(500).collect::<String>();
         parts.push(format!(

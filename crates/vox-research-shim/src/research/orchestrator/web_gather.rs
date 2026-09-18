@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use vox_db::Codex;
 use vox_search::crag::CragRouter;
 use vox_search::memory_hybrid::HybridSearchHit;
-use vox_search::policy::SearchPolicy;
+use vox_search::policy::{ResearchLane, SearchPolicy};
 use vox_search::{
     RetrievalTriggerMode, SearchExecution, SearchRuntimeContext, run_search_with_verification,
 };
@@ -153,6 +153,7 @@ fn host_matches_site_scope(url: &str, site_scope: &str) -> bool {
 
 async fn search_one_subquery(
     subquery: &str,
+    lane: ResearchLane,
     policy: &SearchPolicy,
     registry: &ProviderRegistry,
     site_scope: Option<&str>,
@@ -165,7 +166,7 @@ async fn search_one_subquery(
         Some(scope) => format!("{subquery} site:{scope}"),
         None => subquery.to_string(),
     };
-    let (mut hits, _) = registry.search(&query_string, policy).await;
+    let (mut hits, _) = registry.search_with_lane(&query_string, lane, policy).await;
     if let Some(scope) = site_scope {
         hits.retain(|hit| host_matches_site_scope(&hit.url, scope));
     }
@@ -266,6 +267,7 @@ pub(super) async fn gather_web_hits_for_plan(
     for sq in &plan.subqueries {
         let (att, got) = search_one_subquery(
             sq,
+            query.lane,
             policy,
             registry,
             site_scope,
@@ -313,6 +315,7 @@ pub(super) async fn gather_web_hits_for_plan(
         for rq in refined {
             let (att, got) = search_one_subquery(
                 &rq,
+                query.lane,
                 policy,
                 registry,
                 site_scope,
@@ -500,6 +503,7 @@ mod tests {
             site_scope: None,
             domain_mode: Default::default(),
             waves: 1,
+            lane: vox_search::policy::ResearchLane::Fast,
         };
         let plan = ResearchPlan {
             original_query: query.query.clone(),

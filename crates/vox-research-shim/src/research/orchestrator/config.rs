@@ -91,6 +91,8 @@ pub struct ResearchConfig {
     /// Phase 0a STUB: uses `super::super::model_select::InferenceConfig` (static fallbacks).
     /// Phase 1 replaces with `vox_orchestrator::mode::InferenceConfig` when that module is activated.
     pub model_pick_inference: Option<super::super::model_select::InferenceConfig>,
+    /// Tunable retrieval search policy (provider toggles, timeouts, weights).
+    pub search_policy: vox_search::policy::SearchPolicy,
 }
 
 impl std::fmt::Debug for ResearchConfig {
@@ -108,6 +110,7 @@ impl std::fmt::Debug for ResearchConfig {
                 "search_policy_feedback",
                 &self.search_policy_feedback.is_some(),
             )
+            .field("search_policy", &self.search_policy)
             .finish_non_exhaustive()
     }
 }
@@ -160,6 +163,7 @@ impl Default for ResearchConfig {
             event_emitter: None,
             search_policy_feedback: None,
             model_pick_inference: None,
+            search_policy: vox_search::policy::SearchPolicy::from_env(),
         }
     }
 }

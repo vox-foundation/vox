@@ -299,6 +299,15 @@ impl crate::orchestrator::Orchestrator {
     }
 }
 
+/// Returns true if autonomous research during chat turns is enabled.
+/// Controlled via Clavis `SecretId::VoxChatResearchEnabled`. Defaults to true.
+pub fn is_chat_research_enabled() -> bool {
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxChatResearchEnabled)
+        .expose()
+        .map(|v| v.trim() != "false" && v.trim() != "0")
+        .unwrap_or(true)
+}
+
 mod accessors;
 pub mod checkpoint;
 mod init;
@@ -339,5 +348,10 @@ mod isolation_policy_tests {
             plan.strategy_for(crate::types::AgentId(5)),
             crate::isolation::IsolationStrategy::SeparateBranches
         );
+    }
+
+    #[test]
+    fn chat_research_enabled_defaults_to_true() {
+        assert!(crate::is_chat_research_enabled());
     }
 }

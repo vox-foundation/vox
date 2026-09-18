@@ -52,6 +52,7 @@ pub async fn evaluate_single_query_pipeline(
         site_scope: None,
         domain_mode,
         waves: 1,
+        lane: vox_search::policy::ResearchLane::default(),
     };
 
     let result =

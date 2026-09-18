@@ -4,7 +4,7 @@
 //! while retrieval executes through the shared vox-search web stack (SearXNG → DDG → Tavily).
 
 use serde::{Deserialize, Serialize};
-use vox_search::policy::SearchPolicy;
+use vox_search::policy::{ResearchLane, SearchPolicy};
 use vox_search::web_dispatcher::WebSearchDispatcher;
 
 use super::types::ResearchHit;
@@ -54,11 +54,16 @@ impl ProviderRegistry {
         &self.primary
     }
 
-    /// Search for hits matching `query` via [`WebSearchDispatcher`].
+    /// Search for hits matching `query` via [`WebSearchDispatcher`] with a specific lane.
     ///
     /// Returns `(hits, provider_name_used)`.
-    pub async fn search(&self, query: &str, policy: &SearchPolicy) -> (Vec<ResearchHit>, String) {
-        match WebSearchDispatcher::search(query, policy).await {
+    pub async fn search_with_lane(
+        &self,
+        query: &str,
+        lane: ResearchLane,
+        policy: &SearchPolicy,
+    ) -> (Vec<ResearchHit>, String) {
+        match WebSearchDispatcher::search_with_lane(query, lane, policy).await {
             Ok(hybrids) => {
                 use futures::stream::{self, StreamExt};
                 // Stream over OWNED (title, url) pairs, not `hybrids.iter()`
@@ -108,6 +113,14 @@ impl ProviderRegistry {
                 (Vec::new(), self.primary.clone())
             }
         }
+    }
+
+    /// Search for hits matching `query` via [`WebSearchDispatcher`].
+    ///
+    /// Returns `(hits, provider_name_used)`.
+    pub async fn search(&self, query: &str, policy: &SearchPolicy) -> (Vec<ResearchHit>, String) {
+        self.search_with_lane(query, policy.default_lane, policy)
+            .await
     }
 
     /// Discover child pages for a site root URL.

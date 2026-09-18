@@ -297,6 +297,7 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         site_scope: params.site_scope,
         domain_mode,
         waves: params.waves.unwrap_or(1).clamp(1, 5),
+        lane: vox_search::policy::ResearchLane::default(),
     };
 
     let config = ResearchConfig {
@@ -394,6 +395,7 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
             site_scope: params.site_scope,
             domain_mode,
             waves: params.waves.unwrap_or(1).clamp(1, 5),
+            lane: vox_search::policy::ResearchLane::default(),
         };
         let ctx = SearchRuntimeContext::new(
             state.repository.root.clone(),
@@ -601,5 +603,25 @@ fn parse_research_scope(
         "local" => Ok(ResearchScope::Local),
         "web" => Ok(ResearchScope::Web),
         other => Err(format!("invalid scope {other:?}: use web|local|both")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_research_scope() {
+        use vox_research_shim::research::ResearchScope;
+        assert_eq!(parse_research_scope(None).unwrap(), ResearchScope::Both);
+        assert_eq!(
+            parse_research_scope(Some("web")).unwrap(),
+            ResearchScope::Web
+        );
+        assert_eq!(
+            parse_research_scope(Some("local")).unwrap(),
+            ResearchScope::Local
+        );
+        assert!(parse_research_scope(Some("invalid")).is_err());
     }
 }

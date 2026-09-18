@@ -25,7 +25,7 @@
 mod config;
 pub(crate) mod helpers;
 pub(super) mod model_dispatch;
-mod pipeline;
+pub mod pipeline;
 mod pipeline_cache;
 mod stages;
 pub mod wave;

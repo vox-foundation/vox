@@ -13,6 +13,7 @@ fn research_query_default_constructs() {
         site_scope: None,
         domain_mode: Default::default(),
         waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
     assert_eq!(q.query, "test");
     assert_eq!(q.max_sources, 5);
@@ -60,6 +61,7 @@ fn research_metadata_planner_degraded_round_trips_json() {
         corroboration_counts: vec![],
         wave_count: 1,
         wave_stability: None,
+        low_grounding_evidence: false,
     };
     let json = serde_json::to_value(&meta).expect("serializes");
     assert_eq!(json["planner_degraded"], true);

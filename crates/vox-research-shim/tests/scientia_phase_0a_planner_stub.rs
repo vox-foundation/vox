@@ -14,6 +14,7 @@ async fn planner_without_available_model_falls_back_to_single_subquery() {
         site_scope: None,
         domain_mode: Default::default(),
         waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
     let plan = decompose_query_with_config(&q, None, None, None, None, None)
         .await
