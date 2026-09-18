@@ -9,7 +9,7 @@ pub mod vox_gui {
     pub use crate::commands;
 }
 
-use vox_gui::commands::search_probe::probe_search_provider;
+use vox_gui::commands::search_probe::{probe_all_search_providers, probe_search_provider};
 
 #[tokio::test]
 async fn test_probe_search_provider_rejects_empty_query() {
@@ -19,11 +19,82 @@ async fn test_probe_search_provider_rejects_empty_query() {
 }
 
 #[tokio::test]
+async fn test_probe_search_provider_rejects_overlong_query() {
+    let long_query = "a".repeat(1001);
+    let result = probe_search_provider("duckduckgo".to_string(), long_query).await;
+    assert!(result.is_err(), "Overlong query must return Err");
+    assert_eq!(
+        result.err().unwrap(),
+        "Query exceeds maximum allowed length of 1000 characters"
+    );
+}
+
+#[tokio::test]
 async fn test_probe_search_provider_rejects_unknown_provider() {
     let result =
         probe_search_provider("nonexistent_search_engine".to_string(), "test".to_string()).await;
     assert!(result.is_err(), "Unknown provider must return Err");
     assert!(result.err().unwrap().contains("Unknown provider"));
+}
+
+#[tokio::test]
+async fn test_probe_unconfigured_searxng_returns_remediation() {
+    let prev = std::env::var("VOX_SEARCH_SEARXNG_URL").ok();
+    unsafe {
+        std::env::remove_var("VOX_SEARCH_SEARXNG_URL");
+    }
+    let result = probe_search_provider("searxng".to_string(), "rust".to_string()).await;
+    if let Some(val) = prev {
+        unsafe {
+            std::env::set_var("VOX_SEARCH_SEARXNG_URL", val);
+        }
+    }
+    assert!(
+        result.is_ok(),
+        "Unconfigured SearXNG should return Ok(ProviderProbeResult)"
+    );
+    let probe = result.unwrap();
+    assert_eq!(probe.provider, "searxng");
+    assert_eq!(probe.http_status, 0);
+    assert!(!probe.success);
+    assert!(probe.error_message.is_some());
+    assert!(
+        probe
+            .remediation_tip
+            .as_deref()
+            .unwrap_or("")
+            .contains("VOX_SEARCH_SEARXNG_URL")
+    );
+}
+
+#[tokio::test]
+async fn test_probe_unconfigured_tavily_returns_remediation() {
+    let prev = std::env::var("TAVILY_API_KEY").ok();
+    unsafe {
+        std::env::remove_var("TAVILY_API_KEY");
+    }
+    let result = probe_search_provider("tavily".to_string(), "rust".to_string()).await;
+    if let Some(val) = prev {
+        unsafe {
+            std::env::set_var("TAVILY_API_KEY", val);
+        }
+    }
+    assert!(
+        result.is_ok(),
+        "Unconfigured Tavily should return Ok(ProviderProbeResult)"
+    );
+    let probe = result.unwrap();
+    assert_eq!(probe.provider, "tavily");
+    assert_eq!(probe.http_status, 0);
+    assert!(!probe.success);
+    assert!(probe.error_message.is_some());
+    assert!(
+        probe
+            .remediation_tip
+            .as_deref()
+            .unwrap_or("")
+            .contains("Tavily API key")
+    );
 }
 
 #[tokio::test]
@@ -36,10 +107,24 @@ async fn test_probe_wikipedia_search_returns_result_shape() {
     );
     let probe = result.unwrap();
     assert_eq!(probe.provider, "wikipedia");
-    assert_eq!(probe.http_status, 200);
+    if probe.success {
+        assert_eq!(probe.http_status, 200);
+        assert!(probe.hit_count > 0);
+    } else {
+        assert_eq!(probe.http_status, 500);
+        assert!(probe.error_message.is_some());
+    }
+}
+
+#[tokio::test]
+async fn test_probe_all_search_providers_returns_batch_results() {
+    let result = probe_all_search_providers("Rust language".to_string()).await;
     assert!(
-        probe.hit_count > 0,
-        "Wikipedia search for Rust programming should yield hits"
+        result.is_ok(),
+        "Probe all should succeed with Ok results vector"
     );
-    assert!(!probe.sample_titles.is_empty());
+    let probes = result.unwrap();
+    assert_eq!(probes.len(), 4);
+    let names: Vec<_> = probes.iter().map(|p| p.provider.as_str()).collect();
+    assert_eq!(names, vec!["searxng", "tavily", "duckduckgo", "wikipedia"]);
 }

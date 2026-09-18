@@ -324,6 +324,7 @@ async fn main() {
             commands::research::publish_research_doc,
             commands::research::execute_sandbox_probe,
             commands::search_probe::probe_search_provider,
+            commands::search_probe::probe_all_search_providers,
             commands::scientia::list_research_sessions,
             commands::scientia::get_research_session_detail,
             commands::scientia::list_publication_manifests,
