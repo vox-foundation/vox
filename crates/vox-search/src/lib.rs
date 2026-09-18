@@ -78,7 +78,7 @@ pub use memory_hybrid::{HybridSearchHit, MemorySearchEngine};
 pub use parallel_exploration::{
     BranchResult, CancellationToken, ParallelExplorationCoordinator, ResearchBranch,
 };
-pub use policy::{SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy, SearchPolicyFeedback};
+pub use policy::{ResearchLane, SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy, SearchPolicyFeedback};
 pub use search_circuit_breaker::{
     ProviderCircuitBreaker, SearchProviderCircuitRegistry, SearchProviderId,
 };

@@ -156,7 +156,7 @@ pub async fn probe_search_provider(
                 remediation_tip: None,
             }),
         },
-        "wikipedia" => match WikipediaClient::search(q, 3).await {
+        "wikipedia" => match WikipediaClient::search(q, 3, None).await {
             Ok(hits) => Ok(ProviderProbeResult {
                 provider,
                 http_status: 200,

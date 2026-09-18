@@ -15,10 +15,6 @@ pub fn extract_registrable_domain(url_str: &str) -> Option<String> {
 }
 
 impl WebSearchDispatcher {
-    pub fn extract_registrable_domain(url_str: &str) -> Option<String> {
-        extract_registrable_domain(url_str)
-    }
-
     pub fn filter_and_penalize_results(
         results: &mut Vec<crate::searxng::SearxngResult>,
         policy: &SearchPolicy,
@@ -180,7 +176,12 @@ impl WebSearchDispatcher {
 
         // Tier 4: Wikipedia Encyclopedic Fallback (when SearXNG + Tavily + DDG returned nothing)
         if results.is_empty() && policy.wikipedia_fallback_enabled {
-            match crate::wikipedia::WikipediaClient::search(query, policy.searxng_max_results).await
+            match crate::wikipedia::WikipediaClient::search(
+                query,
+                policy.searxng_max_results,
+                policy.wikipedia_api_url.as_deref(),
+            )
+            .await
             {
                 Ok(hits) if !hits.is_empty() => {
                     info!(

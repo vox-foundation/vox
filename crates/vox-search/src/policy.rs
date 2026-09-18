@@ -62,6 +62,25 @@ fn default_novelty_min_score() -> f64 {
     0.15
 }
 
+#[inline]
+fn default_fast_timeout_ms() -> u64 {
+    1500
+}
+
+#[inline]
+fn default_deep_timeout_ms() -> u64 {
+    4000
+}
+
+/// Retrieval lane: `Fast` (parallel keyless fan-out with tight timeout) or `Deep` (exhaustive search with Tavily/hops).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ResearchLane {
+    #[default]
+    Fast,
+    Deep,
+}
+
 /// Tunable retrieval weights and safety rails (replaces ad hoc literals in tool surfaces).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchPolicy {
@@ -149,6 +168,36 @@ pub struct SearchPolicy {
     /// Domains completely excluded from search results.
     #[serde(default)]
     pub blacklisted_domains: HashSet<String>,
+    /// Default lane to use for research queries.
+    #[serde(default)]
+    pub default_lane: ResearchLane,
+    /// Fast lane timeout in milliseconds.
+    #[serde(default = "default_fast_timeout_ms")]
+    pub fast_timeout_ms: u64,
+    /// Deep lane timeout in milliseconds.
+    #[serde(default = "default_deep_timeout_ms")]
+    pub deep_timeout_ms: u64,
+    /// Enable Wikipedia provider in parallel retrieval fan-out.
+    #[serde(default = "default_true")]
+    pub enable_wikipedia: bool,
+    /// Enable OpenAlex provider in parallel retrieval fan-out.
+    #[serde(default = "default_true")]
+    pub enable_openalex: bool,
+    /// Enable arXiv provider in parallel retrieval fan-out.
+    #[serde(default = "default_true")]
+    pub enable_arxiv: bool,
+    /// Optional Wikipedia API endpoint override (for Wiremock CI and mirrors).
+    #[serde(default)]
+    pub wikipedia_api_url: Option<String>,
+    /// Optional OpenAlex API endpoint override (for Wiremock CI and mirrors).
+    #[serde(default)]
+    pub openalex_api_url: Option<String>,
+    /// Optional arXiv API endpoint override (for Wiremock CI and mirrors).
+    #[serde(default)]
+    pub arxiv_api_url: Option<String>,
+    /// Optional Tavily API endpoint override (for Wiremock CI and mirrors).
+    #[serde(default)]
+    pub tavily_api_url: Option<String>,
 }
 
 /// Aggregated SCIENTIA observations that can tune retrieval policy for a run.
@@ -319,6 +368,16 @@ impl Default for SearchPolicy {
             .unwrap_or_else(default_novelty_min_score),
             domain_penalties: HashMap::new(),
             blacklisted_domains: HashSet::new(),
+            default_lane: ResearchLane::Fast,
+            fast_timeout_ms: 1500,
+            deep_timeout_ms: 4000,
+            enable_wikipedia: true,
+            enable_openalex: true,
+            enable_arxiv: true,
+            wikipedia_api_url: None,
+            openalex_api_url: None,
+            arxiv_api_url: None,
+            tavily_api_url: None,
         }
     }
 }

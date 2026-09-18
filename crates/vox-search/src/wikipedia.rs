@@ -61,17 +61,43 @@ impl WikipediaClient {
         Ok(results)
     }
 
-    pub async fn search(query: &str, limit: usize) -> anyhow::Result<Vec<SearxngResult>> {
+    pub async fn search(
+        query: &str,
+        limit: usize,
+        base_url: Option<&str>,
+    ) -> anyhow::Result<Vec<SearxngResult>> {
         if query.trim().is_empty() || limit == 0 {
             return Ok(Vec::new());
         }
         let client = vox_http_client::client();
         let srlimit = limit.clamp(1, 50);
-        let url = format!(
-            "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={}&utf8=&format=json&srlimit={}",
-            urlencoding::encode(query.trim()),
-            srlimit
-        );
+        let base = base_url.unwrap_or("https://en.wikipedia.org/w/api.php");
+        let url = match url::Url::parse(base) {
+            Ok(mut parsed) => {
+                if parsed.path().is_empty() || parsed.path() == "/" {
+                    parsed.set_path("/w/api.php");
+                }
+                parsed
+                    .query_pairs_mut()
+                    .append_pair("action", "query")
+                    .append_pair("list", "search")
+                    .append_pair("srsearch", query.trim())
+                    .append_pair("utf8", "")
+                    .append_pair("format", "json")
+                    .append_pair("srlimit", &srlimit.to_string());
+                parsed.to_string()
+            }
+            Err(_) => {
+                let sep = if base.contains('?') { '&' } else { '?' };
+                format!(
+                    "{}{}action=query&list=search&srsearch={}&utf8=&format=json&srlimit={}",
+                    base,
+                    sep,
+                    urlencoding::encode(query.trim()),
+                    srlimit
+                )
+            }
+        };
         debug!(url = %url, query = query, "Firing Wikipedia encyclopedic fallback");
         let resp = client.get(&url).send().await?;
         if !resp.status().is_success() {
@@ -183,14 +209,45 @@ mod tests {
 
     #[tokio::test]
     async fn search_returns_empty_immediately_on_blank_query_or_zero_limit() {
-        let hits_blank = WikipediaClient::search("   ", 5)
+        let hits_blank = WikipediaClient::search("   ", 5, None)
             .await
             .expect("search blank");
         assert!(hits_blank.is_empty());
 
-        let hits_zero = WikipediaClient::search("valid query", 0)
+        let hits_zero = WikipediaClient::search("valid query", 0, None)
             .await
             .expect("search zero");
         assert!(hits_zero.is_empty());
+    }
+
+    #[tokio::test]
+    async fn search_with_custom_base_url_hits_mock_server() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/wiki"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "query": {
+                    "search": [
+                        {
+                            "title": "Mock Title",
+                            "pageid": 999,
+                            "snippet": "Mock Snippet"
+                        }
+                    ]
+                }
+            })))
+            .mount(&server)
+            .await;
+
+        let base_url = format!("{}/wiki", server.uri());
+        let hits = WikipediaClient::search("test query", 5, Some(&base_url))
+            .await
+            .expect("search mock");
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].title, "Mock Title");
+        assert_eq!(hits[0].content, "Mock Snippet");
     }
 }
