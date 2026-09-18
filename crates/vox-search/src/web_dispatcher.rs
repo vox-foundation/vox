@@ -1,10 +1,16 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use tracing::{info, warn};
 
-use crate::policy::SearchPolicy;
+use crate::policy::{ResearchLane, SearchPolicy};
 
 pub struct WebSearchDispatcher;
+
+impl Default for WebSearchDispatcher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 pub fn extract_registrable_domain(url_str: &str) -> Option<String> {
     let parsed = url::Url::parse(url_str)
@@ -15,6 +21,10 @@ pub fn extract_registrable_domain(url_str: &str) -> Option<String> {
 }
 
 impl WebSearchDispatcher {
+    pub fn new() -> Self {
+        Self
+    }
+
     pub fn filter_and_penalize_results(
         results: &mut Vec<crate::searxng::SearxngResult>,
         policy: &SearchPolicy,
@@ -38,6 +48,7 @@ impl WebSearchDispatcher {
             r.score = Some(base * multiplier);
         }
     }
+
     pub async fn search(
         query: &str,
         policy: &SearchPolicy,
@@ -55,156 +66,261 @@ impl WebSearchDispatcher {
         policy: &SearchPolicy,
         registry: &crate::search_circuit_breaker::SearchProviderCircuitRegistry,
     ) -> anyhow::Result<Vec<crate::memory_hybrid::HybridSearchHit>> {
-        let mut results = Vec::new();
+        Self::search_with_lane_and_registry(query, policy.default_lane, policy, registry).await
+    }
 
-        // Tier 1: SearXNG
-        if let Some(base_url) = &policy.searxng_url {
-            if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::Searxng) {
-                warn!("SearXNG is in circuit breaker cooldown, skipping");
+    pub async fn search_with_lane(
+        &self,
+        query: &str,
+        lane: ResearchLane,
+        policy: &SearchPolicy,
+    ) -> anyhow::Result<Vec<crate::memory_hybrid::HybridSearchHit>> {
+        Self::search_with_lane_and_registry(
+            query,
+            lane,
+            policy,
+            crate::search_circuit_breaker::SearchProviderCircuitRegistry::global(),
+        )
+        .await
+    }
+
+    pub async fn search_with_lane_and_registry(
+        query: &str,
+        lane: ResearchLane,
+        policy: &SearchPolicy,
+        registry: &crate::search_circuit_breaker::SearchProviderCircuitRegistry,
+    ) -> anyhow::Result<Vec<crate::memory_hybrid::HybridSearchHit>> {
+        if query.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let timeout_ms = match lane {
+            ResearchLane::Fast => policy.fast_timeout_ms,
+            ResearchLane::Deep => policy.deep_timeout_ms,
+        };
+        let deadline = std::time::Duration::from_millis(timeout_ms.max(50));
+
+        // 1. Wikipedia
+        let wiki_task = async {
+            if policy.enable_wikipedia && policy.wikipedia_fallback_enabled {
+                match crate::wikipedia::WikipediaClient::search(
+                    query,
+                    policy.searxng_max_results,
+                    policy.wikipedia_api_url.as_deref(),
+                )
+                .await
+                {
+                    Ok(hits) => {
+                        info!(count = hits.len(), "Wikipedia search succeeded");
+                        hits
+                    }
+                    Err(e) => {
+                        warn!(error = %e, "Wikipedia search failed");
+                        Vec::new()
+                    }
+                }
             } else {
-                let client = crate::searxng::SearxngSearchClient::new(base_url.clone());
-                let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
-                    .acquire_searxng()
-                    .await;
-                match client
-                    .search(
-                        query,
-                        policy.searxng_max_results,
-                        policy.searxng_engines_csv(),
-                        policy.searxng_language_tag(),
-                    )
-                    .await
+                Vec::new()
+            }
+        };
+
+        // 2. OpenAlex
+        let openalex_task = async {
+            if policy.enable_openalex {
+                match crate::openalex::OpenAlexClient::search(
+                    query,
+                    policy.searxng_max_results,
+                    policy.openalex_api_url.as_deref(),
+                    None,
+                )
+                .await
                 {
                     Ok(hits) => {
-                        info!(count = hits.len(), "SearXNG search succeeded");
-                        registry.record_success(
-                            crate::search_circuit_breaker::SearchProviderId::Searxng,
-                        );
-                        results = hits;
+                        info!(count = hits.len(), "OpenAlex search succeeded");
+                        hits
                     }
                     Err(e) => {
-                        let err_str = e.to_string();
-                        let is_rate_limit = err_str.contains("429")
-                            || err_str.to_ascii_lowercase().contains("rate limit");
-                        registry.record_failure(
-                            crate::search_circuit_breaker::SearchProviderId::Searxng,
-                            is_rate_limit,
-                        );
-                        warn!(error = %e, is_rate_limit, "SearXNG search failed, falling back");
+                        warn!(error = %e, "OpenAlex search failed");
+                        Vec::new()
                     }
                 }
-            }
-        }
-
-        // Tier 2: Tavily (when SearXNG produced nothing and policy allows it)
-        #[cfg(feature = "tavily")]
-        if results.is_empty() && policy.tavily_enabled {
-            if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::Tavily) {
-                warn!("Tavily is in circuit breaker cooldown, skipping");
-            } else if let Some(client) = crate::tavily::TavilySearchClient::from_env() {
-                let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
-                    .acquire_tavily()
-                    .await;
-                match client
-                    .search(
-                        query,
-                        policy.tavily_max_results,
-                        policy.tavily_search_depth.as_str(),
-                    )
-                    .await
-                {
-                    Ok(hits) => {
-                        info!(count = hits.len(), "Tavily web search succeeded");
-                        registry.record_success(
-                            crate::search_circuit_breaker::SearchProviderId::Tavily,
-                        );
-                        results = hits
-                            .into_iter()
-                            .map(|h| crate::searxng::SearxngResult {
-                                url: h.url,
-                                title: h.title.clone(),
-                                content: h.content,
-                                engine: Some("tavily".to_string()),
-                                score: Some(f64::from(h.score)),
-                            })
-                            .collect();
-                    }
-                    Err(e) => {
-                        let is_rate_limit =
-                            e.contains("429") || e.to_ascii_lowercase().contains("rate limit");
-                        registry.record_failure(
-                            crate::search_circuit_breaker::SearchProviderId::Tavily,
-                            is_rate_limit,
-                        );
-                        warn!(error = %e, is_rate_limit, "Tavily web search failed");
-                    }
-                }
-            }
-        }
-
-        // Tier 3: DuckDuckGo Fallback (when SearXNG + Tavily produced nothing)
-        if results.is_empty() && policy.duckduckgo_fallback_enabled {
-            if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::DuckDuckGo) {
-                warn!("DuckDuckGo is in circuit breaker cooldown, skipping");
             } else {
+                Vec::new()
+            }
+        };
+
+        // 3. arXiv
+        let arxiv_task = async {
+            if policy.enable_arxiv {
                 let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
-                    .acquire_ddg()
+                    .acquire_arxiv()
                     .await;
-                match crate::duckduckgo::DuckDuckGoClient::search(query, policy.searxng_max_results)
-                    .await
+                match crate::arxiv::ArXivClient::search(
+                    query,
+                    policy.searxng_max_results,
+                    policy.arxiv_api_url.as_deref(),
+                )
+                .await
                 {
                     Ok(hits) => {
-                        info!(count = hits.len(), "DuckDuckGo fallback succeeded");
-                        registry.record_success(
-                            crate::search_circuit_breaker::SearchProviderId::DuckDuckGo,
-                        );
-                        results = hits;
+                        info!(count = hits.len(), "arXiv search succeeded");
+                        hits
                     }
                     Err(e) => {
-                        let err_str = e.to_string();
-                        let is_rate_limit = err_str.contains("429")
-                            || err_str.to_ascii_lowercase().contains("rate limit");
-                        registry.record_failure(
-                            crate::search_circuit_breaker::SearchProviderId::DuckDuckGo,
-                            is_rate_limit,
-                        );
-                        warn!(error = %e, is_rate_limit, "DuckDuckGo fallback failed");
+                        warn!(error = %e, "arXiv search failed");
+                        Vec::new()
+                    }
+                }
+            } else {
+                Vec::new()
+            }
+        };
+
+        // 4. SearXNG
+        let searxng_task = async {
+            if let Some(base_url) = &policy.searxng_url {
+                if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::Searxng)
+                {
+                    warn!("SearXNG is in circuit breaker cooldown, skipping");
+                    Vec::new()
+                } else {
+                    let client = crate::searxng::SearxngSearchClient::new(base_url.clone());
+                    let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
+                        .acquire_searxng()
+                        .await;
+                    match client
+                        .search(
+                            query,
+                            policy.searxng_max_results,
+                            policy.searxng_engines_csv(),
+                            policy.searxng_language_tag(),
+                        )
+                        .await
+                    {
+                        Ok(hits) => {
+                            info!(count = hits.len(), "SearXNG search succeeded");
+                            registry.record_success(
+                                crate::search_circuit_breaker::SearchProviderId::Searxng,
+                            );
+                            hits
+                        }
+                        Err(e) => {
+                            let err_str = e.to_string();
+                            let is_rate_limit = err_str.contains("429")
+                                || err_str.to_ascii_lowercase().contains("rate limit");
+                            registry.record_failure(
+                                crate::search_circuit_breaker::SearchProviderId::Searxng,
+                                is_rate_limit,
+                            );
+                            warn!(error = %e, is_rate_limit, "SearXNG search failed");
+                            Vec::new()
+                        }
+                    }
+                }
+            } else {
+                Vec::new()
+            }
+        };
+
+        // 5. Tavily
+        let tavily_task = async {
+            #[cfg(feature = "tavily")]
+            if policy.tavily_enabled {
+                if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::Tavily) {
+                    warn!("Tavily is in circuit breaker cooldown, skipping");
+                    return Vec::new();
+                }
+                if let Some(client) = crate::tavily::TavilySearchClient::from_env() {
+                    let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
+                        .acquire_tavily()
+                        .await;
+                    match client
+                        .search(
+                            query,
+                            policy.tavily_max_results,
+                            policy.tavily_search_depth.as_str(),
+                        )
+                        .await
+                    {
+                        Ok(hits) => {
+                            info!(count = hits.len(), "Tavily web search succeeded");
+                            registry.record_success(
+                                crate::search_circuit_breaker::SearchProviderId::Tavily,
+                            );
+                            return hits
+                                .into_iter()
+                                .map(|h| crate::searxng::SearxngResult {
+                                    url: h.url,
+                                    title: h.title.clone(),
+                                    content: h.content,
+                                    engine: Some("tavily".to_string()),
+                                    score: Some(f64::from(h.score)),
+                                })
+                                .collect();
+                        }
+                        Err(e) => {
+                            let is_rate_limit =
+                                e.contains("429") || e.to_ascii_lowercase().contains("rate limit");
+                            registry.record_failure(
+                                crate::search_circuit_breaker::SearchProviderId::Tavily,
+                                is_rate_limit,
+                            );
+                            warn!(error = %e, is_rate_limit, "Tavily web search failed");
+                            return Vec::new();
+                        }
                     }
                 }
             }
-        }
+            Vec::new()
+        };
 
-        // Tier 4: Wikipedia Encyclopedic Fallback (when SearXNG + Tavily + DDG returned nothing)
-        if results.is_empty() && policy.wikipedia_fallback_enabled {
-            match crate::wikipedia::WikipediaClient::search(
-                query,
-                policy.searxng_max_results,
-                policy.wikipedia_api_url.as_deref(),
-            )
-            .await
-            {
-                Ok(hits) if !hits.is_empty() => {
-                    info!(
-                        count = hits.len(),
-                        "Wikipedia encyclopedic fallback succeeded"
-                    );
-                    results = hits;
+        // Bound each provider by lane timeout deadline
+        let (wiki_res, openalex_res, arxiv_res, searxng_res, tavily_res) = tokio::join!(
+            tokio::time::timeout(deadline, wiki_task),
+            tokio::time::timeout(deadline, openalex_task),
+            tokio::time::timeout(deadline, arxiv_task),
+            tokio::time::timeout(deadline, searxng_task),
+            tokio::time::timeout(deadline, tavily_task),
+        );
+
+        let unwrap_timed =
+            |res: Result<Vec<crate::searxng::SearxngResult>, tokio::time::error::Elapsed>,
+             provider: &'static str|
+             -> Vec<crate::searxng::SearxngResult> {
+                match res {
+                    Ok(hits) => hits,
+                    Err(_) => {
+                        warn!(provider, "Search provider timed out");
+                        Vec::new()
+                    }
                 }
-                Ok(_) => {}
-                Err(e) => {
-                    warn!(error = %e, "Wikipedia encyclopedic fallback failed");
-                }
-            }
-        }
+            };
+
+        let provider_lists = vec![
+            unwrap_timed(arxiv_res, "arxiv"),
+            unwrap_timed(openalex_res, "openalex"),
+            unwrap_timed(wiki_res, "wikipedia"),
+            unwrap_timed(searxng_res, "searxng"),
+            unwrap_timed(tavily_res, "tavily"),
+        ];
+
+        let mut results = true_rrf_fuse(provider_lists, policy.rrf_k);
 
         if results.is_empty() {
             return Ok(Vec::new());
         }
+
         Self::filter_and_penalize_results(&mut results, policy);
         if results.is_empty() {
             return Ok(Vec::new());
         }
-        rank_and_dedupe_results(&mut results);
+
+        results.sort_by(|a, b| {
+            b.score
+                .unwrap_or(0.0)
+                .partial_cmp(&a.score.unwrap_or(0.0))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         #[cfg(feature = "tavily")]
         if policy.tavily_enabled
@@ -224,7 +340,11 @@ impl WebSearchDispatcher {
             let mut final_hits = Vec::new();
             let urls_to_scrape = results
                 .iter()
-                .take(policy.searxng_max_urls_to_scrape)
+                .take(
+                    policy
+                        .searxng_max_results
+                        .max(policy.searxng_max_urls_to_scrape),
+                )
                 .cloned()
                 .collect::<Vec<_>>();
 
@@ -287,16 +407,19 @@ impl WebSearchDispatcher {
         {
             // Without `web-scrape`, return engine snippets only (no HTML fetch stack).
             let mut final_hits = Vec::new();
-            for res in results.iter().take(policy.searxng_max_urls_to_scrape) {
+            let max_hits = policy
+                .searxng_max_results
+                .max(policy.searxng_max_urls_to_scrape);
+            for res in results.into_iter().take(max_hits) {
                 let mut provenance = vec!["WebResearch".to_string()];
                 if let Some(ref eng) = res.engine {
                     provenance.push(format!("engine:{eng}"));
                 }
                 provenance.push("scraped:disabled".to_string());
                 final_hits.push(crate::memory_hybrid::HybridSearchHit {
-                    path: res.url.clone(),
-                    title: res.title.clone(),
-                    content_snippet: res.content.clone(),
+                    path: res.url,
+                    title: res.title,
+                    content_snippet: res.content,
                     score: res.score.unwrap_or(0.5),
                     provenance,
                     potential_contradiction: false,
@@ -307,6 +430,63 @@ impl WebSearchDispatcher {
     }
 }
 
+/// Reciprocal Rank Fusion with authority weights across provider result lists:
+/// RRF(d) = \sum_{m \in M} \frac{1}{k + r_m(d)} \cdot \omega_m
+///
+/// arXiv: 1.20, OpenAlex: 1.10, Wikipedia: 1.00, others: 1.00.
+/// $k$ is clamped to at least 1.0.
+pub fn true_rrf_fuse(
+    provider_lists: Vec<Vec<crate::searxng::SearxngResult>>,
+    rrf_k: f64,
+) -> Vec<crate::searxng::SearxngResult> {
+    let k = rrf_k.max(1.0);
+    let mut dedup_map: HashMap<String, (crate::searxng::SearxngResult, f64)> = HashMap::new();
+
+    for list in provider_lists {
+        for (i, item) in list.into_iter().enumerate() {
+            let rank = (i + 1) as f64;
+            let weight = match item.engine.as_deref() {
+                Some("arxiv") => 1.20,
+                Some("openalex") => 1.10,
+                Some("wikipedia") => 1.00,
+                _ => 1.00,
+            };
+            let contrib = (1.0 / (k + rank)) * weight;
+            let key = canonical_url_key(&item.url);
+
+            if let Some((existing, score)) = dedup_map.get_mut(&key) {
+                *score += contrib;
+                if existing.content.trim().is_empty() && !item.content.trim().is_empty() {
+                    existing.content = item.content;
+                }
+                if existing.title.trim().is_empty() && !item.title.trim().is_empty() {
+                    existing.title = item.title;
+                }
+            } else {
+                dedup_map.insert(key, (item, contrib));
+            }
+        }
+    }
+
+    let mut fused: Vec<crate::searxng::SearxngResult> = dedup_map
+        .into_values()
+        .map(|(mut item, score)| {
+            item.score = Some(score);
+            item
+        })
+        .collect();
+
+    fused.sort_by(|a, b| {
+        b.score
+            .unwrap_or(0.0)
+            .partial_cmp(&a.score.unwrap_or(0.0))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    fused
+}
+
+#[allow(dead_code)]
 fn rank_and_dedupe_results(results: &mut Vec<crate::searxng::SearxngResult>) {
     let mut seen = HashSet::new();
     results.retain(|result| seen.insert(canonical_url_key(&result.url)));
@@ -340,6 +520,7 @@ pub(crate) fn canonical_url_key(url: &str) -> String {
     key.trim_end_matches('/').to_string()
 }
 
+#[allow(dead_code)]
 fn is_wikipedia_host(key: &str) -> bool {
     key == "wikipedia.org"
         || key.starts_with("wikipedia.org/")
@@ -349,6 +530,7 @@ fn is_wikipedia_host(key: &str) -> bool {
         || key.ends_with(".wikipedia.org")
 }
 
+#[allow(dead_code)]
 fn source_authority_score(url: &str) -> f64 {
     let key = canonical_url_key(url);
     if key.contains(".gov/")
