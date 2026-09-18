@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 const SESSIONS = [
@@ -243,6 +243,41 @@ describe('ResearchView', () => {
     judgeBtn.click();
     await waitFor(() => {
       expect(screen.queryByTestId('judge-inspector')).toBeNull();
+    });
+  });
+
+  it('opens misguidance modal when Flag Citation button is clicked and submits flag', async () => {
+    detailResponse = DETAIL_WITH_CLAIMS;
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+
+    const flagBtn = await screen.findByTestId('flag-citation-misleading');
+    expect(flagBtn.getAttribute('type')).toBe('button');
+    fireEvent.click(flagBtn);
+
+    expect(await screen.findByText(/Flag Misleading Research/i)).toBeTruthy();
+    const selector = screen.getByTestId('defect-class-selector');
+    expect(selector).toBeTruthy();
+    expect(screen.getByText('Inelegant Code')).toBeTruthy();
+    expect(screen.getByText('Fails to Run')).toBeTruthy();
+    expect(screen.getByText('User Corrected')).toBeTruthy();
+
+    const submitBtn = screen.getByRole('button', { name: /Submit Flag/i });
+    expect(submitBtn.getAttribute('type')).toBe('button');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        'flag_research_misleading',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            session_id: 1,
+            defect_class: 'inelegant_code',
+            culprit_url: 'https://example.com/a',
+          }),
+        })
+      );
     });
   });
 });

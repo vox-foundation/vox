@@ -76,6 +76,18 @@ pub async fn start_research_async(
         .map_err(|e| e.to_string())
 }
 
+/// Flag a citation or claim as misleading research and update domain reputation penalty in VoxDb.
+#[tauri::command]
+pub async fn flag_research_misleading(
+    pool: tauri::State<'_, Arc<GuiDbPool>>,
+    params: vox_db_types::RecordMisguidanceParams,
+) -> Result<i64, String> {
+    pool_db(&pool)?
+        .record_research_misguidance(&params)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Saves a completed research synthesis into `docs/src/architecture/` with required YAML frontmatter.
 #[tauri::command]
 pub async fn save_research_doc(
@@ -345,5 +357,32 @@ mod tests {
         assert_eq!(val["passed"], true);
         assert_eq!(val["stdout"], "hello");
         assert_eq!(val["stderr"], "");
+    }
+
+    #[test]
+    fn test_record_misguidance_params_deserialization() {
+        let json_str = r#"{
+            "session_id": 1,
+            "defect_class": "inelegant_code",
+            "culprit_url": "https://flawed-docs.com",
+            "culprit_domain": "flawed-docs.com",
+            "claim_id": null,
+            "research_query": "What is Vox?",
+            "misleading_excerpt": "code snippet",
+            "generated_code_snippet": null,
+            "failure_diagnostic": null,
+            "correction_diff": null,
+            "reporter": "user",
+            "domain_penalty": 0.2
+        }"#;
+        let params: vox_db_types::RecordMisguidanceParams =
+            serde_json::from_str(json_str).expect("deserialize RecordMisguidanceParams");
+        assert_eq!(params.session_id, Some(1));
+        assert_eq!(
+            params.defect_class,
+            vox_db_types::ResearchDefectClass::InelegantCode
+        );
+        assert_eq!(params.culprit_domain, "flawed-docs.com");
+        assert_eq!(params.reporter, vox_db_types::MisguidanceReporter::User);
     }
 }

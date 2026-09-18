@@ -26,6 +26,7 @@ vox-repository = { workspace = true }
 vox-package-types = { workspace = true }
 vox-config = { workspace = true }
 vox-db = { workspace = true }
+vox-db-types = { workspace = true }
 vox-gamify = { path = "../vox-gamify" }
 vox-secrets = { workspace = true }
 vox-oauth-pkce = { workspace = true }

@@ -16,6 +16,8 @@ import { ResearchDagCanvas, type DagNode, type DagEdge } from './ResearchDagCanv
 import { SandboxReplModal } from './SandboxReplModal';
 import { LiveSourceProber } from './LiveSourceProber';
 import { JudgeInspector } from './JudgeInspector';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../../ui/Dialog';
+import { SafeExternalLink } from './SafeExternalLink';
 
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
 
@@ -75,6 +77,174 @@ function toClaimRows(claims: ResearchDetailClaim[] | undefined): ResearchClaimRo
   });
 }
 
+interface MisguidanceFlagModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  sessionId: number | null;
+  queryText: string;
+  culpritUrl: string | null;
+  pushToast?: SurfaceDecoratorProps['pushToast'];
+}
+
+function extractDomain(url?: string | null): string {
+  if (!url) return 'unknown';
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname;
+  } catch {
+    return url.replace(/^https?:\/\//, '').split('/')[0] || 'unknown';
+  }
+}
+
+export function MisguidanceFlagModal({
+  isOpen,
+  onClose,
+  sessionId,
+  queryText,
+  culpritUrl,
+  pushToast,
+}: MisguidanceFlagModalProps) {
+  const [defectClass, setDefectClass] = useState<string>('inelegant_code');
+  const [notes, setNotes] = useState<string>('');
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setDefectClass('inelegant_code');
+      setNotes('');
+      setError(null);
+      setSubmitting(false);
+    }
+  }, [isOpen]);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const domain = extractDomain(culpritUrl);
+      const params = {
+        session_id: sessionId ?? null,
+        defect_class: defectClass,
+        culprit_url: culpritUrl ?? null,
+        culprit_domain: domain,
+        claim_id: null,
+        research_query: queryText || 'Research citation',
+        misleading_excerpt: null,
+        generated_code_snippet: null,
+        failure_diagnostic: null,
+        correction_diff: notes.trim() || null,
+        reporter: 'user',
+        domain_penalty: 0.2,
+      };
+      await invoke('flag_research_misleading', { params });
+      pushToast?.({
+        tone: 'ok',
+        title: 'Citation Flagged',
+        body: `Reported misguidance for ${domain}`,
+        cause: 'backend-ok',
+      });
+      onClose();
+    } catch (err) {
+      setError(sanitizeErrorForToast(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="z-50 max-w-md bg-overlay-subtle border border-border-subtle text-text-primary rounded-xl p-6 shadow-xl">
+        <div className="flex items-start justify-between pb-3 border-b border-border-subtle">
+          <div>
+            <DialogTitle className="font-display text-base font-semibold text-text-primary tracking-wide">
+              Flag Misleading Research
+            </DialogTitle>
+            <DialogDescription className="mt-0.5 text-xs text-text-muted">
+              Report misleading citations or defective output to penalize low-quality sources.
+            </DialogDescription>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-text-muted hover:text-text-secondary text-lg leading-none px-2 py-1 rounded"
+          >
+            ✕
+          </button>
+        </div>
+
+        {error && (
+          <div className="mt-3 p-2.5 rounded border border-red-500/30 bg-red-500/10 text-xs text-red-400">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-4 space-y-4">
+          {culpritUrl && (
+            <div className="text-[11px] font-mono text-text-muted truncate">
+              Source: <span className="text-brass">{culpritUrl}</span>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label htmlFor="defect-class-selector" className="block text-xs font-medium text-text-secondary">
+              Defect Classification
+            </label>
+            <select
+              id="defect-class-selector"
+              data-testid="defect-class-selector"
+              value={defectClass}
+              onChange={(e) => setDefectClass(e.target.value)}
+              className="w-full rounded border border-border-subtle bg-black/40 px-3 py-2 text-xs text-text-primary outline-none focus:border-brass/50"
+            >
+              <option value="inelegant_code">Inelegant Code</option>
+              <option value="fails_to_run">Fails to Run</option>
+              <option value="user_correction">User Corrected</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="flag-notes-input" className="block text-xs font-medium text-text-secondary">
+              Notes / Diff
+            </label>
+            <textarea
+              id="flag-notes-input"
+              data-testid="flag-notes-input"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Describe why this source is misleading or provide a correction diff…"
+              rows={3}
+              className="w-full rounded border border-border-subtle bg-black/40 px-3 py-2 text-xs text-text-secondary outline-none focus:border-brass/50 resize-none leading-relaxed font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex items-center justify-end gap-2 pt-3 border-t border-border-subtle">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="rounded border border-border-subtle px-3 py-1.5 text-xs text-text-muted hover:text-text-secondary hover:border-border-base transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="rounded border border-brass/40 bg-brass/20 hover:bg-brass/30 text-brass px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
+          >
+            {submitting ? 'Submitting…' : 'Submit Flag'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
   const embedded = useIsEmbeddedSurface();
   const [query, setQuery] = useState('');
@@ -87,6 +257,8 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
   const [isReplModalOpen, setIsReplModalOpen] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showJudgeInspector, setShowJudgeInspector] = useState(false);
+  const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
+  const [flagTargetUrl, setFlagTargetUrl] = useState<string | null>(null);
 
   const handleCitationClick = useCallback(
     (num: number) => {
@@ -294,6 +466,12 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
               (c) => c.verdict.toLowerCase() === 'refuted' || c.verdict.toLowerCase() === 'contradicted'
             ).length;
             const contestedClaims = claimRows.filter((c) => c.verdict === 'Contested').length;
+            const allCitations = Array.from(
+              new Set([
+                ...(detail.claims?.flatMap((c) => c.citation_urls) ?? []),
+                ...(((detail as unknown as { citations?: Array<{ url: string }> }).citations)?.map((c) => c.url) ?? []),
+              ])
+            ).filter(Boolean);
 
             const dagNodes: DagNode[] = claimRows.map((c, i) => {
               const isContradicted =
@@ -339,6 +517,34 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
                     />
                   </div>
                 )}
+                {allCitations.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-border-subtle bg-black/20 p-3">
+                    <div className="mb-2 text-[11px] font-mono uppercase tracking-wider text-text-muted">
+                      Citations & Sources
+                    </div>
+                    <ul className="space-y-2" role="list">
+                      {allCitations.map((url) => (
+                        <li key={url} role="listitem" className="flex items-center justify-between gap-2">
+                          <SafeExternalLink
+                            url={url}
+                            className="truncate text-[12px] text-brass underline decoration-dotted hover:text-brass/80"
+                          />
+                          <button
+                            type="button"
+                            data-testid="flag-citation-misleading"
+                            onClick={() => {
+                              setFlagTargetUrl(url);
+                              setIsFlagModalOpen(true);
+                            }}
+                            className="shrink-0 rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 text-[11px] text-text-secondary hover:text-text-primary hover:border-brass/40 transition-colors"
+                          >
+                            Flag Citation
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {dagNodes.length > 0 && (
                   <div className="mt-3">
                     <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-text-muted">
@@ -366,6 +572,17 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
           <SandboxReplModal
             isOpen={isReplModalOpen}
             onClose={() => setIsReplModalOpen(false)}
+          />
+          <MisguidanceFlagModal
+            isOpen={isFlagModalOpen}
+            onClose={() => {
+              setIsFlagModalOpen(false);
+              setFlagTargetUrl(null);
+            }}
+            sessionId={detail.session.id}
+            queryText={detail.session.query_text}
+            culpritUrl={flagTargetUrl}
+            pushToast={pushToast}
           />
         </div>
       )}
