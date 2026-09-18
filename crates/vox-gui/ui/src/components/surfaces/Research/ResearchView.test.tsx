@@ -35,35 +35,39 @@ const DETAIL_WITH_CLAIMS = {
 
 let detailResponse: unknown = DETAIL_NO_CLAIMS;
 
-const invokeMock = vi.fn((cmd: string) => {
+const DEFAULT_ENGINE_STATUS = {
+  active_lane: 'fast',
+  fast_timeout_ms: 2500,
+  deep_timeout_ms: 15000,
+  providers: [
+    { id: 'wikipedia', name: 'Wikipedia', is_keyless: true, is_enabled: true, has_key: false },
+    { id: 'openalex', name: 'OpenAlex', is_keyless: true, is_enabled: true, has_key: false },
+    { id: 'arxiv', name: 'arXiv', is_keyless: true, is_enabled: true, has_key: false },
+    { id: 'searxng', name: 'SearXNG', is_keyless: true, is_enabled: true, has_key: false },
+    { id: 'tavily', name: 'Tavily', is_keyless: false, is_enabled: true, has_key: true, quota_usage: { units_spent: 160, units_limit: 1000, last_synced_at: '2026-09-18' } },
+  ],
+  free_key_offers: [
+    {
+      provider_id: 'tavily',
+      name: 'Tavily Search',
+      signup_url: 'https://app.tavily.com/sign-up',
+      free_tier_description: '1,000 queries/month free web search for AI agents and LLMs.',
+      quota_summary: '1,000 searches/mo',
+      requires_credit_card: false,
+      secret_id: 'tavily_api_key',
+    }
+  ],
+};
+
+const defaultInvokeHandler = (cmd: string) => {
   if (cmd === 'list_research_sessions') return Promise.resolve(SESSIONS);
   if (cmd === 'get_research_session_detail') return Promise.resolve(detailResponse);
-  if (cmd === 'get_research_engine_status') {
-    return Promise.resolve({
-      active_lane: 'fast',
-      fast_timeout_ms: 2500,
-      deep_timeout_ms: 15000,
-      providers: [
-        { id: 'wikipedia', name: 'Wikipedia', is_keyless: true, is_enabled: true, has_key: false },
-        { id: 'openalex', name: 'OpenAlex', is_keyless: true, is_enabled: true, has_key: false },
-        { id: 'arxiv', name: 'arXiv', is_keyless: true, is_enabled: true, has_key: false },
-        { id: 'searxng', name: 'SearXNG', is_keyless: true, is_enabled: true, has_key: false },
-        { id: 'tavily', name: 'Tavily', is_keyless: false, is_enabled: true, has_key: true, quota_usage: { units_spent: 160, units_limit: 1000, last_synced_at: '2026-09-18' } },
-      ],
-      free_key_offers: [
-        {
-          provider_id: 'tavily',
-          provider_name: 'Tavily',
-          signup_url: 'https://app.tavily.com/sign-in',
-          monthly_free_units: 1000,
-          headline_benefit: '1,000 free searches/mo with instant API key',
-          docs_remediation: 'Get a free Tavily API key to enable AI-tailored web search',
-        }
-      ],
-    });
-  }
+  if (cmd === 'get_research_engine_status') return Promise.resolve(DEFAULT_ENGINE_STATUS);
+  if (cmd === 'start_research_async') return Promise.resolve({ session_id: 2, task_id: 't2', status: 'running' });
   return Promise.resolve(null);
-});
+};
+
+const invokeMock = vi.fn(defaultInvokeHandler);
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (cmd: string, args?: unknown) => invokeMock(cmd, args),
 }));
@@ -77,7 +81,8 @@ import { ResearchView } from './ResearchView';
 describe('ResearchView', () => {
   beforeEach(() => {
     cleanup();
-    invokeMock.mockClear();
+    invokeMock.mockReset();
+    invokeMock.mockImplementation(defaultInvokeHandler);
     detailResponse = DETAIL_NO_CLAIMS;
   });
 
@@ -322,6 +327,34 @@ describe('ResearchView', () => {
       expect(screen.getByTestId('empty-results-notice')).toBeInTheDocument();
     });
 
+    it('clicking rerun-deep-lane-btn switches active lane to deep and starts research', async () => {
+      invokeMock.mockImplementation((cmd: string) => {
+        if (cmd === 'list_research_sessions') return Promise.resolve(SESSIONS);
+        if (cmd === 'get_research_session_detail') return Promise.resolve(DETAIL_NO_CLAIMS);
+        if (cmd === 'start_research_async') return Promise.resolve({ session_id: 2, task_id: 't2', status: 'running' });
+        return Promise.resolve(null);
+      });
+
+      render(<ResearchView initialLowEvidence={true} />);
+      const input = screen.getByLabelText('Research question');
+      fireEvent.change(input, { target: { value: 'quantum supremacy' } });
+
+      const rerunBtn = screen.getByTestId('rerun-deep-lane-btn');
+      fireEvent.click(rerunBtn);
+
+      await waitFor(() => {
+        expect(invokeMock).toHaveBeenCalledWith(
+          'start_research_async',
+          expect.objectContaining({
+            query: 'quantum supremacy',
+            lane: 'deep',
+          })
+        );
+        expect(screen.getByTestId('lane-switch-deep')).toHaveAttribute('aria-selected', 'true');
+        expect(screen.queryByTestId('empty-results-notice')).toBeNull();
+      });
+    });
+
     it('renders active provider quota badges and keyless indicators', async () => {
       render(<ResearchView />);
       await waitFor(() => {
@@ -332,6 +365,53 @@ describe('ResearchView', () => {
       expect(screen.getByText(/arXiv/i)).toBeInTheDocument();
       expect(screen.getByText(/Tavily/i)).toBeInTheDocument();
       expect(screen.getByText(/840\/1000/i)).toBeInTheDocument();
+    });
+
+    it('renders free tier offer action pill when provider is not keyed and offer matches', async () => {
+      invokeMock.mockImplementation((cmd: string) => {
+        if (cmd === 'list_research_sessions') return Promise.resolve(SESSIONS);
+        if (cmd === 'get_research_session_detail') return Promise.resolve(DETAIL_NO_CLAIMS);
+        if (cmd === 'get_research_engine_status') {
+          return Promise.resolve({
+            active_lane: 'fast',
+            fast_timeout_ms: 2500,
+            deep_timeout_ms: 15000,
+            providers: [
+              { id: 'tavily', name: 'Tavily', is_keyless: false, is_enabled: false, has_key: false },
+            ],
+            free_key_offers: [
+              {
+                provider_id: 'tavily',
+                name: 'Tavily Search',
+                signup_url: 'https://app.tavily.com/sign-up',
+                free_tier_description: '1,000 queries/month free web search for AI agents and LLMs.',
+                quota_summary: '1,000 searches/mo',
+                requires_credit_card: false,
+                secret_id: 'tavily_api_key',
+              },
+            ],
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      render(<ResearchView />);
+      await waitFor(() => {
+        expect(screen.getByText(/\+ Tavily \(1,000 searches\/mo available\)/i)).toBeInTheDocument();
+      });
+    });
+
+    it('clears low-evidence notice when switching to a healthy session', async () => {
+      detailResponse = DETAIL_WITH_CLAIMS;
+      render(<ResearchView initialLowEvidence={true} />);
+      expect(screen.getByTestId('empty-results-notice')).toBeInTheDocument();
+
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+      screen.getByText('What is Vox?').closest('button')!.click();
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('empty-results-notice')).toBeNull();
+      });
     });
   });
 });

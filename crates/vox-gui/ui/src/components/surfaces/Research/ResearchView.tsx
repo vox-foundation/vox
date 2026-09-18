@@ -334,6 +334,8 @@ export function ResearchView({
         (res.source_count !== undefined && res.source_count === 0)
       ) {
         setLowEvidence(true);
+      } else {
+        setLowEvidence(false);
       }
     } catch (err) {
       pushToast?.({ tone: 'warn', title: 'Session load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
@@ -377,7 +379,11 @@ export function ResearchView({
   }, [sessions, activeSessionId]);
 
   const run = async (overrideLane?: 'fast' | 'deep') => {
-    if (!query.trim()) return;
+    const activeQuery = query.trim() || detail?.session.query_text;
+    if (!activeQuery) return;
+    if (!query.trim() && activeQuery) {
+      setQuery(activeQuery);
+    }
     const activeLane = overrideLane ?? lane;
     setRunning(true);
     setLowEvidence(false);
@@ -386,7 +392,7 @@ export function ResearchView({
       // A2: fire-and-forget via the persistent daemon's async executor. Returns
       // {session_id, task_id, status: "running"} immediately — does NOT block on
       // the pipeline. Status transitions arrive through the queue watcher below.
-      const handle = await startResearchAsync({ query, verifyClaims: true, lane: activeLane });
+      const handle = await startResearchAsync({ query: activeQuery, verifyClaims: true, lane: activeLane });
       setActiveSessionId(handle.session_id);
       await loadHistory();
     } catch (err) {
@@ -466,7 +472,7 @@ export function ResearchView({
               );
             }
             const offer = engineStatus.free_key_offers.find((o) => o.provider_id === p.id);
-            const label = offer ? `+ ${p.name} (Free ${offer.monthly_free_units.toLocaleString()}/mo available)` : `+ ${p.name}`;
+            const label = offer ? `+ ${p.name} (${offer.quota_summary} available)` : `+ ${p.name}`;
             return (
               <button
                 key={p.id}
@@ -481,6 +487,7 @@ export function ResearchView({
           <button
             type="button"
             data-testid="configure-engines-btn"
+            aria-label="Configure search sources and API keys"
             onClick={() => onOpenEngineDrawer?.()}
             className="inline-flex items-center gap-1 rounded border border-border-subtle bg-black/40 px-2 py-0.5 text-[11px] text-text-secondary hover:text-text-primary hover:border-brass/40 transition-colors ml-auto"
           >
@@ -489,7 +496,7 @@ export function ResearchView({
         </div>
       )}
 
-      {(lowEvidence || initialLowEvidence) && (
+      {lowEvidence && (
         <div
           data-testid="empty-results-notice"
           className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 space-y-2"

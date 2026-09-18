@@ -118,11 +118,12 @@ export interface ProviderStatusDto {
 
 export interface FreeTierOffer {
   provider_id: string;
-  provider_name: string;
+  name: string;
   signup_url: string;
-  monthly_free_units: number;
-  headline_benefit: string;
-  docs_remediation: string;
+  free_tier_description: string;
+  quota_summary: string;
+  requires_credit_card: boolean;
+  secret_id: string;
 }
 
 export interface ResearchEngineStatusDto {
@@ -147,8 +148,8 @@ export async function getResearchEngineStatus(): Promise<ResearchEngineStatusDto
 
 export async function saveResearchEngineConfig(
   config: ResearchEngineConfigDto,
-): Promise<ResearchEngineStatusDto> {
-  return invoke<ResearchEngineStatusDto>('save_research_engine_config', { config });
+): Promise<void> {
+  return invoke<void>('save_research_engine_config', { config });
 }
 
 
