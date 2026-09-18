@@ -321,6 +321,13 @@ pub async fn run_research_with_context_and_session(
         },
     );
 
+    if do_web && all_hits.is_empty() {
+        let err_msg = "Deep Research halted: Zero evidence sources retrieved across search providers. Halting to prevent hallucinated synthesis.";
+        tracing::error!(query = %query.query, "{err_msg}");
+        set_session_stage(db, session_id, ResearchStage::Failed).await;
+        return Err(anyhow::anyhow!(err_msg));
+    }
+
     // ── (e) Confidence gate → routing decision ────────────────────────────────
     let draft_claims = {
         let claim_extraction_text = if !all_hits.is_empty() {
