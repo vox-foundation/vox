@@ -81,3 +81,38 @@ fn test_short_tokens_under_4_chars_do_not_match() {
     let culprit = correlate_diagnostic_to_citations(error_log, &citations);
     assert_eq!(culprit, None);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_resolved_search_policy_hydrates_penalties_from_db() {
+    use vox_db::{MisguidanceReporter, RecordMisguidanceParams, ResearchDefectClass};
+    use vox_research_shim::research::ResearchConfig;
+    use vox_research_shim::research::orchestrator::pipeline::resolved_search_policy_for_research_run;
+
+    let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+        .await
+        .expect("in-memory db");
+
+    let params = RecordMisguidanceParams {
+        session_id: None,
+        defect_class: ResearchDefectClass::FailsToRun,
+        culprit_url: Some("https://bad-api.com/broken".into()),
+        culprit_domain: "bad-api.com".into(),
+        claim_id: None,
+        research_query: "test query".into(),
+        misleading_excerpt: None,
+        generated_code_snippet: None,
+        failure_diagnostic: None,
+        correction_diff: None,
+        reporter: MisguidanceReporter::User,
+        domain_penalty: 0.5,
+    };
+
+    db.record_research_misguidance(&params)
+        .await
+        .expect("record misguidance");
+
+    let config = ResearchConfig::default();
+    let policy = resolved_search_policy_for_research_run(Some(&db), &config).await;
+
+    assert_eq!(policy.domain_penalties.get("bad-api.com"), Some(&0.5));
+}

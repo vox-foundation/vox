@@ -1121,7 +1121,7 @@ fn emit_research_event(config: &ResearchConfig, db: Option<&Codex>, event: Resea
     }
 }
 
-async fn resolved_search_policy_for_research_run(
+pub async fn resolved_search_policy_for_research_run(
     db: Option<&Codex>,
     config: &ResearchConfig,
 ) -> SearchPolicy {
@@ -1135,6 +1135,14 @@ async fn resolved_search_policy_for_research_run(
     };
     if let Some(fb) = feedback {
         policy = policy.with_scientia_feedback(fb);
+    }
+    if let Some(db) = db {
+        if let Ok(penalties) = db.get_domain_penalties().await {
+            policy.domain_penalties.extend(penalties);
+        }
+        if let Ok(blacklist) = db.get_blacklisted_domains().await {
+            policy.blacklisted_domains.extend(blacklist);
+        }
     }
     policy
 }

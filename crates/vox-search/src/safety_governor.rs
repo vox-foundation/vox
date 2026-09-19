@@ -17,6 +17,7 @@ pub struct ProviderSafetyGovernor {
     tavily_sem: Arc<Semaphore>,
     arxiv_sem: Arc<Semaphore>,
     llm_sem: Arc<Semaphore>,
+    last_arxiv_req: Arc<tokio::sync::Mutex<Option<tokio::time::Instant>>>,
     db: Arc<OnceLock<Arc<vox_db::Codex>>>,
 }
 
@@ -34,6 +35,7 @@ impl ProviderSafetyGovernor {
             tavily_sem: Arc::new(Semaphore::new(5)),
             arxiv_sem: Arc::new(Semaphore::new(3)),
             llm_sem: Arc::new(Semaphore::new(4)),
+            last_arxiv_req: Arc::new(tokio::sync::Mutex::new(None)),
             db: Arc::new(OnceLock::new()),
         }
     }
@@ -72,13 +74,24 @@ impl ProviderSafetyGovernor {
             .expect("tavily semaphore closed")
     }
 
-    /// Acquire permit for arXiv call (max 3 concurrent).
+    /// Acquire permit for arXiv call (max 3 concurrent, paced at >=334ms spacing).
     pub async fn acquire_arxiv(&self) -> OwnedSemaphorePermit {
-        self.arxiv_sem
+        let permit = self
+            .arxiv_sem
             .clone()
             .acquire_owned()
             .await
-            .expect("arxiv semaphore closed")
+            .expect("arxiv semaphore closed");
+        let mut last = self.last_arxiv_req.lock().await;
+        if let Some(prev) = *last {
+            let elapsed = prev.elapsed();
+            let spacing = std::time::Duration::from_millis(334);
+            if elapsed < spacing {
+                tokio::time::sleep(spacing - elapsed).await;
+            }
+        }
+        *last = Some(tokio::time::Instant::now());
+        permit
     }
 
     /// Acquire permit for heavy LLM synthesis (max 4 concurrent).
@@ -121,5 +134,19 @@ mod tests {
         assert_eq!(governor.arxiv_sem.available_permits(), 2);
         drop(a3);
         assert_eq!(governor.arxiv_sem.available_permits(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_arxiv_rate_limit_spacing() {
+        let governor = ProviderSafetyGovernor::new();
+        let start = std::time::Instant::now();
+        let _a1 = governor.acquire_arxiv().await;
+        let _a2 = governor.acquire_arxiv().await;
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed >= std::time::Duration::from_millis(300),
+            "must space arXiv calls by >=300ms, took {:?}",
+            elapsed
+        );
     }
 }

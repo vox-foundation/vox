@@ -300,7 +300,8 @@ pub use types::now_unix_ms;
 pub use vox_db_types::EvalRunParams;
 pub use vox_db_types::{
     CachedClaimVerdict, DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId,
-    DbUserId, ResearchArtifactRecord, ResearchSearchResult, ResearchSessionRecord,
+    DbUserId, MisguidanceReporter, RecordMisguidanceParams, ResearchArtifactRecord,
+    ResearchDefectClass, ResearchMisguidanceRecord, ResearchSearchResult, ResearchSessionRecord,
     ResearchSessionSummary,
 };
 #[cfg(feature = "host-integration")]
