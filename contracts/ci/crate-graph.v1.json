@@ -376,6 +376,7 @@
       "vox-config",
       "vox-crypto",
       "vox-db",
+      "vox-db-types",
       "vox-foundation",
       "vox-gamify",
       "vox-git",
@@ -387,6 +388,7 @@
       "vox-package-types",
       "vox-publisher",
       "vox-repository",
+      "vox-research-shim",
       "vox-scientia",
       "vox-search",
       "vox-secrets",
@@ -805,6 +807,7 @@
     "vox-research-events": [],
     "vox-research-shim": [
       "vox-actor-runtime",
+      "vox-compiler",
       "vox-config",
       "vox-db",
       "vox-gamify",

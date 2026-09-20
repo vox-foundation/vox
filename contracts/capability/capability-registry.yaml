@@ -9557,6 +9557,22 @@ curated:
   mcp_tool: vox_research_run
   cli_path: null
   parameters: null
+- id: mcp.vox_research_search
+  title: Research Knowledgebase Search
+  description_human: null
+  description_model: MCP `vox_research_search` — full-text search over persisted research sessions, reports, and verified claims with confidence filtering.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_search
+  cli_path: null
+  parameters: null
 - id: mcp.vox_research_start
   title: Research Start (async MCP)
   description_human: null

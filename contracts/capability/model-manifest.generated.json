@@ -2065,6 +2065,14 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_research_search",
+      "mcp_tool": "vox_research_search",
+      "implicit": false,
+      "title": "Research Knowledgebase Search",
+      "description_model": "MCP `vox_research_search` — full-text search over persisted research sessions, reports, and verified claims with confidence filtering.",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_research_start",
       "mcp_tool": "vox_research_start",
       "implicit": false,
