@@ -263,7 +263,7 @@ pub fn verify_completion(
         }
     }
 
-pub const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.125;
+    pub const ANTI_STUB_MIN_CONSTRUCT_RICHNESS: f64 = 0.125;
 
     let pass_compile = non_empty && parse_ok && typecheck_ok;
     let placeholder_hits = placeholder_marker_hits(code);

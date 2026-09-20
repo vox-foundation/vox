@@ -530,7 +530,6 @@ pub async fn model_shape_from_hub(
     })?;
 
     super::tensor::memory_model::ModelShape::from_hub_metadata(&config, &safetensors.parameters)
->>>>>>> main
 }
 
 #[cfg(all(test, feature = "mens-hf-hub"))]

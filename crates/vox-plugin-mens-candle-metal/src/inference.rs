@@ -348,7 +348,12 @@ impl InferenceEngine {
                 }
                 anyhow::bail!("Quantized tensor `{key}` not found in model.safetensors");
             } else {
-                Ok(QuantizedLinear::from_weight(unquantized_weight, None, &qlora_cfg, &_device)?)
+                Ok(QuantizedLinear::from_weight(
+                    unquantized_weight,
+                    None,
+                    &qlora_cfg,
+                    &_device,
+                )?)
             }
         };
 
@@ -563,7 +568,11 @@ impl InferenceEngine {
         // this path was written to fix — so it is an error, not a warning.
         let requested = requested.into_inner();
         if !is_quantized {
-            assert_adapter_fully_applied(lora_factors.keys().map(String::as_str), &requested, &layout)?;
+            assert_adapter_fully_applied(
+                lora_factors.keys().map(String::as_str),
+                &requested,
+                &layout,
+            )?;
         }
 
         Ok(Self {
@@ -1488,8 +1497,7 @@ mod tests {
     #[test]
     fn test_rope_inv_freq_synthesis_partial_rotary_factor() {
         let dev = candle_core::Device::Cpu;
-        let t = super::synthesize_rope_inv_freq(64, Some(10_000_000.0), &dev)
-            .expect("synthesize");
+        let t = super::synthesize_rope_inv_freq(64, Some(10_000_000.0), &dev).expect("synthesize");
         // 64 rotary_dim -> 32 frequencies
         assert_eq!(t.dims(), &[32]);
         let vals = t.to_vec1::<f32>().expect("vec");
