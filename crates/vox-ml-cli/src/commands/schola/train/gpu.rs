@@ -310,7 +310,29 @@ pub(super) async fn run_gpu_training(
         }
 
         if let Ok(arch) = vox_populi::mens::tensor::hf_load::detect_hf_architecture(&files.config) {
-            eprintln!("  {} Architecture: {:?}", "📐".cyan(), arch);
+            // `HfArchitecture::Qwen35` is the generic stacked-causal-LM bucket
+            // (Qwen2/3/3.5, Llama, Mistral) — printing it made dense Qwen3 read
+            // as Qwen3.5. Show the checkpoint's own model_type and attention mix.
+            let label =
+                match vox_populi::mens::tensor::hf_load::HfTransformerLayout::from_config_path(
+                    &files.config,
+                ) {
+                    Ok(l) => {
+                        let linear = l
+                            .layer_types
+                            .iter()
+                            .filter(|t| t.as_str() == "linear_attention")
+                            .count();
+                        format!(
+                            "{} ({} layers, {} full-attention, {linear} linear-attention)",
+                            l.model_type,
+                            l.num_hidden_layers,
+                            l.layer_types.len() - linear
+                        )
+                    }
+                    Err(_) => format!("{arch:?}"),
+                };
+            eprintln!("  {} Architecture: {label}", "📐".cyan());
             let cfg = vox_populi::mens::tensor::hf_load::config_dims_for_architecture(
                 &files.config,
                 arch,

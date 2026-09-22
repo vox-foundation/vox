@@ -58,7 +58,19 @@ pub fn preflight_masked_ce_finite(
     // before failing. Give up after this many encoded-but-unsupervised rows.
     const MAX_UNSUPERVISED_PROBES: usize = 256;
     let mut unsupervised = 0usize;
+    // Heartbeat: this scan runs a full forward per row until one row has
+    // supervised tokens, and used to be silent — a corpus whose rows are all
+    // masked out looked like a hang for the whole scan.
+    let mut last_beat = std::time::Instant::now();
     for (pair_idx, pair) in pairs.iter().enumerate() {
+        if last_beat.elapsed() >= train_log::PROGRESS_MAX_INTERVAL {
+            train_log::info(&format!(
+                "masked CE preflight: scanned {pair_idx}/{} rows, none with supervised tokens yet (seq_len={})",
+                pairs.len(),
+                config.seq_len
+            ));
+            last_beat = std::time::Instant::now();
+        }
         let enc = match super::encoding::try_encode_training_step(
             pair,
             system_prompt,
