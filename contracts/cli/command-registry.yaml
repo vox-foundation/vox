@@ -2082,6 +2082,17 @@ operations:
   handler_rust: commands::lsp
 - surface: vox-cli
   path:
+  - mcp
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: mcp-server
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::mcp::run
+- surface: vox-cli
+  path:
   - memory
   - search
   status: active
@@ -3638,6 +3649,17 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: null
+- surface: vox-cli
+  path:
+  - stop
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::dei::stop
 - surface: vox-cli
   path:
   - stub-check
