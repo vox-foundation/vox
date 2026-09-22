@@ -153,6 +153,7 @@ fn ml_backend_requires_tag_matches_the_hand_mirrored_candidate_list() {
     const EXPECTED: &[(&str, &str)] = &[
         ("mens-candle-cuda", "nvidia-gpu"),
         ("mens-candle-metal", "metal"),
+        ("mens-candle-cpu", "cpu-only"),
     ];
     for (id, expected_tag) in EXPECTED {
         let plugin = all_plugins()

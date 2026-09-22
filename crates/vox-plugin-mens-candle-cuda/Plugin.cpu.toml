@@ -1,0 +1,29 @@
+# Manifest for the CPU-only build of this crate (built WITHOUT `--features
+# cuda`). Packaged instead of Plugin.toml by the release workflow's
+# gpu-plugin-cuda matrix (`mens-candle-cpu` leg). It exists because the CUDA
+# build links libcuda at load time and cannot load on hosts without NVIDIA
+# drivers. tests/plugin_toml_version_matches_crate.rs keeps version and
+# abi-version in step with Plugin.toml.
+[plugin]
+id = "mens-candle-cpu"
+name = "Mens (Candle, CPU)"
+version = "0.6.0"
+description = "ML training/inference backend using Candle on the CPU, for hosts without a supported GPU."
+license = "Apache-2.0"
+
+[plugin.host]
+min-vox-version = "0.5.0"
+
+[plugin.payload]
+kind = "code"
+abi-version = 12
+
+[plugin.payload.provides]
+extension-points = ["MlBackend"]
+
+[plugin.payload.requires]
+os = ["linux"]
+arch = ["x86_64"]
+
+[plugin.payload.artifacts]
+"linux-x86_64" = "libvox_plugin_mens_candle_cuda.so"

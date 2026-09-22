@@ -45,6 +45,21 @@ requires-tag = "metal"
 default-source = "github:vox-foundation/vox"
 bundled-in = ["vox-ml-metal", "vox-dev"]
 
+[[plugin]]
+id = "mens-candle-cpu"
+payload-kind = "code"
+description = "ML training/inference backend using Candle on the CPU, for hosts without a supported GPU."
+status = "beta"
+extension-points = ["MlBackend"]
+# Every host has cpu-only. On macOS the selector uses mens-candle-metal for
+# CPU work instead, and no macOS artifact of this plugin is published.
+requires-tag = "cpu-only"
+# Same first-party release-asset model as mens-candle-cuda above; built from
+# vox-plugin-mens-candle-cuda without the `cuda` feature. In no bundle: only
+# linux-x86_64 has an artifact, and the pre-train self-heal installs it there.
+default-source = "github:vox-foundation/vox"
+bundled-in = []
+
 # ── Audio / speech ─────────────────────────────────────────────────────────────
 
 [[plugin]]

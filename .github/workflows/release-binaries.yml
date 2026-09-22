@@ -266,7 +266,7 @@ jobs:
           if-no-files-found: error
 
   gpu-plugin-cuda:
-    name: Build mens-candle-cuda plugin
+    name: Build ${{ matrix.id }} plugin
     runs-on: ubuntu-latest
     timeout-minutes: 240
     # See gpu-plugin-metal -- same non-blocking contract. CUDA is the least
@@ -274,6 +274,21 @@ jobs:
     # CUDA toolkit on a hosted runner, and the only CUDA-compiling job in CI
     # runs on the self-hosted fleet this whole effort routes around.
     continue-on-error: true
+    strategy:
+      fail-fast: false
+      # One crate, two plugins: the `cuda` build links libcuda at load time,
+      # so the same crate built without it ships separately as mens-candle-cpu
+      # for Linux hosts with no NVIDIA driver.
+      matrix:
+        include:
+          - id: mens-candle-cuda
+            cargo-features: "--features cuda"
+            manifest: Plugin.toml
+            artifact: release-gpu-cuda
+          - id: mens-candle-cpu
+            cargo-features: ""
+            manifest: Plugin.cpu.toml
+            artifact: release-gpu-cpu
     env:
       CARGO_BUILD_JOBS: "2"
       # candle-kernels/bindgen_cuda derives the target compute capability from
@@ -287,30 +302,31 @@ jobs:
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
       - name: Install CUDA toolkit
+        if: matrix.id == 'mens-candle-cuda'
         uses: Jimver/cuda-toolkit@v0.2.36
         with:
           cuda: "12.4.0"
           method: "network"
 
-      - name: Build the CUDA cdylib
-        run: cargo build -p vox-plugin-mens-candle-cuda --profile dist --features cuda
+      - name: Build the cdylib
+        run: cargo build -p vox-plugin-mens-candle-cuda --profile dist ${{ matrix.cargo-features }}
 
       - name: Package the plugin zip
         run: |
           set -euo pipefail
           version="$(cargo pkgid -p vox-plugin-mens-candle-cuda | sed -E 's/.*[#@]//')"
           staging="$(mktemp -d)"
-          cp crates/vox-plugin-mens-candle-cuda/Plugin.toml "$staging/"
+          cp "crates/vox-plugin-mens-candle-cuda/${{ matrix.manifest }}" "$staging/Plugin.toml"
           cp target/dist/libvox_plugin_mens_candle_cuda.so "$staging/"
           mkdir -p dist
-          zip -j "dist/mens-candle-cuda-v${version}-linux-x86_64.zip" "$staging"/*
-          echo "Packaged: mens-candle-cuda-v${version}-linux-x86_64.zip"
+          zip -j "dist/${{ matrix.id }}-v${version}-linux-x86_64.zip" "$staging"/*
+          echo "Packaged: ${{ matrix.id }}-v${version}-linux-x86_64.zip"
 
       - name: Upload plugin artifact
         uses: actions/upload-artifact@v7
         with:
-          name: release-gpu-cuda
-          path: dist/mens-candle-cuda-v*.zip
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.id }}-v*.zip
           if-no-files-found: error
 
   dist-verify:
