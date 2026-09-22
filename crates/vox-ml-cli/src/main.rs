@@ -1,7 +1,13 @@
 use clap::{Parser, Subcommand};
 
+/// This build's id (short git hash), compared against `vox`'s at startup.
+const BUILD_ID: &str = env!("VOX_GIT_HASH");
+
 #[derive(Parser)]
-#[command(name = "vox-ml-cli", version, about = "Vox ML, AI, and Telemetry CLI")]
+#[command(
+    name = "vox-ml-cli",
+    version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("VOX_GIT_HASH"), ")"),
+    about = "Vox ML, AI, and Telemetry CLI")]
 pub struct VoxMensRoot {
     #[command(flatten)]
     pub global: vox_cli_core::GlobalOpts,
@@ -46,6 +52,7 @@ pub enum MensSubcommand {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     vox_cli_core::init_tracing_for_cli();
+    vox_cli_core::ml_cli_handshake::enforce_from_env(BUILD_ID);
     let root = VoxMensRoot::parse();
     vox_cli_core::apply_global_opts(&root.global);
 
