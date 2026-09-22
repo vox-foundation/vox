@@ -119,7 +119,11 @@ pub(crate) async fn run_rft<B: ChatBackend>(opts: &RftOpts, backend: &B) -> Resu
         return Ok(s);
     }
 
-    let mut out = Vec::new();
+    // Remove any partial output from a prior killed run so this run's counts
+    // (`s.written`, dedup-per-task) reflect only what it itself produces.
+    if opts.output.exists() {
+        std::fs::remove_file(&opts.output)?;
+    }
     'tasks: for (ti, (task, source, difficulty)) in tasks.iter().enumerate() {
         let mut kept = std::collections::HashSet::new();
         for i in 0..opts.k {
@@ -159,11 +163,12 @@ pub(crate) async fn run_rft<B: ChatBackend>(opts: &RftOpts, backend: &B) -> Resu
                 "compile": v.pass_compile,
                 "tests": v.pass_exec,
             });
-            out.push(row);
+            // Append immediately: a hard kill mid-run (unlike a caught
+            // `Err`) must not lose pairs already verified and paid for.
+            synth::append_jsonl(&opts.output, &row)?;
+            s.written += 1;
         }
     }
-    s.written = out.len();
-    synth::write_jsonl(&opts.output, &out)?;
     println!(
         "rft: {} calls, ${:.4} spent, {} verified pairs ({} rejected, {} call errors) -> {}",
         s.calls,
@@ -303,6 +308,58 @@ mod tests {
         assert_eq!(s.call_failed, 1);
         assert_eq!(s.written, 1, "the two GOOD samples dedup to one kept pair");
         assert_eq!(*mock.calls.borrow(), 3, "all 3 samples were attempted");
+    }
+
+    /// A hard process kill (not a caught `Err`) must not lose pairs already
+    /// verified earlier in the run: each kept pair must hit disk as it is
+    /// produced, not only in a single write at the very end.
+    #[tokio::test]
+    async fn output_is_written_incrementally_not_only_at_the_end() {
+        struct AssertsPriorRowsPersisted {
+            output: std::path::PathBuf,
+            calls: Cell<usize>,
+        }
+        impl ChatBackend for AssertsPriorRowsPersisted {
+            fn model_id(&self) -> String {
+                "mock/model".into()
+            }
+            async fn chat(&self, _s: &str, _u: &str, _t: f32) -> Result<synth::ChatReply> {
+                let n = self.calls.get() + 1;
+                self.calls.set(n);
+                if n == 2 {
+                    let rows = synth::read_jsonl(&self.output).unwrap_or_default();
+                    assert_eq!(
+                        rows.len(),
+                        1,
+                        "the first task's verified pair must already be on disk \
+                         before the second task's call is made"
+                    );
+                }
+                Ok(synth::ChatReply {
+                    text: format!("```vox\n{GOOD}```"),
+                    model: "mock/model".into(),
+                    cost_usd: 0.0,
+                })
+            }
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut o = opts(
+            dir.path(),
+            &[
+                "Write `double_it` that doubles an int.",
+                "Write another unrelated function.",
+            ],
+            true,
+        );
+        o.k = 1;
+        let mock = AssertsPriorRowsPersisted {
+            output: o.output.clone(),
+            calls: Cell::new(0),
+        };
+        let s = run_rft(&o, &mock).await.unwrap();
+        assert_eq!(s.written, 2);
+        assert_eq!(synth::read_jsonl(&o.output).unwrap().len(), 2);
     }
 
     #[tokio::test]

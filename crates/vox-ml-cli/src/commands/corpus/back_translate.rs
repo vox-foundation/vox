@@ -162,13 +162,20 @@ pub(crate) async fn run_back_translate<B: ChatBackend>(
         if candidates.len() >= opts.max_rows {
             break;
         }
-        let Some(code) = row
+        let Some(raw_code) = row
             .get("response")
             .or_else(|| row.get("code"))
             .and_then(|v| v.as_str())
         else {
             continue;
         };
+        // Older extract stages (e.g. `mens/data/validated.jsonl`, one row per whole
+        // golden file) never stripped the file's own frontmatter/`ANCHOR` comments —
+        // without this, `code` (sent to the LLM AND written as the pair's answer)
+        // reproduces `// ---\n// title: ...` blocks, the exact leak the rest of the
+        // corpus pipeline was fixed to remove.
+        let (code, _training_prompt) = crate::training::split_training_metadata(raw_code);
+        let code = code.as_str();
         let key = cache_key(&model, code);
         if !seen.insert(key.clone())
             || leaked_bench_task(code, &bench).is_some()
@@ -438,6 +445,53 @@ mod tests {
         let again = MockBackend::new(|_, _| unreachable!("cached rows must not re-call"));
         let s2 = run_back_translate(&o, &again).await.unwrap();
         assert_eq!((again.calls(), s2.cache_hits, s2.written), (0, 1, 1));
+    }
+
+    /// Real defect found by reading actual output: `mens/data/validated.jsonl`
+    /// (one row per whole golden file, predates `decl_pairs.rs`'s metadata
+    /// stripping) still carries its file's `// ---` frontmatter and `@training_prompt`
+    /// line in `response`. Without stripping, that block is both sent to the LLM as
+    /// "the code" and, worse, written verbatim as the final pair's *answer* —
+    /// reproducing the exact frontmatter-leak defect the rest of this corpus
+    /// pipeline was fixed to remove, via a different code path.
+    #[tokio::test]
+    async fn golden_file_frontmatter_is_stripped_before_use() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = format!(
+            "// ---\n// title: \"X\"\n// training_eligible: true\n// ---\n// @training_prompt: ignored here\n{ADD}"
+        );
+        let input = dir.path().join("in.jsonl");
+        std::fs::write(
+            &input,
+            serde_json::json!({"response": raw, "source": "golden.vox"}).to_string() + "\n",
+        )
+        .unwrap();
+        let o = BackTranslateOpts {
+            input,
+            output: dir.path().join("out.jsonl"),
+            cache: dir.path().join("cache.jsonl"),
+            bench: dir.path().join("missing_manifest.json"),
+            max_rows: 100,
+            round_trip: false,
+            max_spend_usd: 10.0,
+            usd_per_1k_tokens: 0.002,
+            apply: true,
+        };
+        let mock = MockBackend::new(|_, user| {
+            assert!(
+                !user.contains("training_eligible") && !user.contains("// ---"),
+                "frontmatter reached the LLM prompt: {user}"
+            );
+            "Write a function `add_numbers(a: int, b: int) to int` that returns the sum.".into()
+        });
+        let s = run_back_translate(&o, &mock).await.unwrap();
+        assert_eq!(s.written, 1);
+        let rows = synth::read_jsonl(&o.output).unwrap();
+        assert_eq!(
+            rows[0]["response"],
+            ADD.trim(),
+            "answer must be exactly the stripped code"
+        );
     }
 
     /// Real failure this observed on live hardware: OpenRouter returned a

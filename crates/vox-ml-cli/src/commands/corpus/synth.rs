@@ -168,6 +168,26 @@ pub(crate) fn write_jsonl(path: &Path, rows: &[serde_json::Value]) -> Result<()>
     std::fs::write(path, body).with_context(|| format!("cannot write {}", path.display()))
 }
 
+/// Append one row to a JSONL file, creating the parent directory and the
+/// file itself on first use. Unlike [`write_jsonl`], each call durably
+/// persists that one row immediately, so a hard process kill mid-run loses
+/// at most the in-flight call, not every row written earlier in the run.
+pub(crate) fn append_jsonl(path: &Path, row: &serde_json::Value) -> Result<()> {
+    use std::io::Write;
+    if let Some(p) = path.parent()
+        && !p.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(p)?;
+    }
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .with_context(|| format!("cannot open {} for append", path.display()))?;
+    writeln!(f, "{}", serde_json::to_string(row)?)
+        .with_context(|| format!("cannot append to {}", path.display()))
+}
+
 /// Standard vox_codegen pair row.
 pub(crate) fn pair_row(
     prompt: &str,
@@ -286,6 +306,19 @@ mod tests {
         let c = clean_code("```vox\nfn f() to int {\n    return 1\n}\n```");
         assert!(!c.contains("```"));
         assert!(c.contains("fn f()"));
+    }
+
+    #[test]
+    fn append_jsonl_survives_being_called_multiple_times() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("nested").join("out.jsonl");
+        append_jsonl(&path, &serde_json::json!({"a": 1})).unwrap();
+        append_jsonl(&path, &serde_json::json!({"a": 2})).unwrap();
+        let rows = read_jsonl(&path).unwrap();
+        assert_eq!(
+            rows,
+            vec![serde_json::json!({"a": 1}), serde_json::json!({"a": 2})]
+        );
     }
 
     #[test]
