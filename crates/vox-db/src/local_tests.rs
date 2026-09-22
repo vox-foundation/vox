@@ -138,6 +138,7 @@ async fn raw_sqlite_gamify_profiles_integer_round_trip() {
     assert_eq!(row.get::<i64>(0).expect("xp"), 900);
 }
 
+#[cfg(feature = "host-integration")]
 async fn seed_legacy_schema_version_only(path: &std::path::Path, version: i64) {
     let s = path.to_string_lossy().to_string();
     let built = turso::Builder::new_local(&s)
@@ -162,6 +163,7 @@ async fn seed_legacy_schema_version_only(path: &std::path::Path, version: i64) {
 }
 
 /// [`VoxDb::connect_default`] returns [`StoreError::LegacySchemaChain`] when the primary DB is not on baseline (no sidecar fallback).
+#[cfg(feature = "host-integration")]
 #[allow(unsafe_code)] // Rust 2024: `set_var` / `remove_var` are `unsafe`; mutex serializes this test.
 #[allow(clippy::await_holding_lock)] // Lock intentionally held across awaits to serialize env-mutating tests.
 #[tokio::test]
@@ -197,6 +199,7 @@ async fn connect_default_errors_when_primary_legacy_schema_chain() {
     }
 }
 
+#[cfg(feature = "host-integration")]
 #[test]
 fn resolve_canonical_matches_resolve_standalone() {
     // Serialise against config::tests which mutate VOX_DB_URL / VOX_DB_TOKEN.

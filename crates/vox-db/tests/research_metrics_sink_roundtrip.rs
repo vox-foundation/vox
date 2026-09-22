@@ -33,7 +33,7 @@ async fn wait_for_session_rows(
         {
             return rows;
         }
-        tokio::time::sleep(vox_config::timeouts::D_50MS).await;
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     Vec::new()
 }
@@ -48,7 +48,7 @@ async fn wait_for_type_rows(
         {
             return rows;
         }
-        tokio::time::sleep(vox_config::timeouts::D_50MS).await;
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     Vec::new()
 }
