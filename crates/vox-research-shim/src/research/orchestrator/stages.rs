@@ -566,6 +566,7 @@ pub(crate) async fn chat_stage(
         api_key,
         Some(model),
     ));
+    candidates.dedup_by(|a, b| a.provider == b.provider && a.model == b.model);
     for candidate in &mut candidates {
         candidate.temperature = Some(temperature);
         candidate.max_tokens = Some(max_tokens.into());

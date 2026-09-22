@@ -210,6 +210,10 @@ pub fn cascade_for_research_stage(
     stage: ResearchStage,
     input: &RouteResolutionInput,
 ) -> Vec<LlmConfig> {
+    if let Some(forced) = vox_config::inference::forced_model() {
+        return pinned_research_candidates(stage, &forced);
+    }
+
     let mut candidates = Vec::new();
 
     if vox_config::inference::inference_profile_allows_local_ollama_http() {
@@ -234,6 +238,14 @@ pub fn cascade_for_research_stage(
     }
 
     candidates
+}
+
+/// Exactly one OpenRouter candidate for a pinned model: no local lane, no free floor.
+#[must_use]
+pub fn pinned_research_candidates(stage: ResearchStage, model: &str) -> Vec<LlmConfig> {
+    let mut c = LlmConfig::openrouter(model.to_string());
+    apply_stage_defaults(stage, &mut c);
+    vec![c]
 }
 
 /// Add a manual OpenAI-compatible candidate before the default cascade.
@@ -319,6 +331,18 @@ mod tests {
                 .iter()
                 .any(|candidate| candidate.provider == "ollama")
         );
+    }
+
+    #[test]
+    fn pinned_research_candidates_is_exactly_the_pin() {
+        let c = pinned_research_candidates(ResearchStage::Synthesis, "google/gemini-3.8-flash");
+        assert_eq!(
+            c.len(),
+            1,
+            "a pin must not append free-floor or local candidates"
+        );
+        assert_eq!(c[0].model, "google/gemini-3.8-flash");
+        assert_eq!(c[0].provider, LlmConfig::openrouter("x").provider);
     }
 
     #[test]

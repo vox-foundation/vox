@@ -923,3 +923,23 @@ fn restricted_route_overrides_allow_cloud_not_local_http_until_local_enabled() {
         std::env::remove_var("VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP");
     }
 }
+
+#[test]
+fn strict_pin_missing_from_registry_is_an_error_naming_the_pin() {
+    let err = super::resolve::check_strict_pin("google/gemini-3.8-flash", None, true).unwrap_err();
+    assert!(err.contains("google/gemini-3.8-flash"), "{err}");
+    assert!(err.contains("not in the model registry"), "{err}");
+}
+
+#[test]
+fn strict_pin_blocked_by_gate_is_an_error() {
+    let spec = crate::llm_bridge::infer_test_stub::stub_plan_model_spec();
+    let err = super::resolve::check_strict_pin(&spec.id, Some(&spec), false).unwrap_err();
+    assert!(err.contains("not allowed"), "{err}");
+}
+
+#[test]
+fn strict_pin_ok_when_found_and_allowed() {
+    let spec = crate::llm_bridge::infer_test_stub::stub_plan_model_spec();
+    assert!(super::resolve::check_strict_pin(&spec.id, Some(&spec), true).is_ok());
+}

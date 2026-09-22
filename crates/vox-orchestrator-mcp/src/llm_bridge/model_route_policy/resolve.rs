@@ -197,6 +197,27 @@ pub fn resolve_mcp_chat_model_sync_with_rationale(
     })
 }
 
+/// Pure gate check for a strict model pin (`VOX_MODEL_FORCE` /
+/// `VOX_ROUTING_HARD_PIN_MODEL`): the pin must resolve in the registry and
+/// pass the local/routing/capability gates, or the request fails loudly
+/// instead of silently falling through to auto-selection.
+pub(crate) fn check_strict_pin(
+    pin: &str,
+    found: Option<&ModelSpec>,
+    gates_ok: bool,
+) -> Result<(), String> {
+    match found {
+        None => Err(format!(
+            "pinned model {pin} (VOX_MODEL_FORCE / VOX_ROUTING_HARD_PIN_MODEL) is not in the model registry; \
+             refresh the catalog (`vox model`) or fix the pin"
+        )),
+        Some(_) if !gates_ok => Err(format!(
+            "pinned model {pin} is not allowed for this request (local/routing/capability gate)"
+        )),
+        Some(_) => Ok(()),
+    }
+}
+
 fn resolve_mcp_chat_model_sync_inner(
     orch: &Orchestrator,
     user_prompt: &str,
@@ -317,13 +338,25 @@ fn resolve_mcp_chat_model_sync_inner(
     let task = res.task_category;
     let vox_local_route_preferred = VOX_LOCAL_PREFERRED_TASKS.contains(&task);
 
-    if let Some(pin) = routing_policy.hard_pin_model_id.as_deref() {
-        if let Some(m) = registry.get(pin) {
-            if mcp_local_model_allowed(&m) && routing_allows(&m) && caps_ok(&m) {
-                let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
-                return Ok((m.clone(), m.is_free));
-            }
+    let strict_pin = routing_policy
+        .hard_pin_model_id
+        .clone()
+        .or_else(vox_config::inference::forced_model);
+    if let Some(pin) = strict_pin.as_deref() {
+        let found = registry.get(pin);
+        let gates_ok = found
+            .as_ref()
+            .is_some_and(|m| mcp_local_model_allowed(m) && routing_allows(m) && caps_ok(m));
+        check_strict_pin(pin, found.as_ref(), gates_ok)?;
+        let m = found.expect("checked above");
+        let enforced = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
+        if enforced.id != m.id {
+            return Err(format!(
+                "pinned model {pin} is paid but this turn is free-tier-only (tier=local, Free clutch, or spend cap)"
+            ));
         }
+        *rationale_out = Some(format!("strict pin: {pin}"));
+        return Ok((m.clone(), m.is_free));
     }
     if let Some(pin) = secrets_capability_pin_model_id(&required_capabilities, task, user_prompt) {
         if let Some(m) = registry.get(&pin) {

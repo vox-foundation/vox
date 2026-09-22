@@ -29,6 +29,9 @@ fn shared_registry() -> &'static ModelRegistry {
 /// `cascade_for_research_stage`'s local+OpenRouter lanes in that case,
 /// never treat `None` as a hard error.
 pub fn primary_candidate_for_intent(intent: SelectionIntent) -> Option<LlmConfig> {
+    if let Some(forced) = vox_config::inference::forced_model() {
+        return Some(LlmConfig::openrouter(forced));
+    }
     let registry = shared_registry();
     let task_type = intent.task;
     let request = ModelSelectionRequest::from_intent(intent);
