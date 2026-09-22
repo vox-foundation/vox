@@ -2436,6 +2436,27 @@
       "reason": "grandfathered at 2026-07-03 bootstrap (pre-existing upward edge; Phase 2 decoupling target)",
       "date": "2026-07-03",
       "authorized_by": "brbrainerd (bootstrap grandfather, plan-approved)"
+    },
+    {
+      "from": "vox-gui",
+      "to": "vox-db-types",
+      "reason": "GUI citation-misguidance flagging IPC (commands/research.rs) takes vox_db_types::RecordMisguidanceParams / ResearchDefectClass; added 0d999cbeb. L4 -> L0 types crate, the narrowest dependency available.",
+      "date": "2026-09-22",
+      "authorized_by": "user (explicit chat approval, 2026-09-22)"
+    },
+    {
+      "from": "vox-gui",
+      "to": "vox-research-shim",
+      "reason": "GUI SandboxReplModal backend (commands/research.rs) calls research::domain::polyglot_sandbox::verify_in_polyglot_sandbox; added c4a4b700f. Same layer (L4).",
+      "date": "2026-09-22",
+      "authorized_by": "user (explicit chat approval, 2026-09-22)"
+    },
+    {
+      "from": "vox-research-shim",
+      "to": "vox-compiler",
+      "reason": "polyglot sandbox parses Vox snippets with vox_compiler::lexer/parser (polyglot_sandbox.rs); added bcc057f09. L4 -> L2, downward.",
+      "date": "2026-09-22",
+      "authorized_by": "user (explicit chat approval, 2026-09-22)"
     }
   ]
 }
