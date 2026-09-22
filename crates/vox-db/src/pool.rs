@@ -158,18 +158,29 @@ mod tests {
     /// real concurrent load, verifying every task's returned id by reading the row
     /// back and comparing an embedded per-task marker.
     ///
-    /// Mutation-verified 2026-09-22, with a caveat worth knowing before trusting a
-    /// green run: substituting a shared connection (one `pool.get()` reused across
-    /// all tasks) *alone* still reports 0 mismatches here, because the unguarded
-    /// window between `execute()` and `last_insert_rowid()` is a few nanoseconds of
-    /// synchronous code while a contended `tokio::Mutex` handoff takes microseconds,
-    /// so the interleaving effectively never lands. Adding a `yield_now().await`
-    /// inside that window makes the shared-connection variant report 981/1000
-    /// mismatches and fail, while this test — same widened window, independent
-    /// per-task connections — still reports 0. The assertion therefore has real
-    /// detection power and discriminates correctly, but as written it will not by
-    /// itself catch a regression that reverts `VoxDbPool::get()` to sharing one
-    /// connection; that needs the widened window or a much larger scale.
+    /// ## Why there is a `yield_now()` in the write loop
+    ///
+    /// The `yield_now().await` between `execute()` and `last_insert_rowid()` is a
+    /// deliberate testing technique, not a model of production timing. **Production
+    /// code has no yield point there** — the real unguarded window is a few
+    /// nanoseconds of straight-line synchronous code, far narrower than the
+    /// scheduler hop this yield creates. Do not read the yield as a claim that
+    /// production tasks interleave at this rate; they do not, which is precisely
+    /// why the defect is so hard to observe in the wild.
+    ///
+    /// The yield exists because without it this test cannot fail. Mutation-verified
+    /// 2026-09-22: substituting a shared connection (one `pool.get()` reused across
+    /// all tasks — i.e. the exact regression this test guards against) reports **0**
+    /// mismatches with no yield, because a contended `tokio::Mutex` handoff costs
+    /// microseconds while the window it would have to land in is nanoseconds, so the
+    /// interleaving effectively never happens. With the yield in place, that same
+    /// shared-connection mutation reports **981/1000** mismatches and fails, while
+    /// this test — independent per-task connections, identical yield — reports 0 and
+    /// passes. The yield is therefore what converts this from a near-always-passing
+    /// empirical probe into a regression gate that actually catches the regression,
+    /// and it costs nothing in correctness: pooled connections are independent
+    /// regardless of scheduling, so no legitimate implementation can be made to fail
+    /// by adding a scheduling point here.
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
     async fn pooled_connections_never_race_on_last_insert_rowid() {
         let pool = VoxDbPool::new(DbConfig::Memory).await.expect("pool init");
@@ -204,6 +215,11 @@ mod tests {
                         )
                         .await
                         .expect("insert");
+                    // Widens the unguarded execute -> last_insert_rowid window to a
+                    // real scheduling point so a regression to a shared connection
+                    // fails loudly instead of slipping through. See this test's doc
+                    // comment: production has no such yield.
+                    tokio::task::yield_now().await;
                     let returned_id = db.connection().last_insert_rowid();
 
                     let mut rows = db
