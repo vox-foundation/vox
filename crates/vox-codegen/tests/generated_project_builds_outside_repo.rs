@@ -123,8 +123,8 @@ fn generated_notes_app_builds_outside_vox_checkout() {
 /// Vox types every `db.T.<op>` as a `Result`, so `db.T.insert(...)?` is valid
 /// Vox. Codegen already unwraps the op itself (inner `.await?` in mutations,
 /// `.expect` elsewhere), so an extra `?` from the Vox-level `Try` was applied
-/// to `()` / `usize` / `Option<Row>` and failed with E0277. Ids are literals
-/// because mutation params currently bind as `serde_json::Value`, not `i64`.
+/// to `()` / `usize` / `Option<Row>` and failed with E0277. The `id: int`
+/// params also cover handler params binding as their declared types.
 #[test]
 #[ignore = "slow; runs nested cargo check outside the repo (~30s+); owner: codegen sunset: never; use --include-slow or CI"]
 fn generated_db_write_mutations_with_try_compile() {
@@ -144,18 +144,18 @@ fn generated_db_write_mutations_with_try_compile() {
             return Ok("added")
         }
 
-        mutation rename_note(title: str) to Result[str] {
-            db.Note.update(1, { title: title, body: "" })?
+        mutation rename_note(id: int, title: str) to Result[str] {
+            db.Note.update(id, { title: title, body: "" })?
             return Ok("renamed")
         }
 
-        mutation remove_note() to Result[str] {
-            db.Note.delete(1)?
+        mutation remove_note(id: int) to Result[str] {
+            db.Note.delete(id)?
             return Ok("removed")
         }
 
-        mutation note_exists() to Result[bool] {
-            let found = db.Note.get(1)?
+        mutation note_exists(id: int) to Result[bool] {
+            let found = db.Note.get(id)?
             return Ok(found.is_some())
         }
     "#;
