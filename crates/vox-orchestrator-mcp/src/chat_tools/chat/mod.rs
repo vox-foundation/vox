@@ -6,6 +6,7 @@ mod history;
 mod hydrate;
 pub(crate) mod mentions;
 pub(crate) mod message;
+pub mod research_intent;
 
 pub use history::chat_history;
 pub use message::{chat_message, effective_model_pref};
