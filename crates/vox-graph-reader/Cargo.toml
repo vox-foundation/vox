@@ -18,6 +18,7 @@ walkdir = { workspace = true }
 ignore = { workspace = true }
 blake3 = { workspace = true }
 syn = { workspace = true, features = ["full", "visit", "clone-impls"] }
+quote = { workspace = true }
 lcov-parser = "0.6.0"
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 

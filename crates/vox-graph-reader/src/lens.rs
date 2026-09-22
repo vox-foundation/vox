@@ -2,8 +2,10 @@
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 
+/// The file path of a `<path>::<container>*::<name>` id (paths never contain `::`), so
+/// methods and nested items collapse into their file rather than a per-type "module".
 fn module_of(id: &str) -> &str {
-    id.rsplit_once("::").map(|(m, _)| m).unwrap_or(id)
+    id.split("::").next().unwrap_or(id)
 }
 
 /// Collapse a `module::symbol` graph into a module-level graph: one node per module, one
@@ -52,4 +54,16 @@ pub fn collapse_to_modules(graph: &Value) -> Value {
         .map(|((s, t), w)| json!({"source": s, "target": t, "weight": w}))
         .collect();
     json!({"nodes": nodes_val, "links": links_val})
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn module_of_is_the_file_path() {
+        assert_eq!(module_of("a/b.rs::<Foo as T>::f"), "a/b.rs");
+        assert_eq!(module_of("a/b.rs::f"), "a/b.rs");
+        assert_eq!(module_of("bare"), "bare");
+    }
 }

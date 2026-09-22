@@ -29,8 +29,10 @@ fn crate_of(node_id: &str) -> Option<&str> {
     path.strip_prefix("crates/")?.split('/').next()
 }
 
+/// Everything after the file path: `f` for a free fn, `Foo::new` for a method, so a
+/// sample of several `new`s stays readable.
 fn symbol_of(node_id: &str) -> &str {
-    node_id.rsplit("::").next().unwrap_or(node_id)
+    node_id.split_once("::").map_or(node_id, |(_, sym)| sym)
 }
 
 /// For every declared dep edge in `adj`, count distinct target-crate symbols

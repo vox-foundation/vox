@@ -80,18 +80,42 @@ pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::
         .collect()
 }
 
-/// Resolve each bare call target to a qualified definition id. Preference:
-/// same-module definition; else the unique same-crate definition (a bare name
-/// defined once in the caller's own crate beats any cross-crate homonym);
-/// else the unique global definition. Ambiguous, unresolved, and self-edges
-/// are dropped (honesty rule: never invent an edge).
+/// Resolve each call target to a qualified definition id. Target shapes (see `ast`):
+/// an exact node id (`Self::f()`) is kept; `Type::f` matches methods whose container
+/// self type is `Type`; a bare `f` matches non-method definitions only (a bare call
+/// cannot reach a method). Among candidates, preference: same file; else the unique
+/// same-crate definition (beats any cross-crate homonym); else the unique global
+/// definition. Ambiguous, unresolved, and self-edges are dropped (honesty rule: never
+/// invent an edge).
 fn resolve_edges(
     nodes: &[crate::ast::ExtractedNode],
     edges: &[crate::ast::ExtractedEdge],
 ) -> Vec<crate::ast::ExtractedEdge> {
     use std::collections::HashMap;
+    /// The file path: ids are `<path>::<container>*::<name>` and paths never hold `::`.
     fn module_of(id: &str) -> &str {
-        id.rsplit_once("::").map(|(m, _)| m).unwrap_or("")
+        id.split("::").next().unwrap_or("")
+    }
+    /// Name without a `#n` duplicate-disambiguation suffix (a TS `#private` name keeps
+    /// its `#` because the suffix must be all digits).
+    fn bare_name(id: &str) -> &str {
+        let tail = id.rsplit("::").next().unwrap_or(id);
+        match tail.rsplit_once('#') {
+            Some((name, n)) if !name.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) => name,
+            _ => tail,
+        }
+    }
+    /// `Type::name` for a method id: the container's self type (`Foo`, or `Foo` out of
+    /// `<Foo as Trait>`; a trait's own name for trait method declarations).
+    fn method_key(id: &str) -> Option<String> {
+        let mut segs = id.rsplit("::");
+        let name = bare_name(segs.next()?);
+        let container = segs.next()?;
+        let self_ty = container
+            .strip_prefix('<')
+            .and_then(|c| c.split_once(" as "))
+            .map_or(container, |(ty, _)| ty);
+        Some(format!("{self_ty}::{name}"))
     }
     /// "crates/<name>/…::sym" -> "crates/<name>"; anything else -> "" (no scoping).
     fn crate_scope(id: &str) -> &str {
@@ -104,10 +128,18 @@ fn resolve_edges(
             _ => "",
         }
     }
+    // Bare names -> non-method defs; `Type::name` -> methods.
     let mut defs_by_name: HashMap<String, Vec<String>> = HashMap::new();
     for n in nodes {
-        let bare = n.id.rsplit("::").next().unwrap_or(&n.id).to_string();
-        defs_by_name.entry(bare).or_default().push(n.id.clone());
+        let key = if n.kind == "method" {
+            match method_key(&n.id) {
+                Some(k) => k,
+                None => continue,
+            }
+        } else {
+            bare_name(&n.id).to_string()
+        };
+        defs_by_name.entry(key).or_default().push(n.id.clone());
     }
     use std::collections::HashSet;
     let node_ids: HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
@@ -131,6 +163,9 @@ fn resolve_edges(
                     target: e.target.clone(),
                     confidence,
                 });
+            }
+            if node_ids.contains(e.target.as_str()) {
+                return (e.target != e.source).then(|| e.clone());
             }
             let candidates = defs_by_name.get(&e.target)?;
             let src_mod = module_of(&e.source);
@@ -510,6 +545,74 @@ mod resolve_tests {
             target: target.to_string(),
             confidence: "resolved".to_string(),
         }
+    }
+
+    fn m(id: &str) -> ExtractedNode {
+        ExtractedNode {
+            kind: "method".to_string(),
+            ..n(id)
+        }
+    }
+
+    #[test]
+    fn bare_call_never_resolves_to_a_method() {
+        // A bare `run()` cannot call a method; methods named `run` must not make
+        // the free fn ambiguous.
+        let nodes = vec![
+            n("crates/aaa/src/x.rs::caller"),
+            n("crates/aaa/src/y.rs::run"),
+            m("crates/aaa/src/x.rs::Foo::run"),
+            m("crates/aaa/src/y.rs::<Bar as Go>::run"),
+        ];
+        let edges = vec![e("crates/aaa/src/x.rs::caller", "run")];
+        let resolved = resolve_edges(&nodes, &edges);
+        assert_eq!(resolved.len(), 1);
+        assert_eq!(resolved[0].target, "crates/aaa/src/y.rs::run");
+    }
+
+    #[test]
+    fn type_qualified_hint_resolves_to_method() {
+        let nodes = vec![
+            n("crates/aaa/src/x.rs::caller"),
+            m("crates/aaa/src/y.rs::Foo::new"),
+            m("crates/aaa/src/y.rs::Bar::new"),
+            m("crates/bbb/src/z.rs::Foo::new"),
+            m("crates/aaa/src/y.rs::<Foo as Go>::run"),
+        ];
+        let edges = vec![
+            e("crates/aaa/src/x.rs::caller", "Foo::new"),
+            e("crates/aaa/src/x.rs::caller", "Foo::run"),
+            e("crates/aaa/src/x.rs::caller", "Baz::new"),
+        ];
+        let targets: Vec<String> = resolve_edges(&nodes, &edges)
+            .into_iter()
+            .map(|e| e.target)
+            .collect();
+        assert_eq!(
+            targets,
+            vec![
+                "crates/aaa/src/y.rs::Foo::new",
+                "crates/aaa/src/y.rs::<Foo as Go>::run"
+            ]
+        );
+    }
+
+    #[test]
+    fn exact_qualified_target_is_kept() {
+        let nodes = vec![m("a.rs::Foo::new"), m("a.rs::Foo::build")];
+        let edges = vec![e("a.rs::Foo::new", "a.rs::Foo::build")];
+        let out = resolve_edges(&nodes, &edges);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].target, "a.rs::Foo::build");
+    }
+
+    #[test]
+    fn disambiguated_duplicates_are_both_candidates() {
+        // cfg-gated `plat` / `plat#2`: which one a caller hits is unknowable, so the
+        // same-module call is ambiguous and dropped (honesty rule).
+        let nodes = vec![n("a.rs::caller"), n("a.rs::plat"), n("a.rs::plat#2")];
+        let edges = vec![e("a.rs::caller", "plat")];
+        assert!(resolve_edges(&nodes, &edges).is_empty());
     }
 
     #[test]
