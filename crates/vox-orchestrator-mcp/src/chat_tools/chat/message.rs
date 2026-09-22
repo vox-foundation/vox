@@ -13,9 +13,7 @@ use crate::chat_socrates_meta::{
 };
 use crate::journey_envelope;
 use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm, call_llm_with_pref};
-use crate::memory::{
-    RetrievalTriggerMode, run_retrieval_bundle, should_trigger_autonomous_research,
-};
+use crate::memory::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use crate::session_identity::normalize_chat_session_id;
@@ -747,90 +745,6 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 }
                 retrieval_evidence = Some(bundle.evidence.clone());
 
-                // Check if autonomous deep research should be triggered
-                let is_research_slash = expanded_prompt.trim_start().starts_with("/research")
-                    || expanded_prompt.trim_start().starts_with("/deepresearch");
-                let is_forced_research = params.force_research == Some(true);
-                if vox_orchestrator::is_chat_research_enabled()
-                    && (is_research_slash
-                        || is_forced_research
-                        || should_trigger_autonomous_research(
-                            &expanded_prompt,
-                            &bundle,
-                            params.force_research,
-                        ))
-                {
-                    tracing::info!("Triggering autonomous research for additional context");
-                    let scope = params.research_scope.as_deref().unwrap_or("both");
-
-                    let clean_prompt = if let Some(stripped) =
-                        expanded_prompt.trim_start().strip_prefix("/research")
-                    {
-                        stripped.trim().to_string()
-                    } else {
-                        expanded_prompt.clone()
-                    };
-
-                    let query_str = if clean_prompt.is_empty() {
-                        expanded_prompt.clone()
-                    } else {
-                        clean_prompt
-                    };
-
-                    let search_query = if let Some(ref site) = params.site_scope {
-                        if !query_str.contains("site:") {
-                            format!("{query_str} site:{site}")
-                        } else {
-                            query_str
-                        }
-                    } else {
-                        query_str
-                    };
-
-                    // Spawn autonomous research execution
-                    let queries = vec![search_query];
-                    let mut trigger_reason = format!(
-                        "Chat context injection (forced: {:?}, scope: {})",
-                        params
-                            .force_research
-                            .or(if is_research_slash { Some(true) } else { None }),
-                        scope
-                    );
-                    if let Some(ref dm) = params.domain_mode {
-                        trigger_reason.push_str(&format!(", domain_mode: {dm}"));
-                    }
-                    if let Some(ref ss) = params.site_scope {
-                        trigger_reason.push_str(&format!(", site_scope: {ss}"));
-                    }
-
-                    let task_id = params
-                        .session_id
-                        .as_deref()
-                        .and_then(|s| s.parse::<u64>().ok())
-                        .map(vox_orchestrator::types::TaskId);
-
-                    match state
-                        .orchestrator
-                        .perform_autonomous_research(None, task_id, queries, &trigger_reason)
-                        .await
-                    {
-                        Ok(results) => {
-                            if !results.is_empty() {
-                                let formatted = results.join("\n");
-                                context_parts.push(format!(
-                                    "[AUTONOMOUS RESEARCH — SYNTHESIS SUMMARY]:\n{formatted}"
-                                ));
-                                tracing::info!(
-                                    count = results.len(),
-                                    "Autonomous research results injected successfully"
-                                );
-                            }
-                        }
-                        Err(err) => {
-                            tracing::warn!(error = %err, "Autonomous research execution failed");
-                        }
-                    }
-                }
                 if !bundle.kb_lines.is_empty() {
                     let formatted = bundle
                         .kb_lines
@@ -852,6 +766,35 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             }
         }
     }
+
+    // Research (spec §4): classify, then run quick/deep; every turn gets a trace.
+    let intent = super::research_intent::classify_research_intent(
+        &expanded_prompt,
+        params.force_research,
+        params.research_scope.as_deref(),
+    );
+    let mut research_trace = super::research_turn::ResearchTrace::new(intent.clone());
+    let mut deep_answer: Option<Result<String, String>> = None;
+    if explicit_search_result.is_none() && vox_orchestrator::is_chat_research_enabled() {
+        match intent.mode {
+            super::research_intent::ResearchMode::None => {}
+            super::research_intent::ResearchMode::Quick => {
+                let block = super::research_turn::run_quick(state, &mut research_trace).await;
+                context_parts.push(block);
+            }
+            super::research_intent::ResearchMode::Deep => {
+                deep_answer =
+                    Some(super::research_turn::run_deep(state, &mut research_trace).await);
+            }
+        }
+    }
+    // Slash commands: the model sees the question, not "/research …".
+    let expanded_prompt =
+        if intent.explicit && intent.mode != super::research_intent::ResearchMode::None {
+            intent.query.clone()
+        } else {
+            expanded_prompt
+        };
 
     let kb_mention_lines = if let Some(db) = state.db.clone() {
         use vox_orchestrator::knowledge_base::store::KbStore;
@@ -963,9 +906,29 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     );
     let llm_started = std::time::Instant::now();
 
-    let (response_text, model_used, tokens, selection_reason, events) = if let Some(local_res) =
-        explicit_search_result
+    let (response_text, model_used, tokens, selection_reason, mut events) = if let Some(deep) =
+        deep_answer
     {
+        match deep {
+            Ok(answer) => (
+                answer,
+                research_trace.model.clone().unwrap_or_default(),
+                0u64,
+                Some("deep research pipeline synthesis".to_string()),
+                vec![],
+            ),
+            Err(e) => (
+                // Status message, not an answer: the trace shows the failing stage and the sources.
+                format!(
+                    "Deep research failed: {e}\n\nNo answer was generated. The research trace below shows which stage failed and what was retrieved."
+                ),
+                "none".to_string(),
+                0u64,
+                Some("deep research failed".to_string()),
+                vec![],
+            ),
+        }
+    } else if let Some(local_res) = explicit_search_result {
         (
             local_res,
             "local/knowledgebase-fts5".to_string(),
@@ -1577,6 +1540,17 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         selection_reason.clone(),
     );
 
+    if intent.mode == super::research_intent::ResearchMode::Quick {
+        research_trace.model = Some(model_used.clone());
+        let check =
+            super::research_turn::check_citations(&response_text, research_trace.sources.len());
+        research_trace.push(super::research_turn::citation_stage(
+            &check,
+            research_trace.sources.len(),
+        ));
+    }
+    events.insert(0, research_trace.to_event());
+
     let result = serde_json::json!({
         "message": asst_msg,
         "history": history,
@@ -1866,6 +1840,69 @@ mod tests {
         assert!(
             data.get("latency_ms").and_then(|v| v.as_u64()).is_some(),
             "chat_message envelope `data` must carry a `latency_ms` field for ModelBadge: {response_json}"
+        );
+    }
+
+    #[tokio::test]
+    #[allow(unsafe_code)]
+    #[allow(clippy::await_holding_lock)]
+    async fn every_turn_carries_a_research_trace_event() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("hello back")),
+            )
+            .mount(&server)
+            .await;
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+        let state = test_state();
+        let model_id = "test-openrouter-model-trace";
+        {
+            let handle = state.orchestrator.models_handle();
+            handle
+                .write()
+                .expect("models lock")
+                .register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let params: ChatMessageParams =
+            serde_json::from_value(serde_json::json!({ "prompt": "hi" })).expect("params");
+        let response_json = chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let parsed: serde_json::Value = serde_json::from_str(&response_json).expect("json");
+        assert_eq!(parsed["success"], true, "{response_json}");
+        let ev = &parsed["data"]["events"][0];
+        assert_eq!(ev["kind"], "research_trace", "{response_json}");
+        assert_eq!(ev["mode"], "none");
+        assert_eq!(ev["stages"][0]["stage"], "detection");
+        // D1 regression: a greeting must not reach web retrieval.
+        assert!(
+            ev["stages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|s| s["stage"] != "retrieval"),
+            "{ev}"
         );
     }
 

@@ -295,6 +295,188 @@ pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) ->
     sources_context_block(&trace.sources)
 }
 
+/// Deep research: the Scientia pipeline inline on the Deep lane (spec §4.4).
+/// Ok = the pipeline's answer (LLM-synthesized; the template path no longer exists).
+pub async fn run_deep(
+    state: &crate::ServerState,
+    trace: &mut ResearchTrace,
+) -> Result<String, String> {
+    use std::sync::{Arc, Mutex};
+    use vox_research_shim::research::{
+        BroadcastEmitter, ResearchConfig, ResearchDomainMode, ResearchQuery, ResearchScope,
+        run_research_with_context,
+    };
+    let progress: Arc<Mutex<Vec<(String, Option<f32>, u64)>>> = Arc::default();
+    let sink = progress.clone();
+    let t = Instant::now();
+    let config = ResearchConfig {
+        event_emitter: Some(Arc::new(BroadcastEmitter::new(
+            state.research_events.clone(),
+        ))),
+        progress_callback: Some(Arc::new(move |msg: String, pct: Option<f32>| {
+            if let Ok(mut v) = sink.lock() {
+                v.push((msg, pct, t.elapsed().as_millis() as u64));
+            }
+        })),
+        ..ResearchConfig::default()
+    };
+    let rq = ResearchQuery {
+        query: trace.intent.query.clone(),
+        scope: ResearchScope::Web,
+        max_sources: 10,
+        persist_to_docs: false,
+        verify_claims: true,
+        site_scope: None,
+        domain_mode: ResearchDomainMode::General,
+        waves: 1,
+        lane: vox_search::policy::ResearchLane::Deep,
+    };
+    let ctx = vox_search::SearchRuntimeContext::new(
+        state.repository.root.clone(),
+        state.db.clone(),
+        state.orchestrator_config.memory.log_dir.clone(),
+        state.orchestrator_config.memory.memory_md_path.clone(),
+    );
+    let outcome = run_research_with_context(rq, Some(&ctx), state.db.as_deref(), &config).await;
+    let timeline = progress.lock().map(|v| v.clone()).unwrap_or_default();
+    trace.push(StageRecord::new(
+        "pipeline_progress",
+        "ok",
+        Some(t.elapsed().as_millis() as u64),
+        format!("{} progress events", timeline.len()),
+        json!(
+            timeline
+                .iter()
+                .map(|(m, p, ms)| json!({"message": m, "pct": p, "at_ms": ms}))
+                .collect::<Vec<_>>()
+        ),
+    ));
+    match outcome {
+        Ok(r) => {
+            for s in deep_stages(&r) {
+                trace.push(s);
+            }
+            trace.sources = r
+                .sources
+                .iter()
+                .enumerate()
+                .map(|(i, h)| Source {
+                    n: i + 1,
+                    url: h.url.clone(),
+                    title: h.title.clone(),
+                    engine: "pipeline".into(),
+                    snippet: h.snippet.chars().take(600).collect(),
+                })
+                .collect();
+            trace.model = Some(r.research_metadata.synthesis_model.clone());
+            Ok(r.answer)
+        }
+        Err(e) => {
+            trace.push(StageRecord::new(
+                "deep_pipeline",
+                "failed",
+                Some(t.elapsed().as_millis() as u64),
+                e.to_string(),
+                json!({}),
+            ));
+            Err(e.to_string())
+        }
+    }
+}
+
+/// Map a completed pipeline result onto trace stages.
+pub fn deep_stages(r: &vox_research_shim::research::ResearchResult) -> Vec<StageRecord> {
+    use vox_research_shim::research::verifier::Verdict;
+    let m = &r.research_metadata;
+    let count = |v: Verdict| m.claim_verdicts.iter().filter(|c| c.verdict == v).count();
+    let mut out = Vec::new();
+    if m.served_from_cache {
+        out.push(StageRecord::new(
+            "cache",
+            "degraded",
+            None,
+            "served from cache (≤1h old); pipeline did not re-run".into(),
+            json!({}),
+        ));
+    }
+    out.push(StageRecord::new(
+        "planning",
+        if m.planner_degraded { "degraded" } else { "ok" },
+        None,
+        format!(
+            "{} subqueries{}",
+            m.subqueries.len(),
+            if m.planner_degraded {
+                " (planner failed — passthrough)"
+            } else {
+                ""
+            }
+        ),
+        json!({ "subqueries": m.subqueries }),
+    ));
+    out.push(StageRecord::new(
+        "retrieval",
+        if m.source_count == 0 { "empty" } else { "ok" },
+        None,
+        format!(
+            "{} sources, {} distinct domains",
+            m.source_count, m.retrieval_diagnostics.distinct_domain_count
+        ),
+        json!(m.retrieval_diagnostics),
+    ));
+    out.push(StageRecord::new(
+        "claims",
+        if m.claim_verdicts.is_empty() { "empty" } else { "ok" },
+        None,
+        format!(
+            "{} claims: {} supported, {} contested, {} contradicted, {} unverified",
+            m.claim_verdicts.len(), count(Verdict::Supported), count(Verdict::Contested),
+            count(Verdict::Contradicted), count(Verdict::Unverified)
+        ),
+        json!(m.claim_verdicts.iter().map(|c| json!({"claim": c.claim, "verdict": c.verdict.to_string(), "confidence": c.confidence})).collect::<Vec<_>>()),
+    ));
+    out.push(StageRecord::new(
+        "synthesis",
+        "ok",
+        None,
+        format!("synthesized by {}", m.synthesis_model),
+        json!({ "model": m.synthesis_model }),
+    ));
+    out.push(match &m.judge_error {
+        None => StageRecord::new(
+            "judge",
+            "ok",
+            None,
+            format!("quality {}/100", m.quality_score),
+            json!({ "quality_score": m.quality_score }),
+        ),
+        Some(e) => StageRecord::new(
+            "judge",
+            "failed",
+            None,
+            format!("judge failed: {e}"),
+            json!({ "error": e }),
+        ),
+    });
+    if let Some(a) = &m.citation_audit {
+        out.push(StageRecord::new(
+            "citation_audit",
+            if a.unsupported_citation_indices.is_empty() {
+                "ok"
+            } else {
+                "degraded"
+            },
+            None,
+            format!(
+                "{}/{} citations supported (precision {:.2})",
+                a.supported_citations, a.checked_citations, a.precision
+            ),
+            json!({ "unsupported": a.unsupported_citation_indices, "precision": a.precision }),
+        ));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
