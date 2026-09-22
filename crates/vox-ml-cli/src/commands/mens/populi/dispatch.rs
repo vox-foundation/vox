@@ -206,6 +206,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             // through the ~60-arg train dispatch chain.
             if no_auto_heal {
                 // SAFETY: single-threaded CLI startup, before any training threads spawn.
+                #[allow(unsafe_code)]
                 unsafe {
                     std::env::set_var("VOX_MENS_NO_AUTO_HEAL", "1");
                 }
@@ -215,6 +216,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             // threading another bool through the ~60-arg train dispatch chain.
             if gradient_checkpointing {
                 // SAFETY: single-threaded CLI startup, before any training threads spawn.
+                #[allow(unsafe_code)]
                 unsafe {
                     std::env::set_var("VOX_MENS_GRADIENT_CHECKPOINTING", "1");
                 }
@@ -386,6 +388,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 };
                 // run_serve creates its own Tokio runtime; call it from a blocking thread
                 // so it doesn't conflict with the outer async executor.
+                #[allow(clippy::needless_return)] // load-bearing without execution-api
                 return tokio::task::block_in_place(|| crate::commands::ai::serve::run_serve(&cfg));
             }
 

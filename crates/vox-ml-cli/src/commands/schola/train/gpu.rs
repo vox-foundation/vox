@@ -121,7 +121,7 @@ pub(super) async fn run_gpu_training(
         vox_populi::mens::PopuliTrainBackend::CandleQlora
     ) {
         let k = qlora_ce_last_k;
-        if k > 0 && k > 64 {
+        if k > 64 {
             anyhow::bail!("--qlora-ce-last-k must be at most 64 (got {k})");
         }
         if k > seq_len {
@@ -169,7 +169,7 @@ pub(super) async fn run_gpu_training(
         .unwrap_or(false);
     let gc_auto_large = model
         .as_deref()
-        .and_then(|m| vox_populi::mens::tensor::memory_budget::params_b_from_model_hint(m))
+        .and_then(vox_populi::mens::tensor::memory_budget::params_b_from_model_hint)
         .map(|b| b >= 2.9)
         .unwrap_or(false);
     let gradient_checkpointing = gc_explicit || gc_auto_large;
