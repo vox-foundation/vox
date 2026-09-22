@@ -26,8 +26,11 @@ Mention every name in the \"Required names\" list exactly as spelled, with its k
 (function, component, table, query, ...) and its signature: parameter names and types and the return type. \
 Do NOT include code, code blocks, or implementation steps. Reply with the task text only.";
 
-/// Output tokens budgeted per instruction call.
-const INSTRUCTION_MAX_TOKENS: usize = 400;
+/// Output tokens budgeted per instruction call. 400 was observed truncating
+/// mid-sentence for ~15% of real rows (multi-variant types, several
+/// functions) — reading the actual `back_translated.jsonl` output on live
+/// hardware, not just trusting the pass/fail summary, is what caught this.
+const INSTRUCTION_MAX_TOKENS: usize = 800;
 /// Output tokens budgeted per round-trip regeneration call.
 const REGEN_MAX_TOKENS: usize = 1024;
 
