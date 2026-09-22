@@ -943,3 +943,27 @@ fn strict_pin_ok_when_found_and_allowed() {
     let spec = crate::llm_bridge::infer_test_stub::stub_plan_model_spec();
     assert!(super::resolve::check_strict_pin(&spec.id, Some(&spec), true).is_ok());
 }
+
+#[test]
+fn pin_survives_free_tier_when_enforced_matches_requested() {
+    let spec = crate::llm_bridge::infer_test_stub::stub_plan_model_spec();
+    assert!(super::resolve::check_pin_survives_free_tier(&spec.id, &spec, &spec).is_ok());
+}
+
+#[test]
+fn pin_swapped_by_free_tier_enforcement_is_an_error_naming_the_pin() {
+    // Simulates what `enforce_free_tier_if_needed` does when a paid pin meets
+    // a free-tier-only turn: it silently substitutes a different, free model.
+    // A strict pin must reject that swap rather than accept it silently.
+    let requested = crate::llm_bridge::infer_test_stub::stub_plan_model_spec();
+    let swapped_free = vox_orchestrator::models::ModelSpec {
+        id: "some-other-free-model".to_string(),
+        is_free: true,
+        ..requested.clone()
+    };
+    let err =
+        super::resolve::check_pin_survives_free_tier(&requested.id, &requested, &swapped_free)
+            .unwrap_err();
+    assert!(err.contains(&requested.id), "{err}");
+    assert!(err.contains("free-tier"), "{err}");
+}

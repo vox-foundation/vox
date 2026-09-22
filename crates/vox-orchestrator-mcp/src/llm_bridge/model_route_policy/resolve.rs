@@ -218,6 +218,23 @@ pub(crate) fn check_strict_pin(
     }
 }
 
+/// Pure check for the strict-pin free-tier swap: `enforce_free_tier_if_needed`
+/// silently substitutes a different (free) model when the pin is paid but the
+/// turn is free-tier-only. A strict pin must never be silently swapped, so
+/// this turns that substitution into a named error instead.
+pub(crate) fn check_pin_survives_free_tier(
+    pin: &str,
+    requested: &ModelSpec,
+    enforced: &ModelSpec,
+) -> Result<(), String> {
+    if enforced.id != requested.id {
+        return Err(format!(
+            "pinned model {pin} is paid but this turn is free-tier-only (tier=local, Free clutch, or spend cap)"
+        ));
+    }
+    Ok(())
+}
+
 fn resolve_mcp_chat_model_sync_inner(
     orch: &Orchestrator,
     user_prompt: &str,
@@ -350,11 +367,7 @@ fn resolve_mcp_chat_model_sync_inner(
         check_strict_pin(pin, found.as_ref(), gates_ok)?;
         let m = found.expect("checked above");
         let enforced = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
-        if enforced.id != m.id {
-            return Err(format!(
-                "pinned model {pin} is paid but this turn is free-tier-only (tier=local, Free clutch, or spend cap)"
-            ));
-        }
+        check_pin_survives_free_tier(pin, &m, &enforced)?;
         *rationale_out = Some(format!("strict pin: {pin}"));
         return Ok((m.clone(), m.is_free));
     }
