@@ -424,6 +424,8 @@ qlora-rs = { path = "patches/qlora-rs-1.0.5" }
 peft-rs = { path = "patches/peft-rs-1.0.3" }
 # Vox: enable pure-rust crypto on all targets so MSVC builds do not require clang-cl (aegis C backend).
 aegis = { path = "patches/aegis-0.9.8" }
+# Vox: fix rank>4 strided reduce indexing on Metal (broke GQA K/V grads in QLoRA training).
+candle-metal-kernels = { path = "patches/candle-metal-kernels-0.10.2" }
 
 [profile.release]
 lto = "thin"
