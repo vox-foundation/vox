@@ -32,7 +32,7 @@ This document implements the RCICD audit plan: what is covered where, what belon
 | `deploy-hetzner.yml` | Push `main`, `workflow_dispatch` | Coolify deploy + health probes; Gate 1 is minimal ubuntu build only | Low (smoke) + deploy wall time |
 | Tag/release workflows | Tags / `release` | Artifacts | Variable |
 
-For runner labels and exceptions, see [runner-contract.md](runner-contract.md) and [github-hosted-exceptions.md](github-hosted-exceptions.md).
+For runner labels, see [runner-contract.md](runner-contract.md).
 
 ## `ci.yml` job → coverage → local parity
 

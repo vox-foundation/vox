@@ -405,14 +405,7 @@ In Vox, tests are not just regression catchers — they are training data for th
 **Run CI locally first — do NOT use GitHub Actions as your primary feedback loop (Required).**
 GitHub-hosted CI is slow (minutes-to-tens-of-minutes per push) and burns runner
 minutes on iteration noise. Before every push, reproduce the relevant gates locally
-and only push once they are green. **Local-first runner policy:** CI jobs default to
-the self-hosted Docker fleet; GitHub-hosted `runs-on` requires a registered exception
-([`docs/src/ci/github-hosted-exceptions.md`](docs/src/ci/github-hosted-exceptions.md)).
-Enforced gate: `vox ci runner-policy-check` runs `--strict` inside `ssot-drift`. Both CI and
-the fast pre-push tier run `ssot-drift`, so an unregistered GitHub-hosted `runs-on` hard-fails
-both — but **CI is authoritative** (pre-push can be `--no-verify`-skipped). The required gate
-(`ci-summary`) runs hosted so a fleet outage cannot block merges (see runner-contract.md
-break-glass). Local is for speed, not cost — vox is public, hosted minutes are free.
+and only push once they are green.
 See [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md) §Local-first CI.
 We have Docker available, so the full GitHub workflow suite can be run locally with `act`:
 
@@ -432,7 +425,7 @@ a red GitHub check whose local equivalent passes as a runner/environment differe
 to reproduce locally (via `--act`), not as something to fix by repeated pushes.
 
 Use `vox ci pre-push` to run any tier locally (default = **fast**, ≤60s: fmt, line-endings,
-ssot-drift, runner-policy-check, workflow-concurrency-guard, scoped doc lint + doctest,
+ssot-drift, workflow-concurrency-guard, scoped doc lint + doctest,
 drift-check). Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`. The
 full tier list (complete / full / full+cov / full+since / full+cov+since / ci-equivalent),
 their exact flags, and the `--include-slow` slow-test names live in
@@ -485,9 +478,7 @@ The local runner fleet is the CI plane. For agents:
   says what to do); `vox ci queue --clear` to cancel superseded + stale runs.
   Cancellable = push/pull_request events only, first attempt, non-main,
   non-tag; stale-clearing self-disables when the fleet is down.
-- **No new hosted jobs / unguarded workflows:** GitHub-hosted `runs-on` needs a
-  row in `docs/src/ci/github-hosted-exceptions.md` (`vox ci runner-policy-check`);
-  push/PR workflows need a top-level `concurrency:` block containing
+- **No unguarded workflows:** push/PR workflows need a top-level `concurrency:` block containing
   `cancel-in-progress: true` — a bare group string or a non-cancelling group
   does not count — or a row in `docs/src/ci/concurrency-exceptions.md`
   (`vox ci workflow-concurrency-guard`).

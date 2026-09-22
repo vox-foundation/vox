@@ -334,7 +334,6 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             Ok(())
         }
         CiCmd::FmtCheck => super::pre_push::check_fmt(&root),
-        CiCmd::RunnerPolicyCheck { strict } => vox_cli_ci::runner_policy_check::run(&root, strict),
         CiCmd::WorkflowConcurrencyGuard { strict } => {
             vox_cli_ci::workflow_concurrency_guard::run(&root, strict)
         }

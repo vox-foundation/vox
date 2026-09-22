@@ -365,13 +365,6 @@ pub enum CiCmd {
     /// `cargo fmt --all` and stays robust as crates are added/removed.
     #[command(name = "fmt-check")]
     FmtCheck,
-    /// Warn when workflow YAML uses GitHub-hosted runners without a registered exception.
-    #[command(name = "runner-policy-check")]
-    RunnerPolicyCheck {
-        /// Fail (exit 1) instead of advisory warn.
-        #[arg(long)]
-        strict: bool,
-    },
     /// Require a `concurrency:` block on push/PR-triggered workflows (flood prevention);
     /// exceptions registered in docs/src/ci/concurrency-exceptions.md.
     #[command(name = "workflow-concurrency-guard")]

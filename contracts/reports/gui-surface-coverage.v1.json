@@ -177,7 +177,6 @@
     "ci retired-symbol-check",
     "ci retirement-audit",
     "ci row-serde-lint",
-    "ci runner-policy-check",
     "ci runner-preflight",
     "ci runner-scale",
     "ci runner-status",

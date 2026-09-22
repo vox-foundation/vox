@@ -15,13 +15,9 @@ document — it captures findings so we can decide how (or whether) to invest.
 
 ## TL;DR
 
-1. **Free-tier minutes are not our bottleneck.** `ci.yml` and the heavy ML lanes
-   already run on **self-hosted Linux** ([runner-contract](runner-contract.md)).
-   The only GitHub-hosted minutes we still pay for are documented exceptions:
-   `docs-deploy`, `docs-quality`, `link_checker`, `release-binaries`
-   (`windows-latest` / `macos-latest`), `vox-vscode-extension`, and two
-   `ubuntu-latest` smokes inside `ci.yml`
-   ([github-hosted-exceptions](github-hosted-exceptions.md)).
+1. **Free-tier minutes are not our bottleneck.** GitHub-hosted minutes are free
+   for a public repo like vox — see [runner-contract](runner-contract.md) for
+   the current runner assignment.
 2. **Local-Docker-as-gate already exists in skeleton form.** `vox ci pre-push`
    ([local-ci-pre-push](../contributors/local-ci-pre-push.md)) is the supported
    entry point. The fastest, lowest-risk improvement is to **graft `act` (or
@@ -286,7 +282,6 @@ These are sequenced by "smallest diff with biggest signal" first.
 ## See also
 
 - [Runner contract](runner-contract.md)
-- [GitHub-hosted exceptions](github-hosted-exceptions.md)
 - [Workflow enumeration](workflow-enumeration.md)
 - [Local CI parity (pre-push)](../contributors/local-ci-pre-push.md)
 - [`AGENTS.md` §VoxScript-First Glue Code](../../../AGENTS.md)

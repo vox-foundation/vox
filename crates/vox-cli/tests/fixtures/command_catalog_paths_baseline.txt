@@ -15,6 +15,7 @@ audit/code
 audit/core
 audit/effort
 audit/effort-route
+audit/research-parity
 audit/retirement
 auth
 auth/connect
@@ -173,7 +174,6 @@ ci/required-context-guard
 ci/retired-symbol-check
 ci/retirement-audit
 ci/row-serde-lint
-ci/runner-policy-check
 ci/runner-preflight
 ci/runner-scale
 ci/runner-status
@@ -463,6 +463,7 @@ research/history
 research/preview
 research/result
 research/run
+research/search
 research/show
 research/status
 research/up

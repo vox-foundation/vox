@@ -101,7 +101,6 @@ transiently on this host — retry or fall back to `--debug` if it does.
 
 ## Deferred roadmap
 
-Local verdict ledger (`vox ci verdict <sha>`), a local orchestration plane
-bypassing the Actions queue, and hosted-job migration
-(`vox ci runner-policy-check --strict` flip) — see the design spec
+Local verdict ledger (`vox ci verdict <sha>`) and a local orchestration plane
+bypassing the Actions queue — see the design spec
 `docs/superpowers/specs/2026-07-02-local-first-ci-queue-design.md`.

@@ -66,13 +66,9 @@ on that machine is part of the CI environment, not separate from it:
 
 **Contributor workflow:** reproduce gates locally with **`vox ci pre-push`** (fast / `--complete` / `--full`) before pushing. Use **`vox ci pre-push --act`** only for the small set of workflows that still mirror GitHub-hosted behavior in containers.
 
-**Enforcement (hard gate):** `vox ci runner-policy-check` scans `.github/workflows/*.yml` and runs **`--strict` inside `vox ci ssot-drift`**. Because both CI and the fast `vox ci pre-push` tier run `ssot-drift`, an unregistered GitHub-hosted `runs-on` **hard-fails both** — pre-push surfaces it early. **CI is authoritative** (it cannot be bypassed); a local pre-push *can* be `--no-verify`-skipped, so the CI `ssot-drift` pass is the real gate. (A separate standalone `runner-policy-check` step in pre-push is intentionally left **advisory** — it would otherwise double-report the same finding.) Register genuine exceptions in [github-hosted-exceptions.md](github-hosted-exceptions.md).
+## GitHub-hosted runners
 
-**Registering exceptions:** any workflow that genuinely requires GitHub-hosted runners (Pages deploy, Windows/macOS release matrix, macOS mobile E2E, chicken-and-egg runner image publish) **must** add a row to [github-hosted-exceptions.md](github-hosted-exceptions.md). Prefer migrating to `[self-hosted, linux, x64]` (or `docker` / `browser` profiles) instead.
-
-## GitHub-hosted exceptions
-
-Use `ubuntu-latest`, `windows-latest`, or `macos-latest` only where documented — see [GitHub-hosted exceptions](github-hosted-exceptions.md).
+GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-latest`) are the default going forward; there is no ledger of exceptions to register.
 
 ## Workspace root manifest (fix forward)
 

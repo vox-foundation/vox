@@ -186,7 +186,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 |---|---|
 | [`vox-cli`](../../../crates/vox-cli/) | Vox command-line interface: compile, run, bundle, and workspace diagnostics. |
 | [`vox-langtool`](../../../crates/vox-langtool/) | DB-free CLI for the Vox language: check, fmt, run, build (no database runtime required). |
-| [`vox-cli-ci`](../../../crates/vox-cli-ci/) | CI guard checks extracted from vox-cli (runner-policy-check, line-endings, and related). |
+| [`vox-cli-ci`](../../../crates/vox-cli-ci/) | CI guard checks extracted from vox-cli (line-endings, workflow-concurrency-guard, and related). |
 | [`vox-cli-contracts`](../../../crates/vox-cli-contracts/) | Trait seam between vox-cli and vox-cli-ci (`CheckProvider`, `GateStatusWriter`, `TerminalPolicyValidator`, `HeavyGuardHost`); zero tokio. |
 | [`vox-cli-research`](../../../crates/vox-cli-research/) | `commands/research/` extracted from vox-cli (infra + eval, mesh intake); consumed exclusively by vox-cli. |
 | [`vox-cli-review`](../../../crates/vox-cli-review/) | CodeRabbit batch-PR review flow (`vox review coderabbit`) extracted from vox-cli; consumed exclusively by vox-cli. |

@@ -101,7 +101,6 @@ pub mod release_draft_guard;
 pub mod required_context_guard;
 pub mod retirement_audit;
 pub mod row_serde_lint;
-pub mod runner_policy_check;
 pub mod safety_inventory;
 pub mod scientia_heuristics_parity;
 pub mod scientia_worthiness_contract;
