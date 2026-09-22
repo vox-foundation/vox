@@ -121,6 +121,12 @@ fn job_problem(workflow: &str, job: &Job, kind: ProblemKind) -> JobProblem {
     let step = job
         .steps
         .iter()
+        // Last, not first: the Jobs API reports a `continue-on-error: true`
+        // step's own conclusion as "failure" even though it doesn't fail the
+        // job. GitHub skips every step after a genuinely blocking failure, so
+        // the last "failure" in array order is the real one; an earlier
+        // "failure" followed by more steps that actually ran is a soft step.
+        .rev()
         .find(|s| s.conclusion.as_deref() == Some("failure"))
         .or_else(|| {
             job.steps
@@ -257,7 +263,10 @@ fn write_cache(s: &CiStatus) -> Result<()> {
     // Temp + rename: parallel sessions refresh concurrently; no torn reads.
     let tmp = path.with_extension(format!("json.{}", std::process::id()));
     std::fs::write(&tmp, serde_json::to_vec(s)?)?;
-    std::fs::rename(&tmp, &path)?;
+    if let Err(e) = std::fs::rename(&tmp, &path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e.into());
+    }
     Ok(())
 }
 
@@ -282,8 +291,12 @@ fn gh(args: &[&str]) -> Result<String> {
 }
 
 fn annotations(job_id: u64) -> Vec<String> {
+    // --paginate: unpaginated, `gh api` returns only the first 30 — enough
+    // steps of noise ahead of a timeout-kill annotation and the marker
+    // `classify()` looks for silently falls off the page.
     gh(&[
         "api",
+        "--paginate",
         &format!("repos/{REPO_SLUG}/check-runs/{job_id}/annotations"),
         "--jq",
         ".[].message",
@@ -368,9 +381,13 @@ fn current_branch() -> Option<String> {
         .stdin(Stdio::null())
         .output()
         .ok()?;
-    out.status
-        .success()
-        .then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
+    if !out.status.success() {
+        return None;
+    }
+    let branch = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    // `--abbrev-ref HEAD` on a detached checkout prints "HEAD" literally —
+    // not a real branch `gh run list --branch` should ever query.
+    (!branch.is_empty() && branch != "HEAD").then_some(branch)
 }
 
 /// Detached `vox ci status` (stdout discarded). A marker file suppresses a
@@ -405,7 +422,10 @@ pub struct StatusArgs {
 }
 
 pub fn run(args: StatusArgs) -> Result<()> {
-    let branch = current_branch().unwrap_or_else(|| "HEAD".into());
+    // "DETACHED", not "HEAD" — matches status_writer::current_branch's
+    // fallback, and never queries `gh run list --branch` with the literal
+    // string a detached checkout's own git prints.
+    let branch = current_branch().unwrap_or_else(|| "DETACHED".into());
     let now = chrono::Utc::now().timestamp();
     if !(args.hook || args.changed_only) {
         let s = fetch(&branch, now)?;
@@ -604,6 +624,37 @@ mod tests {
         let p = job_problem("CI", &job, ProblemKind::Failed);
         assert_eq!(p.step.as_deref(), Some("Clippy (affected)"));
         assert_eq!(p.url, "");
+    }
+
+    /// A `continue-on-error: true` step reports its own conclusion as
+    /// "failure" too, but the job keeps running past it — the real blocking
+    /// step is whichever "failure" comes LAST, since nothing runs after it.
+    #[test]
+    fn job_problem_prefers_the_last_failed_step_over_a_soft_earlier_one() {
+        let job = Job {
+            id: 9,
+            name: "tests".into(),
+            conclusion: Some("failure".into()),
+            html_url: None,
+            steps: vec![
+                step(
+                    "Unused dependency scan (non-blocking)",
+                    "completed",
+                    Some("failure"),
+                    "2026-09-21T10:00:00Z",
+                    Some("2026-09-21T10:01:00Z"),
+                ),
+                step(
+                    "Serving path unit tests",
+                    "completed",
+                    Some("failure"),
+                    "2026-09-21T10:01:00Z",
+                    Some("2026-09-21T10:05:00Z"),
+                ),
+            ],
+        };
+        let p = job_problem("CI", &job, ProblemKind::Failed);
+        assert_eq!(p.step.as_deref(), Some("Serving path unit tests"));
     }
 
     #[test]

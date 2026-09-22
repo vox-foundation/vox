@@ -10,6 +10,11 @@
 //! 3. Every `schedule`-triggered workflow's `name:` is listed in
 //!    [`REPORT_WORKFLOW`]'s `on.workflow_run.workflows`, so a failing nightly
 //!    becomes an open `nightly-failure` issue agents are shown.
+//! 4. No job declares a literal `runs-on: self-hosted...` outside
+//!    [`SELF_HOSTED_ALLOWLIST`] — the hosted-primary-CI migration's whole
+//!    point is zero self-hosted runners with runners actually registered;
+//!    the two allowlisted workflows are disabled at the repo level and stay
+//!    that way until a GPU runner exists.
 //!
 //! Always fails on a violation. Runs inside `ssot-drift` (pre-push fast tier + ci.yml gate).
 
@@ -21,6 +26,9 @@ use serde_yaml::Value;
 pub const FAST_CAP_MINS: u64 = 30;
 pub const SLOW_CAP_MINS: u64 = 180;
 pub const REPORT_WORKFLOW: &str = "nightly-report.yml";
+/// Disabled at the repo level (`gh workflow disable`) — need a GPU runner
+/// that doesn't exist yet. `runs-on` here is dead until one is registered.
+pub const SELF_HOSTED_ALLOWLIST: &[&str] = &["qwen35-native-nightly.yml", "ml_data_extraction.yml"];
 
 /// `serde_yaml_ng` parses `on:` as a string key; the `Bool(true)` fallback
 /// covers YAML-1.1 parsers (mirrors workflow_concurrency_guard).
@@ -88,7 +96,23 @@ fn report_listed(report: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Timeout violations for one parsed workflow, each prefixed with `file`.
+/// `runs-on` as a literal string or sequence naming `self-hosted` — an
+/// expression (`${{ fromJson(matrix.runs_on) }}`) isn't statically knowable
+/// here and is intentionally out of scope: the one existing case is already
+/// gated by a job-level `if:` (nightly-artifacts.yml's GPU matrix leg).
+fn is_self_hosted(job: &Value) -> bool {
+    match job.get("runs-on") {
+        Some(Value::String(s)) => s.contains("self-hosted"),
+        Some(Value::Sequence(seq)) => seq
+            .iter()
+            .filter_map(Value::as_str)
+            .any(|s| s == "self-hosted"),
+        _ => false,
+    }
+}
+
+/// Timeout and runner-policy violations for one parsed workflow, each
+/// prefixed with `file`.
 pub fn check_doc(file: &str, doc: &Value) -> Vec<String> {
     let cap = if is_fast(doc) {
         FAST_CAP_MINS
@@ -116,6 +140,13 @@ pub fn check_doc(file: &str, doc: &Value) -> Vec<String> {
                     "{file}: job `{name}` timeout-minutes must be a literal integer (got {t:?})"
                 )),
             },
+        }
+        if is_self_hosted(job) && !SELF_HOSTED_ALLOWLIST.contains(&file) {
+            out.push(format!(
+                "{file}: job `{name}` declares runs-on: self-hosted — not in SELF_HOSTED_ALLOWLIST \
+                 (the hosted-primary-CI migration means zero self-hosted runners outside the \
+                 disabled GPU workflows; move this job to a hosted runner)"
+            ));
         }
     }
     out
@@ -255,6 +286,45 @@ mod tests {
             check_doc("w", &job("{ schedule: [ { cron: '0 6 * * *' } ] }", 181)).len(),
             1
         );
+    }
+
+    #[test]
+    fn self_hosted_runs_on_is_flagged_outside_the_allowlist() {
+        let literal = doc(
+            "on: [pull_request]\njobs:\n  a:\n    runs-on: self-hosted\n    timeout-minutes: 10\n    steps: []",
+        );
+        let v = check_doc("new-workflow.yml", &literal);
+        assert!(
+            v.iter()
+                .any(|m| m.contains("declares runs-on: self-hosted")),
+            "{v:?}"
+        );
+
+        let sequence = doc(
+            "on: [pull_request]\njobs:\n  a:\n    runs-on: [self-hosted, linux]\n    timeout-minutes: 10\n    steps: []",
+        );
+        let v = check_doc("new-workflow.yml", &sequence);
+        assert!(
+            v.iter()
+                .any(|m| m.contains("declares runs-on: self-hosted")),
+            "{v:?}"
+        );
+
+        // Allowlisted (disabled, GPU-only) workflows are exempt.
+        let v = check_doc("qwen35-native-nightly.yml", &sequence);
+        assert!(!v.iter().any(|m| m.contains("self-hosted")), "{v:?}");
+
+        // A hosted runner never trips it.
+        let hosted = doc(
+            "on: [pull_request]\njobs:\n  a:\n    runs-on: ubuntu-latest\n    timeout-minutes: 10\n    steps: []",
+        );
+        assert!(check_doc("new-workflow.yml", &hosted).is_empty());
+
+        // An unresolvable expression (matrix-driven) is out of scope, not flagged.
+        let expr = doc(
+            "on: [schedule]\njobs:\n  a:\n    runs-on: ${{ fromJson(matrix.runs_on) }}\n    timeout-minutes: 10\n    steps: []",
+        );
+        assert!(check_doc("new-workflow.yml", &expr).is_empty());
     }
 
     #[test]
