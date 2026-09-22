@@ -770,19 +770,10 @@ pub fn run_candle_qlora_train(
                 // trained against — confirmed load-bearing: a real Qwen/Qwen3-0.6B
                 // checkpoint produced fluent-looking garbage at inference without
                 // this being applied consistently on both sides.
-                let load_norm = |key_w: &str| -> Option<candle_nn::RmsNorm> {
-                    // "...self_attn.q_proj.weight" -> "...self_attn.q_norm.weight"
-                    // (and same for k) — NOT a plain ".weight" suffix replace,
-                    // which would wrongly produce "q_proj_norm.weight".
-                    let norm_key = key_w.replace("_proj.weight", "_norm.weight");
-                    vb_mmap
-                        .get((head_dim,), &norm_key)
-                        .ok()
-                        .and_then(|t| t.to_dtype(DType::F32).ok())
-                        .map(|w| candle_nn::RmsNorm::new(w, 1e-6))
-                };
-                let q_norm = load_norm(&q_key);
-                let k_norm = load_norm(&k_key);
+                let q_norm =
+                    vox_plugin_mens_candle_core::qk_norm::load_qk_norm(&vb_mmap, &q_key, head_dim);
+                let k_norm =
+                    vox_plugin_mens_candle_core::qk_norm::load_qk_norm(&vb_mmap, &k_key, head_dim);
 
                 let q_label = format!("l{i}.q");
                 let k_label = format!("l{i}.k");
@@ -823,14 +814,6 @@ pub fn run_candle_qlora_train(
                     adapter_layer_order.push(lbl.clone());
                     base_key_map.insert(lbl.clone(), bk.clone());
                 }
-                let q_norm = vb_mmap
-                    .get(head_dim, &format!("{layer_prefix}.self_attn.q_norm.weight"))
-                    .ok()
-                    .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
-                let k_norm = vb_mmap
-                    .get(head_dim, &format!("{layer_prefix}.self_attn.k_norm.weight"))
-                    .ok()
-                    .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
                 let attn = crate::model::Qwen2Attention {
                     q_proj,
                     k_proj,
