@@ -2,9 +2,7 @@ name: Cross-Platform Check (Windows + macOS + Ubuntu)
 on:
   # Not on pull_request/merge_group: the full Win/macOS/Ubuntu matrix (cross-check
   # 90m, standalone-installables 60m) exceeds the fast-lane (PR/merge_group)
-  # 30-min cap (workflow_policy_guard). Runs on the weekly schedule instead;
-  # `path-check` (event_name == 'pull_request') is now a no-op left in place
-  # so `cross-platform-summary` still tolerates a `skipped` result from it.
+  # 30-min cap (workflow_policy_guard). Runs on the weekly schedule instead.
   schedule:
     - cron: '0 4 * * 1'   # Weekly Monday belt-and-suspenders run (full Win/macOS)
   workflow_dispatch:
@@ -17,45 +15,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Reinstates the old `paths:` filter as an in-workflow check (see the `on:`
-  # comment above) so the two heavy matrix jobs below still skip cheaply on a
-  # PR that doesn't touch Rust/build-graph paths. Hosted because it's a single
-  # `git diff`, not a build (row in github-hosted-exceptions.md already covers
-  # every ubuntu-latest job in this file).
-  path-check:
-    name: Detect relevant changes
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      relevant: ${{ steps.check.outputs.relevant }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - id: check
-        run: |
-          set -euo pipefail
-          BASE="${{ github.event.pull_request.base.sha }}"
-          if ! git diff --name-only "${BASE}...HEAD" > /tmp/changed.txt 2>/dev/null; then
-            git diff --name-only HEAD~1...HEAD > /tmp/changed.txt
-          fi
-          echo "Changed files:"
-          cat /tmp/changed.txt
-          if grep -qE '^(crates/|Cargo\.toml$|Cargo\.lock$|\.cargo/|rust-toolchain\.toml$|\.config/hakari\.toml$|contracts/|examples/golden/)' /tmp/changed.txt; then
-            echo "relevant=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "relevant=false" >> "$GITHUB_OUTPUT"
-          fi
-
   cross-check:
     name: Cross-Platform (Win/macOS/Ubuntu)
-    needs: path-check
-    # Non-PR events (merge_group/schedule/workflow_dispatch) always run full —
-    # `path-check` only exists for `pull_request` and reports `skipped` there,
-    # so the first clause covers those; PRs run only when `path-check` found a
-    # relevant file.
-    if: github.event_name != 'pull_request' || needs.path-check.outputs.relevant == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -92,39 +53,30 @@ jobs:
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.11
 
-      # Per-PR depth (cheap): prove the whole workspace COMPILES on every OS.
+      # Cheap first signal: prove the whole workspace COMPILES on every OS.
       # vox-gui is a Tauri bin needing the pnpm-built ui/dist at compile time, so
       # it is excluded here and covered separately (Phase 5 / release-gui.yml).
-      - name: cargo check (workspace) — every event
+      - name: cargo check (workspace)
         run: cargo check --workspace --exclude vox-gui --target ${{ matrix.target }}
 
-      # Per-PR test signal, kept cheap: only the platform-sensitive crates.
+      # Cheap test signal: only the platform-sensitive crates.
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
 
-      # Per-PR: only the Linux leg runs the platform nextest. Win/macOS
-      # legs do ONLY the cheap `cargo check` above on PRs (the per-PR cfg(windows)/
-      # cfg(macos) compile proof); their full test run is deferred to merge_group +
-      # the weekly schedule. Coverage deferred: full Win/macOS nextest moves off per-PR.
-      - name: nextest (platform-sensitive crates) — Linux per-PR; all OS off-PR
-        if: runner.os == 'Linux' || github.event_name != 'pull_request'
+      - name: nextest (platform-sensitive crates)
         run: |
           cargo nextest run -p vox-config
           cargo nextest run -p vox-config --features llm-egress
           cargo nextest run -p vox-cli-core
           cargo nextest run -p vox-populi --lib
 
-      # Full depth (thorough but amortized): full clippy + full nextest run on
-      # merge_group (once per merge batch) AND on the weekly schedule (the true
-      # full Win/macOS sweep) — not on every PR push.
-      - name: clippy (workspace, -D warnings) — merge_group + weekly
-        if: github.event_name == 'merge_group' || github.event_name == 'schedule'
+      # Full depth: the weekly Win/macOS/Ubuntu sweep this workflow exists for.
+      - name: clippy (workspace, -D warnings)
         run: cargo clippy --workspace --exclude vox-gui --target ${{ matrix.target }} -- -D warnings
 
-      - name: nextest (workspace) — merge_group + weekly
-        if: github.event_name == 'merge_group' || github.event_name == 'schedule'
+      - name: nextest (workspace)
         run: cargo nextest run --workspace --exclude vox-gui
 
       - name: sccache stats
@@ -144,8 +96,6 @@ jobs:
   # feature unification cannot mask an under-declared dependency again.
   standalone-installables:
     name: Standalone installable crates (no feature unification)
-    needs: path-check
-    if: github.event_name != 'pull_request' || needs.path-check.outputs.relevant == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -194,12 +144,11 @@ jobs:
   # only context that should ever be marked required for this workflow.
   #
   # `if: always()` + explicit success-or-skipped check (mirrors ci.yml's
-  # `ci-summary`) so this job runs — and reports correctly — even when
-  # `path-check` skipped the heavy jobs on an irrelevant PR, or when a leg
+  # `ci-summary`) so this job runs — and reports correctly — even when a leg
   # genuinely failed.
   cross-platform-summary:
     name: Cross-Platform Check
-    needs: [path-check, cross-check, standalone-installables]
+    needs: [cross-check, standalone-installables]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -209,7 +158,6 @@ jobs:
           set -euo pipefail
           fail=0
           for r in \
-            "${{ needs.path-check.result }}" \
             "${{ needs.cross-check.result }}" \
             "${{ needs.standalone-installables.result }}"; do
             if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then

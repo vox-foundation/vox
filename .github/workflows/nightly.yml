@@ -18,14 +18,14 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
-  # Setup: cache warmup + path-filter computation.  Path-filter outputs let
-  # downstream jobs skip Rust-specific steps on docs-only PRs.
+  # Setup: cache warmup + affected-crate computation.
   #
-  # rust_changed = "true"  → any file under crates/** or Cargo.* changed.
-  # docs_changed = "true"  → any file under docs/** or contracts/** changed.
-  #
-  # On push:main both are always treated as "true" so we never skip gates on
-  # the integration branch.  On PRs the filter is computed from the diff.
+  # This workflow is schedule/workflow_dispatch only, so the scope outputs are
+  # unconditionally "everything": rust_changed/docs_changed/full are always
+  # "true".  They are still exported because downstream steps read them (and
+  # because ci.yml's PR-scoped selective lane shares the same output names).
+  # affected_crates / affected_p_args are computed from HEAD~1...HEAD purely as
+  # informational input to the all-features check.
   setup:
     name: Cache warmup + path filter
     # GitHub-hosted (2026-09, hosted-primary CI migration): the self-hosted
@@ -55,32 +55,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Compute path-filters.  On merge_group (the integration path) always emit
-      # true so we never skip gates on the integration branch.
-      # (merge_group has no github.base_ref, so the PR-style diff below would be
-      # meaningless and could skip `tests` — fail-closed by running everything.)
+      # Scheduled/dispatched runs never skip a gate: emit the full scope.
       - id: filter
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            echo "rust=true"  >> "$GITHUB_OUTPUT"
-            echo "docs=true"  >> "$GITHUB_OUTPUT"
-          else
-            # Fetch base ref so the diff is meaningful.
-            git fetch origin "${{ github.base_ref }}" --depth=256 2>/dev/null || true
-            BASE="origin/${{ github.base_ref }}"
-            CHANGED=$(git diff --name-only "${BASE}...HEAD" 2>/dev/null || git diff --name-only HEAD~1...HEAD)
-            if echo "$CHANGED" | grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|\.github/workflows/)'; then
-              echo "rust=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "rust=false" >> "$GITHUB_OUTPUT"
-            fi
-            if echo "$CHANGED" | grep -qE '^(docs/|contracts/|AGENTS\.md|CONTRIBUTING\.md|README\.md)'; then
-              echo "docs=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "docs=false" >> "$GITHUB_OUTPUT"
-            fi
-          fi
+          echo "rust=true"  >> "$GITHUB_OUTPUT"
+          echo "docs=true"  >> "$GITHUB_OUTPUT"
 
       - id: rust
         uses: ./.github/actions/setup-rust
@@ -114,62 +94,26 @@ jobs:
         # moved APIs — see the ludus/vox-db identity drift (2026-06-30).
         run: cargo build -p vox-cli --locked --features completion-toestub,extras-ludus,ars,coderabbit
 
-      # pull_request: map diff → affected crate closure via committed graph SSOT.
-      # merge_group: authoritative full gate (no PR base ref; closes feature-unification gap).
+      # Authoritative full gate: every affects_* flag is true.  affected_crates /
+      # affected_p_args are still derived from the last commit so the all-features
+      # check has a concrete crate list to report on; they never narrow a gate here.
       - id: affected
         name: Compute affected crates
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch origin "${{ github.base_ref }}" --depth=256 2>/dev/null || true
-            BASE="origin/${{ github.base_ref }}"
-            if ! git diff --name-only "${BASE}...HEAD" > /tmp/changed.txt 2>/dev/null; then
-              git diff --name-only HEAD~1...HEAD > /tmp/changed.txt
-            fi
-            if [ ! -s /tmp/changed.txt ] && [ "${{ steps.filter.outputs.rust }}" = "true" ]; then
-              echo "::error::rust_changed=true but git diff produced no changed files — fail-closed to full workspace"
-              echo "full=true" >> "$GITHUB_OUTPUT"
-              echo "affected_crates=" >> "$GITHUB_OUTPUT"
-              echo "affected_p_args=" >> "$GITHUB_OUTPUT"
-              echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
-              echo "affects_golden=false" >> "$GITHUB_OUTPUT"
-              echo "affects_contracts=false" >> "$GITHUB_OUTPUT"
-              echo "affects_scripts=false" >> "$GITHUB_OUTPUT"
-              echo "affects_gui=false" >> "$GITHUB_OUTPUT"
-              echo "affects_web=false" >> "$GITHUB_OUTPUT"
-              echo "affects_plugins=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
-              --graph contracts/ci/crate-graph.v1.json --github-output "$GITHUB_OUTPUT"
-            if [ "${{ steps.filter.outputs.rust }}" = "true" ] \
-              && [ "$(grep -E '^full=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)" = "false" ] \
-              && [ -z "$(grep -E '^affected_crates=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2 | xargs)" ]; then
-              echo "::warning::rust_changed with empty affected set — upgrading to full=true (fail-closed)"
-              echo "full=true" >> "$GITHUB_OUTPUT"
-              echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
-            fi
-            if [ "${{ steps.filter.outputs.docs }}" = "true" ] \
-              && [ "$(grep -E '^full=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)" = "false" ] \
-              && [ -z "$(grep -E '^affected_crates=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2 | xargs)" ]; then
-              echo "::warning::docs_changed with empty affected set — upgrading to full=true (fail-closed)"
-              echo "full=true" >> "$GITHUB_OUTPUT"
-            fi
-          else
-            echo "full=true" >> "$GITHUB_OUTPUT"
-            echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
-            echo "affects_golden=true" >> "$GITHUB_OUTPUT"
-            echo "affects_contracts=true" >> "$GITHUB_OUTPUT"
-            echo "affects_scripts=true" >> "$GITHUB_OUTPUT"
-            echo "affects_gui=true" >> "$GITHUB_OUTPUT"
-            echo "affects_web=true" >> "$GITHUB_OUTPUT"
-            echo "affects_plugins=true" >> "$GITHUB_OUTPUT"
-            git diff --name-only HEAD~1...HEAD > /tmp/changed.txt
-            ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
-              --graph contracts/ci/crate-graph.v1.json \
-              | grep -E '^(affected_crates|affected_p_args)=' >> "$GITHUB_OUTPUT"
-          fi
+          echo "full=true" >> "$GITHUB_OUTPUT"
+          echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+          echo "affects_golden=true" >> "$GITHUB_OUTPUT"
+          echo "affects_contracts=true" >> "$GITHUB_OUTPUT"
+          echo "affects_scripts=true" >> "$GITHUB_OUTPUT"
+          echo "affects_gui=true" >> "$GITHUB_OUTPUT"
+          echo "affects_web=true" >> "$GITHUB_OUTPUT"
+          echo "affects_plugins=true" >> "$GITHUB_OUTPUT"
+          git diff --name-only HEAD~1...HEAD > /tmp/changed.txt
+          ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
+            --graph contracts/ci/crate-graph.v1.json \
+            | grep -E '^(affected_crates|affected_p_args)=' >> "$GITHUB_OUTPUT"
 
       - name: Log selective CI plan
         shell: bash
@@ -197,10 +141,6 @@ jobs:
   guards-fast:
     name: Guards (fast)
     needs: setup
-    # Tiered off merge_group: `tests` was kept as the merge-queue-specific
-    # check (catches integration issues between independently-reviewed PRs);
-    # this job already ran on the PR itself before it entered the queue.
-    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     # Raised from 15: the added GTK/dbus apt-get install + pnpm install (for the
     # GUI honesty gate) can eat most of a 15-min budget on a cold runner before
@@ -302,19 +242,8 @@ jobs:
             exit 1
           fi
 
-      - name: Install cargo-deny + cargo-audit
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-deny,cargo-audit
-
-      - name: Warm cargo-deny advisory DB
-        run: cargo deny fetch
-
-      - name: Dependency licenses + advisories (cargo-deny)
-        run: cargo deny check
-
-      - name: RustSec advisories (cargo-audit)
-        run: cargo audit
+      # cargo-deny / cargo-audit run in the `full` job (same workflow, same
+      # commit) — not duplicated here.
 
       - name: Install cargo-shear + cargo-outdated (informational)
         if: needs.setup.outputs.full == 'true'
@@ -402,17 +331,9 @@ jobs:
           set -euo pipefail
           ./target/debug/vox --quiet ci secrets-parity
           # Meaningful diff scope on clean checkouts (default `git diff HEAD` scans nothing in CI).
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch origin "${{ github.base_ref }}" --depth=256
-            export VOX_SECRET_GUARD_GIT_REF="origin/${{ github.base_ref }}...HEAD"
-          else
-            BEFORE="${{ github.event.before }}"
-            if [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || [ -z "$BEFORE" ]; then
-              export VOX_SECRET_GUARD_GIT_REF="HEAD~1...HEAD"
-            else
-              export VOX_SECRET_GUARD_GIT_REF="${{ github.event.before }}...${{ github.sha }}"
-            fi
-          fi
+          # schedule/workflow_dispatch carry no base ref or `before` SHA, so scope
+          # the guard to the tip commit.
+          export VOX_SECRET_GUARD_GIT_REF="HEAD~1...HEAD"
           ./target/debug/vox --quiet ci secret-env-guard
           export VOX_SECRETS_REQUIRE_COMPAT_SUNSET=1
           export VOX_SECRETS_CUTOVER_PHASE=enforce
@@ -507,11 +428,11 @@ jobs:
             exit 1
           fi
 
+  # clippy + rustdoc are NOT here: the `full` job runs both workspace-wide on the
+  # same commit. This job carries the guards that need the prebuilt vox binary.
   lints:
-    name: Lints (clippy + rustdoc + TOESTUB-scoped + hakari + grammar)
+    name: Lints (TOESTUB-scoped + SSOT guards + hakari + grammar)
     needs: setup
-    # Tiered off merge_group -- see guards-fast's comment above.
-    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -538,58 +459,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Rustdoc (deny warnings; full gate only)
-        if: needs.setup.outputs.full == 'true'
-        run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --exclude vox-gui --no-deps
-
-      - name: Lint Check (Clippy)
-        # Deny all lints (`-D warnings`) EXCEPT a small set of cosmetic/subjective
-        # style lints that fire broadly across the workspace under the pinned
-        # toolchain and add churn without correctness value:
-        #   - items_after_test_module   — `mod tests` placement (purely cosmetic)
-        #   - collapsible_match         — nested `if let`/`match` readability preference
-        #   - collapsible_if            — `if x { if let .. }` cannot collapse without
-        #                                 edition-2024 let-chains; flattening via tuple
-        #                                 patterns would change side-effect ordering
-        #   - should_implement_trait    — e.g. inherent `from_str` vs the `FromStr` trait
-        #   - doc_overindented_list_items / doc_lazy_continuation — rustdoc markdown nits
-        # Every correctness/suspicious/perf lint remains denied.
-        #
-        # vox-gui is excluded for the same reason as cross-platform-check.yml's
-        # `cargo check`: its Tauri `generate_context!()` needs the built frontend
-        # (`frontendDist = "ui/dist"`) at compile time, which this job does not
-        # produce. The full vox-gui build (incl. the pnpm frontend) is covered by
-        # release-gui.yml, so exclude it here rather than make the merge gate
-        # depend on stale on-runner `ui/dist` state.
-        shell: bash
-        run: |
-          set -euo pipefail
-          FULL="${{ needs.setup.outputs.full }}"
-          P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
-          CLIPPY_FLAGS=(
-            -D warnings
-            -A clippy::items_after_test_module
-            -A clippy::collapsible_match
-            -A clippy::collapsible_if
-            -A clippy::should_implement_trait
-            -A clippy::doc_overindented_list_items
-            -A clippy::doc_lazy_continuation
-          )
-          if [ "$FULL" = "true" ]; then
-            cargo clippy --workspace --all-targets --exclude vox-gui -- "${CLIPPY_FLAGS[@]}"
-          elif [ -z "$P_ARGS" ]; then
-            echo "No affected crates — skipping clippy."
-          else
-            # vox-gui breaks clippy --all-targets without a built frontend; strip it.
-            FILTERED=$(echo "$P_ARGS" | sed 's/-p vox-gui//g' | xargs)
-            if [ -z "$FILTERED" ]; then
-              echo "Affected set is only vox-gui — skipping clippy."
-            else
-              # shellcheck disable=SC2086
-              cargo clippy $FILTERED --all-targets -- "${CLIPPY_FLAGS[@]}"
-            fi
-          fi
-
       # Scoped TOESTUB: enforce-warn mode — all 23 detectors, Warnings+ block.
       # This aligns with the pre-commit tdd-guard (enforce-strict on skeleton
       # rules) and pre-push toestub-scoped, giving one coherent severity model:
@@ -611,18 +480,6 @@ jobs:
               ROOTS+=("crates/${c}")
             done
             ./target/debug/vox --quiet ci toestub-scoped --mode enforce-warn "${ROOTS[@]}"
-          fi
-
-      - name: Architecture / Code Drift Guard (TOESTUB)
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          git fetch origin ${{ github.base_ref }} --depth=1 || true
-          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^docs/src/architecture/"; then
-            echo "Architecture docs changed. Running full crates TOESTUB..."
-            ./target/debug/vox --quiet ci toestub-scoped crates --mode enforce-warn
-          else
-            echo "No architecture docs changed. Skipping full strict TOESTUB."
           fi
 
       - name: Toolchain SSoT Drift Guard
@@ -685,8 +542,7 @@ jobs:
   compiler-gates:
     name: Compiler gates (WebIR + projection + golden examples + benches)
     needs: setup
-    # Tiered off merge_group -- see guards-fast's comment above.
-    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true')
+    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -926,10 +782,9 @@ jobs:
         continue-on-error: true
 
 
-      # Conditional coverage: llvm-cov instrumentation adds significant wall-clock
-      # time and is meaningless on docs-only PRs.  Run plain nextest when no Rust
-      # crates changed; full llvm-cov nextest on merge_group (full=true).
-      # PR-time affected runs use scoped nextest without coverage instrumentation.
+      # Always the instrumented full-workspace run: this workflow is
+      # schedule/dispatch only, so full == rust_changed == "true" every time and
+      # the coverage report below always has an lcov to read.
       - name: Run Tests — llvm-cov nextest (full gate, Rust changed)
         if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
         env:
@@ -939,51 +794,6 @@ jobs:
           junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
           cargo llvm-cov nextest --workspace --exclude vox-gui --profile ci --tool-config-file "vox-ci:${junit_cfg}"
-
-      - name: Run Tests — plain nextest (full gate, docs-only change)
-        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed != 'true'
-        env:
-          INSTA_UPDATE: unseen
-        run: |
-          set -euo pipefail
-          junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
-          printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
-          cargo nextest run --workspace --exclude vox-gui --profile ci --tool-config-file "vox-ci:${junit_cfg}"
-
-      - name: Run Tests — affected nextest (PR scoped)
-        if: needs.setup.outputs.full != 'true'
-        env:
-          INSTA_UPDATE: unseen
-        run: |
-          set -euo pipefail
-          P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
-          if [ -z "$P_ARGS" ]; then
-            echo "No affected crates — skipping Rust tests."
-            exit 0
-          fi
-          junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
-          printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
-          # shellcheck disable=SC2086
-          cargo nextest run $P_ARGS --profile ci --tool-config-file "vox-ci:${junit_cfg}"
-
-      - name: Shadow — junit vs affected set (merge_group)
-        if: github.event_name == 'merge_group'
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          junit="target/nextest/ci/junit.xml"
-          if [ ! -f "${junit}" ]; then
-            echo "::notice::Shadow comparator skipped — no JUnit at ${junit}"
-            exit 0
-          fi
-          AFFECTED="${{ needs.setup.outputs.affected_crates }}"
-          if [ -z "${AFFECTED// }" ]; then
-            echo "::warning title=affected-ci shadow::merge_group affected_crates empty — cannot compare junit vs PR closure"
-            exit 0
-          fi
-          ./target/debug/vox ci affected-crates --shadow-junit \
-            --junit "${junit}" \
-            --affected-crates "${{ needs.setup.outputs.affected_crates }}"
 
       # Slow test partition — runs the three #[ignore = "slow; …"] tests explicitly.
       # These are excluded from the workspace nextest step above to keep CI wall-clock
@@ -1111,11 +921,7 @@ jobs:
             echo "vox-db not in affected set — skipping replication smoke."
           fi
 
-      # Doctests use Rust's built-in harness only; cargo-nextest does not execute them.
-      # Full gate only — PR-time affected runs skip doctests (covered at merge_group).
-      - name: Doc tests (cargo test --workspace --doc; not nextest)
-        if: needs.setup.outputs.full == 'true'
-        run: cargo test --workspace --exclude vox-gui --doc
+      # Doctests run in the `full` job (`cargo test --workspace --doc`) — not duplicated here.
 
       - name: Line coverage report (summary, LCOV, gates enforce)
         if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
@@ -1158,8 +964,6 @@ jobs:
   audits:
     name: Audits (TOESTUB-full + build-timings + feature-matrix + completion + mens-gate)
     needs: setup
-    # Tiered off merge_group -- see guards-fast's comment above.
-    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     # This job's true steady-state runtime (TOESTUB validation, safety-inventory,
     # hardcoded-values-audit, completion-audit, detect-rules-bench, build-timings,
@@ -1358,7 +1162,6 @@ jobs:
   gui-orchestrator-relaunch-smoke:
     name: GUI/orchestrator relaunch smoke (CR-U6) — ${{ matrix.label }}
     needs: setup
-    if: github.event_name != 'merge_group'
     # Matrix over the RUNNER LABEL, not an `os:` string — kept as a label list
     # for parity with the macOS leg's shape.
     #
@@ -1455,8 +1258,7 @@ jobs:
   visualizer-ingest-smoke:
     name: Visualizer ingest unit (pnpm + tsx)
     needs: setup
-    # Tiered off merge_group (Task 10) but PR affects_web coverage preserved.
-    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true')
+    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -1477,8 +1279,7 @@ jobs:
   web-vite-build-smoke:
     name: Web Vite build smoke (pnpm)
     needs: setup
-    # Tiered off merge_group (Task 10) but PR affects_web coverage preserved.
-    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true')
+    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -1507,8 +1308,7 @@ jobs:
   vox-vscode-extension:
     name: VS Code extension (compile + lint)
     needs: setup
-    # Tiered off merge_group (Task 10) but PR affects_gui coverage preserved.
-    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_gui == 'true')
+    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_gui == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -1539,11 +1339,7 @@ jobs:
 
   docker-vox-image-smoke:
     name: Docker build smoke (default + mesh)
-    # Tier: heavy (~30m). Runs in the merge queue for main + on PRs labelled
-    # `full-ci`; skip routine PR pushes (not a required check).
-    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
-    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
-    if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')) || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Tier: heavy (~30m).
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -1558,10 +1354,7 @@ jobs:
   # Canonical crate is `vox-plugin-browser` (historical `vox-browser` crate removed).
   vox-browser-cdp-smoke:
     name: vox-plugin-browser CDP smoke (Chromium)
-    # Tier: heavy (~15m). Post-merge + `full-ci` label only.
-    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
-    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
-    if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')) || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Tier: heavy (~15m).
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -1591,10 +1384,7 @@ jobs:
 
   gui-playwright-smoke:
     name: GUI Playwright golden route (full_stack_minimal)
-    # Tier: heavy (~25m). Post-merge + `full-ci` label only.
-    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
-    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
-    if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')) || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Tier: heavy (~25m).
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -1625,10 +1415,9 @@ jobs:
       # Registry-driven visual-audit sweep: screenshots every GUI surface (derived from
       # SURFACE_REGISTRY, so new surfaces are covered automatically) and asserts no error-
       # boundary trip / uncaught error / console error. Also collects every other asserting
-      # e2e spec (error-states, interaction specs). Fork F2 (2026-07-16): this job stays
-      # post-merge/full-ci only (no PR gate), and THIS step is its loud failure signal —
-      # it must NEVER get `continue-on-error`; main-branch breakage fails the job visibly
-      # (CI-monitor) instead of passing silently. Variants + AI review below stay advisory.
+      # e2e spec (error-states, interaction specs). Fork F2 (2026-07-16): THIS step is this
+      # job's loud failure signal — it must NEVER get `continue-on-error`; breakage fails the
+      # job visibly (CI-monitor) instead of passing silently. Variants + AI review stay advisory.
       - name: GUI visual-audit sweep (Playwright)
         run: |
           cd crates/vox-gui/ui
@@ -1671,20 +1460,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Commit visual-review cache + report (main only)
-        if: ${{ (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
-        env:
-          GH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN }}
-        run: |
-          if ! git diff --quiet -- contracts/reports/gui-visual-review/; then
-            git config user.name "vox-ssot-bot"
-            git config user.email "bot@vox-foundation"
-            git add contracts/reports/gui-visual-review/bundle-cache.v1.json contracts/reports/gui-visual-review/bundle-digest.md
-            git commit -m "chore(visual-review): update cache + ledger [skip ci]"
-            git push origin HEAD:main || echo "::warning::visual-review cache push skipped (non-fast-forward)"
-          fi
-        continue-on-error: true
-
       # setup-rust's own cache (cache: true default), installed earlier in this
       # job, already covers ~/.cargo/registry, ~/.cargo/git, and target/ keyed
       # on OS + toolchain + Cargo.lock -- no separate cache step needed here.
@@ -1701,11 +1476,7 @@ jobs:
 
   all-features-matrix:
     name: All-Features Check (${{ matrix.crate }})
-    # Tier: heavy (~30 crates × 10-15m). Post-merge + `full-ci` label only —
-    # the single biggest per-PR load. Not a required check.
-    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
-    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
-    if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')) || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Tier: heavy (~30 crates × 10-15m).
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:

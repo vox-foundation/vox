@@ -19,10 +19,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # Emit the build matrix: full Win/macOS/Ubuntu on every (nightly/dispatch)
-  # run now that this workflow is off pull_request/merge_group — the
-  # `pull_request` branch below is dead code kept for a clean dispatch-time
-  # single-OS debug run if ever re-added.
+  # Emit the build matrix: full Win/macOS/Ubuntu on every (nightly/dispatch) run.
   matrix-setup:
     name: Compute GUI matrix
     # Pure-bash compute job — runs on the local fleet per local-first policy.
@@ -38,11 +35,7 @@ jobs:
           linux='{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu","sidecar_src":"target/x86_64-unknown-linux-gnu/release/vox","sidecar_dst":"target/release/vox-x86_64-unknown-linux-gnu"}'
           win='{"os":"windows-latest","target":"x86_64-pc-windows-msvc","sidecar_src":"target/x86_64-pc-windows-msvc/release/vox.exe","sidecar_dst":"target/release/vox-x86_64-pc-windows-msvc.exe"}'
           mac='{"os":"macos-latest","target":"aarch64-apple-darwin","sidecar_src":"target/aarch64-apple-darwin/release/vox","sidecar_dst":"target/release/vox-aarch64-apple-darwin"}'
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "include=[$linux]" >> "$GITHUB_OUTPUT"
-          else
-            echo "include=[$linux,$win,$mac]" >> "$GITHUB_OUTPUT"
-          fi
+          echo "include=[$linux,$win,$mac]" >> "$GITHUB_OUTPUT"
 
   gui-cross-build:
     name: GUI Build (${{ matrix.os }})

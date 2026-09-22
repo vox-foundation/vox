@@ -207,21 +207,13 @@ fn cross_platform_gate_is_required_three_os_matrix() {
         yml.contains("ubuntu-latest"),
         "must cover Ubuntu (gate name claims cross-platform)"
     );
-    // Compilation must be proven on every PR (cheap `cargo check`).
+    // Compilation must be proven on every OS (cheap `cargo check`).
     assert!(
         yml.contains("cargo check --workspace"),
-        "per-PR depth must `cargo check --workspace`"
+        "must `cargo check --workspace`"
     );
-    // Expensive depth (clippy + full nextest) deferred to merge_group to bound hosted-runner cost.
-    assert!(
-        yml.contains("clippy"),
-        "must run clippy -D warnings (merge_group leg)"
-    );
+    assert!(yml.contains("clippy"), "must run clippy -D warnings");
     assert!(yml.contains("nextest"), "must run nextest");
-    assert!(
-        yml.contains("github.event_name == 'merge_group'"),
-        "expensive legs must be merge_group-gated"
-    );
 }
 
 #[test]
@@ -316,55 +308,20 @@ fn gui_cross_build_covers_three_os_with_webkit() {
 }
 
 #[test]
-fn selective_ci_setup_exports_affected_outputs() {
-    let yml = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/nightly.yml"
-    ));
-    for key in [
-        "affected_crates:",
-        "affected_p_args:",
-        "affects_compiler:",
-        "affects_contracts:",
-        "affects_scripts:",
-        "affects_golden:",
-    ] {
-        assert!(
-            yml.contains(key),
-            "ci.yml setup must export selective CI output `{key}`"
-        );
-    }
-}
-
-#[test]
 fn selective_ci_fail_closed_on_empty_affected() {
+    // The selective/affected lane lives in ci.yml; nightly.yml is schedule-only
+    // and always runs the full workspace, so it has no empty-affected case.
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/nightly.yml"
+        "/../../.github/workflows/ci.yml"
     ));
     assert!(
-        yml.contains("rust_changed=true but git diff produced no changed files"),
-        "ci.yml must fail-closed when rust_changed but diff is empty"
+        yml.contains(r#"if [ "$full" != "false" ] || [ -z "$(echo "$args" | xargs)" ]"#),
+        "ci.yml must fail-closed to the full workspace when the affected set is empty"
     );
     assert!(
-        yml.contains("rust_changed with empty affected set"),
-        "ci.yml must upgrade to full=true when rust_changed but affected set empty"
-    );
-}
-
-#[test]
-fn selective_ci_fail_closed_on_docs_only_empty_affected() {
-    let yml = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/nightly.yml"
-    ));
-    assert!(
-        yml.contains("docs_changed with empty affected set"),
-        "ci.yml must upgrade to full=true when docs_changed but affected set empty"
-    );
-    assert!(
-        yml.contains("Run Tests — plain nextest (full gate, docs-only change)"),
-        "ci.yml must run workspace nextest on full gate when rust did not change"
+        yml.contains(r#"args="--workspace --exclude vox-gui""#),
+        "ci.yml's fail-closed branch must widen to the full workspace"
     );
 }
 
@@ -377,22 +334,6 @@ fn selective_ci_workflow_changes_force_rust_gate() {
     assert!(
         yml.contains(r"\.github/workflows/)"),
         "ci.yml filter must treat .github/workflows/ changes as rust_changed"
-    );
-}
-
-#[test]
-fn selective_ci_toestub_minimal_default_when_empty() {
-    let yml = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/nightly.yml"
-    ));
-    assert!(
-        yml.contains("toestub-scoped --mode enforce-warn crates/vox-repository"),
-        "ci.yml must run TOESTUB on crates/vox-repository when affected set is empty"
-    );
-    assert!(
-        !yml.contains("No affected crates — skipping TOESTUB scoped."),
-        "ci.yml must not skip TOESTUB when affected set is empty"
     );
 }
 
