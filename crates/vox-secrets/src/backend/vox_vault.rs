@@ -74,6 +74,67 @@ pub struct AgentDelegationRecord {
     pub expires_at_ms: i64,
 }
 
+/// Keyring service name used to store/retrieve the vault master key.
+/// `VOX_SECRETS_VAULT_KEYRING_SERVICE` overrides the default
+/// `"vox-secrets-vault"` — set by [`isolate_vault_tests_from_real_home`] (and
+/// by the `vox_vault_tests` integration binary) to a dedicated test-only
+/// service name so a test can never read or overwrite the real developer's
+/// OS keychain entry. An env var (not `cfg(test)`) because the integration
+/// test binary in `tests/` links this crate as a normal, non-test
+/// dependency, so `cfg(test)` inside this crate never applies there.
+fn master_keyring_service() -> String {
+    std::env::var("VOX_SECRETS_VAULT_KEYRING_SERVICE")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| "vox-secrets-vault".to_string())
+}
+
+/// Test-only safety net: every [`VoxCloudBackend::new`] call in `cfg(test)`
+/// redirects `HOME`/`USERPROFILE` — and therefore [`crate::sources::auth_json::vox_dir`],
+/// the default vault path, and the master-key file fallback — to a
+/// per-process temp directory, pins `VOX_ACCOUNT_ID` to a dedicated test
+/// account, and points the master-key keyring lookup at a dedicated test
+/// service name (see [`master_keyring_service`]). This exists because D13
+/// (`run_secrets_future` panicking on a current_thread runtime) previously
+/// made `VoxCloudBackend::new()` always fail in every unit/integration test
+/// that didn't run under a multi-thread Tokio runtime, so these tests
+/// silently skipped forever — masking the fact that several of them
+/// construct a real `VoxCloudBackend` with no isolation at all. Fixing D13
+/// made them actually run, and they wrote into (and nearly corrupted) a real
+/// developer's `~/.vox` vault. This must run before any other
+/// environment-dependent step, so unit tests can never read, write, or
+/// corrupt a developer's real `~/.vox` vault, master key, or OS keychain
+/// entry again. Runs exactly once per test binary via `Once`; safe to call
+/// redundantly from every test/every call to `new()`.
+#[cfg(test)]
+pub(crate) fn isolate_vault_tests_from_real_home() {
+    static INIT: std::sync::Once = std::sync::Once::new();
+    INIT.call_once(|| {
+        let home = tempfile::tempdir()
+            .expect("tempdir for isolated vault test HOME")
+            .keep();
+        // `open_cloudless_connection` doesn't create the `.vox` parent
+        // directory itself (the real `~/.vox` already exists in practice) —
+        // pre-create it here so the isolated tempdir behaves the same way.
+        std::fs::create_dir_all(home.join(".vox")).expect("create isolated .vox dir");
+        // SAFETY: gated by `Once::call_once` — this runs exactly once, and no
+        // other thread can observe a partially-applied environment: every
+        // caller of `isolate_vault_tests_from_real_home` blocks here until
+        // the first call finishes, and no vault-touching code runs before
+        // this function returns.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("HOME", &home);
+            std::env::set_var("USERPROFILE", &home);
+            std::env::set_var("VOX_ACCOUNT_ID", "vox-secrets-test-isolated-account");
+            std::env::set_var(
+                "VOX_SECRETS_VAULT_KEYRING_SERVICE",
+                "vox-secrets-vault-test",
+            );
+        }
+    });
+}
+
 pub struct VoxCloudBackend {
     conn: Mutex<turso::Connection>,
     master_key: [u8; 32],
@@ -85,6 +146,9 @@ pub struct VoxCloudBackend {
 impl VoxCloudBackend {
     #[allow(clippy::new_ret_no_self)]
     pub fn new() -> Result<Self, SecretError> {
+        #[cfg(test)]
+        isolate_vault_tests_from_real_home();
+
         let conn = run_secrets_future(open_cloudless_connection())?;
         run_secrets_future(ensure_schema(&conn))?;
         let account_id = std::env::var(crate::OPERATOR_ACCOUNT_ID)
@@ -218,6 +282,9 @@ impl VoxCloudBackend {
                         kek_ref = excluded.kek_ref,
                         kek_version = excluded.kek_version,
                         updated_at_ms = excluded.updated_at_ms,
+                        rotation_epoch = excluded.rotation_epoch,
+                        rotated_at_ms = excluded.rotated_at_ms,
+                        consistency_version = excluded.consistency_version,
                         checksum_hash = excluded.checksum_hash",
                     turso::params![account_id.clone(), sec_id_str.clone(), ciphertext.clone(), nonce.clone(), dek_wrapped.clone(), kek_ref.clone(), kek_version, now, checksum.clone()],
                 ).await.map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
@@ -771,7 +838,7 @@ pub struct VaultHealth {
 
 pub fn probe_vault_health(backend: &VoxCloudBackend) -> Result<VaultHealth, SecretError> {
     let vault_path_display = cloudless_vault_env_diagnostic();
-    let keyring_entry_present = keyring::Entry::new("vox-secrets-vault", "master")
+    let keyring_entry_present = keyring::Entry::new(&master_keyring_service(), "master")
         .ok()
         .and_then(|e| e.get_password().ok())
         .is_some_and(|p| !p.is_empty());
@@ -1372,7 +1439,7 @@ pub(crate) fn derive_master_key_with_fallback(
 ) -> Result<[u8; 32], SecretError> {
     use keyring::Entry;
     // 1. Try the OS keyring first (happy path in interactive shells).
-    let entry = Entry::new("vox-secrets-vault", "master")
+    let entry = Entry::new(&master_keyring_service(), "master")
         .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
     match entry.get_password() {
         Ok(pw) if !pw.is_empty() => {
