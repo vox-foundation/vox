@@ -53,7 +53,7 @@ Vox is a mature, working system; this roadmap is not a build-from-zero journey b
 
 ### Phase 4: GUI/Dashboard Architecture Consolidation
 **Goal**: The Tauri GUI is the ratified, sole orchestration surface, with a clear, enforced boundary between Vox-native and React/TanStack interop UI code.
-**Depends on**: Nothing (independent of Phases 1-3; can run in parallel)
+**Depends on**: Nothing (independent — can run in parallel with the crate-cleanup chain)
 **Requirements**: GUI-01, GUI-02, GUI-03, GUI-04
 **Success Criteria** (what must be TRUE):
   1. `docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md` carries an explicit "Status: Accepted" line and its classification changes from `locked: false`/medium-confidence to locked.
