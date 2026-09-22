@@ -903,7 +903,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `grammar` | default | `commands::grammar::handle` |
 | `gui` | `gui` | `commands::gui` — launch Axis; `vox gui drive` is `commands::gui::drive` |
 | `harness` | default | `commands::harness` |
-| `mcp` | default | `commands::mcp` — start the Model Context Protocol server |
+| `mcp` | `mcp-server` | `commands::mcp::run` — start the Model Context Protocol server; without the feature it fails with a rebuild instruction |
 | `add` | default | `commands::add` |
 | `audit` | default | `commands::audit` |
 | `auth` | default | `commands::auth` |
