@@ -22,6 +22,20 @@ fn generated_backend_dir(start: Option<&Path>) -> PathBuf {
     )
 }
 
+/// Write `content` to `path`, creating parent directories first.
+///
+/// Codegen emits files under subdirectories (e.g. `components/<Name>.tsx` for
+/// `BuildMode::Library`) that don't necessarily exist under `out_dir` yet, so
+/// every write loop must create them before writing — this is the one place
+/// that does, so no loop can drift and reintroduce the missing-parent bug.
+fn write_generated_file(path: &Path, content: &str) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, content)
+        .with_context(|| format!("Failed to write output file: {}", path.display()))
+}
+
 /// Run the build pipeline for `file`, writing TS to `out_dir` and Rust to `target/generated`.
 ///
 /// `emit_scaffold`: write [`vox_codegen::codegen_ts::scaffold`] config files when missing (or set `VOX_WEB_EMIT_SCAFFOLD=1`).
@@ -306,11 +320,7 @@ async fn run_inner(
                 crate::vox_note!(json, "  kept existing {}", path.display());
                 continue;
             }
-            if let Some(parent) = path.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            fs::write(&path, content)
-                .with_context(|| format!("Failed to write output file: {}", path.display()))?;
+            write_generated_file(&path, content)?;
             crate::vox_note!(json, "  wrote {}", path.display());
         }
 
@@ -351,8 +361,7 @@ async fn run_inner(
 
         for (filename, content) in &ts_output.files {
             let path = out_dir.join(filename);
-            fs::write(&path, content)
-                .with_context(|| format!("Failed to write output file: {}", path.display()))?;
+            write_generated_file(&path, content)?;
             crate::vox_note!(json, "  wrote {}", path.display());
         }
 
@@ -427,8 +436,7 @@ async fn run_inner(
     // Write generated TS files
     for (filename, content) in &ts_output.files {
         let path = out_dir.join(filename);
-        fs::write(&path, content)
-            .with_context(|| format!("Failed to write output file: {}", path.display()))?;
+        write_generated_file(&path, content)?;
         crate::vox_note!(json, "  wrote {}", path.display());
     }
 
