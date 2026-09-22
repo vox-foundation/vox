@@ -104,6 +104,72 @@ impl WebSearchDispatcher {
         }
     }
 
+    /// Caps how many of the top `limit` kept hits any single provider (the
+    /// `engine:<name>` provenance entry, e.g. "arxiv", "searxng") may occupy.
+    ///
+    /// D9 follow-up (Task 8 fix round 2/3): `true_rrf_fuse`'s per-source
+    /// authority weights (arXiv 1.20 vs 1.00 for everything else) mean that at
+    /// `rrf_k=60`, arXiv's *worst*-ranked hit still outscores an equal-size
+    /// competing provider's *best*-ranked hit — so arXiv can structurally
+    /// occupy every kept slot regardless of relevance, even when other
+    /// providers returned just as many real hits. Rather than re-tuning the
+    /// RRF weights/k (a pinned, separately-tested formula), this reorders the
+    /// already-score-sorted `results` in place so the first `limit` positions
+    /// respect a per-provider cap of `max(2, ceil(limit /
+    /// contributing_providers))`, filling any slots a provider doesn't use
+    /// with the next-best leftovers by score. Nothing is dropped — this is a
+    /// pure reorder, so `results.len()` is unchanged and callers that later
+    /// truncate to `limit` see a diversified head instead of a monoculture.
+    /// A no-op when fewer than two providers contributed, or when
+    /// `results.len() <= limit` (nothing would be truncated anyway).
+    fn enforce_provider_diversity(results: &mut Vec<crate::searxng::SearxngResult>, limit: usize) {
+        if limit == 0 || results.len() <= limit {
+            return;
+        }
+        let contributing: HashSet<&str> = results
+            .iter()
+            .map(|r| r.engine.as_deref().unwrap_or("unknown"))
+            .collect();
+        if contributing.len() < 2 {
+            return;
+        }
+        let cap = limit.div_ceil(contributing.len()).max(2);
+
+        let old = std::mem::take(results);
+        let mut counts: HashMap<String, usize> = HashMap::new();
+        let mut selected: Vec<crate::searxng::SearxngResult> = Vec::with_capacity(limit);
+        let mut leftover: Vec<crate::searxng::SearxngResult> = Vec::new();
+
+        // Pass 1: greedily keep the existing (score-descending) order, admitting
+        // each item only while its provider is still under `cap` and the
+        // selection hasn't yet filled `limit` — this is what both preserves
+        // relative order within a provider and enforces the cap.
+        for item in old {
+            let engine = item.engine.clone().unwrap_or_else(|| "unknown".to_string());
+            let count = counts.entry(engine).or_insert(0);
+            if selected.len() < limit && *count < cap {
+                *count += 1;
+                selected.push(item);
+            } else {
+                leftover.push(item);
+            }
+        }
+
+        // Pass 2: a provider that returned fewer than `cap` hits leaves the
+        // selection short of `limit` — fill the remainder from the best
+        // leftovers (still score-ordered) so the kept-hit count matches what
+        // the caller expected before diversification, even if that means
+        // exceeding a provider's fair share when no one else has more to give.
+        if selected.len() < limit {
+            let need = limit - selected.len();
+            let take_now = need.min(leftover.len());
+            selected.extend(leftover.drain(0..take_now));
+        }
+
+        selected.extend(leftover);
+        *results = selected;
+    }
+
     pub async fn search(
         query: &str,
         policy: &SearchPolicy,
@@ -421,6 +487,11 @@ impl WebSearchDispatcher {
                 .partial_cmp(&a.score.unwrap_or(0.0))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
+
+        let kept_limit = policy
+            .searxng_max_results
+            .max(policy.searxng_max_urls_to_scrape);
+        Self::enforce_provider_diversity(&mut results, kept_limit);
 
         #[cfg(feature = "tavily")]
         if policy.tavily_enabled
@@ -818,6 +889,136 @@ mod tests {
             source_authority_score("https://wikipedia.org.attacker.com/malware"),
             1.0
         );
+    }
+
+    /// D9 fix (Task 8 fix round 3): `enforce_provider_diversity` must stop a
+    /// single heavily-RRF-weighted provider (arXiv) from crowding out every
+    /// other provider that also returned real hits. Three providers (arXiv,
+    /// Wikipedia, SearXNG) each mocked to return 5 hits via wiremock — no
+    /// real network. Asserts the kept report has at least one hit from each
+    /// provider, no provider exceeds the diversity cap, and the total kept
+    /// count is unchanged from what the pre-existing truncation limit would
+    /// have produced anyway.
+    #[tokio::test]
+    async fn enforce_provider_diversity_keeps_every_contributing_provider() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let arxiv_server = MockServer::start().await;
+        let arxiv_entries: String = (1..=5)
+            .map(|i| {
+                format!(
+                    "<entry><id>http://arxiv.org/abs/2000.0000{i}v1</id><title>ArXiv Paper {i}</title><summary>Summary {i}</summary></entry>"
+                )
+            })
+            .collect();
+        let arxiv_xml = format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><feed xmlns=\"http://www.w3.org/2005/Atom\">{arxiv_entries}</feed>"
+        );
+        Mock::given(method("GET"))
+            .and(path("/api/query"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(arxiv_xml))
+            .mount(&arxiv_server)
+            .await;
+
+        let wiki_server = MockServer::start().await;
+        let wiki_results: Vec<serde_json::Value> = (1..=5)
+            .map(|i| {
+                serde_json::json!({
+                    "title": format!("Wiki Article {i}"),
+                    "pageid": i,
+                    "snippet": format!("Wiki snippet {i}")
+                })
+            })
+            .collect();
+        Mock::given(method("GET"))
+            .and(path("/wiki"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "query": { "search": wiki_results }
+            })))
+            .mount(&wiki_server)
+            .await;
+
+        let searxng_server = MockServer::start().await;
+        let searxng_results: Vec<serde_json::Value> = (1..=5)
+            .map(|i| {
+                serde_json::json!({
+                    "url": format!("https://example.com/searxng-{i}"),
+                    "title": format!("SearXNG Result {i}"),
+                    "content": format!("SearXNG content {i}"),
+                    "engine": "duckduckgo",
+                    "score": 1.0
+                })
+            })
+            .collect();
+        Mock::given(method("GET"))
+            .and(path("/search"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({ "results": searxng_results })),
+            )
+            .mount(&searxng_server)
+            .await;
+
+        let policy = SearchPolicy {
+            enable_wikipedia: true,
+            wikipedia_fallback_enabled: true,
+            wikipedia_api_url: Some(format!("{}/wiki", wiki_server.uri())),
+            enable_openalex: false,
+            enable_arxiv: true,
+            arxiv_api_url: Some(format!("{}/api/query", arxiv_server.uri())),
+            searxng_url: Some(searxng_server.uri()),
+            searxng_max_results: 5,
+            searxng_max_urls_to_scrape: 3,
+            tavily_enabled: false,
+            ..SearchPolicy::default()
+        };
+        let registry = crate::search_circuit_breaker::SearchProviderCircuitRegistry::new();
+
+        let report = WebSearchDispatcher::search_with_report_and_registry(
+            "diversity test query",
+            ResearchLane::Deep,
+            &policy,
+            &registry,
+        )
+        .await;
+
+        let kept_limit = policy
+            .searxng_max_results
+            .max(policy.searxng_max_urls_to_scrape);
+        assert_eq!(
+            report.hits.len(),
+            kept_limit,
+            "kept-hit count must be unchanged by diversification: {:?}",
+            report.hits
+        );
+
+        fn engine_of(h: &crate::memory_hybrid::HybridSearchHit) -> &str {
+            h.provenance
+                .iter()
+                .find_map(|p| p.strip_prefix("engine:"))
+                .unwrap_or("unknown")
+        }
+        let mut counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        for h in &report.hits {
+            *counts.entry(engine_of(h)).or_insert(0) += 1;
+        }
+
+        for provider in ["arxiv", "wikipedia", "duckduckgo"] {
+            assert!(
+                counts.get(provider).copied().unwrap_or(0) >= 1,
+                "provider {provider} must have at least one kept hit: {counts:?} ({:?})",
+                report.hits
+            );
+        }
+        // cap = max(2, ceil(kept_limit / contributing_providers)) = max(2, ceil(5/3)) = 2
+        let cap = 2;
+        for (provider, count) in &counts {
+            assert!(
+                *count <= cap,
+                "provider {provider} exceeded the diversity cap of {cap}: {count} ({counts:?})"
+            );
+        }
     }
 
     /// D9 live diagnostic (Task 8 fix round 2, finding (c)): the live daemon's
