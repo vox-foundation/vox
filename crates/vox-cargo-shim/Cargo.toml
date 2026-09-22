@@ -1,4 +1,4 @@
-﻿# STANDALONE MANIFEST — deliberately not part of the root workspace.
+# STANDALONE MANIFEST — deliberately not part of the root workspace.
 #
 # This crate is in the root Cargo.toml's `exclude` list because its binary must
 # be named literally `cargo` (PATH interception), and a `--workspace` build must

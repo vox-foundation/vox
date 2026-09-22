@@ -5,14 +5,17 @@
 //! from this output. The research (Grammar Constraints §2.1) proves EBNF/Earley
 //! is structurally superior to GBNF/FSA for recursive CFGs.
 
-/// Emit the complete EBNF grammar for Vox 0.4.
+/// Emit the complete EBNF grammar for the current Vox version.
 ///
 /// Rules are grouped by category and annotated with the parser function they derive from.
 /// The grammar covers all 57 production rules extracted from `parser/descent/`.
 #[must_use]
 pub fn emit_ebnf() -> String {
     let mut g = String::with_capacity(8192);
-    g.push_str("(* EBNF Grammar for Vox 0.4 — auto-generated from parser/descent/ *)\n");
+    g.push_str(&format!(
+        "(* EBNF Grammar for Vox {} — auto-generated from parser/descent/ *)\n",
+        env!("CARGO_PKG_VERSION")
+    ));
     g.push_str("(* 57 production rules — do not hand-edit *)\n\n");
 
     // ── Module & Declarations
@@ -207,4 +210,20 @@ pub fn emit_ebnf() -> String {
     g.push_str("text = { any_char - \"<\" - \"{\" } ;\n");
 
     g
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression test for a stale "Vox 0.4" hardcoded in the header while
+    /// the workspace had already moved to 0.6.0. The header must track
+    /// `CARGO_PKG_VERSION` so it can't drift from `Cargo.toml` again.
+    #[test]
+    fn header_embeds_workspace_version_not_a_stale_literal() {
+        let ebnf = emit_ebnf();
+        let header = ebnf.lines().next().unwrap();
+        assert!(header.contains(env!("CARGO_PKG_VERSION")));
+        assert!(!header.contains("Vox 0.4"));
+    }
 }
