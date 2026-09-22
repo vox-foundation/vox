@@ -17889,6 +17889,7 @@ dependencies = [
  "cpal",
  "dialoguer",
  "dirs",
+ "glob",
  "hex",
  "hound",
  "iroh",
