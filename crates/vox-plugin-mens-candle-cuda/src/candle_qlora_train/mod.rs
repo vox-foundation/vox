@@ -310,6 +310,11 @@ pub fn run_candle_qlora_train(
             .with_context(|| format!("load training data from {}", train_path.display()))?;
     train_log::info(&format!("Loaded {} pairs.", pairs.len()));
     log_stage("data_load", t_dataload);
+    // Stamped once, here, so every checkpoint written below (and the resume-time
+    // guard) can tell whether a later run is resuming against the same data.
+    let mut config = config.clone();
+    config.data_fingerprint = crate::checkpoint_state::fingerprint_file(&train_path);
+    let config = &config;
     let mut computed_contamination = None;
     if let Some(filter) = config.context_filter.as_ref() {
         let before = pairs.len();

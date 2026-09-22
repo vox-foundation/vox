@@ -187,6 +187,14 @@ pub struct LoraTrainingConfig {
     /// Default off (1.5B fits without it); segment count via `VOX_MENS_GC_SEGMENTS`.
     #[serde(default)]
     pub gradient_checkpointing: bool,
+    /// Provenance: content fingerprint of the resolved training data file, filled
+    /// in by each backend right after loading `pairs` (never by the caller — hence
+    /// `#[serde(default)]`). Compared against a resumed checkpoint's own
+    /// fingerprint so `vox mens train` refuses to keep training an adapter on a
+    /// dataset that isn't the one it was warmed up on (observed: a checkpoint
+    /// from a 6,754-row mix silently resumed against an 883-row corpus).
+    #[serde(default)]
+    pub data_fingerprint: Option<String>,
 }
 
 impl Default for LoraTrainingConfig {
@@ -243,6 +251,7 @@ impl Default for LoraTrainingConfig {
             reward_hook: None,
             launch_argv: Vec::new(),
             gradient_checkpointing: false,
+            data_fingerprint: None,
         }
     }
 }
