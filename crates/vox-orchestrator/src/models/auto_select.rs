@@ -17,6 +17,15 @@ pub struct AutoModelSelection {
     pub tier_reason: String,
 }
 
+/// Minimum execution reserve in GB on discrete GPUs.
+pub const DISCRETE_RESERVE_MIN_GB: f64 = 2.8;
+
+/// Maximum execution reserve in GB on discrete GPUs.
+pub const DISCRETE_RESERVE_MAX_GB: f64 = 6.0;
+
+/// Execution headroom in GB on Apple Silicon unified memory (above dynamic wired limit).
+pub const APPLE_SILICON_EXECUTION_HEADROOM_GB: f64 = 2.0;
+
 /// Computes the optimal local model tier and reason for a given VRAM size in gigabytes.
 ///
 /// # Sizing Rules
@@ -40,15 +49,6 @@ pub struct AutoModelSelection {
 ///
 /// - **Zero/NaN**:
 ///   Returns `("vox-mens-8b-v0.6", "Default fallback (insufficient or undetected VRAM)")`.
-/// Minimum execution reserve in GB on discrete GPUs.
-pub const DISCRETE_RESERVE_MIN_GB: f64 = 2.8;
-
-/// Maximum execution reserve in GB on discrete GPUs.
-pub const DISCRETE_RESERVE_MAX_GB: f64 = 6.0;
-
-/// Execution headroom in GB on Apple Silicon unified memory (above dynamic wired limit).
-pub const APPLE_SILICON_EXECUTION_HEADROOM_GB: f64 = 2.0;
-
 #[must_use]
 pub fn select_tier_for_vram(
     total_vram_gb: f64,

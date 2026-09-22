@@ -90,10 +90,10 @@ pub fn sanitize_extracted_accessibility_text(ax_text: &str) -> String {
             if trimmed == c {
                 return true;
             }
-            if let Some(rest) = trimmed.strip_prefix(c) {
-                if rest.starts_with(' ') || rest.starts_with('\t') || rest.starts_with('[') {
-                    return true;
-                }
+            if let Some(rest) = trimmed.strip_prefix(c)
+                && (rest.starts_with(' ') || rest.starts_with('\t') || rest.starts_with('['))
+            {
+                return true;
             }
             false
         });

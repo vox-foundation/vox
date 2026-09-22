@@ -9,19 +9,10 @@ pub enum SearchProviderId {
     DuckDuckGo,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ProviderCircuitBreaker {
     pub consecutive_failures: u32,
     pub cooldown_until: Option<Instant>,
-}
-
-impl Default for ProviderCircuitBreaker {
-    fn default() -> Self {
-        Self {
-            consecutive_failures: 0,
-            cooldown_until: None,
-        }
-    }
 }
 
 impl ProviderCircuitBreaker {
@@ -91,5 +82,17 @@ impl SearchProviderCircuitRegistry {
             Err(p) => p.into_inner(),
         };
         guard.entry(provider).or_default().record_success();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ProviderCircuitBreaker;
+
+    #[test]
+    fn default_breaker_is_closed() {
+        let b = ProviderCircuitBreaker::default();
+        assert_eq!(b.consecutive_failures, 0);
+        assert!(b.cooldown_until.is_none());
     }
 }

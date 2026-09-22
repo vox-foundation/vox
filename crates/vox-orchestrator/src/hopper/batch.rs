@@ -126,7 +126,7 @@ where
     for item in request.queries {
         let item_timeout = Duration::from_secs(request.timeout_per_item_secs);
         tasks.spawn(async move {
-            let res = match timeout(item_timeout, worker_fn(item.clone())).await {
+            match timeout(item_timeout, worker_fn(item.clone())).await {
                 Ok(Ok((summary, claims))) => ResearchBatchItemResult {
                     item_id: item.item_id,
                     entity_label: item.entity_label,
@@ -154,8 +154,7 @@ where
                     key_claims: vec![],
                     error: Some("Operation timed out".to_string()),
                 },
-            };
-            res
+            }
         });
     }
 

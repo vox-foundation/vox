@@ -54,8 +54,8 @@ impl ParallelExplorationCoordinator {
             let fetcher = fetcher.clone();
             let cancel = cancellation.clone();
             async move {
-                if let Some(c) = &cancel {
-                    if c.is_cancelled() {
+                if let Some(c) = &cancel
+                    && c.is_cancelled() {
                         return BranchResult {
                             branch_id: branch.branch_id,
                             query: branch.query,
@@ -63,7 +63,6 @@ impl ParallelExplorationCoordinator {
                             success: false,
                         };
                     }
-                }
                 match tokio::time::timeout(timeout_per_branch, fetcher(branch.query.clone())).await {
                     Ok(Ok(snippets)) => BranchResult {
                         branch_id: branch.branch_id,
@@ -94,5 +93,19 @@ impl ParallelExplorationCoordinator {
         });
 
         stream.buffer_unordered(concurrency.max(1)).collect().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CancellationToken;
+
+    #[test]
+    fn cancellation_is_shared_across_clones() {
+        let token = CancellationToken::new();
+        let clone = token.clone();
+        assert!(!clone.is_cancelled());
+        token.cancel();
+        assert!(clone.is_cancelled());
     }
 }

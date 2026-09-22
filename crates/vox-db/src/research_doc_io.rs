@@ -40,6 +40,8 @@ pub fn atomic_write_secure(dest_path: &Path, content: &[u8]) -> io::Result<()> {
 
     #[cfg(windows)]
     let mut attempts = 0;
+    // Only Windows retries (sharing violations); elsewhere the first rename is final.
+    #[cfg_attr(not(windows), allow(clippy::never_loop))]
     loop {
         match fs::rename(&tmp_path, dest_path) {
             Ok(_) => break,
@@ -106,16 +108,14 @@ impl FileLock {
                     return Ok(Self { lock_path, token });
                 }
                 Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
-                    if let Ok(meta) = fs::metadata(&lock_path) {
-                        if let Ok(elapsed) = meta.modified().and_then(|m| {
-                            m.elapsed()
-                                .map_err(|err| io::Error::new(io::ErrorKind::Other, err))
-                        }) {
-                            if elapsed > Duration::from_secs(60) {
-                                let _ = fs::remove_file(&lock_path);
-                                continue;
-                            }
-                        }
+                    if let Ok(meta) = fs::metadata(&lock_path)
+                        && let Ok(elapsed) = meta
+                            .modified()
+                            .and_then(|m| m.elapsed().map_err(io::Error::other))
+                        && elapsed > Duration::from_secs(60)
+                    {
+                        let _ = fs::remove_file(&lock_path);
+                        continue;
                     }
                     std::thread::sleep(Duration::from_millis(25));
                 }
@@ -136,10 +136,10 @@ impl FileLock {
 
 impl Drop for FileLock {
     fn drop(&mut self) {
-        if let Ok(content) = fs::read_to_string(&self.lock_path) {
-            if content.contains(&self.token) {
-                let _ = fs::remove_file(&self.lock_path);
-            }
+        if let Ok(content) = fs::read_to_string(&self.lock_path)
+            && content.contains(&self.token)
+        {
+            let _ = fs::remove_file(&self.lock_path);
         }
     }
 }
@@ -216,7 +216,7 @@ pub fn update_research_index_md(
             insert_idx = Some(lines.len());
         }
 
-        let idx = insert_idx.unwrap_or_else(|| lines.len());
+        let idx = insert_idx.unwrap_or(lines.len());
         lines.insert(idx, new_entry);
     }
 
