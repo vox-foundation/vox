@@ -16,6 +16,9 @@ pub enum ReleasePackage {
     Mens,
     /// `vox-langtool`: DB-free language toolchain only (check/fmt/run/build). The `minimal` tier.
     Langtool,
+    /// `vox-lsp`: standalone Language Server Protocol binary consumed by `vox lsp`
+    /// and editor integrations (e.g. `apps/editor/vox-vscode`) that spawn it directly.
+    Lsp,
     /// Every artifact: vox + every plugin binary. The "full" tier.
     All,
 }
