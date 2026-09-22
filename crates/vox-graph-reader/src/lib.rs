@@ -13,6 +13,7 @@
 #![allow(clippy::collapsible_if, clippy::unnecessary_map_or)]
 
 pub mod ast;
+mod ast_ts;
 pub mod bfs;
 pub mod cache;
 pub mod cluster;
@@ -27,6 +28,7 @@ pub mod overlay;
 pub mod reachability;
 pub mod rebuild;
 pub mod rebuild_causes;
+mod rebuild_resolve;
 pub mod registry;
 pub mod snapshot;
 pub mod what_if;
