@@ -97,6 +97,18 @@
       "path_glob": "**/vox-research-shim/src/research/provider.rs",
       "reason": "map_site is a pre-existing stub returning None (site crawling is handled via query.site_scope filtering; no dedicated site-map API exists in vox-search yet). Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-cli/src/commands/plugin/mod.rs",
+      "reason": "pub fn run() is the pre-existing `vox plugin` subcommand dispatcher (a thin match over each subcommand's own handler, e.g. install::run, doctor::run -- each independently tested in its own module); this fix only threads a new `force` field through the Install arm. tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-cli/src/commands/plugin_bundle/apply.rs",
+      "reason": "pub fn run() is the pre-existing `vox bundle apply` entry point (a thin loop calling install::run per plugin, which carries its own test coverage); this fix only threads a new `force` argument through that one call site. tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
     }
   ]
 }
