@@ -40,7 +40,7 @@ payload-kind = "code"
 description = "ML training backend using Candle with Metal acceleration."
 status = "beta"
 extension-points = ["MlBackend"]
-requires-tag = "apple-silicon"
+requires-tag = "metal"
 # Same first-party release-asset model as mens-candle-cuda above.
 default-source = "github:vox-foundation/vox"
 bundled-in = ["vox-ml-metal", "vox-dev"]

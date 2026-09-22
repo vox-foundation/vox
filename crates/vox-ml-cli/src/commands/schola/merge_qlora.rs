@@ -32,7 +32,7 @@ pub(crate) const ML_BACKEND_CANDIDATES: &[vox_plugin_host::ExtensionCandidate] =
     },
     vox_plugin_host::ExtensionCandidate {
         plugin_id: "mens-candle-metal",
-        requires_tag: Some("apple-silicon"),
+        requires_tag: Some("metal"),
     },
 ];
 
