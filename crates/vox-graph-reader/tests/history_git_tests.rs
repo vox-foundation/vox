@@ -152,3 +152,22 @@ fn blob_reader_reads_text_and_reports_missing() {
         "stream still in sync"
     );
 }
+
+#[test]
+fn blob_reader_drains_oversized_blob_without_buffering_it() {
+    // A genuinely large blob (well past a trivial header/body) must be drained
+    // rather than allocated, and must leave the `cat-file --batch` stream in
+    // sync for the next read.
+    let r = Repo::new();
+    let big = "x".repeat(5_000_000);
+    r.write("big.txt", &big);
+    r.write("small.txt", "hi\n");
+    let c = r.commit("init");
+    let mut b = BlobReader::spawn(r.path()).unwrap();
+    assert_eq!(b.read(&c, "big.txt", 1024).unwrap(), None, "over max_bytes");
+    assert_eq!(
+        b.read(&c, "small.txt", 1 << 20).unwrap().as_deref(),
+        Some("hi\n"),
+        "stream still in sync after draining the big blob"
+    );
+}

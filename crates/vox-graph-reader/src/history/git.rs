@@ -336,12 +336,18 @@ impl BlobReader {
         let Some(size) = size.and_then(|s| s.parse::<usize>().ok()) else {
             return Ok(None); // `missing` / `ambiguous`: header only, no body
         };
+        if kind != Some("blob") || size > max_bytes {
+            // Drain body + trailing LF without buffering it, so an oversized blob
+            // doesn't cost an allocation/read and the batch stream stays in sync.
+            io::copy(
+                &mut (&mut self.stdout).take(size as u64 + 1),
+                &mut io::sink(),
+            )?;
+            return Ok(None);
+        }
         let mut buf = vec![0u8; size + 1]; // body + trailing LF
         self.stdout.read_exact(&mut buf)?;
         buf.pop();
-        if kind != Some("blob") || size > max_bytes {
-            return Ok(None);
-        }
         Ok(String::from_utf8(buf).ok())
     }
 }
