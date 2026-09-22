@@ -136,3 +136,91 @@ impl VoxDbPool {
             .cloned()
     }
 }
+
+#[cfg(all(test, feature = "local"))]
+mod tests {
+    use super::*;
+    use crate::DbConfig;
+
+    /// Regression test for the "Known residual gap" documented on
+    /// [`crate::GuardedConnection`] (`crates/vox-db/src/lib.rs:455-470`):
+    /// `turso::Connection::last_insert_rowid()` is a synchronous, per-connection
+    /// read that bypasses `ConcurrentGuard`, so two tasks sharing one *cloned*
+    /// connection (exactly how `vox-gui`'s `GuiDbPool` shares one `Arc<VoxDb>`
+    /// across all GUI commands) can race: task A's `execute()` + `last_insert_rowid()`
+    /// pair can straddle task B's own `execute()` on the shared connection, and A
+    /// silently reads back B's row id.
+    ///
+    /// `VoxDbPool::get()` hands each caller an independent `turso::Connection`
+    /// (`db.connect()`, not a clone of one shared connection), so this race is
+    /// structurally impossible: `last_insert_rowid()` can only ever reflect that
+    /// connection's own last write. This test asserts that invariant holds under
+    /// real concurrent load, verifying every task's returned id by reading the row
+    /// back and comparing an embedded per-task marker.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    async fn pooled_connections_never_race_on_last_insert_rowid() {
+        let pool = VoxDbPool::new(DbConfig::Memory).await.expect("pool init");
+
+        {
+            let db = pool.get().await.expect("get conn for schema");
+            db.connection()
+                .execute_batch(
+                    "CREATE TABLE IF NOT EXISTS rowid_race_probe (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        marker TEXT NOT NULL
+                    )",
+                )
+                .await
+                .expect("create probe table");
+        }
+
+        const TASKS: usize = 100;
+        const WRITES_PER_TASK: usize = 10;
+        let mut handles = Vec::with_capacity(TASKS);
+        for t in 0..TASKS {
+            let pool = pool.clone();
+            handles.push(tokio::spawn(async move {
+                let db = pool.get().await.expect("get pooled conn");
+                let mut mismatches = 0usize;
+                for w in 0..WRITES_PER_TASK {
+                    let marker = format!("task-{t}-write-{w}");
+                    db.connection()
+                        .execute(
+                            "INSERT INTO rowid_race_probe (marker) VALUES (?1)",
+                            turso::params![marker.clone()],
+                        )
+                        .await
+                        .expect("insert");
+                    let returned_id = db.connection().last_insert_rowid();
+
+                    let mut rows = db
+                        .connection()
+                        .query(
+                            "SELECT marker FROM rowid_race_probe WHERE id = ?1",
+                            turso::params![returned_id],
+                        )
+                        .await
+                        .expect("select back");
+                    let row = rows.next().await.expect("row query").expect("row present");
+                    let actual_marker: String = row.get(0).expect("marker column");
+                    if actual_marker != marker {
+                        mismatches += 1;
+                    }
+                }
+                mismatches
+            }));
+        }
+
+        let mut total_mismatches = 0usize;
+        for h in handles {
+            total_mismatches += h.await.expect("task panicked");
+        }
+
+        assert_eq!(
+            total_mismatches, 0,
+            "pooled connections must never read back a different task's row id; a \
+             nonzero count means VoxDbPool::get() is sharing a connection instead of \
+             vending an independent one"
+        );
+    }
+}
