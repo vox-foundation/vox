@@ -18283,6 +18283,7 @@ dependencies = [
  "vox-db",
  "vox-http-client",
  "vox-package-types",
+ "wiremock",
  "workspace-hack",
 ]
 

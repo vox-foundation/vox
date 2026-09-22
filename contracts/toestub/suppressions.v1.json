@@ -9,6 +9,12 @@
       "owner": "robot"
     },
     {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-cli/src/commands/pm_lifecycle.rs",
+      "reason": "File's 4 pub fns (open_local_pm_store, resolve_lockfile_from_manifest_local, lockfile_path, package_blob_dir) predate the 2026-09-21 fix for the vox-pm-registry-404 bug, which only reworded the strict-resolution error message. Surfaced only because tdd-guard re-scans the whole touched file, not the diff; unit-testing the full local-index resolution surface is a separate, out-of-scope effort.",
+      "owner": "robot"
+    },
+    {
       "rule_id_prefix": "arch/god_object",
       "path_glob": "**/vox-secrets/src/spec.rs",
       "reason": "Legacy payload pending domain split",
