@@ -846,7 +846,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         ),
         ResearchDomainMode::General => query.query.clone(),
     };
-    let answer = match synthesize_answer_with_llm(SynthesisParams {
+    let (answer, winning_synthesis_model) = match synthesize_answer_with_llm(SynthesisParams {
         query: &synthesis_query,
         hits: &all_hits,
         verdicts: &claim_verdicts,
@@ -1027,8 +1027,11 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         wave_stability: wave_plan.as_ref().map(|w| w.compute_stability()),
         low_grounding_evidence,
         subqueries: plan.subqueries.clone(),
-        synthesis_model: vox_config::inference::forced_model()
-            .unwrap_or_else(|| resolved_llm.synthesis_model.clone()),
+        // The candidate that actually produced `answer` — not necessarily
+        // `resolved_llm.synthesis_model`, since `chat_with_cascade` may fall
+        // through to a different candidate. Under a pin (`VOX_MODEL_FORCE`)
+        // this equals the pin, because the cascade collapses to one candidate.
+        synthesis_model: winning_synthesis_model,
         judge_error,
         served_from_cache: false,
     };

@@ -170,16 +170,20 @@ pub(super) struct SynthesisParams<'a> {
 }
 
 /// LLM-backed synthesis. There is deliberately no template fallback (spec §5):
-/// a failed synthesis is an error the caller must surface.
+/// a failed synthesis is an error the caller must surface. Returns
+/// `(answer, model)`, where `model` is the id of the candidate that actually
+/// produced the answer — not necessarily `params.model`, since the cascade
+/// (`chat_with_cascade`) may fall through to a different candidate (e.g. a
+/// free-tier fallback) when the first choice fails or is unavailable.
 pub(super) async fn synthesize_answer_with_llm(
     params: SynthesisParams<'_>,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<(String, String)> {
     call_synthesis_llm(&params)
         .await
         .map_err(|e| anyhow::anyhow!("synthesis failed: {e}"))
 }
 
-async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<String> {
+async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<(String, String)> {
     use crate::research::distillation::{
         ClaimEvidenceUnit, EpistemicModality, EvidenceKind, extract_registrable_domain,
         pack_rag_budget,
@@ -314,7 +318,7 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
         }
     );
 
-    chat_stage(
+    chat_stage_with_model(
         vox_actor_runtime::llm::cascade::ResearchStage::Synthesis,
         params.endpoint,
         params.api_key,
@@ -441,6 +445,37 @@ pub(crate) async fn chat_stage(
     messages: Vec<(String, String)>,
     response_format: Option<serde_json::Value>,
 ) -> anyhow::Result<String> {
+    chat_stage_with_model(
+        stage,
+        endpoint,
+        api_key,
+        model,
+        temperature,
+        max_tokens,
+        messages,
+        response_format,
+    )
+    .await
+    .map(|(content, _model)| content)
+}
+
+/// Like [`chat_stage`], but also returns the model id that actually produced the
+/// response (`LlmResponse::model` — the winning candidate, not necessarily the
+/// first-choice `model` argument: `chat_with_cascade` may fall through to a
+/// different candidate). Callers that need to record which model answered
+/// (e.g. synthesis, for an honest `ResearchMetadata::synthesis_model`) should
+/// use this instead of `chat_stage` and discarding the model id.
+#[cfg(feature = "runtime")]
+pub(crate) async fn chat_stage_with_model(
+    stage: vox_actor_runtime::llm::cascade::ResearchStage,
+    endpoint: Option<&str>,
+    api_key: Option<&str>,
+    model: &str,
+    temperature: f32,
+    max_tokens: u32,
+    messages: Vec<(String, String)>,
+    response_format: Option<serde_json::Value>,
+) -> anyhow::Result<(String, String)> {
     use vox_actor_runtime::ActivityOptions;
     use vox_actor_runtime::llm::LlmChatMessage;
     use vox_actor_runtime::llm::cascade::{
@@ -496,12 +531,55 @@ pub(crate) async fn chat_stage(
     let opts = ActivityOptions::new().with_timeout_secs(45);
     chat_with_cascade(&opts, messages, candidates, None)
         .await
-        .map(|response| response.content)
+        .map(response_to_content_and_model)
         .map_err(|e| anyhow::anyhow!(e))
+}
+
+/// Extracts `(content, model)` from a cascade response. `LlmResponse::model` is the
+/// id of the candidate that actually answered (from the response body, or the
+/// configured model as fallback) — this is the seam the synthesis-honesty fix
+/// depends on: `chat_with_cascade` may fall through past the first-choice candidate
+/// (e.g. to a free-tier fallback), so the caller must read the model off the
+/// response, never assume it matches whichever candidate was listed first.
+///
+/// Compiled whenever `runtime` is enabled (the production call site) or under
+/// `cfg(test)` (so it stays unit-testable without the `runtime` feature — see
+/// `winning_candidate_model_is_threaded_through_not_the_configured_one` below),
+/// rather than only `#[cfg(feature = "runtime")]` like `chat_stage_with_model`.
+#[cfg(any(feature = "runtime", test))]
+fn response_to_content_and_model(
+    response: vox_actor_runtime::llm::LlmResponse,
+) -> (String, String) {
+    (response.content, response.model)
 }
 
 #[cfg(not(feature = "runtime"))]
 pub(crate) async fn chat_stage(
+    stage: vox_actor_runtime::llm::cascade::ResearchStage,
+    endpoint: Option<&str>,
+    api_key: Option<&str>,
+    model: &str,
+    temperature: f32,
+    max_tokens: u32,
+    messages: Vec<(String, String)>,
+    response_format: Option<serde_json::Value>,
+) -> anyhow::Result<String> {
+    chat_stage_with_model(
+        stage,
+        endpoint,
+        api_key,
+        model,
+        temperature,
+        max_tokens,
+        messages,
+        response_format,
+    )
+    .await
+    .map(|(content, _model)| content)
+}
+
+#[cfg(not(feature = "runtime"))]
+pub(crate) async fn chat_stage_with_model(
     _stage: vox_actor_runtime::llm::cascade::ResearchStage,
     _endpoint: Option<&str>,
     _api_key: Option<&str>,
@@ -510,7 +588,7 @@ pub(crate) async fn chat_stage(
     _max_tokens: u32,
     _messages: Vec<(String, String)>,
     _response_format: Option<serde_json::Value>,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<(String, String)> {
     anyhow::bail!("research runtime feature is disabled")
 }
 
@@ -545,6 +623,38 @@ mod citation_diversity_tests {
         let (count, below) = evaluate_citation_diversity(&hits, 3);
         assert_eq!(count, 1);
         assert!(below);
+    }
+
+    #[test]
+    fn winning_candidate_model_is_threaded_through_not_the_configured_one() {
+        // Regression seed for the D5 follow-up: `chat_with_cascade` may fall through
+        // past the first-choice candidate (e.g. a free-tier fallback), so the model
+        // recorded on `ResearchMetadata::synthesis_model` must come from the response
+        // that actually answered (`LlmResponse::model`), never the configured/first
+        // candidate's model string. The `runtime` feature gates the live HTTP path
+        // (impractical to stub here), so this exercises the plumbing seam directly:
+        // `response_to_content_and_model` is the sole place `chat_stage_with_model`
+        // extracts `(content, model)` from a cascade response.
+        let response = vox_actor_runtime::llm::LlmResponse {
+            content: "synthesized answer".to_string(),
+            prompt_tokens: 10,
+            completion_tokens: 20,
+            model: "openrouter/some-fallback-model".to_string(),
+            cost_usd: None,
+            tool_calls: None,
+            latency_ms: 0,
+            cache_read_tokens: 0,
+            ttft_ms: None,
+            tpot_ms: None,
+        };
+
+        let (content, model) = super::response_to_content_and_model(response);
+
+        assert_eq!(content, "synthesized answer");
+        assert_eq!(
+            model, "openrouter/some-fallback-model",
+            "the winning candidate's model must be threaded through, not the configured/first-choice one"
+        );
     }
 
     #[test]
