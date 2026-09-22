@@ -30,7 +30,8 @@ Do NOT include code, code blocks, or implementation steps. Reply with the task t
 /// mid-sentence for ~15% of real rows (multi-variant types, several
 /// functions) — reading the actual `back_translated.jsonl` output on live
 /// hardware, not just trusting the pass/fail summary, is what caught this.
-const INSTRUCTION_MAX_TOKENS: usize = 800;
+/// 800 still truncated the single longest, most multi-function row observed.
+const INSTRUCTION_MAX_TOKENS: usize = 1200;
 /// Output tokens budgeted per round-trip regeneration call.
 const REGEN_MAX_TOKENS: usize = 1024;
 
@@ -106,10 +107,16 @@ fn mentions_word(text: &str, word: &str) -> bool {
     })
 }
 
-/// Deterministic faithfulness filter: no code fence, and every required name mentioned.
+/// Deterministic faithfulness filter: no code fence, every required name
+/// mentioned, and the instruction wasn't cut off mid-sentence by hitting
+/// `INSTRUCTION_MAX_TOKENS` (observed on real, complex multi-function tasks
+/// even at 1200 tokens — reading actual output, not just the pass/fail
+/// summary, is what caught this).
 pub(crate) fn is_faithful(instruction: &str, names: &[String]) -> bool {
-    !instruction.trim().is_empty()
-        && !instruction.contains("```")
+    let trimmed = instruction.trim();
+    !trimmed.is_empty()
+        && !trimmed.contains("```")
+        && trimmed.ends_with(['.', '!', '?', ')', '"', '`'])
         && names.iter().all(|n| mentions_word(instruction, n))
 }
 
@@ -399,6 +406,19 @@ mod tests {
         ));
         assert!(!is_faithful("add Item ```vox\nfn add() {}\n```", &names));
         assert!(!is_faithful("  ", &[]));
+    }
+
+    /// Real failure observed on live hardware: a long, multi-function task
+    /// hit `INSTRUCTION_MAX_TOKENS` and was cut off mid-sentence with no
+    /// closing punctuation. Such instructions must be dropped, not trained on.
+    #[test]
+    fn faithfulness_rejects_instructions_truncated_mid_sentence() {
+        let names = vec!["add".to_string()];
+        assert!(!is_faithful(
+            "Write fn `add` that sums two ints, handling overflow by",
+            &names
+        ));
+        assert!(is_faithful("Write fn `add` that sums two ints.", &names));
     }
 
     #[test]
