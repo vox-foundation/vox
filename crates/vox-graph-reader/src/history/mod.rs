@@ -4,4 +4,6 @@ pub mod git;
 pub mod ingest;
 pub mod lineage;
 pub mod model;
+pub mod query;
+pub mod search;
 pub mod store;
