@@ -46,7 +46,6 @@ fn build_adapter_manifest_v3(
     base_key_map: &std::collections::HashMap<String, String>,
     resolved_base_path: Option<String>,
 ) -> PopuliAdapterManifestV3 {
-    let base_model = resolved_base_path.or_else(|| config.base_model.clone());
     PopuliAdapterManifestV3::new(
         AdapterMethod::Qlora,
         BaseQuantMode::Nf4,
@@ -57,7 +56,8 @@ fn build_adapter_manifest_v3(
         d_model,
         rank,
         alpha,
-        resolved_serve_base_model(config),
+        // The snapshot dir training loaded, else a loadable dir derived from config.
+        resolved_base_path.or_else(|| resolved_serve_base_model(config)),
         adapter_provenance_from_config(config),
     )
 }
@@ -129,22 +129,24 @@ pub(super) fn finalize_training_run(
 
     // Copy tokenizer.json and config.json so the output directory is completely self-contained for eval & serving.
     let out_tokenizer = out.join("tokenizer.json");
-    if !out_tokenizer.exists() && bundle.tokenizer_path.is_file() {
-        if let Err(e) = std::fs::copy(&bundle.tokenizer_path, &out_tokenizer) {
-            train_log::warn(&format!(
-                "failed to copy tokenizer.json to {}: {e}",
-                out.display()
-            ));
-        }
+    if !out_tokenizer.exists()
+        && bundle.tokenizer_path.is_file()
+        && let Err(e) = std::fs::copy(&bundle.tokenizer_path, &out_tokenizer)
+    {
+        train_log::warn(&format!(
+            "failed to copy tokenizer.json to {}: {e}",
+            out.display()
+        ));
     }
     let out_config = out.join("config.json");
-    if !out_config.exists() && bundle.config_path.is_file() {
-        if let Err(e) = std::fs::copy(&bundle.config_path, &out_config) {
-            train_log::warn(&format!(
-                "failed to copy config.json to {}: {e}",
-                out.display()
-            ));
-        }
+    if !out_config.exists()
+        && bundle.config_path.is_file()
+        && let Err(e) = std::fs::copy(&bundle.config_path, &out_config)
+    {
+        train_log::warn(&format!(
+            "failed to copy config.json to {}: {e}",
+            out.display()
+        ));
     }
 
     let final_avg_loss = if total_step_count > 0 {
@@ -332,9 +334,30 @@ pub(super) fn finalize_training_run(
 
 #[cfg(test)]
 mod tests {
-    use super::{resolved_serve_base_model, stage_serve_sidecars};
+    use super::{build_adapter_manifest_v3, resolved_serve_base_model, stage_serve_sidecars};
     use crate::config::LoraTrainingConfig;
     use std::fs;
+
+    /// The snapshot directory training actually loaded wins over anything
+    /// derived from the config (merge a7cdfdb8e silently dropped it).
+    #[test]
+    fn manifest_base_model_is_the_resolved_snapshot_dir() {
+        let cfg = LoraTrainingConfig {
+            base_model: Some("Qwen/Qwen3-0.6B".into()),
+            ..Default::default()
+        };
+        let m = build_adapter_manifest_v3(
+            8,
+            8,
+            4,
+            8,
+            &cfg,
+            &[],
+            &Default::default(),
+            Some("/snapshots/qwen3".into()),
+        );
+        assert_eq!(m.base_model.as_deref(), Some("/snapshots/qwen3"));
+    }
 
     #[test]
     fn resolved_serve_base_model_keeps_existing_directory() {

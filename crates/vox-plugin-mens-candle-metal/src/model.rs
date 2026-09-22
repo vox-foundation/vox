@@ -17,8 +17,9 @@
 
 use candle_core::quantized::QMatMul;
 use candle_core::{DType, Device, Result, Tensor};
-use candle_nn::{Module, RmsNorm};
+use candle_nn::RmsNorm;
 
+#[allow(clippy::large_enum_variant)]
 pub enum QuantizedLinear {
     QLora(qlora_rs::qlora::QuantizedLinear),
     QMatMul(QMatMul),
