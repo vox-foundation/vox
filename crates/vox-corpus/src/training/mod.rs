@@ -43,37 +43,34 @@ pub fn generate_training_system_prompt() -> String {
     )
 }
 
+/// Concise built-in prompt. Kept short on purpose: it is prepended to every
+/// training row, so its tokens come out of `seq_len`. The long-form reference is
+/// `mens/config/system_prompt.txt` (guarded by `mens_system_prompt_syntax_test`);
+/// this text must stay consistent with it.
 fn builtin_system_prompt() -> String {
-    let preamble = r#"You are a Vox programming language expert and code generation assistant. Vox is an AI-native, full-stack programming language that compiles to high-performance Rust and TypeScript.
+    let preamble = r#"You are a Vox programming language expert and code generation assistant. Vox is an AI-native, full-stack language that compiles to native Rust and TypeScript.
 
-## Language philosophy
-- Compression over ceremony: fewer lines than typical Rust/TS for the same behavior.
-- Full-stack in one artifact: types, HTTP, UI, and durable workflows can live together.
-- Durable execution: workflows and activities are first-class.
-- AI-native: agents, MCP tools, and skills are normal constructs.
-- No null: use Option[T], Result[T], and tagged unions only. `null` is banned.
-- Cross-platform: Vox code is identical on Linux, macOS, and Windows. Shell commands may differ by OS but the Vox language itself does not.
+## Rules
+- Brace-delimited blocks, no semicolons, no significant indentation. Comments are `//` and `///`.
+- Return types use `to`: `fn name(p: T) to U { ... }`. Never `->` for returns (`->` appears only in `state_machine` transitions).
+- No null: use `Option[T]`, `Result[T]` (or `Result[T, E]` at API boundaries), and tagged unions.
+- `let x = expr`, `let mut x = expr`, `if c { } else { }`, `for x in xs { }`, `match e { Variant(f) => body }`.
+- Operators are `and`, `or`, `not`, `is`, `is not`.
 
-## Construct reference (concise)
-- `fn name(p: T) -> U:` — function with arrow return type (required)
-- `actor Name:` — message-passing actor with `state` and `on msg() -> T:`
-- `workflow name() -> Result[T]:` / `activity name() -> Result[T]:` — durable execution
-- `component Name(p: T) { state x = 0; view: <div>{x}</div> }` — Reactive UI (Path C)
-- `state`, `derived`, `effect`, `mount`, `cleanup` — reactive primitives
-- `table Name:`, `query name(...) -> T:`, `mutation name(...) -> T:` — data plane (bare-keyword declarations)
-- `@mcp.tool(...) fn ...` / `@mcp.resource(...) fn ...` — MCP surfaces
-- `server Name(...` — server-side / RPC-style handlers (see `@server` in compiler)
-- `http get "/path" | ...` / `http post` / `http put` / `http delete` — HTTP route declarations
-- `type Name = | Variant(field: T)` — tagged unions
-- `import x.y` — imports
+## Declarations (bare keywords, never `@` decorators)
+- `type Name { field: T }`, `type Name = | A | B(field: T)`
+- `table Name { field: T }`, `query name(p: T) to U { }`, `mutation name(p: T) to U { }`, `server name(p: T) to U { }`
+- `tool "name: description" name(p: T) to U { }`, `resource "uri" "description" name() to U { }`
+- `component Name() { ... }` with `state x: int = 0` and `view: column() { text() { "{x}" } }` lines inside
+- `actor Name { on handler(p: T) to U { } }`, `spawn(Name)`
+- `workflow name(p: T) to Result[U] { }` calling `activity name(p: T) to Result[U] { }` with `with { retries: 3, timeout: "30s" }`
+- `routes { "/" to Home }`, `state_machine Name { state A state B on Ev() from A -> B }`, `import module.name`
 
-## Core syntax
-- `let x = expr`, `return expr`, `if cond:`, `for x in xs:`, `match e: Variant(f) ->`
-- Comments: `#` or `//`
-- Return type ALWAYS uses `->` arrow. Never use `to` or bare expression return.
-- No null, no classes, no mutable globals. Use actors for state.
+## Decorators (modifiers only)
+`@test`, `@pure`, `@uses(net)`, `@scheduled("1h")`, `@auth(scheme: bearer)`, `@deprecated`, `@durable`.
+Retired and rejected: `@endpoint`, `@component fn`, `@table`, `@query fn`, `@mutation fn`, `@server fn`, `@mcp.tool`, `ret`.
 
-Follow Vox indentation (4 spaces) and always annotate function parameters and return types.
+Always annotate parameter and return types. Workflow bodies must not call `time.now()`, `random.*`, or `uuid()`; put side effects in an `activity`.
 "#;
     preamble.to_string()
 }
@@ -98,14 +95,21 @@ pub fn construct_difficulty(category: &str, record_type: &str) -> u8 {
 
 #[cfg(test)]
 #[test]
-fn builtin_system_prompt_ssot_uses_arrow_not_to_for_returns() {
+fn builtin_system_prompt_uses_current_vox_syntax() {
     let b = builtin_system_prompt();
     assert!(
-        b.contains("->"),
-        "builtin SSOT prompt should show arrow return syntax"
+        b.contains("fn name(p: T) to U {"),
+        "must show `to` return syntax"
     );
     assert!(
-        b.contains("Never use `to`"),
-        "builtin SSOT prompt should forbid `to` as return syntax"
+        !b.contains("Never use `to`"),
+        "must not forbid `to` returns"
     );
+    assert!(!b.contains(") -> "), "must not show `->` as a return arrow");
+    assert!(
+        !b.contains("Name:`"),
+        "must not show colon-block declarations"
+    );
+    // Prepended to every training row; keep it well under a 1024-token window.
+    assert!(b.len() < 2600, "builtin prompt grew to {} chars", b.len());
 }

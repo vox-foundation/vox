@@ -486,7 +486,7 @@ pub async fn run(
                                     None,  // qlora_max_skip_rate
                                     false, // qlora_lm_head_only
                                     None,  // qlora_proxy_max_layers
-                                    64,    // qlora_ce_last_k
+                                    0,     // qlora_ce_last_k (whole assistant response)
                                     None,  // checkpoint_every
                                     false, // force_restart
                                     curriculum,

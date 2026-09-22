@@ -248,6 +248,16 @@ pub fn run_training_loop(
     let progress_every = vox_config::timeouts::D_5S;
     let mut ema_steps_per_sec: Option<f64> = None;
     let mut optimizer_step_count: u32 = global_step / config.grad_accum.max(1) as u32;
+    // Optimizer step `n` (0-based) runs at `compute_cosine_lr(n)`. Set it before the
+    // first step too: step 0 used to run at the full base LR (no warmup) and every
+    // later step lagged the schedule by one.
+    trainer.config.adapter_config.learning_rate = compute_cosine_lr(
+        optimizer_step_count,
+        warmup_steps,
+        total_optimizer_steps_planned,
+        config.learning_rate,
+    );
+    trainer.update_lr();
     let mut progress_anchor_step = optimizer_step_count;
     let mut progress_anchor_time = Instant::now();
     let mut last_loss_val: f32 = 0.0;
@@ -429,16 +439,15 @@ pub fn run_training_loop(
 
                     lr_applied_this_step = trainer.current_lr();
 
-                    let lr_next = compute_cosine_lr(
-                        optimizer_step_count,
-                        warmup_steps,
-                        total_optimizer_steps_planned,
-                        config.learning_rate,
-                    );
                     let micro_step_after_backward = global_step + 1;
                     if micro_step_after_backward.is_multiple_of(grad_accum) {
                         optimizer_step_count += 1;
-                        trainer.config.adapter_config.learning_rate = lr_next;
+                        trainer.config.adapter_config.learning_rate = compute_cosine_lr(
+                            optimizer_step_count,
+                            warmup_steps,
+                            total_optimizer_steps_planned,
+                            config.learning_rate,
+                        );
                         trainer.update_lr();
                     }
                     Some(loss_scalar)

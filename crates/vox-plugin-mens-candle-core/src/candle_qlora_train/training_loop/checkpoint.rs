@@ -105,10 +105,12 @@ pub fn build_epoch_shuffled_indices(
         return idx.clone();
     }
     let mut idx: Vec<usize> = (0..pairs.len()).collect();
+    // Shuffle first; the curriculum's stable sort then keeps rows random *within*
+    // each difficulty level instead of replaying the file (one source block after
+    // another) in the same order every epoch.
+    idx.shuffle(rng);
     if monotonic_difficulty {
         idx.sort_by_key(|&v| pairs[v].difficulty.unwrap_or(5));
-    } else {
-        idx.shuffle(rng);
     }
     idx
 }
@@ -129,4 +131,32 @@ pub fn sanitize_resume_indices(indices: &[usize], pair_count: usize) -> (Vec<usi
         out.push(idx);
     }
     (out, dropped)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::SeedableRng;
+
+    #[test]
+    fn curriculum_order_is_sorted_by_difficulty_but_shuffled_within_levels() {
+        let pairs: Vec<TrainingPair> = (0..40)
+            .map(|i| TrainingPair {
+                difficulty: Some(if i < 20 { 2 } else { 7 }),
+                ..Default::default()
+            })
+            .collect();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(3);
+        let idx = build_epoch_shuffled_indices(1, 0, &pairs, &None, &mut rng, true);
+        let diffs: Vec<u8> = idx.iter().map(|&i| pairs[i].difficulty.unwrap()).collect();
+        assert!(
+            diffs.windows(2).all(|w| w[0] <= w[1]),
+            "not monotonic: {diffs:?}"
+        );
+        assert_ne!(
+            &idx[..20],
+            &(0..20).collect::<Vec<_>>()[..],
+            "easy bucket kept file order"
+        );
+    }
 }

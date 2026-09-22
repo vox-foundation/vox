@@ -225,7 +225,7 @@ impl Default for LoraTrainingConfig {
             qlora_max_skip_rate: None,
             qlora_lm_head_only: false,
             qlora_proxy_max_layers: None,
-            qlora_ce_last_k: 64,
+            qlora_ce_last_k: 0,
             checkpoint_every: Some(500),
             force_restart: false,
             deployment_target: TrainingDeploymentTarget::default(),

@@ -10,7 +10,7 @@ use vox_tensor::data::TrainingPair;
 use super::types::{MaskedCeForward, TryEncodeOutcome};
 use crate::{config::LoraTrainingConfig, qlora_preflight::QloraEmbedBundle, train_log};
 
-pub fn qlora_forward_logits_smoke(
+fn qlora_forward_logits_smoke(
     model: &crate::candle_qlora_train::TrainGraphModel,
     vocab: usize,
     device: &Device,
@@ -123,14 +123,18 @@ pub fn run_validation_pass(
         eval_pairs.len()
     ));
     for pair in eval_pairs {
-        let text = if let Some(ref turns) = pair.messages {
+        let messages = pair
+            .messages
+            .as_deref()
+            .map(|t| crate::training_text::with_system_turn(t, system_prompt, &config.chatml));
+        let text = if let Some(ref turns) = messages {
             crate::training_text::chatml_turns_text(turns, &config.chatml)
         } else if let (Some(p), Some(r)) = (pair.effective_prompt(), pair.effective_response()) {
             crate::training_text::chatml_supervised_text(system_prompt, p, r, &config.chatml)
         } else {
             continue;
         };
-        let prefix_text = if let Some(ref turns) = pair.messages {
+        let prefix_text = if let Some(ref turns) = messages {
             crate::training_text::chatml_turns_prefix_open_assistant(turns, &config.chatml)
         } else if let Some(p) = pair.effective_prompt() {
             crate::training_text::chatml_prefix_open_assistant(system_prompt, p, &config.chatml)
@@ -144,12 +148,8 @@ pub fn run_validation_pass(
         )
         .unwrap_or(0);
         if let Ok(enc) = tokenizer.encode(text.as_str(), true) {
-            let mut ids = enc.get_ids().to_vec();
-            let mut trunc_offset = 0usize;
-            if ids.len() > config.seq_len {
-                trunc_offset = ids.len() - config.seq_len;
-                ids = ids[trunc_offset..].to_vec();
-            }
+            let (ids, trunc_offset) =
+                crate::training_text::truncate_to_seq_len(enc.get_ids().to_vec(), config.seq_len);
             if ids.len() >= 2
                 && let Ok(input_ids) = candle_core::Tensor::new(&ids[..ids.len() - 1], device)
                     .and_then(|t| t.unsqueeze(0))

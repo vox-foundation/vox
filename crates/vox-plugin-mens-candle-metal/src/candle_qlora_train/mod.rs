@@ -19,8 +19,6 @@ use candle_nn::VarBuilder;
 use peft_rs::training::{AdapterTrainingConfig, LrSchedule};
 use qlora_rs::QLoraConfig;
 use qlora_rs::training::{QLoraTrainer, QLoraTrainingConfig};
-use rand::SeedableRng;
-use rand::seq::SliceRandom;
 use tokenizers::Tokenizer;
 
 use crate::config::LoraTrainingConfig;
@@ -468,13 +466,12 @@ pub fn run_candle_qlora_train(
             pct_count
         }
     };
-    let eval_pairs = if val_count > 0 && pairs.len() > val_count {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(config.seed ^ 0xA1B2_C3D4_E5F6_1122);
-        pairs.shuffle(&mut rng);
-        pairs.split_off(pairs.len() - val_count)
-    } else {
-        Vec::new()
-    };
+    let (pairs, eval_pairs) =
+        vox_plugin_mens_candle_core::candle_qlora_train::validation::split_validation_by_response(
+            pairs,
+            val_count,
+            config.seed ^ 0xA1B2_C3D4_E5F6_1122,
+        );
 
     // ── GQA-aware dimensions ─────────────────────────────────────────────────
     let n_heads = bundle.layout.num_attention_heads;
