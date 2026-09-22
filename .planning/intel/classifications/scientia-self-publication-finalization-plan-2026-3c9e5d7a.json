@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/scientia-self-publication-finalization-plan-2026.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "SCIENTIA Self-Publication Finalization Plan (2026)",
+  "summary": "Approved multi-phase strategic plan (Phases 0–10) for autonomous SCIENTIA research publication targeting IMC/MLSys/TMLR with reputational firewall, pre-registration, symbolic verifiers, and living-review Provider Atlas.",
+  "scope": ["self-publication strategy", "measurement campaigns", "claim extraction", "novelty assessment", "pre-registration", "scholarly publishing", "nanopub", "RO-Crate", "Provider Atlas"],
+  "cross_refs": ["ADR-011", "where-things-live.md", "layers.toml"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Status: approved (not locked ADR). Classification as DOC because this is a strategic plan/roadmap document with phase-level deliverables and vendor/build decisions, rather than a locked architectural decision or formal specification contract. Confidence medium reflects the approved-but-not-locked status."
+}

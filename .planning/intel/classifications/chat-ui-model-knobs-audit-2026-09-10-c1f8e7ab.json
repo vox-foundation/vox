@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/chat-ui-model-knobs-audit-2026-09-10.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Chat UI & Model-Knob Audit (2026-09-10)",
+  "summary": "Inventory of chat composer, model-priority knobs, budget display, and mesh/online status in vox-gui; second-pass corrections flag wiring gaps and proposes five decomposed work items (bounded/architectural/policy).",
+  "scope": ["chat UI", "model knobs", "budget display", "mesh status", "composer", "routing priority"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": "Audit document with corrections (second pass) identifying wiring gaps and proposed decomposition (§8). Frontmatter status=current. Does not make binding decisions; proposes five work items requiring greenlighting and/or design decisions (§6 mesh/online posture is user-only decision)."
+}

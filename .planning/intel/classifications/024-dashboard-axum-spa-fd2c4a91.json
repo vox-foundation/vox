@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/024-dashboard-axum-spa.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 024 — Dashboard as local Axum-served SPA",
+  "summary": "Decision to build dashboard as Axum-served SPA is now fully superseded by Tauri-based GUI application (ADR-045).",
+  "scope": ["dashboard", "Axum", "SPA", "orchestration UI", "GUI application"],
+  "cross_refs": ["045-tauri-gui-replaces-axum-dashboard.md", "010-tanstack-web-spine.md", "012-internal-web-ir-strategy.md", "../architecture/dashboard-migration-research-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Fully superseded by ADR-045 (2026-05-11). crates/vox-dashboard was decommissioned; Tauri-based GUI (`crates/vox-gui`) is the canonical orchestration surface."
+}

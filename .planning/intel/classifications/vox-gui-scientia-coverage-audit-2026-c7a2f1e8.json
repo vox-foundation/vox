@@ -1,0 +1,30 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-gui-scientia-coverage-audit-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox GUI ↔ CLI / Scientia Coverage Audit (2026-06-03)",
+  "summary": "Gap map between Tauri GUI and CLI/Scientia surface with verified findings and three-part self-surfacing recommendation for command discovery and surface curation.",
+  "scope": [
+    "GUI coverage gaps",
+    "CLI surface coverage",
+    "Scientia pipelines",
+    "gamification",
+    "command discovery",
+    "surface registry",
+    "self-surfacing gate"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/vox-gui-capability-audit-2026.md",
+    "docs/src/architecture/cli-gui-surface-coverage-map-2026.md",
+    "docs/superpowers/plans/2026-06-03-gui-track-a-self-surfacing-gate.md",
+    "docs/superpowers/plans/2026-06-03-gui-track-c-gamification-surfacing.md",
+    "docs/superpowers/plans/2026-06-03-gui-track-b-scientia-pipeline-ui.md",
+    "crates/vox-gui/",
+    "crates/vox-scientia/",
+    "crates/vox-research-shim/",
+    "crates/vox-gamify/"
+  ],
+  "locked": false,
+  "precedence": null
+}

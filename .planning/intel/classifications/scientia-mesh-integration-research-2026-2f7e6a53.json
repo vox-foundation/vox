@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/scientia-mesh-integration-research-2026.md",
+  "type": "SPEC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Scientia × Mesh/Model-Routing Integration Research (2026)",
+  "summary": "Research proposal for closed-loop model/provider observation feedback into publication pipeline and routing layer via first-class signal families, learned-profile overlay, and Provider Atlas publication.",
+  "scope": ["DiscoverySignalFamily", "ModelCapabilityAtlas", "ProviderReliabilityAtlas", "model_profile_learning", "provider observations", "mesh integration", "routing weights"],
+  "cross_refs": ["ADR-011", "model-orchestration-ssot-audit-2026.md", "telemetry-trust-ssot.md", "nextgen-orchestrator-research-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Marked research status but Part 5 contains executable proposal with concrete Rust trait sketches, schema stubs, and contract-level specifications (LearnedProfileRow, ScoringWeights extensions, etc.). Confidence medium because research status has not been promoted to locked ADR, though architectural intent is clear."
+}

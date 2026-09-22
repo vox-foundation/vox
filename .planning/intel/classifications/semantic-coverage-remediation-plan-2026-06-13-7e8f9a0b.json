@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/semantic-coverage-remediation-plan-2026-06-13.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Semantic Coverage Remediation Plan v2 (audited)",
+  "summary": "Self-contained TDD implementation plan with per-symbol verification protocol, worked examples, and multi-wave execution roadmap.",
+  "scope": ["semantic-test-coverage", "TDD", "verification-protocol", "test-remediation", "coverage-graph", "Wave-0-5"],
+  "cross_refs": ["docs/src/architecture/semantic-test-coverage-graph-strategy-2026-06-07.md", "docs/src/architecture/semantic-gap-audit-2026.md", "docs/src/architecture/semantic-gap-implementation-plan-2026.md", "scripts/coverage-graph/README.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Detailed task/wave plan with checkpoint structure; classified as DOC (planning context) rather than SPEC despite procedural detail, as it prescribes work-in-progress remediation steps rather than stable contracts."
+}

@@ -1,0 +1,20 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/as-any-casts-reduction-strategy-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "FableForge as any Casts Reduction Strategy",
+  "summary": "Systemic strategy for auditing, classifying, and eliminating ~8,871 TypeScript as-any casts across FableForge monorepo via five sequential sweeps.",
+  "scope": [
+    "TypeScript type safety",
+    "as-any cast reduction",
+    "FableForge",
+    "Convex migration",
+    "Zod schema alignment",
+    "mock builders"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": "Document concerns FableForge codebase (not Vox); included for reference."
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/tooling-convergence-findings-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Tooling Convergence — Findings & Plan (2026-05-09)",
+  "summary": "Audit of fragmented testing, linting, and CI/CD tooling with convergence plan to route all checks through single owners.",
+  "scope": ["tooling convergence", "testing infrastructure", "linting", "CI/CD", "tool unification", "TOESTUB", "rustfmt", "clippy"],
+  "cross_refs": ["docs/src/architecture/where-things-live.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

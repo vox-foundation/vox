@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/plugin-system-redesign-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Plugin System Redesign (2026)",
+  "summary": "Architecture specification for unified runtime-loadable plugin system supporting code and skill payloads with per-deployment distribution bundles.",
+  "scope": ["plugin system", "ABI design", "code plugins", "skill plugins", "distribution bundles", "CUDA", "native dylibs"],
+  "cross_refs": ["plugin-system-redesign-sp1-plan-2026.md", "plugin-system-redesign-sp2-plan-2026.md", "plugin-system-redesign-sp3-plan-2026.md", "vox-populi-extraction-followup-plan-2026.md", "docs/src/reference/plugin-manifest.md", "docs/src/reference/plugin-catalog.md", "telemetry-trust-ssot.md", "cryptography-ssot-2026.md"],
+  "locked": false,
+  "precedence": null
+}

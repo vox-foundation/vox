@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/measurements/2026-09-11-candle-metal-calibration.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "candle-metal calibration: one real point, no fit yet",
+  "summary": "Records single Qwen3-0.6B Metal peak-memory measurement (53.4GB at batch=2×seq=512), explains why this point cannot be fitted into a model, surfaces batch-size silencing bug.",
+  "scope": ["Metal memory measurement", "calibration data", "candle-metal performance", "Qwen3-0.6B", "batch-size override"],
+  "cross_refs": ["2026-09-11-candle-metal-calibration.json", "vox-populi::mens::tensor::calibration", "fit_a_lane", "PeakSampler", "preset_schema.rs"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Empirical measurement record with single data point. Explicitly explains why a second point is needed (one equation, one unknown). Separate finding on batch-size silencing bug is flagged as non-blocker. Supporting research artifact, not a decision."
+}

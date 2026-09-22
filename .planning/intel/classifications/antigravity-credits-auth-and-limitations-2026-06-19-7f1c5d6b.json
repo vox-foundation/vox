@@ -1,0 +1,25 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/antigravity-credits-auth-and-limitations-2026-06-19.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Antigravity (agy) Credits, Auth & Limitations",
+  "summary": "Single source of truth for Antigravity Gemini credit integration: OAuth-only auth, per-project quota/rate limits, non-queryable credit balance, integration with Vox Clavis.",
+  "scope": [
+    "Antigravity CLI",
+    "Gemini credits",
+    "OAuth authentication",
+    "rate limits",
+    "quota management",
+    "Vox Clavis integration",
+    "credential-aware model selection"
+  ],
+  "cross_refs": [
+    "../../superpowers/plans/2026-06-19-agy-delegation-wedge1-2.md",
+    "https://github.com/google-antigravity/antigravity-cli/issues/78",
+    "https://github.com/google-antigravity/antigravity-cli/issues/36"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

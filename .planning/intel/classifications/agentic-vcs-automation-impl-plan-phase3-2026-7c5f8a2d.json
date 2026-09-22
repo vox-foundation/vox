@@ -1,0 +1,27 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/agentic-vcs-automation-impl-plan-phase3-2026.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Agentic VCS Automation — Phase 3 Implementation Plan (2026-05-09)",
+  "summary": "TDD implementation roadmap for agentic VCS Phase 3: dashboard surface with five panels, API routes, WebSocket telemetry tap, state legibility.",
+  "scope": [
+    "VCS dashboard",
+    "API routes",
+    "panel visualization",
+    "branch board",
+    "oplog viewer",
+    "push queue",
+    "capability ledger display",
+    "secret scanning UI",
+    "telemetry streaming"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/agentic-version-control-automation-research-2026.md",
+    "docs/src/architecture/agentic-vcs-automation-impl-plan-phase1-2026.md",
+    "docs/src/architecture/agentic-vcs-automation-impl-plan-phase2-2026.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Implementation plan and roadmap (status: roadmap); makes agentic VCS state human-legible via dashboard."
+}

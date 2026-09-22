@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/code-search-omnisearch-research-2026-06-17.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Code Search & Omni-Search Research (2026-06-17)",
+  "summary": "Web research findings on 2026 best practices for code search, hybrid retrieval, omni-search UX, and agent-facing search patterns.",
+  "scope": ["code search", "hybrid retrieval", "omni-search", "AST indexing", "RRF fusion"],
+  "cross_refs": ["omni-search-audit-and-roadmap-2026.md", "search-retrieval-ssot-2026.md"],
+  "locked": false,
+  "precedence": null
+}

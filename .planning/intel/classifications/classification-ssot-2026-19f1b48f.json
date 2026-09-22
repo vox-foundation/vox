@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/classification-ssot-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Classification Taxonomy SSoT",
+  "summary": "Single source of truth for Vox component classification, system subsystems, and nomenclature invariants.",
+  "scope": ["classification system", "subsystem naming", "crate prefixes", "component responsibility"],
+  "cross_refs": ["docs/agents/governance.md"],
+  "locked": false,
+  "precedence": null
+}

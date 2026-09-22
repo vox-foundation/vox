@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/017-populi-lease-remote-execution.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 017: Populi lease-based authoritative remote execution",
+  "summary": "Single-owner lease lifecycle for remote execution with A2A transport and local fallback on expiry.",
+  "scope": ["Populi", "lease", "remote execution", "A2A", "orchestrator", "mesh", "GPU", "authoritativ ownership"],
+  "cross_refs": ["../operations/populi-remote-execution-rollout-checklist.md", "../reference/populi.md", "../reference/orchestration-unified.md", "008-populi-transport.md", "009-populi-hosted-baas.md", "../reference/populi-work-type-placement-matrix.md", "../operations/populi-overlay-personal-cluster-runbook.md", "crates/vox-orchestrator/src/orchestrator/tests/populi_single_owner.rs", "crates/vox-orchestrator/src/a2a/envelope.rs"],
+  "locked": true,
+  "precedence": null
+}

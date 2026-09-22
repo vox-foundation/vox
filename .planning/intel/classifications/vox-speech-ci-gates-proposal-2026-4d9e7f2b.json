@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-speech-ci-gates-proposal-2026.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Vox Speech CI Gates Proposal 2026",
+  "summary": "Proposal to separate required and advisory CI gates for speech-to-code quality and prevent regression.",
+  "scope": ["CI gates", "speech-to-code", "KPI", "canary", "ASR", "testing strategy"],
+  "cross_refs": ["speech_audit_contract_test", "speech_canary_test", "vox-integration-tests", "vox-cli"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Proposal status; defines roadmap items but no accepted decision yet. Contains process/policy recommendations."
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mobile-rn-expo-architecture-and-migration-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Mobile architecture and migration plan — RN + Expo + uniffi (2026)",
+  "summary": "Architecture guide for React Native + Expo + uniffi bridging: one VUV HIR with two GUI lowerings (web and mobile), same Rust runtime on every device, Tauri for desktop only.",
+  "scope": ["React Native", "Expo", "uniffi", "VUV HIR", "codegen", "Tauri desktop", "mental-tracker"],
+  "cross_refs": ["mobile-target-evaluation-2026.md", "adr-037", "codegen-ssot-unification-design-2026", "tauri-convergence-migration-plan-2026", "external-frontend-interop-plan-2026"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,23 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Gemini 3.5 Flash & Google Antigravity — Limitations and Execution Constraints",
+  "summary": "Reference profile of Gemini 3.5 Flash in Antigravity: capability gaps, documented failure modes, customization surfaces, and plan-engineering constraints for autonomous work.",
+  "scope": [
+    "Gemini 3.5 Flash model",
+    "Google Antigravity IDE",
+    "model capability profile",
+    "reliability failure modes",
+    "plan engineering constraints",
+    "subagent execution"
+  ],
+  "cross_refs": [
+    "GEMINI.md",
+    "AGENTS.md",
+    "antigravity-handoff-and-skill-gaps-2026-06-18.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

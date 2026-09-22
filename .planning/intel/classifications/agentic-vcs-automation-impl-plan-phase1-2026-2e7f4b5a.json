@@ -1,0 +1,24 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/agentic-vcs-automation-impl-plan-phase1-2026.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Agentic VCS Automation — Phase 1 Implementation Plan (2026-05-08)",
+  "summary": "TDD implementation roadmap for agentic VCS Phase 1: capability types, workspace binding, git exec wrapper, secret scanning, commit/branch MCP tools.",
+  "scope": [
+    "VCS automation",
+    "capability types",
+    "git wrapper",
+    "MCP tools",
+    "secret scanning",
+    "commit trailers",
+    "branch management"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/agentic-version-control-automation-research-2026.md",
+    "docs/agents/git-concurrency-policy.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Implementation plan and roadmap (status: roadmap); guides concrete task decomposition with TDD steps, not a locked decision."
+}

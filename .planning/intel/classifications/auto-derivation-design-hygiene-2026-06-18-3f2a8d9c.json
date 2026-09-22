@@ -1,0 +1,24 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/auto-derivation-design-hygiene-2026-06-18.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Design Hygiene for Auto-Derived UI and Observability",
+  "summary": "Cross-cutting design principles for auto-GUI and auto-debugging: opt-in, structure-vs-semantics, selective-by-default, advise-not-gate, escape hatches.",
+  "scope": [
+    "design principles",
+    "auto-derivation",
+    "auto-GUI",
+    "observability",
+    "K-complexity discipline",
+    "escape hatches"
+  ],
+  "cross_refs": [
+    "auto-gui-from-pure-logic-research-2026-06-18.md",
+    "auto-debugging-zero-annotation-research-2026-06-18.md",
+    "error-surfacing-dual-audience-research-2026-06-18.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

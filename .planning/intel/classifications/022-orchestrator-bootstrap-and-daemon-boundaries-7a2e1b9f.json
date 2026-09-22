@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/022-orchestrator-bootstrap-and-daemon-boundaries.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 022 — Orchestrator bootstrap factory and daemon boundaries",
+  "summary": "Single factory for repo-scoped Orchestrator; relationship to MCP and daemon boundaries.",
+  "scope": ["Orchestrator", "bootstrap", "daemon", "MCP", "vox-orchestrator-d", "RPC", "coordination"],
+  "cross_refs": ["crates/vox-orchestrator/src/bootstrap.rs", "crates/vox-orchestrator/src/orch_daemon/mod.rs", "crates/vox-orchestrator/src/mesh_federation_poll.rs", "crates/vox-orchestrator/src/mcp_tools/mod.rs", "crates/vox-orchestrator/src/clarification_db_inbox_poll.rs", "crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs", "crates/vox-cli/src/dei_daemon.rs", "archive/research-2026-q1/orphan-surface-inventory.md", "reference/populi-coordination.md", "reference/orchestration-unified.md"],
+  "locked": true,
+  "precedence": null
+}

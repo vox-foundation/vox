@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/nightly-builds-ssot.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Nightly Builds",
+  "summary": "Operational documentation of nightly release-pipeline exercise, why no public automatic nightly release, and how to use nightly builds locally via draft releases.",
+  "scope": ["nightly builds", "release pipeline", "CI automation", "draft releases", "GitHub workflows", "release safety"],
+  "cross_refs": ["nightly-artifacts.yml", "release-binaries.yml", "release-installers.yml", "crates/vox-cli-ci/src/release_draft_guard.rs"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

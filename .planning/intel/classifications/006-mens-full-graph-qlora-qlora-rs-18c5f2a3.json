@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/006-mens-full-graph-qlora-qlora-rs.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 006: Mens full-graph Candle QLoRA with qlora-rs",
+  "summary": "Mens trains with Candle and qlora-rs supporting sequential multi-layer NF4 quantized modules and optional double quantization.",
+  "scope": ["Mens", "Candle", "qlora-rs", "QLoRA", "NF4", "double quantization", "QuantizedLinear", "training"],
+  "cross_refs": ["../reference/mens-training.md", "https://arxiv.org/abs/2305.14314", "https://docs.rs/qlora-rs"],
+  "locked": true,
+  "precedence": null
+}

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/scientia-self-publication-gap-map-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "SCIENTIA Self-Publication Gap Map (2026)",
+  "summary": "Audit of gaps between completed finalization phases and full self-publication workflow, with prioritized remediation roadmap.",
+  "scope": ["SCIENTIA", "publication", "gap-map", "candidate-producers", "replay-verification", "manuscript-scaffolding", "solo-author-approval"],
+  "cross_refs": ["docs/src/architecture/scientia-self-publication-finalization-plan-2026.md", "docs/superpowers/plans/scientia/2026-05-15-scientia-self-publication-phase-index.md", "docs/src/reference/scientia-ssot-handbook.md", "docs/src/reference/scientia-publication-worthiness-rules.md", "docs/src/architecture/where-things-live.md", "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md"],
+  "locked": false,
+  "precedence": null
+}

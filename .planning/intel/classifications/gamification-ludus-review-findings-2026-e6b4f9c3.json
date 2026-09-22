@@ -1,0 +1,21 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/gamification-ludus-review-findings-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox Gamification & Ludus System Review",
+  "summary": "Comprehensive review of Vox Gamify subsystem architecture; identifies gaps in wellness features, cost controls, SVG art generation, and optionality constraints.",
+  "scope": [
+    "gamification architecture",
+    "Ludus subsystem",
+    "wellness features",
+    "cost tracking",
+    "companion SVG rendering",
+    "developer burnout prevention"
+  ],
+  "cross_refs": [
+    "vox-gamify crate"
+  ],
+  "locked": false,
+  "precedence": null
+}

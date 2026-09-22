@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mesh-phase2-code-mobility-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Mesh Phase 2 — Code Mobility & Versioning Implementation Plan (2026-05-09)",
+  "summary": "Step-by-step TDD implementation plan for Phase 2: content-addressed workflow bundles via CAS, workflow.version() patch markers, drain tooling, mesh code seeding, activity result caching, dispatch preview, and codegen split.",
+  "scope": ["vox-package CAS", "workflow versioning", "bundle store", "activity result cache", "dispatch preview", "codegen split"],
+  "cross_refs": ["mesh-and-language-distribution-ssot-2026.md", "layers.toml", "where-things-live.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

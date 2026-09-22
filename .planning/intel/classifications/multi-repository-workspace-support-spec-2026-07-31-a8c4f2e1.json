@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/multi-repository-workspace-support-spec-2026-07-31.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Multi-Repository Workspace Support Spec (2026-07-31)",
+  "summary": "Design for multi-repository GUI support: workspaces table, folder-picker, VCS-kind detection, phased task breakdown with data model and GUI surface specs.",
+  "scope": ["workspaces table schema", "folder picker UI", "GUI workspace switcher", "vcs_kind detection", "multi-repository support"],
+  "cross_refs": ["vox-vcs::VcsBackend", "contracts/gui/workspaces.v1.schema.json"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

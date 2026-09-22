@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/native-code-emission-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Research: Compiled Systems Native Code Emission for Vox (2026)",
+  "summary": "Audit of Vox compiler pipeline for native code emission paths: Rust-as-IL vs LLVM/Cranelift, WebIR enrichment, GPU rendering, VUV-Native architecture.",
+  "scope": ["compiler pipeline", "native code emission", "LLVM", "Cranelift", "WebIR", "GPU rendering", "Rust codegen", "incremental codegen"],
+  "cross_refs": ["codegen_rust/emit/state_machine.rs", "vuv-layered-layout-discipline-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

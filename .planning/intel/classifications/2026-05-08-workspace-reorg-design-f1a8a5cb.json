@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/2026-05-08-workspace-reorg-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Workspace Reorg — Build-Time + Layered Architecture (2026-05-08)",
+  "summary": "Design for workspace reorganization: 6-layer architecture model, build-time wins targets, 10-phase decomposition of monoliths, layer enforcement CI guard.",
+  "scope": ["workspace-architecture", "layer-model", "build-time-optimization", "crate-extraction", "orchestrator", "CLI", "database", "plugins", "architectural-guard"],
+  "cross_refs": ["docs/src/architecture/phase-numbering-index.md", "docs/src/architecture/layers.toml"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Architectural SPEC defining 6-layer model (L0-L5), target build-time wins (40-80%), phasing (10 phases), acceptance criteria, and risk register. Enforced by layer-check CI guard."
+}

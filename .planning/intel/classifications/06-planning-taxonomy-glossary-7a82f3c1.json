@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/planning-meta/06-planning-taxonomy-glossary.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Planning taxonomy and glossary",
+  "summary": "Canonical terminology reference for planning-meta artifacts with preferred terms, forbidden aliases, and historical mappings.",
+  "scope": ["planning terminology", "canonical terms", "glossary", "planning-meta", "authority terms", "planning quality terms"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": "Normative glossary that all planning docs must use; classified as DOC (reference/terminology guide) rather than SPEC because it defines vocabulary and aliases, not technical contracts or protocols."
+}

@@ -1,0 +1,22 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/agent-shell-fluency-eval-design-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Agent Shell Fluency Eval Design (2026)",
+  "summary": "Optional A/B evaluation design for testing shell command generation accuracy in PowerShell vs. Bash; not currently run or shipped.",
+  "scope": [
+    "agent evaluation",
+    "shell command generation",
+    "PowerShell",
+    "Bash",
+    "A/B testing design",
+    "task-based eval"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/terminal-exec-policy-ssot.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Evaluation design document; explicitly not run or shipped. Provides framework for future testing if policy change requires codegen-fluency claims."
+}

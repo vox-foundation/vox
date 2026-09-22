@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mens-training-pipeline-audit-and-improvement-plan-2026-06-07.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "MENS training pipeline — audit + improvement scoping (2026-06-07)",
+  "summary": "Read-only audit of MENS QLoRA trainer state, crash diagnosis, VRAM backlog ranked by impact, and mesh distributed training verdict.",
+  "scope": ["MENS", "QLoRA", "training pipeline", "checkpoint", "gradient checkpointing", "distributed training"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

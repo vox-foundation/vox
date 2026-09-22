@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/autonomous-orchestration-policy-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Autonomous Orchestration Policy — Decision-Rule Research for Agent-to-Agent Behavior Switching (2026)",
+  "summary": "Research synthesis mapping external state-of-the-art model routing, planning, confidence fusion, and escalation onto Vox's orchestrator surface; proposes skeleton decision-rule contracts for the gaps.",
+  "scope": ["orchestrator", "model routing", "planning mode", "confidence fusion", "HITL escalation", "sub-agent dispatch"],
+  "cross_refs": ["model-orchestration-ssot-audit-2026.md", "nextgen-orchestrator-research-2026.md", "orchestrator-companion-audit-findings-2026.md", "../adr/005-socrates-anti-hallucination-ssot.md", "../adr/030-state-machine-ssot.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Research-stage document; proposes skeleton YAML contracts (§13) that should become ADRs, not a decision itself. Frontmatter status=research. Produces input to decision-rule ADRs, not a decision document."
+}

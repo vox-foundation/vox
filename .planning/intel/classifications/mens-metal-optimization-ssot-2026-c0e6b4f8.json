@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mens-metal-optimization-ssot-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Local MENS Inference Engine & Apple Silicon Metal Optimization SSOT (2026)",
+  "summary": "Establishes Metal inference architecture: 75% unified-memory ceiling rule, O(N²) decode bottleneck (KV-cache gap), performance targets (38tps parity), phased roadmap with P0-P2 gaps.",
+  "scope": ["Metal inference architecture", "unified memory budget", "KV-cache optimization", "decode throughput", "Apple Silicon optimization", "performance benchmarks"],
+  "cross_refs": ["vox-populi::mens::hardware::macos_metal", "vox-plugin-mens-candle-metal::inference", "metal_optimization_probe_test.rs", "llama.cpp Metal benchmark", "Ollama Metal performance"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Technical SSOT document: establishes ground truth (codebase state), empirical methodology, comparative benchmarks, identified gaps (P0 KV-cache, P1 fused shaders, P2 dynamic tensors), anti-patterns, phased implementation roadmap with verification gates. '-ssot' suffix and content establish this as authoritative specification. Not a decision but a technical contract."
+}

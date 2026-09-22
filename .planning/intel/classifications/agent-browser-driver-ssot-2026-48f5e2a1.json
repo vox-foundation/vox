@@ -1,0 +1,24 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/agent-browser-driver-ssot-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Autonomous Browser Driver & Accessibility-Tree Navigation SSOT (2026)",
+  "summary": "Architectural specification for compact semantic accessibility snapshotting with empirically-validated performance targets for agent browser interaction.",
+  "scope": [
+    "browser automation",
+    "accessibility tree",
+    "semantic compression",
+    "token efficiency",
+    "monotonic indexing",
+    "action targeting"
+  ],
+  "cross_refs": [
+    "crates/vox-plugin-browser/src/engine.rs",
+    "crates/vox-plugin-api/src/extensions/browser_automation.rs",
+    "crates/vox-plugin-browser/tests/ax_snapshot_probe_test.rs"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

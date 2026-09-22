@@ -1,0 +1,22 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/frontend-convergence-findings-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Frontend Convergence Findings (2026)",
+  "summary": "Audit of TypeScript/JSX/React emit pipeline and GUI primitives; identifies dead surfaces, names canonical SSOT (HIR → Web IR → emitters), and specifies Contract IR convergence layer.",
+  "scope": [
+    "TypeScript/JSX/React emit",
+    "GUI primitives",
+    "HIR lowering",
+    "frontend interop",
+    "Contract IR",
+    "Zod/OpenAPI emit"
+  ],
+  "cross_refs": [
+    "external-frontend-interop-plan-2026.md",
+    "gui-native-roadmap-status-2026.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

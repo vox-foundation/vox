@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md",
+  "type": "SPEC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "MENS Distributed Training & Execution Plan (2026-05-09)",
+  "summary": "Distributed-AI track supplementing Mesh SSOT; defines 15 task IDs, model-loading/execution/training specs, content-addressed SafeTensors bundles, and MENS corpus alignment.",
+  "scope": ["MENS", "distributed training", "model execution", "model loading", "SafeTensors", "inference", "task planning"],
+  "cross_refs": ["mesh-and-language-distribution-ssot-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Presented as a 'plan', but explicitly defines task IDs, struct/trait sketches, and acceptance gates that function as a technical specification for the MENS distributed-AI subsystem. Borderline between DOC and SPEC; classified as SPEC because it specifies contract boundaries and acceptance criteria."
+}

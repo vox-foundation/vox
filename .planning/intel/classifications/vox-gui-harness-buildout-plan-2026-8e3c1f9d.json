@@ -1,0 +1,26 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-gui-harness-buildout-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox GUI Harness Build-Out Plan 2026",
+  "summary": "Three-track plan to evolve Tauri GUI from CLI-derived dashboard into full agentic harness: stateful core, CLI command surface, and UX design.",
+  "scope": [
+    "harness capabilities",
+    "daemon event streaming",
+    "run store",
+    "interactive approvals",
+    "streaming chat",
+    "MCP execution",
+    "design system",
+    "command manifest"
+  ],
+  "cross_refs": [
+    "docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md",
+    "docs/src/adr/037-gui-action-manifest.md",
+    "crates/vox-gui/ui/",
+    "docs/src/architecture/vox-gui-ux-beautification-plan-2026.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

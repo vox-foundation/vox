@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/planning-meta/08-milestone-gate-definition-spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Milestone and gate definition spec",
+  "summary": "Tier 1 normative specification for defining milestones and gates with explicit pass/fail evidence, escalation rules, and stop conditions.",
+  "scope": ["milestones", "gates", "evidence classes", "escalation", "stop conditions", "pass criteria", "fail criteria"],
+  "cross_refs": ["docs/src/architecture/planning-meta/09-exception-deferral-policy.md", "docs/src/architecture/internal-web-ir-implementation-blueprint.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/plugin-registration-resolution-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Plugin Registration Resolution Path (2026)",
+  "summary": "Documents root cause and resolution steps for tensor-burn-wgpu to mens-candle-cuda regression, providing prevention template.",
+  "scope": ["plugin system", "ML backends", "error resolution", "tensor-burn-wgpu", "mens-candle-cuda"],
+  "cross_refs": ["crates/vox-ml-cli/src/commands/mens/populi/dispatch.rs", "crates/vox-plugin-catalog/catalog.toml"],
+  "locked": false,
+  "precedence": null
+}

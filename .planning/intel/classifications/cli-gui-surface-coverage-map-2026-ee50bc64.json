@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/cli-gui-surface-coverage-map-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "CLI→GUI Surface Coverage Map 2026",
+  "summary": "Per-surface gap audit matrix of CLI vs GUI representation, with association thesis linking Scientia, Ludus, and other surfaces.",
+  "scope": ["CLI surfaces", "GUI coverage", "Scientia", "Ludus", "action manifest"],
+  "cross_refs": ["vox-gui-capability-audit-2026.md", "crates/vox-cli/src/lib.rs", "crates/vox-gui/src/main.rs"],
+  "locked": false,
+  "precedence": null
+}

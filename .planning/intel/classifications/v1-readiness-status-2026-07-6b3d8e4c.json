@@ -1,0 +1,22 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/v1-readiness-status-2026-07.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "v1.0 Readiness Status (2026-07-22 audit)",
+  "summary": "Live-codebase audit of CR-F/CR-K/CR-U criteria as of 2026-07-22, reporting implementation status (Built & Verified / Built, Unverified / Unbuilt) for each criterion.",
+  "scope": [
+    "v1.0 readiness",
+    "CR-F Foundation tier",
+    "CR-K Distribution tier",
+    "CR-U GUI tier",
+    "audit",
+    "implementation status"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/v1-foundation-criteria-research-2026.md",
+    "docs/superpowers/plans/2026-07-22-orchestrator-reliability-and-bottom-bar.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

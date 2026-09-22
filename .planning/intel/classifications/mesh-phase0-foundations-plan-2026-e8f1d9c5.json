@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mesh-phase0-foundations-plan-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Mesh Phase 0 — Foundations Implementation Plan (2026-05-09)",
+  "summary": "TDD implementation specification for Phase 0: persisted lock map, lock-leader election, lease-gated dispatch, secret injection, TLS option, probe trait, SkillRuntime seam.",
+  "scope": ["mesh", "Phase 0", "locks", "lock leader", "dispatch", "secrets", "TLS", "probes", "SkillRuntime"],
+  "cross_refs": ["mesh-and-language-distribution-ssot-2026.md", "populi-mesh-probe-correctness-spec-2026.md", "populi-mesh-probe-correctness-plan-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

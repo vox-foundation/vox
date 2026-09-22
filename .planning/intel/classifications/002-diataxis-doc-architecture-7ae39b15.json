@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/002-diataxis-doc-architecture.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 002 — Diátaxis Three-Tier Documentation Architecture",
+  "summary": "Ground documentation system in audience and authority boundaries; use Diátaxis as reader-facing organizing principle.",
+  "scope": ["documentation architecture", "Diátaxis", "mdBook", "audience boundaries", "frontmatter", "governance"],
+  "cross_refs": ["diataxis.fr", "../contributors/documentation-governance.md", "../crates/vox-doc-pipeline/src/main.rs"],
+  "locked": true,
+  "precedence": null
+}

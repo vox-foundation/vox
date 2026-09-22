@@ -1,0 +1,27 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-gui-ux-beautification-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox GUI UX Beautification & Build-out Plan",
+  "summary": "Comprehensive code review, bug catalog (25+ issues), and seven-phase plan to take GUI from functional operator console to fully built-out, accessible, design-system-driven product.",
+  "scope": [
+    "UX design",
+    "design system",
+    "bug fixes and polish",
+    "accessibility",
+    "component primitives",
+    "surface rebuild",
+    "user journeys",
+    "visual regression testing"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/vox-gui-design-review-2026.md",
+    "docs/src/architecture/vox-gui-capability-audit-2026.md",
+    "contracts/gui/surface-registry.v1.yaml",
+    "crates/vox-gui/ui/",
+    "crates/vox-gui/tauri.conf.json"
+  ],
+  "locked": false,
+  "precedence": null
+}

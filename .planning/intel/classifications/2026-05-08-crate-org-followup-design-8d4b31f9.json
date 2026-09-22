@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/2026-05-08-crate-org-followup-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Crate Organization Follow-up — SSOT, Naming, and Sprawl",
+  "summary": "Specification for crate organization follow-up: SSOT/discoverability drift fixes, naming consistency, and 5 build-time extractions ranked by impact.",
+  "scope": ["crate-organization", "SSOT", "naming", "build-time", "crate-extraction", "vox-gamify", "vox-orchestrator", "vox-package"],
+  "cross_refs": ["docs/src/architecture/2026-05-08-workspace-reorg-design.md", "docs/src/architecture/2026-05-08-workspace-reorg-outcome.md", "docs/src/architecture/2026-05-08-naming-and-guards-design.md", "docs/src/architecture/2026-05-15-cli-ci-extraction-plan.md", "docs/src/architecture/2026-05-15-orchestrator-tier-d-plan.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Specification document defining 6 PRs (A, B, C1-C5), Track A SSOT fixes, Track B naming changes, Track C build-time extractions with ranked priorities. Non-goals and open questions documented."
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/boilerplate-reduction-design-brief-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Boilerplate Reduction in Modern Full-Stack & Mobile Development — Ranked Design Brief for Vox (2026)",
+  "summary": "Externally-sourced design brief ranking 25 categories of repetitive scaffolding by frequency/burden/leverage; reviewer caveats emphasize it is research input, not roadmap.",
+  "scope": ["async-state", "cross-stack types", "forms", "auth", "effects", "validation", "state sync", "i18n", "routing", "observability", "durable jobs"],
+  "cross_refs": ["boilerplate-reduction-gap-analysis-2026.md", "web-app-archetype-coverage-2026.md", "external-frontend-interop-plan-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Research input, externally authored; filed verbatim with reviewer critique (§5) appended. Reviewer explicitly cautions against treating brief's Phase sequence as roadmap. Frontmatter status=research. Use as vocabulary bridge for industry-shaped requirements, reconcile against gap-analysis for actual backlog status."
+}

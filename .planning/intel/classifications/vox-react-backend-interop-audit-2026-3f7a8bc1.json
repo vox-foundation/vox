@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-react-backend-interop-audit-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox–React backend interop audit (2026)",
+  "summary": "Code-anchored audit of Vox as backend/API provider for React, with wire-parity findings and remediation plans.",
+  "scope": ["Vox-React interop", "API contract", "OpenAPI", "TypeScript client", "Axum server"],
+  "cross_refs": ["phase-numbering-index.md", "wire-format-v1-ssot.md", "crates/vox-compiler", "crates/vox-codegen-ts"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

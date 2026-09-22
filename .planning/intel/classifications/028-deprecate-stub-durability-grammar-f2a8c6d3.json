@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/028-deprecate-stub-durability-grammar.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-028: Remove Stub Durability/Scheduling Grammar from Public API",
+  "summary": "Proposes removing @scheduled, @durable, workflow, activity from public grammar after audit found zero runtime implementation.",
+  "scope": ["durability", "scheduling grammar", "public API", "deprecation", "stub detection", "actor mailbox"],
+  "cross_refs": ["041-durable-functions-completion-2026.md", "019-durable-workflow-journal-contract-v1.md", "021-generated-workflow-durability-parity.md", "architecture/durability-runtime-audit-2026.md", "crates/vox-compiler/src/hir/nodes/durability.rs", "crates/vox-compiler/src/hir/lower/mod.rs", "crates/vox-runtime/src/scheduler.rs"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Superseded by ADR-041 (2026-05-23); original Proposed status was updated to superseded"
+}

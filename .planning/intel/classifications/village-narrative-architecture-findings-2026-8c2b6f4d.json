@@ -1,0 +1,20 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/village-narrative-architecture-findings-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Village Narrative Architecture Research Audit",
+  "summary": "Research audit on game narrative architecture with five-layer framework, critical LLM constraints, identified bugs, and preliminary recommendations for FableForge village.",
+  "scope": [
+    "narrative architecture",
+    "game design",
+    "FableForge village",
+    "LLM narration",
+    "drama management",
+    "story beats",
+    "NPC systems"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null
+}

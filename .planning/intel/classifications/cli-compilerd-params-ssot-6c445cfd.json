@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/cli-compilerd-params-ssot.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "CLI vs compilerd params (split-brain backlog)",
+  "summary": "Canonical reference for CLI parameter contract convergence, documenting duplicate clap vs serde structs and target unified shape.",
+  "scope": ["CLI parameters", "compilerd", "parameter contract", "split-brain", "clap vs serde"],
+  "cross_refs": ["crates/vox-cli/src/cli_args.rs", "crates/vox-cli/src/compilerd.rs"],
+  "locked": false,
+  "precedence": null
+}

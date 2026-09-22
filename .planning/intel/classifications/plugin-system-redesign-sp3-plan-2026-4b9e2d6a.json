@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/plugin-system-redesign-sp3-plan-2026.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Plugin System Redesign — SP3 Implementation Plan (2026)",
+  "summary": "Step-by-step TDD implementation plan for MlBackend extension trait, mens-candle-cuda plugin extraction from vox-populi, and training parity verification.",
+  "scope": ["implementation planning", "MlBackend trait", "plugin extraction", "CUDA training", "mens-candle-cuda", "ML backends"],
+  "cross_refs": ["plugin-system-redesign-2026.md", "plugin-system-redesign-sp1-plan-2026.md", "plugin-system-redesign-sp2-plan-2026.md", "vox-populi", "vox-plugin-mens-candle-cuda"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Status block indicates partial completion (batches 1-2 landed, 3-11 deferred); follow-up plan TBD for training extraction boundary decision."
+}

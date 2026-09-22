@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/034-candle-qlora-stack-upgrades.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 034 — Candle / QLoRA stack upgrades (deferred batch)",
+  "summary": "Defer Candle/peft/qlora version unification to dedicated upgrade train with GPU CI.",
+  "scope": ["Candle", "QLoRA", "peft", "MENS training", "GPU CI", "dependency management"],
+  "cross_refs": ["../architecture/workspace-dependency-audit-2026.md"],
+  "locked": false,
+  "precedence": null
+}

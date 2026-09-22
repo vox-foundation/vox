@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/repo-layout-single-file-parent-dirs-triage-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Single-file parent directories (triage list)",
+  "summary": "Machine-generated triage list of ~203 tracked directories with exactly one file; reference for consolidation decisions.",
+  "scope": ["repository structure", "directory organization", "Rust modules", "configuration folders"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

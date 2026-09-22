@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/test-inventory-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Workspace test inventory (2026)",
+  "summary": "Regenerable reference for Rust tests, golden Vox, E2E specs, harness patterns, and test runtime metrics.",
+  "scope": ["test inventory", "Rust tests", "golden Vox", "E2E tests", "test harness", "nextest", "JUnit metrics"],
+  "cross_refs": ["docs/src/ci/runner-contract.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

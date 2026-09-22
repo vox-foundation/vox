@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/share-policy-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "vox share — Abuse Policy and ToS Reference (2026)",
+  "summary": "Compliance policy defining abuse contacts, takedown procedures, and privacy for vox share tunnel.",
+  "scope": ["vox share", "abuse policy", "terms of service", "Cloudflare", "localhost.run", "Tailscale", "privacy", "takedown"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null
+}

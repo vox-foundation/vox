@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/session-handoff-2026-05-25-finalization-pass.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Handoff: finalization pass (2026-05-25)",
+  "summary": "Post-recovery audit and repair pass; what was fixed, what remains pending, and v0.6.0 release criteria status.",
+  "scope": ["handoff", "finalization", "v0.6.0", "test-fixes", "acceptance-suite", "next-session-priorities"],
+  "cross_refs": ["docs/src/architecture/session-handoff-2026-05-24-lost-work-audit.md", "docs/superpowers/plans/2026-05-25-post-sprint-forward-plan.md"],
+  "locked": false,
+  "precedence": null
+}

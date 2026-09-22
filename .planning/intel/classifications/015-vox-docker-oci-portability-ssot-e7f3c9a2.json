@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/015-vox-docker-oci-portability-ssot.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 015: Vox Docker/OCI portability SSOT",
+  "summary": "Docker/OCI-backed portability model as primary deployment boundary for deployed .vox applications.",
+  "scope": ["Docker", "OCI", "portability", "Vox.toml", "vox.lock", "vox-package", "vox-container", "deployment"],
+  "cross_refs": ["docs/src/architecture/vox-docker-dotvox-portability-research-2026.md", "docs/src/architecture/vox-docker-dotvox-portability-implementation-plan-2026.md", "docs/src/reference/vox-portability-ssot.md", "docs/src/reference/deployment-compose.md", "crates/vox-pm/src/manifest.rs", "crates/vox-container/src/deploy_target.rs", "crates/vox-install-policy/src/lib.rs"],
+  "locked": true,
+  "precedence": null
+}

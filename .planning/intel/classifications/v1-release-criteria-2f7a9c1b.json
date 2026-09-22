@@ -1,0 +1,25 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/v1-release-criteria.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox v1.0 Release Criteria (Hardened)",
+  "summary": "Tiered, machine-verifiable v1.0 release criteria (Foundation/Distribution/GUI/Product tiers) with exact verification commands, artifact paths, and gate ordering.",
+  "scope": [
+    "v1.0 release",
+    "release criteria",
+    "CR-F Foundation",
+    "CR-K Distribution",
+    "CR-U GUI",
+    "CR-P/A/E/D/L Product",
+    "verification gates"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/v1-foundation-criteria-research-2026.md",
+    "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md",
+    "docs/src/architecture/codegen-ts-domain-boundary-and-cr-f2-correction-2026.md",
+    "docs/src/adr/037-tauri-convergence.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/025-multi-agent-lock-coherence.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-025: Multi-Agent Lock Coherence and Lease Propagation",
+  "summary": "Extends locks subsystem with ResourceLockManager for multi-agent resource coordination and contention.",
+  "scope": ["multi-agent", "lock coherence", "resource management", "bulletin board", "lease expiration", "agent coordination"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null
+}

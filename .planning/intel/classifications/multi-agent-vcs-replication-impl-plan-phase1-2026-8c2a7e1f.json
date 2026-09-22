@@ -1,0 +1,26 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/multi-agent-vcs-replication-impl-plan-phase1-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Multi-Agent VCS Replication — Phase 1 Implementation Plan (2026-05-03)",
+  "summary": "Step-by-step TDD implementation plan for Phase 1: local-only op-log gossip between agents on one machine with 16 tasks covering ~80 individual steps and complete code specifications.",
+  "scope": [
+    "convergence engine",
+    "op-log gossip",
+    "AgentChange",
+    "OpFragment",
+    "MergePolicy",
+    "jj-backend",
+    "local multi-agent"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/multi-agent-vcs-replication-spec-2026.md",
+    "docs/src/architecture/multi-agent-vcs-replication-research-2026.md",
+    "crates/vox-orchestrator/src/convergence/",
+    "crates/vox-orchestrator/src/jj_backend.rs"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

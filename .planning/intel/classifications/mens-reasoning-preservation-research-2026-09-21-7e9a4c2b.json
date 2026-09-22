@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mens-reasoning-preservation-research-2026-09-21.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "MENS Reasoning Preservation — Research Findings (2026-09-21)",
+  "summary": "Audit of MENS Qwen3 fine-tuning pipeline examining chain-of-thought damage risk; concludes mode suppression likely over erased capability.",
+  "scope": ["MENS", "Qwen3-8B", "fine-tuning", "reasoning preservation", "LoRA"],
+  "cross_refs": ["./qwen-3.7-profile-and-mens-4b-feasibility-2026-06-07.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Frontmatter labels as 'Architecture SSOTs' but content is research audit/findings, not a binding decision or technical contract. Verdict section names key findings but no 'Status: Accepted/Proposed' field or decision/consequences structure."
+}

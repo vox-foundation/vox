@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/plugin-system-audit-2026-05-08.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Plugin System Audit (2026-05-08)",
+  "summary": "First-pass audit of plugin system post-extraction covering ABI drift, scaffolds, duplicate code paths, and build optimization opportunities.",
+  "scope": ["plugin system", "ABI versioning", "code duplication", "NVML", "build optimization"],
+  "cross_refs": ["plugin-system-deep-audit-2026-05-08.md", "vox-populi", "vox-plugin-nvml-probe", "vox-plugin-tensor-burn-wgpu"],
+  "locked": false,
+  "precedence": null
+}

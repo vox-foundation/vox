@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/voxmens-finetuning-boundaries-research-2026-06-21.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "VoxMens Fine-Tuning Boundaries — Research Findings (2026-06-21)",
+  "summary": "Deep-research evidence on fine-tuning boundaries for VoxMens hub-and-spoke design: hubs, harness, low-resource DSL adaptation.",
+  "scope": ["VoxMens", "fine-tuning", "Qwen3", "LoRA", "tool-use", "open-weight LLM", "adapter serving"],
+  "cross_refs": ["BFCL", "MultiPL-E", "vLLM", "LoRAX", "2509.20415", "2503.18760", "2508.04865"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

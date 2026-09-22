@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/2026-05-08-llm-misleading-content-cleanup-plan.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "LLM-Misleading-Content Cleanup Plan (2026-05-08)",
+  "summary": "15-phase comprehensive plan to eliminate stale syntax, retired-feature mentions, and dual-brain documentation misleading LLM tool calls.",
+  "scope": ["documentation-cleanup", "@island", "@server", "@query", "@mutation", "vox-clavis", "vox-secrets", "ADR", "retired-surfaces", "phase-numbering"],
+  "cross_refs": ["docs/src/architecture/2026-05-02-codebase-cleanup-and-signal-improvement.md", "docs/src/architecture/external-frontend-interop-plan-2026.md", "docs/src/adr/027-dual-track-ui-surfaces.md", "docs/src/adr/012-internal-web-ir-strategy.md", "docs/src/architecture/phase-numbering-index.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Cleanup/hygiene plan with 15 distinct phases (A-O). Supersedes Phase 5 of 2026-05-02 plan. Creates new phase-numbering-index.md to disambiguate three independent phase sequences."
+}

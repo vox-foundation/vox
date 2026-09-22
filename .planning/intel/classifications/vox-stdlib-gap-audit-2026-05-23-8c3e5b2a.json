@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox stdlib & interp gap audit (2026-05-23)",
+  "summary": "Audit of discrepancies between what committed .vox scripts call and what the binary executes; findings handoff for remediation.",
+  "scope": ["stdlib", "interpreter", "vox scripts", "missing namespaces", "regex", "path functions", "lexer bugs"],
+  "cross_refs": ["vox-compiler/src/lexer/token.rs", "vox-compiler/src/eval/shell_stdlib.rs", "ref-builtins-stdlib.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

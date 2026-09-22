@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/nextgen-orchestrator-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Next-Generation AI Orchestrator: Systemic Flaws, Power User Demands, and Production Design Patterns",
+  "summary": "Comprehensive research synthesis covering enterprise AI failure modes, native-systems performance, multi-provider routing, autonomous FinOps, hallucination prevention, mesh GPU, multi-agent coherence, AI-first DSLs.",
+  "scope": ["orchestrator design", "enterprise AI", "budget management", "multi-provider routing", "hallucination detection", "mesh GPU architecture", "distributed inference", "workflow durability", "cost optimization"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

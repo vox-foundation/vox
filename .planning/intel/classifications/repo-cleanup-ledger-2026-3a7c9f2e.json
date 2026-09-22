@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/repo-cleanup-ledger-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Repository cleanup ledger (2026 deep reorg)",
+  "summary": "Audit ledger recording orphan artifact removal, runtime untracking, surface folder moves, and sprawl reduction with executable action rows.",
+  "scope": ["repository organization", "artifact cleanup", "VCS operations", "configuration management"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

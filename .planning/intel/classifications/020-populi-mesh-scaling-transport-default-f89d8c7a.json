@@ -1,0 +1,27 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/020-populi-mesh-scaling-transport-default.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 020: Populi mesh scaling — default transport posture",
+  "summary": "Keeps HTTP Populi as the default coordination SSOT, with optional additive layers like gossip and QUIC evaluated only after GPU truth and lease correctness are established.",
+  "scope": [
+    "Populi",
+    "mesh scaling",
+    "HTTP control plane",
+    "gossip membership",
+    "QUIC data planes",
+    "NAT traversal",
+    "transport posture"
+  ],
+  "cross_refs": [
+    "047-iroh-transport.md",
+    "008-populi-transport.md",
+    "../archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md",
+    "../reference/populi-work-type-placement-matrix.md",
+    "../archive/research-2026-q1/protocol-convergence-research-2026.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Amended 2026-09-04 to record supersession by ADR-047. Status changed from Accepted to Superseded; decision no longer locked and authoritative precedence transfers to ADR-047."
+}

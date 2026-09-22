@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/023-optional-telemetry-remote-upload.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 023: Optional telemetry remote upload",
+  "summary": "Opt-in local spool and explicit upload; no default transmission; Clavis-backed secrets.",
+  "scope": ["telemetry", "remote upload", "secrets", "vox telemetry", "local spool", "diagnostics"],
+  "cross_refs": ["archive/research-2026-q1/telemetry-remote-sink-spec.md", "architecture/telemetry-trust-ssot.md", "reference/env-vars.md", "archive/research-2026-q1/telemetry-implementation-backlog-2026.md", "crates/vox-secrets/src/lib.rs"],
+  "locked": true,
+  "precedence": null
+}

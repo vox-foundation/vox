@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/2026-05-09-detector-rule-ssot-plan.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Detector & Heuristic Rule SSOT — Implementation Plan",
+  "summary": "Step-by-step implementation plan for rule-SSOT foundation: vox-rule-pack crate, pilot victory_claim migration, benchmark tool, arch-check guards.",
+  "scope": ["detector-rules", "implementation", "rule-pack", "victory-claim", "benchmark-tool", "arch-check", "YAML-schema", "vox-rule-pack"],
+  "cross_refs": ["docs/src/architecture/2026-05-09-detector-rule-ssot-design.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Implementation plan for Phase 0-1 of detector-rule SSOT. 0 baseline verification, 1 foundation (vox-rule-pack scaffold). Pilot migration of victory_claim and bench tool explicitly out of scope for this plan."
+}

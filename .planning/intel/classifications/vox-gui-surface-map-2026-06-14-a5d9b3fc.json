@@ -1,0 +1,25 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-gui-surface-map-2026-06-14.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "vox-gui Surface Map (graphify, 2026-06-14)",
+  "summary": "Complete edge map of vox-gui front-end derived from graphify AST+semantic extraction: 2,176 nodes, 4,154 edges, 229 communities across four layers.",
+  "scope": [
+    "GUI architecture",
+    "surface map",
+    "god nodes",
+    "IPC boundary",
+    "shared primitives",
+    "Tauri command modules",
+    "React components",
+    "design principles audit"
+  ],
+  "cross_refs": [
+    "crates/vox-gui/graphify-out/",
+    "docs/src/architecture/gui-frontend-design-principles-2026-06-14.md",
+    "docs/src/architecture/where-things-live.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

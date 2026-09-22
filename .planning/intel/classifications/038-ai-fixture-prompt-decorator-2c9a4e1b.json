@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/038-ai-fixture-prompt-decorator.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 038 — AI fixture `@prompt` decorator",
+  "summary": "Introduces `@prompt` decorator for stage-aware prompt fixture lowering onto runtime cascade.",
+  "scope": ["AI fixtures", "@prompt decorator", "research stages", "runtime cascade", "LLM"],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null
+}

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/032-vox-ui-reactive-modules.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 032 — `.vox.ui` reactive modules",
+  "summary": "Introduces `.vox.ui` file-suffix for module-scope reactive members lowering to React context and hooks.",
+  "scope": ["reactive modules", ".vox.ui files", "React context", "state management", "file-suffix convention"],
+  "cross_refs": ["../architecture/svelte-vs-react-frameworks-research-2026.md", "../architecture/svelte-mineable-features-implementation-plan-2026.md", "027-dual-track-ui-surfaces.md", "../../../AGENTS.md"],
+  "locked": true,
+  "precedence": null
+}

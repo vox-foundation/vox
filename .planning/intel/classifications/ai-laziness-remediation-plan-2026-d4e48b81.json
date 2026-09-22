@@ -1,0 +1,25 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/ai-laziness-remediation-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "AI-Laziness Audit — Findings & Pivot (2026-05-16)",
+  "summary": "Audit-of-audit documenting findings from a laziness investigation: 10 retirement candidates verified, 4 tracks evaluated, lessons captured.",
+  "scope": [
+    "audit findings",
+    "Phase 1 retirements",
+    "telemetry trace propagation",
+    "vox-code-audit stubs",
+    "MENS Batch 3"
+  ],
+  "cross_refs": [
+    "docs/superpowers/plans/telemetry/2026-05-09-telemetry-phase-c.md",
+    "docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md",
+    "docs/src/architecture/external-frontend-interop-plan-2026.md",
+    "docs/src/architecture/vox-language-rules-and-enforcement-plan-2026.md",
+    "docs/src/architecture/comprehensive-audit-v2-2026.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

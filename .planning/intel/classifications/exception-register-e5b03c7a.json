@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/planning-meta/exception-register.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Planning meta exception register",
+  "summary": "Active and retired exceptions/deferrals tracking for planning-meta governance.",
+  "scope": ["planning governance", "exception tracking", "planning-meta"],
+  "cross_refs": ["09-exception-deferral-policy.md", "10-document-maintenance-protocol.md"],
+  "locked": false,
+  "precedence": null
+}

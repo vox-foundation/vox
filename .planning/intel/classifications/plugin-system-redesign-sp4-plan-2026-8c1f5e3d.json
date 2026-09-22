@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/plugin-system-redesign-sp4-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Plugin System Redesign — SP4 Implementation Plan (2026)",
+  "summary": "Step-by-step TDD implementation plan for skill-compiler migration from vox-skills compile-time builtins to standalone skill-payload plugin at runtime.",
+  "scope": ["implementation planning", "skill plugins", "vox-skills migration", "orchestrator integration", "MCP dispatch"],
+  "cross_refs": ["plugin-system-redesign-2026.md", "plugin-system-redesign-sp1-plan-2026.md", "plugin-system-redesign-sp2-plan-2026.md", "vox-skills", "vox-plugin-skill-compiler", "vox-orchestrator"],
+  "locked": false,
+  "precedence": null
+}

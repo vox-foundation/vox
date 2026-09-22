@@ -1,0 +1,20 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vcs-as-vox-language-feature-jujutsu-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Version Control as a Vox Language Feature — a Jujutsu-Native Multi-Agent VCS",
+  "summary": "Research proposal to make version control a first-class Vox language primitive backed by Jujutsu, enabling multi-agent concurrency with conflict-as-data and undo/redo semantics.",
+  "scope": [
+    "version control",
+    "Jujutsu",
+    "language feature",
+    "multi-agent VCS",
+    "conflict resolution",
+    "orchestrator",
+    "repo.* builtins"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null
+}

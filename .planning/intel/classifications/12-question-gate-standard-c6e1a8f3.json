@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/planning-meta/12-question-gate-standard.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Question gate standard for planning",
+  "summary": "Tier 1 normative rules governing when planning requests must trigger clarification versus auto-expansion or inference.",
+  "scope": ["planning intake", "question gate", "clarification trigger", "EVPI threshold", "auto-expansion", "intake classification", "attention budget"],
+  "cross_refs": ["docs/src/reference/information-theoretic-questioning.md", "docs/src/architecture/research-diagnostic-questioning-2026.md", "docs/src/architecture/plan-adequacy.md", "docs/src/architecture/agent-event-kind-ludus-matrix.md", "docs/src/architecture/planning-meta/02-fast-llm-instruction-plan.md", "docs/src/architecture/planning-meta/05-anti-foot-gun-planning-standard.md", "docs/src/architecture/planning-meta/08-milestone-gate-definition-spec.md", "docs/src/architecture/planning-meta/09-exception-deferral-policy.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

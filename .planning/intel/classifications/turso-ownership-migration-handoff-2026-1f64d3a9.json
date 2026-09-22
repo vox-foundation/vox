@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/turso-ownership-migration-handoff-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Turso Ownership Migration — Handoff (2026)",
+  "summary": "Handoff capturing Turso-ownership migration state: policy SSOT, CI guards, allowlist rules, backlog, and nomenclature issues.",
+  "scope": ["database ownership", "Turso migration", "vox-db data layer", "policy enforcement", "CI guards", "migration backlog"],
+  "cross_refs": ["contracts/db/data-storage-policy.v1.yaml", "docs/agents/turso-import-allowlist.txt"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

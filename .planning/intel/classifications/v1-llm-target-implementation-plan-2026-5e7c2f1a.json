@@ -1,0 +1,24 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/v1-llm-target-implementation-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox v1.0 LLM-Target Implementation Plan (2026)",
+  "summary": "Phased implementation roadmap (P0–P5) for CR-L0..CR-L8 LLM-target criteria with owners, dependencies, corpus budgets, CI contract, risk register, and rollback policy.",
+  "scope": [
+    "v1.0",
+    "LLM-target",
+    "implementation plan",
+    "CR-L criteria",
+    "measurement infrastructure",
+    "corpus engineering",
+    "council decisions"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/v1-release-criteria.md",
+    "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md",
+    "docs/superpowers/specs/2026-05-18-v1-completion-plan.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

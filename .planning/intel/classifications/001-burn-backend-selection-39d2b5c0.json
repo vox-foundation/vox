@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/001-burn-backend-selection.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 001 — Burn Backend Selection for vox-tensor",
+  "summary": "Use Burn 0.19 with Wgpu and NdArray backends for native Rust ML training without Python dependency.",
+  "scope": ["Burn", "vox-tensor", "ML training", "Wgpu", "NdArray", "native Rust", "Mens"],
+  "cross_refs": ["003-native-training-over-python.md", "006-mens-full-graph-qlora-qlora-rs.md", "../reference/mens-training.md", "../crates/vox-tensor/src/vox_nn.rs"],
+  "locked": true,
+  "precedence": null
+}

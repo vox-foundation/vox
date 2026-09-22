@@ -1,0 +1,22 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/free-by-default-and-residual-work-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Free-by-Default & Residual Work Plan (2026-05-24)",
+  "summary": "Forward-looking plan capturing residual work tracks (F-A through F-I) to activate free-tier infrastructure and complete the audit.",
+  "scope": [
+    "free-by-default product directive",
+    "model-routing configuration",
+    "tier-D orchestrator plan",
+    "selection module re-activation"
+  ],
+  "cross_refs": [
+    "crate-audit-and-plan-2026.md",
+    "2026-05-15-orchestrator-tier-d-plan.md",
+    "mesh-and-language-distribution-ssot-2026.md",
+    "post-sprint-forward-plan-2026-05-25.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/skill-discovery-and-induction-research-2026-07-30.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Skill Discovery at Scale & Automatic Skill Induction — Verified Research 2026-07-30",
+  "summary": "Adversarially-verified research on tool discovery scaling and automatic skill mining with promotion gates.",
+  "scope": ["tool discovery", "skill induction", "skill promotion gate", "LLM evaluation", "Voyager", "CRAFT", "AWM", "SkillWeaver", "retirement", "skill_reliability"],
+  "cross_refs": ["claude-code-harness-mechanics-2026-07-30.md", "multi-provider-local-cloud-routing-research-2026-07-30.md", "vox-harness-graph-audit-2026-07-30.md", "skill-code-marketplace-research-and-audit-2026-06-18.md", "skill-ecosystem-interop-research-2026-06-12.md"],
+  "locked": false,
+  "precedence": null
+}

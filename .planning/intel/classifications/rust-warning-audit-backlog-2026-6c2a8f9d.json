@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/rust-warning-audit-backlog-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Rust Warning Audit & Remediation Backlog (2026-05-11)",
+  "summary": "Audit ledger recording CI-parity baseline for clippy/rustdoc/cargo, justified per-item suppressions inventory, and review cadence for warning-debt management.",
+  "scope": ["Rust compiler warnings", "clippy lints", "rustdoc", "code quality", "warning suppression"],
+  "cross_refs": ["AGENTS.md", "governance.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

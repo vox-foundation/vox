@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/closures-rfc-2026-05-23.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "RFC: Closures in Vox (Phase G — Bucket-A v0.6)",
+  "summary": "Technical specification for first-class closures in Vox: grammar, type rules, lowering, codegen, and 10-day implementation plan.",
+  "scope": ["closures", "anonymous functions", "Vox grammar", "type system", "codegen"],
+  "cross_refs": ["vox-stdlib-gap-audit-2026-05-23.md", "external-frontend-interop-plan-2026.md", "v1-llm-target-implementation-plan-2026.md"],
+  "locked": false,
+  "precedence": null
+}

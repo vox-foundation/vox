@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mental-tracker-full-app-roadmap-2026.md",
+  "type": "SPEC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Vox Mental-Health Tracker — Full-App Implementation Roadmap (2026)",
+  "summary": "Staged roadmap specifying libraries, component interop decisions, trauma-informed schema design, and codegen changes for React Native mental-health app.",
+  "scope": ["mental-health tracker", "React Native", "calendar interop", "append-only schema", "event-sourcing", "bottom-sheet", "toast"],
+  "cross_refs": ["mobile/rn-expo-foundation"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Roadmap framing (staged delivery) combined with detailed technical specs (library choices, schema design, interop approach). Classified as SPEC because core content defines implementation contracts and component decisions, not user stories or requirements."
+}

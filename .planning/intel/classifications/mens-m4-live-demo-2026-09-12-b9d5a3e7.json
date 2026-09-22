@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mens-m4-live-demo-2026-09-12.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "M4 Live Demo: Base vs Adapter",
+  "summary": "Verification that Metal-served fine-tuned model produces measurably different output from base model; fixed RoPE/compute-dtype and checkpoint-validation bugs; measured 9× speedup with Metal; tool-calling 50% success rate on 0.6B.",
+  "scope": ["Metal inference verification", "adapter application", "RoPE synthesis", "compute dtype handling", "checkpoint validation", "tool-calling capability", "M4 milestone"],
+  "cross_refs": ["vox-plugin-mens-candle-metal::inference", "vox mens serve", "candle_qlora_adapter.safetensors", "MensCatalog", "VoxLocalAdapter", "synthetic LoRA adapter"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Live experiment report documenting milestone M4 (end-to-end text in/out through GUI). Two bugs fixed (RoPE synthesis missing, compute dtype BF16→F32). Includes tool-calling pre-flight results (10/20 parseable). Verified Metal 9× faster than CPU. GUI code paths confirmed but no live click-through (GUI not rebuilt this session)."
+}

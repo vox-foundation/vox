@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/search-retrieval-ssot-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Search & Retrieval SSOT (2026)",
+  "summary": "Canonical baseline for agent-facing search/retrieval across vox-db contracts, vox-search execution, orchestrator MCP tools, and dashboard transport.",
+  "scope": ["search-retrieval", "vox-db", "vox-search", "MCP-tools", "hybrid-fusion", "policy-knobs", "corpus-backends"],
+  "cross_refs": ["docs/src/architecture/data-storage-ssot-2026.md", "crates/vox-db/src/retrieval.rs", "crates/vox-search/src/execution.rs", "crates/vox-search/src/policy.rs"],
+  "locked": false,
+  "precedence": null
+}

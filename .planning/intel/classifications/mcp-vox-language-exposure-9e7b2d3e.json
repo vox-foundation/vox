@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mcp-vox-language-exposure.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "MCP Vox language exposure",
+  "summary": "Documents workspace MCP tool/resource federation into vox-mcp orchestrator, collision rules, dispatch protocol, and tier policy.",
+  "scope": ["MCP federation", "@tool declarations", "vox-mcp orchestrator", "tool dispatch", "collision resolution", "resource protocol"],
+  "cross_refs": ["vox-mcp", "WorkspaceMcpLoader", "TOOL_REGISTRY", "operations/catalog.v1.yaml", "contracts/mcp/workspace-mcp-surface.v1.yaml"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

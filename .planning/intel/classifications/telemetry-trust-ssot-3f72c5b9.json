@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/telemetry-trust-ssot.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Telemetry Trust (SSoT)",
+  "summary": "Canonical boundaries and trust policies for Vox telemetry: opt-in, locally-bounded, no PII by default.",
+  "scope": ["telemetry", "trust boundaries", "data residency", "policy", "local-first analysis"],
+  "cross_refs": ["docs/src/adr/023-optional-telemetry-remote-upload.md", "docs/src/archive/research-2026-q1/"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

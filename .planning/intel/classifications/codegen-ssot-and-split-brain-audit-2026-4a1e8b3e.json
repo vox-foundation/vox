@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/codegen-ssot-and-split-brain-audit-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Codegen SSOT & split-brain audit (2026)",
+  "summary": "Advisory audit of multi-target codegen pipeline, minimum emission set for web/Tauri/RN, with tier-ranked findings on duplication.",
+  "scope": ["codegen", "IRs", "split-brain", "web emit", "Tauri", "React Native"],
+  "cross_refs": ["webir-hir-split-brain-inventory-2026.md", "adr/036-webir-hir-unification-compare-both.md", "external-frontend-interop-plan-2026.md"],
+  "locked": false,
+  "precedence": null
+}

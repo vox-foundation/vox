@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/telemetry-unification-design-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Telemetry unification design 2026",
+  "summary": "Runtime architecture for unifying telemetry emission behind L1 facade with local collection and trace propagation.",
+  "scope": ["telemetry", "runtime architecture", "event taxonomy", "trace context", "model performance metrics", "facade crate"],
+  "cross_refs": ["docs/src/archive/research-2026-q1/telemetry-unification-research-findings-2026.md", "docs/src/architecture/telemetry-trust-ssot.md", "docs/src/adr/023-optional-telemetry-remote-upload.md", "crates/vox-db/src/research_metrics_contract.rs", "crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs", "docs/src/architecture/where-things-live.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/029-formal-intent.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-029: Formal Intent and Tool Receipt Auditing",
+  "summary": "Two-tier verification system for agent tool calls with cryptographic HMAC receipts for auditing.",
+  "scope": ["formal intent", "tool receipts", "agent verification", "auditing", "hallucination defense", "Socrates"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null
+}

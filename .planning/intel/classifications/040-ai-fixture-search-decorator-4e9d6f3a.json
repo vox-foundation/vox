@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/040-ai-fixture-search-decorator.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 040 — AI fixture `@search` decorator",
+  "summary": "Introduces `@search` decorator for retrieval fixture composition across multiple corpora.",
+  "scope": ["AI fixtures", "@search decorator", "retrieval", "docs search", "memory search", "web search"],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null
+}

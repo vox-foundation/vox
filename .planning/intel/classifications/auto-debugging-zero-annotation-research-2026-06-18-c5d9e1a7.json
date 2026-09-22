@@ -1,0 +1,26 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/auto-debugging-zero-annotation-research-2026-06-18.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Zero-Annotation Severity-Graded Debugging — Feasibility Research",
+  "summary": "Research on surfacing program behavior without manual annotations: capture (Pernosco/eBPF proven), selectivity (Log2), severity inference (DeepLV ~84% AUC).",
+  "scope": [
+    "omniscient debugging",
+    "time-travel debugging",
+    "automatic instrumentation",
+    "eBPF",
+    "log selectivity",
+    "severity inference",
+    "Vox interpreter"
+  ],
+  "cross_refs": [
+    "error-surfacing-dual-audience-research-2026-06-18.md",
+    "auto-derivation-design-hygiene-2026-06-18.md",
+    "auto-gui-from-pure-logic-research-2026-06-18.md",
+    "../../superpowers/plans/2026-06-18-track-b-zero-annotation-debugging.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

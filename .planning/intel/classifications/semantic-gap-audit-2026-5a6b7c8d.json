@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/semantic-gap-audit-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Semantic Gap Audit — 2026-05-16",
+  "summary": "Forensic audit of code-contract drift: 8 verified findings (7 HIGH, 1 meta) across orchestrator, codegen, and plugins.",
+  "scope": ["audit", "semantic-gaps", "contract-drift", "silent-drops", "validator-unwiring", "trait-skeletons"],
+  "cross_refs": ["docs/src/architecture/semantic-gap-implementation-plan-2026.md"],
+  "locked": false,
+  "precedence": null
+}

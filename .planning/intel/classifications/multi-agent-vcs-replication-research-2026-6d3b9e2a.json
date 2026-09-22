@@ -1,0 +1,25 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/multi-agent-vcs-replication-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Multi-Agent VCS Replication — Landscape Research (2026-05-03)",
+  "summary": "Survey of version-control and CRDT systems evaluated for multi-agent code collaboration. Finds no off-the-shelf project meets requirements; recommends Path 1 (op-log gossip on jj + Populi).",
+  "scope": [
+    "Jujutsu",
+    "Pijul",
+    "Automerge",
+    "CRDT",
+    "VCS replication",
+    "multi-agent collaboration"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/multi-agent-vcs-replication-spec-2026.md",
+    "docs/src/architecture/populi-mesh-north-star-2026.md",
+    "crates/vox-vcs/src/jj_backend.rs",
+    "crates/vox-orchestrator/src/a2a/"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Research foundation document surveying landscape and recommending Path 1. Informs but does not define the architecture."
+}

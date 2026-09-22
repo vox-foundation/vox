@@ -1,0 +1,22 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/durability-runtime-audit-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Durability & Scheduling Runtime Audit (2026)",
+  "summary": "Definitive audit of @scheduled, @durable, DurabilityKind, actor/workflow/activity keywords; verdict: zero runtime implementation across all features.",
+  "scope": ["@scheduled", "@durable", "DurabilityKind", "actor keyword", "workflow keyword", "activity keyword", "vox-orchestrator", "runtime semantics"],
+  "cross_refs": [
+    "crates/vox-ast/src/decl/fundecl.rs",
+    "crates/vox-compiler/src/hir/nodes/durability.rs",
+    "crates/vox-compiler/src/hir/lower/mod.rs",
+    "crates/vox-compiler/src/codegen_rust/",
+    "crates/vox-actor-runtime/src/scheduler.rs",
+    "examples/golden/scheduled_tick.vox",
+    "examples/golden/counter_actor.vox",
+    "AGENTS.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

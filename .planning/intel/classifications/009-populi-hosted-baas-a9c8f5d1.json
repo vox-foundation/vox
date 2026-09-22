@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/009-populi-hosted-baas.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 009: Hosted mens / BaaS (future scope)",
+  "summary": "Scoped future design for managed Mens service; default remains self-hosted; OAuth device flow for hosted auth.",
+  "scope": ["Mens", "BaaS", "hosted", "OAuth", "control plane", "multi-tenant", "org-bound"],
+  "cross_refs": ["../reference/populi.md", "008-populi-transport.md", "../../../crates/vox-populi/src/http_client.rs"],
+  "locked": false,
+  "precedence": null
+}

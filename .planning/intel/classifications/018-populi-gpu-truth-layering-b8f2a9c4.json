@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/018-populi-gpu-truth-layering.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 018: Populi GPU truth layering",
+  "summary": "Normative layering between probe-backed GPU facts, allocatable capacity, and operator policy labels.",
+  "scope": ["Populi", "GPU", "hardware truth", "capacity", "scheduling", "NVML", "probe-backed", "node records"],
+  "cross_refs": ["../reference/populi.md", "../reference/orchestration-unified.md", "017-populi-lease-remote-execution.md", "../reference/populi-work-type-placement-matrix.md", "../archive/research-2026-q1/populi-gpu-truth-probe-spec.md", "../archive/research-2026-q1/populi-gpu-network-research-2026.md"],
+  "locked": true,
+  "precedence": null
+}

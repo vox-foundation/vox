@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mens-cloud-env-transmission-fix-2026-09-12.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Cloud Env Transmission Fix",
+  "summary": "Bug fix narrative: batch_size/seq_len were not transmitted from local dispatch to cloud workers; fixed at dispatch, provider, and entrypoint layers with tests.",
+  "scope": ["cloud training", "batch_size transmission", "seq_len transmission", "vast.ai", "RunPod", "docker entrypoint"],
+  "cross_refs": ["vast.rs", "runpod_provider.rs", "populi-entrypoint.vox", "CloudJobSpec", "preset_schema.rs"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Implementation fix report: documents a gap where cloud dispatch and remote worker diverged on sizing parameters. Reports the root cause, fix, and verification. Not prescriptive policy, but a resolved defect narrative."
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-speech-improvement-backlog-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox Speech Improvement Backlog 2026",
+  "summary": "Prioritized backlog of speech-to-code improvements with owners, effort estimates, and sequencing for ASR/surface/pipeline gaps.",
+  "scope": ["speech-to-code", "backlog", "audio ingress", "CUDA", "mobile", "streaming", "dashboard"],
+  "cross_refs": ["vox-oratio", "vox-plugin-oratio", "apps/editor/vox-vscode", "apps/vox-mental-tracker"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

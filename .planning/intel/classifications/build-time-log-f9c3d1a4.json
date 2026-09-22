@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/build-time-log.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Build-Time Log",
+  "summary": "Per-phase build-time measurements for workspace reorg; tracks scenarios (orchestrator, CLI, L0 leaf) across phases 0–9 and headline outcome summary.",
+  "scope": ["build-time", "phases", "measurements", "scenarios"],
+  "cross_refs": ["build-time-baseline.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Measurement log recording per-phase build-time data. Frontmatter status=current. No decision or requirement; purely observational telemetry. Training_eligible=false."
+}

@@ -1,0 +1,24 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/model-autonomic-system-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox Model Autonomic System — L1/L2/L3 Design (2026-Q2)",
+  "summary": "Continuous-discovery and auto-classification architecture with L1/L2/L3 loops replacing hand-curated model bootstrap; defines contracts, telemetry events, and CLI surfaces.",
+  "scope": [
+    "model discovery",
+    "model classification",
+    "ModelRegistry",
+    "L1 discovery",
+    "L2 classification",
+    "L3 council review"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/model-selection-2026-q2.md",
+    "contracts/orchestration/model-pins.v1.yaml",
+    "contracts/orchestration/catalog-fallback.v1.json"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

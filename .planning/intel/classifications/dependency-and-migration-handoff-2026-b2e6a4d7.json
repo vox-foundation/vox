@@ -1,0 +1,19 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/dependency-and-migration-handoff-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Dependency & Migration Handoff (2026)",
+  "summary": "Verified codebase handoff for deferred dependency upgrades: rmcp, wasmtime, swc, cargo_metadata, sysinfo, typify, jsonschema, thiserror, candle; each with blast radius and cost analysis.",
+  "scope": ["dependency upgrades", "rmcp", "wasmtime", "swc", "cargo_metadata", "candle", "blast radius", "difficulty ratings"],
+  "cross_refs": [
+    "PR #145",
+    "PR #146",
+    "docs/src/architecture/build-and-crate-org-improvement-plan-2026-06.md",
+    "contracts/db/data-storage-policy.v1.yaml",
+    "patches/candle-kernels-0.9.2/"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

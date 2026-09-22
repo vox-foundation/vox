@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/016-oratio-streaming-whisper-and-constrained-decode.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 016: Oratio streaming Whisper and constrained decode",
+  "summary": "Ships wire-level streaming Whisper with logit-processor constrained decode in Candle backend.",
+  "scope": ["Oratio", "Whisper", "Candle", "streaming transcription", "constrained decode", "logit-processor", "STT", "speech-to-text"],
+  "cross_refs": ["vox-audio-ingress", "/api/audio/transcribe/stream", "candle_engine", "vox_oratio_status"],
+  "locked": true,
+  "precedence": null
+}

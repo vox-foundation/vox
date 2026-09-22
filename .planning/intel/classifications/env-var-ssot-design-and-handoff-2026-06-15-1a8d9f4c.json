@@ -1,0 +1,22 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/env-var-ssot-design-and-handoff-2026-06-15.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Environment Variable SSOT — Design & Developer Handoff",
+  "summary": "Design for dynamic, auto-tracking unified SSOT for all environment variables and Clavis secrets; extends config-hygiene gate with phased handoff implementation plan.",
+  "scope": ["environment variables", "Clavis secrets", "config-hygiene gate", "registry.v1.yaml", "env-var recognition", "secret management"],
+  "cross_refs": [
+    "PR #333",
+    "crates/vox-cli/src/commands/ci/config_hygiene.rs",
+    "crates/vox-cli/src/commands/ci/config_registry_parity.rs",
+    "contracts/config/registry.v1.yaml",
+    "contracts/config/config-hygiene-baseline.txt",
+    "contracts/config/config-registry-baseline.txt",
+    "crates/vox-secrets/src/spec/mod.rs",
+    "contracts/db/data-storage-policy.v1.yaml"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

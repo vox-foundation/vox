@@ -1,0 +1,18 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/free-by-default-audit-2026-05-24.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Free-by-Default Audit (2026-05-24)",
+  "summary": "Post-implementation audit of 89 free_only/is_free call sites after F-F sprint landed ModelTier::Free + Fast variants.",
+  "scope": [
+    "free_only call sites",
+    "is_free filtering",
+    "model tier variants",
+    "cost preference defaults",
+    "routing profile"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null
+}

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/skill-code-marketplace-research-and-audit-2026-06-18.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Decentralized Skill + Code Marketplace — Research & Codebase Audit",
+  "summary": "Grounding research and codebase audit for a local-first marketplace mining Vox code, deduping against MCP tools.",
+  "scope": ["skill marketplace", "skill registry", "MCP tools", "code deduplication", "agentic review", "sandbox policy", "vox-container"],
+  "cross_refs": ["crates/vox-plugin-host/src/skill_registry.rs", "crates/vox-plugin-types/src/skill_manifest.rs", "crates/vox-skills/src/sandbox/policy.rs", "crates/vox-code-audit/src/review/mod.rs"],
+  "locked": false,
+  "precedence": null
+}

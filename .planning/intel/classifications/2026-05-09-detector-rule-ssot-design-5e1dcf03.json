@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/2026-05-09-detector-rule-ssot-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Detector & Heuristic Rule SSOT — Design",
+  "summary": "Design for single source of truth system for detector regex patterns and Scientia heuristics, with YAML SSOT, rule-pack loader, benchmarking tool.",
+  "scope": ["detector-rules", "code-audit", "SSOT", "regex-patterns", "rule-pack", "rule-loader", "benchmarking", "Scientia", "heuristics", "vox-rule-pack"],
+  "cross_refs": ["docs/src/architecture/2026-05-09-detector-rule-ssot-plan.md", "contracts/code-audit/rules.v1.yaml", "contracts/code-audit/rules.v1.schema.json"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Architectural SPEC defining rule-pack SSOT system with 4 components (YAML rules, loader crate, benchmark CLI, Scientia heuristics). Build-time invariants, migration order, and testing strategy included."
+}

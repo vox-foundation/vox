@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/planning-meta/maintenance-log.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Planning meta maintenance log",
+  "summary": "Change log for Tier 1/2/3 planning-meta document updates with entries and rationales.",
+  "scope": ["planning governance", "maintenance tracking", "document changes"],
+  "cross_refs": ["10-document-maintenance-protocol.md"],
+  "locked": false,
+  "precedence": null
+}

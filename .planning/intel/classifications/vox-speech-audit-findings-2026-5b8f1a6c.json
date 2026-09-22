@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-speech-audit-findings-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox Speech Audit Findings 2026",
+  "summary": "ASR-primary audit findings including repository gaps, scorecard model, and runtime suite results for speech-to-code.",
+  "scope": ["speech-to-code", "ASR", "Oratio", "Whisper", "audio ingress", "dashboard", "mobile STT"],
+  "cross_refs": ["speech-to-code/benchmark-fixtures.manifest.txt", "speech-to-code/kpi-baseline.schema.json", "canary.kpi.json"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

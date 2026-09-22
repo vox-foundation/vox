@@ -1,0 +1,30 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/multi-agent-vcs-replication-spec-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Multi-Agent VCS Replication — Architecture Spec (2026-05-03)",
+  "summary": "Architecture spec for op-log gossip on top of jj-lib and Populi mesh. Defines primitives, wire protocol, auto-merge/escalation policy, and four-phase rollout (local → conflict UX → mesh → policy/safety).",
+  "scope": [
+    "AgentChange",
+    "OpFragment",
+    "ConvergenceSet",
+    "MergePolicy",
+    "ConvergenceEngine",
+    "jj-lib",
+    "Populi mesh",
+    "op-log replication"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/multi-agent-vcs-replication-research-2026.md",
+    "docs/src/architecture/populi-mesh-north-star-2026.md",
+    "docs/src/architecture/populi-mesh-a2a-durability-spec-2026.md",
+    "crates/vox-orchestrator/src/jj_backend.rs",
+    "crates/vox-orchestrator/src/a2a/",
+    "crates/vox-orchestrator-mcp/src/vcs_tools/",
+    "crates/vox-secrets/src/"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,21 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/discoverability-audit-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox Feature Discoverability Audit (2026)",
+  "summary": "Audit of CLI/GUI single-source-of-truth gaps, shell completions, LSP capabilities, and discoverability improvements across Vox toolchain.",
+  "scope": ["CLI discoverability", "GUI command catalog", "shell completions", "LSP hover", "LSP completions", "tree-sitter grammar"],
+  "cross_refs": [
+    "crates/vox-cli",
+    "crates/vox-gui",
+    "crates/vox-lsp",
+    "contracts/cli/command-registry.yaml",
+    "contracts/operations/catalog.v1.yaml",
+    "docs/src/reference/cli.md",
+    "docs/src/contributors/getting-started.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

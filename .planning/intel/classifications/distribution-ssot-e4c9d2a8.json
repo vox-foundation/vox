@@ -1,0 +1,20 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/distribution-ssot.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Distribution SSOT",
+  "summary": "Single source of truth for install tiers (minimal/default/full), dependency closures, crates.io publish set, and released binaries; governs voxup and vox doctor.",
+  "scope": ["distribution tiers", "minimal tier", "default tier", "full tier", "publish set", "binaries", "bundles", "vox-install-policy"],
+  "cross_refs": [
+    "contracts/distribution/profiles.v1.yaml",
+    "crates/vox-plugin-catalog/catalog.toml",
+    "crates/voxup/tests/distribution_parity.rs",
+    "crates/_public.toml",
+    "docs/superpowers/plans/2026-09-05-00-INDEX.md",
+    "nightly-builds-ssot.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

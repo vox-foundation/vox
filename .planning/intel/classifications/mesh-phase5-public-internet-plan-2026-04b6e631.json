@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mesh-phase5-public-internet-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Mesh Phase 5 — Public-Internet Safety Implementation Plan (2026-05-09)",
+  "summary": "TDD implementation plan for Phase 5: Ed25519-signed envelopes, GitHub attestation pairing, per-key quota and reputation EMA, signed result attestations, spot-check sampling, ephemeral subkeys, and kudos accounting.",
+  "scope": ["Ed25519 envelopes", "GitHub attestation", "quota and reputation", "spot-check sampling", "kudos accounting", "model inventory", "X25519 JWE"],
+  "cross_refs": ["mesh-and-language-distribution-ssot-2026.md", "ludus-identity-github-integration-research-2026.md", "mesh-dashboard-and-distributed-compute-research-2026.md", "unified-task-hopper-research-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

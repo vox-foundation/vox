@@ -1,0 +1,25 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox as an LLM-Target Language — Audit & v1.0 Plan (2026-05-15)",
+  "summary": "Comprehensive audit of Vox readiness as LLM-target with gap analysis, attainability verdict (realistic vs aspirational v1.0), and eight proposed CR-L fidelity criteria.",
+  "scope": [
+    "LLM-target",
+    "audit",
+    "v1.0 plan",
+    "CR-L criteria",
+    "gap analysis",
+    "attainability",
+    "self-repair",
+    "diagnostic surface"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/v1-release-criteria.md",
+    "docs/src/architecture/vox-marquee-explainer-2026.md",
+    "docs/src/architecture/vox-language-rules-and-enforcement-plan-2026.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

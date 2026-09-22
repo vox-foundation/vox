@@ -1,0 +1,19 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/deep-research-verification-2026-08-01.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Deep Research Capabilities Audit — Verification Pass (2026-08-01)",
+  "summary": "Re-verifies 9 deep-research gaps against current code with file:line evidence; resolves G4 and G5, partially addresses G1/G3/G6, G2/G7/G8/G9 still open.",
+  "scope": ["deep research gaps", "CRAG expansion", "reranking", "novelty scoring", "confidence gate", "synthesis budget", "semantic caching"],
+  "cross_refs": [
+    "deep-research-capabilities-audit-2026-06-17.md",
+    "deep-research-fundamentals-2026-08-01.md",
+    "crates/vox-research-shim/src/research/orchestrator/web_gather.rs",
+    "crates/vox-research-shim/src/research/gate.rs",
+    "crates/vox-search/src/research.rs"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}
