@@ -3,17 +3,32 @@ use vox_secrets::backend::SecretBackend;
 use vox_secrets::backend::vox_vault::VoxCloudBackend;
 use vox_secrets::spec::{SecretId, SecretSpec};
 
+/// This binary is its own OS process (a separate `cargo test` executable
+/// from the library's `--lib` unit tests), so it cannot share the library's
+/// `crate::TEST_ENV_LOCK` — it needs its own. Every test in this file MUST
+/// take this lock as its very first action, before calling
+/// `ensure_isolated_test_home()` or constructing any `VoxCloudBackend`, so
+/// that (a) the one-time HOME/env isolation always happens while some test
+/// holds the lock and (b) this binary's default parallel test execution
+/// (4+ tests, each a separate thread) can't interleave on the shared,
+/// process-global env state the isolated `HOME` and `VOX_ACCOUNT_ID` live in.
+/// `unwrap_or_else` recovers from a poisoned lock (an earlier test panicking
+/// while holding it) instead of cascading the failure into every later test.
+static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// This binary links `vox_secrets` as a normal (non-`cfg(test)`) dependency,
 /// so the library's internal `isolate_vault_tests_from_real_home` (gated on
 /// `cfg(test)` *of the library crate*) never runs here. Every test in this
-/// file MUST call this first, before constructing any `VoxCloudBackend`, so
-/// it never reads, writes, or corrupts a developer's real `~/.vox` vault,
-/// master key, or OS keychain entry. See the doc comment on the library-side
-/// twin (`crates/vox-secrets/src/backend/vox_vault.rs`) for the full D13
+/// file MUST call this first (while holding [`TEST_ENV_LOCK`]), before
+/// constructing any `VoxCloudBackend`, so it never reads, writes, or
+/// corrupts a developer's real `~/.vox` vault, master key, or OS keychain
+/// entry. See the doc comment on the library-side twin
+/// (`crates/vox-secrets/src/backend/vox_vault.rs`) for the full D13
 /// backstory: this was previously unreachable code because
 /// `VoxCloudBackend::new()` always failed on this binary's plain (no
 /// ambient-runtime) `#[test]` functions, so these tests silently skipped and
-/// this gap went unnoticed.
+/// this gap went unnoticed. Does not take `TEST_ENV_LOCK` itself — every
+/// caller already holds it, and the lock is not reentrant.
 fn ensure_isolated_test_home() {
     static INIT: std::sync::Once = std::sync::Once::new();
     INIT.call_once(|| {
@@ -56,6 +71,7 @@ fn unique_key(label: &str) -> String {
 
 #[test]
 fn test_vox_vault_encryption_decryption_cycle() {
+    let _env_guard = TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     ensure_isolated_test_home();
     // If the keyring cannot be acquired in pure headless CI, VoxCloudBackend::new() returns an error.
     // So we handle the Result gracefully to ensure this test passes locally when keyring is available.
@@ -98,6 +114,7 @@ fn test_vox_vault_encryption_decryption_cycle() {
 
 #[test]
 fn test_vox_vault_rewrap_and_backup_corruption_detection() {
+    let _env_guard = TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     ensure_isolated_test_home();
     let backend = match VoxCloudBackend::new() {
         Ok(b) => b,
@@ -138,6 +155,7 @@ fn test_vox_vault_rewrap_and_backup_corruption_detection() {
 
 #[test]
 fn test_rewrap_rotation_across_secret_material_kinds() {
+    let _env_guard = TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     ensure_isolated_test_home();
     let backend = match VoxCloudBackend::new() {
         Ok(b) => b,
@@ -198,6 +216,7 @@ fn test_rewrap_rotation_across_secret_material_kinds() {
 /// checksum verification (rewrap or resolve) spuriously fails.
 #[test]
 fn write_after_rewrap_then_rewrap_again_does_not_corrupt_checksum() {
+    let _env_guard = TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     ensure_isolated_test_home();
     let backend = match VoxCloudBackend::new() {
         Ok(b) => b,

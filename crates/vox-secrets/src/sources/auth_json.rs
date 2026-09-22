@@ -286,13 +286,12 @@ mod migration_tests {
 #[allow(unsafe_code)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
-
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn auth_path_uses_override() {
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join("vox-secrets-auth.json");
         unsafe {
             std::env::set_var("VOX_SECRETS_AUTH_PATH", &tmp);
@@ -310,7 +309,9 @@ mod tests {
     /// `auth.json` so the subsequent `read_registry_token` still works.
     #[test]
     fn write_then_read_round_trips_regardless_of_keyring_health() {
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp_dir = tempfile::tempdir().expect("tempdir");
         let auth_file = tmp_dir.path().join("auth.json");
         unsafe {
@@ -338,7 +339,9 @@ mod tests {
     /// `VOX_SECRETS_AUTH_PATH` (no real keyring required).
     #[test]
     fn remove_registry_token_clears_auth_json_entry() {
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp_dir = tempfile::tempdir().expect("tempdir");
         let auth_file = tmp_dir.path().join("auth.json");
         unsafe {
@@ -377,7 +380,9 @@ mod tests {
     /// DB-backed `vox_identities` table was removed — 2026-06-30).
     #[test]
     fn read_registry_username_returns_persisted_login() {
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp_dir = tempfile::tempdir().expect("tempdir");
         let auth_file = tmp_dir.path().join("auth.json");
         unsafe {

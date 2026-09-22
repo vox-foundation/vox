@@ -1852,9 +1852,9 @@ mod path_url_tests {
     #[test]
     #[allow(unsafe_code)]
     fn default_cloudless_url_is_absolute_under_home() {
-        use std::sync::Mutex;
-        static ENV_LOCK: Mutex<()> = Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let prev_path = std::env::var_os("VOX_SECRETS_VAULT_PATH");
         let prev_url = std::env::var_os("VOX_SECRETS_VAULT_URL");
@@ -1890,9 +1890,9 @@ mod path_url_tests {
     #[test]
     #[allow(unsafe_code)]
     fn absolute_vault_path_opens_with_turso() {
-        use std::sync::Mutex;
-        static ENV_LOCK: Mutex<()> = Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let tmp_dir = tempfile::tempdir().expect("tempdir");
         let db_path = tmp_dir.path().join("turso_abs_vault.db");
@@ -1985,9 +1985,9 @@ mod path_url_tests {
     #[test]
     #[allow(unsafe_code)]
     fn write_present_then_delete_absent_round_trips() {
-        use std::sync::Mutex;
-        static ENV_LOCK: Mutex<()> = Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let tmp_dir = tempfile::tempdir().expect("tempdir");
         let db_path = tmp_dir.path().join("delete_vault.db");
@@ -2076,8 +2076,9 @@ mod vault_health_tests {
     #[test]
     #[allow(unsafe_code)]
     fn probe_vault_health_reports_empty_vault_as_ok() {
-        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().expect("tempdir");
         let db_path = tmp.path().join("health_empty.db");
         unsafe {
@@ -2106,8 +2107,9 @@ mod vault_health_tests {
     #[test]
     #[allow(unsafe_code)]
     fn probe_vault_health_fails_after_simulated_master_drift() {
-        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _g = ENV_LOCK.lock().expect("env lock");
+        let _g = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().expect("tempdir");
         let db_path = tmp.path().join("health_drift.db");
         unsafe {

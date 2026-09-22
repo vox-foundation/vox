@@ -13,6 +13,23 @@ pub mod spec;
 mod tests;
 mod types;
 
+/// Crate-wide lock serializing every test that mutates process-global
+/// environment state (`HOME`, `USERPROFILE`, `VOX_ACCOUNT_ID`,
+/// `VOX_SECRETS_VAULT_PATH`, etc.) or otherwise depends on it being stable
+/// for the test's duration. Previously several files each declared their own
+/// function-local `static ENV_LOCK`, which only serialized repeat calls to
+/// *that one test* — it did nothing to stop a completely different test
+/// (including `VoxCloudBackend::new`'s own env-var isolation hook) from
+/// mutating `HOME`/`VOX_ACCOUNT_ID` concurrently on another thread under the
+/// default parallel `cargo test`. A single shared lock, taken by every such
+/// test (and by [`crate::backend::vox_vault::isolate_vault_tests_from_real_home`]
+/// as its very first step), removes that race. `unwrap_or_else` recovers
+/// from a poisoned lock (a prior test panicking while holding it) rather
+/// than cascading failures into every later test — the whole point of a
+/// shared lock is that one test's panic must not sink the others.
+#[cfg(test)]
+pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 pub use backend::vox_vault::{VaultHealth, cloudless_vault_env_diagnostic, probe_vault_health};
 pub use errors::SecretError;
 pub use policy::{MissingBehavior, SecretPolicy};
@@ -489,9 +506,9 @@ mod managed_secret_tests {
     #[test]
     #[allow(unsafe_code)]
     fn delete_secret_removes_a_stored_value_and_is_idempotent() {
-        use std::sync::Mutex;
-        static ENV_LOCK: Mutex<()> = Mutex::new(());
-        let _guard = ENV_LOCK.lock().expect("env lock");
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let tmp_dir = tempfile::tempdir().expect("tempdir");
         let db_path = tmp_dir.path().join("delete_secret_vault.db");
