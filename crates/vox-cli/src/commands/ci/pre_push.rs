@@ -191,6 +191,9 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
         )?;
         return Ok(());
     }
+    // Surface GitHub CI failures/timeouts and open nightly-failure issues to
+    // whoever is pushing — agents see this in the push output without asking.
+    super::status::print_live_for_push();
     const WARN_AT_SECS: u64 = 20 * 60;
     const FAIL_AT_SECS: u64 = 25 * 60;
     let total = Instant::now();

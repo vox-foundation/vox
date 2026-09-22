@@ -937,6 +937,18 @@ pub enum CiCmd {
         #[arg(long)]
         hook_guard: bool,
     },
+    /// GitHub CI state for the current branch (failed/timed-out jobs, slowest
+    /// steps) plus open `nightly-failure` issues. Hooks call `--hook` /
+    /// `--changed-only`; agents never need to run it by hand.
+    #[command(name = "status")]
+    Status {
+        /// Hook mode: print the cached block (refresh in background if stale); never fails.
+        #[arg(long)]
+        hook: bool,
+        /// Per-session hook mode: read hook JSON on stdin; print only if changed for this session.
+        #[arg(long)]
+        changed_only: bool,
+    },
     /// Measure CI job run-time (execution, not queue) and warn on anything over the budget (default 10m).
     #[command(name = "job-timings")]
     JobTimings {

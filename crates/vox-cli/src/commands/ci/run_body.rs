@@ -59,6 +59,11 @@ use vox_cli_ci::retired_symbol_check;
 /// is a stale *report*, not a false CI signal. `ArtifactPrune` is deliberately NOT
 /// exempted here: it deletes, and a stale binary running outdated retention logic
 /// against a live tree while deleting is exactly what this guard exists to prevent.
+///
+/// `Status` is exempted for the same read-only reason, and MUST stay exempt: hook
+/// modes (`--hook`/`--changed-only`) are invoked by git/Claude Code hooks with
+/// `|| true`, so a refusal here would silently and permanently stop CI status from
+/// ever reaching an agent on a stale installed binary.
 fn should_enforce_freshness(cmd: &CiCmd) -> bool {
     !matches!(
         cmd,
@@ -66,6 +71,7 @@ fn should_enforce_freshness(cmd: &CiCmd) -> bool {
             | CiCmd::RunnerPreflight
             | CiCmd::RunnerStatus
             | CiCmd::ArtifactAudit { .. }
+            | CiCmd::Status { .. }
     )
 }
 
@@ -681,6 +687,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             ttl_mins,
             hook_guard,
         }),
+        CiCmd::Status { hook, changed_only } => {
+            super::status::run(super::status::StatusArgs { hook, changed_only })
+        }
         CiCmd::JobTimings {
             run_id,
             threshold_mins,
@@ -925,6 +934,12 @@ mod gate_status_tests {
         }));
         assert!(!should_enforce_freshness(&CiCmd::RunnerPreflight));
         assert!(!should_enforce_freshness(&CiCmd::RunnerStatus));
+        // Hook modes run with `|| true`; a stale-binary refusal here would silently
+        // and permanently stop CI status from reaching an agent — must stay exempt.
+        assert!(!should_enforce_freshness(&CiCmd::Status {
+            hook: true,
+            changed_only: false
+        }));
         // ArtifactAudit is read-only (no delete, no guard verdict) and joins the
         // exemption; ArtifactPrune deletes and must stay gated.
         assert!(!should_enforce_freshness(&CiCmd::ArtifactAudit {

@@ -201,6 +201,7 @@
     "ci sql-surface-guard",
     "ci ssot-audit",
     "ci ssot-drift",
+    "ci status",
     "ci string-id-lint",
     "ci sync-ignore-files",
     "ci test-inventory",

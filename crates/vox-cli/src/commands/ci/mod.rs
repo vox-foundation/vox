@@ -21,6 +21,7 @@ mod release_build;
 mod runner_scale;
 #[cfg(test)]
 mod sccache_workflow_guard;
+mod status;
 mod unexpected_exit_watch;
 pub mod workspace_artifacts;
 
