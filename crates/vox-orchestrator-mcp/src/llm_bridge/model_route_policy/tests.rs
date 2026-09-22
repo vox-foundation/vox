@@ -87,6 +87,149 @@ fn tiny_registry_with_free_and_paid() -> ModelRegistry {
     r
 }
 
+/// A single OpenRouter model whose catalog entry does NOT advertise its own
+/// built-in web search (`supports_web_search: false`) and does not advertise
+/// tool use either — used to test `web_evidence_supplied` dropping
+/// `Capability::SupportsWebSearch` from `required_capabilities` without
+/// relaxing any other capability gate.
+fn registry_with_web_incapable_model() -> ModelRegistry {
+    let mut r = ModelRegistry::default();
+    r.register(ModelSpec {
+        id: "web-incapable-model".into(),
+        canonical_slug: "test/web-incapable-model".into(),
+        provider: "test".into(),
+        provider_type: ProviderType::OpenRouter,
+        max_tokens: 1000,
+        cost_per_1k: 0.0,
+        cost_per_1k_input: 0.0,
+        cost_per_1k_output: 0.0,
+        is_free: true,
+        observed_cost_per_1k: None,
+        strengths: vec![vox_orchestrator::models::generated::StrengthTag::Codegen],
+        capabilities: Default::default(), // supports_web_search: false, supports_tool_use: false
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: vox_orchestrator::models::spec::PricingSource::Bootstrap,
+        supported_parameters: vec![],
+    });
+    r
+}
+
+/// D-fix regression (Task 8 fix round 1): quick research already ran web
+/// retrieval and injected numbered sources — the resolved model doesn't need
+/// its OWN `supports_web_search` catalog flag for that turn.
+/// `resolve_mcp_chat_model_sync_inner` (`resolve.rs`) must drop
+/// `Capability::SupportsWebSearch` from `required_capabilities` when
+/// `McpChatModelResolution::web_evidence_supplied` is set, so a model with
+/// `supports_web_search: false` (e.g. `google/gemini-3.8-flash`'s real
+/// catalog entry) still passes the capability gate for a "latest ..." prompt.
+///
+/// Pins via `VOX_MODEL_FORCE` (rather than free selection through `decide()`)
+/// for two reasons: (1) it exercises exactly the strict-pin branch that
+/// produced the live failure — `check_strict_pin`'s "is not allowed for this
+/// request (local/routing/capability gate)" message below is verbatim what
+/// the live daemon returned; (2) `VOX_MODEL_FORCE` set as a non-blank env var
+/// takes precedence over `~/.vox/config.toml` in
+/// `vox_config::inference::forced_model` (`resolve_config_str` checks env
+/// first), so the test is deterministic regardless of any machine-level pin
+/// in that file.
+#[test]
+fn web_evidence_supplied_drops_web_search_capability_requirement() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
+    let _pin = EnvKeyGuard::set("VOX_MODEL_FORCE", "web-incapable-model");
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_with_web_incapable_model();
+
+    let prompt = "What is the latest Gemini Flash model on OpenRouter?";
+
+    // Flag unset (default): the "latest" cue infers the web_search prompt
+    // intent, which requires `Capability::SupportsWebSearch`; the pinned
+    // model doesn't advertise it, so resolution must fail with the exact
+    // capability-gate error the live daemon returned.
+    let without_flag = resolve_mcp_chat_model_sync(
+        &orch,
+        prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            ..Default::default()
+        },
+    );
+    let err = without_flag.expect_err(
+        "a model with supports_web_search=false must fail the capability gate \
+         for a web-search-cue prompt when web_evidence_supplied is unset",
+    );
+    assert!(
+        err.contains("is not allowed for this request (local/routing/capability gate)"),
+        "{err}"
+    );
+
+    // Flag set: Vox already supplied web evidence for this turn, so the same
+    // pinned model must now resolve successfully.
+    let with_flag = resolve_mcp_chat_model_sync(
+        &orch,
+        prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            web_evidence_supplied: true,
+            ..Default::default()
+        },
+    )
+    .expect("web_evidence_supplied must drop the SupportsWebSearch requirement");
+    assert_eq!(with_flag.0.id, "web-incapable-model");
+}
+
+/// Companion to the above: `web_evidence_supplied` must drop ONLY
+/// `Capability::SupportsWebSearch`. A prompt that also infers `tool_calling`
+/// (`Capability::SupportsToolUse`) against a model that supports neither must
+/// still fail even with the flag set — every other capability requirement
+/// stays strict.
+#[test]
+fn web_evidence_supplied_does_not_relax_other_capability_requirements() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
+    let _pin = EnvKeyGuard::set("VOX_MODEL_FORCE", "web-incapable-model");
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_with_web_incapable_model();
+
+    // "latest" infers web_search; "use a tool" infers tool_calling. The
+    // pinned model supports neither.
+    let prompt = "use a tool to find the latest release date";
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: true,
+            web_evidence_supplied: true,
+            ..Default::default()
+        },
+    );
+    let err =
+        resolved.expect_err("web_evidence_supplied must not relax the SupportsToolUse requirement");
+    assert!(
+        err.contains("is not allowed for this request (local/routing/capability gate)"),
+        "{err}"
+    );
+}
+
 #[test]
 fn mcp_global_llm_context_fill_ratio_none_without_budget() {
     let mut config = OrchestratorConfig::for_testing();

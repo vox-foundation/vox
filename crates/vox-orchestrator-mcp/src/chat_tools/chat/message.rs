@@ -216,6 +216,7 @@ pub fn resolution_for_tier(
 /// `params.temperature`/`params.top_p` straight from the request, applied to the
 /// mapped `LlmConfig` exactly as the `call_llm` fallback applies them via
 /// `temperature_override`/`top_p_override`.
+#[allow(clippy::too_many_arguments)]
 async fn try_run_agent_turn(
     state: &ServerState,
     system_prompt: &str,
@@ -229,6 +230,7 @@ async fn try_run_agent_turn(
     tier: Option<&str>,
     clutch: Option<&str>,
     risk: Option<&str>,
+    web_evidence_supplied: bool,
 ) -> Option<Result<AgentTurnResult, String>> {
     if has_attachment {
         return None;
@@ -263,6 +265,7 @@ async fn try_run_agent_turn(
             context_fill_ratio,
             clutch: clutch.and_then(vox_orchestrator::mode::ClutchProfile::from_label),
             risk: risk.and_then(vox_orchestrator::mode::RiskPosture::from_label),
+            web_evidence_supplied,
             ..Default::default()
         },
     );
@@ -946,6 +949,9 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         "creative" => 7,
                         _ => 5,
                     },
+                    // See `try_run_agent_turn`'s call site: same reasoning, quick
+                    // research already supplied evidence for this turn.
+                    web_evidence_supplied: !research_trace.sources.is_empty(),
                     ..Default::default()
                 };
                 let profile_complexity = resolution_template.complexity;
@@ -1094,6 +1100,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 params.tier.as_deref(),
                 params.clutch.as_deref(),
                 params.risk.as_deref(),
+                // Quick research already ran web retrieval and injected numbered
+                // sources into `user_prompt` — the model doesn't need its own
+                // built-in web search capability for this turn (D-fix: see
+                // `McpChatModelResolution::web_evidence_supplied`).
+                !research_trace.sources.is_empty(),
             )
             .await
             {
@@ -1747,6 +1758,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .await;
 

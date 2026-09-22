@@ -34,6 +34,15 @@ pub struct McpChatModelResolution {
     /// is correct by construction here — no inference needed (contrast with
     /// `AgentTask.trigger_source`, which is genuinely optional/hinted).
     pub trigger_source: vox_orchestrator::mode::TriggerSource,
+    /// `true` when Vox already ran web retrieval for this turn and injected
+    /// numbered sources into the prompt (quick research, `research_turn::run_quick`).
+    /// `Capability::SupportsWebSearch` means the *model itself* has built-in web
+    /// search; that's a different mechanism than Vox's own retrieval, and requiring
+    /// it here would wrongly exclude models (e.g. `google/gemini-3.8-flash`) whose
+    /// catalog entry has `supports_web_search: false` even though the turn already
+    /// has real evidence. See `resolve_mcp_chat_model_sync_inner`, which drops
+    /// `Capability::SupportsWebSearch` from `required_capabilities` when this is set.
+    pub web_evidence_supplied: bool,
 }
 
 impl Default for McpChatModelResolution {
@@ -49,6 +58,7 @@ impl Default for McpChatModelResolution {
             clutch: None,
             risk: None,
             trigger_source: vox_orchestrator::mode::TriggerSource::Interactive,
+            web_evidence_supplied: false,
         }
     }
 }

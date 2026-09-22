@@ -343,6 +343,16 @@ fn resolve_mcp_chat_model_sync_inner(
             required_capabilities.push(c);
         }
     }
+    // Vox already ran web retrieval and injected numbered sources for this turn
+    // (quick research) — `Capability::SupportsWebSearch` means the *model's own*
+    // built-in search, a different mechanism, and requiring it here would wrongly
+    // exclude models with real evidence already in the prompt. Every other
+    // capability requirement (tool use, reasoning, image generation, ...) stays
+    // strict; `check_strict_pin` below is untouched.
+    if res.web_evidence_supplied {
+        required_capabilities
+            .retain(|c| *c != vox_orchestrator::models::Capability::SupportsWebSearch);
+    }
     let caps_ok = |m: &ModelSpec| {
         required_capabilities
             .iter()

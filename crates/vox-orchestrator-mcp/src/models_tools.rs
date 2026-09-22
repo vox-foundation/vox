@@ -82,6 +82,7 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         clutch: None,
         risk: None,
         trigger_source: vox_orchestrator::mode::TriggerSource::Interactive,
+        web_evidence_supplied: false,
     };
     match resolve_mcp_chat_model_sync(orch, "", None, resolution) {
         Ok((model, _is_free)) => ToolResult::ok(model).to_json(),
@@ -159,5 +160,69 @@ pub async fn set_model(state: &ServerState, params: SetModelParams) -> String {
             REM_MODEL_REGISTRY,
         )
         .to_json()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::server_state::ServerState;
+
+    /// `suggest_model` rejects an unrecognized `task_category` before ever
+    /// touching the model registry — the cheapest slice of this file's public
+    /// API to exercise without standing up a populated registry fixture.
+    #[tokio::test]
+    async fn suggest_model_rejects_unknown_task_category() {
+        let state = ServerState::new_test().await;
+        let params = SuggestModelParams {
+            task_category: "not-a-real-category".to_string(),
+        };
+        let response_json = suggest_model(&state, params).await;
+        let parsed: serde_json::Value = serde_json::from_str(&response_json).expect("valid JSON");
+        assert_eq!(parsed["success"], false, "{response_json}");
+        assert!(
+            response_json.contains("Unknown task_category"),
+            "{response_json}"
+        );
+    }
+
+    /// `set_active_mcp_chat_model` / `get_active_mcp_chat_model` round-trip:
+    /// setting a non-empty id makes it the active override, and clearing it
+    /// (empty `model_id`) removes the override again.
+    #[tokio::test]
+    async fn set_and_get_active_mcp_chat_model_round_trips() {
+        let state = ServerState::new_test().await;
+
+        let set_response = set_active_mcp_chat_model(
+            &state,
+            SetActiveMcpModelParams {
+                model_id: "test/some-model".to_string(),
+            },
+        )
+        .await;
+        assert!(
+            !set_response.contains("\"error\""),
+            "set should succeed: {set_response}"
+        );
+
+        let get_response = get_active_mcp_chat_model(&state).await;
+        assert!(get_response.contains("test/some-model"), "{get_response}");
+
+        let clear_response = set_active_mcp_chat_model(
+            &state,
+            SetActiveMcpModelParams {
+                model_id: String::new(),
+            },
+        )
+        .await;
+        assert!(
+            !clear_response.contains("\"error\""),
+            "clear should succeed: {clear_response}"
+        );
+        let get_after_clear = get_active_mcp_chat_model(&state).await;
+        assert!(
+            !get_after_clear.contains("test/some-model"),
+            "{get_after_clear}"
+        );
     }
 }
