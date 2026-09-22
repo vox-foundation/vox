@@ -4,6 +4,12 @@
   "suppressions": [
     {
       "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-plugin-mens-candle-*/src/candle_qlora_train/training_loop/forward.rs",
+      "reason": "forward_masked_ce predates the 2026-09-22 change that only separates the reported (unweighted) loss scalar from the weighted backward loss. It needs a loaded TrainGraphModel on a device, so it has no cheap unit seam; the Metal repeat_kv regression test and real training runs exercise it. Surfaced because tdd-guard re-scans the whole touched file.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-corpus/src/corpus/augment/part_mutate.rs",
       "reason": "part_mutate.rs is include!()d into augment/mod.rs; augment_prompt is tested by augment/tests_mod.rs (also include!()d there), e.g. augment_produces_variants and typos_never_touch_identifiers_or_code_spans. tdd-guard scans files individually and cannot see across include!.",
       "owner": "robot"
