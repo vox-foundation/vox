@@ -728,10 +728,25 @@ mod citation_diversity_tests {
     fn judge_budget_fits_its_schema() {
         let c = super::super::config::ResearchConfig::default();
         assert!(
-            c.judge_max_tokens >= 1400,
+            c.judge_max_tokens >= c.synthesis_max_tokens,
             "judge_max_tokens {} does not leave room for google/gemini-3.8-flash's \
-             reasoning tokens ahead of the visible JSON (D8 — see judge_probe_max_tokens_400_vs_4000)",
+             reasoning tokens ahead of the visible JSON (D8 — see judge_probe_max_tokens_400_vs_4000). \
+             The judge reads the synthesis output, so its budget must scale with \
+             synthesis_max_tokens (D9)",
             c.judge_max_tokens
+        );
+    }
+
+    #[test]
+    fn synthesis_budget_fits_its_five_mandated_sections() {
+        let c = super::super::config::ResearchConfig::default();
+        assert!(
+            c.synthesis_max_tokens >= 2400,
+            "synthesis_max_tokens {} truncates the five mandated markdown sections at live \
+             evidence scale (D9 — see synthesis_probe_max_tokens_budget_vs_visible_output: \
+             1200 exhausted the budget at 1202 completion tokens mid-sentence; the natural \
+             length is ~1800)",
+            c.synthesis_max_tokens
         );
     }
 
@@ -782,6 +797,127 @@ mod citation_diversity_tests {
             })
             .await;
             eprintln!("--- max_tokens={max_tokens} ---\n{result:?}\n");
+        }
+    }
+
+    /// D9 live diagnostic (Task 8 fix round 4): the live daemon's deep-research
+    /// synthesis stage returned a 202-character fragment that stopped
+    /// mid-sentence ("**Tavily** is a managed, purpose-built \"agent-native\"
+    /// search"), which made the judge score it 5/100 and citation_audit report
+    /// 0/35. Same class as the round-2 judge truncation (D8), but for
+    /// synthesis. Probes the real synthesis path against the real
+    /// `google/gemini-3.8-flash` at the shipped budget and larger ones,
+    /// printing the visible answer length AND `completion_tokens` — if
+    /// `completion_tokens` sits at the budget while the visible text is a few
+    /// hundred characters, the model spent the budget on reasoning tokens
+    /// before writing any answer.
+    ///
+    /// Run manually (needs a live `OPENROUTER_API_KEY` and network):
+    /// `cargo test -p vox-research-shim --features runtime -- --ignored --nocapture synthesis_probe`
+    #[cfg(feature = "runtime")]
+    #[tokio::test]
+    #[ignore = "live OpenRouter network probe — run manually with --ignored --features runtime"]
+    async fn synthesis_probe_max_tokens_budget_vs_visible_output() {
+        use vox_actor_runtime::ActivityOptions;
+        use vox_actor_runtime::llm::LlmChatMessage;
+        use vox_actor_runtime::llm::cascade::{
+            ResearchStage, cascade_with_optional_manual, chat_with_cascade,
+        };
+        use vox_actor_runtime::model_resolution::RouteResolutionInput;
+
+        let Some(api_key) = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
+            .expose()
+            .map(|s| s.to_string())
+        else {
+            eprintln!("SKIP: OPENROUTER_API_KEY does not resolve; cannot probe live synthesis");
+            return;
+        };
+        let model = "google/gemini-3.8-flash";
+
+        // The real synthesis framing (five mandated markdown sections), with a
+        // small but realistic SearXNG-vs-Tavily evidence set — the live shape.
+        let system = format!(
+            "You are a precise research synthesizer. Using ONLY the provided evidence \
+             snippets, write a thorough, well-structured answer to the user's question.\n\n\
+             You MUST structure your synthesis with the following comprehensive markdown sections:\n\
+             # Executive Summary\n\
+             ## Architectural Tradeoffs\n\
+             ## Grounded Claims\n\
+             ## Contested Findings\n\
+             ## Implementation Implications\n\n\
+             Cite sources inline as [1], [2], etc. matching the evidence numbers.\n\
+             If evidence is insufficient, say so clearly.\n{}",
+            super::RESEARCH_COMPLETENESS_RIDER
+        );
+        let user = "Question: compare SearXNG and Tavily for agent web search\n\n\
+             Evidence:\n\
+             [1] Tavily vs SearXNG: which wins on the bench?\nURL: https://trytested.com/a\n\
+             Tavily is a managed search API purpose-built for LLM agents, billed per call.\n\n\
+             [2] Replacing Tavily with self-hosted SearXNG\nURL: https://note.com/b\n\
+             SearXNG is a self-hosted metasearch aggregator with no per-call cost but \
+             requires operating upstream engines yourself.\n\n\
+             [3] The True Cost of Self-Hosted Web Search for AI Agents\nURL: https://tavily.com/c\n\
+             Self-hosting shifts cost from per-query billing to operational maintenance.\n"
+            .to_string();
+        // The live failure had 35 sources packed into `synthesis_context_max_chars`
+        // (24000). Reproduce that scale — a three-source prompt is far smaller than
+        // what the daemon actually sends, and the truncation is input-size sensitive.
+        let mut user = user;
+        let mut n = 4;
+        while user.chars().count() < 24_000 {
+            user.push_str(&format!(
+                "[{n}] Benchmarking LLM search APIs: latency, cost and recall\n\
+                 URL: https://example{n}.dev/post\n\
+                 Measured p50 latency, per-query price and answer recall across managed \
+                 and self-hosted search backends for agent workloads, with notes on \
+                 rate limits, caching, and upstream engine availability.\n\n"
+            ));
+            n += 1;
+        }
+        eprintln!("evidence prompt chars = {}", user.chars().count());
+
+        for max_tokens in [1200u32, 2400u32, 4000u32, 8000u32] {
+            let input = RouteResolutionInput {
+                openrouter_model: model.to_string(),
+                ..RouteResolutionInput::default()
+            };
+            let mut candidates = cascade_with_optional_manual(
+                ResearchStage::Synthesis,
+                &input,
+                None,
+                Some(&api_key),
+                Some(model),
+            );
+            candidates.truncate(1);
+            for candidate in &mut candidates {
+                candidate.temperature = Some(0.2);
+                candidate.max_tokens = Some(max_tokens.into());
+                candidate.response_format = None;
+            }
+            let messages = vec![
+                LlmChatMessage {
+                    role: "system".to_string(),
+                    content: system.clone(),
+                    ..Default::default()
+                },
+                LlmChatMessage {
+                    role: "user".to_string(),
+                    content: user.clone(),
+                    ..Default::default()
+                },
+            ];
+            let opts = ActivityOptions::new().with_timeout_secs(120);
+            match chat_with_cascade(&opts, messages, candidates, None).await {
+                Ok(r) => eprintln!(
+                    "--- max_tokens={max_tokens} --- chars={} completion_tokens={} model={}\n\
+                     tail: {:?}\n",
+                    r.content.chars().count(),
+                    r.completion_tokens,
+                    r.model,
+                    r.content.chars().rev().take(90).collect::<String>()
+                ),
+                Err(e) => eprintln!("--- max_tokens={max_tokens} --- Err: {e}\n"),
+            }
         }
     }
 }

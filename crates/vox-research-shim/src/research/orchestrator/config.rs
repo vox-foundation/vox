@@ -134,7 +134,16 @@ impl Default for ResearchConfig {
             claim_max_tokens: 512,
             synthesis_model: r.synthesis_model,
             synthesis_temperature: 0.2,
-            synthesis_max_tokens: 1200,
+            // D9 (Task 8 fix round 4): 1200 truncated the answer mid-sentence at
+            // live scale. Live-probed against google/gemini-3.8-flash with a
+            // 24k-char evidence prompt (the shipped `synthesis_context_max_chars`):
+            // 1200 => completion_tokens 1202, cut off mid-sentence; 2400 => 1803
+            // tokens, complete; 4000 => 1562; 8000 => 962. The natural length for
+            // the five mandated markdown sections tops out near 1800 tokens, so
+            // 2400 is marginal — 4000 keeps headroom without being unbounded, and
+            // stays under the chat path's 8192 output cap. See
+            // `synthesis_probe_max_tokens_budget_vs_visible_output`.
+            synthesis_max_tokens: 4000,
             judge_model: r.judge_model,
             judge_temperature: 0.0,
             // D8 (Task 8 fix round 2): 400 was too tight for the judge's own JSON
@@ -143,7 +152,16 @@ impl Default for ResearchConfig {
             // truncated JSON every time; 1200/1600/4000 all returned a parseable
             // score. 1600 keeps headroom above the observed 1200 floor without
             // being unbounded.
-            judge_max_tokens: 1600,
+            //
+            // D9 (Task 8 fix round 4): 1600 was sized against a *truncated*
+            // 201-char answer. Once the synthesis fix below let the answer reach
+            // its natural ~3800 chars, the judge's own `*_reasoning` strings grew
+            // with it and 1600 truncated again live ("judge returned unparseable
+            // JSON: {\n  \"factual_accuracy_reasoning\": \"The provided
+            // bibliography lists five unrelated arXiv papers…"). Raised to 4000,
+            // matching `synthesis_max_tokens` — the judge reads the synthesis
+            // output, so its budget must scale with it.
+            judge_max_tokens: 4000,
             synthesis_context_max_chars: 24000,
             chunk_max_chars: 1200,
             chunk_overlap_chars: 150,

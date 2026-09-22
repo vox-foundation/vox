@@ -315,7 +315,7 @@ fn apply_stage_defaults(stage: ResearchStage, cfg: &mut LlmConfig) {
             // too tight for the judge's own JSON schema (3 free-text
             // `*_reasoning` fields plus 4 integer scores), live-probed truncating
             // every time against google/gemini-3.8-flash.
-            ResearchStage::Judge => 1600,
+            ResearchStage::Judge => 4000,
             ResearchStage::SelfVerification => 700,
             ResearchStage::Synthesis => unreachable!("guarded by outer if"),
         });
