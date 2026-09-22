@@ -5,14 +5,12 @@ on:
   workflow_dispatch:
   schedule:
     # Moved off 05:17 UTC (measured: 24/29 runs cancelled, ALL-CANCELLED per
-    # wf-health-measured.tsv). 05:17 sat inside the densest self-hosted-linux
-    # cron cluster in this repo — gitleaks (05:00), then cr-l-gates,
-    # ci-fallback-hosted, and link_checker all firing at 06:00 — so a 120-minute
-    # mutation run competed with four other nightlies for the same fleet
-    # capacity and was starving/being starved (see the job's own
-    # "starving the other nightlies" comment below, from a prior 2026-07-27
-    # audit of this exact contention pattern). 13:00 UTC has no other
-    # self-hosted-linux cron in this repo, giving this job the fleet to itself.
+    # wf-health-measured.tsv) — 05:17 sat inside a dense cron cluster (gitleaks
+    # at 05:00, then several nightlies at 06:00), so a 120-minute mutation run
+    # competed for scarce GitHub-hosted minutes (see the job's own "starving
+    # the other nightlies" comment below, from a prior 2026-07-27 audit of
+    # this exact contention pattern). 13:00 UTC has no other dense cron
+    # cluster in this repo.
     - cron: "0 13 * * *"
 
 env:
@@ -23,11 +21,10 @@ env:
 jobs:
   cargo-mutants:
     name: cargo-mutants (vox-compiler)
-    runs-on: [self-hosted, linux]
-    # Without this, a hang defaults to GitHub's 360-min job timeout, squatting
-    # a scarce self-hosted runner slot for up to 6h and starving the other
-    # nightlies (2026-07-27 audit finding — this and the Qwen3.5 job were the
-    # only two nightlies missing an explicit timeout).
+    runs-on: ubuntu-latest
+    # Without this, a hang defaults to GitHub's 360-min job timeout, burning
+    # hosted-runner minutes for up to 6h (2026-07-27 audit finding — this and
+    # the Qwen3.5 job were the only two nightlies missing an explicit timeout).
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7

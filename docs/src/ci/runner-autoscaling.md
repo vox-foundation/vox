@@ -1,13 +1,18 @@
 ---
 title: "Self-Hosted CI Runner Autoscaling"
-description: "Ephemeral, demand-scaled self-hosted CI runner pool: how it works, how to roll it out, and how to recover when runners are down. Replaces the two always-on vox-runner containers."
+description: "Ephemeral, demand-scaled self-hosted CI runner pool: how it worked, how it was rolled out, and how it was recovered when runners were down. Replaced the two always-on vox-runner containers."
 category: "CI & Quality"
-status: "current"
+status: "retired"
 training_eligible: true
 training_rationale: "Documents the runner autoscaler design + rollout so the single-box CI fleet can be operated and recovered reliably."
 ---
 
 # Self-Hosted CI Runner Autoscaling
+
+**Retired (2026-09).** `ci.yml` and `nightly.yml` moved to GitHub-hosted runners;
+the self-hosted fleet, its autoscaler, and the `ci-health-watchdog.yml` /
+`ci-fallback-hosted.yml` workflows described below no longer exist. Kept for
+historical reference only — do not follow these operational steps.
 
 Queue clearing, the agent-facing queue signal, and the async failure signal
 are documented in [local-first-ci](local-first-ci.md).
@@ -242,8 +247,6 @@ Before adding one:
 
 ## Cross-refs
 - Runner contract: [`runner-contract.md`](runner-contract.md).
-- Hosted fallback: `.github/workflows/ci-fallback-hosted.yml` (**manual only** via
-  `workflow_dispatch`; not a required check and does not run on PR/push).
 
 ## Required-check policy (2026-06-15)
 

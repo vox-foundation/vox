@@ -193,39 +193,27 @@ For routing/telemetry/capability-policy changes, prefer narrow reruns before ful
 
 Use these focused lanes during iteration, then finish with `vox ci pre-push` (or CI lane equivalent) before merge.
 
-## Merge-queue break-glass (fleet outage)
+## Merge-queue gate
 
 The `main-merge-queue` ruleset is active and serializes every merge through a `merge_group`
-`ci.yml` run. The sole required context is **`Check, Build, and Test (Rust)`** (the
-`ci-summary` aggregator, now on `ubuntu-latest` so the gate itself is fleet-independent),
-but its heavy `needs` (guards-fast/lints/compiler-gates/tests/audits) run on the self-hosted
-fleet. The admin bypass (`enforce_admins=false`) does NOT apply inside a required merge
-queue. If the fleet is down:
+`ci.yml` run. The sole required context is **`Check, Build, and Test (Rust)`**, entirely on
+GitHub-hosted (`ubuntu-latest`) runners — there is no self-hosted fleet dependency, so there
+is no outage valve to reach for. If the queue is wedged for an unrelated reason, temporarily
+relax the ruleset. `PUT /rulesets/{id}` replaces the whole resource, so a partial
+`-f enforcement=evaluate` would wipe other fields — GET the full ruleset, change only
+`enforcement`, and PUT the complete body back:
 
-1. **Preferred — the outage valve:** apply the **`fleet-down`** label to the PR.
-   [`ci-fallback-hosted.yml`](../../../.github/workflows/ci-fallback-hosted.yml) then runs
-   its `gate` job (named `"Check, Build, and Test (Rust)"`) on hosted infra and reports the
-   required context green; merge normally.
-2. **If the queue is wedged:** temporarily relax the ruleset. `PUT /rulesets/{id}`
-   replaces the whole resource, so a partial `-f enforcement=evaluate` would wipe other
-   fields — GET the full ruleset, change only `enforcement`, and PUT the complete body back:
-
-   ```bash
-   RID=$(gh api repos/vox-foundation/vox/rulesets --jq '.[] | select(.name=="main-merge-queue") | .id')
-   # Relax:
-   gh api repos/vox-foundation/vox/rulesets/$RID \
-     | jq '{name, target, enforcement: "evaluate", conditions, rules, bypass_actors}' \
-     | gh api -X PUT repos/vox-foundation/vox/rulesets/$RID --input -
-   # ...merge..., then restore:
-   gh api repos/vox-foundation/vox/rulesets/$RID \
-     | jq '{name, target, enforcement: "active", conditions, rules, bypass_actors}' \
-     | gh api -X PUT repos/vox-foundation/vox/rulesets/$RID --input -
-   ```
-3. Bring the fleet back (`vox ci runner-scale` / autoscaler), then remove the `fleet-down`
-   label so subsequent PRs use the full self-hosted gate again.
-
-A nightly `schedule:` on `ci-fallback-hosted.yml` keeps a recent portable green signal on
-`main` even during a multi-day outage.
+```bash
+RID=$(gh api repos/vox-foundation/vox/rulesets --jq '.[] | select(.name=="main-merge-queue") | .id')
+# Relax:
+gh api repos/vox-foundation/vox/rulesets/$RID \
+  | jq '{name, target, enforcement: "evaluate", conditions, rules, bypass_actors}' \
+  | gh api -X PUT repos/vox-foundation/vox/rulesets/$RID --input -
+# ...merge..., then restore:
+gh api repos/vox-foundation/vox/rulesets/$RID \
+  | jq '{name, target, enforcement: "active", conditions, rules, bypass_actors}' \
+  | gh api -X PUT repos/vox-foundation/vox/rulesets/$RID --input -
+```
 
 ## Workflow list
 

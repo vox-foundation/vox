@@ -25,7 +25,7 @@ env:
 jobs:
   golden-differential-gate:
     name: golden_differential_gate (interp vs native, one generated crate)
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     # Cold-cache: building the `vox` CLI binary, the vox-integration-tests test
     # binary's own (large) dependency graph, AND the generated differential
     # bundle crate (one `[[bin]]` per EXPECT golden, sharing one

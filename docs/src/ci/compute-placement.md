@@ -37,7 +37,7 @@ cheapest, subject to the free-tier economics below.
 |---|---|
 | Local fleet (`[self-hosted, linux, x64]`) | `ci.yml` build+clippy+test, `mutation-nightly`, `compile-matrix`, `bench-nightly` (pinned to one host for comparable timings), `qwen35-native-nightly` (GPU), `ml_data_extraction` |
 | Hetzner VPS | deploy triggers + Gate-3 probes (`deploy-hetzner`, `deploy-telemetry`), nightly ClickHouse maintenance (TTL/OPTIMIZE, backup → object storage), live-endpoint uptime, link/dep bots |
-| GitHub-hosted | Gate-1 portability build, `docker-telemetry` / `docker-eval` image builds, `release-*` cross-OS, mobile EAS, `codeql`/`scorecard`/`gitleaks`; `ci-fallback-hosted.yml` = safety valve |
+| GitHub-hosted | Gate-1 portability build, `docker-telemetry` / `docker-eval` image builds, `release-*` cross-OS, mobile EAS, `codeql`/`scorecard`/`gitleaks`, `ci.yml`/`nightly.yml` (2026-09: moved off the self-hosted fleet) |
 
 > The telemetry workflows (`docker-telemetry.yml`, `deploy-telemetry.yml`) both use
 > `runs-on: ubuntu-latest` — deploy critical path on free hosted minutes, by policy.
@@ -52,8 +52,8 @@ cheapest, subject to the free-tier economics below.
 
 ## Invariants
 
-1. The merge gate never hard-depends on the workstation — Gate-1 portability +
-   `ci-fallback-hosted` keep PRs unblockable when the fleet is down.
+1. The merge gate never hard-depends on the workstation — `ci.yml` runs entirely
+   on GitHub-hosted runners, so a local fleet outage cannot block PRs.
 2. `bench-nightly` is pinned to one host (local) so timings stay comparable run-to-run.
 3. DB maintenance + backups run where the data lives (Hetzner → object storage).
 4. The telemetry and eval deploy critical paths stay on GitHub-hosted runners; the

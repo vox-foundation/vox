@@ -1,8 +1,8 @@
 # CI runner image — self-hosted basic Linux profile
 #
-# Published to GHCR via .github/workflows/publish-ci-runner.yml.
-# Matches the [self-hosted, linux, x64] runner capability profile described in
-# docs/src/ci/runner-contract.md.
+# No longer published: the self-hosted fleet was retired 2026-09 in favor of
+# GitHub-hosted runners (see AGENTS.md §Local CI Gate Tiers). This Dockerfile
+# is kept for reference only; nothing builds or pushes it.
 #
 # Contributors can pull this image to reproduce self-hosted lanes locally:
 #   docker pull ghcr.io/<org>/vox-ci-runner:latest

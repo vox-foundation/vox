@@ -4,7 +4,7 @@ on:
     - cron: '0 6 * * 1'   # every Monday at 06:00 UTC
   workflow_dispatch:
   # push:main dropped (runner-remediation Task 9) — this observational report
-  # belongs on the weekly schedule, not contending for self-hosted slots per push.
+  # belongs on the weekly schedule, not on every push.
 
 concurrency:
   group: os-compat-report
@@ -13,16 +13,12 @@ concurrency:
 jobs:
   scan:
     name: OS compatibility scan (${{ matrix.label }})
-    # Matrix over the RUNNER LABEL, not an `os:` string: a naive
-    # `runs-on: ${{ matrix.os }}` would have to name `ubuntu-latest` and would
-    # thereby move the Linux leg off the self-hosted fleet, contradicting the
-    # local-first compute policy. The label list IS the runs-on value.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: [self-hosted, linux]
-            label: self-hosted linux
+          - runner: ubuntu-latest
+            label: Linux
           - runner: macos-latest
             label: macOS
     runs-on: ${{ matrix.runner }}

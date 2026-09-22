@@ -34,8 +34,8 @@ env:
 
 jobs:
   compile-help-linux:
-    name: vox compile --help (Linux self-hosted)
-    runs-on: [self-hosted, linux]
+    name: vox compile --help (Linux)
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -65,7 +65,7 @@ jobs:
   # per crate/feature-set combo so a broken default is caught in isolation.
   per-crate-check:
     name: cargo check -p ${{ matrix.crate }}${{ matrix.no_default_features && ' --no-default-features' || '' }}
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -103,7 +103,7 @@ jobs:
   # intercepts `cargo` on PATH — a silent break here is high-consequence.
   cargo-shim-check:
     name: cargo check/clippy/test -p vox-cargo-shim (standalone manifest)
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7

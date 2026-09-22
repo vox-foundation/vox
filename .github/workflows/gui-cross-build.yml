@@ -18,12 +18,12 @@ env:
 
 jobs:
   # Emit the build matrix: Linux (WebKitGTK) every event for per-PR GUI compile signal;
-  # Win/macOS only off-PR (merge_group + dispatch) — they cannot run on the Linux fleet
-  # and their per-PR cost buys little over the Linux compile.
+  # Win/macOS only off-PR (merge_group + dispatch) — their per-PR cost buys little
+  # over the Linux compile.
   matrix-setup:
     name: Compute GUI matrix (Win/macOS off per-PR)
     # Pure-bash compute job — runs on the local fleet per local-first policy.
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
       include: ${{ steps.gen.outputs.include }}

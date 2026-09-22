@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-09-22T04:00:50.990Z",
+  "generated_at": "2026-09-22T05:33:41.804Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -6259,6 +6259,17 @@
       "notes": "approx // and block comments"
     },
     {
+      "path": "docs/src/ci/runner-autoscaling.md",
+      "kind": "markdown",
+      "lines_total": 290,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 13,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/architecture/agentic-version-control-automation-research-2026.md",
       "kind": "markdown",
       "lines_total": 289,
@@ -6354,17 +6365,6 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 19,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/ci/runner-autoscaling.md",
-      "kind": "markdown",
-      "lines_total": 287,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 13,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -7436,17 +7436,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "docs/src/ci/runner-contract.md",
-      "kind": "markdown",
-      "lines_total": 233,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 23,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "docs/src/architecture/build-and-crate-org-improvement-plan-2026-06.md",
       "kind": "markdown",
       "lines_total": 232,
@@ -7652,6 +7641,17 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 12,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": "docs/src/ci/runner-contract.md",
+      "kind": "markdown",
+      "lines_total": 221,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 23,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -17622,6 +17622,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-cli-ci/src/required_context_guard.rs",
+      "kind": "rust",
+      "lines_total": 228,
+      "lines_triple_slash": 16,
+      "lines_inner_doc": 26,
+      "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-compiler/src/hir/lower/mod.rs",
       "kind": "rust",
       "lines_total": 1133,
@@ -17727,17 +17738,6 @@
       "lines_triple_slash": 30,
       "lines_inner_doc": 11,
       "lines_plain_comment": 9,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-cli-ci/src/required_context_guard.rs",
-      "kind": "rust",
-      "lines_total": 227,
-      "lines_triple_slash": 16,
-      "lines_inner_doc": 25,
-      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -21417,17 +21417,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-cli-ci/src/job_timings.rs",
-      "kind": "rust",
-      "lines_total": 375,
-      "lines_triple_slash": 15,
-      "lines_inner_doc": 11,
-      "lines_plain_comment": 16,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-orchestrator-mcp/src/code_validator.rs",
       "kind": "rust",
       "lines_total": 364,
@@ -22116,6 +22105,17 @@
       "lines_triple_slash": 11,
       "lines_inner_doc": 13,
       "lines_plain_comment": 12,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli-ci/src/job_timings.rs",
+      "kind": "rust",
+      "lines_total": 372,
+      "lines_triple_slash": 14,
+      "lines_inner_doc": 10,
+      "lines_plain_comment": 15,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -24767,17 +24767,6 @@
       "lines_triple_slash": 14,
       "lines_inner_doc": 5,
       "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-cli/src/commands/ci/merge_group_fanout_guard.rs",
-      "kind": "rust",
-      "lines_total": 148,
-      "lines_triple_slash": 8,
-      "lines_inner_doc": 11,
-      "lines_plain_comment": 14,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -44838,7 +44827,7 @@
     {
       "path": "crates/vox-cli/tests/ci_workflow_contract.rs",
       "kind": "rust",
-      "lines_total": 473,
+      "lines_total": 468,
       "lines_triple_slash": 0,
       "lines_inner_doc": 2,
       "lines_plain_comment": 23,
@@ -46332,17 +46321,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": "crates/vox-cli/src/commands/ci/mod.rs",
-      "kind": "rust",
-      "lines_total": 45,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 1,
-      "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
       "path": "crates/vox-db/tests/hitl_approvals_tests.rs",
       "kind": "rust",
       "lines_total": 45,
@@ -46360,6 +46338,17 @@
       "lines_triple_slash": 1,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/src/commands/ci/mod.rs",
+      "kind": "rust",
+      "lines_total": 43,
+      "lines_triple_slash": 1,
+      "lines_inner_doc": 1,
+      "lines_plain_comment": 2,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -51920,12 +51909,12 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": ".github/workflows/ci.yml",
+      "path": ".github/workflows/nightly.yml",
       "kind": "yaml",
-      "lines_total": 2000,
+      "lines_total": 1824,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 436,
+      "lines_plain_comment": 318,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "comments + structure"
@@ -52932,17 +52921,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": ".github/workflows/ci-fallback-hosted.yml",
-      "kind": "yaml",
-      "lines_total": 246,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 105,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": "crates/vox-gui/ui/src/lib/sessionChatStore.ts",
       "kind": "typescript",
       "lines_total": 246,
@@ -53086,17 +53064,6 @@
       "notes": "comments + structure"
     },
     {
-      "path": ".github/workflows/cross-platform-check.yml",
-      "kind": "yaml",
-      "lines_total": 228,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 66,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": "crates/vox-gui/ui/src/components/gamify/urbs/worldRenderer.ts",
       "kind": "typescript",
       "lines_total": 227,
@@ -53128,6 +53095,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
+    },
+    {
+      "path": ".github/workflows/cross-platform-check.yml",
+      "kind": "yaml",
+      "lines_total": 225,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 63,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "apps/editor/vox-vscode/src/vcs/SnapshotProvider.ts",
@@ -53348,17 +53326,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": ".github/workflows/ci-health-watchdog.yml",
-      "kind": "yaml",
-      "lines_total": 200,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 62,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-graph-reader/tests/rebuild_tests.rs",
@@ -53645,6 +53612,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "kind": "yaml",
+      "lines_total": 184,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 43,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": ".github/workflows/cr-l-gates.yml",
@@ -55528,17 +55506,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": ".github/workflows/mutation-nightly.yml",
-      "kind": "yaml",
-      "lines_total": 103,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 44,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": "crates/vox-db/tests/ops_retention_tests.rs",
       "kind": "rust",
       "lines_total": 103,
@@ -55614,6 +55581,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": ".github/workflows/mutation-nightly.yml",
+      "kind": "yaml",
+      "lines_total": 100,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 41,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "apps/editor/vox-vscode/src/core/StatusBarManager.ts",
@@ -56958,17 +56936,6 @@
       "notes": "comments + structure"
     },
     {
-      "path": ".github/workflows/publish-ci-runner.yml",
-      "kind": "yaml",
-      "lines_total": 78,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 10,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": "crates/vox-gui/ui/src/lib/toastQueue.ts",
       "kind": "typescript",
       "lines_total": 78,
@@ -57594,17 +57561,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "docstrings + # (heuristic)"
-    },
-    {
-      "path": ".github/workflows/ci-health-watchdog-test.yml",
-      "kind": "yaml",
-      "lines_total": 71,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 6,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-compiler/src/hir/lower/async_flags.rs",
@@ -58333,17 +58289,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": ".github/workflows/ci-timings.yml",
-      "kind": "yaml",
-      "lines_total": 65,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 16,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": "crates/vox-cli/src/commands/extras/ars/run_skill.rs",
       "kind": "rust",
       "lines_total": 65,
@@ -58927,17 +58872,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": ".github/workflows/os-compat-report.yml",
-      "kind": "yaml",
-      "lines_total": 60,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 12,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": "crates/vox-cli-research/src/infra.rs",
       "kind": "rust",
       "lines_total": 60,
@@ -59362,6 +59296,17 @@
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 19,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
+      "path": ".github/workflows/os-compat-report.yml",
+      "kind": "yaml",
+      "lines_total": 56,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 8,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "comments + structure"
@@ -60135,17 +60080,6 @@
       "lines_other_doc_signal": 7,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": ".github/workflows/ci-health-deadman.yml",
-      "kind": "yaml",
-      "lines_total": 52,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 6,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": ".github/workflows/workflow-lint.yml",
