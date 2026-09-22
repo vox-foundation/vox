@@ -22,6 +22,7 @@ pub mod coverage;
 pub mod crate_model;
 pub mod edge_weights;
 pub mod gc;
+pub mod history;
 pub mod lens;
 pub mod manifest;
 pub mod overlay;
