@@ -1461,22 +1461,54 @@ fn now_ms() -> i64 {
 
 fn run_secrets_future<F, T>(future: F) -> Result<T, SecretError>
 where
-    F: Future<Output = Result<T, SecretError>>,
+    F: Future<Output = Result<T, SecretError>> + Send,
+    T: Send,
 {
-    if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-            tokio::task::block_in_place(|| handle.block_on(future))
-        }));
-        return result.map_err(|_| {
-            SecretError::BackendMisconfigured(
+    let Ok(handle) = tokio::runtime::Handle::try_current() else {
+        return Err(SecretError::BackendMisconfigured(
+            "run_secrets_future requires an active Tokio runtime".to_string(),
+        ));
+    };
+
+    if handle.runtime_flavor() != tokio::runtime::RuntimeFlavor::MultiThread {
+        // `block_in_place` panics unless the active runtime is multi-threaded
+        // (it needs another worker to hand the remaining tasks to). A
+        // current-thread runtime has none, so run the future to completion on
+        // a throwaway OS thread with its own runtime instead. A scoped thread
+        // lets the future keep borrowing caller-local state (e.g. a held
+        // `MutexGuard`) instead of requiring `'static`.
+        let outcome = std::thread::scope(|scope| {
+            scope
+                .spawn(|| {
+                    panic::catch_unwind(panic::AssertUnwindSafe(|| {
+                        tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .map_err(|e| SecretError::Io(e.to_string()))?
+                            .block_on(future)
+                    }))
+                })
+                .join()
+        });
+        return match outcome {
+            Ok(Ok(inner)) => inner,
+            Ok(Err(_panic)) => Err(SecretError::BackendMisconfigured(
                 "failed to execute secrets async operation from active runtime".to_string(),
-            )
-        })?;
+            )),
+            Err(_thread_panic) => Err(SecretError::BackendMisconfigured(
+                "secrets async operation thread panicked".to_string(),
+            )),
+        };
     }
 
-    Err(SecretError::BackendMisconfigured(
-        "run_secrets_future requires an active Tokio runtime".to_string(),
-    ))
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        tokio::task::block_in_place(|| handle.block_on(future))
+    }));
+    result.map_err(|_| {
+        SecretError::BackendMisconfigured(
+            "failed to execute secrets async operation from active runtime".to_string(),
+        )
+    })?
 }
 
 #[cfg(test)]
