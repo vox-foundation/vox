@@ -183,10 +183,10 @@ pub async fn run_train(
             "`--qlora-allow-partial-proxy-stack` cannot be combined with `--qlora-require-full-proxy-stack`."
         );
     }
-    if let Some(r) = qlora_max_skip_rate {
-        if !r.is_finite() || !(0.0..=1.0).contains(&r) {
-            anyhow::bail!("--qlora-max-skip-rate must be between 0.0 and 1.0 (got {r})");
-        }
+    if let Some(r) = qlora_max_skip_rate
+        && (!r.is_finite() || !(0.0..=1.0).contains(&r))
+    {
+        anyhow::bail!("--qlora-max-skip-rate must be between 0.0 and 1.0 (got {r})");
     }
 
     let gpu_info = vox_populi::mens::probe_gpu();
@@ -413,7 +413,9 @@ pub async fn run_train(
     }
     eprintln!();
 
+    // `return` is load-bearing in the non-gpu build, where a cfg(not) block follows.
     #[cfg(feature = "gpu")]
+    #[allow(clippy::needless_return)]
     {
         return super::gpu::run_gpu_training(
             train_backend,
