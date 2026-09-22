@@ -197,16 +197,17 @@ fn render(s: &CiStatus) -> String {
         }
     }
     for i in &s.nightly {
-        // The issue title already starts with "Nightly failing:" — strip it so the
-        // rendered line doesn't repeat "failing".
-        let title = i
-            .title
-            .strip_prefix("Nightly failing: ")
-            .unwrap_or(&i.title);
-        out.push(format!(
-            "NIGHTLY FAILING: {} (#{}) -> {}",
-            title, i.number, i.url
-        ));
+        // The issue title already carries a "Nightly failing:"/"Nightly stale:"
+        // prefix — map it to the shouty form instead of prepending a second
+        // one, or fall back to a generic "NIGHTLY:" line for any other title.
+        let line = if let Some(rest) = i.title.strip_prefix("Nightly failing: ") {
+            format!("NIGHTLY FAILING: {rest}")
+        } else if let Some(rest) = i.title.strip_prefix("Nightly stale: ") {
+            format!("NIGHTLY STALE: {rest}")
+        } else {
+            format!("NIGHTLY: {}", i.title)
+        };
+        out.push(format!("{line} (#{}) -> {}", i.number, i.url));
     }
     if out.is_empty() {
         return String::new();
@@ -775,6 +776,24 @@ mod tests {
         assert_eq!(change_message(None, "X").as_deref(), Some("X"));
         assert_eq!(change_message(Some("X"), "Y").as_deref(), Some("Y"));
         assert!(change_message(Some("X"), "").unwrap().contains("resolved"));
+    }
+
+    #[test]
+    fn stale_nightly_issue_renders_without_double_prefix() {
+        let s = CiStatus {
+            branch: "b".into(),
+            nightly: vec![NightlyIssue {
+                number: 3,
+                title: "Nightly stale: Benchmarks".into(),
+                url: "https://i".into(),
+            }],
+            ..Default::default()
+        };
+        assert!(
+            render(&s).contains("NIGHTLY STALE: Benchmarks (#3)"),
+            "{}",
+            render(&s)
+        );
     }
 
     #[test]

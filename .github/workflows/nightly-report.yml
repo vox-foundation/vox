@@ -27,6 +27,7 @@ on:
       - Nightly Artifacts
       - Nightly
       - OpenSSF Scorecard
+      - CI liveness
     types: [completed]
 
 permissions:

@@ -1,0 +1,76 @@
+# Dead-man's switch: nightly-report.yml only reacts to runs that happen. This opens
+# a `nightly-failure` issue when a listed scheduled workflow has no *scheduled* run
+# within 2x its cron cadence (daily → 2 days, weekly → 14), and closes it when one lands.
+# A workflow GitHub auto-disabled (disabled_inactivity) is an error, not a skip.
+name: CI liveness
+
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  liveness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/workflows
+      - name: Every reported workflow ran on schedule recently
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          names=$(yq -r '.on.workflow_run.workflows[]' .github/workflows/nightly-report.yml)
+          [ -n "$names" ] || { echo "::error::no names parsed from nightly-report.yml"; exit 1; }
+          # `gh workflow view` has no --json; list states once. Keyed by path.
+          gh workflow list --all --limit 500 --json path,state > /tmp/wf-states.json
+          fail=0
+          while IFS= read -r name; do
+            file=""
+            for f in .github/workflows/*.yml; do
+              [ "$(yq -r '.name' "$f")" = "$name" ] && { file="$f"; break; }
+            done
+            [ -n "$file" ] || { echo "::error::'$name' listed but no workflow file has that name"; fail=1; continue; }
+            cron=$(yq -r '.on.schedule[0].cron // ""' "$file")
+            [ -n "$cron" ] || { echo "::error::'$name' ($file) has no schedule"; fail=1; continue; }
+            dow=$(awk '{print $5}' <<< "$cron")
+            case "$dow" in
+              '*') days=2 ;;
+              [0-7]) days=14 ;;
+              *) echo "::error::'$name' cron '$cron' has an unsupported day-of-week"; fail=1; continue ;;
+            esac
+            state=$(jq -r --arg p "$file" '.[] | select(.path == $p) | .state' /tmp/wf-states.json)
+            case "$state" in
+              active) ;;
+              disabled_manually) echo "skip $name (disabled_manually)"; continue ;;
+              *) echo "::error::'$name' state is '${state:-unknown}' (GitHub disables crons after 60 days of inactivity)"; fail=1; continue ;;
+            esac
+            last=$(gh run list --workflow "$(basename "$file")" --event schedule --limit 1 \
+                   --json createdAt -q '.[0].createdAt // empty')
+            cutoff=$(date -u -d "$days days ago" +%s)
+            title="Nightly stale: $name"
+            num=$(gh issue list --label nightly-failure --state open --limit 100 --json number,title \
+                  --jq "map(select(.title == \"$title\"))[0].number // empty")
+            if [ -z "$last" ] || [ "$(date -u -d "$last" +%s)" -lt "$cutoff" ]; then
+              [ -n "$num" ] || gh issue create --label nightly-failure --title "$title" \
+                --body "No scheduled run of \`$name\` in ${days}+ days (last: ${last:-never}). Check the cron and whether GitHub disabled the schedule."
+            elif [ -n "$num" ]; then
+              gh issue close "$num" --comment "Scheduled run landed at $last."
+            fi
+          done <<< "$names"
+          exit $fail
