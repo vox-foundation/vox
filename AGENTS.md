@@ -407,22 +407,16 @@ GitHub-hosted CI is slow (minutes-to-tens-of-minutes per push) and burns runner
 minutes on iteration noise. Before every push, reproduce the relevant gates locally
 and only push once they are green.
 See [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md) §Local-first CI.
-We have Docker available, so the full GitHub workflow suite can be run locally with `act`:
 
-- **Reproduce the actual GitHub jobs in Docker:** `vox ci pre-push --act` runs the
-  workflow jobs via [nektos/act](https://github.com/nektos/act) in containers that
-  mirror the CI runner image (secrets come from the git-ignored `.secrets` file).
-  Use this to catch container/runner-only failures (e.g. `lychee` check-links,
-  arch-check evidence-ledger) before they ever reach GitHub.
+- **Docker available:** `act pull_request -j gate` runs the PR gate job locally
+  (secrets come from the git-ignored `.secrets` file).
 - **Faster inner loop (no Docker):** `vox ci pre-push --full` for the native gate
   tiers below; scope to changed crates with `--since <ref>`.
 - **Per-job spot-checks:** run the exact command a failing job runs (e.g.
   `cargo run -q -p vox-arch-check`, `cargo run -q -p vox-cli -- ci check-links`)
   rather than re-pushing to see if it passes.
 
-Push only after the local equivalent of the gates you expect to run is green. Treat
-a red GitHub check whose local equivalent passes as a runner/environment difference
-to reproduce locally (via `--act`), not as something to fix by repeated pushes.
+Push only after the local equivalent of the gates you expect to run is green.
 
 Use `vox ci pre-push` to run any tier locally (default = **fast**, ≤60s: fmt, line-endings,
 ssot-drift, workflow-concurrency-guard, scoped doc lint + doctest,
@@ -454,36 +448,22 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
    creation (L0 leaf foundation ... L4 apps/shells; see
    `docs/src/architecture/where-things-live.md`). Dependencies point same-layer or down.
 
-## Local-First CI Verification Contract (Required, SSOT)
+## CI Contract (Required, SSOT)
 
-The local runner fleet is the CI plane. For agents:
+- **GitHub-hosted CI is the gate.** `ci.yml` (required context
+  `Check, Build, and Test (Rust)`) runs the local fast tier plus clippy/nextest
+  on affected crates; jobs are capped at 30 min. `nightly.yml` and other
+  scheduled workflows run the slow lanes, capped at 180 min. Caps are enforced
+  by `workflow-policy-guard` (in `ssot-drift`). Over budget? Cache, shard, or
+  move the job to nightly — never raise the cap.
+- **Run CI locally first:** `vox ci pre-push` (fast), `--complete`/`--full`
+  for code changes, or run the PR gate in Docker with `act pull_request -j gate`.
+- **CI state comes to you.** Failed/timed-out jobs on your branch and open
+  `nightly-failure` issues are printed by the git pre-commit/pre-push hooks
+  and injected by Claude Code hooks. When you see a block, fix it before
+  continuing. `vox ci status` prints the same block on demand.
 
-- **Local gates green = the verdict for what they cover.** Run
-  `vox ci pre-push --complete` (or `--full` when code/tests changed). Green =
-  push and move on — never wait on remote checks. (The default fast tier omits
-  clippy and all tests; do not treat fast-tier green as the verdict for code
-  changes.)
-- **Fleet CI is authoritative for the rest** (rustdoc, deny/audit, compiler
-  gates, integration/docker/browser/GUI smokes, coverage/architecture budgets,
-  all-features/mutation/cross-platform/mobile lanes). Its verdicts arrive
-  asynchronously via the queue snapshot's `failures` field — surfaced at
-  SessionStart and by `vox ci queue`. A red there is new information to fix
-  locally, never a reason to re-push and watch.
-- **Remote check-watching is blocked** for agent sessions (PreToolUse hook →
-  `vox ci queue --hook-guard`): `gh pr checks`, `gh run watch`,
-  check-runs polling, `vox ci watch-run`, and hand-rolled gh+sleep loops.
-  Reading one failure's logs stays allowed: `gh run list --branch <b>` then
-  `gh run view <id> --log-failed`.
-- **Queue interactions:** `vox ci queue --json` to read (the `advice` field
-  says what to do); `vox ci queue --clear` to cancel superseded + stale runs.
-  Cancellable = push/pull_request events only, first attempt, non-main,
-  non-tag; stale-clearing self-disables when the fleet is down.
-- **No unguarded workflows:** push/PR workflows need a top-level `concurrency:` block containing
-  `cancel-in-progress: true` — a bare group string or a non-cancelling group
-  does not count — or a row in `docs/src/ci/concurrency-exceptions.md`
-  (`vox ci workflow-concurrency-guard`).
-
-Details: `docs/src/ci/local-first-ci.md`.
+Spec: `docs/superpowers/specs/2026-09-21-hosted-primary-ci-design.md`.
 
 ## GUI Visual Verification Invariant (Normative Policy)
 
