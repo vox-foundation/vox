@@ -246,10 +246,10 @@ pub(super) async fn gather_web_hits_for_plan(
             .await
     };
     for rh in tavily_hits {
-        if let Some(scope) = site_scope {
-            if !host_matches_site_scope(&rh.url, scope) {
-                continue;
-            }
+        if let Some(scope) = site_scope
+            && !host_matches_site_scope(&rh.url, scope)
+        {
+            continue;
         }
         if !seen_urls.insert(rh.url.clone()) {
             continue;
@@ -434,23 +434,23 @@ pub(super) async fn gather_local_hits_for_plan(
                         got += 1;
                     }
                 }
-                if let Some(db) = &ctx.db {
-                    if let Ok(snippets) = db.search_snippets(sq, None).await {
-                        for snip in snippets {
-                            let url = format!("vox://snippet/{}", snip.id);
-                            if seen_urls.insert(url.clone()) {
-                                let snippet_text = snip.description.unwrap_or(snip.code);
-                                all_hits.push(ResearchHit {
-                                    url,
-                                    title: snip.title,
-                                    snippet: snippet_text,
-                                    score: 1.0,
-                                    http_status: 200,
-                                    trust_score: 1.0,
-                                    raw_content: String::new(),
-                                });
-                                got += 1;
-                            }
+                if let Some(db) = &ctx.db
+                    && let Ok(snippets) = db.search_snippets(sq, None).await
+                {
+                    for snip in snippets {
+                        let url = format!("vox://snippet/{}", snip.id);
+                        if seen_urls.insert(url.clone()) {
+                            let snippet_text = snip.description.unwrap_or(snip.code);
+                            all_hits.push(ResearchHit {
+                                url,
+                                title: snip.title,
+                                snippet: snippet_text,
+                                score: 1.0,
+                                http_status: 200,
+                                trust_score: 1.0,
+                                raw_content: String::new(),
+                            });
+                            got += 1;
                         }
                     }
                 }

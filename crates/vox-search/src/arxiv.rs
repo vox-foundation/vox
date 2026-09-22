@@ -120,14 +120,12 @@ impl ArXivClient {
                     }
                 }
                 Event::Text(ref e) => {
-                    if in_entry {
-                        if let Ok(text) = std::str::from_utf8(e.as_ref()) {
-                            match current_tag {
-                                CurrentTag::Title => entry_title.push_str(text),
-                                CurrentTag::Summary => entry_summary.push_str(text),
-                                CurrentTag::Id => entry_id.push_str(text),
-                                CurrentTag::None => {}
-                            }
+                    if in_entry && let Ok(text) = std::str::from_utf8(e.as_ref()) {
+                        match current_tag {
+                            CurrentTag::Title => entry_title.push_str(text),
+                            CurrentTag::Summary => entry_summary.push_str(text),
+                            CurrentTag::Id => entry_id.push_str(text),
+                            CurrentTag::None => {}
                         }
                     }
                 }
@@ -146,14 +144,12 @@ impl ArXivClient {
                     }
                 }
                 Event::CData(ref e) => {
-                    if in_entry {
-                        if let Ok(text) = std::str::from_utf8(e.as_ref()) {
-                            match current_tag {
-                                CurrentTag::Title => entry_title.push_str(text),
-                                CurrentTag::Summary => entry_summary.push_str(text),
-                                CurrentTag::Id => entry_id.push_str(text),
-                                CurrentTag::None => {}
-                            }
+                    if in_entry && let Ok(text) = std::str::from_utf8(e.as_ref()) {
+                        match current_tag {
+                            CurrentTag::Title => entry_title.push_str(text),
+                            CurrentTag::Summary => entry_summary.push_str(text),
+                            CurrentTag::Id => entry_id.push_str(text),
+                            CurrentTag::None => {}
                         }
                     }
                 }
@@ -226,10 +222,10 @@ impl ArXivClient {
             }
         }
 
-        if rel.as_deref() == Some("alternate") || (rel.is_none() && href.is_some()) {
-            if let Some(h) = href {
-                *alternate_url = Some(h);
-            }
+        if (rel.as_deref() == Some("alternate") || (rel.is_none() && href.is_some()))
+            && let Some(h) = href
+        {
+            *alternate_url = Some(h);
         }
     }
 

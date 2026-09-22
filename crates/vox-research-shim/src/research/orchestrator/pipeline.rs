@@ -412,54 +412,52 @@ pub async fn run_research_with_context_and_session(
                 if let Ok(Some(cached)) = db
                     .get_cached_claim_verdict_filtered(claim.claim_id, max_age_ms, Some(0.80))
                     .await
+                    && cached.confidence >= 0.80
                 {
-                    if cached.confidence >= 0.80 {
-                        let verdict = match cached.verdict.to_ascii_lowercase().as_str() {
-                            "supported" => super::super::verifier::Verdict::Supported,
-                            "contradicted" => super::super::verifier::Verdict::Contradicted,
-                            "contested" => super::super::verifier::Verdict::Contested,
-                            _ => super::super::verifier::Verdict::Unverified,
-                        };
-                        cached_verdicts.push(super::super::verifier::ClaimVerdict {
-                            claim: claim.clone(),
+                    let verdict = match cached.verdict.to_ascii_lowercase().as_str() {
+                        "supported" => super::super::verifier::Verdict::Supported,
+                        "contradicted" => super::super::verifier::Verdict::Contradicted,
+                        "contested" => super::super::verifier::Verdict::Contested,
+                        _ => super::super::verifier::Verdict::Unverified,
+                    };
+                    cached_verdicts.push(super::super::verifier::ClaimVerdict {
+                        claim: claim.clone(),
+                        verdict,
+                        confidence: cached.confidence,
+                        supporting_count: if matches!(
                             verdict,
-                            confidence: cached.confidence,
-                            supporting_count: if matches!(
-                                verdict,
-                                super::super::verifier::Verdict::Supported
-                            ) {
-                                1
-                            } else {
-                                0
-                            },
-                            contradicting_count: if matches!(
-                                verdict,
-                                super::super::verifier::Verdict::Contradicted
-                            ) {
-                                1
-                            } else {
-                                0
-                            },
-                            evidence_spans: if matches!(
-                                verdict,
-                                super::super::verifier::Verdict::Supported
-                            ) && !all_hits.is_empty()
-                            {
-                                vec![super::super::verifier::EvidenceSpan {
-                                    source_id: 0,
-                                    span_start: 0,
-                                    span_end: 100,
-                                    text: "Corroborated by cached verification evidence"
-                                        .to_string(),
-                                    span_type: super::super::verifier::SpanType::Supporting,
-                                }]
-                            } else {
-                                vec![]
-                            },
-                            resample_stability: 1.0,
-                        });
-                        continue;
-                    }
+                            super::super::verifier::Verdict::Supported
+                        ) {
+                            1
+                        } else {
+                            0
+                        },
+                        contradicting_count: if matches!(
+                            verdict,
+                            super::super::verifier::Verdict::Contradicted
+                        ) {
+                            1
+                        } else {
+                            0
+                        },
+                        evidence_spans: if matches!(
+                            verdict,
+                            super::super::verifier::Verdict::Supported
+                        ) && !all_hits.is_empty()
+                        {
+                            vec![super::super::verifier::EvidenceSpan {
+                                source_id: 0,
+                                span_start: 0,
+                                span_end: 100,
+                                text: "Corroborated by cached verification evidence".to_string(),
+                                span_type: super::super::verifier::SpanType::Supporting,
+                            }]
+                        } else {
+                            vec![]
+                        },
+                        resample_stability: 1.0,
+                    });
+                    continue;
                 }
                 claims_to_verify.push(claim.clone());
             }
