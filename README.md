@@ -78,17 +78,17 @@ Rows checked on 2026-09-21 were verified two ways: by running an installed `vox 
 |:---|:---|:---|:---|
 | Parser & type checker (`vox check`) | Working | 2026-09-21 | 85 of 87 golden examples check; the 2 failures come from a commit newer than the tested build. Grammar still changes; last break 2026-08-09. |
 | Interpreter (`vox run` on scripts) | Working | 2026-09-21 | Runs `fn main()` scripts, including this repo's own automation (46 of 51 `scripts/*.vox` type-check). Older builds default to the cargo lane; use `--interp` there. |
-| Full-stack codegen (`vox build`) | Prototype | 2026-09-21 | Emits TS/React, an Axum server, and SQL DDL. The generated server's `Cargo.toml` points into this repo by relative path, so it only builds inside a Vox checkout. No test builds a generated app outside the repo or serves requests from one. |
+| Full-stack codegen (`vox build`) | Prototype | 2026-09-22 | Emits TS/React, an Axum server, and SQL DDL. The generated server now builds outside a Vox checkout when `vox` was built from source (it finds Vox's crates via `VOX_REPO_ROOT` or the build's own repo root); a `voxup`-installed binary with no source tree still can't ([design](docs/src/architecture/generated-project-runtime-deps.md)). A slow, ignored test runs `cargo check` on a generated app outside the repo; nothing tests that one serves requests. `db.T.insert(...)?` in a mutation emits Rust that doesn't compile. |
 | OpenAPI & client emit (`vox emit`) | Prototype | 2026-09-21 | OpenAPI works. Client emit fails with a write error on any file containing a `component`. |
 | Formatter (`vox fmt`) | Prototype | 2026-09-21 | **Deletes comments and silently drops `workflow`/`activity` declarations.** Don't run it on files you care about. |
-| Tests (`vox test`, `@test`) | Prototype | 2026-09-21 | Goes through generated Rust and cargo, so it shares the inside-a-checkout limitation. |
+| Tests (`vox test`, `@test`) | Prototype | 2026-09-22 | Goes through generated Rust and cargo, so it shares full-stack codegen's source-build requirement. |
 | REPL (`vox repl`) | Prototype | 2026-09-21 | Single expressions only; `let`/`fn` don't persist between lines. |
 | Dev loop (`vox dev`) | Working | 2026-09-21 | Watches and rebuilds. |
 | Durable workflows (`workflow`/`activity`) | Prototype | 2026-09-21 | Interpreter support for a restricted subset. Crash-replay durability is still [design](docs/src/architecture/true-workflow-durability-design-2026.md). |
 | Mobile (`--target mobile`, React Native) | Research | 2026-09-21 | Emits an Expo project. The device runtime is thin, and the iOS E2E workflow has never passed. |
 | Desktop packaging (`vox compile`) | Prototype | 2026-09-21 | Emits a Tauri project. Unit tests only; no end-to-end packaging test. |
 | LSP (`vox lsp`) | Prototype | 2026-09-21 | Diagnostics, hover, completion, symbols, semantic tokens, code actions. No go-to-definition. Formatting uses the broken formatter. No installer ships the `vox-lsp` binary. |
-| Scaffolding (`vox init`, `vox new`) | Prototype | 2026-09-21 | `vox run` fails on the `vox init` starter (fix pending), and the starter trips its own `id`-column lint. `vox new web` writes 2 files. |
+| Scaffolding (`vox init`, `vox new`) | Prototype | 2026-09-22 | The `vox init` starter checks with zero diagnostics, and `vox run` takes the app lane on it; that lane needs pnpm for the frontend bundle. `vox new web` writes 2 files. |
 | Packages (`vox add`/`lock`/`sync`) | Prototype | 2026-09-21 | Manifest editing works locally. |
 | Package registry (`vox pm`) | Not started | 2026-09-21 | The default registry URL doesn't exist. |
 | Grammar export (`vox grammar`) | Working | 2026-09-21 | EBNF, Lark, JSON-Schema. |
@@ -183,6 +183,7 @@ Longer-horizon targets, mostly unbuilt: [v1.0 release criteria](docs/src/archite
 
 Newest first.
 
+- **2026-09-22**: Fixed four bugs from the audit. `vox run` routes the `vox init` starter to the app lane. The starter no longer trips its own `id`-column lint. `vox doctor` exits non-zero when a required check fails, while missing optional subsystems only warn. Generated servers find Vox's crates outside a checkout and depend only on the runtime crates they use. The audit's claim that an MCP tool had no dispatch arm was wrong; `vox_visual_rag_query` is now labeled as unimplemented.
 - **2026-09-21**: Audited the whole suite against the code ([findings and bug handoff](docs/src/architecture/suite-status-audit-2026-09-21.md)) and rewrote this README around it. The previous README called several areas "Stable" or "Mature" that aren't, and its quick start failed.
 - **2026-09-20**: MENS pipeline review. The trainer was discarding most gradients, and published eval numbers had no artifacts behind them.
 - **2026-09-20**: Deep-research review. The planner was skipped on the default lane, judge scores were constant fallbacks, and fallback model slugs were dead.
@@ -242,11 +243,12 @@ vox build src/main.vox -o dist
 
 The TypeScript lands in `dist/`. The generated Rust server lands in `src/target/generated/`.
 
-> **Known issues (2026-09-21):**
-> - `vox run src/main.vox` fails on the scaffolded project. A routing fix is pending.
-> - The generated server only builds when the output sits inside a clone of this repo, because its `Cargo.toml` points at Vox's own crates by relative path. A fix is in progress.
+> **Known issues (2026-09-22):**
+> - `vox run src/main.vox` on the starter needs pnpm, because the app lane bundles the frontend.
+> - The generated server finds Vox's crates only when `vox` was built from a source checkout.
+> - A mutation using `db.T.insert(...)?` generates Rust that doesn't compile.
 > - `vox fmt` deletes comments and drops some declarations.
-> - `vox doctor` exits 0 even when checks fail, and some of its hints are wrong on macOS.
+> - Some `vox doctor` hints are wrong on macOS.
 
 More: [Installing Vox](docs/src/reference/installation.md) · [CLI reference](docs/src/reference/cli.md).
 
