@@ -174,6 +174,47 @@ fn ml_backend_requires_tag_matches_the_hand_mirrored_candidate_list() {
 }
 
 #[test]
+fn every_default_source_resolves() {
+    // Every plugin's default-source must point at something `vox plugin
+    // install <id>` can actually fetch. Two forms are trusted:
+    //   - `local:<path>`   — path must exist relative to the repo root.
+    //   - `github:<owner>/<repo>` — repo must be one this org actually owns
+    //     (vox-foundation only has `vox` and `homebrew-vox`; per-plugin repos
+    //     like `vox-plugin-skill-git` don't exist — see
+    //     docs/src/architecture/generated-project-runtime-deps.md history).
+    const KNOWN_GITHUB_SOURCES: &[&str] = &["github:vox-foundation/vox"];
+
+    let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    for plugin in all_plugins() {
+        let source = &plugin.default_source;
+        if let Some(rel) = source.strip_prefix("local:") {
+            let path = repo_root.join(rel);
+            assert!(
+                path.exists(),
+                "plugin '{}' default-source '{}' does not resolve: {} does not exist",
+                plugin.id,
+                source,
+                path.display()
+            );
+        } else if source.starts_with("github:") {
+            assert!(
+                KNOWN_GITHUB_SOURCES.contains(&source.as_str()),
+                "plugin '{}' default-source '{}' is not an installable github source \
+                 (allowed: {:?}); use a local: path to the in-tree crate instead",
+                plugin.id,
+                source,
+                KNOWN_GITHUB_SOURCES
+            );
+        } else {
+            panic!(
+                "plugin '{}' default-source '{}' has an unrecognized prefix",
+                plugin.id, source
+            );
+        }
+    }
+}
+
+#[test]
 fn every_plugin_bundled_in_claim_is_satisfied_by_the_named_bundle() {
     use vox_plugin_catalog::bundle_resolved;
     for plugin in all_plugins() {
