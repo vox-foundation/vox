@@ -49,7 +49,6 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
@@ -260,7 +259,6 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
         "pre-push: profile `{}` — all checks passed in {total_ms}ms",
         profile_name(&opts)
     );
-    print_pr_review_discipline_hint(root);
     write_pre_push_report(
         root,
         &opts,
@@ -276,62 +274,18 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
     Ok(())
 }
 
-/// Non-blocking advisory printed after a successful pre-push: when re-pushing a
-/// feature branch that already has an upstream (the proxy for an open PR),
-/// remind that pushes do **not** auto-trigger a CodeRabbit review (the repo
-/// `.coderabbit.yaml` sets `auto_review.auto_incremental_review: false`) and that
-/// `@coderabbitai review` is the on-demand trigger. See AGENTS.md §"PR & Review
-/// Discipline". Best-effort and never fails the push; uses only local git (no
-/// network), so it adds no measurable latency.
-fn print_pr_review_discipline_hint(root: &Path) {
-    use std::process::Command;
-    let branch = match Command::new("git")
-        .current_dir(root)
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .output()
-    {
-        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
-        _ => return,
-    };
-    if branch.is_empty() || branch == "main" || branch == "master" || branch == "HEAD" {
-        return;
-    }
-    // An upstream tracking branch means this branch was pushed before — i.e. this
-    // is a re-push, the case where an open PR likely already exists. First pushes
-    // (no upstream yet) stay silent so the initial PR-open review isn't second-guessed.
-    let has_upstream = Command::new("git")
-        .current_dir(root)
-        .args(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-    if !has_upstream {
-        return;
-    }
-    eprintln!(
-        "pre-push: review discipline — this re-push will NOT auto-trigger a CodeRabbit review"
-    );
-    eprintln!(
-        "          (.coderabbit.yaml auto_incremental_review=false). Batch commits, and comment"
-    );
-    eprintln!("          `@coderabbitai review` on the PR when it's ready for a fresh review.");
-}
-
 fn run_step_with_heartbeat(
     label: &str,
     push_start: Instant,
     f: impl FnOnce() -> Result<()>,
 ) -> Result<()> {
-    let stop = Arc::new(AtomicBool::new(false));
-    let stop_bg = Arc::clone(&stop);
+    let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
     let label_owned = label.to_string();
     let bg = thread::spawn(move || {
         let t0 = Instant::now();
-        loop {
-            thread::sleep(vox_config::timeouts::D_3S);
-            if stop_bg.load(Ordering::Relaxed) {
-                break;
-            }
+        while let Err(std::sync::mpsc::RecvTimeoutError::Timeout) =
+            stop_rx.recv_timeout(vox_config::timeouts::D_3S)
+        {
             let step_s = t0.elapsed().as_secs();
             let total_s = push_start.elapsed().as_secs();
             eprintln!(
@@ -345,7 +299,7 @@ fn run_step_with_heartbeat(
         }
     });
     let out = f();
-    stop.store(true, Ordering::Relaxed);
+    let _ = stop_tx.send(());
     let _ = bg.join();
     out
 }
@@ -1182,10 +1136,10 @@ fn step_toestub_changed(root: &Path) -> Result<()> {
 }
 
 fn step_doc_frontmatter_full(root: &Path) -> Result<()> {
-    cargo_status(
-        root,
-        &["run", "-q", "-p", "vox-doc-pipeline", "--", "--lint-only"],
-    )
+    match vox_doc_pipeline::pipeline::lint_in(root, &["--lint-only".to_string()]) {
+        0 => Ok(()),
+        c => bail!("vox-doc-pipeline lint failed (exit {c})"),
+    }
 }
 
 fn step_doc_frontmatter_scoped(root: &Path, rel_paths: &[String]) -> Result<()> {
@@ -1193,17 +1147,11 @@ fn step_doc_frontmatter_scoped(root: &Path, rel_paths: &[String]) -> Result<()> 
         println!("    (no changed markdown under docs/src vs. base — skipping)");
         return Ok(());
     }
-    let paths_arg = rel_paths.join(",");
-    let status = cargo()
-        .args(["run", "-q", "-p", "vox-doc-pipeline", "--", "--lint-only"])
-        .arg(format!("--paths={paths_arg}"))
-        .current_dir(root)
-        .status()
-        .context("spawn vox-doc-pipeline (scoped)")?;
-    if !status.success() {
-        bail!("vox-doc-pipeline exited with {:?}", status.code());
+    let paths_arg = format!("--paths={}", rel_paths.join(","));
+    match vox_doc_pipeline::pipeline::lint_in(root, &["--lint-only".to_string(), paths_arg]) {
+        0 => Ok(()),
+        c => bail!("vox-doc-pipeline lint failed (exit {c})"),
     }
-    Ok(())
 }
 
 fn step_doctest_md_full(root: &Path) -> Result<()> {
@@ -1592,6 +1540,17 @@ fn changed_dirs_under_crates(root: &Path) -> Result<Vec<PathBuf>> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn heartbeat_does_not_pad_fast_steps() {
+        let t0 = std::time::Instant::now();
+        run_step_with_heartbeat("noop", t0, || Ok(())).unwrap();
+        assert!(
+            t0.elapsed() < std::time::Duration::from_millis(500),
+            "{:?}",
+            t0.elapsed()
+        );
+    }
 
     fn write_budget_yaml(dir: &std::path::Path, yaml: &str) {
         let budgets_dir = dir.join("contracts/budgets");

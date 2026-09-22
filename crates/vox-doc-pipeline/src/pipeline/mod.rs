@@ -9,7 +9,7 @@ pub mod types;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use lint::{collect_lint_errors, collect_lint_errors_target};
+use lint::collect_lint_errors_target_with_root;
 use types::{LintError, LintKind};
 
 /// Render a `" Did you mean \"X\"?"` fragment (note the leading space) when a close
@@ -203,12 +203,18 @@ fn collect_md_files(target: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// Run the doc pipeline: lint source markdown and optionally export corpus.
+/// Run the doc pipeline in-process against `root`, returning the process exit
+/// code the caller would have used (`0` success, `1` failure) instead of
+/// calling `std::process::exit` directly — so it can be called from another
+/// binary's own `main` (e.g. `vox ci pre-push`) without tearing down that
+/// process, and unit-tested without touching the real repo tree.
 ///
-/// SUMMARY.md and feed.xml are no longer generated here — the Starlight site
-/// builds the sidebar and RSS from frontmatter directly at Astro build time.
-pub fn run() {
-    let args: Vec<String> = std::env::args().collect();
+/// Every path read is joined under `root`; this never reads the process cwd
+/// (`std::env::current_dir` / a bare relative `Path::new("docs/src")`), which
+/// matters because `vox ci pre-push` runs this concurrently with its own
+/// heartbeat thread and must not call `std::env::set_current_dir` (a
+/// process-global mutation) to point it at the repo root.
+pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     let fix_mode = args.contains(&"--fix".to_string());
     let corpus_mode = args
         .windows(2)
@@ -218,15 +224,15 @@ pub fn run() {
     let _check_mode = args.contains(&"--check".to_string());
     let _lint_only = args.contains(&"--lint-only".to_string());
 
-    let docs_src = Path::new("docs/src");
+    let docs_src = root.join("docs/src");
     if !docs_src.exists() {
-        eprintln!("Error: docs/src/ not found. Run from repo root.");
-        std::process::exit(1);
+        eprintln!("Error: docs/src/ not found under {}.", root.display());
+        return 1;
     }
 
     if corpus_mode {
         let mut md_files = Vec::new();
-        collect_md_files(docs_src, &mut md_files);
+        collect_md_files(&docs_src, &mut md_files);
         let mut corpus_output = String::new();
         for f in md_files {
             if let Ok(content) = vox_bounded_fs::read_utf8_path_capped(&f) {
@@ -241,10 +247,10 @@ pub fn run() {
         let out_path = docs_src.join("corpus.jsonl");
         fs::write(&out_path, corpus_output).expect("Failed to write corpus.jsonl");
         println!("Successfully generated docs/src/corpus.jsonl");
-        return;
+        return 0;
     }
 
-    let lint_targets = match parse_paths_arg(&args, docs_src) {
+    let lint_targets = match parse_paths_arg(args, &docs_src) {
         Ok(paths) => paths,
         Err(missing) => {
             for p in &missing {
@@ -253,7 +259,7 @@ pub fn run() {
                     p.display()
                 );
             }
-            std::process::exit(1);
+            return 1;
         }
     };
     if !lint_targets.is_empty() {
@@ -265,7 +271,7 @@ pub fn run() {
         let mut fixed = 0_usize;
         if lint_targets.is_empty() {
             let mut md_files = Vec::new();
-            collect_md_files(docs_src, &mut md_files);
+            collect_md_files(&docs_src, &mut md_files);
             for f in md_files {
                 if try_autofix_status_draft(&f) {
                     fixed += 1;
@@ -295,10 +301,10 @@ pub fn run() {
 
     let mut lint_errors: Vec<LintError> = Vec::new();
     if lint_targets.is_empty() {
-        collect_lint_errors(docs_src, &mut lint_errors);
+        collect_lint_errors_target_with_root(&docs_src, &mut lint_errors, root);
     } else {
         for target in &lint_targets {
-            collect_lint_errors_target(target, &mut lint_errors);
+            collect_lint_errors_target_with_root(target, &mut lint_errors, root);
         }
     }
     // Always run, even in scoped mode: it's two cheap file reads (README.md,
@@ -306,12 +312,16 @@ pub fn run() {
     // behind an unscoped run — and gating it was the reason the local
     // (scoped-by-default) `vox ci pre-push` never caught README<->homepage
     // drift, only CI did.
-    lint::lint_readme_sync(&mut lint_errors);
+    lint::lint_readme_sync_paths(
+        &root.join("README.md"),
+        &docs_src.join("index.mdx"),
+        &mut lint_errors,
+    );
 
     if !lint_errors.is_empty() {
         eprintln!("\n── vox-doc-pipeline: doc lint errors ──────────────────────────────");
         for e in &lint_errors {
-            let rel = e.file.strip_prefix(docs_src).unwrap_or(&e.file);
+            let rel = e.file.strip_prefix(&docs_src).unwrap_or(&e.file);
             match &e.kind {
                 LintKind::UnclosedCodeFence => {
                     eprintln!(
@@ -489,12 +499,24 @@ pub fn run() {
                 "\n{} hard error(s) — fix before building docs.",
                 hard_errors
             );
-            std::process::exit(1);
+            return 1;
         }
         eprintln!();
     }
 
     println!("vox-doc-pipeline lint complete — no hard errors.");
+    0
+}
+
+/// Run the doc pipeline: lint source markdown and optionally export corpus.
+///
+/// SUMMARY.md and feed.xml are no longer generated here — the Starlight site
+/// builds the sidebar and RSS from frontmatter directly at Astro build time.
+pub fn run() {
+    std::process::exit(lint_in(
+        Path::new("."),
+        &std::env::args().collect::<Vec<_>>(),
+    ));
 }
 
 #[cfg(test)]
@@ -526,5 +548,53 @@ mod tests {
         let args = ["vox-doc-pipeline".to_string(), "--lint-only".to_string()];
         let paths = parse_paths_arg(&args, docs_src).expect("no --paths is not an error");
         assert!(paths.is_empty());
+    }
+
+    fn fixture_root() -> std::path::PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "vox-doc-lint-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("docs/src")).unwrap();
+        root
+    }
+
+    /// Write a README.md `<!-- ANCHOR: why_vox -->` block and a matching
+    /// `docs/src/index.mdx` (valid frontmatter + `SYNC-FROM-README: why_vox`
+    /// block) under `root`, in the exact marker shapes
+    /// `lint::lint_readme_sync_paths` / `readme_anchor` / `mdx_sync_block`
+    /// expect (`why_vox` is the sole entry in `lint::SYNCED_BLOCKS`).
+    fn write_readme_sync_fixture(root: &Path, readme_body: &str, mdx_body: &str) {
+        std::fs::write(
+            root.join("README.md"),
+            format!("<!-- ANCHOR: why_vox -->\n{readme_body}\n<!-- ANCHOR_END: why_vox -->\n"),
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("docs/src/index.mdx"),
+            format!(
+                "---\ntitle: \"Index\"\ndescription: \"Test fixture index page for lint_in tests.\"\ncategory: \"Concepts\"\n---\n\n{{/* SYNC-FROM-README: why_vox */}}\n{mdx_body}\n{{/* SYNC-END: why_vox */}}\n"
+            ),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn lint_in_reports_missing_paths_without_exiting() {
+        let root = fixture_root();
+        assert_eq!(lint_in(&root, &["--paths=nope.md".to_string()]), 1);
+    }
+
+    #[test]
+    fn lint_in_reads_readme_sync_under_root_not_cwd() {
+        // In-sync pair under `root` must lint clean (a cwd-reading lint_in fails here:
+        // cargo's cwd is crates/vox-doc-pipeline, which has no docs/src).
+        let root = fixture_root();
+        write_readme_sync_fixture(&root, "Same text.", "Same text.");
+        assert_eq!(lint_in(&root, &["--paths=index.mdx".to_string()]), 0);
+        // Drift under `root` must be reported.
+        write_readme_sync_fixture(&root, "Same text.", "Different text.");
+        assert_ne!(lint_in(&root, &["--paths=index.mdx".to_string()]), 0);
     }
 }
