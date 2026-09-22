@@ -97,6 +97,12 @@
       "path_glob": "**/vox-research-shim/src/research/provider.rs",
       "reason": "map_site is a pre-existing stub returning None (site crawling is handled via query.site_scope filtering; no dedicated site-map API exists in vox-search yet). Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-term/src/app.rs",
+      "reason": "pub fn run() is the pre-existing TUI event-loop entry point (predates the 2026-09-21 headless-detection fix, which only adds is_headless()/run_plain() and an early-return before crossterm init). It is an interactive event loop that needs a real tty for its main branch; its headless branch is exercised by the subprocess integration test crates/vox-term/tests/headless.rs. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
     }
   ]
 }

@@ -17,21 +17,48 @@ use ratatui::{
     text::{Line, Span},
     widgets::Paragraph,
 };
-use std::io;
+use std::io::{self, BufRead, IsTerminal};
 use tokio::sync::broadcast::error::TryRecvError;
 
 use vox_terminal_core::session::{Session, SessionEvent};
 
 use crate::{
     term_setup::TermSetup,
+    theme::is_dumb_terminal,
     ui::{blocks, input::InputBox},
     vt::VtGrid,
 };
 
+/// True when crossterm/ratatui must not be initialized: `TERM=dumb`, or
+/// stdin/stdout is not a tty (piped input, redirected output, CI). Checked
+/// *before* touching crossterm — its input reader panics/errors when spun up
+/// against a non-tty stdin, and raw-mode escapes still land on a redirected
+/// stdout even when raw mode itself fails.
+fn is_headless() -> bool {
+    is_dumb_terminal() || !io::stdin().is_terminal() || !io::stdout().is_terminal()
+}
+
+/// Plain-text line loop for headless/dumb terminals: no crossterm, no ANSI
+/// escapes. Reads lines from stdin until EOF and exits cleanly.
+fn run_plain() -> Result<()> {
+    let stdin = io::stdin();
+    for line in stdin.lock().lines() {
+        let _line = line?;
+        // Headless mode has no interactive block/agent UI to draw; it exists
+        // so piped input (CI, `TERM=dumb`) doesn't crash. Intent dispatch for
+        // plain mode is out of scope here (tracked separately).
+    }
+    Ok(())
+}
+
 /// Entry-point for the TUI. Headless-safe: degrades to plain stdout under TERM=dumb.
 pub fn run() -> Result<()> {
-    // Attempt raw mode; under dumb terminals this returns Err and we skip TUI.
-    let _setup = TermSetup::new().ok();
+    if is_headless() {
+        return run_plain();
+    }
+
+    // We're on a real, non-dumb tty; enter raw mode + alternate screen.
+    let _setup = TermSetup::new()?;
 
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
     let session = Session::new("main");
