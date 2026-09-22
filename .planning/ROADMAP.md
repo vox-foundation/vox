@@ -64,7 +64,7 @@ Vox is a mature, working system; this roadmap is not a build-from-zero journey b
 
 ### Phase 5: Multi-Agent Coordination & Trust Hardening
 **Goal**: Multiple concurrent agents can safely contend for shared resources, and every tool call they make is independently auditable.
-**Depends on**: Nothing (independent of Phases 1-4; can run in parallel)
+**Depends on**: Phase 3 (advisory — file overlap: both land work in crates/vox-orchestrator; not a semantic dependency)
 **Requirements**: MESH-01, TRUST-01
 **Success Criteria** (what must be TRUE):
   1. `ResourceLockManager` exists and is used for multi-agent resource coordination, correctly handling lease expiration and contention per ADR-025.
@@ -73,7 +73,7 @@ Vox is a mature, working system; this roadmap is not a build-from-zero journey b
 
 ### Phase 6: Model Routing Transparency & ML Dependency Health
 **Goal**: Model selection is observable as a cost/latency/reliability tradeoff, and the local ML training stack runs on a unified, GPU-CI-verified dependency set.
-**Depends on**: Nothing (independent of Phases 1-5; can run in parallel)
+**Depends on**: Phase 3 (advisory — file overlap: both land work in crates/vox-orchestrator; not a semantic dependency)
 **Requirements**: MODEL-01, ML-01
 **Success Criteria** (what must be TRUE):
   1. Model scoreboards render as a Pareto frontier over reliability, cost, and latency, with no change to actual model-routing behavior (ADR-046).
@@ -83,7 +83,7 @@ Vox is a mature, working system; this roadmap is not a build-from-zero journey b
 ## Progress
 
 **Execution Order:**
-Phases 1 → 2 → 3 form a dependency chain (crate surgery). Phases 4, 5, 6 are each independent of the others and of the Phase 1-3 chain — they can execute in any order, including in parallel with the crate-cleanup chain.
+Phases 1 → 2 → 3 form a dependency chain (crate surgery). Phase 4 is independent of everything else and can run any time, including in parallel with the crate-cleanup chain. Phases 5 and 6 each depend on Phase 3 (advisory — file overlap on `crates/vox-orchestrator`, not a semantic dependency) but are independent of each other, so both can start once Phase 3 completes.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
