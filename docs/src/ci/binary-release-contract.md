@@ -103,7 +103,7 @@ Therefore source fallback requires a local repo checkout and Cargo. Users runnin
 
 ## PM provenance (registry packages)
 
-Publishing **Vox PM** packages with **`vox pm publish`** writes `vox.pm.provenance/1` JSON under **`.vox_modules/provenance/`** (fields include **`schema`**, **`package`**, **`version`**, **`content_hash`**, **`built_at_epoch`**, **`tool`**, and **`registry`** URL used for the publish). Release or registry pipelines can enforce those sidecars with **`vox ci pm-provenance --strict`** (see [`reference/cli.md`](../reference/cli.md)). Optional GitHub workflow [`.github/workflows/pm-provenance-verify.yml`](../../../.github/workflows/pm-provenance-verify.yml): **`workflow_dispatch` by default**; add a **`schedule:`** in fork/deploy branches for periodic (e.g. monthly) verification on self-hosted runners if you want it. This is separate from the binary tarball contract above but shares the same “verify before promote” posture.
+Publishing **Vox PM** packages with **`vox pm publish`** writes `vox.pm.provenance/1` JSON under **`.vox_modules/provenance/`** (fields include **`schema`**, **`package`**, **`version`**, **`content_hash`**, **`built_at_epoch`**, **`tool`**, and **`registry`** URL used for the publish). Release or registry pipelines can enforce those sidecars with **`vox ci pm-provenance --strict`** (see [`reference/cli.md`](../reference/cli.md)). The former standalone, dispatch-only `pm-provenance-verify.yml` workflow was retired in favor of a fixture step in **`nightly.yml`**'s `audits` job, so the gate now runs on the regular nightly cadence instead of needing a manual dispatch. This is separate from the binary tarball contract above but shares the same “verify before promote” posture.
 
 ## Rollback
 

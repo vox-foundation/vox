@@ -5,13 +5,8 @@ name: Build & Push vox-telemetry-server Docker Image
 # ubuntu-latest and never waits on the local self-hosted fleet. See
 # docs/src/ci/compute-placement.md.
 
+# Dormant until the telemetry stack is revived (never deployed successfully; see docs/src/architecture/ci-cd-audit-findings-2026.md).
 on:
-  push:
-    branches: [main]
-    paths:
-      - "server/telemetry/**"
-      - "docker/vox-telemetry.compose.yml"
-      - ".github/workflows/docker-telemetry.yml"
   workflow_dispatch:
 
 concurrency:

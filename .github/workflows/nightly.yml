@@ -1339,6 +1339,16 @@ jobs:
         if: needs.setup.outputs.full == 'true'
         run: ./target/debug/vox --quiet ci mens-gate --profile ci_full
 
+      - name: PM provenance strict gate (fixture)
+        shell: bash
+        run: |
+          set -euo pipefail
+          fx="$RUNNER_TEMP/pm-fixture/.vox_modules/provenance"
+          mkdir -p "$fx"
+          node='{"schema":"vox.pm.provenance/1","package":"fixture-pkg","version":"0.0.1","content_hash":"ab","built_at_epoch":99,"tool":"ci-fixture","registry":"http://127.0.0.1:9"}'
+          printf '%s\n' "$node" > "$fx/fixture-pkg@0.0.1.json"
+          ./target/debug/vox --quiet ci pm-provenance --strict --root "$RUNNER_TEMP/pm-fixture"
+
   # Advisory (nightly-only, not a required gate — the required gate lives in
   # ci.yml). Spawns a real vox-orchestrator-d process and pings it over a real
   # TCP loopback socket — more prone to environmental flake (port contention)

@@ -13,7 +13,6 @@ on:
       - Docs Link Checker
       - OS Compatibility Report
       - Setup Pipeline E2E
-      - Vox Visus Audit
       - Build & Push vox-eval Docker Image
       - CR-L gates
       - CodeQL
@@ -28,7 +27,6 @@ on:
       - Nightly Artifacts
       - Nightly
       - OpenSSF Scorecard
-      - Qwen3.5 Native Nightly
     types: [completed]
 
 permissions:

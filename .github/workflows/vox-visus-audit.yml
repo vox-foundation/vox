@@ -1,9 +1,7 @@
 name: Vox Visus Audit
 
+# no-op without VOX_VISUS_STAGING_URL
 on:
-  schedule:
-    # Weekly, Monday 05:00 UTC — browser/compiler paths are too broad to gate on push
-    - cron: "0 5 * * 1"
   workflow_dispatch:
 
 concurrency:

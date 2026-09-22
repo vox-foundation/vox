@@ -268,8 +268,9 @@ jobs:
     needs: compute-ref
     # mens-candle-cuda's `runs_on` names a self-hosted GPU label with zero
     # runners registered (2026-09, hosted-primary CI migration — see
-    # qwen35-native-nightly.yml / ml_data_extraction.yml for the same GPU
-    # gap). Left in the matrix (not deleted) so the row documents the target
+    # ml_data_extraction.yml for the same GPU gap; the qwen35-native-nightly.yml
+    # lane that once shared this gap was retired). Left in the matrix (not
+    # deleted) so the row documents the target
     # shape, but skipped below so it doesn't queue forever and starve the
     # rest of this job's matrix. Re-enable by dropping this `if:` once a GPU
     # runner (hosted or self-hosted) exists.

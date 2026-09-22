@@ -212,7 +212,7 @@ Before adding one:
   cancelled by contention in that cluster. Avoid clustering more jobs into
   the 02:00–06:00 UTC window, since they'd all compete for the same 2-runner
   pool.
-- A GPU-requiring job (labels including `gpu`, like `qwen35-native-nightly.yml`)
+- A GPU-requiring job (labels including `gpu`, like `ml_data_extraction.yml`)
   draws from a wholly separate capacity pool — see `runner-contract.md` — so
   its demand doesn't compete with `linux`/`docker`-labeled jobs, but does
   compete with any other `gpu`-labeled job.

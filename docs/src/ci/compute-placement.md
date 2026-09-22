@@ -35,7 +35,7 @@ cheapest, subject to the free-tier economics below.
 
 | Tier | Jobs |
 |---|---|
-| Local fleet (`[self-hosted, linux, x64]`) | `ci.yml` build+clippy+test, `mutation-nightly`, `compile-matrix`, `bench-nightly` (pinned to one host for comparable timings), `qwen35-native-nightly` (GPU), `ml_data_extraction` |
+| Local fleet (`[self-hosted, linux, x64]`) | `ci.yml` build+clippy+test, `mutation-nightly`, `compile-matrix`, `bench-nightly` (pinned to one host for comparable timings), `ml_data_extraction` (GPU; `qwen35-native-nightly` was retired 2026-09, subsumed by its `native_train` input) |
 | Hetzner VPS | deploy triggers + Gate-3 probes (`deploy-hetzner`, `deploy-telemetry`), nightly ClickHouse maintenance (TTL/OPTIMIZE, backup → object storage), live-endpoint uptime, link/dep bots |
 | GitHub-hosted | Gate-1 portability build, `docker-telemetry` / `docker-eval` image builds, `release-*` cross-OS, mobile EAS, `codeql`/`scorecard`/`gitleaks`, `ci.yml`/`nightly.yml` (2026-09: moved off the self-hosted fleet) |
 

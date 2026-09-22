@@ -13,7 +13,7 @@
 //! 4. No job declares a literal `runs-on: self-hosted...` outside
 //!    [`SELF_HOSTED_ALLOWLIST`] — the hosted-primary-CI migration's whole
 //!    point is zero self-hosted runners with runners actually registered;
-//!    the two allowlisted workflows are disabled at the repo level and stay
+//!    the one allowlisted workflow is disabled at the repo level and stays
 //!    that way until a GPU runner exists.
 //!
 //! Always fails on a violation. Runs inside `ssot-drift` (pre-push fast tier + ci.yml gate).
@@ -28,7 +28,7 @@ pub const SLOW_CAP_MINS: u64 = 180;
 pub const REPORT_WORKFLOW: &str = "nightly-report.yml";
 /// Disabled at the repo level (`gh workflow disable`) — need a GPU runner
 /// that doesn't exist yet. `runs-on` here is dead until one is registered.
-pub const SELF_HOSTED_ALLOWLIST: &[&str] = &["qwen35-native-nightly.yml", "ml_data_extraction.yml"];
+pub const SELF_HOSTED_ALLOWLIST: &[&str] = &["ml_data_extraction.yml"];
 
 /// `serde_yaml_ng` parses `on:` as a string key; the `Bool(true)` fallback
 /// covers YAML-1.1 parsers (mirrors workflow_concurrency_guard).
@@ -311,7 +311,7 @@ mod tests {
         );
 
         // Allowlisted (disabled, GPU-only) workflows are exempt.
-        let v = check_doc("qwen35-native-nightly.yml", &sequence);
+        let v = check_doc("ml_data_extraction.yml", &sequence);
         assert!(!v.iter().any(|m| m.contains("self-hosted")), "{v:?}");
 
         // A hosted runner never trips it.

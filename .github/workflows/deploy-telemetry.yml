@@ -12,11 +12,8 @@ name: Deploy Telemetry (Coolify)
 # Runs on ubuntu-latest (vox is public → free minutes; deploy never waits on the
 # self-hosted fleet). See docs/src/ci/compute-placement.md.
 
+# Dormant until the telemetry stack is revived (never deployed successfully; see docs/src/architecture/ci-cd-audit-findings-2026.md).
 on:
-  workflow_run:
-    workflows: ["Build & Push vox-telemetry-server Docker Image"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       skip_public_health_probe:
