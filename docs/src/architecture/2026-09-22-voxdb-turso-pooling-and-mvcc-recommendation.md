@@ -11,8 +11,8 @@ category: "Architecture SSOTs"
 At both tested concurrency levels (32 and 128 tasks, 20 writes/task, on-disk
 file), the existing `shared`-connection pattern beat real per-task pooling on
 throughput: 4095 vs. 2712 writes/sec at 32 tasks, and 12045 vs. 7965
-writes/sec at 128 tasks — a 35-40% throughput deficit for `pooled` at both
-levels. `sqlite` (plain `rusqlite`, one connection per task) was slower than
+writes/sec at 128 tasks — a ~34% throughput deficit for `pooled` at both
+levels (33.8% at 32 tasks, 33.9% at 128 tasks). `sqlite` (plain `rusqlite`, one connection per task) was slower than
 both Turso modes at every concurrency level tested (1686 writes/sec at 32
 tasks, 1587 at 128), so SQLite's numbers did **not** beat Turso's in this
 workload shape, contrary to what isolated point-latency numbers might
@@ -77,9 +77,9 @@ error-free loss, so neither branch applies as written:
   `integrity_check` is `ok` at every concurrency level →
   **recommend**: file a follow-up plan to switch `vox-gui`'s `GuiDbPool` from
   one shared `Arc<VoxDb>` to `VoxDbPool`-vended per-command connections,
-  default-on for all users. **Not triggered** — `pooled` throughput was 35-40%
-  lower than `shared` at both tested concurrency levels (2712 vs. 4095 at 32
-  tasks; 7965 vs. 12045 at 128 tasks).
+  default-on for all users. **Not triggered** — `pooled` throughput was ~34%
+  lower than `shared` at both tested concurrency levels (33.8% at 32 tasks:
+  2712 vs. 4095; 33.9% at 128 tasks: 7965 vs. 12045).
 - If `pooled` shows nonzero `busy_errors` or a failed `integrity_check` at
   128 tasks → **do not** default-switch; recommend the writer-actor pattern
   instead. **Also not triggered** — `pooled` had zero `busy_errors` and a
@@ -156,10 +156,9 @@ claims, and both halves should be stated honestly rather than picked between:
   was the **slowest of all three working modes at both concurrency levels**
   — slower than both `shared` and `pooled` Turso configurations, including
   `pooled`, the Turso mode most structurally similar to how SQLite is being
-  used here. The likely shared cause, per the reviewers who checked the
-  harness and pool code: SQLite/Turso's storage engine only lets one
-  connection hold the write lock on a local file at a time regardless of
-  connection count, so both `pooled` Turso and `sqlite` pay real
+  used here. The likely shared cause: SQLite/Turso's storage engine only
+  lets one connection hold the write lock on a local file at a time
+  regardless of connection count, so both `pooled` Turso and `sqlite` pay real
   cross-connection lock-acquisition/contention overhead on top of that same
   single-writer constraint without gaining actual write parallelism from it
   — `shared` mode never contends this at all, since only one connection ever
