@@ -270,8 +270,8 @@ to:
 
 - [ ] **Step 3: Run the test and see it fail on the double application**
 
-Run: `timeout 1800s cargo test -p vox-plugin-mens-candle-cuda --lib model::bf16_activation_tests::qk_norm_is_applied_exactly_once`
-Expected: the crate now compiles and the test FAILS with `element N: forward=… reference=… — Q/K norm is not applied exactly once`. If it passes at this point, stop: the reference or the weights are not discriminating, and the task must not proceed.
+Run: `timeout 1800s cargo test -p vox-plugin-mens-candle-cuda --lib model::bf16_activation_tests::qk_norm_is_applied_exactly_once -- --exact`
+Expected: output contains `running 1 test` (if it says `running 0 tests`, the test is in the wrong module — fix that first; a 0-test run is not a pass or a fail). <!-- AMENDED: R8 --> The crate now compiles and the test FAILS with `element N: forward=… reference=… — Q/K norm is not applied exactly once`. If it passes at this point, stop: the reference or the weights are not discriminating, and the task must not proceed.
 
 - [ ] **Step 4: Remove the second application in `forward`**
 
@@ -292,6 +292,8 @@ In `crates/vox-plugin-mens-candle-cuda/src/model.rs`, inside `Qwen2Attention::fo
 
 Keep the earlier `match &self.q_norm { Some(norm) => rms_norm_f32(norm, &q)?, None => q }` blocks, which run before the transpose.
 
+<!-- AMENDED: R1 — Module becomes unused --> That block was the only user of the `Module` trait in `model.rs` (added by `b9f05601f`). Change the import `use candle_nn::{Module, RmsNorm};` to `use candle_nn::RmsNorm;`, otherwise Step 5's clippy fails on `unused_imports`.
+
 - [ ] **Step 5: Run the test and the crate's model tests**
 
 Run: `timeout 1800s cargo test -p vox-plugin-mens-candle-cuda --lib model::`
@@ -305,8 +307,9 @@ Expected: no warnings in `model.rs` or `candle_qlora_train/mod.rs`. Warnings els
 In `CHANGELOG.md`, under `## [Unreleased]` → `### Fixed`, add as the first bullet:
 
 ```markdown
-- **CUDA Candle plugin compiles again, with Dense Qwen3 Q/K RMSNorm applied once.** Merge `a7cdfdb8e` combined two Q/K-norm implementations in `vox-plugin-mens-candle-cuda`: duplicate `q_norm`/`k_norm` struct fields, which broke the build, plus a second norm in `Qwen2Attention::forward` after the head transpose. No build ever ran that code. The pre-transpose `rms_norm_f32` path (matching Metal) is kept, and a test pins it as applied once. <!-- AMENDED: grill Q2 -->
+- **CUDA Candle plugin compiles again, with Dense Qwen3 Q/K RMSNorm applied once.** Merge `a7cdfdb8e` combined two Q/K-norm implementations in `vox-plugin-mens-candle-cuda`: duplicate `q_norm`/`k_norm` struct fields, which broke the build, plus a second norm in `Qwen2Attention::forward` after the head transpose. No build ever ran that code. The pre-transpose `rms_norm_f32` path (matching Metal) is kept, and a test pins it as applied once.
 ```
+<!-- AMENDED: grill Q2; R12 — marker kept outside the snippet so it is not pasted into CHANGELOG.md -->
 
 - [ ] **Step 7: Commit**
 
@@ -569,12 +572,14 @@ with:
 
 In `crates/vox-plugin-catalog/catalog.toml`, in the `mens-candle-metal` entry, change `requires-tag = "apple-silicon"` to `requires-tag = "metal"`.
 
-Update the comment above the `EXPECTED` table in `catalog_validation.rs` so it no longer says "these two"; it now names the MlBackend selector in `vox-populi` (Task 6) as the thing the pins protect. Replace the first sentence of that comment with:
+<!-- AMENDED: R2 — rewrite the whole comment, or Task 6's `rg ML_BACKEND_CANDIDATES crates` check still matches --> Replace the **entire** comment block above the `EXPECTED` table (from `// \`crates/vox-ml-cli/src/commands/schola/merge_qlora.rs\`` through `// This test exists solely to guard against that drift.`) with:
 
 ```rust
     // The MlBackend selector (`vox_populi::mens::select_mens_backend`) matches
     // on these `requires-tag` values and cannot depend on vox-plugin-catalog
-    // (see AGENTS.md Dependency Discipline), so it hand-mirrors them.
+    // (see AGENTS.md Dependency Discipline), so it hand-mirrors them. If a tag
+    // changes here without the selector, backend selection silently stops
+    // matching the right plugin; this test exists to catch that drift.
 ```
 
 <!-- AMENDED: grill leftover --> Also change the assertion message in that test from `"... to match ML_BACKEND_CANDIDATES, got {:?}"` to `"... to match vox_populi::mens::select_mens_backend, got {:?}"` (Task 6 deletes the constant).
@@ -587,19 +592,15 @@ Expected: PASS.
 Run: `timeout 1800s cargo test -p vox-plugin-host --lib capability::`
 Expected: PASS.
 
-- [ ] **Step 5: Regenerate catalog-derived docs**
-
-Run: `timeout 1800s cargo run -q -p vox-cli -- ci generate-plugin-catalog-docs`
-Expected: `docs/src/reference/plugin-catalog.generated.md` (and possibly `distribution-bundles.generated.md`) updated to show `metal`. If the build can't finish within the timeout on a loaded machine, skip this step and say so in the report; the `ssot-autoregen` CI job regenerates it on the PR.
+<!-- AMENDED: R3 — the generated catalog doc has no requires-tag column (`plugin-catalog.generated.md:15`), so Task 4 changes nothing there; the regeneration moved to Task 7. Step numbering kept. -->
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add crates/vox-plugin-host/src/capability.rs crates/vox-plugin-catalog/catalog.toml crates/vox-plugin-catalog/tests/catalog_validation.rs docs/src/reference/plugin-catalog.generated.md docs/src/reference/distribution-bundles.generated.md
-git commit -m "fix(plugin-host): tag every Mac as metal, not just Apple Silicon" -m "The release ships an x86_64-apple-darwin Metal plugin, but probe() only added the metal tag on aarch64 and the catalog gated the plugin on apple-silicon, so Intel Macs could not select it for serve, merge or eval. Metal is available on every supported Mac; apple-silicon stays aarch64-only." -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+git add crates/vox-plugin-host/src/capability.rs crates/vox-plugin-catalog/catalog.toml crates/vox-plugin-catalog/tests/catalog_validation.rs
+git commit -m "fix(plugin-host): tag every Mac as metal, not just Apple Silicon" -m "The release ships an x86_64-apple-darwin Metal plugin, but probe() only added the metal tag on aarch64 and the catalog gated the plugin on apple-silicon, so Intel Macs could not be matched to it (serve, merge and eval switch to the shared selector in a later commit). Metal is available on every supported Mac; apple-silicon stays aarch64-only." -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-(If Step 5 was skipped, leave the two generated files out of `git add`.)
 
 ---
 
@@ -632,15 +633,21 @@ mod macos_default_build_tests {
     #[test]
     fn best_device_on_macos_is_metal_capable_without_feature_flags() {
         let (_device, label) = select_candle_device(DeviceKind::Best, true).unwrap();
-        assert_ne!(label, "cpu(no-gpu-build)", "macOS build compiled without Metal");
+        // Positive match: "cpu(forced)" (VOX_CANDLE_DEVICE=cpu) must not count as a pass.
+        assert!(
+            label.starts_with("metal") || label == "cpu(fallback)",
+            "macOS build compiled without Metal (label: {label})"
+        );
     }
 }
 ```
 
 - [ ] **Step 2: Run the test to see it fail**
 
-Run (on macOS, no features): `timeout 1800s cargo test -p vox-plugin-mens-candle-metal --lib macos_default_build_tests`
-Expected: FAIL: `assertion left != right failed: macOS build compiled without Metal` (left: `"cpu(no-gpu-build)"`).
+Run (on macOS, no features): `env -u VOX_CANDLE_DEVICE timeout 1800s cargo test -p vox-plugin-mens-candle-metal --lib macos_default_build_tests`
+Expected: `running 1 test`, FAIL: `macOS build compiled without Metal (label: cpu(no-gpu-build))`. <!-- AMENDED: R7 -->
+
+Before writing the assertion, read the success-path labels in `device_select.rs` (the `feature = "metal"` branches) and make `label.starts_with(...)` match the real Metal label exactly.
 
 - [ ] **Step 3: Enable Candle's Metal backend for macOS targets**
 
@@ -661,28 +668,27 @@ Leave the existing `[features] metal = [...]` line in place. The release workflo
 
 - [ ] **Step 4: Widen the crate's Metal code gates**
 
-Run these two commands from the worktree root. The first rewrites every negated gate to a placeholder, the second rewrites the positive gates, and the third restores the negated ones in widened form. That order makes the result independent of how the gates are formatted.
+<!-- AMENDED: R6 — the three-step sed was non-idempotent and rewrote the comment at inference.rs:1056 (which describes core's gates) --> Edit only the `#[cfg(...)]` attribute lines. There are 8: `device_select.rs` (4), `candle_qlora_train/mod.rs` (2), `inference.rs` (1 gate plus 1 comment that must NOT change). First confirm nothing is already widened:
 
 ```bash
-sed -i '' 's/not(feature = "metal")/__NOT_METAL__/g' crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/device_select.rs crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs crates/vox-plugin-mens-candle-metal/src/inference.rs
-sed -i '' 's/feature = "metal"/any(feature = "metal", target_os = "macos")/g' crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/device_select.rs crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs crates/vox-plugin-mens-candle-metal/src/inference.rs
-sed -i '' 's/__NOT_METAL__/not(any(feature = "metal", target_os = "macos"))/g' crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/device_select.rs crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs crates/vox-plugin-mens-candle-metal/src/inference.rs
+rg -c 'target_os = "macos"' crates/vox-plugin-mens-candle-metal/src   # must print nothing
+sed -i '' -E '/^[[:space:]]*#\[cfg/ s/feature = "metal"/any(feature = "metal", target_os = "macos")/g' crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/device_select.rs crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs crates/vox-plugin-mens-candle-metal/src/inference.rs
 ```
 
-(On Linux, use `sed -i` without the `''`.)
+(On Linux, use `sed -i -E` without the `''`.) A single substitution is enough: `not(feature = "metal")` becomes `not(any(feature = "metal", target_os = "macos"))`.
 
-Then verify: `rg -n 'feature = "metal"' crates/vox-plugin-mens-candle-metal/src` must show only occurrences inside `any(feature = "metal", target_os = "macos")`, and `rg -c '__NOT_METAL__' crates/vox-plugin-mens-candle-metal/src` must print nothing.
+Then verify: `rg -n 'feature = "metal"' crates/vox-plugin-mens-candle-metal/src` shows every `#[cfg` hit inside `any(feature = "metal", target_os = "macos")` (7 gate lines), plus the unchanged `// \`#[cfg(not(any(feature = "cuda", feature = "metal")))]\`` comment in `inference.rs`.
 
 - [ ] **Step 5: Run the test to see it pass**
 
-Run: `timeout 1800s cargo test -p vox-plugin-mens-candle-metal --lib macos_default_build_tests`
+Run: `env -u VOX_CANDLE_DEVICE timeout 1800s cargo test -p vox-plugin-mens-candle-metal --lib macos_default_build_tests`
 Expected: PASS.
 
 Run: `timeout 1800s cargo test -p vox-plugin-mens-candle-metal --lib`
 Expected: PASS (all existing tests; tests that were `--features metal`-only now run on macOS too. If a previously `#[ignore]`d live-Metal test exists, it stays ignored.)
 
 Run: `timeout 1800s cargo clippy -p vox-plugin-mens-candle-metal --lib --no-deps -- -D warnings`
-Expected: clean.
+Expected: no warnings on the 7 gate lines or in Task 5's test. <!-- AMENDED: R16 --> Code behind `feature = "metal"` is now linted on macOS for the first time; warnings inside those pre-existing bodies are not this plan's to fix. Record them in the report (file:line + lint) and do not edit them.
 
 - [ ] **Step 6: Commit**
 
@@ -743,6 +749,23 @@ pub const MENS_CANDLE_METAL: &str = "mens-candle-metal";
 /// CPU-only build for non-Mac hosts without an NVIDIA GPU.
 pub const MENS_CANDLE_CPU: &str = "mens-candle-cpu";
 
+/// Whether a release asset of `plugin_id` exists for the platform this binary
+/// was built for. `vox plugin install`/auto-heal can only fetch these; anything
+/// else must be built from source.
+#[must_use]
+pub fn has_prebuilt_artifact(plugin_id: &str) -> bool {
+    has_prebuilt_artifact_for(plugin_id, std::env::consts::OS, std::env::consts::ARCH)
+}
+
+// Mirrors the release jobs in .github/workflows/release-binaries.yml.
+fn has_prebuilt_artifact_for(plugin_id: &str, os: &str, arch: &str) -> bool {
+    match plugin_id {
+        MENS_CANDLE_METAL => os == "macos",
+        MENS_CANDLE_CUDA | MENS_CANDLE_CPU => os == "linux" && arch == "x86_64",
+        _ => false,
+    }
+}
+
 /// Pick the plugin id for `requested` on a host with capabilities `caps`.
 #[must_use]
 pub fn select_mens_backend(requested: DeviceKind, caps: &CapabilitySet) -> &'static str {
@@ -800,6 +823,17 @@ mod tests {
     }
 
     #[test]
+    fn prebuilt_artifacts_match_the_release_jobs() {
+        assert!(has_prebuilt_artifact_for(MENS_CANDLE_METAL, "macos", "x86_64"));
+        assert!(has_prebuilt_artifact_for(MENS_CANDLE_CPU, "linux", "x86_64"));
+        assert!(has_prebuilt_artifact_for(MENS_CANDLE_CUDA, "linux", "x86_64"));
+        assert!(!has_prebuilt_artifact_for(MENS_CANDLE_CPU, "windows", "x86_64"));
+        assert!(!has_prebuilt_artifact_for(MENS_CANDLE_CPU, "linux", "aarch64"));
+        assert!(!has_prebuilt_artifact_for(MENS_CANDLE_CUDA, "macos", "aarch64"));
+        assert!(!has_prebuilt_artifact_for(MENS_CANDLE_METAL, "linux", "x86_64"));
+    }
+
+    #[test]
     fn an_explicit_device_is_honoured_even_without_the_capability() {
         let c = caps(&["cpu-only"]);
         assert_eq!(select_for_os(DeviceKind::Cuda, &c, false), MENS_CANDLE_CUDA);
@@ -820,7 +854,7 @@ In `crates/vox-populi/src/mens/mod.rs`, add after the existing `pub use tensor::
 ```rust
 #[cfg(feature = "mens-train")]
 pub use tensor::backend_select::{
-    MENS_CANDLE_CPU, MENS_CANDLE_CUDA, MENS_CANDLE_METAL, select_mens_backend,
+    MENS_CANDLE_CPU, MENS_CANDLE_CUDA, MENS_CANDLE_METAL, has_prebuilt_artifact, select_mens_backend,
 };
 ```
 
@@ -857,7 +891,7 @@ fn select_for_os(requested: DeviceKind, caps: &CapabilitySet, is_macos: bool) ->
 - [ ] **Step 4: Run the tests to see them pass**
 
 Run: `timeout 1800s cargo test -p vox-populi --lib --features mens-train backend_select::`
-Expected: PASS (7 tests). <!-- AMENDED: grill Q5 -->
+Expected: PASS (8 tests). <!-- AMENDED: grill Q5; R9 -->
 
 - [ ] **Step 5: Route training through the selector**
 
@@ -906,7 +940,7 @@ In `crates/vox-ml-cli/src/commands/mens/eval_local.rs`, make the same replacemen
         );
 ```
 
-Then delete `fn resolve_ml_backend_plugin` and the test `metal_capability_selects_metal_serve_plugin` (and its test module if that leaves it empty). `backend_select::tests` covers both cases.
+Then delete `fn resolve_ml_backend_plugin` and the test `metal_capability_selects_metal_serve_plugin`, and drop `resolve_ml_backend_plugin` from the test module's `use super::{InferenceRequest, inference_payload, resolve_ml_backend_plugin};` line. <!-- AMENDED: R11 --> `backend_select::tests` covers both cases.
 
 In `crates/vox-plugin-host/src/lib.rs`, delete `pub struct ExtensionCandidate`, `pub fn resolve_extension_point` (with their doc comments) and `mod resolve_extension_point_tests`. Fix the one doc link that pointed at `resolve_extension_point` if any remain (`cargo doc` would warn).
 
@@ -925,33 +959,31 @@ In `crates/vox-ml-cli/src/commands/schola/train/run_train.rs`, inside `if matche
         // loadable, self-healing a missing/stale one (opt out with
         // `--no-auto-heal` / VOX_MENS_NO_AUTO_HEAL). Same selector the
         // training dispatch in vox-populi uses, so they can't disagree.
-        // mens-candle-cpu is only published for linux-x86_64; elsewhere skip
-        // the heal (it would try a download that can't exist) and let dispatch
-        // fail at load with the build-from-source hint.
+        // Skip the heal where no release asset exists for this platform (it
+        // would try a download that can't succeed); dispatch then fails at load
+        // with a build-from-source hint.
         #[cfg(feature = "gpu")]
         {
             let plugin_id =
                 vox_populi::mens::select_mens_backend(device_kind, &vox_plugin_host::probe());
-            let has_artifact = plugin_id != vox_populi::mens::MENS_CANDLE_CPU
-                || cfg!(all(target_os = "linux", target_arch = "x86_64"));
-            if has_artifact {
+            if vox_populi::mens::has_prebuilt_artifact(plugin_id) {
                 crate::commands::mens::plugin_heal::ensure_plugin(plugin_id, true)?;
             }
         }
 ```
 
-<!-- AMENDED: grill Q4 --> In `crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs` (Step 5's file), make the load-error hint build-from-source for the CPU plugin. Replace the `"… Install it with: vox plugin install {plugin_id}"` message's last line with a computed hint:
+<!-- AMENDED: grill Q4; R4, R9 — hint must work where it is shown --> In `crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs` (Step 5's file), make the load-error hint depend on whether a prebuilt asset exists. Replace the `"… Install it with: vox plugin install {plugin_id}"` message's last line with a computed hint:
 
 ```rust
-        let hint = if plugin_id == super::backend_select::MENS_CANDLE_CPU
-            && !cfg!(all(target_os = "linux", target_arch = "x86_64"))
-        {
-            "No prebuilt mens-candle-cpu exists for this platform. Build it with: \
-             cargo build -p vox-plugin-mens-candle-cuda --release, then \
-             vox plugin install --path <dir with Plugin.cpu.toml renamed to Plugin.toml and the cdylib>"
-                .to_string()
-        } else {
+        let hint = if super::backend_select::has_prebuilt_artifact(plugin_id) {
             format!("Install it with: vox plugin install {plugin_id}")
+        } else {
+            format!(
+                "No prebuilt '{plugin_id}' exists for this platform. Build it from source \
+                 (the vox-plugin-mens-candle-* crate; mens-candle-cpu is vox-plugin-mens-candle-cuda \
+                 without features, packaged with Plugin.cpu.toml), add this platform to the \
+                 manifest's [plugin.payload.artifacts] table, then: vox plugin install --path <dir>"
+            )
         };
 ```
 
@@ -1021,7 +1053,31 @@ In `crates/vox-plugin-catalog/tests/catalog_validation.rs`, extend `EXPECTED` in
     ];
 ```
 
-- [ ] **Step 2: Run the test to see it fail**
+<!-- AMENDED: R5 — the one-off diff doesn't stop future drift --> Append to `crates/vox-plugin-mens-candle-cuda/tests/plugin_toml_version_matches_crate.rs`:
+
+```rust
+/// The CPU build ships with Plugin.cpu.toml; the installer derives the asset
+/// name from its version, so it must track the crate and Plugin.toml too.
+#[test]
+fn plugin_cpu_toml_matches_plugin_toml() {
+    let get = |src: &str| -> (String, i64) {
+        let v: toml::Value = src.parse().unwrap();
+        (
+            v["plugin"]["version"].as_str().unwrap().to_string(),
+            v["plugin"]["payload"]["abi-version"].as_integer().unwrap(),
+        )
+    };
+    let main = get(include_str!("../Plugin.toml"));
+    let cpu = get(include_str!("../Plugin.cpu.toml"));
+    assert_eq!(cpu, main, "Plugin.cpu.toml version/abi-version must match Plugin.toml");
+    assert_eq!(cpu.0, env!("CARGO_PKG_VERSION"));
+}
+```
+
+- [ ] **Step 2: Run the tests to see them fail**
+
+Run: `timeout 1800s cargo test -p vox-plugin-mens-candle-cuda --test plugin_toml_version_matches_crate`
+Expected: FAIL to compile: `include_str!` can't find `../Plugin.cpu.toml`.
 
 Run: `timeout 1800s cargo test -p vox-plugin-catalog --test catalog_validation ml_backend_requires_tag`
 Expected: FAIL: `expected plugin 'mens-candle-cpu' in the catalog`.
@@ -1067,7 +1123,7 @@ arch = ["x86_64"]
 "linux-x86_64" = "libvox_plugin_mens_candle_cuda.so"
 ```
 
-Keep `version` and `abi-version` equal to `Plugin.toml`'s. Check with `diff <(grep -E '^(version|abi-version)' crates/vox-plugin-mens-candle-cuda/Plugin.toml) <(grep -E '^(version|abi-version)' crates/vox-plugin-mens-candle-cuda/Plugin.cpu.toml)`, which must print nothing.
+Keep `version` and `abi-version` equal to `Plugin.toml`'s; Step 1's `plugin_cpu_toml_matches_plugin_toml` enforces it.
 
 - [ ] **Step 5: Add the catalog entry**
 
@@ -1093,8 +1149,18 @@ bundled-in = []
 
 - [ ] **Step 6: Run the tests to see them pass**
 
+Run: `timeout 1800s cargo test -p vox-plugin-mens-candle-cuda --test plugin_toml_version_matches_crate`
+Expected: PASS (2 tests).
+
 Run: `timeout 1800s cargo test -p vox-plugin-catalog`
 Expected: PASS. That includes `every_default_source_resolves` if it exists on this base; a `github:vox-foundation/vox` source is allowed.
+
+- [ ] **Step 6b: Regenerate catalog-derived docs** <!-- AMENDED: R3 -->
+
+The new `[[plugin]]` entry adds a row to `docs/src/reference/plugin-catalog.generated.md`.
+
+Run: `timeout 1800s cargo run -q -p vox-cli -- ci generate-plugin-catalog-docs`
+Expected: a new `mens-candle-cpu` row. (The lefthook `plugin-catalog-docs` hook also regenerates on commit if hooks are installed in this worktree; running it explicitly makes it not depend on that.) If the build can't finish within the timeout on a loaded machine, skip and say so; the `ssot-autoregen` CI job regenerates it on the PR.
 
 - [ ] **Step 7: Add the release job**
 
@@ -1161,7 +1227,7 @@ Under `## [Unreleased]` → `### Added`, add:
 - [ ] **Step 9: Commit**
 
 ```bash
-git add crates/vox-plugin-mens-candle-cuda/Plugin.toml crates/vox-plugin-mens-candle-cuda/Plugin.cpu.toml crates/vox-plugin-catalog/catalog.toml crates/vox-plugin-catalog/tests/catalog_validation.rs .github/workflows/release-binaries.yml CHANGELOG.md
+git add crates/vox-plugin-mens-candle-cuda/Plugin.toml crates/vox-plugin-mens-candle-cuda/Plugin.cpu.toml crates/vox-plugin-mens-candle-cuda/tests/plugin_toml_version_matches_crate.rs docs/src/reference/plugin-catalog.generated.md docs/src/reference/distribution-bundles.generated.md crates/vox-plugin-catalog/catalog.toml crates/vox-plugin-catalog/tests/catalog_validation.rs .github/workflows/release-binaries.yml CHANGELOG.md
 git commit -m "feat(mens): ship a CPU Candle plugin for hosts without a GPU" -m "The CUDA plugin links libcuda at load time (cudarc dynamic-linking), so on a Linux host without NVIDIA drivers MENS had no backend at all. The same crate built without the cuda feature is a working CPU backend; ship it as mens-candle-cpu with its own manifest, catalog entry and release job so select_mens_backend's CPU fallback has something to load." -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
@@ -1177,7 +1243,7 @@ git commit -m "feat(mens): ship a CPU Candle plugin for hosts without a GPU" -m 
 
 - [ ] **Step 1: Confirm this branch is complete**
 
-Run in `/Users/brbrainerd/dev/vox-mens-backends`: `git status --short` (must be empty) and `git log --oneline origin/main..HEAD` (the plan commit plus 7 task commits).
+Run in `/Users/brbrainerd/dev/vox-mens-backends`: `git status --short` (must be empty) and `git log --oneline origin/main..HEAD` (the plan commits — currently 3 — plus 7 task commits) <!-- AMENDED: R10 -->.
 
 - [ ] **Step 2: Merge**
 
@@ -1215,3 +1281,49 @@ Run each; all must PASS:
 - [ ] **Step 5: Report**
 
 Report the merge commit SHA, the check and test results, and the tests that could not run here. The `cuda`-feature variants (`cargo check/test -p vox-plugin-mens-candle-cuda --features cuda`, and `qk_norm_is_applied_exactly_once` on a real CUDA device) need an NVIDIA host or CI. Do not push.
+
+---
+
+## Execution Order
+
+Sequential constraints (shared-file collisions, CANNOT parallelize):
+- Task 2 → Task 3: both modify `crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs` (Task 3 relies on Task 2's single `q_norm`/`k_norm` fields).
+- Task 3 → Task 5: both modify `crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs`.
+- Task 4 → Task 7: both modify `crates/vox-plugin-catalog/catalog.toml` and `tests/catalog_validation.rs` (same `EXPECTED` table).
+- Task 2 → Task 6 → Task 7: all append to `CHANGELOG.md` `## [Unreleased]`.
+- Task 1 → Task 3: Task 3's tests need core's test target to compile.
+- Task 4 → Task 6: the selector matches the `metal` tag semantics.
+- Task 6 → Task 7: the selector returns `mens-candle-cpu`, which Task 7 adds to the catalog.
+- Machine constraint: the build broker is not installed, so run one cargo command at a time.
+
+Pre-flight checklist:
+- [ ] Worktree isolated: `/Users/brbrainerd/dev/vox-mens-backends`, branch `fix/mens-candle-backends`.
+- [ ] Target git history confirmed: `git merge-base HEAD origin/main` = `7103fbdad`.
+- [ ] Next migration sequence verified: N/A (no schema changes).
+- [ ] Local test database verified: N/A (no DB).
+- [ ] `env | grep VOX_CANDLE_DEVICE` is empty (or run the Task 5 tests with `env -u`).
+
+Recommended task sequence: Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6 → Task 7 → Task 8. Tasks 4 and 5 are file-independent but offer no real parallelism gain on a broker-less machine.
+
+SDD ledger pre-population (copy into progress.md):
+- Conflict on `cuda/.../candle_qlora_train/mod.rs`, `metal/.../candle_qlora_train/mod.rs`, `catalog.toml`, `catalog_validation.rs`, `CHANGELOG.md`: sequential execution enforced. Ruling: settled.
+- R1: Task 2 Step 4 also narrows `use candle_nn::{Module, RmsNorm};` to `use candle_nn::RmsNorm;`. Ruling: settled.
+- R2: Task 4 rewrites the whole pin-test comment; no `ML_BACKEND_CANDIDATES` text may remain. Ruling: settled.
+- R3: catalog docs regeneration lives in Task 7 (Step 6b), not Task 4. Ruling: settled.
+- R4/R9: `has_prebuilt_artifact` in `backend_select.rs` is the single place that encodes which release assets exist; both the heal skip and the load hint call it. Ruling: settled.
+- R5: `Plugin.cpu.toml` version/abi parity is enforced by a test, not a one-off diff. Ruling: settled.
+- R6: the Task 5 sed touches `#[cfg` lines only; the `inference.rs` comment about core's gates stays unchanged. Ruling: settled.
+- R7: the Task 5 test asserts a positive label and runs with `env -u VOX_CANDLE_DEVICE`. Ruling: settled.
+- R16: pre-existing clippy warnings in newly compiled Metal bodies are recorded, not fixed. Ruling: settled.
+- Grill Q4–Q9 decisions (Cpu→CUDA on NVIDIA hosts, `bundled-in = []`, no compile-time plugin id, per-package Task 8 checks, `resolve_extension_point` deleted): settled.
+
+## Deferred Minor Issues
+
+1. **The Intel-Mac probe path never goes red on this Apple Silicon host** (Task 4). Optional: `rustup target add x86_64-apple-darwin` and run `cargo test -p vox-plugin-host --lib --target x86_64-apple-darwin capability::` under Rosetta. Deferred because it installs a toolchain target.
+2. **The public `select_mens_backend` wrapper is never called by a test** (only `select_for_os` is). Optional: add a `#[cfg(target_os = "macos")]` test asserting `select_mens_backend(DeviceKind::Best, &vox_plugin_host::probe()) == MENS_CANDLE_METAL`.
+3. **`MENS_CANDLE_CUDA`/`MENS_CANDLE_METAL` could be private.** Outside `backend_select.rs` only `MENS_CANDLE_CPU` and `has_prebuilt_artifact` are used. They could also reuse `plugin_heal.rs`'s `CUDA_PLUGIN_ID`/`METAL_PLUGIN_ID`, but that is a different crate, so the duplication stays.
+4. **`cargo hakari generate --diff`.** The macOS target dependencies on Candle `metal` may add transitive crates to the workspace-hack graph. Run the hakari check before pushing (CI `ci.yml:860-861`).
+5. **Heal now runs for `--device best`** on Macs and linux-x86_64 NVIDIA hosts. Previously it ran only for explicit `--device cuda`/`metal`. Mention this in the Task 6 report and CHANGELOG wording if the reviewer wants it.
+6. **Windows host with no GPU:** it previously got `mens-candle-cuda` (a from-source CPU build) and now gets `mens-candle-cpu`, which has no Windows asset. The load error's build-from-source hint covers it (Design decision 7 keeps Windows out of scope).
+7. **Task 4's commit is intermediate:** between the Task 4 and Task 6 commits, `ML_BACKEND_CANDIDATES` still says `apple-silicon` while the catalog says `metal`. This is harmless on this branch because both land before any merge.
+8. **The CPU release job duplicates the CUDA job** (~38 lines). A two-leg matrix would save ~25 lines but touches the least-proven release job. Kept separate on purpose.
