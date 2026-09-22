@@ -9,6 +9,58 @@ pub fn selected_profile(profile: &Option<String>) -> &str {
     profile.as_deref().unwrap_or("default")
 }
 
+/// Canonical stage order. Mix-source producers must run BEFORE Mix so their
+/// outputs are consumed in the same run (Mix is the only stage that reads
+/// mix_sources/*).
+const ALL_STAGES: [PipelineStage; 18] = [
+    PipelineStage::Generate,
+    PipelineStage::ResearchGen,
+    PipelineStage::Extract,
+    PipelineStage::HealToDpo,
+    PipelineStage::Replay,
+    PipelineStage::ReviewIngest,
+    PipelineStage::ReviewDatasetBuild,
+    PipelineStage::ReviewEvalPackBuild,
+    PipelineStage::ReviewToDpo,
+    PipelineStage::AgentTraceIngest,
+    PipelineStage::Validate,
+    PipelineStage::Pairs,
+    PipelineStage::BackTranslate,
+    PipelineStage::Rft,
+    PipelineStage::Mix,
+    PipelineStage::Eval,
+    PipelineStage::KbSignals,
+    PipelineStage::Train,
+];
+
+/// Stages to run: the requested subset (comma-separated `as_str` names) in
+/// canonical order, or every non-opt-in stage when none are requested.
+fn plan_stages(stages: Option<&str>, skip_train: bool) -> Vec<PipelineStage> {
+    let requested: Option<HashSet<String>> =
+        stages.map(|s| s.split(',').map(|x| x.trim().to_lowercase()).collect());
+    ALL_STAGES
+        .into_iter()
+        .filter(|st| !(skip_train && *st == PipelineStage::Train))
+        .filter(|st| match &requested {
+            Some(r) => r.contains(st.as_str()),
+            None => !st.is_opt_in(),
+        })
+        .collect()
+}
+
+/// Synthesis-stage LLM flags: real calls only with `VOX_MENS_ALLOW_SPEND=1`
+/// (the cloud spend gate), otherwise the command prints its dry-run plan.
+fn synth_llm_args() -> crate::commands::corpus::SynthLlmArgs {
+    crate::commands::corpus::SynthLlmArgs {
+        provider: "openrouter".into(),
+        model: None,
+        base_url: None,
+        max_spend_usd: 1.0,
+        usd_per_1k_tokens: 0.002,
+        apply: std::env::var("VOX_MENS_ALLOW_SPEND").is_ok_and(|v| v.trim() == "1"),
+    }
+}
+
 /// Run the dogfood pipeline: corpus extract → validate → pairs → eval → optional native train.
 pub async fn run(
     data_dir: PathBuf,
@@ -39,46 +91,7 @@ pub async fn run(
 
     let run_id = vox_corpus::training::timestamp_string();
 
-    let all_possible_stages = [
-        PipelineStage::Generate,
-        PipelineStage::ResearchGen,
-        PipelineStage::Extract,
-        PipelineStage::HealToDpo,
-        PipelineStage::Replay,
-        PipelineStage::ReviewIngest,
-        PipelineStage::ReviewDatasetBuild,
-        PipelineStage::ReviewEvalPackBuild,
-        // Mix-source producers must run BEFORE Mix so their outputs are consumed
-        // in the same run (Mix is the only stage that reads mix_sources/*).
-        PipelineStage::ReviewToDpo,
-        PipelineStage::AgentTraceIngest,
-        PipelineStage::Validate,
-        PipelineStage::Pairs,
-        PipelineStage::Mix,
-        PipelineStage::Eval,
-        PipelineStage::KbSignals,
-        PipelineStage::Train,
-    ];
-
-    let mut planned_stages = Vec::new();
-    if let Some(s) = stages {
-        let requested: HashSet<String> = s.split(',').map(|x| x.trim().to_lowercase()).collect();
-        for stage in all_possible_stages {
-            if requested.contains(stage.as_str()) {
-                if stage == PipelineStage::Train && skip_train {
-                    continue;
-                }
-                planned_stages.push(stage);
-            }
-        }
-    } else {
-        for stage in all_possible_stages {
-            if stage == PipelineStage::Train && skip_train {
-                continue;
-            }
-            planned_stages.push(stage);
-        }
-    }
+    let planned_stages = plan_stages(stages.as_deref(), skip_train);
 
     let total_stages = planned_stages.len();
     let validated = PathBuf::from("mens/data/validated.jsonl");
@@ -325,6 +338,42 @@ pub async fn run(
                     }
                 } else {
                     tracing::info!("AgentTraceIngest: dry_run, skipping");
+                }
+            }
+            PipelineStage::BackTranslate => {
+                if !dry_run {
+                    crate::commands::corpus::run(
+                        crate::commands::corpus::CorpusAction::BackTranslate {
+                            input: validated.clone(),
+                            output: PathBuf::from("mens/data/mix_sources/back_translated.jsonl"),
+                            cache: PathBuf::from("target/dogfood/back_translate_cache.jsonl"),
+                            bench: PathBuf::from("mens/data/heldout_bench/manifest.json"),
+                            max_rows: 200,
+                            round_trip: false,
+                            llm: synth_llm_args(),
+                        },
+                    )
+                    .await
+                    .map_err(|e| anyhow::anyhow!("pipeline back_translate failed: {e}"))?;
+                }
+            }
+            PipelineStage::Rft => {
+                let tasks = PathBuf::from("mens/data/mix_sources/back_translated.jsonl");
+                if !dry_run && tasks.is_file() {
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Rft {
+                        input: tasks,
+                        output: PathBuf::from("mens/data/mix_sources/rft_vox.jsonl"),
+                        bench: PathBuf::from("mens/data/heldout_bench/manifest.json"),
+                        k: 4,
+                        max_per_task: 2,
+                        max_tasks: 100,
+                        temperature: 0.8,
+                        llm: synth_llm_args(),
+                    })
+                    .await
+                    .map_err(|e| anyhow::anyhow!("pipeline rft failed: {e}"))?;
+                } else if !dry_run {
+                    tracing::debug!("Rft: no back_translated.jsonl task file, skipping");
                 }
             }
             PipelineStage::KbSignals => {
@@ -705,6 +754,24 @@ mod tests {
     fn test_is_lock_error_does_not_match_other_errors() {
         let e = anyhow::anyhow!("file not found (os error 2)");
         assert!(!is_lock_error(&e));
+    }
+
+    #[test]
+    fn synth_stages_are_opt_in_and_run_before_mix() {
+        let default = plan_stages(None, false);
+        assert!(!default.contains(&PipelineStage::BackTranslate));
+        assert!(!default.contains(&PipelineStage::Rft));
+        assert!(default.contains(&PipelineStage::Mix));
+
+        let picked = plan_stages(Some("mix, rft,back_translate,train"), true);
+        assert_eq!(
+            picked,
+            vec![
+                PipelineStage::BackTranslate,
+                PipelineStage::Rft,
+                PipelineStage::Mix
+            ]
+        );
     }
 
     #[test]
