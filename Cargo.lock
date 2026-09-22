@@ -16691,6 +16691,7 @@ dependencies = [
  "comfy-table",
  "data-encoding",
  "deadpool",
+ "dialoguer",
  "dirs",
  "flate2",
  "form_urlencoded",

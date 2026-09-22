@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{IsTerminal, Read};
 
 use anyhow::{Context, Result};
 use clap::{Subcommand, ValueEnum};
@@ -13,6 +13,15 @@ fn managed_secret_id(canonical_env: &str) -> Result<vox_secrets::SecretId> {
             "`{canonical_env}` is not a canonical managed secret name; use `vox secrets status` to inspect registered secrets"
         )
     })
+}
+
+/// Trim surrounding whitespace (including the trailing newline) and reject empty input.
+fn normalize_secret_input(raw: &str) -> Result<&str> {
+    let value = raw.trim();
+    if value.is_empty() {
+        anyhow::bail!("secret value from standard input must not be empty");
+    }
+    Ok(value)
 }
 
 fn local_inference_allows_no_cloud_key() -> bool {
@@ -225,13 +234,18 @@ pub async fn run(cmd: SecretsCmd) -> Result<()> {
             }
             let secret_id = managed_secret_id(&canonical_env)?;
             let mut value = String::new();
-            std::io::stdin()
-                .read_to_string(&mut value)
-                .context("failed to read secret from standard input")?;
-            let value = value.trim();
-            if value.is_empty() {
-                anyhow::bail!("secret value from standard input must not be empty");
+            if std::io::stdin().is_terminal() {
+                // Interactive: read one hidden line; reading to EOF would wait for Ctrl-D.
+                value = dialoguer::Password::new()
+                    .with_prompt(format!("Enter value for {canonical_env} (input hidden)"))
+                    .interact()
+                    .context("failed to read secret from terminal")?;
+            } else {
+                std::io::stdin()
+                    .read_to_string(&mut value)
+                    .context("failed to read secret from standard input")?;
             }
+            let value = normalize_secret_input(&value)?;
             vox_secrets::store_secret(secret_id, value, None)
                 .map_err(|e| anyhow::anyhow!("failed to store managed secret: {e}"))?;
             let resolved = vox_secrets::resolve_secret_for_cli(secret_id);
@@ -962,5 +976,25 @@ mod oauth_login_cli_tests {
             .is_err(),
             "positional token input must be rejected by the command shape"
         );
+    }
+}
+
+#[cfg(test)]
+mod secret_input_tests {
+    use super::normalize_secret_input;
+
+    #[test]
+    fn trims_trailing_newline_and_whitespace() {
+        assert_eq!(normalize_secret_input("sk-dummy\n").unwrap(), "sk-dummy");
+        assert_eq!(
+            normalize_secret_input("  sk-dummy\r\n").unwrap(),
+            "sk-dummy"
+        );
+    }
+
+    #[test]
+    fn rejects_empty_or_whitespace_only() {
+        assert!(normalize_secret_input("").is_err());
+        assert!(normalize_secret_input(" \n").is_err());
     }
 }

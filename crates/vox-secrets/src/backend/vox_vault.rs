@@ -1119,6 +1119,12 @@ async fn open_cloudless_connection() -> Result<turso::Connection, SecretError> {
     let db_url = resolve_cloudless_db_url();
     if db_url.starts_with("file:") {
         let local_path = file_url_to_local_path(&db_url)?;
+        // Fresh HOME: `~/.vox/` may not exist yet, and turso won't create parents.
+        if let Some(parent) = std::path::Path::new(&local_path).parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent).map_err(|e| SecretError::Io(e.to_string()))?;
+        }
         let db = turso::Builder::new_local(&local_path)
             .build()
             .await
@@ -1962,6 +1968,28 @@ mod vault_health_tests {
         let a = super::master_key_fingerprint(&[1_u8; 32]);
         let b = super::master_key_fingerprint(&[2_u8; 32]);
         assert_ne!(a, b);
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn open_creates_missing_vault_parent_dir() {
+        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _g = ENV_LOCK.lock().expect("env lock");
+        let tmp = tempfile::tempdir().expect("tempdir");
+        // Mirrors a fresh HOME where `~/.vox/` does not exist yet.
+        let db_path = tmp.path().join("fresh-home/.vox/clavis_vault.db");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+        }
+        let opened = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .expect("tokio rt")
+            .block_on(super::open_cloudless_connection());
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+        }
+        opened.expect("open vault under missing parent dir");
+        assert!(db_path.parent().expect("parent").is_dir());
     }
 
     #[test]
