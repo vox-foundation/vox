@@ -10,8 +10,8 @@
 //! **Remote token:** `VOX_SECRETS_VAULT_TOKEN`, then compat `VOX_TURSO_TOKEN` / `TURSO_AUTH_TOKEN`
 //! when allowed. Codex uses `VOX_DB_URL` / `VOX_DB_TOKEN`; do not conflate with this vault plane.
 
+use std::future::Future;
 use std::sync::Mutex;
-use std::{future::Future, panic};
 
 use rand::RngCore;
 use secrecy::SecretString;
@@ -1461,28 +1461,70 @@ fn now_ms() -> i64 {
 
 fn run_secrets_future<F, T>(future: F) -> Result<T, SecretError>
 where
-    F: Future<Output = Result<T, SecretError>>,
+    F: Future<Output = Result<T, SecretError>> + Send,
+    T: Send,
 {
-    if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+    use tokio::runtime::{Handle, RuntimeFlavor};
+    match Handle::try_current() {
+        // block_in_place is only legal on the multi-thread scheduler.
+        Ok(handle) if handle.runtime_flavor() == RuntimeFlavor::MultiThread => {
             tokio::task::block_in_place(|| handle.block_on(future))
-        }));
-        return result.map_err(|_| {
-            SecretError::BackendMisconfigured(
-                "failed to execute secrets async operation from active runtime".to_string(),
-            )
-        })?;
+        }
+        // current_thread runtime (block_in_place would panic — D13) or no runtime:
+        // drive the future on a dedicated thread with its own runtime.
+        _ => std::thread::scope(|scope| {
+            scope
+                .spawn(|| {
+                    tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .map_err(|e| {
+                            SecretError::BackendMisconfigured(format!("secrets runtime: {e}"))
+                        })?
+                        .block_on(future)
+                })
+                .join()
+                .map_err(|_| {
+                    SecretError::BackendMisconfigured("secrets worker thread panicked".to_string())
+                })?
+        }),
     }
-
-    Err(SecretError::BackendMisconfigured(
-        "run_secrets_future requires an active Tokio runtime".to_string(),
-    ))
 }
 
 #[cfg(test)]
 mod semcov_wave2_tests {
     #![allow(unused_imports)]
     use super::*;
+
+    #[test]
+    fn run_secrets_future_inside_current_thread_runtime_does_not_fail() {
+        // D13: ModelRegistry::maybe_refresh_catalogs resolves secrets on a
+        // current_thread runtime; block_in_place panics there and the panic
+        // was converted into a silent "missing secret".
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("rt");
+        let got = rt.block_on(async { run_secrets_future(async { Ok::<_, SecretError>(7) }) });
+        assert_eq!(got.expect("must resolve on current_thread runtime"), 7);
+    }
+
+    #[test]
+    fn run_secrets_future_without_runtime_resolves() {
+        let got = run_secrets_future(async { Ok::<_, SecretError>(9) });
+        assert_eq!(got.expect("must resolve with no ambient runtime"), 9);
+    }
+
+    #[test]
+    fn run_secrets_future_inside_multi_thread_runtime_resolves() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .expect("rt");
+        let got = rt.block_on(async { run_secrets_future(async { Ok::<_, SecretError>(3) }) });
+        assert_eq!(got.expect("multi-thread path unchanged"), 3);
+    }
 
     #[test]
     fn compute_checksum_is_deterministic() {
