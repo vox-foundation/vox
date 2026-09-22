@@ -113,6 +113,7 @@ const LOCAL_CODE_CUES: &[&str] = &[
     "our repo",
     "the codebase",
     "commit",
+    "commits",
     "pull request",
     "this pr",
 ];
@@ -147,6 +148,28 @@ fn looks_like_path(word: &str) -> bool {
             word.trim_end_matches(|c: char| !c.is_alphanumeric())
                 .ends_with(e)
         })
+}
+
+/// Lowercase, replace every non-alphanumeric/`'` char with a space, collapse
+/// whitespace runs, and pad with a single space at each end — so cue lookups
+/// via `normalized.contains(" cue ")` match on word boundaries, not substrings
+/// (e.g. "commit" must not match inside "committee").
+fn normalize_words(s: &str) -> String {
+    let collapsed: String = s
+        .to_ascii_lowercase()
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '\'' {
+                c
+            } else {
+                ' '
+            }
+        })
+        .collect();
+    format!(
+        " {} ",
+        collapsed.split_whitespace().collect::<Vec<_>>().join(" ")
+    )
 }
 
 fn has_recent_year(lower: &str) -> bool {
@@ -256,7 +279,11 @@ pub fn classify_research_intent(
         );
     }
 
-    if let Some(cue) = LOCAL_CODE_CUES.iter().find(|c| lower.contains(*c)) {
+    let normalized = normalize_words(trimmed);
+    if let Some(cue) = LOCAL_CODE_CUES
+        .iter()
+        .find(|c| normalized.contains(&format!(" {c} ")))
+    {
         return intent(
             ResearchMode::None,
             false,
@@ -387,6 +414,24 @@ mod tests {
         assert_eq!(
             mode("what's the current version of tokio?"),
             ResearchMode::Quick
+        );
+    }
+
+    #[test]
+    fn local_code_cues_match_on_word_boundaries_not_substrings() {
+        // "commit" must not match inside "committee" / "commitment".
+        assert_eq!(
+            mode("what's the latest committee decision on EU AI regulation?"),
+            ResearchMode::Quick
+        );
+        assert_eq!(
+            mode("what is the current commitment deadline for the 2026 climate pledge?"),
+            ResearchMode::Quick
+        );
+        // plural "commits" still matches as its own cue.
+        assert_eq!(
+            mode("show me the latest commits on this branch?"),
+            ResearchMode::None
         );
     }
 
