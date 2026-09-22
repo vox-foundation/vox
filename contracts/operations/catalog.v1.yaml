@@ -13303,7 +13303,7 @@ operations:
   cli: null
 - id: visual.rag.query
   title: Visual Rag Query
-  description: Dispatches a multi-modal visual RAG query to the configured intelligence backend.
+  description: 'NOT IMPLEMENTED: multimodal RAG is planned but not wired up; this tool always returns an error. Use vox_search or memory retrieval tools instead.'
   description_human: null
   product_lane: ai
   intent_tags: []
