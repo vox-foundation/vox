@@ -11021,7 +11021,7 @@ curated:
 - id: mcp.vox_visual_rag_query
   title: Visual Rag Query
   description_human: null
-  description_model: Dispatches a multi-modal visual RAG query to the configured intelligence backend.
+  description_model: 'NOT IMPLEMENTED: multimodal RAG is planned but not wired up; this tool always returns an error. Use vox_search or memory retrieval tools instead.'
   intent_tags: []
   side_effect_class: null
   scope_kind: null
