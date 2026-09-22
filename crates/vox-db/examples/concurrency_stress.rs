@@ -9,6 +9,12 @@
 //!     busy_timeout=5000, all against the same on-disk file — the
 //!     idiomatic SQLite pooling pattern.
 //!
+//! Cross-engine fairness: every mode's timed window starts *after* its one-time
+//! schema/connection setup (Turso pays a full baseline migration, SQLite a single
+//! `CREATE TABLE`) and stops as soon as the last writer finishes, and the rusqlite
+//! connections set `synchronous=NORMAL` to match what `VoxDb::apply_pragmas`
+//! applies to every Turso connection.
+//!
 //! Usage: `cargo run -p vox-db --example concurrency_stress -- \
 //!             --mode pooled --tasks 64 --writes-per-task 25 [--file PATH]`
 //!
@@ -104,16 +110,14 @@ const CREATE_PROBE: &str = "CREATE TABLE IF NOT EXISTS stress_probe (
 #[tokio::main]
 async fn main() {
     let args = parse_args();
-    let start = Instant::now();
 
-    let (stats, expected_rows, actual_rows) = match args.mode.as_str() {
+    let (stats, expected_rows, actual_rows, elapsed) = match args.mode.as_str() {
         "shared" => run_turso_shared(&args).await,
         "pooled" => run_turso_pooled(&args, false).await,
         "pooled-mvcc" => run_turso_pooled(&args, true).await,
         "sqlite" => run_sqlite(&args),
         other => panic!("unknown --mode {other} (expected shared|pooled|pooled-mvcc|sqlite)"),
     };
-    let elapsed = start.elapsed();
 
     println!("mode              = {}", args.mode);
     println!("tasks             = {}", args.tasks);
@@ -156,7 +160,7 @@ async fn verify_and_count(db: &VoxDb, marker: &str, stats: &mut Stats) {
     }
 }
 
-async fn run_turso_shared(args: &Args) -> (Stats, usize, usize) {
+async fn run_turso_shared(args: &Args) -> (Stats, usize, usize, std::time::Duration) {
     let config = match &args.file {
         Some(path) => DbConfig::Local { path: path.clone() },
         None => DbConfig::Memory,
@@ -168,6 +172,11 @@ async fn run_turso_shared(args: &Args) -> (Stats, usize, usize) {
         .expect("create table");
     let db = std::sync::Arc::new(db);
 
+    // Timed window starts only after one-time schema/connection setup: the
+    // Turso modes pay `VoxDb`'s full baseline migration here, `sqlite` pays a
+    // single `CREATE TABLE`, and including that asymmetric fixed cost would
+    // make the reported throughput a function of setup rather than of writes.
+    let start = Instant::now();
     let mut handles = Vec::with_capacity(args.tasks);
     for t in 0..args.tasks {
         let db = db.clone();
@@ -199,13 +208,19 @@ async fn run_turso_shared(args: &Args) -> (Stats, usize, usize) {
     for h in handles {
         total.merge(h.await.expect("task panicked"));
     }
+    let elapsed = start.elapsed();
 
     let actual_rows = count_rows(&db).await;
     check_integrity(&db).await;
-    (total, args.tasks * args.writes_per_task, actual_rows)
+    (
+        total,
+        args.tasks * args.writes_per_task,
+        actual_rows,
+        elapsed,
+    )
 }
 
-async fn run_turso_pooled(args: &Args, mvcc: bool) -> (Stats, usize, usize) {
+async fn run_turso_pooled(args: &Args, mvcc: bool) -> (Stats, usize, usize, std::time::Duration) {
     if mvcc {
         // SAFETY: nothing else reads or writes VOX_DB_MVCC concurrently — this
         // runs before any connection opens in this process, and each invocation
@@ -243,6 +258,9 @@ async fn run_turso_pooled(args: &Args, mvcc: bool) -> (Stats, usize, usize) {
             .expect("create table");
     }
 
+    // See `run_turso_shared`: setup (pool init + baseline migration + probe
+    // table) is deliberately outside the timed window.
+    let start = Instant::now();
     let mut handles = Vec::with_capacity(args.tasks);
     for t in 0..args.tasks {
         let pool = pool.clone();
@@ -281,11 +299,17 @@ async fn run_turso_pooled(args: &Args, mvcc: bool) -> (Stats, usize, usize) {
     for h in handles {
         total.merge(h.await.expect("task panicked"));
     }
+    let elapsed = start.elapsed();
 
     let db = pool.get().await.expect("get conn for count");
     let actual_rows = count_rows(&db).await;
     check_integrity(&db).await;
-    (total, args.tasks * args.writes_per_task, actual_rows)
+    (
+        total,
+        args.tasks * args.writes_per_task,
+        actual_rows,
+        elapsed,
+    )
 }
 
 async fn count_rows(db: &VoxDb) -> usize {
@@ -317,7 +341,7 @@ async fn check_integrity(db: &VoxDb) {
     );
 }
 
-fn run_sqlite(args: &Args) -> (Stats, usize, usize) {
+fn run_sqlite(args: &Args) -> (Stats, usize, usize, std::time::Duration) {
     let path = args.file.clone().unwrap_or_else(|| {
         std::env::temp_dir()
             .join(format!("vox-sqlite-stress-{}.db", std::process::id()))
@@ -332,9 +356,18 @@ fn run_sqlite(args: &Args) -> (Stats, usize, usize) {
             .expect("wal");
         conn.pragma_update(None, "busy_timeout", 5000i64)
             .expect("busy_timeout");
+        // Durability parity with Turso: `VoxDb::apply_pragmas` sets
+        // `synchronous=NORMAL` on every Turso connection, while rusqlite would
+        // otherwise run at SQLite's compiled default of FULL (fsync per commit).
+        // Without this the cross-engine comparison measures fsync policy, not
+        // engine concurrency behavior.
+        conn.pragma_update(None, "synchronous", "NORMAL")
+            .expect("synchronous");
         conn.execute(CREATE_PROBE, []).expect("create table");
     }
 
+    // See `run_turso_shared`: setup is deliberately outside the timed window.
+    let start = Instant::now();
     let mut handles = Vec::with_capacity(args.tasks);
     for t in 0..args.tasks {
         let path = path.clone();
@@ -343,6 +376,8 @@ fn run_sqlite(args: &Args) -> (Stats, usize, usize) {
             let conn = rusqlite::Connection::open(&path).expect("open");
             conn.pragma_update(None, "busy_timeout", 5000i64)
                 .expect("busy_timeout");
+            conn.pragma_update(None, "synchronous", "NORMAL")
+                .expect("synchronous");
             let mut stats = Stats::default();
             for w in 0..writes {
                 let marker = format!("sqlite-{t}-{w}");
@@ -374,6 +409,7 @@ fn run_sqlite(args: &Args) -> (Stats, usize, usize) {
     for h in handles {
         total.merge(h.join().expect("thread panicked"));
     }
+    let elapsed = start.elapsed();
 
     let conn = rusqlite::Connection::open(&path).expect("open for count");
     let actual_rows: i64 = conn
@@ -392,5 +428,6 @@ fn run_sqlite(args: &Args) -> (Stats, usize, usize) {
         total,
         args.tasks * args.writes_per_task,
         actual_rows as usize,
+        elapsed,
     )
 }
