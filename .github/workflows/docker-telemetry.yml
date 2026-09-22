@@ -78,3 +78,8 @@ jobs:
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
           exit-code: '0'
+          # Don't persist the trivy vuln DB in the Actions cache. Its default
+          # daily-rotating `cache-trivy-<date>` keys accumulate ~7 x 85 MB in a
+          # 10 GB LRU bucket that the Rust caches actually need; one DB download
+          # per daily run is the cheaper trade.
+          cache: 'false'

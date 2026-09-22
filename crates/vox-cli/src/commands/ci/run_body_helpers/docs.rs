@@ -681,6 +681,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
         "workflow_policy_guard",
         vox_cli_ci::workflow_policy_guard::run(root)
     )?;
+    ds!("cache_key_lint", vox_cli_ci::cache_key_lint::run(root))?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
 }

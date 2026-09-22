@@ -38,7 +38,7 @@ fn triggers(doc: &Value) -> Option<&Value> {
         .or_else(|| m.get(Value::Bool(true)))
 }
 
-fn trigger_keys(doc: &Value) -> Vec<(&str, Option<&Value>)> {
+pub(crate) fn trigger_keys(doc: &Value) -> Vec<(&str, Option<&Value>)> {
     match triggers(doc) {
         Some(Value::String(s)) => vec![(s.as_str(), None)],
         Some(Value::Sequence(seq)) => seq

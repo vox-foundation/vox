@@ -46,8 +46,12 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"   # Swatinem below is the only Rust cache; PRs never write it
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - uses: actions/setup-node@v7
         with:
@@ -128,8 +132,12 @@ jobs:
         uses: actions/checkout@v7
       - if: steps.guard.outputs.enabled == 'true'
         uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"   # Swatinem below is the only Rust cache; PRs never write it
       - if: steps.guard.outputs.enabled == 'true'
         uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - if: steps.guard.outputs.enabled == 'true'
         uses: actions/setup-node@v7
         with:
