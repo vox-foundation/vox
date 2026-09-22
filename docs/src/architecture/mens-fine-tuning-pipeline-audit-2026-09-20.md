@@ -237,7 +237,16 @@ harvest real research-pipeline outputs whose citations were verified (`vox-resea
 | T3 template | `assemble_prompt` (Metal + CUDA) emits training ChatML, keeps pre-wrapped prompts, adds a missing system turn; chat completions render ChatML; eval-local prefix matches training byte-for-byte | 3 tests per backend; handler tests updated |
 | T4 `input` | `instruction` + `input` joined into the prompt | `alpaca_input_is_joined_into_prompt` |
 | T5 `ce_last_k` | Default 0 (whole assistant response) in CLI, pipeline, dispatch, both configs and every profile | populi config test; logits are full-sequence either way, so no memory change |
-| T6 truncation | Keep the head (system + prompt) instead of the tail; one helper for training and both validation passes | `truncation_keeps_the_prompt_head` |
+| T6 truncation | `fit_to_seq_len` guarantees the answer up to half the window, trims an over-long prompt from its middle, then cuts the answer tail (pure head-truncation left no answer when the ~700-token system prompt exceeded `--seq-len 512`); the masked-CE preflight gives up after 256 unsupervised probes | 4 `fit_to_seq_len` tests; real Qwen3-0.6B run passes preflight at seq 512 |
+| **Loss → ~250 after the first optimizer step (all Metal runs, incl. the 27B)** | Root cause in `candle-metal-kernels` 0.10.2: the rank>4 strided reduce fallback indexed outer instead of inner dims, so `repeat_kv`'s (GQA) backward produced garbage K/V LoRA grads that overflowed to NaN; AdamW wrote NaN into every LoRA var even at `lr=0`, and Metal's NaN-skipping `max` hid it as a finite ~250 loss. Crate vendored under `patches/` with a one-line fix | `repeat_kv_backward_on_metal_matches_cpu` fails on 0.10.2 (max diff 7.81), passes patched; real runs keep sane loss after step 1 (val_loss 1.29) |
+| Reported loss included the mix weight | `loss_scalar` is the plain masked NLL; only the backward loss carries the weight | backend suites; real-run logs |
+| `--seq-len` / `--grad-accum` silently overridden | Explicit flags beat `apply_qwen_size_ladder_policy` | preset test failed before, passes after |
+| Stale `vox-ml-cli` sidecar | `VOX_PARENT_BUILD_ID` handshake warns on skew (`VOX_REQUIRE_MATCHING_ML_CLI=1` fails); `vox doctor` row | handshake + doctor tests; binary smoke |
+| Train overwrote `--data-dir`, mix fed back into itself, env opt-out cleared, `--fast-corpus` ignored `--data-dir` | Pairs file and mix output separated; non-canonical `--data-dir` trained as-is; self-referencing mix rejected; user env never cleared | data-dir-untouched and no-feedback tests; real run logs "corpus mix not run" |
+| Non-reproducible mix; docs-dominated main mix | Seeded hash sampling; docs `sample_rate 0.25` + `max_lines 1500`, research capped | byte-identical mix test; effective weight code 62% / docs 31% |
+| Silent training | Progress line every 10 opt steps or 30 s, "Training started", preflight heartbeat, `val_loss=n/a` | cadence/format tests; real Metal output |
+| Only ~116–259 unique Vox answers | Per-declaration pairs (prompt carries referenced signatures; answer verified in context); compiler-verified error correction with real diagnostics; extraction widened to a configured source pool (`mens/config/vox-source-pool.yaml`, inventory in `contracts/reports/mens-vox-source-inventory.v1.json`) with a bench-containment leakage guard | regenerated corpus: 1,510 pairs, 839 unique answers, 0 metadata leaks |
+| No instruction synthesis | `vox mens corpus back-translate` / `rft` stages via `vox_actor_runtime::llm`, dry-run by default, spend-gated, cached | 21 mock-backend tests; dry-run cost estimates |
 | T7 curriculum order | Shuffle, then stable-sort by difficulty | `curriculum_order_is_sorted_by_difficulty_but_shuffled_within_levels` |
 | T8 val leakage | Validation split grouped by response hash, seed-deterministic | `rows_sharing_a_response_stay_on_one_side` |
 | LR off-by-one | Schedule applied before step 0; counter advanced before computing the next LR | compile-checked on both backends (inside the loop; no unit seam) |
@@ -255,9 +264,10 @@ The build breaks this audit hit on `877406d84` (`vox-populi` hub fields, CUDA du
 
 ### Proposed (not quick; each needs a design decision or larger change)
 
-1. **Per-declaration extraction** (vox-lang). One pair per declaration: signature + doc comment as context, body as the answer; instructions from `@training_prompt`, doc comments, or LLM back-translation through `vox_actor_runtime::llm`; every answer gated by `vox check` at mix time.
-2. **Real error correction.** AST-level mutations kept only if the compiler rejects them; the prompt carries the actual diagnostic; the answer is the fixed declaration or a unified diff.
-3. **Edit tasks** to replace the removed multi-turn generator: real before/after pairs mined from `git log -p` on `.vox` files, answered as diffs.
+1. ~~Per-declaration extraction~~ and ~~real error correction~~ — done (above). Open: error correction is still 43% of pairs and over-represents retired-decorator mutants; rebalance.
+2. **Run the synthesis stages** — needs a pinned provider/model and budget (dry-run: ~$1.3 back-translation of 749 rows; RFT up to ~$95).
+3. **Checkpoint/data mismatch guard.** `vox mens train` auto-resumes a checkpoint in `--output-dir` even when it was trained on different data; refuse or warn on a data-fingerprint mismatch.
+4. **Edit tasks** to replace the removed multi-turn generator: real before/after pairs mined from `git log -p` on `.vox` files, answered as diffs.
 4. **Rejection-sampling fine-tuning** for vox-lang: sample the base model on task descriptions, keep completions that pass `vox check` and `@test`.
 5. **Docs lane.** Grounded QA (section in context → question → answer) or a low-weight continued-pretraining lane.
 6. **Tool spokes.** Expose `tool_selection_synth` / `argument_generation_synth` as CLI + pipeline stages (add `Serialize`, prompt/response); descriptions and JSON Schemas from the real MCP registry; validate arguments against schema; capture real orchestrator traces; BFCL-style held-out bench with a base baseline.
