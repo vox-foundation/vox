@@ -138,7 +138,7 @@ pub async fn run(
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
                         dir: None,
                         output: validated.clone(),
-                        pool: PathBuf::from("mens/config/vox-source-pool.yaml"),
+                        pool: PathBuf::from(crate::commands::corpus::source_pool::DEFAULT_CONFIG),
                         report: None,
                     })
                     .await

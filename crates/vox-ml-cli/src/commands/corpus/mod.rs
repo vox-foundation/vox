@@ -8,7 +8,7 @@
 //! - `prompt` — auto-generate system prompt from construct reference
 
 pub(crate) mod generate;
-mod source_pool;
+pub(crate) mod source_pool;
 mod stats;
 mod validate;
 
