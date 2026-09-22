@@ -39,6 +39,9 @@ pub(crate) struct RftSummary {
     pub spent_usd: f64,
     pub failed_verification: usize,
     pub written: usize,
+    /// Calls that errored (transport, malformed response, …) rather than
+    /// returning a usable reply. Skips this one sample, not the whole run.
+    pub call_failed: usize,
 }
 
 fn task_text(row: &serde_json::Value) -> Option<&str> {
@@ -127,7 +130,17 @@ pub(crate) async fn run_rft<B: ChatBackend>(opts: &RftOpts, backend: &B) -> Resu
                 println!("spend cap reached (${:.4}); stopping", s.spent_usd);
                 break 'tasks;
             }
-            let reply = backend.chat(&system_prompt, task, opts.temperature).await?;
+            let reply = match backend.chat(&system_prompt, task, opts.temperature).await {
+                Ok(r) => r,
+                Err(e) => {
+                    // A transient failure (transport, malformed response) must
+                    // skip this one sample, not abort the run via `?` and
+                    // discard every pair already verified from earlier tasks.
+                    eprintln!("rft: call failed for task {ti}: {e}");
+                    s.call_failed += 1;
+                    continue;
+                }
+            };
             s.calls += 1;
             s.spent_usd += reply.cost_usd;
             let code = synth::clean_code(&reply.text);
@@ -152,11 +165,12 @@ pub(crate) async fn run_rft<B: ChatBackend>(opts: &RftOpts, backend: &B) -> Resu
     s.written = out.len();
     synth::write_jsonl(&opts.output, &out)?;
     println!(
-        "rft: {} calls, ${:.4} spent, {} verified pairs ({} rejected) -> {}",
+        "rft: {} calls, ${:.4} spent, {} verified pairs ({} rejected, {} call errors) -> {}",
         s.calls,
         s.spent_usd,
         s.written,
         s.failed_verification,
+        s.call_failed,
         opts.output.display()
     );
     Ok(s)
@@ -260,6 +274,35 @@ mod tests {
             "@test-verified completion rates higher"
         );
         assert_eq!(rows[0]["lane"], "vox_codegen");
+    }
+
+    /// Real failure this observed on live hardware: one transient call error
+    /// mid-batch used to propagate via `?` and abort `run_rft` entirely,
+    /// discarding every pair already verified earlier in the run. It must
+    /// instead count the failure and keep processing later tasks/samples.
+    #[tokio::test]
+    async fn a_transient_call_error_skips_one_sample_not_the_whole_run() {
+        use super::super::synth::test_support::FlakyMockBackend;
+        let dir = tempfile::tempdir().unwrap();
+        let mut o = opts(
+            dir.path(),
+            &["Write `double_it` that doubles an int."],
+            true,
+        );
+        o.k = 3;
+        o.max_per_task = 3;
+        // Sample 2 of 3 fails transiently; samples 1 and 3 succeed.
+        let mock = FlakyMockBackend {
+            reply: |_, _| format!("```vox\n{GOOD}```"),
+            fail_on_call: 2,
+            calls: std::cell::RefCell::new(0),
+        };
+        let s = run_rft(&o, &mock)
+            .await
+            .expect("one bad call must not abort the run");
+        assert_eq!(s.call_failed, 1);
+        assert_eq!(s.written, 1, "the two GOOD samples dedup to one kept pair");
+        assert_eq!(*mock.calls.borrow(), 3, "all 3 samples were attempted");
     }
 
     #[tokio::test]

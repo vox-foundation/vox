@@ -231,6 +231,37 @@ pub(crate) mod test_support {
             })
         }
     }
+
+    /// Backend whose Nth call (1-indexed) fails transiently — e.g. a malformed
+    /// API response — then succeeds normally on every other call. Reproduces the
+    /// real failure this backend crate observed: one bad response mid-batch must
+    /// not discard every row processed before it.
+    pub(crate) struct FlakyMockBackend<F: Fn(&str, &str) -> String> {
+        pub reply: F,
+        pub fail_on_call: usize,
+        pub calls: RefCell<usize>,
+    }
+
+    impl<F: Fn(&str, &str) -> String> ChatBackend for FlakyMockBackend<F> {
+        fn model_id(&self) -> String {
+            "mock/model".into()
+        }
+        async fn chat(&self, system: &str, user: &str, _t: f32) -> Result<ChatReply> {
+            let n = {
+                let mut c = self.calls.borrow_mut();
+                *c += 1;
+                *c
+            };
+            if n == self.fail_on_call {
+                anyhow::bail!("mock transient failure on call {n}");
+            }
+            Ok(ChatReply {
+                text: (self.reply)(system, user),
+                model: "mock/model".into(),
+                cost_usd: 0.01,
+            })
+        }
+    }
 }
 
 #[cfg(test)]

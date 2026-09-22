@@ -54,6 +54,11 @@ pub(crate) struct BackTranslateSummary {
     pub written: usize,
     pub rejected_unfaithful: usize,
     pub rejected_round_trip: usize,
+    /// Calls that errored (transport, malformed response, …) rather than
+    /// returning a usable reply. The row is skipped, not the whole run: a single
+    /// bad response used to abort via `?` and discard every already-verified
+    /// pair from earlier in the batch.
+    pub call_failed: usize,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -239,13 +244,25 @@ pub(crate) async fn run_back_translate<B: ChatBackend>(
                     println!("spend cap reached (${:.4}); stopping", s.spent_usd);
                     break;
                 }
-                let reply = backend
+                let reply = match backend
                     .chat(
                         INSTRUCTION_SYSTEM,
                         &instruction_user_prompt(&c.code, &c.names),
                         0.2,
                     )
-                    .await?;
+                    .await
+                {
+                    Ok(r) => r,
+                    Err(e) => {
+                        // A transient failure (transport, malformed response) must
+                        // skip this row, not abort the run: every already-verified
+                        // pair from earlier in the batch is real spend that would
+                        // otherwise be discarded by propagating via `?`.
+                        eprintln!("back-translate: call failed for {}: {e}", c.source);
+                        s.call_failed += 1;
+                        continue;
+                    }
+                };
                 s.calls += 1;
                 s.spent_usd += reply.cost_usd;
                 CacheEntry {
@@ -264,13 +281,27 @@ pub(crate) async fn run_back_translate<B: ChatBackend>(
                 writeln!(cache_file, "{}", serde_json::to_string(&entry)?)?;
                 break;
             }
-            let reply = backend
-                .chat(&system_prompt, &entry.instruction, 0.2)
-                .await?;
-            s.calls += 1;
-            s.spent_usd += reply.cost_usd;
-            entry.round_trip =
-                Some(synth::verify(&synth::clean_code(&reply.text), "round_trip", 0).pass);
+            match backend.chat(&system_prompt, &entry.instruction, 0.2).await {
+                Ok(reply) => {
+                    s.calls += 1;
+                    s.spent_usd += reply.cost_usd;
+                    entry.round_trip =
+                        Some(synth::verify(&synth::clean_code(&reply.text), "round_trip", 0).pass);
+                }
+                Err(e) => {
+                    // Cache the entry as-is (round_trip still None) so a rerun
+                    // retries only the regeneration call, not the already-paid
+                    // instruction call, and skip this row for this run.
+                    eprintln!(
+                        "back-translate: round-trip call failed for {}: {e}",
+                        c.source
+                    );
+                    s.call_failed += 1;
+                    writeln!(cache_file, "{}", serde_json::to_string(&entry)?)?;
+                    cache.insert(c.key.clone(), entry.clone());
+                    continue;
+                }
+            }
         }
         writeln!(cache_file, "{}", serde_json::to_string(&entry)?)?;
         cache.insert(c.key.clone(), entry.clone());
@@ -299,12 +330,13 @@ pub(crate) async fn run_back_translate<B: ChatBackend>(
     s.written = out.len();
     synth::write_jsonl(&opts.output, &out)?;
     println!(
-        "back-translate: {} calls, ${:.4} spent, {} pairs written ({} unfaithful, {} failed round-trip) -> {}",
+        "back-translate: {} calls, ${:.4} spent, {} pairs written ({} unfaithful, {} failed round-trip, {} call errors) -> {}",
         s.calls,
         s.spent_usd,
         s.written,
         s.rejected_unfaithful,
         s.rejected_round_trip,
+        s.call_failed,
         opts.output.display()
     );
     Ok(s)
@@ -406,6 +438,73 @@ mod tests {
         let again = MockBackend::new(|_, _| unreachable!("cached rows must not re-call"));
         let s2 = run_back_translate(&o, &again).await.unwrap();
         assert_eq!((again.calls(), s2.cache_hits, s2.written), (0, 1, 1));
+    }
+
+    /// Real failure this observed on live hardware: OpenRouter returned a
+    /// malformed response mid-batch, and the old `.await?` propagated the
+    /// error out of `run_back_translate`, discarding every already-verified
+    /// pair from earlier rows (nothing was written; the cache is what saved
+    /// the already-spent calls from being paid for twice on retry).
+    #[tokio::test]
+    async fn a_transient_call_error_skips_one_row_not_the_whole_run() {
+        use super::super::synth::test_support::FlakyMockBackend;
+        let dir = tempfile::tempdir().unwrap();
+        const ADD2: &str = "fn add_two(a: int, b: int) to int {\n    return a + b\n}\n";
+        let input = dir.path().join("in.jsonl");
+        std::fs::write(
+            &input,
+            [ADD, ADD2]
+                .iter()
+                .map(|c| serde_json::json!({"response": c, "source": "x.vox"}).to_string() + "\n")
+                .collect::<String>(),
+        )
+        .unwrap();
+        let o = BackTranslateOpts {
+            input,
+            output: dir.path().join("out.jsonl"),
+            cache: dir.path().join("cache.jsonl"),
+            bench: dir.path().join("missing_manifest.json"),
+            max_rows: 100,
+            round_trip: true,
+            max_spend_usd: 10.0,
+            usd_per_1k_tokens: 0.002,
+            apply: true,
+        };
+        // Calls, in order: row1-instruction(1), row1-round_trip(2, FAILS),
+        // row2-instruction(3), row2-round_trip(4).
+        let mock = FlakyMockBackend {
+            reply: |system, _| {
+                if system == INSTRUCTION_SYSTEM {
+                    "Write `add_numbers` or `add_two` that returns the sum.".into()
+                } else {
+                    format!("```vox\n{ADD}```")
+                }
+            },
+            fail_on_call: 2,
+            calls: std::cell::RefCell::new(0),
+        };
+        let s = run_back_translate(&o, &mock)
+            .await
+            .expect("one bad call must not abort the run");
+        assert_eq!(s.call_failed, 1);
+        assert_eq!(*mock.calls.borrow(), 4, "both rows were attempted");
+        assert_eq!(
+            s.written, 1,
+            "row2 still produces a pair despite row1's failure"
+        );
+
+        // Row1's cache entry survived with round_trip still unknown, so a rerun
+        // retries only its round-trip call — not the already-paid instruction call.
+        let cache_raw = std::fs::read_to_string(&o.cache).unwrap();
+        let row1_entries: Vec<_> = cache_raw
+            .lines()
+            .map(|l| serde_json::from_str::<serde_json::Value>(l).unwrap())
+            .filter(|e| e["instruction"].as_str().unwrap().contains("add_numbers"))
+            .collect();
+        assert!(
+            row1_entries.iter().any(|e| e["round_trip"].is_null()),
+            "row1 must be retryable, not silently dropped forever: {row1_entries:?}"
+        );
     }
 
     #[tokio::test]
