@@ -30,7 +30,6 @@ pub(crate) const KNOWN_DIAGNOSIS_IDS: &[&str] = &[
     "vox.schema_legacy",
     "linker.lld_missing",
     "linker.gui_carveout_missing",
-    "ci.hook_guard_stale_binary",
 ];
 
 /// Encode a machine-parseable diagnosis tag into a check `detail` string.
@@ -56,25 +55,6 @@ pub(crate) fn is_real_rustup(version_line: &str) -> bool {
 /// silently defeats caching prints something else, e.g. a `cargo …` banner).
 pub(crate) fn is_real_sccache(version_line: &str) -> bool {
     version_line.trim_start().starts_with("sccache ")
-}
-
-/// Discriminates a healthy `vox ci queue --hook-guard` from the stale-binary
-/// clap collision: clap usage errors (unrecognized subcommand) also exit 2 —
-/// the same code the hook uses to block — but never carry the deny marker.
-pub(crate) fn hook_guard_verdict(exit_code: i32, stderr: &str) -> Option<&'static str> {
-    match (exit_code, stderr.contains("Local-first CI")) {
-        (2, true) => None, // healthy: banned command blocked with the real deny
-        (2, false) => Some(
-            "exit 2 without deny marker — a stale vox binary on PATH (clap usage error). \
-             The settings.json wrapper fails open on this, so the hook-guard is currently \
-             INERT (banned commands pass). Reinstall: \
-             cargo install --path crates/vox-cli --locked --debug",
-        ),
-        (0, _) => {
-            Some("banned command was NOT blocked — hook-guard inert (old binary or disabled)")
-        }
-        _ => Some("unexpected hook-guard exit code"),
-    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -243,7 +223,7 @@ pub(crate) async fn docker_health(checks: &mut Vec<Check>) {
                 "docker.absent",
                 "warn",
                 "`docker` not on PATH",
-                "install Docker Engine in WSL2 (see docs/src/ci/runner-autoscaling.md)",
+                "install Docker Engine (WSL2 on Windows)",
                 false,
             ),
         )),
@@ -471,7 +451,6 @@ pub(crate) enum DiagCheckKind {
     Sccache,
     Schema,
     Linker,
-    HookGuard,
 }
 
 /// Pure mapping from a diagnosis id to the check-kind that can produce it.
@@ -488,7 +467,6 @@ pub(crate) fn check_kind_for_diag(id: &str) -> Option<DiagCheckKind> {
         "sccache.pathological" | "sccache.shadowed_shim" => Some(DiagCheckKind::Sccache),
         "vox.schema_drift" | "vox.schema_legacy" => Some(DiagCheckKind::Schema),
         "linker.lld_missing" | "linker.gui_carveout_missing" => Some(DiagCheckKind::Linker),
-        "ci.hook_guard_stale_binary" => Some(DiagCheckKind::HookGuard),
         _ => None,
     }
 }
@@ -502,7 +480,6 @@ pub(crate) async fn run_check_for_diag(kind: DiagCheckKind, checks: &mut Vec<Che
         DiagCheckKind::Sccache => sccache_guard(checks).await,
         DiagCheckKind::Schema => schema_health(checks).await,
         DiagCheckKind::Linker => linker_health(checks).await,
-        DiagCheckKind::HookGuard => hook_guard_check(checks).await,
     }
 }
 
@@ -618,96 +595,6 @@ async fn gui_linker_carveout_health(checks: &mut Vec<Check>) {
     });
 }
 
-/// Round-trips the INSTALLED `vox` binary (PATH, not this process) through the
-/// `vox ci queue --hook-guard` PreToolUse contract: pipe a known-banned
-/// command, confirm exit 2 + the deny marker. Silent (no check emitted) until
-/// `.claude/settings.json` exists — the hook isn't wired for this repo yet.
-pub(crate) async fn hook_guard_check(checks: &mut Vec<Check>) {
-    use std::process::Stdio;
-    use tokio::io::AsyncWriteExt;
-
-    if !crate::commands::ci::repo_root()
-        .join(".claude")
-        .join("settings.json")
-        .is_file()
-    {
-        return;
-    }
-
-    let child = quiet("vox")
-        .args(["ci", "queue", "--hook-guard"])
-        // Don't inherit a session-level opt-out: it would make the probe child
-        // exit 0 and misdiagnose the guard as inert.
-        .env_remove("VOX_HOOK_GUARD_DISABLE")
-        // If the 10s timeout below fires, the future owning this child is
-        // dropped — without this the hung vox process would be orphaned.
-        .kill_on_drop(true)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn();
-    let Ok(mut child) = child else {
-        checks.push(Check::fail(
-            "ci: hook-guard round-trip",
-            diag(
-                "ci.hook_guard_stale_binary",
-                "error",
-                "`vox` not found on PATH — the PreToolUse hook cannot run",
-                "cargo install --path crates/vox-cli --locked --debug",
-                false,
-            ),
-        ));
-        return;
-    };
-
-    // Bounded: this check exists precisely to catch a misbehaving installed
-    // binary, so it must never itself hang `vox doctor` (same discipline as
-    // `compile_probe`'s cargo-build timeout above).
-    let round_trip = async {
-        if let Some(mut stdin) = child.stdin.take() {
-            let _ = stdin
-                .write_all(br#"{"tool_input":{"command":"gh pr checks"}}"#)
-                .await;
-        }
-        child.wait_with_output().await
-    };
-    let out = match tokio::time::timeout(vox_config::timeouts::D_10S, round_trip).await {
-        Ok(Ok(o)) => o,
-        _ => {
-            checks.push(Check::fail(
-                "ci: hook-guard round-trip",
-                diag(
-                    "ci.hook_guard_stale_binary",
-                    "error",
-                    "installed vox did not respond within 10s to the hook-guard round-trip \
-                     (hung or crashed reading stdin)",
-                    "cargo install --path crates/vox-cli --locked --debug",
-                    false,
-                ),
-            ));
-            return;
-        }
-    };
-    let exit_code = out.status.code().unwrap_or(-1);
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    match hook_guard_verdict(exit_code, &stderr) {
-        None => checks.push(Check::pass(
-            "ci: hook-guard round-trip",
-            "installed vox correctly blocks banned remote-check commands",
-        )),
-        Some(detail) => checks.push(Check::fail(
-            "ci: hook-guard round-trip",
-            diag(
-                "ci.hook_guard_stale_binary",
-                "error",
-                detail,
-                "cargo install --path crates/vox-cli --locked --debug",
-                false,
-            ),
-        )),
-    }
-}
-
 /// Aggregate entrypoint, registered in `run_checks`.
 pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     toolchain_integrity(checks).await;
@@ -716,7 +603,6 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     sccache_guard(checks).await;
     linker_health(checks).await;
     compile_probe(checks).await;
-    hook_guard_check(checks).await;
 
     if auto_heal {
         // Heal the failing checks whose diagnosis is auto-healable.
@@ -788,19 +674,6 @@ mod tests {
         // A fake sccache forwarder prints a non-sccache banner.
         assert!(is_real_sccache("sccache 0.8.2"));
         assert!(!is_real_sccache("cargo 1.96.0 (30a34c682 2026-05-25)"));
-    }
-
-    #[test]
-    fn hook_guard_verdicts() {
-        assert!(
-            hook_guard_verdict(2, "Local-first CI: remote check-watching is disabled.").is_none()
-        );
-        assert!(
-            hook_guard_verdict(2, "error: unrecognized subcommand 'queue'")
-                .unwrap()
-                .contains("stale")
-        );
-        assert!(hook_guard_verdict(0, "").unwrap().contains("NOT blocked"));
     }
 
     #[test]

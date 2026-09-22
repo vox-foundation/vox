@@ -71,7 +71,6 @@ pub mod doctest_md;
 pub mod doctor_build_cache;
 pub mod fan_in_budget;
 pub mod free_binary;
-pub mod frozen_crates;
 pub mod generate_plugin_catalog_docs;
 pub mod gui_honesty;
 pub mod gui_version_sync;

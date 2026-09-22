@@ -34,9 +34,9 @@ If a runner is too old, jobs fail early when invoking Node 24–based actions, o
 
 ## Operator host hygiene (avoid self-inflicted flakiness)
 
-The self-hosted fleet runs on the operator's own WSL2 VM (see
-`runner-autoscaling.md`), which means the operator's own concurrent activity
-on that machine is part of the CI environment, not separate from it:
+The self-hosted fleet runs on the operator's own WSL2 VM, which means the
+operator's own concurrent activity on that machine is part of the CI
+environment, not separate from it:
 
 - **Don't run a heavy `docker build` (or similar CPU/network/IO-heavy
   operation) on the runner's WSL2 distro while ephemeral runners may be
@@ -47,9 +47,8 @@ on that machine is part of the CI environment, not separate from it:
   got saturated enough that cargo's default retry budget (bumped to
   `net.retry = 6` in the repo-root `.cargo/config.toml` after this incident)
   couldn't fully absorb it. If you need to rebuild the runner image, prefer
-  a quiet window (`VOX_RUNNER_MAX=0` briefly, or just watch `docker ps` for
-  an empty `vox-runner-auto-*` pool first).
-- **Keep `infra/ci-runner/Dockerfile`'s `RUNNER_VERSION` current** with
+  a quiet window — check `docker ps` for an empty runner pool first.
+- **Keep the runner image's `RUNNER_VERSION` current** with
   whatever GitHub is currently force-upgrading runners to. A stale pin means
   every fresh ephemeral runner starts a job on the old version, downloads
   the update mid-job, then exits to apply it — and since the container has
@@ -62,7 +61,7 @@ on that machine is part of the CI environment, not separate from it:
 
 ## Local-first CI (required policy, ENFORCED)
 
-**Default:** heavy CI/CD jobs run on the **local self-hosted fleet** (Docker ephemeral runners on the operator host, autoscaled via `vox ci runner-scale`) for **speed and feedback latency** — not cost (vox is a public repo, so GitHub-hosted minutes are free). Jobs stay hosted **only** for neutral-infra resilience: the **required gate aggregator** (`ci-summary`) and the deploy critical path run hosted so the merge gate and deploys survive the workstation being off (compute-placement.md Invariants 1 & 4).
+**Default:** heavy CI/CD jobs run on the **local self-hosted fleet** (Docker ephemeral runners on the operator host, started by hand) for **speed and feedback latency** — not cost (vox is a public repo, so GitHub-hosted minutes are free). Jobs stay hosted **only** for neutral-infra resilience: the **required gate aggregator** (`ci-summary`) and the deploy critical path run hosted so the merge gate and deploys survive the workstation being off (compute-placement.md Invariants 1 & 4).
 
 **Contributor workflow:** reproduce gates locally with **`vox ci pre-push`** (fast / `--complete` / `--full`) before pushing. Use **`vox ci pre-push --act`** only for the small set of workflows that still mirror GitHub-hosted behavior in containers.
 

@@ -199,8 +199,8 @@ jobs:
   # 2026-08-23: moved off [self-hosted, linux, x64] to ubuntu-latest -- the
   # self-hosted fleet's Linux queue never picked up a release-tag run (one
   # recorded attempt queued 24:00:00 with zero pickup). NOTE: the 14 GB
-  # self-hosted budget this job used to cite (runner_scale.rs MEM_PER_RUNNER,
-  # measured from a THIN-LTO `cargo doc` workload, not this job's FAT-LTO
+  # self-hosted budget this job used to cite (measured from a THIN-LTO
+  # `cargo doc` workload, not this job's FAT-LTO
   # link) never actually applied to ubuntu-latest, and this job's real
   # peak RSS under fat LTO has never been measured on ANY runner -- the
   # 2026-05-26 self-hosted attempt queued forever and never reached the

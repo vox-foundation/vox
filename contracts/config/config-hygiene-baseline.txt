@@ -68,10 +68,6 @@ env-var-not-in-registry|crates/vox-cli/src/commands/ci/run_body_helpers/guards.r
 env-var-not-in-registry|crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs|VOX_SECRETS_MIGRATION_PHASE
 env-var-not-in-registry|crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs|VOX_SECRETS_PROFILE
 env-var-not-in-registry|crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs|VOX_SECRETS_REQUIRE_COMPAT_SUNSET
-env-var-not-in-registry|crates/vox-cli/src/commands/ci/runner_scale.rs|VOX_RUNNER_IDLE_REAP_SECS
-env-var-not-in-registry|crates/vox-cli/src/commands/ci/runner_scale.rs|VOX_RUNNER_MAX
-env-var-not-in-registry|crates/vox-cli/src/commands/ci/runner_scale.rs|VOX_RUNNER_PHANTOM_GRACE_SECS
-env-var-not-in-registry|crates/vox-cli/src/commands/ci/runner_scale.rs|VOX_RUNNER_WARM_POOL
 env-var-not-in-registry|crates/vox-cli/src/commands/db/publication/archive_run.rs|VOX_NANOPUB_TEST_SERVER
 env-var-not-in-registry|crates/vox-cli/src/commands/db/publication/discovery_watch.rs|VOX_SCOUT_CODE_UNIQUENESS
 env-var-not-in-registry|crates/vox-cli/src/commands/deploy.rs|USER
