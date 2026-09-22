@@ -2729,6 +2729,26 @@ curated:
   cli_path:
   - graph
   parameters: null
+- id: cli.graph.history
+  title: Vox Graph History
+  description_human: null
+  description_model: First-parent origin/main history with lineage and mechanical-change flags (log, focus, forgotten, search, timeline, brief); lazily ingests new commits into a store under the git common dir.
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - graph
+  - history
+  parameters: null
 - id: cli.graph.ingest
   title: Vox Graph Ingest
   description_human: null

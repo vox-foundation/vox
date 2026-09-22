@@ -201,6 +201,7 @@ Corpus registry and freshness status/ingest operations for Vox Graph knowledge m
 | `vox graph status` | Report per-corpus freshness (node/edge counts, graph path). `--corpus <id>` limits output; `--strict` exits non-zero when any corpus is stale; `--json` emits machine-readable status. |
 | `vox graph ingest` | Project graph nodes into Turso `knowledge_nodes` via VoxDb. |
 | `vox graph rebuild` | Rebuild the base AST code graph and cluster it. |
+| `vox graph history <log\|focus\|forgotten\|search\|timeline\|brief>` | First-parent history of `origin/main` (else `main`) with rename/split/merge lineage. Mechanical (fmt/generated/import-only) changes are flagged and hidden unless `--include-mechanical`. Every subcommand except `brief` catches up on new commits first. One store is shared by all worktrees, at `<git-common-dir>/vox-cache/repo-history/`. `brief` prints one line from disk and says how many commits it is behind. |
 
 ### `vox ci …`
 

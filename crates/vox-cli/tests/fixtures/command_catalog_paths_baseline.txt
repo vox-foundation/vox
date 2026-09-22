@@ -15,6 +15,7 @@ audit/code
 audit/core
 audit/effort
 audit/effort-route
+audit/research-parity
 audit/retirement
 auth
 auth/connect
@@ -357,6 +358,13 @@ graph
 graph/coverage
 graph/crate-map
 graph/gc
+graph/history
+graph/history/brief
+graph/history/focus
+graph/history/forgotten
+graph/history/log
+graph/history/search
+graph/history/timeline
 graph/index
 graph/ingest
 graph/query
@@ -463,6 +471,7 @@ research/history
 research/preview
 research/result
 research/run
+research/search
 research/show
 research/status
 research/up
