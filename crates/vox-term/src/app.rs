@@ -29,12 +29,16 @@ use crate::{
 };
 
 /// Entry-point for the TUI. Headless-safe: degrades to plain stdout under TERM=dumb.
+/// Per-keystroke dispatch logic (`InputBox::submit` -> `Session::submit`) is
+/// covered by `crates/vox-term/tests/dispatch.rs` and the `session::tests`
+/// module; this loop itself is an interactive event loop over a real
+/// terminal and isn't unit-testable. See `contracts/toestub/suppressions.v1.json`.
 pub fn run() -> Result<()> {
     // Attempt raw mode; under dumb terminals this returns Err and we skip TUI.
     let _setup = TermSetup::new().ok();
 
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
-    let session = Session::new("main");
+    let mut session = Session::new("main");
     // Subscribe before the loop so we don't miss early events.
     let mut session_rx = session.subscribe();
     let mut input = InputBox::new();
@@ -113,8 +117,11 @@ pub fn run() -> Result<()> {
                 code: KeyCode::Enter,
                 ..
             }) => {
-                let _intent = input.submit();
-                // Track 4: dispatch intent through command registry / Session::submit
+                let intent = input.submit();
+                // ponytail: blocking on the UI thread — spawn_pty already runs a
+                // shell in the background for interactive sessions; a bounded
+                // async executor is the upgrade path once commands can be slow.
+                session.submit(intent);
             }
             Event::Key(KeyEvent {
                 code: KeyCode::Backspace,
