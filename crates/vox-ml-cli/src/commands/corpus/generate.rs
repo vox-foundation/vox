@@ -248,6 +248,7 @@ pub(super) async fn run_pairs(
     let content = read_utf8_path_capped_async(input).await?;
     let mut all_pairs: Vec<serde_json::Value> = Vec::new();
     let mut pair_hashes: HashSet<String> = HashSet::new();
+    let mut stats = crate::training::PairStats::default();
 
     for line in content.lines().filter(|l| !l.is_empty()) {
         let record: serde_json::Value = match serde_json::from_str(line) {
@@ -256,95 +257,44 @@ pub(super) async fn run_pairs(
         };
 
         let raw_code = record.get("code").and_then(|v| v.as_str()).unwrap_or("");
-        let (code, training_prompt) = crate::training::split_training_metadata(raw_code);
-        let code = code.as_str();
         let source = record
             .get("source")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown");
-        let constructs: Vec<String> = record
-            .get("constructs")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        if code.is_empty() {
+        if raw_code.is_empty() {
             continue;
         }
-
-        let name = crate::training::extract_name_from_source(code);
-
-        for construct in &constructs {
-            // The author's `@training_prompt:` describes the whole file; templates
-            // only apply when a real declared name was found (no "example" placeholder).
-            let mut instructions: Vec<String> = training_prompt.iter().cloned().collect();
-            if let Some(name) = &name {
-                instructions.extend(
-                    crate::training::instruction_templates(construct)
-                        .iter()
-                        .map(|t| t.replace("{name}", name)),
-                );
-            }
-            for instruction in instructions {
-                // Dedup by content hash (XXH3)
-                let combined = format!("{}|||{}", instruction, code);
-                let h = vox_actor_runtime::builtins::vox_hash_fast(&combined);
-                if pair_hashes.contains(&h) {
-                    continue;
-                }
-                pair_hashes.insert(h);
-
-                let pair = serde_json::json!({
-                    "prompt": instruction,
-                    "response": code,
-                    "messages": [
-                        { "role": "user", "content": instruction },
-                        { "role": "assistant", "content": code }
-                    ],
-                    "instruction": instruction,
-                    "output": code,
-                    "category": construct,
-                    "difficulty": crate::training::construct_difficulty(construct),
-                    "source": source,
-                    "rating": 5,
-                    "schema_version": crate::training::SCHEMA_VERSION,
-                    "lane": "vox_codegen",
-                    "response_mode": "code_only",
-                    "task_family": "vox_codegen",
-                });
+        let (pairs, st) = crate::training::pairs_for_file(raw_code, source);
+        stats.add(&st);
+        for pair in pairs {
+            // Dedup by content hash (XXH3) of prompt + response.
+            let combined = format!(
+                "{}|||{}",
+                pair["prompt"].as_str().unwrap_or(""),
+                pair["response"].as_str().unwrap_or("")
+            );
+            if pair_hashes.insert(vox_actor_runtime::builtins::vox_hash_fast(&combined)) {
                 all_pairs.push(pair);
             }
         }
-
-        // Generate negative (broken code) examples for this record
-        let neg_examples = crate::training::generate_negative_examples(code);
-        for (broken_code, error_desc) in neg_examples {
-            let fix_instruction = format!("Fix this broken Vox code. Error: {}", error_desc);
-            let fix_pair = serde_json::json!({
-                "prompt": format!("{}\n\n```vox\n{}\n```", fix_instruction, broken_code),
-                "response": code,
-                "messages": [
-                    { "role": "user", "content": format!("{}\n\n```vox\n{}\n```", fix_instruction, broken_code) },
-                    { "role": "assistant", "content": code }
-                ],
-                "instruction": fix_instruction,
-                "output": code,
-                "category": "error_correction",
-                "difficulty": crate::training::construct_difficulty("error_correction"),
-                "source": source,
-                "rating": 4,
-                "schema_version": crate::training::SCHEMA_VERSION,
-                "lane": "vox_codegen",
-                "response_mode": "code_only",
-                "task_family": "error_correction",
-            });
-            all_pairs.push(fix_pair);
-        }
     }
+
+    println!(
+        "  Vox files: {} ({} did not compile after metadata strip)",
+        stats.files, stats.files_failed
+    );
+    println!(
+        "  Declarations: {} → {} verified pairs ({} failed in-context compile, {} unnamed skipped); {} whole-file pairs",
+        stats.decls,
+        stats.decl_pairs,
+        stats.verify_failed,
+        stats.unnamed_skipped,
+        stats.whole_file_pairs
+    );
+    println!(
+        "  Error correction: {} mutants tried, {} accepted by compiler (dropped), {} pairs",
+        stats.mutants_tried, stats.mutants_accepted, stats.error_pairs
+    );
 
     for docs in docs_dirs {
         let docs_for_task = docs.clone();
@@ -389,11 +339,17 @@ pub(super) async fn run_pairs(
         *cats.entry(cat.to_string()).or_insert(0) += 1;
     }
     let neg_count = cats.get("error_correction").copied().unwrap_or(0);
+    let unique_answers = all_pairs
+        .iter()
+        .filter_map(|p| p.get("response").and_then(|v| v.as_str()))
+        .collect::<HashSet<_>>()
+        .len();
     println!(
         "\n{}",
         format!(
-            "Generated {} training pairs ({} negative examples):",
+            "Generated {} training pairs ({} unique answers, {} error-correction):",
             all_pairs.len(),
+            unique_answers,
             neg_count
         )
         .green()
@@ -414,6 +370,11 @@ pub(super) async fn run_pairs(
         "schema_version": crate::training::SCHEMA_VERSION,
         "total_pairs": all_pairs.len(),
         "negative_pairs": neg_count,
+        "unique_answers": unique_answers,
+        "decl_pairs": stats.decl_pairs,
+        "decl_verify_failed": stats.verify_failed,
+        "mutants_tried": stats.mutants_tried,
+        "mutants_accepted_by_compiler": stats.mutants_accepted,
         "curriculum_ordered": true,
         "generated_by": "vox corpus pairs",
         "compiler_version": env!("CARGO_PKG_VERSION"),
