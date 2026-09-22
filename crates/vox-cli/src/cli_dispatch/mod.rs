@@ -508,7 +508,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
             #[cfg(not(feature = "dei"))]
             {
                 let _ = reason;
-                eprintln!("Feature 'dei' is not enabled.");
+                anyhow::bail!(
+                    "Feature 'dei' is not enabled in this build. Rebuild with: cargo build -p vox-cli --features dei"
+                );
             }
         }
 
@@ -601,6 +603,23 @@ mod tests {
         );
         // Long-tail commands fall through to the generic path.
         assert_eq!(universal_reward_command_path(&Cli::Mcp), Some("command"));
+    }
+
+    /// When `dei` is off, `vox stop` must fail closed (non-zero exit) with the
+    /// exact rebuild command instead of printing a message and exiting 0 — see
+    /// the 2026-09-21 feature-gated-command-honesty fix.
+    #[cfg(not(feature = "dei"))]
+    #[tokio::test]
+    async fn stop_without_dei_feature_errors_with_rebuild_instruction() {
+        let global = GlobalOpts::default();
+        let err = dispatch_cli_inner(Cli::Stop { reason: None }, &global)
+            .await
+            .expect_err("vox stop must fail when dei is off");
+        assert!(
+            err.to_string()
+                .contains("cargo build -p vox-cli --features dei"),
+            "error should name the exact rebuild command; got: {err}"
+        );
     }
 
     #[test]
