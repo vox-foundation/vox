@@ -870,7 +870,7 @@ The sections above document 50 of the 76 top-level `vox` commands. The remaining
 | `vox policy` | View the unified policy catalog (CI gates, language rules, audits) |
 | `vox repair` | Automatically repair syntax and type errors in a `.vox` file via LLM (`vox repair`) |
 | `vox repl` | Interactive Vox expression REPL (read-eval-print loop) |
-| `vox rollback` | Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger |
+| `vox rollback` | Undo an operation recorded in the live vox-orchestrator-d daemon's operation log (requires a running daemon) |
 | `vox snapshot` | Insta snapshot helpers: detect and clean up orphaned `.snap` files (`vox snapshot orphans [--clean]`) |
 | `vox stop` | Emergency stop the orchestrator (MCP/daemon local stop request) |
 | `vox term` | Headless-capable ratatui terminal UI — block-model shell + AI agent strip |

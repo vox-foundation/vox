@@ -640,7 +640,7 @@ pub enum Cli {
         cmd: commands::snapshot::SnapshotCmd,
     },
 
-    /// Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger.
+    /// Undo an operation recorded in the live vox-orchestrator-d daemon's operation log (requires a running daemon).
     Rollback {
         /// Optional specific task or transaction ID to roll back.
         #[arg(long)]
