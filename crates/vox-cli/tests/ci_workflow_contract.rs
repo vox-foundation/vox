@@ -193,14 +193,12 @@ fn cross_platform_gate_is_required_three_os_matrix() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../.github/workflows/cross-platform-check.yml"
     ));
-    // Must run on PRs and merge-queue batches, not only weekly cron.
+    // Runs on the weekly schedule, not pull_request/merge_group: the full
+    // Win/macOS/Ubuntu matrix (90m/60m) exceeds the fast-lane 30-min cap
+    // (workflow_policy_guard).
     assert!(
-        yml.contains("pull_request:"),
-        "cross-platform gate must trigger on pull_request"
-    );
-    assert!(
-        yml.contains("merge_group:"),
-        "cross-platform gate must trigger on merge_group"
+        yml.contains("schedule:"),
+        "cross-platform gate must trigger on schedule"
     );
     // All three target OSes must be present.
     assert!(yml.contains("windows-latest"), "must cover Windows");
@@ -309,18 +307,11 @@ fn gui_cross_build_covers_three_os_with_webkit() {
         yml.contains("cargo build -p vox-gui"),
         "must actually compile the GUI crate"
     );
-    // The workflow file itself must be in the `paths:` filter so that changes to
-    // gui-cross-build.yml re-trigger the build (prevents the filter from being
-    // tightened to only src/ and silently excluding workflow-file changes).
+    // Runs on schedule, not pull_request/merge_group: the full matrix build
+    // (90m) exceeds the fast-lane 30-min cap (workflow_policy_guard).
     assert!(
-        yml.contains(".github/workflows/gui-cross-build.yml"),
-        "gui-cross-build.yml must self-trigger on workflow file changes (paths: filter)"
-    );
-    // merge_group: must be present WITHOUT a paths: restriction so the workflow
-    // always runs at merge time regardless of which files changed.
-    assert!(
-        yml.contains("merge_group:"),
-        "gui-cross-build must run on merge_group (no paths filter at merge time)"
+        yml.contains("schedule:"),
+        "gui-cross-build must run on schedule"
     );
 }
 
@@ -405,21 +396,10 @@ fn selective_ci_toestub_minimal_default_when_empty() {
     );
 }
 
-#[test]
-fn cross_platform_pr_is_path_filtered() {
-    let yml = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/cross-platform-check.yml"
-    ));
-    assert!(
-        yml.contains("pull_request:") && yml.contains("paths:"),
-        "cross-platform PR trigger must be path-filtered"
-    );
-    assert!(
-        yml.contains(".config/hakari.toml") && yml.contains("examples/golden/**"),
-        "cross-platform paths must include hakari + golden sentinels"
-    );
-}
+// cross_platform_pr_is_path_filtered removed: cross-platform-check.yml no
+// longer triggers on pull_request (moved to schedule, see
+// cross_platform_gate_is_required_three_os_matrix) — the PR path-filter it
+// asserted no longer exists.
 
 #[test]
 fn check_targets_declares_pr_scope() {

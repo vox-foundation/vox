@@ -4,16 +4,9 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'examples/golden/**'
-      - 'crates/vox-compiler/**'
-      - 'crates/vox-ml-cli/src/commands/corpus/**'
-      - 'crates/vox-cli/src/training/**'
-      - 'scripts/ci/**'
-      - 'contracts/eval/**'
+  # Not on push:main: the extract (60m) and train (180m) jobs exceed the
+  # fast-lane (branch push) 30-min cap (workflow_policy_guard). Already ran
+  # nightly in addition to push; now nightly-only.
   schedule:
     - cron: '0 4 * * *'  # 4 AM UTC nightly
   workflow_dispatch:       # manual trigger

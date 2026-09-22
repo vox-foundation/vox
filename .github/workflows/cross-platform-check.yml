@@ -1,15 +1,10 @@
 name: Cross-Platform Check (Windows + macOS + Ubuntu)
 on:
-  # No `paths:` filter here (deliberately — see `path-check` job below): a
-  # path-filtered `pull_request` trigger means the workflow never runs at all
-  # on a non-matching PR, so it can never post a status — which makes its
-  # per-leg contexts (and any summary job) permanently unusable as a required
-  # check (a PR that doesn't touch the filtered paths would block forever).
-  # `path-check` reinstates the same path scoping *inside* the workflow so the
-  # two expensive matrix jobs still skip on irrelevant PRs, while the summary
-  # job itself always runs and reports.
-  pull_request:
-  merge_group:
+  # Not on pull_request/merge_group: the full Win/macOS/Ubuntu matrix (cross-check
+  # 90m, standalone-installables 60m) exceeds the fast-lane (PR/merge_group)
+  # 30-min cap (workflow_policy_guard). Runs on the weekly schedule instead;
+  # `path-check` (event_name == 'pull_request') is now a no-op left in place
+  # so `cross-platform-summary` still tolerates a `skipped` result from it.
   schedule:
     - cron: '0 4 * * 1'   # Weekly Monday belt-and-suspenders run (full Win/macOS)
   workflow_dispatch:

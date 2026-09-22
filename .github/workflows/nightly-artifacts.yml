@@ -79,7 +79,7 @@ jobs:
     name: Build ${{ matrix.target }}
     needs: compute-ref
     runs-on: ${{ fromJson(matrix.runs_on) }}
-    timeout-minutes: 240
+    timeout-minutes: 180  # clamped to slow-lane cap (workflow_policy_guard); was 240
     env:
       CARGO_BUILD_JOBS: "2"
     strategy:
@@ -170,7 +170,7 @@ jobs:
     name: Build GUI (${{ matrix.target }})
     needs: compute-ref
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 240
+    timeout-minutes: 180  # clamped to slow-lane cap (workflow_policy_guard); was 240
     strategy:
       fail-fast: false
       matrix:

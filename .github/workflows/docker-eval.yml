@@ -1,13 +1,9 @@
 name: Build & Push vox-eval Docker Image
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "Dockerfile"
-      - "vox-eval.compose.yml"
-      - ".github/workflows/docker-eval.yml"
+  # Not on push:main: build-and-push's 180m timeout (image build + registry
+  # push) exceeds the fast-lane (branch push) 30-min cap (workflow_policy_guard).
+  # Already ran daily in addition to push; now schedule-only.
   schedule:
     # Daily 03:00 UTC to keep the image fresh without triggering on every Rust commit
     - cron: "0 3 * * *"

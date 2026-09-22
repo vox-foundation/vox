@@ -1362,17 +1362,14 @@ jobs:
         include:
           - runner: ubuntu-latest
             label: Linux
-            # Cold hosted runner: no warm target/. 40m is generous for a
-            # single vox-gui build + smoke on Linux.
-            timeout: 40
           - runner: macos-latest
             label: macOS
-            # Cold hosted runner: no warm target/, and the vox-gui build.rs
-            # sidecar step below is a full release build of vox-cli. 20m is a
-            # warm-fleet number and does not transfer.
-            timeout: 90
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: ${{ matrix.timeout }}
+    # A literal (not `${{ matrix.timeout }}`) per workflow_policy_guard, which
+    # rejects expression timeouts. 90m covers the slower macOS leg (cold
+    # runner, no warm target/, full vox-cli release build for the sidecar);
+    # Linux finishes well inside it.
+    timeout-minutes: 90
     # BURN-IN: GitHub collapses a matrix into one result, so an unproven macOS
     # leg would fail the whole job. Advisory until it has a green history, per
     # this job's own note on introducing new legs. Remove this line to make

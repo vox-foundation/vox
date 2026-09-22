@@ -1,11 +1,13 @@
 name: GUI Cross-Platform Build (Win/macOS/Ubuntu)
 
 on:
-  pull_request:
-    paths:
-      - 'crates/vox-gui/**'
-      - '.github/workflows/gui-cross-build.yml'
-  merge_group:
+  # Not on pull_request/merge_group: the full Win/macOS/Ubuntu matrix
+  # (gui-cross-build 90m) exceeds the fast-lane (PR/merge_group) 30-min cap
+  # (workflow_policy_guard). Runs nightly instead, mirroring mobile-e2e-ios's
+  # move off push/PR (per-PR compile signal for vox-gui is still covered by
+  # ci.yml's own Linux build).
+  schedule:
+    - cron: '0 5 * * *'   # Nightly, staggered from other 03:00-06:00 UTC lanes
   workflow_dispatch:
 
 concurrency:
@@ -17,11 +19,12 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # Emit the build matrix: Linux (WebKitGTK) every event for per-PR GUI compile signal;
-  # Win/macOS only off-PR (merge_group + dispatch) — their per-PR cost buys little
-  # over the Linux compile.
+  # Emit the build matrix: full Win/macOS/Ubuntu on every (nightly/dispatch)
+  # run now that this workflow is off pull_request/merge_group — the
+  # `pull_request` branch below is dead code kept for a clean dispatch-time
+  # single-OS debug run if ever re-added.
   matrix-setup:
-    name: Compute GUI matrix (Win/macOS off per-PR)
+    name: Compute GUI matrix
     # Pure-bash compute job — runs on the local fleet per local-first policy.
     runs-on: ubuntu-latest
     timeout-minutes: 10

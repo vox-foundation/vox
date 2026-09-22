@@ -31,7 +31,9 @@ jobs:
   build-and-push:
     name: Build vox-telemetry-server image
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Recent runs finish in 1-3m (layer-cached); 25m covers a cold-cache
+    # rebuild while staying under the fast-lane 30-min cap (workflow_policy_guard).
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
 
