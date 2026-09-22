@@ -7,11 +7,13 @@
 # Sources should all carry meaningful vox-lang signal.
 
 sources:
-  # PRIMARY: Validated mixed dataset — broadest, highest-quality vox source.
+  # PRIMARY: validated pairs (`vox mens corpus pairs` → target/dogfood/train.jsonl).
   # NOT optional: if this is missing the entire vox-lang adapter has no signal.
-  # Strict-mix guarantee: if validated_mixed.jsonl is missing OR emits zero rows,
+  # Strict-mix guarantee: if the pairs file is missing OR emits zero rows,
   # the corpus mix step fails closed instead of silently producing an empty corpus.
-  - path: target/dogfood/validated_mixed.jsonl
+  # Nothing copies the mix output back over this file (a mix config may not list
+  # its own `output:` as a source; MixConfigSchema::load rejects it).
+  - path: target/dogfood/train.jsonl
     weight: 6.0                   # Validated mixed (GOLDEN / Wave 0–4 combined)
     optional: false
 
@@ -31,11 +33,6 @@ sources:
 
   - path: mens/data/research-lane-sft.jsonl
     weight: 1.0                   # Research domain warm-up
-    optional: true
-
-  - path: target/dogfood/train.jsonl
-    weight: 0.5                   # Template-expanded synthetic vox (Wave 1)
-    sample_rate: 0.05             # Heavily downsample to avoid monoculture
     optional: true
 
   - path: mens/data/synthetic.jsonl

@@ -83,8 +83,6 @@ pub async fn run(
     let total_stages = planned_stages.len();
     let validated = PathBuf::from("mens/data/validated.jsonl");
     let train_jsonl = data_dir.join("train.jsonl");
-    let _train_mixed_jsonl = data_dir.join("train_mixed.jsonl");
-    let validated_mixed_jsonl = data_dir.join("validated_mixed.jsonl");
     let eval_out = output_dir.join("eval_results.json");
 
     tracing::info!(
@@ -352,14 +350,14 @@ pub async fn run(
             }
             PipelineStage::Eval => {
                 if !dry_run {
-                    if !validated_mixed_jsonl.is_file() {
+                    if !train_jsonl.is_file() {
                         anyhow::bail!(
-                            "Eval stage: missing input file '{}'. Make sure Mix/Pairs stage ran successfully.",
-                            validated_mixed_jsonl.display()
+                            "Eval stage: missing input file '{}'. Make sure the Pairs stage ran successfully.",
+                            train_jsonl.display()
                         );
                     }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Eval {
-                        input: validated_mixed_jsonl.clone(),
+                        input: train_jsonl.clone(),
                         output: eval_out.clone(),
                         print_summary: false,
                     })
@@ -371,12 +369,19 @@ pub async fn run(
                     let ws = vox_corpus::training::contract::find_workspace_root();
                     let mix_config =
                         vox_corpus::training::mix_prepare::resolve_mix_config_path(ws.as_deref());
-                    if mix_config.is_file() {
-                        vox_corpus::training::mix_prepare::sync_mix_primary_with_train_jsonl(
-                            ws.as_deref(),
-                            &data_dir,
-                            &mix_config,
-                        )?;
+                    // Mix sources are workspace paths (pairs = target/dogfood/train.jsonl);
+                    // pairs written to a non-canonical --data-dir are not a mix input.
+                    let canonical = vox_corpus::training::mix_prepare::is_canonical_data_dir(
+                        ws.as_deref(),
+                        &data_dir,
+                    );
+                    if !canonical {
+                        eprintln!(
+                            "  ⏭ Mix stage skipped: --data-dir {} is not the canonical {}; its train.jsonl is used as-is.",
+                            data_dir.display(),
+                            vox_corpus::training::CANONICAL_TRAIN_DATA_DIR
+                        );
+                    } else if mix_config.is_file() {
                         let is_active_spoke_mix = if let Some(name) = profile.as_deref() {
                             let eff = vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile
                                 ::load_domain_profile(name, ws.as_deref())?;
@@ -717,16 +722,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_eval_stage_targets_validated_mixed_jsonl() {
+    async fn test_eval_stage_targets_pairs_train_jsonl() {
         let temp_dir = tempfile::tempdir().unwrap();
         let data_dir = temp_dir.path().join("data");
         let output_dir = temp_dir.path().join("output");
         std::fs::create_dir_all(&data_dir).unwrap();
         std::fs::create_dir_all(&output_dir).unwrap();
 
-        // Create validated_mixed.jsonl but NOT train_mixed.jsonl
-        let mixed_path = data_dir.join("validated_mixed.jsonl");
-        std::fs::write(&mixed_path, r#"{"prompt":"hello","completion":"world"}"#).unwrap();
+        // Only the pairs file exists (no mix output): eval reads the pairs.
+        let pairs_path = data_dir.join("train.jsonl");
+        std::fs::write(&pairs_path, r#"{"prompt":"hello","completion":"world"}"#).unwrap();
 
         let res = run(
             data_dir.clone(),
@@ -747,8 +752,8 @@ mod tests {
         if let Err(e) = res {
             let err_msg = e.to_string();
             assert!(
-                !err_msg.contains("train_mixed.jsonl"),
-                "Should not expect train_mixed.jsonl, error was: {}",
+                !err_msg.contains("missing input file"),
+                "eval must read data_dir/train.jsonl, error was: {}",
                 err_msg
             );
         }
