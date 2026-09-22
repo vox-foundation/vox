@@ -467,3 +467,19 @@ fn ssot_drift_includes_crate_graph_check() {
         "ssot-drift bundle must call affected_cmd::check_graph"
     );
 }
+
+#[test]
+fn vox_gui_is_tested_somewhere() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/gui-cross-build.yml"
+    ));
+    // `cargo test -p vox-gui --test gui_tauri_prereqs` already exists; require the full suite.
+    let full = yml
+        .find("cargo test -p vox-gui --locked")
+        .expect("full vox-gui test suite");
+    let sidecar = yml
+        .find("Stage Tauri external sidecar")
+        .expect("sidecar staging step");
+    assert!(full > sidecar, "tests need the staged sidecar");
+}

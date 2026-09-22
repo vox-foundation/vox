@@ -117,6 +117,9 @@ jobs:
           mkdir -p target/release
           cp ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }}
 
+      - name: vox-gui tests
+        run: cargo test -p vox-gui --locked
+
       - name: Build vox-gui (Tauri)
         run: cargo build -p vox-gui
 
