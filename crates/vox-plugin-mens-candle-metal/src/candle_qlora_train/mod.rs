@@ -87,7 +87,7 @@ impl Drop for PeakSampler {
     }
 }
 
-#[cfg(feature = "metal")]
+#[cfg(any(feature = "metal", target_os = "macos"))]
 fn spawn_peak_sampler_thread(
     device: &Device,
     interval: Duration,
@@ -113,7 +113,7 @@ fn spawn_peak_sampler_thread(
     }))
 }
 
-#[cfg(not(feature = "metal"))]
+#[cfg(not(any(feature = "metal", target_os = "macos")))]
 #[rustfmt::skip] // keeps the toestub-ignore comment pinned to the fn signature line
 fn spawn_peak_sampler_thread( // toestub-ignore(skeleton/hollow-fn): honest "unmeasured" stub for builds without the `metal` feature, matching accel_budget::query_accel_budget's non-macOS `None` — there is no allocated-bytes reading to take.
     _device: &Device,
