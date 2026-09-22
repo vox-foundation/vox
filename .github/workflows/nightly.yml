@@ -1819,3 +1819,21 @@ jobs:
           $out = & target/debug/vox-gui.exe --print-action-manifest-json
           if (-not $out) { throw 'empty action manifest' }
           if ($out -notmatch '"actions"') { throw 'action manifest JSON missing actions key' }
+
+  # Sole writer of the `workspace-windows` Swatinem cache that ci.yml's advisory
+  # `windows` merge-queue leg reads (save-if: false there). Without this seed the
+  # merge-queue leg would cold-build the workspace and blow its 30-min cap.
+  windows-cache-seed:
+    name: Windows workspace check (seeds merge-queue cache)
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace-windows
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo check --workspace --exclude vox-gui --all-targets --locked

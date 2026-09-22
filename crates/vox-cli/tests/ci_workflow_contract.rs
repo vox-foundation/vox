@@ -427,11 +427,32 @@ fn ci_gate_is_hosted_capped_and_owns_required_context() {
     ));
     assert!(yml.contains("name: Check, Build, and Test (Rust)"));
     assert!(yml.contains("runs-on: ubuntu-latest"));
+    assert!(yml.contains("runs-on: windows-latest"));
     assert!(yml.contains("timeout-minutes: 30"));
     assert!(!yml.contains("self-hosted"));
     assert!(
         yml.contains("sed 's/-p vox-gui//g'"),
         "affected args must never build vox-gui"
+    );
+    assert!(
+        yml.contains("needs: [linux, ui]"),
+        "required context aggregates linux + ui; windows is warn-only"
+    );
+    assert!(
+        yml.contains("cargo deny check licenses bans sources"),
+        "no date-dependent advisories in the required leg"
+    );
+    assert!(
+        yml.contains("RUSTDOCFLAGS"),
+        "toolchain bumps must run rustdoc -D warnings in the required leg"
+    );
+    assert!(
+        yml.contains("playwright test --project=chromium"),
+        "UI changes must pass Playwright before merge"
+    );
+    assert!(
+        yml.contains(r"examples/|\.github/workflows/)"),
+        "examples-only diffs must reach the affected step"
     );
 }
 

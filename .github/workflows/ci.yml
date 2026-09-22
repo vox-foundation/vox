@@ -1,6 +1,7 @@
 # PR / merge-queue gate. Hosted, ≤30 min (workflow_policy_guard enforces the cap).
-# Slow lanes live in nightly.yml. Run this job locally in Docker:
-#   act pull_request -j gate
+# Slow lanes live in nightly.yml. Run the heavy leg locally in Docker:
+#   act pull_request -j linux
+# `gate` is a thin aggregator that owns the branch-protection required context.
 name: CI
 
 on:
@@ -19,12 +20,14 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
-  gate:
-    # Branch-protection required context — do not rename (required_context_guard).
-    name: Check, Build, and Test (Rust)
+  linux:
+    name: Linux (fmt, guards, clippy, tests — affected)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Start budget clock
+        shell: bash
+        run: echo "GATE_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -39,7 +42,7 @@ jobs:
           save-if: false   # nightly.yml on main is the only writer (default-branch caches are shared)
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-nextest
+          tool: cargo-nextest,cargo-deny
 
       - name: Build vox CLI
         run: cargo build -p vox-cli --locked
@@ -54,8 +57,9 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: |
           set -euo pipefail
+          [ -n "$BASE_SHA" ] || { echo "::error::no base SHA"; exit 1; }
           git diff --name-only "$BASE_SHA...HEAD" > /tmp/changed.txt
-          if ! grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|rust-toolchain\.toml|\.github/workflows/)' /tmp/changed.txt; then
+          if ! grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|rust-toolchain\.toml|examples/|\.github/workflows/)' /tmp/changed.txt; then
             echo "No Rust changes — clippy/tests skipped."
             echo "p_args=" >> "$GITHUB_OUTPUT"
             exit 0
@@ -73,13 +77,132 @@ jobs:
           echo "p_args=$args" >> "$GITHUB_OUTPUT"
           echo "### Affected: \`$args\`" >> "$GITHUB_STEP_SUMMARY"
 
+      # A toolchain bump brings a wave of new clippy/rustdoc lints that a warm
+      # clippy cache hides. On such a PR we run clippy + rustdoc `-D warnings`
+      # and skip nextest (nightly runs the suite after merge) to stay in budget.
+      - name: Toolchain bump?
+        id: bump
+        shell: bash
+        run: |
+          if grep -qx 'rust-toolchain.toml' /tmp/changed.txt; then
+            echo "toolchain=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "toolchain=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Advisories are date-dependent (a clean PR can go red overnight with no
+      # code change), so they stay nightly-only; licenses/bans/sources are
+      # deterministic for a given lockfile and belong in the required leg.
+      - name: cargo-deny licenses/bans/sources (dependency changes only)
+        shell: bash
+        run: |
+          if grep -qE '(^|/)Cargo\.(toml|lock)$|^deny\.toml$' /tmp/changed.txt; then
+            cargo deny check licenses bans sources
+          else
+            echo "no dependency changes"
+          fi
+
       - name: Clippy (affected)
         if: steps.affected.outputs.p_args != ''
         run: cargo clippy ${{ steps.affected.outputs.p_args }} --all-targets --locked -- -D warnings
 
+      - name: Rustdoc -D warnings (toolchain bump)
+        if: steps.bump.outputs.toolchain == 'true'
+        run: cargo doc --workspace --exclude vox-gui --no-deps --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
+
       - name: Tests (affected)
-        if: steps.affected.outputs.p_args != ''
+        if: steps.affected.outputs.p_args != '' && steps.bump.outputs.toolchain != 'true'
         run: cargo nextest run ${{ steps.affected.outputs.p_args }} --profile ci --locked --no-tests=pass
+
+      - name: Warn when the leg nears its 30-min cap
+        if: always()
+        shell: bash
+        run: |
+          mins=$(( ($(date +%s) - GATE_START) / 60 ))
+          echo "linux leg ran ${mins} min"
+          if [ "$mins" -ge 24 ]; then
+            echo "::warning::linux leg took ${mins} min (>80% of the 30-min cap) — cache, shard, or move work to nightly.yml"
+          fi
+
+  ui:
+    name: GUI UI (typecheck, vitest, Playwright — runs only when crates/vox-gui changes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: UI changed?
+        id: ui
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          # Fail closed: an empty base or a git error runs the UI tests.
+          # The orch_daemon file is listed because a vitest reads it.
+          if [ -n "$BASE_SHA" ] && git diff --name-only "$BASE_SHA...HEAD" > /tmp/changed.txt \
+             && ! grep -qE '^crates/vox-gui/|^crates/vox-orchestrator/src/orch_daemon/mod\.rs$' /tmp/changed.txt; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: pnpm/action-setup@v6
+        if: steps.ui.outputs.run == 'true'
+        with:
+          version: 11
+      - uses: actions/setup-node@v7
+        if: steps.ui.outputs.run == 'true'
+        with:
+          node-version: '24'
+          package-manager-cache: false   # no PR-scoped cache writes (cache is at 9.8/10 GB)
+      # Only chromium is installed, so we select it explicitly: a bare
+      # `pnpm test:e2e` would also select the firefox-review project.
+      - name: Install, typecheck, vitest, Playwright
+        if: steps.ui.outputs.run == 'true'
+        working-directory: crates/vox-gui/ui
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm typecheck
+          pnpm test
+          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright test --project=chromium
+
+  windows:
+    # Warn-only until a seeded run proves it fits within the cap;
+    # deliberately NOT in gate.needs.
+    name: Windows compile check (merge queue, advisory)
+    if: github.event_name == 'merge_group'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache: "false"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace-windows
+          save-if: false   # nightly.yml windows-cache-seed on main is the only writer
+      - run: cargo check --workspace --exclude vox-gui --all-targets --locked
+
+  gate:
+    # Branch-protection required context — do not rename (required_context_guard).
+    name: Check, Build, and Test (Rust)
+    needs: [linux, ui]
+    if: ${{ !cancelled() }}   # a superseded (cancel-in-progress) run stays "cancelled", not "failed"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: linux and ui must both succeed
+        shell: bash
+        env:
+          LINUX: ${{ needs.linux.result }}
+          UI: ${{ needs.ui.result }}
+        run: |
+          [ "$LINUX" = success ] || { echo "::error::linux=$LINUX"; exit 1; }
+          [ "$UI" = success ] || { echo "::error::ui=$UI"; exit 1; }
 
   # SSOT auto-regenerate (PR helper, NON-required): regenerate the committed SSOT
   # artifacts that guards-fast → `vox ci ssot-drift` verifies, and commit the result back
@@ -89,7 +212,7 @@ jobs:
   # identical output), so a re-run produces no diff → no commit → the loop self-terminates
   # after at most one regen commit. Nothing `needs:` this job, so it can never block the
   # required "Check, Build, and Test (Rust)" gate. Builds its own vox-cli (no `setup` job
-  # here to share an artifact with — this workflow has only `gate`).
+  # here to share an artifact with — the heavy Rust leg is `linux`, which builds its own).
   #
   # DEPLOYMENT PREREQUISITE: set repo secret `SSOT_AUTOREGEN_TOKEN` to a PAT or GitHub App
   # token with `contents: write`. The default GITHUB_TOKEN can push but its pushes do NOT
