@@ -66,6 +66,21 @@ pub async fn connect_workspace_journey_optional_at(
             let discover_hint =
                 vox_repository::find_project_manifest_root(&hint).unwrap_or_else(|| hint.clone());
             let repo = vox_repository::discover_repository_or_fallback(&discover_hint);
+
+            // `discover_repository_or_fallback` treats an arbitrary, non-project directory as
+            // its own "root" (no git work tree, no Vox.toml to walk up to). Writing
+            // `.vox/store.db` there litters directories that were never opted into a Vox
+            // project (fresh `vox term` / `vox init` cwd). Only use the project-local store
+            // when the discovered root is an actual project; otherwise go straight to the
+            // user-level canonical store, same as the on-open-failure fallback below.
+            let is_real_project = repo.git_root.is_some() || repo.vox_toml.is_some();
+            if !is_real_project {
+                if workspace_journey_fallback_canonical_enabled() {
+                    return connect_canonical_optional(surface, skip_log).await;
+                }
+                return None;
+            }
+
             match open_project_db_at_root(&repo.root).await {
                 Ok(db) => Some(db),
                 Err(e) => {
@@ -119,4 +134,45 @@ pub fn workspace_journey_diagnostics_json(
 #[allow(dead_code)]
 pub fn format_project_open_err(e: &StoreError) -> String {
     format!("workspace journey store: {e}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A fresh, non-git, non-Vox directory must not get a `.vox/` store littered into it —
+    /// only a real project (git repo or `Vox.toml`) earns a project-local `.vox/store.db`.
+    /// Regression test for the 2026-09-21 cwd-litter bug (`vox term` / `vox shell repl` /
+    /// `vox init` writing `.vox/store.db` outside any project). See also the integration
+    /// test in `crates/vox-db/tests/workspace_journey_no_cwd_litter.rs`, which actually
+    /// `chdir`s to reproduce this the way the real bug manifests.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn non_project_dir_gets_no_dot_vox_store() {
+        let scratch = tempfile::tempdir().expect("scratch tempdir");
+        let user_data = tempfile::tempdir().expect("user data tempdir");
+        let original_cwd = std::env::current_dir().expect("original cwd");
+
+        // Isolate the canonical fallback to a throwaway dir so this never touches the real
+        // $HOME/.vox.
+        // SAFETY: test-only process; this test serializes on TEST_ENV_LOCK.
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        unsafe {
+            std::env::set_var("VOX_DATA_DIR", user_data.path());
+        }
+        std::env::set_current_dir(scratch.path()).expect("chdir into scratch");
+
+        let _ = connect_workspace_journey_optional(DbConnectSurface::CliWorkspace, true).await;
+
+        std::env::set_current_dir(&original_cwd).expect("restore cwd");
+        unsafe {
+            std::env::remove_var("VOX_DATA_DIR");
+        }
+
+        assert!(
+            !scratch.path().join(".vox").exists(),
+            ".vox/ must not be created under a non-project directory"
+        );
+    }
 }
