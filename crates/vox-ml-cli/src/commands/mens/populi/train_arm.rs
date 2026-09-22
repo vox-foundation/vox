@@ -131,7 +131,15 @@ pub async fn run_train(
             spec.seq_len = seq_len.unwrap_or(512);
             spec.batch_size = batch_size.unwrap_or(4);
             spec.epochs = epochs.unwrap_or(3);
-            spec.num_samples = 5000;
+            // Sizes the runtime estimate and the 1.5x watchdog kill; a fixed 5000
+            // under-counted the real 9,268-row corpus.
+            spec.num_samples =
+                jsonl_row_count(&data_dir.join("train.jsonl")).unwrap_or_else(|| {
+                    eprintln!(
+                        "  [cloud] no local train.jsonl to count; assuming 5000 rows for sizing"
+                    );
+                    5000
+                });
             spec.persistent = persistent;
 
             // Corpus hash for the idempotency key (stable per input corpus).
@@ -977,6 +985,23 @@ mod cloud_eval_gate_tests {
 /// wiring on top of it: that the local path's own helper, called with no CLI
 /// overrides, still surfaces the "rust" spoke's Qwen base instead of leaving
 /// `model` as `None` / `preset` unset.
+/// Non-empty lines in a JSONL file, or `None` when it cannot be read.
+#[cfg_attr(not(feature = "cloud"), allow(dead_code))]
+fn jsonl_row_count(path: &std::path::Path) -> Option<usize> {
+    let text = vox_bounded_fs::read_utf8_path_capped(path).ok()?;
+    Some(text.lines().filter(|l| !l.trim().is_empty()).count())
+}
+
+#[cfg(test)]
+#[test]
+fn jsonl_row_count_counts_non_empty_lines() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("train.jsonl");
+    std::fs::write(&p, "{\"a\":1}\n\n{\"a\":2}\n").unwrap();
+    assert_eq!(jsonl_row_count(&p), Some(2));
+    assert_eq!(jsonl_row_count(&d.path().join("missing.jsonl")), None);
+}
+
 #[cfg(test)]
 mod local_spoke_base_wiring_tests {
     use super::resolve_local_spoke_base;

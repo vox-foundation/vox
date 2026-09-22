@@ -255,7 +255,9 @@ pub(super) async fn run_pairs(
             Err(_) => continue,
         };
 
-        let code = record.get("code").and_then(|v| v.as_str()).unwrap_or("");
+        let raw_code = record.get("code").and_then(|v| v.as_str()).unwrap_or("");
+        let (code, training_prompt) = crate::training::split_training_metadata(raw_code);
+        let code = code.as_str();
         let source = record
             .get("source")
             .and_then(|v| v.as_str())
@@ -277,10 +279,17 @@ pub(super) async fn run_pairs(
         let name = crate::training::extract_name_from_source(code);
 
         for construct in &constructs {
-            let templates = crate::training::instruction_templates(construct);
-            for template in templates {
-                let instruction = template.replace("{name}", &name);
-
+            // The author's `@training_prompt:` describes the whole file; templates
+            // only apply when a real declared name was found (no "example" placeholder).
+            let mut instructions: Vec<String> = training_prompt.iter().cloned().collect();
+            if let Some(name) = &name {
+                instructions.extend(
+                    crate::training::instruction_templates(construct)
+                        .iter()
+                        .map(|t| t.replace("{name}", name)),
+                );
+            }
+            for instruction in instructions {
                 // Dedup by content hash (XXH3)
                 let combined = format!("{}|||{}", instruction, code);
                 let h = vox_actor_runtime::builtins::vox_hash_fast(&combined);
@@ -308,17 +317,6 @@ pub(super) async fn run_pairs(
                     "task_family": "vox_codegen",
                 });
                 all_pairs.push(pair);
-
-                // Multi-turn: generate follow-up refinement pairs
-                let multi = crate::training::generate_multiturn_pairs(
-                    construct,
-                    &name,
-                    &instruction,
-                    code,
-                    crate::training::SCHEMA_VERSION,
-                    source,
-                );
-                all_pairs.extend(multi);
             }
         }
 
