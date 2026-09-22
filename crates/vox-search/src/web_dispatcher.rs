@@ -4,6 +4,61 @@ use tracing::{info, warn};
 
 use crate::policy::{ResearchLane, SearchPolicy};
 
+#[derive(Debug, Clone, serde::Serialize, PartialEq)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum ProviderStatus {
+    Ok { hits: usize },
+    Timeout,
+    Error { message: String },
+    NotConfigured,
+    Disabled,
+    CircuitOpen,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ProviderOutcome {
+    pub provider: &'static str,
+    pub status: ProviderStatus,
+    pub elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SearchReport {
+    pub hits: Vec<crate::memory_hybrid::HybridSearchHit>,
+    pub providers: Vec<ProviderOutcome>,
+}
+
+enum ProviderRun {
+    Hits(Vec<crate::searxng::SearxngResult>),
+    Failed(String),
+    Skipped(ProviderStatus),
+}
+
+async fn timed(
+    provider: &'static str,
+    deadline: std::time::Duration,
+    run: impl std::future::Future<Output = ProviderRun>,
+) -> (Vec<crate::searxng::SearxngResult>, ProviderOutcome) {
+    let started = std::time::Instant::now();
+    let (hits, status) = match tokio::time::timeout(deadline, run).await {
+        Ok(ProviderRun::Hits(h)) => {
+            let n = h.len();
+            (h, ProviderStatus::Ok { hits: n })
+        }
+        Ok(ProviderRun::Failed(message)) => (Vec::new(), ProviderStatus::Error { message }),
+        Ok(ProviderRun::Skipped(s)) => (Vec::new(), s),
+        Err(_) => (Vec::new(), ProviderStatus::Timeout),
+    };
+    (
+        hits,
+        ProviderOutcome {
+            provider,
+            status,
+            elapsed_ms: started.elapsed().as_millis() as u64,
+        },
+    )
+}
+
 pub struct WebSearchDispatcher;
 
 impl Default for WebSearchDispatcher {
@@ -83,14 +138,41 @@ impl WebSearchDispatcher {
         .await
     }
 
+    pub async fn search_with_report(
+        query: &str,
+        lane: ResearchLane,
+        policy: &SearchPolicy,
+    ) -> SearchReport {
+        Self::search_with_report_and_registry(
+            query,
+            lane,
+            policy,
+            crate::search_circuit_breaker::SearchProviderCircuitRegistry::global(),
+        )
+        .await
+    }
+
     pub async fn search_with_lane_and_registry(
         query: &str,
         lane: ResearchLane,
         policy: &SearchPolicy,
         registry: &crate::search_circuit_breaker::SearchProviderCircuitRegistry,
     ) -> anyhow::Result<Vec<crate::memory_hybrid::HybridSearchHit>> {
+        Ok(
+            Self::search_with_report_and_registry(query, lane, policy, registry)
+                .await
+                .hits,
+        )
+    }
+
+    pub async fn search_with_report_and_registry(
+        query: &str,
+        lane: ResearchLane,
+        policy: &SearchPolicy,
+        registry: &crate::search_circuit_breaker::SearchProviderCircuitRegistry,
+    ) -> SearchReport {
         if query.trim().is_empty() {
-            return Ok(Vec::new());
+            return SearchReport::default();
         }
 
         let timeout_ms = match lane {
@@ -111,15 +193,15 @@ impl WebSearchDispatcher {
                 {
                     Ok(hits) => {
                         info!(count = hits.len(), "Wikipedia search succeeded");
-                        hits
+                        ProviderRun::Hits(hits)
                     }
                     Err(e) => {
                         warn!(error = %e, "Wikipedia search failed");
-                        Vec::new()
+                        ProviderRun::Failed(e.to_string())
                     }
                 }
             } else {
-                Vec::new()
+                ProviderRun::Skipped(ProviderStatus::Disabled)
             }
         };
 
@@ -136,15 +218,15 @@ impl WebSearchDispatcher {
                 {
                     Ok(hits) => {
                         info!(count = hits.len(), "OpenAlex search succeeded");
-                        hits
+                        ProviderRun::Hits(hits)
                     }
                     Err(e) => {
                         warn!(error = %e, "OpenAlex search failed");
-                        Vec::new()
+                        ProviderRun::Failed(e.to_string())
                     }
                 }
             } else {
-                Vec::new()
+                ProviderRun::Skipped(ProviderStatus::Disabled)
             }
         };
 
@@ -163,15 +245,15 @@ impl WebSearchDispatcher {
                 {
                     Ok(hits) => {
                         info!(count = hits.len(), "arXiv search succeeded");
-                        hits
+                        ProviderRun::Hits(hits)
                     }
                     Err(e) => {
                         warn!(error = %e, "arXiv search failed");
-                        Vec::new()
+                        ProviderRun::Failed(e.to_string())
                     }
                 }
             } else {
-                Vec::new()
+                ProviderRun::Skipped(ProviderStatus::Disabled)
             }
         };
 
@@ -181,7 +263,7 @@ impl WebSearchDispatcher {
                 if !registry.is_available(crate::search_circuit_breaker::SearchProviderId::Searxng)
                 {
                     warn!("SearXNG is in circuit breaker cooldown, skipping");
-                    Vec::new()
+                    ProviderRun::Skipped(ProviderStatus::CircuitOpen)
                 } else {
                     let client = crate::searxng::SearxngSearchClient::new(base_url.clone());
                     let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
@@ -201,7 +283,7 @@ impl WebSearchDispatcher {
                             registry.record_success(
                                 crate::search_circuit_breaker::SearchProviderId::Searxng,
                             );
-                            hits
+                            ProviderRun::Hits(hits)
                         }
                         Err(e) => {
                             let err_str = e.to_string();
@@ -212,12 +294,12 @@ impl WebSearchDispatcher {
                                 is_rate_limit,
                             );
                             warn!(error = %e, is_rate_limit, "SearXNG search failed");
-                            Vec::new()
+                            ProviderRun::Failed(err_str)
                         }
                     }
                 }
             } else {
-                Vec::new()
+                ProviderRun::Skipped(ProviderStatus::NotConfigured)
             }
         };
 
@@ -253,16 +335,17 @@ impl WebSearchDispatcher {
                         registry.record_success(
                             crate::search_circuit_breaker::SearchProviderId::Tavily,
                         );
-                        return hits
-                            .into_iter()
-                            .map(|h| crate::searxng::SearxngResult {
-                                url: h.url,
-                                title: h.title.clone(),
-                                content: h.content,
-                                engine: Some("tavily".to_string()),
-                                score: Some(f64::from(h.score)),
-                            })
-                            .collect();
+                        return ProviderRun::Hits(
+                            hits.into_iter()
+                                .map(|h| crate::searxng::SearxngResult {
+                                    url: h.url,
+                                    title: h.title.clone(),
+                                    content: h.content,
+                                    engine: Some("tavily".to_string()),
+                                    score: Some(f64::from(h.score)),
+                                })
+                                .collect(),
+                        );
                     }
                     Err(e) => {
                         let is_rate_limit =
@@ -272,63 +355,64 @@ impl WebSearchDispatcher {
                             is_rate_limit,
                         );
                         warn!(error = %e, is_rate_limit, "Tavily web search failed");
-                        return Vec::new();
+                        return ProviderRun::Failed(e);
                     }
                 }
             }
-            Vec::new()
+            #[cfg(not(feature = "tavily"))]
+            {
+                return ProviderRun::Skipped(ProviderStatus::NotConfigured);
+            }
+            #[cfg(feature = "tavily")]
+            ProviderRun::Skipped(ProviderStatus::NotConfigured)
         };
 
         // Bound each provider by lane timeout deadline
-        let (wiki_res, openalex_res, arxiv_res, searxng_res, tavily_res) = tokio::join!(
-            tokio::time::timeout(deadline, wiki_task),
-            tokio::time::timeout(deadline, openalex_task),
-            tokio::time::timeout(deadline, arxiv_task),
-            tokio::time::timeout(deadline, searxng_task),
-            tokio::time::timeout(deadline, tavily_task),
+        let (wiki, openalex, arxiv, searxng, tavily) = tokio::join!(
+            timed("wikipedia", deadline, wiki_task),
+            timed("openalex", deadline, openalex_task),
+            timed("arxiv", deadline, arxiv_task),
+            timed("searxng", deadline, searxng_task),
+            timed("tavily", deadline, tavily_task),
         );
-
-        let unwrap_timed =
-            |res: Result<Vec<crate::searxng::SearxngResult>, tokio::time::error::Elapsed>,
-             provider: &'static str|
-             -> Vec<crate::searxng::SearxngResult> {
-                match res {
-                    Ok(hits) => hits,
-                    Err(_) => {
-                        warn!(provider, "Search provider timed out");
-                        match provider {
-                            "searxng" => registry.record_failure(
-                                crate::search_circuit_breaker::SearchProviderId::Searxng,
-                                false,
-                            ),
-                            "tavily" => registry.record_failure(
-                                crate::search_circuit_breaker::SearchProviderId::Tavily,
-                                false,
-                            ),
-                            _ => {}
-                        }
-                        Vec::new()
-                    }
-                }
-            };
-
-        let provider_lists = vec![
-            unwrap_timed(arxiv_res, "arxiv"),
-            unwrap_timed(openalex_res, "openalex"),
-            unwrap_timed(wiki_res, "wikipedia"),
-            unwrap_timed(searxng_res, "searxng"),
-            unwrap_timed(tavily_res, "tavily"),
+        for (outcome, id) in [
+            (
+                &searxng.1,
+                crate::search_circuit_breaker::SearchProviderId::Searxng,
+            ),
+            (
+                &tavily.1,
+                crate::search_circuit_breaker::SearchProviderId::Tavily,
+            ),
+        ] {
+            if outcome.status == ProviderStatus::Timeout {
+                registry.record_failure(id, false);
+            }
+        }
+        let providers = vec![
+            arxiv.1.clone(),
+            openalex.1.clone(),
+            wiki.1.clone(),
+            searxng.1.clone(),
+            tavily.1.clone(),
         ];
+        let provider_lists = vec![arxiv.0, openalex.0, wiki.0, searxng.0, tavily.0];
 
         let mut results = true_rrf_fuse(provider_lists, policy.rrf_k);
 
         if results.is_empty() {
-            return Ok(Vec::new());
+            return SearchReport {
+                hits: Vec::new(),
+                providers,
+            };
         }
 
         Self::filter_and_penalize_results(&mut results, policy);
         if results.is_empty() {
-            return Ok(Vec::new());
+            return SearchReport {
+                hits: Vec::new(),
+                providers,
+            };
         }
 
         results.sort_by(|a, b| {
@@ -416,7 +500,10 @@ impl WebSearchDispatcher {
                 }
             }
 
-            Ok(final_hits)
+            SearchReport {
+                hits: final_hits,
+                providers,
+            }
         }
 
         #[cfg(not(feature = "web-scrape"))]
@@ -441,7 +528,10 @@ impl WebSearchDispatcher {
                     potential_contradiction: false,
                 });
             }
-            Ok(final_hits)
+            SearchReport {
+                hits: final_hits,
+                providers,
+            }
         }
     }
 }
