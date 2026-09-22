@@ -198,11 +198,16 @@ pub async fn download_model(repo_id: &str) -> anyhow::Result<DownloadedModelFile
         if weights.is_empty() {
             anyhow::bail!("Local model directory {local_path:?} contains no *.safetensors files");
         }
+        let tokenizer_config =
+            Some(local_path.join("tokenizer_config.json")).filter(|p| p.is_file());
+        let chat_template = Some(local_path.join("chat_template.jinja")).filter(|p| p.is_file());
         return Ok(DownloadedModelFiles {
             cache_dir: local_path,
             config,
             weights,
             tokenizer,
+            tokenizer_config,
+            chat_template,
         });
     }
 

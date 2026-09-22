@@ -834,14 +834,6 @@ pub fn run_candle_qlora_train(
                     adapter_layer_order.push(lbl.clone());
                     base_key_map.insert(lbl.clone(), bk.clone());
                 }
-                let q_norm = vb_mmap
-                    .get(head_dim, &format!("{layer_prefix}.self_attn.q_norm.weight"))
-                    .ok()
-                    .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
-                let k_norm = vb_mmap
-                    .get(head_dim, &format!("{layer_prefix}.self_attn.k_norm.weight"))
-                    .ok()
-                    .map(|w| candle_nn::RmsNorm::new(w, 1e-6));
                 let attn = crate::model::Qwen2Attention {
                     q_proj,
                     k_proj,
@@ -855,8 +847,6 @@ pub fn run_candle_qlora_train(
                     n_heads,
                     n_kv_heads,
                     head_dim,
-                    q_norm,
-                    k_norm,
                 };
                 Some(crate::model::Qwen35AttentionBlock::Full(attn))
             } else {
