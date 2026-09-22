@@ -408,8 +408,9 @@ minutes on iteration noise. Before every push, reproduce the relevant gates loca
 and only push once they are green.
 See [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md) §Local-first CI.
 
-- **Docker available:** `act pull_request -j gate` runs the PR gate job locally
-  (secrets come from the git-ignored `.secrets` file).
+- **Docker available:** `act pull_request -j linux` runs the PR gate's `linux` job
+  locally (secrets come from the git-ignored `.secrets` file). `gate` itself is a
+  step-less aggregator (see §CI Contract) — the actual work happens in `linux`.
 - **Faster inner loop (no Docker):** `vox ci pre-push --full` for the native gate
   tiers below; scope to changed crates with `--since <ref>`.
 - **Per-job spot-checks:** run the exact command a failing job runs (e.g.
@@ -450,22 +451,34 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
 
 ## CI Contract (Required, SSOT)
 
-- **GitHub-hosted CI is the gate.** `ci.yml` (required context
-  `Check, Build, and Test (Rust)`) runs the local fast tier plus clippy/nextest
-  on affected crates; jobs are capped at 30 min. `nightly.yml` and other
-  scheduled workflows run the slow lanes, capped at 180 min. Caps are enforced
+- **GitHub-hosted CI is the gate.** `ci.yml`'s required context
+  (`Check, Build, and Test (Rust)`) is a step-less `gate` job that aggregates two
+  legs: `linux` (the local fast tier plus clippy/nextest on affected crates;
+  also runs `cargo-deny` licenses/bans/sources on dependency changes, and
+  `cargo clippy`/`rustdoc -D warnings` on a detected toolchain bump) and `ui`
+  (typecheck + vitest + Playwright, required only on PRs that change
+  `crates/vox-gui/**`). The merge queue additionally runs an **advisory**
+  (non-blocking) Windows compile check. Jobs are capped at 30 min. `nightly.yml`
+  and other scheduled workflows run the slow lanes, capped at 180 min, and
+  defer nextest there rather than duplicating it in `linux`. Caps are enforced
   by `workflow-policy-guard` (in `ssot-drift`). Over budget? Cache, shard, or
   move the job to nightly — never raise the cap.
 - **Run CI locally first:** `vox ci pre-push` (fast), `--complete`/`--full`
-  for code changes, or run the PR gate in Docker with `act pull_request -j gate`.
+  for code changes, or run the PR gate's `linux` job in Docker with
+  `act pull_request -j linux`.
 - **CI state comes to you.** Failed/timed-out jobs on your branch and open
   `nightly-failure` issues are printed by the git pre-commit/pre-push hooks
   and injected by Claude Code hooks. When you see a block, fix it before
-  continuing. `vox ci status` prints the same block on demand.
+  continuing. `vox ci status` prints the same block on demand. Scheduled
+  workflows that stop running (past ~2x their cadence) trigger their own
+  `Nightly stale:` issues via a dead-man's-switch workflow (`ci-liveness.yml`).
 - **Concurrency required.** Every push/PR-triggered workflow needs a
   top-level `concurrency:` block with `cancel-in-progress: true` (or a row in
   `docs/src/ci/concurrency-exceptions.md`), enforced by
   `workflow-concurrency-guard`.
+- **Rust caches are `main`-only.** `Swatinem/rust-cache` saves only from
+  `main` branch runs; PR and `merge_group` runs restore but never save, so
+  concurrent PR builds can't race each other's cache writes.
 
 Spec: `docs/superpowers/specs/2026-09-21-hosted-primary-ci-design.md`.
 
@@ -506,8 +519,6 @@ Because nothing reviews a PR automatically:
   equivalent careful pass) over the full branch range, not the last commit.
 - **Batch commits; push once when the branch is review-ready** — not after every commit.
 - **Don't open a PR before it's review-ready.** Use a **Draft** if you must push early.
-- `vox ci pre-push` prints an **advisory** reminder on re-push to a branch with an
-  upstream; it never blocks.
 
 **Verify security-relevant guards by mutation, not by observing green tests.** Break
 the guard deliberately and confirm the test fails, then restore. A test that passes

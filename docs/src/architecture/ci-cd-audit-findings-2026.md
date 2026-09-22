@@ -97,3 +97,136 @@ until fixed.
 4. Disable telemetry chain, visus audit, scorecard (or fix), link checker; delete qwen35.
 5. Task 10: delete fleet tooling; prune orphan `vox ci` subcommands; strip dead YAML.
 6. Dead-man's switch + runtime-vs-cap reporting in `nightly-report.yml` (gaps 6–7).
+
+## Resolution (2026-09-22)
+
+Remediated by plan `docs/superpowers/plans/2026-09-22-ci-audit-remediation.md`, executed as
+Tasks 1–14 (Task 11 was cut during plan review — a proposed static guard for stale `paths:`
+filters was judged unnecessary because the runtime already fails loudly on a missing path;
+see the plan's ledger, Important #7). Task 15 (this doc) is the closing task. Commit SHAs
+below are on branch `claude/cicd-complexity-tradeoffs-b62a67`; the authoritative task-by-task
+record (rulings, fix rounds, deferred findings) is
+`.superpowers/sdd/2026-09-22-ci-audit-remediation/progress.md`.
+
+### Findings → task/commit map
+
+**§1 Execution time**
+
+| Finding | Resolution |
+|---|---|
+| `vox-doc-pipeline` scoped lint = 58% of the fast tier (fixed startup cost) | Task 3, `b39397d3b` — scoped doc lint now runs in-process under the repo root instead of re-shelling out. |
+| Heartbeat `thread::sleep` padding every step up to 3 s | Task 3, `b39397d3b` — heartbeat now wakes immediately instead of sleeping in fixed 3 s blocks. |
+| `ssot-drift`'s 26 nested stages (~15 s) | **Not addressed.** No task in this plan touched `ssot-drift`'s internal stage cost. |
+| PR gate (`ci.yml`) never run end-to-end; 30-min budget unvalidated | **Pending — user/post-merge.** Can only be measured after this branch merges and a real PR run completes; see the verification table below. |
+| `ci.yml` `gate` + `ssot-autoregen` — two vox-cli compiles per PR, no path filter | **Not addressed.** `gate` was restructured (Task 5) into a step-less aggregator of `linux`+`ui`, but `ssot-autoregen` still runs unconditionally rather than being path-filtered to generator inputs. |
+| `nightly.yml` `full` job repeats `lints`/`tests`/`guards-fast` work | Task 10, `44dd0340d` — nightly.yml's duplicate lint/test logic and ~325 lines of redundant job bodies removed. |
+
+**§2 Remove or disable**
+
+| Item | Resolution |
+|---|---|
+| Self-hosted fleet tooling (`runner_scale.rs`, `queue.rs`, `oom_watch.rs`, `unexpected_exit_watch.rs`, `hook_guard_check`) | Task 14, `e8106f370` — deleted, along with ~45–50 orphan `vox ci` subcommands and 4 placeholder no-ops. |
+| `qwen35-native-nightly.yml` | Task 9, `7b0f433c7` — deleted; `ml_data_extraction.yml` remains the single GPU lane. |
+| `docker-telemetry.yml` + `deploy-telemetry.yml` | Task 9, `7b0f433c7` — parked to `workflow_dispatch` only. |
+| `vox-visus-audit.yml` | Task 9, `7b0f433c7` — parked to `workflow_dispatch` only. |
+| `scorecard.yml` (10/10 failures) | Task 8, `3dc771a73` — fixed (signing/permissions), not deleted; kept as a live check. |
+| `link_checker.yml` (10/10 failures) | **Not addressed** beyond an incidental `permissions: contents: read` block added by Task 13's blanket least-privilege sweep (`9b0718d18`). The audit's recommendation — delete, or make weekly and advisory — was not acted on. |
+| `pm-provenance-verify.yml` | Task 9, `7b0f433c7` — folded one step into `nightly.yml`'s `audits` job; file deleted. |
+| ~45–50 orphan `vox ci` subcommands + 4 placeholder no-ops | Task 14, `e8106f370`. |
+| Dead YAML inside live workflows (`nightly.yml` unreachable branches/guards, `cross-platform-check.yml` no-op `path-check`, `gui-cross-build.yml` dead PR branch) | Task 10, `44dd0340d` — stripped unreachable PR/merge-queue branches from `nightly.yml`, `cross-platform-check.yml`, `gui-cross-build.yml`. `compile-matrix.yml`'s stale `crates/vox-release-artifacts`/`crates/vox-assets` paths were dropped in Task 8, `3dc771a73`. |
+| Stale CodeRabbit reminder in `pre_push.rs` | Task 3, `b39397d3b` — removed. |
+
+**§3 Broken but needed**
+
+| Workflow | Resolution |
+|---|---|
+| `docs-deploy.yml` (10/10 failures, docs not publishing) | **Not addressed.** No task in this plan touched `docs-deploy.yml`. Still the highest-value fix outstanding. |
+| `release-gui.yml` (0/10 successes) | **Not addressed.** |
+| `release-installers.yml` (0/5 successes) | **Not addressed.** |
+| `setup-e2e.yml` (red nightly) | Task 1, `1d7e86db5` — fixed the root cause (MENS hub local-dir fields, duplicate `q_norm`/`k_norm` bindings) that was failing the onboarding script. |
+| `mobile-e2e-ios.yml` (red nightly) | Task 8, `3dc771a73` — fixed the iOS pnpm cache path. |
+
+**§4 Coverage gaps**
+
+| # | Gap | Resolution |
+|---|---|---|
+| 1 | Toolchain-bump lint wave has no pre-merge check | Task 5, `75da26e78` — `ci.yml`'s `linux` leg now runs `cargo clippy`/`rustdoc -D warnings` on a detected toolchain bump. |
+| 2 | No pre-merge Windows/macOS signal | Task 5, `75da26e78` — added an **advisory** Windows compile check (`windows-latest`, `merge_group` only). **Advisory only** — flipping it to a required/blocking check is a pending user-only decision (see below); macOS remains unaddressed. |
+| 3 | `vox-gui` never tested | Task 6, `ec83dddc2` — `cargo test -p vox-gui` added to the nightly GUI cross-build. Nightly-only, not PR-gated. |
+| 4 | GUI Playwright e2e nightly-only | Task 5, `75da26e78` — added a PR-required `ui` leg (typecheck + vitest + Playwright) gated on `crates/vox-gui/**` changes. |
+| 5 | Golden `.vox` examples / doc lint only nightly | Task 4, `745430802` — examples-only diffs now select the crates whose tests read `examples/`, extending PR-time coverage to those paths. |
+| 6 | No dead-man's switch for scheduled workflows | Task 12, `33e23aa31` — new `ci-liveness.yml`; opens `nightly-failure` issues when a scheduled workflow goes stale. |
+| 7 | No automatic runtime-vs-cap measurement | **Not addressed.** `vox ci job-timings` still has no caller in any workflow; `nightly-report.yml` was extended (Task 12) for the dead-man's-switch only, not for timing/budget reporting. |
+| 8 | `all-features-matrix` gated on affected set | Effectively resolved as a side effect: Task 5 (`75da26e78`) removed `all-features-matrix` from the PR-triggered path entirely, and Task 10 (`44dd0340d`) stripped the old label-gating comments from `nightly.yml`; the job now runs unconditionally on `nightly.yml`'s daily cron. No task targeted this gap directly. |
+| 9 | `cargo-deny`/`cargo-audit` only nightly | Task 5, `75da26e78` — `linux` leg now runs `cargo-deny` licenses/bans/sources checks on dependency changes. |
+| 10 | `workflow-permissions-guard` advisory, no `CiCmd` entry | Task 13, `9b0718d18` — explicit least-privilege `permissions:` blocks added to every workflow; guard flipped from advisory to strict. |
+
+### Pending — user-only actions (not this plan's to do)
+
+These items came up during the plan's review but require a decision or credential the user
+holds, not an agent action:
+
+- **`CF_API_TOKEN` rotation.** Flagged during review as needing rotation; pending the user.
+- **Stale-cache delete.** A one-time manual delete of a stale GitHub Actions cache entry; pending the user.
+- **Possible admin-bypass merge.** Merging this branch may require an admin bypass of branch
+  protection for the first run (since the new required contexts haven't run on `main` yet);
+  pending the user's call.
+- **Windows-enforcement flip.** The advisory Windows compile check added in Task 5 (gap #2
+  above) stays advisory until the user decides to flip it to a required, blocking context —
+  that decision, and the branch-protection change it implies, is the user's to make.
+
+### Post-merge verification (fill in after the branch merges and runs on GitHub)
+
+| Item | Value |
+|---|---|
+| `linux` leg run time | TBD |
+| `windows` leg run time / run ID | TBD |
+| First UI-changing PR — `ui` leg run time | TBD |
+| Rust cache size(s) after first `main` save | TBD |
+| `setup-e2e.yml` — green confirmation | TBD |
+| `scorecard.yml` — green confirmation | TBD |
+| `docs-deploy.yml` — green confirmation | TBD |
+
+### Documented uncertainties (from the Task 15 brief)
+
+- `harness-eval-nightly.yml`'s "non-fast-forward" warning text may be masking a ruleset
+  rejection rather than a genuine non-fast-forward push failure — **unverified**. Task 13 kept
+  this workflow's job-level `contents: write` (an intentional deviation from the brief's
+  original instruction — see the ledger's Task 13 ruling) precisely because the failure mode
+  underneath that warning text was not fully characterized.
+- External callers of the ~45–50 `vox ci` subcommands and fleet-tooling modules Task 14
+  deleted are **unverified** — the search covered workflows, hooks, scripts, and
+  `.claude/settings.json` in this repo, but not third-party or out-of-repo consumers.
+
+### Expected noise until the Windows-enforcement flip
+
+The advisory Windows leg added in Task 5 (gap #2) is expected to show failures and timeouts
+as noise in `vox ci status` and PR checks until the user performs the Windows-enforcement flip
+described above. This is expected behavior, not a regression — the leg is intentionally
+non-blocking so it can accumulate signal before becoming a required check.
+
+### Task-by-task outcome summary
+
+Pulled verbatim in spirit from the plan ledger (`.superpowers/sdd/2026-09-22-ci-audit-remediation/progress.md`); see that file for full detail.
+
+| Task | Commit(s) | Outcome |
+|---|---|---|
+| 1 | `1d7e86db5` | Complete, review clean. |
+| 2 | `1d7e86db5..41afa7929` (amended from `5f6cc746e`) | 1 fix round (3 addressed: doc-accuracy mischaracterization of q_norm/k_norm shadowing direction [Important, code was already correct]; suppression pub-fn count off-by-one [Minor]; merge.rs report omission [Minor]). Complete, review clean after the fix round. |
+| 3 | `41afa7929..b39397d3b` | Complete, review clean. |
+| 4 | `b39397d3b..745430802` | Complete, review clean. |
+| 5 | `745430802..75da26e78` | Complete, review clean. 2 minor findings deferred: toolchain-bump/budget-clock steps fail-open on a theoretically-impossible missing-file state (brief-verbatim, not an implementation defect); AGENTS.md's `act pull_request -j gate` references were already known stale, deferred to this task (Task 15). |
+| 6 | `75da26e78..ec83dddc2` | Complete, review clean. |
+| 7 | `ec83dddc2..203009a8c` | Complete, review clean, independent mutation check passed. 3 minor findings deferred: Swatinem step-level `if:` main-gate exempts save-if requirement (semantically sound); `cache_key_lint`'s PR-reachability rule has no `workflow_call` handling (theoretical, unused today); duplicated `with:` bodies in cache save/restore pairs can drift with no gate (perf-only risk). |
+| 8 | `203009a8c..3dc771a73` | Complete, review clean. 2 minor findings deferred: a plan doc's parenthetical wrongly calls `graphify-out/` git-ignored (it's tracked); 87 `file:///c:/Users/Owner/vox/...` Windows-path links remain across 8 docs (lychee reports them "Unsupported", not "Errors" — out of this task's fixed-85 scope). |
+| 9 | `3dc771a73..7b0f433c7` (amended from `26ceeedb1`) | 1 fix round (1 addressed: stale `docs/agents/doc-inventory.json` that would fail the real `vox ci doc-inventory verify` gate [Important]). Complete, review clean after the fix round. 2 minor findings deferred: `deploy-telemetry.yml`'s unreachable `workflow_run.conclusion == 'success'` disjunct left in place (harmless); `workflow-enumeration.md`'s deleted pm-provenance row has no replacement (judged sufficient since `binary-release-contract.md` already documents it). |
+| 10 | `7b0f433c7..44dd0340d` | 1 fix round (1 addressed: report's hook-bypass rationale was factually false — `bom-check` isn't a pre-commit gate; nothing was actually skipped, all applicable gates independently re-verified passing; report-only correction, no code change). Complete, review clean after the fix round. 3 minor findings deferred: `cargo deny`/`audit` moved from parallel `guards-fast` into sequential `full` (a clippy regression could now mask a new RustSec advisory in the same run); deleted clippy allow-list's per-lint rationale has no documented home (the surviving `full` clippy is stricter, no coverage loss); `selective_ci_toestub_minimal_default_when_empty` deleted per explicit brief instruction while its subject still exists (a known brief self-conflict, followed correctly). |
+| 11 | — | **Cut during plan review** — a proposed static guard for stale `paths:` filters was judged unnecessary (runtime already fails loudly; the guard had false positives). |
+| 12 | `44dd0340d..33e23aa31` | Complete, review clean, exhaustive 20-workflow-name dry-run trace found zero anomalies. 3 minor findings deferred: `ci-liveness.yml` doesn't pre-create the `nightly-failure` label the way `nightly-report.yml` does (latent — label already exists on this repo); `ci-liveness.yml` interpolates `$title` into a jq query text directly rather than via `env.TITLE` (all 20 current workflow names are jq-safe today); the `disabled_manually` branch `continue`s before the close logic, so a stale-then-parked workflow's open issue is never auto-closed. |
+| 13 | `33e23aa31..9b0718d18` (amended from `29c416c31`) | 1 fix round (1 addressed: `harness-eval-nightly.yml`'s job-level `contents: write` was restored after being removed, plus a corrected comment [Important, controller ruling — the brief's stated reason for removing it, "github.token is read-only by design," was factually wrong; this workflow's untouched twin `ci.yml`'s `ssot-autoregen` job keeps the same write scope for a documented graceful-degradation fallback]). Complete, review clean after the fix round. 1 minor finding deferred: the original review evidence for `ml_data_extraction.yml` (5/5 cancelled runs) was too shallow; corrected during the fix round to the stronger finding (11 historical successes, but the git-push step was skipped in all 11 on its `changed==true` gate — conclusion unchanged, leave read-only). |
+| 14 | `9b0718d18..e8106f370` | Complete, review clean. 5 minor findings deferred, plus one non-minor item handled out-of-band: two plan docs reference the now-deleted `Dockerfile.ci-runner`/`ci-runner-local.sh` as forward-looking action items rather than historical record; `graphify-out/gui-coverage/cli-governance.json` (a generated, commit-keyed file, excluded from this task's scope) still lists a retired command; doc rewording left references to a fleet-container mechanism with no implementation (flagged as Task-15 doc-retirement scope — not acted on by this task); report prose said "six rows" removed from `doc-inventory.json` when the actual net was 9 removed/1 added (diff itself correct, only the prose count was off); C1's "exposed by this commit" was slightly overstated (one commit earlier also touched the file, so the false positive was latent one commit before). Separately, this task's implementer diagnosed a `secret-env-guard`/`crates-vox-cli-ci` allowlist false positive and correctly deferred fixing it (a security-allowlist change, out of task scope); the controller independently fixed it in a separate worktree (`.claude/worktrees/secret-guard-allowlist-fix`, branch `fix/secret-guard-vox-cli-ci-allowlist`), verified clean, and left it pending the user's explicit confirmation before committing, since it widens a security-relevant allowlist. |
+| 15 | (this task) | Records this Resolution section and fixes two stale AGENTS.md CI-contract lines. |
+
+**None of the above deferred items were re-opened or found to be more than minor during this
+closing pass** — they are listed here for completeness, per the plan's own review discipline,
+not because Task 15 re-verified each one independently.
