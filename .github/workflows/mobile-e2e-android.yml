@@ -15,6 +15,9 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: read
+
 jobs:
   android-e2e:
     # Tier: heavy (GitHub-hosted macOS).

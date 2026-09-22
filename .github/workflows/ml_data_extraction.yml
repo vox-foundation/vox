@@ -44,6 +44,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 # ── Platform portability notes ───────────────────────────────────────────────
 # GitHub-specific: github.sha, github.event.inputs.*, workflow_dispatch
 # Forgejo equivalent: gitea.sha, workflow_dispatch (Forgejo Actions supports this)
@@ -195,6 +198,12 @@ jobs:
                   populi/data/train_hash.txt \
                   scripts/vox_system_prompt.txt
           git diff --cached --quiet || git commit -m "chore: update validated ML training corpus [skip ci]"
+          # No contents: write here: the repo's default token scope is already read-only,
+          # so this push cannot have been succeeding, and no recent run (all cancelled)
+          # is evidence that it ever did. Granting write would widen the token on the
+          # strength of a guess. If the corpus commit is genuinely wanted, add
+          # `permissions: {contents: write}` to this job in a change that can show the
+          # push working.
           git push
 
       - name: Upload training data artifact

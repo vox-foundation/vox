@@ -18,6 +18,9 @@ env:
   CARGO_LOCKED: true
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: read
+
 jobs:
   cargo-mutants:
     name: cargo-mutants (vox-compiler)

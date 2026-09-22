@@ -1059,13 +1059,9 @@ fn step_workflow_concurrency_guard(root: &Path) -> Result<()> {
 }
 
 fn step_workflow_permissions_guard(root: &Path) -> Result<()> {
-    // Advisory (strict=false), unlike its concurrency sibling: only 19 of 45
-    // workflows currently declare a top-level `permissions:` block, so strict
-    // here would block every contributor's pre-push on a pre-existing backlog.
-    // Warning-only still makes the gate real — it runs, and a NEW workflow
-    // without a block is named on the next push. Flip to `true` once the
-    // backlog is cleared.
-    vox_cli_ci::workflow_permissions_guard::run(root, false)
+    // Strict, like its concurrency sibling: every workflow now declares a
+    // top-level `permissions:` block, so a new one without it is a real error.
+    vox_cli_ci::workflow_permissions_guard::run(root, true)
 }
 
 fn step_check_links(root: &Path) -> Result<()> {

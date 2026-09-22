@@ -10,6 +10,9 @@ concurrency:
   group: os-compat-report
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   scan:
     name: OS compatibility scan (${{ matrix.label }})

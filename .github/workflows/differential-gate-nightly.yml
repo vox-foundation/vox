@@ -22,6 +22,9 @@ env:
   CARGO_LOCKED: true
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: read
+
 jobs:
   golden-differential-gate:
     name: golden_differential_gate (interp vs native, one generated crate)

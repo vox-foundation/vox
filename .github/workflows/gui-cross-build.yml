@@ -18,6 +18,9 @@ env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: read
+
 jobs:
   # Emit the build matrix: full Win/macOS/Ubuntu on every (nightly/dispatch) run.
   matrix-setup:

@@ -19,6 +19,9 @@ env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: read
+
 jobs:
   criterion-bench:
     name: criterion (vox-compiler, CR-E1)

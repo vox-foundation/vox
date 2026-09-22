@@ -14,11 +14,19 @@ concurrency:
                               # ceiling scenario a same-runner overlap would otherwise create —
                               # no separate file-level lock is needed for that failure mode.
 
+permissions:
+  contents: read
+
 jobs:
   live-eval:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
+      # PUSH_TOKEN prefers the SSOT_AUTOREGEN_TOKEN PAT, which is independent of this job's
+      # own token scope. contents: write is kept as a fallback so a GITHUB_TOKEN push still
+      # works gracefully if the PAT is ever rotated out — see ci.yml's ssot-autoregen job
+      # for the identical pattern and rationale. Without it the fallback would 403, and the
+      # push line's `|| echo ::warning::` would turn that into a silent green run.
       contents: write   # job-scoped override (workflow default is contents: read) to push results
     steps:
       # Pinned to the same immutable SHA ci.yml's ssot-autoregen job uses for actions/checkout,

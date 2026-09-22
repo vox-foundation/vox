@@ -14,6 +14,9 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+
 jobs:
   cross-check:
     name: Cross-Platform (Win/macOS/Ubuntu)

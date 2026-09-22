@@ -34,6 +34,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   # ── Gate that needs no Expo account: prove the generated app bundles. ──────
   bundle:
