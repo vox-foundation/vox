@@ -18,12 +18,13 @@ pub async fn run(
     url: Option<&str>,
     yes: bool,
     allow_unverified: bool,
+    force: bool,
 ) -> Result<()> {
     match (id, path, url) {
         (_, Some(dir), None) => install_from_path(dir, yes),
         (_, None, Some(u)) => install_from_url(u, yes, None, allow_unverified).await,
         (Some(plugin_id), None, None) => {
-            install_from_catalog(plugin_id, yes, allow_unverified).await
+            install_from_catalog(plugin_id, yes, allow_unverified, force).await
         }
         (None, None, None) => bail!("Specify a plugin id, --path <dir>, or --url <url>"),
         (Some(_), Some(_), _) | (_, Some(_), Some(_)) => {
@@ -54,6 +55,28 @@ fn validate_path_component(kind: &str, value: &str) -> Result<()> {
         bail!("plugin {kind} {value:?} contains {bad:?}; allowed: A-Z a-z 0-9 . - _");
     }
     Ok(())
+}
+
+/// Refuse to install a plugin whose declared `requires-tag` the host does not
+/// satisfy (e.g. `mens-candle-cuda` on a host with no CUDA driver), unless
+/// `force` overrides it. Split out as pure logic — taking an already-probed
+/// [`vox_plugin_host::CapabilitySet`] rather than probing itself — so it is
+/// unit-testable on any host regardless of actual hardware.
+fn check_platform_compatibility(
+    id: &str,
+    requires_tag: Option<&str>,
+    caps: &vox_plugin_host::CapabilitySet,
+    force: bool,
+) -> Result<()> {
+    if force || caps.satisfies(requires_tag) {
+        return Ok(());
+    }
+    let tag = requires_tag.unwrap_or("<none>");
+    bail!(
+        "plugin '{id}' requires capability '{tag}', which this host does not have — \
+         installing it would produce a plugin that cannot run here. Pass --force to \
+         install anyway."
+    );
 }
 
 /// Copy plugin files from `src_dir` (must contain Plugin.toml) into the install root.
@@ -603,12 +626,31 @@ fn local_fallback_enabled() -> bool {
 }
 
 /// Resolve `id` in the catalog, parse default-source, and install.
-async fn install_from_catalog(id: &str, yes: bool, allow_unverified: bool) -> Result<()> {
+async fn install_from_catalog(
+    id: &str,
+    yes: bool,
+    allow_unverified: bool,
+    force: bool,
+) -> Result<()> {
     let catalog = vox_plugin_catalog::all_plugins();
     let entry = catalog
         .iter()
         .find(|p| p.id == id)
         .with_context(|| format!("Plugin '{}' not found in catalog", id))?;
+
+    // Refuse a plugin the host cannot run (e.g. a CUDA backend with no CUDA
+    // driver) before touching the network or the filesystem. Checked here,
+    // not just by `vox plugin doctor` after the fact, because "installed but
+    // unusable" is the exact bug this guards: `entry.requires_tag` and the
+    // host capability probe already exist for MlBackend selection
+    // (vox-plugin-host::capability); this reuses them instead of installing
+    // first and finding out never works.
+    check_platform_compatibility(
+        id,
+        entry.requires_tag.as_deref(),
+        &vox_plugin_host::probe(),
+        force,
+    )?;
 
     let source = &entry.default_source;
 
@@ -1019,7 +1061,10 @@ version = \"../../..\"
         // longer exercise the `local:` refusal this test exists to guard --
         // and routing them here would make a live network call from a unit
         // test. nvml-probe is still a `local:` entry in catalog.toml.
-        let err = install_from_catalog("nvml-probe", true, false)
+        // force=true: nvml-probe requires-tag "nvidia-gpu", which this test
+        // host does not have; this test exercises the local-source opt-in
+        // refusal, not the platform-compatibility gate, so bypass it.
+        let err = install_from_catalog("nvml-probe", true, false, true)
             .await
             .expect_err("a CWD-relative local: source must not install by default");
         let m = err.to_string();
@@ -1066,6 +1111,42 @@ version = \"../../..\"
     }
 
     #[test]
+    fn platform_check_refuses_a_missing_capability_without_force() {
+        let caps = vox_plugin_host::CapabilitySet::from_tags(["cpu-only", "apple-silicon"]);
+        let err =
+            check_platform_compatibility("mens-candle-cuda", Some("nvidia-gpu"), &caps, false)
+                .expect_err("a CUDA plugin must be refused on a host with no CUDA capability");
+        let m = err.to_string();
+        assert!(
+            m.contains("nvidia-gpu"),
+            "error must name the missing capability: {m}"
+        );
+        assert!(m.contains("--force"), "error must name the override: {m}");
+    }
+
+    #[test]
+    fn platform_check_allows_a_missing_capability_with_force() {
+        let caps = vox_plugin_host::CapabilitySet::from_tags(["cpu-only"]);
+        check_platform_compatibility("mens-candle-cuda", Some("nvidia-gpu"), &caps, true)
+            .expect("--force must override the platform-compatibility check");
+    }
+
+    #[test]
+    fn platform_check_allows_a_matching_capability_without_force() {
+        let caps =
+            vox_plugin_host::CapabilitySet::from_tags(["cpu-only", "apple-silicon", "metal"]);
+        check_platform_compatibility("mens-candle-metal", Some("apple-silicon"), &caps, false)
+            .expect("a Metal plugin must be allowed on a host with apple-silicon");
+    }
+
+    #[test]
+    fn platform_check_always_allows_a_plugin_with_no_requires_tag() {
+        let caps = vox_plugin_host::CapabilitySet::from_tags(["cpu-only"]);
+        check_platform_compatibility("oratio", None, &caps, false)
+            .expect("a plugin with no requires-tag must never be blocked by the platform check");
+    }
+
+    #[test]
     fn missing_hash_is_refused_by_default() {
         let err = verify_plugin_archive(PAYLOAD, None, false, "https://example/p.zip")
             .expect_err("an unverifiable plugin must not install");
@@ -1093,7 +1174,7 @@ version = \"../../..\"
         // which set and remove the same process-global variable.
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
-        let err = install_from_catalog("oratio", true, false)
+        let err = install_from_catalog("oratio", true, false, false)
             .await
             .expect_err("unpinned catalog entry must not install");
         let m = err.to_string();
