@@ -119,3 +119,79 @@ fn generated_notes_app_builds_outside_vox_checkout() {
         String::from_utf8_lossy(&output.stderr),
     );
 }
+
+/// Vox types every `db.T.<op>` as a `Result`, so `db.T.insert(...)?` is valid
+/// Vox. Codegen already unwraps the op itself (inner `.await?` in mutations,
+/// `.expect` elsewhere), so an extra `?` from the Vox-level `Try` was applied
+/// to `()` / `usize` / `Option<Row>` and failed with E0277. Ids are literals
+/// because mutation params currently bind as `serde_json::Value`, not `i64`.
+#[test]
+#[ignore = "slow; runs nested cargo check outside the repo (~30s+); owner: codegen sunset: never; use --include-slow or CI"]
+fn generated_db_write_mutations_with_try_compile() {
+    let src = r#"
+        table Note {
+            title: str
+            body: str
+        }
+
+        mutation add_note(title: str, body: str) to Result[int] {
+            let id = db.Note.insert({ title: title, body: body })?
+            return Ok(id)
+        }
+
+        mutation add_note_discard(title: str, body: str) to Result[str] {
+            db.Note.insert({ title: title, body: body })?
+            return Ok("added")
+        }
+
+        mutation rename_note(title: str) to Result[str] {
+            db.Note.update(1, { title: title, body: "" })?
+            return Ok("renamed")
+        }
+
+        mutation remove_note() to Result[str] {
+            db.Note.delete(1)?
+            return Ok("removed")
+        }
+
+        mutation note_exists() to Result[bool] {
+            let found = db.Note.get(1)?
+            return Ok(found.is_some())
+        }
+    "#;
+    let ast = parse(lex(src)).expect("parse");
+    let hir = lower_module(&ast);
+    let out = generate(&hir, "notes_try_gen", RustAppShell::AxumLocalServer).expect("generate");
+
+    let uniq = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let scratch = std::env::temp_dir().join(format!("vox_codegen_db_try_test_{uniq}"));
+    let pkg = scratch.join("notes_try_gen");
+    fs::create_dir_all(pkg.join("src")).expect("mkdir");
+    let _cleanup = CleanupScratch(scratch.clone());
+    for (rel, contents) in &out.files {
+        let path = pkg.join(rel);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("mkdir parent");
+        }
+        fs::write(path, contents).expect("write");
+    }
+
+    let cargo_bin = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+    let output = Command::new(cargo_bin)
+        .current_dir(&pkg)
+        .args(["check", "-q"])
+        .output()
+        .expect("spawn cargo check");
+    assert!(
+        output.status.success(),
+        "cargo check failed for generated db-write mutations:\nsrc/main.rs:\n{}\nstderr:\n{}",
+        out.files
+            .get("src/main.rs")
+            .map(String::as_str)
+            .unwrap_or("<missing>"),
+        String::from_utf8_lossy(&output.stderr),
+    );
+}
