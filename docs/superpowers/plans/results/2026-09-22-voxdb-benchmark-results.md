@@ -11,4 +11,8 @@ Rust toolchain: rustc 1.98.1 (48a229cea 2026-09-01)
 | `turso_pooled_connection_insert` | 30.821 µs |
 | `rusqlite_insert` | 1.6965 µs |
 
+*Table values are Criterion's reported mean across 100 samples.*
+
+**Note on pooled vs. shared latency gap:** `turso_pooled_connection_insert` (30.821 µs) measures connection acquisition (`VoxDbPool::get()` invoking `connect()` + `apply_pragmas()`) plus the insert operation on every iteration, whereas `turso_shared_connection_insert` (11.359 µs) times only the insert operation on an already-open connection. The ~2.7× gap reflects connection-acquisition overhead, not a difference in insert speed. Task 5's concurrent-write throughput harness acquires a pooled connection once per task and reuses it across multiple writes, so its numbers do not pay this per-operation cost and are not directly comparable to this latency table.
+
 HTML report: `target/criterion/report/index.html`
