@@ -5,7 +5,7 @@
 fn github_ci_doc_inventory_is_rust() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     assert!(
         yml.contains("ci command-compliance") || yml.contains("ci ssot-drift"),
@@ -25,7 +25,7 @@ fn github_ci_doc_inventory_is_rust() {
 fn github_ci_populi_gate_is_unified() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     assert!(
         yml.contains("ci mens-gate --profile ci_full"),
@@ -41,7 +41,7 @@ fn github_ci_populi_gate_is_unified() {
 fn github_ci_no_duplicate_mens_populi_gate_tests_after_manifest() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     if yml.contains("ci mens-gate --profile ci_full") {
         assert!(
@@ -59,7 +59,7 @@ fn github_ci_no_duplicate_mens_populi_gate_tests_after_manifest() {
 fn github_ci_runs_llvm_cov_and_coverage_gates() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     assert!(
         yml.contains("cargo llvm-cov nextest --workspace"),
@@ -79,12 +79,8 @@ fn github_ci_runs_llvm_cov_and_coverage_gates() {
 fn linux_ci_runs_workspace_tests_and_windows_stack_wrappers_stay_cfg_gated() {
     let ci = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
-    assert!(
-        ci.contains("runs-on: [self-hosted, linux, x64]"),
-        "ci.yml should keep the main test job on the Linux self-hosted runner"
-    );
     assert!(
         ci.contains("cargo llvm-cov nextest --workspace")
             && ci.contains("cargo nextest run --workspace"),
@@ -332,7 +328,7 @@ fn gui_cross_build_covers_three_os_with_webkit() {
 fn selective_ci_setup_exports_affected_outputs() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     for key in [
         "affected_crates:",
@@ -350,27 +346,10 @@ fn selective_ci_setup_exports_affected_outputs() {
 }
 
 #[test]
-fn selective_ci_shadow_comparator_on_merge_group() {
-    let yml = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
-    ));
-    assert!(
-        yml.contains("--shadow-junit"),
-        "ci.yml should run affected shadow comparator"
-    );
-    assert!(
-        yml.contains("github.event_name == 'merge_group'")
-            && yml.contains("continue-on-error: true"),
-        "shadow comparator should be merge_group advisory (continue-on-error)"
-    );
-}
-
-#[test]
 fn selective_ci_fail_closed_on_empty_affected() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     assert!(
         yml.contains("rust_changed=true but git diff produced no changed files"),
@@ -386,7 +365,7 @@ fn selective_ci_fail_closed_on_empty_affected() {
 fn selective_ci_fail_closed_on_docs_only_empty_affected() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     assert!(
         yml.contains("docs_changed with empty affected set"),
@@ -414,7 +393,7 @@ fn selective_ci_workflow_changes_force_rust_gate() {
 fn selective_ci_toestub_minimal_default_when_empty() {
     let yml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../.github/workflows/ci.yml"
+        "/../../.github/workflows/nightly.yml"
     ));
     assert!(
         yml.contains("toestub-scoped --mode enforce-warn crates/vox-repository"),
@@ -458,6 +437,22 @@ fn check_targets_declares_pr_scope() {
             "check-targets must include pr_scope: {scope}"
         );
     }
+}
+
+#[test]
+fn ci_gate_is_hosted_capped_and_owns_required_context() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(yml.contains("name: Check, Build, and Test (Rust)"));
+    assert!(yml.contains("runs-on: ubuntu-latest"));
+    assert!(yml.contains("timeout-minutes: 30"));
+    assert!(!yml.contains("self-hosted"));
+    assert!(
+        yml.contains("sed 's/-p vox-gui//g'"),
+        "affected args must never build vox-gui"
+    );
 }
 
 #[test]

@@ -1,0 +1,1894 @@
+name: CI
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  CARGO_TERM_COLOR: always
+  # Self-hosted runner image sets RUSTC_WRAPPER; repeat here for non-container jobs.
+  RUSTC_WRAPPER: sccache
+  SCCACHE_DIR: /cache/sccache
+  # W1: sccache caches nothing under incremental compilation (cargo's dev/test
+  # default). Without this the gate 0%-hits sccache. Siblings already pin it
+  # (cross-platform-check.yml, ci-fallback-hosted.yml). Guarded by the unit test
+  # `sccache_workflow_guard::all_sccache_workflows_pin_incremental`.
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  # Setup: cache warmup + path-filter computation.  Path-filter outputs let
+  # downstream jobs skip Rust-specific steps on docs-only PRs.
+  #
+  # rust_changed = "true"  → any file under crates/** or Cargo.* changed.
+  # docs_changed = "true"  → any file under docs/** or contracts/** changed.
+  #
+  # On push:main both are always treated as "true" so we never skip gates on
+  # the integration branch.  On PRs the filter is computed from the diff.
+  setup:
+    name: Cache warmup + path filter
+    # `x64` deliberately dropped from the label set. There were never any
+    # runners matching [self-hosted, linux, x64] — `gh api .../actions/runners`
+    # returns total_count 0 — which is why ci.yml has never once succeeded and
+    # why 157 of its last 200 runs were cancelled after waiting out GitHub's
+    # 24h assignment timeout. Requiring [self-hosted, linux] lets an arm64
+    # Linux runner take these jobs, which is what the local fleet now is
+    # (Apple silicon under colima, native rather than Rosetta-emulated —
+    # emulated compilation of 136 crates is slow enough to defeat the point).
+    #
+    # x64 coverage is not lost: cross-platform-check builds x86_64 on
+    # GitHub-hosted runners with zero queue, and is the lane that should carry
+    # the arch guarantee.
+    runs-on: [self-hosted, linux]
+    # Cold `cargo build -p vox-cli` on ephemeral runners (no actions/cache hit)
+    # routinely exceeds 20m; fail-closed at 40m so downstream gates are not skipped.
+    timeout-minutes: 40
+    outputs:
+      cache-key: ${{ steps.k.outputs.key }}
+      rust_changed: ${{ steps.filter.outputs.rust }}
+      docs_changed: ${{ steps.filter.outputs.docs }}
+      full: ${{ steps.affected.outputs.full }}
+      affected_crates: ${{ steps.affected.outputs.affected_crates }}
+      affected_p_args: ${{ steps.affected.outputs.affected_p_args }}
+      affects_compiler: ${{ steps.affected.outputs.affects_compiler }}
+      affects_golden: ${{ steps.affected.outputs.affects_golden }}
+      affects_gui: ${{ steps.affected.outputs.affects_gui }}
+      affects_web: ${{ steps.affected.outputs.affects_web }}
+      affects_plugins: ${{ steps.affected.outputs.affects_plugins }}
+      affects_contracts: ${{ steps.affected.outputs.affects_contracts }}
+      affects_scripts: ${{ steps.affected.outputs.affects_scripts }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Compute path-filters.  On merge_group (the integration path) always emit
+      # true so we never skip gates on the integration branch.
+      # (merge_group has no github.base_ref, so the PR-style diff below would be
+      # meaningless and could skip `tests` — fail-closed by running everything.)
+      - id: filter
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
+            echo "rust=true"  >> "$GITHUB_OUTPUT"
+            echo "docs=true"  >> "$GITHUB_OUTPUT"
+          else
+            # Fetch base ref so the diff is meaningful.
+            git fetch origin "${{ github.base_ref }}" --depth=256 2>/dev/null || true
+            BASE="origin/${{ github.base_ref }}"
+            CHANGED=$(git diff --name-only "${BASE}...HEAD" 2>/dev/null || git diff --name-only HEAD~1...HEAD)
+            if echo "$CHANGED" | grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|\.github/workflows/)'; then
+              echo "rust=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "rust=false" >> "$GITHUB_OUTPUT"
+            fi
+            if echo "$CHANGED" | grep -qE '^(docs/|contracts/|AGENTS\.md|CONTRIBUTING\.md|README\.md)'; then
+              echo "docs=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "docs=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - id: rust
+        uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+          # This job hand-rolls its own cache below so the resulting key can be
+          # exported as `cache-key` for the six downstream gating jobs to
+          # reuse (they don't each call setup-rust's own cache — that would
+          # give each job an independent, non-shared cache entry). Disable
+          # setup-rust's internal cache to avoid two caches writing the same
+          # paths under two different steps.
+          cache: "false"
+
+      - id: k
+        run: echo "key=${{ runner.os }}-cargo-${{ steps.rust.outputs.toolchain }}-${{ hashFiles('Cargo.lock') }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ steps.k.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ steps.rust.outputs.toolchain }}-
+      - name: Install system deps (dbus, required by wry/keyring on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+      - name: Build vox-cli (warms sccache + downstream artifact)
+        # Includes the off-by-default features whose code is otherwise never compiled
+        # in CI (extras-ludus/ars/coderabbit) so they can't silently drift against
+        # moved APIs — see the ludus/vox-db identity drift (2026-06-30).
+        run: cargo build -p vox-cli --locked --features completion-toestub,extras-ludus,ars,coderabbit
+
+      # pull_request: map diff → affected crate closure via committed graph SSOT.
+      # merge_group: authoritative full gate (no PR base ref; closes feature-unification gap).
+      - id: affected
+        name: Compute affected crates
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=256 2>/dev/null || true
+            BASE="origin/${{ github.base_ref }}"
+            if ! git diff --name-only "${BASE}...HEAD" > /tmp/changed.txt 2>/dev/null; then
+              git diff --name-only HEAD~1...HEAD > /tmp/changed.txt
+            fi
+            if [ ! -s /tmp/changed.txt ] && [ "${{ steps.filter.outputs.rust }}" = "true" ]; then
+              echo "::error::rust_changed=true but git diff produced no changed files — fail-closed to full workspace"
+              echo "full=true" >> "$GITHUB_OUTPUT"
+              echo "affected_crates=" >> "$GITHUB_OUTPUT"
+              echo "affected_p_args=" >> "$GITHUB_OUTPUT"
+              echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+              echo "affects_golden=false" >> "$GITHUB_OUTPUT"
+              echo "affects_contracts=false" >> "$GITHUB_OUTPUT"
+              echo "affects_scripts=false" >> "$GITHUB_OUTPUT"
+              echo "affects_gui=false" >> "$GITHUB_OUTPUT"
+              echo "affects_web=false" >> "$GITHUB_OUTPUT"
+              echo "affects_plugins=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
+              --graph contracts/ci/crate-graph.v1.json --github-output "$GITHUB_OUTPUT"
+            if [ "${{ steps.filter.outputs.rust }}" = "true" ] \
+              && [ "$(grep -E '^full=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)" = "false" ] \
+              && [ -z "$(grep -E '^affected_crates=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2 | xargs)" ]; then
+              echo "::warning::rust_changed with empty affected set — upgrading to full=true (fail-closed)"
+              echo "full=true" >> "$GITHUB_OUTPUT"
+              echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+            fi
+            if [ "${{ steps.filter.outputs.docs }}" = "true" ] \
+              && [ "$(grep -E '^full=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)" = "false" ] \
+              && [ -z "$(grep -E '^affected_crates=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2 | xargs)" ]; then
+              echo "::warning::docs_changed with empty affected set — upgrading to full=true (fail-closed)"
+              echo "full=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "full=true" >> "$GITHUB_OUTPUT"
+            echo "affects_compiler=true" >> "$GITHUB_OUTPUT"
+            echo "affects_golden=true" >> "$GITHUB_OUTPUT"
+            echo "affects_contracts=true" >> "$GITHUB_OUTPUT"
+            echo "affects_scripts=true" >> "$GITHUB_OUTPUT"
+            echo "affects_gui=true" >> "$GITHUB_OUTPUT"
+            echo "affects_web=true" >> "$GITHUB_OUTPUT"
+            echo "affects_plugins=true" >> "$GITHUB_OUTPUT"
+            git diff --name-only HEAD~1...HEAD > /tmp/changed.txt
+            ./target/debug/vox ci affected-crates --changed /tmp/changed.txt \
+              --graph contracts/ci/crate-graph.v1.json \
+              | grep -E '^(affected_crates|affected_p_args)=' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log selective CI plan
+        shell: bash
+        run: |
+          {
+            echo "### Selective CI (setup)"
+            echo "- event: ${{ github.event_name }}"
+            echo "- rust_changed: ${{ steps.filter.outputs.rust }}"
+            echo "- docs_changed: ${{ steps.filter.outputs.docs }}"
+            echo "- full: ${{ steps.affected.outputs.full }}"
+            echo "- affected_crates: ${{ steps.affected.outputs.affected_crates }}"
+            echo "- affects_compiler: ${{ steps.affected.outputs.affects_compiler }}"
+            echo "- affects_golden: ${{ steps.affected.outputs.affects_golden }}"
+            echo "- affects_contracts: ${{ steps.affected.outputs.affects_contracts }}"
+            echo "- affects_scripts: ${{ steps.affected.outputs.affects_scripts }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload vox-cli binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: vox-cli-bin
+          path: target/debug/vox
+          if-no-files-found: error
+
+  # Toolchain-bump lint-wave gate (NON-required). Every `rust-toolchain.toml` bump introduces
+  # new clippy/rustdoc lints that fire workspace-wide; on the self-hosted fleet the persisted
+  # `target/` + sccache MASK them, so they land and need a cleanup commit (the #1 perennial in
+  # the 528-fix-commit scan). This job runs a FRESH (cache-defeated) clippy+rustdoc ONLY when
+  # rust-toolchain.toml changed in the PR, surfacing the wave in the bumping PR. Nothing
+  # `needs:` it, so it can never block the required "Check, Build, and Test (Rust)" gate.
+  toolchain-lint-wave:
+    name: Fresh clippy+rustdoc on toolchain bump
+    needs: setup
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Detect rust-toolchain.toml change
+        id: tc
+        shell: bash
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1 || true
+          # -F (fixed string) so the '.' is literal; -x (whole line) so only the root file matches.
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qxF 'rust-toolchain.toml'; then
+            echo "rust-toolchain.toml changed — running fresh clippy+rustdoc"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rust-toolchain.toml unchanged — skipping the cold rebuild"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: ./.github/actions/setup-rust
+        if: steps.tc.outputs.changed == 'true'
+        with:
+          components: rustfmt, clippy
+      - name: Fresh clippy + rustdoc (cache + sccache defeated so the new toolchain re-evaluates)
+        if: steps.tc.outputs.changed == 'true'
+        env:
+          CARGO_INCREMENTAL: "0"
+          # Bypass sccache: a cache hit would serve old-toolchain results and hide new lints.
+          RUSTC_WRAPPER: ""
+        run: |
+          set -euo pipefail
+          # Belt-and-suspenders: explicitly unset (the env "" above overrides the workflow-level
+          # sccache, and this guarantees cargo sees no wrapper regardless of GHA env semantics).
+          unset RUSTC_WRAPPER
+          cargo clean
+          # Allowlist MUST stay in lockstep with the `lints` job's clippy step below.
+          cargo clippy --workspace --all-targets --exclude vox-gui -- \
+            -D warnings \
+            -A clippy::items_after_test_module \
+            -A clippy::collapsible_match \
+            -A clippy::collapsible_if \
+            -A clippy::should_implement_trait \
+            -A clippy::doc_overindented_list_items \
+            -A clippy::doc_lazy_continuation
+          RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
+
+  guards-fast:
+    name: Guards (fast)
+    needs: setup
+    # Tiered off merge_group (2026-07-08): DEFAULT_MAX_RUNNERS dropped 6->2 to
+    # stop runner containers being memcg-OOM-killed (measured ~12GB build peak
+    # against the old 5GB budget -- see docs/superpowers/specs/2026-07-07-ci-
+    # runner-memory-budget-and-oom-visibility-design.md). The merge_group fan-
+    # out guard (merge_group_fanout_guard.rs) requires the self-hosted lane fit
+    # in one wave; `tests` was kept as the merge-queue-specific check (catches
+    # integration issues between independently-reviewed PRs), this job already
+    # ran on the PR itself before it entered the queue.
+    if: github.event_name != 'merge_group'
+    runs-on: [self-hosted, linux]
+    # Raised from 15: the added GTK/dbus apt-get install + pnpm install (for the
+    # GUI honesty gate) can eat most of a 15-min budget on a cold self-hosted
+    # runner before the guards themselves even start.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt, clippy
+          cache: "false"
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Crate version inheritance (no hardcoded versions)
+        run: |
+          if grep -rnE '^version\s*=\s*"[^"]+"' crates/*/Cargo.toml; then
+            echo "::error::Found hardcoded versions in crate Cargo.toml files. Use 'version.workspace = true'."
+            exit 1
+          fi
+
+      - name: Line endings (forward-only)
+        run: ./target/debug/vox --quiet ci line-endings
+
+      - name: BOM check (no UTF-8 byte-order marks in tracked files)
+        run: ./target/debug/vox --quiet ci bom-check
+
+      - name: Workspace manifest resolves (fix-forward guard)
+        run: ./target/debug/vox --quiet ci manifest
+
+      - name: Format Check
+        if: needs.setup.outputs.full == 'true' || needs.setup.outputs.rust_changed == 'true'
+        # Per-manifest, NOT `cargo fmt --all`: the latter passes every crate's
+        # target root to one rustfmt process, overflowing the Windows
+        # CreateProcess command-line limit (os error 206) on this large
+        # workspace. The per-manifest form keeps each invocation tiny and stays
+        # identical on Linux/macOS/Windows runners. Local writer: `vox run
+        # scripts/fmt.vox`. See AGENTS.md "Formatting Rust (Windows-safe)".
+        #
+        # RUSTUP_TOOLCHAIN is unset here so cargo reads rust-toolchain.toml
+        # instead of any override the ./.github/actions/setup-rust step above
+        # left in the environment. Format check must use the pinned toolchain
+        # to match local dev.
+        shell: bash
+        env:
+          RUSTUP_TOOLCHAIN: ""
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          CRATES="${{ needs.setup.outputs.affected_crates }}"
+          fail=0
+          # Crates the root Cargo.toml `[workspace] exclude`s (keep in sync). Each has no
+          # workspace root of its own, so `cargo fmt --manifest-path` can't resolve their
+          # `edition.workspace = true` / `version.workspace = true` and errors with
+          # "failed to find a workspace root" — not a real format violation.
+          is_excluded_crate() {
+            case "$1" in
+              vox-cargo-shim|vox-plugin-cloud|vox-plugin-skill-compiler|vox-plugin-skill-git|\
+              vox-plugin-skill-memory|vox-plugin-skill-orchestrator|vox-plugin-skill-rag|\
+              vox-plugin-skill-testing|vox-plugin-skill-testing-validate) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+          if [ "$FULL" = "true" ]; then
+            for m in crates/*/Cargo.toml; do
+              c="$(basename "$(dirname "$m")")"
+              is_excluded_crate "$c" && continue
+              cargo fmt --manifest-path "$m" -- --check || fail=1
+            done
+          elif [ -z "$CRATES" ]; then
+            echo "No affected crates — skipping format check."
+            exit 0
+          else
+            for c in $CRATES; do
+              is_excluded_crate "$c" && continue
+              m="crates/${c}/Cargo.toml"
+              if [ -f "$m" ]; then
+                cargo fmt --manifest-path "$m" -- --check || fail=1
+              fi
+            done
+          fi
+          if [ "$fail" != 0 ]; then
+            echo "::error::rustfmt found unformatted files — run 'vox run scripts/fmt.vox' to fix"
+            exit 1
+          fi
+
+      - name: Install cargo-deny + cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny,cargo-audit
+
+      - name: Warm cargo-deny advisory DB (shared volume)
+        run: mkdir -p /cache/advisory-db && cargo deny fetch
+
+      - name: Dependency licenses + advisories (cargo-deny)
+        run: cargo deny check
+
+      - name: RustSec advisories (cargo-audit)
+        run: cargo audit
+
+      - name: Install cargo-shear + cargo-outdated (informational)
+        if: needs.setup.outputs.full == 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-shear,cargo-outdated
+
+      - name: Unused dependency scan (cargo-shear, non-blocking)
+        if: needs.setup.outputs.full == 'true'
+        continue-on-error: true
+        run: cargo shear
+
+      - name: Outdated crates report (cargo-outdated, non-blocking)
+        if: needs.setup.outputs.full == 'true'
+        continue-on-error: true
+        run: cargo outdated --workspace
+
+      - name: Retired symbol documentation guard
+        run: ./target/debug/vox --quiet ci retired-symbol-check
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install vox-gui/ui deps (for gui-honesty's tsc/vitest checks)
+        run: |
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
+
+      - name: GUI honesty gate
+        run: cargo run -p vox-cli -- ci gui-honesty
+
+      # contracts-index, exec-policy, scientia contracts, plugin-catalog run inside ssot-drift.
+      - name: SSOT drift bundle (operations-verify, sql-surface + query-all --all, capability-sync, nested guards)
+        run: ./target/debug/vox --quiet ci ssot-drift
+
+      # Config registry gates — must run after vox binary is built (above).
+      # config-hygiene: A/B/C checks + 116-row baseline (no new hardcoded values).
+      # config-registry-parity: every VOX_* env read must be a CONFIG_KEYS row (698-row baseline).
+      # config-gui-codegen --check: generated TS settings index must match CONFIG_KEYS.
+      # config-gui-codegen --fields --check: generated Rust FIELDS must match CONFIG_KEYS.
+      - name: Config hygiene + registry parity + GUI codegen drift
+        run: |
+          ./target/debug/vox --quiet ci config-hygiene
+          ./target/debug/vox --quiet ci config-registry-parity
+          ./target/debug/vox --quiet ci config-gui-codegen --check
+          ./target/debug/vox --quiet ci config-gui-codegen --fields --check
+
+      - name: Determinism Audit
+        run: ./target/debug/vox --quiet ci determinism-audit
+
+      - name: Dependency Sprawl Check
+        run: ./target/debug/vox --quiet ci dep-sprawl --cap 25
+
+      - name: Plugin Dependency Boundary (cdylib plugins must not link the spine)
+        run: ./target/debug/vox --quiet ci plugin-dep-boundary
+
+      - name: No cdylib plugin as a compile-time dependency (D-2)
+        run: ./target/debug/vox --quiet ci no-plugin-cdylib-as-compile-dep
+
+      # Builds every current-platform plugin cdylib (default/CPU features), then loads each
+      # through the host loader to assert its embedded ABI version matches the host. Catches a
+      # plugin drifting from VOX_PLUGIN_ABI_VERSION (e.g. an SDK/ABI bump that wasn't rebuilt).
+      - name: Plugin ABI parity (build + load every plugin)
+        if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true' || needs.setup.outputs.affects_plugins == 'true'
+        run: ./target/debug/vox --quiet ci plugin-abi-parity --build
+
+      - name: Profile parity (lean CLI crate budget)
+        if: needs.setup.outputs.full == 'true'
+        run: cargo run -p vox-cli -- ci profile-parity
+        continue-on-error: true
+
+      - name: Dynamic Workspace Health Audit
+        run: ./target/debug/vox run --interp scripts/quality/audit-workspace-health.vox
+
+      - name: Telemetry-Driven Architectural Audit
+        run: ./target/debug/vox run --interp scripts/quality/audit-telemetry.vox
+
+      - name: Secrets SSOT parity + secret direct-read guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/debug/vox --quiet ci secrets-parity
+          # Meaningful diff scope on clean checkouts (default `git diff HEAD` scans nothing in CI).
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=256
+            export VOX_SECRET_GUARD_GIT_REF="origin/${{ github.base_ref }}...HEAD"
+          else
+            BEFORE="${{ github.event.before }}"
+            if [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || [ -z "$BEFORE" ]; then
+              export VOX_SECRET_GUARD_GIT_REF="HEAD~1...HEAD"
+            else
+              export VOX_SECRET_GUARD_GIT_REF="${{ github.event.before }}...${{ github.sha }}"
+            fi
+          fi
+          ./target/debug/vox --quiet ci secret-env-guard
+          export VOX_SECRETS_REQUIRE_COMPAT_SUNSET=1
+          export VOX_SECRETS_CUTOVER_PHASE=enforce
+          ./target/debug/vox --quiet ci secrets-cutover-gates
+
+      - name: OpenClaw + scaling policy SSOT (not in ssot-drift bundle)
+        run: |
+          ./target/debug/vox --quiet ci openclaw-contract
+          ./target/debug/vox --quiet ci scaling-audit verify
+
+      - name: Vox script check (clean-build-artifacts reference automation)
+        run: ./target/debug/vox --quiet check scripts/clean-build-artifacts.vox
+
+      - name: Vox script corpus check (all scripts/**/*.vox pass vox check)
+        shell: bash
+        run: |
+          set -euo pipefail
+          VOX_BIN="./target/debug/vox"
+          failed=0
+          while IFS= read -r f; do
+            if ! "$VOX_BIN" check "$f" 2>&1; then
+              echo "FAIL: $f"
+              failed=$((failed + 1))
+            fi
+          done < <(find scripts -name "*.vox" | sort)
+          if [ "$failed" -gt 0 ]; then
+            echo "ERROR: $failed script(s) failed vox check. All scripts/**/*.vox must pass."
+            exit 1
+          fi
+          echo "OK: all scripts/**/*.vox pass vox check."
+
+      - name: Workflow scripts allowlist
+        run: ./target/debug/vox --quiet ci workflow-scripts
+
+      - name: Script hygiene (.vox-only automation)
+        run: ./target/debug/vox --quiet ci script-hygiene
+
+      - name: Doc inventory matches generator (Rust)
+        run: ./target/debug/vox --quiet ci doc-inventory verify
+
+      - name: Docs — no stale `tanstack_start.rs` compiler path
+        if: needs.setup.outputs.docs_changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "crates/vox-compiler/src/codegen_ts/tanstack_start\\.rs" docs/src; then
+            echo "docs must not reference removed tanstack_start.rs; use route_manifest / vox_client / scaffold"
+            exit 1
+          fi
+
+      - name: Docs — no ghost references to retired HTMX / Pico / TanStack-virtual-routes (G.73)
+        if: needs.setup.outputs.docs_changed == 'true'
+        # Audit item G.73: retired surfaces must not appear in normative docs.
+        # Allowlist: the audit-findings doc and archive/ may reference them for historical context.
+        shell: bash
+        run: |
+          set -euo pipefail
+          RETIRED_HITS=$(rg -in \
+            "\bhtmx\b|picocss|pico\.css|tanstack.*virtual.route" \
+            docs/src \
+            --glob "*.md" \
+            --ignore-file .voxignore \
+            -l \
+            | grep -v 'docs/src/archive/' \
+            | grep -v 'comprehensive-audit-findings' \
+            || true)
+          if [ -n "$RETIRED_HITS" ]; then
+            echo "Retired surface references found in normative docs:"
+            echo "$RETIRED_HITS"
+            echo "Move HTMX/Pico/TanStack-virtual-routes content to docs/src/archive/ or remove."
+            exit 1
+          fi
+          echo "No ghost retired-surface references in normative docs."
+
+      - name: Web TS codegen — forbidden legacy RPC shims in sources
+        if: needs.setup.outputs.docs_changed == 'true' || needs.setup.outputs.affects_compiler == 'true' || needs.setup.outputs.affects_web == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "createServerFn\\(" crates/vox-codegen-ts/src; then
+            echo "createServerFn must not appear in vox-codegen-ts sources"
+            exit 1
+          fi
+
+      - name: Normative docs — @query is GET (no POST /api/query claims)
+        if: needs.setup.outputs.docs_changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "POST /api/query" docs/src/reference docs/src/api docs/src/architecture docs/src/how-to; then
+            echo "docs must not describe @query as POST /api/query"
+            exit 1
+          fi
+
+  lints:
+    name: Lints (clippy + rustdoc + TOESTUB-scoped + hakari + grammar)
+    needs: setup
+    # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
+    # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
+    if: github.event_name != 'merge_group'
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+          cache: "false"
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Rustdoc (deny warnings; full gate only)
+        if: needs.setup.outputs.full == 'true'
+        run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --exclude vox-gui --no-deps
+
+      - name: Lint Check (Clippy)
+        # Deny all lints (`-D warnings`) EXCEPT a small set of cosmetic/subjective
+        # style lints that fire broadly across the workspace under the pinned
+        # toolchain and add churn without correctness value:
+        #   - items_after_test_module   — `mod tests` placement (purely cosmetic)
+        #   - collapsible_match         — nested `if let`/`match` readability preference
+        #   - collapsible_if            — `if x { if let .. }` cannot collapse without
+        #                                 edition-2024 let-chains; flattening via tuple
+        #                                 patterns would change side-effect ordering
+        #   - should_implement_trait    — e.g. inherent `from_str` vs the `FromStr` trait
+        #   - doc_overindented_list_items / doc_lazy_continuation — rustdoc markdown nits
+        # Every correctness/suspicious/perf lint remains denied.
+        #
+        # vox-gui is excluded for the same reason as cross-platform-check.yml's
+        # `cargo check`: its Tauri `generate_context!()` needs the built frontend
+        # (`frontendDist = "ui/dist"`) at compile time, which this job does not
+        # produce. The full vox-gui build (incl. the pnpm frontend) is covered by
+        # release-gui.yml, so exclude it here rather than make the merge gate
+        # depend on stale on-runner `ui/dist` state.
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
+          CLIPPY_FLAGS=(
+            -D warnings
+            -A clippy::items_after_test_module
+            -A clippy::collapsible_match
+            -A clippy::collapsible_if
+            -A clippy::should_implement_trait
+            -A clippy::doc_overindented_list_items
+            -A clippy::doc_lazy_continuation
+          )
+          if [ "$FULL" = "true" ]; then
+            cargo clippy --workspace --all-targets --exclude vox-gui -- "${CLIPPY_FLAGS[@]}"
+          elif [ -z "$P_ARGS" ]; then
+            echo "No affected crates — skipping clippy."
+          else
+            # vox-gui breaks clippy --all-targets without a built frontend; strip it.
+            FILTERED=$(echo "$P_ARGS" | sed 's/-p vox-gui//g' | xargs)
+            if [ -z "$FILTERED" ]; then
+              echo "Affected set is only vox-gui — skipping clippy."
+            else
+              # shellcheck disable=SC2086
+              cargo clippy $FILTERED --all-targets -- "${CLIPPY_FLAGS[@]}"
+            fi
+          fi
+
+      # Scoped TOESTUB: enforce-warn mode — all 23 detectors, Warnings+ block.
+      # This aligns with the pre-commit tdd-guard (enforce-strict on skeleton
+      # rules) and pre-push toestub-scoped, giving one coherent severity model:
+      # every detector runs at its authored severity; callers choose min-severity.
+      - name: TOESTUB (scoped)
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          CRATES="${{ needs.setup.outputs.affected_crates }}"
+          if [ "$FULL" = "true" ]; then
+            ./target/debug/vox --quiet ci toestub-scoped --mode enforce-warn
+          elif [ -z "$CRATES" ]; then
+            echo "No affected crates — running TOESTUB on minimal default scope (crates/vox-repository)."
+            ./target/debug/vox --quiet ci toestub-scoped --mode enforce-warn crates/vox-repository
+          else
+            ROOTS=()
+            for c in $CRATES; do
+              ROOTS+=("crates/${c}")
+            done
+            ./target/debug/vox --quiet ci toestub-scoped --mode enforce-warn "${ROOTS[@]}"
+          fi
+
+      - name: Architecture / Code Drift Guard (TOESTUB)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1 || true
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^docs/src/architecture/"; then
+            echo "Architecture docs changed. Running full crates TOESTUB..."
+            ./target/debug/vox --quiet ci toestub-scoped crates --mode enforce-warn
+          else
+            echo "No architecture docs changed. Skipping full strict TOESTUB."
+          fi
+
+      - name: Toolchain SSoT Drift Guard
+        run: ./target/debug/vox --quiet ci toolchain-ssot
+
+      # These three guards shipped as CLI subcommands with unit tests but were
+      # wired into no workflow and no script, so none of them could ever fail
+      # in CI. release-draft-guard is the one that matters most: it enforces
+      # this repo's standing "never auto-publish a public GitHub release" rule,
+      # and unwired it would have let a future PR drop a `draft: true` with
+      # every lane staying green. They live here, in the same always-completing
+      # lane as the SSOT guards, because all three are static YAML reads that
+      # need no build.
+      - name: Release Draft Guard (no auto-published public releases)
+        run: ./target/debug/vox --quiet ci release-draft-guard
+
+      # The gate that guards the gate. See required_context_guard.rs: a job
+      # named for the required context posts that context even when SKIPPED,
+      # which GitHub counts as satisfied -- so the sole branch-protection
+      # check was being met one second after every push by a job designed
+      # never to run.
+      - name: Required Context Guard (only ci.yml may claim the gate)
+        run: ./target/debug/vox --quiet ci required-context-guard
+
+      - name: Toolchain Workflow Lint (all Rust installs via setup-rust)
+        run: ./target/debug/vox --quiet ci toolchain-workflow-lint
+
+      # Same contract as toolchain-ssot, for the two JS pins the SSOT already
+      # declares. Without this, `versions.node` / `versions.pnpm` can lie
+      # indefinitely while every workflow installs something else.
+      - name: Node/pnpm SSoT Guard (workflows match workspace-toolchain.v1.yaml)
+        run: ./target/debug/vox --quiet ci node-pnpm-ssot-guard
+
+      - name: Cache Key Lint
+        run: ./target/debug/vox --quiet ci cache-key-lint
+
+      # version_ssot.rs's own module doc claims drift here is "a CI failure
+      # rather than a release surprise" -- ssot_probe (no args, no --write)
+      # is the only place that check actually runs; wire it in next to the
+      # toolchain guard above so both SSOT checks live in the same
+      # always-completing lane instead of only in the workflow_dispatch-only
+      # release-prepare.yml (0 runs ever). Never pass --write here -- that is
+      # the release bump path and stays in release-prepare.yml.
+      - name: Version SSoT Drift Guard
+        run: cargo run -q -p vox-cli-ci --example ssot_probe
+
+      # Workspace-wide pattern drift check (6 rules: reqwest_bypass, vox_path_literal,
+      # timeout_literal, serde_default_dup, version_string, bearer_header).
+      # Previously pre-push only; now also in CI so pushes without lefthook installed
+      # don't bypass it.
+      - name: Workspace drift check (vox-drift-check)
+        run: cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning
+
+      - name: Verify Hakari (Workspace Dependency Determinism)
+        run: cargo hakari generate --diff
+
+      - name: Grammar export check (EBNF/GBNF/Lark/JSON-Schema non-empty)
+        run: ./target/debug/vox --quiet ci grammar-export-check
+
+  compiler-gates:
+    name: Compiler gates (WebIR + projection + golden examples + benches)
+    needs: setup
+    # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
+    # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
+    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_compiler == 'true')
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt, clippy
+          cache: "false"
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Test inventory snapshot drift gate
+        # Keep contracts/reports/test-inventory.v1.json in lockstep with the
+        # scanner output. This is a blocking check and should run after vox-cli
+        # builds so docs-only changes still validate deterministically.
+        run: ./target/debug/vox ci test-inventory --check contracts/reports/test-inventory.v1.json
+
+      - name: SPA scaffold manifest idempotency
+        run: cargo nextest run -p vox-cli --test scaffold_spa_manifest_idempotent
+
+      - name: Eval benchmark matrix contract + vox-cli GPU compile smoke
+        run: |
+          ./target/debug/vox --quiet ci eval-matrix verify
+          ./target/debug/vox --quiet ci eval-matrix run --milestone m3-dei-contracts
+          # GPU compile smoke = the actual GPU crate (the candle-cuda plugin), not
+          # `vox-cli --features gpu` (no such feature). `check` without the `cuda`
+          # feature compiles the plugin against CPU candle, so no CUDA toolchain needed.
+          cargo check -p vox-plugin-mens-candle-cuda
+
+      - name: WebIR structural validate gate (TS codegen path)
+        env:
+          VOX_WEBIR_VALIDATE: "1"
+        run: cargo nextest run -p vox-compiler --test web_ir_lower_emit_test --run-ignored ignored-only --no-capture
+
+      - name: Projection parity gate (WebIR + AppContract + RuntimeProjection)
+        env:
+          VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE: "0"
+        run: cargo nextest run -p vox-compiler --test projection_parity_test
+
+      - name: Pipeline parity grep-gate (no silent empty-string drops in emitters)
+        # Forbids `_ => String::new()` / `_ => "".to_string()` in HIR emitters.
+        # Each unsupported (Feature, Target) cell must use unsupported_diagnostic()
+        # to derive a code+message from the parity matrix. See §3.3 of the SSOT.
+        run: cargo nextest run -p vox-compiler --test parity_grep_gate
+
+      - name: Pipeline parity empirical smoke test (matrix cells vs real emitters)
+        # Drives HIR nodes through the real eval/codegen_rust/codegen_ts paths and
+        # verifies the 5 accurately-seeded matrix cells (JSX, AsyncView, Spawn,
+        # With, WorkflowVersion) match actual emitter behavior.
+        run: cargo nextest run -p vox-compiler --test feature_matrix_parity_test
+
+      - name: Pipeline SSOT umbrella (grammar + golden ladder + matrix + k-budget)
+        run: ./target/debug/vox --quiet ci pipeline-parity
+
+      - name: Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)
+        # A.13: VOX_EXAMPLES_STRICT_PARSE=1 must be the default in CI.
+        # Uses the vox-compiler test suite which already has a strict-parse integration test.
+        env:
+          VOX_EXAMPLES_STRICT_PARSE: "1"
+        run: cargo nextest run -p vox-compiler --test golden_examples_strict_parse --no-capture 2>&1
+        # Gate enforcement: The build fails if any golden example contains syntax errors or unhandled tokens.
+
+      - name: Golden @test function runner (CR-D3 — vox test round-trip)
+        # Runs every @test fn in examples/golden/**/*.vox through the eval layer.
+        # Validates that the `vox test` command surface works end-to-end on golden examples.
+        run: cargo nextest run -p vox-integration-tests --test golden_vox_test_runner --no-capture 2>&1
+
+      - name: AgentOS ACI schema + guardrail integration gate
+        run: cargo nextest run -p vox-integration-tests --test agentos_aci_bench --no-capture 2>&1
+
+      - name: Compiler pipeline benchmarks compile-smoke (CR-E1 gate)
+        # Verifies benchmark code compiles cleanly; timing baselines are captured
+        # by the separate nightly benchmark job.  `--no-run` prevents wall-clock
+        # variability from inflating CI times.
+        run: cargo bench -p vox-compiler --no-run
+
+      - name: Golden examples fmt idempotency gate (A.12)
+        shell: bash
+        run: |
+          set -euo pipefail
+          find examples/golden -name "*.vox" -type f -print0 | while IFS= read -r -d '' f; do
+            ./target/debug/vox --quiet fmt "$f"
+          done
+          if ! git diff --exit-code examples/golden/; then
+            echo "vox fmt is not idempotent or examples have unformatted changes."
+            exit 1
+          fi
+
+  tests:
+    name: Tests (nextest + llvm-cov + doctests)
+    needs: setup
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+          cache: "false"
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Integration smokes (affected intersection)
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          AFFECTED="${{ needs.setup.outputs.affected_crates }}"
+          affected_has() {
+            local crate="$1"
+            if [ "$FULL" = "true" ]; then return 0; fi
+            case " ${AFFECTED} " in *" ${crate} "*) return 0;; esac
+            return 1
+          }
+          if affected_has vox-repository; then
+            cargo nextest run -p vox-repository --lib
+          fi
+          if affected_has vox-orchestrator; then
+            cargo nextest run -p vox-orchestrator --lib -E 'test(detect_layout_node_workspaces)'
+            cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate
+          fi
+          if affected_has vox-orchestrator-mcp; then
+            cargo nextest run -p vox-orchestrator-mcp --lib
+          fi
+          if affected_has vox-git; then
+            cargo check -p vox-git
+          fi
+          if affected_has vox-populi; then
+            cargo nextest run -p vox-populi --features transport,mens
+          fi
+          if affected_has vox-workflow-runtime; then
+            cargo nextest run -p vox-workflow-runtime
+          fi
+          if affected_has vox-cli; then
+            cargo check -p vox-cli --features workflow-runtime,gui
+          fi
+
+      - name: Arch-check (layer + fan-in + LoC + orphan + docstring)
+        if: needs.setup.outputs.full == 'true' || needs.setup.outputs.rust_changed == 'true'
+        # Invocation delegated to scripts/arch-check.vox (SSOT).
+        # Layer rule strict; the others warn-only by default. Source of truth:
+        # docs/src/architecture/layers.toml.
+        run: ./target/debug/vox --quiet run scripts/arch-check.vox
+
+      - name: Dependency cycle gate
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci dep-cycles --deny-new
+
+      - name: Crate build/dependency audit (refresh leaf-design map)
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet run --mode interp scripts/crate-build-audit.vox
+        continue-on-error: true
+
+      - name: Crate-build-map parity gate
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci crate-build-map-parity
+
+      - name: Crate blast-radius budget gate
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci crate-budget
+
+      - name: Fan-in budget gate
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci fan-in-budget
+
+      - name: Crate edge ratchet + layer rule
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci crate-edges
+
+      - name: Plugin-candidacy classifier (advisory — non-gating)
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet run --mode interp scripts/plugin-candidacy.vox
+        continue-on-error: true
+
+      # Blocking on purpose. `continue-on-error: true` here is what let the
+      # baseline sit at all-zeros for months while every run reported a green
+      # 0% delta. build-bench now refuses to compare against a placeholder
+      # baseline, so a failure here means "the baseline is unpopulated" (fix:
+      # regenerate it) or "a scenario regressed" — both are real signal.
+      - name: Build-bench (wall-clock scenarios vs committed baseline — ROUGH signal)
+        if: needs.setup.outputs.full == 'true'
+        run: |
+          ./target/debug/vox --quiet ci build-bench \
+            --label "ci-${{ github.run_number }}" \
+            --repeat 1 \
+            --compare contracts/ci/build-bench-baseline.v1.json \
+            --write graphify-out/build-bench/ci-snapshot.json
+
+      - name: Upload build-time maps
+        if: needs.setup.outputs.full == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-time-maps
+          path: |
+            graphify-out/crate_audit.json
+            graphify-out/CRATE_BUILD_AUDIT.md
+            graphify-out/build-bench/
+          if-no-files-found: ignore
+
+      - name: Graphify corpus freshness gate (warning)
+        if: needs.setup.outputs.full == 'true'
+        # No VOX_GRAPHIFY_TTL_DAYS pin: the staleness window comes from
+        # ttl_days_default in contracts/retrieval/vox-graph-corpora.v1.yaml,
+        # the same value the GUI editor writes and `vox graphify status`
+        # reports. Guarded by crates/vox-config/tests/graphify_ttl_parity.rs.
+        run: ./target/debug/vox graphify status --strict
+        continue-on-error: true
+
+
+      # Conditional coverage: llvm-cov instrumentation adds significant wall-clock
+      # time and is meaningless on docs-only PRs.  Run plain nextest when no Rust
+      # crates changed; full llvm-cov nextest on merge_group (full=true).
+      # PR-time affected runs use scoped nextest without coverage instrumentation.
+      - name: Run Tests — llvm-cov nextest (full gate, Rust changed)
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        env:
+          INSTA_UPDATE: unseen
+        run: |
+          set -euo pipefail
+          junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
+          printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
+          cargo llvm-cov nextest --workspace --exclude vox-gui --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+
+      - name: Run Tests — plain nextest (full gate, docs-only change)
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed != 'true'
+        env:
+          INSTA_UPDATE: unseen
+        run: |
+          set -euo pipefail
+          junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
+          printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
+          cargo nextest run --workspace --exclude vox-gui --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+
+      - name: Run Tests — affected nextest (PR scoped)
+        if: needs.setup.outputs.full != 'true'
+        env:
+          INSTA_UPDATE: unseen
+        run: |
+          set -euo pipefail
+          P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
+          if [ -z "$P_ARGS" ]; then
+            echo "No affected crates — skipping Rust tests."
+            exit 0
+          fi
+          junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
+          printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
+          # shellcheck disable=SC2086
+          cargo nextest run $P_ARGS --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+
+      - name: Shadow — junit vs affected set (merge_group)
+        if: github.event_name == 'merge_group'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          junit="target/nextest/ci/junit.xml"
+          if [ ! -f "${junit}" ]; then
+            echo "::notice::Shadow comparator skipped — no JUnit at ${junit}"
+            exit 0
+          fi
+          AFFECTED="${{ needs.setup.outputs.affected_crates }}"
+          if [ -z "${AFFECTED// }" ]; then
+            echo "::warning title=affected-ci shadow::merge_group affected_crates empty — cannot compare junit vs PR closure"
+            exit 0
+          fi
+          ./target/debug/vox ci affected-crates --shadow-junit \
+            --junit "${junit}" \
+            --affected-crates "${{ needs.setup.outputs.affected_crates }}"
+
+      # Slow test partition — runs the three #[ignore = "slow; …"] tests explicitly.
+      # These are excluded from the workspace nextest step above to keep CI wall-clock
+      # under 30 min.  Uses an exact filter so none of the other 250+ intentionally-
+      # ignored tests are swept in.  max-threads=1 is enforced by [test-groups.slow] in
+      # .config/nextest.toml; the CI profile slow-timeout terminates after 3×180s.
+      #
+      # `golden_differential_gate` (interp vs. one generated native crate per
+      # `examples/golden/**/*.vox` EXPECT) is deliberately NOT in this filter, nor in
+      # `--include-slow` (crates/vox-cli/src/commands/ci/pre_push.rs) — its one-crate
+      # native bundle build is a ~6-8 min cold build, too slow for a merge-blocking PR
+      # check. It runs on a schedule instead: `.github/workflows/differential-gate-nightly.yml`.
+      - name: Run slow test partition (arch-check, scientia timeout, codegen bundle)
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        run: |
+          cargo nextest run \
+            -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check) or (package(vox-mesh-transport) + binary(interp_executor))' \
+            --run-ignored ignored-only \
+            --profile ci
+
+      - name: Serving path unit tests
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        run: cargo test -p vox-ml-cli --features execution-api,gpu --lib
+
+      # Phase 5 — Test-tier budget check (warn-only until budgets file is updated post Phase 2+3).
+      # Reads the nextest JUnit elapsed time and compares against contracts/budgets/test-tier-budgets.v1.yaml.
+      # Does NOT re-run tests; no-op if budgets file is absent.
+      # continue-on-error: true until tightened budgets land (Phase 5 follow-up).
+      - name: Test-tier timing budget check (nextest full tier)
+        if: always() && needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        continue-on-error: true
+        run: |
+          junit="target/nextest/ci/junit.xml"
+          if [ -f "${junit}" ]; then
+            ./target/debug/vox ci tier-budget-check \
+              --junit "${junit}" \
+              --profile full
+          else
+            echo "::notice title=Tier budget check skipped::JUnit artifact not found at ${junit}"
+          fi
+
+      - name: Runtime governance report + warn-only checks (non-blocking)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          junit_path="target/nextest/ci/junit.xml"
+          report_path="target/nextest/ci/runtime-report.json"
+          baseline_path="target/nextest/ci/runtime-baseline.json"
+
+          if [ ! -f "${junit_path}" ]; then
+            echo "::notice title=Runtime governance skipped::JUnit artifact not found at ${junit_path}; skipping runtime report and warn-mode governance checks."
+            exit 0
+          fi
+
+          mkdir -p "$(dirname "${report_path}")"
+
+          ./target/debug/vox ci test-runtime-report --junit "${junit_path}" --json --top 20 > "${report_path}"
+          report_status=$?
+          if [ ${report_status} -ne 0 ]; then
+            echo "::warning title=Runtime report generation failed::test-runtime-report exited with status ${report_status}; skipping downstream warn-mode checks."
+            exit 0
+          fi
+
+          ./target/debug/vox ci flake-budget --report-json "${report_path}" --max-candidates 20 --mode warn
+          flake_status=$?
+          if [ ${flake_status} -ne 0 ]; then
+            echo "::warning title=Flake budget warn-mode check errored::flake-budget exited with status ${flake_status}."
+          fi
+
+          ./target/debug/vox ci ignored-test-age --mode enforce
+          ignored_status=$?
+          if [ ${ignored_status} -ne 0 ]; then
+            echo "::error title=Ignored test governance::ignored-test-age enforce mode failed (bare #[ignore] or missing owner/sunset in #[ignore = \"…\"])."
+            exit ${ignored_status}
+          fi
+
+          if [ -f "${baseline_path}" ]; then
+            ./target/debug/vox ci runtime-regress --baseline "${baseline_path}" --current "${report_path}" --mode warn
+            regress_status=$?
+            if [ ${regress_status} -ne 0 ]; then
+              echo "::warning title=Runtime regress warn-mode check errored::runtime-regress exited with status ${regress_status}."
+            fi
+          else
+            echo "::notice title=Runtime regress skipped::No stable baseline artifact at ${baseline_path}; runtime-regress is not run in this workflow."
+          fi
+
+          exit 0
+
+      - name: Upload insta snapshots (review and commit after first run)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: insta-snapshots
+          path: |
+            crates/vox-integration-tests/tests/snapshots/
+            crates/vox-compiler/tests/snapshots/
+          if-no-files-found: ignore
+
+      - name: Upload nextest JUnit (CI profile)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nextest-junit
+          path: target/nextest/ci/junit.xml
+          if-no-files-found: ignore
+
+      - name: Upload nextest runtime report (CI governance input)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nextest-runtime-report
+          path: target/nextest/ci/runtime-report.json
+          if-no-files-found: ignore
+
+      - name: vox-db replication feature (compile + embedded sync smoke skips without creds)
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          AFFECTED="${{ needs.setup.outputs.affected_crates }}"
+          if [ "$FULL" = "true" ] || case " ${AFFECTED} " in *" vox-db "*) true;; *) false;; esac; then
+            cargo nextest run -p vox-db --features replication -E 'test(sync_embedded_replica_smoke)'
+          else
+            echo "vox-db not in affected set — skipping replication smoke."
+          fi
+
+      # Doctests use Rust's built-in harness only; cargo-nextest does not execute them.
+      # Full gate only — PR-time affected runs skip doctests (covered at merge_group).
+      - name: Doc tests (cargo test --workspace --doc; not nextest)
+        if: needs.setup.outputs.full == 'true'
+        run: cargo test --workspace --exclude vox-gui --doc
+
+      - name: Line coverage report (summary, LCOV, gates enforce)
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        run: |
+          set -euo pipefail
+          cargo llvm-cov report --text --summary-only
+          cargo llvm-cov report --json --summary-only --output-path target/llvm-cov-summary.json
+          cargo llvm-cov report --lcov --output-path target/llvm-cov-lcov.info
+          ./target/debug/vox --quiet ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
+
+      # ADVISORY (non-blocking): the reach baseline (semantic-coverage.v1.json) is
+      # measured from a local full-workspace lcov; CI's lcov differs, so the absolute
+      # reached-but-unproven count is not yet reproducible across environments (see
+      # docs/.../semantic-coverage-status-2026-06-15.md). Reported for visibility but
+      # NOT gating until the reach layer is calibrated to CI's lcov. The deterministic
+      # `semcov-gates` check (silent-drop + weak-test) IS blocking.
+      - name: Semantic-coverage reach ratchet (advisory — reported, not gating)
+        if: needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          python3 scripts/coverage-graph/ingest_reaches.py \
+            --lcov target/llvm-cov-lcov.info \
+            --graph contracts/reports/semantic-coverage-graph.snapshot.json.gz \
+            --out "$RUNNER_TEMP/graph.reached.json" \
+            --report "$RUNNER_TEMP/REACHED_VS_PROVEN.md"
+          python3 scripts/coverage-graph/ratchet_check.py \
+            --report "$RUNNER_TEMP/REACHED_VS_PROVEN.md" \
+            --baseline contracts/reports/semantic-coverage.v1.json
+
+      - name: Upload LLVM coverage artifacts
+        if: (success() || failure()) && needs.setup.outputs.full == 'true' && needs.setup.outputs.rust_changed == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: llvm-cov
+          path: |
+            target/llvm-cov-summary.json
+            target/llvm-cov-lcov.info
+
+  audits:
+    name: Audits (TOESTUB-full + build-timings + feature-matrix + completion + mens-gate)
+    needs: setup
+    # Tiered off merge_group (2026-07-08) -- see guards-fast's comment above for
+    # the full rationale (DEFAULT_MAX_RUNNERS 6->2, merge_group_fanout_guard).
+    if: github.event_name != 'merge_group'
+    runs-on: [self-hosted, linux]
+    # This job's true steady-state runtime (TOESTUB validation, safety-inventory,
+    # hardcoded-values-audit, completion-audit, detect-rules-bench, build-timings,
+    # feature-matrix cargo checks, the all-features check, cuda-features, and the
+    # corpus_prep + mens-mix step) was never actually observed before — every run
+    # on this branch failed on an earlier, now-fixed bug first. Once those were
+    # fixed, this job started reaching the 25-minute ceiling under normal
+    # self-hosted-runner contention (repeatedly landing at ~25m15s, i.e. cut off
+    # mid-step by the timeout, not a real hang). 35m matches the headroom given to
+    # other substantial jobs in this workflow (30/40m).
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt, clippy
+          cache: "false"
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: TOESTUB contracts — suppression schema + ledger parse
+        run: cargo run -p vox-code-audit --bin validate-toestub-contracts
+
+      - name: Safety inventory baseline (committed contracts/reports/safety-inventory)
+        run: ./target/debug/vox ci safety-inventory --check contracts/reports/safety-inventory/baseline.v1.json
+
+      - name: Hardcoded values audit gate
+        run: node tools/hardcoded-values-audit.mjs .vox/audit/ci-gate --ci-gate contracts/reports/hardcoded-baseline-count.txt
+
+      - name: Completion quality audit + gates (LLM premature-completion SSOT)
+        run: |
+          ./target/debug/vox --quiet ci completion-audit
+          ./target/debug/vox --quiet ci completion-gates --mode enforce
+
+      - name: Detector rule SSOT — F1 score gate (contracts/code-audit/rules.v1.yaml)
+        run: |
+          ./target/debug/vox --quiet ci detect-rules-bench \
+            --rules contracts/code-audit/rules.v1.yaml \
+            --fixtures-root contracts/code-audit/fixtures \
+            --min-f1 0.70
+
+      - name: TOESTUB full crates/ — syn parse failure budget (JSON envelope)
+        if: needs.setup.outputs.full == 'true'
+        env:
+          VOX_TOESTUB_MAX_RUST_PARSE_FAILURES: 3
+        run: |
+          set -euo pipefail
+          cargo run -p vox-code-audit -q --bin toestub -- --mode audit --format json --min-severity info crates \
+            | ./target/debug/vox --quiet ci toestub-budget
+
+      - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
+        if: needs.setup.outputs.full == 'true'
+        env:
+          VOX_BENCHMARK_TELEMETRY: "1"
+          # H.79: enforce soft build budget caps — fails if any lane exceeds budgets.json
+          VOX_BUILD_TIMINGS_BUDGET_FAIL: "1"
+        run: ./target/debug/vox --quiet ci build-timings --crates
+
+      - name: vox-cli feature matrix + no vox_orchestrator imports
+        run: ./target/debug/vox --quiet ci feature-matrix && ./target/debug/vox --quiet ci no-vox-orchestrator-import
+
+      - name: Workspace-wide all-features check (A.4)
+        shell: bash
+        run: |
+          set -euo pipefail
+          FULL="${{ needs.setup.outputs.full }}"
+          P_ARGS="${{ needs.setup.outputs.affected_p_args }}"
+          # `--all-features` unconditionally enables every workspace crate's
+          # `cuda` feature (candle-core/cuda etc.), which requires nvcc — this
+          # step had no guard for that, so it always failed on fleets without
+          # the CUDA toolkit installed. `command -v nvcc` alone isn't reliable
+          # here — some fleet runners have a stale/broken PATH entry that
+          # resolves but fails when actually invoked. Run the same check
+          # cudarc's build.rs does. Crates with their own `cuda` feature:
+          # vox-plugin-mens-candle-cuda, vox-quantize, vox-plugin-speech,
+          # vox-populi (mens-candle-qlora-cuda), vox-speech. vox-ml-cli's
+          # `mens-candle-cuda` feature forwards into vox-populi's cuda
+          # feature via `vox-populi/mens-candle-qlora-cuda`, so it needs
+          # excluding too or --all-features re-enables it as a dependency.
+          CUDA_EXCLUDE=()
+          if ! nvcc --version >/dev/null 2>&1; then
+            CUDA_EXCLUDE=(--exclude vox-plugin-mens-candle-cuda --exclude vox-quantize --exclude vox-plugin-speech --exclude vox-populi --exclude vox-speech --exclude vox-ml-cli)
+          fi
+          # Same problem for the `metal` feature: it links Apple's Metal
+          # framework via objc2/candle-core, which cannot compile off macOS at
+          # all (no runtime-check fallback like nvcc). This job always runs on
+          # self-hosted Linux, so always exclude the crates with their own
+          # `metal` feature: vox-plugin-mens-candle-metal, vox-quantize.
+          METAL_EXCLUDE=()
+          if [ "$(uname -s)" != "Darwin" ]; then
+            METAL_EXCLUDE=(--exclude vox-plugin-mens-candle-metal --exclude vox-quantize)
+          fi
+          # vox-codegen declares a `standalone` feature that is intentionally
+          # never enabled (see its Cargo.toml comment): it's only there so the
+          # `#[cfg(feature = "standalone")]` guards in the `#[path]`-embedded
+          # vox-codegen-ts/src/mod.rs are known cfgs. --all-features force-
+          # enables it anyway, which makes the embedded copy take the
+          # standalone branch (`use vox_codegen::...`) while compiled inside
+          # vox-codegen itself, an unresolved-import error. It has no other
+          # non-default feature, so excluding it loses no real coverage.
+          if [ "$FULL" = "true" ]; then
+            cargo check --workspace --exclude vox-gui --exclude vox-codegen "${CUDA_EXCLUDE[@]}" "${METAL_EXCLUDE[@]}" --all-features
+          elif [ -n "$P_ARGS" ]; then
+            # shellcheck disable=SC2086
+            cargo check $P_ARGS --all-features
+          else
+            echo "No affected crates — skipping all-features check."
+          fi
+
+      - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci cuda-features
+
+      # `vox mens ...` / `vox populi ...` (used by the next two steps, including
+      # transitively via corpus_prep.vox's golden-example extraction) delegate to
+      # a separate `vox-ml-cli` binary (see main.rs's ML-command interception).
+      # No CI job has ever built it, so that delegation has always failed here —
+      # previously masked by a `vox-cli` dispatch panic (fixed separately); now
+      # that the panic is gone, the delegation actually attempts to run and needs
+      # the target binary to exist and be on PATH.
+      - name: Build vox-ml-cli (mens/populi CLI delegation target)
+        if: needs.setup.outputs.full == 'true'
+        run: |
+          cargo build -p vox-ml-cli --locked
+          echo "$PWD/target/debug" >> "$GITHUB_PATH"
+
+      - name: Mens corpus mix (strict required sources)
+        if: needs.setup.outputs.full == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/debug/vox --quiet run --interp scripts/ci/corpus_prep.vox
+
+          # `mens/config/mix.yaml` marks `target/dogfood/validated_mixed.jsonl`
+          # `optional: false` on purpose (see its own comment + the commit that
+          # set it, e2c417a2: "strict-mix now fails closed if missing") -- that
+          # fail-closed behavior is a real, correct safety guard for an actual
+          # training run, where this hand-curated golden corpus is expected to
+          # already exist on disk (accumulated over real dogfooding, never
+          # produced by any automated pipeline -- confirmed by grepping the
+          # whole repo for a producer and finding none). A fresh CI checkout
+          # has no such accumulated state, so this ONE specific, understood,
+          # already-diagnosed absence is tolerated here. Anything else --
+          # a different missing required source, a corrupt mix.yaml, a mix
+          # that genuinely fails for any other reason -- still fails this job
+          # for real; only the exact known message is swallowed.
+          set +e
+          mix_output=$(./target/debug/vox --quiet mens corpus mix --config mens/config/mix.yaml 2>&1)
+          mix_status=$?
+          set -e
+          echo "$mix_output"
+          if [ "$mix_status" -ne 0 ]; then
+            if echo "$mix_output" | grep -q "required source missing:.*validated_mixed\.jsonl"; then
+              echo "::warning title=Mens corpus mix::Skipped -- target/dogfood/validated_mixed.jsonl (hand-curated training corpus, no automated producer) isn't present in this CI checkout. Still strictly required+enforced for real training runs; this is a CI-only tolerance, not a config change."
+            else
+              echo "::error title=Mens corpus mix::Failed for a reason OTHER than the known-absent validated_mixed.jsonl training artifact -- this is a real failure."
+              exit "$mix_status"
+            fi
+          fi
+
+      - name: Populi CI gate matrix (single manifest)
+        if: needs.setup.outputs.full == 'true'
+        run: ./target/debug/vox --quiet ci mens-gate --profile ci_full
+
+  # Single required-status check for branch protection. Keep this job's `name:`
+  # identical to the existing required check ("Check, Build, and Test (Rust)")
+  # so branch-protection settings carry over without admin action.
+  # Required (see ci-summary's `needs:` below). Spawns a real
+  # vox-orchestrator-d process and pings it over a real TCP loopback socket
+  # on a self-hosted runner — more prone to environmental flake (port/runner
+  # contention) than this file's other required jobs, which are pure
+  # build/lint checks. Accepted as required for now since the test already
+  # polls with a bounded deadline rather than a single fixed-delay check; if
+  # this proves flaky in practice on the self-hosted fleet, consider a
+  # burn-in period as an advisory (non-required) job before re-promoting.
+  gui-orchestrator-relaunch-smoke:
+    name: GUI/orchestrator relaunch smoke (CR-U6) — ${{ matrix.label }}
+    needs: setup
+    # Tiered off merge_group: the merge-queue box caps self-hosted
+    # linux,x64 fan-out at DEFAULT_MAX_RUNNERS (2); with setup and tests
+    # already in that bucket, this job pushed it to 3. ci-summary treats
+    # `skipped` as passing, so this is a no-op for the required gate.
+    if: github.event_name != 'merge_group'
+    # Matrix over the RUNNER LABEL, not an `os:` string — an `os:` matrix would
+    # have to name `ubuntu-latest` for the first leg and would move it off the
+    # self-hosted fleet, contradicting the local-first compute policy. The label
+    # list IS the runs-on value.
+    #
+    # macOS matters here because gui_relaunch_smoke.rs is display-free BY
+    # CONSTRUCTION (it never builds a `tauri::Builder`), so it is the only lane
+    # that can exercise GUI→orchestrator process wiring on macOS without a
+    # window server. Until now this job had only ever run on Linux.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: [self-hosted, linux]
+            label: self-hosted linux
+            timeout: 20
+          - runner: macos-latest
+            label: macOS
+            # Cold hosted runner: no warm target/, and the vox-gui build.rs
+            # sidecar step below is a full release build of vox-cli. 20m is a
+            # warm-fleet number and does not transfer.
+            timeout: 90
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ matrix.timeout }}
+    # BURN-IN: this job is in ci-summary's `needs`, and GitHub collapses a matrix
+    # into one result — so an unproven macOS leg would block the merge queue for
+    # everyone. Advisory until it has a green history, per this job's own note on
+    # introducing new legs. Remove this line to make macOS blocking.
+    continue-on-error: ${{ matrix.label == 'macOS' }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt, clippy
+          cache: "false"
+      # Workflow-level `RUSTC_WRAPPER: sccache` is for the self-hosted image,
+      # which ships the binary. The hosted macOS runner does not, and this
+      # job never installs mozilla-actions/sccache-action — rustc then fails
+      # with "could not execute process `sccache` (os error 2)".
+      - name: Clear sccache wrapper on hosted macOS
+        if: runner.os == 'macOS'
+        run: echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # Compiling ANY vox-gui target runs tauri-build, which embeds
+      # `crates/vox-gui/ui/dist` (frontendDist in tauri.conf.json). That
+      # directory is gitignored, so a fresh checkout does not have it and
+      # tauri_build::try_build fails. The Linux leg has been getting away with
+      # this only because the self-hosted workspace is persistent and carries a
+      # stale dist across checkouts; a hosted macOS runner has nothing. Same
+      # pnpm shape as gui-cross-build.yml.
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: crates/vox-gui/ui/pnpm-lock.yaml
+      - name: GUI frontend build (pnpm)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
+          pnpm run build
+
+      - name: Build vox-orchestrator-d
+        run: cargo build -p vox-orchestrator-d
+
+      # vox-gui's build.rs hard-fails unless the triple-suffixed Tauri sidecar
+      # (bundle.externalBin) exists. It can self-heal by spawning a nested
+      # `cargo build` from inside a build script; stage it explicitly instead so
+      # a required lane does not depend on that path. Same staging as
+      # gui-cross-build.yml, with the triple read from rustc so one step covers
+      # both legs.
+      - name: Build + stage Tauri sidecar (vox CLI, release)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p vox-cli --release --bin vox
+          triple="$(rustc -vV | sed -n 's|^host: ||p')"
+          mkdir -p target/release
+          cp target/release/vox "target/release/vox-${triple}"
+
+      - name: Build vox-gui (Rust crate only, no Tauri UI bundle)
+        run: cargo build -p vox-gui
+
+      - name: Relaunch smoke (CR-U6) — daemon relaunch + version parity
+        env:
+          VOX_GUI_RELAUNCH_SMOKE: "1"
+          VOX_ORCHESTRATOR_D_BIN: ${{ github.workspace }}/target/debug/vox-orchestrator-d
+        run: cargo nextest run -p vox-gui --test gui_relaunch_smoke
+
+  ci-summary:
+    name: Check, Build, and Test (Rust)
+    # gui-playwright-smoke is now a tiered (post-merge/`full-ci`) job, so it is
+    # intentionally NOT a required-gate dependency.
+    needs: [setup, guards-fast, lints, compiler-gates, tests, audits, gui-orchestrator-relaunch-smoke]
+    if: always()
+    # Hosted so the SOLE branch-protection context is fleet-independent
+    # (compute-placement.md Invariant 1). The 5 heavy needs stay self-hosted; this
+    # aggregator only reads their results, so it must not itself require the
+    # workstation — otherwise a fleet outage leaves the merge queue unable to drain.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All required jobs succeeded
+        run: |
+          set -euo pipefail
+          fail=0
+
+          # `setup` is checked SEPARATELY and strictly, and it is the whole
+          # point of this block.
+          #
+          # The six jobs below are allowed to report `skipped`, because several
+          # are deliberately tiered off merge_group (see the note on
+          # gui-orchestrator-relaunch-smoke). But that tolerance used to apply
+          # to `setup` failing too: every one of those jobs `needs: setup`, so
+          # when the self-hosted fleet never picked up `setup` and it was
+          # cancelled at the 24h mark, all six went `skipped`, this loop saw six
+          # allowed values, and the SOLE branch-protection context reported
+          # success with zero tests executed.
+          #
+          # That was not hypothetical. Run 33291831341: `setup` cancelled, all
+          # 17 other jobs skipped, "Check, Build, and Test (Rust)" = success.
+          # 157 of the last 200 ci.yml runs were cancelled the same way, and
+          # ci.yml has never once succeeded — so for that entire window main
+          # was effectively ungated.
+          #
+          # Distinguishing "skipped because tiering said so" from "skipped
+          # because the DAG collapsed" is exactly the setup result.
+          setup_result="${{ needs.setup.result }}"
+          if [ "$setup_result" != "success" ]; then
+            echo "::error::setup did not succeed (result: $setup_result) — every gated job below it was skipped, so nothing was actually verified. Failing the required check rather than reporting a false green. If the self-hosted fleet is down, apply the 'fleet-down' label to route through ci-fallback-hosted."
+            fail=1
+          fi
+
+          for r in \
+            "${{ needs.guards-fast.result }}" \
+            "${{ needs.lints.result }}" \
+            "${{ needs.compiler-gates.result }}" \
+            "${{ needs.tests.result }}" \
+            "${{ needs.audits.result }}" \
+            "${{ needs.gui-orchestrator-relaunch-smoke.result }}"; do
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then fail=1; fi
+          done
+          exit $fail
+
+  visualizer-ingest-smoke:
+    name: Visualizer ingest unit (pnpm + tsx)
+    needs: setup
+    # Tiered off merge_group (Task 10) but PR affects_web coverage preserved.
+    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true')
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install + run ingest tests
+        run: |
+          cd apps/experimental/visualizer
+          pnpm install
+          pnpm run test:ingest
+
+  web-vite-build-smoke:
+    name: Web Vite build smoke (pnpm)
+    needs: setup
+    # Tiered off merge_group (Task 10) but PR affects_web coverage preserved.
+    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_web == 'true')
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install system deps (dbus/GTK for wry/keyring/soup on Linux)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libasound2-dev
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Vite production build (full_stack_minimal)
+        env:
+          VOX_WEB_VITE_SMOKE: "1"
+        run: cargo nextest run -p vox-integration-tests --test web_vite_smoke_test --run-ignored ignored-only --no-capture
+
+  vox-vscode-extension:
+    name: VS Code extension (compile + lint)
+    needs: setup
+    # Tiered off merge_group (Task 10) but PR affects_gui coverage preserved.
+    if: github.event_name != 'merge_group' && (needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_gui == 'true')
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: npm ci + compile (includes MCP + activation parity) + lint
+        run: |
+          cd apps/editor/vox-vscode
+          npm ci
+          npm run compile
+          npm run lint
+
+  mesh-compose-config:
+    name: Validate examples/mesh-compose.yml
+    needs: setup
+    if: needs.setup.outputs.full == 'true' || needs.setup.outputs.affects_scripts == 'true'
+    # `docker compose config` only parses/validates the YAML (no daemon, no DinD),
+    # so a GitHub-hosted runner — which ships Docker Compose v2 — is the right host.
+    # The self-hosted `docker`-labelled runner container lacks the compose plugin
+    # (`docker compose` → exit 127), which previously hard-failed this required check.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: docker compose config (mesh example)
+        run: docker compose -f examples/mesh-compose.yml config
+
+  docker-vox-image-smoke:
+    name: Docker build smoke (default + mesh)
+    # Tier: heavy (~30m). Runs in the merge queue for main + on PRs labelled
+    # `full-ci`; skip routine PR pushes (not a required check).
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    runs-on: [self-hosted, linux, x64, docker]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - name: docker build default image
+        run: docker build -t vox:ci-smoke .
+      # Blessed doc name: vox:ci-mesh-worker (same image as historical vox:ci-mesh); see vox-cross-platform-runbook.md
+      - name: docker build mesh worker image (mesh + script-execution)
+        run: docker build --build-arg VOX_CLI_FEATURES=populi,script-execution -t vox:ci-mesh -t vox:ci-mesh-worker .
+
+  # Chromium/CDP (chromiumoxide): requires Chrome or Chromium on the runner (browser pool).
+  # Canonical crate is `vox-plugin-browser` (historical `vox-browser` crate removed).
+  vox-browser-cdp-smoke:
+    name: vox-plugin-browser CDP smoke (Chromium)
+    # Tier: heavy (~15m). Post-merge + `full-ci` label only.
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    runs-on: [self-hosted, linux, x64, browser]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      # setup-rust's own cache (cache: true default) already covers
+      # ~/.cargo/registry, ~/.cargo/git, and target/ keyed on OS + toolchain +
+      # Cargo.lock -- a separate hand-rolled cache here would just duplicate it.
+      # Prefer nextest for ignored-only integration tests when present; compile-check so the lane
+      # stays meaningful until CDP tests land on `vox-plugin-browser`.
+      - name: CDP smoke (ignored tests or compile fallback)
+        env:
+          VOX_BROWSER_NO_SANDBOX: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          LIST="$(cargo nextest list -p vox-plugin-browser --lib --run-ignored ignored-only 2>/dev/null || true)"
+          if [ -z "${LIST//[$'\t\r\n ']}" ]; then
+            echo "::notice::No ignored lib tests in vox-plugin-browser; running compile-only CDP smoke."
+            cargo check -p vox-plugin-browser
+          else
+            cargo nextest run -p vox-plugin-browser --lib --run-ignored ignored-only --no-capture
+          fi
+
+  gui-playwright-smoke:
+    name: GUI Playwright golden route (full_stack_minimal)
+    # Tier: heavy (~25m). Post-merge + `full-ci` label only.
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    runs-on: [self-hosted, linux, x64, browser]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      # Typecheck the hand-authored GUI frontend (tsc --noEmit). The GUI build
+      # is `vite build` (esbuild, no type errors), so without this a missing
+      # property / undefined component (e.g. the Icon.plus crash that blanked the
+      # whole app) ships undetected. Fails fast, before the heavier golden route.
+      - name: GUI frontend typecheck (tsc --noEmit)
+        run: |
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
+          pnpm typecheck
+
+      # Registry-driven visual-audit sweep: screenshots every GUI surface (derived from
+      # SURFACE_REGISTRY, so new surfaces are covered automatically) and asserts no error-
+      # boundary trip / uncaught error / console error. Also collects every other asserting
+      # e2e spec (error-states, interaction specs). Fork F2 (2026-07-16): this job stays
+      # post-merge/full-ci only (no PR gate), and THIS step is its loud failure signal —
+      # it must NEVER get `continue-on-error`; main-branch breakage fails the job visibly
+      # (CI-monitor) instead of passing silently. Variants + AI review below stay advisory.
+      - name: GUI visual-audit sweep (Playwright)
+        run: |
+          cd crates/vox-gui/ui
+          pnpm exec playwright install chromium firefox
+          pnpm exec playwright test --project=chromium --workers=4
+
+      - name: Upload GUI visual-audit screenshots
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gui-visual-audit
+          path: |
+            crates/vox-gui/ui/e2e/screens
+            crates/vox-gui/ui/playwright-report
+          if-no-files-found: ignore
+
+      # Review-bundle capture, both browsers — Firefox-only defects (occlusion/
+      # layout) are otherwise invisible to CI (2026-07-18 review finding).
+      # Advisory per F2.
+      - name: Review-bundle capture (chromium + firefox)
+        working-directory: crates/vox-gui/ui
+        env:
+          VOX_REVIEW_CAPTURE: "1"
+        run: pnpm exec playwright test e2e/review/capture.spec.ts --project=chromium --project=firefox-review --workers=2
+        continue-on-error: true
+      - name: Review-bundle AI defect analysis (advisory)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --bundle crates/vox-gui/ui/review-bundle/latest --ai --max-reviews 60 --browsers chromium,firefox
+        continue-on-error: true
+
+      - name: Upload visual-review report + screens (always)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: gui-visual-review-${{ github.run_id }}
+          path: |
+            crates/vox-gui/ui/review-bundle/latest/
+            contracts/reports/gui-visual-review/bundle-report.v1.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Commit visual-review cache + report (main only)
+        if: ${{ (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+        env:
+          GH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN }}
+        run: |
+          if ! git diff --quiet -- contracts/reports/gui-visual-review/; then
+            git config user.name "vox-ssot-bot"
+            git config user.email "bot@vox-foundation"
+            git add contracts/reports/gui-visual-review/bundle-cache.v1.json contracts/reports/gui-visual-review/bundle-digest.md
+            git commit -m "chore(visual-review): update cache + ledger [skip ci]"
+            git push origin HEAD:main || echo "::warning::visual-review cache push skipped (non-fast-forward)"
+          fi
+        continue-on-error: true
+
+      # setup-rust's own cache (cache: true default), installed earlier in this
+      # job, already covers ~/.cargo/registry, ~/.cargo/git, and target/ keyed
+      # on OS + toolchain + Cargo.lock -- no separate cache step needed here.
+      - name: Install Playwright deps + Chromium
+        run: |
+          cd crates/vox-integration-tests
+          pnpm install --prefer-offline
+          pnpm exec playwright install chromium
+
+      - name: Golden route (ignored integration test)
+        env:
+          VOX_GUI_PLAYWRIGHT: "1"
+        run: cargo nextest run -p vox-integration-tests --test playwright_golden_route_test --run-ignored ignored-only --no-capture
+
+  all-features-matrix:
+    name: All-Features Check (${{ matrix.crate }})
+    # Tier: heavy (~30 crates × 10-15m). Post-merge + `full-ci` label only —
+    # the single biggest per-PR load. Not a required check.
+    # Tiered off merge_group (runner-remediation Task 10): not a ci-summary
+    # dependency, so it gates nothing — runs post-merge on main or via full-ci label.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    runs-on: [self-hosted, linux, x64, docker]
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        crate:
+          - vox-compiler
+          - vox-codegen
+          - vox-cli
+          - vox-actor-runtime
+          - vox-db
+          - vox-db-types
+          - vox-secrets
+          - vox-orchestrator
+          - vox-vcs
+          - vox-populi
+          - vox-ml-cli
+          - vox-gamify
+          - vox-oratio
+          - vox-skills
+          - vox-scientia-ingest
+          - vox-doc-pipeline
+          - vox-mcp-registry
+          - vox-package
+          - vox-primitives
+          - vox-config
+          - vox-crypto
+          - vox-code-audit
+          - vox-openclaw-runtime
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-rust
+        with:
+          # Per-matrix-leg cache: each crate's all-features build is independent,
+          # so give it its own cache entry instead of sharing one across the
+          # whole matrix (setup-rust's cache already keys on OS + toolchain +
+          # Cargo.lock; this just adds the per-crate discriminator that the old
+          # hand-rolled `-matrix-${{ matrix.crate }}-` cache key provided).
+          cache-key-suffix: -matrix-${{ matrix.crate }}
+      - name: Check with all features
+        run: cargo check -p ${{ matrix.crate }} --all-features
