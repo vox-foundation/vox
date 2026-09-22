@@ -35,6 +35,10 @@ pub struct PairStats {
     /// Mutants the compiler accepted (dropped: not a real error).
     pub mutants_accepted: u32,
     pub error_pairs: u32,
+    /// Declarations skipped for mutation by `ERROR_CORRECTION_SAMPLE_PCT` (not
+    /// attempted at all — distinct from `mutants_accepted`, which is a mutation
+    /// that WAS attempted but didn't produce a compile error).
+    pub error_correction_sampled_out: u32,
 }
 
 impl PairStats {
@@ -50,6 +54,7 @@ impl PairStats {
         self.mutants_tried += o.mutants_tried;
         self.mutants_accepted += o.mutants_accepted;
         self.error_pairs += o.error_pairs;
+        self.error_correction_sampled_out += o.error_correction_sampled_out;
     }
 }
 
@@ -474,6 +479,14 @@ fn pair_json(
 /// Max error-correction mutants kept per declaration.
 const MUTANTS_PER_DECL: usize = 1;
 
+/// Percent (0-100) of eligible declarations that get an error-correction mutation
+/// attempt at all. At 100% (the old behavior), error_correction pairs came out
+/// roughly 1:1 with positive declaration pairs — 655 of 1,510 pairs (43%) in a
+/// full-repo run, the single largest category. Sampled deterministically (from
+/// the same per-declaration seed used to pick mutation kinds), so a given file's
+/// output is stable across reruns.
+const ERROR_CORRECTION_SAMPLE_PCT: u64 = 40;
+
 /// Build every training pair for one extracted file (`raw_code` as written by `vox corpus
 /// extract`, frontmatter included). `source` is the file path; it is also handed to the
 /// frontend so local-file imports resolve.
@@ -553,6 +566,10 @@ pub fn pairs_for_file(raw_code: &str, source: &str) -> (Vec<serde_json::Value>, 
             "{source}\0{}\0{i}",
             unit.name.as_deref().unwrap_or("")
         ));
+        if seed % 100 >= ERROR_CORRECTION_SAMPLE_PCT {
+            st.error_correction_sampled_out += 1;
+            continue;
+        }
         let mut kept = 0;
         for k in 0..MUT_KINDS.len() {
             if kept == MUTANTS_PER_DECL {
@@ -702,7 +719,11 @@ mod tests {
         assert_eq!(st.whole_file_pairs, 1);
         assert_eq!(st.decl_pairs, 4, "{st:?}");
         assert_eq!(st.verify_failed, 0);
-        assert_eq!(st.error_pairs, 4, "{st:?}");
+        // ERROR_CORRECTION_SAMPLE_PCT gates which of the 4 decls get a mutation
+        // attempt at all; deterministic per (source, name, index), so this fixture
+        // always comes out the same way. All 4 decl_pairs above exist regardless.
+        assert_eq!(st.error_pairs, 1, "{st:?}");
+        assert_eq!(st.error_correction_sampled_out, 3, "{st:?}");
         assert_eq!(st.mutants_tried, st.error_pairs + st.mutants_accepted);
         for p in &pairs {
             let r = p["response"].as_str().unwrap();
@@ -724,6 +745,34 @@ mod tests {
         // Deterministic.
         let (again, _) = pairs_for_file(&raw, "mem.vox");
         assert_eq!(pairs, again);
+    }
+
+    /// The sampling gate must actually reduce error_correction's share (this
+    /// change exists because it was 655/1510 = 43% of a full-repo run, the
+    /// single largest category) rather than being a no-op, and must land close
+    /// to the configured rate rather than some other fraction.
+    #[test]
+    fn error_correction_sampling_hits_the_configured_rate() {
+        let mut total_decls = 0u32;
+        let mut sampled_in = 0u32;
+        for i in 0..500 {
+            let raw = format!("fn distinct_name_{i}(x: int) to int {{\n    return x + 1\n}}\n");
+            let (_, st) = pairs_for_file(&raw, &format!("f{i}.vox"));
+            assert_eq!(
+                st.decl_pairs, 1,
+                "fixture {i} must still produce its positive pair"
+            );
+            total_decls += 1;
+            sampled_in += u32::from(st.error_correction_sampled_out == 0);
+        }
+        let pct = 100 * sampled_in / total_decls;
+        // Hardcoded, not `ERROR_CORRECTION_SAMPLE_PCT`: comparing the measured rate
+        // to the same constant that produced it is a tautology that can never catch
+        // someone reverting the sampling rate back toward 100%.
+        assert!(
+            pct.abs_diff(40) <= 5,
+            "sampled-in rate {pct}% too far from the intended ~40% over {total_decls} decls"
+        );
     }
 
     #[test]
