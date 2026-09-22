@@ -425,7 +425,7 @@ mod tests {
             "expected mutation handler: {out}"
         );
         assert!(
-            out.contains("match db.transaction(async move"),
+            out.contains("match db.transaction(async {"),
             "mutation with @table should wrap handler body in Codex::transaction: {out}"
         );
         assert!(

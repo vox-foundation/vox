@@ -794,7 +794,7 @@ fn emit_server_fn_handler(
     let rid = Some("vox_rid.clone()");
     if wrap_mutation_tx && has_tables {
         out.push_str("    let db = (*db).clone();\n");
-        out.push_str("    match db.transaction(async move {\n");
+        out.push_str("    match db.transaction(async {\n");
         let mut has_return = false;
         let usage = super::usage::UsageTracker::build(&sf.body);
         for stmt in &sf.body {
