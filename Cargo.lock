@@ -17059,7 +17059,6 @@ dependencies = [
  "syn 2.0.118",
  "tempfile",
  "tracing",
- "vox-build-meta",
  "vox-compiler",
  "vox-config",
  "vox-deploy-codegen",

@@ -45,7 +45,7 @@ Three-tier resolution, each tier sanity-checked by confirming
 1. **`VOX_REPO_ROOT` env var** — explicit override, for CI, unusual
    checkout layouts, or testing. Highest priority.
 2. **The path `vox` itself was compiled from**, embedded at `vox-codegen`'s
-   own build time via `vox-build-meta::emit_repo_root()` (reads
+   own build time by its `build.rs` (reads
    `CARGO_MANIFEST_DIR`, walks up to the workspace root, emits
    `cargo:rustc-env=VOX_COMPILER_REPO_ROOT=<path>`; `vox-codegen` reads it
    back with `env!()`). Correct whenever `vox` was built locally from a

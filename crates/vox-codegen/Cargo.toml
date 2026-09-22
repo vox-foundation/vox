@@ -56,8 +56,5 @@ tempfile = { workspace = true }
 # not link the runtime.
 vox-workflow-runtime = { workspace = true }
 
-[build-dependencies]
-vox-build-meta = { workspace = true }
-
 [lints]
 workspace = true
