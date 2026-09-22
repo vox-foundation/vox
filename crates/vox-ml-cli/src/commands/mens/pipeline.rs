@@ -133,18 +133,16 @@ pub async fn run(
             }
             PipelineStage::Extract => {
                 if !dry_run {
-                    // Extract from .vox examples
-                    let examples_dir = PathBuf::from("examples");
-                    if examples_dir.is_dir() {
-                        crate::commands::corpus::run(
-                            crate::commands::corpus::CorpusAction::Extract {
-                                dir: examples_dir,
-                                output: validated.clone(),
-                            },
-                        )
-                        .await
-                        .map_err(|e| anyhow::anyhow!("pipeline extract examples failed: {e}"))?;
-                    }
+                    // Extract from every approved .vox source root
+                    // (SSOT: mens/config/vox-source-pool.yaml).
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
+                        dir: None,
+                        output: validated.clone(),
+                        pool: PathBuf::from(crate::commands::corpus::source_pool::DEFAULT_CONFIG),
+                        report: None,
+                    })
+                    .await
+                    .map_err(|e| anyhow::anyhow!("pipeline extract vox sources failed: {e}"))?;
 
                     // Extract from Rust source
                     let crates_dir = PathBuf::from("crates");

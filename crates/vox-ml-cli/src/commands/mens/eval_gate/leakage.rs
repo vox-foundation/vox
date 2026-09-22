@@ -432,6 +432,31 @@ pub fn assert_no_text_leakage(bench_path: &Path, corpus_dirs: &[&Path]) -> Resul
     Ok(())
 }
 
+/// Containment (not Jaccard) leakage check for a whole candidate *file*: the share of a
+/// bench answer's word n-grams that appear in `text`. Jaccard (used by
+/// [`assert_no_text_leakage`] for row-sized completions) dilutes toward 0 when a short
+/// answer is embedded in a long file, so the corpus source-pool guard uses containment.
+/// Same tokenizer and adaptive n as above. Returns the first task at/above
+/// [`TEXT_LEAK_THRESHOLD`] with its score.
+pub fn leaked_bench_task(tasks: &[BenchTask], text: &str) -> Option<(String, f64)> {
+    let text_tokens = tokenize(text);
+    for task in tasks {
+        let task_tokens = tokenize(&task.answer);
+        if task_tokens.is_empty() {
+            continue;
+        }
+        let n = TEXT_NGRAM_SIZE.min(task_tokens.len());
+        let task_grams = word_ngrams(&task_tokens, n);
+        let text_grams = word_ngrams(&text_tokens, n);
+        let hit = task_grams.intersection(&text_grams).count() as f64;
+        let score = hit / task_grams.len() as f64;
+        if score >= TEXT_LEAK_THRESHOLD {
+            return Some((task.id.clone(), score));
+        }
+    }
+    None
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -686,5 +711,23 @@ mod tests {
         for id in ["fn_add", "fn_greet", "query_list_items", "component_button"] {
             assert!(msg.contains(id), "expected '{id}' in leakage error: {msg}");
         }
+    }
+
+    #[test]
+    fn leaked_bench_task_catches_answer_embedded_in_long_file() {
+        let tasks = vec![BenchTask {
+            id: "fn_add".into(),
+            answer: FN_ADD_BODY.into(),
+        }];
+        let mut file = String::new();
+        for i in 0..40 {
+            file.push_str(&format!(
+                "fn helper_{i}(x: int) to int {{\n    return x * {i} + 7\n}}\n"
+            ));
+        }
+        file.push_str(FN_ADD_BODY);
+        let hit = leaked_bench_task(&tasks, &file).expect("embedded answer must be caught");
+        assert_eq!(hit.0, "fn_add");
+        assert!(leaked_bench_task(&tasks, "fn other(y: str) to str {\n    return y\n}").is_none());
     }
 }

@@ -8,6 +8,7 @@
 //! - `prompt` — auto-generate system prompt from construct reference
 
 pub(crate) mod generate;
+pub(crate) mod source_pool;
 mod stats;
 mod validate;
 
@@ -38,12 +39,17 @@ pub enum CorpusAction {
     Fingerprint,
     /// Extract training corpus from .vox files
     Extract {
-        /// Directory containing .vox files (recursive)
-        #[arg(required = true)]
-        dir: std::path::PathBuf,
+        /// Directory containing .vox files (recursive). Omit to use the roots in `--pool`.
+        dir: Option<std::path::PathBuf>,
         /// Output JSONL file
         #[arg(short, long, default_value = "mens/data/validated.jsonl")]
         output: std::path::PathBuf,
+        /// Source-pool SSOT (roots, exclude globs, heldout bench); exclusions apply even with `dir`
+        #[arg(long, default_value = "mens/config/vox-source-pool.yaml")]
+        pool: std::path::PathBuf,
+        /// Write a per-file inventory (marker, compile result, decision) as JSON; compiles every walked file
+        #[arg(long)]
+        report: Option<std::path::PathBuf>,
     },
     /// Extract training pairs from Rust source code (.rs)
     ExtractRs {
@@ -347,7 +353,12 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             force_regen,
             dry_run,
         } => generate::run_generate(output, force_regen, dry_run).await,
-        CorpusAction::Extract { dir, output } => generate::run_extract(&dir, &output).await,
+        CorpusAction::Extract {
+            dir,
+            output,
+            pool,
+            report,
+        } => generate::run_extract(dir.as_deref(), &output, &pool, report.as_deref()).await,
         CorpusAction::ExtractRs { dir, output } => {
             let config = vox_corpus::corpus::extract_rs::ExtractRsConfig {
                 root: dir,
