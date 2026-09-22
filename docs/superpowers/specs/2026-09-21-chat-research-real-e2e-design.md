@@ -42,6 +42,9 @@ token-level streaming of research (phase 2, §7).
 | D10 | No general-web source: `DuckDuckGoClient::search` is a stub returning `Ok(vec![])`; SearXNG is unconfigured. Only Wikipedia / OpenAlex / arXiv run. | `vox-search/src/duckduckgo.rs`, `web_dispatcher.rs:86-330` |
 | D11 | Nothing is visible. `ChatTurnEventRow` renders only `skill_activated`; `ResearchSummaryCard` is mounted nowhere; `ResearchExecuted` carries no session id and is dropped by `resolveSessionForEvent`. | `ui/src/components/surfaces/Chat/ChatTurnEventRow.tsx:22-44`, `ui/src/lib/sessionChatStore.ts:74-121` |
 | D12 | `run_multi_hop_web_research` flattens hits to strings and discards per-provider outcomes (timeouts/errors only reach `warn!`). | `vox-search/src/research.rs:37-121` |
+| D13 | Secret resolution silently reports "missing" on a `current_thread` Tokio runtime: `run_secrets_future` calls `block_in_place` (panics there), `catch_unwind` converts it to `BackendMisconfigured`. Observed live 2026-09-22 from `ModelRegistry::maybe_refresh_catalogs` (spawns a current-thread runtime and resolves the OpenRouter key). | `vox-secrets/src/backend/vox_vault.rs:1462-1480`, `vox-orchestrator/src/models/registry.rs:406-410` |
+| D14 | The repo's SearXNG config never enables JSON output: `format: json: true` is not a SearXNG key (the real key is `search.formats`), so `format=json` requests get 403. | `docker/searxng/settings.yml:32-33` |
+| D15 | The chat hard pin silently falls through to auto-selection when the pinned model is missing from the registry or fails a gate. | `vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs:320-327` |
 
 ## 3. Architecture overview
 
@@ -159,16 +162,22 @@ the reply (the chat model does not re-synthesize). Pipeline fixes:
 
 ### 4.5 Strict model pinning
 
-- `model_dispatch::primary_candidate_for_intent`: when `VOX_MODEL_FORCE` is set, return
-  `LlmConfig::openrouter(force)` directly, bypassing `decide()`.
-- `cascade.rs`: when a force is set, append **no** free-floor and **no** local candidates.
-- Chat: `VOX_ROUTING_HARD_PIN_MODEL=google/gemini-3.8-flash` (already honored first in
-  `resolve.rs:320`); GUI model picker set to the same id.
-- Runtime check: every research trace records the model actually used per LLM stage; §8
-  asserts it equals the pin. If OpenRouter errors, the turn fails with the real error.
-- Where these env values live for the GUI-spawned daemon is decided in the plan (the
-  daemon inherits the GUI's environment; a persisted user-config key is preferred if one
-  already exists).
+**One knob:** `VOX_MODEL_FORCE`, read through `vox_config::env_parse::resolve_config_str`
+(env var first, then `~/.vox/config.toml`), exposed as
+`vox_config::inference::forced_model() -> Option<String>`. Persisted by adding
+`VOX_MODEL_FORCE = "google/gemini-3.8-flash"` to `~/.vox/config.toml`, so a Finder-launched
+Axis honors it with no environment plumbing.
+
+- `model_dispatch::primary_candidate_for_intent`: when forced, return
+  `LlmConfig::openrouter(forced)` directly, bypassing `decide()`.
+- `cascade_for_research_stage`: when forced, return exactly that one candidate — **no**
+  free-floor, **no** local.
+- `select_inner`: reads the pin through `forced_model()` instead of `std::env::var`.
+- Chat resolver: the pin (hard pin, else `forced_model()`) is **strict** — missing from the
+  registry, blocked by a gate, or swapped by free-tier enforcement is an error naming the
+  pin, never a fallback (fixes D15).
+- Runtime check: every research trace records the model actually used; §8 asserts it
+  equals the pin. If OpenRouter errors, the turn fails with the real error.
 
 ### 4.6 Trace → events
 
@@ -183,10 +192,12 @@ pub struct ResearchStageEvent {
 }
 ```
 
-Serialized into `events` as `{ "kind": "research_stage", ... }`, one per stage, in order,
-plus one `{ "kind": "research_summary", mode, source_count, model, total_ms, status }`.
-A detection event with `mode: none` is emitted on **every** turn (collapsed by default)
-so "why didn't it research?" is always answerable.
+Serialized into `events` as **one** event per turn (the transcript renders one row per
+event, so a single self-contained event avoids frontend grouping):
+`{ "kind": "research_trace", mode, explicit, reasons, source_count, model, total_ms,
+status, stages: [ResearchStageEvent…], sources: [{n, url, title, engine}] }`.
+It is emitted on **every** turn — with `mode: "none"` and only the detection stage when
+no research ran — so "why didn't it research?" is always answerable.
 
 ### 4.7 GUI
 
@@ -269,10 +280,11 @@ in the answer.
 
 Results, including failures, are reported with the raw captured output.
 
-## 9. Open items resolved during planning
+## 9. Decisions made during planning (2026-09-22)
 
-- Exact chat lane timeout (measure SearXNG p95 in §8 setup).
-- Whether `should_trigger_autonomous_research` has other callers (keep or delete).
-- Persisting the model pin for the GUI-spawned daemon (env vs existing user-config key).
-- Diagnosis of `vox secrets set` hanging is tracked separately (spawned task) and blocks
-  §8 until a key resolves.
+- `should_trigger_autonomous_research` has exactly one caller (`message.rs`) — deleted with its tests.
+- Model pin persisted via `VOX_MODEL_FORCE` in `~/.vox/config.toml` (§4.5).
+- One `research_trace` event per turn instead of per-stage events (§4.6).
+- D13 (vault on current-thread runtimes) and D14 (SearXNG JSON disabled) are fixed first; both block §8.
+- Chat lane timeout: quick research uses the Deep lane deadline (4000 ms) for its single wave; re-measure in §8 setup.
+- `vox secrets set` hang: the key is now stored (`vox secrets get OPENROUTER_API_KEY` → `sk-o…`), verified with a live `google/gemini-3.8-flash` turn.
