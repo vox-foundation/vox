@@ -917,7 +917,10 @@ fn git_diff_name_only_for_prepush(root: &Path) -> Result<String> {
     }
 }
 
-/// Repo-relative paths under `docs/src/` (no `docs/src/` prefix), excluding `archive/`.
+/// Repo-relative paths under `docs/src/` (no `docs/src/` prefix), excluding
+/// `archive/` and paths deleted in the diff (the diff includes deletions,
+/// but `vox-doc-pipeline --paths=` errors loudly on a path that no longer
+/// exists on disk).
 fn changed_docs_md_rel_paths(root: &Path) -> Result<Vec<String>> {
     let raw = git_diff_name_only_for_prepush(root)?;
     let mut seen = BTreeSet::new();
@@ -928,6 +931,9 @@ fn changed_docs_md_rel_paths(root: &Path) -> Result<Vec<String>> {
         }
         if let Some(rest) = line.strip_prefix("docs/src/") {
             if rest.starts_with("archive/") {
+                continue;
+            }
+            if !root.join("docs/src").join(rest).is_file() {
                 continue;
             }
             seen.insert(rest.to_string());

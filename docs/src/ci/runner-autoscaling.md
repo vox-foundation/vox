@@ -2,7 +2,7 @@
 title: "Self-Hosted CI Runner Autoscaling"
 description: "Ephemeral, demand-scaled self-hosted CI runner pool: how it worked, how it was rolled out, and how it was recovered when runners were down. Replaced the two always-on vox-runner containers."
 category: "CI & Quality"
-status: "retired"
+status: "deprecated"
 training_eligible: true
 training_rationale: "Documents the runner autoscaler design + rollout so the single-box CI fleet can be operated and recovered reliably."
 ---

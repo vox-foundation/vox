@@ -1,8 +1,8 @@
 name: Mobile E2E (iOS)
 
 on:
-  # push:main dropped (runner-remediation Task 9) — iOS E2E runs nightly, like
-  # the Android lane is merge/label-gated; no need on every main push.
+  # push:main dropped (runner-remediation Task 9) — iOS E2E runs nightly only,
+  # same as the Android lane (heavy macOS job, timeout exceeds the fast-lane cap).
   schedule:
     - cron: '0 3 * * *' # Run nightly
   workflow_dispatch:

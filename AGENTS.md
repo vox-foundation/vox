@@ -462,6 +462,10 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
   `nightly-failure` issues are printed by the git pre-commit/pre-push hooks
   and injected by Claude Code hooks. When you see a block, fix it before
   continuing. `vox ci status` prints the same block on demand.
+- **Concurrency required.** Every push/PR-triggered workflow needs a
+  top-level `concurrency:` block with `cancel-in-progress: true` (or a row in
+  `docs/src/ci/concurrency-exceptions.md`), enforced by
+  `workflow-concurrency-guard`.
 
 Spec: `docs/superpowers/specs/2026-09-21-hosted-primary-ci-design.md`.
 

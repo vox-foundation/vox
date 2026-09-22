@@ -191,9 +191,15 @@ fn render(s: &CiStatus) -> String {
         }
     }
     for i in &s.nightly {
+        // The issue title already starts with "Nightly failing:" — strip it so the
+        // rendered line doesn't repeat "failing".
+        let title = i
+            .title
+            .strip_prefix("Nightly failing: ")
+            .unwrap_or(&i.title);
         out.push(format!(
             "NIGHTLY FAILING: {} (#{}) -> {}",
-            i.title, i.number, i.url
+            title, i.number, i.url
         ));
     }
     if out.is_empty() {
@@ -661,7 +667,7 @@ mod tests {
         );
         assert!(r.contains("move the job to nightly"), "{r}");
         assert!(
-            r.contains("NIGHTLY FAILING: Nightly failing: Nightly (#9) -> https://i"),
+            r.contains("NIGHTLY FAILING: Nightly (#9) -> https://i"),
             "{r}"
         );
         assert!(r.lines().next().unwrap().starts_with("GitHub CI"), "{r}");
