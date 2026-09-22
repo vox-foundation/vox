@@ -106,8 +106,8 @@ fn module_needs_vox_speech(module: &HirModule) -> bool {
 }
 
 /// Absolute path to the vox workspace root this `vox` binary was compiled
-/// from, embedded at `vox-codegen`'s own build time (see `build.rs` and
-/// `vox_build_meta::emit_repo_root`). Reliable only when `vox` was built
+/// from, embedded at `vox-codegen`'s own build time (see `build.rs`).
+/// Reliable only when `vox` was built
 /// locally from a checkout; see `resolve_vox_repo_root`.
 const COMPILED_REPO_ROOT: &str = env!("VOX_COMPILER_REPO_ROOT");
 

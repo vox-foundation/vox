@@ -2896,7 +2896,7 @@
       "mcp_tool": "vox_visual_rag_query",
       "implicit": false,
       "title": "Visual Rag Query",
-      "description_model": "Dispatches a multi-modal visual RAG query to the configured intelligence backend.",
+      "description_model": "NOT IMPLEMENTED: multimodal RAG is planned but not wired up; this tool always returns an error. Use vox_search or memory retrieval tools instead.",
       "curated": true
     },
     {

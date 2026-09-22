@@ -78,7 +78,7 @@ Rows checked on 2026-09-21 were verified two ways: by running an installed `vox 
 |:---|:---|:---|:---|
 | Parser & type checker (`vox check`) | Working | 2026-09-21 | 85 of 87 golden examples check; the 2 failures come from a commit newer than the tested build. Grammar still changes; last break 2026-08-09. |
 | Interpreter (`vox run` on scripts) | Working | 2026-09-21 | Runs `fn main()` scripts, including this repo's own automation (46 of 51 `scripts/*.vox` type-check). Older builds default to the cargo lane; use `--interp` there. |
-| Full-stack codegen (`vox build`) | Prototype | 2026-09-22 | Emits TS/React, an Axum server, and SQL DDL. The generated server now builds outside a Vox checkout when `vox` was built from source (it finds Vox's crates via `VOX_REPO_ROOT` or the build's own repo root); a `voxup`-installed binary with no source tree still can't ([design](docs/src/architecture/generated-project-runtime-deps.md)). A slow, ignored test runs `cargo check` on a generated app outside the repo; nothing tests that one serves requests. Mutations that write to the database compile, but handler parameters arrive as untyped JSON, so an `id: int` parameter can't yet be passed to `get`/`update`/`delete`. |
+| Full-stack codegen (`vox build`) | Prototype | 2026-09-22 | Emits TS/React, an Axum server, and SQL DDL. The generated server now builds outside a Vox checkout when `vox` was built from source (it finds Vox's crates via `VOX_REPO_ROOT` or the build's own repo root); a `voxup`-installed binary with no source tree still can't ([design](docs/src/architecture/generated-project-runtime-deps.md)). A slow, ignored test runs `cargo check` on a generated app outside the repo; nothing tests that one serves requests. Mutations that write to the database compile, and Axum handler parameters bind as their declared types (a bad value gets a 400). The Tauri shell still binds parameters as untyped JSON. |
 | OpenAPI & client emit (`vox emit`) | Prototype | 2026-09-21 | OpenAPI works. Client emit fails with a write error on any file containing a `component`. |
 | Formatter (`vox fmt`) | Prototype | 2026-09-21 | **Deletes comments and silently drops `workflow`/`activity` declarations.** Don't run it on files you care about. |
 | Tests (`vox test`, `@test`) | Prototype | 2026-09-22 | Goes through generated Rust and cargo, so it shares full-stack codegen's source-build requirement. |
@@ -183,6 +183,7 @@ Longer-horizon targets, mostly unbuilt: [v1.0 release criteria](docs/src/archite
 
 Newest first.
 
+- **2026-09-22**: Generated Axum handlers bind parameters as their declared types instead of raw JSON, and `vox-db`'s test target compiles with default features again.
 - **2026-09-22**: Generated mutations that write to the database compile now. Before this, none did: `db.T.insert(...)?` stacked a second `?`, and the transaction wrapper moved `db` while borrowing it. Also cleared the clippy lint wave that failed `cargo clippy -p vox-orchestrator-mcp` in its dependencies.
 - **2026-09-22**: Fixed four bugs from the audit. `vox run` routes the `vox init` starter to the app lane. The starter no longer trips its own `id`-column lint. `vox doctor` exits non-zero when a required check fails, while missing optional subsystems only warn. Generated servers find Vox's crates outside a checkout and depend only on the runtime crates they use. The audit's claim that an MCP tool had no dispatch arm was wrong; `vox_visual_rag_query` is now labeled as unimplemented.
 - **2026-09-21**: Audited the whole suite against the code ([findings and bug handoff](docs/src/architecture/suite-status-audit-2026-09-21.md)) and rewrote this README around it. The previous README called several areas "Stable" or "Mature" that aren't, and its quick start failed.
@@ -247,7 +248,6 @@ The TypeScript lands in `dist/`. The generated Rust server lands in `src/target/
 > **Known issues (2026-09-22):**
 > - `vox run src/main.vox` on the starter needs pnpm, because the app lane bundles the frontend.
 > - The generated server finds Vox's crates only when `vox` was built from a source checkout.
-> - Generated mutation and query handlers don't convert parameters to their declared types, so `id: int` parameters don't compile when used as ids.
 > - `vox fmt` deletes comments and drops some declarations.
 > - Some `vox doctor` hints are wrong on macOS.
 
