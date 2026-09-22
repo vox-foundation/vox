@@ -109,6 +109,12 @@
       "path_glob": "**/vox-research-shim/src/research/provider.rs",
       "reason": "map_site is a pre-existing stub returning None (site crawling is handled via query.site_scope filtering; no dedicated site-map API exists in vox-search yet). Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-term/src/app.rs",
+      "reason": "run() is the pre-existing TUI entry point (crossterm event loop over a real terminal); predates the 2026-09-21 fix that wires Enter-key dispatch through Session::submit inside its body. It is an infinite interactive I/O loop and not unit-testable directly -- the per-keystroke dispatch logic it now calls (InputBox::submit -> Session::submit) is covered by crates/vox-term/tests/dispatch.rs and the session::tests module added in the same change. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
     }
   ]
 }
