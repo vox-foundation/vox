@@ -109,7 +109,7 @@ jobs:
         with:
           tool: cargo-nextest
 
-      # Per-PR: only the Linux (self-hosted) leg runs the platform nextest. Win/macOS
+      # Per-PR: only the Linux leg runs the platform nextest. Win/macOS
       # legs do ONLY the cheap `cargo check` above on PRs (the per-PR cfg(windows)/
       # cfg(macos) compile proof); their full test run is deferred to merge_group +
       # the weekly schedule. Coverage deferred: full Win/macOS nextest moves off per-PR.

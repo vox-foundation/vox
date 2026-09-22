@@ -266,6 +266,14 @@ jobs:
   build-plugin-zips:
     name: Build plugin zip (${{ matrix.plugin }})
     needs: compute-ref
+    # mens-candle-cuda's `runs_on` names a self-hosted GPU label with zero
+    # runners registered (2026-09, hosted-primary CI migration — see
+    # qwen35-native-nightly.yml / ml_data_extraction.yml for the same GPU
+    # gap). Left in the matrix (not deleted) so the row documents the target
+    # shape, but skipped below so it doesn't queue forever and starve the
+    # rest of this job's matrix. Re-enable by dropping this `if:` once a GPU
+    # runner (hosted or self-hosted) exists.
+    if: matrix.plugin != 'mens-candle-cuda'
     runs-on: ${{ fromJson(matrix.runs_on) }}
     timeout-minutes: 120
     strategy:
@@ -275,6 +283,7 @@ jobs:
           # nvidia-gpu tagged plugin — self-hosted GPU runner (see
           # ml_data_extraction.yml / runner-contract.md for the `gpu` label),
           # not a GitHub-hosted runner, so no runner-policy-check row needed.
+          # SKIPPED (job-level `if:` above) until a GPU runner exists.
           - plugin: mens-candle-cuda
             crate: vox-plugin-mens-candle-cuda
             feature: cuda
