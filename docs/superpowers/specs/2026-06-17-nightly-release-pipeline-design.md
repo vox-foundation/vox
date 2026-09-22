@@ -91,7 +91,7 @@ To manage the rolling release:
 
 ### CI Workflows
 
-#### [NEW] [release-nightly.yml](file:///c:/Users/Owner/vox/.github/workflows/release-nightly.yml)
+#### [NEW] `.github/workflows/release-nightly.yml`
 Creates the nightly release workflow with schedule, gate check, build matrix, and publish jobs.
 
 ### Rust Command Changes

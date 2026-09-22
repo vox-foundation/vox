@@ -682,7 +682,7 @@ Citations are split into three categories: **academic** (peer-reviewed papers an
 
 [^augment-routing]: Augment Code — Best AI Model for Coding Agents in 2026: A Routing Guide. https://www.augmentcode.com/guides/ai-model-routing-guide
 [^notdiamond]: VentureBeat — *Not Diamond automatically routes your query to the best LLM*. https://venturebeat.com/ai/not-diamond-automatically-routes-your-query-to-the-best-llm
-[^three-tier-cascade]: MegaNova — *The 3-Tier Routing Cascade: Rule-Based → Semantic → LLM*. https://blog.meganova.ai/the-3-tier-routing-cascade-rule-based-semantic-llm/
+[^three-tier-cascade]: MegaNova — *The 3-Tier Routing Cascade: Rule-Based → Semantic → LLM*. `blog.meganova.ai/the-3-tier-routing-cascade-rule-based-semantic-llm` (offline as of 2026-09-22)
 [^react-vs-plan]: DEV.to — *ReAct vs Plan-and-Execute: A Practical Comparison*. https://dev.to/jamesli/react-vs-plan-and-execute-a-practical-comparison-of-llm-agent-patterns-4gh9
 [^oracle-react]: Oracle Integration — *ReAct vs Plan & Execute*. https://blogs.oracle.com/integration/react-vs-plan-execute-choosing-the-right-agent-thinking-pattern-in-oracle-integration
 [^plan-execute-medium]: Medium — *Built with LangGraph! #33: Plan & Execute*. https://medium.com/@okanyenigun/built-with-langgraph-33-plan-execute-ea64377fccb1

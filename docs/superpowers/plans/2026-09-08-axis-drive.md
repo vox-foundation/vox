@@ -12,7 +12,7 @@ training_eligible: true
 
 **Goal:** Agents can start a dedicated debug Axis, set every send-changing composer knob, send a turn through `handleLoquelaSubmit` → `chat_turn`, and read picker/catalog truth from the terminal — without touching the user's Axis window.
 
-**Architecture:** Loopback HTTP/JSON drive bus inside a second `vox-gui --drive` process (hidden unless `--show`). Isolation is skip-localStorage-pin-read + journey-store override — **not** `$HOME` / `VOX_GUI_DATA_DIR` for WKWebView. CLI is `vox gui drive start|set|send|state|wait|stop|show|headless`. Headless is `vox-gui --drive-headless` stdin/stdout JSON with `plane: "headless"` and `claims.*.false`. Spec: [docs/superpowers/specs/2026-09-08-axis-drive-design.md](docs/superpowers/specs/2026-09-08-axis-drive-design.md).
+**Architecture:** Loopback HTTP/JSON drive bus inside a second `vox-gui --drive` process (hidden unless `--show`). Isolation is skip-localStorage-pin-read + journey-store override — **not** `$HOME` / `VOX_GUI_DATA_DIR` for WKWebView. CLI is `vox gui drive start|set|send|state|wait|stop|show|headless`. Headless is `vox-gui --drive-headless` stdin/stdout JSON with `plane: "headless"` and `claims.*.false`. Spec: [docs/superpowers/specs/2026-09-08-axis-drive-design.md](../specs/2026-09-08-axis-drive-design.md).
 
 **Tech Stack:** Existing `vox-cli` (`gui` feature), `vox-gui` binary crate + React 19 / vitest. No new crate. No new HTTP framework — `std::net::TcpListener` on `127.0.0.1:0` via `tauri::async_runtime::spawn`. Drive Console strip is unchanged.
 

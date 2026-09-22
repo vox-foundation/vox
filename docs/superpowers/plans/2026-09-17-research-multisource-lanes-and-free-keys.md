@@ -15,9 +15,9 @@
 
 **Tech Stack:** Rust 2024 (Tokio, Reqwest, Serde JSON/YAML, Wiremock, Futures), TypeScript 5.5+ (React 19, Tailwind CSS, Dockview, Playwright, Vitest).
 
-**Spec SSOT:** [`docs/superpowers/specs/2026-09-17-research-multisource-lanes-and-free-keys-design.md`](docs/superpowers/specs/2026-09-17-research-multisource-lanes-and-free-keys-design.md)  
-**Companion Spec:** [`docs/superpowers/specs/2026-09-17-axis-gui-visual-debugger-deep-research-design.md`](docs/superpowers/specs/2026-09-17-axis-gui-visual-debugger-deep-research-design.md)  
-**Master Unified Spec:** [`docs/superpowers/specs/2026-09-17-unified-multisource-research-lanes-and-gui-design.md`](docs/superpowers/specs/2026-09-17-unified-multisource-research-lanes-and-gui-design.md)
+**Spec SSOT:** [`docs/superpowers/specs/2026-09-17-research-multisource-lanes-and-free-keys-design.md`](../specs/2026-09-17-research-multisource-lanes-and-free-keys-design.md)  
+**Companion Spec:** [`docs/superpowers/specs/2026-09-17-axis-gui-visual-debugger-deep-research-design.md`](../specs/2026-09-17-axis-gui-visual-debugger-deep-research-design.md)  
+**Master Unified Spec:** [`docs/superpowers/specs/2026-09-17-unified-multisource-research-lanes-and-gui-design.md`](../specs/2026-09-17-unified-multisource-research-lanes-and-gui-design.md)
 
 ---
 

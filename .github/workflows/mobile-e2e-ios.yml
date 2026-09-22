@@ -32,6 +32,9 @@ jobs:
         with:
           node-version: 24
           cache: 'pnpm'
+          # The repo root has no pnpm-lock.yaml; this workflow only installs
+          # the mobile app's workspace, so point the cache key at its lockfile.
+          cache-dependency-path: apps/vox-mental-tracker/pnpm-lock.yaml
 
       - name: Install dependencies
         run: cd apps/vox-mental-tracker && pnpm install --frozen-lockfile

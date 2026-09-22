@@ -17,7 +17,7 @@ training_eligible: true
 
 **Tech Stack:** React 19 + vitest in `crates/vox-gui/ui`, dockview 6.6.1, existing `useMetricSeries` / `append`, Tauri `chat_turn`. No new crate edges.
 
-**On-disk copy (first execution step, before Task 0 code):** write this plan to [docs/superpowers/plans/2026-09-07-axis-chat-honesty-theme.md](docs/superpowers/plans/2026-09-07-axis-chat-honesty-theme.md) with required docs frontmatter.
+**On-disk copy (first execution step, before Task 0 code):** write this plan to `docs/superpowers/plans/2026-09-07-axis-chat-honesty-theme.md` with required docs frontmatter.
 
 ## Global Constraints
 
@@ -31,7 +31,7 @@ training_eligible: true
 
 ## Auditor verdict (verified against tree)
 
-Tracks: [composer honesty](e79eebad-d317-457f-b731-f757c199b112), [Rust/VoxLocal](8fe5bb1a-3eed-4e0d-b00c-5a67a5f848d5), [transcript](16c42755-ef45-4724-a091-e25eb9bfd59d), [dock IA](d885ffe7-6768-44a0-8858-a8778890f6a2), [theme](3cbd6714-e630-4fad-a5dc-f7ee970af562), [surface wiring](e7efeac2-53da-4bb7-b8f8-d195e9f61b82), [TDD fragility](df9bd7c3-1371-41ef-85ca-f84cd0d3f3fb), [UX gaps](a7a20dda-d4c8-4f06-8668-f6252240025e), [picker scroll](2dad01a5-7383-4381-906f-0746b86c2128). Local re-read of the cited lines.
+Tracks: composer honesty (`e79eebad-d317-457f-b731-f757c199b112`), Rust/VoxLocal (`8fe5bb1a-3eed-4e0d-b00c-5a67a5f848d5`), transcript (`16c42755-ef45-4724-a091-e25eb9bfd59d`), dock IA (`d885ffe7-6768-44a0-8858-a8778890f6a2`), theme (`3cbd6714-e630-4fad-a5dc-f7ee970af562`), surface wiring (`e7efeac2-53da-4bb7-b8f8-d195e9f61b82`), TDD fragility (`df9bd7c3-1371-41ef-85ca-f84cd0d3f3fb`), UX gaps (`a7a20dda-d4c8-4f06-8668-f6252240025e`), picker scroll (`2dad01a5-7383-4381-906f-0746b86c2128`). Local re-read of the cited lines.
 
 **True positives (keep)**
 
@@ -59,7 +59,7 @@ Tracks: [composer honesty](e79eebad-d317-457f-b731-f757c199b112), [Rust/VoxLocal
 - Task 7 persisted-`flow` fixture — **always-green** (`fromJSON` throws like sessions). Drop it. Keep `close()` as untested defense-in-depth.
 - jsdom `scrollHeight > clientHeight` — will not fail or will flake.
 - Task 0 Step 2 running `vox-gui` (E0382) and `vox-gamify` assertion-flip in one breath — compile break blocks nothing else; fix E0382 **before** flipping the token assertion.
-- Pairing “breaks on tool rows between turns” — **false** ([transcript](16c42755-ef45-4724-a091-e25eb9bfd59d): chips live inside the assistant bubble). Pairing is still **deferred** (YAGNI); keep Task 3 as sr-only You only.
+- Pairing “breaks on tool rows between turns” — **false** (transcript (`16c42755-ef45-4724-a091-e25eb9bfd59d`): chips live inside the assistant bubble). Pairing is still **deferred** (YAGNI); keep Task 3 as sr-only You only.
 
 **False negatives (added)**
 
@@ -248,7 +248,7 @@ it('transcript dock does not use overflow-y-auto on the panel that hosts the com
 
 ### Task 3: Transcript type — no pairing
 
-**Why slim:** Pairing is feasible (tool chips are **inside** the assistant bubble, status/summary append at the end — [transcript audit](16c42755-ef45-4724-a091-e25eb9bfd59d)). Still deferred as YAGNI. Body is already `text-[12px]`. Visible “You” (L45) is the density win. Preserve `#msg-*` ids (e2e).
+**Why slim:** Pairing is feasible (tool chips are **inside** the assistant bubble, status/summary append at the end — transcript audit (`16c42755-ef45-4724-a091-e25eb9bfd59d`)). Still deferred as YAGNI. Body is already `text-[12px]`. Visible “You” (L45) is the density win. Preserve `#msg-*` ids (e2e).
 
 - [ ] **Step 1:** In existing [ChatTranscript.test.tsx](crates/vox-gui/ui/src/components/surfaces/Chat/ChatTranscript.test.tsx):
 

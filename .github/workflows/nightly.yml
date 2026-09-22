@@ -1714,13 +1714,12 @@ jobs:
           - vox-populi
           - vox-ml-cli
           - vox-gamify
-          - vox-oratio
+          - vox-speech
           - vox-skills
-          - vox-scientia-ingest
+          - vox-scientia
           - vox-doc-pipeline
           - vox-mcp-registry
           - vox-package
-          - vox-primitives
           - vox-config
           - vox-crypto
           - vox-code-audit
