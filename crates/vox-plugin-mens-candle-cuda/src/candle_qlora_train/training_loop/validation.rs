@@ -53,6 +53,11 @@ pub fn preflight_masked_ce_finite(
 
     let max_diff = super::curriculum::max_difficulty_for_epoch(start_epoch, config);
     let vocab = bundle.vocab;
+    // Each probe is a full forward pass; scanning all rows of a large corpus that
+    // can never supervise (e.g. a prompt that fills the window) took ~40 minutes
+    // before failing. Give up after this many encoded-but-unsupervised rows.
+    const MAX_UNSUPERVISED_PROBES: usize = 256;
+    let mut unsupervised = 0usize;
     for (pair_idx, pair) in pairs.iter().enumerate() {
         let enc = match super::encoding::try_encode_training_step(
             pair,
@@ -84,7 +89,20 @@ pub fn preflight_masked_ce_finite(
             config,
             device,
         )? {
-            MaskedCeForward::NoSupervision => continue,
+            MaskedCeForward::NoSupervision => {
+                unsupervised += 1;
+                if unsupervised >= MAX_UNSUPERVISED_PROBES {
+                    anyhow::bail!(
+                        "masked CE preflight: the first {unsupervised} encodable rows had no supervised \
+                         answer tokens inside --seq-len {} (last row: {} prompt tokens of {} kept). \
+                         Raise --seq-len or shorten the system prompt.",
+                        config.seq_len,
+                        enc.prefix_len.saturating_sub(enc.trunc_offset),
+                        enc.ids.len()
+                    );
+                }
+                continue;
+            }
             MaskedCeForward::NonFinite { kind, mask_sum } => {
                 anyhow::bail!(
                     "masked CE preflight failed: non-finite loss ({kind}) before training (mask_sum={mask_sum:.6}, pair_idx={pair_idx}); \
@@ -148,8 +166,11 @@ pub fn run_validation_pass(
         )
         .unwrap_or(0);
         if let Ok(enc) = tokenizer.encode(text.as_str(), true) {
-            let (ids, trunc_offset) =
-                crate::training_text::truncate_to_seq_len(enc.get_ids().to_vec(), config.seq_len);
+            let (ids, trunc_offset) = crate::training_text::fit_to_seq_len(
+                enc.get_ids().to_vec(),
+                prefix_len,
+                config.seq_len,
+            );
             if ids.len() >= 2
                 && let Ok(input_ids) = candle_core::Tensor::new(&ids[..ids.len() - 1], device)
                     .and_then(|t| t.unsqueeze(0))

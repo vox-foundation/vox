@@ -98,14 +98,38 @@ pub fn with_system_turn(
     out
 }
 
-/// Clip a tokenized row to `seq_len`, keeping the **head** (system + prompt + the
-/// start of the answer). Keeping the tail instead cut the prompt first, training
-/// unconditioned completions. Returns `(ids, trunc_offset)`; the offset is always
-/// 0 now and is kept for the mask/alignment call sites.
+/// Fit a tokenized row (`prefix_len` prompt tokens, then the answer) into
+/// `seq_len`, returning `(ids, trunc_offset)` where `trunc_offset` is how many
+/// tokens were removed *before* the answer (the mask uses
+/// `prefix_len - trunc_offset` as the new prompt length).
+///
+/// The answer is what trains, so it is guaranteed up to half the window. An
+/// over-long prompt is trimmed from its middle — keeping the start of the system
+/// turn and the end of the user turn plus the assistant opener — and only then is
+/// the answer's tail cut. Keeping the tail of the whole row (the old rule) dropped
+/// the prompt first; keeping the head dropped the whole answer whenever the system
+/// prompt alone exceeded `seq_len`.
 #[must_use]
-pub fn truncate_to_seq_len(mut ids: Vec<u32>, seq_len: usize) -> (Vec<u32>, usize) {
-    ids.truncate(seq_len);
-    (ids, 0)
+pub fn fit_to_seq_len(ids: Vec<u32>, prefix_len: usize, seq_len: usize) -> (Vec<u32>, usize) {
+    if ids.len() <= seq_len {
+        return (ids, 0);
+    }
+    let prefix_len = prefix_len.min(ids.len());
+    let answer_len = ids.len() - prefix_len;
+    let prefix_budget = seq_len - answer_len.min(seq_len / 2);
+    if prefix_len <= prefix_budget {
+        let mut ids = ids;
+        ids.truncate(seq_len);
+        return (ids, 0);
+    }
+    let head = prefix_budget / 4;
+    let tail = prefix_budget - head;
+    let removed = prefix_len - prefix_budget;
+    let mut out = Vec::with_capacity(seq_len);
+    out.extend_from_slice(&ids[..head]);
+    out.extend_from_slice(&ids[prefix_len - tail..]);
+    out.truncate(seq_len);
+    (out, removed)
 }
 
 #[cfg(test)]
@@ -135,11 +159,37 @@ mod tests {
     }
 
     #[test]
-    fn truncation_keeps_the_prompt_head() {
-        assert_eq!(
-            truncate_to_seq_len(vec![1, 2, 3, 4, 5], 3),
-            (vec![1, 2, 3], 0)
-        );
-        assert_eq!(truncate_to_seq_len(vec![1, 2], 3), (vec![1, 2], 0));
+    fn short_rows_are_untouched() {
+        assert_eq!(fit_to_seq_len(vec![1, 2, 3], 2, 8), (vec![1, 2, 3], 0));
+    }
+
+    #[test]
+    fn long_answer_is_cut_at_its_tail_when_the_prompt_fits() {
+        // prompt = 0..4, answer = 100..120; window 10.
+        let ids: Vec<u32> = (0..4).chain(100..120).collect();
+        let (out, off) = fit_to_seq_len(ids, 4, 10);
+        assert_eq!(off, 0);
+        assert_eq!(out, vec![0, 1, 2, 3, 100, 101, 102, 103, 104, 105]);
+    }
+
+    #[test]
+    fn oversized_prompt_is_trimmed_in_the_middle_and_the_answer_survives() {
+        // A 20-token prompt (system prompt larger than the window) + 3-token answer.
+        let ids: Vec<u32> = (0..20).chain(100..103).collect();
+        let (out, off) = fit_to_seq_len(ids, 20, 10);
+        assert_eq!(out.len(), 10);
+        assert_eq!(&out[out.len() - 3..], &[100, 101, 102], "whole answer kept");
+        assert_eq!(out[0], 0, "start of the system turn kept");
+        assert_eq!(out[out.len() - 4], 19, "end of the user turn kept");
+        // The mask's prompt length is prefix_len - trunc_offset = 7 = answer start.
+        assert_eq!(20 - off, 7);
+    }
+
+    #[test]
+    fn huge_answer_gets_half_the_window() {
+        let ids: Vec<u32> = (0..20).chain(100..200).collect();
+        let (out, off) = fit_to_seq_len(ids, 20, 10);
+        assert_eq!(20 - off, 5, "prompt squeezed to half");
+        assert_eq!(&out[5..], &[100, 101, 102, 103, 104]);
     }
 }

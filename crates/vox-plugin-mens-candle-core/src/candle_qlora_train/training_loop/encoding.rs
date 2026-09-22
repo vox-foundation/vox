@@ -47,7 +47,7 @@ pub fn try_encode_training_step(
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     let raw_token_len = enc.get_ids().len();
     let (ids, trunc_offset) =
-        crate::training_text::truncate_to_seq_len(enc.get_ids().to_vec(), config.seq_len);
+        crate::training_text::fit_to_seq_len(enc.get_ids().to_vec(), prefix_len, config.seq_len);
     if ids.len() < 2 {
         return Ok(TryEncodeOutcome::SkipShortSeq);
     }
