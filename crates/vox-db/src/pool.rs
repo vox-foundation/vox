@@ -157,6 +157,19 @@ mod tests {
     /// connection's own last write. This test asserts that invariant holds under
     /// real concurrent load, verifying every task's returned id by reading the row
     /// back and comparing an embedded per-task marker.
+    ///
+    /// Mutation-verified 2026-09-22, with a caveat worth knowing before trusting a
+    /// green run: substituting a shared connection (one `pool.get()` reused across
+    /// all tasks) *alone* still reports 0 mismatches here, because the unguarded
+    /// window between `execute()` and `last_insert_rowid()` is a few nanoseconds of
+    /// synchronous code while a contended `tokio::Mutex` handoff takes microseconds,
+    /// so the interleaving effectively never lands. Adding a `yield_now().await`
+    /// inside that window makes the shared-connection variant report 981/1000
+    /// mismatches and fail, while this test — same widened window, independent
+    /// per-task connections — still reports 0. The assertion therefore has real
+    /// detection power and discriminates correctly, but as written it will not by
+    /// itself catch a regression that reverts `VoxDbPool::get()` to sharing one
+    /// connection; that needs the widened window or a much larger scale.
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
     async fn pooled_connections_never_race_on_last_insert_rowid() {
         let pool = VoxDbPool::new(DbConfig::Memory).await.expect("pool init");
