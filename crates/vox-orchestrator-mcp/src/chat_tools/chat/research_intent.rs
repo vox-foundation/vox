@@ -96,6 +96,26 @@ const EVIDENCE_CUES: &[&str] = &[
     "citations",
     "according to",
 ];
+const LOCAL_CODE_CUES: &[&str] = &[
+    "this crate",
+    "this repo",
+    "this repository",
+    "this branch",
+    "this codebase",
+    "this project",
+    "this file",
+    "this function",
+    "this module",
+    "this implementation",
+    "current implementation",
+    "this code",
+    "our code",
+    "our repo",
+    "the codebase",
+    "commit",
+    "pull request",
+    "this pr",
+];
 const QUESTION_WORDS: &[&str] = &[
     "what", "what's", "whats", "who", "when", "where", "which", "is", "are", "does", "did",
     "how many", "how much",
@@ -236,6 +256,15 @@ pub fn classify_research_intent(
         );
     }
 
+    if let Some(cue) = LOCAL_CODE_CUES.iter().find(|c| lower.contains(*c)) {
+        return intent(
+            ResearchMode::None,
+            false,
+            format!("skip: refers to this codebase (\"{cue}\")"),
+            trimmed,
+        );
+    }
+
     // 3. Deep.
     let padded = format!(" {lower} ");
     if let Some(cue) = DEEP_CUES.iter().find(|c| padded.contains(*c)) {
@@ -341,6 +370,24 @@ mod tests {
         ] {
             assert_eq!(mode(p), ResearchMode::None, "{p:?}");
         }
+    }
+
+    #[test]
+    fn skips_questions_about_this_codebase() {
+        for p in [
+            "what's the latest commit on this branch?",
+            "is the current implementation thread-safe?",
+            "which version of serde does this crate use?",
+            "what does the latest release of this crate change?",
+        ] {
+            assert_eq!(mode(p), ResearchMode::None, "{p:?}");
+        }
+        // still Quick: no local-code cue present
+        assert_eq!(mode("who won the 2026 world cup?"), ResearchMode::Quick);
+        assert_eq!(
+            mode("what's the current version of tokio?"),
+            ResearchMode::Quick
+        );
     }
 
     #[test]
