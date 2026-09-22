@@ -10271,6 +10271,24 @@ curated:
   mcp_tool: vox_search_compare
   cli_path: null
   parameters: null
+- id: mcp.vox_search_history
+  title: Vox Search History
+  description_human: null
+  description_model: First-parent repo history for agents (log through lineage, focus, forgotten, search, timeline, brief). Ingests at most 60 s per call into a cache under the git common dir; results carry complete/behind, and an incomplete result means call again.
+  intent_tags:
+  - retrieval
+  - graph
+  side_effect_class: writes_files
+  scope_kind: repository
+  reversible: true
+  requires_repo: true
+  requires_git: null
+  preferred_for_models: true
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  mcp_tool: vox_search_history
+  cli_path: null
+  parameters: null
 - id: mcp.vox_search_neighbors
   title: Vox Search Neighbors
   description_human: null
