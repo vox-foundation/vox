@@ -259,25 +259,21 @@ pub async fn run_train(
                  Rebuild: `cargo build -p vox-ml-cli --features gpu,mens-candle-cuda` (or `cargo vox-cuda-release`).\n\
                  On Windows use a VS Developer shell so `nvcc` can find MSVC."
             );
-            // Preflight: make sure the runtime cuda plugin is installed + loadable,
-            // self-healing (rebuild + reinstall) on a stale/missing/ABI-mismatched
-            // plugin so a plain `vox mens train --device cuda` works out of the box.
-            // Opt out with `--no-auto-heal` (sets VOX_MENS_NO_AUTO_HEAL).
-            // Gated on `mens-candle-cuda`: that is when the real CUDA dispatch is
-            // compiled (and it implies `gpu`, so plugin_heal is available).
-            #[cfg(feature = "mens-candle-cuda")]
-            crate::commands::mens::plugin_heal::ensure_cuda_plugin(true)?;
         }
-        // `--device metal` dispatches through mens-candle-cuda's
-        // `Device::new_metal(0)` path. Install that plugin with
-        // `--features metal` (`cargo build -p vox-plugin-mens-candle-cuda
-        // --release --features metal` then `vox plugin install --path …`).
-        #[cfg(target_os = "macos")]
-        if matches!(device_kind, vox_populi::mens::DeviceKind::Metal) {
-            // Metal uses the runtime plugin's complete `run_full_training`
-            // path; SP3-D stubs do not block this dispatch.
-            #[cfg(feature = "gpu")]
-            crate::commands::mens::plugin_heal::ensure_metal_plugin(true)?;
+        // Make sure the plugin the selector will dispatch to is installed and
+        // loadable, self-healing a missing/stale one (opt out with
+        // `--no-auto-heal` / VOX_MENS_NO_AUTO_HEAL). Same selector the training
+        // dispatch in vox-populi uses, so they can't disagree. Skip the heal
+        // where no release asset exists for this platform (it would try a
+        // download that can't succeed); dispatch then fails at load with a
+        // build-from-source hint.
+        #[cfg(feature = "gpu")]
+        {
+            let plugin_id =
+                vox_populi::mens::select_mens_backend(device_kind, &vox_plugin_host::probe());
+            if vox_populi::mens::has_prebuilt_artifact(plugin_id) {
+                crate::commands::mens::plugin_heal::ensure_plugin(plugin_id, true)?;
+            }
         }
     }
 

@@ -101,21 +101,19 @@ pub fn run_eval_local(
         system_prompt: None,
     };
 
-    // Inference runs through whichever `MlBackend` plugin matches this host's
-    // capabilities (CUDA on an NVIDIA host, Metal on Apple Silicon), not a
-    // hardcoded id — see vox_plugin_host::resolve_extension_point. Load the
+    // Inference runs through the `MlBackend` plugin this host should use (CUDA
+    // on an NVIDIA host, Metal on a Mac, CPU otherwise) — see
+    // vox_populi::mens::select_mens_backend. Load the
     // model directory once (the handle carries the dir; `run_inference`
     // rebuilds the engine from disk per call), then dispatch one generation
     // per benchmark prompt below. `--model` must be the training run
     // directory containing the merged/adapter + manifest + tokenizer + config.
     #[cfg(feature = "gpu")]
     let engine = {
-        let plugin_id = vox_plugin_host::resolve_extension_point(
-            "MlBackend",
-            crate::commands::schola::merge_qlora::ML_BACKEND_CANDIDATES,
+        let plugin_id = vox_populi::mens::select_mens_backend(
+            vox_populi::mens::DeviceKind::Best,
             &vox_plugin_host::probe(),
-        )
-        .context("no ML backend plugin matches this host's capabilities")?;
+        );
         let loaded = vox_plugin_host::cached_code_plugin(plugin_id).with_context(|| {
             format!("{plugin_id} plugin not found — install vox-plugin-{plugin_id}")
         })?;

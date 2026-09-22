@@ -1061,7 +1061,7 @@ mod tests {
         assert!(d.is_cpu());
     }
 
-    #[cfg(feature = "metal")]
+    #[cfg(any(feature = "metal", target_os = "macos"))]
     #[test]
     fn resolve_inference_device_best_prefers_metal_when_available() {
         let d = super::resolve_inference_device(&crate::device::DeviceKind::Best).unwrap();

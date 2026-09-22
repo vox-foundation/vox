@@ -29,11 +29,11 @@ pub(super) fn select_candle_device(
             anyhow::bail!("Plugin built for Metal. CUDA not supported in this build.")
         }
         DeviceKind::Metal => {
-            #[cfg(feature = "metal")]
+            #[cfg(any(feature = "metal", target_os = "macos"))]
             {
                 (Device::new_metal(0)?, "metal:0".into())
             }
-            #[cfg(not(feature = "metal"))]
+            #[cfg(not(any(feature = "metal", target_os = "macos")))]
             {
                 anyhow::bail!(
                     "Plugin built without the `metal` feature — recompile with `--features metal`"
@@ -42,7 +42,7 @@ pub(super) fn select_candle_device(
         }
         DeviceKind::Best => {
             let g = crate::device::probe_gpu();
-            #[cfg(feature = "metal")]
+            #[cfg(any(feature = "metal", target_os = "macos"))]
             {
                 if g.vendor.as_str() == "apple" {
                     let d = match Device::new_metal(0) {
@@ -77,7 +77,7 @@ pub(super) fn select_candle_device(
                     }
                 }
             }
-            #[cfg(not(feature = "metal"))]
+            #[cfg(not(any(feature = "metal", target_os = "macos")))]
             {
                 let _ = g;
                 if !allow_cpu_fallback {
@@ -110,4 +110,22 @@ pub(super) fn purge_fresh_start_artifacts(out: &Path) -> std::io::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod macos_default_build_tests {
+    use super::*;
+
+    /// On macOS the plugin must be Metal-capable without `--features metal`.
+    /// Metal may still be unavailable at runtime (e.g. a headless VM), which
+    /// is a `cpu(fallback)`, but never `cpu(no-gpu-build)`.
+    #[test]
+    fn best_device_on_macos_is_metal_capable_without_feature_flags() {
+        let (_device, label) = select_candle_device(DeviceKind::Best, true).unwrap();
+        // Positive match: "cpu(forced)" (VOX_CANDLE_DEVICE=cpu) must not count as a pass.
+        assert!(
+            label.starts_with("metal") || label == "cpu(fallback)",
+            "macOS build compiled without Metal (label: {label})"
+        );
+    }
 }
