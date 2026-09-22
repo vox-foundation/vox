@@ -280,8 +280,8 @@ pub(super) async fn run_pairs(
     }
 
     println!(
-        "  Vox files: {} ({} did not compile after metadata strip)",
-        stats.files, stats.files_failed
+        "  Vox files: {} ({} did not compile after metadata strip, {} expect-error fixtures skipped)",
+        stats.files, stats.files_failed, stats.files_expect_error
     );
     println!(
         "  Declarations: {} → {} verified pairs ({} failed in-context compile, {} unnamed skipped); {} whole-file pairs",

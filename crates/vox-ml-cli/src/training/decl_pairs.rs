@@ -22,6 +22,8 @@ pub struct PairStats {
     pub files: u32,
     /// Files whose metadata-stripped source did not compile (skipped entirely).
     pub files_failed: u32,
+    /// Negative fixtures (`// expect-error:`, e.g. `examples/forbidden/`) skipped entirely.
+    pub files_expect_error: u32,
     pub decls: u32,
     pub decl_pairs: u32,
     pub whole_file_pairs: u32,
@@ -39,6 +41,7 @@ impl PairStats {
     pub fn add(&mut self, o: &PairStats) {
         self.files += o.files;
         self.files_failed += o.files_failed;
+        self.files_expect_error += o.files_expect_error;
         self.decls += o.decls;
         self.decl_pairs += o.decl_pairs;
         self.whole_file_pairs += o.whole_file_pairs;
@@ -469,7 +472,7 @@ fn pair_json(
 }
 
 /// Max error-correction mutants kept per declaration.
-const MUTANTS_PER_DECL: usize = 2;
+const MUTANTS_PER_DECL: usize = 1;
 
 /// Build every training pair for one extracted file (`raw_code` as written by `vox corpus
 /// extract`, frontmatter included). `source` is the file path; it is also handed to the
@@ -481,6 +484,15 @@ pub fn pairs_for_file(raw_code: &str, source: &str) -> (Vec<serde_json::Value>, 
     };
     let mut out = Vec::new();
     let (code, training_prompt) = split_training_metadata(raw_code);
+    // Fixtures that compile at the frontend but are rejected by a later layer are
+    // negative examples; never teach them as answers.
+    if code
+        .lines()
+        .any(|l| l.trim_start().starts_with("// expect-error:"))
+    {
+        st.files_expect_error = 1;
+        return (out, st);
+    }
     let path = if std::path::Path::new(source).is_file() {
         source
     } else {
@@ -690,8 +702,8 @@ mod tests {
         assert_eq!(st.whole_file_pairs, 1);
         assert_eq!(st.decl_pairs, 4, "{st:?}");
         assert_eq!(st.verify_failed, 0);
-        assert!(st.error_pairs >= 4, "{st:?}");
-        assert!(st.error_pairs <= 8);
+        assert_eq!(st.error_pairs, 4, "{st:?}");
+        assert_eq!(st.mutants_tried, st.error_pairs + st.mutants_accepted);
         for p in &pairs {
             let r = p["response"].as_str().unwrap();
             assert!(
@@ -712,6 +724,14 @@ mod tests {
         // Deterministic.
         let (again, _) = pairs_for_file(&raw, "mem.vox");
         assert_eq!(pairs, again);
+    }
+
+    #[test]
+    fn expect_error_fixtures_are_skipped() {
+        let raw = "// expect-error: vox/layer/leaf-surface\nfn a() to int {\n    return 1\n}\n";
+        let (pairs, st) = pairs_for_file(raw, "forbidden.vox");
+        assert!(pairs.is_empty());
+        assert_eq!((st.files_expect_error, st.decls), (1, 0));
     }
 
     /// Real golden files: every answer compiles in its context and carries no file metadata.
