@@ -392,6 +392,7 @@ mod tests {
     use super::*;
     use candle_core::DType;
     use safetensors::SafeTensors;
+    use safetensors::serialize;
 
     #[test]
     fn lora_delta_matches_manual_scale() {
