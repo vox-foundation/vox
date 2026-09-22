@@ -6,25 +6,42 @@ category: "Architecture SSOTs"
 
 # VoxDB pooling & MVCC benchmark recommendation
 
+> **Revised 2026-09-22** after a final whole-branch review found and fixed two
+> measurement confounds in the concurrent-write harness: the `rusqlite`
+> connections ran at SQLite's compiled default `synchronous=FULL` while every
+> Turso connection got `synchronous=NORMAL`, and each mode's one-time schema
+> setup (Turso's ~219-table baseline migration vs. SQLite's single
+> `CREATE TABLE`) sat inside the timed window. Every concurrent-write number
+> below is from a clean re-run with both fixed, so they differ substantially
+> from an earlier version of this memo. The point-insert latency table is
+> unchanged — it ran against `:memory:` connections and was never subject to
+> either confound.
+
 ## Summary
 
 At both tested concurrency levels (32 and 128 tasks, 20 writes/task, on-disk
 file), the existing `shared`-connection pattern beat real per-task pooling on
-throughput: 4095 vs. 2712 writes/sec at 32 tasks, and 12045 vs. 7965
-writes/sec at 128 tasks — a ~34% throughput deficit for `pooled` at both
-levels (33.8% at 32 tasks, 33.9% at 128 tasks). `sqlite` (plain `rusqlite`, one connection per task) was slower than
-both Turso modes at every concurrency level tested (1686 writes/sec at 32
-tasks, 1587 at 128), so SQLite's numbers did **not** beat Turso's in this
-workload shape, contrary to what isolated point-latency numbers might
-suggest. `pooled-mvcc` failed to complete setup at both concurrency levels —
-Turso's MVCC journal mode rejects the `AUTOINCREMENT` keyword that VoxDB's
-production schema uses, so no throughput data exists for that mode. No mode
-that completed (`shared`, `pooled`, `sqlite`) produced any `misuse_errors`,
-`busy_errors`, or `rowid_mismatches`, and all three passed `row_count_ok` and
-`PRAGMA integrity_check` at both concurrency levels — no correctness or
-safety problem was observed in any working configuration, only a throughput
-gap in `shared`'s favor. The documented `last_insert_rowid` race in
-`GuardedConnection` did not reproduce in any run this session.
+throughput by a wide margin: median 33708 vs. 11447 writes/sec at 32 tasks,
+and 38399 vs. 11042 writes/sec at 128 tasks — roughly a **66% deficit for
+`pooled` at 32 tasks and ~71% at 128**. (Medians over four repetitions; this
+harness is noisy enough that single-run percentages are false precision — see
+"Run-to-run variance" below. The ordering, unlike the magnitudes, was stable
+in every repetition.) Correcting the durability mismatch roughly tripled
+`sqlite`'s measured throughput (median 4949 writes/sec at 32 tasks and 3774 at
+128, up from 1686/1587 before the fix), but did **not** change its rank: plain
+`rusqlite` with one connection per thread was still the slowest of the three
+working modes at both levels, by 6.8–10.2× against `shared` and 2.3–2.9×
+against `pooled`. `pooled-mvcc` failed to complete setup at both concurrency
+levels — Turso's MVCC journal mode rejects the `AUTOINCREMENT` keyword that
+VoxDB's production schema uses, so no throughput data exists for that mode. No
+mode that completed (`shared`, `pooled`, `sqlite`) produced any
+`misuse_errors`, `busy_errors`, or `rowid_mismatches`, and all three passed
+`row_count_ok` and `PRAGMA integrity_check` at both concurrency levels — no
+correctness or safety problem was observed in any working configuration, only
+a throughput gap in `shared`'s favor. The documented `last_insert_rowid` race
+in `GuardedConnection` did not reproduce in any run this session; a follow-up
+mutation experiment established that this is because its window is orders of
+magnitude too narrow to land naturally, not because the race is absent.
 
 ## Results
 
@@ -44,20 +61,42 @@ HTML report: `target/criterion/report/index.html`
 
 ### Concurrent write stress (`cargo run -p vox-db --example concurrency_stress`)
 
-20 writes/task, on-disk file, `busy_timeout=5000` (Turso and SQLite both).
+20 writes/task, on-disk file, `busy_timeout=5000` and `synchronous=NORMAL`
+(Turso and SQLite both). Each mode's one-time schema/connection setup is
+outside the timed window.
 
-| mode | tasks | throughput (writes/sec) | misuse_errors | busy_errors | rowid_mismatches | row_count_ok | integrity_check |
-|---|---|---|---|---|---|---|---|
-| shared | 32 | 4095 | 0 | 0 | 0 | true | ok |
-| shared | 128 | 12045 | 0 | 0 | 0 | true | ok |
-| pooled | 32 | 2712 | 0 | 0 | 0 | true | ok |
-| pooled | 128 | 7965 | 0 | 0 | 0 | true | ok |
-| pooled-mvcc | 32 | N/A (setup incompatible) | N/A | N/A | N/A | N/A | N/A |
-| pooled-mvcc | 128 | N/A (setup incompatible) | N/A | N/A | N/A | N/A | N/A |
-| sqlite | 32 | 1686 | 0 | 0 | 0 | true | ok |
-| sqlite | 128 | 1587 | 0 | 0 | 0 | true | ok |
+| mode | tasks | elapsed | throughput (writes/sec) | misuse_errors | busy_errors | rowid_mismatches | row_count_ok | integrity_check |
+|---|---|---|---|---|---|---|---|---|
+| shared | 32 | 15.83 ms | 40430 | 0 | 0 | 0 | true | ok |
+| shared | 128 | 65.47 ms | 39104 | 0 | 0 | 0 | true | ok |
+| pooled | 32 | 55.87 ms | 11456 | 0 | 0 | 0 | true | ok |
+| pooled | 128 | 432.87 ms | 5914 | 0 | 0 | 0 | true | ok |
+| pooled-mvcc | 32 | N/A (setup incompatible) | N/A | N/A | N/A | N/A | N/A | N/A |
+| pooled-mvcc | 128 | N/A (setup incompatible) | N/A | N/A | N/A | N/A | N/A | N/A |
+| sqlite | 32 | 130.30 ms | 4912 | 0 | 0 | 0 | true | ok |
+| sqlite | 128 | 679.11 ms | 3770 | 0 | 0 | 0 | true | ok |
 
-**Note on rowid_mismatches:** shared mode's `rowid_mismatches` was 0 at both 32 and 128 tasks. The documented `last_insert_rowid` race in `GuardedConnection` (see its doc comment in `crates/vox-db/src/lib.rs`) did not reproduce in this run. This is probabilistic/timing-dependent and does not disprove the race; it means this specific test dataset and environment did not independently demonstrate it.
+#### Run-to-run variance
+
+The table above is one sample. Three further repetitions of the same six
+commands (writes/sec):
+
+| mode | tasks | run 1 | run 2 | run 3 | run 4 | median |
+|---|---|---|---|---|---|---|
+| shared | 32 | 40430 | 36060 | 31356 | 26064 | 33708 |
+| shared | 128 | 39104 | 37694 | 28401 | 43583 | 38399 |
+| pooled | 32 | 11456 | 11558 | 11326 | 11437 | 11447 |
+| pooled | 128 | 5914 | 10991 | 14054 | 11093 | 11042 |
+| sqlite | 32 | 4912 | 4139 | 4986 | 5206 | 4949 |
+| sqlite | 128 | 3770 | 2594 | 4449 | 3777 | 3774 |
+
+`pooled`/128 swings 2.4× across repetitions, so **every percentage in this memo
+is stated from the medians, as an approximation.** The mode ordering
+(`shared` > `pooled` > `sqlite`) held in all four repetitions at both levels
+with no overlap between the three modes' ranges; that ordering, not the
+magnitudes, is what the decisions below rest on.
+
+**Note on rowid_mismatches:** shared mode's `rowid_mismatches` was 0 at both 32 and 128 tasks. The documented `last_insert_rowid` race in `GuardedConnection` (see its doc comment in `crates/vox-db/src/lib.rs`) did not reproduce in this run. A mutation experiment on `VoxDbPool`'s regression test established why: forcing a genuinely shared connection *still* yields 0 mismatches, because the unguarded window between `execute()` and `last_insert_rowid()` is nanoseconds of synchronous code while a contended `tokio::Mutex` handoff costs microseconds. Inserting a `yield_now().await` into that window makes the shared-connection variant report 981/1000 mismatches while the independent-connection variant stays at 0. The race is real and structurally absent from `VoxDbPool`; it is simply not reachable by wall-clock luck at this scale.
 
 **Note on pooled-mvcc:** Turso's MVCC journal mode rejects the AUTOINCREMENT keyword. VoxDB's baseline production schema (automatically applied by `VoxDbPool::new()`'s migration step) uses AUTOINCREMENT in multiple tables. A clean re-run with wildcard cleanup (`rm -f /tmp/vox-stress-test.db*`, needed because MVCC mode creates a `.db-log` sidecar the narrower cleanup command missed) confirmed that both 32-task and 128-task pooled-mvcc runs fail consistently with `Parse error: AUTOINCREMENT is not supported in MVCC mode`. This is a real and consistent compatibility finding, not an environment fluke: the production schema cannot currently run against MVCC-enabled Turso databases. The rows above are marked N/A because the harness never completed its initialization phase — there is no throughput number to report, zero or otherwise.
 
@@ -77,9 +116,11 @@ error-free loss, so neither branch applies as written:
   `integrity_check` is `ok` at every concurrency level →
   **recommend**: file a follow-up plan to switch `vox-gui`'s `GuiDbPool` from
   one shared `Arc<VoxDb>` to `VoxDbPool`-vended per-command connections,
-  default-on for all users. **Not triggered** — `pooled` throughput was ~34%
-  lower than `shared` at both tested concurrency levels (33.8% at 32 tasks:
-  2712 vs. 4095; 33.9% at 128 tasks: 7965 vs. 12045).
+  default-on for all users. **Not triggered** — `pooled` throughput was
+  roughly 66–71% lower than `shared` at both tested concurrency levels
+  (~66% at 32 tasks: median 11447 vs. 33708; ~71% at 128 tasks: median
+  11042 vs. 38399), and `pooled` lost in every one of four repetitions at
+  both levels.
 - If `pooled` shows nonzero `busy_errors` or a failed `integrity_check` at
   128 tasks → **do not** default-switch; recommend the writer-actor pattern
   instead. **Also not triggered** — `pooled` had zero `busy_errors` and a
@@ -88,12 +129,17 @@ error-free loss, so neither branch applies as written:
   intent — safety and speed both matter, and neither should regress — **do
   not switch `vox-gui`'s `GuiDbPool` from its shared-connection pattern to
   `VoxDbPool` by default.** `pooled` is measurably slower than `shared` at
-  both tested concurrency levels, with no compensating safety win: the
-  specific bug real pooling would fix (the `last_insert_rowid` race) did not
-  reproduce under either connection strategy in this testing. This does not
-  mean the rowid race isn't real — `GuardedConnection`'s own doc comment
-  documents it as a known gap — only that this benchmark gives no
-  throughput-driven urgency to fix it via a full pooling-architecture change.
+  both tested concurrency levels — and the corrected measurement makes that
+  gap *larger*, not smaller, than the earlier confounded numbers suggested
+  (~66–71% rather than ~34%), because the setup cost that previously sat
+  inside the timed window was masking it. There is no compensating safety
+  win in this data: the specific bug real pooling would fix (the
+  `last_insert_rowid` race) did not reproduce under either connection
+  strategy. This does not mean the rowid race isn't real —
+  `GuardedConnection`'s own doc comment documents it as a known gap, and the
+  mutation experiment above reproduces it on demand once the window is
+  widened — only that this benchmark gives no throughput-driven urgency to
+  fix it via a full pooling-architecture change.
   A narrower fix (e.g. `INSERT ... RETURNING` at the identified call sites)
   would close the theoretical gap without the throughput cost this data shows
   pooling carries, and without the `GuiDbPool::handle()` becoming-`async`
@@ -147,24 +193,34 @@ claims, and both halves should be stated honestly rather than picked between:
   `turso_shared_connection_insert` (11.359 µs) for a single isolated insert.
   For any call path dominated by one-off point operations, the prior audit's
   latency case for SQLite holds up under this measurement.
-- **Contradicts the prior audit's implicit concurrency framing.** The prior
-  audit's scorecard and recommendation treat moving off Turso as a
-  concurrency improvement, but Task 5's throughput data shows the opposite
-  under this benchmark's concurrent-write workload: plain `rusqlite` (one OS
-  thread + one connection per task — the idiomatic SQLite pooling pattern,
-  and structurally the closest analog to `VoxDbPool`'s per-task connections)
-  was the **slowest of all three working modes at both concurrency levels**
-  — slower than both `shared` and `pooled` Turso configurations, including
-  `pooled`, the Turso mode most structurally similar to how SQLite is being
-  used here. The likely shared cause: SQLite/Turso's storage engine only
-  lets one connection hold the write lock on a local file at a time
-  regardless of connection count, so both `pooled` Turso and `sqlite` pay real
+- **Contradicts the prior audit's implicit concurrency framing — and this
+  survives the durability correction.** The prior audit's scorecard and §3.1
+  throughput table treat moving off Turso as a concurrency improvement,
+  predicting a "Max Concurrent Write TPS" of ~3,500–6,000 for standard SQLite
+  against ~2,000–3,500 for Turso local. The corrected measurement splits that
+  prediction in half. Its **SQLite** figure holds up well: measured `sqlite`
+  medians are 4949 writes/sec at 32 tasks and 3774 at 128, squarely inside the
+  predicted band. Its **Turso** figure does not: measured `shared` medians are
+  33708 / 38399 and `pooled` 11447 / 11042 — 3× to 11× above the predicted
+  ceiling. So the audit's *relative* claim is inverted by this workload: plain
+  `rusqlite` (one OS thread + one connection per task — the idiomatic SQLite
+  pooling pattern, and structurally the closest analog to `VoxDbPool`'s
+  per-task connections) was the **slowest of all three working modes at both
+  concurrency levels in all four repetitions**, slower than both `shared` and
+  `pooled` Turso. The original version of this memo reached the same ordering
+  from a confounded comparison, so it is worth stating explicitly that the
+  correction *did* matter and *did not* change the answer: matching
+  `synchronous=NORMAL` roughly tripled SQLite's measured throughput
+  (1686 → 4949 at 32 tasks, 1587 → 3774 at 128) without closing the gap. A
+  plausible shared cause for both `pooled` and `sqlite` trailing `shared`:
+  SQLite/Turso's storage engine only lets one connection hold the write lock
+  on a local file at a time regardless of connection count, so both pay real
   cross-connection lock-acquisition/contention overhead on top of that same
-  single-writer constraint without gaining actual write parallelism from it
-  — `shared` mode never contends this at all, since only one connection ever
-  touches the file, serialized cheaply through an in-process
-  `tokio::Mutex`. SQLite likely also carries added OS-thread overhead
-  relative to Tokio's cheaper task model in this harness.
+  single-writer constraint without gaining actual write parallelism from it —
+  `shared` mode never contends this at all, since only one connection ever
+  touches the file, serialized cheaply through an in-process `tokio::Mutex`.
+  SQLite likely also carries added OS-thread overhead relative to Tokio's
+  cheaper task model in this harness.
 
 **Net assessment:** this memo's data does not on its own justify the prior
 audit's full-migration recommendation, and does not contradict it either —
@@ -172,11 +228,25 @@ the two evaluate different things. The isolated-latency case for SQLite
 remains strong; the concurrent-write-throughput case for switching engines
 does not hold up under this benchmark, since the plain-SQLite mode most
 comparable to a post-migration architecture underperformed even Turso's
-suboptimal `shared` pattern here. Recommend that the prior audit's authors
-(or a follow-up) re-scope its throughput/concurrency claims specifically
-before treating "switch to SQLite" as a general concurrency fix, rather than
-treating this memo's narrower pooling result as either confirming or
-superseding that audit's broader migration recommendation.
+suboptimal `shared` pattern here.
+
+**Recommendation to the prior audit's authors (restated on the corrected
+evidence).** The earlier version of this recommendation was reached from a
+comparison with a durability mismatch in it, so it is re-derived here rather
+than carried over. It still holds, and now with a sharper target: §3.1's
+"Max Concurrent Write TPS" row should be re-scoped, because its SQLite
+estimate is confirmed by measurement while its Turso estimate is low by
+roughly an order of magnitude, and the ordering the row implies is the
+reverse of what this workload produces. Until that row is re-measured,
+"switch to SQLite" should not be presented as a general concurrency or
+write-throughput fix. The audit's other pillars are untouched by this data
+and remain live on their own merits: the `last_insert_rowid` race (§2.2),
+which this branch independently reproduced on demand under a widened window;
+the `GuardedConnection` global-mutex serialization of reads; the `libclang`
+build-invariant and binary-size arguments; and the point-latency case in
+§3.1, which Task 4's Criterion numbers confirm. Nothing here argues against
+migrating for those reasons — only against citing concurrent-write
+throughput as one of them.
 
 ## Out of scope / follow-ups
 
