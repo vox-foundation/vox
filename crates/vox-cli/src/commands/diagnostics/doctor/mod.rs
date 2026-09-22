@@ -118,7 +118,75 @@ pub async fn run(
 
     output::print_results(&checks, test_health, json);
 
+    let required_failed = required_failed_checks(&checks);
+    if !required_failed.is_empty() {
+        anyhow::bail!(
+            "vox doctor: {} required check(s) failed: {}",
+            required_failed.len(),
+            required_failed.join(", ")
+        );
+    }
+
     Ok(())
+}
+
+// ── default-run required/optional check split ────────────────────────────────
+
+/// Checks that report on an *optional* subsystem — something most dev
+/// machines legitimately don't have installed or built — rather than a
+/// broken toolchain that actually blocks building Vox. A failing optional
+/// check still prints `✗` above (so it stays visible: go build the sidecar,
+/// install the broker, …) but does not sink the default `vox doctor` exit
+/// code. Without this split, `vox doctor` could never exit `0` on a
+/// perfectly healthy machine that simply hasn't opted into every optional
+/// subsystem — which is exactly the bug this list exists to fix.
+///
+/// This is a *different* split from [`PROBE_REQUIRED_CHECKS`] above:
+/// `--probe` is a container HEALTHCHECK where almost everything repo-scoped
+/// is advisory, while here almost everything toolchain-scoped (rustc/rustup
+/// identity, sccache health, the compile probe, schema drift, secrets
+/// parity, …) is a real, build-blocking problem and stays required. Only
+/// subsystems a developer opts into separately are optional here:
+///
+/// - `vox-gui sidecar` / `vox-lsp binary`: built on demand, not by `cargo
+///   build -p vox-cli` (see AGENTS.md §Perennial Bug Patterns).
+/// - `Build broker: …`: machine-wide opt-in infra
+///   (`scripts/broker-install.vox`), not installed by default anywhere.
+/// - `GPU Discovery`: delegated to `vox mens probe`; most machines have no GPU.
+/// - `docker: not installed`: Docker is optional for ordinary `vox` development.
+/// - `tier dep: …`: per-tier *runtime*-optional dependencies (already
+///   advisory under `--probe`, see above).
+/// - `Disk footprint: …`: these rows are structurally informational — e.g.
+///   the `~/.vox/bin` row is *always* `Check::fail` by design, to surface
+///   "nothing relocates this directory" (see `checks_standard/disk_footprint.rs`),
+///   not to report an actual problem — so it can never be a real signal.
+const OPTIONAL_CHECK_NAMES: &[&str] = &[
+    "vox-gui sidecar",
+    "vox-lsp binary",
+    "Build broker: PATH precedence",
+    "Build broker: install state",
+    "Build broker: concurrency cap",
+    "GPU Discovery",
+    "docker: not installed",
+];
+
+/// A check is optional when named in [`OPTIONAL_CHECK_NAMES`], or is a
+/// `tier dep: …` / `Disk footprint: …` row (grouped by prefix since each
+/// names a different dependency / directory).
+fn is_optional_check(name: &str) -> bool {
+    OPTIONAL_CHECK_NAMES.contains(&name)
+        || name.starts_with("tier dep: ")
+        || name.starts_with("Disk footprint: ")
+}
+
+/// Names of the failing checks that are NOT optional — the set that must be
+/// empty for the default `vox doctor` run to exit `0`.
+fn required_failed_checks(checks: &[common::Check]) -> Vec<&str> {
+    checks
+        .iter()
+        .filter(|c| !c.pass && !is_optional_check(&c.name))
+        .map(|c| c.name.as_str())
+        .collect()
 }
 
 // ── `--probe` required-check subset ───────────────────────────────────────────
@@ -353,5 +421,82 @@ mod tests {
             s.contains("sccache.pathological"),
             "error should list the known-id registry: {s}"
         );
+    }
+
+    // ── default-run required/optional check split ────────────────────────
+
+    /// Reproduces the reported bug: `vox doctor` (no `--probe`, no `--diag`)
+    /// printed "N check(s) failed" yet always returned `Ok(())` — a script or
+    /// hook that only checks the exit code saw success. `run()` itself can't
+    /// be unit-tested end-to-end here (it shells out to real toolchain
+    /// probes), so this drives the pure decision function `run()` now
+    /// consults before deciding whether to bail — the same style already
+    /// used for `probe_verdict` above. Before the fix, nothing computed this
+    /// at all, so a failing non-optional check had no effect on the exit code.
+    #[test]
+    fn required_failed_checks_flags_a_non_optional_failure() {
+        let checks = vec![
+            Check::pass("Rust / Cargo", "cargo 1.98.0"),
+            Check::fail("toolchain: rustc identity", "shadowed by a shim"),
+        ];
+        assert_eq!(
+            required_failed_checks(&checks),
+            vec!["toolchain: rustc identity"]
+        );
+    }
+
+    /// The flip side: a machine that's healthy except for optional
+    /// subsystems it never opted into (no vox-gui build, no build broker, no
+    /// GPU, no docker, a missing per-tier runtime dep, and the always-`fail`
+    /// disk-footprint advisory row) must report zero *required* failures —
+    /// this is what lets `vox doctor` exit `0` on such a machine.
+    #[test]
+    fn required_failed_checks_is_empty_when_only_optional_subsystems_are_missing() {
+        let checks = vec![
+            Check::fail(
+                "vox-gui sidecar",
+                "missing — run: vox run scripts/gui-build.vox",
+            ),
+            Check::fail("vox-lsp binary", "not built"),
+            Check::fail("Build broker: install state", "does not exist"),
+            Check::fail("GPU Discovery", "n/a"),
+            Check::fail("docker: not installed", "`docker` not on PATH"),
+            Check::fail("tier dep: ffmpeg", "not found"),
+            Check::fail(
+                "Disk footprint: ~/.vox/bin (voxup toolchain installs)",
+                "absent (0 B) — no env var relocates this",
+            ),
+            Check::pass("Rust / Cargo", "cargo 1.98.0"),
+        ];
+        assert!(
+            required_failed_checks(&checks).is_empty(),
+            "optional-subsystem failures alone must not fail the default doctor run: {:?}",
+            required_failed_checks(&checks)
+        );
+    }
+
+    #[test]
+    fn is_optional_check_covers_named_and_prefixed_rows() {
+        for name in [
+            "vox-gui sidecar",
+            "vox-lsp binary",
+            "Build broker: PATH precedence",
+            "Build broker: install state",
+            "Build broker: concurrency cap",
+            "GPU Discovery",
+            "docker: not installed",
+            "tier dep: onnxruntime",
+            "Disk footprint: ~/.vox/cache (script + model catalog cache)",
+        ] {
+            assert!(is_optional_check(name), "`{name}` should be optional");
+        }
+        for name in [
+            "toolchain: rustc identity",
+            "vox: schema drift",
+            "Secrets Parity",
+            "docker: unreachable",
+        ] {
+            assert!(!is_optional_check(name), "`{name}` should be required");
+        }
     }
 }
