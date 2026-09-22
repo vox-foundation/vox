@@ -1,11 +1,12 @@
-# Training contract: points preflight to the validated mix output.
-# Priority: contract train_path > data_dir/train.jsonl > data_dir/validated.jsonl
+# Workspace training contract (optional). A `train_path` here would override
+# `<data-dir>/train.jsonl` for EVERY run, including an explicit `--data-dir`,
+# so none is set. File roles:
+#   target/dogfood/train.jsonl        pairs (`vox mens corpus pairs`)
+#   target/dogfood/train_mixed.jsonl  mix output (mix.yaml `output:`); the trainer
+#                                     reads it automatically when the mix ran.
+# For a per-run override, put a training_contract.yaml inside that --data-dir.
 #
-# validated_mixed.jsonl is the primary training file — it is the richest
-# validated dataset (~20K lines, all domains, quality-filtered).
-# train_mixed.jsonl is the raw mix pipeline output (may include unfiltered rows).
-train_path: target/dogfood/train.jsonl
-# Advisory note only: current Rust preflight consumes `train_path` from this
-# file, but does not automatically apply `context_filter`. Use CLI/config
-# wiring that explicitly passes a context filter when you need one.
+# Advisory note only: current Rust preflight does not automatically apply
+# `context_filter`. Use CLI/config wiring that explicitly passes a context
+# filter when you need one.
 context_filter: vox_source

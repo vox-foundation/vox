@@ -7,11 +7,13 @@
 # Sources should all carry meaningful vox-lang signal.
 
 sources:
-  # PRIMARY: Validated mixed dataset — broadest, highest-quality vox source.
+  # PRIMARY: validated pairs (`vox mens corpus pairs` → target/dogfood/train.jsonl).
   # NOT optional: if this is missing the entire vox-lang adapter has no signal.
-  # Strict-mix guarantee: if validated_mixed.jsonl is missing OR emits zero rows,
+  # Strict-mix guarantee: if the pairs file is missing OR emits zero rows,
   # the corpus mix step fails closed instead of silently producing an empty corpus.
-  - path: target/dogfood/validated_mixed.jsonl
+  # Nothing copies the mix output back over this file (a mix config may not list
+  # its own `output:` as a source; MixConfigSchema::load rejects it).
+  - path: target/dogfood/train.jsonl
     weight: 6.0                   # Validated mixed (GOLDEN / Wave 0–4 combined)
     optional: false
 
@@ -20,8 +22,19 @@ sources:
     max_lines: 12000              # Hard cap: deterministic ~12k lines per run
     optional: true
 
+  # Docs are capped so code rows carry most of the effective weight (rows x
+  # weight; the trainer applies mix_weight as a per-row loss weight). Measured
+  # 2026-09-22 on a fresh extract: docs.jsonl = 6,016 rows (4,097 of them
+  # docs/src/architecture), pairs = 883 rows after dedup (738 code, 145 docs).
+  # Uncapped, docs were 72% of rows and ~54% of effective weight, code ~38%.
+  # With the caps below: code ~62%, docs ~31%, research ~7% of effective weight.
+  # sample_rate spreads the sample over every docs directory (file order is by
+  # directory, so max_lines alone would keep adr/..how-to/ and drop reference/);
+  # max_lines makes the count a hard ceiling. Both are deterministic (mix seed).
   - path: mens/data/mix_sources/docs.jsonl
     weight: 1.0                   # Human-mined documentation Q&A
+    sample_rate: 0.25             # ~1,500 of 6,016 rows, spread across directories
+    max_lines: 1500
     optional: true
 
   - path: target/dogfood/mutated_vox.jsonl
@@ -31,11 +44,9 @@ sources:
 
   - path: mens/data/research-lane-sft.jsonl
     weight: 1.0                   # Research domain warm-up
-    optional: true
-
-  - path: target/dogfood/train.jsonl
-    weight: 0.5                   # Template-expanded synthetic vox (Wave 1)
-    sample_rate: 0.05             # Heavily downsample to avoid monoculture
+    # 1,000 generated rows with one instruction and mislabeled relations
+    # (audit 2026-09-20 §2.4); capped at half until the generator is fixed.
+    max_lines: 500
     optional: true
 
   - path: mens/data/synthetic.jsonl
