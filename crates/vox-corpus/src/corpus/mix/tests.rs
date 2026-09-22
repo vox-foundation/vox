@@ -382,3 +382,159 @@ fn dedup_key_distinguishes_messages_only_rows() {
     let e2 = serde_json::json!({"instruction":"x","input":"e2","output":"y"});
     assert_ne!(super::dedup_key(&e1), super::dedup_key(&e2));
 }
+
+fn write_rows(path: &std::path::Path, n: usize) {
+    use std::io::Write;
+    let mut f = std::fs::File::create(path).unwrap();
+    for i in 0..n {
+        writeln!(
+            f,
+            r#"{{"prompt":"q{i}","response":"a{i}","lane":"vox_codegen"}}"#
+        )
+        .unwrap();
+    }
+}
+
+#[test]
+fn sample_rate_mix_is_reproducible_byte_for_byte() {
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src.jsonl");
+    // Spans more than one 10k-line streaming chunk.
+    write_rows(&src, 25_000);
+    let cfg_path = dir.path().join("mix.yaml");
+    let out_path = dir.path().join("out.jsonl");
+    let report_path = dir.path().join("out.mix_report.json");
+    let yaml = format!(
+        "sources:\n  - path: \"{}\"\n    weight: 2.0\n    sample_rate: 0.3\noutput: \"{}\"\n",
+        src.to_str().unwrap().replace('\\', "/"),
+        out_path.to_str().unwrap().replace('\\', "/")
+    );
+    std::fs::write(&cfg_path, yaml).unwrap();
+
+    let run = || {
+        super::run_mix_with_options(&cfg_path, None, super::MixRunOptions::default()).unwrap();
+        let out = std::fs::read(&out_path).unwrap();
+        let report = std::fs::read_to_string(&report_path).unwrap();
+        // Remove both so the second run cannot take the incremental-skip path.
+        std::fs::remove_file(&out_path).unwrap();
+        std::fs::remove_file(&report_path).unwrap();
+        (out, report)
+    };
+    let (out1, report1) = run();
+    let (out2, report2) = run();
+    assert_eq!(out1, out2, "same inputs must give byte-identical output");
+    assert_eq!(
+        report1, report2,
+        "same inputs must give an identical report"
+    );
+
+    let kept = out1
+        .split(|b| *b == b'\n')
+        .filter(|l| !l.is_empty())
+        .count();
+    assert!(
+        (6_500..8_500).contains(&kept),
+        "sample_rate 0.3 of 25k should keep ~7.5k rows, kept {kept}"
+    );
+    let report: super::MixRunReport = serde_json::from_str(&report1).unwrap();
+    assert_eq!(
+        report.lane_counts.values().sum::<usize>(),
+        report.total_emitted,
+        "lane counts must describe emitted rows"
+    );
+}
+
+#[test]
+fn mix_seed_changes_the_sample() {
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src.jsonl");
+    write_rows(&src, 2_000);
+    let run = |seed: u64| {
+        let cfg_path = dir.path().join(format!("mix{seed}.yaml"));
+        let out_path = dir.path().join(format!("out{seed}.jsonl"));
+        let yaml = format!(
+            "seed: {seed}\nsources:\n  - path: \"{}\"\n    sample_rate: 0.5\noutput: \"{}\"\n",
+            src.to_str().unwrap().replace('\\', "/"),
+            out_path.to_str().unwrap().replace('\\', "/")
+        );
+        std::fs::write(&cfg_path, yaml).unwrap();
+        let opts = super::MixRunOptions {
+            strict: false,
+            write_report: false,
+        };
+        super::run_mix_with_options(&cfg_path, None, opts).unwrap();
+        std::fs::read(&out_path).unwrap()
+    };
+    assert_ne!(run(1), run(2));
+}
+
+#[test]
+fn lane_counts_reflect_max_lines_cap() {
+    let dir = tempfile::tempdir().unwrap();
+    let src = dir.path().join("src.jsonl");
+    write_rows(&src, 100);
+    let cfg_path = dir.path().join("mix.yaml");
+    let out_path = dir.path().join("out.jsonl");
+    let yaml = format!(
+        "sources:\n  - path: \"{}\"\n    max_lines: 10\noutput: \"{}\"\n",
+        src.to_str().unwrap().replace('\\', "/"),
+        out_path.to_str().unwrap().replace('\\', "/")
+    );
+    std::fs::write(&cfg_path, yaml).unwrap();
+    super::run_mix_with_options(&cfg_path, None, super::MixRunOptions::default()).unwrap();
+    let report: super::MixRunReport = serde_json::from_str(
+        &std::fs::read_to_string(dir.path().join("out.mix_report.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(report.lane_counts.get("vox_codegen"), Some(&10));
+}
+
+#[test]
+fn config_fingerprint_covers_max_lines_dedup_and_seed() {
+    let base = "sources:\n  - path: a.jsonl\noutput: out.jsonl\n";
+    let fp = |yaml: &str| {
+        let cfg: super::MixConfigSchema = serde_yaml::from_str(yaml).unwrap();
+        super::calculate_config_fingerprint(&cfg)
+    };
+    let f0 = fp(base);
+    assert_ne!(
+        f0,
+        fp("sources:\n  - path: a.jsonl\n    max_lines: 5\noutput: out.jsonl\n")
+    );
+    assert_ne!(f0, fp(&format!("{base}dedup: true\n")));
+    assert_ne!(f0, fp(&format!("{base}seed: 7\n")));
+}
+
+#[test]
+fn mix_config_rejects_output_that_is_also_a_source() {
+    let dir = tempfile::tempdir().unwrap();
+    let cfg_path = dir.path().join("mix.yaml");
+    std::fs::write(
+        &cfg_path,
+        "sources:\n  - path: target/dogfood/train.jsonl\n  - path: ./target/dogfood/train_mixed.jsonl\noutput: target/dogfood/train_mixed.jsonl\n",
+    )
+    .unwrap();
+    let err = super::MixConfigSchema::load(&cfg_path).unwrap_err();
+    assert!(
+        format!("{err:#}").contains("also listed as a source"),
+        "{err:#}"
+    );
+}
+
+#[test]
+fn shipped_mix_configs_never_read_their_own_output() {
+    let ws = crate::training::contract::find_workspace_root().expect("workspace");
+    let mut checked = 0;
+    for entry in std::fs::read_dir(ws.join("mens/config")).unwrap() {
+        let p = entry.unwrap().path();
+        let name = p.file_name().unwrap().to_string_lossy().to_string();
+        if name.starts_with("mix") && name.ends_with(".yaml") {
+            super::MixConfigSchema::load(&p).unwrap_or_else(|e| panic!("{name}: {e:#}"));
+            checked += 1;
+        }
+    }
+    assert!(
+        checked > 3,
+        "expected the shipped mix configs, found {checked}"
+    );
+}
