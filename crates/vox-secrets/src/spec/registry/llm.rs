@@ -11,7 +11,7 @@ pub const SPECS_LLM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: Some("google"),
         policy: SecretPolicy::optional_skip(),
-        remediation: "Run `vox secrets set google <token>` or set GEMINI_API_KEY. Required if VOX_GEMINI_ROUTE_POLICY=google_direct_only.",
+        remediation: "Run `vox secrets set GEMINI_API_KEY --stdin` or set GEMINI_API_KEY. Required if VOX_GEMINI_ROUTE_POLICY=google_direct_only.",
         scope_description: "Google Gemini API key for direct inference.",
     },
     SecretSpec {
@@ -44,7 +44,7 @@ pub const SPECS_LLM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: Some("openrouter"),
         policy: SecretPolicy::required_fail(),
-        remediation: "Run `vox secrets set openrouter <token>` or set OPENROUTER_API_KEY.",
+        remediation: "Run `vox secrets set OPENROUTER_API_KEY --stdin` or set OPENROUTER_API_KEY.",
         scope_description: "OpenRouter API key for unified LLM access.",
     },
     SecretSpec {
@@ -66,7 +66,7 @@ pub const SPECS_LLM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
-        remediation: "Run `vox secrets set OPENROUTER_CHAT_MODEL <slug>` or set OPENROUTER_CHAT_MODEL when using PreferredModel strategy.",
+        remediation: "Run `vox secrets set OPENROUTER_CHAT_MODEL --stdin` or set OPENROUTER_CHAT_MODEL when using PreferredModel strategy.",
         scope_description: "Preferred OpenRouter chat model (PreferredModel / CASCADE).",
     },
     SecretSpec {
@@ -77,7 +77,7 @@ pub const SPECS_LLM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
-        remediation: "Run `vox secrets set HF_CHAT_MODEL <org/model>` or set HF_CHAT_MODEL for Hugging Face router chat.",
+        remediation: "Run `vox secrets set HF_CHAT_MODEL --stdin` or set HF_CHAT_MODEL for Hugging Face router chat.",
         scope_description: "Hugging Face router chat model id.",
     },
     SecretSpec {
