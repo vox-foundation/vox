@@ -30,7 +30,7 @@ one navigable, searchable history layer that serves:
 | Refs | **`main` only, first-parent** (1,981 commits) | History is immutable and append-only |
 | Freshness | **Lazy catch-up on every query**, no hook or CI | Hooks and CI jobs are what silently died (claim ledger, effort audit) |
 | Mechanical changes | **Flagged per file, never dropped** | A misclassification can be fixed by re-flagging; mixed commits are common |
-| Lint-driven body edits | **Real** in v1; subject hint recorded separately | No objective signal yet; measure before deciding |
+| Lint-driven body edits | **Real, stays real** (measured 2026-09-22) | Per-hint counts over 2,025 commits: `fmt` 73 (17.8% already mechanical), `lint` 51 (2.0% already mechanical), `regen` 47 (34.0% already mechanical), `hakari` 2 (0%). Sampled 20 of the 50 non-mechanical `lint`-hinted commits and read each with `git show --stat`: 11/20 were pure lint fixes with no behaviour change (clippy rewrites, doc frontmatter, dead comment/attribute removal); 9/20 were not — several add a *new* lint rule to the compiler (`lint.effect.unresolvable_deps`, `lint.handler.uncancellable_async`, wiring the MENS-decorator lint into the CLI pipeline), change the doc-lint tool's own behaviour (widening it to `.mdx`, changing its category vocabulary), drop an existing gate (`config-hygiene`), or fix a real classification bug alongside the lint cleanup. 11/20 is well short of the 18/20 bar, so the `lint` subject hint does **not** get promoted to `mechanical` in v2 — it stays a hint only, no `SCHEMA_VERSION` bump. |
 
 **Built pending owner confirmation** (implemented as the default; owner can override later):
 - Merge commits keep the subjects of the commits inside the merged branch as searchable text
