@@ -43,8 +43,6 @@ pub struct ResearchConfig {
     pub judge_temperature: f32,
     /// Max tokens for the judge response.
     pub judge_max_tokens: u32,
-    /// Quality score returned when no LLM judge is available.
-    pub fallback_quality_score: i32,
     /// Max chars for the synthesis LLM context (hits + verdict text).
     pub synthesis_context_max_chars: usize,
     /// Maximum characters per extracted chunk.
@@ -139,10 +137,7 @@ impl Default for ResearchConfig {
             synthesis_max_tokens: 1200,
             judge_model: r.judge_model,
             judge_temperature: 0.0,
-            judge_max_tokens: 16,
-            fallback_quality_score: i32::from(
-                ConfidencePolicy::DEFAULT_MIN_REVIEW_FINDING_CONFIDENCE,
-            ),
+            judge_max_tokens: 400,
             synthesis_context_max_chars: 24000,
             chunk_max_chars: 1200,
             chunk_overlap_chars: 150,

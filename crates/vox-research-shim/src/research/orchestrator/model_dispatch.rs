@@ -15,6 +15,15 @@ use vox_orchestrator::models::{
 
 static SHARED_REGISTRY: OnceLock<ModelRegistry> = OnceLock::new();
 
+/// Crate-wide lock serializing tests that mutate process env vars consumed by
+/// research model resolution (`VOX_MODEL_FORCE`, `OPENROUTER_BASE_URL`, ...).
+/// Every such test in this crate must acquire this lock — a private,
+/// module-local lock does not serialize against env mutation in another
+/// module, since `std::env` is process-global regardless of which mutex
+/// guards the call site.
+#[cfg(test)]
+pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Returns a process-wide shared `ModelRegistry`, loaded from disk once on
 /// first use. Prefer this over `ModelRegistry::from_cache()` in hot paths
 /// (e.g. the claim-verifier's per-sample resampling loop) so the registry
@@ -50,12 +59,7 @@ pub fn primary_candidate_for_intent(intent: SelectionIntent) -> Option<LlmConfig
 #[cfg(test)]
 #[allow(unsafe_code)] // serialized env mutation under ENV_LOCK, mirrors vox-config's test idiom
 mod tests {
-    use std::sync::Mutex;
-
     use super::*;
-
-    /// Serializes tests in this module that mutate `VOX_MODEL_FORCE`.
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn returns_none_or_some_without_panicking_for_research_intent() {

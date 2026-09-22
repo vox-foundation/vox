@@ -63,8 +63,12 @@ pub async fn run_research_with_context_and_session(
     let persist_enabled = true;
 
     if let Some(db) = db
-        && let Some(cached) = research_cache_short_circuit(&query, db, config).await
+        && let Some(mut cached) = research_cache_short_circuit(&query, db, config).await
     {
+        cached.research_metadata.served_from_cache = true;
+        if let Some(id) = precreated_session_id {
+            set_session_stage(Some(db), id, ResearchStage::Completed).await;
+        }
         return Ok(cached);
     }
 
@@ -842,7 +846,7 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         ),
         ResearchDomainMode::General => query.query.clone(),
     };
-    let answer = synthesize_answer_with_llm(SynthesisParams {
+    let answer = match synthesize_answer_with_llm(SynthesisParams {
         query: &synthesis_query,
         hits: &all_hits,
         verdicts: &claim_verdicts,
@@ -853,10 +857,17 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         max_tokens: config.synthesis_max_tokens,
         context_max_chars: config.synthesis_context_max_chars,
     })
-    .await;
+    .await
+    {
+        Ok(a) => a,
+        Err(e) => {
+            set_session_stage(db, session_id, ResearchStage::Failed).await;
+            return Err(e);
+        }
+    };
 
     // ── (i) Evaluate final quality via judge ──────────────────────────────────
-    let quality_score = judge_quality(JudgeParams {
+    let (quality_score, judge_error) = match judge_quality(JudgeParams {
         query: &query.query,
         answer: &answer,
         citations: &citations,
@@ -865,9 +876,15 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         model: resolved_llm.judge_model.as_str(),
         temperature: config.judge_temperature,
         max_tokens: config.judge_max_tokens,
-        fallback_score: config.fallback_quality_score,
     })
-    .await;
+    .await
+    {
+        Ok(s) => (s, None),
+        Err(e) => {
+            tracing::warn!(error = %e, "research judge failed");
+            (0, Some(e))
+        }
+    };
 
     let self_verification_enabled = matches!(routing_tier, RoutingTier::DeepResearch);
 
@@ -1009,6 +1026,11 @@ Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by 
         wave_count: wave_plan.as_ref().map(|w| w.current_wave).unwrap_or(1),
         wave_stability: wave_plan.as_ref().map(|w| w.compute_stability()),
         low_grounding_evidence,
+        subqueries: plan.subqueries.clone(),
+        synthesis_model: vox_config::inference::forced_model()
+            .unwrap_or_else(|| resolved_llm.synthesis_model.clone()),
+        judge_error,
+        served_from_cache: false,
     };
 
     let result = ResearchResult {
@@ -1368,6 +1390,10 @@ mod tests {
                 wave_count: 1,
                 wave_stability: None,
                 low_grounding_evidence: false,
+                subqueries: vec![],
+                synthesis_model: String::new(),
+                judge_error: None,
+                served_from_cache: false,
             },
         };
         let report_markdown = render_research_report_markdown(&query, &plan, &result);

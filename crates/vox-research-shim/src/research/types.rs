@@ -236,6 +236,16 @@ pub struct ResearchMetadata {
     pub wave_stability: Option<f64>,
     #[serde(default)]
     pub low_grounding_evidence: bool,
+    #[serde(default)]
+    pub subqueries: Vec<String>,
+    /// Model that produced `answer` (the pin when `VOX_MODEL_FORCE` is set).
+    #[serde(default)]
+    pub synthesis_model: String,
+    /// Set when the judge could not score the answer; `quality_score` is then 0, never a synthetic default.
+    #[serde(default)]
+    pub judge_error: Option<String>,
+    #[serde(default)]
+    pub served_from_cache: bool,
 }
 
 /// Final research result.

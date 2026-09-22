@@ -297,7 +297,10 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         site_scope: params.site_scope,
         domain_mode,
         waves: params.waves.unwrap_or(1).clamp(1, 5),
-        lane: vox_search::policy::ResearchLane::default(),
+        lane: match params.lane.as_deref() {
+            Some(l) if l.eq_ignore_ascii_case("deep") => vox_search::policy::ResearchLane::Deep,
+            _ => vox_search::policy::ResearchLane::Fast,
+        },
     };
 
     let config = ResearchConfig {
@@ -379,6 +382,10 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
         .update_research_session_status(session_id, "running")
         .await;
 
+    let lane = match params.lane.as_deref() {
+        Some(l) if l.eq_ignore_ascii_case("deep") => vox_search::policy::ResearchLane::Deep,
+        _ => vox_search::policy::ResearchLane::Fast,
+    };
     let state = state.clone();
     tokio::spawn(async move {
         let domain_mode = match params.domain_mode.as_deref() {
@@ -395,7 +402,7 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
             site_scope: params.site_scope,
             domain_mode,
             waves: params.waves.unwrap_or(1).clamp(1, 5),
-            lane: vox_search::policy::ResearchLane::default(),
+            lane,
         };
         let ctx = SearchRuntimeContext::new(
             state.repository.root.clone(),

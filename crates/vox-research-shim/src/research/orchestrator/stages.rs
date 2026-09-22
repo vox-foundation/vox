@@ -51,7 +51,6 @@ pub(super) struct JudgeParams<'a> {
     pub model: &'a str,
     pub temperature: f32,
     pub max_tokens: u32,
-    pub fallback_score: i32,
 }
 
 pub(super) fn build_judge_system_prompt() -> String {
@@ -72,7 +71,7 @@ Schema required:
     .replace("{}", RESEARCH_COMPLETENESS_RIDER)
 }
 
-pub(super) async fn judge_quality(params: JudgeParams<'_>) -> i32 {
+pub(super) async fn judge_quality(params: JudgeParams<'_>) -> Result<i32, String> {
     let citation_snippets: String = params
         .citations
         .iter()
@@ -106,7 +105,7 @@ Scoring rubric:
         sanitize_evidence(&citation_snippets)
     );
 
-    if let Ok(content) = chat_stage(
+    let content = chat_stage(
         vox_actor_runtime::llm::cascade::ResearchStage::Judge,
         params.endpoint,
         params.api_key,
@@ -120,38 +119,42 @@ Scoring rubric:
         Some(serde_json::json!({"type": "json_object"})),
     )
     .await
-    {
-        let mut block = content.as_str();
-        if let Some(start) = content.find("```json") {
-            let rest = &content[start + 7..];
-            if let Some(end) = rest.find("```") {
-                block = &rest[..end];
-            } else {
-                block = rest;
-            }
-        } else if let Some(start) = content.find("```") {
-            let rest = &content[start + 3..];
-            if let Some(end) = rest.find("```") {
-                block = &rest[..end];
-            } else {
-                block = rest;
-            }
-        }
+    .map_err(|e| format!("judge call failed: {e}"))?;
 
-        #[derive(serde::Deserialize)]
-        struct JudgeResponse {
-            #[serde(default)]
-            total_score: i32,
+    let mut block = content.as_str();
+    if let Some(start) = content.find("```json") {
+        let rest = &content[start + 7..];
+        if let Some(end) = rest.find("```") {
+            block = &rest[..end];
+        } else {
+            block = rest;
         }
-
-        if let Ok(parsed) = serde_json::from_str::<JudgeResponse>(block.trim())
-            && parsed.total_score > 0
-        {
-            return parsed.total_score.clamp(1, 100);
+    } else if let Some(start) = content.find("```") {
+        let rest = &content[start + 3..];
+        if let Some(end) = rest.find("```") {
+            block = &rest[..end];
+        } else {
+            block = rest;
         }
     }
 
-    params.fallback_score
+    #[derive(serde::Deserialize)]
+    struct JudgeResponse {
+        #[serde(default)]
+        total_score: i32,
+    }
+
+    let parsed = serde_json::from_str::<JudgeResponse>(block.trim()).map_err(|_| {
+        format!(
+            "judge returned unparseable JSON: {}",
+            content.chars().take(200).collect::<String>()
+        )
+    })?;
+
+    if parsed.total_score <= 0 {
+        return Err("judge returned no score".into());
+    }
+    Ok(parsed.total_score.clamp(1, 100))
 }
 
 pub(super) struct SynthesisParams<'a> {
@@ -166,16 +169,14 @@ pub(super) struct SynthesisParams<'a> {
     pub context_max_chars: usize,
 }
 
-/// LLM-backed synthesis. Falls back to template when no endpoint is configured.
-pub(super) async fn synthesize_answer_with_llm(params: SynthesisParams<'_>) -> String {
-    // Try LLM synthesis first.
-    match call_synthesis_llm(&params).await {
-        Ok(answer) => return answer,
-        Err(e) => tracing::warn!("LLM synthesis failed: {e}, falling back to template"),
-    }
-
-    // Template fallback.
-    synthesize_answer_template(params.query, params.hits, params.verdicts)
+/// LLM-backed synthesis. There is deliberately no template fallback (spec §5):
+/// a failed synthesis is an error the caller must surface.
+pub(super) async fn synthesize_answer_with_llm(
+    params: SynthesisParams<'_>,
+) -> anyhow::Result<String> {
+    call_synthesis_llm(&params)
+        .await
+        .map_err(|e| anyhow::anyhow!("synthesis failed: {e}"))
 }
 
 async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<String> {
@@ -324,94 +325,6 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
         None,
     )
     .await
-}
-
-/// Template synthesis fallback (always succeeds, no network call).
-fn synthesize_answer_template(
-    query: &str,
-    hits: &[ResearchHit],
-    verdicts: &[super::super::types::ClaimVerdict],
-) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    parts.push(format!(
-        "# Executive Summary\n\nResearch findings for: {query}\n"
-    ));
-
-    parts.push(
-        "## Architectural Tradeoffs\n\nKey architectural considerations based on gathered evidence.\n"
-            .to_string(),
-    );
-
-    parts.push("## Grounded Claims\n".to_string());
-    if !verdicts.is_empty() {
-        for verdict in verdicts {
-            let icon = match verdict.verdict {
-                super::super::types::Verdict::Supported => "✅",
-                super::super::types::Verdict::Contradicted => "❌",
-                super::super::types::Verdict::Contested => "⚠️",
-                super::super::types::Verdict::Unverified => "❓",
-            };
-            parts.push(format!(
-                "- {icon} **{}**: {} (confidence: {:.0}%)",
-                verdict.claim.text,
-                verdict.verdict,
-                verdict.confidence * 100.0
-            ));
-        }
-        parts.push(String::new());
-    } else {
-        parts.push("No explicit claims evaluated.\n".to_string());
-    }
-
-    parts.push("## Contested Findings\n".to_string());
-    let contested: Vec<_> = verdicts
-        .iter()
-        .filter(|v| {
-            matches!(
-                v.verdict,
-                super::super::types::Verdict::Contradicted
-                    | super::super::types::Verdict::Contested
-            )
-        })
-        .collect();
-    if !contested.is_empty() {
-        for v in contested {
-            parts.push(format!("- ⚠️ **{}**: {}\n", v.claim.text, v.verdict));
-        }
-    } else {
-        parts.push("No contested findings identified.\n".to_string());
-    }
-
-    parts.push("## Implementation Implications\n".to_string());
-    for (i, hit) in hits.iter().take(5).enumerate() {
-        let snippet = hit.snippet.chars().take(500).collect::<String>();
-        parts.push(format!(
-            "### [{}] {}\n\nSource: <{}>\n\n{}\n",
-            i + 1,
-            hit.title,
-            hit.url,
-            snippet
-        ));
-    }
-    if hits.len() > 5 {
-        parts.push(format!(
-            "*And {} other sources examined.*\n",
-            hits.len() - 5
-        ));
-    }
-
-    parts.push("## Citations\n".to_string());
-    for (i, hit) in hits.iter().take(10).enumerate() {
-        parts.push(format!(
-            "{}. [^source{}]: {} - <{}>",
-            i + 1,
-            i + 1,
-            hit.title,
-            hit.url
-        ));
-    }
-
-    parts.join("\n")
 }
 
 /// CoVE-style self-verification step.
@@ -603,6 +516,7 @@ pub(crate) async fn chat_stage(
 
 #[cfg(test)]
 mod citation_diversity_tests {
+    use super::super::model_dispatch::ENV_LOCK;
     use super::evaluate_citation_diversity;
     use crate::research::types::ResearchHit;
 
@@ -646,61 +560,67 @@ mod citation_diversity_tests {
         );
     }
 
-    #[test]
-    fn test_synthesis_preserves_claim_verdicts_on_full_budget() {
-        use crate::research::claims::Claim;
-        use crate::research::verifier::{ClaimVerdict, Verdict};
-
-        let verdicts = vec![ClaimVerdict {
-            claim: Claim {
-                claim_id: 42,
-                text: "Target API requires usize parameter".into(),
-                is_numeric: false,
-                is_recent: false,
-                is_named_event: false,
-            },
-            verdict: Verdict::Contradicted,
-            confidence: 0.95,
-            supporting_count: 0,
-            contradicting_count: 1,
-            evidence_spans: vec![],
-            resample_stability: 1.0,
-        }];
-
-        // Giant evidence string that exceeds standard context budget
-        let giant_evidence = "Evidence snippet details. ".repeat(500); // ~13,000 chars
+    #[tokio::test]
+    #[allow(unsafe_code)]
+    // ENV_LOCK is a test-only, never-production std::sync::Mutex that must stay held across
+    // the `.await` below to actually serialize this test's env mutation against every other
+    // test in the crate that reads/writes VOX_MODEL_FORCE / OPENROUTER_BASE_URL — releasing it
+    // sooner would defeat its purpose. Single-threaded within the critical section, so no
+    // executor-blocking risk in practice.
+    #[allow(clippy::await_holding_lock)]
+    async fn synthesis_failure_is_an_error_not_a_template() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        let prior_force = std::env::var("VOX_MODEL_FORCE").ok();
+        let prior_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        // No key + unreachable pinned model => every candidate fails.
+        unsafe {
+            std::env::set_var("VOX_MODEL_FORCE", "nonexistent/model-for-test");
+        }
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", "http://127.0.0.1:9");
+        }
         let hits = vec![crate::research::types::ResearchHit {
-            url: "https://docs.rs/example".into(),
-            title: "Docs".into(),
-            snippet: giant_evidence,
-            score: 0.9,
+            url: "https://a.example".into(),
+            title: "a".into(),
+            snippet: "s".into(),
+            score: 1.0,
             http_status: 200,
             trust_score: 1.0,
             raw_content: String::new(),
         }];
-
-        let params = super::SynthesisParams {
-            query: "What parameter does Target API require?",
+        let r = super::synthesize_answer_with_llm(super::SynthesisParams {
+            query: "q",
             hits: &hits,
-            verdicts: &verdicts,
+            verdicts: &[],
             endpoint: None,
             api_key: None,
-            model: "test-model",
+            model: "nonexistent/model-for-test",
             temperature: 0.2,
-            max_tokens: 500,
+            max_tokens: 100,
             context_max_chars: 4000,
-        };
+        })
+        .await;
+        unsafe {
+            match prior_force {
+                Some(v) => std::env::set_var("VOX_MODEL_FORCE", v),
+                None => std::env::remove_var("VOX_MODEL_FORCE"),
+            }
+            match prior_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+        }
+        let err = r.expect_err("a failed synthesis must be Err — never template prose");
+        assert!(err.to_string().contains("synthesis failed"), "{err}");
+    }
 
-        // Even with a tight budget (4,000 chars) and 13,000 chars of evidence,
-        // the template synthesis output must still contain the claim text and verdict!
-        let answer = super::synthesize_answer_template(params.query, params.hits, params.verdicts);
+    #[test]
+    fn judge_budget_fits_its_schema() {
+        let c = super::super::config::ResearchConfig::default();
         assert!(
-            answer.contains("Target API requires usize parameter"),
-            "Answer must retain verified claim even when evidence exceeds context budget: {answer}"
-        );
-        assert!(
-            answer.contains("contradicted"),
-            "Answer must retain contradiction verdict even when evidence exceeds context budget: {answer}"
+            c.judge_max_tokens >= 400,
+            "judge_max_tokens {} truncates the judge JSON (D7)",
+            c.judge_max_tokens
         );
     }
 }
