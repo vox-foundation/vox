@@ -705,7 +705,10 @@ mod preset_tests {
             resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default())
                 .expect("profile");
         assert_eq!(profile.seq_len, 384);
-        assert_eq!(profile.batch_size, 1);
+        // The 0.6B rung raises the *default* micro-batch to >= 2
+        // (`apply_qwen_size_ladder_policy`, QwenSizeClass::S0p6); only an explicit
+        // `--batch-size` keeps the preset's 1.
+        assert_eq!(profile.batch_size, 2);
         assert_eq!(profile.grad_accum, 8);
         #[allow(unsafe_code)]
         unsafe {
