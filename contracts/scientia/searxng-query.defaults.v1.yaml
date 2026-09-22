@@ -3,6 +3,11 @@ x-vox-version: 1
 # Path is embedded at compile time in `crates/vox-search/src/searxng_defaults.rs`.
 schema_version: 1
 # Comma-separated engine names for the `engines=` query parameter (SearXNG instance must support them).
-engines: "google,bing,ddg"
+# D9 (Task 8 fix round 2): "ddg" is not a valid SearXNG engine id — its canonical
+# id is "duckduckgo" (SearXNG silently drops unknown engine names rather than
+# erroring, so this was returning zero DuckDuckGo results for every query).
+# Live-probed against a real SearXNG instance: `engines=ddg` -> 0 results;
+# `engines=duckduckgo` -> real, on-topic results.
+engines: "google,bing,duckduckgo"
 # ISO-like language tag for the `language=` parameter.
 language: "en"

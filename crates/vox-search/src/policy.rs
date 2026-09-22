@@ -302,6 +302,15 @@ impl Default for SearchPolicy {
                 .expose()
                 .filter(|s| !s.trim().is_empty())
                 .map(|s| s.to_string()),
+            // NOTE (D9, Task 8 fix round 2 diagnosis): raising this alone does NOT
+            // fix arXiv dominating the fused top-N (tried 10, still 100% arXiv —
+            // see the fix-round-2 report). At `rrf_k=60`, arXiv's 1.20 authority
+            // weight beats every rank of an equal-size 1.00-weighted competing
+            // list as long as the list size stays under `k` (`1.2*(k+1) >
+            // 1.0*(k+list_len)`), so widening the cap alone can't out-run it.
+            // Left at the original default; a real fix needs to touch
+            // `true_rrf_fuse`'s weights/k in web_dispatcher.rs, which is out of
+            // this round's scope (reported, not fixed — see finding (c) part 2).
             searxng_max_results: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchSearxngMaxResults,
             )

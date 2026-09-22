@@ -310,7 +310,12 @@ fn apply_stage_defaults(stage: ResearchStage, cfg: &mut LlmConfig) {
             ResearchStage::Planner => 700,
             ResearchStage::ClaimExtraction => 900,
             ResearchStage::Verification => 500,
-            ResearchStage::Judge => 400,
+            // D8 (Task 8 fix round 2): kept in sync with
+            // `ResearchConfig::judge_max_tokens` in vox-research-shim — 400 was
+            // too tight for the judge's own JSON schema (3 free-text
+            // `*_reasoning` fields plus 4 integer scores), live-probed truncating
+            // every time against google/gemini-3.8-flash.
+            ResearchStage::Judge => 1600,
             ResearchStage::SelfVerification => 700,
             ResearchStage::Synthesis => unreachable!("guarded by outer if"),
         });

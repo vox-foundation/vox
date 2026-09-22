@@ -728,9 +728,60 @@ mod citation_diversity_tests {
     fn judge_budget_fits_its_schema() {
         let c = super::super::config::ResearchConfig::default();
         assert!(
-            c.judge_max_tokens >= 400,
-            "judge_max_tokens {} truncates the judge JSON (D7)",
+            c.judge_max_tokens >= 1400,
+            "judge_max_tokens {} does not leave room for google/gemini-3.8-flash's \
+             reasoning tokens ahead of the visible JSON (D8 — see judge_probe_max_tokens_400_vs_4000)",
             c.judge_max_tokens
         );
+    }
+
+    /// D8 live diagnostic (Task 8 fix round 2, finding (b)): the live daemon's
+    /// deep-research judge stage failed with `judge returned unparseable JSON:
+    /// {\n  "factual_accuracy_` — ~20 visible characters, far short of the
+    /// 400-token budget that was configured, so `max_tokens` itself wasn't the
+    /// literal ceiling being hit at the API framing level; something was
+    /// consuming the budget before the JSON could be written out. Probes
+    /// `judge_quality` directly against the real OpenRouter endpoint at the
+    /// old 400-token budget (reproduce) and then at a much larger budget
+    /// (diagnose), printing whether each attempt parses.
+    ///
+    /// Run manually (needs a live `OPENROUTER_API_KEY` and network):
+    /// `cargo test -p vox-research-shim --features runtime -- --ignored --nocapture judge_probe`
+    #[cfg(feature = "runtime")]
+    #[tokio::test]
+    #[ignore = "live OpenRouter network probe — run manually with --ignored --features runtime"]
+    async fn judge_probe_max_tokens_400_vs_4000() {
+        let Some(api_key) = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
+            .expose()
+            .map(|s| s.to_string())
+        else {
+            eprintln!("SKIP: OPENROUTER_API_KEY does not resolve; cannot probe live judge stage");
+            return;
+        };
+        let citations = vec![crate::research::types::Citation {
+            source_id: 1,
+            url: "https://arxiv.org/abs/0000.00000".into(),
+            title: "Example paper".into(),
+            snippet: "An example finding about search infrastructure.".into(),
+            confidence: 0.9,
+        }];
+        let query = "compare SearXNG and Tavily for agent web search";
+        let answer = "SearXNG is a self-hosted open-source metasearch engine; Tavily is a \
+                       commercial API purpose-built for LLM agents. [1]";
+
+        for max_tokens in [400u32, 1200u32, 1600u32, 4000u32] {
+            let result = super::judge_quality(super::JudgeParams {
+                query,
+                answer,
+                citations: &citations,
+                endpoint: None,
+                api_key: Some(&api_key),
+                model: "google/gemini-3.8-flash",
+                temperature: 0.0,
+                max_tokens,
+            })
+            .await;
+            eprintln!("--- max_tokens={max_tokens} ---\n{result:?}\n");
+        }
     }
 }

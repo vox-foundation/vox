@@ -137,7 +137,13 @@ impl Default for ResearchConfig {
             synthesis_max_tokens: 1200,
             judge_model: r.judge_model,
             judge_temperature: 0.0,
-            judge_max_tokens: 400,
+            // D8 (Task 8 fix round 2): 400 was too tight for the judge's own JSON
+            // schema (3 free-text `*_reasoning` fields plus 4 integer scores) —
+            // live-probed against google/gemini-3.8-flash: 400 => unparseable
+            // truncated JSON every time; 1200/1600/4000 all returned a parseable
+            // score. 1600 keeps headroom above the observed 1200 floor without
+            // being unbounded.
+            judge_max_tokens: 1600,
             synthesis_context_max_chars: 24000,
             chunk_max_chars: 1200,
             chunk_overlap_chars: 150,

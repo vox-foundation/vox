@@ -819,4 +819,50 @@ mod tests {
             1.0
         );
     }
+
+    /// D9 live diagnostic (Task 8 fix round 2, finding (c)): the live daemon's
+    /// deep-research run on "compare SearXNG and Tavily for agent web search"
+    /// retrieved 25 sources spanning only 1 distinct domain — all arXiv — even
+    /// though quick research's `search_with_report` on the same process/lane
+    /// showed SearXNG reachable (`ok hits=5`) and the planner's own subqueries
+    /// were clean and explicitly named SearXNG/Tavily. Runs one of those real
+    /// planner subqueries through `search_with_report` on the Deep lane and
+    /// prints each provider's raw outcome plus the fused top-10 with URLs, to
+    /// distinguish "SearXNG errored/rate-limited under deep query volume" from
+    /// "arXiv's RRF authority weight (1.20) just wins fusion for this query".
+    ///
+    /// Run manually (needs network): `cargo test -p vox-search -- --ignored --nocapture deep_lane_probe`
+    #[tokio::test]
+    #[ignore = "live network probe — run manually with --ignored"]
+    async fn deep_lane_probe_searxng_vs_tavily_subquery() {
+        let policy = crate::SearchPolicy::from_env();
+        let report = WebSearchDispatcher::search_with_report(
+            "SearXNG vs Tavily comparison for AI agents",
+            crate::policy::ResearchLane::Deep,
+            &policy,
+        )
+        .await;
+        eprintln!("--- provider outcomes ---");
+        for p in &report.providers {
+            eprintln!("{}: {:?}", p.provider, p.status);
+        }
+        eprintln!("--- fused top-10 ---");
+        for (i, h) in report.hits.iter().take(10).enumerate() {
+            let engine = h
+                .provenance
+                .iter()
+                .find_map(|p| p.strip_prefix("engine:"))
+                .unwrap_or("?");
+            eprintln!("{}. [{engine}] {} — {}", i + 1, h.title, h.path);
+        }
+        eprintln!(
+            "total hits: {}, distinct engines: {:?}",
+            report.hits.len(),
+            report
+                .hits
+                .iter()
+                .filter_map(|h| h.provenance.iter().find_map(|p| p.strip_prefix("engine:")))
+                .collect::<std::collections::HashSet<_>>()
+        );
+    }
 }

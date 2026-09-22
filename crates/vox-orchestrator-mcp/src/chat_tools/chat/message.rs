@@ -499,6 +499,16 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     let (expanded_prompt, mention_files) =
         resolve_mentions(&params.prompt, &workspace_root, &state.mention_path_cache);
+    // Research (spec §4) classifies and searches from THIS prompt — @mentions
+    // expanded, but before `canonicalize_prompt` below wraps it in "Objectives
+    // (treat as a single set; order does not imply priority):\n\n1. ..."
+    // boilerplate for the LLM's own framing. That boilerplate is not the user's
+    // question: fed into a search engine verbatim it returns garbage (observed
+    // live: an astrophysics arXiv dump for a Gemini-model question), and it
+    // swallows a leading `/deepresearch`/`/research` slash command so
+    // `classify_research_intent`'s `strip_command` never matches, forcing every
+    // command onto the heuristic-cue fallback instead of the explicit path.
+    let raw_prompt_for_research = expanded_prompt.clone();
     let (expanded_prompt, canonical_meta) = match prompt_canonical::canonicalize_prompt(
         &expanded_prompt,
         true, // order_invariant
@@ -771,8 +781,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     }
 
     // Research (spec §4): classify, then run quick/deep; every turn gets a trace.
+    // Classify from the RAW (pre-canonicalization) prompt — see
+    // `raw_prompt_for_research`'s doc comment above.
     let intent = super::research_intent::classify_research_intent(
-        &expanded_prompt,
+        &raw_prompt_for_research,
         params.force_research,
         params.research_scope.as_deref(),
     );
