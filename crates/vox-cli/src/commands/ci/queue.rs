@@ -1140,25 +1140,16 @@ mod tests {
         assert!(!hook_guard_matches("foreach($f in ls){ gh run view $f }"));
     }
 
-    /// The `.claude/settings.json` PreToolUse wrapper greps for a fixed
-    /// substring of [`HOOK_GUARD_DENY`] to decide whether an exit-2 is a real
-    /// deny vs. a stale-binary clap error. If that wording ever changes here
-    /// without updating the wrapper, the hook silently fails open forever —
-    /// this test fails first instead.
-    #[test]
-    fn settings_json_wrapper_matches_deny_marker() {
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../.claude/settings.json");
-        let settings = std::fs::read_to_string(path).expect("read .claude/settings.json");
-        assert!(
-            settings.contains("Local-first CI"),
-            "settings.json wrapper must grep a substring of HOOK_GUARD_DENY \
-             (currently \"Local-first CI\"); update both together"
-        );
-        assert!(
-            HOOK_GUARD_DENY.contains("Local-first CI"),
-            "HOOK_GUARD_DENY must contain the exact marker the wrapper greps for"
-        );
-    }
+    // `settings_json_wrapper_matches_deny_marker` retired (hosted-primary-CI
+    // migration, 2026-09): `.claude/settings.json` no longer carries a
+    // PreToolUse wrapper around `hook_guard_matches`/`HOOK_GUARD_DENY` — the
+    // 30-minute hosted gate cap makes watching a run cheap, so that guard
+    // was dropped in favor of `vox ci status` hooks (SessionStart /
+    // UserPromptSubmit). `hook_guard_matches` and `HOOK_GUARD_DENY`
+    // themselves are unchanged and still exercised by the tests above; only
+    // the settings.json coupling this test asserted is gone. This whole
+    // module is scheduled for deletion in a follow-up PR once nothing
+    // references `vox ci queue` anymore.
 
     #[test]
     fn render_brief_on_main_dedupes_failure_line() {
