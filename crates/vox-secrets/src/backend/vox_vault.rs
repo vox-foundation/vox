@@ -1994,6 +1994,63 @@ mod vault_health_tests {
         assert_eq!(health.row_count, 0);
     }
 
+    /// Regression test for the 2026-09-21 `vox harness eval` panic: resolving a
+    /// vault secret from a current-thread Tokio runtime (e.g. a CLI subcommand
+    /// that opts into `#[tokio::main(flavor = "current_thread")]`) must not
+    /// panic. `run_secrets_future`'s `block_in_place` path only works on a
+    /// multi-threaded runtime; calling it from a current-thread runtime used to
+    /// panic with "can call blocking only when running on the multi-threaded
+    /// runtime".
+    #[tokio::test(flavor = "current_thread")]
+    #[allow(unsafe_code)]
+    async fn resolves_vault_secret_from_current_thread_runtime() {
+        use crate::backend::SecretBackend;
+        use secrecy::ExposeSecret;
+
+        static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _g = ENV_LOCK.lock().expect("env lock");
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp.path().join("current_thread_vault.db");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+            std::env::set_var("VOX_ACCOUNT_ID", "current-thread-test-account");
+        }
+
+        let backend =
+            super::VoxCloudBackend::new().expect("backend init on current-thread runtime");
+        backend
+            .write_secret("PROBE_CURRENT_THREAD", "current-thread-value")
+            .expect("write secret on current-thread runtime");
+
+        let spec = crate::spec::SecretSpec {
+            id: crate::spec::SecretId::VoxOrchestratorEnabled,
+            canonical_env: "PROBE_CURRENT_THREAD",
+            aliases: &[],
+            deprecated_aliases: &[],
+            backend_key: None,
+            auth_registry: None,
+            policy: crate::policy::SecretPolicy::optional_skip(),
+            remediation: "test",
+            scope_description: "test",
+        };
+        let resolved = backend.resolve(
+            crate::spec::SecretId::VoxOrchestratorEnabled,
+            spec,
+            None,
+            "test",
+        );
+
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+            std::env::remove_var("VOX_ACCOUNT_ID");
+        }
+
+        let secret = resolved
+            .expect("resolve secret on current-thread runtime")
+            .expect("secret should be present");
+        assert_eq!(secret.expose_secret(), "current-thread-value");
+    }
+
     #[test]
     #[allow(unsafe_code)]
     fn probe_vault_health_fails_after_simulated_master_drift() {
