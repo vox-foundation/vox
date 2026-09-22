@@ -281,6 +281,14 @@ pub fn run_training_loop(
     let mut total_valid_tokens: u64 = 0;
     let mut total_theoretical_tokens: u64 = 0;
     let mut total_syntax_weight: f64 = 0.0;
+    let mut skip_non_finite: u64 = 0;
+    // Human stderr progress line (cadence: train_log::progress_line_due).
+    let loop_start_opt_step = optimizer_step_count;
+    let mut line_printed_any = false;
+    let mut line_opt_step = optimizer_step_count;
+    let mut line_time = Instant::now();
+    let mut line_tokens: u64 = 0;
+    let mut first_backward_logged = false;
 
     let run_start_inst = Instant::now();
     for epoch in start_epoch..=config.epochs {
@@ -326,6 +334,43 @@ pub fn run_training_loop(
 
         for (pair_loop_idx, &pair_real_idx) in shuffled_indices.iter().enumerate().skip(pair_start)
         {
+            let since_line = line_time.elapsed();
+            if train_log::progress_line_due(
+                line_printed_any,
+                optimizer_step_count - line_opt_step,
+                since_line,
+            ) {
+                let window_tokens = total_valid_tokens - line_tokens;
+                train_log::info(&train_log::format_progress_line(&train_log::ProgressLine {
+                    epoch,
+                    epochs: config.epochs,
+                    opt_step: optimizer_step_count,
+                    opt_steps_planned: total_optimizer_steps_planned,
+                    micro_step: global_step,
+                    loss_ema: ema_loss_val,
+                    loss_last: ema_loss_val.map(|_| last_loss_val),
+                    lr: trainer.current_lr(),
+                    tokens_per_sec: (window_tokens > 0)
+                        .then(|| window_tokens as f64 / since_line.as_secs_f64().max(1e-3)),
+                    eta_secs: train_log::eta_secs(
+                        optimizer_step_count - loop_start_opt_step,
+                        total_optimizer_steps_planned.saturating_sub(optimizer_step_count),
+                        run_start_inst.elapsed(),
+                    ),
+                    skips: train_log::SkipCounts {
+                        curriculum: skip_curriculum,
+                        short_seq: skip_short_seq,
+                        no_supervision: skip_no_supervised_positions,
+                        non_finite: skip_non_finite,
+                        token_oob: skip_token_id_oob,
+                    },
+                }));
+                line_printed_any = true;
+                line_opt_step = optimizer_step_count;
+                line_time = Instant::now();
+                line_tokens = total_valid_tokens;
+            }
+
             let pair = &pairs[pair_real_idx];
             let (sample_weight, was_clamped) = logic::trajectory_weight_for_pair(pair, config);
             if config.trajectory_weighting_enabled && (sample_weight - 1.0_f64).abs() > f64::EPSILON
@@ -405,6 +450,7 @@ pub fn run_training_loop(
                     None
                 }
                 MaskedCeForward::NonFinite { kind, mask_sum } => {
+                    skip_non_finite += 1;
                     train_log::warn(&format!(
                         "Non-finite loss ({kind}) before backward at epoch {epoch} micro_step {global_step} (skip update); mask_sum={mask_sum:.3}",
                     ));
@@ -447,6 +493,14 @@ pub fn run_training_loop(
                         ));
                     }
                     total_valid_tokens = total_valid_tokens.saturating_add(supervised_tokens);
+                    if !first_backward_logged {
+                        first_backward_logged = true;
+                        train_log::info(&format!(
+                            "Training started: first backward pass done after {:.1}s ({} optimizer steps planned, grad_accum={grad_accum}).",
+                            run_start_inst.elapsed().as_secs_f64(),
+                            total_optimizer_steps_planned,
+                        ));
+                    }
                     total_theoretical_tokens =
                         total_theoretical_tokens.saturating_add(theoretical_tokens);
                     total_syntax_weight += syntax_weight_sum as f64;
@@ -562,11 +616,6 @@ pub fn run_training_loop(
                     None => sps,
                     Some(prev) => QLORA_ETA_EMA_ALPHA * sps + (1.0 - QLORA_ETA_EMA_ALPHA) * prev,
                 });
-                let pct = if total_optimizer_steps_planned > 0 {
-                    100.0 * optimizer_step_count as f64 / total_optimizer_steps_planned as f64
-                } else {
-                    0.0
-                };
                 const ETA_CALIBRATION_MIN_STEPS: u32 = 8;
                 let eta_s_telem: Option<u64> = if optimizer_step_count >= ETA_CALIBRATION_MIN_STEPS
                 {
@@ -584,40 +633,6 @@ pub fn run_training_loop(
                 } else {
                     None
                 };
-                let eta_str = if optimizer_step_count < ETA_CALIBRATION_MIN_STEPS {
-                    "calibrating...".to_string()
-                } else {
-                    eta_s_telem.map_or("eta ?".into(), |s| {
-                        if s >= 3600 {
-                            format!("eta ~{}h {:02}m {:02}s", s / 3600, (s % 3600) / 60, s % 60)
-                        } else {
-                            format!("eta ~{:02}m {:02}s", s / 60, s % 60)
-                        }
-                    })
-                };
-                let eff_batch = config.batch_size.max(1) * config.grad_accum.max(1);
-                let ema_str = ema_loss_val
-                    .map(|v| format!("{:.4}", v))
-                    .unwrap_or_else(|| "----".to_string());
-                train_log::info(&format!(
-                    "E{:02}/{} step={} opt_step={} loss={:.4} (ema={}) lr={:.2e} eff_batch={} {:.1}% {} skips(no_sup={},short={},curric={},oob={}) traj(weighted_pairs={},clamped_pairs={})",
-                    epoch,
-                    config.epochs,
-                    global_step,
-                    optimizer_step_count,
-                    loss_val,
-                    ema_str,
-                    lr_applied_this_step,
-                    eff_batch,
-                    pct,
-                    eta_str,
-                    skip_no_supervised_positions,
-                    skip_short_seq,
-                    skip_curriculum,
-                    skip_token_id_oob,
-                    trajectory_weighted_pairs,
-                    trajectory_clamped_pairs
-                ));
                 let step_payload = telem_helpers::build_train_step_payload(
                     epoch,
                     global_step,
