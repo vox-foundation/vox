@@ -365,3 +365,20 @@ fn test_dedup_skips_duplicate_rows() {
     let count = emitted.lines().filter(|l| !l.trim().is_empty()).count();
     assert_eq!(count, 3, "dedup should emit 3 unique rows, got {}", count);
 }
+
+#[test]
+fn dedup_key_distinguishes_messages_only_rows() {
+    let a = serde_json::json!({"messages":[{"role":"user","content":"a"},{"role":"assistant","content":"1"}]});
+    let b = serde_json::json!({"messages":[{"role":"user","content":"b"},{"role":"assistant","content":"2"}]});
+    assert_ne!(super::dedup_key(&a), super::dedup_key(&b));
+    let p = serde_json::json!({"prompt":"x","response":"y"});
+    let q = serde_json::json!({"instruction":"x","output":"y"});
+    assert_eq!(
+        super::dedup_key(&p),
+        super::dedup_key(&q),
+        "aliases are the same row"
+    );
+    let e1 = serde_json::json!({"instruction":"x","input":"e1","output":"y"});
+    let e2 = serde_json::json!({"instruction":"x","input":"e2","output":"y"});
+    assert_ne!(super::dedup_key(&e1), super::dedup_key(&e2));
+}

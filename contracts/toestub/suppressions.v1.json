@@ -4,6 +4,12 @@
   "suppressions": [
     {
       "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-corpus/src/corpus/augment/part_mutate.rs",
+      "reason": "part_mutate.rs is include!()d into augment/mod.rs; augment_prompt is tested by augment/tests_mod.rs (also include!()d there), e.g. augment_produces_variants and typos_never_touch_identifiers_or_code_spans. tdd-guard scans files individually and cannot see across include!.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-plugin-mens-candle-*/src/candle_qlora_train/training_loop/validation.rs",
       "reason": "preflight_masked_ce_finite and run_validation_pass predate the 2026-09-22 MENS training fixes, which only swapped their truncation/system-turn helpers for the tested ones in vox-plugin-mens-candle-core::training_text (with_system_turn, truncate_to_seq_len). Both need a loaded TrainGraphModel and an HF tokenizer, so they have no cheap unit seam; surfaced only because tdd-guard re-scans the whole touched file.",
       "owner": "robot"

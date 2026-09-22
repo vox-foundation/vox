@@ -1,4 +1,6 @@
 # Mix configuration for vox-lang domain
+# Explicit: an empty include_lanes defaults to {vox_codegen} and would drop every row here.
+include_lanes: [vox_codegen, vox_docs_qa, vox_lang_tier_b]
 output: mens/data/train_mixed_vox_lang.jsonl
 sources:
   - path: target/dogfood/vox_corpus_extract.jsonl

@@ -508,6 +508,23 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
 /// No-op if `weight == 1.0` (the default; keeps the JSONL diff minimal for
 /// the common single-source case). Existing `mix_weight` is preserved if
 /// already set — caller intent wins over mix-time defaults.
+/// Content key for `dedup: true`. Covers `prompt`/`instruction`, `input`,
+/// `response`/`output`, and `messages`, so messages-only rows no longer all
+/// collapse onto the empty-prompt/empty-response key.
+pub(crate) fn dedup_key(row: &serde_json::Value) -> u64 {
+    let field = |k: &str| row.get(k).map(|v| v.to_string()).unwrap_or_default();
+    let prompt = row.get("prompt").or_else(|| row.get("instruction"));
+    let response = row.get("response").or_else(|| row.get("output"));
+    let key = format!(
+        "{}\u{1f}{}\u{1f}{}\u{1f}{}",
+        prompt.map(|v| v.to_string()).unwrap_or_default(),
+        field("input"),
+        response.map(|v| v.to_string()).unwrap_or_default(),
+        field("messages"),
+    );
+    xxh3_64(key.as_bytes())
+}
+
 fn stamp_mix_weight(line: &str, weight: f64) -> Result<String, String> {
     if (weight - 1.0).abs() < f64::EPSILON {
         return Ok(line.to_string());
@@ -798,14 +815,7 @@ pub fn run_mix_with_options(
                         if cfg.dedup
                             && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(row)
                         {
-                            let prompt =
-                                parsed.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
-                            let response = parsed
-                                .get("response")
-                                .or_else(|| parsed.get("output"))
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("");
-                            let hash = xxh3_64(prompt.as_bytes()) ^ xxh3_64(response.as_bytes());
+                            let hash = dedup_key(&parsed);
                             if !seen_hashes.insert(hash) {
                                 continue; // Duplicate -- skip
                             }
