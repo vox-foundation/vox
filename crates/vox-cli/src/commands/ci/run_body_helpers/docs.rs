@@ -677,6 +677,10 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
         "node_pnpm_ssot_guard",
         vox_cli_ci::node_pnpm_ssot_guard::run(root)
     )?;
+    ds!(
+        "workflow_policy_guard",
+        vox_cli_ci::workflow_policy_guard::run(root)
+    )?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
 }

@@ -115,3 +115,4 @@ pub mod toolchain_ssot;
 pub mod toolchain_workflow_lint;
 pub mod workflow_concurrency_guard;
 pub mod workflow_permissions_guard;
+pub mod workflow_policy_guard;
