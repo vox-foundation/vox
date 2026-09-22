@@ -16,6 +16,41 @@
 
 use std::process::Command;
 
+/// Emit `cargo:rustc-env=VOX_COMPILER_REPO_ROOT=<path>` from a build script.
+///
+/// `<path>` is the absolute path to the vox workspace root the calling crate
+/// was compiled from, derived from `CARGO_MANIFEST_DIR` (cargo sets this for
+/// every build script; the crate is assumed to live at
+/// `<repo_root>/crates/<name>`, true of every first-party crate here).
+///
+/// Generated projects (`vox build`) use this to locate the vox runtime
+/// crates (`vox-db`, `vox-actor-runtime`, …) as absolute path dependencies
+/// so the generated `Cargo.toml` resolves outside a vox checkout too — see
+/// `resolve_vox_repo_root` in `vox-codegen`'s `emit/mod.rs` and
+/// `docs/src/architecture/generated-project-runtime-deps.md`. Only correct
+/// for a `vox` binary built locally from source (the documented install
+/// path); a binary built on a different machine embeds that machine's path,
+/// which callers must sanity-check before trusting.
+pub fn emit_repo_root() {
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .expect("cargo sets CARGO_MANIFEST_DIR for build scripts");
+    println!(
+        "cargo:rustc-env=VOX_COMPILER_REPO_ROOT={}",
+        repo_root_from_manifest_dir(&manifest_dir).display()
+    );
+}
+
+/// Two directories up from a crate's `CARGO_MANIFEST_DIR`
+/// (`<repo_root>/crates/<name>` → `<repo_root>`). Falls back to the input
+/// unchanged if it isn't at least two levels deep.
+fn repo_root_from_manifest_dir(manifest_dir: &str) -> std::path::PathBuf {
+    let p = std::path::Path::new(manifest_dir);
+    p.parent()
+        .and_then(std::path::Path::parent)
+        .unwrap_or(p)
+        .to_path_buf()
+}
+
 /// Emit version metadata `cargo:rustc-env` vars from a build script.
 ///
 /// Call this once from `build.rs`. Each binary's build script may add its own
@@ -76,6 +111,20 @@ fn git_stdout(args: &[&str]) -> Option<String> {
 #[allow(unsafe_code)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn repo_root_from_manifest_dir_strips_crates_and_name() {
+        let root = repo_root_from_manifest_dir("/repo/crates/vox-codegen");
+        assert_eq!(root, std::path::PathBuf::from("/repo"));
+    }
+
+    #[test]
+    fn repo_root_from_manifest_dir_falls_back_when_too_shallow() {
+        // A path with fewer than two components has no sensible "two up" —
+        // return it unchanged rather than panicking.
+        let root = repo_root_from_manifest_dir("/onlyone");
+        assert_eq!(root, std::path::PathBuf::from("/onlyone"));
+    }
 
     #[test]
     fn explicit_env_wins_over_git() {
