@@ -7,7 +7,9 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-use crate::commands::mens::eval_gate::leakage::{BenchTask, leaked_bench_task, load_bench_answers};
+use crate::commands::mens::eval_gate::leakage::{
+    BenchTask, leaked_bench_task_contained, load_bench_answers,
+};
 
 /// Default SSOT path, relative to the repo root.
 pub(crate) const DEFAULT_CONFIG: &str = "mens/config/vox-source-pool.yaml";
@@ -122,7 +124,7 @@ impl Selector {
         if is_generated(content) {
             return Some("generated_header".into());
         }
-        if let Some((id, score)) = leaked_bench_task(&self.bench, content) {
+        if let Some((id, score)) = leaked_bench_task_contained(&self.bench, content) {
             return Some(format!("heldout_bench_overlap:{id}:{score:.2}"));
         }
         None

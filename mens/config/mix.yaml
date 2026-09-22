@@ -42,6 +42,16 @@ sources:
     # Produced by: `vox mens corpus mutate --source-dir examples/golden --count 5000 --output target/dogfood/mutated_vox.jsonl`
     optional: true
 
+  - path: mens/data/mix_sources/back_translated.jsonl
+    weight: 3.0                   # Back-translated instructions over compile-clean human code (vox_codegen)
+    # Produced by: `vox mens corpus back-translate --apply` (spend-gated; dry-run by default)
+    optional: true
+
+  - path: mens/data/mix_sources/rft_vox.jsonl
+    weight: 1.5                   # Rejection-sampled, compiler/@test-verified completions (vox_codegen)
+    # Produced by: `vox mens corpus rft --apply` (spend-gated; dry-run by default)
+    optional: true
+
   - path: mens/data/research-lane-sft.jsonl
     weight: 1.0                   # Research domain warm-up
     # 1,000 generated rows with one instruction and mislabeled relations
