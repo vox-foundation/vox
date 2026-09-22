@@ -216,6 +216,7 @@ mod ollama_ssot_tests {
     // OLLAMA_URL under `cargo test`'s default parallelism would flake. Add
     // one if a second OLLAMA_URL-mutating test lands in this crate.
     #[test]
+    #[allow(unsafe_code)] // Rust 2024 `set_var` is unsafe; see SAFETY below.
     fn ollama_default_url_resolves_through_the_config_ssot() {
         // SAFETY: single-threaded scope; the var is restored below and no
         // other test in this crate reads OLLAMA_URL.
