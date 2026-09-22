@@ -476,12 +476,10 @@ impl VoxDb {
                         params![session_id],
                     )
                     .await
+                    && let Ok(Some(row)) = rows.next().await
+                    && let Ok(q) = row.get::<String>(0)
                 {
-                    if let Ok(Some(row)) = rows.next().await {
-                        if let Ok(q) = row.get::<String>(0) {
-                            query_text = q;
-                        }
-                    }
+                    query_text = q;
                 }
 
                 let mut claims_text = String::new();
@@ -990,10 +988,10 @@ impl VoxDb {
 
                     let elapsed_days = ((now - last_incident_at_ms) as f64 / 86_400_000.0).max(0.0);
                     let decayed = current_penalty * (-elapsed_days * std::f64::consts::LN_2 / 30.0).exp();
-                    let new_pen = (decayed + params.domain_penalty).max(0.0).min(2.0);
+                    let new_pen = (decayed + params.domain_penalty).clamp(0.0, 2.0);
                     (current_count + 1, new_pen)
                 } else {
-                    (1i64, params.domain_penalty.max(0.0).min(2.0))
+                    (1i64, params.domain_penalty.clamp(0.0, 2.0))
                 };
 
                 let is_blacklisted: i64 = if new_count >= 5 && new_penalty >= 1.0 { 1 } else { 0 };

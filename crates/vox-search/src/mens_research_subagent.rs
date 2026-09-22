@@ -67,8 +67,8 @@ fn strip_markdown_fences(text: &str) -> &str {
 
 fn extract_json_slice(text: &str) -> Option<&str> {
     let stripped = strip_markdown_fences(text);
-    let start = stripped.find(|c| c == '{' || c == '[')?;
-    let end = stripped.rfind(|c| c == '}' || c == ']')?;
+    let start = stripped.find(['{', '['])?;
+    let end = stripped.rfind(['}', ']'])?;
     if start <= end {
         Some(&stripped[start..=end])
     } else {
@@ -80,18 +80,18 @@ fn parse_envelope(raw_json: &str) -> Option<Vec<RawTriplet>> {
     let stripped = strip_markdown_fences(raw_json);
 
     // First attempt: try between first '{'/'[' and last '}'/']'
-    if let Some(slice) = extract_json_slice(stripped) {
-        if let Ok(env) = serde_json::from_str::<TripletEnvelope>(slice) {
-            return Some(match env {
-                TripletEnvelope::ClaimsObject { claims } => claims,
-                TripletEnvelope::TripletsObject { triplets } => triplets,
-                TripletEnvelope::Array(arr) => arr,
-            });
-        }
+    if let Some(slice) = extract_json_slice(stripped)
+        && let Ok(env) = serde_json::from_str::<TripletEnvelope>(slice)
+    {
+        return Some(match env {
+            TripletEnvelope::ClaimsObject { claims } => claims,
+            TripletEnvelope::TripletsObject { triplets } => triplets,
+            TripletEnvelope::Array(arr) => arr,
+        });
     }
 
     // Second attempt: parse first valid JSON value from start
-    if let Some(start) = stripped.find(|c| c == '{' || c == '[') {
+    if let Some(start) = stripped.find(['{', '[']) {
         let mut de =
             serde_json::Deserializer::from_str(&stripped[start..]).into_iter::<TripletEnvelope>();
         if let Some(Ok(env)) = de.next() {

@@ -69,20 +69,18 @@ pub fn is_claim_valid_at_version(
         }
     }
 
-    if let Some(since_str) = valid_since {
-        if let Some(since) = normalize_semver(since_str) {
-            if target < since {
-                return Ok(false);
-            }
-        }
+    if let Some(since_str) = valid_since
+        && let Some(since) = normalize_semver(since_str)
+        && target < since
+    {
+        return Ok(false);
     }
 
-    if let Some(until_str) = valid_until {
-        if let Some(until) = normalize_semver(until_str) {
-            if target >= until {
-                return Ok(false);
-            }
-        }
+    if let Some(until_str) = valid_until
+        && let Some(until) = normalize_semver(until_str)
+        && target >= until
+    {
+        return Ok(false);
     }
 
     Ok(true)

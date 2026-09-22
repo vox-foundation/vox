@@ -6,8 +6,10 @@ async fn test_empty_web_retrieval_halts_without_synthesis() {
         .await
         .expect("in-memory db");
 
-    let mut config = ResearchConfig::default();
-    config.claim_detection_enabled = true;
+    let mut config = ResearchConfig {
+        claim_detection_enabled: true,
+        ..Default::default()
+    };
     config.search_policy.wikipedia_fallback_enabled = false;
     config.search_policy.duckduckgo_fallback_enabled = false;
     config.search_policy.tavily_enabled = false;

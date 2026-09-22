@@ -54,15 +54,15 @@ impl ParallelExplorationCoordinator {
             let fetcher = fetcher.clone();
             let cancel = cancellation.clone();
             async move {
-                if let Some(c) = &cancel {
-                    if c.is_cancelled() {
-                        return BranchResult {
-                            branch_id: branch.branch_id,
-                            query: branch.query,
-                            snippets: vec![],
-                            success: false,
-                        };
-                    }
+                if let Some(c) = &cancel
+                    && c.is_cancelled()
+                {
+                    return BranchResult {
+                        branch_id: branch.branch_id,
+                        query: branch.query,
+                        snippets: vec![],
+                        success: false,
+                    };
                 }
                 match tokio::time::timeout(timeout_per_branch, fetcher(branch.query.clone())).await {
                     Ok(Ok(snippets)) => BranchResult {

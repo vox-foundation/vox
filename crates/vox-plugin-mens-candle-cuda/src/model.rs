@@ -833,8 +833,6 @@ mod gradient_checkpoint_tests {
             n_heads,
             n_kv_heads: n_heads,
             head_dim,
-            q_norm: None,
-            k_norm: None,
         };
         let mlp = Qwen2MLP {
             gate_proj: qlin(vb.pp("g"), d * 2, d, dev),
@@ -1008,8 +1006,6 @@ mod bf16_activation_tests {
             n_heads: 2,
             n_kv_heads: 2,
             head_dim: 4,
-            q_norm: None,
-            k_norm: None,
         }
     }
 

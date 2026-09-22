@@ -185,16 +185,14 @@ impl ShardResolver {
         let base_dir = base_paths[0].parent().unwrap_or(Path::new("."));
         let index_file = base_dir.join("model.safetensors.index.json");
         let mut key_to_file = HashMap::new();
-        if index_file.is_file() {
-            if let Ok(raw) = std::fs::read_to_string(&index_file) {
-                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) {
-                    if let Some(wm) = v.get("weight_map").and_then(|w| w.as_object()) {
-                        for (k, val) in wm {
-                            if let Some(f) = val.as_str() {
-                                key_to_file.insert(k.clone(), base_dir.join(f));
-                            }
-                        }
-                    }
+        if index_file.is_file()
+            && let Ok(raw) = std::fs::read_to_string(&index_file)
+            && let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw)
+            && let Some(wm) = v.get("weight_map").and_then(|w| w.as_object())
+        {
+            for (k, val) in wm {
+                if let Some(f) = val.as_str() {
+                    key_to_file.insert(k.clone(), base_dir.join(f));
                 }
             }
         }
@@ -391,7 +389,7 @@ pub fn merge_qlora_adapter(
 mod tests {
     use super::*;
     use candle_core::DType;
-    use safetensors::SafeTensors;
+    use safetensors::{SafeTensors, serialize};
 
     #[test]
     fn lora_delta_matches_manual_scale() {
