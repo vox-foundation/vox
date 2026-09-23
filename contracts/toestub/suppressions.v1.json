@@ -97,6 +97,12 @@
       "path_glob": "**/vox-research-shim/src/research/provider.rs",
       "reason": "map_site is a pre-existing stub returning None (site crawling is handled via query.site_scope filtering; no dedicated site-map API exists in vox-search yet). Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
       "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/untested-pub-api",
+      "path_glob": "**/vox-search/src/searxng.rs",
+      "reason": "Task 8c only added a field to the sibling SearxngResult struct in this file; SearxngSearchClient::new/search are pre-existing and untouched. Covered by tests/web_dispatcher_searxng_mock.rs and tests/deterministic_lanes_ci_test.rs, just not by an in-file #[cfg(test)] module. Surfaced only because tdd-guard re-scans the whole touched file, not the diff.",
+      "owner": "robot"
     }
   ]
 }

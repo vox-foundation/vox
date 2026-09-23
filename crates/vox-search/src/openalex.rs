@@ -100,6 +100,7 @@ impl OpenAlexClient {
                     content,
                     engine: Some("openalex".to_string()),
                     score: Some(0.85),
+                    provider: None,
                 }
             })
             .collect();

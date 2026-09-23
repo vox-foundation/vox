@@ -282,10 +282,15 @@ fn queries_stage(original: &str, search_query: &str) -> StageRecord {
 /// Quick research: one retrieval wave on the Deep-lane deadline, numbered sources.
 /// Returns the context block to inject into the chat prompt.
 pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) -> String {
-    let policy = {
+    let mut policy = {
         let cfg = state.orchestrator.config_handle();
         vox_orchestrator::sync_lock::rw_read(&*cfg).effective_search_policy()
     };
+    // Spec §4.3: quick research keeps top N=8 (Task 8c) — the dispatcher's
+    // scrape-driven default (max(searxng_max_results, searxng_max_urls_to_scrape),
+    // typically 5) truncated the pool before it ever reached `sources_from_hits`
+    // below, which already caps at 8.
+    policy.kept_limit = Some(8);
     let original = trace.intent.query.clone();
     let query = search_query_for(&original);
     trace.push(queries_stage(&original, &query));

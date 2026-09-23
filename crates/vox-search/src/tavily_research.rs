@@ -170,6 +170,7 @@ impl TavilyResearchClient {
                 },
                 engine: Some("tavily_research".to_string()),
                 score: s.score.map(f64::from),
+                provider: None,
             })
             .collect();
         if out.is_empty()
@@ -181,6 +182,7 @@ impl TavilyResearchClient {
                 content: answer,
                 engine: Some("tavily_research".to_string()),
                 score: Some(0.85),
+                provider: None,
             });
         }
         Ok(out)

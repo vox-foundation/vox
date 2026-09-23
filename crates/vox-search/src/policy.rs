@@ -135,6 +135,14 @@ pub struct SearchPolicy {
     pub searxng_max_results: usize,
     /// Max top hits to deep-scrape for markdown extraction.
     pub searxng_max_urls_to_scrape: usize,
+    /// Overrides the pipeline's final kept-hit count
+    /// (`max(searxng_max_results, searxng_max_urls_to_scrape)` when `None`).
+    /// Task 8c: lets a caller that already fetched a deep-enough candidate
+    /// pool (via `candidate_depth`) ask for more than the scrape-driven
+    /// default — e.g. quick research's spec-mandated top N=8 (`run_quick`
+    /// sets this on its own policy clone rather than on the shared default).
+    #[serde(default)]
+    pub kept_limit: Option<usize>,
     /// How many hits each web provider (SearXNG, Wikipedia, OpenAlex, arXiv) is asked for.
     /// Deeper than the kept output (`max(searxng_max_results, searxng_max_urls_to_scrape)`)
     /// so the relevance rerank chooses from a real candidate pool (Task 15 Step 3b).
@@ -327,6 +335,7 @@ impl Default for SearchPolicy {
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(3),
+            kept_limit: None,
             candidate_depth: default_candidate_depth(),
             searxng_engines: searxng_embedded.engines.clone(),
             searxng_language: searxng_embedded.language.clone(),

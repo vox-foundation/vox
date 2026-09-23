@@ -65,6 +65,7 @@ async fn extract_uplift_replaces_thin_snippet_content() {
         content: "short".to_string(),
         engine: Some("tavily".to_string()),
         score: Some(0.7),
+        provider: None,
     }];
     assert!(snippet_quality_low(&rows[0].content));
 
@@ -90,6 +91,7 @@ fn thin_row(url: &str, engine: &str) -> vox_search::searxng::SearxngResult {
         content: "short".to_string(),
         engine: Some(engine.to_string()),
         score: Some(0.7),
+        provider: None,
     }
 }
 

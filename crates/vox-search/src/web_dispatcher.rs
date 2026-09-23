@@ -77,6 +77,31 @@ impl Default for WebSearchDispatcher {
     }
 }
 
+/// Sets `provider` on every hit in `hits` to `provider`, tagging them with
+/// the top-level provider that fetched them (see [`crate::searxng::SearxngResult::provider`]).
+fn tag_provider(
+    mut hits: Vec<crate::searxng::SearxngResult>,
+    provider: &str,
+) -> Vec<crate::searxng::SearxngResult> {
+    for h in &mut hits {
+        h.provider = Some(provider.to_string());
+    }
+    hits
+}
+
+/// The grouping key `enforce_provider_diversity` caps/reserves by: the
+/// explicit `provider` tag set by [`tag_provider`] when present (the real
+/// production path — Task 8c), falling back to the raw `engine` string for
+/// results built outside that path, e.g. test fixtures that construct a
+/// `SearxngResult` directly with just an `engine` label standing in for a
+/// distinct provider.
+fn diversity_group_key(item: &crate::searxng::SearxngResult) -> &str {
+    item.provider
+        .as_deref()
+        .or(item.engine.as_deref())
+        .unwrap_or("unknown")
+}
+
 pub fn extract_registrable_domain(url_str: &str) -> Option<String> {
     let parsed = url::Url::parse(url_str)
         .or_else(|_| url::Url::parse(&format!("https://{url_str}")))
@@ -114,10 +139,11 @@ impl WebSearchDispatcher {
         }
     }
 
-    /// Caps how many of the top `limit` kept hits any single provider (the
-    /// `engine:<name>` provenance entry, e.g. "arxiv", "searxng") may occupy,
-    /// while guaranteeing every provider that contributed at least one hit
-    /// keeps at least one slot (as long as `limit >= contributing_providers`).
+    /// Caps how many of the top `limit` kept hits any single top-level
+    /// provider (via [`diversity_group_key`] — arxiv / openalex /
+    /// wikipedia / tavily / searxng) may occupy, while guaranteeing a
+    /// reserved slot to every provider whose best hit clears the relevance
+    /// gate (see below), as long as `limit >= contributing_providers`.
     ///
     /// D9 follow-up (Task 8 fix round 2/3): `true_rrf_fuse`'s per-source
     /// authority weights (arXiv 1.20 vs 1.00 for everything else) mean that at
@@ -139,14 +165,27 @@ impl WebSearchDispatcher {
     /// instead of a monoculture. A no-op when fewer than two providers
     /// contributed, or when `results.len() <= limit` (nothing would be
     /// truncated anyway).
+    ///
+    /// Task 8c fix: two changes to what used to be an unconditional
+    /// reserve-one-slot-per-provider guarantee.
+    /// 1. Grouping key is the top-level provider ([`diversity_group_key`]),
+    ///    not the raw `engine` string — SearXNG's sub-engines (`brave`,
+    ///    `yahoo`, `yep`, ...) used to each compete for their own reserved
+    ///    slot, splitting one real provider's share N ways and starving the
+    ///    others. Raw `engine` stays on each result for display provenance;
+    ///    only the cap/reservation grouping changes.
+    /// 2. Pass 0 only reserves a slot for a provider whose best hit's score
+    ///    is >= 50% of the pool's top score (results are already relevance-
+    ///    sorted on entry, so `original[0]` is the pool max). A provider
+    ///    below that gate competes for slots on relevance like everyone else
+    ///    in pass 1/2, with no guarantee — this is what stopped two weakly
+    ///    relevant hits from displacing a strongly relevant one just because
+    ///    every provider with *any* nonzero score got a free slot.
     fn enforce_provider_diversity(results: &mut Vec<crate::searxng::SearxngResult>, limit: usize) {
         if limit == 0 || results.len() <= limit {
             return;
         }
-        let contributing: HashSet<&str> = results
-            .iter()
-            .map(|r| r.engine.as_deref().unwrap_or("unknown"))
-            .collect();
+        let contributing: HashSet<&str> = results.iter().map(diversity_group_key).collect();
         if contributing.len() < 2 {
             return;
         }
@@ -154,17 +193,21 @@ impl WebSearchDispatcher {
 
         // Original fusion/relevance order, preserved for the final re-emit.
         let original = std::mem::take(results);
+        // Results enter already sorted by relevance (rerank_by_relevance runs
+        // before this), so the first item is the pool's top score.
+        let top_score = original.first().and_then(|r| r.score).unwrap_or(0.0);
+        let reservation_gate = top_score * 0.5;
 
-        // Group original indices by provider, preserving each provider's
-        // relative (fusion-ordered) position.
+        // Group original indices by top-level provider, preserving each
+        // provider's relative (fusion-ordered) position.
         let mut group_order: Vec<String> = Vec::new();
         let mut groups: HashMap<String, Vec<usize>> = HashMap::new();
         for (i, item) in original.iter().enumerate() {
-            let engine = item.engine.clone().unwrap_or_else(|| "unknown".to_string());
-            if !groups.contains_key(&engine) {
-                group_order.push(engine.clone());
+            let key = diversity_group_key(item).to_string();
+            if !groups.contains_key(&key) {
+                group_order.push(key.clone());
             }
-            groups.entry(engine).or_default().push(i);
+            groups.entry(key).or_default().push(i);
         }
         // Providers ordered by their own best (first) hit's score, descending
         // — decides only the order slots are *reserved* in, not final output.
@@ -184,13 +227,20 @@ impl WebSearchDispatcher {
         let mut counts: HashMap<String, usize> = HashMap::new();
         let mut selected_idx: Vec<usize> = Vec::with_capacity(limit);
 
-        // Pass 0: guarantee one slot per provider, strongest provider first.
-        // MEMBERSHIP only — final position is decided by the re-emit below.
+        // Pass 0: guarantee one slot per provider that clears the relevance
+        // gate, strongest provider first. MEMBERSHIP only — final position
+        // is decided by the re-emit below. A provider that doesn't clear the
+        // gate is left for pass 1/2 to pick up on pure relevance, with no
+        // guarantee.
         for engine in &group_order {
             if selected_idx.len() >= limit {
                 break;
             }
             if let Some(&idx) = groups[engine].first() {
+                let best_score = original[idx].score.unwrap_or(0.0);
+                if best_score < reservation_gate {
+                    continue;
+                }
                 selected_idx.push(idx);
                 heads.insert(engine.clone(), 1);
                 counts.insert(engine.clone(), 1);
@@ -624,6 +674,7 @@ impl WebSearchDispatcher {
                                     content: h.content,
                                     engine: Some("tavily".to_string()),
                                     score: Some(f64::from(h.score)),
+                                    provider: None,
                                 })
                                 .collect(),
                         )
@@ -672,7 +723,19 @@ impl WebSearchDispatcher {
             searxng.1.clone(),
             tavily.1.clone(),
         ];
-        let provider_lists = vec![arxiv.0, openalex.0, wiki.0, searxng.0, tavily.0];
+        // Tag each hit with the top-level provider that fetched it — the one
+        // place that actually knows, vs. guessing from `engine` later (Task
+        // 8c). SearXNG's sub-engine names (brave/yahoo/yep/...) live only in
+        // `engine`; every hit in this list came from the single searxng_task
+        // above, so they all get `provider = "searxng"` regardless of which
+        // sub-engine produced them.
+        let provider_lists = vec![
+            tag_provider(arxiv.0, "arxiv"),
+            tag_provider(openalex.0, "openalex"),
+            tag_provider(wiki.0, "wikipedia"),
+            tag_provider(searxng.0, "searxng"),
+            tag_provider(tavily.0, "tavily"),
+        ];
 
         let mut results = true_rrf_fuse(provider_lists, policy.rrf_k);
         #[cfg(feature = "tavily")]
@@ -702,9 +765,11 @@ impl WebSearchDispatcher {
 
         results = Self::rerank_by_relevance(query, results);
 
-        let kept_limit = policy
-            .searxng_max_results
-            .max(policy.searxng_max_urls_to_scrape);
+        let kept_limit = policy.kept_limit.unwrap_or_else(|| {
+            policy
+                .searxng_max_results
+                .max(policy.searxng_max_urls_to_scrape)
+        });
         Self::enforce_provider_diversity(&mut results, kept_limit);
 
         #[cfg(feature = "tavily")]
@@ -728,15 +793,7 @@ impl WebSearchDispatcher {
         {
             // Integrated scraping for clean content (optional — pulls scraper/html2text).
             let mut final_hits = Vec::new();
-            let urls_to_scrape = results
-                .iter()
-                .take(
-                    policy
-                        .searxng_max_results
-                        .max(policy.searxng_max_urls_to_scrape),
-                )
-                .cloned()
-                .collect::<Vec<_>>();
+            let urls_to_scrape = results.iter().take(kept_limit).cloned().collect::<Vec<_>>();
 
             for res in urls_to_scrape {
                 match crate::scraper::fetch_and_extract(&res.url, policy.scraper_timeout_ms).await {
@@ -801,10 +858,7 @@ impl WebSearchDispatcher {
         {
             // Without `web-scrape`, return engine snippets only (no HTML fetch stack).
             let mut final_hits = Vec::new();
-            let max_hits = policy
-                .searxng_max_results
-                .max(policy.searxng_max_urls_to_scrape);
-            for res in results.into_iter().take(max_hits) {
+            for res in results.into_iter().take(kept_limit) {
                 let mut provenance = vec!["WebResearch".to_string()];
                 if let Some(ref eng) = res.engine {
                     provenance.push(format!("engine:{eng}"));
@@ -1011,6 +1065,7 @@ mod tests {
             content: String::new(),
             engine: Some("test".to_string()),
             score: Some(score),
+            provider: None,
         }
     }
 
@@ -1021,6 +1076,27 @@ mod tests {
             content: String::new(),
             engine: Some(engine.to_string()),
             score: Some(score),
+            provider: None,
+        }
+    }
+
+    /// Like [`result_engine`], but also sets `provider` explicitly — for
+    /// tests that exercise the real production grouping path (Task 8c),
+    /// where SearXNG sub-engine hits are tagged `provider: "searxng"` at
+    /// the source regardless of which sub-engine produced them.
+    fn result_provider(
+        url: &str,
+        score: f64,
+        provider: &str,
+        engine: &str,
+    ) -> crate::searxng::SearxngResult {
+        crate::searxng::SearxngResult {
+            url: url.to_string(),
+            title: url.to_string(),
+            content: String::new(),
+            engine: Some(engine.to_string()),
+            score: Some(score),
+            provider: Some(provider.to_string()),
         }
     }
 
@@ -1085,10 +1161,50 @@ mod tests {
     /// either way, forcing the 3rd provider in regardless of algorithm). This
     /// uses 4 providers with skewed scores where 3 strong providers (A, B, C)
     /// can fill all 5 slots under the old greedy pass before a 4th, much
-    /// weaker provider (D, one hit, small but nonzero relevance) is ever
-    /// reached. `cap = max(2, ceil(5/4)) = 2`.
+    /// weaker provider (D, one hit) is ever reached. `cap = max(2, ceil(5/4))
+    /// = 2`.
+    ///
+    /// Task 8c fix: reservation is now relevance-gated (>= 50% of the pool's
+    /// top score). Provider-a's top score is 0.9, so the gate is 0.45;
+    /// provider-d's score is raised to 0.5 (just above the gate) so this
+    /// fixture keeps pinning "a weak-but-still-relevant provider gets its
+    /// reserved slot" — the sibling test below covers the opposite case,
+    /// where provider-d falls *below* the gate and is not reserved.
     #[test]
     fn enforce_provider_diversity_reserves_a_slot_for_a_weak_but_relevant_provider() {
+        let mut results = vec![
+            result_engine("https://a.example/1", 0.9, "provider-a"),
+            result_engine("https://b.example/1", 0.85, "provider-b"),
+            result_engine("https://a.example/2", 0.8, "provider-a"),
+            result_engine("https://b.example/2", 0.75, "provider-b"),
+            result_engine("https://c.example/1", 0.7, "provider-c"),
+            result_engine("https://c.example/2", 0.65, "provider-c"),
+            result_engine("https://a.example/3", 0.3, "provider-a"),
+            result_engine("https://b.example/3", 0.25, "provider-b"),
+            result_engine("https://c.example/3", 0.2, "provider-c"),
+            result_engine("https://d.example/1", 0.5, "provider-d"),
+        ];
+
+        WebSearchDispatcher::enforce_provider_diversity(&mut results, 5);
+
+        let kept = &results[..5];
+        assert!(
+            kept.iter().any(|r| r.url.contains("d.example")),
+            "provider-d (weak but above the 50%-of-top relevance gate) must keep a slot: {:?}",
+            kept.iter().map(|r| (&r.url, r.score)).collect::<Vec<_>>()
+        );
+    }
+
+    /// Task 8c fix, relevance-gated reservation: the mirror of the test
+    /// above — provider-d's only hit now scores 0.1 against the same
+    /// provider-a top score of 0.9 (gate 0.45), so it falls *below* the
+    /// gate. It must not get a reserved slot in pass 0, and — unlike the old
+    /// ungated behavior this test used to pin — must not appear in the kept
+    /// set at all here: providers a/b/c alone have enough higher-relevance
+    /// hits to fill all 5 slots under their cap of 2 once d stops taking a
+    /// guaranteed seat.
+    #[test]
+    fn enforce_provider_diversity_does_not_reserve_a_slot_below_the_relevance_gate() {
         let mut results = vec![
             result_engine("https://a.example/1", 0.9, "provider-a"),
             result_engine("https://b.example/1", 0.85, "provider-b"),
@@ -1106,9 +1222,131 @@ mod tests {
 
         let kept = &results[..5];
         assert!(
-            kept.iter().any(|r| r.url.contains("d.example")),
-            "provider-d (weak but nonzero relevance) must keep a slot: {:?}",
+            !kept.iter().any(|r| r.url.contains("d.example")),
+            "provider-d (below the 50%-of-top relevance gate) must NOT get a reserved slot \
+             when higher-relevance hits from other providers can fill the cap instead: {:?}",
             kept.iter().map(|r| (&r.url, r.score)).collect::<Vec<_>>()
+        );
+    }
+
+    /// Task 8c fix 1: SearXNG sub-engine names (`brave`, `yahoo`, `yep`, ...)
+    /// must count as ONE top-level "searxng" provider for the diversity cap
+    /// and reservation, not compete as separate providers each pulling their
+    /// own reserved slot — the live-evidence defect (round15b) where
+    /// SearXNG's own share got split 3 ways while Wikipedia and arXiv each
+    /// grabbed a full reserved slot for a single weak hit. Two hits tagged
+    /// with 3 distinct SearXNG sub-engines plus 2 Wikipedia hits, `limit =
+    /// 4`: if sub-engines were still separate providers, `contributing` would
+    /// be 4 (brave/yahoo/yep/wikipedia) and pass 0 could reserve all 4 slots
+    /// one-per-engine before relevance ever mattered, keeping only the
+    /// single weakest-scored hit from each sub-engine. With correct grouping
+    /// there are only 2 real providers (searxng, wikipedia), so the two
+    /// highest-scored SearXNG hits (brave, yahoo — both above yep) plus both
+    /// Wikipedia hits fill the cap of 2 each, and `yep`'s lone hit is
+    /// correctly excluded on relevance.
+    #[test]
+    fn enforce_provider_diversity_counts_searxng_sub_engines_as_one_provider() {
+        let mut results = vec![
+            result_provider("https://example.com/brave-1", 0.90, "searxng", "brave"),
+            result_provider("https://example.com/yahoo-1", 0.85, "searxng", "yahoo"),
+            result_provider("https://example.com/yep-1", 0.80, "searxng", "yep"),
+            result_provider(
+                "https://en.wikipedia.org/wiki/1",
+                0.60,
+                "wikipedia",
+                "wikipedia",
+            ),
+            result_provider(
+                "https://en.wikipedia.org/wiki/2",
+                0.50,
+                "wikipedia",
+                "wikipedia",
+            ),
+        ];
+
+        WebSearchDispatcher::enforce_provider_diversity(&mut results, 4);
+
+        let kept = &results[..4];
+        let mut counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        for r in kept {
+            let key = if r.engine.as_deref() == Some("wikipedia") {
+                "wikipedia"
+            } else {
+                "searxng"
+            };
+            *counts.entry(key).or_insert(0) += 1;
+        }
+        assert_eq!(
+            counts.get("searxng").copied().unwrap_or(0),
+            2,
+            "brave/yahoo/yep must be capped together as one 'searxng' provider at cap=2, \
+             not each get their own reserved slot: {:?}",
+            kept.iter()
+                .map(|r| (&r.url, &r.engine, r.score))
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            !kept.iter().any(|r| r.url.contains("yep-1")),
+            "yep's lone (lowest-scored) hit must lose out to the cap once brave/yahoo/yep are \
+             one provider, not get its own guaranteed reserved slot: {:?}",
+            kept.iter()
+                .map(|r| (&r.url, &r.engine, r.score))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    /// Task 8c fix 2: relevance-gated reservation using the brief's own
+    /// Wikipedia scenario — a provider whose best hit scores 20% of the
+    /// pool's top score gets no reserved slot (a higher-relevance SearXNG
+    /// hit takes that slot instead); the same provider at 60% of top keeps
+    /// its reserved slot. Uses 3 top-level providers (searxng, arxiv,
+    /// wikipedia) so the cap mechanism alone can't force Wikipedia back in
+    /// once it's ungated (2 providers would leave it nowhere else to lose
+    /// the slot to).
+    #[test]
+    fn enforce_provider_diversity_gates_wikipedia_reservation_on_relevance_share() {
+        fn fixture(wiki_score: f64) -> Vec<crate::searxng::SearxngResult> {
+            vec![
+                result_provider("https://example.com/dd-1", 1.00, "searxng", "duckduckgo"),
+                result_provider("https://example.com/dd-2", 0.90, "searxng", "duckduckgo"),
+                result_provider("https://example.com/dd-3", 0.80, "searxng", "duckduckgo"),
+                result_provider("https://example.com/dd-4", 0.70, "searxng", "duckduckgo"),
+                result_provider("https://arxiv.org/abs/1", 0.60, "arxiv", "arxiv"),
+                result_provider("https://arxiv.org/abs/2", 0.50, "arxiv", "arxiv"),
+                result_provider(
+                    "https://en.wikipedia.org/wiki/1",
+                    wiki_score,
+                    "wikipedia",
+                    "wikipedia",
+                ),
+            ]
+        }
+
+        // 20% of top (1.00 * 0.2 = 0.20): below the 50% gate, no reservation.
+        let mut below_gate = fixture(0.20);
+        WebSearchDispatcher::enforce_provider_diversity(&mut below_gate, 4);
+        let kept_below = &below_gate[..4];
+        assert!(
+            !kept_below.iter().any(|r| r.url.contains("wikipedia.org")),
+            "Wikipedia at 20% of top relevance must NOT get a reserved slot; a higher-relevance \
+             SearXNG/arXiv hit should take it instead: {:?}",
+            kept_below
+                .iter()
+                .map(|r| (&r.url, r.score))
+                .collect::<Vec<_>>()
+        );
+
+        // 60% of top (1.00 * 0.6 = 0.60): above the 50% gate, reservation holds.
+        let mut above_gate = fixture(0.60);
+        WebSearchDispatcher::enforce_provider_diversity(&mut above_gate, 4);
+        let kept_above = &above_gate[..4];
+        assert!(
+            kept_above.iter().any(|r| r.url.contains("wikipedia.org")),
+            "Wikipedia at 60% of top relevance must keep its reserved slot: {:?}",
+            kept_above
+                .iter()
+                .map(|r| (&r.url, r.score))
+                .collect::<Vec<_>>()
         );
     }
 
@@ -1282,6 +1520,87 @@ mod tests {
                 report.hits
             );
         }
+    }
+
+    /// Task 8c fix 3: spec §4.3 says quick research keeps top N=8, but the
+    /// dispatcher truncated every caller to `max(searxng_max_results,
+    /// searxng_max_urls_to_scrape)` (5 by default) before `run_quick` ever
+    /// saw more. `policy.kept_limit` lets a caller (like `run_quick`) ask
+    /// for more without changing the shared default. Same composed
+    /// `search_with_report_and_registry` path as the sibling rerank/cap
+    /// test above, but SearXNG-only with 10 distinct candidate hits so a
+    /// `kept_limit` of 8 has enough real candidates to return, and existing
+    /// callers (kept_limit = None) must still see their old count.
+    #[tokio::test]
+    async fn search_with_report_honors_kept_limit_override() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let query = "latest Gemini Flash model OpenRouter released";
+
+        let searxng_server = MockServer::start().await;
+        let searxng_results: Vec<serde_json::Value> = (1..=10)
+            .map(|i| {
+                serde_json::json!({
+                    "url": format!("https://openrouter.ai/google/gemini-{i}"),
+                    "title": format!("Gemini Flash model page {i}"),
+                    "content": "OpenRouter released the latest Gemini Flash model.",
+                    "engine": "duckduckgo",
+                    "score": 1.0 - (i as f64) * 0.01,
+                })
+            })
+            .collect();
+        Mock::given(method("GET"))
+            .and(path("/search"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({ "results": searxng_results })),
+            )
+            .mount(&searxng_server)
+            .await;
+
+        let base_policy = SearchPolicy {
+            enable_wikipedia: false,
+            enable_openalex: false,
+            enable_arxiv: false,
+            searxng_url: Some(searxng_server.uri()),
+            searxng_max_results: 5,
+            searxng_max_urls_to_scrape: 3,
+            tavily_enabled: false,
+            fast_timeout_ms: 10_000,
+            deep_timeout_ms: 10_000,
+            ..SearchPolicy::default()
+        };
+
+        let default_report = WebSearchDispatcher::search_with_report_and_registry(
+            query,
+            ResearchLane::Deep,
+            &base_policy,
+            &crate::search_circuit_breaker::SearchProviderCircuitRegistry::new(),
+        )
+        .await;
+        assert_eq!(
+            default_report.hits.len(),
+            5,
+            "existing callers (no kept_limit override) must keep their old count: {:?}",
+            default_report.hits
+        );
+
+        let mut quick_policy = base_policy;
+        quick_policy.kept_limit = Some(8);
+        let quick_report = WebSearchDispatcher::search_with_report_and_registry(
+            query,
+            ResearchLane::Deep,
+            &quick_policy,
+            &crate::search_circuit_breaker::SearchProviderCircuitRegistry::new(),
+        )
+        .await;
+        assert_eq!(
+            quick_report.hits.len(),
+            8,
+            "run_quick-shaped kept_limit=8 must return up to 8 hits: {:?}",
+            quick_report.hits
+        );
     }
 
     #[test]
@@ -1484,6 +1803,7 @@ mod tests {
                 .to_string(),
             engine: Some("arxiv".to_string()),
             score: Some(score),
+            provider: None,
         };
         let dd =
             |url: &str, score: f64, title: &str, content: &str| crate::searxng::SearxngResult {
@@ -1492,6 +1812,7 @@ mod tests {
                 content: content.to_string(),
                 engine: Some("duckduckgo".to_string()),
                 score: Some(score),
+                provider: None,
             };
 
         let pool = vec![
@@ -1598,6 +1919,7 @@ mod tests {
                     .to_string(),
                 engine: Some("arxiv".to_string()),
                 score: Some(0.02),
+                provider: None,
             },
             crate::searxng::SearxngResult {
                 url: "https://example.com/unrelated-1".to_string(),
@@ -1605,6 +1927,7 @@ mod tests {
                 content: "nothing to do with the query".to_string(),
                 engine: Some("duckduckgo".to_string()),
                 score: Some(0.0164),
+                provider: None,
             },
         ];
 
