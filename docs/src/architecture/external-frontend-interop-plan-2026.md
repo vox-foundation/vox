@@ -179,6 +179,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
 - **Security:** auth and CORS defaults must fail closed. CORS must reject by default; `@auth` must reject by default; rate-limit decorators must be additive, not subtractive.
 - **Migration support:** ship `vox migrate drop-island` (Phase 5) — rewrites `@island` use sites to the bidirectional import form — and `vox migrate wire-format` (Phase 2 → future v2) so users are never stranded.
 - **Emitted component code is generated, not authored.** Per the project's "auto-generated docs" policy, emitted `.tsx` files should not be hand-edited; the `.vox` source is canonical. Any escape-hatch user-edit zones must be explicitly delimited so the compiler can preserve them across re-emits.
+- **Vox-native vs. hand-authored-React authoring track is per-surface, not per-file.** `crates/vox-gui` is a fully hand-authored React/TSX surface and stays that way — it is the canonical operator GUI, not an interop demo. `apps/interop/marquee_app` is the interop-reference surface exercising the bidirectional bridge described in Phase 5 above. The `authoring_track` field on each surface's entry in [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml) is the machine-readable half of this rule; a surface changing tracks requires updating both that file and this bullet.
 
 ## Sequencing and dependencies
 
