@@ -1071,6 +1071,149 @@ mod tests {
         );
     }
 
+    /// Task 8b fix round 3: the pure-function tests added in round 2 fully
+    /// exercise `enforce_provider_diversity` and `rerank_by_relevance` in
+    /// isolation, but nothing exercised the COMPOSED path inside
+    /// `search_with_report_and_registry` (fuse -> filter_and_penalize ->
+    /// rerank_by_relevance -> enforce_provider_diversity -> truncate). A
+    /// regression that swapped the rerank and cap calls, or dropped the
+    /// rerank call entirely, would pass the whole suite otherwise. This is
+    /// the one integration test for that composed path: 3 wiremock
+    /// providers (arXiv, Wikipedia, SearXNG) through
+    /// `search_with_report_and_registry`, an isolated
+    /// `SearchProviderCircuitRegistry::new()`, and generous deadlines
+    /// (`fast_timeout_ms = deep_timeout_ms = 10_000`, the same pattern that
+    /// fixed `search_report_test.rs`) — this test is about ranking, so no
+    /// provider mock should ever be near a deadline. arXiv returns 5
+    /// zero-query-overlap papers (which would rank first on RRF authority
+    /// weight alone); SearXNG returns the query-matching hit at rank 4.
+    #[tokio::test]
+    async fn search_with_report_composes_rerank_before_diversity_cap() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let query = "latest Gemini Flash model OpenRouter released";
+
+        let arxiv_server = MockServer::start().await;
+        let arxiv_entries: String = (1..=5)
+            .map(|i| {
+                format!(
+                    "<entry><id>http://arxiv.org/abs/2503.3000{i}v1</id><title>Attention Mechanisms in Transformer Architectures {i}</title><summary>A survey of scaling laws for sequence models {i}</summary></entry>"
+                )
+            })
+            .collect();
+        let arxiv_xml = format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><feed xmlns=\"http://www.w3.org/2005/Atom\">{arxiv_entries}</feed>"
+        );
+        Mock::given(method("GET"))
+            .and(path("/api/query"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(arxiv_xml))
+            .mount(&arxiv_server)
+            .await;
+
+        let wiki_server = MockServer::start().await;
+        let wiki_results: Vec<serde_json::Value> = (1..=5)
+            .map(|i| {
+                serde_json::json!({
+                    "title": format!("Unrelated Wiki Article {i}"),
+                    "pageid": i,
+                    "snippet": format!("Nothing to do with the query {i}")
+                })
+            })
+            .collect();
+        Mock::given(method("GET"))
+            .and(path("/wiki"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "query": { "search": wiki_results }
+            })))
+            .mount(&wiki_server)
+            .await;
+
+        let searxng_server = MockServer::start().await;
+        let searxng_results = serde_json::json!([
+            {"url": "https://example.com/unrelated-1", "title": "Unrelated Page 1", "content": "nothing to do with the query", "engine": "duckduckgo", "score": 1.0},
+            {"url": "https://example.com/unrelated-2", "title": "Unrelated Page 2", "content": "still nothing relevant here", "engine": "duckduckgo", "score": 0.9},
+            {"url": "https://example.com/unrelated-3", "title": "Unrelated Page 3", "content": "more filler content", "engine": "duckduckgo", "score": 0.8},
+            {"url": "https://openrouter.ai/google/gemini-3.8-flash", "title": "Gemini 3.8 Flash - API Pricing, Provider Status & Uptime | OpenRouter", "content": "OpenRouter released the latest Gemini Flash model, Gemini 3.8 Flash, with pricing and uptime details.", "engine": "duckduckgo", "score": 0.7},
+            {"url": "https://example.com/unrelated-4", "title": "Unrelated Page 4", "content": "yet more filler content", "engine": "duckduckgo", "score": 0.6},
+        ]);
+        Mock::given(method("GET"))
+            .and(path("/search"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({ "results": searxng_results })),
+            )
+            .mount(&searxng_server)
+            .await;
+
+        let policy = SearchPolicy {
+            enable_wikipedia: true,
+            wikipedia_fallback_enabled: true,
+            wikipedia_api_url: Some(format!("{}/wiki", wiki_server.uri())),
+            enable_openalex: false,
+            enable_arxiv: true,
+            arxiv_api_url: Some(format!("{}/api/query", arxiv_server.uri())),
+            searxng_url: Some(searxng_server.uri()),
+            searxng_max_results: 5,
+            searxng_max_urls_to_scrape: 3,
+            tavily_enabled: false,
+            fast_timeout_ms: 10_000,
+            deep_timeout_ms: 10_000,
+            ..SearchPolicy::default()
+        };
+        let registry = crate::search_circuit_breaker::SearchProviderCircuitRegistry::new();
+
+        let report = WebSearchDispatcher::search_with_report_and_registry(
+            query,
+            ResearchLane::Deep,
+            &policy,
+            &registry,
+        )
+        .await;
+
+        for provider in ["arxiv", "wikipedia", "searxng"] {
+            let status = &report
+                .providers
+                .iter()
+                .find(|p| p.provider == provider)
+                .unwrap_or_else(|| panic!("no outcome for {provider}: {:?}", report.providers))
+                .status;
+            assert!(
+                matches!(status, ProviderStatus::Ok { .. }),
+                "provider {provider} did not report Ok on a 10s deadline (mocks are local, \
+                 instant): {status:?}"
+            );
+        }
+
+        let kept_limit = policy
+            .searxng_max_results
+            .max(policy.searxng_max_urls_to_scrape);
+        assert_eq!(
+            report.hits.len(),
+            kept_limit,
+            "kept count must match the pre-Task-8b truncation length: {:?}",
+            report.hits
+        );
+
+        assert!(
+            report
+                .hits
+                .first()
+                .is_some_and(|h| h.path.contains("openrouter.ai")),
+            "the query-matching SearXNG hit (rank 4 in its own list) must be reranked to the \
+             front, ahead of arXiv's authority-weighted-but-zero-relevance hits: {:?}",
+            report.hits
+        );
+
+        for pair in report.hits.windows(2) {
+            assert!(
+                pair[0].score + 1e-9 >= pair[1].score,
+                "kept order must be non-increasing in relevance score: {:?}",
+                report.hits
+            );
+        }
+    }
+
     #[test]
     fn rank_and_dedupe_prefers_authoritative_free_sources() {
         let mut results = vec![
