@@ -10,6 +10,7 @@
 use anyhow::Result;
 use std::path::PathBuf;
 
+use super::back_translate::{declared_names, mentions_word};
 use super::synth::{self, ChatBackend};
 use crate::commands::mens::eval_gate::{BenchTask, leaked_bench_task, load_bench_texts};
 
@@ -38,6 +39,12 @@ pub(crate) struct RftSummary {
     pub calls: usize,
     pub spent_usd: f64,
     pub failed_verification: usize,
+    /// Completions that compiled but didn't declare every name the task's
+    /// paired reference code declared — a drastically under-implemented
+    /// stub (e.g. one of three requested tables) that a compile-only oracle
+    /// would otherwise accept. Real failure observed on live hardware: ~20%
+    /// of RFT rows for complex, multi-part tasks kept a tiny partial stub.
+    pub incomplete: usize,
     pub written: usize,
     /// Calls that errored (transport, malformed response, …) rather than
     /// returning a usable reply. Skips this one sample, not the whole run.
@@ -87,7 +94,17 @@ pub(crate) async fn run_rft<B: ChatBackend>(opts: &RftOpts, backend: &B) -> Resu
             .unwrap_or("rft")
             .to_string();
         let difficulty = row.get("difficulty").and_then(|v| v.as_u64()).unwrap_or(5);
-        tasks.push((task.to_string(), source, difficulty));
+        // When the input is back-translate output, `response` is the real
+        // code the task was derived from: require completions to declare
+        // every name it declared, so a trivial partial stub can't pass a
+        // compile-only oracle for a task that actually asks for several
+        // functions/tables.
+        let required_names = row
+            .get("response")
+            .and_then(|v| v.as_str())
+            .map(declared_names)
+            .unwrap_or_default();
+        tasks.push((task.to_string(), source, difficulty, required_names));
     }
     s.tasks = tasks.len();
 
@@ -95,7 +112,7 @@ pub(crate) async fn run_rft<B: ChatBackend>(opts: &RftOpts, backend: &B) -> Resu
     s.planned_calls = s.tasks * opts.k;
     s.estimated_usd = tasks
         .iter()
-        .map(|(t, _, _)| {
+        .map(|(t, _, _, _)| {
             synth::estimate_usd(
                 system_prompt.len() + t.len(),
                 SAMPLE_MAX_TOKENS,
@@ -124,7 +141,7 @@ pub(crate) async fn run_rft<B: ChatBackend>(opts: &RftOpts, backend: &B) -> Resu
     if opts.output.exists() {
         std::fs::remove_file(&opts.output)?;
     }
-    'tasks: for (ti, (task, source, difficulty)) in tasks.iter().enumerate() {
+    'tasks: for (ti, (task, source, difficulty, required_names)) in tasks.iter().enumerate() {
         let mut kept = std::collections::HashSet::new();
         for i in 0..opts.k {
             if kept.len() >= opts.max_per_task {
@@ -153,6 +170,10 @@ pub(crate) async fn run_rft<B: ChatBackend>(opts: &RftOpts, backend: &B) -> Resu
                 s.failed_verification += 1;
                 continue;
             }
+            if required_names.iter().any(|n| !mentions_word(&code, n)) {
+                s.incomplete += 1;
+                continue;
+            }
             if !kept.insert(vox_crypto::hash_fast_hex(code.trim().as_bytes())) {
                 continue;
             }
@@ -170,11 +191,12 @@ pub(crate) async fn run_rft<B: ChatBackend>(opts: &RftOpts, backend: &B) -> Resu
         }
     }
     println!(
-        "rft: {} calls, ${:.4} spent, {} verified pairs ({} rejected, {} call errors) -> {}",
+        "rft: {} calls, ${:.4} spent, {} verified pairs ({} rejected, {} incomplete, {} call errors) -> {}",
         s.calls,
         s.spent_usd,
         s.written,
         s.failed_verification,
+        s.incomplete,
         s.call_failed,
         opts.output.display()
     );
@@ -360,6 +382,42 @@ mod tests {
         let s = run_rft(&o, &mock).await.unwrap();
         assert_eq!(s.written, 2);
         assert_eq!(synth::read_jsonl(&o.output).unwrap().len(), 2);
+    }
+
+    /// Real failure this observed on live hardware: for a task derived from
+    /// code declaring several names (e.g. two tables), a sampled completion
+    /// implementing only one of them still compiles and would otherwise be
+    /// kept as a "verified" pair — an under-implemented stub, not a correct
+    /// answer to the actual multi-part task.
+    #[tokio::test]
+    async fn a_completion_missing_a_required_declared_name_is_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut o = opts(dir.path(), &[], true);
+        o.k = 1;
+        // `opts()` already wrote (and would rewrite) `tasks.jsonl` at
+        // `o.input` for the `&[]` task list above, so this custom fixture
+        // — which needs a `response` field `opts()`'s helper doesn't
+        // support — must live at a distinct path.
+        let input = dir.path().join("custom_tasks.jsonl");
+        std::fs::write(
+            &input,
+            serde_json::json!({
+                "prompt": "Define tables Widget and Score.",
+                "response": "table Widget {\n    label: str\n}\n\ntable Score {\n    points: int\n}\n",
+            })
+            .to_string()
+                + "\n",
+        )
+        .unwrap();
+        o.input = input;
+        let partial = "table Widget {\n    label: str\n}\n";
+        let mock = MockBackend::new(|_, _| partial.into());
+        let s = run_rft(&o, &mock).await.unwrap();
+        assert_eq!(
+            (s.written, s.incomplete),
+            (0, 1),
+            "a stub missing the `Score` table must be rejected, not kept as verified"
+        );
     }
 
     #[tokio::test]

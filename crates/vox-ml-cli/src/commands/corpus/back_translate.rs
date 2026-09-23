@@ -98,7 +98,7 @@ pub(crate) fn declared_names(code: &str) -> Vec<String> {
     names
 }
 
-fn mentions_word(text: &str, word: &str) -> bool {
+pub(crate) fn mentions_word(text: &str, word: &str) -> bool {
     let is_ident = |c: char| c.is_alphanumeric() || c == '_';
     text.match_indices(word).any(|(i, _)| {
         let before = text[..i].chars().next_back();
