@@ -110,6 +110,7 @@ pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> S
         RetrievalTriggerMode::ExplicitToolQuery,
         10,
         trace,
+        false, // explicit tool query: keep the web leg (Task 8d only touches the chat preamble)
     )
     .await
     {

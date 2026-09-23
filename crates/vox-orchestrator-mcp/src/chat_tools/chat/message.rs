@@ -509,6 +509,16 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     // `classify_research_intent`'s `strip_command` never matches, forcing every
     // command onto the heuristic-cue fallback instead of the explicit path.
     let raw_prompt_for_research = expanded_prompt.clone();
+    // Research (spec §4): classify from the RAW (pre-canonicalization) prompt —
+    // see the doc comment above — and do it *before* the autonomous-retrieval
+    // preamble below, so the preamble knows whether this turn's numbered
+    // research sources (quick/deep) will already supply web evidence (Task 8d).
+    let intent = super::research_intent::classify_research_intent(
+        &raw_prompt_for_research,
+        params.force_research,
+        params.research_scope.as_deref(),
+    );
+    let mut research_trace = super::research_turn::ResearchTrace::new(intent.clone());
     let (expanded_prompt, canonical_meta) = match prompt_canonical::canonicalize_prompt(
         &expanded_prompt,
         true, // order_invariant
@@ -691,12 +701,30 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     .map(str::trim)
                     .filter(|s| !s.is_empty())
             });
+        // Task 8d: when this turn's research intent is Quick or Deep, the
+        // numbered research sources below are this turn's web evidence — the
+        // preamble must not inject a second, unnumbered web block the
+        // citation check can't verify. Its memory/KG/chunk/repo/KB legs are
+        // unrelated to web evidence and stay on for every intent.
+        let skip_preamble_web = intent.mode != super::research_intent::ResearchMode::None;
+        if skip_preamble_web {
+            research_trace.push(super::research_turn::StageRecord::new(
+                "preamble",
+                "skipped",
+                None,
+                "autonomous web retrieval skipped: numbered research sources are the web \
+                 evidence this turn"
+                    .to_string(),
+                serde_json::json!({}),
+            ));
+        }
         match run_retrieval_bundle(
             state,
             &expanded_prompt,
             RetrievalTriggerMode::AutoChatPreamble,
             3,
             retrieval_trace,
+            skip_preamble_web,
         )
         .await
         {
@@ -780,15 +808,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         }
     }
 
-    // Research (spec §4): classify, then run quick/deep; every turn gets a trace.
-    // Classify from the RAW (pre-canonicalization) prompt — see
-    // `raw_prompt_for_research`'s doc comment above.
-    let intent = super::research_intent::classify_research_intent(
-        &raw_prompt_for_research,
-        params.force_research,
-        params.research_scope.as_deref(),
-    );
-    let mut research_trace = super::research_turn::ResearchTrace::new(intent.clone());
+    // Research (spec §4): intent was classified above (before the preamble);
+    // run quick/deep now — every turn already has a trace.
     let mut deep_answer: Option<Result<String, String>> = None;
     if explicit_search_result.is_none() && vox_orchestrator::is_chat_research_enabled() {
         match intent.mode {
@@ -1927,6 +1948,126 @@ mod tests {
                 .iter()
                 .all(|s| s["stage"] != "retrieval"),
             "{ev}"
+        );
+        // Task 8d: a None-intent turn has no numbered research sources to
+        // conflict with, so the autonomous-retrieval preamble keeps its web
+        // leg and must NOT record a "preamble" skipped stage.
+        assert!(
+            ev["stages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|s| s["stage"] != "preamble"),
+            "{ev}"
+        );
+    }
+
+    /// Task 8d: on a Quick-intent turn, the numbered research sources
+    /// (`run_quick`) are this turn's web evidence, so the autonomous-retrieval
+    /// preamble must skip its own web leg and record why. Mutation guard: if
+    /// the `skip_preamble_web` gate in `chat_message` (or the
+    /// `web_research_enabled` seam it sets on `run_retrieval_bundle`'s policy)
+    /// is removed, this test's `preamble` stage assertion fails.
+    #[tokio::test]
+    #[allow(unsafe_code)]
+    #[allow(clippy::await_holding_lock)]
+    async fn quick_research_turn_skips_the_preamble_web_leg() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("no sources found")),
+            )
+            .mount(&server)
+            .await;
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        let prev_force = std::env::var("VOX_MODEL_FORCE").ok();
+        let model_id = "test-openrouter-model-preamble-skip";
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+            // A machine-local `~/.vox/config.toml` may set `VOX_MODEL_FORCE` to
+            // a model outside this test's registry (`resolve_config_str` reads
+            // env before the toml, but only when non-blank — see
+            // `vox_config::env_parse::resolve_config_str`); pin it to the
+            // model this test registers so the turn resolves deterministically
+            // regardless of the host's config.
+            std::env::set_var("VOX_MODEL_FORCE", model_id);
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL", "VOX_MODEL_FORCE"]);
+        let state = test_state();
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut spec = model_spec(ProviderType::OpenRouter, model_id);
+            // Forcing `VOX_MODEL_FORCE` above (to keep this test deterministic
+            // against a host `~/.vox/config.toml` pin) routes resolution
+            // through the strict-pin gate, which additionally requires the
+            // pinned model to satisfy every capability the prompt infers —
+            // unlike the plain `mcp_chat_model_override` path the other tests
+            // in this file use. Grant every capability so that gate is a
+            // no-op here; this test's subject is the research trace, not
+            // capability routing.
+            spec.capabilities = vox_orchestrator::models::ModelCapabilities {
+                supports_json: true,
+                supports_vision: true,
+                supports_native_tools: true,
+                supports_tool_use: true,
+                supports_reasoning: true,
+                supports_web_search: true,
+                supports_image_generation: true,
+                supports_audio_input: true,
+                supports_audio_output: true,
+                supports_file_input: true,
+                supports_jsonl: true,
+                writes_vox: true,
+                ..vox_orchestrator::models::ModelCapabilities::default()
+            };
+            handle.write().expect("models lock").register(spec);
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        // Explicit `/research` is classified Quick regardless of heuristic
+        // cues (see `research_intent::classify_research_intent`), so this
+        // turn's mode is deterministic without depending on wording heuristics.
+        let params: ChatMessageParams = serde_json::from_value(serde_json::json!({
+            "prompt": "/research latest tokio release"
+        }))
+        .expect("params");
+        let response_json = chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+            match prev_force {
+                Some(v) => std::env::set_var("VOX_MODEL_FORCE", v),
+                None => std::env::remove_var("VOX_MODEL_FORCE"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL", "VOX_MODEL_FORCE"]);
+
+        let parsed: serde_json::Value = serde_json::from_str(&response_json).expect("json");
+        assert_eq!(parsed["success"], true, "{response_json}");
+        let ev = &parsed["data"]["events"][0];
+        assert_eq!(ev["kind"], "research_trace", "{response_json}");
+        assert_eq!(ev["mode"], "quick", "{ev}");
+        let stages = ev["stages"].as_array().unwrap();
+        let preamble = stages
+            .iter()
+            .find(|s| s["stage"] == "preamble")
+            .unwrap_or_else(|| panic!("expected a preamble stage in the trace: {ev}"));
+        assert_eq!(preamble["status"], "skipped", "{preamble}");
+        assert_eq!(
+            preamble["summary"],
+            "autonomous web retrieval skipped: numbered research sources are the web \
+             evidence this turn",
+            "{preamble}"
         );
     }
 

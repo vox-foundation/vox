@@ -285,12 +285,18 @@ fn format_backend_mix(backends: &[vox_db::SearchBackend]) -> Vec<String> {
 }
 
 /// Unified retrieval trigger used by chat preamble + explicit search tools.
+///
+/// `skip_web` disables only this call's web leg (Task 8d) — e.g. the chat
+/// preamble sets it for a Quick/Deep research turn, whose numbered sources
+/// are already this turn's web evidence. Other legs (memory/KG/chunks/repo/KB)
+/// are unaffected. Pass `false` to keep prior behavior.
 pub async fn run_retrieval_bundle(
     state: &ServerState,
     query: &str,
     trigger: RetrievalTriggerMode,
     limit: usize,
     trace_id: Option<&str>,
+    skip_web: bool,
 ) -> Result<RetrievalBundle, String> {
     let sqlite_cap = match (&state.sqlite_capabilities, state.db.as_ref()) {
         (Some(s), _) => Some(s.clone()),
@@ -298,7 +304,10 @@ pub async fn run_retrieval_bundle(
         _ => None,
     };
 
-    let policy = SearchPolicy::from_env();
+    let mut policy = SearchPolicy::from_env();
+    if skip_web {
+        policy.web_research_enabled = false;
+    }
     let trace = trace_id
         .map(str::trim)
         .filter(|s| !s.is_empty())
@@ -417,6 +426,7 @@ mod tests {
             RetrievalTriggerMode::VerificationPass,
             3,
             Some("test-trace-retrieval"),
+            false,
         )
         .await
         .expect("retrieval bundle");

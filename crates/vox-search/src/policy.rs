@@ -143,6 +143,14 @@ pub struct SearchPolicy {
     /// sets this on its own policy clone rather than on the shared default).
     #[serde(default)]
     pub kept_limit: Option<usize>,
+    /// Master switch for the web leg of `execute_search_plan` (Task 8d). `true`
+    /// by default, matching every existing caller's behavior. A caller that
+    /// already has its own numbered web evidence for this call — e.g. the chat
+    /// preamble on a Quick/Deep research turn — clones the policy and sets this
+    /// `false` so `execute_search_plan` skips `SearchCorpus::WebResearch` even
+    /// when the heuristic plan selected it.
+    #[serde(default = "default_true")]
+    pub web_research_enabled: bool,
     /// How many hits each web provider (SearXNG, Wikipedia, OpenAlex, arXiv) is asked for.
     /// Deeper than the kept output (`max(searxng_max_results, searxng_max_urls_to_scrape)`)
     /// so the relevance rerank chooses from a real candidate pool (Task 15 Step 3b).
@@ -336,6 +344,7 @@ impl Default for SearchPolicy {
             .and_then(|v| v.parse().ok())
             .unwrap_or(3),
             kept_limit: None,
+            web_research_enabled: true,
             candidate_depth: default_candidate_depth(),
             searxng_engines: searxng_embedded.engines.clone(),
             searxng_language: searxng_embedded.language.clone(),
