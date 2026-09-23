@@ -372,6 +372,9 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-config/src/inference.rs",
         "crates/vox-db/src/config.rs",
         "crates/vox-cli/",
+        // CiCmd/cmd_enums moved here from crates/vox-cli/ in 7cea53df8 (PR-4 step 1);
+        // it's a clap command enum, not a runtime-secrets surface -- carry the entry over.
+        "crates/vox-cli-ci/",
         "crates/vox-compiler/",
         "crates/vox-search/",
         "crates/vox-code-audit/",
@@ -413,6 +416,9 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-secrets/",
         "crates/vox-db/src/config.rs",
         "crates/vox-cli/",
+        // CiCmd/cmd_enums moved here from crates/vox-cli/ in 7cea53df8 (PR-4 step 1);
+        // it's a clap command enum, not a runtime-secrets surface -- carry the entry over.
+        "crates/vox-cli-ci/",
         "crates/vox-compiler/",
         "crates/vox-search/",
         "crates/vox-code-audit/",
