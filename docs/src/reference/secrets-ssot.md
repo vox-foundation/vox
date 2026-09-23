@@ -90,6 +90,13 @@ master-key fallback. **Never** commit vault files or `.env` import fragments.
 - Optional keys are reported separately as capability unlocks (not startup blockers).
 - OpenRouter does not replace RunPod/Vast keys: LLM gateway credentials and cloud GPU credentials are distinct domains.
 
+### Tavily web search (optional)
+
+- **Add the key (user action — agents never enter keys):** create one at <https://app.tavily.com>, copy it, then run `pbpaste | vox secrets set TAVILY_API_KEY --stdin` and confirm `vox secrets get TAVILY_API_KEY` shows a redacted `tvly-…`. Restart the daemon so the web dispatcher picks it up.
+- **Free tier:** 1,000 API credits per month. A `basic` search costs 1 credit, `advanced` costs 2 (`VOX_SEARCH_TAVILY_DEPTH`); `/extract` snippet uplift costs 1 credit per 5 URLs.
+- **Session budget:** `VOX_SEARCH_TAVILY_BUDGET` (default 50) caps credits per process (one daemon or CLI run). Once spent, the Tavily leg reports `budget_exhausted` and makes no request; the research trace's retrieval stage shows `tavily_credits: {used, remaining}`.
+- **Switches:** a present key auto-enables the Tavily leg; `VOX_SEARCH_TAVILY_ENABLED=0` turns it off (reported as `disabled`). `VOX_SEARCH_TAVILY_URL` points the client at a mirror or mock. `VOX_TAVILY_RESEARCH=1` opts into the `/research` tier, which is **not** auto-enabled by the key because its async polling is not implemented yet.
+
 ## Canonical Bundles
 
 - `minimal_local_dev`: zero required cloud keys.

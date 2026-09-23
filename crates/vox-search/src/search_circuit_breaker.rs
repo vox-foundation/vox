@@ -85,11 +85,43 @@ impl SearchProviderCircuitRegistry {
             .record_failure(is_rate_limit);
     }
 
+    /// Time left before `provider` is tried again; `None` when it is available.
+    pub fn cooldown_remaining(&self, provider: SearchProviderId) -> Option<Duration> {
+        let guard = match self.breakers.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        guard
+            .get(&provider)?
+            .cooldown_until?
+            .checked_duration_since(Instant::now())
+    }
+
     pub fn record_success(&self, provider: SearchProviderId) {
         let mut guard = match self.breakers.lock() {
             Ok(g) => g,
             Err(p) => p.into_inner(),
         };
         guard.entry(provider).or_default().record_success();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cooldown_remaining_reflects_failure_kind_and_clears_on_success() {
+        let r = SearchProviderCircuitRegistry::new();
+        assert_eq!(r.cooldown_remaining(SearchProviderId::Tavily), None);
+        r.record_failure(SearchProviderId::Tavily, false);
+        let plain = r.cooldown_remaining(SearchProviderId::Tavily).unwrap();
+        assert!(plain <= Duration::from_secs(10), "{plain:?}");
+        r.record_failure(SearchProviderId::Searxng, true);
+        let limited = r.cooldown_remaining(SearchProviderId::Searxng).unwrap();
+        assert!(limited > Duration::from_secs(60), "{limited:?}");
+        r.record_success(SearchProviderId::Tavily);
+        assert_eq!(r.cooldown_remaining(SearchProviderId::Tavily), None);
+        assert!(r.is_available(SearchProviderId::Tavily));
     }
 }

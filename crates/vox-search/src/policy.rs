@@ -47,6 +47,10 @@ fn default_rrf_k() -> f64 {
     60.0
 }
 
+fn default_candidate_depth() -> usize {
+    10
+}
+
 #[inline]
 fn default_persist_web_hits() -> bool {
     true
@@ -129,6 +133,11 @@ pub struct SearchPolicy {
     pub searxng_max_results: usize,
     /// Max top hits to deep-scrape for markdown extraction.
     pub searxng_max_urls_to_scrape: usize,
+    /// How many hits each web provider (SearXNG, Wikipedia, OpenAlex, arXiv) is asked for.
+    /// Deeper than the kept output (`max(searxng_max_results, searxng_max_urls_to_scrape)`)
+    /// so the relevance rerank chooses from a real candidate pool (Task 15 Step 3b).
+    #[serde(default = "default_candidate_depth")]
+    pub candidate_depth: usize,
     /// SearXNG `engines=` query parameter (comma-separated engine ids).
     pub searxng_engines: String,
     /// SearXNG `language=` query parameter (short language tag).
@@ -323,6 +332,7 @@ impl Default for SearchPolicy {
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(3),
+            candidate_depth: default_candidate_depth(),
             searxng_engines: searxng_embedded.engines.clone(),
             searxng_language: searxng_embedded.language.clone(),
             duckduckgo_fallback_enabled: !parse_falsy_env(
@@ -575,6 +585,11 @@ impl SearchPolicy {
                 p.default_lane = ResearchLane::Deep;
             } else if lane.eq_ignore_ascii_case("fast") {
                 p.default_lane = ResearchLane::Fast;
+            }
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_CANDIDATE_DEPTH") {
+            if let Ok(n) = v.parse::<usize>() {
+                p.candidate_depth = n.max(1);
             }
         }
         if let Ok(v) = std::env::var("VOX_SEARCH_FAST_TIMEOUT_MS") {

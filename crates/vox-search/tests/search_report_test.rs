@@ -187,3 +187,62 @@ async fn deep_lane_timeout_still_opens_breaker() {
         "Deep-lane timeouts must still arm the circuit breaker"
     );
 }
+
+/// Task 15 Step 3b: the per-provider candidate pool is deeper than the kept
+/// output, so the relevance rerank can promote a hit SearXNG ranked #8.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn query_matching_hit_ranked_eighth_survives_the_final_cap() {
+    let results: Vec<_> = (1..=10)
+        .map(|i| {
+            let (title, content) = if i == 8 {
+                (
+                    "Gemini 3.8 Flash on OpenRouter".to_string(),
+                    "Gemini 3.8 Flash is the latest Gemini Flash model on OpenRouter.".to_string(),
+                )
+            } else {
+                (
+                    format!("Unrelated page {i}"),
+                    "Cooking recipes and garden tips for the weekend.".to_string(),
+                )
+            };
+            serde_json::json!({
+                "url": format!("https://example.test/{i}"),
+                "title": title, "content": content, "engine": "searxng",
+                "score": 1.0 - (i as f64) * 0.05
+            })
+        })
+        .collect();
+    let searxng = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "results": results })),
+        )
+        .mount(&searxng)
+        .await;
+
+    let policy = SearchPolicy {
+        searxng_url: Some(searxng.uri()),
+        enable_wikipedia: false,
+        enable_openalex: false,
+        enable_arxiv: false,
+        tavily_enabled: false,
+        deep_timeout_ms: 10_000,
+        searxng_max_results: 5,
+        searxng_max_urls_to_scrape: 3,
+        candidate_depth: 10,
+        ..SearchPolicy::default()
+    };
+
+    let r = WebSearchDispatcher::search_with_report_and_registry(
+        "latest gemini flash model openrouter",
+        ResearchLane::Deep,
+        &policy,
+        &vox_search::search_circuit_breaker::SearchProviderCircuitRegistry::new(),
+    )
+    .await;
+
+    assert_eq!(status_of(&r, "searxng"), &ProviderStatus::Ok { hits: 10 });
+    assert_eq!(r.hits.len(), 5, "final kept count is unchanged");
+    assert_eq!(r.hits[0].path, "https://example.test/8", "{:?}", r.hits);
+}

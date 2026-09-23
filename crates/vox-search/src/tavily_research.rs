@@ -54,12 +54,17 @@ pub fn tavily_research_enabled_with_values(
     api_key.map(|k| !k.trim().is_empty()).unwrap_or(false)
 }
 
-/// Returns true when `VOX_TAVILY_RESEARCH` is truthy, or auto-enabled when an API key is present.
+/// Returns true only when `VOX_TAVILY_RESEARCH` is explicitly truthy.
+///
+/// Task 15 ruling: no longer auto-enabled by the mere presence of `TAVILY_API_KEY`.
+/// Tavily's `/research` is asynchronous (POST returns `request_id` + `status: pending`,
+/// results come from polling), but [`TavilyResearchClient::research`] parses the POST
+/// response as if it held `sources` — so it spends research credits and always yields
+/// nothing. Opt in only after polling is implemented.
 #[must_use]
 pub fn tavily_research_enabled() -> bool {
     let override_secret = resolve_secret(SecretId::VoxTavilyResearch);
-    let key_secret = resolve_secret(SecretId::TavilyApiKey);
-    tavily_research_enabled_with_values(key_secret.expose(), override_secret.expose())
+    tavily_research_enabled_with_values(None, override_secret.expose())
 }
 
 pub struct TavilyResearchClient {

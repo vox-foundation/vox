@@ -152,15 +152,24 @@ pub async fn run_search_with_verification(
                 || (policy.tavily_fire_on_weak && execution.evidence_quality < threshold);
 
             if tavily_should_fire {
-                if let Some(b) = budget
-                    && !b.try_consume(1)
-                {
+                // Every production caller passes `None`; fall back to the process-wide
+                // budget so `tavily_credit_budget_per_session` always binds (Task 15).
+                let b = budget.unwrap_or_else(|| {
+                    crate::tavily_budget::TavilySessionBudget::global(
+                        policy.tavily_credit_budget_per_session,
+                    )
+                });
+                if !b.try_consume(crate::tavily::search_credit_cost(
+                    &policy.tavily_search_depth,
+                )) {
                     execution
                         .warnings
                         .push("tavily_budget_exhausted".to_string());
                     return Ok((execution, diagnostics, plan));
                 }
-                if let Some(client) = crate::tavily::TavilySearchClient::from_env() {
+                if let Some(client) =
+                    crate::tavily::TavilyClient::from_env(policy.tavily_api_url.as_deref())
+                {
                     match client
                         .search(
                             query,
@@ -170,16 +179,14 @@ pub async fn run_search_with_verification(
                         .await
                     {
                         Ok(hits) => {
-                            if let Some(b) = budget {
-                                let rem = b.remaining();
-                                diagnostics
-                                    .notes
-                                    .push(format!("tavily_credits_remaining={rem}"));
-                                if rem <= 20 {
-                                    execution
-                                        .warnings
-                                        .push("Tavily session budget >=80% exhausted".to_string());
-                                }
+                            let rem = b.remaining();
+                            diagnostics
+                                .notes
+                                .push(format!("tavily_credits_remaining={rem}"));
+                            if rem <= 20 {
+                                execution
+                                    .warnings
+                                    .push("Tavily session budget >=80% exhausted".to_string());
                             }
                             let mut t_lines = Vec::new();
                             for h in &hits {

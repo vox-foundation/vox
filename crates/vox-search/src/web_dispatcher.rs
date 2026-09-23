@@ -7,12 +7,19 @@ use crate::policy::{ResearchLane, SearchPolicy};
 #[derive(Debug, Clone, serde::Serialize, PartialEq)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum ProviderStatus {
-    Ok { hits: usize },
+    Ok {
+        hits: usize,
+    },
     Timeout,
-    Error { message: String },
+    Error {
+        message: String,
+    },
     NotConfigured,
     Disabled,
     CircuitOpen,
+    /// The session's Tavily credit budget (`tavily_credit_budget_per_session`) is spent;
+    /// the call was not made.
+    BudgetExhausted,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -26,6 +33,9 @@ pub struct ProviderOutcome {
 pub struct SearchReport {
     pub hits: Vec<crate::memory_hybrid::HybridSearchHit>,
     pub providers: Vec<ProviderOutcome>,
+    /// Tavily session credits `(used, remaining)` after this search; `None` when no
+    /// Tavily client was configured.
+    pub tavily_credits: Option<(usize, usize)>,
 }
 
 enum ProviderRun {
@@ -390,6 +400,54 @@ impl WebSearchDispatcher {
         policy: &SearchPolicy,
         registry: &crate::search_circuit_breaker::SearchProviderCircuitRegistry,
     ) -> SearchReport {
+        // Built whenever a key exists (not only when enabled), so an explicit
+        // `VOX_SEARCH_TAVILY_ENABLED=0` reports `disabled`, not `not_configured`.
+        #[cfg(feature = "tavily")]
+        let tavily = {
+            let base = policy.tavily_api_url.clone();
+            tokio::task::spawn_blocking(move || {
+                crate::tavily::TavilyClient::from_env(base.as_deref())
+            })
+            .await
+            .ok()
+            .flatten()
+        };
+        Self::search_core(
+            query,
+            lane,
+            policy,
+            registry,
+            #[cfg(feature = "tavily")]
+            tavily,
+            crate::tavily_budget::TavilySessionBudget::global(
+                policy.tavily_credit_budget_per_session,
+            ),
+        )
+        .await
+    }
+
+    /// [`Self::search_with_report_and_registry`] with an explicit Tavily client and
+    /// credit budget instead of the Clavis key and the process-wide budget.
+    #[cfg(feature = "tavily")]
+    pub async fn search_with_tavily(
+        query: &str,
+        lane: ResearchLane,
+        policy: &SearchPolicy,
+        registry: &crate::search_circuit_breaker::SearchProviderCircuitRegistry,
+        tavily: Option<crate::tavily::TavilyClient>,
+        budget: &crate::tavily_budget::TavilySessionBudget,
+    ) -> SearchReport {
+        Self::search_core(query, lane, policy, registry, tavily, budget).await
+    }
+
+    async fn search_core(
+        query: &str,
+        lane: ResearchLane,
+        policy: &SearchPolicy,
+        registry: &crate::search_circuit_breaker::SearchProviderCircuitRegistry,
+        #[cfg(feature = "tavily")] tavily_client: Option<crate::tavily::TavilyClient>,
+        budget: &crate::tavily_budget::TavilySessionBudget,
+    ) -> SearchReport {
         if query.trim().is_empty() {
             return SearchReport::default();
         }
@@ -405,7 +463,7 @@ impl WebSearchDispatcher {
             if policy.enable_wikipedia && policy.wikipedia_fallback_enabled {
                 match crate::wikipedia::WikipediaClient::search(
                     query,
-                    policy.searxng_max_results,
+                    policy.candidate_depth,
                     policy.wikipedia_api_url.as_deref(),
                 )
                 .await
@@ -429,7 +487,7 @@ impl WebSearchDispatcher {
             if policy.enable_openalex {
                 match crate::openalex::OpenAlexClient::search(
                     query,
-                    policy.searxng_max_results,
+                    policy.candidate_depth,
                     policy.openalex_api_url.as_deref(),
                     None,
                 )
@@ -457,7 +515,7 @@ impl WebSearchDispatcher {
                     .await;
                 match crate::arxiv::ArXivClient::search(
                     query,
-                    policy.searxng_max_results,
+                    policy.candidate_depth,
                     policy.arxiv_api_url.as_deref(),
                 )
                 .await
@@ -491,7 +549,7 @@ impl WebSearchDispatcher {
                     match client
                         .search(
                             query,
-                            policy.searxng_max_results,
+                            policy.candidate_depth,
                             policy.searxng_engines_csv(),
                             policy.searxng_language_tag(),
                         )
@@ -523,21 +581,27 @@ impl WebSearchDispatcher {
         };
 
         // 5. Tavily
-        #[cfg(feature = "tavily")]
-        let tavily_client = if policy.tavily_enabled
-            && registry.is_available(crate::search_circuit_breaker::SearchProviderId::Tavily)
-        {
-            tokio::task::spawn_blocking(crate::tavily::TavilySearchClient::from_env)
-                .await
-                .ok()
-                .flatten()
-        } else {
-            None
-        };
-
         let tavily_task = async {
             #[cfg(feature = "tavily")]
-            if let Some(client) = &tavily_client {
+            {
+                use crate::search_circuit_breaker::SearchProviderId;
+                let Some(client) = &tavily_client else {
+                    return ProviderRun::Skipped(ProviderStatus::NotConfigured);
+                };
+                if !policy.tavily_enabled {
+                    return ProviderRun::Skipped(ProviderStatus::Disabled);
+                }
+                if !registry.is_available(SearchProviderId::Tavily) {
+                    return ProviderRun::Skipped(ProviderStatus::CircuitOpen);
+                }
+                // ponytail: charged up front, not refunded on failure — a failing key
+                // burns the local budget, which errs on the side of spending less.
+                if !budget.try_consume(crate::tavily::search_credit_cost(
+                    &policy.tavily_search_depth,
+                )) {
+                    warn!("Tavily session credit budget exhausted, skipping");
+                    return ProviderRun::Skipped(ProviderStatus::BudgetExhausted);
+                }
                 let _permit = crate::safety_governor::ProviderSafetyGovernor::global()
                     .acquire_tavily()
                     .await;
@@ -551,38 +615,28 @@ impl WebSearchDispatcher {
                 {
                     Ok(hits) => {
                         info!(count = hits.len(), "Tavily web search succeeded");
-                        registry.record_success(
-                            crate::search_circuit_breaker::SearchProviderId::Tavily,
-                        );
-                        return ProviderRun::Hits(
+                        registry.record_success(SearchProviderId::Tavily);
+                        ProviderRun::Hits(
                             hits.into_iter()
                                 .map(|h| crate::searxng::SearxngResult {
                                     url: h.url,
-                                    title: h.title.clone(),
+                                    title: h.title,
                                     content: h.content,
                                     engine: Some("tavily".to_string()),
                                     score: Some(f64::from(h.score)),
                                 })
                                 .collect(),
-                        );
+                        )
                     }
                     Err(e) => {
-                        let is_rate_limit =
-                            e.contains("429") || e.to_ascii_lowercase().contains("rate limit");
-                        registry.record_failure(
-                            crate::search_circuit_breaker::SearchProviderId::Tavily,
-                            is_rate_limit,
-                        );
+                        let is_rate_limit = crate::tavily::is_quota_error(&e);
+                        registry.record_failure(SearchProviderId::Tavily, is_rate_limit);
                         warn!(error = %e, is_rate_limit, "Tavily web search failed");
-                        return ProviderRun::Failed(e);
+                        ProviderRun::Failed(e)
                     }
                 }
             }
             #[cfg(not(feature = "tavily"))]
-            {
-                return ProviderRun::Skipped(ProviderStatus::NotConfigured);
-            }
-            #[cfg(feature = "tavily")]
             ProviderRun::Skipped(ProviderStatus::NotConfigured)
         };
 
@@ -621,11 +675,19 @@ impl WebSearchDispatcher {
         let provider_lists = vec![arxiv.0, openalex.0, wiki.0, searxng.0, tavily.0];
 
         let mut results = true_rrf_fuse(provider_lists, policy.rrf_k);
+        #[cfg(feature = "tavily")]
+        let credits = || tavily_client.as_ref().map(|_| budget.usage_and_remaining());
+        #[cfg(not(feature = "tavily"))]
+        let credits = || {
+            let _ = budget;
+            None
+        };
 
         if results.is_empty() {
             return SearchReport {
                 hits: Vec::new(),
                 providers,
+                tavily_credits: credits(),
             };
         }
 
@@ -634,6 +696,7 @@ impl WebSearchDispatcher {
             return SearchReport {
                 hits: Vec::new(),
                 providers,
+                tavily_credits: credits(),
             };
         }
 
@@ -645,13 +708,17 @@ impl WebSearchDispatcher {
         Self::enforce_provider_diversity(&mut results, kept_limit);
 
         #[cfg(feature = "tavily")]
-        if policy.tavily_enabled
+        if let Some(client) = &tavily_client
+            && policy.tavily_enabled
             && registry.is_available(crate::search_circuit_breaker::SearchProviderId::Tavily)
         {
+            // Only the rows the final cap keeps: never spend credits on a dropped row.
+            let head = kept_limit.min(results.len());
             crate::tavily_extract::uplift_low_quality_snippets(
-                &mut results,
-                query,
+                &mut results[..head],
                 policy.searxng_max_urls_to_scrape,
+                client,
+                budget,
             )
             .await;
         }
@@ -725,6 +792,7 @@ impl WebSearchDispatcher {
             SearchReport {
                 hits: final_hits,
                 providers,
+                tavily_credits: credits(),
             }
         }
 
@@ -753,6 +821,7 @@ impl WebSearchDispatcher {
             SearchReport {
                 hits: final_hits,
                 providers,
+                tavily_credits: credits(),
             }
         }
     }

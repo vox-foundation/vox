@@ -51,6 +51,14 @@ impl TavilySessionBudget {
         }
     }
 
+    /// Process-wide budget (one daemon/CLI process = one session). `limit` is taken
+    /// from the first caller — `SearchPolicy::tavily_credit_budget_per_session` — and
+    /// later values are ignored for the life of the process.
+    pub fn global(limit: usize) -> &'static Self {
+        static GLOBAL: OnceLock<TavilySessionBudget> = OnceLock::new();
+        GLOBAL.get_or_init(|| Self::new(limit))
+    }
+
     /// Returns `(used, remaining)` credits.
     pub fn usage_and_remaining(&self) -> (usize, usize) {
         (
@@ -151,5 +159,12 @@ mod tests {
         let (used, remaining) = b.usage_and_remaining();
         assert_eq!(used, 2);
         assert_eq!(remaining, 0);
+    }
+
+    #[test]
+    fn global_budget_is_one_shared_instance() {
+        let a = TavilySessionBudget::global(7);
+        let b = TavilySessionBudget::global(999);
+        assert!(std::ptr::eq(a, b), "second limit is ignored");
     }
 }

@@ -1,7 +1,8 @@
 //! Wiremock stub for Tavily `/extract` uplift (`tavily_extract`).
 
 use vox_search::policy::SearchPolicy;
-use vox_search::tavily_extract::{TavilyExtractClient, snippet_quality_low};
+use vox_search::tavily::{TavilyClient, TavilySessionBudget};
+use vox_search::tavily_extract::{snippet_quality_low, uplift_low_quality_snippets};
 use vox_search::web_dispatcher::WebSearchDispatcher;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -30,12 +31,9 @@ async fn extract_client_maps_wiremock_response() {
         .mount(&mock)
         .await;
 
-    let client = TavilyExtractClient::with_base_url("test-key", &mock.uri()).expect("client");
+    let client = TavilyClient::new("test-key", Some(&mock.uri())).expect("client");
     let hits = client
-        .extract_urls(
-            &[String::from("https://example.test/page")],
-            Some("query text"),
-        )
+        .extract(&[String::from("https://example.test/page")])
         .await
         .expect("extract");
 
@@ -45,6 +43,7 @@ async fn extract_client_maps_wiremock_response() {
 
 #[tokio::test]
 async fn extract_uplift_replaces_thin_snippet_content() {
+    // Exercises the real `uplift_low_quality_snippets`, not a copy of its loop.
     let tavily = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/extract"))
@@ -68,16 +67,11 @@ async fn extract_uplift_replaces_thin_snippet_content() {
     }];
     assert!(snippet_quality_low(&rows[0].content));
 
-    let client = TavilyExtractClient::with_base_url("test-key", &tavily.uri()).expect("client");
-    let extracted = client
-        .extract_urls(&[rows[0].url.clone()], Some("integration query"))
-        .await
-        .expect("extract");
-    for hit in extracted {
-        if let Some(row) = rows.iter_mut().find(|r| r.url == hit.url) {
-            row.content = hit.content;
-        }
-    }
+    let client = TavilyClient::new("test-key", Some(&tavily.uri())).expect("client");
+    let budget = TavilySessionBudget::new(5);
+    uplift_low_quality_snippets(&mut rows, 3, &client, &budget).await;
+    assert_eq!(rows[0].engine.as_deref(), Some("google+tavily_extract"));
+    assert_eq!(budget.usage_and_remaining(), (1, 4));
     assert!(!snippet_quality_low(&rows[0].content));
 }
 

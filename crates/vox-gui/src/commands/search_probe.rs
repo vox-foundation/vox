@@ -6,7 +6,7 @@ use vox_search::duckduckgo::DuckDuckGoClient;
 use vox_search::openalex::OpenAlexClient;
 use vox_search::policy::{ResearchLane, SearchPolicy};
 use vox_search::searxng::SearxngSearchClient;
-use vox_search::tavily::TavilySearchClient;
+use vox_search::tavily::TavilyClient;
 use vox_search::wikipedia::WikipediaClient;
 use vox_secrets::{FreeTierOffer, SecretId, list_free_tier_offers, resolve_secret, store_secret};
 
@@ -456,120 +456,52 @@ pub async fn probe_search_provider_with_policy(
             }
         }
         "tavily" => {
-            if let Some(api_url) = &policy.tavily_api_url {
-                let client = vox_http_client::client();
-                let key = resolve_secret(SecretId::TavilyApiKey)
-                    .expose()
-                    .unwrap_or("test-key")
-                    .to_string();
-                let payload = serde_json::json!({
-                    "api_key": key,
-                    "query": q,
-                    "max_results": 3,
-                    "search_depth": "basic",
+            // Same client and endpoint override (`tavily_api_url`) the dispatcher uses, so a
+            // green row here means the dispatcher's Tavily leg can really authenticate.
+            let base = policy.tavily_api_url.clone();
+            let client =
+                tokio::task::spawn_blocking(move || TavilyClient::from_env(base.as_deref()))
+                    .await
+                    .ok()
+                    .flatten();
+            let Some(client) = client else {
+                return Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 0,
+                    latency_ms: 0,
+                    success: false,
+                    hit_count: 0,
+                    sample_titles: vec![],
+                    error_message: Some("TAVILY_API_KEY is unset".into()),
+                    remediation_tip: Some("Configure Tavily API key in settings or secrets".into()),
                 });
-                match client.post(api_url).json(&payload).send().await {
-                    Ok(resp) => {
-                        let status_code = resp.status().as_u16();
-                        if resp.status().is_success() {
-                            let val: serde_json::Value = resp.json().await.unwrap_or_default();
-                            let titles: Vec<String> = val
-                                .get("results")
-                                .and_then(|r| r.as_array())
-                                .map(|arr| {
-                                    arr.iter()
-                                        .filter_map(|x| {
-                                            x.get("title")
-                                                .and_then(|t| t.as_str())
-                                                .map(ToString::to_string)
-                                        })
-                                        .collect()
-                                })
-                                .unwrap_or_default();
-
-                            Ok(ProviderProbeResult {
-                                provider,
-                                http_status: status_code,
-                                latency_ms: start.elapsed().as_millis() as u64,
-                                success: true,
-                                hit_count: titles.len(),
-                                sample_titles: titles,
-                                error_message: None,
-                                remediation_tip: None,
-                            })
-                        } else {
-                            Ok(ProviderProbeResult {
-                                provider,
-                                http_status: status_code,
-                                latency_ms: start.elapsed().as_millis() as u64,
-                                success: false,
-                                hit_count: 0,
-                                sample_titles: vec![],
-                                error_message: Some(format!(
-                                    "Tavily API returned status {}",
-                                    status_code
-                                )),
-                                remediation_tip: Some(
-                                    "Verify your Tavily API quota and key validity".into(),
-                                ),
-                            })
-                        }
-                    }
-                    Err(e) => Ok(ProviderProbeResult {
-                        provider,
-                        http_status: 500,
-                        latency_ms: start.elapsed().as_millis() as u64,
-                        success: false,
-                        hit_count: 0,
-                        sample_titles: vec![],
-                        error_message: Some(e.to_string()),
-                        remediation_tip: Some(
-                            "Verify your Tavily API quota and key validity".into(),
-                        ),
-                    }),
-                }
-            } else {
-                let client = match TavilySearchClient::from_env() {
-                    Some(c) => c,
-                    None => {
-                        return Ok(ProviderProbeResult {
-                            provider,
-                            http_status: 0,
-                            latency_ms: 0,
-                            success: false,
-                            hit_count: 0,
-                            sample_titles: vec![],
-                            error_message: Some("TAVILY_API_KEY is unset".into()),
-                            remediation_tip: Some(
-                                "Configure Tavily API key in settings or secrets".into(),
-                            ),
-                        });
-                    }
-                };
-                match client.search(q, 3, "basic").await {
-                    Ok(hits) => Ok(ProviderProbeResult {
-                        provider,
-                        http_status: 200,
-                        latency_ms: start.elapsed().as_millis() as u64,
-                        success: true,
-                        hit_count: hits.len(),
-                        sample_titles: hits.iter().map(|h| h.title.clone()).collect(),
-                        error_message: None,
-                        remediation_tip: None,
-                    }),
-                    Err(e) => Ok(ProviderProbeResult {
-                        provider,
-                        http_status: 500,
-                        latency_ms: start.elapsed().as_millis() as u64,
-                        success: false,
-                        hit_count: 0,
-                        sample_titles: vec![],
-                        error_message: Some(e),
-                        remediation_tip: Some(
-                            "Verify your Tavily API quota and key validity".into(),
-                        ),
-                    }),
-                }
+            };
+            match client.search(q, 3, "basic").await {
+                Ok(hits) => Ok(ProviderProbeResult {
+                    provider,
+                    http_status: 200,
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    success: true,
+                    hit_count: hits.len(),
+                    sample_titles: hits.iter().map(|h| h.title.clone()).collect(),
+                    error_message: None,
+                    remediation_tip: None,
+                }),
+                Err(e) => Ok(ProviderProbeResult {
+                    provider,
+                    // `tavily_search_status:<code>:<detail>`; 0 when no HTTP status came back.
+                    http_status: e
+                        .split(':')
+                        .nth(1)
+                        .and_then(|c| c.parse().ok())
+                        .unwrap_or(0),
+                    latency_ms: start.elapsed().as_millis() as u64,
+                    success: false,
+                    hit_count: 0,
+                    sample_titles: vec![],
+                    error_message: Some(e),
+                    remediation_tip: Some("Verify your Tavily API quota and key validity".into()),
+                }),
             }
         }
         "openalex" => {

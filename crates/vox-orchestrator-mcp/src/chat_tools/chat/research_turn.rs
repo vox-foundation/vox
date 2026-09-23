@@ -324,7 +324,12 @@ pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) ->
             report.hits.len(),
             report.providers.len()
         ),
-        json!({ "providers": report.providers }),
+        json!({
+            "providers": report.providers,
+            "tavily_credits": report
+                .tavily_credits
+                .map(|(used, remaining)| json!({ "used": used, "remaining": remaining })),
+        }),
     ));
 
     trace.sources = sources_from_hits(&report.hits, 8);
