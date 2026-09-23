@@ -1977,7 +1977,7 @@ jobs:
           - vox-gamify
           - vox-oratio
           - vox-skills
-          - vox-scientia-ingest
+          - vox-scientia
           - vox-doc-pipeline
           - vox-mcp-registry
           - vox-package
