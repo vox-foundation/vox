@@ -132,8 +132,54 @@ pub(crate) fn clean_code(completion: &str) -> String {
 
 /// Compile oracle: the eval-local verifier (parse + typecheck + anti-stub, and
 /// `@test` execution when the code has tests).
+///
+/// Also rejects unbalanced braces/parens/brackets before handing code to the
+/// compiler: `vox check` was observed accepting a source file truncated mid
+/// declaration (an unclosed `type` body at EOF) as a clean compile — a real
+/// compiler leniency bug, out of scope to fix here, but this pipeline must
+/// not train on the truncated completions it lets through.
 pub(crate) fn verify(code: &str, tag: &str, idx: usize) -> CompletionVerification {
+    if !is_balanced(code) {
+        return CompletionVerification {
+            pass: false,
+            pass_compile: false,
+            pass_ast: false,
+            pass_exec: None,
+            semantic_pass: false,
+            anti_stub_pass: false,
+            distinct_4_ratio: 0.0,
+            constraint_adherence: false,
+            symbol_binding_accuracy: 0.0,
+            checks: serde_json::json!({"error": "unbalanced braces/parens/brackets (likely truncated)"}),
+        };
+    }
     verify_completion(code, Path::new("."), "", tag, idx, &[])
+}
+
+fn is_balanced(code: &str) -> bool {
+    let mut stack = Vec::new();
+    for c in code.chars() {
+        match c {
+            '{' | '(' | '[' => stack.push(c),
+            '}' => {
+                if stack.pop() != Some('{') {
+                    return false;
+                }
+            }
+            ')' => {
+                if stack.pop() != Some('(') {
+                    return false;
+                }
+            }
+            ']' => {
+                if stack.pop() != Some('[') {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+    stack.is_empty()
 }
 
 /// Read non-empty JSONL lines as JSON objects (malformed lines are skipped with a warning).
@@ -299,6 +345,18 @@ mod tests {
             .pass
         );
         assert!(!verify("fn add(a: int, b: int) to int {\n    return a +\n", "t", 1).pass);
+    }
+
+    /// Real failure observed on live hardware: `vox check` accepted a source
+    /// file truncated mid `type` declaration (unclosed `{`) as a clean
+    /// compile. The syntax inside is otherwise valid, so only an explicit
+    /// balance check — not the compiler — catches this.
+    #[test]
+    fn verify_rejects_unbalanced_braces_even_when_compiler_is_lenient() {
+        let truncated = "type Payload {\n    items: List[Item]";
+        let v = verify(truncated, "t", 0);
+        assert!(!v.pass);
+        assert!(!v.pass_compile);
     }
 
     #[test]
