@@ -9,17 +9,17 @@
 
 ### Dead Crate Disposition
 
-- [ ] **REQ-dead-crate-delete**: Delete workspace crates with zero consumers and no remaining conceptual fit, consolidating any worthwhile types into their true owning crate first.
+- [x] **REQ-dead-crate-delete**: Delete workspace crates with zero consumers and no remaining conceptual fit, consolidating any worthwhile types into their true owning crate first.
   Acceptance: DELETE vox-schola (remove crate + workspace member; verify `cargo tree -p vox-cli` has no reference). DELETE vox-scientia-core and vox-scientia-social (pure pass-through facades over vox-publisher; verify no `vox_scientia_core::*`/`vox_scientia_social::*` imports remain). DELETE vox-scientia-ingest, but only after removing its mandatory `vox-cli` dependency first (audit usage, inline into vox-publisher's scholarly-external-jobs feature or gate behind a flag, then delete). DELETE vox-socrates-policy after migrating `ConfidencePolicy`/`ComplexityBand`/`RiskBand` types into vox-orchestrator-types. DELETE vox-spool (zero consumers; inline the JSONL helper elsewhere if needed). DELETE vox-tools (superseded by vox-capability-registry + vox-plugin-host dispatch pattern). DELETE vox-mcp-meta after migrating `A2A_MESSAGE_TYPES` constants into vox-orchestrator-types and wiring vox-mcp-registry directly. DELETE vox-browser and vox-audio-ingress (listed in executive summary; no consumers).
 - [ ] **REQ-dead-crate-wire-up**: Wire up functionally-complete but never-adopted crates into their intended call path instead of deleting working code.
   Acceptance: WIRE-UP vox-exec-grammar — add dependency from vox-container (or vox-cli-core) and call `vox_exec_grammar::risk::classify` inside the existing exec-policy gate per the ADR-026 contract (`contracts/terminal/exec-policy.v1.yaml`). WIRE-UP vox-mcp-registry — add dependency from vox-orchestrator, use `TOOL_REGISTRY` to validate/enumerate MCP tool names, then delete the now-redundant vox-mcp-meta wrapper. RECLASSIFY vox-search from DEAD to CORE (documentation-only correction: vox-cli and vox-orchestrator depend on it unconditionally; it is already wired). RECLASSIFY vox-doc-inventory from DEAD to CORE (vox-cli/Cargo.toml line 138 depends on it unconditionally via two binary targets).
 - [ ] **REQ-dead-crate-extract-to-plugin**: Move complete-but-CORE-inappropriate crates into the plugin architecture so their functionality survives without bloating the default CLI compile.
   Acceptance: EXTRACT vox-grammar-export into a new `vox-plugin-grammar-export` plugin implementing the `GrammarExportPlugin` ABI, dispatched from vox-constrained-gen via the plugin host when available. EXTRACT vox-webhook into `vox-plugin-webhook`, reversing its current direct `vox-orchestrator` dependency into a dispatch-via-plugin call through `WebhookOrchestratorBridge` and `OrchestratorInboxItem`.
-- [ ] **REQ-dead-crate-keep-frozen**: Explicitly preserve crates whose disposition is to remain as-is without further action in this plan's scope.
+- [x] **REQ-dead-crate-keep-frozen**: Explicitly preserve crates whose disposition is to remain as-is without further action in this plan's scope.
   Acceptance: KEEP-FROZEN vox-workflow-runtime, vox-integration-tests, vox-test-harness — no action required by this plan.
 - [ ] **REQ-dead-crate-misplaced**: Resolve the two crates flagged MISPLACED (wrong architectural tier) rather than DEAD (unused).
   Acceptance: REWRITE-AS-PLUGIN vox-ssg (misplaced as a CORE crate; belongs in the plugin architecture). Complete the in-progress vox-oratio extraction (already underway; finishing it removes the last direct Candle dependency bleed from CORE).
-- [ ] **REQ-dead-crate-catalog-cleanup**: Confirm catalog-only ghost entries (already removed from the actual workspace) are fully reflected in catalog.toml with no further code action needed.
+- [x] **REQ-dead-crate-catalog-cleanup**: Confirm catalog-only ghost entries (already removed from the actual workspace) are fully reflected in catalog.toml with no further code action needed.
   Acceptance: Verify execution-api and stub-check are absent from the workspace and any remaining catalog.toml comments accurately describe them as already cleaned up.
 
 ### GUI/Dashboard Architecture
@@ -70,9 +70,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-dead-crate-delete | Phase 1 | Pending |
-| REQ-dead-crate-catalog-cleanup | Phase 1 | Pending |
-| REQ-dead-crate-keep-frozen | Phase 1 | Pending |
+| REQ-dead-crate-delete | Phase 1 | Complete |
+| REQ-dead-crate-catalog-cleanup | Phase 1 | Complete |
+| REQ-dead-crate-keep-frozen | Phase 1 | Complete |
 | REQ-dead-crate-wire-up | Phase 2 | Pending |
 | REQ-dead-crate-extract-to-plugin | Phase 3 | Pending |
 | REQ-dead-crate-misplaced | Phase 3 | Pending |

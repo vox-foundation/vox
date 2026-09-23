@@ -11,7 +11,7 @@ Vox is a mature, working system; this roadmap is not a build-from-zero journey b
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Dead Crate Cleanup — Remove & Confirm** - Delete zero-consumer crates, confirm frozen crates need no action, verify catalog hygiene
+- [x] **Phase 1: Dead Crate Cleanup — Remove & Confirm** - Delete zero-consumer crates, confirm frozen crates need no action, verify catalog hygiene (completed 2026-09-22)
 - [ ] **Phase 2: Wire Up & Reclassify Dormant Crates** - Activate functionally-complete but never-adopted crates in their intended call path
 - [ ] **Phase 3: Extract Misplaced Crates to Plugin Architecture** - Move CORE-inappropriate crates into the plugin system
 - [ ] **Phase 4: GUI/Dashboard Architecture Consolidation** - Ratify ADR-045, verify CommandCatalog SSOT alignment, enforce the Vox-native/React interop UI boundary, confirm Tauri desktop convergence
@@ -126,7 +126,7 @@ Phases 1 → 2 → 3 form a dependency chain (crate surgery). Phase 4 is indepen
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Dead Crate Cleanup — Remove & Confirm | 2/2 | In Progress|  |
+| 1. Dead Crate Cleanup — Remove & Confirm | 2/2 | Complete    | 2026-09-22 |
 | 2. Wire Up & Reclassify Dormant Crates | 0/TBD | Not started | - |
 | 3. Extract Misplaced Crates to Plugin Architecture | 0/TBD | Not started | - |
 | 4. GUI/Dashboard Architecture Consolidation | 2/2 | In Progress|  |
