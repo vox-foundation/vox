@@ -227,6 +227,58 @@ pub fn citation_stage(check: &CitationCheck, source_count: usize) -> StageRecord
     )
 }
 
+/// Question words and stopwords stripped from a natural-language question before
+/// it is sent to a keyword search engine.
+///
+/// Live evidence (Task 8 fix round 4): SearXNG returns **0 hits** for
+/// "What is the latest Gemini Flash model on OpenRouter and when was it
+/// released?" and 5 hits — including openrouter.ai's own model page — for
+/// "latest Gemini Flash model OpenRouter release date". Metasearch upstreams
+/// match keywords, not sentences.
+const SEARCH_QUERY_NOISE: &[&str] = &[
+    // leading question words
+    "what", "what's", "whats", "which", "who", "when", "where", "how", "is", "are", "does", "did",
+    // common stopwords
+    "the", "a", "an", "of", "on", "in", "for", "to", "and", "or", "its", "it", "was", "were", "be",
+    "being", "been",
+];
+
+/// Reduce a natural-language question to the keyword query actually sent to the
+/// search providers. Deterministic — no LLM call. Token order and case are
+/// preserved because model names and product nouns carry the signal.
+///
+/// Falls back to the original query when the reduction would leave fewer than
+/// two tokens (a query that is already keyword-shaped must not be shredded).
+fn search_query_for(query: &str) -> String {
+    let kept: Vec<&str> = query
+        .split_whitespace()
+        .map(|t| t.trim_matches(|c: char| !c.is_alphanumeric()))
+        .filter(|t| !t.is_empty())
+        .filter(|t| !SEARCH_QUERY_NOISE.contains(&t.to_ascii_lowercase().as_str()))
+        .collect();
+    if kept.len() < 2 {
+        return query.trim().to_string();
+    }
+    kept.join(" ")
+}
+
+/// The `queries` trace stage. Records both the user's original question and the
+/// keyword query actually sent, so the trace stays honest about what was searched.
+fn queries_stage(original: &str, search_query: &str) -> StageRecord {
+    let summary = if search_query == original.trim() {
+        format!("1 query: {search_query}")
+    } else {
+        format!("1 query: {search_query} (from: {original})")
+    };
+    StageRecord::new(
+        "queries",
+        "ok",
+        None,
+        summary,
+        json!({ "queries": [search_query], "original": original }),
+    )
+}
+
 /// Quick research: one retrieval wave on the Deep-lane deadline, numbered sources.
 /// Returns the context block to inject into the chat prompt.
 pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) -> String {
@@ -234,14 +286,9 @@ pub async fn run_quick(state: &crate::ServerState, trace: &mut ResearchTrace) ->
         let cfg = state.orchestrator.config_handle();
         vox_orchestrator::sync_lock::rw_read(&*cfg).effective_search_policy()
     };
-    let query = trace.intent.query.clone();
-    trace.push(StageRecord::new(
-        "queries",
-        "ok",
-        None,
-        format!("1 query: {query}"),
-        json!({ "queries": [query] }),
-    ));
+    let original = trace.intent.query.clone();
+    let query = search_query_for(&original);
+    trace.push(queries_stage(&original, &query));
 
     let t = Instant::now();
     // Deep-lane deadline: SearXNG does not fit the 1.5 s fast lane (spec §9).
@@ -492,6 +539,48 @@ mod tests {
             provenance: vec!["WebResearch".into(), format!("engine:{engine}")],
             potential_contradiction: false,
         }
+    }
+
+    #[test]
+    fn search_query_drops_question_words_and_stopwords_keeping_signal_terms() {
+        let q = search_query_for(
+            "What is the latest Gemini Flash model on OpenRouter and when was it released?",
+        );
+        assert_eq!(q, "latest Gemini Flash model OpenRouter released");
+        for dropped in ["What", "what", "is", "the", "on", "and", "when", "was", "?"] {
+            assert!(
+                !q.split_whitespace().any(|t| t == dropped) && !q.contains('?'),
+                "reduced query {q:?} still carries {dropped:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn search_query_passes_short_queries_through_unchanged() {
+        // Reducing "tokio version" would leave 2 tokens, but a query that would
+        // fall below 2 tokens must be kept verbatim rather than shredded.
+        assert_eq!(search_query_for("tokio version"), "tokio version");
+        assert_eq!(search_query_for("what is it"), "what is it");
+    }
+
+    #[test]
+    fn quick_queries_stage_records_both_the_question_and_the_search_query() {
+        let original =
+            "What is the latest Gemini Flash model on OpenRouter and when was it released?";
+        let record = queries_stage(original, &search_query_for(original));
+        assert_eq!(record.detail["original"], original);
+        assert_eq!(
+            record.detail["queries"][0],
+            "latest Gemini Flash model OpenRouter released"
+        );
+        assert!(
+            record.summary.contains(original)
+                && record
+                    .summary
+                    .contains("latest Gemini Flash model OpenRouter released"),
+            "trace summary must name both: {}",
+            record.summary
+        );
     }
 
     #[test]
