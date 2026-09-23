@@ -17560,6 +17560,8 @@ dependencies = [
  "lcov-parser",
  "leiden-rs",
  "petgraph 0.8.3",
+ "proc-macro2",
+ "quote",
  "serde",
  "serde_json",
  "syn 2.0.118",

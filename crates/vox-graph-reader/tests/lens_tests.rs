@@ -30,6 +30,19 @@ fn collapses_to_modules_with_weighted_edges() {
     assert_eq!(links[0]["weight"], 2);
 }
 #[test]
+fn methods_collapse_into_their_file() {
+    let g = json!({
+        "nodes": [{"id":"a.rs::Foo::new","label":"new"},{"id":"a.rs::<Foo as T>::go","label":"go"},{"id":"b.rs::g","label":"g"}],
+        "links": [{"source":"a.rs::Foo::new","target":"a.rs::<Foo as T>::go"},{"source":"a.rs::Foo::new","target":"b.rs::g"}]
+    });
+    let c = collapse_to_modules(&g);
+    assert_eq!(c["nodes"].as_array().unwrap().len(), 2);
+    let links = c["links"].as_array().unwrap();
+    assert_eq!(links.len(), 1);
+    assert_eq!(links[0]["source"], "a.rs");
+}
+
+#[test]
 fn intra_module_edges_dropped() {
     let g = json!({
         "nodes": [{"id":"a.rs::f","label":"f"},{"id":"a.rs::g","label":"g"}],

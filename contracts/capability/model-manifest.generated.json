@@ -2442,6 +2442,24 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_search_history",
+      "mcp_tool": "vox_search_history",
+      "implicit": false,
+      "title": "Vox Search History",
+      "description_model": "First-parent repo history for agents (log through lineage, focus, forgotten, search, timeline, brief). Ingests at most 60 s per call into a cache under the git common dir; results carry complete/behind, and an incomplete result means call again.",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "writes_files",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_search_neighbors",
       "mcp_tool": "vox_search_neighbors",
       "implicit": false,
@@ -4646,6 +4664,27 @@
         "graph"
       ],
       "side_effect_class": "none",
+      "scope_kind": "repository",
+      "reversible": true,
+      "requires_repo": true,
+      "preferred_for_models": true,
+      "human_takeover_friendly": true,
+      "curated": true
+    },
+    {
+      "capability_id": "cli.graph.history",
+      "cli_path": [
+        "graph",
+        "history"
+      ],
+      "implicit": false,
+      "title": "Vox Graph History",
+      "description_model": "First-parent origin/main history with lineage and mechanical-change flags (log, focus, forgotten, search, timeline, brief); lazily ingests new commits into a store under the git common dir.",
+      "intent_tags": [
+        "retrieval",
+        "graph"
+      ],
+      "side_effect_class": "writes_files",
       "scope_kind": "repository",
       "reversible": true,
       "requires_repo": true,
