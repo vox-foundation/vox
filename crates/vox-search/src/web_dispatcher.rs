@@ -1171,122 +1171,66 @@ mod tests {
 
     /// D9 fix (Task 8 fix round 3): `enforce_provider_diversity` must stop a
     /// single heavily-RRF-weighted provider (arXiv) from crowding out every
-    /// other provider that also returned real hits. Three providers (arXiv,
-    /// Wikipedia, SearXNG) each mocked to return 5 hits via wiremock — no
-    /// real network. Asserts the kept report has at least one hit from each
-    /// provider, no provider exceeds the diversity cap, and the total kept
-    /// count is unchanged from what the pre-existing truncation limit would
-    /// have produced anyway.
-    #[tokio::test]
-    async fn enforce_provider_diversity_keeps_every_contributing_provider() {
-        use wiremock::matchers::{method, path};
-        use wiremock::{Mock, MockServer, ResponseTemplate};
+    /// other provider that also returned real hits.
+    ///
+    /// Task 8b fix round 2: this used to run the whole `search_with_report_
+    /// and_registry` pipeline against 3 wiremock servers on a real lane
+    /// deadline. Under the default *parallel* test runner that raced local
+    /// HTTP servers against a shared-process timer, and a provider could
+    /// occasionally miss the deadline under scheduling contention — turning
+    /// a ranking assertion into a timing assertion (reproduced: Wikipedia's
+    /// mock timed out under parallel `cargo test`, failing "provider
+    /// wikipedia must have at least one kept hit"). Since this test only
+    /// checks the diversity cap's selection logic, not the HTTP/provider
+    /// wiring, it now calls `enforce_provider_diversity` directly on a
+    /// constructed pool — no network, no timing, deterministic under any
+    /// scheduling. 5 arXiv + 5 Wikipedia + 5 SearXNG(duckduckgo) hits,
+    /// scores ordered to mirror `true_rrf_fuse`'s real authority-weighted
+    /// dynamic (arXiv > Wikipedia > SearXNG for the same rank).
+    #[test]
+    fn enforce_provider_diversity_keeps_every_contributing_provider() {
+        let mut results = vec![
+            result_engine("https://arxiv.org/abs/1", 1.00, "arxiv"),
+            result_engine("https://arxiv.org/abs/2", 0.90, "arxiv"),
+            result_engine("https://arxiv.org/abs/3", 0.80, "arxiv"),
+            result_engine("https://arxiv.org/abs/4", 0.70, "arxiv"),
+            result_engine("https://arxiv.org/abs/5", 0.60, "arxiv"),
+            result_engine("https://en.wikipedia.org/wiki/1", 0.95, "wikipedia"),
+            result_engine("https://en.wikipedia.org/wiki/2", 0.85, "wikipedia"),
+            result_engine("https://en.wikipedia.org/wiki/3", 0.75, "wikipedia"),
+            result_engine("https://en.wikipedia.org/wiki/4", 0.65, "wikipedia"),
+            result_engine("https://en.wikipedia.org/wiki/5", 0.55, "wikipedia"),
+            result_engine("https://example.com/searxng-1", 0.90, "duckduckgo"),
+            result_engine("https://example.com/searxng-2", 0.80, "duckduckgo"),
+            result_engine("https://example.com/searxng-3", 0.70, "duckduckgo"),
+            result_engine("https://example.com/searxng-4", 0.60, "duckduckgo"),
+            result_engine("https://example.com/searxng-5", 0.50, "duckduckgo"),
+        ];
+        let total = results.len();
+        let kept_limit = 5;
 
-        let arxiv_server = MockServer::start().await;
-        let arxiv_entries: String = (1..=5)
-            .map(|i| {
-                format!(
-                    "<entry><id>http://arxiv.org/abs/2000.0000{i}v1</id><title>ArXiv Paper {i}</title><summary>Summary {i}</summary></entry>"
-                )
-            })
-            .collect();
-        let arxiv_xml = format!(
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><feed xmlns=\"http://www.w3.org/2005/Atom\">{arxiv_entries}</feed>"
-        );
-        Mock::given(method("GET"))
-            .and(path("/api/query"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(arxiv_xml))
-            .mount(&arxiv_server)
-            .await;
+        WebSearchDispatcher::enforce_provider_diversity(&mut results, kept_limit);
 
-        let wiki_server = MockServer::start().await;
-        let wiki_results: Vec<serde_json::Value> = (1..=5)
-            .map(|i| {
-                serde_json::json!({
-                    "title": format!("Wiki Article {i}"),
-                    "pageid": i,
-                    "snippet": format!("Wiki snippet {i}")
-                })
-            })
-            .collect();
-        Mock::given(method("GET"))
-            .and(path("/wiki"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "query": { "search": wiki_results }
-            })))
-            .mount(&wiki_server)
-            .await;
-
-        let searxng_server = MockServer::start().await;
-        let searxng_results: Vec<serde_json::Value> = (1..=5)
-            .map(|i| {
-                serde_json::json!({
-                    "url": format!("https://example.com/searxng-{i}"),
-                    "title": format!("SearXNG Result {i}"),
-                    "content": format!("SearXNG content {i}"),
-                    "engine": "duckduckgo",
-                    "score": 1.0
-                })
-            })
-            .collect();
-        Mock::given(method("GET"))
-            .and(path("/search"))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(serde_json::json!({ "results": searxng_results })),
-            )
-            .mount(&searxng_server)
-            .await;
-
-        let policy = SearchPolicy {
-            enable_wikipedia: true,
-            wikipedia_fallback_enabled: true,
-            wikipedia_api_url: Some(format!("{}/wiki", wiki_server.uri())),
-            enable_openalex: false,
-            enable_arxiv: true,
-            arxiv_api_url: Some(format!("{}/api/query", arxiv_server.uri())),
-            searxng_url: Some(searxng_server.uri()),
-            searxng_max_results: 5,
-            searxng_max_urls_to_scrape: 3,
-            tavily_enabled: false,
-            ..SearchPolicy::default()
-        };
-        let registry = crate::search_circuit_breaker::SearchProviderCircuitRegistry::new();
-
-        let report = WebSearchDispatcher::search_with_report_and_registry(
-            "diversity test query",
-            ResearchLane::Deep,
-            &policy,
-            &registry,
-        )
-        .await;
-
-        let kept_limit = policy
-            .searxng_max_results
-            .max(policy.searxng_max_urls_to_scrape);
         assert_eq!(
-            report.hits.len(),
-            kept_limit,
-            "kept-hit count must be unchanged by diversification: {:?}",
-            report.hits
+            results.len(),
+            total,
+            "enforce_provider_diversity must not drop hits, only reorder: {:?}",
+            results
         );
+        let kept = &results[..kept_limit];
 
-        fn engine_of(h: &crate::memory_hybrid::HybridSearchHit) -> &str {
-            h.provenance
-                .iter()
-                .find_map(|p| p.strip_prefix("engine:"))
-                .unwrap_or("unknown")
-        }
         let mut counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
-        for h in &report.hits {
-            *counts.entry(engine_of(h)).or_insert(0) += 1;
+        for r in kept {
+            *counts
+                .entry(r.engine.as_deref().unwrap_or("unknown"))
+                .or_insert(0) += 1;
         }
 
         for provider in ["arxiv", "wikipedia", "duckduckgo"] {
             assert!(
                 counts.get(provider).copied().unwrap_or(0) >= 1,
                 "provider {provider} must have at least one kept hit: {counts:?} ({:?})",
-                report.hits
+                kept
             );
         }
         // cap = max(2, ceil(kept_limit / contributing_providers)) = max(2, ceil(5/3)) = 2
@@ -1304,91 +1248,102 @@ mod tests {
     /// SearXNG itself) while arXiv's mocked hits share no query terms at
     /// all. Before the fix, `true_rrf_fuse`'s arXiv authority weight (1.20)
     /// alone decided the order, so the irrelevant arXiv paper displaced the
-    /// relevant OpenRouter page. Asserts the kept report includes an
-    /// `openrouter.ai` hit, and that it precedes the zero-term-overlap arXiv
-    /// hits.
-    #[tokio::test]
-    async fn rerank_by_relevance_keeps_relevant_searxng_hit_over_irrelevant_arxiv() {
-        use wiremock::matchers::{method, path};
-        use wiremock::{Mock, MockServer, ResponseTemplate};
-
+    /// relevant OpenRouter page.
+    ///
+    /// Task 8b fix round 2: converted from a full wiremock/
+    /// `search_with_report_and_registry` integration test to a direct call
+    /// on `rerank_by_relevance` + `enforce_provider_diversity` — it only
+    /// checks ranking/selection logic, not HTTP wiring, and the wiremock
+    /// version raced local mock servers against a lane deadline under
+    /// parallel test execution (flaky). Scores mirror what
+    /// `true_rrf_fuse` + `filter_and_penalize_results` would hand this step
+    /// in practice: 3 zero-relevance arXiv hits at authority-boosted fusion
+    /// scores, 5 SearXNG(duckduckgo) hits (3 unrelated + 2 relevant
+    /// OpenRouter pages) at generic-weight fusion scores.
+    #[test]
+    fn rerank_by_relevance_keeps_relevant_searxng_hit_over_irrelevant_arxiv() {
         let query = "latest Gemini Flash model OpenRouter released";
 
-        let arxiv_server = MockServer::start().await;
-        let arxiv_entries: String = (1..=5)
-            .map(|i| {
-                format!(
-                    "<entry><id>http://arxiv.org/abs/2503.2002{i}v1</id><title>Attention Mechanisms in Transformer Architectures {i}</title><summary>A survey of scaling laws for sequence models {i}</summary></entry>"
-                )
-            })
-            .collect();
-        let arxiv_xml = format!(
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><feed xmlns=\"http://www.w3.org/2005/Atom\">{arxiv_entries}</feed>"
-        );
-        Mock::given(method("GET"))
-            .and(path("/api/query"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(arxiv_xml))
-            .mount(&arxiv_server)
-            .await;
-
-        let searxng_server = MockServer::start().await;
-        let searxng_results = serde_json::json!([
-            {"url": "https://example.com/unrelated-1", "title": "Unrelated Page 1", "content": "nothing to do with the query", "engine": "duckduckgo", "score": 1.0},
-            {"url": "https://example.com/unrelated-2", "title": "Unrelated Page 2", "content": "still nothing relevant here", "engine": "duckduckgo", "score": 0.9},
-            {"url": "https://example.com/unrelated-3", "title": "Unrelated Page 3", "content": "more filler content", "engine": "duckduckgo", "score": 0.8},
-            {"url": "https://openrouter.ai/google/gemini-3.8-flash", "title": "Gemini 3.8 Flash - API Pricing, Provider Status & Uptime | OpenRouter", "content": "OpenRouter released the latest Gemini Flash model, Gemini 3.8 Flash, with pricing and uptime details.", "engine": "duckduckgo", "score": 0.7},
-            {"url": "https://openrouter.ai/google/gemini-3.8-flash-lite", "title": "Gemini 3.8 Flash Lite - OpenRouter", "content": "OpenRouter's listing for the latest Gemini Flash model variant.", "engine": "duckduckgo", "score": 0.6},
-        ]);
-        Mock::given(method("GET"))
-            .and(path("/search"))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(serde_json::json!({ "results": searxng_results })),
-            )
-            .mount(&searxng_server)
-            .await;
-
-        let policy = SearchPolicy {
-            enable_wikipedia: false,
-            enable_openalex: false,
-            enable_arxiv: true,
-            arxiv_api_url: Some(format!("{}/api/query", arxiv_server.uri())),
-            searxng_url: Some(searxng_server.uri()),
-            searxng_max_results: 5,
-            searxng_max_urls_to_scrape: 3,
-            tavily_enabled: false,
-            ..SearchPolicy::default()
+        let arxiv = |url: &str, score: f64, title: &str| crate::searxng::SearxngResult {
+            url: url.to_string(),
+            title: title.to_string(),
+            content: "A survey of scaling laws for sequence models, unrelated to the query."
+                .to_string(),
+            engine: Some("arxiv".to_string()),
+            score: Some(score),
         };
-        let registry = crate::search_circuit_breaker::SearchProviderCircuitRegistry::new();
+        let dd =
+            |url: &str, score: f64, title: &str, content: &str| crate::searxng::SearxngResult {
+                url: url.to_string(),
+                title: title.to_string(),
+                content: content.to_string(),
+                engine: Some("duckduckgo".to_string()),
+                score: Some(score),
+            };
 
-        let report = WebSearchDispatcher::search_with_report_and_registry(
-            query,
-            ResearchLane::Deep,
-            &policy,
-            &registry,
-        )
-        .await;
+        let pool = vec![
+            arxiv(
+                "https://arxiv.org/abs/2503.20021",
+                0.0059,
+                "Attention Mechanisms in Transformer Architectures 1",
+            ),
+            arxiv(
+                "https://arxiv.org/abs/2503.20022",
+                0.0058,
+                "Attention Mechanisms in Transformer Architectures 2",
+            ),
+            arxiv(
+                "https://arxiv.org/abs/2503.20023",
+                0.0057,
+                "Attention Mechanisms in Transformer Architectures 3",
+            ),
+            dd(
+                "https://example.com/unrelated-1",
+                0.0049,
+                "Unrelated Page 1",
+                "nothing to do with the query",
+            ),
+            dd(
+                "https://example.com/unrelated-2",
+                0.0048,
+                "Unrelated Page 2",
+                "still nothing relevant here",
+            ),
+            dd(
+                "https://example.com/unrelated-3",
+                0.0047,
+                "Unrelated Page 3",
+                "more filler content",
+            ),
+            dd(
+                "https://openrouter.ai/google/gemini-3.8-flash",
+                0.0046,
+                "Gemini 3.8 Flash - API Pricing, Provider Status & Uptime | OpenRouter",
+                "OpenRouter released the latest Gemini Flash model, Gemini 3.8 Flash, with pricing and uptime details.",
+            ),
+            dd(
+                "https://openrouter.ai/google/gemini-3.8-flash-lite",
+                0.0045,
+                "Gemini 3.8 Flash Lite - OpenRouter",
+                "OpenRouter's listing for the latest Gemini Flash model variant.",
+            ),
+        ];
 
-        let openrouter_pos = report
-            .hits
+        let reranked = WebSearchDispatcher::rerank_by_relevance(query, pool);
+        let mut kept = reranked;
+        WebSearchDispatcher::enforce_provider_diversity(&mut kept, 5);
+        kept.truncate(5);
+
+        let openrouter_pos = kept
             .iter()
-            .position(|h| h.path.contains("openrouter.ai"))
-            .unwrap_or_else(|| {
-                panic!(
-                    "expected an openrouter.ai hit in kept results: {:?}",
-                    report.hits
-                )
-            });
-        let first_arxiv_pos = report
-            .hits
-            .iter()
-            .position(|h| h.path.contains("arxiv.org"));
+            .position(|r| r.url.contains("openrouter.ai"))
+            .unwrap_or_else(|| panic!("expected an openrouter.ai hit in kept results: {kept:?}"));
+        let first_arxiv_pos = kept.iter().position(|r| r.url.contains("arxiv.org"));
         if let Some(arxiv_pos) = first_arxiv_pos {
             assert!(
                 openrouter_pos < arxiv_pos,
                 "relevant OpenRouter hit (pos {openrouter_pos}) should precede the \
-                 zero-term-overlap arXiv hit (pos {arxiv_pos}): {:?}",
-                report.hits
+                 zero-term-overlap arXiv hit (pos {arxiv_pos}): {kept:?}"
             );
         }
 
@@ -1401,11 +1356,10 @@ mod tests {
         // 3.8-flash-lite (relevant), arxiv, arxiv]). Assert the *entire*
         // kept order is non-increasing in relevance score, not just that
         // one hit precedes another.
-        for pair in report.hits.windows(2) {
+        for pair in kept.windows(2) {
             assert!(
-                pair[0].score + 1e-9 >= pair[1].score,
-                "kept order must be non-increasing in relevance score: {:?}",
-                report.hits
+                pair[0].score.unwrap_or(0.0) + 1e-9 >= pair[1].score.unwrap_or(0.0),
+                "kept order must be non-increasing in relevance score: {kept:?}"
             );
         }
     }
@@ -1413,66 +1367,40 @@ mod tests {
     /// Task 8b: relevance reranking is not an arXiv ban — when arXiv's hits
     /// genuinely match the query terms (an academic-shaped query), arXiv
     /// should still lead the kept results.
-    #[tokio::test]
-    async fn rerank_by_relevance_lets_genuinely_relevant_arxiv_lead() {
-        use wiremock::matchers::{method, path};
-        use wiremock::{Mock, MockServer, ResponseTemplate};
-
+    ///
+    /// Task 8b fix round 2: converted from a wiremock/`search_with_report_
+    /// and_registry` integration test to a direct call on
+    /// `rerank_by_relevance` — same rationale as the sibling test above
+    /// (pure ranking logic, no HTTP needed, eliminates the lane-deadline
+    /// race under parallel test execution).
+    #[test]
+    fn rerank_by_relevance_lets_genuinely_relevant_arxiv_lead() {
         let query = "transformer attention scaling laws";
 
-        let arxiv_server = MockServer::start().await;
-        let arxiv_xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><feed xmlns=\"http://www.w3.org/2005/Atom\">\
-             <entry><id>http://arxiv.org/abs/2503.20020v1</id>\
-             <title>Scaling Laws for Transformer Attention</title>\
-             <summary>We study transformer attention scaling laws across model sizes.</summary></entry>\
-             </feed>";
-        Mock::given(method("GET"))
-            .and(path("/api/query"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(arxiv_xml))
-            .mount(&arxiv_server)
-            .await;
+        let pool = vec![
+            crate::searxng::SearxngResult {
+                url: "https://arxiv.org/abs/2503.20020".to_string(),
+                title: "Scaling Laws for Transformer Attention".to_string(),
+                content: "We study transformer attention scaling laws across model sizes."
+                    .to_string(),
+                engine: Some("arxiv".to_string()),
+                score: Some(0.02),
+            },
+            crate::searxng::SearxngResult {
+                url: "https://example.com/unrelated-1".to_string(),
+                title: "Unrelated Page".to_string(),
+                content: "nothing to do with the query".to_string(),
+                engine: Some("duckduckgo".to_string()),
+                score: Some(0.0164),
+            },
+        ];
 
-        let searxng_server = MockServer::start().await;
-        let searxng_results = serde_json::json!([
-            {"url": "https://example.com/unrelated-1", "title": "Unrelated Page", "content": "nothing to do with the query", "engine": "duckduckgo", "score": 1.0},
-        ]);
-        Mock::given(method("GET"))
-            .and(path("/search"))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(serde_json::json!({ "results": searxng_results })),
-            )
-            .mount(&searxng_server)
-            .await;
-
-        let policy = SearchPolicy {
-            enable_wikipedia: false,
-            enable_openalex: false,
-            enable_arxiv: true,
-            arxiv_api_url: Some(format!("{}/api/query", arxiv_server.uri())),
-            searxng_url: Some(searxng_server.uri()),
-            searxng_max_results: 5,
-            searxng_max_urls_to_scrape: 3,
-            tavily_enabled: false,
-            ..SearchPolicy::default()
-        };
-        let registry = crate::search_circuit_breaker::SearchProviderCircuitRegistry::new();
-
-        let report = WebSearchDispatcher::search_with_report_and_registry(
-            query,
-            ResearchLane::Deep,
-            &policy,
-            &registry,
-        )
-        .await;
+        let mut kept = WebSearchDispatcher::rerank_by_relevance(query, pool);
+        WebSearchDispatcher::enforce_provider_diversity(&mut kept, 5);
 
         assert!(
-            report
-                .hits
-                .first()
-                .is_some_and(|h| h.path.contains("arxiv.org")),
-            "genuinely relevant arXiv hit should lead when it matches the query: {:?}",
-            report.hits
+            kept.first().is_some_and(|r| r.url.contains("arxiv.org")),
+            "genuinely relevant arXiv hit should lead when it matches the query: {kept:?}"
         );
     }
 
