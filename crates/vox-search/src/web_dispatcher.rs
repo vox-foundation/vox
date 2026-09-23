@@ -105,23 +105,30 @@ impl WebSearchDispatcher {
     }
 
     /// Caps how many of the top `limit` kept hits any single provider (the
-    /// `engine:<name>` provenance entry, e.g. "arxiv", "searxng") may occupy.
+    /// `engine:<name>` provenance entry, e.g. "arxiv", "searxng") may occupy,
+    /// while guaranteeing every provider that contributed at least one hit
+    /// keeps at least one slot (as long as `limit >= contributing_providers`).
     ///
     /// D9 follow-up (Task 8 fix round 2/3): `true_rrf_fuse`'s per-source
     /// authority weights (arXiv 1.20 vs 1.00 for everything else) mean that at
     /// `rrf_k=60`, arXiv's *worst*-ranked hit still outscores an equal-size
     /// competing provider's *best*-ranked hit — so arXiv can structurally
     /// occupy every kept slot regardless of relevance, even when other
-    /// providers returned just as many real hits. Rather than re-tuning the
-    /// RRF weights/k (a pinned, separately-tested formula), this reorders the
-    /// already-score-sorted `results` in place so the first `limit` positions
-    /// respect a per-provider cap of `max(2, ceil(limit /
-    /// contributing_providers))`, filling any slots a provider doesn't use
-    /// with the next-best leftovers by score. Nothing is dropped — this is a
-    /// pure reorder, so `results.len()` is unchanged and callers that later
-    /// truncate to `limit` see a diversified head instead of a monoculture.
-    /// A no-op when fewer than two providers contributed, or when
-    /// `results.len() <= limit` (nothing would be truncated anyway).
+    /// providers returned just as many real hits.
+    ///
+    /// Task 8b fix: the original greedy single-pass (admit in score order
+    /// until either a provider's cap or the overall `limit` is hit) could
+    /// exhaust `limit` using only two of three contributing providers before
+    /// the iteration ever reached the third, dropping it entirely even though
+    /// its cap was never reached. This version first reserves one slot per
+    /// provider (highest-scoring provider first), then fills the remaining
+    /// slots by score across providers still under `cap`, and only relaxes
+    /// the cap if providers run out of hits before `limit` is filled. Nothing
+    /// is dropped — this is a pure reorder, so `results.len()` is unchanged
+    /// and callers that later truncate to `limit` see a diversified head
+    /// instead of a monoculture. A no-op when fewer than two providers
+    /// contributed, or when `results.len() <= limit` (nothing would be
+    /// truncated anyway).
     fn enforce_provider_diversity(results: &mut Vec<crate::searxng::SearxngResult>, limit: usize) {
         if limit == 0 || results.len() <= limit {
             return;
@@ -135,39 +142,159 @@ impl WebSearchDispatcher {
         }
         let cap = limit.div_ceil(contributing.len()).max(2);
 
+        // Group items by provider, preserving each provider's relative
+        // (already score-sorted) order.
         let old = std::mem::take(results);
-        let mut counts: HashMap<String, usize> = HashMap::new();
-        let mut selected: Vec<crate::searxng::SearxngResult> = Vec::with_capacity(limit);
-        let mut leftover: Vec<crate::searxng::SearxngResult> = Vec::new();
-
-        // Pass 1: greedily keep the existing (score-descending) order, admitting
-        // each item only while its provider is still under `cap` and the
-        // selection hasn't yet filled `limit` — this is what both preserves
-        // relative order within a provider and enforces the cap.
+        let mut group_order: Vec<String> = Vec::new();
+        let mut groups: HashMap<String, Vec<crate::searxng::SearxngResult>> = HashMap::new();
         for item in old {
             let engine = item.engine.clone().unwrap_or_else(|| "unknown".to_string());
-            let count = counts.entry(engine).or_insert(0);
-            if selected.len() < limit && *count < cap {
-                *count += 1;
-                selected.push(item);
-            } else {
-                leftover.push(item);
+            if !groups.contains_key(&engine) {
+                group_order.push(engine.clone());
+            }
+            groups.entry(engine).or_default().push(item);
+        }
+        // Providers ordered by their own best (first) hit's score, descending.
+        group_order.sort_by(|a, b| {
+            let sa = groups[a].first().and_then(|r| r.score).unwrap_or(0.0);
+            let sb = groups[b].first().and_then(|r| r.score).unwrap_or(0.0);
+            sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        let mut heads: HashMap<String, usize> = HashMap::new();
+        let mut counts: HashMap<String, usize> = HashMap::new();
+        let mut selected: Vec<crate::searxng::SearxngResult> = Vec::with_capacity(limit);
+
+        // Pass 0: guarantee one slot per provider, strongest provider first.
+        for engine in &group_order {
+            if selected.len() >= limit {
+                break;
+            }
+            if let Some(item) = groups[engine].first() {
+                selected.push(item.clone());
+                heads.insert(engine.clone(), 1);
+                counts.insert(engine.clone(), 1);
             }
         }
 
-        // Pass 2: a provider that returned fewer than `cap` hits leaves the
-        // selection short of `limit` — fill the remainder from the best
-        // leftovers (still score-ordered) so the kept-hit count matches what
-        // the caller expected before diversification, even if that means
-        // exceeding a provider's fair share when no one else has more to give.
-        if selected.len() < limit {
-            let need = limit - selected.len();
-            let take_now = need.min(leftover.len());
-            selected.extend(leftover.drain(0..take_now));
+        // Pass 1: fill remaining slots by best available score across
+        // providers still under `cap`.
+        loop {
+            if selected.len() >= limit {
+                break;
+            }
+            let mut best: Option<(&String, f64)> = None;
+            for engine in &group_order {
+                let head = *heads.get(engine).unwrap_or(&0);
+                let count = *counts.get(engine).unwrap_or(&0);
+                if count >= cap {
+                    continue;
+                }
+                if let Some(item) = groups[engine].get(head) {
+                    let score = item.score.unwrap_or(0.0);
+                    if best.is_none_or(|(_, s)| score > s) {
+                        best = Some((engine, score));
+                    }
+                }
+            }
+            match best {
+                Some((engine, _)) => {
+                    let engine = engine.clone();
+                    let head = *heads.get(&engine).unwrap_or(&0);
+                    selected.push(groups[&engine][head].clone());
+                    *heads.entry(engine.clone()).or_insert(0) += 1;
+                    *counts.entry(engine).or_insert(0) += 1;
+                }
+                None => break,
+            }
         }
+
+        // Pass 2: providers under cap ran out of hits before `limit` was
+        // filled — relax the cap and take whatever is left, by score.
+        loop {
+            if selected.len() >= limit {
+                break;
+            }
+            let mut best: Option<(&String, f64)> = None;
+            for engine in &group_order {
+                let head = *heads.get(engine).unwrap_or(&0);
+                if let Some(item) = groups[engine].get(head) {
+                    let score = item.score.unwrap_or(0.0);
+                    if best.is_none_or(|(_, s)| score > s) {
+                        best = Some((engine, score));
+                    }
+                }
+            }
+            match best {
+                Some((engine, _)) => {
+                    let engine = engine.clone();
+                    let head = *heads.get(&engine).unwrap_or(&0);
+                    selected.push(groups[&engine][head].clone());
+                    *heads.entry(engine.clone()).or_insert(0) += 1;
+                }
+                None => break,
+            }
+        }
+
+        // Anything left over (beyond `limit`) is appended, best score first,
+        // so `results.len()` stays unchanged for callers that truncate later.
+        let mut leftover: Vec<crate::searxng::SearxngResult> = Vec::new();
+        for engine in &group_order {
+            let head = *heads.get(engine).unwrap_or(&0);
+            if let Some(items) = groups.get(engine) {
+                leftover.extend(items[head..].iter().cloned());
+            }
+        }
+        leftover.sort_by(|a, b| {
+            b.score
+                .unwrap_or(0.0)
+                .partial_cmp(&a.score.unwrap_or(0.0))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         selected.extend(leftover);
         *results = selected;
+    }
+
+    /// Reranks the fused, penalty-adjusted candidate pool by query-term
+    /// density over `title + content` (via `term_density_reranker`), rather
+    /// than trusting per-source RRF authority weight as the final relevance
+    /// signal. Task 8b: SearXNG returning the page that actually answers the
+    /// query (e.g. an OpenRouter pricing page) was still losing the final cap
+    /// to an irrelevant, high-authority arXiv hit because nothing scored
+    /// query relevance before the cap ran. Reuses the existing reranker
+    /// rather than duplicating a scorer; combines the fusion/penalty score
+    /// (30%) with term-density (70%) as the reranker already does, and writes
+    /// the combined score back onto each result so the provider cap (and any
+    /// later truncation) operates on relevance order. `top_k` is the full
+    /// pool size, so nothing is dropped here — only reordered. Ties keep
+    /// fusion order, since the reranker's sort is stable over the incoming
+    /// (fusion-ordered) vec.
+    fn rerank_by_relevance(
+        query: &str,
+        results: Vec<crate::searxng::SearxngResult>,
+    ) -> Vec<crate::searxng::SearxngResult> {
+        let passages: Vec<crate::term_density_reranker::CandidatePassage> = results
+            .iter()
+            .enumerate()
+            .map(|(i, r)| crate::term_density_reranker::CandidatePassage {
+                id: i.to_string(),
+                text: format!("{} {}", r.title, r.content),
+                base_score: r.score.unwrap_or(0.5),
+            })
+            .collect();
+        let top_k = passages.len();
+        let reranked = crate::term_density_reranker::rerank_passages(query, &passages, top_k);
+
+        reranked
+            .into_iter()
+            .filter_map(|p| {
+                let idx: usize = p.id.parse().ok()?;
+                let mut r = results.get(idx)?.clone();
+                r.score = Some(p.base_score);
+                Some(r)
+            })
+            .collect()
     }
 
     pub async fn search(
@@ -484,12 +611,7 @@ impl WebSearchDispatcher {
             };
         }
 
-        results.sort_by(|a, b| {
-            b.score
-                .unwrap_or(0.0)
-                .partial_cmp(&a.score.unwrap_or(0.0))
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        results = Self::rerank_by_relevance(query, results);
 
         let kept_limit = policy
             .searxng_max_results
@@ -1022,6 +1144,166 @@ mod tests {
                 "provider {provider} exceeded the diversity cap of {cap}: {count} ({counts:?})"
             );
         }
+    }
+
+    /// Task 8b: SearXNG returns the page that actually answers the query
+    /// (an OpenRouter Gemini 3.8 Flash pricing page, ranked 4th/5th by
+    /// SearXNG itself) while arXiv's mocked hits share no query terms at
+    /// all. Before the fix, `true_rrf_fuse`'s arXiv authority weight (1.20)
+    /// alone decided the order, so the irrelevant arXiv paper displaced the
+    /// relevant OpenRouter page. Asserts the kept report includes an
+    /// `openrouter.ai` hit, and that it precedes the zero-term-overlap arXiv
+    /// hits.
+    #[tokio::test]
+    async fn rerank_by_relevance_keeps_relevant_searxng_hit_over_irrelevant_arxiv() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let query = "latest Gemini Flash model OpenRouter released";
+
+        let arxiv_server = MockServer::start().await;
+        let arxiv_entries: String = (1..=5)
+            .map(|i| {
+                format!(
+                    "<entry><id>http://arxiv.org/abs/2503.2002{i}v1</id><title>Attention Mechanisms in Transformer Architectures {i}</title><summary>A survey of scaling laws for sequence models {i}</summary></entry>"
+                )
+            })
+            .collect();
+        let arxiv_xml = format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><feed xmlns=\"http://www.w3.org/2005/Atom\">{arxiv_entries}</feed>"
+        );
+        Mock::given(method("GET"))
+            .and(path("/api/query"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(arxiv_xml))
+            .mount(&arxiv_server)
+            .await;
+
+        let searxng_server = MockServer::start().await;
+        let searxng_results = serde_json::json!([
+            {"url": "https://example.com/unrelated-1", "title": "Unrelated Page 1", "content": "nothing to do with the query", "engine": "duckduckgo", "score": 1.0},
+            {"url": "https://example.com/unrelated-2", "title": "Unrelated Page 2", "content": "still nothing relevant here", "engine": "duckduckgo", "score": 0.9},
+            {"url": "https://example.com/unrelated-3", "title": "Unrelated Page 3", "content": "more filler content", "engine": "duckduckgo", "score": 0.8},
+            {"url": "https://openrouter.ai/google/gemini-3.8-flash", "title": "Gemini 3.8 Flash - API Pricing, Provider Status & Uptime | OpenRouter", "content": "OpenRouter released the latest Gemini Flash model, Gemini 3.8 Flash, with pricing and uptime details.", "engine": "duckduckgo", "score": 0.7},
+            {"url": "https://openrouter.ai/google/gemini-3.8-flash-lite", "title": "Gemini 3.8 Flash Lite - OpenRouter", "content": "OpenRouter's listing for the latest Gemini Flash model variant.", "engine": "duckduckgo", "score": 0.6},
+        ]);
+        Mock::given(method("GET"))
+            .and(path("/search"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({ "results": searxng_results })),
+            )
+            .mount(&searxng_server)
+            .await;
+
+        let policy = SearchPolicy {
+            enable_wikipedia: false,
+            enable_openalex: false,
+            enable_arxiv: true,
+            arxiv_api_url: Some(format!("{}/api/query", arxiv_server.uri())),
+            searxng_url: Some(searxng_server.uri()),
+            searxng_max_results: 5,
+            searxng_max_urls_to_scrape: 3,
+            tavily_enabled: false,
+            ..SearchPolicy::default()
+        };
+        let registry = crate::search_circuit_breaker::SearchProviderCircuitRegistry::new();
+
+        let report = WebSearchDispatcher::search_with_report_and_registry(
+            query,
+            ResearchLane::Deep,
+            &policy,
+            &registry,
+        )
+        .await;
+
+        let openrouter_pos = report
+            .hits
+            .iter()
+            .position(|h| h.path.contains("openrouter.ai"))
+            .unwrap_or_else(|| {
+                panic!(
+                    "expected an openrouter.ai hit in kept results: {:?}",
+                    report.hits
+                )
+            });
+        let first_arxiv_pos = report
+            .hits
+            .iter()
+            .position(|h| h.path.contains("arxiv.org"));
+        if let Some(arxiv_pos) = first_arxiv_pos {
+            assert!(
+                openrouter_pos < arxiv_pos,
+                "relevant OpenRouter hit (pos {openrouter_pos}) should precede the \
+                 zero-term-overlap arXiv hit (pos {arxiv_pos}): {:?}",
+                report.hits
+            );
+        }
+    }
+
+    /// Task 8b: relevance reranking is not an arXiv ban — when arXiv's hits
+    /// genuinely match the query terms (an academic-shaped query), arXiv
+    /// should still lead the kept results.
+    #[tokio::test]
+    async fn rerank_by_relevance_lets_genuinely_relevant_arxiv_lead() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let query = "transformer attention scaling laws";
+
+        let arxiv_server = MockServer::start().await;
+        let arxiv_xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><feed xmlns=\"http://www.w3.org/2005/Atom\">\
+             <entry><id>http://arxiv.org/abs/2503.20020v1</id>\
+             <title>Scaling Laws for Transformer Attention</title>\
+             <summary>We study transformer attention scaling laws across model sizes.</summary></entry>\
+             </feed>";
+        Mock::given(method("GET"))
+            .and(path("/api/query"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(arxiv_xml))
+            .mount(&arxiv_server)
+            .await;
+
+        let searxng_server = MockServer::start().await;
+        let searxng_results = serde_json::json!([
+            {"url": "https://example.com/unrelated-1", "title": "Unrelated Page", "content": "nothing to do with the query", "engine": "duckduckgo", "score": 1.0},
+        ]);
+        Mock::given(method("GET"))
+            .and(path("/search"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({ "results": searxng_results })),
+            )
+            .mount(&searxng_server)
+            .await;
+
+        let policy = SearchPolicy {
+            enable_wikipedia: false,
+            enable_openalex: false,
+            enable_arxiv: true,
+            arxiv_api_url: Some(format!("{}/api/query", arxiv_server.uri())),
+            searxng_url: Some(searxng_server.uri()),
+            searxng_max_results: 5,
+            searxng_max_urls_to_scrape: 3,
+            tavily_enabled: false,
+            ..SearchPolicy::default()
+        };
+        let registry = crate::search_circuit_breaker::SearchProviderCircuitRegistry::new();
+
+        let report = WebSearchDispatcher::search_with_report_and_registry(
+            query,
+            ResearchLane::Deep,
+            &policy,
+            &registry,
+        )
+        .await;
+
+        assert!(
+            report
+                .hits
+                .first()
+                .is_some_and(|h| h.path.contains("arxiv.org")),
+            "genuinely relevant arXiv hit should lead when it matches the query: {:?}",
+            report.hits
+        );
     }
 
     /// D9 live diagnostic (Task 8 fix round 2, finding (c)): the live daemon's

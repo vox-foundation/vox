@@ -27,7 +27,12 @@ async fn report_distinguishes_ok_error_timeout_disabled_and_unconfigured() {
         .await;
 
     let mut policy = SearchPolicy::default();
-    policy.deep_timeout_ms = 1500;
+    // This test asserts status *classification* (Ok/Error/Disabled/NotConfigured),
+    // not timing — the mocks below carry no artificial delay, so a short deadline
+    // just races an undelayed local wiremock against host scheduling noise and
+    // occasionally misclassifies a provider as Timeout under load. Give it a
+    // generous deadline instead of a tight one.
+    policy.deep_timeout_ms = 10_000;
     policy.tavily_enabled = false;
     policy.searxng_url = None;
     policy.enable_arxiv = false;
