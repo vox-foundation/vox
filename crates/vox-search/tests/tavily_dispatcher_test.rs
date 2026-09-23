@@ -230,3 +230,28 @@ async fn thin_tavily_snippet_is_replaced_by_extract_content() {
         "search (1) + extract (1) both charged to the session budget"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn non_json_error_body_is_truncated_in_the_status_message() {
+    let mock = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/search"))
+        .respond_with(ResponseTemplate::new(502).set_body_string("<html>".repeat(2000)))
+        .mount(&mock)
+        .await;
+
+    let r = run(
+        &mock,
+        &SearchProviderCircuitRegistry::new(),
+        &TavilySessionBudget::new(10),
+    )
+    .await;
+
+    match tavily_status(&r) {
+        ProviderStatus::Error { message } => {
+            assert!(message.contains(":502:"), "{message}");
+            assert!(message.chars().count() < 350, "{} chars", message.len());
+        }
+        other => panic!("expected Error, got {other:?}"),
+    }
+}

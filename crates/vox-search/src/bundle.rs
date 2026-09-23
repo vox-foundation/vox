@@ -152,6 +152,15 @@ pub async fn run_search_with_verification(
                 || (policy.tavily_fire_on_weak && execution.evidence_quality < threshold);
 
             if tavily_should_fire {
+                // Client first: with no key there is nothing to spend credits on.
+                let Some(client) =
+                    crate::tavily::TavilyClient::from_env(policy.tavily_api_url.as_deref())
+                else {
+                    execution
+                        .warnings
+                        .push("tavily_triggered_but_missing_auth".to_string());
+                    return Ok((execution, diagnostics, plan));
+                };
                 // Every production caller passes `None`; fall back to the process-wide
                 // budget so `tavily_credit_budget_per_session` always binds (Task 15).
                 let b = budget.unwrap_or_else(|| {
@@ -167,89 +176,81 @@ pub async fn run_search_with_verification(
                         .push("tavily_budget_exhausted".to_string());
                     return Ok((execution, diagnostics, plan));
                 }
-                if let Some(client) =
-                    crate::tavily::TavilyClient::from_env(policy.tavily_api_url.as_deref())
+                match client
+                    .search(
+                        query,
+                        policy.tavily_max_results,
+                        &policy.tavily_search_depth,
+                    )
+                    .await
                 {
-                    match client
-                        .search(
-                            query,
-                            policy.tavily_max_results,
-                            &policy.tavily_search_depth,
-                        )
-                        .await
-                    {
-                        Ok(hits) => {
-                            let rem = b.remaining();
-                            diagnostics
-                                .notes
-                                .push(format!("tavily_credits_remaining={rem}"));
-                            if rem <= 20 {
-                                execution
-                                    .warnings
-                                    .push("Tavily session budget >=80% exhausted".to_string());
-                            }
-                            let mut t_lines = Vec::new();
-                            for h in &hits {
-                                t_lines.push(format!(
-                                    "[crag_tavily:{}] {} (score: {:.3})",
-                                    h.url,
-                                    h.content.replace('\n', " "),
-                                    h.score
-                                ));
+                    Ok(hits) => {
+                        let rem = b.remaining();
+                        diagnostics
+                            .notes
+                            .push(format!("tavily_credits_remaining={rem}"));
+                        if rem <= 20 {
+                            execution
+                                .warnings
+                                .push("Tavily session budget >=80% exhausted".to_string());
+                        }
+                        let mut t_lines = Vec::new();
+                        for h in &hits {
+                            t_lines.push(format!(
+                                "[crag_tavily:{}] {} (score: {:.3})",
+                                h.url,
+                                h.content.replace('\n', " "),
+                                h.score
+                            ));
 
-                                if let Some(db) = &ctx.db {
-                                    let url = h.url.clone();
-                                    let content = h.content.clone();
-                                    let title = h.title.clone();
-                                    let db_arc = db.clone();
-                                    tokio::spawn(async move {
-                                        let source_uri = format!("tavily:{}", url);
-                                        let _ = crate::ingest::persist_text_document_chunk(
-                                            db_arc.as_ref(),
-                                            &source_uri,
-                                            &title,
-                                            &content,
-                                            "text/plain",
-                                        )
-                                        .await;
-                                    });
-                                }
-                            }
-                            diagnostics
-                                .notes
-                                .push("crag_tavily_triggered=true".to_string());
-                            diagnostics
-                                .notes
-                                .push(format!("tavily_results_count={}", t_lines.len()));
-
-                            for h in &hits {
-                                let mut hasher = blake3::Hasher::new();
-                                hasher.update(b"a2a-search-token");
-                                hasher.update(h.url.as_bytes());
-                                let token = format!("a2a_{}", hasher.finalize().to_hex());
-                                execution.durable_artifacts.push(
-                                    crate::execution::DurableArtifact {
-                                        uri: format!("tavily:{}", h.url),
-                                        token: Some(token),
-                                        expires_at_unix_ms: None,
-                                        chunk_count: 1,
-                                    },
-                                );
-                            }
-
-                            execution.web_lines.extend(t_lines.iter().cloned());
-                            if policy.prefer_rrf_merge {
-                                execution.rrf_fused_lines.extend(t_lines);
+                            if let Some(db) = &ctx.db {
+                                let url = h.url.clone();
+                                let content = h.content.clone();
+                                let title = h.title.clone();
+                                let db_arc = db.clone();
+                                tokio::spawn(async move {
+                                    let source_uri = format!("tavily:{}", url);
+                                    let _ = crate::ingest::persist_text_document_chunk(
+                                        db_arc.as_ref(),
+                                        &source_uri,
+                                        &title,
+                                        &content,
+                                        "text/plain",
+                                    )
+                                    .await;
+                                });
                             }
                         }
-                        Err(e) => {
-                            execution.warnings.push(e);
+                        diagnostics
+                            .notes
+                            .push("crag_tavily_triggered=true".to_string());
+                        diagnostics
+                            .notes
+                            .push(format!("tavily_results_count={}", t_lines.len()));
+
+                        for h in &hits {
+                            let mut hasher = blake3::Hasher::new();
+                            hasher.update(b"a2a-search-token");
+                            hasher.update(h.url.as_bytes());
+                            let token = format!("a2a_{}", hasher.finalize().to_hex());
+                            execution
+                                .durable_artifacts
+                                .push(crate::execution::DurableArtifact {
+                                    uri: format!("tavily:{}", h.url),
+                                    token: Some(token),
+                                    expires_at_unix_ms: None,
+                                    chunk_count: 1,
+                                });
+                        }
+
+                        execution.web_lines.extend(t_lines.iter().cloned());
+                        if policy.prefer_rrf_merge {
+                            execution.rrf_fused_lines.extend(t_lines);
                         }
                     }
-                } else {
-                    execution
-                        .warnings
-                        .push("tavily_triggered_but_missing_auth".to_string());
+                    Err(e) => {
+                        execution.warnings.push(e);
+                    }
                 }
             }
         }

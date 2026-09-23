@@ -719,6 +719,7 @@ impl WebSearchDispatcher {
                 policy.searxng_max_urls_to_scrape,
                 client,
                 budget,
+                registry,
             )
             .await;
         }

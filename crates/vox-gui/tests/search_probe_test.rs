@@ -10,21 +10,37 @@ pub mod vox_gui {
 }
 
 use vox_gui::commands::search_probe::{
-    probe_all_search_providers, probe_all_search_providers_with_policy, probe_search_provider,
-    probe_search_provider_with_policy,
+    probe_all_search_providers_with_policy, probe_search_provider_with_policy,
 };
+use vox_search::tavily::TavilyClient;
+
+/// Endpoints unset, no Tavily client: these probes never read the vault or reach
+/// SearXNG / api.tavily.com, whatever the machine has configured.
+fn offline_policy() -> vox_search::policy::SearchPolicy {
+    vox_search::policy::SearchPolicy {
+        searxng_url: None,
+        tavily_api_url: None,
+        ..vox_search::policy::SearchPolicy::default()
+    }
+}
+
+async fn offline_probe(
+    provider: &str,
+    query: &str,
+) -> Result<vox_gui::commands::search_probe::ProviderProbeResult, String> {
+    probe_search_provider_with_policy(provider.into(), query.into(), offline_policy(), None).await
+}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_probe_search_provider_rejects_empty_query() {
-    let result = probe_search_provider("duckduckgo".to_string(), "  ".to_string()).await;
+    let result = offline_probe("duckduckgo", "  ").await;
     assert!(result.is_err(), "Empty query must return Err");
     assert_eq!(result.err().unwrap(), "Query cannot be empty");
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_probe_search_provider_rejects_overlong_query() {
-    let long_query = "a".repeat(1001);
-    let result = probe_search_provider("duckduckgo".to_string(), long_query).await;
+    let result = offline_probe("duckduckgo", &"a".repeat(1001)).await;
     assert!(result.is_err(), "Overlong query must return Err");
     assert_eq!(
         result.err().unwrap(),
@@ -34,29 +50,14 @@ async fn test_probe_search_provider_rejects_overlong_query() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_probe_search_provider_rejects_unknown_provider() {
-    let result =
-        probe_search_provider("nonexistent_search_engine".to_string(), "test".to_string()).await;
+    let result = offline_probe("nonexistent_search_engine", "test").await;
     assert!(result.is_err(), "Unknown provider must return Err");
     assert!(result.err().unwrap().contains("Unknown provider"));
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_probe_unconfigured_searxng_returns_remediation() {
-    let prev = std::env::var("VOX_SEARCH_SEARXNG_URL").ok();
-    unsafe {
-        std::env::remove_var("VOX_SEARCH_SEARXNG_URL");
-    }
-    let result = probe_search_provider("searxng".to_string(), "rust".to_string()).await;
-    if let Some(val) = prev {
-        unsafe {
-            std::env::set_var("VOX_SEARCH_SEARXNG_URL", val);
-        }
-    }
-    assert!(
-        result.is_ok(),
-        "Unconfigured SearXNG should return Ok(ProviderProbeResult)"
-    );
-    let probe = result.unwrap();
+    let probe = offline_probe("searxng", "rust").await.unwrap();
     assert_eq!(probe.provider, "searxng");
     assert_eq!(probe.http_status, 0);
     assert!(!probe.success);
@@ -72,21 +73,7 @@ async fn test_probe_unconfigured_searxng_returns_remediation() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_probe_unconfigured_tavily_returns_remediation() {
-    let prev = std::env::var("TAVILY_API_KEY").ok();
-    unsafe {
-        std::env::remove_var("TAVILY_API_KEY");
-    }
-    let result = probe_search_provider("tavily".to_string(), "rust".to_string()).await;
-    if let Some(val) = prev {
-        unsafe {
-            std::env::set_var("TAVILY_API_KEY", val);
-        }
-    }
-    assert!(
-        result.is_ok(),
-        "Unconfigured Tavily should return Ok(ProviderProbeResult)"
-    );
-    let probe = result.unwrap();
+    let probe = offline_probe("tavily", "rust").await.unwrap();
     assert_eq!(probe.provider, "tavily");
     assert_eq!(probe.http_status, 0);
     assert!(!probe.success);
@@ -165,6 +152,7 @@ impl MockSearchCluster {
 
         let tavily = MockServer::start().await;
         Mock::given(method("POST"))
+            .and(path("/search"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
                 "results": [
                     {
@@ -200,6 +188,10 @@ impl MockSearchCluster {
         }
     }
 
+    fn tavily_client(&self) -> TavilyClient {
+        TavilyClient::new("tvly-test", Some(&self.tavily.uri())).expect("client")
+    }
+
     fn policy(&self) -> vox_search::policy::SearchPolicy {
         let mut policy = vox_search::policy::SearchPolicy::default();
         policy.wikipedia_api_url = Some(format!("{}/w/api.php", self.wikipedia.uri()));
@@ -218,6 +210,7 @@ async fn test_probe_wikipedia_search_returns_result_shape() {
         "wikipedia".to_string(),
         "Rust programming".to_string(),
         cluster.policy(),
+        None,
     )
     .await;
     assert!(
@@ -235,8 +228,12 @@ async fn test_probe_wikipedia_search_returns_result_shape() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_probe_all_search_providers_returns_batch_results() {
     let cluster = MockSearchCluster::start().await;
-    let result =
-        probe_all_search_providers_with_policy("Rust language".to_string(), cluster.policy()).await;
+    let result = probe_all_search_providers_with_policy(
+        "Rust language".to_string(),
+        cluster.policy(),
+        Some(cluster.tavily_client()),
+    )
+    .await;
     assert!(
         result.is_ok(),
         "Probe all should succeed with Ok results vector"
@@ -254,6 +251,10 @@ async fn test_probe_all_search_providers_returns_batch_results() {
     assert!(oa.success, "oa failed: {:?}", oa.error_message);
     let ax = probes.iter().find(|p| p.provider == "arxiv").unwrap();
     assert!(ax.success, "ax failed: {:?}", ax.error_message);
+    // The Tavily row is a real HTTP call (to the mock), not an echo of configuration.
+    let tv = probes.iter().find(|p| p.provider == "tavily").unwrap();
+    assert!(tv.success, "tavily failed: {:?}", tv.error_message);
+    assert_eq!(tv.sample_titles, vec!["Rust Documentation".to_string()]);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -279,7 +280,8 @@ async fn test_get_research_engine_status_payload() {
 async fn test_probe_openalex_and_arxiv_accepted() {
     let cluster = MockSearchCluster::start().await;
     let res_oa =
-        probe_search_provider_with_policy("openalex".into(), "rust".into(), cluster.policy()).await;
+        probe_search_provider_with_policy("openalex".into(), "rust".into(), cluster.policy(), None)
+            .await;
     assert!(res_oa.is_ok());
     let probe_oa = res_oa.unwrap();
     assert!(
@@ -290,7 +292,8 @@ async fn test_probe_openalex_and_arxiv_accepted() {
     assert_eq!(probe_oa.http_status, 200);
 
     let res_ax =
-        probe_search_provider_with_policy("arxiv".into(), "rust".into(), cluster.policy()).await;
+        probe_search_provider_with_policy("arxiv".into(), "rust".into(), cluster.policy(), None)
+            .await;
     assert!(res_ax.is_ok());
     let probe_ax = res_ax.unwrap();
     assert!(

@@ -385,13 +385,28 @@ pub async fn probe_search_provider(
             policy.tavily_api_url = Some(u);
         }
     }
-    probe_search_provider_with_policy(provider, query, policy).await
+    let tavily = tavily_client_from_vault(&policy).await;
+    probe_search_provider_with_policy(provider, query, policy, tavily).await
 }
 
+/// The Tavily client the Tauri commands probe with: Clavis key + `tavily_api_url`.
+/// Only the commands call this; tests inject a client (or `None`) so a probe test can
+/// never spend a real credit, whatever the vault holds.
+async fn tavily_client_from_vault(policy: &SearchPolicy) -> Option<TavilyClient> {
+    let base = policy.tavily_api_url.clone();
+    tokio::task::spawn_blocking(move || TavilyClient::from_env(base.as_deref()))
+        .await
+        .ok()
+        .flatten()
+}
+
+/// Probe one provider. Every endpoint comes from `policy`, and the Tavily client is
+/// injected (`None` = unkeyed), so nothing here reads secrets.
 pub async fn probe_search_provider_with_policy(
     provider: String,
     query: String,
     policy: SearchPolicy,
+    tavily: Option<TavilyClient>,
 ) -> Result<ProviderProbeResult, String> {
     let start = std::time::Instant::now();
     let q = query.trim();
@@ -458,13 +473,7 @@ pub async fn probe_search_provider_with_policy(
         "tavily" => {
             // Same client and endpoint override (`tavily_api_url`) the dispatcher uses, so a
             // green row here means the dispatcher's Tavily leg can really authenticate.
-            let base = policy.tavily_api_url.clone();
-            let client =
-                tokio::task::spawn_blocking(move || TavilyClient::from_env(base.as_deref()))
-                    .await
-                    .ok()
-                    .flatten();
-            let Some(client) = client else {
+            let Some(client) = tavily else {
                 return Ok(ProviderProbeResult {
                     provider,
                     http_status: 0,
@@ -631,19 +640,24 @@ pub async fn probe_all_search_providers(query: String) -> Result<Vec<ProviderPro
             policy.tavily_api_url = Some(u);
         }
     }
-    probe_all_search_providers_with_policy(query, policy).await
+    let tavily = tavily_client_from_vault(&policy).await;
+    probe_all_search_providers_with_policy(query, policy, tavily).await
 }
 
 pub async fn probe_all_search_providers_with_policy(
     query: String,
     policy: SearchPolicy,
+    tavily: Option<TavilyClient>,
 ) -> Result<Vec<ProviderProbeResult>, String> {
+    let probe = |name: &str, t: Option<TavilyClient>| {
+        probe_search_provider_with_policy(name.to_string(), query.clone(), policy.clone(), t)
+    };
     let (searxng, tavily, openalex, arxiv, wikipedia) = tokio::join!(
-        probe_search_provider_with_policy("searxng".to_string(), query.clone(), policy.clone()),
-        probe_search_provider_with_policy("tavily".to_string(), query.clone(), policy.clone()),
-        probe_search_provider_with_policy("openalex".to_string(), query.clone(), policy.clone()),
-        probe_search_provider_with_policy("arxiv".to_string(), query.clone(), policy.clone()),
-        probe_search_provider_with_policy("wikipedia".to_string(), query, policy),
+        probe("searxng", None),
+        probe("tavily", tavily),
+        probe("openalex", None),
+        probe("arxiv", None),
+        probe("wikipedia", None),
     );
     Ok(vec![searxng?, tavily?, openalex?, arxiv?, wikipedia?])
 }
@@ -652,17 +666,31 @@ pub async fn probe_all_search_providers_with_policy(
 mod tests {
     use super::*;
 
+    /// Every endpoint unset and no Tavily client: nothing in these tests reads the vault
+    /// or reaches SearXNG / api.tavily.com, whatever the machine has configured.
+    fn offline_policy() -> SearchPolicy {
+        SearchPolicy {
+            searxng_url: None,
+            tavily_api_url: None,
+            ..SearchPolicy::default()
+        }
+    }
+
+    async fn probe(provider: &str, query: &str) -> Result<ProviderProbeResult, String> {
+        probe_search_provider_with_policy(provider.into(), query.into(), offline_policy(), None)
+            .await
+    }
+
     #[tokio::test]
     async fn test_empty_query_rejected() {
-        let res = probe_search_provider("duckduckgo".to_string(), " ".to_string()).await;
+        let res = probe("duckduckgo", " ").await;
         assert!(res.is_err());
         assert_eq!(res.err().unwrap(), "Query cannot be empty");
     }
 
     #[tokio::test]
     async fn test_overlong_query_rejected() {
-        let long_query = "a".repeat(1001);
-        let res = probe_search_provider("duckduckgo".to_string(), long_query).await;
+        let res = probe("duckduckgo", &"a".repeat(1001)).await;
         assert!(res.is_err());
         assert_eq!(
             res.err().unwrap(),
@@ -672,31 +700,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_unknown_provider_rejected() {
-        let res = probe_search_provider("unknown_provider".to_string(), "test".to_string()).await;
+        let res = probe("unknown_provider", "test").await;
         assert!(res.is_err());
         assert!(res.err().unwrap().contains("Unknown provider"));
     }
 
     #[tokio::test]
     async fn test_whitespace_padded_provider_accepted() {
-        let res = probe_search_provider("  duckduckgo  ".to_string(), "test".to_string()).await;
+        // `searxng` with no URL answers locally, so the padding check needs no network.
+        let res = probe("  searxng  ", "test").await;
         assert!(res.is_ok());
     }
 
     #[tokio::test]
     async fn test_unconfigured_searxng_returns_helpful_remediation() {
-        let prev = std::env::var("VOX_SEARCH_SEARXNG_URL").ok();
-        unsafe {
-            std::env::remove_var("VOX_SEARCH_SEARXNG_URL");
-        }
-        let res = probe_search_provider("searxng".to_string(), "rust".to_string()).await;
-        if let Some(val) = prev {
-            unsafe {
-                std::env::set_var("VOX_SEARCH_SEARXNG_URL", val);
-            }
-        }
-        assert!(res.is_ok());
-        let probe = res.unwrap();
+        let probe = probe("searxng", "rust").await.unwrap();
         assert_eq!(probe.provider, "searxng");
         assert_eq!(probe.http_status, 0);
         assert!(!probe.success);
@@ -716,18 +734,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_unconfigured_tavily_returns_helpful_remediation() {
-        let prev = std::env::var("TAVILY_API_KEY").ok();
-        unsafe {
-            std::env::remove_var("TAVILY_API_KEY");
-        }
-        let res = probe_search_provider("tavily".to_string(), "rust".to_string()).await;
-        if let Some(val) = prev {
-            unsafe {
-                std::env::set_var("TAVILY_API_KEY", val);
-            }
-        }
-        assert!(res.is_ok());
-        let probe = res.unwrap();
+        let probe = probe("tavily", "rust").await.unwrap();
         assert_eq!(probe.provider, "tavily");
         assert_eq!(probe.http_status, 0);
         assert!(!probe.success);
@@ -742,14 +749,23 @@ mod tests {
 
     #[tokio::test]
     async fn test_probe_all_search_providers_returns_all_results() {
-        let res = probe_all_search_providers("Rust".to_string()).await;
-        assert!(res.is_ok());
-        let probes = res.unwrap();
-        assert_eq!(probes.len(), 5);
+        // Discard port: the keyless providers fail fast locally instead of reaching the web.
+        let dead = "http://127.0.0.1:9".to_string();
+        let policy = SearchPolicy {
+            wikipedia_api_url: Some(dead.clone()),
+            openalex_api_url: Some(dead.clone()),
+            arxiv_api_url: Some(dead),
+            ..offline_policy()
+        };
+        let probes = probe_all_search_providers_with_policy("Rust".to_string(), policy, None)
+            .await
+            .unwrap();
         let providers: Vec<_> = probes.iter().map(|p| p.provider.as_str()).collect();
         assert_eq!(
             providers,
             vec!["searxng", "tavily", "openalex", "arxiv", "wikipedia"]
         );
+        let tavily = &probes[1];
+        assert!(!tavily.success && tavily.http_status == 0, "{tavily:?}");
     }
 }

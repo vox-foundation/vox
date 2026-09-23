@@ -224,7 +224,8 @@ pub(super) async fn gather_web_hits_for_plan(
     // Resolve trust-scored ResearchHits concurrently (bounded, order-preserving),
     // then apply the seen_urls/novelty logic sequentially below — that part is
     // cheap synchronous stateful work and doesn't benefit from concurrency.
-    let tavily_rows = vox_search::tavily_research::try_tavily_research_hits(&query.query).await;
+    let tavily_rows =
+        vox_search::tavily_research::try_tavily_research_hits(&query.query, policy).await;
     let tavily_hits: Vec<ResearchHit> = {
         use futures::stream::{self, StreamExt};
         stream::iter(tavily_rows)

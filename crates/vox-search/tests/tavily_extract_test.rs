@@ -1,6 +1,7 @@
 //! Wiremock stub for Tavily `/extract` uplift (`tavily_extract`).
 
 use vox_search::policy::SearchPolicy;
+use vox_search::search_circuit_breaker::{SearchProviderCircuitRegistry, SearchProviderId};
 use vox_search::tavily::{TavilyClient, TavilySessionBudget};
 use vox_search::tavily_extract::{snippet_quality_low, uplift_low_quality_snippets};
 use vox_search::web_dispatcher::WebSearchDispatcher;
@@ -62,17 +63,94 @@ async fn extract_uplift_replaces_thin_snippet_content() {
         url: "https://example.test/thin".to_string(),
         title: "Thin page".to_string(),
         content: "short".to_string(),
-        engine: Some("google".to_string()),
+        engine: Some("tavily".to_string()),
         score: Some(0.7),
     }];
     assert!(snippet_quality_low(&rows[0].content));
 
     let client = TavilyClient::new("test-key", Some(&tavily.uri())).expect("client");
     let budget = TavilySessionBudget::new(5);
-    uplift_low_quality_snippets(&mut rows, 3, &client, &budget).await;
-    assert_eq!(rows[0].engine.as_deref(), Some("google+tavily_extract"));
+    uplift_low_quality_snippets(
+        &mut rows,
+        3,
+        &client,
+        &budget,
+        &SearchProviderCircuitRegistry::new(),
+    )
+    .await;
+    assert_eq!(rows[0].engine.as_deref(), Some("tavily+tavily_extract"));
     assert_eq!(budget.usage_and_remaining(), (1, 4));
     assert!(!snippet_quality_low(&rows[0].content));
+}
+
+fn thin_row(url: &str, engine: &str) -> vox_search::searxng::SearxngResult {
+    vox_search::searxng::SearxngResult {
+        url: url.to_string(),
+        title: "Thin".to_string(),
+        content: "short".to_string(),
+        engine: Some(engine.to_string()),
+        score: Some(0.7),
+    }
+}
+
+#[tokio::test]
+async fn extract_uplift_never_spends_credits_on_non_tavily_rows() {
+    let tavily = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/extract"))
+        .respond_with(ResponseTemplate::new(500))
+        .expect(0)
+        .mount(&tavily)
+        .await;
+    let mut rows = [
+        thin_row("https://en.wikipedia.org/wiki/X", "wikipedia"),
+        thin_row("https://arxiv.org/abs/1", "arxiv"),
+        thin_row("https://example.test/s", "bing"),
+    ];
+    let client = TavilyClient::new("test-key", Some(&tavily.uri())).expect("client");
+    let budget = TavilySessionBudget::new(5);
+    uplift_low_quality_snippets(
+        &mut rows,
+        3,
+        &client,
+        &budget,
+        &SearchProviderCircuitRegistry::new(),
+    )
+    .await;
+    assert_eq!(budget.usage_and_remaining(), (0, 5));
+    assert!(rows.iter().all(|r| r.content == "short"));
+}
+
+#[tokio::test]
+async fn extract_429_arms_the_tavily_rate_limit_cooldown() {
+    let tavily = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/extract"))
+        .respond_with(ResponseTemplate::new(429).set_body_json(serde_json::json!({
+            "detail": {"error": "Too many requests"}
+        })))
+        .expect(1)
+        .mount(&tavily)
+        .await;
+    let mut rows = [thin_row("https://example.test/t", "tavily")];
+    let client = TavilyClient::new("test-key", Some(&tavily.uri())).expect("client");
+    let registry = SearchProviderCircuitRegistry::new();
+    uplift_low_quality_snippets(
+        &mut rows,
+        3,
+        &client,
+        &TavilySessionBudget::new(5),
+        &registry,
+    )
+    .await;
+    let cooldown = registry
+        .cooldown_remaining(SearchProviderId::Tavily)
+        .expect("breaker armed by extract failure");
+    assert!(
+        cooldown > std::time::Duration::from_secs(60),
+        "{cooldown:?}"
+    );
+    assert_eq!(rows[0].content, "short", "fail-open: row left as is");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

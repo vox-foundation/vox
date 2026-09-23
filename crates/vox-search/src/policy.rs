@@ -115,7 +115,8 @@ pub struct SearchPolicy {
     pub tantivy_index_root: Option<std::path::PathBuf>,
     /// Enable reciprocal rank fusion across corpus hit lists (`VOX_SEARCH_PREFER_RRF`).
     pub prefer_rrf_merge: bool,
-    /// Master switch for live web retrieval.
+    /// Tavily master switch. `false` in `Default`; `from_env` enables it when a key is
+    /// present unless `VOX_SEARCH_TAVILY_ENABLED` says otherwise.
     pub tavily_enabled: bool,
     /// API depth: basic or advanced.
     pub tavily_search_depth: String,
@@ -127,7 +128,8 @@ pub struct SearchPolicy {
     pub tavily_fire_on_weak: bool,
     /// Max credits per session (safety rail).
     pub tavily_credit_budget_per_session: usize,
-    /// SearXNG base URL (`None` disables Tier 2).
+    /// SearXNG base URL (`None` disables Tier 2). `None` in `Default`; `from_env`
+    /// resolves `VOX_SEARCH_SEARXNG_URL`.
     pub searxng_url: Option<String>,
     /// Max search results to request from SearXNG/DDG.
     pub searxng_max_results: usize,
@@ -265,15 +267,11 @@ impl Default for SearchPolicy {
             prefer_rrf_merge: parse_prefer_rrf_merge(
                 vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPreferRrf).expose(),
             ),
-            tavily_enabled: {
-                let key = vox_secrets::resolve_secret(vox_secrets::SecretId::TavilyApiKey);
-                let override_val =
-                    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyEnabled);
-                crate::tavily_research::tavily_research_enabled_with_values(
-                    key.expose(),
-                    override_val.expose(),
-                )
-            },
+            // Network providers that spend credits or reach the operator's instance are
+            // off in `Default` and resolved from Clavis only in `from_env` (Task 15 fix
+            // round 1): a test built on `SearchPolicy::default()` must never reach
+            // api.tavily.com or the local SearXNG because of what the vault holds.
+            tavily_enabled: false,
             tavily_search_depth: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchTavilyDepth,
             )
@@ -307,10 +305,7 @@ impl Default for SearchPolicy {
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(50),
-            searxng_url: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngUrl)
-                .expose()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| s.to_string()),
+            searxng_url: None,
             // NOTE (D9, Task 8 fix round 2 diagnosis): raising this alone does NOT
             // fix arXiv dominating the fused top-N (tried 10, still 100% arXiv —
             // see the fix-round-2 report). At `rrf_k=60`, arXiv's 1.20 authority
@@ -450,6 +445,10 @@ impl SearchPolicy {
                 p.repo_inventory_skip_dirs = dirs;
             }
         }
+        p.searxng_url = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngUrl)
+            .expose()
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.to_string());
         {
             let key = vox_secrets::resolve_secret(vox_secrets::SecretId::TavilyApiKey);
             let override_val =
@@ -797,6 +796,15 @@ mod tests {
         assert!(!parse_prefer_rrf_merge(Some("no")));
         assert!(!parse_prefer_rrf_merge(Some("off")));
         assert!(!parse_prefer_rrf_merge(Some("anything_else")));
+    }
+
+    #[test]
+    fn default_policy_never_enables_vault_backed_network_providers() {
+        // Holds whatever the machine's Clavis vault contains: only `from_env` may turn
+        // Tavily or SearXNG on, so tests built on `Default` cannot spend or reach them.
+        let d = SearchPolicy::default();
+        assert!(!d.tavily_enabled);
+        assert_eq!(d.searxng_url, None);
     }
 
     #[test]

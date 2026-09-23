@@ -8,6 +8,20 @@ schema_version: 1
 # erroring, so this was returning zero DuckDuckGo results for every query).
 # Live-probed against a real SearXNG instance: `engines=ddg` -> 0 results;
 # `engines=duckduckgo` -> real, on-topic results.
-engines: "google,bing,duckduckgo"
+# Task 15 fix round 1 (2026-09-23): the old default "google,bing,duckduckgo" was
+# poisoning retrieval. Live-probed on the local instance with 3 queries ("latest Gemini
+# Flash model OpenRouter released", "rust borrow checker lifetimes explained",
+# "SearXNG vs Tavily agent web search"); relevant = top-5 title/url contains the key term:
+#   brave      25/23/23 results, relevant 4/5/3 (openrouter gemini-3.8-flash #3); but
+#              suspends itself ("too many requests") under a burst of probes.
+#   yahoo      7/7/7, relevant 5/5/5 (openrouter.ai/google/gemini-3.8-flash in top 5).
+#   yep        20/20/20, relevant 4/5/3.
+#   bing       10/10/10, relevant 0/5/5 — returns news homepages (foxnews, cnn,
+#              apnews) for the Gemini query and outranks brave when mixed. Dropped.
+#   google, duckduckgo, qwant: 0 results, unresponsive (CAPTCHA) on every query. Dropped.
+#   mojeek, startpage: not configured on this instance (SearXNG silently fell back
+#              to its own defaults), so not usable ids here.
+# "brave,yahoo,yep" keeps relevant results even while brave is rate-limited.
+engines: "brave,yahoo,yep"
 # ISO-like language tag for the `language=` parameter.
 language: "en"

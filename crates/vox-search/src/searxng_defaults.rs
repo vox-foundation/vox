@@ -22,9 +22,9 @@ pub(crate) struct SearxngQueryDefaults {
 }
 
 fn default_engines() -> String {
-    // D9 (Task 8 fix round 2): "ddg" is not a valid SearXNG engine id — see the
-    // matching comment in `contracts/scientia/searxng-query.defaults.v1.yaml`.
-    "google,bing,duckduckgo".to_string()
+    // Live-probed 2026-09-23 (Task 15 fix round 1) — see the matching comment in
+    // `contracts/scientia/searxng-query.defaults.v1.yaml`.
+    "brave,yahoo,yep".to_string()
 }
 
 fn default_language() -> String {
@@ -56,7 +56,12 @@ mod tests {
     fn embedded_yaml_baseline() {
         let d = embedded_searxng_query_defaults();
         assert!(d.schema_version >= 1);
-        assert_eq!(d.engines, "google,bing,duckduckgo");
+        assert_eq!(d.engines, "brave,yahoo,yep");
+        assert_eq!(
+            d.engines,
+            default_engines(),
+            "YAML and serde fallback agree"
+        );
         assert_eq!(d.language, "en");
     }
 }

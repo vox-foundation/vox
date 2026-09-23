@@ -64,6 +64,7 @@ impl TavilyClient {
         let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
             // Keep Tavily's own `detail.error` text; it is what tells the operator what to fix.
+            // A non-JSON body (proxy HTML page, …) is capped so it cannot flood the trace.
             let detail = serde_json::from_str::<serde_json::Value>(&text)
                 .ok()
                 .and_then(|v| {
@@ -71,7 +72,7 @@ impl TavilyClient {
                         .and_then(|d| d.as_str())
                         .map(str::to_string)
                 })
-                .unwrap_or(text);
+                .unwrap_or_else(|| truncate_chars(&text, ERROR_DETAIL_MAX_CHARS));
             return Err(format!(
                 "tavily_{endpoint}_status:{}:{detail}",
                 status.as_u16()
@@ -142,6 +143,16 @@ fn str_field(v: &serde_json::Value, key: &str) -> String {
         .to_string()
 }
 
+/// Longest provider error detail kept in a status message.
+pub(crate) const ERROR_DETAIL_MAX_CHARS: usize = 300;
+
+pub(crate) fn truncate_chars(s: &str, max: usize) -> String {
+    match s.char_indices().nth(max) {
+        Some((i, _)) => format!("{}…", &s[..i]),
+        None => s.to_string(),
+    }
+}
+
 /// Credits one `/search` call costs (Tavily pricing: advanced = 2, every other depth = 1).
 #[must_use]
 pub fn search_credit_cost(depth: &str) -> usize {
@@ -178,6 +189,13 @@ mod tests {
         assert_eq!(search_credit_cost("basic"), 1);
         assert_eq!(search_credit_cost("advanced"), 2);
         assert_eq!(search_credit_cost("fast"), 1);
+    }
+
+    #[test]
+    fn truncate_chars_caps_on_a_char_boundary() {
+        assert_eq!(truncate_chars("abc", 5), "abc");
+        assert_eq!(truncate_chars("ééééé", 2), "éé…");
+        assert_eq!(truncate_chars(&"x".repeat(1000), 300).chars().count(), 301);
     }
 
     #[test]
