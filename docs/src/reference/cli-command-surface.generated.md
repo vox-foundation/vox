@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 319
+**schema_version:** `1` · **vox-cli operations:** 321
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -200,6 +200,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox login` | active | — | ars | platform | — |
 | `vox logout` | active | — | ars | platform | — |
 | `vox lsp` | active | — | fabrica | app | — |
+| `vox mcp` | active | mcp-server | — | platform | — |
 | `vox memory search` | active | — | codex | ai | — |
 | `vox mens` | active | mens-base|gpu | mens | ai | — |
 | `vox mens bench-completion` | active | mens-base | mens | ai | — |
@@ -330,6 +331,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox skill` | active | ars | ars | interop | — |
 | `vox snippet` | active | — | ars | interop | — |
 | `vox speech` | active | oratio | fabrica | ai | speech |
+| `vox stop` | active | dei | — | platform | — |
 | `vox stub-check` | active | stub-check | diag | platform | — |
 | `vox sync` | active | — | pm | platform | — |
 | `vox telemetry` | active | — | ci | platform | — |

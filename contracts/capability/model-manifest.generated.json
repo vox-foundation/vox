@@ -4989,6 +4989,16 @@
       "curated": true
     },
     {
+      "capability_id": "cli.mcp",
+      "cli_path": [
+        "mcp"
+      ],
+      "implicit": false,
+      "title": "Mcp",
+      "description_model": "CLI operation `vox mcp` (start the native in-process MCP server)",
+      "curated": true
+    },
+    {
       "capability_id": "cli.memory.search",
       "cli_path": [
         "memory",
@@ -6427,6 +6437,16 @@
       "implicit": false,
       "title": "Speech",
       "description_model": "CLI operation `vox speech` (alias `oratio`)",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.stop",
+      "cli_path": [
+        "stop"
+      ],
+      "implicit": false,
+      "title": "Stop",
+      "description_model": "CLI operation `vox stop` (emergency stop the orchestrator via MCP/daemon local stop request)",
       "curated": true
     },
     {

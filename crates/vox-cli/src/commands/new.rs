@@ -5,7 +5,8 @@ use clap::Subcommand;
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum NewCmd {
-    /// Scaffold a production-ready TanStack Start web application
+    /// Scaffold a Vox project (`Vox.toml` + `src/main.vox`) for a TanStack
+    /// Start web app; run `vox build` to generate the TanStack Start project.
     Web {
         /// Project / directory name
         name: Option<String>,
@@ -87,4 +88,26 @@ fn run_fn_scaffold(
         target.display()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Subcommand;
+
+    /// `vox new web` only writes `Vox.toml` + `src/main.vox` (see `NewCmd::Web`'s
+    /// dispatch to `init::run`, which prints exactly those two "Created" lines) —
+    /// the help text must not claim it scaffolds a full TanStack Start app.
+    #[test]
+    fn web_help_does_not_overclaim_tanstack_scaffold() {
+        let cmd = NewCmd::augment_subcommands(clap::Command::new("new"));
+        let web = cmd
+            .find_subcommand("web")
+            .expect("`new web` subcommand must exist");
+        let about = web.get_about().map(|s| s.to_string()).unwrap_or_default();
+        assert!(
+            !about.contains("production-ready TanStack Start web application"),
+            "`vox new web` only writes Vox.toml + src/main.vox; help text overclaims: {about}"
+        );
+    }
 }

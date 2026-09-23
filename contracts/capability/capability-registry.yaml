@@ -3156,6 +3156,23 @@ curated:
   cli_path:
   - lsp
   parameters: null
+- id: cli.mcp
+  title: Mcp
+  description_human: null
+  description_model: CLI operation `vox mcp` (start the native in-process MCP server)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - mcp
+  parameters: null
 - id: cli.memory.search
   title: Memory Search
   description_human: Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).
@@ -5481,6 +5498,23 @@ curated:
   mcp_tool: null
   cli_path:
   - speech
+  parameters: null
+- id: cli.stop
+  title: Stop
+  description_human: null
+  description_model: CLI operation `vox stop` (emergency stop the orchestrator via MCP/daemon local stop request)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - stop
   parameters: null
 - id: cli.stub-check
   title: Stub-check

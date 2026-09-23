@@ -231,6 +231,24 @@ fn main() {
         }
         if p.default_source.is_empty() {
             errors.push(format!("plugin '{}' has empty default-source", p.id));
+        } else if let Some(rel) = p.default_source.strip_prefix("local:") {
+            // build.rs runs with CWD = the crate dir (crates/vox-plugin-catalog).
+            if !std::path::Path::new("../..").join(rel).exists() {
+                errors.push(format!(
+                    "plugin '{}' default-source 'local:{}' does not resolve: crates/../{} does not exist",
+                    p.id, rel, rel
+                ));
+            }
+        } else if p.default_source.starts_with("github:")
+            && p.default_source != "github:vox-foundation/vox"
+        {
+            // The vox-foundation org only owns `vox` and `homebrew-vox` — no
+            // per-plugin repos exist. A `github:` default-source other than
+            // the first-party release-asset repo can never be installed.
+            errors.push(format!(
+                "plugin '{}' default-source '{}' is not installable: vox-foundation has no such repo; use a local: path to the in-tree crate instead",
+                p.id, p.default_source
+            ));
         }
     }
 

@@ -65,14 +65,14 @@ pub async fn run_train(
     optimizer_experiment_mode: vox_populi::mens::OptimizerExperimentMode,
     data_mode: TrainDataModeCli,
     fast_corpus: bool,
-    persistent: bool,
+    #[cfg_attr(not(feature = "cloud"), allow(unused_variables))] persistent: bool,
 ) -> anyhow::Result<()> {
     if cloud != "local" {
         #[cfg(feature = "cloud")]
         {
             use vox_populi::mens::cloud::{
-                CloudJobSpec, CloudOrchestrationOutcome, CloudResolver, EvalGateOutcome,
-                TrainingManifest, check_spend_gate, post_training_flow,
+                CloudJobSpec, CloudOrchestrationOutcome, CloudResolver, TrainingManifest,
+                check_spend_gate, post_training_flow,
             };
             use vox_populi::mens::tensor::domain_router::DomainRouter;
 
@@ -381,8 +381,8 @@ pub async fn run_train(
     // VRAM-aware budget > preset fallback (applied in gpu.rs). `None` means
     // "not yet set"; each stage fills only what an earlier stage left unset.
     let mut effective_seq_len: Option<usize> = seq_len;
-    let mut effective_batch_size: Option<usize> = batch_size;
-    let mut effective_grad_accum: Option<usize> = grad_accum;
+    let effective_batch_size: Option<usize> = batch_size;
+    let effective_grad_accum: Option<usize> = grad_accum;
     // Never silently swapped for a smaller model by the VRAM budget below —
     // see `never_retreat_the_named_model`.
     let mut effective_model = model;
@@ -571,28 +571,28 @@ pub async fn run_train(
     )
     .await;
 
-    if train_res.is_ok() {
-        if let Some(ref r) = workspace_root {
-            let mixed = r.join("target/dogfood/train_mixed.jsonl");
-            let backup = r.join("mens/data/train_full_backup.jsonl");
-            if mixed.exists() {
-                if let Some(parent) = backup.parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                }
-                if let Err(e) = std::fs::copy(&mixed, &backup) {
-                    use owo_colors::OwoColorize;
-                    eprintln!(
-                        "  {} Failed to copy train_mixed.jsonl to backup: {e}",
-                        "⚠️".yellow()
-                    );
-                } else {
-                    use owo_colors::OwoColorize;
-                    eprintln!(
-                        "  {} Backed up running corpus to {}",
-                        "✓".green(),
-                        backup.display()
-                    );
-                }
+    if train_res.is_ok()
+        && let Some(ref r) = workspace_root
+    {
+        let mixed = r.join("target/dogfood/train_mixed.jsonl");
+        let backup = r.join("mens/data/train_full_backup.jsonl");
+        if mixed.exists() {
+            if let Some(parent) = backup.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Err(e) = std::fs::copy(&mixed, &backup) {
+                use owo_colors::OwoColorize;
+                eprintln!(
+                    "  {} Failed to copy train_mixed.jsonl to backup: {e}",
+                    "⚠️".yellow()
+                );
+            } else {
+                use owo_colors::OwoColorize;
+                eprintln!(
+                    "  {} Backed up running corpus to {}",
+                    "✓".green(),
+                    backup.display()
+                );
             }
         }
     }
@@ -705,18 +705,15 @@ fn derive_quantization_for_base(
         .and_then(|d| EffectiveDomainProfile::load_domain_profile(d, Some(root)).ok())
         .and_then(|e| e.base.as_ref().map(|b| b.model.clone()));
 
-    if let Some(tag) = tag {
-        if let Ok(overlay) = load_overlay(root) {
-            if let Ok(base) = pick_base(&overlay, &tag, vram_mb) {
-                // The resolved id must match the picked base for the method to apply.
-                if base.hf_id == resolved_hf_id {
-                    // Un-quantized rung advertises "lora" / "full_lora"; otherwise qlora.
-                    if base.methods.iter().any(|m| m == "lora" || m == "full_lora") {
-                        return "lora".to_string();
-                    }
-                }
-            }
-        }
+    // The resolved id must match the picked base for the method to apply; an
+    // un-quantized rung advertises "lora" / "full_lora", otherwise qlora.
+    if let Some(tag) = tag
+        && let Ok(overlay) = load_overlay(root)
+        && let Ok(base) = pick_base(&overlay, &tag, vram_mb)
+        && base.hf_id == resolved_hf_id
+        && base.methods.iter().any(|m| m == "lora" || m == "full_lora")
+    {
+        return "lora".to_string();
     }
     "qlora".to_string()
 }
@@ -775,8 +772,8 @@ fn corpus_compiler_version_mismatch(data_dir: &Path) -> Option<(String, String)>
 /// then record fingerprint. See [`TrainDataModeCli`](super::action::TrainDataModeCli).
 async fn refresh_stale_training_corpus(
     root: &Path,
-    data_dir: &PathBuf,
-    output_dir: &PathBuf,
+    data_dir: &Path,
+    output_dir: &Path,
     current_fp: &str,
     strict: bool,
 ) -> anyhow::Result<()> {
@@ -808,8 +805,8 @@ async fn refresh_stale_training_corpus(
 
     eprintln!("  {} Running corpus extraction pipeline...", "🔄".cyan());
     match crate::commands::mens::pipeline::run(
-        data_dir.clone(),
-        output_dir.clone(),
+        data_dir.to_path_buf(),
+        output_dir.to_path_buf(),
         true,
         false,
         None,

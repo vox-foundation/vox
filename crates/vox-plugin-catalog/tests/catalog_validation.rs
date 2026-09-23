@@ -145,17 +145,15 @@ fn gpu_ml_backends_use_the_first_party_release_asset_source() {
 
 #[test]
 fn ml_backend_requires_tag_matches_the_hand_mirrored_candidate_list() {
-    // `crates/vox-ml-cli/src/commands/schola/merge_qlora.rs` (shared by
-    // `commands::mens::eval_local`) cannot depend on vox-plugin-catalog (see
-    // AGENTS.md Dependency Discipline), so it hand-mirrors these two
-    // `requires-tag` values in its `ML_BACKEND_CANDIDATES` constant instead
-    // of reading catalog.toml. Nothing else ties that mirror back to this
-    // file, so if either tag ever changed here, ML_BACKEND_CANDIDATES would
-    // silently drift and backend selection would silently stop matching the
-    // right plugin. This test exists solely to guard against that drift.
+    // The MlBackend selector (`vox_populi::mens::select_mens_backend`) matches
+    // on these `requires-tag` values and cannot depend on vox-plugin-catalog
+    // (see AGENTS.md Dependency Discipline), so it hand-mirrors them. If a tag
+    // changes here without the selector, backend selection silently stops
+    // matching the right plugin; this test exists to catch that drift.
     const EXPECTED: &[(&str, &str)] = &[
         ("mens-candle-cuda", "nvidia-gpu"),
-        ("mens-candle-metal", "apple-silicon"),
+        ("mens-candle-metal", "metal"),
+        ("mens-candle-cpu", "cpu-only"),
     ];
     for (id, expected_tag) in EXPECTED {
         let plugin = all_plugins()
@@ -165,11 +163,52 @@ fn ml_backend_requires_tag_matches_the_hand_mirrored_candidate_list() {
         assert_eq!(
             plugin.requires_tag.as_deref(),
             Some(*expected_tag),
-            "plugin '{}' requires-tag must stay '{}' to match ML_BACKEND_CANDIDATES, got {:?}",
+            "plugin '{}' requires-tag must stay '{}' to match vox_populi::mens::select_mens_backend, got {:?}",
             id,
             expected_tag,
             plugin.requires_tag
         );
+    }
+}
+
+#[test]
+fn every_default_source_resolves() {
+    // Every plugin's default-source must point at something `vox plugin
+    // install <id>` can actually fetch. Two forms are trusted:
+    //   - `local:<path>`   — path must exist relative to the repo root.
+    //   - `github:<owner>/<repo>` — repo must be one this org actually owns
+    //     (vox-foundation only has `vox` and `homebrew-vox`; per-plugin repos
+    //     like `vox-plugin-skill-git` don't exist — see
+    //     docs/src/architecture/generated-project-runtime-deps.md history).
+    const KNOWN_GITHUB_SOURCES: &[&str] = &["github:vox-foundation/vox"];
+
+    let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    for plugin in all_plugins() {
+        let source = &plugin.default_source;
+        if let Some(rel) = source.strip_prefix("local:") {
+            let path = repo_root.join(rel);
+            assert!(
+                path.exists(),
+                "plugin '{}' default-source '{}' does not resolve: {} does not exist",
+                plugin.id,
+                source,
+                path.display()
+            );
+        } else if source.starts_with("github:") {
+            assert!(
+                KNOWN_GITHUB_SOURCES.contains(&source.as_str()),
+                "plugin '{}' default-source '{}' is not an installable github source \
+                 (allowed: {:?}); use a local: path to the in-tree crate instead",
+                plugin.id,
+                source,
+                KNOWN_GITHUB_SOURCES
+            );
+        } else {
+            panic!(
+                "plugin '{}' default-source '{}' has an unrecognized prefix",
+                plugin.id, source
+            );
+        }
     }
 }
 

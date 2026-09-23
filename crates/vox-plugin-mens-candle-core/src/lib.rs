@@ -50,6 +50,7 @@ pub mod manifest;
 pub mod merge;
 pub mod model_card;
 pub mod operator_messages;
+pub mod qk_norm;
 pub mod qlora_preflight;
 pub mod qlora_weights;
 pub mod rope;

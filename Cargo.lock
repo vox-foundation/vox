@@ -16889,6 +16889,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "serial_test",
  "sysinfo 0.39.3",
  "thiserror 2.0.18",
  "tokio",
@@ -18284,6 +18285,7 @@ dependencies = [
  "vox-db",
  "vox-http-client",
  "vox-package-types",
+ "wiremock",
  "workspace-hack",
 ]
 

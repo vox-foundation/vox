@@ -65,6 +65,28 @@ pub fn merged_feature_gate(path: &[String]) -> Option<String> {
     merged_feature_gate_from_vox_cli_ops(vox_cli_operations(), path)
 }
 
+#[cfg(test)]
+mod registry_feature_gate_tests {
+    use super::*;
+
+    /// `vox mcp` and `vox stop` are unconditional clap variants (no `#[cfg]`) whose
+    /// handlers fall back to a runtime feature check rather than being compiled
+    /// out. Before the 2026-09-21 fix, the registry had no row for either path, so
+    /// this silently returned `None` and the catalog reported a feature-gated
+    /// command as if it had no gate at all.
+    #[test]
+    fn mcp_and_stop_report_their_real_feature_gate() {
+        assert_eq!(
+            merged_feature_gate(&["mcp".to_string()]),
+            Some("mcp-server".to_string())
+        );
+        assert_eq!(
+            merged_feature_gate(&["stop".to_string()]),
+            Some("dei".to_string())
+        );
+    }
+}
+
 fn latin_ns_to_catalog_group(ns: &str, path: &[String]) -> String {
     match ns {
         "fabrica" => "fabrica".to_string(),

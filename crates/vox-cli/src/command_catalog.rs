@@ -550,6 +550,41 @@ mod tests {
         );
     }
 
+    /// `vox mcp` and `vox stop` are unconditional clap variants (no `#[cfg]`)
+    /// whose handlers fall back to a runtime feature check (`mcp-server` /
+    /// `dei`) rather than being compiled out. Before the 2026-09-21 fix, the
+    /// command registry had no row for either path, so `merged_feature_gate`
+    /// silently returned `None` and the catalog reported `compiled_in: true,
+    /// feature_gate: None` — indistinguishable from a command that actually
+    /// works in a default build. Pin the real gate here.
+    #[test]
+    fn stub_commands_report_their_real_feature_gate() {
+        let catalog = run_on_big_stack(build_catalog);
+        let mcp = catalog
+            .entries
+            .iter()
+            .find(|e| e.path == ["mcp"])
+            .expect("`vox mcp` is compiled in (unconditional clap variant)");
+        assert!(mcp.compiled_in);
+        assert_eq!(
+            mcp.feature_gate.as_deref(),
+            Some("mcp-server"),
+            "vox mcp must report its real runtime feature gate, not null"
+        );
+
+        let stop = catalog
+            .entries
+            .iter()
+            .find(|e| e.path == ["stop"])
+            .expect("`vox stop` is compiled in (unconditional clap variant)");
+        assert!(stop.compiled_in);
+        assert_eq!(
+            stop.feature_gate.as_deref(),
+            Some("dei"),
+            "vox stop must report its real runtime feature gate, not null"
+        );
+    }
+
     #[test]
     fn feature_gated_commands_marked_tier() {
         let catalog = run_on_big_stack(build_catalog);
