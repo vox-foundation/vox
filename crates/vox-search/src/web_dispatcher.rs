@@ -142,36 +142,46 @@ impl WebSearchDispatcher {
         }
         let cap = limit.div_ceil(contributing.len()).max(2);
 
-        // Group items by provider, preserving each provider's relative
-        // (already score-sorted) order.
-        let old = std::mem::take(results);
+        // Original fusion/relevance order, preserved for the final re-emit.
+        let original = std::mem::take(results);
+
+        // Group original indices by provider, preserving each provider's
+        // relative (fusion-ordered) position.
         let mut group_order: Vec<String> = Vec::new();
-        let mut groups: HashMap<String, Vec<crate::searxng::SearxngResult>> = HashMap::new();
-        for item in old {
+        let mut groups: HashMap<String, Vec<usize>> = HashMap::new();
+        for (i, item) in original.iter().enumerate() {
             let engine = item.engine.clone().unwrap_or_else(|| "unknown".to_string());
             if !groups.contains_key(&engine) {
                 group_order.push(engine.clone());
             }
-            groups.entry(engine).or_default().push(item);
+            groups.entry(engine).or_default().push(i);
         }
-        // Providers ordered by their own best (first) hit's score, descending.
+        // Providers ordered by their own best (first) hit's score, descending
+        // — decides only the order slots are *reserved* in, not final output.
         group_order.sort_by(|a, b| {
-            let sa = groups[a].first().and_then(|r| r.score).unwrap_or(0.0);
-            let sb = groups[b].first().and_then(|r| r.score).unwrap_or(0.0);
+            let sa = groups[a]
+                .first()
+                .and_then(|&i| original[i].score)
+                .unwrap_or(0.0);
+            let sb = groups[b]
+                .first()
+                .and_then(|&i| original[i].score)
+                .unwrap_or(0.0);
             sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         let mut heads: HashMap<String, usize> = HashMap::new();
         let mut counts: HashMap<String, usize> = HashMap::new();
-        let mut selected: Vec<crate::searxng::SearxngResult> = Vec::with_capacity(limit);
+        let mut selected_idx: Vec<usize> = Vec::with_capacity(limit);
 
         // Pass 0: guarantee one slot per provider, strongest provider first.
+        // MEMBERSHIP only — final position is decided by the re-emit below.
         for engine in &group_order {
-            if selected.len() >= limit {
+            if selected_idx.len() >= limit {
                 break;
             }
-            if let Some(item) = groups[engine].first() {
-                selected.push(item.clone());
+            if let Some(&idx) = groups[engine].first() {
+                selected_idx.push(idx);
                 heads.insert(engine.clone(), 1);
                 counts.insert(engine.clone(), 1);
             }
@@ -180,28 +190,27 @@ impl WebSearchDispatcher {
         // Pass 1: fill remaining slots by best available score across
         // providers still under `cap`.
         loop {
-            if selected.len() >= limit {
+            if selected_idx.len() >= limit {
                 break;
             }
-            let mut best: Option<(&String, f64)> = None;
+            let mut best: Option<(&str, f64, usize)> = None;
             for engine in &group_order {
                 let head = *heads.get(engine).unwrap_or(&0);
                 let count = *counts.get(engine).unwrap_or(&0);
                 if count >= cap {
                     continue;
                 }
-                if let Some(item) = groups[engine].get(head) {
-                    let score = item.score.unwrap_or(0.0);
-                    if best.is_none_or(|(_, s)| score > s) {
-                        best = Some((engine, score));
+                if let Some(&idx) = groups[engine].get(head) {
+                    let score = original[idx].score.unwrap_or(0.0);
+                    if best.is_none_or(|(_, s, _)| score > s) {
+                        best = Some((engine, score, idx));
                     }
                 }
             }
             match best {
-                Some((engine, _)) => {
-                    let engine = engine.clone();
-                    let head = *heads.get(&engine).unwrap_or(&0);
-                    selected.push(groups[&engine][head].clone());
+                Some((engine, _, idx)) => {
+                    let engine = engine.to_string();
+                    selected_idx.push(idx);
                     *heads.entry(engine.clone()).or_insert(0) += 1;
                     *counts.entry(engine).or_insert(0) += 1;
                 }
@@ -212,39 +221,56 @@ impl WebSearchDispatcher {
         // Pass 2: providers under cap ran out of hits before `limit` was
         // filled — relax the cap and take whatever is left, by score.
         loop {
-            if selected.len() >= limit {
+            if selected_idx.len() >= limit {
                 break;
             }
-            let mut best: Option<(&String, f64)> = None;
+            let mut best: Option<(&str, f64, usize)> = None;
             for engine in &group_order {
                 let head = *heads.get(engine).unwrap_or(&0);
-                if let Some(item) = groups[engine].get(head) {
-                    let score = item.score.unwrap_or(0.0);
-                    if best.is_none_or(|(_, s)| score > s) {
-                        best = Some((engine, score));
+                if let Some(&idx) = groups[engine].get(head) {
+                    let score = original[idx].score.unwrap_or(0.0);
+                    if best.is_none_or(|(_, s, _)| score > s) {
+                        best = Some((engine, score, idx));
                     }
                 }
             }
             match best {
-                Some((engine, _)) => {
-                    let engine = engine.clone();
-                    let head = *heads.get(&engine).unwrap_or(&0);
-                    selected.push(groups[&engine][head].clone());
-                    *heads.entry(engine.clone()).or_insert(0) += 1;
+                Some((engine, _, idx)) => {
+                    let engine = engine.to_string();
+                    selected_idx.push(idx);
+                    *heads.entry(engine).or_insert(0) += 1;
                 }
                 None => break,
             }
         }
 
-        // Anything left over (beyond `limit`) is appended, best score first,
+        let selected_set: HashSet<usize> = selected_idx.iter().copied().collect();
+
+        // Re-emit the chosen set in original fusion order, then stable-sort
+        // by relevance score descending — ties keep fusion order because the
+        // sort is stable over a sequence that is already fusion-ordered.
+        // This is where MEMBERSHIP (decided above) becomes final POSITION.
+        let mut selected: Vec<crate::searxng::SearxngResult> = original
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| selected_set.contains(i))
+            .map(|(_, r)| r.clone())
+            .collect();
+        selected.sort_by(|a, b| {
+            b.score
+                .unwrap_or(0.0)
+                .partial_cmp(&a.score.unwrap_or(0.0))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // Anything left over (beyond `limit`) is appended, same treatment,
         // so `results.len()` stays unchanged for callers that truncate later.
-        let mut leftover: Vec<crate::searxng::SearxngResult> = Vec::new();
-        for engine in &group_order {
-            let head = *heads.get(engine).unwrap_or(&0);
-            if let Some(items) = groups.get(engine) {
-                leftover.extend(items[head..].iter().cloned());
-            }
-        }
+        let mut leftover: Vec<crate::searxng::SearxngResult> = original
+            .into_iter()
+            .enumerate()
+            .filter(|(i, _)| !selected_set.contains(i))
+            .map(|(_, r)| r)
+            .collect();
         leftover.sort_by(|a, b| {
             b.score
                 .unwrap_or(0.0)
@@ -918,6 +944,133 @@ mod tests {
         }
     }
 
+    fn result_engine(url: &str, score: f64, engine: &str) -> crate::searxng::SearxngResult {
+        crate::searxng::SearxngResult {
+            url: url.to_string(),
+            title: url.to_string(),
+            content: String::new(),
+            engine: Some(engine.to_string()),
+            score: Some(score),
+        }
+    }
+
+    /// Task 8b fix round 1, finding 1 (reviewer): `enforce_provider_diversity`
+    /// must only use its reserve-one-per-provider / cap passes to decide
+    /// *membership*, then emit the chosen set in relevance-score order. The
+    /// old code appended each provider's pass-0 reserved pick directly, so a
+    /// zero/low-relevance reserved pick from one provider could land ahead of
+    /// a higher-relevance pick from another provider that was only admitted
+    /// in pass 1. This is a direct, deterministic unit test of
+    /// `enforce_provider_diversity` (no network) mirroring the reviewer's
+    /// reproduction: 2 providers, "duckduckgo" contributing 2 highly relevant
+    /// hits (post-rerank scores ~0.70/0.61) plus 1 near-zero-relevance hit,
+    /// "arxiv" contributing 3 zero-relevance-but-authority-boosted hits whose
+    /// blended scores (~0.0057-0.0059) still beat the near-zero duckduckgo
+    /// hit. `cap = max(2, ceil(5/2)) = 3`.
+    #[test]
+    fn enforce_provider_diversity_emits_kept_set_in_relevance_order() {
+        let mut results = vec![
+            result_engine("https://openrouter.ai/a", 0.70, "duckduckgo"),
+            result_engine("https://openrouter.ai/b", 0.61, "duckduckgo"),
+            result_engine("https://example.com/unrelated", 0.0049, "duckduckgo"),
+            result_engine("https://arxiv.org/abs/1", 0.0059, "arxiv"),
+            result_engine("https://arxiv.org/abs/2", 0.0058, "arxiv"),
+            result_engine("https://arxiv.org/abs/3", 0.0057, "arxiv"),
+        ];
+
+        WebSearchDispatcher::enforce_provider_diversity(&mut results, 5);
+
+        let kept: Vec<f64> = results[..5].iter().map(|r| r.score.unwrap()).collect();
+        for pair in kept.windows(2) {
+            assert!(
+                pair[0] + 1e-12 >= pair[1],
+                "kept prefix must be non-increasing in score: {kept:?}"
+            );
+        }
+        assert_eq!(
+            results[0].url,
+            "https://openrouter.ai/a",
+            "highest-relevance hit should lead: {:?}",
+            results
+                .iter()
+                .map(|r| (&r.url, r.score))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            results[1].url,
+            "https://openrouter.ai/b",
+            "second-highest-relevance hit (admitted in pass 1) must precede \
+             the zero-relevance arxiv reserved pick (pass 0), not follow it: {:?}",
+            results
+                .iter()
+                .map(|r| (&r.url, r.score))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    /// Task 8b fix round 1, finding 2 (reviewer): the reserve-one-slot-per-
+    /// provider guarantee needs a fixture that can actually distinguish the
+    /// new algorithm from the old greedy single pass — 3 providers x cap 2 x
+    /// limit 5 can't (2 strong providers can supply at most 4 of 5 slots
+    /// either way, forcing the 3rd provider in regardless of algorithm). This
+    /// uses 4 providers with skewed scores where 3 strong providers (A, B, C)
+    /// can fill all 5 slots under the old greedy pass before a 4th, much
+    /// weaker provider (D, one hit, small but nonzero relevance) is ever
+    /// reached. `cap = max(2, ceil(5/4)) = 2`.
+    #[test]
+    fn enforce_provider_diversity_reserves_a_slot_for_a_weak_but_relevant_provider() {
+        let mut results = vec![
+            result_engine("https://a.example/1", 0.9, "provider-a"),
+            result_engine("https://b.example/1", 0.85, "provider-b"),
+            result_engine("https://a.example/2", 0.8, "provider-a"),
+            result_engine("https://b.example/2", 0.75, "provider-b"),
+            result_engine("https://c.example/1", 0.7, "provider-c"),
+            result_engine("https://c.example/2", 0.65, "provider-c"),
+            result_engine("https://a.example/3", 0.3, "provider-a"),
+            result_engine("https://b.example/3", 0.25, "provider-b"),
+            result_engine("https://c.example/3", 0.2, "provider-c"),
+            result_engine("https://d.example/1", 0.1, "provider-d"),
+        ];
+
+        WebSearchDispatcher::enforce_provider_diversity(&mut results, 5);
+
+        let kept = &results[..5];
+        assert!(
+            kept.iter().any(|r| r.url.contains("d.example")),
+            "provider-d (weak but nonzero relevance) must keep a slot: {:?}",
+            kept.iter().map(|r| (&r.url, r.score)).collect::<Vec<_>>()
+        );
+    }
+
+    /// Reviewer-requested cheap degenerate case: when every candidate has
+    /// zero query-term overlap (a nonsense/stopword-shaped query), the kept
+    /// order must equal the fusion order — `rerank_by_relevance` degrades to
+    /// `base_score * 0.3` for every item, which is monotonic with the
+    /// incoming (already fusion-sorted) order, and a single provider means
+    /// `enforce_provider_diversity` is a no-op. Uses nonsense tokens rather
+    /// than real English stopwords so no query term can accidentally appear
+    /// as a substring inside the unrelated fixture content.
+    #[test]
+    fn rerank_by_relevance_zero_overlap_query_keeps_fusion_order() {
+        let query = "zzzqq wwwrr xxxyy";
+        let fusion_order = vec![
+            result("https://example.com/1", 0.9),
+            result("https://example.com/2", 0.7),
+            result("https://example.com/3", 0.5),
+            result("https://example.com/4", 0.3),
+        ];
+        let original_urls: Vec<String> = fusion_order.iter().map(|r| r.url.clone()).collect();
+
+        let mut reranked = WebSearchDispatcher::rerank_by_relevance(query, fusion_order);
+        WebSearchDispatcher::enforce_provider_diversity(&mut reranked, 4);
+
+        let kept_urls: Vec<String> = reranked.iter().map(|r| r.url.clone()).collect();
+        assert_eq!(
+            kept_urls, original_urls,
+            "zero-overlap query must keep fusion order"
+        );
+    }
+
     #[test]
     fn rank_and_dedupe_prefers_authoritative_free_sources() {
         let mut results = vec![
@@ -1235,6 +1388,23 @@ mod tests {
                 openrouter_pos < arxiv_pos,
                 "relevant OpenRouter hit (pos {openrouter_pos}) should precede the \
                  zero-term-overlap arXiv hit (pos {arxiv_pos}): {:?}",
+                report.hits
+            );
+        }
+
+        // Task 8b fix round 1: checking only the OpenRouter hit's position
+        // let a bug slip through — `enforce_provider_diversity`'s
+        // reserve-one-per-provider pass appended each provider's reserved
+        // pick first, so a zero-relevance reserved hit from one provider
+        // could still rank ahead of a genuinely relevant hit from another
+        // (e.g. [openrouter 3.8-flash, arxiv (zero relevance), openrouter
+        // 3.8-flash-lite (relevant), arxiv, arxiv]). Assert the *entire*
+        // kept order is non-increasing in relevance score, not just that
+        // one hit precedes another.
+        for pair in report.hits.windows(2) {
+            assert!(
+                pair[0].score + 1e-9 >= pair[1].score,
+                "kept order must be non-increasing in relevance score: {:?}",
                 report.hits
             );
         }
