@@ -73,3 +73,112 @@ async fn report_marks_slow_provider_as_timeout() {
     assert_eq!(status_of(&r, "wikipedia"), &ProviderStatus::Timeout);
     assert!(r.hits.is_empty());
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn fast_lane_timeout_does_not_open_breaker_but_deep_lane_timeout_does() {
+    use vox_search::search_circuit_breaker::{SearchProviderCircuitRegistry, SearchProviderId};
+
+    let searxng = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_delay(std::time::Duration::from_millis(800))
+                .set_body_json(serde_json::json!({
+                    "results": [
+                        {"url": "https://openrouter.ai/x", "title": "t", "content": "c", "engine": "searxng", "score": 1.0}
+                    ]
+                })),
+        )
+        .mount(&searxng)
+        .await;
+
+    let mut policy = SearchPolicy::default();
+    policy.searxng_url = Some(searxng.uri());
+    policy.enable_wikipedia = false;
+    policy.enable_openalex = false;
+    policy.enable_arxiv = false;
+    policy.tavily_enabled = false;
+    policy.fast_timeout_ms = 200;
+    policy.deep_timeout_ms = 3000;
+
+    let registry = SearchProviderCircuitRegistry::new();
+
+    // 1. A Fast-lane search times out against the 800ms-delayed mock (200ms deadline).
+    let r1 = WebSearchDispatcher::search_with_report_and_registry(
+        "q",
+        ResearchLane::Fast,
+        &policy,
+        &registry,
+    )
+    .await;
+    assert_eq!(status_of(&r1, "searxng"), &ProviderStatus::Timeout);
+
+    // 2. Repeat Fast-lane timeouts past the breaker's failure threshold (1 failure already
+    //    arms a cooldown per ProviderCircuitBreaker::record_failure — see search_circuit_breaker.rs).
+    //    Run a couple more to be robust to any future threshold change.
+    for _ in 0..2 {
+        let r = WebSearchDispatcher::search_with_report_and_registry(
+            "q",
+            ResearchLane::Fast,
+            &policy,
+            &registry,
+        )
+        .await;
+        assert_eq!(status_of(&r, "searxng"), &ProviderStatus::Timeout);
+    }
+    assert!(
+        registry.is_available(SearchProviderId::Searxng),
+        "Fast-lane timeouts must NOT arm the circuit breaker"
+    );
+
+    // 3. A Deep-lane search on the same registry must still reach SearXNG (not CircuitOpen)
+    //    and get real hits, since the 3000ms deadline comfortably covers the 800ms delay.
+    let r3 = WebSearchDispatcher::search_with_report_and_registry(
+        "q",
+        ResearchLane::Deep,
+        &policy,
+        &registry,
+    )
+    .await;
+    match status_of(&r3, "searxng") {
+        ProviderStatus::Ok { hits } => assert!(*hits > 0, "expected at least one hit"),
+        other => panic!("expected Ok, got {other:?}"),
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn deep_lane_timeout_still_opens_breaker() {
+    use vox_search::search_circuit_breaker::{SearchProviderCircuitRegistry, SearchProviderId};
+
+    let searxng = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .respond_with(ResponseTemplate::new(200).set_delay(std::time::Duration::from_millis(2000)))
+        .mount(&searxng)
+        .await;
+
+    let mut policy = SearchPolicy::default();
+    policy.searxng_url = Some(searxng.uri());
+    policy.enable_wikipedia = false;
+    policy.enable_openalex = false;
+    policy.enable_arxiv = false;
+    policy.tavily_enabled = false;
+    policy.fast_timeout_ms = 200;
+    policy.deep_timeout_ms = 300; // shorter than the 2000ms mock delay
+
+    let registry = SearchProviderCircuitRegistry::new();
+
+    let r = WebSearchDispatcher::search_with_report_and_registry(
+        "q",
+        ResearchLane::Deep,
+        &policy,
+        &registry,
+    )
+    .await;
+    assert_eq!(status_of(&r, "searxng"), &ProviderStatus::Timeout);
+    assert!(
+        !registry.is_available(SearchProviderId::Searxng),
+        "Deep-lane timeouts must still arm the circuit breaker"
+    );
+}

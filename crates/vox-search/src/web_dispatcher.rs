@@ -451,7 +451,10 @@ impl WebSearchDispatcher {
                 crate::search_circuit_breaker::SearchProviderId::Tavily,
             ),
         ] {
-            if outcome.status == ProviderStatus::Timeout {
+            // A lane-deadline timeout is the caller's budget running out, not evidence the
+            // provider is unhealthy — only a Deep-lane (generous budget) timeout indicates a
+            // genuinely slow/unhealthy provider worth arming the breaker for.
+            if outcome.status == ProviderStatus::Timeout && lane == ResearchLane::Deep {
                 registry.record_failure(id, false);
             }
         }
