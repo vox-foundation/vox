@@ -8,6 +8,15 @@
 # See: docs/src/architecture/plugin-system-redesign-2026.md
 # See: docs/src/reference/plugin-catalog.md
 
+# ── KEEP-FROZEN crates (not plugins) ───────────────────────────────────────────
+#
+# vox-workflow-runtime, vox-integration-tests, and vox-test-harness are not
+# plugins and deliberately have no [[plugin]] entry here -- do not go looking
+# for one. Their disposition per docs/src/architecture/dead-crate-fate-plan-2026-05-08.md
+# is KEEP-FROZEN: present in the workspace, unmodified, intentionally inactive.
+# This comment is their disposition record. They are not to be removed as dead
+# crates; that disposition is revisited only through a new PRD.
+
 # ── Hardware / ML plugins ──────────────────────────────────────────────────────
 
 [[plugin]]
