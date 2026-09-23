@@ -2070,3 +2070,179 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - [ ] **Step 2:** `/code-review high` over `main..HEAD`; fix confirmed findings.
 - [ ] **Step 3:** Update the spec status and where-things-live row; commit.
 - [ ] **Step 4:** Report to the user: the three live outputs (trace summaries + reply excerpts), the native screenshots and Playwright PNGs, test results, anything that failed or was skipped — stated plainly.
+
+---
+
+### Task 13: Per-role model config + honest alias resolution
+
+**Why:** `VOX_MODEL_FORCE` is a single global pin, so every stage uses one model. Live pricing (probed 2026-09-22) makes role-splitting worth real money: `~deepseek/deepseek-flash-latest` is $0.10/$0.50 per 1M with a 943k output ceiling and no separate reasoning charge, vs `google/gemini-3.8-flash` at $0.75/$3.75 with reasoning billed at $3.75/M and a 65k output ceiling — about 8× cheaper for a ~5-call deep run at comparable agentic-coding benchmark scores. Gemini stays the chat model because it is the only candidate accepting audio/video/file input. Second problem: a `~vendor/model-latest` alias makes the trace record "latest" instead of the version that actually answered, which violates spec §5's honesty rule.
+
+**Files:**
+- Modify: `crates/vox-config/src/inference.rs` (add role-scoped pin readers next to `forced_model`)
+- Modify: `crates/vox-research-shim/src/research/orchestrator/model_dispatch.rs`, `crates/vox-actor-runtime/src/llm/cascade.rs` (consume the research-role pin)
+- Modify: `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs` (chat-role pin)
+- Modify: `crates/vox-actor-runtime/src/llm/types.rs` or `chat.rs` (surface the concrete model id already present on `LlmResponse`)
+- Modify: `crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs` (trace records resolved id)
+- Test: the same crates' test modules
+
+**Interfaces:**
+- Produces: `vox_config::inference::forced_model_for(role: ModelRole) -> Option<String>` where `pub enum ModelRole { Chat, Research, Judge }`; resolution order per role: `VOX_MODEL_FORCE_<ROLE>` → `VOX_MODEL_FORCE` → `None`, all read through `resolve_config_str` (env, then `~/.vox/config.toml`).
+- Keeps: `forced_model()` as `forced_model_for(ModelRole::Chat)`'s unscoped fallback, so existing call sites behave identically when only `VOX_MODEL_FORCE` is set.
+
+- [ ] **Step 1: Write the failing tests**
+
+```rust
+    #[test]
+    fn role_pin_falls_back_to_the_global_pin() {
+        assert_eq!(
+            super::resolve_role_pin(Some("deepseek/x"), Some("google/y")),
+            Some("deepseek/x".to_string()),
+            "role-specific pin wins"
+        );
+        assert_eq!(
+            super::resolve_role_pin(None, Some("google/y")),
+            Some("google/y".to_string()),
+            "falls back to the global pin"
+        );
+        assert_eq!(super::resolve_role_pin(None, None), None);
+        assert_eq!(super::resolve_role_pin(Some("  "), Some("google/y")), Some("google/y".to_string()));
+    }
+```
+
+And in `research_turn.rs`'s test module:
+
+```rust
+    #[test]
+    fn trace_records_the_resolved_model_not_the_alias_when_they_differ() {
+        let mut t = ResearchTrace::new(classify_research_intent("/research x y z", None, None));
+        t.set_model("~deepseek/deepseek-flash-latest", Some("deepseek/deepseek-v4.1-flash"));
+        let e = t.to_event();
+        assert_eq!(e["model"], "deepseek/deepseek-v4.1-flash");
+        assert_eq!(e["model_alias"], "~deepseek/deepseek-flash-latest");
+    }
+```
+
+- [ ] **Step 2: Run to verify failure**
+
+Run: `cargo test -p vox-config role_pin; cargo test -p vox-orchestrator-mcp trace_records_the_resolved_model`
+Expected: compile errors — `resolve_role_pin` / `set_model` not defined.
+
+- [ ] **Step 3: Implement**
+
+```rust
+/// Pure half of the role-scoped pin: role value wins, else the global pin; blanks are unset.
+#[must_use]
+pub fn resolve_role_pin(role_value: Option<&str>, global: Option<&str>) -> Option<String> {
+    forced_model_from(role_value.unwrap_or("")).or_else(|| forced_model_from(global.unwrap_or("")))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelRole { Chat, Research, Judge }
+
+impl ModelRole {
+    const fn env_key(self) -> &'static str {
+        match self {
+            Self::Chat => "VOX_MODEL_FORCE_CHAT",
+            Self::Research => "VOX_MODEL_FORCE_RESEARCH",
+            Self::Judge => "VOX_MODEL_FORCE_JUDGE",
+        }
+    }
+}
+
+#[must_use]
+pub fn forced_model_for(role: ModelRole) -> Option<String> {
+    resolve_role_pin(
+        Some(&crate::env_parse::resolve_config_str(role.env_key(), "")),
+        Some(&crate::env_parse::resolve_config_str("VOX_MODEL_FORCE", "")),
+    )
+}
+```
+Then: `cascade_for_research_stage` and `primary_candidate_for_intent` call `forced_model_for(ModelRole::Research)` (Judge stage uses `ModelRole::Judge`, falling back through Research to global); `resolve.rs`'s `strict_pin` uses `forced_model_for(ModelRole::Chat)`. Strictness is unchanged: a pinned model that is missing or gated still errors.
+
+For the trace: `LlmResponse.model` already carries the concrete id the provider returned (Task 7 fix round 1 threaded it for synthesis). Add `ResearchTrace::set_model(alias, resolved)` storing both, and emit `model` = resolved (falling back to the alias when the provider echoes the alias) plus `model_alias`.
+
+- [ ] **Step 4: Run tests**
+
+Run: `cargo test -p vox-config -p vox-actor-runtime -p vox-research-shim -p vox-orchestrator-mcp 2>&1 | tail -20`, then clippy `--no-deps` on each.
+Expected: PASS.
+
+- [ ] **Step 5: Live check** — with `~/.vox/config.toml` holding `VOX_MODEL_FORCE = "google/gemini-3.8-flash"` and `VOX_MODEL_FORCE_RESEARCH = "~deepseek/deepseek-flash-latest"`, run the three live prompts from Task 8 Step 6. Assert: the chat reply's `model_used` is the Gemini pin, the trace's research stages report the DeepSeek model, and the deep answer is still complete with a real judge score. Record the outputs.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add crates/vox-config/src/inference.rs crates/vox-actor-runtime/src/llm/cascade.rs crates/vox-research-shim/src/research/orchestrator/model_dispatch.rs crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs crates/vox-orchestrator-mcp/src/chat_tools/chat/research_turn.rs
+git commit -m "feat(routing): per-role model pins and alias-resolved model in the research trace
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 14: Retire hardcoded model ids repo-wide
+
+**Why:** hardcoded vendor model ids are scattered across code and contracts, many of them stale (`gemini-1.5-pro`, `gemini-2.5-flash`, `gemini-2.0-flash-lite`, `gemini-3.1-pro`). Each is a silent default that overrides intent when selection fails, exactly the failure class this plan exists to remove. The 2026-09-20 memory note (`openrouter-free-slugs-churn`) records a case where every entry in such a list was dead, and research silently fell back to raw snippets.
+
+**Files:**
+- Create: `contracts/orchestration/model-defaults.v1.yaml` (single source for every default/fallback model id, with a `role` per entry)
+- Modify: `crates/vox-config/src/bootstrap_inference.rs` (`RESEARCH_FLASH_FALLBACK`, `OPENROUTER_FREE_FALLBACK_MODELS`), `crates/vox-config/src/routing_policy.rs` (`gemini_route_targets_from_env` defaults), `crates/vox-config/src/config_registry.rs` + `operator_registry.rs` (`gemini-1.5-pro`), `crates/vox-research-shim/src/research/model_select.rs` (planner/claim/judge fallbacks), `crates/vox-orchestrator/src/orchestrator/task_dispatch/research_dispatch.rs` (Lane G `google/gemini-3.1-pro`), `crates/vox-code-audit/src/ai_analyze.rs` (`default_gemini_model`), `contracts/orchestration/model-pins.v1.yaml` (`premium_alias`, `fallback`), `contracts/orchestration/model-routing.v1.yaml` (`premium_alias`), `contracts/orchestration/model-catalog.bootstrap.v1.json`, `apps/editor/vox-vscode/package.json` + `src/core/ConfigManager.ts`
+- Test: `crates/vox-config/tests/` (new drift test)
+
+**Interfaces:**
+- Produces: `vox_config::model_defaults::{default_for(role) -> &'static str, all() -> &'static [ModelDefault]}`, generated from or validated against `contracts/orchestration/model-defaults.v1.yaml`.
+
+**Do NOT touch:** `assets/skills/claude-api/**` (vendored Anthropic docs), `contracts/reports/**` and `contracts/**/_snapshot/**` (historical run records), `docs/src/archive/**`, or any test fixture whose literal id is the thing under test. List anything you deliberately skip in the report.
+
+- [ ] **Step 1: Inventory** — produce the checklist first, so the sweep is auditable:
+
+```bash
+rg -n --glob '!docs/src/archive/**' --glob '!assets/skills/**' --glob '!contracts/reports/**' \
+  -e 'google/gemini-[0-9]' -e '"gemini-[0-9]' -e 'anthropic/claude-[a-z]+-[0-9]' -e 'openai/gpt-[0-9]' \
+  crates contracts apps scripts > /tmp/model-id-inventory.txt
+wc -l /tmp/model-id-inventory.txt
+```
+Classify every line as: (a) a default/fallback to migrate, (b) a catalog/bootstrap entry (keep, but refresh stale ids), (c) a test fixture (keep), (d) documentation (update only if it states current policy). Put the classified table in the report.
+
+- [ ] **Step 2: Write the failing drift test**
+
+```rust
+#[test]
+fn no_hardcoded_vendor_model_ids_outside_the_defaults_contract() {
+    // Guards the class of bug in the 2026-09-20 `openrouter-free-slugs-churn` note:
+    // a stale hardcoded id silently replaces the operator's intent.
+    let offenders = vox_config::model_defaults::scan_workspace_for_hardcoded_ids();
+    assert!(
+        offenders.is_empty(),
+        "hardcoded vendor model ids must live in contracts/orchestration/model-defaults.v1.yaml: {offenders:#?}"
+    );
+}
+```
+If a workspace-walking test is too slow or fragile for CI, implement the same check as a `vox ci` guard instead and have this test assert the guard's allowlist is empty; say which you chose and why.
+
+- [ ] **Step 3: Run to verify failure**
+
+Run: `cargo test -p vox-config no_hardcoded_vendor_model_ids`
+Expected: FAIL, listing the (a)-class sites from Step 1.
+
+- [ ] **Step 4: Implement** — write `model-defaults.v1.yaml` with one entry per role (`chat`, `research`, `judge`, `claim_extraction`, `free_floor`), each `{role, model, rationale, verified_on}`. Seed it from the live catalog values verified 2026-09-22: chat `google/gemini-3.8-flash`, research `~deepseek/deepseek-flash-latest`, judge `~deepseek/deepseek-pro-latest`. Replace every (a)-class hardcoded literal with a `model_defaults::default_for(role)` call. Refresh (b)-class catalog entries that name dead ids. Leave (c) and (d) alone unless the id is factually wrong.
+
+- [ ] **Step 5: Verify the ids are real** — every id in the new contract must exist in the live catalog:
+
+```bash
+curl -s https://openrouter.ai/api/v1/models | jq -r '.data[].id' > /tmp/live-ids.txt
+for m in $(rg -o '^\s+model: "([^"]+)"' -r '$1' contracts/orchestration/model-defaults.v1.yaml); do
+  grep -qx "$m" /tmp/live-ids.txt && echo "OK   $m" || echo "DEAD $m"
+done
+```
+Every line must read OK. Paste the output into the report.
+
+- [ ] **Step 6: Run the suites + commit**
+
+Run: `cargo test -p vox-config -p vox-orchestrator -p vox-research-shim -p vox-code-audit 2>&1 | tail -20`; clippy `--no-deps` per crate; `pnpm --dir apps/editor/vox-vscode test` if that package has tests.
+
+```bash
+git add contracts/orchestration/model-defaults.v1.yaml crates/vox-config crates/vox-research-shim crates/vox-orchestrator crates/vox-code-audit contracts/orchestration/model-pins.v1.yaml contracts/orchestration/model-routing.v1.yaml contracts/orchestration/model-catalog.bootstrap.v1.json apps/editor/vox-vscode
+git commit -m "refactor(models): single defaults contract; retire hardcoded vendor model ids
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
