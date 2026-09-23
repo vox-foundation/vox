@@ -147,6 +147,37 @@ error-free loss, so neither branch applies as written:
   `harness_eval.rs`, `plan_panel.rs`, `research.rs`, `scientia.rs`) that a
   full pooling switch would require.
 
+### Post-decision update 2026-09-22: a possible data-corruption finding under `VoxDbPool`
+
+After the analysis above was written and committed, running the full `vox-db`
+test suite surfaced that `VoxDbPool::new(DbConfig::Memory)`-backed independent
+connections, under enough genuine concurrent read/write pressure (the same
+100-task, 8-worker-thread configuration as the regression test, widened by a
+`yield_now()` added to make that test a reliable gate — see
+`crates/vox-db/src/pool.rs`'s test doc comment), panic with
+`Corrupt("Invalid page type: 0")` from inside `turso`'s own code in ~55% of
+runs (11 of 20 reproduced on this machine, 2026-09-22). This is **not** the
+rowid race the test was written to catch — it is the underlying in-memory
+B-tree corrupting under concurrent access from multiple "independent"
+connections that, for `:memory:` databases, all share one
+`Arc<turso::Database>`.
+
+**This strengthens, not weakens, the recommendation above.** It is a second,
+independent, and more serious reason not to adopt `VoxDbPool` as `GuiDbPool`'s
+default connection strategy: beyond the measured ~66–71% throughput cost, real
+per-task pooling now has a reproduced — if not yet fully characterized —
+data-corruption failure mode under concurrent load. Whether this also affects
+`DbConfig::Local` (file-backed, what production and every other benchmark in
+this memo actually measures) is **untested and unknown**; this plan makes no
+production code changes, so characterizing, reproducing against a real file,
+and either fixing upstream in `turso` or documenting it as a hard constraint
+on `VoxDbPool`'s `:memory:` mode is out of scope here and should be tracked as
+a separate, higher-priority follow-up — this finding has direct bearing on
+"does it break our DB," independent of any throughput question. The
+regression test that surfaced this is `#[ignore]`d rather than deleted or
+weakened, specifically so this finding is not lost; see its doc comment for
+the exact reproduction procedure.
+
 ## Decision: `VOX_DB_MVCC=1` default
 
 - If `pooled-mvcc` throughput is not meaningfully higher than `pooled` at
