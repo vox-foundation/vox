@@ -264,10 +264,10 @@ Synthesized from ADR classifications. One entry per ADR. LOCKED status means the
 
 ## ADR 045 — Tauri GUI Replaces Axum Dashboard
 - source: docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md
-- status: proposed
+- status: locked
 - decision: Decommission legacy Axum dashboard and unify into Tauri 2 GUI with CLI as SSOT.
 - scope: Tauri 2, vox-gui, vox-cli, CommandCatalog, dashboard, UI
-- note: Not marked locked/Accepted in its own frontmatter (status: "current", no explicit Accepted line) — medium confidence. It is nonetheless the current, non-contradicted decision for dashboard/GUI architecture now that ADR-024 (its predecessor) has been marked Superseded and no other locked ADR contradicts it. Treat as authoritative pending a formal Accepted status line.
+- note: Ratified 2026-09-22 — the ADR body now carries a `**Status**: Accepted (2026-09-22)` line directly under the H1, mirroring ADR-037's convention. Frontmatter `status: "current"` is intentionally unchanged: vox-doc-pipeline's VALID_STATUS enum has no `accepted` value, so the body line is this repo's mechanism for ratification, not the frontmatter key.
 
 ## ADR 046 — Pareto-Frontier Reporting for Model Surfaces
 - source: docs/src/adr/046-pareto-frontier-reporting.md
