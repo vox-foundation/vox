@@ -39,8 +39,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
-          cache: 'pnpm'
-          cache-dependency-path: 'crates/vox-integration-tests/ts-noemit-scratch/pnpm-lock.yaml'
+          package-manager-cache: false   # no PR-scoped cache writes (cache is at 9.8/10 GB)
       - uses: ./.github/actions/setup-rust
         with:
           cache: "false"   # Swatinem below is the only Rust cache; PRs never write it

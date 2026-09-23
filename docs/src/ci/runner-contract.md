@@ -9,65 +9,53 @@ schema_type: "TechArticle"
 
 # CI runner contract
 
-## Self-hosted labels (default)
+## Runners
 
-| Profile | `runs-on` |
-|---------|-----------|
-| Basic Linux | `[self-hosted, linux, x64]` |
-| Docker / Buildx | `[self-hosted, linux, x64, docker]` |
-| Playwright / browser | `[self-hosted, linux, x64, browser]` |
-| GPU / Mens train | `[self-hosted, linux, x64, gpu]` |
+**Default to a GitHub-hosted runner** — `ubuntu-latest`, with
+`windows-latest` / `macos-latest` where a job needs them. Every gate, every
+nightly lane, and every release lane is hosted: there is no capacity pool to
+keep warm and no ledger of "hosted exceptions" to register. vox is a public
+repo, so hosted minutes are free, and GitHub keeps the images and the runner
+application current, so there is no runner-version floor to check.
 
-Machines registered with **`linux`**, **`docker`**, **`browser`**, and **`gpu`** are **distinct capacity pools**, but each host still runs the same **GitHub Actions Runner** application version (the `actions-runner` service). Upgrade **every** self-hosted runner that serves this repository—not only the “basic” pool—when the runner app falls below the version floor below.
+**Two GPU lanes still carry a `self-hosted` label, and both starve today.**
+`ml_data_extraction.yml`'s `extract` (`[self-hosted, linux]`) and `train`
+(`[self-hosted, linux, x64, gpu]`) jobs, and the `mens-candle-cuda` row of
+`nightly-artifacts.yml`'s plugin matrix, name labels with **zero registered
+runners**. They are kept as documentation of the target shape — the CUDA
+lanes cannot run on a hosted runner — and the plugin row is explicitly
+`if:`-skipped so it does not queue forever and starve its matrix.
+`ml_data_extraction.yml` is `schedule` + `workflow_dispatch` only, so a
+starved run costs nothing on the PR path. Do **not** copy this label onto a
+new job; run CUDA work locally instead.
 
-## Actions Runner application version (self-hosted)
-
-Upstream JavaScript actions in this repo (for example **`actions/checkout@v6`**, **`actions/cache@v5`**, **`actions/setup-node@v6`**, Docker’s **`docker/*-action@v4+`**) use the **Node.js 24** Actions runtime where documented by each action release. GitHub documents a **minimum Actions Runner version of v2.327.1** for that runtime on self-hosted agents (see the [Actions Runner v2.327.1 release](https://github.com/actions/runner/releases/tag/v2.327.1) and each action’s README).
-
-**Operator checklist**
-
-- Keep **`actions-runner` at v2.327.1 or newer** on **all** self-hosted hosts (basic, docker, browser, **and** gpu pools).
-- Confirm from a job log line such as **“Current runner version: '…'"** at the start of a step, or upgrade proactively from [actions/runner releases](https://github.com/actions/runner/releases).
-- **GitHub-hosted** images (`ubuntu-latest`, `windows-latest`, `macos-latest`) are updated by GitHub; this requirement applies to **self-managed** fleets only.
-
-If a runner is too old, jobs fail early when invoking Node 24–based actions, or GitHub emits deprecation notices for obsolete Node runtimes—see GitHub’s [Actions runner changelog](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/) for the Node 20 deprecation timeline.
-
-## Operator host hygiene (avoid self-inflicted flakiness)
-
-The self-hosted fleet runs on the operator's own WSL2 VM, which means the
-operator's own concurrent activity on that machine is part of the CI
-environment, not separate from it:
-
-- **Don't run a heavy `docker build` (or similar CPU/network/IO-heavy
-  operation) on the runner's WSL2 distro while ephemeral runners may be
-  active.** A 2026-07-27 incident saw two nightly jobs fail with terminal
-  crates.io download errors (`curl failed`, connection reset / SSL EOF)
-  during a window when the operator was rebuilding the
-  `vox-ci-runner-local` image on the same WSL2 VM — the shared network stack
-  got saturated enough that cargo's default retry budget (bumped to
-  `net.retry = 6` in the repo-root `.cargo/config.toml` after this incident)
-  couldn't fully absorb it. If you need to rebuild the runner image, prefer
-  a quiet window — check `docker ps` for an empty runner pool first.
-- **Keep the runner image's `RUNNER_VERSION` current** with
-  whatever GitHub is currently force-upgrading runners to. A stale pin means
-  every fresh ephemeral runner starts a job on the old version, downloads
-  the update mid-job, then exits to apply it — and since the container has
-  no restart loop, that exit kills the job outright (this caused a
-  multi-day silent outage across all 3 nightlies, fixed 2026-07-27; see
-  commit `11e6398eb8`). Check the `Current runner version: '…'` log line
-  against [actions/runner releases](https://github.com/actions/runner/releases)
-  periodically, or just watch for `Downloading N runner` at container
-  startup — a fresh spawn shouldn't need to.
+> **Historical note.** Through 2026-09 this contract described a local
+> self-hosted fleet (Docker ephemeral runners on the operator's WSL2 VM,
+> labelled `linux` / `docker` / `browser` / `gpu`) as the default, with only
+> the merge gate and the deploy path on hosted runners. That fleet is
+> **retired**: the hosted-primary migration moved every workflow to hosted
+> runners and Tasks 9/10/14 of
+> `docs/superpowers/plans/2026-09-22-ci-audit-remediation.md` deleted the
+> fleet's tooling (`vox ci queue`, `runner-scale`, `runner-preflight`,
+> `runner-status`, the runner image and its scripts). Do not add a
+> runner-version check or an operator host-hygiene step; there is no host to
+> keep hygienic. The two starved GPU labels above are the only survivors.
 
 ## Local-first CI (required policy, ENFORCED)
 
-**Default:** heavy CI/CD jobs run on the **local self-hosted fleet** (Docker ephemeral runners on the operator host, started by hand) for **speed and feedback latency** — not cost (vox is a public repo, so GitHub-hosted minutes are free). Jobs stay hosted **only** for neutral-infra resilience: the **required gate aggregator** (`ci-summary`) and the deploy critical path run hosted so the merge gate and deploys survive the workstation being off (compute-placement.md Invariants 1 & 4).
+Hosted CI is the **gate**, not the **inner loop**. A push that fails a gate
+costs minutes of round-trip, so reproduce the gates locally first and push
+only once they are green:
 
-**Contributor workflow:** reproduce gates locally with **`vox ci pre-push`** (fast / `--complete` / `--full`) before pushing. Use **`vox ci pre-push --act`** only for the small set of workflows that still mirror GitHub-hosted behavior in containers.
+- **`vox ci pre-push`** (fast / `--complete` / `--full`) is the supported
+  entry point and mirrors the `linux` leg's fast tier.
+- **`act pull_request -j linux`** runs the PR gate's heavy leg in Docker
+  when you want the real workflow rather than the tier.
+- For a single failing job, run that job's exact command (e.g.
+  `cargo run -q -p vox-arch-check`) instead of re-pushing to see.
 
-## GitHub-hosted runners
-
-GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-latest`) are the default going forward; there is no ledger of exceptions to register.
+See [local CI parity](../contributors/local-ci-pre-push.md) for the tier
+table and wall-clock expectations.
 
 ## Workspace root manifest (fix forward)
 
@@ -75,7 +63,7 @@ Do **not** depend on git history to recover the root `Cargo.toml`. SSOT and repa
 
 ## Agent / local terminal vs CI shell
 
-- **CI jobs** in this repository are largely **Linux self-hosted** and use **`bash`** for workflow steps unless a job sets `shell: pwsh` (see individual workflows). That is a runner convenience, not a contradiction of contributor policy.
+- **CI jobs** in this repository run on GitHub-hosted Linux (`ubuntu-latest`) and use **`bash`** for workflow steps unless a job sets `shell: pwsh` (see individual workflows). That is a runner convenience, not a contradiction of contributor policy.
 - **Local work and coding agents** should prefer **[PowerShell 7 (`pwsh`)](https://github.com/PowerShell/PowerShell)** on **any OS** when it is installed, consistent with [`AGENTS.md`](../../../AGENTS.md) and machine-checked terminal policy (`vox shell check`, [`contracts/terminal/exec-policy.v1.yaml`](../../../contracts/terminal/exec-policy.v1.yaml)).
 
 ## Canonical `vox ci` vs shell scripts
@@ -111,26 +99,30 @@ Repeated “full rebuild” symptoms are often **cache fragmentation**, not Rust
 
 **ML / repo hygiene (Rust, not shell):**
 
-- **`vox ci grammar-export-check`** — wired in the default **`.github/workflows/ci.yml`** Linux job after the CLI feature matrix; asserts grammar exports are non-empty (EBNF/GBNF/Lark/JSON-Schema).
+- **`vox ci grammar-export-check`** — wired in **`nightly.yml`**; asserts grammar exports are non-empty (EBNF/GBNF/Lark/JSON-Schema).
 - **`vox ci grammar-drift`** — SHA-256 of the EBNF export vs `mens/data/grammar_fingerprint.txt` (and Populi twin); updates the file when drift is detected. The **`ml_data_extraction.yml`** workflow runs this with **`--emit github`** (stdout: `drift=true|false` only, for `GITHUB_OUTPUT`). (The former `--emit gitlab` output channel was removed when the GitLab CI mirror was retired.)
 - **`vox ci repo-guards`** — replaces ad-hoc `grep`/`find` blocks: no `TypeVar(0)` in **`vox-codegen-rust` / `vox-codegen-ts` sources** (typechecker uses that sentinel legitimately), filtered `opencode` references under `crates/`, and no stray root clutter files (same policy as the former GitLab `guards` job).
 
 ## Build timings (wall-clock `cargo check`)
 
-**Canonical:** **`vox ci build-timings`** — prints duration for `cargo check -p vox-cli` (default features) and `cargo check -p vox-cli --features gpu,mens-qlora,stub-check`, plus an optional CUDA lane when `nvcc` is available (**`PATH`** or **`CUDA_PATH`** / **`CUDA_HOME`** pointing at the toolkit root; same skip rules as `cuda-features`). Use **`--json`** for one JSON object per line. **`--crates`** adds isolated `cargo check` lanes for `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-populi --features mens-train`, and **`vox-cli --features oratio`** (see [crate-build-lanes migration](../archive/research-2026-q1/crate-build-lanes-migration.md)). Soft budgets: `docs/ci/build-timings/budgets.json`; optional env **`VOX_BUILD_TIMINGS_BUDGET_WARN=1`** (stderr when a lane exceeds its soft max) and **`VOX_BUILD_TIMINGS_BUDGET_FAIL=1`** (fail the command after successful checks — use only with tuned budgets). Pair committed **`latest.jsonl`** with **`docs/ci/build-timings/snapshot-metadata.json`** (`rustc` / host / CUDA / cache note). Skip CUDA lane when **`SKIP_CUDA_FEATURE_CHECK=1`**. GitHub `ci.yml` runs **`build-timings --crates`**. See [vox-cli build feature inventory](../archive/research-2026-q1/vox-cli-build-feature-inventory.md).
+**Canonical:** **`vox ci build-timings`** — prints duration for `cargo check -p vox-cli` (default features) and `cargo check -p vox-cli --features gpu,mens-qlora,stub-check`, plus an optional CUDA lane when `nvcc` is available (**`PATH`** or **`CUDA_PATH`** / **`CUDA_HOME`** pointing at the toolkit root; same skip rules as `cuda-features`). Use **`--json`** for one JSON object per line. **`--crates`** adds isolated `cargo check` lanes for `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-populi --features mens-train`, and **`vox-cli --features oratio`** (see [crate-build-lanes migration](../archive/research-2026-q1/crate-build-lanes-migration.md)). Soft budgets: `docs/ci/build-timings/budgets.json`; optional env **`VOX_BUILD_TIMINGS_BUDGET_WARN=1`** (stderr when a lane exceeds its soft max) and **`VOX_BUILD_TIMINGS_BUDGET_FAIL=1`** (fail the command after successful checks — use only with tuned budgets). Pair committed **`latest.jsonl`** with **`docs/ci/build-timings/snapshot-metadata.json`** (`rustc` / host / CUDA / cache note). Skip CUDA lane when **`SKIP_CUDA_FEATURE_CHECK=1`**. **`nightly.yml`**'s `audits` job runs **`build-timings --crates`**. See [vox-cli build feature inventory](../archive/research-2026-q1/vox-cli-build-feature-inventory.md).
 
 ## Optional CUDA compile gate
 
-**Canonical:** **`vox ci cuda-features`** (wired in GitHub `ci.yml`). It **no-ops** when `nvcc` is absent (common on CPU-only self-hosted runners). When `nvcc` is on `PATH`, it runs:
+**Canonical:** **`vox ci cuda-features`** (wired in `nightly.yml`'s `audits` job). It **no-ops** when `nvcc` is absent, which is always the case on GitHub-hosted runners. When `nvcc` is on `PATH` — i.e. locally — it runs:
 
 - `cargo check -p vox-oratio --features cuda` — typechecks Oratio's `#[cfg(feature = "cuda")]` paths.
 - `cargo check -p vox-cli --features gpu,mens-candle-cuda` — typechecks Mens Candle qlora with CUDA.
 
 Thin delegate: `scripts/check_cuda_feature_builds.sh` (optional POSIX wrapper around the same checks). Local escape hatch (e.g. Windows with CUDA installed but no MSVC host for `nvcc`): `SKIP_CUDA_FEATURE_CHECK=1 vox ci cuda-features` or the same env with `bash scripts/check_cuda_feature_builds.sh`. On PowerShell, use `bash -c 'export SKIP_CUDA_FEATURE_CHECK=1; ./scripts/check_cuda_feature_builds.sh'` so the variable reaches Bash.
 
-## GPU / CUDA runner profile
+## GPU / CUDA jobs
 
-Workflow jobs that run **`vox ci cuda-features`** or compile with **`nvcc`** should use the **Docker** self-hosted profile (`[self-hosted, linux, x64, docker]`) when the job image must supply CUDA toolchains. CPU-only `cargo check` lanes stay on the basic Linux profile (`[self-hosted, linux, x64]`). Keep workflow `runs-on` **explicit per job** (do not hide runner choice behind reusable-only defaults).
+GitHub-hosted runners have no GPU, so **`vox ci cuda-features`** no-ops where
+it is wired (`nightly.yml`'s `audits` job) — it skips when `nvcc` is absent.
+Run it locally on a CUDA machine for real signal. Keep workflow
+`runs-on` **explicit per job** (do not hide runner choice behind
+reusable-only defaults).
 
 ## Optional: strict parse for all examples
 

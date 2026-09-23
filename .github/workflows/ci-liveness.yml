@@ -37,6 +37,10 @@ jobs:
           set -euo pipefail
           names=$(yq -r '.on.workflow_run.workflows[]' .github/workflows/nightly-report.yml)
           [ -n "$names" ] || { echo "::error::no names parsed from nightly-report.yml"; exit 1; }
+          # Under `set -e` a missing label would make the first `gh issue create`
+          # abort the whole job instead of reporting. Same guard nightly-report.yml uses.
+          gh label create nightly-failure --color B60205 \
+            --description "A scheduled workflow is failing" --force >/dev/null
           # `gh workflow view` has no --json; list states once. Keyed by path.
           gh workflow list --all --limit 500 --json path,state > /tmp/wf-states.json
           fail=0

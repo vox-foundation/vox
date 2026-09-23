@@ -452,17 +452,23 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
 ## CI Contract (Required, SSOT)
 
 - **GitHub-hosted CI is the gate.** `ci.yml`'s required context
-  (`Check, Build, and Test (Rust)`) is a step-less `gate` job that aggregates two
-  legs: `linux` (the local fast tier plus clippy/nextest on affected crates;
-  also runs `cargo-deny` licenses/bans/sources on dependency changes, and
-  `cargo clippy`/`rustdoc -D warnings` on a detected toolchain bump) and `ui`
-  (typecheck + vitest + Playwright, required only on PRs that change
-  `crates/vox-gui/**`). The merge queue additionally runs an **advisory**
-  (non-blocking) Windows compile check. Jobs are capped at 30 min. `nightly.yml`
-  and other scheduled workflows run the slow lanes, capped at 180 min, and
-  defer nextest there rather than duplicating it in `linux`. Caps are enforced
-  by `workflow-policy-guard` (in `ssot-drift`). Over budget? Cache, shard, or
+  (`Check, Build, and Test (Rust)`) is a thin `gate` job whose one step checks
+  that `linux` and `ui` both succeeded. `linux` runs the local fast tier plus
+  clippy/nextest on affected crates; it also runs `cargo-deny`
+  licenses/bans/sources on dependency changes, and `cargo clippy`/`rustdoc -D
+  warnings` on a detected toolchain bump. `ui` (typecheck + vitest +
+  Playwright) is required only on PRs that change `crates/vox-gui/**`. The
+  merge queue additionally runs an **advisory** (non-blocking) Windows compile
+  check. Jobs are capped at 30 min. `nightly.yml` and other scheduled
+  workflows run the slow lanes, capped at 180 min. Caps are enforced by
+  `workflow-policy-guard` (in `ssot-drift`). Over budget? Cache, shard, or
   move the job to nightly — never raise the cap.
+- **What nightly defers, and what it doesn't.** Every normal PR *does* run
+  nextest — on the affected-crate subset, in `linux`. What is deferred to
+  nightly is the **full-workspace** run (and its llvm-cov coverage lane),
+  which cannot fit the 30-min cap. The one case where `linux` skips nextest
+  entirely is a detected toolchain bump: there it spends its budget on fresh
+  clippy/rustdoc instead, and the tests fall to nightly's full run.
 - **Run CI locally first:** `vox ci pre-push` (fast), `--complete`/`--full`
   for code changes, or run the PR gate's `linux` job in Docker with
   `act pull_request -j linux`.
@@ -477,8 +483,14 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
   `docs/src/ci/concurrency-exceptions.md`), enforced by
   `workflow-concurrency-guard`.
 - **Rust caches are `main`-only.** `Swatinem/rust-cache` saves only from
-  `main` branch runs; PR and `merge_group` runs restore but never save, so
-  concurrent PR builds can't race each other's cache writes.
+  `main` branch runs; PR and `merge_group` runs restore but never save. The
+  reason is the repository's hard 10 GB Actions-cache budget with LRU
+  eviction: a cache written from a PR run is scoped to `refs/pull/N/merge`, so
+  no other ref can ever read it. Every such entry is write-only garbage that
+  evicts the `main`-scope entries every job actually restores from. The same
+  rule covers `actions/cache`, `Swatinem/rust-cache`, and `actions/setup-node`
+  with a `cache:` input (use `package-manager-cache: false`); it is enforced
+  by `vox ci cache-key-lint`.
 
 Spec: `docs/superpowers/specs/2026-09-21-hosted-primary-ci-design.md`.
 

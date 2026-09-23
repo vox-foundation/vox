@@ -118,21 +118,21 @@ record (rulings, fix rounds, deferred findings) is
 | Heartbeat `thread::sleep` padding every step up to 3 s | Task 3, `b39397d3b` — heartbeat now wakes immediately instead of sleeping in fixed 3 s blocks. |
 | `ssot-drift`'s 26 nested stages (~15 s) | **Not addressed.** No task in this plan touched `ssot-drift`'s internal stage cost. |
 | PR gate (`ci.yml`) never run end-to-end; 30-min budget unvalidated | **Pending — user/post-merge.** Can only be measured after this branch merges and a real PR run completes; see the verification table below. |
-| `ci.yml` `gate` + `ssot-autoregen` — two vox-cli compiles per PR, no path filter | **Not addressed.** `gate` was restructured (Task 5) into a step-less aggregator of `linux`+`ui`, but `ssot-autoregen` still runs unconditionally rather than being path-filtered to generator inputs. |
+| `ci.yml` `gate` + `ssot-autoregen` — two vox-cli compiles per PR, no path filter | **Not addressed.** `gate` was restructured (Task 5) into a thin aggregator whose one step checks that `linux` and `ui` both succeeded, but `ssot-autoregen` still runs unconditionally rather than being path-filtered to generator inputs. |
 | `nightly.yml` `full` job repeats `lints`/`tests`/`guards-fast` work | Task 10, `44dd0340d` — nightly.yml's duplicate lint/test logic and ~325 lines of redundant job bodies removed. |
 
 **§2 Remove or disable**
 
 | Item | Resolution |
 |---|---|
-| Self-hosted fleet tooling (`runner_scale.rs`, `queue.rs`, `oom_watch.rs`, `unexpected_exit_watch.rs`, `hook_guard_check`) | Task 14, `e8106f370` — deleted, along with ~45–50 orphan `vox ci` subcommands and 4 placeholder no-ops. |
+| Self-hosted fleet tooling (`runner_scale.rs`, `queue.rs`, `oom_watch.rs`, `unexpected_exit_watch.rs`, `hook_guard_check`) | Task 14, `e8106f370` — deleted, along with 9 `vox ci` subcommands: 4 fleet commands (`queue`, `runner-preflight`, `runner-scale`, `runner-status`) and 5 placeholder no-ops (`check-frozen`, `mens-corpus-health`, `grpo-reward-baseline`, `collateral-damage-gate`, `constrained-gen-smoke`). |
 | `qwen35-native-nightly.yml` | Task 9, `7b0f433c7` — deleted; `ml_data_extraction.yml` remains the single GPU lane. |
 | `docker-telemetry.yml` + `deploy-telemetry.yml` | Task 9, `7b0f433c7` — parked to `workflow_dispatch` only. |
 | `vox-visus-audit.yml` | Task 9, `7b0f433c7` — parked to `workflow_dispatch` only. |
 | `scorecard.yml` (10/10 failures) | Task 8, `3dc771a73` — fixed (signing/permissions), not deleted; kept as a live check. |
 | `link_checker.yml` (10/10 failures) | **Not addressed** beyond an incidental `permissions: contents: read` block added by Task 13's blanket least-privilege sweep (`9b0718d18`). The audit's recommendation — delete, or make weekly and advisory — was not acted on. |
 | `pm-provenance-verify.yml` | Task 9, `7b0f433c7` — folded one step into `nightly.yml`'s `audits` job; file deleted. |
-| ~45–50 orphan `vox ci` subcommands + 4 placeholder no-ops | Task 14, `e8106f370`. |
+| ~45–50 orphan `vox ci` subcommands + 4 placeholder no-ops | **Partially addressed.** Task 14, `e8106f370` deleted 9 of them — the 4 fleet commands (`queue`, `runner-preflight`, `runner-scale`, `runner-status`) plus the 5 placeholder no-ops (`check-frozen`, `mens-corpus-health`, `grpo-reward-baseline`, `collateral-damage-gate`, `constrained-gen-smoke`). The remaining ~40 the audit counted as "orphaned" are hand-run operator/diagnostic tools with no workflow caller **by design**; they were deliberately left in place. |
 | Dead YAML inside live workflows (`nightly.yml` unreachable branches/guards, `cross-platform-check.yml` no-op `path-check`, `gui-cross-build.yml` dead PR branch) | Task 10, `44dd0340d` — stripped unreachable PR/merge-queue branches from `nightly.yml`, `cross-platform-check.yml`, `gui-cross-build.yml`. `compile-matrix.yml`'s stale `crates/vox-release-artifacts`/`crates/vox-assets` paths were dropped in Task 8, `3dc771a73`. |
 | Stale CodeRabbit reminder in `pre_push.rs` | Task 3, `b39397d3b` — removed. |
 
@@ -159,7 +159,7 @@ record (rulings, fix rounds, deferred findings) is
 | 7 | No automatic runtime-vs-cap measurement | **Not addressed.** `vox ci job-timings` still has no caller in any workflow; `nightly-report.yml` was extended (Task 12) for the dead-man's-switch only, not for timing/budget reporting. |
 | 8 | `all-features-matrix` gated on affected set | Effectively resolved as a side effect: Task 5 (`75da26e78`) removed `all-features-matrix` from the PR-triggered path entirely, and Task 10 (`44dd0340d`) stripped the old label-gating comments from `nightly.yml`; the job now runs unconditionally on `nightly.yml`'s daily cron. No task targeted this gap directly. |
 | 9 | `cargo-deny`/`cargo-audit` only nightly | Task 5, `75da26e78` — `linux` leg now runs `cargo-deny` licenses/bans/sources checks on dependency changes. |
-| 10 | `workflow-permissions-guard` advisory, no `CiCmd` entry | Task 13, `9b0718d18` — explicit least-privilege `permissions:` blocks added to every workflow; guard flipped from advisory to strict. |
+| 10 | `workflow-permissions-guard` advisory, no `CiCmd` entry | **Partially addressed.** Task 13, `9b0718d18` — explicit least-privilege `permissions:` blocks added to every workflow and the guard flipped from advisory to strict. The `CiCmd` half is unchanged: there is still no standalone `vox ci workflow-permissions-guard` / `workflow-policy-guard` subcommand; the guard runs only as a stage inside `ssot-drift`. |
 
 ### Pending — user-only actions (not this plan's to do)
 

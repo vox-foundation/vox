@@ -36,7 +36,12 @@
 //!   - `actions/cache@…` needs an `if:` mentioning `refs/heads/main`
 //!     (`actions/cache/restore@…` never saves, so it is always fine);
 //!   - `Swatinem/rust-cache@…` needs `save-if: false` or a `save-if` /
-//!     step-level `if:` mentioning `refs/heads/main`.
+//!     step-level `if:` mentioning `refs/heads/main`;
+//!   - `actions/setup-node@…` with a non-empty `cache:` input writes a
+//!     ref-scoped npm/pnpm/yarn store cache in its own post-step, exactly
+//!     like the two above. It needs `package-manager-cache: false` (the
+//!     spelling already used in `ci.yml` and `docs-quality.yml`) or a
+//!     main-gated step `if:`.
 //!
 //! Composite actions under `.github/actions/*/action.yml` are checked with the
 //! save rule applied **unconditionally**: a composite has no `on:` of its own
@@ -58,6 +63,7 @@ use crate::workflow_policy_guard::trigger_keys;
 const CACHE_ACTION_PREFIX: &str = "actions/cache";
 const CACHE_RESTORE_PREFIX: &str = "actions/cache/restore";
 const RUST_CACHE_PREFIX: &str = "Swatinem/rust-cache";
+const SETUP_NODE_PREFIX: &str = "actions/setup-node";
 const LOCKFILE_MARKER: &str = "Cargo.lock";
 const TOOLCHAIN_MARKER: &str = "toolchain";
 const MAIN_REF: &str = "refs/heads/main";
@@ -190,6 +196,22 @@ fn save_violation(step: &serde_yaml::Mapping) -> Option<String> {
                     .to_string(),
             ),
         };
+    }
+    if uses.starts_with(SETUP_NODE_PREFIX) {
+        let with = field(step, "with").and_then(|w| w.as_mapping());
+        let caches = with
+            .and_then(|w| str_field(w, "cache"))
+            .is_some_and(|c| !c.trim().is_empty());
+        let disabled = with
+            .and_then(|w| field(w, "package-manager-cache"))
+            .is_some_and(|v| v.as_bool() == Some(false) || v.as_str() == Some("false"));
+        if caches && !disabled {
+            return Some(
+                "actions/setup-node with `cache:` saves the package-manager store on every ref; \
+                 drop `cache:`/`cache-dependency-path:` and set `package-manager-cache: false`"
+                    .to_string(),
+            );
+        }
     }
     None
 }
@@ -458,6 +480,33 @@ mod tests {
         // save there is just as ref-scoped and write-only as a PR's.
         let yml = "on:\n  push:\njobs:\n  a:\n    steps:\n      - uses: Swatinem/rust-cache@v2\n";
         assert_eq!(save_scope_violations_for(yml, "x.yml").len(), 1);
+    }
+
+    #[test]
+    fn setup_node_package_manager_cache_is_save_scoped() {
+        // `cache:` makes setup-node write a ref-scoped store cache in its
+        // post-step — the same write-only pattern as actions/cache.
+        let bad = "on:\n  pull_request:\njobs:\n  a:\n    steps:\n      - uses: actions/setup-node@v7\n        with:\n          node-version: '24'\n          cache: 'pnpm'\n          cache-dependency-path: a/pnpm-lock.yaml\n";
+        assert_eq!(save_scope_violations_for(bad, "x.yml").len(), 1);
+
+        let disabled = "on:\n  pull_request:\njobs:\n  a:\n    steps:\n      - uses: actions/setup-node@v7\n        with:\n          node-version: '24'\n          cache: 'pnpm'\n          package-manager-cache: false\n";
+        assert!(save_scope_violations_for(disabled, "x.yml").is_empty());
+
+        let no_cache = "on:\n  pull_request:\njobs:\n  a:\n    steps:\n      - uses: actions/setup-node@v7\n        with:\n          node-version: '24'\n          package-manager-cache: false\n";
+        assert!(save_scope_violations_for(no_cache, "x.yml").is_empty());
+
+        // No `cache:` at all: setup-node's default is no store cache.
+        let bare = "on:\n  pull_request:\njobs:\n  a:\n    steps:\n      - uses: actions/setup-node@v7\n        with:\n          node-version: '24'\n";
+        assert!(save_scope_violations_for(bare, "x.yml").is_empty());
+
+        // Main-gated step `if:` is the existing escape hatch, shared with
+        // the actions/cache and rust-cache arms.
+        let gated = "on:\n  pull_request:\njobs:\n  a:\n    steps:\n      - uses: actions/setup-node@v7\n        if: github.ref == 'refs/heads/main'\n        with:\n          cache: 'pnpm'\n";
+        assert!(save_scope_violations_for(gated, "x.yml").is_empty());
+
+        // Nightly-only workflow: not PR-reachable, so saving is fine.
+        let sched = "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - uses: actions/setup-node@v7\n        with:\n          cache: 'pnpm'\n";
+        assert!(save_scope_violations_for(sched, "x.yml").is_empty());
     }
 
     #[test]

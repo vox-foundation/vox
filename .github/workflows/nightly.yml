@@ -1533,6 +1533,12 @@ jobs:
         with:
           shared-key: workspace
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          # This job is the SOLE writer of the `workspace` cache that ci.yml's
+          # PR `linux` leg restores. Its steps run sequentially, so without
+          # this any red step (clippy, rustdoc, nextest, deny, audit) would
+          # skip the save and leave the PR gate cold-building under its
+          # 30-min cap after the entry is LRU-evicted.
+          cache-on-failure: true
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest,cargo-deny,cargo-audit
@@ -1616,4 +1622,7 @@ jobs:
         with:
           shared-key: workspace-windows
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          # Same reasoning as the `full` job: sole writer, so a failed
+          # `cargo check` must still refresh the seed.
+          cache-on-failure: true
       - run: cargo check --workspace --exclude vox-gui --all-targets --locked
