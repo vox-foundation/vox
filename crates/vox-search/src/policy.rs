@@ -81,6 +81,19 @@ pub enum ResearchLane {
     Deep,
 }
 
+impl std::str::FromStr for ResearchLane {
+    type Err = String;
+
+    /// Parse the `fast` / `deep` wire and CLI label (case-insensitive).
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "fast" => Ok(Self::Fast),
+            "deep" => Ok(Self::Deep),
+            other => Err(format!("invalid research lane {other:?}: use fast|deep")),
+        }
+    }
+}
+
 /// Tunable retrieval weights and safety rails (replaces ad hoc literals in tool surfaces).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchPolicy {
@@ -541,25 +554,25 @@ impl SearchPolicy {
                 );
             }
         }
-        if let Ok(u) = std::env::var("VOX_SEARCH_WIKIPEDIA_URL") {
-            if !u.trim().is_empty() {
-                p.wikipedia_api_url = Some(u);
-            }
+        if let Ok(u) = std::env::var("VOX_SEARCH_WIKIPEDIA_URL")
+            && !u.trim().is_empty()
+        {
+            p.wikipedia_api_url = Some(u);
         }
-        if let Ok(u) = std::env::var("VOX_SEARCH_OPENALEX_URL") {
-            if !u.trim().is_empty() {
-                p.openalex_api_url = Some(u);
-            }
+        if let Ok(u) = std::env::var("VOX_SEARCH_OPENALEX_URL")
+            && !u.trim().is_empty()
+        {
+            p.openalex_api_url = Some(u);
         }
-        if let Ok(u) = std::env::var("VOX_SEARCH_ARXIV_URL") {
-            if !u.trim().is_empty() {
-                p.arxiv_api_url = Some(u);
-            }
+        if let Ok(u) = std::env::var("VOX_SEARCH_ARXIV_URL")
+            && !u.trim().is_empty()
+        {
+            p.arxiv_api_url = Some(u);
         }
-        if let Ok(u) = std::env::var("VOX_SEARCH_TAVILY_URL") {
-            if !u.trim().is_empty() {
-                p.tavily_api_url = Some(u);
-            }
+        if let Ok(u) = std::env::var("VOX_SEARCH_TAVILY_URL")
+            && !u.trim().is_empty()
+        {
+            p.tavily_api_url = Some(u);
         }
         if let Ok(lane) = std::env::var("VOX_SEARCH_DEFAULT_LANE") {
             if lane.eq_ignore_ascii_case("deep") {
@@ -568,15 +581,15 @@ impl SearchPolicy {
                 p.default_lane = ResearchLane::Fast;
             }
         }
-        if let Ok(v) = std::env::var("VOX_SEARCH_FAST_TIMEOUT_MS") {
-            if let Ok(n) = v.parse::<u64>() {
-                p.fast_timeout_ms = n;
-            }
+        if let Ok(v) = std::env::var("VOX_SEARCH_FAST_TIMEOUT_MS")
+            && let Ok(n) = v.parse::<u64>()
+        {
+            p.fast_timeout_ms = n;
         }
-        if let Ok(v) = std::env::var("VOX_SEARCH_DEEP_TIMEOUT_MS") {
-            if let Ok(n) = v.parse::<u64>() {
-                p.deep_timeout_ms = n;
-            }
+        if let Ok(v) = std::env::var("VOX_SEARCH_DEEP_TIMEOUT_MS")
+            && let Ok(n) = v.parse::<u64>()
+        {
+            p.deep_timeout_ms = n;
         }
         if let Ok(v) = std::env::var("VOX_SEARCH_ENABLE_WIKIPEDIA") {
             p.enable_wikipedia =
