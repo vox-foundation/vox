@@ -36,7 +36,7 @@ Moving the local embedded engine to an async-safe SQLite pool (`sqlx::sqlite::Sq
 ## 2. In-Depth Codebase Audit: Turso in VoxDB
 
 ### 2.1 The Schema vs. Data Reality
-* **Schema Scale:** 219 declared tables historically, tracked through monolithic migration milestone `BASELINE_VERSION = 93` ([`crates/vox-db/src/schema/manifest.rs#L34`](file:///Users/brbrainerd/dev/vox/crates/vox-db/src/schema/manifest.rs#L34)). 
+* **Schema Scale:** 219 declared tables historically, tracked through monolithic migration milestone `BASELINE_VERSION = 93` ([`crates/vox-db/src/schema/manifest.rs#L34`](../../../crates/vox-db/src/schema/manifest.rs)). 
 * **Live Storage Census:** Per the condensation audit on a representative 5.9MB `store.db` file:
   * Only **8 tables** contain any rows (`agent_exec_history`=278, `agent_events`=276, `developer_journey_steps`=8, `schema_version`=4, `user_preferences`=2, `conversations`=1, `developer_journey_definitions`=1, `history_entries`=1).
   * **571 total rows** exist across the entire 5.9MB database.
@@ -44,21 +44,21 @@ Moving the local embedded engine to an async-safe SQLite pool (`sqlx::sqlite::Sq
 * **Worktree Overhead:** 19 separate `.vox/store.db` instances were observed across worktrees (ranging from 1.4MB to 13.3MB each), incurring immediate disk and initialization overhead before any user data is written.
 
 ### 2.2 Concurrency Architecture: The `ConcurrentGuard` Bottleneck & RowID Race
-In [`crates/vox-db/src/lib.rs`](file:///Users/brbrainerd/dev/vox/crates/vox-db/src/lib.rs#L421-L470), the codebase documents two critical defects originating from Turso's connection architecture:
+In [`crates/vox-db/src/lib.rs` (lines 421-470)](../../../crates/vox-db/src/lib.rs), the codebase documents two critical defects originating from Turso's connection architecture:
 
 1. **`turso::Error::Misuse("concurrent use forbidden")`:**
    * `turso::Connection::clone()` does not create an independent connection; it clones an `Arc` to the same underlying `turso_sdk_kit::rsapi::TursoConnection`.
    * Turso guards every `.step()` call with an atomic `ConcurrentGuard`. When two async tasks on a multi-threaded Tokio runtime execute queries concurrently on cloned handles, the atomic check fails and returns `Err(Misuse("concurrent use forbidden"))`.
    * In the Tauri GUI (`vox-gui`), this caused routine "Message not saved" toast errors during active chat.
-   * **The Workaround:** Vox implemented `GuardedConnection` ([`crates/vox-db/src/lib.rs#L471-L476`](file:///Users/brbrainerd/dev/vox/crates/vox-db/src/lib.rs#L471-L476)), forcing all queries across all clones to serialize behind an `Arc<tokio::sync::Mutex<()>>`. This converts all concurrent reads and writes into sequential operations.
+   * **The Workaround:** Vox implemented `GuardedConnection` ([`crates/vox-db/src/lib.rs` (lines 471-476)](../../../crates/vox-db/src/lib.rs)), forcing all queries across all clones to serialize behind an `Arc<tokio::sync::Mutex<()>>`. This converts all concurrent reads and writes into sequential operations.
 
 2. **Silent Cross-Task `last_insert_rowid()` Corruption:**
-   * As documented in [`crates/vox-db/src/lib.rs#L455-L470`](file:///Users/brbrainerd/dev/vox/crates/vox-db/src/lib.rs#L455-L470), `turso::Connection::last_insert_rowid()` is a synchronous, non-blocking read of connection-local state that bypasses `ConcurrentGuard`.
+   * As documented in [`crates/vox-db/src/lib.rs` (lines 455-470)](../../../crates/vox-db/src/lib.rs), `turso::Connection::last_insert_rowid()` is a synchronous, non-blocking read of connection-local state that bypasses `ConcurrentGuard`.
    * Because `GuardedConnection` releases the mutex immediately after `execute()`, a concurrent task on another OS thread can execute an `INSERT` between task A's `execute()` and task A's `last_insert_rowid()` read.
    * **Impact:** Task A silently receives Task B's row ID. Callsites like `chat_ensure_workspace_conversation` are exposed to this race condition under high concurrency.
 
 ### 2.3 Build-Toolchain Invariant Violation
-[`AGENTS.md §Cryptography & Build Policy`](file:///Users/brbrainerd/dev/vox/AGENTS.md) explicitly mandates:
+[`AGENTS.md §Cryptography & Build Policy`](../../../AGENTS.md) explicitly mandates:
 > *"A clean clone must build with only the pinned Rust toolchain, the platform C compiler, and Node+pnpm. No dependency may add cmake, nasm, Go, perl, or libclang."*
 
 Evaluating the resolved cargo tree for `turso` demonstrates an architectural violation:
@@ -72,7 +72,7 @@ turso v0.6.1
 On environments without LLVM/libclang installed, clean source compilation of `vox-db` fails unless pre-generated bindings or platform overrides are in place.
 
 ### 2.4 Transport Limitations & Pragmas
-* **Batch Execution Restrictions:** Turso's `execute_batch` uses `execute` internally and returns an error on any statement that returns rows. Standard SQLite assignment pragmas (`PRAGMA journal_mode = WAL`) return a row indicating the selected mode and fail if passed to `execute_batch`. Vox had to build custom `pragma_update` helpers ([`crates/vox-db/src/schema/pragmas.rs`](file:///Users/brbrainerd/dev/vox/crates/vox-db/src/schema/pragmas.rs)).
+* **Batch Execution Restrictions:** Turso's `execute_batch` uses `execute` internally and returns an error on any statement that returns rows. Standard SQLite assignment pragmas (`PRAGMA journal_mode = WAL`) return a row indicating the selected mode and fail if passed to `execute_batch`. Vox had to build custom `pragma_update` helpers ([`crates/vox-db/src/schema/pragmas.rs`](../../../crates/vox-db/src/schema/pragmas.rs)).
 * **Disabled Pragmas:** `PRAGMA temp_store` and `PRAGMA mmap_size` are deliberately omitted because Turso/libSQL does not support them consistently across local and remote transports.
 
 ---
