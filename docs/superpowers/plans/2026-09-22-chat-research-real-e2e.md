@@ -2246,3 +2246,48 @@ git commit -m "refactor(models): single defaults contract; retire hardcoded vend
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
+
+---
+
+### Task 8b: Rank the final web hits by relevance, then cap per provider
+
+**Why (live evidence, `round8a-live-quick-{1,2,3}.json`):** with the breaker fixed, SearXNG returns `ok(5)` every run and its results include `openrouter.ai/google/gemini-3.8-flash`, yet only 1 of 3 runs kept that page. The fused list is ordered by provider authority (arXiv 1.20), not by relevance to the query — the same arXiv paper `2503.20020` ranks first for "latest Gemini Flash model OpenRouter released". `enforce_provider_diversity` (added in Task 8 round 3, commit ba15b14b9) then keeps a fixed share per provider, so irrelevant arXiv/Wikipedia hits displace relevant web hits. Its own unit test `enforce_provider_diversity_keeps_every_contributing_provider` fails at HEAD ("provider wikipedia must have at least one kept hit") — a defect introduced on this branch, not a pre-existing one.
+
+**Files:**
+- Modify: `crates/vox-search/src/web_dispatcher.rs` (`search_with_report_and_registry` final selection; `enforce_provider_diversity`)
+- Reuse (do not duplicate): `crates/vox-search/src/term_density_reranker.rs` (`rerank_passages`, `score_passage_term_density`)
+- Test: `crates/vox-search/src/web_dispatcher.rs` test module and/or `crates/vox-search/tests/`
+
+**Interfaces:** unchanged public signatures. Final selection order becomes: fuse → **rerank the whole candidate pool by query-term density over title + snippet** (existing reranker) → per-provider cap → truncate. Ties keep fusion order.
+
+- [ ] **Step 1: Failing tests**
+  - Fix the existing failing test's intent rather than deleting it: when several providers contribute, every provider with at least one hit whose term-density score is above zero keeps at least one slot.
+  - New: pool where arXiv's top hits share no query terms and SearXNG's rank-4/5 hits are `Gemini 3.8 Flash - API Pricing … | OpenRouter` → assert the OpenRouter hits are in the kept list and precede the zero-overlap arXiv hits.
+  - New: an academic query ("transformer attention scaling laws") where arXiv hits genuinely match → arXiv still leads (relevance, not a ban).
+- [ ] **Step 2:** run, verify RED.
+- [ ] **Step 3:** implement with `term_density_reranker`; keep `enforce_provider_diversity` as the cap step, fixing its guarantee.
+- [ ] **Step 4:** `cargo test -p vox-search` fully green (including the previously failing diversity test); clippy `--no-deps` clean on touched files.
+- [ ] **Step 5: Live check** — the quick prompt 3× (fresh daemon each), saved as `round8b-live-quick-{1,2,3}.json`. Required in **all three**: an `openrouter.ai` source kept; answer names Gemini 3.8 Flash with a numbered citation to that source; citation_check ok. Re-run the deep prompt once: still complete, both names, real judge score.
+- [ ] **Step 6: Commit** `fix(search): rank final web hits by query relevance before the provider cap`
+
+---
+
+### Task 15: Tavily, end to end — audited, keyed, tested, live
+
+**Why:** Tavily is compiled in (`vox-search` default feature `tavily`) and wired into the dispatcher, but it has never run here: every live trace shows `tavily: not_configured` because no `TAVILY_API_KEY` exists in the vault or `.env`. This codebase has already shipped a provider that was a stub while the GUI prober reported it live (DuckDuckGo, Task 9). "Set up Tavily" therefore means proving every Tavily surface does real work, not only adding a key. Tavily is a relevance-ranked search API built for agents, so it directly addresses the ranking weakness in Task 8b.
+
+**Surfaces to audit** (inventory taken 2026-09-22): `crates/vox-search/src/{tavily.rs, tavily_budget.rs, tavily_extract.rs, tavily_research.rs}`; dispatcher Tavily leg in `web_dispatcher.rs`; policy knobs in `policy.rs` (`tavily_enabled`, `tavily_search_depth`, `tavily_max_results`, `tavily_fire_on_empty`, `tavily_fire_on_weak`, `tavily_credit_budget_per_session`, `tavily_api_url`); secrets `TavilyApiKey`, `TavilyProject`, `VoxTavilyResearch`, `VoxSearchTavilyEnabled`; consumers in `vox-research-shim` (`web_gather.rs`, `stages.rs`), `vox-orchestrator`, `vox-cli-research`, `vox-db` ops retention; GUI `search_probe.rs`, `LiveSourceProber.tsx`, `ResearchEngineDrawer.tsx`, `StatusBarCluster.tsx`.
+
+**Prerequisite — user action (Claude must not enter keys):** create a key at https://app.tavily.com (free tier: 1,000 credits/month), copy it, then run `pbpaste | vox secrets set TAVILY_API_KEY --stdin` and confirm `vox secrets get TAVILY_API_KEY` shows `tvly-…`. Steps 1–4 do not need the key; Step 5 does.
+
+- [ ] **Step 1: Audit table** — for each surface above, record in the report: what it claims, what the code actually does, and a verdict (real / stub / dead / mis-wired). Known lead: policy's `tavily_api_url` is not passed to `TavilySearchClient::from_env`, so the client cannot be pointed at a mock endpoint and has likely never been exercised by a test. Also verify that `tavily_credit_budget_per_session` actually blocks calls once spent, and that the GUI prober's Tavily row makes a real request instead of echoing configuration.
+- [ ] **Step 2: Failing tests (wiremock, no network, no real key)**
+  - Honor `tavily_api_url` in the client, then: dispatcher with a mocked Tavily returning 3 results → report shows `tavily: ok(3)` and the hits carry `engine:tavily`.
+  - Tavily 401 → `tavily: error(...)` with the provider message, never `ok(0)`; 429 → error and the circuit breaker records a rate-limit failure.
+  - Credit budget: with budget N, call N+1 → the last call is skipped with an explicit status (add a `ProviderStatus::BudgetExhausted` variant if none fits; update the GUI TS type and `ResearchTracePanel` to render it).
+  - `tavily_extract` uplift: a low-quality snippet is replaced with extracted content from the mock `/extract` endpoint.
+- [ ] **Step 3:** implement until green; fix every stub/dead/mis-wired item from Step 1, or record a ruling for anything deliberately left.
+- [ ] **Step 3b: Candidate-pool depth (from Task 8b live evidence).** `searxng_max_results` (default 5) currently sets both how many hits each provider returns *and* the final truncation (`max(searxng_max_results, searxng_max_urls_to_scrape)` in `search_with_report_and_registry`), so the candidate pool can never be deeper than the output. In Task 8b's live runs the page naming "Gemini 3.8 Flash" was in SearXNG's top 5 only 1 run in 3. Decouple them: add a `candidate_depth` policy knob (default 10) for how many hits each provider is asked for, keep the final kept count as today, and let Task 8b's relevance rerank choose from the deeper pool. Test (wiremock): a provider returning 10 hits where the only query-matching hit is #8 → it is kept. Live: measure the quick prompt 3× before and after, and report both.
+- [ ] **Step 4:** `cargo test -p vox-search -p vox-research-shim -p vox-gui`; vitest for any GUI change; clippy `--no-deps`.
+- [ ] **Step 5: Live check (needs the key)** — rebuild the daemon; run the quick prompt and the deep prompt. Required: `tavily: ok(n>0)` in the provider table, at least one kept source with `engine: tavily`, the quick answer names Gemini 3.8 Flash with a citation, and the trace/credit counter shows credits consumed. Save `round15-live-{quick,deep}.json`. Also open the GUI Research Engine drawer and prober and confirm the Tavily row reflects a real call (screenshot).
+- [ ] **Step 6: Docs + commit** — update `docs/src/reference/secrets-ssot.md` (how to add the key, free-tier limits, budget knob) and commit `feat(search): Tavily end to end — honored endpoint, budget, honest status, live-verified`.
