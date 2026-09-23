@@ -84,16 +84,16 @@ Plans:
   3. A documented rule (per ADR-027) states which UI primitives are Vox-native vs React/TanStack interop, and existing components are checked against it with no undocumented crossovers.
   4. ADR-037's desktop-convergence clause is confirmed complete and its own status reflects "Accepted" for that clause, independent of the already-superseded mobile clause.
 
-**Plans**: 2 plans
+**Plans**: 2/2 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 04-01-PLAN.md — Ratify ADR-045 (body Status line + intel sync) and close out ADR-037's desktop clause with cited code evidence (GUI-01, GUI-04)
+- [x] 04-01-PLAN.md — Ratify ADR-045 (body Status line + intel sync) and close out ADR-037's desktop clause with cited code evidence (GUI-01, GUI-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02-PLAN.md — Audit the vox-gui command surface against the CommandCatalog SSOT and write the Vox-native/React boundary rule in both halves (GUI-02, GUI-03)
+- [x] 04-02-PLAN.md — Audit the vox-gui command surface against the CommandCatalog SSOT and write the Vox-native/React boundary rule in both halves (GUI-02, GUI-03)
 
 ### Phase 5: Multi-Agent Coordination & Trust Hardening
 
@@ -129,6 +129,6 @@ Phases 1 → 2 → 3 form a dependency chain (crate surgery). Phase 4 is indepen
 | 1. Dead Crate Cleanup — Remove & Confirm | 2/2 | In Progress|  |
 | 2. Wire Up & Reclassify Dormant Crates | 0/TBD | Not started | - |
 | 3. Extract Misplaced Crates to Plugin Architecture | 0/TBD | Not started | - |
-| 4. GUI/Dashboard Architecture Consolidation | 0/TBD | Not started | - |
+| 4. GUI/Dashboard Architecture Consolidation | 2/2 | In Progress|  |
 | 5. Multi-Agent Coordination & Trust Hardening | 0/TBD | Not started | - |
 | 6. Model Routing Transparency & ML Dependency Health | 0/TBD | Not started | - |
