@@ -24,10 +24,10 @@
 
 ### GUI/Dashboard Architecture
 
-- [ ] **GUI-01**: ADR-045 (Tauri GUI Replaces Axum Dashboard) is formally ratified — an explicit "Status: Accepted" line and locked-equivalent classification replace its current medium-confidence "current" status.
-- [ ] **GUI-02**: `vox-gui`'s command surface is verified fully sourced from `vox-cli`'s `CommandCatalog` SSOT, with no orphaned or duplicated command definitions between the two surfaces.
-- [ ] **GUI-03**: Vox-native and React/TanStack interop UI primitive tracks have an explicit, documented, enforced boundary per ADR-027.
-- [ ] **GUI-04**: The Tauri 2 desktop-convergence clause of ADR-037 is confirmed complete and Accepted, independent of the already-superseded mobile clause (adr-NNN).
+- [x] **GUI-01**: ADR-045 (Tauri GUI Replaces Axum Dashboard) is formally ratified — an explicit "Status: Accepted" line and locked-equivalent classification replace its current medium-confidence "current" status.
+- [x] **GUI-02**: `vox-gui`'s command surface is verified fully sourced from `vox-cli`'s `CommandCatalog` SSOT, with no orphaned or duplicated command definitions between the two surfaces.
+- [x] **GUI-03**: Vox-native and React/TanStack interop UI primitive tracks have an explicit, documented, enforced boundary per ADR-027.
+- [x] **GUI-04**: The Tauri 2 desktop-convergence clause of ADR-037 is confirmed complete and Accepted, independent of the already-superseded mobile clause (adr-NNN).
 
 ### Multi-Agent Trust
 
@@ -76,16 +76,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REQ-dead-crate-wire-up | Phase 2 | Pending |
 | REQ-dead-crate-extract-to-plugin | Phase 3 | Pending |
 | REQ-dead-crate-misplaced | Phase 3 | Pending |
-| GUI-01 | Phase 4 | Pending |
-| GUI-02 | Phase 4 | Pending |
-| GUI-03 | Phase 4 | Pending |
-| GUI-04 | Phase 4 | Pending |
+| GUI-01 | Phase 4 | Complete |
+| GUI-02 | Phase 4 | Complete |
+| GUI-03 | Phase 4 | Complete |
+| GUI-04 | Phase 4 | Complete |
 | MESH-01 | Phase 5 | Pending |
 | TRUST-01 | Phase 5 | Pending |
 | MODEL-01 | Phase 6 | Pending |
 | ML-01 | Phase 6 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 14 total
 - Mapped to phases: 14
 - Unmapped: 0 ✓
