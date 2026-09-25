@@ -1191,6 +1191,12 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     params.attachment_manifest.clone(),
                     params.model_override.as_deref(),
                     params.tier.as_deref(),
+                    // Task 8f: this is the attachment/non-agent-loop fallback
+                    // (`try_run_agent_turn` returned `None`) — it must infer
+                    // capability requirements from the user's own message too,
+                    // not from `user_prompt` (the assembled prompt with
+                    // history/open-files/retrieved/web context).
+                    Some(&expanded_prompt),
                 )
                 .await
                 {

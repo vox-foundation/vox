@@ -83,6 +83,9 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         risk: None,
         trigger_source: vox_orchestrator::mode::TriggerSource::Interactive,
         web_evidence_supplied: false,
+        // `user_prompt` below is `""` — there is no real user message for this
+        // category-only lookup, so `None` (falling back to that empty string)
+        // is correct: it infers zero prompt intents either way.
         capability_prompt: None,
     };
     match resolve_mcp_chat_model_sync(orch, "", None, resolution) {

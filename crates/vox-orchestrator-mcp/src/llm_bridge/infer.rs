@@ -857,6 +857,13 @@ pub async fn call_llm(
         attachment_manifest,
         None,
         None,
+        // Task 8f: every caller of `call_llm` (the compiler/oratio/db/scientia
+        // tool assists, plus `browser_tools`) builds its own single-purpose
+        // prompt from scratch — there is no separately-assembled chat context
+        // (history/open-files/retrieved/web text) mixed into `user_prompt` for
+        // any of them, so `user_prompt` already IS the caller's "own message".
+        // `None` correctly falls back to it in `resolve_mcp_chat_model_sync_inner`.
+        None,
     )
     .await
 }
@@ -943,6 +950,18 @@ pub async fn call_llm_with_pref(
     attachment_manifest: Option<vox_orchestrator::attachment_manifest::AttachmentManifest>,
     request_model_override: Option<&str>,
     tier: Option<&str>,
+    // Task 8f: the user's own message for this turn (post-`@mention`-expansion,
+    // pre-context-assembly), used ONLY for capability-requirement inference —
+    // see `McpChatModelResolution::capability_prompt`. `user_prompt` above still
+    // carries the full assembled prompt (history/open files/retrieved/web
+    // context) for everything else, including the actual LLM call below. This
+    // is the attachment/non-agent-loop fallback `chat_message` takes when
+    // `try_run_agent_turn` returns `None` (attachments, or a model shape the
+    // agent-loop mapper doesn't cover) — it must infer capabilities the same
+    // way `try_run_agent_turn` does, not from the assembled prompt. `None` for
+    // callers whose `user_prompt` has no injected context mixed in (see
+    // `call_llm`'s doc comment).
+    capability_prompt: Option<&str>,
 ) -> Result<(String, String, u64), String> {
     let global_pref = match crate::sync_poison::poison_rw_read(
         state.mcp_chat_model_override.read(),
@@ -959,6 +978,7 @@ pub async fn call_llm_with_pref(
             tier,
             McpChatModelResolution {
                 context_fill_ratio,
+                capability_prompt: capability_prompt.map(str::to_string),
                 ..Default::default()
             },
         );
@@ -1125,6 +1145,138 @@ mod tests {
         assert!(
             err.to_lowercase().contains("budget"),
             "expected error to mention budget (not a network/API-key error), got: {err}"
+        );
+    }
+
+    /// Task 8f, fix round 1: `try_run_agent_turn` (`chat_tools::chat::message`)
+    /// returns `None` immediately whenever the turn carries an attachment
+    /// manifest, and `chat_message` then falls through to `call_llm_with_pref`
+    /// — every attachment/image turn in the GUI takes this path. It must infer
+    /// capability requirements from `capability_prompt` (the user's own
+    /// message), not from `user_prompt` (the assembled prompt with injected
+    /// conversation history), the same way the primary agent-loop path does.
+    ///
+    /// No network reachable here: `request_model_override` pins directly to a
+    /// registry id via the sticky-pref branch of `resolve_mcp_chat_model_sync_inner`
+    /// (id lookup, not scored selection, so no API key / catalog dependency),
+    /// and an exceeded daily budget makes `mcp_infer_completion` refuse *after*
+    /// resolution succeeds but *before* any HTTP dispatch — mirroring
+    /// `mcp_infer_completion_refuses_when_daily_budget_exceeded` above. An error
+    /// mentioning "budget" (not "capability"/"not allowed") is therefore proof
+    /// that capability resolution accepted the web-incapable pinned model
+    /// despite "latest news" sitting in the injected history.
+    #[tokio::test]
+    #[serial]
+    async fn call_llm_with_pref_infers_capabilities_from_capability_prompt_with_attachment() {
+        let prior = std::env::var("VOX_BUDGET_USD").ok();
+        // SAFETY: `#[serial]` — no concurrent env mutation in this crate's tests.
+        unsafe { std::env::set_var("VOX_BUDGET_USD", "0.01") };
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("open in-memory db");
+        db.record_llm_outcome(ModelOutcome {
+            session_id: "attachment-capability-test",
+            user_id: None,
+            tenant_id: None,
+            prompt: "p",
+            response: "r",
+            model_id: "m",
+            provider: "openrouter",
+            task_category: "general",
+            strength_tag: "generalist",
+            latency_ms: Some(10),
+            input_tokens: Some(5),
+            output_tokens: Some(5),
+            cache_read_tokens: Some(0),
+            trace_id: None,
+            context_utilization_pct: None,
+            success: true,
+            cost_usd: Some(0.02),
+            quality_score: Some(1.0),
+            ttft_ms: None,
+            tpot_ms: None,
+        })
+        .await
+        .expect("record spend");
+
+        let state = crate::server_state::ServerState::new_test()
+            .await
+            .with_db_initialized(Arc::new(db))
+            .await;
+
+        // Web-incapable model, registered directly so the sticky-pref (id
+        // lookup) branch finds it regardless of the ambient bootstrap catalog.
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut registry = vox_orchestrator::sync_lock::rw_write(&*handle);
+            registry.register(ModelSpec {
+                id: "attachment-web-incapable".into(),
+                canonical_slug: "attachment-web-incapable".into(),
+                provider: "test".into(),
+                provider_type: ProviderType::OpenRouter,
+                max_tokens: 1000,
+                cost_per_1k: 0.01,
+                cost_per_1k_input: 0.01,
+                cost_per_1k_output: 0.01,
+                is_free: false,
+                observed_cost_per_1k: None,
+                strengths: vec![vox_orchestrator::models::generated::StrengthTag::Codegen],
+                capabilities: Default::default(), // no web search, no json mode
+                cache_creation_cost_per_1k: 0.0,
+                cache_read_cost_per_1k: 0.0,
+                supports_prompt_caching: false,
+                pricing_source: vox_orchestrator::models::spec::PricingSource::Bootstrap,
+                supported_parameters: vec![],
+            });
+        }
+
+        let capability_prompt = "describe this";
+        let assembled_prompt = format!(
+            "[CONVERSATION HISTORY]\nUser: what's the latest news on rust async?\n\n{capability_prompt}"
+        );
+        let attachment = vox_orchestrator::attachment_manifest::AttachmentManifest {
+            attachments: vec![vox_orchestrator::attachment_manifest::AttachmentEntry {
+                sha256: "deadbeef".into(),
+                mime_type: "image/png".into(),
+                label: "screenshot.png".into(),
+                visual_segments: None,
+            }],
+        };
+
+        let result = call_llm_with_pref(
+            &state,
+            "system",
+            &assembled_prompt,
+            Some("attachment-capability-test"),
+            None,
+            None,
+            Some(attachment),
+            Some("attachment-web-incapable"),
+            None,
+            Some(capability_prompt),
+        )
+        .await;
+
+        // SAFETY: `#[serial]` — restore prior env state before asserting/panicking.
+        unsafe {
+            match &prior {
+                Some(v) => std::env::set_var("VOX_BUDGET_USD", v),
+                None => std::env::remove_var("VOX_BUDGET_USD"),
+            }
+        }
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let err = result.expect_err(
+            "budget-exceeded must still refuse this turn (proves dispatch, not the \
+             capability gate, is what's being asserted)",
+        );
+        assert!(
+            err.to_lowercase().contains("budget"),
+            "expected a budget error (proving capability resolution accepted the pinned \
+             web-incapable model despite \"latest news\" in injected history) — got a \
+             capability-gate or other error instead: {err}"
         );
     }
 
@@ -1385,6 +1537,7 @@ mod tests {
             None,
             None,
             Some(request_model_id),
+            None,
             None,
         )
         .await;
