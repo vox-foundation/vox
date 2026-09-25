@@ -78,6 +78,13 @@ async fn run_script_bundle(file: &Path, out_dir: &Path, target: Option<&str>) ->
     Ok(())
 }
 
+/// Where Step 1's `build::run` wrote the generated Rust project for `file`.
+/// Must share build's computation: a member package with its own `Vox.toml`
+/// resolves to `<package>/target/generated`, which the cwd need not match.
+fn app_generated_dir(file: &Path) -> PathBuf {
+    build::generated_backend_dir(file.parent())
+}
+
 async fn run_app_bundle(
     file: &Path,
     out_dir: &Path,
@@ -150,7 +157,7 @@ async fn run_app_bundle(
 
     // Step 4: Copy built assets to backend public dir
     println!("=== Step 4/5: Packaging static assets ===");
-    let generated_dir = crate::fs_utils::run_target_dir_for_workspace(None).join("generated");
+    let generated_dir = app_generated_dir(file);
     let public_dir = generated_dir.join("public");
     copy_built_assets(&app_dir.join("dist"), &public_dir).await?;
 
@@ -391,7 +398,28 @@ fn script_bundle_bin_name(app_name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::script_bundle_bin_name;
+    use super::{app_generated_dir, script_bundle_bin_name};
+
+    /// Real CI failure (compile-matrix smoke): for a workspace member package
+    /// with its own `Vox.toml`, `build::run` wrote the generated project under
+    /// `<package>/target/generated`, but the bundle step rebuilt the path from
+    /// the cwd (`<workspace>/target/generated`, no `Cargo.toml` there). Cargo
+    /// then climbed to the parent repo's manifest and the binary was "not found".
+    #[test]
+    fn app_generated_dir_is_the_package_build_dir_not_the_cwd() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ws = tmp.path().join("ws");
+        let pkg = ws.join("packages/desktop");
+        std::fs::create_dir_all(pkg.join("src")).unwrap();
+        std::fs::write(ws.join("Vox.toml"), "").unwrap();
+        std::fs::write(pkg.join("Vox.toml"), "").unwrap();
+        let file = pkg.join("src/main.vox");
+
+        assert_eq!(
+            app_generated_dir(&file),
+            crate::fs_utils::strip_windows_verbatim_path(pkg.join("target/generated")),
+        );
+    }
 
     #[test]
     fn script_bundle_bin_name_is_native_not_wasm() {
