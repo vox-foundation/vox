@@ -45,8 +45,16 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install system deps (dbus, required by wry/keyring on Linux)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
-      # The desktop Tauri-generation smoke shells out to `cargo tauri build`; the
-      # self-hosted image does not ship the tauri CLI. Install the prebuilt binary.
+      # The desktop smoke scaffolds a React app and runs `pnpm install`; the
+      # retired self-hosted image shipped Node + pnpm, hosted ubuntu-latest has no pnpm.
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      # The desktop Tauri-generation smoke shells out to `cargo tauri build`;
+      # the runner image does not ship the tauri CLI. Install the prebuilt binary.
       - name: Install tauri-cli (for desktop Tauri smoke)
         uses: taiki-e/install-action@v2
         with:
