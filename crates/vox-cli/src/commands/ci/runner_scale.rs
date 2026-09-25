@@ -35,7 +35,22 @@ const REPO_URL: &str = "https://github.com/vox-foundation/vox";
 const RUNNER_IMAGE: &str = "vox-ci-runner-local:latest";
 /// Name prefix for autoscaler-managed runner containers.
 pub(crate) const MANAGED_PREFIX: &str = "vox-runner-auto-";
-const RUNNER_LABELS: &str = "self-hosted,linux,x64,docker,browser";
+/// Labels a spawned runner registers with. The arch label must match the
+/// container's real architecture: the Dockerfile builds natively for the host
+/// (`TARGETARCH`), so an Apple-silicon Colima host runs arm64 runners, and a
+/// hard-coded `x64` would let GitHub route x64-only jobs onto them.
+fn runner_labels() -> String {
+    runner_labels_for_arch(std::env::consts::ARCH)
+}
+
+fn runner_labels_for_arch(arch: &str) -> String {
+    let gh_arch = match arch {
+        "x86_64" => "x64",
+        "aarch64" => "arm64",
+        other => other,
+    };
+    format!("self-hosted,linux,{gh_arch},docker,browser")
+}
 const CACHE_VOLUME: &str = "vox-ci-runner-cache";
 
 const CPUS_PER_RUNNER: &str = "4";
@@ -435,7 +450,7 @@ fn query_queued_job_demand(max: u32) -> Result<u32> {
         let remaining = max.saturating_sub(total);
         total = total.saturating_add(accumulate_demand(
             blobs.iter().map(String::as_str),
-            RUNNER_LABELS,
+            &runner_labels(),
             remaining,
         ));
         if total >= max {
@@ -670,7 +685,7 @@ fn spawn_one(index: u32, tag: &str, dry_run: bool) -> Result<()> {
         "-e".into(),
         format!("RUNNER_TOKEN={token}"),
         "-e".into(),
-        format!("RUNNER_LABELS={RUNNER_LABELS}"),
+        format!("RUNNER_LABELS={}", runner_labels()),
         "-e".into(),
         format!("RUNNER_NAME={name}"),
         "-e".into(),
@@ -1340,9 +1355,10 @@ pub fn run_preflight() -> Result<()> {
     let online = online_runner_count().unwrap_or(0);
     if online == 0 {
         return Err(anyhow!(
-            "no online self-hosted runner — the merge gate ({RUNNER_LABELS}) cannot run.\n\
+            "no online self-hosted runner — the merge gate ({}) cannot run.\n\
              Bring the pool up:  vox run scripts/ci-runners-up.vox\n\
-             Then re-check:      vox ci runner-preflight"
+             Then re-check:      vox ci runner-preflight",
+            runner_labels()
         ));
     }
     println!("runner-preflight: {online} self-hosted runner(s) online");
@@ -1604,22 +1620,40 @@ mod tests {
                      \n\
                      self-hosted,linux,x64";
         // gpu + ubuntu-latest are not serveable by this pool; blank line ignored.
-        assert_eq!(count_matching_queued_jobs(lines, RUNNER_LABELS), 4);
-        assert_eq!(count_matching_queued_jobs("", RUNNER_LABELS), 0);
+        let x64 = runner_labels_for_arch("x86_64");
+        assert_eq!(count_matching_queued_jobs(lines, &x64), 4);
+        assert_eq!(count_matching_queued_jobs("", &x64), 0);
     }
 
     #[test]
     fn queued_job_demand_requires_every_label() {
+        let x64 = runner_labels_for_arch("x86_64");
         // A job needing a label the pool lacks must not count.
         assert_eq!(
-            count_matching_queued_jobs("self-hosted,linux,x64,gpu", RUNNER_LABELS),
+            count_matching_queued_jobs("self-hosted,linux,x64,gpu", &x64),
             0
         );
         // Whitespace around labels is tolerated.
         assert_eq!(
-            count_matching_queued_jobs(" self-hosted , linux , x64 ", RUNNER_LABELS),
+            count_matching_queued_jobs(" self-hosted , linux , x64 ", &x64),
             1
         );
+    }
+
+    #[test]
+    fn runner_arch_label_matches_the_host_arch() {
+        assert_eq!(
+            runner_labels_for_arch("x86_64"),
+            "self-hosted,linux,x64,docker,browser"
+        );
+        let arm = runner_labels_for_arch("aarch64");
+        assert_eq!(arm, "self-hosted,linux,arm64,docker,browser");
+        // An arm64 pool must not claim (or count demand for) x64-only jobs.
+        assert_eq!(
+            count_matching_queued_jobs("self-hosted,linux,x64,docker", &arm),
+            0
+        );
+        assert_eq!(count_matching_queued_jobs("self-hosted,linux", &arm), 1);
     }
 
     #[test]
