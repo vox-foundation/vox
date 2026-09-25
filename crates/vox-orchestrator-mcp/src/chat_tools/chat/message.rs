@@ -1706,7 +1706,33 @@ mod tests {
             pricing_source: PricingSource::Bootstrap,
             is_free: false,
             strengths: Vec::new(),
-            capabilities: ModelCapabilities::default(),
+            // Task 8e: full capabilities, not `ModelCapabilities::default()`.
+            // `chat_message`'s always-on autonomous-retrieval preamble makes a
+            // real, unmocked web-leg call for every turn and folds whatever it
+            // returns into the text `resolve_mcp_chat_model_sync_inner` runs
+            // capability inference over — on a machine with live internet
+            // access, injected page text can spuriously match an intent cue
+            // (e.g. "today's") and require a capability a plain test fixture
+            // doesn't have, failing tests that aren't testing capability
+            // routing at all. Every test in this module that goes through
+            // `chat_message` expects success, not a capability rejection, so
+            // this fixture matches the workaround already used ad hoc by
+            // `quick_research_turn_skips_the_preamble_web_leg`.
+            capabilities: ModelCapabilities {
+                supports_json: true,
+                supports_vision: true,
+                supports_native_tools: true,
+                supports_tool_use: true,
+                supports_reasoning: true,
+                supports_web_search: true,
+                supports_image_generation: true,
+                supports_audio_input: true,
+                supports_audio_output: true,
+                supports_file_input: true,
+                supports_jsonl: true,
+                writes_vox: true,
+                ..ModelCapabilities::default()
+            },
             supported_parameters: Vec::new(),
         }
     }

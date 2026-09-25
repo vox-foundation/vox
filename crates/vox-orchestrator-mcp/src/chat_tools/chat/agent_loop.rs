@@ -1656,7 +1656,27 @@ mod tests {
             pricing_source: vox_orchestrator::models::spec::PricingSource::Bootstrap,
             is_free: false,
             strengths: Vec::new(),
-            capabilities: vox_orchestrator::models::ModelCapabilities::default(),
+            // Task 8e: full capabilities, not `ModelCapabilities::default()` —
+            // see the identical fixture in `chat_tools::chat::message::tests`
+            // for why (the always-on autonomous-retrieval preamble's live,
+            // unmocked web leg can inject text that spuriously trips capability
+            // inference; every test here expects `chat_message` to succeed, not
+            // to test capability rejection).
+            capabilities: vox_orchestrator::models::ModelCapabilities {
+                supports_json: true,
+                supports_vision: true,
+                supports_native_tools: true,
+                supports_tool_use: true,
+                supports_reasoning: true,
+                supports_web_search: true,
+                supports_image_generation: true,
+                supports_audio_input: true,
+                supports_audio_output: true,
+                supports_file_input: true,
+                supports_jsonl: true,
+                writes_vox: true,
+                ..vox_orchestrator::models::ModelCapabilities::default()
+            },
             supported_parameters: Vec::new(),
         }
     }

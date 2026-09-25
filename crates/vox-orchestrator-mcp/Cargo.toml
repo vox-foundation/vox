@@ -173,6 +173,8 @@ jsonschema.workspace = true
 # feature-gated optional [dependencies] entry above is only what makes it
 # reachable from non-test code (the eval-gate check functions).
 wiremock.workspace = true
+# Task 8e: pre-main hermetic-test-env init (see src/lib.rs `hermetic_test_env`).
+ctor.workspace = true
 
 [lints.rust]
 unsafe_code = "warn"
