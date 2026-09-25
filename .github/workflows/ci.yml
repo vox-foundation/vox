@@ -261,7 +261,8 @@ jobs:
           shared-key: workspace
           save-if: false
       - name: Build vox CLI
-        run: cargo build -p vox-cli --locked --features completion-toestub,extras-ludus,ars,coderabbit
+        # Same build the linux gate verifies with (ci_workflow_contract pins it).
+        run: cargo build -p vox-cli --locked
       - name: Regenerate committed SSOT artifacts
         shell: bash
         run: |

@@ -366,6 +366,32 @@ fn check_targets_declares_pr_scope() {
     }
 }
 
+/// The ssot-autoregen bot must build vox with exactly the features the `linux`
+/// gate verifies with: feature-gated commands (e.g. `ars ludus`) change what
+/// `gui-surface-coverage` / `command-sync` emit, so a divergent build makes
+/// the bot commit artifacts the gate then rejects as drift.
+#[test]
+fn ssot_autoregen_builds_vox_like_the_gate() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    let builds: Vec<&str> = yml
+        .lines()
+        .map(str::trim)
+        .filter(|l| l.starts_with("run: cargo build -p vox-cli"))
+        .collect();
+    assert_eq!(
+        builds.len(),
+        2,
+        "expected linux + ssot-autoregen builds: {builds:?}"
+    );
+    assert_eq!(
+        builds[0], builds[1],
+        "ssot-autoregen must build vox-cli like the gate"
+    );
+}
+
 #[test]
 fn ci_gate_is_hosted_capped_and_owns_required_context() {
     let yml = include_str!(concat!(
