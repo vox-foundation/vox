@@ -71,10 +71,12 @@ pub fn probe_metal() -> Option<HardwareSummary> { // toestub-ignore(skeleton/hol
 /// nearly-idle small Mac from a near-zero margin. Matches the constant this
 /// logic used before the vram_autodetect ladder deletion (`MIN_LIVE_MEM_RESERVE_GIB`,
 /// 2 GiB) and the plan's cited `max(15%, 2 GiB)` reserve.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))] // runtime caller is macOS-only; tests run everywhere
 const MIN_LIVE_PRESSURE_RESERVE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
 /// Proportional margin taken off live-reclaimable memory before it's treated
 /// as available budget. Matches the deleted `vram_autodetect` default.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 const LIVE_PRESSURE_MARGIN_PCT: f64 = 0.15;
 
 /// Parse `vm_stat` output into `(page_size_bytes, free_pages, inactive_pages, speculative_pages)`.
@@ -114,6 +116,7 @@ fn parse_vm_stat(stdout: &str) -> Option<(u64, u64, u64, u64)> {
 /// Reduce a reclaimable-memory pool (bytes) by a proportional margin, floored
 /// at a minimum absolute reserve so a small pool isn't left with almost no
 /// margin. Pure function, independently testable without a real Mac.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 fn apply_live_pressure_margin(
     reclaimable_bytes: u64,
     margin_pct: f64,

@@ -836,6 +836,8 @@ pub fn run_candle_qlora_train(
                     n_heads,
                     n_kv_heads,
                     head_dim,
+                    q_norm,
+                    k_norm,
                 };
                 Some(crate::model::Qwen35AttentionBlock::Full(attn))
             } else {
