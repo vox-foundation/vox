@@ -8,6 +8,8 @@
 //! is found on the way to the filesystem root, so process cwd (not a passed-in path) is what
 //! actually drives this bug in production, and is what must be simulated here.
 
+#![allow(unsafe_code)] // test-only env mutation (set_var/remove_var are unsafe on Rust 2024)
+
 use vox_db::{DbConnectSurface, connect_workspace_journey_optional};
 
 /// A fresh, non-git, non-Vox directory must not get a `.vox/` store littered into it —
