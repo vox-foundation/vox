@@ -203,6 +203,7 @@ pub async fn sample_table_json_objects(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn turso_cell_value_to_json_variants() {

@@ -84,3 +84,15 @@ impl SearchProviderCircuitRegistry {
         guard.entry(provider).or_default().record_success();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ProviderCircuitBreaker;
+
+    #[test]
+    fn default_breaker_is_closed() {
+        let b = ProviderCircuitBreaker::default();
+        assert_eq!(b.consecutive_failures, 0);
+        assert!(b.cooldown_until.is_none());
+    }
+}

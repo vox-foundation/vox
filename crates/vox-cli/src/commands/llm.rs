@@ -1,5 +1,6 @@
 use clap::Subcommand;
 use owo_colors::OwoColorize;
+use std::io::IsTerminal;
 
 // Vox snippets printed by `vox llm prompt`. GOLDEN_ROUTE and GOLDEN_MUTATION
 // are copied VERBATIM from examples/golden/crud_api.vox:19-21 and :29-32,
@@ -27,38 +28,56 @@ pub enum LlmCmd {
     },
 }
 
+/// Whether stdout should carry ANSI colour: respects `NO_COLOR`
+/// (https://no-color.org/, any non-empty value disables colour) and only
+/// colours when stdout is a tty (never when piped/redirected).
+fn stdout_color_enabled() -> bool {
+    std::env::var_os("NO_COLOR").is_none() && std::io::stdout().is_terminal()
+}
+
 pub async fn run(cmd: LlmCmd) -> anyhow::Result<()> {
     match cmd {
         LlmCmd::Prompt { task } => {
-            println!(
-                "{}",
-                format!("Generating LLM prompt context for task: {}", task).bright_cyan()
-            );
+            let color = stdout_color_enabled();
+            let heading = format!("Generating LLM prompt context for task: {}", task);
+            if color {
+                println!("{}", heading.bright_cyan());
+            } else {
+                println!("{heading}");
+            }
+
+            let section = |title: &str| {
+                if color {
+                    println!("{}", title.bright_yellow());
+                } else {
+                    println!("{title}");
+                }
+            };
 
             let mut found = false;
             let task_lower = task.to_lowercase();
 
             if task_lower == "web-route" || task_lower == "route" || task_lower == "@query" {
-                println!("{}", "--- Route Declaration Syntax ---".bright_yellow());
+                section("--- Route Declaration Syntax ---");
                 println!("{SYNTAX_ROUTE}");
                 println!();
-                println!("{}", "--- Golden Example ---".bright_yellow());
+                section("--- Golden Example ---");
                 println!("{GOLDEN_ROUTE}");
                 println!();
-                println!("{}", "--- MCP Schema Excerpt ---".bright_yellow());
+                section("--- MCP Schema Excerpt ---");
                 println!("{SCHEMA_ROUTE}");
                 found = true;
             } else if task_lower == "server-fn"
                 || task_lower == "mutation"
                 || task_lower == "@mutation"
             {
-                println!("{}", "--- Mutation Declaration Syntax ---".bright_yellow());
+                section("--- Mutation Declaration Syntax ---");
                 println!("{SYNTAX_MUTATION}");
                 println!();
-                println!("{}", "--- Golden Example ---".bright_yellow());
+                section("--- Golden Example ---");
                 println!("{GOLDEN_MUTATION}");
                 println!();
-                println!("{}", "--- MCP Schema Excerpt ---".bright_yellow());
+                section("--- MCP Schema Excerpt ---");
                 println!("{SCHEMA_MUTATION}");
                 found = true;
             }
@@ -77,6 +96,38 @@ pub async fn run(cmd: LlmCmd) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `NO_COLOR` (https://no-color.org/) must disable colour regardless of
+    /// tty state — the actual bug: `vox llm prompt` emitted ANSI escapes even
+    /// with `NO_COLOR=1` set and stdout piped.
+    #[test]
+    fn stdout_color_enabled_respects_no_color() {
+        // SAFETY: test-only env mutation; no other test in this process reads NO_COLOR.
+        unsafe {
+            std::env::set_var("NO_COLOR", "1");
+        }
+        assert!(
+            !stdout_color_enabled(),
+            "NO_COLOR=1 must disable colour output"
+        );
+        unsafe {
+            std::env::remove_var("NO_COLOR");
+        }
+    }
+
+    /// Under `cargo test`, stdout is captured (not a tty), so colour must be
+    /// disabled even with `NO_COLOR` unset — colour is opt-in to a real terminal.
+    #[test]
+    fn stdout_color_enabled_disabled_when_not_a_tty() {
+        // SAFETY: test-only env mutation.
+        unsafe {
+            std::env::remove_var("NO_COLOR");
+        }
+        assert!(
+            !stdout_color_enabled(),
+            "non-tty stdout (captured by the test harness) must not emit colour"
+        );
+    }
 
     /// This subcommand's whole purpose is telling an LLM how to write Vox, so
     /// a snippet containing non-Vox syntax is a defect shipped as a feature.

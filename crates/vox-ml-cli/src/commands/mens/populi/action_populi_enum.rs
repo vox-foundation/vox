@@ -471,7 +471,10 @@ pub enum PopuliAction {
 
     /// Export merged safetensors weights to GGUF (not yet implemented).
     ///
-    /// Prerequisite: run `vox mens merge-qlora` to produce merged `.safetensors` first.
+    /// Prerequisite: run `vox mens merge-qlora` to produce merged `.safetensors`
+    /// first. `merge-qlora` is only available in GPU-enabled builds (`--features
+    /// gpu`, or the `gpu` distribution bundle) — it does not appear in a
+    /// non-GPU build's `vox mens --help`.
     #[command(name = "export-gguf")]
     ExportGguf {
         /// Merged safetensors path (output of `merge-qlora`).

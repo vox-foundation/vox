@@ -40,9 +40,7 @@ pub fn atomic_write_secure(dest_path: &Path, content: &[u8]) -> io::Result<()> {
 
     #[cfg(windows)]
     let mut attempts = 0;
-    // On Windows this retries the rename on sharing-violation errors (`continue` below);
-    // off-Windows the loop body always breaks or returns on its first iteration, which
-    // clippy's `never_loop` correctly flags for that cfg — the loop itself is not dead.
+    // Only Windows retries (sharing violations); elsewhere the first rename is final.
     #[cfg_attr(not(windows), allow(clippy::never_loop))]
     loop {
         match fs::rename(&tmp_path, dest_path) {

@@ -1119,8 +1119,12 @@ mod tests {
     #[test]
     fn test_rope_inv_freq_synthesis_qwen_default() {
         let dev = candle_core::Device::Cpu;
-        let t = vox_plugin_mens_candle_core::rope::synthesize_rope_inv_freq(128, None, &dev)
-            .expect("synthesize");
+        let t = vox_plugin_mens_candle_core::rope::synthesize_rope_inv_freq(
+            128,
+            Some(1_000_000.0),
+            &dev,
+        )
+        .expect("synthesize");
         assert_eq!(t.dims(), &[64]);
         let vals = t.to_vec1::<f32>().expect("vec");
         assert!((vals[0] - 1.0).abs() < 1e-6);

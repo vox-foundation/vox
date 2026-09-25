@@ -783,18 +783,15 @@ fn emit_server_fn_handler(
         "Json(request): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {\n",
     );
 
-    // Extract params from request JSON
+    // Extract params from request JSON, deserialized to their declared types.
     for param in &sf.params {
-        out.push_str(&format!(
-            "    let {} = request[\"{}\"].clone();\n",
-            param.name, param.name
-        ));
+        out.push_str(&emit_handler_param(&param.name, param.type_ann.as_ref()));
     }
 
     let rid = Some("vox_rid.clone()");
     if wrap_mutation_tx && has_tables {
         out.push_str("    let db = (*db).clone();\n");
-        out.push_str("    match db.transaction(async move {\n");
+        out.push_str("    match db.transaction(async {\n");
         let mut has_return = false;
         let usage = super::usage::UsageTracker::build(&sf.body);
         for stmt in &sf.body {
@@ -908,9 +905,46 @@ fn emit_query_fn_handler(
     out
 }
 
+/// `let {name} = …` for an Axum handler param. Typed params deserialize from
+/// the request body and answer 400 on a bad value; `Json`/`Any`/untyped stay
+/// `serde_json::Value` (a bare `Json` here would name axum's extractor).
+fn emit_handler_param(name: &str, ty: Option<&vox_compiler::hir::HirType>) -> String {
+    let rust_ty = ty.map(super::types::emit_type);
+    match rust_ty.as_deref() {
+        None | Some("serde_json::Value") | Some("Json") => {
+            format!("    let {name} = request[\"{name}\"].clone();\n")
+        }
+        Some(rust_ty) => format!(
+            "    let {name}: {rust_ty} = match serde_json::from_value(request[\"{name}\"].clone()) {{\n        Ok(v) => v,\n        Err(e) => return Err((StatusCode::BAD_REQUEST, Json(serde_json::json!({{ \"error\": format!(\"invalid parameter `{name}`: {{}}\", e) }})))),\n    }};\n"
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::emit_main;
+
+    #[test]
+    fn handler_params_bind_declared_types() {
+        use super::emit_handler_param;
+        use vox_compiler::hir::HirType;
+        let int = emit_handler_param("id", Some(&HirType::Named("int".into())));
+        assert!(
+            int.contains("let id: i64 = match serde_json::from_value(request[\"id\"].clone())"),
+            "{int}"
+        );
+        assert!(int.contains("StatusCode::BAD_REQUEST"), "{int}");
+        for untyped in [
+            None,
+            Some(HirType::Named("Json".into())),
+            Some(HirType::Named("Any".into())),
+        ] {
+            assert_eq!(
+                emit_handler_param("x", untyped.as_ref()),
+                "    let x = request[\"x\"].clone();\n"
+            );
+        }
+    }
     use vox_compiler::hir::lower_module;
     use vox_compiler::lexer::cursor::lex;
     use vox_compiler::parser::parse;

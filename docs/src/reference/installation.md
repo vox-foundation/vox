@@ -80,6 +80,7 @@ When that path works, it will install:
 | Path | Contents |
 |---|---|
 | `~/.vox/bin/vox` | The Vox CLI (real binary from the release archive) |
+| `~/.vox/bin/vox-lsp` | The standalone Language Server Protocol binary — `vox lsp` and editor integrations (e.g. the VS Code extension) spawn this from `PATH` |
 | `~/.vox/bin/voxup` | The installer binary (used by `voxup update`) |
 | `~/.vox/toolchains/vox-<version>/` | Versioned toolchain directory |
 | `~/.vox/toolchains/active` | Active version number (plain text) |
@@ -121,6 +122,24 @@ feature set and yields a binary with no mesh transport, so `vox populi` cannot
 serve. The path and required feature are recorded as
 `SOURCE_INSTALL_ML_CLI_REL_PATH` and `CARGO_INSTALL_ML_CLI_FROM_SOURCE` in
 `crates/vox-cli/src/utils/install_policy/mod.rs`.
+
+### The Language Server (`vox lsp`)
+
+`vox lsp` (`crates/vox-cli/src/commands/lsp.rs`) does **not** run the language
+server in-process — it spawns a separate `vox-lsp` binary from `PATH` and
+proxies its stdio. `cargo install --locked --path crates/vox-cli` does **not**
+build or install `vox-lsp`; you must install it separately:
+
+```bash
+cargo install --locked --path crates/vox-lsp
+```
+
+Once published releases exist, `voxup`'s `default` and `full` tiers install
+`vox-lsp` alongside `vox` automatically (see the [Packaging status](#packaging-status)
+table above for why the one-liner doesn't work yet). The VS Code extension
+(`apps/editor/vox-vscode`) defaults to `cargo run -p vox-lsp --release --` in
+a dev checkout, or a custom `vox.lsp.serverPath` setting pointing at an
+installed `vox-lsp` binary.
 
 ## Packaging status
 

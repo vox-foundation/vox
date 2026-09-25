@@ -868,7 +868,7 @@ The sections above document 50 of the 76 top-level `vox` commands. The remaining
 | `vox policy` | View the unified policy catalog (CI gates, language rules, audits) |
 | `vox repair` | Automatically repair syntax and type errors in a `.vox` file via LLM (`vox repair`) |
 | `vox repl` | Interactive Vox expression REPL (read-eval-print loop) |
-| `vox rollback` | Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger |
+| `vox rollback` | Undo an operation recorded in the live vox-orchestrator-d daemon's operation log (requires a running daemon) |
 | `vox snapshot` | Insta snapshot helpers: detect and clean up orphaned `.snap` files (`vox snapshot orphans [--clean]`) |
 | `vox stop` | Emergency stop the orchestrator (MCP/daemon local stop request) |
 | `vox term` | Headless-capable ratatui terminal UI — block-model shell + AI agent strip |
@@ -889,10 +889,19 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `dev` | default | `commands::dev` |
 | `live` | `live` | `commands::live` |
 | `bundle` | default | `commands::bundle` |
+| `bundle-app` | default | `commands::bundle` — web-application bundling entry point |
 | `compile` | default | `commands::compile` — **`vox compile`** packaging umbrella (also **`vox fabrica compile`**) |
+| `component` | default | `commands::add_component` |
+| `config` | default | `commands::config` |
+| `container` | default | `commands::container` |
 | `fmt` | default | `commands::fmt` (`vox_compiler::fmt::try_format`; `--check` supported) |
+| `emit` | default | `commands::emit` |
+| `ext` | default | `commands::ext` |
 | `graph` | default | `commands::graphify` (aliases: `graphify`, `search`) |
+| `grammar` | default | `commands::grammar::handle` |
 | `gui` | `gui` | `commands::gui` — launch Axis; `vox gui drive` is `commands::gui::drive` |
+| `harness` | default | `commands::harness` |
+| `mcp` | `mcp-server` | `commands::mcp::run` — start the Model Context Protocol server; without the feature it fails with a rebuild instruction |
 | `add` | default | `commands::add` |
 | `audit` | default | `commands::audit` |
 | `auth` | default | `commands::auth` |
@@ -901,12 +910,20 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `lock` | default | `commands::lock` |
 | `sync` | default | `commands::sync` |
 | `deploy` | default | `commands::deploy` |
+| `dispatch` | default | `commands::dispatch` |
+| `drift-check` | default | `commands::drift_check` |
 | `upgrade` | default | `commands::upgrade` (toolchain only) |
 | `init` | default | `commands::init` |
+| `llm` | default | `commands::llm` |
 | `pm` | default | `commands::pm` |
 | `login` | default | `commands::login_shared::run_login` |
 | `logout` | default | `commands::login_shared::run_logout` |
 | `lsp` | default | `commands::lsp` |
+| `new` | default | `commands::new` |
+| `play` | default | `commands::play` |
+| `plugin` | default | `commands::plugin` |
+| `policy` | default | `commands::policy` |
+| `populi` | default | delegated to `vox-ml-cli` |
 | `doctor` | default / `codex` | `commands::doctor` or `commands::diagnostics::doctor` |
 | `secrets` | default | `commands::secrets` |
 | `clavis` | default | deprecated alias of `secrets` |
@@ -914,11 +931,18 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `snippet` | default | `commands::extras::snippet_cli` |
 | `share` | default | `commands::extras::share_cli` |
 | `codex` | default | `commands::codex` |
+| `dei` | `dei` | `commands::dei` |
 | `repo` | default | `commands::repo` |
 | `research` | default | `commands::research`: infra **`vox research up`** / **`vox research down`** / **`vox research status`** / **`vox research eval`**; **`vox research run`** calls orchestrator `run_research` (`--json`, `--scope`, `--site-scope`, …) |
+| `repair` | default | `commands::repair` |
+| `review` | `coderabbit` | `commands::review` |
+| `rollback` | default | `commands::rollback` |
 | `db` | default | `commands::db` + `commands::db_cli` dispatch |
 | `scientia` | default | `commands::scientia` (facade over `db_cli` research helpers) |
+| `speech` | default | delegated to `vox-ml-cli` (alias: `oratio`) |
+| `stop` | `dei` | `commands::dei::stop` |
 | `telemetry` | default | `commands::telemetry` (optional upload queue; ADR 023) |
+| `term` | default | `vox_term::app::run` |
 | `openclaw` | `ars` | `commands::openclaw` |
 | `skill` | `ars` | `commands::extras::skill_cmd` |
 | `gamify` | `extras-ludus` | `commands::extras::ludus_cli` |

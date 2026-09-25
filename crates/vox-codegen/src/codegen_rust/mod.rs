@@ -425,7 +425,7 @@ mod tests {
             "expected mutation handler: {out}"
         );
         assert!(
-            out.contains("match db.transaction(async move"),
+            out.contains("match db.transaction(async {"),
             "mutation with @table should wrap handler body in Codex::transaction: {out}"
         );
         assert!(
@@ -529,13 +529,28 @@ fn heartbeat() { }
             cargo.contains("vox-tauri-stt") && cargo.contains("tauri-plugin"),
             "expected vox-tauri-stt path dep with feature: {cargo}"
         );
+        // The vox repo root resolves during `cargo test` (this test binary is
+        // built from inside the checkout), so the emitted dep is the
+        // absolute path, not the historical `../../../crates` fallback —
+        // see `resolve_vox_repo_root` / `docs/src/architecture/generated-project-runtime-deps.md`.
+        let expected_actor_runtime_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(std::path::Path::parent)
+            .expect("crate lives at <repo>/crates/vox-codegen")
+            .join("crates")
+            .join("vox-actor-runtime");
         assert!(
-            cargo.contains("path = \"../../../crates/vox-actor-runtime\""),
-            "src-tauri path deps must use ../../../crates (manifest under target/generated/src-tauri): {cargo}"
+            cargo.contains(&format!(
+                "path = \"{}\"",
+                expected_actor_runtime_path.display()
+            )),
+            "src-tauri path deps must resolve to the real vox-actor-runtime crate \
+             (absolute path, since the vox repo root is resolvable in this test): {cargo}"
         );
         assert!(
             !cargo.contains("path = \"../../crates/vox-actor-runtime\""),
-            "src-tauri must not use ../../crates (wrong resolve from src-tauri/): {cargo}"
+            "src-tauri must not use the axum-shell's 2-level-relative fallback \
+             (wrong resolve depth from src-tauri/): {cargo}"
         );
         let cap = out
             .files

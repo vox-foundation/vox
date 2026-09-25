@@ -121,6 +121,12 @@ history or as a process argument:
 Get-Clipboard | .\target\debug\vox.exe secrets set OPENROUTER_API_KEY --stdin
 ```
 
+On macOS/Linux, `pbpaste | vox secrets set OPENROUTER_API_KEY --stdin` (or
+`xclip -o` / `wl-paste`) does the same. When standard input is an interactive
+terminal, `set --stdin` prompts on stderr and reads one line with echo disabled,
+so you can paste the key and press Enter. Piped input is read to EOF. Leading
+and trailing whitespace is trimmed; empty input is rejected.
+
 `~/.vox/auth.json` is a legacy compatibility and migration source only. Normal
 secret creation, replacement, and deletion use the Clavis vault through the
 Secrets CLI or GUI. `vox secrets migrate-auth-store` moves recognized legacy

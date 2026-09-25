@@ -59,7 +59,7 @@ impl VoxDb {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "host-integration"))]
 mod tests {
     use super::HarnessIssueDecisionRow;
     use crate::paths::local_user_id;

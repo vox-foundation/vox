@@ -17,8 +17,8 @@ jobs:
     name: Build ${{ matrix.target }}
     runs-on: ${{ fromJson(matrix.runs_on) }}
     timeout-minutes: 180  # clamped to slow-lane cap (workflow_policy_guard); was 240
-    # This job performs four serial fat-LTO links (vox-cli with
-    # heavy-retrieval, vox-ml-cli, vox-langtool, voxup) on 4-core/14-16GB hosted runners.
+    # This job performs five serial fat-LTO links (vox-cli with
+    # heavy-retrieval, vox-ml-cli, vox-langtool, vox-lsp, voxup) on 4-core/14-16GB hosted runners.
     # CARGO_BUILD_JOBS caps the dep-compile phase's parallelism to protect
     # peak RSS during the link, matching the dist-verify lane's budget for a
     # single such link (see below).
@@ -63,9 +63,10 @@ jobs:
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       - name: Build and package release artifacts (core + plugins)
-        # `--package all` produces: vox, vox-ml-cli, vox-langtool. voxup is built separately below.
+        # `--package all` produces: vox, vox-ml-cli, vox-langtool, vox-lsp. voxup is built separately below.
         # Each ships as its own archive so users opt into the heavy ML/scientia plugins,
-        # or install just the lean language toolchain (minimal tier).
+        # the lean language toolchain (minimal tier), or the standalone LSP binary
+        # `vox lsp` and editor integrations spawn from PATH.
         run: cargo run --locked -p vox-cli ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package all
 
       - name: Build voxup
@@ -126,6 +127,14 @@ jobs:
             tar -xzf "$f"
             ./vox-langtool --help >/dev/null
           done
+          for f in vox-lsp-*.tar.gz; do
+            rm -f vox-lsp
+            tar -xzf "$f"
+            # vox-lsp takes no CLI args and serves JSON-RPC over stdio until EOF;
+            # it does not parse --help. Redirecting stdin from /dev/null makes it
+            # see immediate EOF and exit, which is the smoke check here.
+            ./vox-lsp < /dev/null
+          done
 
       - name: Smoke test packaged binary (Windows)
         if: runner.os == 'Windows'
@@ -146,6 +155,13 @@ jobs:
             if (Test-Path _smoke_langtool) { Remove-Item -Recurse -Force _smoke_langtool }
             Expand-Archive -Path $_.FullName -DestinationPath _smoke_langtool -Force
             & ".\_smoke_langtool\vox-langtool.exe" --help | Out-Null
+          }
+          Get-ChildItem -Filter 'vox-lsp-*.zip' | ForEach-Object {
+            if (Test-Path _smoke_lsp) { Remove-Item -Recurse -Force _smoke_lsp }
+            Expand-Archive -Path $_.FullName -DestinationPath _smoke_lsp -Force
+            # vox-lsp takes no CLI args and serves JSON-RPC over stdio until EOF;
+            # cmd's `< NUL` gives it immediate EOF so it exits, which is the smoke check.
+            cmd /c "_smoke_lsp\vox-lsp.exe < NUL"
           }
 
       - name: Smoke test voxup (Unix)
@@ -182,6 +198,7 @@ jobs:
             dist/vox-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/vox-ml-cli-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/vox-langtool-${{ github.ref_name }}-${{ matrix.target }}.*
+            dist/vox-lsp-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/voxup-${{ github.ref_name }}-${{ matrix.target }}.*
           if-no-files-found: error
 
@@ -266,7 +283,7 @@ jobs:
           if-no-files-found: error
 
   gpu-plugin-cuda:
-    name: Build mens-candle-cuda plugin
+    name: Build ${{ matrix.id }} plugin
     runs-on: ubuntu-latest
     timeout-minutes: 180  # clamped to slow-lane cap (workflow_policy_guard); was 240
     # See gpu-plugin-metal -- same non-blocking contract. CUDA is the least
@@ -274,6 +291,21 @@ jobs:
     # CUDA toolkit on a hosted runner, and the only CUDA-compiling job in CI
     # runs on the self-hosted fleet this whole effort routes around.
     continue-on-error: true
+    strategy:
+      fail-fast: false
+      # One crate, two plugins: the `cuda` build links libcuda at load time,
+      # so the same crate built without it ships separately as mens-candle-cpu
+      # for Linux hosts with no NVIDIA driver.
+      matrix:
+        include:
+          - id: mens-candle-cuda
+            cargo-features: "--features cuda"
+            manifest: Plugin.toml
+            artifact: release-gpu-cuda
+          - id: mens-candle-cpu
+            cargo-features: ""
+            manifest: Plugin.cpu.toml
+            artifact: release-gpu-cpu
     env:
       CARGO_BUILD_JOBS: "2"
       # candle-kernels/bindgen_cuda derives the target compute capability from
@@ -287,30 +319,31 @@ jobs:
       - name: Install Rust toolchain
         uses: ./.github/actions/setup-rust
       - name: Install CUDA toolkit
+        if: matrix.id == 'mens-candle-cuda'
         uses: Jimver/cuda-toolkit@v0.2.36
         with:
           cuda: "12.4.0"
           method: "network"
 
-      - name: Build the CUDA cdylib
-        run: cargo build -p vox-plugin-mens-candle-cuda --profile dist --features cuda
+      - name: Build the cdylib
+        run: cargo build -p vox-plugin-mens-candle-cuda --profile dist ${{ matrix.cargo-features }}
 
       - name: Package the plugin zip
         run: |
           set -euo pipefail
           version="$(cargo pkgid -p vox-plugin-mens-candle-cuda | sed -E 's/.*[#@]//')"
           staging="$(mktemp -d)"
-          cp crates/vox-plugin-mens-candle-cuda/Plugin.toml "$staging/"
+          cp "crates/vox-plugin-mens-candle-cuda/${{ matrix.manifest }}" "$staging/Plugin.toml"
           cp target/dist/libvox_plugin_mens_candle_cuda.so "$staging/"
           mkdir -p dist
-          zip -j "dist/mens-candle-cuda-v${version}-linux-x86_64.zip" "$staging"/*
-          echo "Packaged: mens-candle-cuda-v${version}-linux-x86_64.zip"
+          zip -j "dist/${{ matrix.id }}-v${version}-linux-x86_64.zip" "$staging"/*
+          echo "Packaged: ${{ matrix.id }}-v${version}-linux-x86_64.zip"
 
       - name: Upload plugin artifact
         uses: actions/upload-artifact@v7
         with:
-          name: release-gpu-cuda
-          path: dist/mens-candle-cuda-v*.zip
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.id }}-v*.zip
           if-no-files-found: error
 
   dist-verify:

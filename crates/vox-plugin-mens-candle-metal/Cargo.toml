@@ -41,6 +41,15 @@ rand = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
+# Metal on every macOS build, not only when `--features metal` is passed:
+# a plain `cargo build` on a Mac used to produce a CPU-only plugin that
+# silently fell back. Target-specific so Linux builds of this crate (e.g. a
+# workspace-wide `cargo check` in CI) never try to compile Metal.
+[target.'cfg(target_os = "macos")'.dependencies]
+candle-core = { workspace = true, features = ["metal"] }
+candle-nn = { workspace = true, features = ["metal"] }
+vox-plugin-mens-candle-core = { path = "../vox-plugin-mens-candle-core", features = ["metal"] }
+
 [features]
 default = []
 # Opt-in Metal kernel compilation. Requires macOS.

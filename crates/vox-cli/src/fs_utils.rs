@@ -45,17 +45,23 @@ pub fn copy_dir_recursive(from: &Path, to: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Shared Cargo `target/` dir for a generated project under the Vox workspace root.
+/// Shared Cargo `target/` dir for a generated project under the Vox project root.
 ///
-/// Uses [`vox_repository::discover_repository_or_fallback`] from `start` (or the process CWD)
-/// so nested `target/generated/...` builds reuse the workspace target directory.
+/// Anchors to the project root found by walking up for `.git` **or `Vox.toml`**
+/// ([`vox_config::paths::find_repo_root`]) from `start` (or the process CWD).
+/// A project scaffolded by `vox new` has `Vox.toml` but no `.git` until the
+/// user runs `git init` — anchoring on `.git` alone (the prior behavior, via
+/// [`vox_repository::discover_repository_or_fallback`]) silently fell back to
+/// `start` itself, scattering `target/generated/` next to the source file
+/// (e.g. under `src/`) instead of at the project root.
 pub fn run_target_dir_for_workspace(start: Option<&Path>) -> PathBuf {
     let start = start
         .map(Path::to_path_buf)
         .or_else(|| std::env::current_dir().ok())
         .unwrap_or_else(|| PathBuf::from("."));
-    let ctx = vox_repository::discover_repository_or_fallback(&start);
-    ctx.root.join("target")
+    let root = vox_config::paths::find_repo_root(&start)
+        .unwrap_or_else(|| vox_repository::discover_repository_or_fallback(&start).root);
+    root.join("target")
 }
 
 /// Open `url` in the system default browser (best-effort; logs on failure).
@@ -204,4 +210,30 @@ fn open_browser_sync(url: &str) -> std::io::Result<()> {
         std::process::Command::new("xdg-open").arg(url).spawn()?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A `vox new`-scaffolded project (`Vox.toml` at the root, no `.git` yet)
+    /// must anchor `target/generated` at the project root, not at the source
+    /// file's own directory — regression test for the `src/target/generated`
+    /// bug where a missing `.git` caused the old git-only anchor to fall back
+    /// to `start` itself.
+    #[test]
+    fn target_dir_anchors_to_vox_toml_root_without_git() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = std::fs::canonicalize(tmp.path()).unwrap();
+        let src_dir = dir.join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(dir.join("Vox.toml"), b"[project]\nname = \"demo\"\n").unwrap();
+
+        let result = run_target_dir_for_workspace(Some(&src_dir));
+        assert_eq!(
+            result,
+            dir.join("target"),
+            "target dir must be under the Vox.toml project root, not src/"
+        );
+    }
 }

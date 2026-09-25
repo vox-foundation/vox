@@ -46,10 +46,6 @@ fn build_adapter_manifest_v3(
     base_key_map: &std::collections::HashMap<String, String>,
     resolved_base_path: Option<String>,
 ) -> PopuliAdapterManifestV3 {
-    // `resolved_serve_base_model` below supersedes this computation for the
-    // manifest's `base_model` field (it prefers a local snapshot dir over the
-    // HF id); kept only to document that `resolved_base_path` was considered.
-    let _base_model = resolved_base_path.or_else(|| config.base_model.clone());
     PopuliAdapterManifestV3::new(
         AdapterMethod::Qlora,
         BaseQuantMode::Nf4,
@@ -60,7 +56,8 @@ fn build_adapter_manifest_v3(
         d_model,
         rank,
         alpha,
-        resolved_serve_base_model(config),
+        // The snapshot dir training loaded, else a loadable dir derived from config.
+        resolved_base_path.or_else(|| resolved_serve_base_model(config)),
         adapter_provenance_from_config(config),
     )
 }
@@ -337,9 +334,30 @@ pub(super) fn finalize_training_run(
 
 #[cfg(test)]
 mod tests {
-    use super::{resolved_serve_base_model, stage_serve_sidecars};
+    use super::{build_adapter_manifest_v3, resolved_serve_base_model, stage_serve_sidecars};
     use crate::config::LoraTrainingConfig;
     use std::fs;
+
+    /// The snapshot directory training actually loaded wins over anything
+    /// derived from the config (merge a7cdfdb8e silently dropped it).
+    #[test]
+    fn manifest_base_model_is_the_resolved_snapshot_dir() {
+        let cfg = LoraTrainingConfig {
+            base_model: Some("Qwen/Qwen3-0.6B".into()),
+            ..Default::default()
+        };
+        let m = build_adapter_manifest_v3(
+            8,
+            8,
+            4,
+            8,
+            &cfg,
+            &[],
+            &Default::default(),
+            Some("/snapshots/qwen3".into()),
+        );
+        assert_eq!(m.base_model.as_deref(), Some("/snapshots/qwen3"));
+    }
 
     #[test]
     fn resolved_serve_base_model_keeps_existing_directory() {
