@@ -221,6 +221,12 @@ async fn try_run_agent_turn(
     state: &ServerState,
     system_prompt: &str,
     user_prompt: &str,
+    // Task 8f: the user's own message for this turn (post-`@mention`-expansion,
+    // pre-context-assembly) — used ONLY for capability-requirement inference
+    // (`McpChatModelResolution::capability_prompt`). `user_prompt` above still
+    // carries the full assembled prompt (history/files/retrieved context) for
+    // everything else, including the actual LLM call below.
+    capability_prompt: &str,
     session_id: &str,
     active_skill_id: Option<String>,
     has_attachment: bool,
@@ -266,6 +272,7 @@ async fn try_run_agent_turn(
             clutch: clutch.and_then(vox_orchestrator::mode::ClutchProfile::from_label),
             risk: risk.and_then(vox_orchestrator::mode::RiskPosture::from_label),
             web_evidence_supplied,
+            capability_prompt: Some(capability_prompt.to_string()),
             ..Default::default()
         },
     );
@@ -985,6 +992,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                     // See `try_run_agent_turn`'s call site: same reasoning, quick
                     // research already supplied evidence for this turn.
                     web_evidence_supplied: !research_trace.sources.is_empty(),
+                    // Task 8f: infer capability requirements from the user's own
+                    // message, not the assembled `user_prompt` used below for the
+                    // actual LLM call.
+                    capability_prompt: Some(expanded_prompt.clone()),
                     ..Default::default()
                 };
                 let profile_complexity = resolution_template.complexity;
@@ -1124,6 +1135,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 state,
                 &system_prompt,
                 &user_prompt,
+                // Task 8f: capability requirements come from the user's own
+                // message (`expanded_prompt`), not the assembled `user_prompt`
+                // above (which carries `[CONVERSATION HISTORY]`/`[OPEN FILES]`/
+                // retrieved and web-research context).
+                &expanded_prompt,
                 session_id.as_str(),
                 params.skill.clone(),
                 params.attachment_manifest.is_some(),
@@ -1781,6 +1797,7 @@ mod tests {
         let result = try_run_agent_turn(
             &state,
             "system prompt",
+            "hello",
             "hello",
             "default-path-test",
             None,

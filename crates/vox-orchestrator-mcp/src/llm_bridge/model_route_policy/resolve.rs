@@ -327,9 +327,16 @@ fn resolve_mcp_chat_model_sync_inner(
             && crate::llm_bridge::local_health::privacy_allows(m)
     };
 
+    // Task 8f: capability *requirements* come from the user's own message for
+    // this turn, never from injected context (conversation history, open
+    // files, retrieved/web text) that also lives in `user_prompt`. Every
+    // other use of `user_prompt` below (capability-pin model selection,
+    // decide()'s complexity heuristics, the actual LLM call upstream) is
+    // unaffected — only this inference call switches inputs.
+    let capability_prompt = res.capability_prompt.as_deref().unwrap_or(user_prompt);
     let mut required_capabilities: Vec<vox_orchestrator::models::Capability> = {
         let mut caps = Vec::new();
-        for intent in vox_orchestrator::models::infer_prompt_intents(user_prompt) {
+        for intent in vox_orchestrator::models::infer_prompt_intents(capability_prompt) {
             for c in vox_orchestrator::models::intent_required_capabilities(intent) {
                 if !caps.contains(c) {
                     caps.push(*c);

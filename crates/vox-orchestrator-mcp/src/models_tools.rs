@@ -83,6 +83,7 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         risk: None,
         trigger_source: vox_orchestrator::mode::TriggerSource::Interactive,
         web_evidence_supplied: false,
+        capability_prompt: None,
     };
     match resolve_mcp_chat_model_sync(orch, "", None, resolution) {
         Ok((model, _is_free)) => ToolResult::ok(model).to_json(),

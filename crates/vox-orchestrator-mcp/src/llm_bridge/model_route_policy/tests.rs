@@ -230,6 +230,175 @@ fn web_evidence_supplied_does_not_relax_other_capability_requirements() {
     );
 }
 
+/// A single hermetic, non-free candidate with no advertised capabilities
+/// (`ModelCapabilities::default()`: no web search, no JSON mode). Mirrors
+/// `resolve_with_rationale_populates_reason_on_decide_branch`'s pattern
+/// (`PopuliMesh` + `PricingSource::UserConfig` skips the provider-key gate;
+/// non-free survives `CostPreference::Performance`'s free-skip filter) so
+/// these tests exercise the real `decide()` scorer path with zero env-var
+/// mutation — no `VOX_MODEL_FORCE` pin, no shared-lock coordination with
+/// other test modules across the crate needed.
+fn hermetic_capability_test_registry() -> vox_orchestrator::models::ModelRegistry {
+    use vox_orchestrator::models::spec::PricingSource;
+    let mut r = vox_orchestrator::models::ModelRegistry::default();
+    r.register(ModelSpec {
+        id: "capability-test-model".into(),
+        canonical_slug: "capability-test-model".into(),
+        provider: "test".into(),
+        provider_type: ProviderType::PopuliMesh,
+        max_tokens: 32_000,
+        cost_per_1k: 0.001,
+        cost_per_1k_input: 0.001,
+        cost_per_1k_output: 0.001,
+        is_free: false,
+        observed_cost_per_1k: None,
+        strengths: vec![vox_orchestrator::models::generated::StrengthTag::Generalist],
+        capabilities: Default::default(), // no web search, no json mode
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: PricingSource::UserConfig,
+        supported_parameters: vec![],
+    });
+    r
+}
+
+/// Task 8f: capability *requirements* must be inferred from the user's own
+/// message for this turn (`McpChatModelResolution::capability_prompt`), never
+/// from injected context that also lives in the assembled `user_prompt`
+/// (conversation history, open files, retrieved/web text). Here the user's
+/// message is "refactor this function" (no web-search cue) but the assembled
+/// prompt also carries a `[CONVERSATION HISTORY]` block mentioning "latest
+/// news" — a real production case where a prior turn's words could otherwise
+/// force a `SupportsWebSearch` requirement onto an unrelated turn.
+#[test]
+fn capability_requirements_ignore_injected_context_web_search_cue() {
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        hermetic_capability_test_registry();
+
+    let capability_prompt = "refactor this function";
+    let assembled_prompt = format!(
+        "[CONVERSATION HISTORY]\nUser: what's the latest news on rust async?\n\n{capability_prompt}"
+    );
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        &assembled_prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: false,
+            task_category: vox_orchestrator::types::TaskCategory::Research,
+            capability_prompt: Some(capability_prompt.to_string()),
+            ..Default::default()
+        },
+    )
+    .expect(
+        "a turn whose OWN message has no web-search cue must not require \
+         SupportsWebSearch just because injected history mentions \"latest news\"",
+    );
+    assert_eq!(resolved.0.id, "capability-test-model");
+}
+
+/// Companion: when the user's OWN message asks for a web search, the
+/// requirement still applies — injected context is excluded, not the user's
+/// real request.
+#[test]
+fn capability_requirements_still_apply_from_users_own_message_web_search() {
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        hermetic_capability_test_registry();
+
+    let capability_prompt = "search the web for the latest news on rust async";
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        capability_prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: false,
+            task_category: vox_orchestrator::types::TaskCategory::Research,
+            capability_prompt: Some(capability_prompt.to_string()),
+            ..Default::default()
+        },
+    );
+    let err = resolved.expect_err(
+        "a turn whose OWN message asks for a web search must still require SupportsWebSearch",
+    );
+    assert!(err.contains("No LLM model available"), "{err}");
+}
+
+/// Same pair for a second intent (`json_mode` -> `Capability::SupportsJson`):
+/// injected context (e.g. an open file) mentioning "json" must not force the
+/// requirement onto a turn whose own message doesn't ask for it.
+#[test]
+fn capability_requirements_ignore_injected_context_json_cue() {
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        hermetic_capability_test_registry();
+
+    let capability_prompt = "refactor this function";
+    let assembled_prompt = format!(
+        "[OPEN FILES]\nconfig.json: {{\"schema\": \"strict json structured object\"}}\n\n{capability_prompt}"
+    );
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        &assembled_prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: false,
+            task_category: vox_orchestrator::types::TaskCategory::Research,
+            capability_prompt: Some(capability_prompt.to_string()),
+            ..Default::default()
+        },
+    )
+    .expect(
+        "a turn whose OWN message has no json cue must not require SupportsJson just \
+         because an open file mentions \"json\"/\"structured\"",
+    );
+    assert_eq!(resolved.0.id, "capability-test-model");
+}
+
+/// Companion: the user's own message asking for JSON/structured output still
+/// requires `Capability::SupportsJson`.
+#[test]
+fn capability_requirements_still_apply_from_users_own_message_json() {
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        hermetic_capability_test_registry();
+
+    let capability_prompt = "return a valid json schema for this object";
+
+    let resolved = resolve_mcp_chat_model_sync(
+        &orch,
+        capability_prompt,
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            allow_cheapest_fallback: false,
+            task_category: vox_orchestrator::types::TaskCategory::Research,
+            capability_prompt: Some(capability_prompt.to_string()),
+            ..Default::default()
+        },
+    );
+    let err = resolved.expect_err(
+        "a turn whose OWN message asks for json/schema must still require SupportsJson",
+    );
+    assert!(err.contains("No LLM model available"), "{err}");
+}
+
 #[test]
 fn mcp_global_llm_context_fill_ratio_none_without_budget() {
     let mut config = OrchestratorConfig::for_testing();
@@ -497,6 +666,16 @@ fn sticky_ollama_rejected_when_inference_profile_disallows() {
 
 #[test]
 fn sticky_mens_synthesizes_vox_local_when_absent_from_registry() {
+    // Holds no `VOX_MODEL_FORCE` pin itself, but `resolve_mcp_chat_model_sync`
+    // reads that process-global env var unconditionally (`strict_pin` check in
+    // `resolve_mcp_chat_model_sync_inner`), so this test must still serialize
+    // against every test in this module that sets it via `EnvKeyGuard` —
+    // otherwise a concurrently-running pin test can make this resolve call see
+    // a foreign pin mid-test and fail with an unrelated "not in the model
+    // registry" error.
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
