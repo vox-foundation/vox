@@ -1,11 +1,14 @@
 name: Build & Push vox-telemetry-server Docker Image
 
 # Builds the telemetry ingest server image and pushes it to GHCR. vox is a PUBLIC
-# repo → unlimited free GitHub-hosted minutes, so the deploy critical path runs on
-# ubuntu-latest and never waits on the local self-hosted fleet. See
+# repo → unlimited free GitHub-hosted minutes, so this runs on ubuntu-latest.
+# The self-hosted runner fleet this comment used to contrast against has since
+# been removed; there is no fleet to wait on either way. See
 # docs/src/ci/compute-placement.md.
 
-# Dormant until the telemetry stack is revived (never deployed successfully; see docs/src/architecture/ci-cd-audit-findings-2026.md).
+# workflow_dispatch-only (no schedule, no push trigger): dormant until the
+# telemetry stack is revived (never deployed successfully; see
+# docs/src/architecture/ci-cd-audit-findings-2026.md).
 on:
   workflow_dispatch:
 

@@ -335,7 +335,10 @@ mod tests {
                     && std::fs::read_to_string(&p)
                         .unwrap_or_default()
                         .lines()
-                        .any(|l| !l.trim_start().starts_with("//") && l.contains("examples/"))
+                        .any(|l| {
+                            !l.trim_start().starts_with("//")
+                                && (l.contains("examples/") || l.contains(".join(\"examples\")"))
+                        })
             }
         })
     }

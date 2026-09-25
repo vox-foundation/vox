@@ -17,7 +17,6 @@ on:
       - CR-L gates
       - CodeQL
       - Secret scan (gitleaks)
-      - ML Pipeline
       - Differential gate (nightly, interp vs native)
       - Mutation (nightly, vox-compiler)
       - Harness Eval (Nightly Live)

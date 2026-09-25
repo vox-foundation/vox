@@ -200,12 +200,11 @@ fn render(s: &CiStatus) -> String {
         // The issue title already carries a "Nightly failing:"/"Nightly stale:"
         // prefix — map it to the shouty form instead of prepending a second
         // one, or fall back to a generic "NIGHTLY:" line for any other title.
-        let line = if let Some(rest) = i.title.strip_prefix("Nightly failing: ") {
-            format!("NIGHTLY FAILING: {rest}")
-        } else if let Some(rest) = i.title.strip_prefix("Nightly stale: ") {
-            format!("NIGHTLY STALE: {rest}")
-        } else {
-            format!("NIGHTLY: {}", i.title)
+        let line = match i.title.split_once(": ") {
+            Some((prefix, rest)) if prefix.starts_with("Nightly ") => {
+                format!("{}: {rest}", prefix.to_uppercase())
+            }
+            _ => format!("NIGHTLY: {}", i.title),
         };
         out.push(format!("{line} (#{}) -> {}", i.number, i.url));
     }

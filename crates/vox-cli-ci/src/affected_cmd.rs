@@ -190,15 +190,9 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
     let path_flags = crate::affected::compute_path_flags(&changed);
     let aff = crate::affected::compute_affected(&changed, &graph.crates);
 
-    let seeds: BTreeSet<String> = changed
-        .iter()
-        .filter_map(|f| crate::affected::file_to_crate(f))
-        .map(String::from)
-        .collect();
-    let closure = if seeds.is_empty() {
-        BTreeSet::new()
-    } else {
-        crate::affected::reverse_closure(&graph.crates, &seeds)
+    let closure = match &aff {
+        crate::affected::Affected::Crates(s) => s.clone(),
+        _ => BTreeSet::new(),
     };
 
     for c in &closure {
@@ -254,6 +248,54 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::run_affected_cmd;
+
+    /// R1: EXAMPLES_CONSUMERS (seeded by compute_affected for `examples/`
+    /// changes) must survive into the emitted `-p` args, not just the
+    /// `file_to_crate`-derived seeds. vox-compiler is one of the consumers
+    /// but is not itself named by any changed file here.
+    #[test]
+    fn examples_change_pulls_examples_consumers_into_p_args() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let crates: std::collections::BTreeMap<String, Vec<String>> =
+            crate::affected::EXAMPLES_CONSUMERS
+                .iter()
+                .map(|c| (c.to_string(), Vec::new()))
+                .collect();
+        let graph = super::CrateGraph {
+            schema_version: 1,
+            crates,
+        };
+        let graph_path = dir.path().join("graph.json");
+        std::fs::write(&graph_path, serde_json::to_string(&graph).unwrap()).unwrap();
+
+        let changed_path = dir.path().join("changed.txt");
+        std::fs::write(
+            &changed_path,
+            "crates/vox-cli/src/main.rs\nexamples/golden/foo.vox\n",
+        )
+        .unwrap();
+
+        let out_path = dir.path().join("gh_output.txt");
+        let code = run_affected_cmd(&[
+            "affected-crates".into(),
+            "--changed".into(),
+            changed_path.to_string_lossy().into_owned(),
+            "--graph".into(),
+            graph_path.to_string_lossy().into_owned(),
+            "--github-output".into(),
+            out_path.to_string_lossy().into_owned(),
+        ]);
+        assert_eq!(code, 0);
+        let out = std::fs::read_to_string(&out_path).unwrap();
+        let p_args_line = out
+            .lines()
+            .find(|l| l.starts_with("affected_p_args="))
+            .expect("affected_p_args line");
+        assert!(
+            p_args_line.contains("-p vox-compiler"),
+            "expected -p vox-compiler in {p_args_line:?}"
+        );
+    }
 
     #[test]
     fn shadow_junit_exits_nonzero_when_failure_outside_affected_set() {

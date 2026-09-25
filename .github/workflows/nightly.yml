@@ -11,7 +11,6 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -1508,13 +1507,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
-        with:
-          # Per-matrix-leg cache: each crate's all-features build is independent,
-          # so give it its own cache entry instead of sharing one across the
-          # whole matrix (setup-rust's cache already keys on OS + toolchain +
-          # Cargo.lock; this just adds the per-crate discriminator that the old
-          # hand-rolled `-matrix-${{ matrix.crate }}-` cache key provided).
-          cache-key-suffix: -matrix-${{ matrix.crate }}
+        # No per-leg cache-key-suffix: it gave each crate its own cache entry,
+        # so ~30 legs wrote ~30 near-identical caches against the shared 10 GB
+        # LRU budget instead of sharing one workspace-scoped entry (setup-rust
+        # already keys on OS + toolchain + Cargo.lock, which is a fine shared
+        # key here — every leg builds from the same lockfile).
       - name: Check with all features
         run: cargo check -p ${{ matrix.crate }} --all-features
 
@@ -1576,9 +1573,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: crates/vox-gui/ui/pnpm-lock.yaml
 
-      - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
-
+      # No separate Swatinem/rust-cache step: setup-rust above already caches
+      # on OS + toolchain + Cargo.lock -- no separate cache step needed here.
       - name: GUI frontend build (pnpm)
         run: |
           cd crates/vox-gui/ui

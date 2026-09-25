@@ -420,7 +420,7 @@ See [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md) §Local-f
 Push only after the local equivalent of the gates you expect to run is green.
 
 Use `vox ci pre-push` to run any tier locally (default = **fast**, ≤60s: fmt, line-endings,
-ssot-drift, workflow-concurrency-guard, scoped doc lint + doctest,
+ssot-drift, workflow-concurrency-guard, workflow-permissions (strict), scoped doc lint + doctest,
 drift-check). Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`. The
 full tier list (complete / full / full+cov / full+since / full+cov+since / ci-equivalent),
 their exact flags, and the `--include-slow` slow-test names live in
@@ -457,7 +457,8 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
   clippy/nextest on affected crates; it also runs `cargo-deny`
   licenses/bans/sources on dependency changes, and `cargo clippy`/`rustdoc -D
   warnings` on a detected toolchain bump. `ui` (typecheck + vitest +
-  Playwright) is required only on PRs that change `crates/vox-gui/**`. The
+  Playwright) is required only on PRs that change `crates/vox-gui/**` or
+  `orch_daemon/mod.rs` (it fails closed when the base SHA is missing). The
   merge queue additionally runs an **advisory** (non-blocking) Windows compile
   check. Jobs are capped at 30 min. `nightly.yml` and other scheduled
   workflows run the slow lanes, capped at 180 min. Caps are enforced by
@@ -465,9 +466,11 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
   move the job to nightly — never raise the cap.
 - **What nightly defers, and what it doesn't.** Every normal PR *does* run
   nextest — on the affected-crate subset, in `linux`. What is deferred to
-  nightly is the **full-workspace** run (and its llvm-cov coverage lane),
-  which cannot fit the 30-min cap. The one case where `linux` skips nextest
-  entirely is a detected toolchain bump: there it spends its budget on fresh
+  nightly is the **full-workspace** run's llvm-cov coverage lane, and the
+  full run for ordinary PRs. PRs touching `Cargo.toml`/`Cargo.lock`,
+  `.cargo/`, `.github/workflows/`, `contracts/` or `.config/` already run the
+  full workspace in `linux`; whether that fits 30 min is unmeasured. The one
+  case where `linux` skips nextest entirely is a detected toolchain bump: there it spends its budget on fresh
   clippy/rustdoc instead, and the tests fall to nightly's full run.
 - **Run CI locally first:** `vox ci pre-push` (fast), `--complete`/`--full`
   for code changes, or run the PR gate's `linux` job in Docker with

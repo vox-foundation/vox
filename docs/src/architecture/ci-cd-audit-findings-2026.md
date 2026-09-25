@@ -154,12 +154,12 @@ record (rulings, fix rounds, deferred findings) is
 | 2 | No pre-merge Windows/macOS signal | Task 5, `75da26e78` — added an **advisory** Windows compile check (`windows-latest`, `merge_group` only). **Advisory only** — flipping it to a required/blocking check is a pending user-only decision (see below); macOS remains unaddressed. |
 | 3 | `vox-gui` never tested | Task 6, `ec83dddc2` — `cargo test -p vox-gui` added to the nightly GUI cross-build. Nightly-only, not PR-gated. |
 | 4 | GUI Playwright e2e nightly-only | Task 5, `75da26e78` — added a PR-required `ui` leg (typecheck + vitest + Playwright) gated on `crates/vox-gui/**` changes. |
-| 5 | Golden `.vox` examples / doc lint only nightly | Task 4, `745430802` — examples-only diffs now select the crates whose tests read `examples/`, extending PR-time coverage to those paths. |
+| 5 | Golden `.vox` examples / doc lint only nightly | Task 4, `745430802` taught `compute_affected` to seed the crates whose tests read `examples/`; the audit follow-up fixed `vox ci affected-crates`, which had rebuilt its crate list without them, so `examples/` diffs now actually select those crates in `ci.yml`. |
 | 6 | No dead-man's switch for scheduled workflows | Task 12, `33e23aa31` — new `ci-liveness.yml`; opens `nightly-failure` issues when a scheduled workflow goes stale. |
-| 7 | No automatic runtime-vs-cap measurement | **Not addressed.** `vox ci job-timings` still has no caller in any workflow; `nightly-report.yml` was extended (Task 12) for the dead-man's-switch only, not for timing/budget reporting. |
+| 7 | No automatic runtime-vs-cap measurement | **Partially addressed.** Both required 30-min legs (`linux`, `ui`) emit a `::warning::` when they pass 24 min. `vox ci job-timings` still has no caller in any workflow. |
 | 8 | `all-features-matrix` gated on affected set | Effectively resolved as a side effect: Task 5 (`75da26e78`) removed `all-features-matrix` from the PR-triggered path entirely, and Task 10 (`44dd0340d`) stripped the old label-gating comments from `nightly.yml`; the job now runs unconditionally on `nightly.yml`'s daily cron. No task targeted this gap directly. |
 | 9 | `cargo-deny`/`cargo-audit` only nightly | Task 5, `75da26e78` — `linux` leg now runs `cargo-deny` licenses/bans/sources checks on dependency changes. |
-| 10 | `workflow-permissions-guard` advisory, no `CiCmd` entry | **Partially addressed.** Task 13, `9b0718d18` — explicit least-privilege `permissions:` blocks added to every workflow and the guard flipped from advisory to strict. The `CiCmd` half is unchanged: there is still no standalone `vox ci workflow-permissions-guard` / `workflow-policy-guard` subcommand; the guard runs only as a stage inside `ssot-drift`. |
+| 10 | `workflow-permissions-guard` advisory, no `CiCmd` entry | **Partially addressed.** Task 13, `9b0718d18` — every workflow now has a top-level `permissions:` block (the 18 added blocks are `contents: read`), and the pre-push workflow-permissions step runs in strict mode, pinned by a live-tree test. The guard checks that a block *exists*, not that its scopes are minimal. The `CiCmd` half is unchanged: the check is a `vox ci pre-push` step, not a standalone subcommand. |
 
 ### Pending — user-only actions (not this plan's to do)
 
@@ -168,17 +168,23 @@ holds, not an agent action:
 
 - **`CF_API_TOKEN` rotation.** Flagged during review as needing rotation; pending the user.
 - **Stale-cache delete.** A one-time manual delete of a stale GitHub Actions cache entry; pending the user.
-- **Possible admin-bypass merge.** Merging this branch may require an admin bypass of branch
-  protection for the first run (since the new required contexts haven't run on `main` yet);
-  pending the user's call.
+- **Possible admin-bypass merge.** Only if this PR's cold `linux` leg times out: the
+  precondition is local `cargo clippy --workspace --exclude vox-gui --all-targets --locked -- -D warnings`
+  and `cargo nextest run --workspace --exclude vox-gui --profile ci --locked` at the PR head SHA,
+  with SHA, commands, counts and durations posted as a PR comment; the user then decides.
 - **Windows-enforcement flip.** The advisory Windows compile check added in Task 5 (gap #2
-  above) stays advisory until the user decides to flip it to a required, blocking context —
-  that decision, and the branch-protection change it implies, is the user's to make.
+  above) stays advisory until the first `merge_group` run after a green `windows-cache-seed`
+  on `main` shows the Windows leg succeeding in ≤ 24 min (`gh run view <id> --json jobs`).
+  The flip is a `ci.yml` edit, not a branch-protection change: add `windows` to `gate.needs`,
+  add `WINDOWS: ${{ needs.windows.result }}` and `EVENT: ${{ github.event_name }}` to the
+  gate step's env with the check `[ "$WINDOWS" = success ] || [ "$EVENT" != merge_group ]`,
+  and update `ci_workflow_contract.rs`'s `needs: [linux, ui]` assertion in the same commit.
 
 ### Post-merge verification (fill in after the branch merges and runs on GitHub)
 
 | Item | Value |
 |---|---|
+| Local proof at PR head SHA (only if bypass merge) | TBD |
 | `linux` leg run time | TBD |
 | `windows` leg run time / run ID | TBD |
 | First UI-changing PR — `ui` leg run time | TBD |
@@ -189,12 +195,12 @@ holds, not an agent action:
 
 ### Documented uncertainties (from the Task 15 brief)
 
-- `harness-eval-nightly.yml`'s "non-fast-forward" warning text may be masking a ruleset
-  rejection rather than a genuine non-fast-forward push failure — **unverified**. Task 13 kept
-  this workflow's job-level `contents: write` (an intentional deviation from the brief's
-  original instruction — see the ledger's Task 13 ruling) precisely because the failure mode
-  underneath that warning text was not fully characterized.
-- External callers of the ~45–50 `vox ci` subcommands and fleet-tooling modules Task 14
+- `harness-eval-nightly.yml` keeps its job-level `contents: write` (user decision,
+  2026-09-25). Verified read-only: `main` is guarded by a merge-queue ruleset whose only bypass
+  actor is the admin role, so the push succeeds only through an admin-owned
+  `SSOT_AUTOREGEN_TOKEN`. The push now rebases and retries on a race and fails the job on any
+  other rejection, instead of warning.
+- External callers of the 9 `vox ci` subcommands and the fleet-tooling modules Task 14
   deleted are **unverified** — the search covered workflows, hooks, scripts, and
   `.claude/settings.json` in this repo, but not third-party or out-of-repo consumers.
 

@@ -1,11 +1,11 @@
 //! One Rust toolchain version, declared once, enforced everywhere.
 //!
 //! `contracts/toolchain/workspace-toolchain.v1.yaml` (`versions.rust`) is the
-//! single source of truth. Nine other lines across eight files restate it —
-//! `rust-toolchain.toml`, the `Cargo.toml` MSRV floor, two CI-runner
-//! Dockerfiles, the production `Dockerfile`, the distribution profile, the
-//! stable channel manifest, and a voxup test fixture (plus the assertion
-//! that reads it back) — and until now nothing checked that they agreed.
+//! single source of truth. Seven other lines across six files restate it —
+//! `rust-toolchain.toml`, the `Cargo.toml` MSRV floor, the production
+//! `Dockerfile`, the distribution profile, the stable channel manifest, and a
+//! voxup test fixture (plus the assertion that reads it back) — and until
+//! now nothing checked that they agreed.
 //!
 //! This module mirrors `version_ssot`'s vocabulary (`Declaration`, `Drift`)
 //! and its key-anchoring discipline: every parser requires the key to be the

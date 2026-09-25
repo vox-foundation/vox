@@ -23,7 +23,7 @@
 - After any `CiCmd` change, regenerate in order: `cargo run -p vox-cli -- ci command-sync`, `cargo run -p vox-cli -- ci gui-surface-coverage --write`, `cargo run -p vox-cli -- ci doc-inventory generate`, then `UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli --test command_catalog_paths_baseline`. Never hand-edit generated artifacts.
 - Credentials are the user's: this plan never sets, reads, or rotates a secret.
 - Live repo-state changes — `gh workflow disable/enable`, `gh cache delete`, pushes, PR creation, admin/bypass merges, dispatching workflows on `main`, branch-protection edits — need explicit user confirmation, each time. <!-- GRILL Ex 3, 17 --> This includes creating, closing, or commenting on GitHub issues and labels by hand (e.g. closing an orphaned `Nightly stale:` issue), and dispatching any workflow that spends money or pushes (e.g. `harness-eval-nightly.yml`, which calls a paid LLM API and pushes to `main`) — verify those by reading or by running the shell block locally against a scratch repo, never by dispatch. <!-- AMENDED: R10 — issue/label writes and paid-dispatch verification were missing from the gated list -->
-- Commit messages end with `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
+- Commit messages end with the session's `Co-Authored-By:` attribution trailer (execution commits carry `Claude Sonnet 5`, audit follow-ups `Claude Opus 5.5`).
 
 ---
 

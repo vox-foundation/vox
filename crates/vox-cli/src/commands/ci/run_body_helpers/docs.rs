@@ -873,4 +873,22 @@ mod stale_ref_guard_tests {
             "without docs/, the stale-ref guard does not scan root AGENTS.md at all (documented gap)",
         );
     }
+
+    /// R7a: `run_ssot_drift` must dispatch `cache_key_lint` as a stage, or a
+    /// drift in it never blocks `vox ci pre-push`/CI. A source-text check on
+    /// this file rather than executing `run_ssot_drift` (which shells out to
+    /// `cargo metadata` and other stages) — mutation-checked by deleting the
+    /// dispatch line and confirming this test fails.
+    ///
+    /// The needle is built from two halves at runtime (not a single string
+    /// literal) so this assertion can never match itself via `include_str!`.
+    #[test]
+    fn run_ssot_drift_dispatches_cache_key_lint() {
+        let src = include_str!("docs.rs");
+        let needle = format!("{}{}", "ds!(\"cache_key", "_lint\"");
+        assert!(
+            src.contains(&needle),
+            "run_ssot_drift must call ds!(\"cache_key_lint\", ...)"
+        );
+    }
 }

@@ -21,7 +21,7 @@ permissions:
 jobs:
   android-e2e:
     # Tier: heavy (GitHub-hosted macOS).
-    runs-on: macos-13
+    runs-on: macos-15-intel
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7

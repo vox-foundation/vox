@@ -18,16 +18,15 @@ keep warm and no ledger of "hosted exceptions" to register. vox is a public
 repo, so hosted minutes are free, and GitHub keeps the images and the runner
 application current, so there is no runner-version floor to check.
 
-**Two GPU lanes still carry a `self-hosted` label, and both starve today.**
+**One workflow still carries a `self-hosted` label, and it is parked.**
 `ml_data_extraction.yml`'s `extract` (`[self-hosted, linux]`) and `train`
-(`[self-hosted, linux, x64, gpu]`) jobs, and the `mens-candle-cuda` row of
-`nightly-artifacts.yml`'s plugin matrix, name labels with **zero registered
-runners**. They are kept as documentation of the target shape — the CUDA
-lanes cannot run on a hosted runner — and the plugin row is explicitly
-`if:`-skipped so it does not queue forever and starve its matrix.
-`ml_data_extraction.yml` is `schedule` + `workflow_dispatch` only, so a
-starved run costs nothing on the PR path. Do **not** copy this label onto a
-new job; run CUDA work locally instead.
+(`[self-hosted, linux, x64, gpu]`) jobs name labels with **zero registered
+runners**. The workflow is disabled and `workflow_dispatch`-only (no
+schedule), so nothing queues; it is kept as documentation of the target
+shape, since the CUDA lanes cannot run on a hosted runner. The
+`mens-candle-cuda` row was removed from `nightly-artifacts.yml`'s plugin
+matrix for the same reason and returns when a GPU runner exists. Do **not**
+copy this label onto a new job; run CUDA work locally instead.
 
 > **Historical note.** Through 2026-09 this contract described a local
 > self-hosted fleet (Docker ephemeral runners on the operator's WSL2 VM,
@@ -39,7 +38,7 @@ new job; run CUDA work locally instead.
 > fleet's tooling (`vox ci queue`, `runner-scale`, `runner-preflight`,
 > `runner-status`, the runner image and its scripts). Do not add a
 > runner-version check or an operator host-hygiene step; there is no host to
-> keep hygienic. The two starved GPU labels above are the only survivors.
+> keep hygienic. The parked GPU workflow above is the only survivor.
 
 ## Local-first CI (required policy, ENFORCED)
 

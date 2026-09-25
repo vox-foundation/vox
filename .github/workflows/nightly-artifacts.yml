@@ -34,7 +34,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   # Not required by `vox ci workflow-concurrency-guard` (it only gates
@@ -266,30 +266,20 @@ jobs:
   build-plugin-zips:
     name: Build plugin zip (${{ matrix.plugin }})
     needs: compute-ref
-    # mens-candle-cuda's `runs_on` names a self-hosted GPU label with zero
-    # runners registered (2026-09, hosted-primary CI migration — see
-    # ml_data_extraction.yml for the same GPU gap; the qwen35-native-nightly.yml
-    # lane that once shared this gap was retired). Left in the matrix (not
-    # deleted) so the row documents the target
-    # shape, but skipped below so it doesn't queue forever and starve the
-    # rest of this job's matrix. Re-enable by dropping this `if:` once a GPU
-    # runner (hosted or self-hosted) exists.
-    if: matrix.plugin != 'mens-candle-cuda'
     runs-on: ${{ fromJson(matrix.runs_on) }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
         include:
-          # nvidia-gpu tagged plugin — self-hosted GPU runner (see
-          # ml_data_extraction.yml / runner-contract.md for the `gpu` label),
-          # not a GitHub-hosted runner, so no runner-policy-check row needed.
-          # SKIPPED (job-level `if:` above) until a GPU runner exists.
-          - plugin: mens-candle-cuda
-            crate: vox-plugin-mens-candle-cuda
-            feature: cuda
-            target: x86_64-unknown-linux-gnu
-            runs_on: '["self-hosted","linux","x64","gpu"]'
+          # mens-candle-cuda (nvidia-gpu, self-hosted) is deliberately absent:
+          # actionlint rejects a job-level `if:` referencing `matrix` (it isn't
+          # evaluated per-leg), and this include-only matrix has no `exclude:`
+          # escape hatch, so the CUDA row can't be conditionally skipped without
+          # breaking the workflow. Re-add the row (with `runs_on:
+          # '["self-hosted","linux","x64","gpu"]'`) once a GPU runner (hosted or
+          # self-hosted) actually exists — see ml_data_extraction.yml for the
+          # same GPU gap.
           # apple-silicon tagged plugin — Metal only compiles on macOS.
           - plugin: mens-candle-metal
             crate: vox-plugin-mens-candle-metal
@@ -342,6 +332,8 @@ jobs:
     needs: [compute-ref, build-binaries, build-gui, build-plugin-zips]
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write   # job-scoped override (workflow default is contents: read) — only this job creates/updates the draft release
     steps:
       - uses: actions/checkout@v7
 

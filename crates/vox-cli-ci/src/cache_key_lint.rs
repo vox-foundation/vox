@@ -157,8 +157,16 @@ fn check_doc(doc: &serde_yaml::Value, file: &str, out: &mut Vec<Violation>) {
 }
 
 /// True when `if:`/`save-if:` text gates the step on the default branch.
+///
+/// Textual, like the rest of this module — but a bare `contains(MAIN_REF)`
+/// treats `github.ref != 'refs/heads/main'` as gated, when it means the
+/// opposite: save on every ref except main. Require an `==` comparison
+/// immediately before the quoted ref (ignoring whitespace), so a `!=` form
+/// never passes.
 fn gates_on_main(cond: Option<&str>) -> bool {
-    cond.is_some_and(|c| c.contains(MAIN_REF))
+    let Some(c) = cond else { return false };
+    let stripped: String = c.chars().filter(|ch| !ch.is_whitespace()).collect();
+    stripped.contains(&format!("=='{MAIN_REF}'")) || stripped.contains(&format!("==\"{MAIN_REF}\""))
 }
 
 /// Rule 2 for one step: `Some(why)` when this step writes a cache off `main`.
@@ -507,6 +515,27 @@ mod tests {
         // Nightly-only workflow: not PR-reachable, so saving is fine.
         let sched = "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - uses: actions/setup-node@v7\n        with:\n          cache: 'pnpm'\n";
         assert!(save_scope_violations_for(sched, "x.yml").is_empty());
+    }
+
+    #[test]
+    fn not_equal_main_ref_if_condition_still_saves() {
+        // R6: `if: github.ref != 'refs/heads/main'` saves on EVERY ref except
+        // main — the opposite of gating. A bare `.contains(MAIN_REF)` check
+        // wrongly treated this as gated.
+        let yml = "on:\n  pull_request:\njobs:\n  a:\n    steps:\n      - uses: actions/cache@v5\n        if: github.ref != 'refs/heads/main'\n        with:\n          key: k\n";
+        assert_eq!(save_scope_violations_for(yml, "x.yml").len(), 1);
+    }
+
+    #[test]
+    fn not_equal_main_ref_save_if_still_saves() {
+        let yml = "on:\n  pull_request:\njobs:\n  a:\n    steps:\n      - uses: Swatinem/rust-cache@v2\n        with:\n          save-if: ${{ github.ref != 'refs/heads/main' }}\n";
+        assert_eq!(save_scope_violations_for(yml, "x.yml").len(), 1);
+    }
+
+    #[test]
+    fn repo_tree_passes_cache_key_lint() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        run(&root).unwrap();
     }
 
     #[test]

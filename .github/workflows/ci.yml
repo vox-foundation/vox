@@ -59,7 +59,7 @@ jobs:
           set -euo pipefail
           [ -n "$BASE_SHA" ] || { echo "::error::no base SHA"; exit 1; }
           git diff --name-only "$BASE_SHA...HEAD" > /tmp/changed.txt
-          if ! grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|rust-toolchain\.toml|examples/|\.github/workflows/)' /tmp/changed.txt; then
+          if ! grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/|rust-toolchain\.toml|contracts/|\.config/|examples/|\.github/workflows/)' /tmp/changed.txt; then
             echo "No Rust changes — clippy/tests skipped."
             echo "p_args=" >> "$GITHUB_OUTPUT"
             exit 0
@@ -131,6 +131,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Start budget clock
+        shell: bash
+        run: echo "GATE_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -169,6 +172,16 @@ jobs:
           pnpm exec playwright install --with-deps chromium
           pnpm exec playwright test --project=chromium
 
+      - name: Warn when the leg nears its 30-min cap
+        if: always()
+        shell: bash
+        run: |
+          mins=$(( ($(date +%s) - GATE_START) / 60 ))
+          echo "ui leg ran ${mins} min"
+          if [ "$mins" -ge 24 ]; then
+            echo "::warning::ui leg took ${mins} min (>80% of the 30-min cap) — cache, shard, or move work to nightly.yml"
+          fi
+
   windows:
     # Warn-only until a seeded run proves it fits within the cap;
     # deliberately NOT in gate.needs.
@@ -191,7 +204,7 @@ jobs:
     # Branch-protection required context — do not rename (required_context_guard).
     name: Check, Build, and Test (Rust)
     needs: [linux, ui]
-    if: ${{ !cancelled() }}   # a superseded (cancel-in-progress) run stays "cancelled", not "failed"
+    if: always()   # must still run (and fail) on a cancelled dep — a skipped gate satisfies branch protection's required-context check
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

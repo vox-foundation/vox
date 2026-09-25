@@ -212,8 +212,14 @@ fn cross_platform_gate_is_required_three_os_matrix() {
         yml.contains("cargo check --workspace"),
         "must `cargo check --workspace`"
     );
-    assert!(yml.contains("clippy"), "must run clippy -D warnings");
-    assert!(yml.contains("nextest"), "must run nextest");
+    assert!(
+        yml.contains("cargo clippy --workspace --exclude vox-gui --target ${{ matrix.target }} -- -D warnings"),
+        "must run workspace clippy -D warnings per target"
+    );
+    assert!(
+        yml.contains("cargo nextest run --workspace --exclude vox-gui"),
+        "must run workspace nextest"
+    );
 }
 
 #[test]
@@ -398,6 +404,123 @@ fn ci_gate_is_hosted_capped_and_owns_required_context() {
 }
 
 #[test]
+fn ci_gate_job_runs_unconditionally_and_checks_both_deps() {
+    // R2: `if: ${{ !cancelled() }}` still SKIPS `gate` on a cancelled run, and a
+    // skipped check-run satisfies the required-context match (see
+    // crates/vox-cli-ci/src/required_context_guard.rs module doc). `if: always()`
+    // is the only spelling that runs `gate` (and therefore its own explicit
+    // success checks) on every outcome, including cancellation.
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains("if: always()"),
+        "gate job must run unconditionally (`if: always()`), not `if: ${{ !cancelled() }}` \
+         — a skipped gate still satisfies the required-context check"
+    );
+    assert!(
+        !yml.contains("!cancelled()"),
+        "gate must not gate on !cancelled() — see required_context_guard.rs module doc"
+    );
+    assert!(
+        yml.contains(r#"[ "$LINUX" = success ]"#),
+        "gate must explicitly check linux succeeded"
+    );
+    assert!(
+        yml.contains(r#"[ "$UI" = success ]"#),
+        "gate must explicitly check ui succeeded"
+    );
+}
+
+#[test]
+fn ci_linux_job_load_bearing_conditionals_are_present() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        yml.contains("if: steps.bump.outputs.toolchain == 'true'"),
+        "rustdoc -D warnings step must be gated on a detected toolchain bump"
+    );
+    assert!(
+        yml.contains(
+            "steps.affected.outputs.p_args != '' && steps.bump.outputs.toolchain != 'true'"
+        ),
+        "the nextest step must skip when a toolchain bump already spent the budget on rustdoc"
+    );
+    assert!(
+        yml.contains(r"^crates/vox-gui/|^crates/vox-orchestrator/src/orch_daemon/mod\.rs$"),
+        "the ui job's change-detection filter must include the orch_daemon/mod.rs alternative"
+    );
+}
+
+#[test]
+fn ci_affected_prefilter_regex_admits_contracts_and_dot_config() {
+    // G1: the "Affected crates" step's prefilter regex gates whether the whole
+    // affected-crates machinery even runs. It must admit `contracts/` (SSOT
+    // artifacts like crate-graph.v1.json) and `.config/` (e.g. nextest.toml) —
+    // both can change gate-relevant behavior — alongside every path
+    // `vox_cli_ci::affected::SENTINEL_EXACT` already treats as gate-relevant.
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    let doc: serde_yaml::Value = serde_yaml::from_str(yml).expect("ci.yml must parse as YAML");
+    let steps = doc["jobs"]["linux"]["steps"]
+        .as_sequence()
+        .expect("jobs.linux.steps must be a sequence");
+    let run = steps
+        .iter()
+        .find(|s| s["name"].as_str() == Some("Affected crates"))
+        .and_then(|s| s["run"].as_str())
+        .expect("linux job must have an 'Affected crates' step with a run: block");
+
+    let pattern = run
+        .split("grep -qE '")
+        .nth(1)
+        .and_then(|rest| rest.split('\'').next())
+        .expect("Affected crates step must contain a grep -qE '<pattern>' prefilter");
+
+    let re = regex::Regex::new(pattern).expect("prefilter regex must compile");
+
+    for sentinel in vox_cli_ci::affected::SENTINEL_EXACT {
+        assert!(
+            re.is_match(sentinel),
+            "prefilter regex {pattern:?} must match SENTINEL_EXACT entry {sentinel:?}"
+        );
+    }
+    for path in [
+        "contracts/x.yaml",
+        ".config/nextest.toml",
+        ".github/workflows/x.yml",
+        "examples/golden/x.vox",
+    ] {
+        assert!(
+            re.is_match(path),
+            "prefilter regex {pattern:?} must match {path:?}"
+        );
+    }
+}
+
+#[test]
+fn harness_eval_nightly_push_failure_is_not_silently_swallowed() {
+    // G3: `git push ... || echo "::warning::...push skipped (non-fast-forward)"`
+    // hid every rejection (fast-forward or otherwise) behind a warning that
+    // looks the same as the benign race it claimed to be. The fixed step
+    // retries against a rebase and hard-fails loud (`::error::` + exit 1) if
+    // that doesn't resolve it.
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/harness-eval-nightly.yml"
+    ));
+    assert!(
+        !yml.contains("push skipped (non-fast-forward)"),
+        "harness-eval-nightly must not hide a rejected push behind a warning"
+    );
+}
+
+#[test]
 fn ssot_drift_includes_crate_graph_check() {
     let src = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -416,11 +539,17 @@ fn vox_gui_is_tested_somewhere() {
         "/../../.github/workflows/gui-cross-build.yml"
     ));
     // `cargo test -p vox-gui --test gui_tauri_prereqs` already exists; require the full suite.
+    // rfind (not find): the file has two "Stage Tauri external sidecar" steps
+    // (Windows, then Unix) before the full-suite step; `find` matches the
+    // Windows one, which happens to also precede `full` on this OS-ordered
+    // file but proves nothing about ordering relative to the step that
+    // actually runs on the same OS as `full`. rfind anchors on the step
+    // immediately preceding it.
     let full = yml
         .find("cargo test -p vox-gui --locked")
         .expect("full vox-gui test suite");
     let sidecar = yml
-        .find("Stage Tauri external sidecar")
+        .rfind("Stage Tauri external sidecar")
         .expect("sidecar staging step");
     assert!(full > sidecar, "tests need the staged sidecar");
 }

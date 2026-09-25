@@ -5,10 +5,12 @@ env:
 
 on:
   # Not on push:main: the extract (60m) and train (180m) jobs exceed the
-  # fast-lane (branch push) 30-min cap (workflow_policy_guard). Already ran
-  # nightly in addition to push; now nightly-only.
-  schedule:
-    - cron: '0 4 * * *'  # 4 AM UTC nightly
+  # fast-lane (branch push) 30-min cap (workflow_policy_guard). No schedule
+  # either (OD5): this lane needs a GPU runner that doesn't exist yet — see
+  # ml_data_extraction.yml's build-plugin-zips comment in nightly-artifacts.yml
+  # for the same gap — so it was disabled_manually and sat with no runner to
+  # pick up its cron. workflow_dispatch-only until a GPU runner exists; re-add
+  # `schedule:` at that point and its row back to nightly-report.yml.
   workflow_dispatch:       # manual trigger
     inputs:
       force_train:
