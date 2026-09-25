@@ -56,7 +56,18 @@ Plans:
   2. vox-orchestrator depends on vox-mcp-registry and validates/enumerates MCP tool names via `TOOL_REGISTRY`; vox-mcp-meta no longer exists in the workspace.
   3. The crate catalog lists vox-search and vox-doc-inventory as CORE, matching their existing unconditional use by vox-cli and vox-orchestrator.
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+> **Scope note (from 02-RESEARCH.md, 2026-09-23):** SC#1 is already satisfied (`risk::classify` is called from `check_terminal.rs::run_check_rust_fallback` and `vox-container::log_exec_risk`; `vox-exec-grammar` never existed as a crate), vox-mcp-meta is already deleted, and vox-search is already CORE. The real work is SC#2's fail-closed `TOOL_REGISTRY` guard in `vox-orchestrator` (one user-authorized crate-edge exception, 2026-09-25) and one doc row for vox-doc-inventory. Live MCP-dispatch wiring of tool receipts is Phase 5 (TRUST-01).
+
+Plans:
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — SC#2: vox-orchestrator depends on vox-mcp-registry; `ToolReceiptLedger::issue_intent` fails closed on names absent from `TOOL_REGISTRY` (test-first tracer, mutation-proven) (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion — shared git index, not shared files)*
+
+- [ ] 02-02-PLAN.md — Verify SC#1 and vox-mcp-meta absence; reclassify vox-doc-inventory DEAD -> CORE in `crate-classification-2026-05-08.md` (SC#3) (wave 2)
 
 ### Phase 3: Extract Misplaced Crates to Plugin Architecture
 
