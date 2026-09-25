@@ -1706,33 +1706,7 @@ mod tests {
             pricing_source: PricingSource::Bootstrap,
             is_free: false,
             strengths: Vec::new(),
-            // Task 8e: full capabilities, not `ModelCapabilities::default()`.
-            // `chat_message`'s always-on autonomous-retrieval preamble makes a
-            // real, unmocked web-leg call for every turn and folds whatever it
-            // returns into the text `resolve_mcp_chat_model_sync_inner` runs
-            // capability inference over — on a machine with live internet
-            // access, injected page text can spuriously match an intent cue
-            // (e.g. "today's") and require a capability a plain test fixture
-            // doesn't have, failing tests that aren't testing capability
-            // routing at all. Every test in this module that goes through
-            // `chat_message` expects success, not a capability rejection, so
-            // this fixture matches the workaround already used ad hoc by
-            // `quick_research_turn_skips_the_preamble_web_leg`.
-            capabilities: ModelCapabilities {
-                supports_json: true,
-                supports_vision: true,
-                supports_native_tools: true,
-                supports_tool_use: true,
-                supports_reasoning: true,
-                supports_web_search: true,
-                supports_image_generation: true,
-                supports_audio_input: true,
-                supports_audio_output: true,
-                supports_file_input: true,
-                supports_jsonl: true,
-                writes_vox: true,
-                ..ModelCapabilities::default()
-            },
+            capabilities: ModelCapabilities::default(),
             supported_parameters: Vec::new(),
         }
     }
@@ -2008,32 +1982,35 @@ mod tests {
             .await;
         let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
         let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
-        let prev_force = std::env::var("VOX_MODEL_FORCE").ok();
         let model_id = "test-openrouter-model-preamble-skip";
         unsafe {
             std::env::set_var("OPENROUTER_BASE_URL", server.uri());
             std::env::set_var("OPENROUTER_API_KEY", "test-key");
-            // A machine-local `~/.vox/config.toml` may set `VOX_MODEL_FORCE` to
-            // a model outside this test's registry (`resolve_config_str` reads
-            // env before the toml, but only when non-blank — see
-            // `vox_config::env_parse::resolve_config_str`); pin it to the
-            // model this test registers so the turn resolves deterministically
-            // regardless of the host's config.
-            std::env::set_var("VOX_MODEL_FORCE", model_id);
         }
-        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL", "VOX_MODEL_FORCE"]);
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
         let state = test_state();
         {
             let handle = state.orchestrator.models_handle();
             let mut spec = model_spec(ProviderType::OpenRouter, model_id);
-            // Forcing `VOX_MODEL_FORCE` above (to keep this test deterministic
-            // against a host `~/.vox/config.toml` pin) routes resolution
-            // through the strict-pin gate, which additionally requires the
-            // pinned model to satisfy every capability the prompt infers —
-            // unlike the plain `mcp_chat_model_override` path the other tests
-            // in this file use. Grant every capability so that gate is a
-            // no-op here; this test's subject is the research trace, not
-            // capability routing.
+            // Task 8e fix round 1: this test used to also force the process
+            // env var `VOX_MODEL_FORCE` to this model id, purely to keep
+            // resolution deterministic against a host `~/.vox/config.toml`
+            // pin (see the removed comment in git blame). That workaround is
+            // now redundant — `vox-orchestrator-mcp`'s hermetic test ctor
+            // (`src/lib.rs`) points `VOX_HOME` at an empty temp dir before any
+            // test runs, so `~/.vox/config.toml` can never supply
+            // `VOX_MODEL_FORCE` here — and it raced: mutating a process-wide
+            // env var under `CHAT_MESSAGE_ENV_LOCK` does not serialize
+            // against `llm_bridge::model_route_policy::tests`' *different*
+            // `INFERENCE_PROFILE_TEST_LOCK`, so those tests could
+            // transiently observe this model id as a strict pin and fail.
+            // `mcp_chat_model_override` below (private per-`ServerState`
+            // state, no cross-test env race) is exactly the sticky-pref path
+            // every other test in this file already uses, and reaches the
+            // same capability gate `caps_ok` enforces on the strict-pin path
+            // — so keep the full-capability grant to prove this test's
+            // subject (the research trace) does not accidentally depend on
+            // it.
             spec.capabilities = vox_orchestrator::models::ModelCapabilities {
                 supports_json: true,
                 supports_vision: true,
@@ -2071,12 +2048,8 @@ mod tests {
                 Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
                 None => std::env::remove_var("OPENROUTER_API_KEY"),
             }
-            match prev_force {
-                Some(v) => std::env::set_var("VOX_MODEL_FORCE", v),
-                None => std::env::remove_var("VOX_MODEL_FORCE"),
-            }
         }
-        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL", "VOX_MODEL_FORCE"]);
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
 
         let parsed: serde_json::Value = serde_json::from_str(&response_json).expect("json");
         assert_eq!(parsed["success"], true, "{response_json}");

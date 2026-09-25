@@ -313,6 +313,9 @@ wiremock           = "0.6"
 # binary can lazily initialize vox-config's process-wide user-config cache.
 # See crates/vox-orchestrator-mcp/src/lib.rs `hermetic_test_env`.
 ctor               = "1"
+# Companion to `ctor` above: process-exit cleanup for the same test-only
+# hermetic `VOX_HOME` temp directories (ctor 1.x dropped its own `#[dtor]`).
+dtor               = "0.3"
 tantivy            = { version = "0.22", default-features = false }
 scraper            = "0.20"
 html2text          = "0.12"

@@ -18121,6 +18121,7 @@ dependencies = [
  "crossbeam-queue",
  "ctor 1.0.13",
  "dirs",
+ "dtor",
  "futures-util",
  "glob",
  "globset",

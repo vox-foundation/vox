@@ -377,6 +377,11 @@ pub enum SecretId {
     VoxSearchSearxngEngines,
     VoxSearchSearxngLanguage,
     VoxSearchDdgFallbackDisabled,
+    /// Task 8e: when truthy, `SearchPolicy::from_env` forces
+    /// `web_research_enabled = false` so no code path can reach a live web
+    /// search engine — set by `vox-orchestrator-mcp`'s hermetic test ctors
+    /// (`src/lib.rs` and `tests/common/mod.rs`), never by production code.
+    VoxSearchWebResearchDisabled,
     VoxSearchScraperTimeout,
     VoxSearchScraperRobotsRespect,
     VoxSearchScraperMinDensity,

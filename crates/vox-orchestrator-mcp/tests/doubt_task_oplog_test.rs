@@ -3,6 +3,9 @@
 //! the event-bus emit + FeedbackStore registration performed inside the sync
 //! `Orchestrator::doubt_task`.
 
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use std::sync::Arc;
 
 use vox_orchestrator_mcp::{ServerState, handle_tool_call, load_config};

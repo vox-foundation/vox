@@ -1,3 +1,6 @@
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use vox_orchestrator_mcp::chat_tools::chat_message;
 use vox_orchestrator_mcp::chat_tools::params::ChatMessageParams;
 use vox_orchestrator_mcp::server_state::ServerState;

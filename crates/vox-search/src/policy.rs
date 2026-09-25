@@ -419,6 +419,17 @@ impl SearchPolicy {
     #[must_use]
     pub fn from_env() -> Self {
         let mut p = Self::default();
+        // Task 8e: test-hermeticity kill switch. `run_retrieval_bundle`'s
+        // "unified autonomous retrieval injection" preamble calls
+        // `from_env()` fresh on every chat turn regardless of research
+        // intent, so a plain `skip_web` per-call override (Task 8d) does not
+        // stop it for turns that never asked for research — a "unit" test
+        // could still make a real, non-deterministic web request. Never set
+        // by production code; `vox-orchestrator-mcp`'s hermetic test ctors
+        // (`src/lib.rs`, `tests/common/mod.rs`) set it for every test.
+        if parse_truthy_env(vox_secrets::SecretId::VoxSearchWebResearchDisabled) {
+            p.web_research_enabled = false;
+        }
         if let Some(v) =
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPolicyVersion).expose()
             && let Ok(n) = v.parse::<u32>()

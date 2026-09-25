@@ -232,9 +232,25 @@ pub use server_state::{CachedCatalog, ServerState};
 /// every other test in the (parallel, multi-threaded) binary. Only code that
 /// runs before `main()` — i.e. before any `#[test]` fn can race it — closes
 /// that gap, hence `#[ctor]` rather than a lazily-invoked `Once`.
+///
+/// Also sets `VOX_SEARCH_WEB_RESEARCH_DISABLED` (Task 8e fix round 1): the
+/// chat preamble's autonomous-retrieval leg calls `SearchPolicy::from_env()`
+/// fresh on every turn, so without this a "unit" test could still make a
+/// real, unmocked web request (Wikipedia/arXiv/SearXNG/...) regardless of
+/// research intent. See `vox_search::policy::SearchPolicy::from_env`.
 #[cfg(test)]
-#[allow(unsafe_code)] // test-only std::env::set_var, run pre-main by #[ctor] — see module docs
+#[allow(unsafe_code)] // test-only std::env::set_var, run pre-main by #[ctor]/#[dtor] — see module docs
 mod hermetic_test_env {
+    /// The directory this binary's `VOX_HOME` points at. Deterministic from
+    /// the process id alone (stable for the process's whole lifetime), so
+    /// the matching `#[dtor]` below can remove it without any shared state.
+    fn vox_home_dir() -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "vox-orchestrator-mcp-test-home-{}",
+            std::process::id()
+        ))
+    }
+
     /// Points `VOX_HOME` at an empty, per-process temp directory before any
     /// test in this binary runs, so `load_user_config()`'s first (and only)
     /// read of `~/.vox/config.toml` sees an empty config regardless of which
@@ -243,16 +259,25 @@ mod hermetic_test_env {
     /// `~/.vox/config.toml`.
     #[ctor::ctor(unsafe)]
     fn set_hermetic_vox_home() {
-        let dir = std::env::temp_dir().join(format!(
-            "vox-orchestrator-mcp-test-home-{}",
-            std::process::id()
-        ));
+        let dir = vox_home_dir();
         let _ = std::fs::create_dir_all(&dir);
         // SAFETY: `#[ctor]` functions run before any other code in the
         // binary (including test threads), so this mutation cannot race any
         // concurrent env read/write.
         unsafe {
             std::env::set_var("VOX_HOME", &dir);
+            std::env::set_var("VOX_SEARCH_WEB_RESEARCH_DISABLED", "1");
         }
+    }
+
+    /// Removes the per-process temp `VOX_HOME` at process exit — Task 8e fix
+    /// round 1: without this the directory (and whatever the catalog cache
+    /// or other code under `dot_vox_user_dir()` writes into it) leaks for
+    /// every `cargo test` invocation. `ctor` 1.x dropped the `#[dtor]`
+    /// companion it had in 0.x, so this uses the standalone `dtor` crate
+    /// instead (same `#[ctor]`-style pre-/post-main mechanism, exit side).
+    #[dtor::dtor]
+    fn remove_hermetic_vox_home() {
+        let _ = std::fs::remove_dir_all(vox_home_dir());
     }
 }

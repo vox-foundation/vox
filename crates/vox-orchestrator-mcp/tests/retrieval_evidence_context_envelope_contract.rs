@@ -1,3 +1,6 @@
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use std::path::PathBuf;
 
 use vox_orchestrator_mcp::memory_tools::RetrievalEvidenceEnvelope;

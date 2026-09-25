@@ -175,6 +175,8 @@ jsonschema.workspace = true
 wiremock.workspace = true
 # Task 8e: pre-main hermetic-test-env init (see src/lib.rs `hermetic_test_env`).
 ctor.workspace = true
+# Task 8e: process-exit cleanup of the temp VOX_HOME dir the ctor above creates.
+dtor.workspace = true
 
 [lints.rust]
 unsafe_code = "warn"
