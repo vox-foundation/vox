@@ -22,7 +22,7 @@
 - New `pub fn` needs a same-file test (tdd-guard pre-commit hook).
 - After any `CiCmd` change, regenerate in order: `cargo run -p vox-cli -- ci command-sync`, `cargo run -p vox-cli -- ci gui-surface-coverage --write`, `cargo run -p vox-cli -- ci doc-inventory generate`, then `UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli --test command_catalog_paths_baseline`. Never hand-edit generated artifacts.
 - Credentials are the user's: this plan never sets, reads, or rotates a secret.
-- Live repo-state changes — `gh workflow disable/enable`, `gh cache delete`, pushes, PR creation, admin/bypass merges, dispatching workflows on `main`, branch-protection edits — need explicit user confirmation, each time. <!-- GRILL Ex 3, 17 -->
+- Live repo-state changes — `gh workflow disable/enable`, `gh cache delete`, pushes, PR creation, admin/bypass merges, dispatching workflows on `main`, branch-protection edits — need explicit user confirmation, each time. <!-- GRILL Ex 3, 17 --> This includes creating, closing, or commenting on GitHub issues and labels by hand (e.g. closing an orphaned `Nightly stale:` issue), and dispatching any workflow that spends money or pushes (e.g. `harness-eval-nightly.yml`, which calls a paid LLM API and pushes to `main`) — verify those by reading or by running the shell block locally against a scratch repo, never by dispatch. <!-- AMENDED: R10 — issue/label writes and paid-dispatch verification were missing from the gated list -->
 - Commit messages end with `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
 
 ---
@@ -260,6 +260,7 @@ In `compute_affected`, make `seeds` mutable and, before the empty check:
 ```
 - [ ] **Step 3: Verify** — `cargo test -p vox-cli-ci affected` PASS (existing affected tests unchanged).
 - [ ] **Step 4: Commit** `ci(affected): examples-only diffs select the crates whose tests read examples/`.
+- [ ] **Step 5 (audit follow-up — the seeding never reaches `ci.yml`):** `vox ci affected-crates` (`crates/vox-cli-ci/src/affected_cmd.rs`) calls `compute_affected` but uses the result only for `full=`; it rebuilds the crate list from `file_to_crate` seeds, which never include `EXAMPLES_CONSUMERS`. So at HEAD an examples-only PR falls through to the whole-workspace fail-closed path in `ci.yml`, and a PR touching `crates/X` **and** `examples/` runs only X's reverse closure — the 8 consumer crates are silently skipped. Failing test first, in `affected_cmd.rs`: a mixed `crates/vox-cli/src/main.rs` + `examples/golden/foo.vox` change must emit an `affected_p_args` containing `-p vox-compiler` (a consumer that isn't in vox-cli's closure). Then take the list from `Affected::Crates(set)` and keep the seed path only for `Full`/`None` (`nightly.yml` reads `affected_p_args`, so `Full` output must not change). Correct the audit doc's gap-5 row in the same change. <!-- AMENDED: R1 — Track C, verified at affected_cmd.rs (aff only feeds `full`; list rebuilt from file_to_crate seeds) -->
 
 ---
 
@@ -302,6 +303,8 @@ Run → FAIL.
 - [ ] **Step 2: `ci.yml` — rename the current `gate` job id to `linux`** (`name: Linux (fmt, guards, clippy, tests — affected)`) and inside it:
   - first step: `- name: Start budget clock` / `run: echo "GATE_START=$(date +%s)" >> "$GITHUB_ENV"` (shell: bash);
   - in `Affected crates`: add `[ -n "$BASE_SHA" ] || { echo "::error::no base SHA"; exit 1; }` before the `git diff`, and widen the prefilter regex to `'^(crates/|Cargo\.(toml|lock)|\.cargo/|rust-toolchain\.toml|examples/|\.github/workflows/)'` — `examples/` goes **before** `\.github/workflows/` so the substring `\.github/workflows/)` that `selective_ci_workflow_changes_force_rust_gate` (ci_workflow_contract.rs) asserts survives (Task 4 makes examples-only select real crates); <!-- AMENDED: #5 -->
+  - **Audit follow-up (not in HEAD `384b7ae64`):** the prefilter must also admit `contracts/` and `.config/`. `compute_affected` forces a full run for `.config/hakari.toml` (`affected.rs:9`, sentinel) and for non-graph `contracts/**` (`affected.rs#contracts_outside_graph_force_full`), and integration tests read `contracts/` directly, but the prefilter exits with `p_args=` before `affected-crates` runs, so a `contracts/`-only or `.config/`-only PR passes the required gate with no clippy and no nextest. Final regex: `'^(crates/|Cargo\.(toml|lock)|\.cargo/|rust-toolchain\.toml|contracts/|\.config/|examples/|\.github/workflows/)'` — the two new alternatives go **before** `examples/`, so the asserted substring `examples/|\.github/workflows/)` stays contiguous. Add a `ci_workflow_contract` assertion for `contracts/|\.config/|`. <!-- AMENDED: G1 — conceded: prefilter hole for contracts/ and .config/ (ci.yml:62 vs affected.rs:9,146) -->
+    Test for G1, failing first: make it behavioral, not a substring. Extract the prefilter regex from `ci.yml`'s `Affected crates` step (`serde_yaml` + `regex`, both already `vox-cli` deps) and assert it matches every path `compute_affected` forces to a full run: each `vox_cli_ci::affected::SENTINEL_EXACT` entry plus `contracts/x.yaml`, `.config/nextest.toml`, `.github/workflows/x.yml`, `examples/golden/x.vox`. Run it → FAIL at HEAD (no `contracts/`), then fix. Any substring assertion must be a raw string, `r"contracts/|\.config/|"` (`\.` is an invalid escape in a normal Rust string). Sequence note: G1 moves `contracts/`/`.config/`-only PRs into the full-run class (OD4), so land it after Bootstrap step 1 has measured a warm full run, or record the admin-bypass rollback next to it. <!-- AMENDED: R11 — follow-up had no red step and a non-behavioral test; R12 — ordering vs OD4 -->
   - after `Affected crates`, add:
 ```yaml
       - name: Toolchain bump?
@@ -448,6 +451,7 @@ Run → FAIL.
 ```
 - [ ] **Step 6: Verify** — contract test PASS; `vox ci required-context-guard`, `workflow-concurrency-guard --strict`, `ssot-drift`, `node-pnpm-ssot-guard` PASS; `act pull_request -W .github/workflows/ci.yml -n` parses; locally `cd crates/vox-gui/ui && pnpm install && pnpm typecheck && pnpm test && pnpm exec playwright test --project=chromium` **all PASS** on this branch (required, not optional — a red here means the new blocking leg would lock every UI PR; fix or stop and report). Run each new `run:` block locally under `bash -eo pipefail` with `BASE_SHA` set to the branch's merge-base, including an empty-`BASE_SHA` case for the `ui` step (expect `run=true`). Update the `ci.yml` header comment and the ssot-autoregen comment that say `act pull_request -j gate` / "only `gate`" to name the `linux` job. <!-- AMENDED: #13, #4, #17 -->
 - [ ] **Step 7: Commit** `ci: required gate = linux + ui legs; toolchain rustdoc; deny licenses/bans/sources; advisory Windows leg`.
+- [ ] **Step 8 (audit follow-up — the required context must never be skippable):** at HEAD `gate` runs under `if: ${{ !cancelled() }}`. This repo's own guard (`required_context_guard.rs`, module doc) records that a *skipped* job still posts its check-run and that GitHub counts a skipped check-run as satisfying the required context. When a run on the head SHA is cancelled, `!cancelled()` is false, so `gate` is skipped — satisfied with nothing verified (PR and merge-queue runs alike). This overturns the pre-exec D1 choice on new code evidence. Change `gate` to `if: always()` so it always runs and fails on anything but `success`: its step already rejects `cancelled`/`skipped` via `[ "$LINUX" = success ]` / `[ "$UI" = success ]`. Contract test, failing first: assert `if: always()` on the `gate` job and both `= success` checks, plus the currently unasserted load-bearing lines — the rustdoc step's `if: steps.bump.outputs.toolchain == 'true'`, the tests step's `&& steps.bump.outputs.toolchain != 'true'`, and the `ui` filter's `orch_daemon/mod\.rs` alternative (raw strings). Confirm the skipped-counts-as-satisfied behavior on the first real PR run before relying on it either way. <!-- AMENDED: R2 — Tracks A+B; ci.yml gate `if: !cancelled()` vs required_context_guard.rs module doc; load-bearing lines unasserted -->
 
 ---
 
@@ -541,6 +545,11 @@ fn vox_gui_is_tested_somewhere() {
 - [ ] **Step 3: Verify** — `cargo test -p vox-cli-ci cache_key_lint` PASS; `./target/debug/vox ci cache-key-lint` exits 0; `ssot-drift` PASS (now including `cache_key_lint`); `act -n` on `compile-matrix.yml` and `ci.yml` parses. Mutation check: temporarily delete the `if:` from setup-rust's main-saves step and confirm `ci cache-key-lint` fails, then restore.
 - [ ] **Step 4: Commit** `ci: save Rust caches only from main (cache at 9.8/10 GB)`.
 
+**Scope of this task's claim (audit clarification):** Task 7 stops PR-scoped cache writes and schedules a one-off delete of the measured waste (~4.15 GB PR-scoped + ~1.3 GB stale `Linux-cargo-*`). It does **not** claim the `workspace` / `workspace-windows` entries stay resident: nothing bounds main-side writers (`nightly.yml`'s `all-features-matrix` writes one `-matrix-<crate>` entry per leg — 22 legs — through setup-rust's default `cache: "true"`; `gui-windows-build-smoke` writes both a setup-rust cache and a `Swatinem/rust-cache` for the same `target/`), and nothing alerts on eviction — the only symptom is a cold `linux` leg. [ASSUMED — unconfirmed] GitHub evicts by last access, so an entry every PR restores should outlive nightly-only entries. Whether to bound main-side writers or add a cache-presence check is an Open Decision. <!-- AMENDED: G2 — partial concede: main-side cache writes unbounded, eviction undetected -->
+
+- [ ] **Step 5 (audit follow-up — lint hole):** `cache_key_lint.rs#gates_on_main` is a substring test (`c.contains(MAIN_REF)`), so `if: github.ref != 'refs/heads/main'` on an `actions/cache@` step — or `save-if: ${{ github.ref != 'refs/heads/main' }}` — passes Rule 2 while saving on every ref *except* main, the inverse of the rule. Failing tests first (both forms must be flagged), then reject conditions whose `refs/heads/main` comparison is `!=`. <!-- AMENDED: R6 — Tracks A+B, verified at cache_key_lint.rs#gates_on_main -->
+- [ ] **Step 6 (audit follow-up — pin the wiring):** nothing fails if the `ds!("cache_key_lint", …)` line is deleted from `run_ssot_drift`, and no test runs the lint over the live tree. Add a `repo_tree_passes_cache_key_lint` test calling `cache_key_lint::run(&repo_root)` (same shape as `workflow_policy_guard`'s `repo_workflows_satisfy_policy`), and a test that `run_ssot_drift`'s stage list includes it. Mutation-check: delete the `ds!` line → the second test fails. <!-- AMENDED: R7 — Track B; guard wiring unpinned -->
+
 **User action (gated):** a one-time delete, after showing the user the list and getting explicit confirmation:
 - stale PR-scoped caches (~4.15 GB today): `gh cache list --limit 1000 --json id,key,ref,sizeInBytes --jq '.[] | select(.ref|startswith("refs/pull/"))'`;
 - stale main-scope Rust caches (~1.3 GB): every `Linux-cargo-*` key on `refs/heads/main` except the newest (`gh cache list --ref refs/heads/main --key Linux-cargo- --sort created_at --order desc --json id,key,sizeInBytes`), plus the `cache-trivy-*` entries that Step 2 stops creating.
@@ -559,6 +568,10 @@ Then run `gh cache delete <id>` per entry.
 - [ ] **Step 5: link_checker (85 real dead links)** — list: `gh run list --workflow link_checker.yml --limit 1 --json databaseId -q '.[0].databaseId' | xargs -I{} gh run view {} --log | grep -E '\[(404|403|ERR|TIMEOUT)\]'`. 404 → fix or remove the link; 403 from a bot-walled site → add that host to `.lycheeignore` with a comment; `your-domain.com` placeholder → backticks. Never ignore whole TLDs or `github.com`. Then prove the external links locally with the workflow's own command (the exact `args:` from `link_checker.yml`): `lychee --root-dir . --no-progress --max-retries 5 --retry-wait-time 5 --timeout 40 --exclude-path docs/src/archive --exclude-path '\.claude/' --exclude-path 'assets/skills/' --exclude-path 'node_modules/' '**/*.md'`. Expect 0 errors. lychee is not installed here: `brew install lychee` is a download, so ask the user first. If they decline, record "external links verified by the next scheduled link_checker run". <!-- AMENDED: D2 -->
 - [ ] **Step 6: Verify** — `ssot-drift`, `workflow-concurrency-guard --strict`, `ci_workflow_contract`, `vox ci check-links`, doc lint on touched docs → PASS.
 - [ ] **Step 7: Commit** `ci: fix scorecard signing, ios pnpm cache path, stale crate names, dead links`.
+- [ ] **Step 8 (audit follow-up — two more workflows that can't run, found by `actionlint`):**
+  - `nightly-artifacts.yml`: the plugin-matrix job's job-level `if: matrix.plugin != 'mens-candle-cuda'` uses the `matrix` context, which is not available in a job-level `if:` (`actionlint`: "context \"matrix\" is not allowed here"). That is a workflow error, not a skipped row. Express the skip with `strategy.matrix.exclude` (or move the condition onto the job's steps), and fix `docs/src/ci/runner-contract.md`'s claim that this row is "explicitly `if:`-skipped". The bug pre-dates this plan (`cfddbf765`) but ships in this branch. <!-- AMENDED: R3 — Track A, confirmed by actionlint at nightly-artifacts.yml:277 -->
+  - `mobile-e2e-android.yml`: `runs-on: macos-13` is not a label GitHub-hosted runners offer any more (`actionlint`: unknown label), so the scheduled job can never get a runner. Move it to a current macOS label, and confirm the emulator action still supports it. <!-- AMENDED: R5 — found by controller's whole-tree actionlint run -->
+  - Verify: `actionlint .github/workflows/*.yml` reports no errors other than shellcheck info/style notes and the documented custom `gpu` label on the disabled `ml_data_extraction.yml`.
 
 **User action:** `docs-deploy.yml` fails 10/10 with Cloudflare `Authentication error [code: 10000]` — rotate the `CF_API_TOKEN` repo secret.
 
@@ -731,6 +744,13 @@ jobs:
 - [ ] **Step 3: Verify** — `./target/debug/vox ci pre-push` (strict guard passes); `ssot-drift`.
 - [ ] **Step 4: Commit** `ci: explicit least-privilege permissions on every workflow; guard strict`.
 
+**What Task 13 actually guarantees (audit clarification):** every workflow has a top-level `permissions:` block, and the 18 blocks this task added are `contents: read`. The guard checks only that a block exists (`workflow_permissions_guard.rs#run` → `top_level_permissions(..).is_none()`), so `write-all` passes. Pre-existing top-level grants were out of scope and are unchanged: `nightly.yml` gives `packages: write` to every nightly job with no use of it in the file, and `nightly-artifacts.yml` gives `contents: write`. Narrowing them is an Open Decision. <!-- AMENDED: G4 — conceded: "least-privilege everywhere" overclaims; scope was "a block exists" -->
+
+**Divergence from Step 1 at HEAD:** `harness-eval-nightly.yml` keeps its pre-existing job-level `contents: write` (present before `9b0718d18`). That contradicts Step 1 and the pre-exec Ex 12 ruling; it rests on an SDD controller ruling (ledger, Task 13 fix round 1) that matched `ci.yml`'s `ssot-autoregen` twin, with **no user approval on record**. The grant only matters if a `GITHUB_TOKEN` push to `main` gets past the `main-merge-queue` ruleset — unverified. Whether to keep it is an Open Decision (user). Independent of that decision:
+- [ ] **Step 5 (audit follow-up):** make the push failure loud. Replace the `|| echo "::warning::… (non-fast-forward)"` after the `git push … HEAD:main` in `harness-eval-nightly.yml` with handling that fails the job, so a ruleset rejection can't become a green run. <!-- AMENDED: G3 — CONFLICT ✅ (preexec-grill.md:114 vs harness-eval-nightly.yml:30) + conceded: `|| echo` hides a rejected push -->
+  The step's script already runs under `set -euo pipefail`, so deleting the `|| echo …` (and its comment) is enough; don't substitute a softer "report and continue". Failing test first: a `ci_workflow_contract` assertion that `harness-eval-nightly.yml` does not contain `push skipped (non-fast-forward)` (fails at HEAD). Verify by reading and by running the push block locally against a scratch bare repo — **never** dispatch the workflow (paid LLM API + push to `main`). <!-- AMENDED: R11, R9 — G3 had no red step, allowed a weaker alternative, and no no-dispatch rule -->
+- [ ] **Step 6 (audit follow-up — pin strict mode):** changing `pre_push.rs#step_workflow_permissions_guard` back to `run(root, false)` passes every test today. Add a test that calls `workflow_permissions_guard::run(&repo_root, true)` against the live tree, and mutation-check it (a workflow stripped of its block → the test fails). If, as a result, the `strict` parameter has no remaining `false` caller, delete it and its warn-only branch (~5 lines). <!-- AMENDED: R7 — Tracks B+C; strict mode unpinned, `strict` param dead -->
+
 ---
 
 ### Task 14: Delete the self-hosted fleet tooling and no-op subcommands
@@ -756,8 +776,19 @@ External callers of the deleted subcommands outside this repo can't be verified 
 
 - [ ] **Step 1:** Add a "Resolution (2026-09-22)" section mapping each finding to its task/commit, plus: user-only items (`CF_API_TOKEN`, stale-cache delete, bypass merge if needed, Windows enforcement flip); post-merge verification items (see below) with a placeholder table for run IDs and minutes; `harness-eval-nightly.yml`'s warning (`:66`) blaming every push rejection on "non-fast-forward" may hide a ruleset rejection (unverified: whether the PAT owner can bypass the merge-queue ruleset); external callers of deleted subcommands unverified; the advisory Windows leg's failures/timeouts will show in `vox ci status` blocks while it is warn-only (expected noise until the enforcement flip).
 - [ ] **Step 2:** AGENTS.md: delete the "`vox ci pre-push` prints an **advisory** reminder on re-push…" bullet (removed by Task 3); change `act pull_request -j gate` → `act pull_request -j linux` everywhere it appears (Local CI Gate Tiers + CI Contract: `gate` is now a step-less aggregator); keep the `runner-contract.md §Local-first CI` link valid (retarget it if Task 14 renamed the heading). In the CI Contract section: the required context aggregates <!-- AMENDED: #17 --> a `linux` leg and a `ui` leg (UI PRs must pass typecheck + vitest + Playwright); toolchain bumps run rustdoc `-D warnings` in the linux leg and defer nextest to nightly; the merge queue also runs an advisory Windows compile check; scheduled workflows that stop running open `Nightly stale:` issues; Rust caches are saved only from `main`.
-- [ ] **Step 3: Verify** — doc lint on the audit doc; `check-links`.
+- [ ] **Step 3: Verify** — doc lint on the audit doc; `check-links`; **and a claim-by-claim check of the Resolution section against HEAD** — every status, count, and mechanism it states must be confirmed by reading the cited file (lint and link checks cannot catch a wrong claim). <!-- AMENDED: G5 — conceded: nothing compared the doc against HEAD -->
 - [ ] **Step 4: Commit** `docs: record CI audit resolution; AGENTS.md CI contract`.
+- [ ] **Step 5 (audit follow-up — corrections owed at HEAD `384b7ae64`):**
+  - `ci-cd-audit-findings-2026.md` gap 7 row: **Partially addressed** — the 24-min in-job warning ships (`ci.yml`, step "Warn when the leg nears its 30-min cap"); `vox ci job-timings` still has no caller. <!-- AMENDED: G5 -->
+  - Gap 10 row: the permissions guard is its own `vox ci pre-push` step (`pre_push.rs`, `OwnedStep` "vox ci workflow-permissions-guard"), not an `ssot-drift` stage; and per G4 the row must say "a block exists everywhere; the 18 added blocks are `contents: read`", not "least-privilege everywhere". <!-- AMENDED: G5, G4 -->
+  - Deleted-subcommand count: **9** (the `cmd_enums.rs` variants removed in `e8106f370`) in the Resolution section's claim about what Task 14 deleted (the "External callers of the ~45–50 `vox ci` subcommands … Task 14 deleted" bullet). Do **not** change the "~45–50 orphan subcommands" in the original audit table or the "Remove or disable" row — those correctly quote the audit's original finding, most of which was left in place by design. <!-- AMENDED: G5; R11 — original wording would have "corrected" two accurate quotes -->
+  - Gap 5 row: examples-only diffs do **not** yet select the consumer crates in CI (see Task 4 Step 5); mark it "Partially addressed" until that lands. <!-- AMENDED: R1 -->
+  - Admin-bypass item: replace the reason with Bootstrap step 3's actual precondition (local clippy + nextest at the PR head SHA, with SHA, commands, counts, durations posted as a PR comment), and add a **"Local proof at PR head SHA"** row to the post-merge table. <!-- AMENDED: G5 -->
+  - Windows-flip item: restore Bootstrap step 5's criterion (first `merge_group` run after a green `windows-cache-seed` on `main`, Windows leg ≤ 24 min via `gh run view <id> --json jobs`) and the edit itself (`windows` added to `gate.needs` plus `[ "$WINDOWS" = success ] || [ "$EVENT" != merge_group ]`) — a `ci.yml` edit, not a branch-protection change. Keep the `windows` run-ID/minutes row in the post-merge table. <!-- AMENDED: G6 — CONFLICT ✅ (plan Bootstrap step 5 vs audit doc :174-176) -->
+  - `AGENTS.md` CI Contract, "What nightly defers": the full-workspace run's fit in 30 min is **unmeasured**, not "cannot fit" — lockfile, `Cargo.toml`, `.cargo/` and `.github/workflows/` PRs already run it in `linux` via the fail-closed path. <!-- AMENDED: G7 — CONFLICT ✅ (AGENTS.md:466-469 vs ci.yml:72-73) -->
+  - `docs/src/ci/runner-contract.md`: `ml_data_extraction.yml` is `disabled_manually` (no runs queued), so its lanes don't "starve today"; state that it is disabled. <!-- AMENDED: G8 — CONFLICT ✅ (runner-contract.md:21 vs live workflow state) --> The same "starve" claim appears in the paragraph's later sentences ("a starved run costs nothing on the PR path") and in the operator-hygiene note below it — fix every occurrence (`git grep -n starve docs/src/ci/runner-contract.md`). <!-- AMENDED: R11 — G8 named only the first line -->
+  - Name the permissions guard as "the pre-push workflow-permissions step", not `vox ci workflow-permissions-guard` — that subcommand doesn't exist (the `OwnedStep` label in `pre_push.rs` borrows the name). <!-- AMENDED: R11 -->
+  - Mechanical check for this step (Step 3's claim-by-claim review is manual): before editing, record each stale string's current `git grep -n` hit — "starve today", "~45–50 `vox ci` subcommands and fleet-tooling", "cannot fit the 30-min cap", "branch-protection change it implies", "haven't run on `main` yet", "runs only as a stage inside `ssot-drift`" — and require zero hits in the Resolution section, `AGENTS.md`, and `runner-contract.md` afterward. <!-- AMENDED: R11 — G5 follow-up had no red/green check -->
 
 ---
 
@@ -774,7 +805,19 @@ This PR can only be measured by GitHub, and its own required `linux` leg runs **
    and posts SHA, commands, pass/fail/skip counts and durations as a PR comment (and in Task 15). The user decides on a one-time admin bypass merge. Known gap: that proof runs on macOS, not Linux; the backstop is step 4.
 4. **Right after merge:** dispatch `nightly.yml` on `main` (seeds `workspace` and `workspace-windows`, runs full nextest on Linux; a red run opens a `nightly-failure` issue to fix first).
 5. **Windows flip to enforcing:** after the first `merge_group` run following a successful `windows-cache-seed` on `main`, if its Windows leg succeeded in ≤ 24 min (`gh run view <id> --json jobs`), the user approves a one-line change adding `windows` to `gate.needs` and the check `[ "$WINDOWS" = success ] || [ "$EVENT" != merge_group ]`. Record run ID + minutes in the Task 15 resolution.
+   The flip is more than one line. It also needs the env lines `WINDOWS: ${{ needs.windows.result }}` and `EVENT: ${{ github.event_name }}` in `gate`'s step, and it must update `ci_workflow_contract.rs#ci_gate_is_hosted_capped_and_owns_required_context`, which asserts the literal `needs: [linux, ui]` with the message "windows is warn-only" — change it to `needs: [linux, ui, windows]` and assert the `$EVENT != merge_group` escape, in the same commit. <!-- AMENDED: R4 — Track A; the flip as written breaks ci_workflow_contract.rs's `needs: [linux, ui]` assertion and omits env lines -->
 6. Also record: `workspace` and `workspace-windows` cache sizes after the first nightly (`gh cache list --ref refs/heads/main --key v0-rust-workspace --limit 5`) against the 10 GB line; that `release-gui.yml` / `release-installers.yml` failures are the stale pre-fix ones (audit §3: verify only); first UI PR's `ui` leg minutes; `setup-e2e.yml` green (validates the cuda plugin fix); `scorecard.yml` green; `docs-deploy.yml` green after the token rotation.
+
+## Open Decisions
+
+From the v2 audit grill (`.superpowers/review/2026-09-22-ci-audit-remediation-grill.md`). None are decided by the plan.
+
+- **OD1 — main-side cache pressure (G2).** Bound main-side writers (`all-features-matrix` → setup-rust `cache: "false"`; drop one of `gui-windows-build-smoke`'s two Rust caches) and/or add a `workspace` / `workspace-windows` cache-presence check. The mitigating LRU-by-last-access premise is `[ASSUMED — unconfirmed]`. Bootstrap step 6's cache-size measurement informs this. Review recommendation (Track C): drop the `cache-key-suffix: -matrix-${{ matrix.crate }}` so the 22 legs share one entry (not `cache: "false"` — cold `--all-features` legs risk their 15-min cap), and delete `gui-windows-build-smoke`'s extra `Swatinem/rust-cache` step; with both done, skip building a cache-presence check. <!-- AMENDED: R13 -->
+- **OD2 — `harness-eval-nightly.yml` `contents: write` (G3, user decision).** Keep (SDD controller ruling, mirrors `ssot-autoregen`) or remove (pre-exec Ex 12 ruling). First verify whether a `GITHUB_TOKEN` push — and a PAT push — to `main` passes the `main-merge-queue` ruleset; if neither does, the grant is dead weight either way. Verify read-only only — `gh api repos/{owner}/{repo}/rulesets` and `gh api repos/{owner}/{repo}/rules/branches/main` (check `bypass_actors`); never test by pushing to `main` or dispatching the workflow. If removed, the `|| github.token` fallback goes too. <!-- AMENDED: R9 — Track C S1; verification method was unspecified and the obvious one mutates live state -->
+- **OD3 — pre-existing top-level write grants (G4).** Narrow `nightly.yml`'s `packages: write` (no user in the file) and `nightly-artifacts.yml`'s `contents: write` to the jobs that need them, and decide whether `workflow_permissions_guard` should check scopes rather than only presence. Review recommendation (Track C): delete the unused `packages: write` and move `contents: write` onto the release job only; treat a scope-checking guard as speculative until a second over-grant appears. A wrong narrowing fails loudly (403 → `nightly-failure` issue), but proving it needs a user-gated dispatch. <!-- AMENDED: R13 -->
+- **OD4 — full-run PR class vs the 30-min cap (G7, open risk).** Lockfile, `Cargo.toml`, `.cargo/`, `.github/workflows/` and (after G1) `contracts/`/`.config/` PRs run full-workspace clippy + nextest in the required `linux` leg. If Bootstrap step 1 shows a warm full run exceeds 30 min, this whole class times out the gate; the only escape hatch today is keyed on `rust-toolchain.toml`. Needs a fallback (shard, or skip nextest on full runs the way toolchain bumps do) if the measurement says so.
+- **OD5 — liveness signal for created-but-never-executed lanes (G8).** `ci-liveness.yml` counts a scheduled run's `createdAt` as liveness, so a re-enabled runner-less lane reads "alive" daily while `nightly-report` keeps a `nightly-failure` issue open on each cancellation. Either match on runs that started/completed, or drop "ML Pipeline" from `nightly-report.yml` together with its schedule (Global Constraints: removing a schedule removes the list entry). Related deferred minor: the `disabled_manually` branch never auto-closes an open stale issue. Review recommendation (Track C): park the lane the way Task 9 parked telemetry and visus (drop its `schedule:` and its `nightly-report.yml` entry, keep `workflow_dispatch`) instead of changing liveness semantics. Either way, any open `Nightly stale:`/`Nightly failing: ML Pipeline` issue is orphaned and must be closed by hand — a user-gated action. <!-- AMENDED: R13, R10 -->
+- **OD6 — unverified callers.** External (out-of-repo) callers of the 9 deleted `vox ci` subcommands are unverified; `graphify-out/…/cli-governance.json` still lists a retired command until `vox graph refresh` runs.
 
 ## Not in scope (decided)
 
@@ -797,7 +840,21 @@ Remaining items are not defects:
    - rule 2 skips dirs containing `*`, `$` or `{`;
    - rule 3 stays as designed;
    - negative tests: `mkdir -p dist`, `--package all`, `-p ${{ matrix.crate }}`, `crates/*/Cargo.toml`, `crates/${c}/`.
-2. `nightly-report.yml` re-runs `gh label create --force` every run. This is intended: ci-liveness depends on the label existing, and the call is idempotent.
+2. `nightly-report.yml` re-runs `gh label create --force` every run. This is intended and idempotent. (Since `384b7ae64`, `ci-liveness.yml` also creates the label itself, so it no longer depends on `nightly-report.yml` for it.) <!-- AMENDED: R-minor — stale rationale -->
+
+Deferred from the v2 audit review (2026-09-23):
+- M1 `ci_workflow_contract.rs#vox_gui_is_tested_somewhere` uses `find("Stage Tauri external sidecar")`, which matches the Windows staging step first; use `rfind` so a test step placed between the Windows and Unix staging steps fails.
+- M2 `cache_key_lint` Rule 1 checks `key` only, not `restore-keys`; six nightly jobs restore with `restore-keys: ${{ runner.os }}-cargo-`, which can pull a cache built by an older toolchain.
+- M3 `toolchain_ssot.rs` module doc still counts "two CI-runner Dockerfiles" that Task 14 deleted.
+- M4 `docker-telemetry.yml` / `deploy-telemetry.yml` header comments still describe a live self-hosted fleet (Task 14's inventory pattern had no `self-hosted fleet` term).
+- M5 `AGENTS.md` CI Contract: `ui` is required on `crates/vox-gui/**` **or** `orch_daemon/mod.rs` changes and fails closed on an empty base SHA; the fast-tier list omits the strict permissions step.
+- M6 Plan line anchors drifted: Task 15 Step 1's harness warning `:66` (now the `git push … HEAD:main` line), Task 8 Step 1's `scorecard.yml:30-35` (now the `Upload SARIF artifact` step), G1's `affected.rs:9` (use `SENTINEL_EXACT`). Prefer symbol anchors.
+- M7 The `ui` leg (a required 30-min leg) has no 24-min budget warning like `linux`.
+- M8 A toolchain-bump PR misses the `workspace` cache (the rustc hash changes Swatinem's key) and runs cold clippy + rustdoc in 30 min; Bootstrap step 1 measures a non-bump PR, only a proxy.
+- M9 Global Constraints name a `Claude Opus 5` trailer; the execution commits carry `Claude Sonnet 5` per session attribution. Reconcile the plan text.
+- M10 Task 4's drift scan matches only the literal `examples/`; a test reading through `join("examples")` would be invisible to it (none today).
+- M11 `cross_platform_gate_is_required_three_os_matrix` asserts bare `clippy`/`nextest`, which a comment would satisfy; assert the command strings.
+- M12 `status.rs#render`'s prefix mapping could collapse to one `split_once(": ")` (~4 lines).
 
 ## Execution Order
 
@@ -843,4 +900,64 @@ Conflict on pre_push.rs (Tasks 3, 13): sequential — ruling: settled
 [Important #11/#12] ui leg path filter `^crates/vox-gui/` + orch_daemon/mod.rs; `playwright test --project=chromium` — ruling: settled
 Never weaken repo_workflows_satisfy_policy or edit correct workflows to satisfy a guard — ruling: settled
 Never build vox-gui locally (missing sidecar/ui dist); act only with -n; never cargo fmt --all — ruling: settled
+```
+
+## Execution Order — audit follow-ups (v2, 2026-09-23)
+
+Tasks 1–15 above are implemented (HEAD `384b7ae64`). This order covers only the follow-up steps added by the v2 audit (`AMENDED: G*` / `R*`) and any Open Decision the user resolves.
+
+Sequential constraints (shared-file collisions — cannot parallelize):
+- Task 5 Step 2 G1 → Task 5 Step 8 (R2) → OD4 fallback (if needed) → Bootstrap step 5 flip (R4): all modify `.github/workflows/ci.yml` and `crates/vox-cli/tests/ci_workflow_contract.rs`.
+- Task 15 Step 5 corrections (G4, G5, G6, R1 gap-5 row) → OD2/OD6 outcome notes: all modify `docs/src/architecture/ci-cd-audit-findings-2026.md`.
+- G7 → OD4 (if the fallback changes "what nightly defers"): both modify `AGENTS.md`.
+- Task 13 Step 5 (G3) → OD2: both modify `.github/workflows/harness-eval-nightly.yml`.
+- OD1 → OD3: both modify `.github/workflows/nightly.yml`.
+- G8 + Task 8 Step 8 (R3 doc claim) → OD5: all modify `docs/src/ci/runner-contract.md`.
+- Task 7 Step 5 (R6) → Task 7 Step 6 (R7): both modify `crates/vox-cli-ci/src/cache_key_lint.rs`.
+- Task 13 Step 6 (R7, strict pin / dead param) → any OD3 guard change: both modify `crates/vox-cli-ci/src/workflow_permissions_guard.rs`.
+
+Independent (different files, may batch): Task 4 Step 5 (R1, `affected_cmd.rs`), Task 8 Step 8 (R3 `nightly-artifacts.yml`, R5 `mobile-e2e-android.yml`), OD6 (`vox graph refresh`).
+
+Pre-flight checklist:
+- [ ] Worktree isolated via superpowers:using-git-worktrees (`.claude/worktrees/cicd-complexity-tradeoffs-b62a67` or a fresh one off the PR branch)
+- [ ] Target history confirmed: branch `claude/cicd-complexity-tradeoffs-b62a67` (pushed for PR), base `main`
+- [ ] Next migration number: N/A (no schema changes)
+- [ ] Test DB: N/A
+- [ ] `actionlint` available for any workflow edit (`/opt/homebrew/bin/actionlint`)
+- [ ] User has answered OD2 (keep/remove the harness grant) before Task 13 Step 5's neighbor edits land
+
+Recommended sequence:
+1. Task 5 Step 8 (R2 — required-gate integrity) first; it's one line plus tests and protects every later PR.
+2. Task 4 Step 5 (R1) and Task 8 Step 8 (R3, R5) — batch candidates, independent files.
+3. Task 7 Steps 5–6 (R6, R7); Task 13 Steps 5–6 (G3, R7).
+4. Task 5 Step 2 G1 — after Bootstrap step 1 has measured a warm full run (OD4 risk).
+5. Task 15 Step 5 (G4–G8, R1 row, R11 checks) — last, so the doc describes the final code.
+6. Open Decisions as the user resolves them; Bootstrap step 5 flip (R4) only after its criterion is met.
+
+SDD ledger pre-population (copy into progress.md):
+```
+G1: prefilter admits contracts/ and .config/ (before examples/), behavioral regex test — ruling: settled
+G2: Task 7 claim scoped to PR writes + one-off delete; residency not claimed (OD1) — ruling: settled
+G3: harness-eval push failure fails the job (delete `|| echo`); never dispatch to verify — ruling: settled
+G4: Task 13 = "a block exists everywhere; added blocks contents: read"; audit row 10 says so — ruling: settled
+G5: Task 15 verify includes claim-by-claim + mechanical zero-hit check; 4 doc corrections owed — ruling: settled
+G6: Windows flip is a ci.yml edit with the ≤24-min criterion — ruling: settled
+G7: AGENTS.md says the full-workspace 30-min fit is unmeasured — ruling: settled
+G8: runner-contract.md says ml_data_extraction.yml is disabled, not starving — ruling: settled
+[R1] affected_cmd.rs uses Affected::Crates for the list; mixed-diff test first — ruling: settled
+[R2] gate job `if: always()`; assert it and the load-bearing bump/ui lines — ruling: settled
+[R3] nightly-artifacts matrix-in-job-if → strategy.matrix.exclude; actionlint clean — ruling: settled
+[R4] Windows flip also updates ci_workflow_contract's `needs:` assertion and adds WINDOWS/EVENT env — ruling: settled
+[R5] mobile-e2e-android runs-on moves off retired macos-13 — ruling: settled
+[R6] cache_key_lint rejects `!=` main comparisons; failing test first — ruling: settled
+[R7] repo-tree tests pin cache_key_lint wiring and strict permissions mode — ruling: settled
+[R9] OD2 verification is read-only (gh api rulesets); no dispatch — ruling: settled
+[R10] issue/label writes and paid dispatches are user-gated — ruling: settled
+Conflict on ci.yml + ci_workflow_contract.rs (G1, R2, OD4, R4): sequential — settled
+Conflict on ci-cd-audit-findings-2026.md (G4, G5, G6, R1): sequential — settled
+Conflict on harness-eval-nightly.yml (G3, OD2): sequential — settled
+Conflict on nightly.yml (OD1, OD3): sequential — settled
+Conflict on runner-contract.md (G8, R3, OD5): sequential — settled
+Conflict on cache_key_lint.rs (R6, R7): sequential — settled
+Conflict on AGENTS.md (G7, OD4): sequential — settled
 ```
