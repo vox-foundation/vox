@@ -32,7 +32,16 @@ pub enum LlmCmd {
 /// (https://no-color.org/, any non-empty value disables colour) and only
 /// colours when stdout is a tty (never when piped/redirected).
 fn stdout_color_enabled() -> bool {
-    std::env::var_os("NO_COLOR").is_none() && std::io::stdout().is_terminal()
+    color_enabled(
+        std::env::var_os("NO_COLOR").is_some(),
+        std::io::stdout().is_terminal(),
+    )
+}
+
+/// The pure colour decision, split out so tests can cover every case without
+/// mutating process env (`unsafe`, and racy across parallel test threads).
+fn color_enabled(no_color_set: bool, stdout_is_tty: bool) -> bool {
+    !no_color_set && stdout_is_tty
 }
 
 pub async fn run(cmd: LlmCmd) -> anyhow::Result<()> {
@@ -99,34 +108,30 @@ mod tests {
 
     /// `NO_COLOR` (https://no-color.org/) must disable colour regardless of
     /// tty state — the actual bug: `vox llm prompt` emitted ANSI escapes even
-    /// with `NO_COLOR=1` set and stdout piped.
+    /// with `NO_COLOR=1` set.
     #[test]
-    fn stdout_color_enabled_respects_no_color() {
-        // SAFETY: test-only env mutation; no other test in this process reads NO_COLOR.
-        unsafe {
-            std::env::set_var("NO_COLOR", "1");
-        }
-        assert!(
-            !stdout_color_enabled(),
-            "NO_COLOR=1 must disable colour output"
-        );
-        unsafe {
-            std::env::remove_var("NO_COLOR");
-        }
+    fn no_color_disables_colour_even_on_a_tty() {
+        assert!(!color_enabled(true, true), "NO_COLOR must win over a tty");
+        assert!(!color_enabled(true, false));
     }
 
-    /// Under `cargo test`, stdout is captured (not a tty), so colour must be
-    /// disabled even with `NO_COLOR` unset — colour is opt-in to a real terminal.
+    /// Colour is opt-in to a real terminal: piped/redirected stdout never
+    /// gets ANSI escapes, and a tty without `NO_COLOR` does.
     #[test]
-    fn stdout_color_enabled_disabled_when_not_a_tty() {
-        // SAFETY: test-only env mutation.
-        unsafe {
-            std::env::remove_var("NO_COLOR");
-        }
+    fn colour_only_on_a_tty() {
+        assert!(!color_enabled(false, false), "non-tty must not emit colour");
         assert!(
-            !stdout_color_enabled(),
-            "non-tty stdout (captured by the test harness) must not emit colour"
+            color_enabled(false, true),
+            "a tty without NO_COLOR gets colour"
         );
+    }
+
+    /// End-to-end through the real env/tty probe: under `cargo test` stdout is
+    /// captured (not a tty), so colour is off whatever `NO_COLOR` holds. Reads
+    /// the environment only; never mutates it.
+    #[test]
+    fn stdout_color_enabled_is_off_under_the_test_harness() {
+        assert!(!stdout_color_enabled());
     }
 
     /// This subcommand's whole purpose is telling an LLM how to write Vox, so
